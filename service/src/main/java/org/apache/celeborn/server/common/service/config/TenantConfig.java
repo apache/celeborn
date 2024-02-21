@@ -33,6 +33,7 @@ public class TenantConfig extends DynamicConfig {
     this.tenantId = tenantId;
     this.name = name;
     this.configs.putAll(configs);
+    this.quota = currentQuota();
   }
 
   public TenantConfig(
@@ -44,6 +45,7 @@ public class TenantConfig extends DynamicConfig {
     this.tenantId = tenantId;
     this.name = name;
     tenantConfigs.forEach(t -> configs.put(t.getConfigKey(), t.getConfigValue()));
+    this.quota = currentQuota();
   }
 
   public String getTenantId() {

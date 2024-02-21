@@ -17,46 +17,20 @@
 package org.apache.celeborn.service.deploy.master.quota
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.{DEFAULT_QUOTA, QUOTA_DISK_BYTES_WRITTEN, QUOTA_DISK_FILE_COUNT, QUOTA_HDFS_BYTES_WRITTEN, QUOTA_HDFS_FILE_COUNT}
+import org.apache.celeborn.common.CelebornConf.DEFAULT_QUOTA
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.internal.config.ConfigEntry
 import org.apache.celeborn.common.quota.Quota
-import org.apache.celeborn.server.common.service.config.{ConfigService, DynamicConfig, DynamicConfigServiceFactory}
-import org.apache.celeborn.server.common.service.config.DynamicConfig.ConfigType
+import org.apache.celeborn.server.common.service.config.ConfigService
 
 class QuotaManager(celebornConf: CelebornConf, configService: ConfigService) extends Logging {
   def getQuota(userIdentifier: UserIdentifier): Quota = {
     if (configService != null) {
       val config =
         configService.getTenantUserConfigFromCache(userIdentifier.tenantId, userIdentifier.name)
-      getQuota(config)
+      config.getQuota()
     } else {
       DEFAULT_QUOTA
     }
-  }
-
-  def getQuota(config: DynamicConfig): Quota = {
-    Quota(
-      config.getValue(
-        QUOTA_DISK_BYTES_WRITTEN.key,
-        QUOTA_DISK_BYTES_WRITTEN.asInstanceOf[ConfigEntry[AnyRef]],
-        classOf[Long],
-        ConfigType.BYTES),
-      config.getValue(
-        QUOTA_DISK_FILE_COUNT.key,
-        QUOTA_DISK_FILE_COUNT.asInstanceOf[ConfigEntry[AnyRef]],
-        classOf[Long],
-        ConfigType.STRING),
-      config.getValue(
-        QUOTA_HDFS_BYTES_WRITTEN.key,
-        QUOTA_HDFS_BYTES_WRITTEN.asInstanceOf[ConfigEntry[AnyRef]],
-        classOf[Long],
-        ConfigType.BYTES),
-      config.getValue(
-        QUOTA_HDFS_FILE_COUNT.key,
-        QUOTA_HDFS_FILE_COUNT.asInstanceOf[ConfigEntry[AnyRef]],
-        classOf[Long],
-        ConfigType.STRING))
   }
 }

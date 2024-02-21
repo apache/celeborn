@@ -23,7 +23,9 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.internal.config.ConfigEntry;
+import org.apache.celeborn.common.quota.Quota;
 import org.apache.celeborn.common.util.Utils;
 
 /**
@@ -38,6 +40,7 @@ import org.apache.celeborn.common.util.Utils;
 public abstract class DynamicConfig {
   private static final Logger LOG = LoggerFactory.getLogger(DynamicConfig.class);
   protected Map<String, String> configs = new HashMap<>();
+  protected Quota quota = CelebornConf.DEFAULT_QUOTA();
 
   public abstract DynamicConfig getParentLevelConfig();
 
@@ -87,6 +90,34 @@ public abstract class DynamicConfig {
       LOG.warn("Config {} value format is not valid, refer to parent if exist", configKey, e);
     }
     return null;
+  }
+
+  public Quota getQuota() {
+    return quota;
+  }
+
+  protected Quota currentQuota() {
+    return new Quota(
+        getValue(
+            CelebornConf.QUOTA_DISK_BYTES_WRITTEN().key(),
+            CelebornConf.QUOTA_DISK_BYTES_WRITTEN(),
+            Long.TYPE,
+            ConfigType.BYTES),
+        getValue(
+            CelebornConf.QUOTA_DISK_FILE_COUNT().key(),
+            CelebornConf.QUOTA_DISK_FILE_COUNT(),
+            Long.TYPE,
+            ConfigType.STRING),
+        getValue(
+            CelebornConf.QUOTA_HDFS_BYTES_WRITTEN().key(),
+            CelebornConf.QUOTA_HDFS_BYTES_WRITTEN(),
+            Long.TYPE,
+            ConfigType.BYTES),
+        getValue(
+            CelebornConf.QUOTA_HDFS_FILE_COUNT().key(),
+            CelebornConf.QUOTA_HDFS_FILE_COUNT(),
+            Long.TYPE,
+            ConfigType.STRING));
   }
 
   public Map<String, String> getConfigs() {
