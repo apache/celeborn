@@ -31,7 +31,6 @@ public interface TransportClientBootstrap {
    * Performs the bootstrapping operation, throwing an exception on failure.
    *
    * @param client the transport client to bootstrap
-   * @param channel the associated channel with the transport client
    * @throws RuntimeException
    */
   void doBootstrap(TransportClient client) throws RuntimeException;

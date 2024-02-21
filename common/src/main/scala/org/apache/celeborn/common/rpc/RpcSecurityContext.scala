@@ -26,8 +26,15 @@ import org.apache.celeborn.common.network.sasl.{SaslCredentials, SecretRegistry}
  * @param serverSaslContext Optional server sasl context.
  */
 private[celeborn] case class RpcSecurityContext(
+    clientAnonymousContext: Option[ClientAnonymousContext] = None,
+    serverAnonymousRpcContext: Option[ServerAnonymousRpcContext] = None,
     clientSaslContext: Option[ClientSaslContext] = None,
     serverSaslContext: Option[ServerSaslContext] = None)
+
+/**
+ * Represents the ANONYMOUS context.
+ */
+private[celeborn] trait AnonymousContext {}
 
 /**
  * Represents the SASL context.
@@ -54,6 +61,13 @@ private[celeborn] case class ClientSaslContext(
 private[celeborn] case class ServerSaslContext(
     secretRegistry: SecretRegistry,
     addRegistrationBootstrap: Boolean = false) extends SaslContext
+
+private[celeborn] case class ClientAnonymousContext(
+    appId: String,
+    registrationInfo: RegistrationInfo = null) extends AnonymousContext
+
+private[celeborn] case class ServerAnonymousRpcContext(secretRegistry: SecretRegistry)
+  extends AnonymousContext
 
 /**
  * Builder for [[ClientSaslContext]].
@@ -136,9 +150,58 @@ private[celeborn] class ServerSaslContextBuilder {
 }
 
 /**
+ * Builder for [[ClientAnonymousContext]].
+ */
+private[celeborn] class ClientAnonymousContextBuilder {
+  private var appId: String = _
+  private var registrationInfo: RegistrationInfo = _
+
+  def withAppId(appId: String): ClientAnonymousContextBuilder = {
+    this.appId = appId
+    this
+  }
+
+  def withRegistrationInfo(registrationInfo: RegistrationInfo): ClientAnonymousContextBuilder = {
+    this.registrationInfo = registrationInfo
+    this
+  }
+
+  def build(): ClientAnonymousContext = {
+    if (appId == null) {
+      throw new IllegalArgumentException("App id is not set.")
+    }
+    if (registrationInfo == null) {
+      throw new IllegalArgumentException("Registration info is not set.")
+    }
+    ClientAnonymousContext(appId, registrationInfo)
+  }
+}
+
+/**
+ * Builder for [[ServerAnonymousRpcContext]].
+ */
+private[celeborn] class ServerAnonymousRpcContextBuilder {
+  private var secretRegistry: SecretRegistry = _
+
+  def withSecretRegistry(secretRegistry: SecretRegistry): ServerAnonymousRpcContextBuilder = {
+    this.secretRegistry = secretRegistry
+    this
+  }
+
+  def build(): ServerAnonymousRpcContext = {
+    if (secretRegistry == null) {
+      throw new IllegalArgumentException("Secret registry is not set.")
+    }
+    ServerAnonymousRpcContext(secretRegistry)
+  }
+}
+
+/**
  * Builder for [[RpcSecurityContext]].
  */
 private[celeborn] class RpcSecurityContextBuilder {
+  private var clientAnonymousContext: Option[ClientAnonymousContext] = None
+  private var serverAnonymousRpcContext: Option[ServerAnonymousRpcContext] = None
   private var clientSaslContext: Option[ClientSaslContext] = None
   private var serverSaslContext: Option[ServerSaslContext] = None
 
@@ -152,10 +215,29 @@ private[celeborn] class RpcSecurityContextBuilder {
     this
   }
 
+  def withAnonymousContext(context: ClientAnonymousContext): RpcSecurityContextBuilder = {
+    this.clientAnonymousContext = Some(context)
+    this
+  }
+
+  def withServerAnonymousContext(context: ServerAnonymousRpcContext): RpcSecurityContextBuilder = {
+    this.serverAnonymousRpcContext = Some(context)
+    this
+  }
+
   def build(): RpcSecurityContext = {
-    if (clientSaslContext.nonEmpty && serverSaslContext.nonEmpty) {
-      throw new IllegalArgumentException("Both client and server sasl context cannot be set.")
+    if ((clientAnonymousContext.nonEmpty && clientSaslContext.nonEmpty) ||
+      (serverAnonymousRpcContext.nonEmpty && serverSaslContext.nonEmpty)) {
+      throw new IllegalArgumentException("Both anonymous and sasl context cannot be set.")
     }
-    RpcSecurityContext(clientSaslContext, serverSaslContext)
+    if ((clientAnonymousContext.nonEmpty || clientSaslContext.nonEmpty) &&
+      (clientSaslContext.nonEmpty || serverSaslContext.nonEmpty)) {
+      throw new IllegalArgumentException("Both client and server context cannot be set.")
+    }
+    RpcSecurityContext(
+      clientAnonymousContext,
+      serverAnonymousRpcContext,
+      clientSaslContext,
+      serverSaslContext)
   }
 }

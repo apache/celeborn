@@ -27,15 +27,15 @@ import com.google.common.base.Throwables;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.network.registration.sasl.RegistrationClientSaslBootstrap;
 import org.apache.celeborn.common.network.registration.RegistrationInfo;
+import org.apache.celeborn.common.network.registration.sasl.RegistrationClientSaslBootstrap;
 import org.apache.celeborn.common.network.registration.sasl.RegistrationSaslRpcHandler;
 import org.apache.celeborn.common.network.registration.sasl.RegistrationServerSaslBootstrap;
 import org.apache.celeborn.common.network.util.TransportConf;
 
 /**
- * Jointly tests {@link RegistrationClientSaslBootstrap} and {@link RegistrationSaslRpcHandler}, as both are
- * black boxes.
+ * Jointly tests {@link RegistrationClientSaslBootstrap} and {@link RegistrationSaslRpcHandler}, as
+ * both are black boxes.
  */
 public class RegistrationSuiteJ extends SaslTestBase {
 
