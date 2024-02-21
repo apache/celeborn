@@ -20,6 +20,7 @@ package org.apache.celeborn.server.common
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.MetricsSystem
+import org.apache.celeborn.server.common.service.config.{ConfigService, DynamicConfigServiceFactory}
 
 abstract class Service extends Logging {
   def serviceName: String
@@ -27,6 +28,8 @@ abstract class Service extends Logging {
   def conf: CelebornConf
 
   def metricsSystem: MetricsSystem
+
+  def configService: ConfigService = DynamicConfigServiceFactory.getConfigService(conf)
 
   def initialize(): Unit = {
     if (conf.metricsSystemEnable) {

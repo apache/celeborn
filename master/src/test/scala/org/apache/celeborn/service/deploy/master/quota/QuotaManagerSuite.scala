@@ -22,12 +22,12 @@ import java.io.File
 import org.junit.Assert.assertEquals
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.quota.Quota
 import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.server.common.service.config.DynamicConfigServiceFactory
 
 class QuotaManagerSuite extends AnyFunSuite
   with BeforeAndAfterAll
@@ -46,7 +46,7 @@ class QuotaManagerSuite extends AnyFunSuite
     conf.set(
       CelebornConf.QUOTA_CONFIGURATION_PATH.key,
       getTestResourceFile("dynamicConfig-quota.yaml").getPath)
-    quotaManager = new QuotaManager(conf)
+    quotaManager = new QuotaManager(conf, DynamicConfigServiceFactory.getConfigService(conf))
   }
 
   test("test celeborn quota conf") {
