@@ -48,9 +48,7 @@ class MasterArguments(args: Array[String], conf: CelebornConf) {
     _internalPort = _internalPort.orElse {
       if (conf.internalPortEnabled) Some(conf.haMasterNodeInternalPort(localNode.nodeId)) else None
     }
-    _securedPort = _securedPort.orElse {
-      if (conf.authEnabled) Some(conf.haMasterNodeSecuredPort(localNode.nodeId)) else None
-    }
+    _securedPort = _securedPort.orElse(Some(conf.haMasterNodeSecuredPort(localNode.nodeId)))
     _masterClusterInfo = Some(clusterInfo)
   } else {
     _host = _host.orElse(Some(conf.masterHost))
