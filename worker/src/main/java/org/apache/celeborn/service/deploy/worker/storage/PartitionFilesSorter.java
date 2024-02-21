@@ -86,7 +86,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final AtomicLong sortedFilesSize = new AtomicLong();
   protected final long sortTimeout;
   protected final long shuffleChunkSize;
-  protected final boolean reservedMemoryEnabled;
+  protected final boolean prefetchEnabled;
   protected final long reservedMemoryPerPartition;
   private final boolean gracefulShutdown;
   private final long partitionSorterShutdownAwaitTime;
@@ -102,7 +102,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
     this.sortTimeout = conf.workerPartitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
-    this.reservedMemoryEnabled = conf.workerPartitionSorterReservedMemoryEnabled();
+    this.prefetchEnabled = conf.workerPartitionSorterPrefetchEnabled();
     this.reservedMemoryPerPartition = conf.workerPartitionSorterReservedMemoryPerPartition();
     this.partitionSorterShutdownAwaitTime =
         conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
@@ -151,7 +151,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           try {
             while (!shutdown) {
               FileSorter task = shuffleSortTaskDeque.take();
-              if (task.isWarmUp) {
+              if (task.isPrefetch) {
                 memoryManager.reserveSortMemory(reservedMemoryPerPartition);
                 while (!memoryManager.sortMemoryReady()) {
                   Thread.sleep(20);
@@ -164,7 +164,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                     } catch (InterruptedException e) {
                       logger.warn("File sorter thread was interrupted.");
                     } finally {
-                      if (task.isWarmUp) {
+                      if (task.isPrefetch) {
                         memoryManager.releaseSortMemory(reservedMemoryPerPartition);
                       }
                     }
@@ -551,7 +551,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private final String fileId;
     private final String shuffleKey;
     private final boolean isHdfs;
-    private final boolean isWarmUp;
+    private final boolean isPrefetch;
     private final FileInfo originFileInfo;
 
     private FSDataInputStream hdfsOriginInput = null;
@@ -564,7 +564,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       this.originFilePath = fileInfo.getFilePath();
       this.sortedFilePath = Utils.getSortedFilePath(originFilePath);
       this.isHdfs = fileInfo.isHdfs();
-      this.isWarmUp = !isHdfs && reservedMemoryEnabled;
+      this.isPrefetch = !isHdfs && prefetchEnabled;
       this.originFileLen = fileInfo.getFileLength();
       this.fileId = fileId;
       this.shuffleKey = shuffleKey;
@@ -600,7 +600,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         int batchHeaderLen = 16;
         ByteBuffer headerBuf = ByteBuffer.allocate(batchHeaderLen);
         ByteBuffer paddingBuf =
-            isWarmUp ? ByteBuffer.allocateDirect((int) reservedMemoryPerPartition) : null;
+            isPrefetch ? ByteBuffer.allocateDirect((int) reservedMemoryPerPartition) : null;
 
         long index = 0;
         while (index != originFileLen) {
@@ -743,9 +743,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     private void readBufferBySize(ByteBuffer buffer, int toRead) throws IOException {
       if (isHdfs) {
-        // HDFS does not need to warm up.
+        // HDFS does not need to prefetch.
         hdfsOriginInput.seek(toRead + hdfsOriginInput.getPos());
-      } else if (reservedMemoryEnabled) {
+      } else if (prefetchEnabled) {
         buffer.clear();
         readChannelBySize(originFileChannel, buffer, originFilePath, toRead);
       } else {
