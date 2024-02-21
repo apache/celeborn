@@ -17,7 +17,7 @@
 package org.apache.celeborn.service.deploy.master.quota
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.{QUOTA_DISK_BYTES_WRITTEN, QUOTA_DISK_FILE_COUNT, QUOTA_HDFS_BYTES_WRITTEN, QUOTA_HDFS_FILE_COUNT}
+import org.apache.celeborn.common.CelebornConf.{DEFAULT_QUOTA, QUOTA_DISK_BYTES_WRITTEN, QUOTA_DISK_FILE_COUNT, QUOTA_HDFS_BYTES_WRITTEN, QUOTA_HDFS_FILE_COUNT}
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config.ConfigEntry
@@ -32,7 +32,7 @@ class QuotaManager(celebornConf: CelebornConf, configService: ConfigService) ext
         configService.getTenantUserConfigFromCache(userIdentifier.tenantId, userIdentifier.name)
       getQuota(config)
     } else {
-      Quota.DEFAULT_QUOTA
+      DEFAULT_QUOTA
     }
   }
 
