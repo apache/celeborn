@@ -701,8 +701,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def minPartitionSizeToEstimate: Long = get(ESTIMATED_PARTITION_SIZE_MIN_SIZE)
   def workerPartitionSorterSortPartitionTimeout: Long = get(WORKER_PARTITION_SORTER_SORT_TIMEOUT)
-  def workerPartitionSorterReservedMemoryEnabled: Boolean =
-    get(WORKER_PARTITION_SORTER_RESERVED_MEMORY_ENABLED)
+  def workerPartitionSorterPrefetchEnabled: Boolean =
+    get(WORKER_PARTITION_SORTER_PREFETCH_ENABLED)
   def workerPartitionSorterReservedMemoryPerPartition: Long =
     get(WORKER_PARTITION_SORTER_RESERVED_MEMORY_PER_PARTITION)
   def workerPartitionSorterThreads: Int =
@@ -2608,12 +2608,13 @@ object CelebornConf extends Logging {
       .checkValue(v => v < Int.MaxValue, "Reserved memory per partition must be less than 2GB.")
       .createWithDefaultString("1mb")
 
-  val WORKER_PARTITION_SORTER_RESERVED_MEMORY_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.sortPartition.reservedMemory.enabled")
+  val WORKER_PARTITION_SORTER_PREFETCH_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.sortPartition.prefetch.enabled")
       .categories("worker")
-      .doc(s"When true, partition sorter will reserve memory configured by `${WORKER_PARTITION_SORTER_RESERVED_MEMORY_PER_PARTITION.key}` to allocate a block of memory for warming up " +
-        "while sorting a shuffle file off-heap with page cache for non-hdfs files." +
-        "Otherwise, partition sorter seeks to position of each block and does not warm up for non-hdfs files.")
+      .doc("When true, partition sorter will prefetch the original partition files to page cache " +
+        s"and reserve memory configured by `${WORKER_PARTITION_SORTER_RESERVED_MEMORY_PER_PARTITION.key}` " +
+        "to allocate a block of memory for prefetching while sorting a shuffle file off-heap with page cache for non-hdfs files. " +
+        "Otherwise, partition sorter seeks to position of each block and does not prefetch for non-hdfs files.")
       .version("0.5.0")
       .booleanConf
       .createWithDefault(true)
