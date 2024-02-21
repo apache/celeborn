@@ -20,9 +20,9 @@ package org.apache.celeborn.tests.spark
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
-import org.apache.spark.{SparkConf, TaskContext}
+import org.apache.spark.{SparkConf, SparkContextHelper, TaskContext}
 import org.apache.spark.shuffle.ShuffleHandle
-import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkUtils, TestCelebornShuffleManager}
+import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
@@ -122,6 +122,46 @@ class CelebornFetchFailureSuite extends AnyFunSuite
     for (elem <- tuples) {
       assert(elem._2.mkString(",").equals(value))
     }
+
+    val shuffleMgr = SparkContextHelper.env
+      .shuffleManager
+      .asInstanceOf[TestCelebornShuffleManager]
+    val lifecycleManager = shuffleMgr.getLifecycleManager
+
+    shuffleMgr.unregisterShuffle(0)
+    assert(lifecycleManager.getUnregisterShuffleTime().containsKey(0))
+    assert(lifecycleManager.getUnregisterShuffleTime().containsKey(1))
+
+    sparkSession.stop()
+  }
+
+  test("celeborn spark integration test - unregister shuffle with throwsFetchFailure disabled") {
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+    val sparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .config("spark.sql.shuffle.partitions", 2)
+      .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+      .config("spark.celeborn.shuffle.enabled", "true")
+      .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "false")
+      .getOrCreate()
+
+    val value = Range(1, 10000).mkString(",")
+    val tuples = sparkSession.sparkContext.parallelize(1 to 10000, 2)
+      .map { i => (i, value) }.groupByKey(16).collect()
+
+    // verify result
+    assert(tuples.length == 10000)
+    for (elem <- tuples) {
+      assert(elem._2.mkString(",").equals(value))
+    }
+
+    val shuffleMgr = SparkContextHelper.env
+      .shuffleManager
+      .asInstanceOf[SparkShuffleManager]
+    val lifecycleManager = shuffleMgr.getLifecycleManager
+
+    shuffleMgr.unregisterShuffle(0)
+    assert(lifecycleManager.getUnregisterShuffleTime().containsKey(0))
 
     sparkSession.stop()
   }

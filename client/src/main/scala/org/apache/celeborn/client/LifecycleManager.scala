@@ -118,6 +118,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, ShufflePartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
 
+  @VisibleForTesting
+  def getUnregisterShuffleTime(): ConcurrentHashMap[Int, Long] =
+    unregisterShuffleTime
+
   val newMapFunc: function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]] =
     new util.function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]]() {
       override def apply(s: Int): ConcurrentHashMap[Int, PartitionLocation] = {
@@ -971,7 +975,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   def unregisterAppShuffle(appShuffleId: Int): Unit = {
     logInfo(s"Unregister appShuffleId $appShuffleId starts...")
-    appShuffleDeterminateMap.remove(appShuffleId)
     val shuffleIds = shuffleIdMapping.remove(appShuffleId)
     if (shuffleIds != null) {
       shuffleIds.synchronized(
@@ -1621,6 +1624,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   def registerAppShuffleDeterminate(appShuffleId: Int, determinate: Boolean): Unit = {
     appShuffleDeterminateMap.put(appShuffleId, determinate)
+  }
+
+  def unregisterAppShuffleDeterminate(appShuffleId: Int): Unit = {
+    appShuffleDeterminateMap.remove(appShuffleId)
   }
 
   // Initialize at the end of LifecycleManager construction.
