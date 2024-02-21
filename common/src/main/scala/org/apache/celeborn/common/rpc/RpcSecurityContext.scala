@@ -16,8 +16,8 @@
  */
 package org.apache.celeborn.common.rpc
 
+import org.apache.celeborn.common.network.registration.RegistrationInfo
 import org.apache.celeborn.common.network.sasl.{SaslCredentials, SecretRegistry}
-import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 
 /**
  * Represents the security context, combining both client and server contexts.

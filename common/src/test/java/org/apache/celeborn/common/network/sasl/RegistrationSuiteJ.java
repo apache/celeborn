@@ -27,14 +27,14 @@ import com.google.common.base.Throwables;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBootstrap;
-import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo;
-import org.apache.celeborn.common.network.sasl.registration.RegistrationRpcHandler;
-import org.apache.celeborn.common.network.sasl.registration.RegistrationServerBootstrap;
+import org.apache.celeborn.common.network.registration.sasl.RegistrationClientSaslBootstrap;
+import org.apache.celeborn.common.network.registration.RegistrationInfo;
+import org.apache.celeborn.common.network.registration.sasl.RegistrationSaslRpcHandler;
+import org.apache.celeborn.common.network.registration.sasl.RegistrationServerSaslBootstrap;
 import org.apache.celeborn.common.network.util.TransportConf;
 
 /**
- * Jointly tests {@link RegistrationClientBootstrap} and {@link RegistrationRpcHandler}, as both are
+ * Jointly tests {@link RegistrationClientSaslBootstrap} and {@link RegistrationSaslRpcHandler}, as both are
  * black boxes.
  */
 public class RegistrationSuiteJ extends SaslTestBase {
@@ -42,10 +42,10 @@ public class RegistrationSuiteJ extends SaslTestBase {
   @Test
   public void testRegistration() throws Throwable {
     TransportConf conf = new TransportConf("shuffle", new CelebornConf());
-    RegistrationServerBootstrap serverBootstrap =
-        new RegistrationServerBootstrap(conf, new TestSecretRegistry());
-    RegistrationClientBootstrap clientBootstrap =
-        new RegistrationClientBootstrap(
+    RegistrationServerSaslBootstrap serverBootstrap =
+        new RegistrationServerSaslBootstrap(conf, new TestSecretRegistry());
+    RegistrationClientSaslBootstrap clientBootstrap =
+        new RegistrationClientSaslBootstrap(
             conf, TEST_USER, new SaslCredentials(TEST_USER, TEST_SECRET), new RegistrationInfo());
     authHelper(conf, serverBootstrap, clientBootstrap);
   }
@@ -55,10 +55,10 @@ public class RegistrationSuiteJ extends SaslTestBase {
     TransportConf conf = new TransportConf("shuffle", new CelebornConf());
     // The SecretRegistryImpl already has the entry for TEST_USER so re-registering the app should
     // fail.
-    RegistrationServerBootstrap serverBootstrap =
-        new RegistrationServerBootstrap(conf, secretRegistry);
-    RegistrationClientBootstrap clientBootstrap =
-        new RegistrationClientBootstrap(
+    RegistrationServerSaslBootstrap serverBootstrap =
+        new RegistrationServerSaslBootstrap(conf, secretRegistry);
+    RegistrationClientSaslBootstrap clientBootstrap =
+        new RegistrationClientSaslBootstrap(
             conf, TEST_USER, new SaslCredentials(TEST_USER, TEST_SECRET), new RegistrationInfo());
 
     try {
@@ -72,8 +72,8 @@ public class RegistrationSuiteJ extends SaslTestBase {
   @Test(expected = IOException.class)
   public void testConnectionAuthWithoutRegistrationShouldFail() throws Throwable {
     TransportConf conf = new TransportConf("shuffle", new CelebornConf());
-    RegistrationServerBootstrap serverBootstrap =
-        new RegistrationServerBootstrap(conf, new TestSecretRegistry());
+    RegistrationServerSaslBootstrap serverBootstrap =
+        new RegistrationServerSaslBootstrap(conf, new TestSecretRegistry());
     SaslClientBootstrap clientBootstrap =
         new SaslClientBootstrap(conf, TEST_USER, new SaslCredentials(TEST_USER, TEST_SECRET));
 

@@ -35,8 +35,8 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.client._
 import org.apache.celeborn.common.network.protocol.{RequestMessage => NRequestMessage, RpcRequest}
+import org.apache.celeborn.common.network.registration.sasl.{RegistrationClientSaslBootstrap, RegistrationServerSaslBootstrap}
 import org.apache.celeborn.common.network.sasl.{SaslClientBootstrap, SaslServerBootstrap}
-import org.apache.celeborn.common.network.sasl.registration.{RegistrationClientBootstrap, RegistrationServerBootstrap}
 import org.apache.celeborn.common.network.server._
 import org.apache.celeborn.common.protocol.{RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.rpc._
@@ -66,7 +66,7 @@ class NettyRpcEnv(
     val bootstrapOpt = securityContext.flatMap(_.clientSaslContext.map { clientSaslContext =>
       if (clientSaslContext.addRegistrationBootstrap) {
         logInfo("Add registration client bootstrap")
-        new RegistrationClientBootstrap(
+        new RegistrationClientSaslBootstrap(
           transportConf,
           clientSaslContext.appId,
           clientSaslContext.saslCredentials,
@@ -117,7 +117,7 @@ class NettyRpcEnv(
     val bootstrapOpt = securityContext.flatMap(_.serverSaslContext.map { serverSaslContext =>
       if (serverSaslContext.addRegistrationBootstrap) {
         logInfo("Add registration server bootstrap")
-        new RegistrationServerBootstrap(
+        new RegistrationServerSaslBootstrap(
           transportConf,
           serverSaslContext.secretRegistry)
       } else {

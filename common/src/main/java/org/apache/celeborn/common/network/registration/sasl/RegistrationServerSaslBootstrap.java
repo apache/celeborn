@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.sasl.registration;
+package org.apache.celeborn.common.network.registration.sasl;
 
 import io.netty.channel.Channel;
 
@@ -28,18 +28,18 @@ import org.apache.celeborn.common.network.util.TransportConf;
  * A bootstrap which is executed on a TransportServer's (in the Master) client channel once a client
  * connects to the server.
  */
-public class RegistrationServerBootstrap implements TransportServerBootstrap {
+public class RegistrationServerSaslBootstrap implements TransportServerBootstrap {
 
   private final TransportConf conf;
   private final SecretRegistry secretRegistry;
 
-  public RegistrationServerBootstrap(TransportConf conf, SecretRegistry secretRegistry) {
+  public RegistrationServerSaslBootstrap(TransportConf conf, SecretRegistry secretRegistry) {
     this.conf = conf;
     this.secretRegistry = secretRegistry;
   }
 
   @Override
   public BaseMessageHandler doBootstrap(Channel channel, BaseMessageHandler rpcHandler) {
-    return new RegistrationRpcHandler(conf, channel, rpcHandler, secretRegistry);
+    return new RegistrationSaslRpcHandler(conf, channel, rpcHandler, secretRegistry);
   }
 }

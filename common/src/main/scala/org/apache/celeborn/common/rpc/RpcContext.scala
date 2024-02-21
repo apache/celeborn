@@ -17,8 +17,8 @@
 
 package org.apache.celeborn.common.rpc
 
+import org.apache.celeborn.common.network.registration.RegistrationInfo
 import org.apache.celeborn.common.network.sasl.SecretRegistry
-import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 
 /**
  * Represents the app registry context, combining both client and server contexts.

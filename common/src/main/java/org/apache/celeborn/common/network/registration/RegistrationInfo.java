@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.sasl.registration;
+package org.apache.celeborn.common.network.registration;
 
 import java.util.concurrent.atomic.AtomicReference;
 

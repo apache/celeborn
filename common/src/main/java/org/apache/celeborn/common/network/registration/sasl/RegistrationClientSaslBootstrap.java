@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.sasl.registration;
+package org.apache.celeborn.common.network.registration.sasl;
 
 import static org.apache.celeborn.common.network.sasl.SaslUtils.*;
 
@@ -31,6 +31,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
+import org.apache.celeborn.common.network.registration.RegistrationInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,9 +59,9 @@ import org.apache.celeborn.common.util.JavaUtils;
  * registered). If the application is already registered, it will bootstrap the client by performing
  * SASL authentication.
  */
-public class RegistrationClientBootstrap implements TransportClientBootstrap {
+public class RegistrationClientSaslBootstrap implements TransportClientBootstrap {
 
-  private static final Logger LOG = LoggerFactory.getLogger(RegistrationClientBootstrap.class);
+  private static final Logger LOG = LoggerFactory.getLogger(RegistrationClientSaslBootstrap.class);
 
   private static final String VERSION = "1.0";
 
@@ -85,7 +86,7 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
 
   private final RegistrationInfo registrationInfo;
 
-  public RegistrationClientBootstrap(
+  public RegistrationClientSaslBootstrap(
       TransportConf conf,
       String appId,
       SaslCredentials saslCredentials,

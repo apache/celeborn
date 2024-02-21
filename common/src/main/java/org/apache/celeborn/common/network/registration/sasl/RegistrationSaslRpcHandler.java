@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.sasl.registration;
+package org.apache.celeborn.common.network.registration.sasl;
 
 import static org.apache.celeborn.common.network.sasl.SaslUtils.*;
 import static org.apache.celeborn.common.protocol.MessageType.*;
@@ -53,8 +53,8 @@ import org.apache.celeborn.common.protocol.PbSaslRequest;
  * RPC Handler which registers an application. If an application is registered or the connection is
  * authenticated, subsequent messages are delegated to a child RPC handler.
  */
-public class RegistrationRpcHandler extends BaseMessageHandler {
-  private static final Logger LOG = LoggerFactory.getLogger(RegistrationRpcHandler.class);
+public class RegistrationSaslRpcHandler extends BaseMessageHandler {
+  private static final Logger LOG = LoggerFactory.getLogger(RegistrationSaslRpcHandler.class);
 
   private static final String VERSION = "1.0";
 
@@ -91,7 +91,7 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
   /** Used for client authentication. */
   private CelebornSaslServer saslServer = null;
 
-  public RegistrationRpcHandler(
+  public RegistrationSaslRpcHandler(
       TransportConf conf,
       Channel channel,
       BaseMessageHandler delegate,
