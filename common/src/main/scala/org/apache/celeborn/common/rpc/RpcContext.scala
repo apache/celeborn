@@ -20,18 +20,38 @@ package org.apache.celeborn.common.rpc
 import org.apache.celeborn.common.network.sasl.SecretRegistry
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 
+/**
+ * Represents the app registry context, combining both client and server contexts.
+ *
+ * @param clientAppRegistryContext Optional client app registry context.
+ * @param serverAppRegistryRpcContext Optional server app registry rpc context.
+ */
 private[celeborn] case class RpcAppRegistryContext(
     clientAppRegistryContext: Option[ClientAppRegistryContext] = None,
     serverAppRegistryRpcContext: Option[ServerAppRegistryRpcContext] = None)
 
+/** Represents the app registry context. */
 private[celeborn] trait AppRegistryContext {}
 
+/**
+ * Represents the client app registry context.
+ * @param appId The application id.
+ * @param registrationInfo The registration info.
+ */
 private[celeborn] case class ClientAppRegistryContext(
     appId: String,
     registrationInfo: RegistrationInfo = null) extends AppRegistryContext
 
-private[celeborn] case class ServerAppRegistryRpcContext(secretRegistry: SecretRegistry) extends AppRegistryContext
+/**
+ * Represents the server app registry context.
+ * @param secretRegistry The app secret registry.
+ */
+private[celeborn] case class ServerAppRegistryRpcContext(secretRegistry: SecretRegistry)
+  extends AppRegistryContext
 
+/**
+ * Builder for [[ClientAppRegistryContext]].
+ */
 private[celeborn] class ClientAppRegistryContextBuilder {
   private var appId: String = _
   private var registrationInfo: RegistrationInfo = _
@@ -57,6 +77,9 @@ private[celeborn] class ClientAppRegistryContextBuilder {
   }
 }
 
+/**
+ * Builder for [[ServerAppRegistryRpcContext]].
+ */
 private[celeborn] class ServerAppRegistryRpcContextBuilder {
   private var secretRegistry: SecretRegistry = _
 
@@ -73,23 +96,29 @@ private[celeborn] class ServerAppRegistryRpcContextBuilder {
   }
 }
 
+/**
+ * Builder for [[RpcAppRegistryContext]].
+ */
 private[celeborn] class RpcAppRegistryContextBuilder {
   private var clientAppRegistryContext: Option[ClientAppRegistryContext] = None
   private var serverAppRegistryRpcContext: Option[ServerAppRegistryRpcContext] = None
 
-  def withClientAppRegistryContext(clientAppRegistryContext: ClientAppRegistryContext): RpcAppRegistryContextBuilder = {
+  def withClientAppRegistryContext(clientAppRegistryContext: ClientAppRegistryContext)
+      : RpcAppRegistryContextBuilder = {
     this.clientAppRegistryContext = Some(clientAppRegistryContext)
     this
   }
 
-  def withServerAppRegistryRpcContext(serverAppRegistryRpcContext: ServerAppRegistryRpcContext): RpcAppRegistryContextBuilder = {
+  def withServerAppRegistryRpcContext(serverAppRegistryRpcContext: ServerAppRegistryRpcContext)
+      : RpcAppRegistryContextBuilder = {
     this.serverAppRegistryRpcContext = Some(serverAppRegistryRpcContext)
     this
   }
 
   def build(): RpcAppRegistryContext = {
     if (clientAppRegistryContext.nonEmpty && serverAppRegistryRpcContext.nonEmpty) {
-      throw new IllegalArgumentException("Both client and server app registry context can not be set.")
+      throw new IllegalArgumentException(
+        "Both client and server app registry context can not be set.")
     }
     RpcAppRegistryContext(clientAppRegistryContext, serverAppRegistryRpcContext)
   }
