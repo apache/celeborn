@@ -101,7 +101,8 @@ trait MiniClusterFeature extends Logging {
       map.foreach(m => conf.set(m._1, m._2))
     }
 
-    val masterArguments = new MasterArguments(Array(), conf)
+    val randomPort = selectRandomPort(1024, 65535)
+    val masterArguments = new MasterArguments(Array("--secured-port", randomPort.toString), conf)
     val master = new Master(conf, masterArguments)
     master.startHttpServer()
 
