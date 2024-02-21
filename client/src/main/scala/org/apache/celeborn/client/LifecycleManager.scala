@@ -49,7 +49,7 @@ import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.rpc.{ClientSaslContextBuilder, RpcSecurityContext, RpcSecurityContextBuilder}
+import org.apache.celeborn.common.rpc.{ClientSaslContextBuilder, RpcContext, RpcContextBuilder}
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
@@ -154,12 +154,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   val ec = ExecutionContext.fromExecutor(rpcSharedThreadPool)
 
   // init driver celeborn LifecycleManager rpc service
+  private val registrationInfo = new RegistrationInfo()
+  private val rpcAnonymousContext = createRpcAnonymousContext(registrationInfo)
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.LIFECYCLE_MANAGER_SYS,
     lifecycleHost,
     conf.shuffleManagerPort,
     conf,
-    None)
+    if (authEnabled) None else rpcAnonymousContext)
   rpcEnv.setupEndpoint(RpcNameConstants.LIFECYCLE_MANAGER_EP, this)
 
   logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")
@@ -169,14 +171,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   if (authEnabled) {
     logInfo(s"Authentication is enabled; setting up master and worker RPC environments")
     val appSecret = createSecret()
-    val registrationInfo = new RegistrationInfo()
     masterRpcEnvInUse =
       RpcEnv.create(
         RpcNameConstants.LIFECYCLE_MANAGER_MASTER_SYS,
         lifecycleHost,
         0,
         conf,
-        createRpcSecurityContext(
+        createRpcSaslContext(
           appSecret,
           addClientRegistrationBootstrap = true,
           Some(registrationInfo)))
@@ -186,7 +187,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         lifecycleHost,
         0,
         conf,
-        createRpcSecurityContext(appSecret))
+        createRpcSaslContext(appSecret))
   }
 
   private val masterClient = new MasterClient(masterRpcEnvInUse, conf, false)
@@ -257,12 +258,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   /**
-   * Creates security context for external RPC endpoint.
+   * Creates rpc sasl context for external RPC endpoint.
    */
-  def createRpcSecurityContext(
+  def createRpcSaslContext(
       appSecret: String,
       addClientRegistrationBootstrap: Boolean = false,
-      registrationInfo: Option[RegistrationInfo] = None): Option[RpcSecurityContext] = {
+      registrationInfo: Option[RegistrationInfo] = None): Option[RpcContext] = {
     val clientSaslContextBuilder = new ClientSaslContextBuilder()
       .withAddRegistrationBootstrap(addClientRegistrationBootstrap)
       .withAppId(appUniqueId)
@@ -271,9 +272,17 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     if (registrationInfo.isDefined) {
       clientSaslContextBuilder.withRegistrationInfo(registrationInfo.get)
     }
-    val rpcSecurityContext = new RpcSecurityContextBuilder()
+    val rpcSecurityContext = new RpcContextBuilder()
       .withClientSaslContext(clientSaslContextBuilder.build()).build()
     Some(rpcSecurityContext)
+  }
+
+  def createRpcAnonymousContext(registrationInfo: RegistrationInfo): Option[RpcContext] = {
+    val clientAnonymousContextBuilder = new ClientAnonymousContextBuilder()
+      .withAppId(appUniqueId)
+      .withRegistrationInfo(registrationInfo)
+    Some(new RpcContextBuilder().withClientAnonymousContext(
+      clientAnonymousContextBuilder.build()).build())
   }
 
   def getUserIdentifier: UserIdentifier = {

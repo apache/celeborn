@@ -44,7 +44,7 @@ import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.{QuotaManager, ResourceConsumption}
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.rpc.{RpcSecurityContextBuilder, ServerSaslContextBuilder}
+import org.apache.celeborn.common.rpc.{RpcContextBuilder, ServerSaslContextBuilder}
 import org.apache.celeborn.common.util.{CelebornHadoopUtils, CollectionUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
@@ -74,13 +74,20 @@ private[celeborn] class Master(
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
   metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
 
+  private val authEnabled = conf.authEnabled
+  private val secretRegistry = new SecretRegistryImpl()
+  private val rpcAnonymousContext = new RpcContextBuilder()
+    .withServerAnonymousContext(
+      new ServerAnonymousRpcContextBuilder()
+        .withSecretRegistry(secretRegistry).build()).build()
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.MASTER_SYS,
     masterArgs.host,
     masterArgs.host,
     masterArgs.port,
     conf,
-    Math.max(64, Runtime.getRuntime.availableProcessors()))
+    Math.max(64, Runtime.getRuntime.availableProcessors()),
+    if (authEnabled) None else Some(rpcAnonymousContext))
 
   // Visible for testing
   private[master] var internalRpcEnvInUse = rpcEnv
@@ -99,12 +106,10 @@ private[celeborn] class Master(
   }
 
   private val rackResolver = new CelebornRackResolver(conf)
-  private val authEnabled = conf.authEnabled
-  private val secretRegistry = new SecretRegistryImpl()
   // Visible for testing
   private[master] var securedRpcEnv: RpcEnv = _
   if (authEnabled) {
-    val externalSecurityContext = new RpcSecurityContextBuilder()
+    val externalSecurityContext = new RpcContextBuilder()
       .withServerSaslContext(
         new ServerSaslContextBuilder()
           .withAddRegistrationBootstrap(true)

@@ -35,6 +35,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.client._
 import org.apache.celeborn.common.network.protocol.{RequestMessage => NRequestMessage, RpcRequest}
+import org.apache.celeborn.common.network.registration.anonymous.{RegistrationClientAnonymousBootstrap, RegistrationServerAnonymousBootstrap}
 import org.apache.celeborn.common.network.registration.sasl.{RegistrationClientSaslBootstrap, RegistrationServerSaslBootstrap}
 import org.apache.celeborn.common.network.sasl.{SaslClientBootstrap, SaslServerBootstrap}
 import org.apache.celeborn.common.network.server._
@@ -63,22 +64,36 @@ class NettyRpcEnv(
     new TransportContext(transportConf, new NettyRpcHandler(dispatcher, this))
 
   private def createClientBootstraps(): java.util.List[TransportClientBootstrap] = {
-    val bootstrapOpt = securityContext.flatMap(_.clientSaslContext.map { clientSaslContext =>
-      if (clientSaslContext.addRegistrationBootstrap) {
-        logInfo("Add registration client bootstrap")
-        new RegistrationClientSaslBootstrap(
-          transportConf,
-          clientSaslContext.appId,
-          clientSaslContext.saslCredentials,
-          clientSaslContext.registrationInfo)
-      } else {
-        logInfo("Add sasl client bootstrap")
-        new SaslClientBootstrap(
-          transportConf,
-          clientSaslContext.appId,
-          clientSaslContext.saslCredentials)
-      }
-    })
+    val bootstrapOpt = securityContext.flatMap {
+      case context if context.clientAnonymousContext.nonEmpty =>
+        context.clientAnonymousContext.map { clientAnonymousContext =>
+          logInfo("Add client anonymous bootstrap")
+          new RegistrationClientAnonymousBootstrap(
+            transportConf,
+            clientAnonymousContext.appId,
+            clientAnonymousContext.registrationInfo)
+        }
+
+      case context if context.clientSaslContext.nonEmpty =>
+        context.clientSaslContext.map { clientSaslContext =>
+          if (clientSaslContext.addRegistrationBootstrap) {
+            logInfo("Add registration client bootstrap")
+            new RegistrationClientSaslBootstrap(
+              transportConf,
+              clientSaslContext.appId,
+              clientSaslContext.saslCredentials,
+              clientSaslContext.registrationInfo)
+          } else {
+            logInfo("Add sasl client bootstrap")
+            new SaslClientBootstrap(
+              transportConf,
+              clientSaslContext.appId,
+              clientSaslContext.saslCredentials)
+          }
+        }
+
+      case _ => None
+    }
     bootstrapOpt.toList.asJava
   }
 
@@ -114,19 +129,32 @@ class NettyRpcEnv(
   }
 
   private def createServerBootstraps(): java.util.List[TransportServerBootstrap] = {
-    val bootstrapOpt = securityContext.flatMap(_.serverSaslContext.map { serverSaslContext =>
-      if (serverSaslContext.addRegistrationBootstrap) {
-        logInfo("Add registration server bootstrap")
-        new RegistrationServerSaslBootstrap(
-          transportConf,
-          serverSaslContext.secretRegistry)
-      } else {
-        logInfo("Add sasl server bootstrap")
-        new SaslServerBootstrap(
-          transportConf,
-          serverSaslContext.secretRegistry)
-      }
-    })
+    val bootstrapOpt = securityContext.flatMap {
+      case context if context.serverAnonymousRpcContext.nonEmpty =>
+        context.serverAnonymousRpcContext.map { serverAnonymousContext =>
+          logInfo("Add server anonymous bootstrap")
+          new RegistrationServerAnonymousBootstrap(
+            transportConf,
+            serverAnonymousContext.secretRegistry)
+        }
+
+      case context if context.serverSaslContext.nonEmpty =>
+        context.serverSaslContext.map { serverSaslContext =>
+          if (serverSaslContext.addRegistrationBootstrap) {
+            logInfo("Add registration server bootstrap")
+            new RegistrationServerSaslBootstrap(
+              transportConf,
+              serverSaslContext.secretRegistry)
+          } else {
+            logInfo("Add sasl server bootstrap")
+            new SaslServerBootstrap(
+              transportConf,
+              serverSaslContext.secretRegistry)
+          }
+        }
+
+      case _ => None
+    }
     bootstrapOpt.toList.asJava
   }
 

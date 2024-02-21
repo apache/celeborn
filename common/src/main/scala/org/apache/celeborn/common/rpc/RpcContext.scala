@@ -20,12 +20,13 @@ import org.apache.celeborn.common.network.registration.RegistrationInfo
 import org.apache.celeborn.common.network.sasl.{SaslCredentials, SecretRegistry}
 
 /**
- * Represents the security context, combining both client and server contexts.
- *
+ * Represents the rpc context, combining both client and server contexts.
+ * @param clientAnonymousContext Optional client anonymous context.
+ * @param serverAnonymousRpcContext Optional server anonymous rpc context.
  * @param clientSaslContext Optional client sasl context.
  * @param serverSaslContext Optional server sasl context.
  */
-private[celeborn] case class RpcSecurityContext(
+private[celeborn] case class RpcContext(
     clientAnonymousContext: Option[ClientAnonymousContext] = None,
     serverAnonymousRpcContext: Option[ServerAnonymousRpcContext] = None,
     clientSaslContext: Option[ClientSaslContext] = None,
@@ -197,35 +198,35 @@ private[celeborn] class ServerAnonymousRpcContextBuilder {
 }
 
 /**
- * Builder for [[RpcSecurityContext]].
+ * Builder for [[RpcContext]].
  */
-private[celeborn] class RpcSecurityContextBuilder {
+private[celeborn] class RpcContextBuilder {
   private var clientAnonymousContext: Option[ClientAnonymousContext] = None
   private var serverAnonymousRpcContext: Option[ServerAnonymousRpcContext] = None
   private var clientSaslContext: Option[ClientSaslContext] = None
   private var serverSaslContext: Option[ServerSaslContext] = None
 
-  def withClientSaslContext(context: ClientSaslContext): RpcSecurityContextBuilder = {
+  def withClientSaslContext(context: ClientSaslContext): RpcContextBuilder = {
     this.clientSaslContext = Some(context)
     this
   }
 
-  def withServerSaslContext(context: ServerSaslContext): RpcSecurityContextBuilder = {
+  def withServerSaslContext(context: ServerSaslContext): RpcContextBuilder = {
     this.serverSaslContext = Some(context)
     this
   }
 
-  def withAnonymousContext(context: ClientAnonymousContext): RpcSecurityContextBuilder = {
+  def withClientAnonymousContext(context: ClientAnonymousContext): RpcContextBuilder = {
     this.clientAnonymousContext = Some(context)
     this
   }
 
-  def withServerAnonymousContext(context: ServerAnonymousRpcContext): RpcSecurityContextBuilder = {
+  def withServerAnonymousContext(context: ServerAnonymousRpcContext): RpcContextBuilder = {
     this.serverAnonymousRpcContext = Some(context)
     this
   }
 
-  def build(): RpcSecurityContext = {
+  def build(): RpcContext = {
     if ((clientAnonymousContext.nonEmpty && clientSaslContext.nonEmpty) ||
       (serverAnonymousRpcContext.nonEmpty && serverSaslContext.nonEmpty)) {
       throw new IllegalArgumentException("Both anonymous and sasl context cannot be set.")
@@ -234,7 +235,7 @@ private[celeborn] class RpcSecurityContextBuilder {
       (clientSaslContext.nonEmpty || serverSaslContext.nonEmpty)) {
       throw new IllegalArgumentException("Both client and server context cannot be set.")
     }
-    RpcSecurityContext(
+    RpcContext(
       clientAnonymousContext,
       serverAnonymousRpcContext,
       clientSaslContext,
