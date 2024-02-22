@@ -50,7 +50,7 @@ public class MasterClientSuiteJ {
   private static final Logger LOG = LoggerFactory.getLogger(MasterClientSuiteJ.class);
 
   private final String masterHost = "localhost";
-  private final int masterPort = 9097;
+  private final int masterSecuredPort = 19097;
   private final CelebornConf conf = new CelebornConf(false);
   private final OneWayMessageResponse$ response = OneWayMessageResponse$.MODULE$;
   private final HeartbeatFromWorkerResponse mockResponse =
@@ -227,7 +227,7 @@ public class MasterClientSuiteJ {
 
     // master leader switch to host2
     Mockito.doReturn(
-            Future$.MODULE$.failed(new MasterNotLeaderException("host1:9097", "host2:9097", null)))
+            Future$.MODULE$.failed(new MasterNotLeaderException("host1:19097", "host2:19097", null)))
         .when(master1)
         .ask(Mockito.any(), Mockito.any(), Mockito.any());
 
@@ -247,7 +247,7 @@ public class MasterClientSuiteJ {
                   return master3;
                 default:
                   fail(
-                      "Should use master host1/host2/host3:" + masterPort + ", but use " + address);
+                      "Should use master host1/host2/host3:" + masterSecuredPort + ", but use " + address);
               }
               return null;
             })
@@ -275,7 +275,7 @@ public class MasterClientSuiteJ {
 
     // master leader switch to host2
     Mockito.doReturn(
-            Future$.MODULE$.failed(new MasterNotLeaderException("host1:9097", "host2:9097", null)))
+            Future$.MODULE$.failed(new MasterNotLeaderException("host1:19097", "host2:19097", null)))
         .when(ref1)
         .ask(Mockito.any(), Mockito.any(), Mockito.any());
     // Assume host2 down.
@@ -288,7 +288,7 @@ public class MasterClientSuiteJ {
     Mockito.doAnswer(
             invocation -> {
               RpcAddress address = invocation.getArgument(0, RpcAddress.class);
-              if (address.port() == masterPort) {
+              if (address.port() == masterSecuredPort) {
                 switch (address.host()) {
                   case "host1":
                     return ref1;
@@ -299,12 +299,12 @@ public class MasterClientSuiteJ {
                   default:
                     fail(
                         "Should use master host1/host2/host3:"
-                            + masterPort
+                            + masterSecuredPort
                             + ", but use "
                             + address);
                 }
               } else {
-                fail("Should use master host1/host2/host3:" + masterPort + ", but use " + address);
+                fail("Should use master host1/host2/host3:" + masterSecuredPort + ", but use " + address);
               }
               return null;
             })
@@ -316,14 +316,14 @@ public class MasterClientSuiteJ {
     Mockito.doAnswer(
             (invocationOnMock) -> {
               RpcAddress address = invocationOnMock.getArgument(0, RpcAddress.class);
-              if (address.host().equals(masterHost) && address.port() == masterPort) {
+              if (address.host().equals(masterHost) && address.port() == masterSecuredPort) {
                 return endpointRef;
               } else {
                 fail(
                     "Should only use master + "
                         + masterHost
                         + ":"
-                        + masterPort
+                        + masterSecuredPort
                         + ", but use "
                         + address);
                 return null;
@@ -361,13 +361,13 @@ public class MasterClientSuiteJ {
   private CelebornConf prepareForCelebornConfWithoutHA() {
     return conf.clone()
         .set(CelebornConf.HA_ENABLED().key(), "false")
-        .set(CelebornConf.MASTER_ENDPOINTS().key(), masterHost + ":" + masterPort);
+        .set(CelebornConf.MASTER_ENDPOINTS().key(), masterHost + ":" + masterSecuredPort);
   }
 
   private CelebornConf prepareForCelebornConfWithHA() {
     return conf.clone()
         .set(CelebornConf.HA_ENABLED().key(), "true")
-        .set(CelebornConf.MASTER_ENDPOINTS().key(), "host1:9097,host2:9097,host3:9097")
+        .set(CelebornConf.MASTER_SECURED_ENDPOINTS().key(), "host1:19097,host2:19097,host3:19097")
         .set(CelebornConf.MASTER_CLIENT_MAX_RETRIES().key(), "5");
   }
 }
