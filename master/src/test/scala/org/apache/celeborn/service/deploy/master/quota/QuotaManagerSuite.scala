@@ -22,11 +22,10 @@ import java.io.File
 import org.junit.Assert.assertEquals
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.quota.Quota
+import org.apache.celeborn.common.quota.{Quota, ResourceConsumption}
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.service.config.DynamicConfigServiceFactory
 
@@ -62,5 +61,32 @@ class QuotaManagerSuite extends AnyFunSuite
     assertEquals(
       quotaManager.getQuota(UserIdentifier("tenant_not_exist", "Tom")),
       Quota(Utils.byteStringAsBytes("1G"), 100, Utils.byteStringAsBytes("1G"), Long.MaxValue))
+  }
+
+
+  test("test check quota return result") {
+    val user1 = UserIdentifier("tenant_01", "Jerry")
+    Quota(Utils.byteStringAsBytes("100G"), 10000, Utils.byteStringAsBytes("10G"), Long.MaxValue)
+    val resourceConsumption1 = ResourceConsumption(Utils.byteStringAsBytes("10G"), 20, Utils.byteStringAsBytes("1G"), 40)
+    val resourceConsumption2 = ResourceConsumption(Utils.byteStringAsBytes("10G"), 20, Utils.byteStringAsBytes("30G"), 40)
+    val resourceConsumption3 = ResourceConsumption(Utils.byteStringAsBytes("200G"), 20000, Utils.byteStringAsBytes("30G"), 40)
+
+    val res1 = quotaManager.checkQuotaSpaceAvailable(user1, resourceConsumption1)
+    val res2 = quotaManager.checkQuotaSpaceAvailable(user1, resourceConsumption2)
+    val res3 = quotaManager.checkQuotaSpaceAvailable(user1, resourceConsumption3)
+
+    val exp1 = (true, "")
+    val exp2 = (
+      false,
+      "User `tenant_01`.`Jerry` used hdfsBytesWritten(30.0 GiB) exceeds quota(10.0 GiB). ")
+    val exp3 = (
+      false,
+      "User `tenant_01`.`Jerry` used diskBytesWritten (200.0 GiB) exceeds quota (100.0 GiB). " +
+        "User `tenant_01`.`Jerry` used diskFileCount(20000) exceeds quota(10000). " +
+        "User `tenant_01`.`Jerry` used hdfsBytesWritten(30.0 GiB) exceeds quota(10.0 GiB). ")
+
+    assert(res1 == exp1)
+    assert(res2 == exp2)
+    assert(res3 == exp3)
   }
 }

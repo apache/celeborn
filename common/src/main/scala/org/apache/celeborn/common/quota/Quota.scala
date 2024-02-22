@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.common.quota
 
-import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.Utils
 
@@ -26,66 +25,6 @@ case class Quota(
     diskFileCount: Long,
     hdfsBytesWritten: Long,
     hdfsFileCount: Long) extends Logging {
-
-  def checkQuotaSpaceAvailable(
-      userIdentifier: UserIdentifier,
-      resourceResumption: ResourceConsumption): (Boolean, String) = {
-    val checkResults = Seq(
-      checkDiskBytesWritten(userIdentifier, resourceResumption.diskBytesWritten),
-      checkDiskFileCount(userIdentifier, resourceResumption.diskFileCount),
-      checkHdfsBytesWritten(userIdentifier, resourceResumption.hdfsBytesWritten),
-      checkHdfsFileCount(userIdentifier, resourceResumption.hdfsFileCount))
-    val exceed = checkResults.foldLeft(false)(_ || _._1)
-    val reason = checkResults.foldLeft("")(_ + _._2)
-    (!exceed, reason)
-  }
-
-  private def checkDiskBytesWritten(
-      userIdentifier: UserIdentifier,
-      value: Long): (Boolean, String) = {
-    val exceed = (diskBytesWritten > 0 && value >= diskBytesWritten)
-    var reason = ""
-    if (exceed) {
-      reason = s"User $userIdentifier used diskBytesWritten (${Utils.bytesToString(value)}) " +
-        s"exceeds quota (${Utils.bytesToString(diskBytesWritten)}). "
-      logWarning(reason)
-    }
-    (exceed, reason)
-  }
-
-  private def checkDiskFileCount(userIdentifier: UserIdentifier, value: Long): (Boolean, String) = {
-    val exceed = (diskFileCount > 0 && value >= diskFileCount)
-    var reason = ""
-    if (exceed) {
-      reason = s"User $userIdentifier used diskFileCount($value) exceeds quota($diskFileCount). "
-      logWarning(reason)
-    }
-    (exceed, reason)
-  }
-
-  private def checkHdfsBytesWritten(
-      userIdentifier: UserIdentifier,
-      value: Long): (Boolean, String) = {
-    val exceed = (hdfsBytesWritten > 0 && value >= hdfsBytesWritten)
-    var reason = ""
-    if (exceed) {
-      reason = s"User $userIdentifier used hdfsBytesWritten(${Utils.bytesToString(value)}) " +
-        s"exceeds quota(${Utils.bytesToString(hdfsBytesWritten)}). "
-      logWarning(reason)
-    }
-    (exceed, reason)
-  }
-
-  private def checkHdfsFileCount(userIdentifier: UserIdentifier, value: Long): (Boolean, String) = {
-    val exceed = (hdfsFileCount > 0 && value >= hdfsFileCount)
-    var reason = ""
-    if (exceed) {
-      reason = s"User $userIdentifier used hdfsFileCount($value) exceeds quota($hdfsFileCount). "
-      logWarning(reason)
-    }
-    (exceed, reason)
-  }
-
   override def toString: String = {
     s"Quota[" +
       s"diskBytesWritten=${Utils.bytesToString(diskBytesWritten)}, " +
