@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.common.rpc
 
-import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.util.Utils
 
 /**
