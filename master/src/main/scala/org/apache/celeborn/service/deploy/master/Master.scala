@@ -74,20 +74,13 @@ private[celeborn] class Master(
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
   metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
 
-  private val authEnabled = conf.authEnabled
-  private val secretRegistry = new SecretRegistryImpl()
-  private val rpcAnonymousContext = new RpcContextBuilder()
-    .withServerAnonymousContext(
-      new ServerAnonymousRpcContextBuilder()
-        .withSecretRegistry(secretRegistry).build()).build()
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.MASTER_SYS,
     masterArgs.host,
     masterArgs.host,
     masterArgs.port,
     conf,
-    Math.max(64, Runtime.getRuntime.availableProcessors()),
-    if (authEnabled) None else Some(rpcAnonymousContext))
+    Math.max(64, Runtime.getRuntime.availableProcessors()))
 
   // Visible for testing
   private[master] var internalRpcEnvInUse = rpcEnv
@@ -106,26 +99,35 @@ private[celeborn] class Master(
   }
 
   private val rackResolver = new CelebornRackResolver(conf)
+  private val authEnabled = conf.authEnabled
+  private val secretRegistry = new SecretRegistryImpl()
   // Visible for testing
+  // TODO: combine the MASTER_SYS and MASTER_SECURED_SYS
   private[master] var securedRpcEnv: RpcEnv = _
-  if (authEnabled) {
-    val externalSecurityContext = new RpcContextBuilder()
-      .withServerSaslContext(
-        new ServerSaslContextBuilder()
-          .withAddRegistrationBootstrap(true)
-          .withSecretRegistry(secretRegistry).build()).build()
+  val externalRpcContext =
+    if (authEnabled) {
+      new RpcContextBuilder()
+        .withServerSaslContext(
+          new ServerSaslContextBuilder()
+            .withAddRegistrationBootstrap(true)
+            .withSecretRegistry(secretRegistry).build()).build()
+    } else {
+      new RpcContextBuilder()
+        .withServerAnonymousContext(
+          new ServerAnonymousRpcContextBuilder()
+            .withSecretRegistry(secretRegistry).build()).build()
+    }
 
-    securedRpcEnv = RpcEnv.create(
-      RpcNameConstants.MASTER_SECURED_SYS,
-      masterArgs.host,
-      masterArgs.host,
-      masterArgs.securedPort,
-      conf,
-      Math.max(64, Runtime.getRuntime.availableProcessors()),
-      Some(externalSecurityContext))
-    logInfo(
-      s"Secure port enabled ${masterArgs.securedPort} for secured RPC.")
-  }
+  securedRpcEnv = RpcEnv.create(
+    RpcNameConstants.MASTER_SECURED_SYS,
+    masterArgs.host,
+    masterArgs.host,
+    masterArgs.securedPort,
+    conf,
+    Math.max(64, Runtime.getRuntime.availableProcessors()),
+    Some(externalRpcContext))
+  logInfo(
+    s"Secure port enabled ${masterArgs.securedPort} for secured RPC.")
 
   private val statusSystem =
     if (conf.haEnabled) {

@@ -276,14 +276,9 @@ public class MasterClient {
         return Arrays.asList(conf.masterEndpoints());
       }
     } else {
-      // This is for client, so we should use the secured endpoints if auth is enabled.
-      if (conf.authEnabled()) {
-        masterEndpointName = RpcNameConstants.MASTER_SECURED_EP;
-        return Arrays.asList(conf.masterSecuredEndpoints());
-      } else {
-        masterEndpointName = RpcNameConstants.MASTER_EP;
-        return Arrays.asList(conf.masterEndpoints());
-      }
+      // This is for client, so we should use the secured endpoints for app registry.
+      masterEndpointName = RpcNameConstants.MASTER_SECURED_EP;
+      return Arrays.asList(conf.masterSecuredEndpoints());
     }
   }
 }
