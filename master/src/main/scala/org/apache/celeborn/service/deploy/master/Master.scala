@@ -131,7 +131,7 @@ private[celeborn] class Master(
 
   private val statusSystem =
     if (conf.haEnabled) {
-      val sys = new HAMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
+      val sys = new HAMasterMetaManager(internalRpcEnvInUse, conf, rackResolver, appRegistry)
       val handler = new MetaHandler(sys)
       try {
         handler.setUpMasterRatisServer(conf, masterArgs.masterClusterInfo.get)
@@ -149,7 +149,11 @@ private[celeborn] class Master(
       }
       sys
     } else {
-      new SingleMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
+      new SingleMasterMetaManager(
+        internalRpcEnvInUse,
+        conf,
+        rackResolver,
+        new ApplicationRegistryImpl())
     }
 
   // Threads
