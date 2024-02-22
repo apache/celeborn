@@ -17,18 +17,22 @@
 package org.apache.celeborn.service.deploy.master.quota
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.DEFAULT_QUOTA
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.quota.Quota
 import org.apache.celeborn.server.common.service.config.ConfigService
 
 class QuotaManager(celebornConf: CelebornConf, configService: ConfigService) extends Logging {
+  val DEFAULT_QUOTA = Quota(
+    celebornConf.get(CelebornConf.QUOTA_DISK_BYTES_WRITTEN),
+    celebornConf.get(CelebornConf.QUOTA_DISK_FILE_COUNT),
+    celebornConf.get(CelebornConf.QUOTA_HDFS_BYTES_WRITTEN),
+    celebornConf.get(CelebornConf.QUOTA_HDFS_FILE_COUNT))
   def getQuota(userIdentifier: UserIdentifier): Quota = {
     if (configService != null) {
       val config =
         configService.getTenantUserConfigFromCache(userIdentifier.tenantId, userIdentifier.name)
-      config.getQuota()
+      config.getQuota
     } else {
       DEFAULT_QUOTA
     }

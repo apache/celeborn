@@ -34,7 +34,6 @@ import org.apache.celeborn.common.network.util.ByteUnit
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
-import org.apache.celeborn.common.quota.Quota
 import org.apache.celeborn.common.rpc.RpcTimeout
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
 
@@ -4159,8 +4158,6 @@ object CelebornConf extends Logging {
       .version("0.4.0")
       .booleanConf
       .createWithDefault(true)
-
-  val DEFAULT_QUOTA = new Quota()
 
   val QUOTA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.quota.enabled")
