@@ -93,7 +93,12 @@ public abstract class DynamicConfig {
   }
 
   public Quota getQuota() {
-    return quota;
+    if (quota == null) {
+      quota = currentQuota();
+      return quota;
+    } else {
+      return quota;
+    }
   }
 
   protected Quota currentQuota() {

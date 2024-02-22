@@ -31,19 +31,16 @@ public class SystemConfig extends DynamicConfig {
   public SystemConfig(CelebornConf celebornConf, Map<String, String> configs) {
     this.celebornConf = celebornConf;
     this.configs.putAll(configs);
-    this.quota = currentQuota();
   }
 
   public SystemConfig(CelebornConf celebornConf) {
     this.celebornConf = celebornConf;
     this.configs = new HashMap<>();
-    this.quota = currentQuota();
   }
 
   public SystemConfig(CelebornConf celebornConf, List<ClusterSystemConfig> systemConfigs) {
     this.celebornConf = celebornConf;
     systemConfigs.forEach(t -> configs.put(t.getConfigKey(), t.getConfigValue()));
-    this.quota = currentQuota();
   }
 
   @Override
