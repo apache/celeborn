@@ -4213,7 +4213,7 @@ object CelebornConf extends Logging {
       .doc("Quota dynamic configuration for written disk bytes.")
       .version("0.5.0")
       .longConf
-      .createWithDefault(-1)
+      .createWithDefault(Long.MaxValue)
 
   val QUOTA_DISK_FILE_COUNT: ConfigEntry[Long] =
     buildConf("celeborn.quota.diskFileCount")
@@ -4222,7 +4222,7 @@ object CelebornConf extends Logging {
       .doc("Quota dynamic configuration for written disk file count.")
       .version("0.5.0")
       .longConf
-      .createWithDefault(-1)
+      .createWithDefault(Long.MaxValue)
 
   val QUOTA_HDFS_BYTES_WRITTEN: ConfigEntry[Long] =
     buildConf("celeborn.quota.hdfsBytesWritten")
@@ -4231,7 +4231,7 @@ object CelebornConf extends Logging {
       .doc("Quota dynamic configuration for written hdfs bytes.")
       .version("0.5.0")
       .longConf
-      .createWithDefault(-1)
+      .createWithDefault(Long.MaxValue)
 
   val QUOTA_HDFS_FILE_COUNT: ConfigEntry[Long] =
     buildConf("celeborn.quota.hdfsFileCount")
@@ -4240,7 +4240,7 @@ object CelebornConf extends Logging {
       .doc("Quota dynamic configuration for written hdfs file count.")
       .version("0.5.0")
       .longConf
-      .createWithDefault(-1)
+      .createWithDefault(Long.MaxValue)
 
   val COLUMNAR_SHUFFLE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.columnarShuffle.enabled")
