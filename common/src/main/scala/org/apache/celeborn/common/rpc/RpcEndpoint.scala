@@ -64,7 +64,7 @@ trait RpcEndpoint {
 
   /**
    * Process messages from `RpcEndpointRef.send` or `RpcCallContext.reply`. If receiving a
-   * unmatched message, `SparkException` will be thrown and sent to `onError`.
+   * unmatched message, `CelebornException` will be thrown and sent to `onError`.
    */
   def receive: PartialFunction[Any, Unit] = {
     case _ => throw new CelebornException(self + " does not implement 'receive'")
@@ -72,7 +72,7 @@ trait RpcEndpoint {
 
   /**
    * Process messages from `RpcEndpointRef.ask`. If receiving a unmatched message,
-   * `SparkException` will be thrown and sent to `onError`.
+   * `CelebornException` will be thrown and sent to `onError`.
    */
   def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
     case _ => context.sendFailure(new CelebornException(self + " won't reply anything"))
