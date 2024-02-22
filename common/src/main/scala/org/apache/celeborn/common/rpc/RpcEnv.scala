@@ -22,7 +22,6 @@ import java.io.File
 import scala.concurrent.Future
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.rpc.RpcSecurityContext
 import org.apache.celeborn.common.rpc.netty.NettyRpcEnvFactory
 
 /**
