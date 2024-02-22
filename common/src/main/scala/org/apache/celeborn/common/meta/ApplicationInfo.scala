@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.LongAdder
 
 import org.apache.celeborn.common.identity.UserIdentifier
 
-class ApplicationInfo(val userIdentifier: UserIdentifier) {
+class ApplicationInfo {
   private val totalWritten = new LongAdder()
   private val fileCount = new LongAdder()
   @volatile private var lastHeartbeatTime: Long = System.currentTimeMillis()
@@ -37,8 +37,6 @@ class ApplicationInfo(val userIdentifier: UserIdentifier) {
   def setHeartbeatTime(time: java.lang.Long): Unit = {
     lastHeartbeatTime = time
   }
-
-  def getUserIdentifier: UserIdentifier = userIdentifier
   def getTotalWritten: java.lang.Long = totalWritten.sum()
   def getFileCount: java.lang.Long = fileCount.sum()
   def getHeartbeatTime: java.lang.Long = lastHeartbeatTime

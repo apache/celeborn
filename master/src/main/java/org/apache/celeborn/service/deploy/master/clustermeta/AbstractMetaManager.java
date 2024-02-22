@@ -99,12 +99,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         (applicationId, applicationInfo) -> {
           ApplicationInfo appInfo;
           if (applicationInfo == null) {
-            UserIdentifier userIdentifier = applicationRegistry.getUserIdentifier(appId);
-            appInfo =
-                new ApplicationInfo(
-                    userIdentifier != null
-                        ? userIdentifier
-                        : UserIdentifier.UNKNOWN_USER_IDENTIFIER());
+            appInfo = new ApplicationInfo();
           } else {
             appInfo = applicationInfo;
             appInfo.setHeartbeatTime(
@@ -128,12 +123,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         (applicationId, applicationInfo) -> {
           ApplicationInfo appInfo = applicationInfo;
           if (appInfo == null) {
-            UserIdentifier userIdentifier = applicationRegistry.getUserIdentifier(appId);
-            appInfo =
-                new ApplicationInfo(
-                    userIdentifier != null
-                        ? userIdentifier
-                        : UserIdentifier.UNKNOWN_USER_IDENTIFIER());
+            appInfo = new ApplicationInfo();
           }
           appInfo.setHeartbeatTime(time);
           appInfo.updateTotalWritten(totalWritten);
@@ -342,12 +332,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                   (applicationId, applicationInfo) -> {
                     ApplicationInfo appInfo = applicationInfo;
                     if (appInfo == null) {
-                      UserIdentifier userIdentifier = applicationRegistry.getUserIdentifier(appId);
-                      appInfo =
-                          new ApplicationInfo(
-                              userIdentifier != null
-                                  ? userIdentifier
-                                  : UserIdentifier.UNKNOWN_USER_IDENTIFIER());
+                      appInfo = new ApplicationInfo();
                     }
                     appInfo.setHeartbeatTime(System.currentTimeMillis());
                     return appInfo;

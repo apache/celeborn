@@ -495,8 +495,7 @@ object PbSerDeUtils {
   }
 
   def fromPbApplicationInfo(pbApplicationInfo: PbApplicationInfo): ApplicationInfo = {
-    val applicationInfo = new ApplicationInfo(Option(pbApplicationInfo.getUserIdentifier).map(
-      fromPbUserIdentifier).getOrElse(UserIdentifier.UNKNOWN_USER_IDENTIFIER))
+    val applicationInfo = new ApplicationInfo()
     applicationInfo.updateFileCount(pbApplicationInfo.getFileCount)
     applicationInfo.updateTotalWritten(pbApplicationInfo.getTotalWritten)
     applicationInfo.setHeartbeatTime(pbApplicationInfo.getLastHeartbeatTime)
@@ -505,7 +504,6 @@ object PbSerDeUtils {
 
   def toPbApplicationInfo(applicationInfo: ApplicationInfo): PbApplicationInfo = {
     PbApplicationInfo.newBuilder()
-      .setUserIdentifier(toPbUserIdentifier(applicationInfo.getUserIdentifier))
       .setTotalWritten(applicationInfo.getTotalWritten)
       .setFileCount(applicationInfo.getFileCount)
       .setLastHeartbeatTime(applicationInfo.getHeartbeatTime)

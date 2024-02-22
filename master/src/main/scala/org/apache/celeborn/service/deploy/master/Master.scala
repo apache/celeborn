@@ -1202,10 +1202,12 @@ private[celeborn] class Master(
     sb.append("================= LifecycleManager Application List ======================\n")
     statusSystem.applications.asScala.toSeq.sortBy(_._2.getHeartbeatTime).foreach {
       case (appId, appInfo) =>
+        val userIdentifier = Option(appRegistry.getUserIdentifier(appId)).getOrElse(
+          UserIdentifier.UNKNOWN_USER_IDENTIFIER)
         sb.append(
           s"""
              |Application: $appId
-             |UserIdentifier: ${appInfo.getUserIdentifier}
+             |UserIdentifier: $userIdentifier
              |TotalWritten: ${appInfo.getTotalWritten}
              |FileCount: ${appInfo.getFileCount}
              |LastHeartbeat: ${Utils.formatTimestamp(appInfo.getHeartbeatTime)}\n

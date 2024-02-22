@@ -184,7 +184,8 @@ private[celeborn] class ClientAnonymousContextBuilder {
 private[celeborn] class ServerAnonymousRpcContextBuilder {
   private var appRegistry: ApplicationRegistry = _
 
-  def withApplicationRegistry(appRegistry: ApplicationRegistry): ServerAnonymousRpcContextBuilder = {
+  def withApplicationRegistry(appRegistry: ApplicationRegistry)
+      : ServerAnonymousRpcContextBuilder = {
     this.appRegistry = appRegistry
     this
   }
