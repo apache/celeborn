@@ -47,7 +47,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
     this.appDiskUsageMetric = new AppDiskUsageMetric(conf);
-    this.rackResolver = new CelebornRackResolver(conf);
+    this.rackResolver = rackResolver;
   }
 
   @Override
