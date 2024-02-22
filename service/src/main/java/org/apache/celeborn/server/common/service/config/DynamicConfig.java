@@ -40,7 +40,7 @@ import org.apache.celeborn.common.util.Utils;
 public abstract class DynamicConfig {
   private static final Logger LOG = LoggerFactory.getLogger(DynamicConfig.class);
   protected Map<String, String> configs = new HashMap<>();
-  protected Quota quota = null;
+  protected volatile Quota quota = null;
 
   public abstract DynamicConfig getParentLevelConfig();
 
@@ -94,11 +94,13 @@ public abstract class DynamicConfig {
 
   public Quota getQuota() {
     if (quota == null) {
-      quota = currentQuota();
-      return quota;
-    } else {
-      return quota;
+      synchronized (DynamicConfig.class) {
+        if (quota == null) {
+          quota = currentQuota();
+        }
+      }
     }
+    return quota;
   }
 
   protected Quota currentQuota() {
