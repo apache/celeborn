@@ -59,4 +59,10 @@ public class ExceptionUtils {
       return exception.getClass().getName() + " (error while printing stack trace)";
     }
   }
+
+  public static boolean connectFail(String message) {
+    return (message.startsWith("Connection from ") && message.endsWith(" closed"))
+        || (message.equals("Connection reset by peer"))
+        || (message.startsWith("Failed to send RPC "));
+  }
 }
