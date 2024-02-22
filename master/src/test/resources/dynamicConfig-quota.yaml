@@ -14,15 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+-  level: SYSTEM
+   config:
+     celeborn.quota.tenant.diskBytesWritten: 1G
+     celeborn.quota.tenant.diskFileCount: 100
+     celeborn.quota.tenant.hdfsBytesWritten: 1G
 
--  tenantId: AAA
-   name: Tom
-   quota:
-     diskBytesWritten: 100m
-     diskFileCount: 200
+-  tenantId: tenant_01
+   level: TENANT
+   config:
+     celeborn.quota.tenant.diskBytesWritten: 10G
+     celeborn.quota.tenant.diskFileCount: 1000
+     celeborn.quota.tenant.hdfsBytesWritten: 10G
+   users:
+     - name: Jerry
+       config:
+         celeborn.quota.tenant.diskBytesWritten: 100G
+         celeborn.quota.tenant.diskFileCount: 10000
 
--  tenantId: BBB
-   name: Jerry
-   quota:
-     hdfsBytesWritten: 200m
-     hdfsFileCount: 200
+

@@ -14,35 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.celeborn.common.quota
-
-import org.junit.Assert.assertEquals
+package org.apache.celeborn.service.deploy.master.quota
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.quota.Quota
+import org.apache.celeborn.server.common.service.config.ConfigService
 
-class DefaultQuotaManagerSuite extends BaseQuotaManagerSuite {
-
-  override def beforeAll(): Unit = {
-    val conf = new CelebornConf()
-    conf.set(
-      CelebornConf.QUOTA_CONFIGURATION_PATH.key,
-      getTestResourceFile("test-quota.yaml").getPath)
-    quotaManager = QuotaManager.instantiate(conf)
-  }
-
-  test("initialize QuotaManager") {
-    assert(quotaManager.isInstanceOf[DefaultQuotaManager])
-  }
-
-  test("test celeborn quota conf") {
-    assertEquals(
-      quotaManager.getQuota(UserIdentifier("AAA", "Tom")),
-      Quota(Utils.byteStringAsBytes("100m"), 200, -1, -1))
-    assertEquals(
-      quotaManager.getQuota(UserIdentifier("BBB", "Jerry")),
-      Quota(-1, -1, Utils.byteStringAsBytes("200m"), 200))
+class QuotaManager(celebornConf: CelebornConf, configService: ConfigService) extends Logging {
+  val DEFAULT_QUOTA = Quota(
+    celebornConf.get(CelebornConf.QUOTA_DISK_BYTES_WRITTEN),
+    celebornConf.get(CelebornConf.QUOTA_DISK_FILE_COUNT),
+    celebornConf.get(CelebornConf.QUOTA_HDFS_BYTES_WRITTEN),
+    celebornConf.get(CelebornConf.QUOTA_HDFS_FILE_COUNT))
+  def getQuota(userIdentifier: UserIdentifier): Quota = {
+    if (configService != null) {
+      val config =
+        configService.getTenantUserConfigFromCache(userIdentifier.tenantId, userIdentifier.name)
+      config.getQuota
+    } else {
+      DEFAULT_QUOTA
+    }
   }
 }

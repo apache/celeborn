@@ -34,7 +34,6 @@ import org.apache.celeborn.common.network.util.ByteUnit
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
-import org.apache.celeborn.common.quota.DefaultQuotaManager
 import org.apache.celeborn.common.rpc.RpcTimeout
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
 
@@ -754,7 +753,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def quotaEnabled: Boolean = get(QUOTA_ENABLED)
   def quotaIdentityProviderClass: String = get(QUOTA_IDENTITY_PROVIDER)
-  def quotaManagerClass: String = get(QUOTA_MANAGER)
   def quotaConfigurationPath: Option[String] = get(QUOTA_CONFIGURATION_PATH)
   def quotaUserSpecificTenant: String = get(QUOTA_USER_SPECIFIC_TENANT)
   def quotaUserSpecificUserName: String = get(QUOTA_USER_SPECIFIC_USERNAME)
@@ -4200,14 +4198,6 @@ object CelebornConf extends Logging {
       .stringConf
       .createWithDefault(IdentityProvider.DEFAULT_USERNAME)
 
-  val QUOTA_MANAGER: ConfigEntry[String] =
-    buildConf("celeborn.quota.manager")
-      .categories("quota")
-      .doc(s"QuotaManger class name. Default class is `${classOf[DefaultQuotaManager].getName}`.")
-      .version("0.2.0")
-      .stringConf
-      .createWithDefault(classOf[DefaultQuotaManager].getName)
-
   val QUOTA_CONFIGURATION_PATH: OptionalConfigEntry[String] =
     buildConf("celeborn.quota.configuration.path")
       .categories("quota")
@@ -4216,6 +4206,42 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .stringConf
       .createOptional
+
+  val QUOTA_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
+    buildConf("celeborn.quota.tenant.diskBytesWritten")
+      .categories("quota")
+      .dynamic
+      .doc("Quota dynamic configuration for written disk bytes.")
+      .version("0.5.0")
+      .longConf
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_DISK_FILE_COUNT: ConfigEntry[Long] =
+    buildConf("celeborn.quota.tenant.diskFileCount")
+      .categories("quota")
+      .dynamic
+      .doc("Quota dynamic configuration for written disk file count.")
+      .version("0.5.0")
+      .longConf
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_HDFS_BYTES_WRITTEN: ConfigEntry[Long] =
+    buildConf("celeborn.quota.tenant.hdfsBytesWritten")
+      .categories("quota")
+      .dynamic
+      .doc("Quota dynamic configuration for written hdfs bytes.")
+      .version("0.5.0")
+      .longConf
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_HDFS_FILE_COUNT: ConfigEntry[Long] =
+    buildConf("celeborn.quota.tenant.hdfsFileCount")
+      .categories("quota")
+      .dynamic
+      .doc("Quota dynamic configuration for written hdfs file count.")
+      .version("0.5.0")
+      .longConf
+      .createWithDefault(Long.MaxValue)
 
   val COLUMNAR_SHUFFLE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.columnarShuffle.enabled")
