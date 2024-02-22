@@ -227,7 +227,8 @@ public class MasterClientSuiteJ {
 
     // master leader switch to host2
     Mockito.doReturn(
-            Future$.MODULE$.failed(new MasterNotLeaderException("host1:19097", "host2:19097", null)))
+            Future$.MODULE$.failed(
+                new MasterNotLeaderException("host1:19097", "host2:19097", null)))
         .when(master1)
         .ask(Mockito.any(), Mockito.any(), Mockito.any());
 
@@ -247,7 +248,10 @@ public class MasterClientSuiteJ {
                   return master3;
                 default:
                   fail(
-                      "Should use master host1/host2/host3:" + masterSecuredPort + ", but use " + address);
+                      "Should use master host1/host2/host3:"
+                          + masterSecuredPort
+                          + ", but use "
+                          + address);
               }
               return null;
             })
@@ -275,7 +279,8 @@ public class MasterClientSuiteJ {
 
     // master leader switch to host2
     Mockito.doReturn(
-            Future$.MODULE$.failed(new MasterNotLeaderException("host1:19097", "host2:19097", null)))
+            Future$.MODULE$.failed(
+                new MasterNotLeaderException("host1:19097", "host2:19097", null)))
         .when(ref1)
         .ask(Mockito.any(), Mockito.any(), Mockito.any());
     // Assume host2 down.
@@ -304,7 +309,11 @@ public class MasterClientSuiteJ {
                             + address);
                 }
               } else {
-                fail("Should use master host1/host2/host3:" + masterSecuredPort + ", but use " + address);
+                fail(
+                    "Should use master host1/host2/host3:"
+                        + masterSecuredPort
+                        + ", but use "
+                        + address);
               }
               return null;
             })

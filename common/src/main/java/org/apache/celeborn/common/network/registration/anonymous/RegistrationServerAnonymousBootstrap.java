@@ -19,22 +19,23 @@ package org.apache.celeborn.common.network.registration.anonymous;
 
 import io.netty.channel.Channel;
 
-import org.apache.celeborn.common.network.sasl.SecretRegistry;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistry;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServerBootstrap;
 import org.apache.celeborn.common.network.util.TransportConf;
 
 public class RegistrationServerAnonymousBootstrap implements TransportServerBootstrap {
   private final TransportConf conf;
-  private final SecretRegistry secretRegistry;
+  private final ApplicationRegistry applicationRegistry;
 
-  public RegistrationServerAnonymousBootstrap(TransportConf conf, SecretRegistry secretRegistry) {
+  public RegistrationServerAnonymousBootstrap(
+      TransportConf conf, ApplicationRegistry applicationRegistry) {
     this.conf = conf;
-    this.secretRegistry = secretRegistry;
+    this.applicationRegistry = applicationRegistry;
   }
 
   @Override
   public BaseMessageHandler doBootstrap(Channel channel, BaseMessageHandler rpcHandler) {
-    return new RegistrationAnonymousRpcHandler(conf, channel, rpcHandler, secretRegistry);
+    return new RegistrationAnonymousRpcHandler(conf, channel, rpcHandler, applicationRegistry);
   }
 }

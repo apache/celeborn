@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -43,16 +44,16 @@ import org.apache.celeborn.common.util.JavaUtils;
 
 public class SaslTestBase {
 
-  protected static final SecretRegistry secretRegistry = new SecretRegistryImpl();
+  protected static final ApplicationRegistry applicationRegistry = new ApplicationRegistryImpl();
 
   @BeforeClass
   public static void setup() {
-    secretRegistry.register(TEST_USER, TEST_SECRET);
+    applicationRegistry.register(TEST_USER, UserIdentifier.UNKNOWN_USER_IDENTIFIER(), TEST_SECRET);
   }
 
   @AfterClass
   public static void teardown() {
-    secretRegistry.unregister(TEST_USER);
+    applicationRegistry.unregister(TEST_USER);
   }
 
   static final String TEST_USER = "appId";

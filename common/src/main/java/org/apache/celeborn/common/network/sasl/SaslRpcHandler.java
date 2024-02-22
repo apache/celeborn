@@ -54,7 +54,7 @@ public class SaslRpcHandler extends AbstractAuthRpcHandler {
   private final Channel channel;
 
   /** Class which provides secret keys which are shared by server and client on a per-app basis. */
-  private final SecretRegistry secretRegistry;
+  private final ApplicationRegistry applicationRegistry;
 
   private CelebornSaslServer saslServer;
 
@@ -62,11 +62,11 @@ public class SaslRpcHandler extends AbstractAuthRpcHandler {
       TransportConf conf,
       Channel channel,
       BaseMessageHandler delegate,
-      SecretRegistry secretRegistry) {
+      ApplicationRegistry applicationRegistry) {
     super(delegate);
     this.conf = conf;
     this.channel = channel;
-    this.secretRegistry = secretRegistry;
+    this.applicationRegistry = applicationRegistry;
     this.saslServer = null;
   }
 
@@ -94,7 +94,7 @@ public class SaslRpcHandler extends AbstractAuthRpcHandler {
             new CelebornSaslServer(
                 DIGEST_MD5,
                 DEFAULT_SASL_SERVER_PROPS,
-                new CelebornSaslServer.DigestCallbackHandler(secretRegistry));
+                new CelebornSaslServer.DigestCallbackHandler(applicationRegistry));
       }
       byte[] response = saslServer.response(saslMessage.getPayload().toByteArray());
       callback.onSuccess(ByteBuffer.wrap(response));

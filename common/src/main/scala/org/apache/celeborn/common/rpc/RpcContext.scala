@@ -17,7 +17,7 @@
 package org.apache.celeborn.common.rpc
 
 import org.apache.celeborn.common.network.registration.RegistrationInfo
-import org.apache.celeborn.common.network.sasl.{SaslCredentials, SecretRegistry}
+import org.apache.celeborn.common.network.sasl.{ApplicationRegistry, SaslCredentials}
 
 /**
  * Represents the rpc context, combining both client and server contexts.
@@ -56,18 +56,18 @@ private[celeborn] case class ClientSaslContext(
 
 /**
  * Represents the server SASL context.
- * @param secretRegistry  The secret registry.
+ * @param appRegistry  The application registry.
  * @param addRegistrationBootstrap  Whether to add registration bootstrap.
  */
 private[celeborn] case class ServerSaslContext(
-    secretRegistry: SecretRegistry,
+    appRegistry: ApplicationRegistry,
     addRegistrationBootstrap: Boolean = false) extends SaslContext
 
 private[celeborn] case class ClientAnonymousContext(
     appId: String,
     registrationInfo: RegistrationInfo = null) extends AnonymousContext
 
-private[celeborn] case class ServerAnonymousRpcContext(secretRegistry: SecretRegistry)
+private[celeborn] case class ServerAnonymousRpcContext(appRegistry: ApplicationRegistry)
   extends AnonymousContext
 
 /**
@@ -127,11 +127,11 @@ private[celeborn] class ClientSaslContextBuilder {
  * Builder for [[ServerSaslContext]].
  */
 private[celeborn] class ServerSaslContextBuilder {
-  private var secretRegistry: SecretRegistry = _
+  private var appRegistry: ApplicationRegistry = _
   private var addRegistrationBootstrap: Boolean = false
 
-  def withSecretRegistry(secretRegistry: SecretRegistry): ServerSaslContextBuilder = {
-    this.secretRegistry = secretRegistry
+  def withApplicationRegistry(appRegistry: ApplicationRegistry): ServerSaslContextBuilder = {
+    this.appRegistry = appRegistry
     this
   }
 
@@ -141,11 +141,11 @@ private[celeborn] class ServerSaslContextBuilder {
   }
 
   def build(): ServerSaslContext = {
-    if (secretRegistry == null) {
-      throw new IllegalArgumentException("Secret registry is not set.")
+    if (appRegistry == null) {
+      throw new IllegalArgumentException("Application registry is not set.")
     }
     ServerSaslContext(
-      secretRegistry,
+      appRegistry,
       addRegistrationBootstrap)
   }
 }
@@ -182,18 +182,18 @@ private[celeborn] class ClientAnonymousContextBuilder {
  * Builder for [[ServerAnonymousRpcContext]].
  */
 private[celeborn] class ServerAnonymousRpcContextBuilder {
-  private var secretRegistry: SecretRegistry = _
+  private var appRegistry: ApplicationRegistry = _
 
-  def withSecretRegistry(secretRegistry: SecretRegistry): ServerAnonymousRpcContextBuilder = {
-    this.secretRegistry = secretRegistry
+  def withApplicationRegistry(appRegistry: ApplicationRegistry): ServerAnonymousRpcContextBuilder = {
+    this.appRegistry = appRegistry
     this
   }
 
   def build(): ServerAnonymousRpcContext = {
-    if (secretRegistry == null) {
+    if (appRegistry == null) {
       throw new IllegalArgumentException("Secret registry is not set.")
     }
-    ServerAnonymousRpcContext(secretRegistry)
+    ServerAnonymousRpcContext(appRegistry)
   }
 }
 

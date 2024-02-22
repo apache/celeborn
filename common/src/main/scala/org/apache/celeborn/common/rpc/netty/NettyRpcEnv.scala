@@ -135,7 +135,7 @@ class NettyRpcEnv(
           logInfo("Add server anonymous bootstrap")
           new RegistrationServerAnonymousBootstrap(
             transportConf,
-            serverAnonymousContext.secretRegistry)
+            serverAnonymousContext.appRegistry)
         }
 
       case context if context.serverSaslContext.nonEmpty =>
@@ -144,12 +144,12 @@ class NettyRpcEnv(
             logInfo("Add registration server bootstrap")
             new RegistrationServerSaslBootstrap(
               transportConf,
-              serverSaslContext.secretRegistry)
+              serverSaslContext.appRegistry)
           } else {
             logInfo("Add sasl server bootstrap")
             new SaslServerBootstrap(
               transportConf,
-              serverSaslContext.secretRegistry)
+              serverSaslContext.appRegistry)
           }
         }
 

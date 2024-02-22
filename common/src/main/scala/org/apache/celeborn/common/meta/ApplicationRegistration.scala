@@ -15,17 +15,8 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.sasl;
+package org.apache.celeborn.common.meta
 
-/** Interface for getting a secret key associated with some application. */
-public interface SecretRegistry {
+import org.apache.celeborn.common.identity.UserIdentifier
 
-  /** Gets an appropriate SASL secret key for the given appId. */
-  String getSecretKey(String appId);
-
-  boolean isRegistered(String appId);
-
-  void register(String appId, String secret);
-
-  void unregister(String appId);
-}
+class ApplicationRegistration(val userIdentifier: UserIdentifier, val secret: String)
