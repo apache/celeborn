@@ -267,7 +267,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
 
   @Override
   public void channelInactive() {
-    if (numOutstandingRequests() > 0) {
+    if (hasOutstandingRequests()) {
       // show the details of outstanding Fetches
       if (logger.isDebugEnabled()) {
         if (outstandingFetches.size() > 0) {
@@ -296,7 +296,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
 
   @Override
   public void exceptionCaught(Throwable cause) {
-    if (numOutstandingRequests() > 0) {
+    if (hasOutstandingRequests()) {
       String remoteAddress = NettyUtils.getRemoteAddress(channel);
       logger.error(
           "Still have {} requests outstanding when connection from {} is closed",
@@ -400,6 +400,13 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   /** Returns total number of outstanding requests (fetch requests + rpcs) */
   public int numOutstandingRequests() {
     return outstandingFetches.size() + outstandingRpcs.size() + outstandingPushes.size();
+  }
+
+  /** Check if there are any outstanding requests (fetch requests + rpcs + push requests) */
+  public Boolean hasOutstandingRequests() {
+    return !outstandingFetches.isEmpty()
+        || !outstandingRpcs.isEmpty()
+        || !outstandingPushes.isEmpty();
   }
 
   /** Returns the time in nanoseconds of when the last request was sent out. */
