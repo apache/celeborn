@@ -67,6 +67,7 @@ class HttpUtilsSuite extends AnyFunSuite with Logging {
          |/excludedWorkers     List all excluded workers of the master.
          |/help                List the available API providers of the master.
          |/hostnames           List all running application's LifecycleManager's hostnames of the cluster.
+         |/listDynamicConfigs  List the dynamic configs of the master. The parameter level specifies the config level of dynamic configs. The parameter tenant specifies the tenant id of TENANT or TENANT_USER level. The parameter name specifies the user name of TENANT_USER level. Meanwhile, either none or all of the parameter tenant and name are specified for TENANT_USER level.
          |/listTopDiskUsedApps List the top disk usage application ids. It will return the top disk usage application ids for the cluster.
          |/lostWorkers         List all lost workers of the master.
          |/masterGroupInfo     List master group information of the service. It will list all master's LEADER, FOLLOWER information.
@@ -85,6 +86,7 @@ class HttpUtilsSuite extends AnyFunSuite with Logging {
          |/help                      List the available API providers of the worker.
          |/isRegistered              Show if the worker is registered to the master success.
          |/isShutdown                Show if the worker is during the process of shutdown.
+         |/listDynamicConfigs        List the dynamic configs of the worker. The parameter level specifies the config level of dynamic configs. The parameter tenant specifies the tenant id of TENANT or TENANT_USER level. The parameter name specifies the user name of TENANT_USER level. Meanwhile, either none or all of the parameter tenant and name are specified for TENANT_USER level.
          |/listPartitionLocationInfo List all the living PartitionLocation information in that worker.
          |/listTopDiskUsedApps       List the top disk usage application ids. It only return application ids running in that worker.
          |/shuffles                  List all the running shuffle keys of the worker. It only return keys of shuffles running in that worker.
@@ -99,5 +101,21 @@ class HttpUtilsSuite extends AnyFunSuite with Logging {
       "/sendWorkerEvent?type=decommission&workers=localhost:1001:1002:1003:1004",
       "/sendWorkerEvent",
       Map("TYPE" -> "decommission", "WORKERS" -> "localhost:1001:1002:1003:1004"))
+  }
+
+  test("CELEBORN-1056: Introduce Rest API of listing dynamic configuration") {
+    checkParseUri("/listDynamicConfigs", "/listDynamicConfigs", Map.empty)
+    checkParseUri(
+      "/listDynamicConfigs?level=system",
+      "/listDynamicConfigs",
+      Map("LEVEL" -> "system"))
+    checkParseUri(
+      "/listDynamicConfigs?level=tenant&tenant=tenantId1",
+      "/listDynamicConfigs",
+      Map("LEVEL" -> "tenant", "TENANT" -> "tenantId1"))
+    checkParseUri(
+      "/listDynamicConfigs?level=tenant_user&tenant=tenantId1&name=user1",
+      "/listDynamicConfigs",
+      Map("LEVEL" -> "tenant_user", "TENANT" -> "tenantId1", "NAME" -> "user1"))
   }
 }
