@@ -4162,7 +4162,7 @@ object CelebornConf extends Logging {
 
   val QUOTA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.quota.enabled")
-      .categories("quota")
+      .categories("quota", "master", "client")
       .doc(
         "When master side set true, Celeborn master will initialize QuotaManager checking quota." +
           "When client side set true, before registering shuffle, " +
@@ -4175,7 +4175,7 @@ object CelebornConf extends Logging {
 
   val QUOTA_IDENTITY_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.quota.identity.provider")
-      .categories("quota")
+      .categories("quota", "client")
       .doc(s"IdentityProvider class name. Default class is " +
         s"`${classOf[DefaultIdentityProvider].getName}`. " +
         s"Optional values: " +
@@ -4187,7 +4187,7 @@ object CelebornConf extends Logging {
 
   val QUOTA_USER_SPECIFIC_TENANT: ConfigEntry[String] =
     buildConf("celeborn.quota.identity.user-specific.tenant")
-      .categories("quota")
+      .categories("quota", "client")
       .doc(s"Tenant id if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.DefaultIdentityProvider.")
       .version("0.3.0")
       .stringConf
@@ -4195,7 +4195,7 @@ object CelebornConf extends Logging {
 
   val QUOTA_USER_SPECIFIC_USERNAME: ConfigEntry[String] =
     buildConf("celeborn.quota.identity.user-specific.userName")
-      .categories("quota")
+      .categories("quota", "client")
       .doc(s"User name if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.DefaultIdentityProvider.")
       .version("0.3.0")
       .stringConf
@@ -4203,7 +4203,7 @@ object CelebornConf extends Logging {
 
   val QUOTA_CONFIGURATION_PATH: OptionalConfigEntry[String] =
     buildConf("celeborn.quota.configuration.path")
-      .categories("quota")
+      .categories("quota", "master")
       .doc("Quota configuration file path. The file format should be yaml. Quota configuration file template can be " +
         "found under conf directory.")
       .version("0.2.0")
