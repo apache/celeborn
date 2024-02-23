@@ -4164,7 +4164,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.quota.enabled")
       .categories("quota", "master", "client")
       .doc(
-        "When Master side set true, Celeborn master will enable QuotaManager checking quota." +
+        "When Master side sets to true, the master will enable to check the quota via QuotaManager." +
           "When client side set true, before registering shuffle, " +
           "LifecycleManager will request to Master checking if current user have enough quota space, " +
           "if cluster don't have enough quota space for current user, " +
