@@ -24,7 +24,6 @@ license: |
 | celeborn.master.ha.node.&lt;id&gt;.internal.port | 8097 | false | Internal port for the workers and other masters to bind to a master node <id> in HA mode. | 0.5.0 |  | 
 | celeborn.master.ha.node.&lt;id&gt;.port | 9097 | false | Port to bind of master node <id> in HA mode. | 0.3.0 | celeborn.ha.master.node.&lt;id&gt;.port | 
 | celeborn.master.ha.node.&lt;id&gt;.ratis.port | 9872 | false | Ratis port to bind of master node <id> in HA mode. | 0.3.0 | celeborn.ha.master.node.&lt;id&gt;.ratis.port | 
-| celeborn.master.ha.node.&lt;id&gt;.secured.port | 19097 | false | Secured port for the clients to bind to a master node <id> in HA mode. | 0.5.0 |  | 
 | celeborn.master.ha.ratis.raft.rpc.type | netty | false | RPC type for Ratis, available options: netty, grpc. | 0.3.0 | celeborn.ha.master.ratis.raft.rpc.type | 
 | celeborn.master.ha.ratis.raft.server.storage.dir | /tmp/ratis | false |  | 0.3.0 | celeborn.ha.master.ratis.raft.server.storage.dir | 
 <!--end-include-->
