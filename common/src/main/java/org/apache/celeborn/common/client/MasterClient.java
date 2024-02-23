@@ -266,24 +266,13 @@ public class MasterClient {
   }
 
   private List<String> resolveMasterEndpoints() {
-    if (isWorker) {
+    if (isWorker && conf.internalPortEnabled()) {
       // For worker, we should use the internal endpoints if internal port is enabled.
-      if (conf.internalPortEnabled()) {
-        masterEndpointName = RpcNameConstants.MASTER_INTERNAL_EP;
-        return Arrays.asList(conf.masterInternalEndpoints());
-      } else {
-        masterEndpointName = RpcNameConstants.MASTER_EP;
-        return Arrays.asList(conf.masterEndpoints());
-      }
+      masterEndpointName = RpcNameConstants.MASTER_INTERNAL_EP;
+      return Arrays.asList(conf.masterInternalEndpoints());
     } else {
-      // This is for client, so we should use the secured endpoints if auth is enabled.
-      if (conf.authEnabled()) {
-        masterEndpointName = RpcNameConstants.MASTER_SECURED_EP;
-        return Arrays.asList(conf.masterSecuredEndpoints());
-      } else {
-        masterEndpointName = RpcNameConstants.MASTER_EP;
-        return Arrays.asList(conf.masterEndpoints());
-      }
+      masterEndpointName = RpcNameConstants.MASTER_EP;
+      return Arrays.asList(conf.masterEndpoints());
     }
   }
 }
