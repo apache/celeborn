@@ -20,14 +20,20 @@ package org.apache.celeborn.service.deploy.worker.shuffledb;
 import java.io.File;
 import java.io.IOException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /** Note: code copied from Apache Spark. */
 public class DBProvider {
+  private static final Logger logger = LoggerFactory.getLogger(DBProvider.class);
+
   public static DB initDB(DBBackend dbBackend, File dbFile, StoreVersion version)
       throws IOException {
     if (dbFile != null) {
       switch (dbBackend) {
         case LEVELDB:
           org.iq80.leveldb.DB levelDB = LevelDBProvider.initLevelDB(dbFile, version);
+          logger.warn("The LEVELDB is deprecated. Please use ROCKSDB instead.");
           return levelDB != null ? new LevelDB(levelDB) : null;
         case ROCKSDB:
           org.rocksdb.RocksDB rocksDB = RocksDBProvider.initRockDB(dbFile, version);
