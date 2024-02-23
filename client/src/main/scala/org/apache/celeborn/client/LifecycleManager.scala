@@ -1324,14 +1324,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       id,
       if (updateEpoch) oldEpochId + 1 else oldEpochId,
       candidates(primaryIndex).host,
-      candidates(primaryIndex).rpcPort,
-      candidates(primaryIndex).pushPort,
-      candidates(primaryIndex).fetchPort,
+      if (!authEnabled) candidates(primaryIndex).rpcPort
+      else candidates(primaryIndex).securedRpcPort,
+      if (!authEnabled) candidates(primaryIndex).pushPort
+      else candidates(primaryIndex).securedPushPort,
+      if (!authEnabled) candidates(primaryIndex).fetchPort
+      else candidates(primaryIndex).securedFetchPort,
       candidates(primaryIndex).replicatePort,
-      candidates(primaryIndex).internalPort,
-      candidates(primaryIndex).securedRpcPort,
-      candidates(primaryIndex).securedPushPort,
-      candidates(primaryIndex).securedFetchPort,
       PartitionLocation.Mode.PRIMARY)
 
     if (pushReplicateEnabled) {
@@ -1348,14 +1347,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         id,
         if (updateEpoch) oldEpochId + 1 else oldEpochId,
         candidates(replicaIndex).host,
-        candidates(replicaIndex).rpcPort,
-        candidates(replicaIndex).pushPort,
-        candidates(replicaIndex).fetchPort,
+        if (!authEnabled) candidates(replicaIndex).rpcPort
+        else candidates(replicaIndex).securedRpcPort,
+        if (!authEnabled) candidates(replicaIndex).pushPort
+        else candidates(replicaIndex).securedPushPort,
+        if (!authEnabled) candidates(replicaIndex).fetchPort
+        else candidates(replicaIndex).securedFetchPort,
         candidates(replicaIndex).replicatePort,
-        candidates(replicaIndex).internalPort,
-        candidates(replicaIndex).securedRpcPort,
-        candidates(replicaIndex).securedPushPort,
-        candidates(replicaIndex).securedFetchPort,
         PartitionLocation.Mode.REPLICA,
         primaryLocation)
       primaryLocation.setPeer(replicaLocation)

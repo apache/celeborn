@@ -869,7 +869,7 @@ private[celeborn] class Master(
     }
   }
 
-  def handleRequestSlots(context: RpcCallContext, requestSlots: RequestSlots): Unit = {
+  def handleRequestSlots(context: RpcCallContext, requestSlots: RequestSlots, securedApp: Boolean): Unit = {
     val numReducers = requestSlots.partitionIdList.size()
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 

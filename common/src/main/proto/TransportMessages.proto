@@ -138,10 +138,6 @@ message PbPartitionLocation {
   PbPartitionLocation peer = 9;
   PbStorageInfo storageInfo = 10;
   bytes mapIdBitmap = 11;
-  int32 internalPort = 12;
-  int32 securedRpcPort = 13;
-  int32 securedPushPort = 14;
-  int32 securedFetchPort = 15;
 }
 
 message PbWorkerResource {
