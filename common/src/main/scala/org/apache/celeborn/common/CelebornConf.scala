@@ -3002,12 +3002,12 @@ object CelebornConf extends Logging {
   val WORKER_GRACEFUL_SHUTDOWN_RECOVER_DB_BACKEND: ConfigEntry[String] =
     buildConf("celeborn.worker.graceful.shutdown.recoverDbBackend")
       .categories("worker")
-      .doc("Specifies a disk-based store used in local db. LEVELDB or ROCKSDB.")
+      .doc("Specifies a disk-based store used in local db. ROCKSDB or LEVELDB (deprecated).")
       .version("0.4.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set("LEVELDB", "ROCKSDB"))
-      .createWithDefault("LEVELDB")
+      .createWithDefault("ROCKSDB")
 
   val WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.graceful.shutdown.partitionSorter.shutdownTimeout")
