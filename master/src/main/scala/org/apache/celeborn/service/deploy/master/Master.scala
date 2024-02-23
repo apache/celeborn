@@ -1065,9 +1065,8 @@ private[celeborn] class Master(
       userIdentifier: UserIdentifier,
       context: RpcCallContext): Unit = {
     val userResourceConsumption = handleResourceConsumption(userIdentifier)
-    val quota = quotaManager.getQuota(userIdentifier)
     val (isAvailable, reason) =
-      quota.checkQuotaSpaceAvailable(userIdentifier, userResourceConsumption)
+      quotaManager.checkQuotaSpaceAvailable(userIdentifier, userResourceConsumption)
     context.reply(CheckQuotaResponse(isAvailable, reason))
   }
 
