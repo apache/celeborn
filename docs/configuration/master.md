@@ -55,7 +55,7 @@ license: |
 | celeborn.master.userResourceConsumption.update.interval | 30s | false | Time length for a window about compute user resource consumption. | 0.3.0 |  | 
 | celeborn.master.workerUnavailableInfo.expireTimeout | 1800s | false | Worker unavailable info would be cleared when the retention period is expired | 0.3.1 |  | 
 | celeborn.quota.configuration.path | &lt;undefined&gt; | false | Quota configuration file path. The file format should be yaml. Quota configuration file template can be found under conf directory. | 0.2.0 |  | 
-| celeborn.quota.enabled | true | false | When master side set true, Celeborn master will initialize QuotaManager checking quota.When client side set true, before registering shuffle, LifecycleManager should check if current user have enough quota space, if cluster don't have enough quota space for current user, fallback to Spark's default shuffle. | 0.2.0 |  | 
+| celeborn.quota.enabled | true | false | When Master side set true, Celeborn master will enable QuotaManager checking quota.When client side set true, before registering shuffle, LifecycleManager will request to Master checking if current user have enough quota space, if cluster don't have enough quota space for current user, fallback to Spark's default shuffle. | 0.2.0 |  | 
 | celeborn.storage.availableTypes | HDD | false | Enabled storages. Available options: MEMORY,HDD,SSD,HDFS. Note: HDD and SSD would be treated as identical. | 0.3.0 | celeborn.storage.activeTypes | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | false | HDFS base directory for Celeborn to store shuffle data. | 0.2.0 |  | 
 | celeborn.storage.hdfs.kerberos.keytab | &lt;undefined&gt; | false | Kerberos keytab file path for HDFS storage connection. | 0.3.2 |  | 
