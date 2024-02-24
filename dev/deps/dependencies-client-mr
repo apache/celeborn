@@ -165,6 +165,7 @@ netty-resolver/4.1.107.Final//netty-resolver-4.1.107.Final.jar
 netty-transport-classes-epoll/4.1.107.Final//netty-transport-classes-epoll-4.1.107.Final.jar
 netty-transport-classes-kqueue/4.1.107.Final//netty-transport-classes-kqueue-4.1.107.Final.jar
 netty-transport-native-epoll/4.1.107.Final/linux-aarch_64/netty-transport-native-epoll-4.1.107.Final-linux-aarch_64.jar
+netty-transport-native-epoll/4.1.107.Final/linux-riscv64/netty-transport-native-epoll-4.1.107.Final-linux-riscv64.jar
 netty-transport-native-epoll/4.1.107.Final/linux-x86_64/netty-transport-native-epoll-4.1.107.Final-linux-x86_64.jar
 netty-transport-native-kqueue/4.1.107.Final/osx-aarch_64/netty-transport-native-kqueue-4.1.107.Final-osx-aarch_64.jar
 netty-transport-native-kqueue/4.1.107.Final/osx-x86_64/netty-transport-native-kqueue-4.1.107.Final-osx-x86_64.jar
