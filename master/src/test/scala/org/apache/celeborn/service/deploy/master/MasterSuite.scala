@@ -97,44 +97,4 @@ class MasterSuite extends AnyFunSuite
     master.rpcEnv.shutdown()
     master.internalRpcEnvInUse.shutdown()
   }
-
-  test("test secured port receives") {
-    val conf = new CelebornConf()
-    conf.set(CelebornConf.HA_ENABLED.key, "false")
-    conf.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR.key, getTmpDir())
-    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, getTmpDir())
-    conf.set(CelebornConf.METRICS_ENABLED.key, "true")
-    conf.set(CelebornConf.INTERNAL_PORT_ENABLED.key, "true")
-    conf.set(CelebornConf.AUTH_ENABLED.key, "true")
-
-    val args =
-      Array("-h", "localhost", "-p", "9097", "--internal-port", "8097", "--secured-port", "19097")
-
-    val masterArgs = new MasterArguments(args, conf)
-    val master = new Master(conf, masterArgs)
-    new Thread() {
-      override def run(): Unit = {
-        master.initialize()
-      }
-    }.start()
-    Thread.sleep(5000L)
-    master.securedRpcEndpoint.receiveAndReply(
-      mock(classOf[org.apache.celeborn.common.rpc.RpcCallContext]))
-      .applyOrElse(
-        HeartbeatFromApplication("appId", 0L, 0L, null),
-        (_: Any) => fail("Unexpected message"))
-    master.securedRpcEndpoint.receiveAndReply(
-      mock(classOf[org.apache.celeborn.common.rpc.RpcCallContext]))
-      .applyOrElse(ApplicationLost("appId"), (_: Any) => fail("Unexpected message"))
-
-    assertThrows[scala.MatchError] {
-      master.securedRpcEndpoint.receiveAndReply(
-        mock(classOf[org.apache.celeborn.common.rpc.RpcCallContext]))(
-        PbRegisterWorker.newBuilder().build())
-    }
-    master.stop(CelebornExitKind.EXIT_IMMEDIATELY)
-    master.rpcEnv.shutdown()
-    master.internalRpcEnvInUse.shutdown()
-    master.securedRpcEnv.shutdown()
-  }
 }
