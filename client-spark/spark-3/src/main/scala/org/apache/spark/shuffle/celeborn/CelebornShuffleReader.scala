@@ -21,7 +21,7 @@ import java.io.IOException
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
-import org.apache.spark.{InterruptibleIterator, ShuffleDependency, TaskContext}
+import org.apache.spark.{Aggregator, InterruptibleIterator, ShuffleDependency, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.shuffle.{FetchFailedException, ShuffleReader, ShuffleReadMetricsReporter}
@@ -185,8 +185,44 @@ class CelebornShuffleReader[K, C](
     // An interruptible iterator must be used here in order to support task cancellation
     val interruptibleIter = new InterruptibleIterator[(Any, Any)](context, metricIter)
 
-    val aggregatedIter: Iterator[Product2[K, C]] =
-      if (dep.aggregator.isDefined) {
+    val resultIter: Iterator[Product2[K, C]] = {
+      // Sort the output if there is a sort ordering defined.
+      if (dep.keyOrdering.isDefined) {
+        // Create an ExternalSorter to sort the data.
+        val sorter: ExternalSorter[K, _, C] =
+          if (dep.aggregator.isDefined) {
+            if (dep.mapSideCombine) {
+              new ExternalSorter[K, C, C](
+                context,
+                Option(new Aggregator[K, C, C](
+                  identity,
+                  dep.aggregator.get.mergeCombiners,
+                  dep.aggregator.get.mergeCombiners)),
+                ordering = Some(dep.keyOrdering.get),
+                serializer = dep.serializer)
+            } else {
+              new ExternalSorter[K, Nothing, C](
+                context,
+                dep.aggregator.asInstanceOf[Option[Aggregator[K, Nothing, C]]],
+                ordering = Some(dep.keyOrdering.get),
+                serializer = dep.serializer)
+            }
+          } else {
+            new ExternalSorter[K, C, C](
+              context,
+              ordering = Some(dep.keyOrdering.get),
+              serializer = dep.serializer)
+          }
+        sorter.insertAll(interruptibleIter.asInstanceOf[Iterator[(K, Nothing)]])
+        context.taskMetrics().incMemoryBytesSpilled(sorter.memoryBytesSpilled)
+        context.taskMetrics().incDiskBytesSpilled(sorter.diskBytesSpilled)
+        context.taskMetrics().incPeakExecutionMemory(sorter.peakMemoryUsedBytes)
+        // Use completion callback to stop sorter if task was finished/cancelled.
+        context.addTaskCompletionListener[Unit](_ => {
+          sorter.stop()
+        })
+        CompletionIterator[Product2[K, C], Iterator[Product2[K, C]]](sorter.iterator, sorter.stop())
+      } else if (dep.aggregator.isDefined) {
         if (dep.mapSideCombine) {
           // We are reading values that are already combined
           val combinedKeyValuesIterator = interruptibleIter.asInstanceOf[Iterator[(K, C)]]
@@ -199,26 +235,8 @@ class CelebornShuffleReader[K, C](
           dep.aggregator.get.combineValuesByKey(keyValuesIterator, context)
         }
       } else {
-        interruptibleIter.asInstanceOf[Iterator[Product2[K, C]]]
+        interruptibleIter.asInstanceOf[Iterator[(K, C)]]
       }
-
-    // Sort the output if there is a sort ordering defined.
-    val resultIter = dep.keyOrdering match {
-      case Some(keyOrd: Ordering[K]) =>
-        // Create an ExternalSorter to sort the data.
-        val sorter =
-          new ExternalSorter[K, C, C](context, ordering = Some(keyOrd), serializer = dep.serializer)
-        sorter.insertAll(aggregatedIter)
-        context.taskMetrics().incMemoryBytesSpilled(sorter.memoryBytesSpilled)
-        context.taskMetrics().incDiskBytesSpilled(sorter.diskBytesSpilled)
-        context.taskMetrics().incPeakExecutionMemory(sorter.peakMemoryUsedBytes)
-        // Use completion callback to stop sorter if task was finished/cancelled.
-        context.addTaskCompletionListener[Unit](_ => {
-          sorter.stop()
-        })
-        CompletionIterator[Product2[K, C], Iterator[Product2[K, C]]](sorter.iterator, sorter.stop())
-      case None =>
-        aggregatedIter
     }
 
     resultIter match {
