@@ -94,7 +94,7 @@ public interface ConfigService {
    */
   default DynamicConfig getTenantUserConfigFromCache(String tenantId, String userId) {
     TenantConfig tenantConfig = getRawTenantUserConfigFromCache(tenantId, userId);
-    if (tenantConfig == null) {
+    if (tenantConfig == null || tenantConfig.getConfigs().isEmpty()) {
       return getTenantConfigFromCache(tenantId);
     } else {
       return tenantConfig;
