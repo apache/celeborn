@@ -856,7 +856,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           partitionId,
           -1,
           null,
-          StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
+          StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_PRIMARY)) {
         throw new CelebornIOException(
             String.format("Revive for shuffle %s partition %d failed.", shuffleId, partitionId));
       }
@@ -1122,7 +1122,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           } else {
             wrappedCallback.onFailure(
                 new CelebornIOException(
-                    StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE,
+                    StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_PRIMARY,
                     new RuntimeException("Mock push data first time failed.")));
           }
         }
@@ -1499,7 +1499,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         } else {
           wrappedCallback.onFailure(
               new CelebornIOException(
-                  StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE,
+                  StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_PRIMARY,
                   new RuntimeException("Mock push merge data failed.")));
         }
       }
@@ -1752,7 +1752,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     StatusCode cause;
     if (message == null) {
       logger.error("Push data throw unexpected exception");
-      cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
+      cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_PRIMARY;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA.name())) {
+      cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA;
     } else if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
       cause = StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA;
     } else if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY.name())) {
@@ -1775,19 +1777,13 @@ public class ShuffleClientImpl extends ShuffleClient {
       cause = StatusCode.PUSH_DATA_PRIMARY_WORKER_EXCLUDED;
     } else if (message.startsWith(StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED.name())) {
       cause = StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED;
-    } else if (connectFail(message)) {
+    } else if (ExceptionUtils.connectFail(message)) {
       // Throw when push to primary worker connection causeException.
       cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY;
     } else {
-      cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
+      cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_PRIMARY;
     }
     return cause;
-  }
-
-  private boolean connectFail(String message) {
-    return (message.startsWith("Connection from ") && message.endsWith(" closed"))
-        || message.equals("Connection reset by peer")
-        || message.startsWith("Failed to send RPC ");
   }
 
   @VisibleForTesting

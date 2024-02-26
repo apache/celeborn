@@ -172,6 +172,7 @@ These metrics are exposed by Celeborn worker.
     - ReplicateDataWriteFailCount
     - ReplicateDataCreateConnectionFailCount
     - ReplicateDataConnectionExceptionCount
+    - ReplicateDataFailNonCriticalCauseCount
     - ReplicateDataTimeoutCount
     - PushDataHandshakeFailCount
     - RegionStartFailCount

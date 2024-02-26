@@ -928,7 +928,7 @@ object Utils extends Logging {
       case 16 =>
         StatusCode.STAGE_ENDED
       case 17 =>
-        StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE
+        StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_PRIMARY
       case 18 =>
         StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
       case 19 =>
@@ -979,6 +979,8 @@ object Utils extends Logging {
         StatusCode.DESTROY_SLOTS_MOCK_FAILURE
       case 49 =>
         StatusCode.COMMIT_FILES_MOCK_FAILURE
+      case 50 =>
+        StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA
       case _ =>
         null
     }
