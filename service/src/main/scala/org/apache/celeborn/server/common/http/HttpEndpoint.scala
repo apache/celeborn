@@ -18,6 +18,7 @@
 package org.apache.celeborn.server.common.http
 
 import org.apache.celeborn.server.common.{HttpService, Service}
+import org.apache.celeborn.server.common.service.config.ConfigLevel
 
 /**
  * HTTP endpoints of Rest API providers.
@@ -37,6 +38,22 @@ case object Conf extends HttpEndpoint {
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
     service.getConf
+}
+
+case object ListDynamicConfigs extends HttpEndpoint {
+  override def path: String = "/listDynamicConfigs"
+
+  override def description(service: String): String = s"List the dynamic configs of the $service. " +
+    s"The parameter level specifies the config level of dynamic configs. " +
+    s"The parameter tenant specifies the tenant id of ${ConfigLevel.TENANT.name()} or ${ConfigLevel.TENANT_USER.name()} level. " +
+    s"The parameter name specifies the user name of ${ConfigLevel.TENANT_USER.name()} level. " +
+    s"Meanwhile, either none or all of the parameter tenant and name are specified for ${ConfigLevel.TENANT_USER.name()} level."
+
+  override def handle(service: HttpService, parameters: Map[String, String]): String =
+    service.getDynamicConfigs(
+      parameters.getOrElse("LEVEL", "").trim,
+      parameters.getOrElse("TENANT", "").trim,
+      parameters.getOrElse("NAME", "").trim)
 }
 
 case object WorkerInfo extends HttpEndpoint {

@@ -166,7 +166,7 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
             System.nanoTime() - responseHandler.getTimeOfLastRequestNs() > requestTimeoutNs;
         if (e.state() == (enableHeartbeat ? IdleState.READER_IDLE : IdleState.ALL_IDLE)
             && isActuallyOverdue) {
-          if (responseHandler.numOutstandingRequests() > 0) {
+          if (responseHandler.hasOutstandingRequests()) {
             String address = NettyUtils.getRemoteAddress(ctx.channel());
             logger.error(
                 "Connection to {} has been quiet for {} ms while there are outstanding "
