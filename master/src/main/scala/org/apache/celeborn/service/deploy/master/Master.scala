@@ -806,8 +806,9 @@ private[celeborn] class Master(
 
     if (log.isDebugEnabled()) {
       val distributions = SlotsAllocator.slotsToDiskAllocations(slots)
-      logDebug(s"allocate slots for shuffle $shuffleKey $slots" +
-        s" distributions: ${distributions.asScala.map(m => m._1.toUniqueId() -> m._2)}")
+      logDebug(
+        s"allocate slots for shuffle $shuffleKey ${slots.asScala.map(m => m._1.toUniqueId() -> m._2)}" +
+          s" distributions: ${distributions.asScala.map(m => m._1.toUniqueId() -> m._2)}")
     }
 
     // reply false if offer slots failed
