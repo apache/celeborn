@@ -27,6 +27,7 @@ import io.netty.handler.timeout.IdleStateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.Heartbeat;
@@ -59,6 +60,7 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
   private final long requestTimeoutNs;
   private final boolean closeIdleConnections;
   private final long heartbeatInterval;
+  private final TransportContext transportContext;
   private ScheduledFuture<?> heartbeatFuture;
   private boolean heartbeatFutureCanceled = false;
   private boolean enableHeartbeat;
@@ -70,7 +72,8 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
       long requestTimeoutMs,
       boolean closeIdleConnections,
       boolean enableHeartbeat,
-      long heartbeatInterval) {
+      long heartbeatInterval,
+      TransportContext transportContext) {
     this.client = client;
     this.responseHandler = responseHandler;
     this.requestHandler = requestHandler;
@@ -78,6 +81,7 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
     this.enableHeartbeat = enableHeartbeat;
     this.heartbeatInterval = heartbeatInterval;
     this.closeIdleConnections = closeIdleConnections;
+    this.transportContext = transportContext;
   }
 
   public TransportClient getClient() {
@@ -170,9 +174,11 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
             String address = NettyUtils.getRemoteAddress(ctx.channel());
             logger.error(
                 "Connection to {} has been quiet for {} ms while there are outstanding "
-                    + "requests.",
+                    + "requests. Assuming connection is dead; please adjust"
+                    + " celeborn.{}.io.connectionTimeout if this is wrong.",
                 address,
-                requestTimeoutNs / 1000 / 1000);
+                requestTimeoutNs / 1000 / 1000,
+                transportContext.getConf().getModuleName());
           }
           if (closeIdleConnections) {
             // While CloseIdleConnections is enabled, we also close idle connection
