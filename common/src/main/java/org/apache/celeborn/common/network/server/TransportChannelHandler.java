@@ -34,6 +34,7 @@ import org.apache.celeborn.common.network.protocol.Heartbeat;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.ResponseMessage;
 import org.apache.celeborn.common.network.util.NettyUtils;
+import org.apache.celeborn.common.util.Utils;
 
 /**
  * The single Transport-level Channel handler which is used for delegating requests to the {@link
@@ -173,11 +174,11 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
           if (responseHandler.hasOutstandingRequests()) {
             String address = NettyUtils.getRemoteAddress(ctx.channel());
             logger.error(
-                "Connection to {} has been quiet for {} ms while there are outstanding "
-                    + "requests. Assuming connection is dead; please adjust"
-                    + " celeborn.{}.io.connectionTimeout if this is wrong.",
+                "Connection to {} has been quiet for {} while there are outstanding "
+                    + "requests. Assuming the connection is dead, consider adjusting "
+                    + "celeborn.{}.io.connectionTimeout if this is wrong.",
                 address,
-                requestTimeoutNs / 1000 / 1000,
+                Utils.msDurationToString(requestTimeoutNs / 1000 / 1000),
                 transportContext.getConf().getModuleName());
           }
           if (closeIdleConnections) {
