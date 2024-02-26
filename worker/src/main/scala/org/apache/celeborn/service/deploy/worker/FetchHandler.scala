@@ -437,7 +437,7 @@ class FetchHandler(
     }
   }
 
-  override def checkRegistered: Boolean = registered.map(_.get).getOrElse(false)
+  override def checkRegistered: Boolean = registered.exists(_.get)
 
   /** Invoked when the channel associated with the given client is active. */
   override def channelActive(client: TransportClient): Unit = {
