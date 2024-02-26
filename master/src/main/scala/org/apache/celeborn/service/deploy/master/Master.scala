@@ -1064,8 +1064,8 @@ private[celeborn] class Master(
   private[master] def handleCheckQuota(
       userIdentifier: UserIdentifier,
       context: RpcCallContext): Unit = {
+    val userResourceConsumption = handleResourceConsumption(userIdentifier)
     if (conf.quotaEnabled) {
-      val userResourceConsumption = handleResourceConsumption(userIdentifier)
       val (isAvailable, reason) =
         quotaManager.checkQuotaSpaceAvailable(userIdentifier, userResourceConsumption)
       context.reply(CheckQuotaResponse(isAvailable, reason))
