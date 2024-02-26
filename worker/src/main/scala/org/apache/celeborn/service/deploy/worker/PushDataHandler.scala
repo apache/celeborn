@@ -697,7 +697,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     (mapId, attemptId)
   }
 
-  override def checkRegistered(): Boolean = registered.map(_.get).getOrElse(false)
+  override def checkRegistered(): Boolean = registered.exists(_.get)
 
   class RpcResponseCallbackWithTimer(
       source: Source,
