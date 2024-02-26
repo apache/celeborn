@@ -28,7 +28,7 @@ on:
       - branch-*
 
 concurrency:
-  group: style-${{ github.ref }}
+  group: style-web-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
