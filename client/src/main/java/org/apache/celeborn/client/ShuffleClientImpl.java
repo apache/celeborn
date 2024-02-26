@@ -1753,6 +1753,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (message == null) {
       logger.error("Push data throw unexpected exception");
       cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_PRIMARY;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA.name())) {
+      cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA;
     } else if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
       cause = StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA;
     } else if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY.name())) {
