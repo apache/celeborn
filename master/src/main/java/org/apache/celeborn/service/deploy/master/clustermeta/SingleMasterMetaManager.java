@@ -83,50 +83,14 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleWorkerLost(
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      int internalPort,
-      int securedRpcPort,
-      int securedPushPort,
-      int securedFetchPort,
-      String requestId) {
-    updateWorkerLostMeta(
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
-        internalPort,
-        securedRpcPort,
-        securedPushPort,
-        securedFetchPort);
+      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
+    updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
   }
 
   @Override
   public void handleWorkerRemove(
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      int internalPort,
-      int securedRpcPort,
-      int securedPushPort,
-      int securedFetchPort,
-      String requestId) {
-    updateWorkerRemoveMeta(
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
-        internalPort,
-        securedRpcPort,
-        securedPushPort,
-        securedFetchPort);
+      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
+    updateWorkerRemoveMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
   }
 
   @Override
@@ -142,10 +106,6 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int pushPort,
       int fetchPort,
       int replicatePort,
-      int internalPort,
-      int securedRpcPort,
-      int securedPushPort,
-      int securedFetchPort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       Map<String, Long> estimatedAppDiskUsage,
@@ -159,10 +119,6 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
         pushPort,
         fetchPort,
         replicatePort,
-        internalPort,
-        securedRpcPort,
-        securedPushPort,
-        securedFetchPort,
         disks,
         userResourceConsumption,
         estimatedAppDiskUsage,
@@ -179,9 +135,6 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       int internalPort,
-      int securedRpcPort,
-      int securedPushPort,
-      int securedFetchPort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId) {
@@ -192,9 +145,6 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
         fetchPort,
         replicatePort,
         internalPort,
-        securedRpcPort,
-        securedPushPort,
-        securedFetchPort,
         disks,
         userResourceConsumption);
   }

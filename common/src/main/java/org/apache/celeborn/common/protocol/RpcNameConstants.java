@@ -29,11 +29,9 @@ public class RpcNameConstants {
   // For Worker
   public static String WORKER_SYS = "Worker";
   public static String WORKER_INTERNAL_SYS = "WorkerInternal";
-  public static String WORKER_SECURED_SYS = "WorkerSecured";
   // Worker Endpoint Name
   public static String WORKER_EP = "WorkerEndpoint";
   public static String WORKER_INTERNAL_EP = "WorkerInternalEndpoint";
-  public static String WORKER_SECURED_EP = "WorkerSecuredEndpoint";
 
   // For LifecycleManager
   public static String LIFECYCLE_MANAGER_SYS = "LifecycleManager";

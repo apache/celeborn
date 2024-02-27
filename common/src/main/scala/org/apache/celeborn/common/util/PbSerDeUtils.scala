@@ -231,9 +231,6 @@ object PbSerDeUtils {
       pbWorkerInfo.getFetchPort,
       pbWorkerInfo.getReplicatePort,
       pbWorkerInfo.getInternalPort,
-      pbWorkerInfo.getSecuredRpcPort,
-      pbWorkerInfo.getSecuredPushPort,
-      pbWorkerInfo.getSecuredFetchPort,
       disks,
       userResourceConsumption)
   }
@@ -251,9 +248,6 @@ object PbSerDeUtils {
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
       .setInternalPort(workerInfo.internalPort)
-      .setSecuredRpcPort(workerInfo.securedRpcPort)
-      .setSecuredPushPort(workerInfo.securedPushPort)
-      .setSecuredFetchPort(workerInfo.securedFetchPort)
       .addAllDisks(pbDiskInfos)
     if (!eliminateUserResourceConsumption) {
       builder.putAllUserResourceConsumption(

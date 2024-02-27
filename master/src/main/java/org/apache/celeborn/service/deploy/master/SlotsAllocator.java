@@ -112,8 +112,7 @@ public class SlotsAllocator {
           double diskGroupGradient,
           double flushTimeWeight,
           double fetchTimeWeight,
-          int availableStorageTypes,
-          boolean securedApplication) {
+          int availableStorageTypes) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -122,7 +121,7 @@ public class SlotsAllocator {
     }
     if (StorageInfo.HDFSOnly(availableStorageTypes)) {
       return offerSlotsRoundRobin(
-          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes, securedApplication);
+          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes);
     }
 
     List<DiskInfo> usableDisks = new ArrayList<>();
@@ -160,7 +159,7 @@ public class SlotsAllocator {
           StringUtils.join(partitionIds, ','),
           noUsableDisks ? "usable disks" : "available slots");
       return offerSlotsRoundRobin(
-          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes, securedApplication);
+          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes);
     }
 
     if (!initialized) {
@@ -178,8 +177,7 @@ public class SlotsAllocator {
         slotsRestrictions,
         shouldReplicate,
         shouldRackAware,
-        availableStorageTypes,
-        securedApplication);
+        availableStorageTypes);
   }
 
   private static StorageInfo getStorageInfo(
@@ -241,8 +239,7 @@ public class SlotsAllocator {
           Map<WorkerInfo, List<UsableDiskInfo>> slotRestrictions,
           boolean shouldReplicate,
           boolean shouldRackAware,
-          int availableStorageTypes,
-          boolean securedApplication) {
+          int availableStorageTypes) {
 
     List<WorkerInfo> workersFromSlotRestrictions = new ArrayList<>(slotRestrictions.keySet());
     List<WorkerInfo> workers = workersList;
@@ -262,8 +259,7 @@ public class SlotsAllocator {
             slotRestrictions,
             shouldReplicate,
             shouldRackAware,
-            availableStorageTypes,
-            securedApplication);
+            availableStorageTypes);
     if (!remain.isEmpty()) {
       remain =
           roundRobin(
@@ -273,12 +269,10 @@ public class SlotsAllocator {
               null,
               shouldReplicate,
               shouldRackAware,
-              availableStorageTypes,
-              securedApplication);
+              availableStorageTypes);
     }
     if (!remain.isEmpty()) {
-      roundRobin(slots, remain, workers, null, shouldReplicate, false, availableStorageTypes,
-          securedApplication);
+      roundRobin(slots, remain, workers, null, shouldReplicate, false, availableStorageTypes);
     }
     return slots;
   }
@@ -334,8 +328,7 @@ public class SlotsAllocator {
       Map<WorkerInfo, List<UsableDiskInfo>> slotsRestrictions,
       boolean shouldReplicate,
       boolean shouldRackAware,
-      int availableStorageTypes,
-      boolean securedApplication) {
+      int availableStorageTypes) {
     // workerInfo -> (diskIndexForPrimary, diskIndexForReplica)
     Map<WorkerInfo, Integer> workerDiskIndexForPrimary = new HashMap<>();
     Map<WorkerInfo, Integer> workerDiskIndexForReplica = new HashMap<>();
@@ -620,8 +613,7 @@ public class SlotsAllocator {
       WorkerInfo workerInfo,
       PartitionLocation peer,
       StorageInfo storageInfo,
-      boolean isPrimary,
-      boolean securedApplication) {
+      boolean isPrimary) {
     return new PartitionLocation(
         partitionIndex,
         0,
@@ -630,10 +622,6 @@ public class SlotsAllocator {
         workerInfo.pushPort(),
         workerInfo.fetchPort(),
         workerInfo.replicatePort(),
-        workerInfo.internalPort(),
-        workerInfo.securedRpcPort(),
-        workerInfo.securedPushPort(),
-        workerInfo.securedFetchPort(),
         isPrimary ? PartitionLocation.Mode.PRIMARY : PartitionLocation.Mode.REPLICA,
         peer,
         storageInfo,

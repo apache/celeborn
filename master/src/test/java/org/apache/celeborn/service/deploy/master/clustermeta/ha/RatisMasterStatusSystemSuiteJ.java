@@ -264,9 +264,6 @@ public class RatisMasterStatusSystemSuiteJ {
           FETCHPORT1,
           REPLICATEPORT1,
           INTERNALPORT1,
-          SECUREDRPCPORT1,
-          SECUREDPUSHPORT1,
-          SECUREDFETCHPORT1,
           disks1,
           userResourceConsumption1,
           getNewReqeustId());
@@ -290,9 +287,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         INTERNALPORT1,
-        SECUREDRPCPORT1,
-        SECUREDPUSHPORT1,
-        SECUREDFETCHPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -303,9 +297,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT2,
         REPLICATEPORT2,
         INTERNALPORT2,
-        SECUREDRPCPORT2,
-        SECUREDPUSHPORT2,
-        SECUREDFETCHPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -316,9 +307,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT3,
         REPLICATEPORT3,
         INTERNALPORT3,
-        SECUREDRPCPORT3,
-        SECUREDPUSHPORT3,
-        SECUREDFETCHPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -343,9 +331,6 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             INTERNALPORT1,
-            SECUREDRPCPORT1,
-            SECUREDPUSHPORT1,
-            SECUREDFETCHPORT1,
             disks1,
             userResourceConsumption1);
     WorkerInfo workerInfo2 =
@@ -356,9 +341,6 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT2,
             REPLICATEPORT2,
             INTERNALPORT2,
-            SECUREDRPCPORT2,
-            SECUREDPUSHPORT2,
-            SECUREDFETCHPORT2,
             disks2,
             userResourceConsumption2);
 
@@ -369,9 +351,6 @@ public class RatisMasterStatusSystemSuiteJ {
         workerInfo1.fetchPort(),
         workerInfo1.replicatePort(),
         workerInfo1.internalPort(),
-        workerInfo1.securedRpcPort(),
-        workerInfo1.securedPushPort(),
-        workerInfo1.securedFetchPort(),
         workerInfo1.diskInfos(),
         workerInfo1.userResourceConsumption(),
         getNewReqeustId());
@@ -382,9 +361,6 @@ public class RatisMasterStatusSystemSuiteJ {
         workerInfo2.fetchPort(),
         workerInfo2.replicatePort(),
         workerInfo2.internalPort(),
-        workerInfo2.securedRpcPort(),
-        workerInfo2.securedPushPort(),
-        workerInfo2.securedFetchPort(),
         workerInfo2.diskInfos(),
         workerInfo2.userResourceConsumption(),
         getNewReqeustId());
@@ -418,9 +394,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         INTERNALPORT1,
-        SECUREDRPCPORT1,
-        SECUREDPUSHPORT1,
-        SECUREDFETCHPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -431,9 +404,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT2,
         REPLICATEPORT2,
         INTERNALPORT2,
-        SECUREDRPCPORT2,
-        SECUREDPUSHPORT2,
-        SECUREDFETCHPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -444,24 +414,12 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT3,
         REPLICATEPORT3,
         INTERNALPORT3,
-        SECUREDRPCPORT3,
-        SECUREDPUSHPORT3,
-        SECUREDFETCHPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
 
     statusSystem.handleWorkerLost(
-        HOSTNAME1,
-        RPCPORT1,
-        PUSHPORT1,
-        FETCHPORT1,
-        REPLICATEPORT1,
-        INTERNALPORT1,
-        SECUREDRPCPORT1,
-        SECUREDPUSHPORT1,
-        SECUREDFETCHPORT1,
-        getNewReqeustId());
+        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(2, STATUSSYSTEM1.workers.size());
@@ -481,9 +439,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         INTERNALPORT1,
-        SECUREDRPCPORT1,
-        SECUREDPUSHPORT1,
-        SECUREDFETCHPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -494,9 +449,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT2,
         REPLICATEPORT2,
         INTERNALPORT2,
-        SECUREDRPCPORT2,
-        SECUREDPUSHPORT2,
-        SECUREDFETCHPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -507,9 +459,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT3,
         REPLICATEPORT3,
         INTERNALPORT3,
-        SECUREDRPCPORT3,
-        SECUREDPUSHPORT3,
-        SECUREDFETCHPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -522,9 +471,6 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             INTERNALPORT1,
-            SECUREDRPCPORT1,
-            SECUREDPUSHPORT1,
-            SECUREDFETCHPORT1,
             disks1,
             userResourceConsumption1);
     WorkerInfo workerInfo2 =
@@ -535,9 +481,6 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT2,
             REPLICATEPORT2,
             INTERNALPORT2,
-            SECUREDRPCPORT2,
-            SECUREDPUSHPORT2,
-            SECUREDFETCHPORT2,
             disks2,
             userResourceConsumption2);
     WorkerInfo workerInfo3 =
@@ -548,9 +491,6 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT3,
             REPLICATEPORT3,
             INTERNALPORT3,
-            SECUREDRPCPORT3,
-            SECUREDPUSHPORT3,
-            SECUREDFETCHPORT3,
             disks3,
             userResourceConsumption3);
 
@@ -604,9 +544,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         INTERNALPORT1,
-        SECUREDRPCPORT1,
-        SECUREDPUSHPORT1,
-        SECUREDFETCHPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -617,9 +554,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT2,
         REPLICATEPORT2,
         INTERNALPORT2,
-        SECUREDRPCPORT2,
-        SECUREDPUSHPORT2,
-        SECUREDFETCHPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -630,9 +564,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT3,
         REPLICATEPORT3,
         INTERNALPORT3,
-        SECUREDRPCPORT3,
-        SECUREDPUSHPORT3,
-        SECUREDFETCHPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -700,9 +631,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         INTERNALPORT1,
-        SECUREDRPCPORT1,
-        SECUREDPUSHPORT1,
-        SECUREDFETCHPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -713,9 +641,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT2,
         REPLICATEPORT2,
         INTERNALPORT2,
-        SECUREDRPCPORT2,
-        SECUREDPUSHPORT2,
-        SECUREDFETCHPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -726,9 +651,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT3,
         REPLICATEPORT3,
         INTERNALPORT3,
-        SECUREDRPCPORT3,
-        SECUREDPUSHPORT3,
-        SECUREDFETCHPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -742,9 +664,6 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             INTERNALPORT1,
-            SECUREDRPCPORT1,
-            SECUREDPUSHPORT1,
-            SECUREDFETCHPORT1,
             disks1,
             userResourceConsumption1);
     WorkerInfo workerInfo2 =
@@ -755,9 +674,6 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT2,
             REPLICATEPORT2,
             INTERNALPORT2,
-            SECUREDRPCPORT2,
-            SECUREDPUSHPORT2,
-            SECUREDFETCHPORT2,
             disks2,
             userResourceConsumption2);
     Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
@@ -793,9 +709,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         INTERNALPORT1,
-        SECUREDRPCPORT1,
-        SECUREDPUSHPORT1,
-        SECUREDFETCHPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -806,9 +719,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT2,
         REPLICATEPORT2,
         INTERNALPORT2,
-        SECUREDRPCPORT2,
-        SECUREDPUSHPORT2,
-        SECUREDFETCHPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -819,9 +729,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT3,
         REPLICATEPORT3,
         INTERNALPORT3,
-        SECUREDRPCPORT3,
-        SECUREDPUSHPORT3,
-        SECUREDFETCHPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -834,9 +741,6 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             INTERNALPORT1,
-            SECUREDRPCPORT1,
-            SECUREDPUSHPORT1,
-            SECUREDFETCHPORT1,
             disks1,
             userResourceConsumption1);
     WorkerInfo workerInfo2 =
@@ -847,9 +751,6 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT2,
             REPLICATEPORT2,
             INTERNALPORT2,
-            SECUREDRPCPORT2,
-            SECUREDPUSHPORT2,
-            SECUREDFETCHPORT2,
             disks2,
             userResourceConsumption2);
 
@@ -911,9 +812,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         INTERNALPORT1,
-        SECUREDRPCPORT1,
-        SECUREDPUSHPORT1,
-        SECUREDFETCHPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -924,9 +822,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT2,
         REPLICATEPORT2,
         INTERNALPORT2,
-        SECUREDRPCPORT2,
-        SECUREDPUSHPORT2,
-        SECUREDFETCHPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -937,9 +832,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT3,
         REPLICATEPORT3,
         INTERNALPORT3,
-        SECUREDRPCPORT3,
-        SECUREDPUSHPORT3,
-        SECUREDFETCHPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -950,10 +842,6 @@ public class RatisMasterStatusSystemSuiteJ {
         PUSHPORT1,
         FETCHPORT1,
         REPLICATEPORT1,
-        INTERNALPORT1,
-        SECUREDRPCPORT1,
-        SECUREDPUSHPORT1,
-        SECUREDFETCHPORT1,
         new HashMap<>(),
         userResourceConsumption1,
         new HashMap<>(),
@@ -973,10 +861,6 @@ public class RatisMasterStatusSystemSuiteJ {
         PUSHPORT2,
         FETCHPORT2,
         REPLICATEPORT2,
-        INTERNALPORT2,
-        SECUREDRPCPORT2,
-        SECUREDPUSHPORT2,
-        SECUREDFETCHPORT2,
         new HashMap<>(),
         userResourceConsumption2,
         new HashMap<>(),
@@ -997,10 +881,6 @@ public class RatisMasterStatusSystemSuiteJ {
         PUSHPORT1,
         FETCHPORT1,
         REPLICATEPORT1,
-        INTERNALPORT1,
-        SECUREDRPCPORT1,
-        SECUREDPUSHPORT1,
-        SECUREDFETCHPORT1,
         disks1,
         userResourceConsumption1,
         new HashMap<>(),
@@ -1021,10 +901,6 @@ public class RatisMasterStatusSystemSuiteJ {
         PUSHPORT1,
         FETCHPORT1,
         REPLICATEPORT1,
-        INTERNALPORT1,
-        SECUREDRPCPORT1,
-        SECUREDPUSHPORT1,
-        SECUREDFETCHPORT1,
         disks1,
         userResourceConsumption1,
         new HashMap<>(),
@@ -1093,9 +969,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         INTERNALPORT1,
-        SECUREDRPCPORT1,
-        SECUREDPUSHPORT1,
-        SECUREDFETCHPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -1106,9 +979,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT2,
         REPLICATEPORT2,
         INTERNALPORT2,
-        SECUREDRPCPORT2,
-        SECUREDPUSHPORT2,
-        SECUREDFETCHPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -1119,9 +989,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT3,
         REPLICATEPORT3,
         INTERNALPORT3,
-        SECUREDRPCPORT3,
-        SECUREDPUSHPORT3,
-        SECUREDFETCHPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -1135,9 +1002,6 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             INTERNALPORT1,
-            SECUREDRPCPORT1,
-            SECUREDPUSHPORT1,
-            SECUREDFETCHPORT1,
             disks1,
             userResourceConsumption1));
 
@@ -1163,9 +1027,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT1,
         REPLICATEPORT1,
         INTERNALPORT1,
-        SECUREDRPCPORT1,
-        SECUREDPUSHPORT1,
-        SECUREDFETCHPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -1176,9 +1037,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT2,
         REPLICATEPORT2,
         INTERNALPORT2,
-        SECUREDRPCPORT2,
-        SECUREDPUSHPORT2,
-        SECUREDFETCHPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -1189,9 +1047,6 @@ public class RatisMasterStatusSystemSuiteJ {
         FETCHPORT3,
         REPLICATEPORT3,
         INTERNALPORT3,
-        SECUREDRPCPORT3,
-        SECUREDPUSHPORT3,
-        SECUREDFETCHPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -1204,9 +1059,6 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             INTERNALPORT1,
-            SECUREDRPCPORT1,
-            SECUREDPUSHPORT1,
-            SECUREDFETCHPORT1,
             disks1,
             userResourceConsumption1);
 
@@ -1214,16 +1066,7 @@ public class RatisMasterStatusSystemSuiteJ {
     unavailableWorkers.add(workerInfo1);
 
     statusSystem.handleWorkerLost(
-        HOSTNAME1,
-        RPCPORT1,
-        PUSHPORT1,
-        FETCHPORT1,
-        REPLICATEPORT1,
-        INTERNALPORT1,
-        SECUREDRPCPORT1,
-        SECUREDPUSHPORT1,
-        SECUREDFETCHPORT1,
-        getNewReqeustId());
+        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId());
     statusSystem.handleReportWorkerUnavailable(unavailableWorkers, getNewReqeustId());
 
     Thread.sleep(3000L);

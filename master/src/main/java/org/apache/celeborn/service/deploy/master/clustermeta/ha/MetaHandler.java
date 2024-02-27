@@ -96,10 +96,6 @@ public class MetaHandler {
       int pushPort;
       int fetchPort;
       int replicatePort;
-      int internalPort;
-      int securedRpcPort;
-      int securedPushPort;
-      int securedFetchPort;
       Map<String, DiskInfo> diskInfos;
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
       Map<String, Long> estimatedAppDiskUsage = new HashMap<>();
@@ -154,21 +150,8 @@ public class MetaHandler {
           pushPort = request.getWorkerLostRequest().getPushPort();
           fetchPort = request.getWorkerLostRequest().getFetchPort();
           replicatePort = request.getWorkerLostRequest().getReplicatePort();
-          internalPort = request.getWorkerLostRequest().getInternalPort();
-          securedRpcPort = request.getWorkerLostRequest().getSecuredRpcPort();
-          securedPushPort = request.getWorkerLostRequest().getSecuredPushPort();
-          securedFetchPort = request.getWorkerLostRequest().getSecuredFetchPort();
           LOG.debug("Handle worker lost for {} {}", host, pushPort);
-          metaSystem.updateWorkerLostMeta(
-              host,
-              rpcPort,
-              pushPort,
-              fetchPort,
-              replicatePort,
-              internalPort,
-              securedRpcPort,
-              securedPushPort,
-              securedFetchPort);
+          metaSystem.updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
           break;
 
         case WorkerRemove:
@@ -177,21 +160,8 @@ public class MetaHandler {
           pushPort = request.getWorkerRemoveRequest().getPushPort();
           fetchPort = request.getWorkerRemoveRequest().getFetchPort();
           replicatePort = request.getWorkerRemoveRequest().getReplicatePort();
-          internalPort = request.getWorkerRemoveRequest().getInternalPort();
-          securedRpcPort = request.getWorkerRemoveRequest().getSecuredRpcPort();
-          securedPushPort = request.getWorkerRemoveRequest().getSecuredPushPort();
-          securedFetchPort = request.getWorkerRemoveRequest().getSecuredFetchPort();
           LOG.debug("Handle worker remove for {} {}", host, pushPort);
-          metaSystem.updateWorkerRemoveMeta(
-              host,
-              rpcPort,
-              pushPort,
-              fetchPort,
-              replicatePort,
-              internalPort,
-              securedRpcPort,
-              securedPushPort,
-              securedFetchPort);
+          metaSystem.updateWorkerRemoveMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
           break;
 
         case WorkerHeartbeat:
@@ -206,10 +176,6 @@ public class MetaHandler {
           estimatedAppDiskUsage.putAll(
               request.getWorkerHeartbeatRequest().getEstimatedAppDiskUsageMap());
           replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
-          internalPort = request.getWorkerHeartbeatRequest().getInternalPort();
-          securedRpcPort = request.getWorkerHeartbeatRequest().getSecuredRpcPort();
-          securedPushPort = request.getWorkerHeartbeatRequest().getSecuredPushPort();
-          securedFetchPort = request.getWorkerHeartbeatRequest().getSecuredFetchPort();
           boolean highWorkload = request.getWorkerHeartbeatRequest().getHighWorkload();
           if (request.getWorkerHeartbeatRequest().hasWorkerStatus()) {
             workerStatus =
@@ -219,16 +185,12 @@ public class MetaHandler {
           }
 
           LOG.debug(
-              "Handle worker heartbeat for {} {} {} {} {} {} {} {} {} {} {}",
+              "Handle worker heartbeat for {} {} {} {} {} {} {}",
               host,
               rpcPort,
               pushPort,
               fetchPort,
               replicatePort,
-              internalPort,
-              securedRpcPort,
-              securedPushPort,
-              securedFetchPort,
               diskInfos,
               userResourceConsumption);
           metaSystem.updateWorkerHeartbeatMeta(
@@ -237,10 +199,6 @@ public class MetaHandler {
               pushPort,
               fetchPort,
               replicatePort,
-              internalPort,
-              securedRpcPort,
-              securedPushPort,
-              securedFetchPort,
               diskInfos,
               userResourceConsumption,
               estimatedAppDiskUsage,
@@ -255,25 +213,19 @@ public class MetaHandler {
           pushPort = request.getRegisterWorkerRequest().getPushPort();
           fetchPort = request.getRegisterWorkerRequest().getFetchPort();
           replicatePort = request.getRegisterWorkerRequest().getReplicatePort();
-          internalPort = request.getRegisterWorkerRequest().getInternalPort();
-          securedRpcPort = request.getRegisterWorkerRequest().getSecuredRpcPort();
-          securedPushPort = request.getRegisterWorkerRequest().getSecuredPushPort();
-          securedFetchPort = request.getRegisterWorkerRequest().getSecuredFetchPort();
+          int internalPort = request.getRegisterWorkerRequest().getInternalPort();
           diskInfos = MetaUtil.fromPbDiskInfos(request.getRegisterWorkerRequest().getDisksMap());
           userResourceConsumption =
               MetaUtil.fromPbUserResourceConsumption(
                   request.getRegisterWorkerRequest().getUserResourceConsumptionMap());
           LOG.debug(
-              "Handle worker register for {} {} {} {} {} {} {} {} {} {} {}",
+              "Handle worker register for {} {} {} {} {} {} {} {}",
               host,
               rpcPort,
               pushPort,
               fetchPort,
               replicatePort,
               internalPort,
-              securedRpcPort,
-              securedPushPort,
-              securedFetchPort,
               diskInfos,
               userResourceConsumption);
           metaSystem.updateRegisterWorkerMeta(
@@ -283,9 +235,6 @@ public class MetaHandler {
               fetchPort,
               replicatePort,
               internalPort,
-              securedRpcPort,
-              securedPushPort,
-              securedFetchPort,
               diskInfos,
               userResourceConsumption);
           break;

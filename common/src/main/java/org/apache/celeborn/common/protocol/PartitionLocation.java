@@ -322,8 +322,7 @@ public class PartitionLocation implements Serializable {
   }
 
   public WorkerInfo getWorker() {
-    return new WorkerInfo(
-        host, rpcPort, pushPort, fetchPort, replicatePort, -1, rpcPort, pushPort, fetchPort);
+    return new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
   }
 
   public RoaringBitmap getMapIdBitMap() {

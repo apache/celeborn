@@ -93,9 +93,6 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
       1003,
       1004,
       1005,
-      1006,
-      1007,
-      1008,
       diskInfos,
       userResourceConsumption)
   val workerInfo2 =
@@ -106,9 +103,6 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
       2003,
       2004,
       2005,
-      2006,
-      2007,
-      2008,
       diskInfos,
       userResourceConsumption)
 

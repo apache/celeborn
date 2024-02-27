@@ -44,28 +44,10 @@ public interface IMetadataHandler {
       List<WorkerInfo> workersToAdd, List<WorkerInfo> workersToRemove, String requestId);
 
   void handleWorkerLost(
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      int internalPort,
-      int securedRpcPort,
-      int securedPushPort,
-      int securedFetchPort,
-      String requestId);
+      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId);
 
   void handleWorkerRemove(
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      int internalPort,
-      int securedRpcPort,
-      int securedPushPort,
-      int securedFetchPort,
-      String requestId);
+      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId);
 
   void handleRemoveWorkersUnavailableInfo(List<WorkerInfo> unavailableWorkers, String requestId);
 
@@ -75,10 +57,6 @@ public interface IMetadataHandler {
       int pushPort,
       int fetchPort,
       int replicatePort,
-      int internalPort,
-      int securedRpcPort,
-      int securedPushPort,
-      int securedFetchPort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       Map<String, Long> estimatedAppDiskUsage,
@@ -94,9 +72,6 @@ public interface IMetadataHandler {
       int fetchPort,
       int replicatePort,
       int internalPort,
-      int securedRpcPort,
-      int securedPushPort,
-      int securedFetchPort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId);

@@ -281,11 +281,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             peer.getRpcPort,
             peer.getPushPort,
             peer.getFetchPort,
-            peer.getReplicatePort,
-            peer.getInternalPort,
-            peer.getSecuredRpcPort,
-            peer.getSecuredPushPort,
-            peer.getSecuredFetchPort)
+            peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushData.body().release()
             workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
@@ -553,11 +549,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             peer.getRpcPort,
             peer.getPushPort,
             peer.getFetchPort,
-            peer.getReplicatePort,
-            peer.getInternalPort,
-            peer.getSecuredRpcPort,
-            peer.getSecuredPushPort,
-            peer.getSecuredFetchPort)
+            peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()
             workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)

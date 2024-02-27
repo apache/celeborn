@@ -48,8 +48,7 @@ public class FlinkShuffleClientImplSuiteJ {
   protected static final TransportClientFactory clientFactory = mock(TransportClientFactory.class);
   protected final TransportClient client = mock(TransportClient.class);
   protected static final PartitionLocation primaryLocation =
-      new PartitionLocation(
-          0, 1, "localhost", 1, 1, 1, 1, 1, 1, 1, 1, PartitionLocation.Mode.PRIMARY);
+      new PartitionLocation(0, 1, "localhost", 1, 1, 1, 1, PartitionLocation.Mode.PRIMARY);
 
   @Before
   public void setup() throws IOException, InterruptedException {

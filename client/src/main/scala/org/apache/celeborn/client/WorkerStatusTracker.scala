@@ -35,7 +35,6 @@ import org.apache.celeborn.common.util.Utils
 class WorkerStatusTracker(
     conf: CelebornConf,
     lifecycleManager: LifecycleManager) extends Logging {
-  private val authEnabled = conf.authEnabled
   private val excludedWorkerExpireTimeout = conf.clientExcludedWorkerExpireTimeout
   private val workerStatusListeners = ConcurrentHashMap.newKeySet[WorkerStatusListener]()
 
@@ -123,7 +122,7 @@ class WorkerStatusTracker(
     if (!failures.isEmpty) {
       val failedWorkers = new ShuffleFailedWorkers(failures)
       val failedWorkersMsg = failedWorkers.asScala.map { case (worker, (status, time)) =>
-        s"${worker.readableAddress(authEnabled)}   ${status.name()}   ${Utils.formatTimestamp(time)}"
+        s"${worker.readableAddress()}   ${status.name()}   ${Utils.formatTimestamp(time)}"
       }.mkString("\n")
       logWarning(
         s"""
@@ -218,11 +217,10 @@ class WorkerStatusTracker(
         (
           status,
           workers.map { case (worker, (_, time)) =>
-            s"${worker.readableAddress(authEnabled)}   ${Utils.formatTimestamp(time)}"
+            s"${worker.readableAddress()}   ${Utils.formatTimestamp(time)}"
           }.mkString("\n"))
       }
-    val shutdownWorkersMsg =
-      shuttingWorkers.asScala.map(_.readableAddress(authEnabled)).mkString("\n")
+    val shutdownWorkersMsg = shuttingWorkers.asScala.map(_.readableAddress()).mkString("\n")
     var failedWorkersMsg = ""
     if (excludedWorkersMsg.contains(StatusCode.WORKER_EXCLUDED)) {
       failedWorkersMsg +=

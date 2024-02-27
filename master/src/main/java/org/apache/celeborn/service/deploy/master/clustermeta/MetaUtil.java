@@ -41,10 +41,7 @@ public class MetaUtil {
         address.getPushPort(),
         address.getFetchPort(),
         address.getReplicatePort(),
-        address.getInternalPort(),
-        address.getSecuredRpcPort(),
-        address.getSecuredPushPort(),
-        address.getSecuredFetchPort());
+        address.getInternalPort());
   }
 
   public static ResourceProtos.WorkerAddress infoToAddr(WorkerInfo info) {
@@ -55,9 +52,6 @@ public class MetaUtil {
         .setFetchPort(info.fetchPort())
         .setReplicatePort(info.replicatePort())
         .setInternalPort(info.internalPort())
-        .setSecuredRpcPort(info.securedRpcPort())
-        .setSecuredPushPort(info.securedPushPort())
-        .setSecuredFetchPort(info.securedFetchPort())
         .build();
   }
 

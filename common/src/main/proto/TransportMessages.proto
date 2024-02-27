@@ -165,9 +165,6 @@ message PbWorkerInfo {
   repeated PbDiskInfo disks = 6;
   map<string, PbResourceConsumption> userResourceConsumption = 7;
   int32 internalPort = 8;
-  int32 securedRpcPort = 9;
-  int32 securedPushPort = 10;
-  int32 securedFetchPort = 11;
 }
 
 message PbFileGroup {
@@ -184,9 +181,6 @@ message PbRegisterWorker {
   string requestId = 9;
   map<string, PbResourceConsumption> userResourceConsumption = 8;
   int32 internalPort = 10;
-  int32 securedRpcPort = 11;
-  int32 securedPushPort = 12;
-  int32 securedFetchPort = 13;
 }
 
 message PbHeartbeatFromWorker {
@@ -202,10 +196,6 @@ message PbHeartbeatFromWorker {
   map<string, int64> estimatedAppDiskUsage = 10;
   bool highWorkload = 11;
   PbWorkerStatus workerStatus = 12;
-  int32 internalPort = 13;
-  int32 securedRpcPort = 14;
-  int32 securedPushPort = 15;
-  int32 securedFetchPort = 16;
 }
 
 message PbWorkerStatus {
@@ -524,10 +514,6 @@ message PbWorkerLost {
   int32 fetchPort = 4;
   int32 replicatePort = 5;
   string requestId = 6;
-  int32 internalPort = 7;
-  int32 securedRpcPort = 8;
-  int32 securedPushPort = 9;
-  int32 securedFetchPort = 10;
 }
 
 message PbWorkerLostResponse {

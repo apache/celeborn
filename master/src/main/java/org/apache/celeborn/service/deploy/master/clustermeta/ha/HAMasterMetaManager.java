@@ -177,16 +177,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleWorkerLost(
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      int internalPort,
-      int securedRpcPort,
-      int securedPushPort,
-      int securedFetchPort,
-      String requestId) {
+      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
@@ -199,10 +190,6 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setPushPort(pushPort)
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
-                      .setInternalPort(internalPort)
-                      .setSecuredRpcPort(securedRpcPort)
-                      .setSecuredPushPort(securedPushPort)
-                      .setSecuredFetchPort(securedFetchPort)
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {
@@ -213,16 +200,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleWorkerRemove(
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      int internalPort,
-      int securedRpcPort,
-      int securedPushPort,
-      int securedFetchPort,
-      String requestId) {
+      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
@@ -235,10 +213,6 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setPushPort(pushPort)
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
-                      .setInternalPort(internalPort)
-                      .setSecuredRpcPort(securedRpcPort)
-                      .setSecuredPushPort(securedPushPort)
-                      .setSecuredFetchPort(securedFetchPort)
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {
@@ -275,10 +249,6 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       int pushPort,
       int fetchPort,
       int replicatePort,
-      int internalPort,
-      int securedRpcPort,
-      int securedPushPort,
-      int securedFetchPort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       Map<String, Long> estimatedAppDiskUsage,
@@ -298,10 +268,6 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setPushPort(pushPort)
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
-                      .setInternalPort(internalPort)
-                      .setSecuredRpcPort(securedRpcPort)
-                      .setSecuredPushPort(securedPushPort)
-                      .setSecuredFetchPort(securedFetchPort)
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
                       .putAllUserResourceConsumption(
                           MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
@@ -325,9 +291,6 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       int internalPort,
-      int securedRpcPort,
-      int securedPushPort,
-      int securedFetchPort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId) {
@@ -344,9 +307,6 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
                       .setInternalPort(internalPort)
-                      .setSecuredRpcPort(securedRpcPort)
-                      .setSecuredPushPort(securedPushPort)
-                      .setSecuredFetchPort(securedFetchPort)
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
                       .putAllUserResourceConsumption(
                           MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
