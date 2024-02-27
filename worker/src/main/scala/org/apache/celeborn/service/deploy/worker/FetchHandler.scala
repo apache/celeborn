@@ -59,7 +59,7 @@ class FetchHandler(
     conf.readBuffersToTriggerReadMin)
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
-  var registered: AtomicBoolean = new AtomicBoolean(false)
+  var registered: Option[AtomicBoolean] = None
 
   def init(worker: Worker): Unit = {
 
@@ -73,7 +73,7 @@ class FetchHandler(
 
     this.storageManager = worker.storageManager
     this.partitionsSorter = worker.partitionsSorter
-    this.registered = worker.registered
+    this.registered = Some(worker.registered)
   }
 
   def getRawFileInfo(
@@ -384,7 +384,7 @@ class FetchHandler(
     }
   }
 
-  override def checkRegistered: Boolean = registered.get
+  override def checkRegistered: Boolean = registered.exists(_.get)
 
   /** Invoked when the channel associated with the given client is active. */
   override def channelActive(client: TransportClient): Unit = {
