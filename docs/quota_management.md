@@ -56,7 +56,7 @@ Celeborn will initialize a QuotaManager in the master side. Currently, QuotaMana
 QuotaManager uses dynamic [config service](#) to store quota settings mentioned in [Quota](#Quota),
 QuotaManger also support two types of store backend configured by parameter `celeborn.dynamicConfig.store.backend`:
   - FS: [FileSystem Store Backend](#FileSystem Store Backend)
-  - DB: [DataBase Store Backend](#DataBase Store Backend)
+  - DB: [Database Store Backend](#Database Store Backend)
 
 ### FileSystem Store Backend
 FileSystem store backend will read quota configuration file setting by 
@@ -105,4 +105,4 @@ The quota for system default is
 
 ### Database Store Backend
 Database Store Backend will read [quota configuration](#Quota) from user specified database.
-For how to use DataBase store backend can refer to dynamic config service document.
+For how to use Database store backend can refer to dynamic config service document.
