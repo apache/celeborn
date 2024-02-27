@@ -19,22 +19,22 @@ limitations under the License.
 Quota Management
 ===
 
-The Celeborn allows the administrator to set quotas for the number of names used.
+Celeborn allows the administrator to set quotas for the number of names used.
 The administrator also can set a system level default quota for all user that 
 doesn't set a specified a named quota.
 
 When Master side sets `celeborn.quota.enabled` to true, the master will enable
 to check the quota via QuotaManager. When Client side also sets `celeborn.quota.enabled`
-to true, LifecycleManager will request master side to check whether the current user 
+to true, LifecycleManager will request master side to check whether the current user identifier
 has enough quota before registration of shuffle. Fallback to the default shuffle service
 of Spark when Master side checks that there is no enough quota for current user.
 
 ## Quota
 Celeborn supports fine-grained quota management, now Celeborn including four indicators:
-- `celeborn.quota.tenant.diskBytesWritten`: Allowed maxed disk written bytes.
-- `celeborn.quota.tenant.diskFileCount`: Allowed maxed disk written file count.
-- `celeborn.quota.tenant.hdfsBytesWritten`: Allowed maxed hdfs written bytes.
-- `celeborn.quota.tenant.hdfsFileCount`: Allowed maxed hdfs written bytes.
+- `celeborn.quota.tenant.diskBytesWritten`: Maximum allowed disk write bytes.
+- `celeborn.quota.tenant.diskFileCount`: Maximum allowed disk write file num.
+- `celeborn.quota.tenant.hdfsBytesWritten`: Maximum allowed hdfs write bytes.
+- `celeborn.quota.tenant.hdfsFileCount`: Maximum allowed hdfs write file num.
 
 ## User Identifier
 The Celeborn supports user identifier for two level:
@@ -44,16 +44,16 @@ The client LifecycleManager will request master side to check quota for current 
 User can set `celeborn.quota.identity.provider` to choose a identity provider, now we support two type provider:
   - `org.apache.celeborn.common.identity.HadoopBasedIdentityProvider`: username will be obtained by `UserGroupInformation.getUserName()`, tenant id will be default.
   - `org.apache.celeborn.common.identity.DefaultIdentityProvider`: username and tenant id are default values or user-specific values setting by `celeborn.quota.identity.user-specific.tenant` and `celeborn.quota.identity.user-specific.userName`.
-Celeborn use `org.apache.celeborn.common.identity.DefaultIdentityProvider` as default. 
-Also, the Celeborn user can implement their own specified identify provider inheriting interface `org.apache.celeborn.common.identity.IdentityProvider` by yourself.
+Celeborn uses `org.apache.celeborn.common.identity.DefaultIdentityProvider` as default. 
+Also, the Celeborn users can implement their own specified identify provider inheriting interface `org.apache.celeborn.common.identity.IdentityProvider` by yourself.
 
 ## QuotaManager
-The Celeborn will initialize a QuotaManager in the master side. Currently, QuotaManager supports three level configuration: 
+Celeborn will initialize a QuotaManager in the master side. Currently, QuotaManager supports three level configuration: 
   - Tenant User Level: When the tenant user level quota config is null or empty, fallback to the tenant level quota config. When the tenant level config is null or empty, fallback to the system level config again.
   - Tenant Level: When the tenant level config is null or empty, fallback to the system level config.
   - System Level: When the system level config is also null or empty, fallback to default value `Long.MAX_VALUE`.
 
-QuotaManager use dynamic [config service](#) to store quota settings mentioned in [Quota](#Quota),
+QuotaManager uses dynamic [config service](#) to store quota settings mentioned in [Quota](#Quota),
 QuotaManger also support two types of store backend configured by parameter `celeborn.dynamicConfig.store.backend`:
   - FS: [FileSystem Store Backend](#FileSystem Store Backend)
   - DB: [DataBase Store Backend](#DataBase Store Backend)
@@ -97,12 +97,12 @@ The quota for tenant id `tenant_01` is
   - hdfsBytesWritten: 10G
   - diskFileCount: Long.MAX_VALUE
 
-The quota for tenant id `tenant_01` is
+The quota for system default is
   - diskBytesWritten: 1G
   - diskFileCount: 100
   - hdfsBytesWritten: 1G
   - diskFileCount: Long.MAX_VALUE 
 
-### DataBase Store Backend
-DataBase Store Backend will read [quota configuration](#Quota) from user specified database.
-For how to use DataBase store backend can refer to [config service](./config_service.md).
+### Database Store Backend
+Database Store Backend will read [quota configuration](#Quota) from user specified database.
+For how to use DataBase store backend can refer to dynamic config service document.
