@@ -45,7 +45,7 @@ class QuotaManagerSuite extends AnyFunSuite
     val conf = new CelebornConf()
     conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "FS")
     conf.set(
-      CelebornConf.QUOTA_CONFIGURATION_PATH.key,
+      CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH.key,
       getTestResourceFile("dynamicConfig-quota.yaml").getPath)
     quotaManager = new QuotaManager(conf, DynamicConfigServiceFactory.getConfigService(conf))
   }
