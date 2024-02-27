@@ -85,6 +85,10 @@ public class SparkUtils {
         tmpCelebornConf.set(kv._1.substring("spark.".length()), kv._2);
       }
     }
+    boolean compressionEnabled = (boolean) conf.get(package$.MODULE$.SHUFFLE_COMPRESS());
+    if (!compressionEnabled) {
+      tmpCelebornConf.set(CelebornConf.SHUFFLE_COMPRESSION_CODEC(), CompressionCodec.NONE.name());
+    }
     return tmpCelebornConf;
   }
 
