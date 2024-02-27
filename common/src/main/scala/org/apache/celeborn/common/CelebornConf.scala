@@ -4463,8 +4463,9 @@ object CelebornConf extends Logging {
     buildConf("celeborn.dynamicConfig.store.fs.path")
       .categories("master", "worker")
       .version("0.5.0")
-      .doc("The path of dynamic config file for fs store backend. " +
-        "The default path is `${CELEBORN_CONF_DIR}/dynamicConfig.yaml`.")
+      .doc(
+        "The path of dynamic config file for fs store backend. The file format should be yaml. " +
+          "The default path is `${CELEBORN_CONF_DIR}/dynamicConfig.yaml`.")
       .stringConf
       .createOptional
 
