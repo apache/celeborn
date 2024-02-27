@@ -554,15 +554,6 @@ object Utils extends Logging {
       .orNull
   }
 
-  def getDefaultQuotaConfigurationFile(env: Map[String, String] = sys.env): String = {
-    env.get("CELEBORN_CONF_DIR")
-      .orElse(env.get("CELEBORN_HOME").map { t => s"$t${File.separator}conf" })
-      .map { t => new File(s"$t${File.separator}quota.yaml") }
-      .filter(_.isFile)
-      .map(_.getAbsolutePath)
-      .orNull
-  }
-
   private[util] def trimExceptCRLF(str: String): String = {
     val nonSpaceOrNaturalLineDelimiter: Char => Boolean = { ch =>
       ch > ' ' || ch == '\r' || ch == '\n'
