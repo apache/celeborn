@@ -56,7 +56,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   private var replicateThreadPool: ThreadPoolExecutor = _
   private var unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] = _
   private var replicateClientFactory: TransportClientFactory = _
-  private var registered: AtomicBoolean = _
+  private var registered: Option[AtomicBoolean] = None
   private var workerInfo: WorkerInfo = _
   private var diskReserveSize: Long = _
   private var diskReserveRatio: Option[Double] = _
@@ -79,7 +79,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     replicateThreadPool = worker.replicateThreadPool
     unavailablePeers = worker.unavailablePeers
     replicateClientFactory = worker.replicateClientFactory
-    registered = worker.registered
+    registered = Some(worker.registered)
     workerInfo = worker.workerInfo
     diskReserveSize = worker.conf.workerDiskReserveSize
     diskReserveRatio = worker.conf.workerDiskReserveRatio
@@ -699,7 +699,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     (mapId, attemptId)
   }
 
-  override def checkRegistered(): Boolean = registered.get()
+  override def checkRegistered(): Boolean = registered.exists(_.get)
 
   class RpcResponseCallbackWithTimer(
       source: Source,
