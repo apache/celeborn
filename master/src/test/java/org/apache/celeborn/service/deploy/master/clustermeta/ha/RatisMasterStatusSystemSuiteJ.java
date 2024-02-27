@@ -187,9 +187,6 @@ public class RatisMasterStatusSystemSuiteJ {
   private static final int FETCHPORT1 = 1113;
   private static final int REPLICATEPORT1 = 1114;
   private static final int INTERNALPORT1 = 1115;
-  private static final int SECUREDRPCPORT1 = 1116;
-  private static final int SECUREDPUSHPORT1 = 1117;
-  private static final int SECUREDFETCHPORT1 = 1118;
   private static final Map<String, DiskInfo> disks1 = new HashMap<>();
   private static final Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 =
       new HashMap<>();
