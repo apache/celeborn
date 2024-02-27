@@ -49,7 +49,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.{RpcSecurityContextBuilder, ServerSaslContextBuilder}
-import org.apache.celeborn.common.util.{CelebornExitKind, CollectionUtils, JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, CollectionUtils, JavaUtils, ShutdownHookManager, SignalUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
@@ -934,6 +934,7 @@ private[celeborn] class Worker(
 
 private[deploy] object Worker extends Logging {
   def main(args: Array[String]): Unit = {
+    SignalUtils.registerLogger(log)
     val conf = new CelebornConf
     val workerArgs = new WorkerArguments(args, conf)
     // There are many entries for setting the master address, and we should unify the entries as
