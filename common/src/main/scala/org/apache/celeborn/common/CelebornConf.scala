@@ -368,6 +368,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def dynamicConfigStoreBackend: Option[String] = get(DYNAMIC_CONFIG_STORE_BACKEND)
   def dynamicConfigRefreshInterval: Long = get(DYNAMIC_CONFIG_REFRESH_INTERVAL)
+  def dynamicConfigStoreFsPath: Option[String] = get(DYNAMIC_CONFIG_STORE_FS_PATH)
   def dynamicConfigStoreDbFetchPageSize: Int = get(DYNAMIC_CONFIG_STORE_DB_FETCH_PAGE_SIZE)
   def dynamicConfigStoreDbHikariDriverClassName: String =
     get(DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME)
@@ -4457,6 +4458,16 @@ object CelebornConf extends Logging {
       .doc("Interval for refreshing the corresponding dynamic config periodically.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
+
+  val DYNAMIC_CONFIG_STORE_FS_PATH: OptionalConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.fs.path")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc(
+        "The path of dynamic config file for fs store backend. The file format should be yaml. " +
+          "The default path is `${CELEBORN_CONF_DIR}/dynamicConfig.yaml`.")
+      .stringConf
+      .createOptional
 
   val DYNAMIC_CONFIG_STORE_DB_FETCH_PAGE_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.dynamicConfig.store.db.fetch.pageSize")
