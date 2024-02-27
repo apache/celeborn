@@ -33,4 +33,6 @@ object ResourceConsumptionSource {
   val HDFS_FILE_COUNT = "hdfsFileCount"
 
   val HDFS_BYTES_WRITTEN = "hdfsBytesWritten"
+
+  val APPLICATION_LABEL = "applicationId"
 }

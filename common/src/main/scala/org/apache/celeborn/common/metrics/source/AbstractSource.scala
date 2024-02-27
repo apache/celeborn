@@ -67,8 +67,6 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   val staticLabels: Map[String, String] = conf.metricsExtraLabels + roleLabel
   val staticLabelsString: String = MetricLabels.labelString(staticLabels)
 
-  val applicationLabel = "applicationId"
-
   protected val namedGauges: JQueue[NamedGauge[_]] = new ConcurrentLinkedQueue[NamedGauge[_]]()
 
   def addGauge[T](

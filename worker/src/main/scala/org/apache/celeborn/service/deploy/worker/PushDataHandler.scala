@@ -110,7 +110,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   override def receive(client: TransportClient, msg: RequestMessage): Unit =
     msg match {
       case pushData: PushData =>
-        workerSource.recordAppActiveConnection(client, pushData.shuffleKey)
         val callback = new SimpleRpcResponseCallback(
           client,
           pushData.requestId,
@@ -134,7 +133,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           },
           callback)
       case pushMergedData: PushMergedData =>
-        workerSource.recordAppActiveConnection(client, pushMergedData.shuffleKey)
         val callback = new SimpleRpcResponseCallback(
           client,
           pushMergedData.requestId,
@@ -838,7 +836,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     val requestId = rpcRequest.requestId
     val (pbMsg, msg, isLegacy, messageType, mode, shuffleKey, partitionUniqueId, checkSplit) =
       mapPartitionRpcRequest(rpcRequest)
-    workerSource.recordAppActiveConnection(client, shuffleKey)
     handleCore(
       client,
       rpcRequest,
@@ -1304,7 +1301,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
    * Invoked when the channel associated with the given client is active.
    */
   override def channelActive(client: TransportClient): Unit = {
-    workerSource.connectionActive(client)
+    workerSource.incCounter(WorkerSource.ACTIVE_CONNECTION_COUNT)
     super.channelActive(client)
   }
 
@@ -1313,7 +1310,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
    * No further requests will come from this client.
    */
   override def channelInactive(client: TransportClient): Unit = {
-    workerSource.connectionInactive(client)
+    workerSource.incCounter(WorkerSource.ACTIVE_CONNECTION_COUNT, -1)
     super.channelInactive(client)
   }
 }
