@@ -20,8 +20,6 @@ package org.apache.celeborn.common.util
 import java.io.File
 import java.util
 
-import scala.collection.JavaConverters._
-
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, FileInfo, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
@@ -75,12 +73,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
   val cache = JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
 
   val resourceConsumption1 = ResourceConsumption(1000, 2000, 3000, 4000)
-  val resourceConsumption2 = ResourceConsumption(
-    2000,
-    4000,
-    6000,
-    8000,
-    Map("appld2" -> ResourceConsumption(2000, 4000, 6000, 8000)).asJava)
+  val resourceConsumption2 = ResourceConsumption(2000, 4000, 6000, 8000)
   val userResourceConsumption = new util.HashMap[UserIdentifier, ResourceConsumption]()
   userResourceConsumption.put(userIdentifier1, resourceConsumption1)
   userResourceConsumption.put(userIdentifier2, resourceConsumption2)
@@ -194,15 +187,10 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
   }
 
   test("fromAndToPbResourceConsumption") {
-    testFromAndToPbResourceConsumption(resourceConsumption1)
-    testFromAndToPbResourceConsumption(resourceConsumption2)
-  }
-
-  def testFromAndToPbResourceConsumption(resourceConsumption: ResourceConsumption): Unit = {
-    val pbResourceConsumption = PbSerDeUtils.toPbResourceConsumption(resourceConsumption)
+    val pbResourceConsumption = PbSerDeUtils.toPbResourceConsumption(resourceConsumption1)
     val restoredResourceConsumption = PbSerDeUtils.fromPbResourceConsumption(pbResourceConsumption)
 
-    assert(restoredResourceConsumption.equals(resourceConsumption))
+    assert(restoredResourceConsumption.equals(resourceConsumption1))
   }
 
   test("fromAndToPbUserResourceConsumption") {
