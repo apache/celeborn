@@ -18,6 +18,7 @@
 package org.apache.celeborn.server.common.service.config;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.apache.celeborn.common.CelebornConf;
 
@@ -42,6 +43,13 @@ public interface ConfigService {
   SystemConfig getSystemConfigFromCache();
 
   /**
+   * Lists the raw tenant level dynamic configurations {@link TenantConfig} from cache.
+   *
+   * @return The raw tenant level dynamic configurations.
+   */
+  List<TenantConfig> listRawTenantConfigsFromCache();
+
+  /**
    * Gets the raw tenant level dynamic configuration {@link TenantConfig} from cache.
    *
    * @return The raw tenant level dynamic configuration.
@@ -64,6 +72,13 @@ public interface ConfigService {
   }
 
   /**
+   * Lists the raw tenant user level dynamic configurations {@link TenantConfig} from cache.
+   *
+   * @return The raw tenant user level dynamic configurations.
+   */
+  List<TenantConfig> listRawTenantUserConfigsFromCache();
+
+  /**
    * Gets the raw tenant user level dynamic configuration {@link TenantConfig} from cache.
    *
    * @return The raw tenant user level dynamic configuration.
@@ -79,7 +94,7 @@ public interface ConfigService {
    */
   default DynamicConfig getTenantUserConfigFromCache(String tenantId, String userId) {
     TenantConfig tenantConfig = getRawTenantUserConfigFromCache(tenantId, userId);
-    if (tenantConfig == null) {
+    if (tenantConfig == null || tenantConfig.getConfigs().isEmpty()) {
       return getTenantConfigFromCache(tenantId);
     } else {
       return tenantConfig;

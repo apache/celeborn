@@ -87,14 +87,14 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
 
   private File getConfigFile(Map<String, String> env) throws IOException {
     File configFile =
-        celebornConf.quotaConfigurationPath().isEmpty()
+        celebornConf.dynamicConfigStoreFsPath().isEmpty()
             ? new File(
                 env.getOrDefault(
                         "CELEBORN_CONF_DIR",
                         env.getOrDefault("CELEBORN_HOME", ".") + File.separator + "conf")
                     + File.separator
                     + "dynamicConfig.yaml")
-            : new File(this.celebornConf.quotaConfigurationPath().get());
+            : new File(this.celebornConf.dynamicConfigStoreFsPath().get());
     String configPath = configFile.getPath();
     if (!configFile.exists()) {
       throw new IOException(String.format("Dynamic config file %s does not exist", configPath));

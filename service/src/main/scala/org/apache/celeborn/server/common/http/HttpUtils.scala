@@ -25,7 +25,15 @@ import org.apache.celeborn.server.common.{HttpService, Service}
 object HttpUtils {
 
   private val baseEndpoints: List[HttpEndpoint] =
-    List(Conf, WorkerInfo, ThreadDump, Shuffles, Applications, ListTopDiskUsedApps, Help)
+    List(
+      Conf,
+      ListDynamicConfigs,
+      WorkerInfo,
+      ThreadDump,
+      Shuffles,
+      Applications,
+      ListTopDiskUsedApps,
+      Help)
   private val masterEndpoints: List[HttpEndpoint] = List(
     MasterGroupInfo,
     LostWorkers,

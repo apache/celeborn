@@ -49,6 +49,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   addCounter(REPLICATE_DATA_WRITE_FAIL_COUNT)
   addCounter(REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
   addCounter(REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
+  addCounter(REPLICATE_DATA_FAIL_NON_CRITICAL_CAUSE_COUNT)
   addCounter(REPLICATE_DATA_TIMEOUT_COUNT)
 
   addCounter(PUSH_DATA_HANDSHAKE_FAIL_COUNT)
@@ -144,6 +145,7 @@ object WorkerSource {
   val REPLICATE_DATA_WRITE_FAIL_COUNT = "ReplicateDataWriteFailCount"
   val REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT = "ReplicateDataCreateConnectionFailCount"
   val REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT = "ReplicateDataConnectionExceptionCount"
+  val REPLICATE_DATA_FAIL_NON_CRITICAL_CAUSE_COUNT = "ReplicateDataFailNonCriticalCauseCount"
   val REPLICATE_DATA_TIMEOUT_COUNT = "ReplicateDataTimeoutCount"
   val PUSH_DATA_HANDSHAKE_FAIL_COUNT = "PushDataHandshakeFailCount"
   val REGION_START_FAIL_COUNT = "RegionStartFailCount"

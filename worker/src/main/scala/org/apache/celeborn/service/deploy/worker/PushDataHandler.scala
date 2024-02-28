@@ -43,7 +43,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMod
 import org.apache.celeborn.common.protocol.PbPartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
-import org.apache.celeborn.common.util.{DiskUtils, Utils}
+import org.apache.celeborn.common.util.{DiskUtils, ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{HdfsFlusher, LocalFlusher, MapPartitionDataWriter, PartitionDataWriter, StorageManager}
 
@@ -56,7 +56,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   private var replicateThreadPool: ThreadPoolExecutor = _
   private var unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] = _
   private var replicateClientFactory: TransportClientFactory = _
-  private var registered: AtomicBoolean = _
+  private var registered: Option[AtomicBoolean] = None
   private var workerInfo: WorkerInfo = _
   private var diskReserveSize: Long = _
   private var diskReserveRatio: Option[Double] = _
@@ -79,7 +79,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     replicateThreadPool = worker.replicateThreadPool
     unavailablePeers = worker.unavailablePeers
     replicateClientFactory = worker.replicateClientFactory
-    registered = worker.registered
+    registered = Some(worker.registered)
     workerInfo = worker.workerInfo
     diskReserveSize = worker.conf.workerDiskReserveSize
     diskReserveRatio = worker.conf.workerDiskReserveRatio
@@ -341,10 +341,14 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
                 workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
                 callbackWithTimer.onFailure(e)
-              } else {
+              } else if (ExceptionUtils.connectFail(e.getMessage)) {
                 workerSource.incCounter(WorkerSource.REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
                 callbackWithTimer.onFailure(
                   new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
+              } else {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_FAIL_NON_CRITICAL_CAUSE_COUNT)
+                callbackWithTimer.onFailure(
+                  new CelebornIOException(StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA))
               }
             }
           }
@@ -603,10 +607,14 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
                 workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
                 callbackWithTimer.onFailure(e)
-              } else {
+              } else if (ExceptionUtils.connectFail(e.getMessage)) {
                 workerSource.incCounter(WorkerSource.REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
                 callbackWithTimer.onFailure(
                   new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
+              } else {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_FAIL_NON_CRITICAL_CAUSE_COUNT)
+                callbackWithTimer.onFailure(
+                  new CelebornIOException(StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA))
               }
             }
           }
@@ -699,7 +707,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     (mapId, attemptId)
   }
 
-  override def checkRegistered(): Boolean = registered.get()
+  override def checkRegistered(): Boolean = registered.exists(_.get)
 
   class RpcResponseCallbackWithTimer(
       source: Source,

@@ -29,6 +29,11 @@ license: |
 
 - Since 0.5.0, Celeborn configurations support new tag `isDynamic` to represent whether the configuration is dynamic config.
 
+- Since 0.5.0, Celeborn changed the default value of `celeborn.worker.graceful.shutdown.recoverDbBackend` from `LEVELDB` to `ROCKSDB`, which means Celeborn will use RocksDB store for recovery backend. 
+   To restore the behavior before Celeborn 0.5, you can set `celeborn.worker.graceful.shutdown.recoverDbBackend` to `LEVELDB`.
+
+- Since 0.5.0, Celeborn deprecate `celeborn.quota.configuration.path`. Please use `celeborn.dynamicConfig.store.fs.path` instead.
+
 ## Upgrading from 0.3 to 0.4
 
 - Since 0.4.0, Celeborn won't be compatible with Celeborn client that versions below 0.3.0.

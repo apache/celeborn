@@ -554,15 +554,6 @@ object Utils extends Logging {
       .orNull
   }
 
-  def getDefaultQuotaConfigurationFile(env: Map[String, String] = sys.env): String = {
-    env.get("CELEBORN_CONF_DIR")
-      .orElse(env.get("CELEBORN_HOME").map { t => s"$t${File.separator}conf" })
-      .map { t => new File(s"$t${File.separator}quota.yaml") }
-      .filter(_.isFile)
-      .map(_.getAbsolutePath)
-      .orNull
-  }
-
   private[util] def trimExceptCRLF(str: String): String = {
     val nonSpaceOrNaturalLineDelimiter: Char => Boolean = { ch =>
       ch > ' ' || ch == '\r' || ch == '\n'
@@ -928,7 +919,7 @@ object Utils extends Logging {
       case 16 =>
         StatusCode.STAGE_ENDED
       case 17 =>
-        StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE
+        StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_PRIMARY
       case 18 =>
         StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
       case 19 =>
@@ -979,6 +970,8 @@ object Utils extends Logging {
         StatusCode.DESTROY_SLOTS_MOCK_FAILURE
       case 49 =>
         StatusCode.COMMIT_FILES_MOCK_FAILURE
+      case 50 =>
+        StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA
       case _ =>
         null
     }

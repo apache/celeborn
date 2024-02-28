@@ -67,7 +67,7 @@ public class ConfigServiceSuiteJ {
   public void testFsConfig() throws IOException {
     CelebornConf celebornConf = new CelebornConf();
     String file = getClass().getResource("/dynamicConfig.yaml").getFile();
-    celebornConf.set(CelebornConf.QUOTA_CONFIGURATION_PATH(), file);
+    celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), file);
     celebornConf.set(CelebornConf.DYNAMIC_CONFIG_REFRESH_INTERVAL(), 5L);
     configService = new FsConfigServiceImpl(celebornConf);
     verifySystemConfig(configService);
@@ -75,7 +75,7 @@ public class ConfigServiceSuiteJ {
     verifyTenantUserConfig(configService);
     // change -> refresh config
     file = getClass().getResource("/dynamicConfig_2.yaml").getFile();
-    celebornConf.set(CelebornConf.QUOTA_CONFIGURATION_PATH(), file);
+    celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), file);
     configService.refreshCache();
 
     verifyConfigChanged(configService);

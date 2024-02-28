@@ -27,12 +27,14 @@ import io.netty.handler.timeout.IdleStateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.Heartbeat;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.ResponseMessage;
 import org.apache.celeborn.common.network.util.NettyUtils;
+import org.apache.celeborn.common.util.Utils;
 
 /**
  * The single Transport-level Channel handler which is used for delegating requests to the {@link
@@ -59,6 +61,7 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
   private final long requestTimeoutNs;
   private final boolean closeIdleConnections;
   private final long heartbeatInterval;
+  private final TransportContext transportContext;
   private ScheduledFuture<?> heartbeatFuture;
   private boolean heartbeatFutureCanceled = false;
   private boolean enableHeartbeat;
@@ -70,7 +73,8 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
       long requestTimeoutMs,
       boolean closeIdleConnections,
       boolean enableHeartbeat,
-      long heartbeatInterval) {
+      long heartbeatInterval,
+      TransportContext transportContext) {
     this.client = client;
     this.responseHandler = responseHandler;
     this.requestHandler = requestHandler;
@@ -78,6 +82,7 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
     this.enableHeartbeat = enableHeartbeat;
     this.heartbeatInterval = heartbeatInterval;
     this.closeIdleConnections = closeIdleConnections;
+    this.transportContext = transportContext;
   }
 
   public TransportClient getClient() {
@@ -166,13 +171,15 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
             System.nanoTime() - responseHandler.getTimeOfLastRequestNs() > requestTimeoutNs;
         if (e.state() == (enableHeartbeat ? IdleState.READER_IDLE : IdleState.ALL_IDLE)
             && isActuallyOverdue) {
-          if (responseHandler.numOutstandingRequests() > 0) {
+          if (responseHandler.hasOutstandingRequests()) {
             String address = NettyUtils.getRemoteAddress(ctx.channel());
             logger.error(
-                "Connection to {} has been quiet for {} ms while there are outstanding "
-                    + "requests.",
+                "Connection to {} has been quiet for {} while there are outstanding "
+                    + "requests. Assuming the connection is dead, consider adjusting "
+                    + "celeborn.{}.io.connectionTimeout if this is wrong.",
                 address,
-                requestTimeoutNs / 1000 / 1000);
+                Utils.msDurationToString(requestTimeoutNs / 1000 / 1000),
+                transportContext.getConf().getModuleName());
           }
           if (closeIdleConnections) {
             // While CloseIdleConnections is enabled, we also close idle connection
