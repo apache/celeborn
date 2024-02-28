@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-site_name: Apache Celeborn (Incubating)
+site_name: Apache Celeborn™ (Incubating)
 repo_name: apache/incubator-celeborn
 repo_url: https://github.com/apache/incubator-celeborn
 
@@ -59,10 +59,10 @@ copyright: >
   Copyright © 2022 The Apache Software Foundation
   <a href="https://privacy.apache.org/policies/privacy-policy-public.html">Privacy Policy<a/><br>
   <br>
-  Apache Celeborn, Apache Incubator, Apache, the Apache feather logo, and the Apache Incubator project logo are
+  Apache Celeborn™, Apache Incubator, Apache, the Apache feather logo, and the Apache Incubator project logo are
   trademarks or registered trademarks of The Apache Software Foundation.<br>
   <br>
-  Apache Celeborn is an effort undergoing incubation at The Apache Software Foundation (ASF), sponsored by the
+  Apache Celeborn™ is an effort undergoing incubation at The Apache Software Foundation (ASF), sponsored by the
   Apache Incubator. Incubation is required of all newly accepted projects until a further review indicates that
   the infrastructure, communications, and decision making process have stabilized in a manner consistent with
   other successful ASF projects. While incubation status is not necessarily a reflection of the completeness or
