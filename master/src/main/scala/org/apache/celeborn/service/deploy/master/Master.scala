@@ -870,8 +870,6 @@ private[celeborn] class Master(
     nonEagerHandler.submit(new Runnable {
       override def run(): Unit = {
         statusSystem.handleAppLost(appId, requestId)
-        // Resource consumption source should remove lose application gauges.
-        removeAppResourceConsumption(appId)
         logInfo(s"Removed application $appId")
         if (hasHDFSStorage) {
           checkAndCleanExpiredAppDirsOnHDFS(appId)
@@ -879,30 +877,6 @@ private[celeborn] class Master(
         context.reply(ApplicationLostResponse(StatusCode.SUCCESS))
       }
     })
-  }
-
-  private def removeAppResourceConsumption(appId: String): Unit = {
-    removeResourceConsumptionGauge(
-      ResourceConsumptionSource.DISK_FILE_COUNT,
-      appId)
-    removeResourceConsumptionGauge(
-      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
-      appId)
-    removeResourceConsumptionGauge(
-      ResourceConsumptionSource.HDFS_FILE_COUNT,
-      appId)
-    removeResourceConsumptionGauge(
-      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
-      appId)
-  }
-
-  private def removeResourceConsumptionGauge(
-      resourceConsumptionName: String,
-      appId: String): Unit = {
-    resourceConsumptionSource.removeGauge(
-      resourceConsumptionName,
-      resourceConsumptionSource.applicationLabel,
-      appId)
   }
 
   private def checkAndCleanExpiredAppDirsOnHDFS(expiredDir: String = ""): Unit = {
@@ -970,10 +944,6 @@ private[celeborn] class Master(
   private def handleResourceConsumption(userIdentifier: UserIdentifier): ResourceConsumption = {
     val userResourceConsumption = computeUserResourceConsumption(userIdentifier)
     gaugeResourceConsumption(userIdentifier)
-    val subResourceConsumptions = userResourceConsumption.subResourceConsumptions
-    if (CollectionUtils.isNotEmpty(subResourceConsumptions)) {
-      subResourceConsumptions.asScala.keys.foreach { gaugeResourceConsumption(userIdentifier, _) }
-    }
     userResourceConsumption
   }
 
@@ -1024,13 +994,12 @@ private[celeborn] class Master(
     }
   }
 
+  // TODO: Support calculate topN app resource consumption.
   private def computeUserResourceConsumption(
       userIdentifier: UserIdentifier): ResourceConsumption = {
-    val (resourceConsumption, subResourceConsumptions) = statusSystem.workers.asScala.flatMap {
+    val resourceConsumption = statusSystem.workers.asScala.flatMap {
       workerInfo => workerInfo.userResourceConsumption.asScala.get(userIdentifier)
-    }.foldRight((ResourceConsumption(0, 0, 0, 0), Map.empty[String, ResourceConsumption]))(
-      _ addWithSubResourceConsumptions _)
-    resourceConsumption.subResourceConsumptions = subResourceConsumptions.asJava
+    }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
     resourceConsumption
   }
 
