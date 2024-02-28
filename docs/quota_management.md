@@ -23,9 +23,9 @@ Celeborn offers flexibility to administrators by allowing them to set quotas for
 as well as providing a system-level default quota for those users who do not have a specified named quota.
 This ensures a level of control and customization in managing the quotas for the system.
 
-When `celeborn.quota.enabled` is set to true, the `master` checks the quota via `QuotaManager`.
+When `celeborn.quota.enabled` is set to true, the `Master` checks the quota via `QuotaManager`.
 If the same setting is enabled on the client side, the `LifecycleManager` will request
-the `master` to check if the current user identifier has enough quota before registration of shuffle.
+the `Master` to check if the current user identifier has enough quota before registration of shuffle.
 If there's not enough quota, the system will fallback to the default shuffle service of Spark.
 
 ## Quota Indicators
@@ -50,7 +50,7 @@ Users can also implement their own identity provider by inheriting the `org.apac
 
 ## QuotaManager
 
-Celeborn initializes a `QuotaManager` on the master side to check quotas.
+Celeborn initializes a `QuotaManager` on the `Master` side to check quotas.
 `QuotaManager` uses the [dynamic config service](developers/configuration.md#dynamic-configuration)to store quota settings.
 `QuotaManager` supports two types of store backends:
 - FS: [FileSystem Store Backend](#FileSystem-Store-Backend)
