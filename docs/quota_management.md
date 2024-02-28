@@ -52,7 +52,7 @@ Users can also implement their own identity provider by inheriting the `org.apac
 
 Celeborn initializes a `QuotaManager` on the `Master` side to check quotas.
 `QuotaManager` uses the [dynamic config service](developers/configuration.md#dynamic-configuration)to store quota settings.
-`QuotaManager` supports two types of store backends:
+`QuotaManager` has two types of store backends:
 - FS: [FileSystem Store Backend](#FileSystem-Store-Backend)
 - DB: [Database Store Backend](#Database-Store-Backend)
 
