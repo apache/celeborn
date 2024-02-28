@@ -535,10 +535,6 @@ private[celeborn] class Worker(
     val resourceConsumptionSnapshot = storageManager.userResourceConsumptionSnapshot()
     resourceConsumptionSnapshot.foreach { case (userIdentifier, userResourceConsumption) =>
       gaugeResourceConsumption(userIdentifier)
-      val subResourceConsumptions = userResourceConsumption.subResourceConsumptions
-      if (CollectionUtils.isNotEmpty(subResourceConsumptions)) {
-        subResourceConsumptions.asScala.keys.foreach { gaugeResourceConsumption(userIdentifier, _) }
-      }
     }
     workerInfo.updateThenGetUserResourceConsumption(resourceConsumptionSnapshot.asJava)
   }
