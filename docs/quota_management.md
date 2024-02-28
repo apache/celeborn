@@ -19,14 +19,14 @@ limitations under the License.
 Quota Management
 ===
 
-Celeborn offers flexibility to administrators by allowing them to set quotas for individual users
-as well as providing a system-level default quota for those users who do not have a specified named quota.
-This ensures a level of control and customization in managing the quotas for the system.
+Celeborn offers administrators flexibility by allowing them to set quotas for individual users
+and providing a system-level default quota for users without a specific named quota.
+This feature ensures control and customization in managing system quotas.
 
-When `celeborn.quota.enabled` is set to true, the `Master` checks the quota via `QuotaManager`.
-If the same setting is enabled on the client side, the `LifecycleManager` will request
-the `Master` to check if the current user identifier has enough quota before registration of shuffle.
-If there's not enough quota, the system will fallback to the default shuffle service of Spark.
+When `celeborn.quota.enabled` is set to true, the `Master` enforces quota limits using the `QuotaManager`.
+Similarly, if this setting is enabled on the client side, the `LifecycleManager` will ask the `Master` to 
+verify whether the current user has sufficient quota before shuffle registration.
+Should there be insufficient quota, the `LifecycleManager` will revert to using Spark's default shuffle service.
 
 ## Quota Indicators
 
