@@ -100,9 +100,9 @@ class FetchHandler(
   override def receive(client: TransportClient, msg: RequestMessage): Unit = {
     msg match {
       case r: BufferStreamEnd =>
-        handleEndStreamFromClient(r.getStreamId)
+        handleEndStreamFromClient(client, r.getStreamId)
       case r: ReadAddCredit =>
-        handleReadAddCredit(r.getCredit, r.getStreamId)
+        handleReadAddCredit(client, r.getCredit, r.getStreamId)
       case r: ChunkFetchRequest =>
         handleChunkFetchRequest(client, r.streamChunkSlice, r)
       case unknown: RequestMessage =>
@@ -137,9 +137,12 @@ class FetchHandler(
           openStream.getReadLocalShuffle,
           callback)
       case bufferStreamEnd: PbBufferStreamEnd =>
-        handleEndStreamFromClient(bufferStreamEnd.getStreamId, bufferStreamEnd.getStreamType)
+        handleEndStreamFromClient(
+          client,
+          bufferStreamEnd.getStreamId,
+          bufferStreamEnd.getStreamType)
       case readAddCredit: PbReadAddCredit =>
-        handleReadAddCredit(readAddCredit.getCredit, readAddCredit.getStreamId)
+        handleReadAddCredit(client, readAddCredit.getCredit, readAddCredit.getStreamId)
       case chunkFetchRequest: PbChunkFetchRequest =>
         handleChunkFetchRequest(
           client,
@@ -205,6 +208,7 @@ class FetchHandler(
       isLegacy: Boolean,
       readLocalShuffle: Boolean = false,
       callback: RpcResponseCallback): Unit = {
+    workerSource.recordAppActiveConnection(client, shuffleKey)
     workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     try {
       var fileInfo = getRawDiskFileInfo(shuffleKey, fileName)
@@ -281,6 +285,7 @@ class FetchHandler(
           creditStreamManager.registerStream(
             creditStreamHandler,
             client.getChannel,
+            shuffleKey,
             initialCredit,
             startIndex,
             endIndex,
@@ -350,24 +355,34 @@ class FetchHandler(
     rpcResponseCallback.onFailure(ExceptionUtils.wrapIOExceptionToUnRetryable(ioe))
   }
 
-  def handleEndStreamFromClient(streamId: Long): Unit = {
-    handleEndStreamFromClient(streamId, StreamType.CreditStream)
+  def handleEndStreamFromClient(client: TransportClient, streamId: Long): Unit = {
+    handleEndStreamFromClient(client, streamId, StreamType.CreditStream)
   }
 
-  def handleEndStreamFromClient(streamId: Long, streamType: StreamType): Unit = {
+  def handleEndStreamFromClient(
+      client: TransportClient,
+      streamId: Long,
+      streamType: StreamType): Unit = {
     streamType match {
       case StreamType.ChunkStream =>
         val (shuffleKey, fileName) = chunkStreamManager.getShuffleKeyAndFileName(streamId)
+        workerSource.recordAppActiveConnection(client, shuffleKey)
         getRawDiskFileInfo(shuffleKey, fileName).closeStream(
           streamId)
       case StreamType.CreditStream =>
+        workerSource.recordAppActiveConnection(
+          client,
+          creditStreamManager.getStreamShuffleKey(streamId))
         creditStreamManager.notifyStreamEndByClient(streamId)
       case _ =>
         logError(s"Received a PbBufferStreamEnd message with unknown type $streamType")
     }
   }
 
-  def handleReadAddCredit(credit: Int, streamId: Long): Unit = {
+  def handleReadAddCredit(client: TransportClient, credit: Int, streamId: Long): Unit = {
+    workerSource.recordAppActiveConnection(
+      client,
+      creditStreamManager.getStreamShuffleKey(streamId))
     creditStreamManager.addCredit(credit, streamId)
   }
 
@@ -377,6 +392,10 @@ class FetchHandler(
       req: RequestMessage): Unit = {
     logDebug(s"Received req from ${NettyUtils.getRemoteAddress(client.getChannel)}" +
       s" to fetch block $streamChunkSlice")
+
+    workerSource.recordAppActiveConnection(
+      client,
+      chunkStreamManager.getShuffleKeyAndFileName(streamChunkSlice.streamId)._1)
 
     maxChunkBeingTransferred.foreach { threshold =>
       val chunksBeingTransferred = chunkStreamManager.chunksBeingTransferred // take high cpu usage
@@ -442,12 +461,12 @@ class FetchHandler(
   /** Invoked when the channel associated with the given client is active. */
   override def channelActive(client: TransportClient): Unit = {
     logDebug(s"channel active ${client.getSocketAddress}")
-    workerSource.incCounter(WorkerSource.ACTIVE_CONNECTION_COUNT)
+    workerSource.connectionActive(client)
     super.channelActive(client)
   }
 
   override def channelInactive(client: TransportClient): Unit = {
-    workerSource.incCounter(WorkerSource.ACTIVE_CONNECTION_COUNT, -1)
+    workerSource.connectionInactive(client)
     creditStreamManager.connectionTerminated(client.getChannel)
     logDebug(s"channel inactive ${client.getSocketAddress}")
   }
