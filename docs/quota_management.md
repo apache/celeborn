@@ -57,8 +57,8 @@ Celeborn initializes a `QuotaManager` on the `Master` side to check quotas.
 - DB: [Database Store Backend](#Database-Store-Backend)
 
 `QuotaManager` supports to check whether quota is available and manage quota configurations for `Master`.
-`QuotaManager` uses the [dynamic config service](developers/configuration.md#dynamic-configuration)to store quota settings.
-For example below quota setting:
+`QuotaManager` uses the [dynamic config service](developers/configuration.md#dynamic-configuration) to store quota settings.
+For example, there are some quota configurations as follows:
 
 The quota for user `tenant_01.Jerry` is
 - diskBytesWritten: 100G
@@ -82,6 +82,7 @@ The quota for `system default` is
 ### FileSystem Store Backend
 
 This backend reads [quota](#Quota Indicators) settings from a user-specified dynamic config file.
+For more information on using the database store backend, refer to [filesystem config service](developers/configuration.md#filesystem-config-service).
 Here's an example quota setting YAML file of above quota examples:
 
 ```yaml
