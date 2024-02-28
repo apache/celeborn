@@ -986,22 +986,22 @@ private[celeborn] class Master(
     resourceConsumptionSource.addGauge(
       ResourceConsumptionSource.DISK_FILE_COUNT,
       resourceConsumptionLabel) { () =>
-      computeResourceConsumption(userIdentifier).diskFileCount
+      computeResourceConsumption(userIdentifier, applicationId).diskFileCount
     }
     resourceConsumptionSource.addGauge(
       ResourceConsumptionSource.DISK_BYTES_WRITTEN,
       resourceConsumptionLabel) { () =>
-      computeResourceConsumption(userIdentifier).diskBytesWritten
+      computeResourceConsumption(userIdentifier, applicationId).diskBytesWritten
     }
     resourceConsumptionSource.addGauge(
       ResourceConsumptionSource.HDFS_FILE_COUNT,
       resourceConsumptionLabel) { () =>
-      computeResourceConsumption(userIdentifier).hdfsFileCount
+      computeResourceConsumption(userIdentifier, applicationId).hdfsFileCount
     }
     resourceConsumptionSource.addGauge(
       ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
       resourceConsumptionLabel) { () =>
-      computeResourceConsumption(userIdentifier).hdfsBytesWritten
+      computeResourceConsumption(userIdentifier, applicationId).hdfsBytesWritten
     }
   }
 
