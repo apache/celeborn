@@ -999,7 +999,7 @@ private[celeborn] class Master(
       userIdentifier: UserIdentifier): ResourceConsumption = {
     val resourceConsumption = statusSystem.workers.asScala.flatMap {
       workerInfo => workerInfo.userResourceConsumption.asScala.get(userIdentifier)
-    }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add  _)
+    }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
     resourceConsumption
   }
 
