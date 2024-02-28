@@ -46,7 +46,6 @@ import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.{RpcSecurityContextBuilder, ServerSaslContextBuilder}
 import org.apache.celeborn.common.util.{CelebornHadoopUtils, CollectionUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
-import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
@@ -871,6 +870,8 @@ private[celeborn] class Master(
     nonEagerHandler.submit(new Runnable {
       override def run(): Unit = {
         statusSystem.handleAppLost(appId, requestId)
+        // Resource consumption source should remove lose application gauges.
+        removeAppResourceConsumption(appId)
         logInfo(s"Removed application $appId")
         if (hasHDFSStorage) {
           checkAndCleanExpiredAppDirsOnHDFS(appId)
@@ -878,6 +879,30 @@ private[celeborn] class Master(
         context.reply(ApplicationLostResponse(StatusCode.SUCCESS))
       }
     })
+  }
+
+  private def removeAppResourceConsumption(appId: String): Unit = {
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.DISK_FILE_COUNT,
+      appId)
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
+      appId)
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.HDFS_FILE_COUNT,
+      appId)
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+      appId)
+  }
+
+  private def removeResourceConsumptionGauge(
+      resourceConsumptionName: String,
+      appId: String): Unit = {
+    resourceConsumptionSource.removeGauge(
+      resourceConsumptionName,
+      ResourceConsumptionSource.APPLICATION_LABEL,
+      appId)
   }
 
   private def checkAndCleanExpiredAppDirsOnHDFS(expiredDir: String = ""): Unit = {
@@ -942,55 +967,77 @@ private[celeborn] class Master(
     statusSystem.handleRemoveWorkersUnavailableInfo(unavailableWorkers, requestId)
   }
 
-  private def computeUserResourceConsumption(userIdentifier: UserIdentifier)
-      : ResourceConsumption = {
-    val current = System.currentTimeMillis()
-    if (userResourceConsumptions.containsKey(userIdentifier)) {
-      val resourceConsumptionAndUpdateTime = userResourceConsumptions.get(userIdentifier)
-      if (current - resourceConsumptionAndUpdateTime._2 > masterResourceConsumptionInterval) {
-        val newResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
-          workerInfo.userResourceConsumption.asScala.get(userIdentifier)
-        }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
-        userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))
-        newResourceConsumption
-      } else {
-        resourceConsumptionAndUpdateTime._1
-      }
-    } else {
-      val newResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
-        workerInfo.userResourceConsumption.asScala.get(userIdentifier)
-      }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
-      userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))
-      newResourceConsumption
+  private def handleResourceConsumption(userIdentifier: UserIdentifier): ResourceConsumption = {
+    val userResourceConsumption = computeUserResourceConsumption(userIdentifier)
+    gaugeResourceConsumption(userIdentifier)
+    val subResourceConsumptions = userResourceConsumption.subResourceConsumptions
+    if (CollectionUtils.isNotEmpty(subResourceConsumptions)) {
+      subResourceConsumptions.asScala.keys.foreach { gaugeResourceConsumption(userIdentifier, _) }
     }
+    userResourceConsumption
   }
 
-  private def handleCheckQuota(
+  private def gaugeResourceConsumption(
       userIdentifier: UserIdentifier,
-      context: RpcCallContext): Unit = {
-
+      applicationId: String = null): Unit = {
+    val resourceConsumptionLabel =
+      if (applicationId == null) userIdentifier.toMap
+      else userIdentifier.toMap + (ResourceConsumptionSource.APPLICATION_LABEL -> applicationId)
     resourceConsumptionSource.addGauge(
       ResourceConsumptionSource.DISK_FILE_COUNT,
-      userIdentifier.toMap) { () =>
-      computeUserResourceConsumption(userIdentifier).diskFileCount
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier).diskFileCount
     }
     resourceConsumptionSource.addGauge(
       ResourceConsumptionSource.DISK_BYTES_WRITTEN,
-      userIdentifier.toMap) { () =>
-      computeUserResourceConsumption(userIdentifier).diskBytesWritten
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier).diskBytesWritten
     }
     resourceConsumptionSource.addGauge(
       ResourceConsumptionSource.HDFS_FILE_COUNT,
-      userIdentifier.toMap) { () =>
-      computeUserResourceConsumption(userIdentifier).hdfsFileCount
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier).hdfsFileCount
     }
     resourceConsumptionSource.addGauge(
       ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
-      userIdentifier.toMap) { () =>
-      computeUserResourceConsumption(userIdentifier).hdfsBytesWritten
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier).hdfsBytesWritten
     }
+  }
 
-    val userResourceConsumption = computeUserResourceConsumption(userIdentifier)
+  private def computeResourceConsumption(
+      userIdentifier: UserIdentifier,
+      applicationId: String = null): ResourceConsumption = {
+    val newResourceConsumption = computeUserResourceConsumption(userIdentifier)
+    if (applicationId == null) {
+      val current = System.currentTimeMillis()
+      if (userResourceConsumptions.containsKey(userIdentifier)) {
+        val resourceConsumptionAndUpdateTime = userResourceConsumptions.get(userIdentifier)
+        if (current - resourceConsumptionAndUpdateTime._2 <= masterResourceConsumptionInterval) {
+          return resourceConsumptionAndUpdateTime._1
+        }
+      }
+      userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))
+      newResourceConsumption
+    } else {
+      newResourceConsumption.subResourceConsumptions.get(applicationId)
+    }
+  }
+
+  private def computeUserResourceConsumption(
+      userIdentifier: UserIdentifier): ResourceConsumption = {
+    val (resourceConsumption, subResourceConsumptions) = statusSystem.workers.asScala.flatMap {
+      workerInfo => workerInfo.userResourceConsumption.asScala.get(userIdentifier)
+    }.foldRight((ResourceConsumption(0, 0, 0, 0), Map.empty[String, ResourceConsumption]))(
+      _ addWithSubResourceConsumptions _)
+    resourceConsumption.subResourceConsumptions = subResourceConsumptions.asJava
+    resourceConsumption
+  }
+
+  private[master] def handleCheckQuota(
+      userIdentifier: UserIdentifier,
+      context: RpcCallContext): Unit = {
+    val userResourceConsumption = handleResourceConsumption(userIdentifier)
     if (conf.quotaEnabled) {
       val (isAvailable, reason) =
         quotaManager.checkQuotaSpaceAvailable(userIdentifier, userResourceConsumption)
