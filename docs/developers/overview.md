@@ -18,7 +18,7 @@ license: |
 
 # Celeborn Architecture
 
-This article introduces high level Apache Celeborn(Incubating) Architecture. For more detailed description of each module/process,
+This article introduces high level Apache Celeborn™(Incubating) Architecture. For more detailed description of each module/process,
 please refer to dedicated articles.
 
 ## Why Celeborn

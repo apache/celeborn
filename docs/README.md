@@ -20,7 +20,7 @@ license: |
 ---
 Quick Start
 ===
-This documentation gives a quick start guide for running Apache Spark/Flink with Apache Celeborn(Incubating).
+This documentation gives a quick start guide for running Apache Spark/Flink with Apache Celeborn™(Incubating).
 
 ### Download Celeborn
 Download the latest Celeborn binary from the [Downloading Page](https://celeborn.apache.org/download/).
