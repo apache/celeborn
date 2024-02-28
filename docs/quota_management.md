@@ -31,10 +31,10 @@ of Spark when Master side checks that there is no enough quota for current user.
 
 ## Quota
 Celeborn supports fine-grained quota management, now Celeborn including four indicators:
-- `celeborn.quota.tenant.diskBytesWritten`: Maximum allowed disk write bytes.
-- `celeborn.quota.tenant.diskFileCount`: Maximum allowed disk write file num.
-- `celeborn.quota.tenant.hdfsBytesWritten`: Maximum allowed hdfs write bytes.
-- `celeborn.quota.tenant.hdfsFileCount`: Maximum allowed hdfs write file num.
+- `celeborn.quota.tenant.diskBytesWritten`: Maximum allowed disk write bytes, default value `Long.MAX_VALUE`.
+- `celeborn.quota.tenant.diskFileCount`: Maximum allowed disk write file num, default value `Long.MAX_VALUE`.
+- `celeborn.quota.tenant.hdfsBytesWritten`: Maximum allowed hdfs write bytes, default value `Long.MAX_VALUE`.
+- `celeborn.quota.tenant.hdfsFileCount`: Maximum allowed hdfs write file num, default value `Long.MAX_VALUE`.
 
 ## User Identifier
 The Celeborn supports user identifier for two level:
@@ -48,7 +48,7 @@ Celeborn uses `org.apache.celeborn.common.identity.DefaultIdentityProvider` as d
 Also, the Celeborn users can implement their own specified identify provider inheriting interface `org.apache.celeborn.common.identity.IdentityProvider` by yourself.
 
 ## QuotaManager
-Celeborn will initialize a QuotaManager in the master side. Currently, QuotaManager supports three level configuration: 
+Celeborn will initialize a QuotaManager in the master side. Currently, QuotaManager supports three level configuration same as : 
   - Tenant User Level: When the tenant user level quota config is null or empty, fallback to the tenant level quota config. When the tenant level config is null or empty, fallback to the system level config again.
   - Tenant Level: When the tenant level config is null or empty, fallback to the system level config.
   - System Level: When the system level config is also null or empty, fallback to default value `Long.MAX_VALUE`.
