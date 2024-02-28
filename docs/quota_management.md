@@ -40,10 +40,12 @@ Celeborn supports fine-grained quota management, now Celeborn including four ind
 The Celeborn supports user identifier for two level:
   - tenant id
   - username
+
 The client LifecycleManager will request master side to check quota for current user that defined by user setting.
 User can set `celeborn.quota.identity.provider` to choose a identity provider, now we support two type provider:
   - `org.apache.celeborn.common.identity.HadoopBasedIdentityProvider`: username will be obtained by `UserGroupInformation.getUserName()`, tenant id will be default.
   - `org.apache.celeborn.common.identity.DefaultIdentityProvider`: username and tenant id are default values or user-specific values setting by `celeborn.quota.identity.user-specific.tenant` and `celeborn.quota.identity.user-specific.userName`.
+
 Celeborn uses `org.apache.celeborn.common.identity.DefaultIdentityProvider` as default. 
 Also, the Celeborn users can implement their own specified identify provider inheriting interface `org.apache.celeborn.common.identity.IdentityProvider` by yourself.
 
