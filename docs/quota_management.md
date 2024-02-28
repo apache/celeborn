@@ -107,6 +107,7 @@ Here's an example quota setting YAML file of above quota examples:
 
 
 ### Database Store Backend
+
 This backend reads [quota](#Quota Indicators) settings from a user-specified database.
 For more information on using the database store backend, refer to [database config service](developers/configuration.md#database-config-service).
 Here's an example quota setting sql of above quota examples:
