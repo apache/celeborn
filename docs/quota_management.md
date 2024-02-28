@@ -56,10 +56,33 @@ Celeborn initializes a `QuotaManager` on the `Master` side to check quotas.
 - FS: [FileSystem Store Backend](#FileSystem-Store-Backend)
 - DB: [Database Store Backend](#Database-Store-Backend)
 
+`QuotaManager` supports to check whether quota is available and manage quota configurations for `Master`.
+`QuotaManager` uses the [dynamic config service](developers/configuration.md#dynamic-configuration)to store quota settings.
+For example below quota setting:
+
+The quota for user `tenant_01.Jerry` is
+- diskBytesWritten: 100G
+- diskFileCount: 10000
+- hdfsBytesWritten: 10G
+- diskFileCount: Long.MAX_VALUE
+
+The quota for tenant id `tenant_01` is
+- diskBytesWritten: 10G
+- diskFileCount: 1000
+- hdfsBytesWritten: 10G
+- diskFileCount: Long.MAX_VALUE
+
+The quota for `system default` is
+- diskBytesWritten: 1G
+- diskFileCount: 100
+- hdfsBytesWritten: 1G
+- diskFileCount: Long.MAX_VALUE
+
+
 ### FileSystem Store Backend
 
 This backend reads [quota](#Quota Indicators) settings from a user-specified dynamic config file.
-Here's an example quota setting YAML file:
+Here's an example quota setting YAML file of above quota examples:
 
 ```yaml
 -  level: SYSTEM
@@ -82,24 +105,24 @@ Here's an example quota setting YAML file:
 ```
 
 
-The quota for user `tenant_01.Jerry` is
-- diskBytesWritten: 100G
-- diskFileCount: 10000
-- hdfsBytesWritten: 10G
-- diskFileCount: Long.MAX_VALUE
-
-The quota for tenant id `tenant_01` is
-- diskBytesWritten: 10G
-- diskFileCount: 1000
-- hdfsBytesWritten: 10G
-- diskFileCount: Long.MAX_VALUE
-
-The quota for `system default` is
-- diskBytesWritten: 1G
-- diskFileCount: 100
-- hdfsBytesWritten: 1G
-- diskFileCount: Long.MAX_VALUE
-
 ### Database Store Backend
 This backend reads [quota](#Quota Indicators) settings from a user-specified database.
 For more information on using the database store backend, refer to [database config service](developers/configuration.md#database-config-service).
+Here's an example quota setting sql of above quota examples:
+```sql
+# SYSTEM level configuration
+INSERT INTO `celeborn_cluster_system_config` ( `id`, `cluster_id`, `config_key`, `config_value`, `type`, `gmt_create`, `gmt_modify` )
+VALUES
+    ( 1, 1, 'celeborn.quota.tenant.diskBytesWritten', '1G', 'QUOTA', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
+    ( 2, 1, 'celeborn.quota.tenant.diskFileCount', '100', 'QUOTA', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
+    ( 3, 1, 'celeborn.quota.tenant.hdfsBytesWritten', '1G', 'QUOTA', '2024-02-27 22:08:30', '2024-02-27 22:08:30' );
+
+# TENANT/TENANT_USER level configuration
+INSERT INTO `celeborn_cluster_tenant_config` ( `id`, `cluster_id`, `tenant_id`, `level`, `name`, `config_key`, `config_value`, `type`, `gmt_create`, `gmt_modify` )
+VALUES
+    ( 1, 1, 'tenant_01', 'TENANT', '', 'celeborn.quota.tenant.diskBytesWritten', '10G', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
+    ( 2, 1, 'tenant_01', 'TENANT', '', 'celeborn.quota.tenant.diskFileCount', '1000', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
+    ( 3, 1, 'tenant_01', 'TENANT', '', 'celeborn.quota.tenant.hdfsBytesWritten', '10G', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
+    ( 4, 1, 'tenant_01', 'TENANT_USER', 'Jerry', 'celeborn.quota.tenant.diskBytesWritten', '100G', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
+    ( 5, 1, 'tenant_01', 'TENANT_USER', 'Jerry', 'celeborn.quota.tenant.diskFileCount', '10000', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' );
+```
