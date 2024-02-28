@@ -23,7 +23,7 @@ Celeborn offers flexibility to administrators by allowing them to set quotas for
 as well as providing a system-level default quota for those users who do not have a specified named quota.
 This ensures a level of control and customization in managing the quotas for the system.
 
-When `celeborn.quota.enabled` is set to true, the master checks the quota via `QuotaManager`.
+When `celeborn.quota.enabled` is set to true, the `master` checks the quota via `QuotaManager`.
 If the same setting is enabled on the client side, the `LifecycleManager` will request
 the `master` to check if the current user identifier has enough quota before registration of shuffle.
 If there's not enough quota, the system will fallback to the default shuffle service of Spark.
@@ -50,15 +50,15 @@ Users can also implement their own identity provider by inheriting the `org.apac
 
 ## QuotaManager
 
-Celeborn initializes a QuotaManager on the master side to check quotas.
-QuotaManager uses the [dynamic config service](developers/configuration.md#dynamic-configuration)to store quota settings.
-QuotaManager supports two types of store backends:
+Celeborn initializes a `QuotaManager` on the master side to check quotas.
+`QuotaManager` uses the [dynamic config service](developers/configuration.md#dynamic-configuration)to store quota settings.
+`QuotaManager` supports two types of store backends:
 - FS: [FileSystem Store Backend](#FileSystem-Store-Backend)
 - DB: [Database Store Backend](#Database-Store-Backend)
 
 ### FileSystem Store Backend
 
-This backend reads [quota](#Quota) settings from a user-specified dynamic config file.
+This backend reads [quota](#Quota Indicators) settings from a user-specified dynamic config file.
 Here's an example quota setting YAML file:
 
 ```yaml
@@ -101,5 +101,5 @@ The quota for `system default` is
 - diskFileCount: Long.MAX_VALUE
 
 ### Database Store Backend
-This backend reads quota settings from a user-specified database.
+This backend reads [quota](#Quota Indicators) settings from a user-specified database.
 For more information on using the database store backend, refer to [database config service](developers/configuration.md#database-config-service).
