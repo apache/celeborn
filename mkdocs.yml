@@ -17,7 +17,7 @@
 
 site_name: Apache Celeborn™ (Incubating)
 repo_name: apache/incubator-celeborn
-repo_url: https://github.com/apache/incubator-celeborn
+repo_url: https://gitbox.apache.org/repos/asf/incubator-celeborn.git
 
 plugins:
   - search
