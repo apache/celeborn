@@ -48,23 +48,17 @@ Celeborn uses `org.apache.celeborn.common.identity.DefaultIdentityProvider` as d
 Also, the Celeborn users can implement their own specified identify provider inheriting interface `org.apache.celeborn.common.identity.IdentityProvider` by yourself.
 
 ## QuotaManager
-Celeborn will initialize a QuotaManager in the master side. Currently, QuotaManager supports three level configuration same as : 
-  - Tenant User Level: When the tenant user level quota config is null or empty, fallback to the tenant level quota config. When the tenant level config is null or empty, fallback to the system level config again.
-  - Tenant Level: When the tenant level config is null or empty, fallback to the system level config.
-  - System Level: When the system level config is also null or empty, fallback to default value `Long.MAX_VALUE`.
-
-QuotaManager uses dynamic [config service](#) to store quota settings mentioned in [Quota](#Quota),
-QuotaManger also support two types of store backend configured by parameter `celeborn.dynamicConfig.store.backend`:
+Celeborn will initialize a QuotaManager in the master side checking quota.
+QuotaManager uses [dynamic config service](developers/configuration.md#dynamic-configuration) to store quota settings mentioned in [Quota](#Quota).
+QuotaManger also supports two types of store backend configured by parameter `celeborn.dynamicConfig.store.backend` to store quota setting:
   - FS: [FileSystem Store Backend](#FileSystem Store Backend)
   - DB: [Database Store Backend](#Database Store Backend)
 
-### FileSystem Store Backend
-FileSystem store backend will read quota configuration file setting by 
-`celeborn.quota.configuration.path`, if this path is not set,
-The Celeborn will fall back to `dynamicConfig.yaml` under conf directory `$CELEBORN_HOME/conf/`.
+Currently, QuotaManager supports [three level](developers/configuration.md#Config Level) quota settings.
 
-### Example
-The example yaml file as below:
+### FileSystem Store Backend
+FileSystem Store Backend will read [quota](#Quota) settings from user specified dynamic config file.
+The example quota setting yaml file as below:
 ```yaml
 -  level: SYSTEM
    config:
@@ -104,5 +98,5 @@ The quota for system default is
   - diskFileCount: Long.MAX_VALUE 
 
 ### Database Store Backend
-Database Store Backend will read [quota configuration](#Quota) from user specified database.
-For how to use Database store backend can refer to dynamic config service document.
+Database Store Backend will read [quota](#Quota) settings from user specified database.
+For how to use database store backend can refer to [database config service](developers/configuration.md#database-config-service).
