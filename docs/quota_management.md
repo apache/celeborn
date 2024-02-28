@@ -19,32 +19,29 @@ limitations under the License.
 Quota Management
 ===
 
-Celeborn allows administrators to set quotas for the number of names used.
-A system-level default quota can also be set for all users who haven't specified a named quota.
+Celeborn offers flexibility to administrators by allowing them to set quotas for individual users
+as well as providing a system-level default quota for those users who do not have a specified named quota.
+This ensures a level of control and customization in managing the quotas for the system.
 
-When `celeborn.quota.enabled` is set to true, the master checks the quota via QuotaManager.
-If the same setting is enabled on the client side, the LifecycleManager will request
-the master to check if the current user identifier has enough quota before registration of shuffle.
+When `celeborn.quota.enabled` is set to true, the master checks the quota via `QuotaManager`.
+If the same setting is enabled on the client side, the `LifecycleManager` will request
+the `master` to check if the current user identifier has enough quota before registration of shuffle.
 If there's not enough quota, the system will fallback to the default shuffle service of Spark.
 
 ## Quota Indicators
 
 Celeborn supports fine-grained quota management, including four indicators:
 
-- `celeborn.quota.tenant.diskBytesWritten`: Maximum allowed disk write bytes, default value `Long.MAX_VALUE`.
-- `celeborn.quota.tenant.diskFileCount`: Maximum allowed disk write file num, default value `Long.MAX_VALUE`.
-- `celeborn.quota.tenant.hdfsBytesWritten`: Maximum allowed HDFS write bytes, default value `Long.MAX_VALUE`.
-- `celeborn.quota.tenant.hdfsFileCount`: Maximum allowed HDFS write file num, default value `Long.MAX_VALUE`.
+- `celeborn.quota.tenant.diskBytesWritten`: Maximum allowed size of disk write files, of which default value `Long.MAX_VALUE`.
+- `celeborn.quota.tenant.diskFileCount`: Maximum allowed number of disk write files, of which default value is `Long.MAX_VALUE`.
+- `celeborn.quota.tenant.hdfsBytesWritten`: Maximum allowed size of HDFS write files, of which default value `Long.MAX_VALUE`.
+- `celeborn.quota.tenant.hdfsFileCount`: Maximum allowed number of HDFS write files, of which default value is `Long.MAX_VALUE`.
 
 ## User Identifier
 
-Celeborn supports user identifiers on two levels:
-
-- Tenant ID
-- Username
-
-The client's LifecycleManager will request the master to check the quota for the current user defined by user setting. Users can set `celeborn.quota.identity.provider` to choose an identity provider. We currently support two types:
-
+The `LifecycleManager` will request the `Master` to check the quota for the current user defined by user setting.
+Users can set `celeborn.quota.identity.provider` to choose an identity provider.
+Celeborn support the following types at present:
 - `org.apache.celeborn.common.identity.HadoopBasedIdentityProvider`: The username will be obtained by `UserGroupInformation.getUserName()`, tenant id will be default.
 - `org.apache.celeborn.common.identity.DefaultIdentityProvider`: The username and tenant id are default values or user-specific values set by `celeborn.quota.identity.user-specific.tenant` and `celeborn.quota.identity.user-specific.userName`.
 
@@ -55,12 +52,9 @@ Users can also implement their own identity provider by inheriting the `org.apac
 
 Celeborn initializes a QuotaManager on the master side to check quotas.
 QuotaManager uses the [dynamic config service](developers/configuration.md#dynamic-configuration)to store quota settings.
-QuotaManager supports two types of store backends configured by the `celeborn.dynamicConfig.store.backend` parameter:
-
+QuotaManager supports two types of store backends:
 - FS: [FileSystem Store Backend](#FileSystem-Store-Backend)
 - DB: [Database Store Backend](#Database-Store-Backend)
-
-Currently, QuotaManager supports [three levels](developers/configuration.md#Config-Level) of quota settings.
 
 ### FileSystem Store Backend
 
