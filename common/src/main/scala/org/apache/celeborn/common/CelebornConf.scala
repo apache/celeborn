@@ -586,6 +586,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def masterHttpPort: Int = get(MASTER_HTTP_PORT)
 
+  def masterHttpMaxWorkerThreads: Int = get(MASTER_HTTP_MAX_WORKER_THREADS)
+
+  def masterHttpStopTimeout: Long = get(MASTER_HTTP_STOP_TIMEOUT)
+
   def haEnabled: Boolean = get(HA_ENABLED)
 
   def haMasterNodeId: Option[String] = get(HA_MASTER_NODE_ID)
@@ -676,6 +680,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerHttpHost: String =
     get(WORKER_HTTP_HOST).replace("<localhost>", Utils.localHostName(this))
   def workerHttpPort: Int = get(WORKER_HTTP_PORT)
+  def workerHttpMaxWorkerThreads: Int = get(WORKER_HTTP_MAX_WORKER_THREADS)
+  def workerHttpStopTimeout: Long = get(WORKER_HTTP_STOP_TIMEOUT)
   def workerRpcPort: Int = get(WORKER_RPC_PORT)
   def workerPushPort: Int = get(WORKER_PUSH_PORT)
   def workerFetchPort: Int = get(WORKER_FETCH_PORT)
@@ -1885,6 +1891,23 @@ object CelebornConf extends Logging {
       .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(9098)
 
+  val MASTER_HTTP_MAX_WORKER_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.master.http.maxWorkerThreads")
+      .categories("master")
+      .version("0.5.0")
+      .doc("Maximum number of threads in the master http worker thread pool.")
+      .intConf
+      .checkValue(_ > 0, "Must be positive.")
+      .createWithDefault(999)
+
+  val MASTER_HTTP_STOP_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.http.stopTimeout")
+      .categories("master")
+      .version("0.5.0")
+      .doc("Master http server stop timeout.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
+
   val HA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.master.ha.enabled")
       .withAlternative("celeborn.ha.enabled")
@@ -2442,6 +2465,23 @@ object CelebornConf extends Logging {
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(9096)
+
+  val WORKER_HTTP_MAX_WORKER_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.http.maxWorkerThreads")
+      .categories("worker")
+      .version("0.5.0")
+      .doc("Maximum number of threads in the worker http worker thread pool.")
+      .intConf
+      .checkValue(_ > 0, "Must be positive.")
+      .createWithDefault(999)
+
+  val WORKER_HTTP_STOP_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.http.stopTimeout")
+      .categories("worker")
+      .version("0.5.0")
+      .doc("Worker http server stop timeout.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
 
   val WORKER_RPC_PORT: ConfigEntry[Int] =
     buildConf("celeborn.worker.rpc.port")

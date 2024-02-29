@@ -17,75 +17,108 @@
 
 package org.apache.celeborn.server.common.http
 
-import java.net.InetSocketAddress
-import java.util.concurrent.TimeUnit
-
-import io.netty.bootstrap.ServerBootstrap
-import io.netty.channel.{ChannelFuture, ChannelInitializer}
-import io.netty.channel.socket.nio.NioServerSocketChannel
-import io.netty.handler.logging.{LoggingHandler, LogLevel}
+import org.apache.commons.lang3.SystemUtils
+import org.eclipse.jetty.server.{Handler, HttpConfiguration, HttpConnectionFactory, Server, ServerConnector}
+import org.eclipse.jetty.server.handler.{ContextHandlerCollection, ErrorHandler}
+import org.eclipse.jetty.util.component.LifeCycle
+import org.eclipse.jetty.util.thread.{QueuedThreadPool, ScheduledExecutorScheduler}
 
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.network.util.{IOMode, NettyUtils}
-import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
+import org.apache.celeborn.common.util.CelebornExitKind
 
-class HttpServer(
+private[celeborn] case class HttpServer(
     role: String,
-    host: String,
-    port: Int,
-    channelInitializer: ChannelInitializer[_]) extends Logging {
+    server: Server,
+    connector: ServerConnector,
+    rootHandler: ContextHandlerCollection) extends Logging {
 
-  private var bootstrap: ServerBootstrap = _
-  private var bindFuture: ChannelFuture = _
   @volatile private var isStarted = false
 
   @throws[Exception]
   def start(): Unit = synchronized {
-    val boss = NettyUtils.createEventLoop(IOMode.NIO, 1, role + "-http-boss")
-    val worker = NettyUtils.createEventLoop(IOMode.NIO, 2, role + "-http-worker")
-    bootstrap = new ServerBootstrap
-    bootstrap
-      .group(boss, worker)
-      .handler(new LoggingHandler(LogLevel.DEBUG))
-      .channel(classOf[NioServerSocketChannel])
-      .childHandler(channelInitializer)
-
-    val address = new InetSocketAddress(host, port)
-    bindFuture = bootstrap.bind(address).sync
-    bindFuture.syncUninterruptibly()
-    logInfo(s"$role: HttpServer started on ${address.getHostString}:$port.")
-    isStarted = true
+    try {
+      server.start()
+      connector.start()
+      server.addConnector(connector)
+      logInfo(s"$role: HttpServer started on ${connector.getHost}:${connector.getPort}.")
+      isStarted = true
+    } catch {
+      case e: Exception =>
+        stop(CelebornExitKind.EXIT_IMMEDIATELY)
+        throw e
+    }
   }
 
   def stop(exitCode: Int): Unit = synchronized {
     if (isStarted) {
+      if (exitCode == CelebornExitKind.EXIT_IMMEDIATELY) {
+        server.setStopTimeout(0)
+      }
       logInfo(s"$role: Stopping HttpServer")
-      if (bindFuture != null) {
-        // close is a local operation and should finish within milliseconds; timeout just to be safe
-        bindFuture.channel.close.awaitUninterruptibly(10, TimeUnit.SECONDS)
-        bindFuture = null
+      server.stop()
+      connector.stop()
+      server.getThreadPool match {
+        case lifeCycle: LifeCycle => lifeCycle.stop()
+        case _ =>
       }
-      if (bootstrap != null && bootstrap.config.group != null) {
-        Utils.tryLogNonFatalError {
-          if (exitCode == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
-            bootstrap.config.group.shutdownGracefully(3, 5, TimeUnit.SECONDS)
-          } else {
-            bootstrap.config.group.shutdownGracefully(0, 0, TimeUnit.SECONDS)
-          }
-        }
-      }
-      if (bootstrap != null && bootstrap.config.childGroup != null) {
-        Utils.tryLogNonFatalError {
-          if (exitCode == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
-            bootstrap.config.childGroup.shutdownGracefully(3, 5, TimeUnit.SECONDS)
-          } else {
-            bootstrap.config.childGroup.shutdownGracefully(0, 0, TimeUnit.SECONDS)
-          }
-        }
-      }
-      bootstrap = null
       logInfo(s"$role: HttpServer stopped.")
       isStarted = false
     }
+  }
+  def getServerUri: String = connector.getHost + ":" + connector.getLocalPort
+
+  def addHandler(handler: Handler): Unit = synchronized {
+    rootHandler.addHandler(handler)
+    if (!handler.isStarted) handler.start()
+  }
+
+  def addStaticHandler(
+      resourceBase: String,
+      contextPath: String): Unit = {
+    addHandler(HttpUtils.createStaticHandler(resourceBase, contextPath))
+  }
+
+  def addRedirectHandler(
+      src: String,
+      dest: String): Unit = {
+    addHandler(HttpUtils.createRedirectHandler(src, dest))
+  }
+
+  def getState: String = server.getState
+}
+
+object HttpServer {
+
+  def apply(role: String, host: String, port: Int, poolSize: Int, stopTimeout: Long): HttpServer = {
+    val pool = new QueuedThreadPool(poolSize)
+    pool.setName(s"$role-JettyThreadPool")
+    pool.setDaemon(true)
+    val server = new Server(pool)
+    server.setStopTimeout(stopTimeout)
+
+    val errorHandler = new ErrorHandler()
+    errorHandler.setShowStacks(true)
+    errorHandler.setServer(server)
+    server.addBean(errorHandler)
+
+    val collection = new ContextHandlerCollection
+    server.setHandler(collection)
+
+    val serverExecutor = new ScheduledExecutorScheduler(s"$role-JettyScheduler", true)
+    val httpConf = new HttpConfiguration()
+    val connector = new ServerConnector(
+      server,
+      null,
+      serverExecutor,
+      null,
+      -1,
+      -1,
+      new HttpConnectionFactory(httpConf))
+    connector.setHost(host)
+    connector.setPort(port)
+    connector.setReuseAddress(!SystemUtils.IS_OS_WINDOWS)
+    connector.setAcceptQueueSize(math.min(connector.getAcceptors, 8))
+
+    new HttpServer(role, server, connector, collection)
   }
 }
