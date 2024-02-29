@@ -98,6 +98,7 @@ enum MessageType {
   REGISTER_APPLICATION_RESPONSE = 75;
   WORKER_EVENT_REQUEST = 76;
   WORKER_EVENT_RESPONSE = 77;
+  APPLICATION_META = 78;
 }
 
 enum StreamType {
@@ -613,6 +614,7 @@ message PbSnapshotMetaInfo {
   repeated PbWorkerInfo shutdownWorkers = 13;
   repeated PbWorkerInfo manuallyExcludedWorkers = 14;
   map<string, PbWorkerEventInfo> workerEventInfos = 15;
+  map<string, PbApplicationMeta> applicationMetas = 16;
 }
 
 message PbOpenStream {
@@ -724,3 +726,9 @@ message PbRegisterApplicationRequest {
 message PbRegisterApplicationResponse {
   bool status = 1;
 }
+
+message PbApplicationMeta {
+  string appId = 1;
+  string secret = 2;
+}
+

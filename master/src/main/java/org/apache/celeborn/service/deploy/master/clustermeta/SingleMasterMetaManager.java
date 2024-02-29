@@ -163,4 +163,9 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   public void handleUpdatePartitionSize() {
     updatePartitionSize();
   }
+
+  @Override
+  public void handleApplicationMeta(String appId, String secret) {
+    updateApplicationMeta(appId, secret);
+  }
 }

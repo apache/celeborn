@@ -188,7 +188,7 @@ private[celeborn] class Worker(
   private[worker] var internalRpcEndpoint: RpcEndpoint = _
   private var internalRpcEndpointRef: RpcEndpointRef = _
   if (conf.internalPortEnabled) {
-    internalRpcEndpoint = new InternalRpcEndpoint(internalRpcEnvInUse, conf)
+    internalRpcEndpoint = new InternalRpcEndpoint(internalRpcEnvInUse, conf, secretRegistry)
     internalRpcEndpointRef = internalRpcEnvInUse.setupEndpoint(
       RpcNameConstants.WORKER_INTERNAL_EP,
       internalRpcEndpoint)

@@ -82,4 +82,6 @@ public interface IMetadataHandler {
       int workerEventTypeValue, List<WorkerInfo> workerInfoList, String requestId);
 
   void handleUpdatePartitionSize();
+
+  void handleApplicationMeta(String appId, String secret);
 }

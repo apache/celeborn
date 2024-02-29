@@ -267,6 +267,12 @@ public class MetaHandler {
           metaSystem.updateWorkerEventMeta(
               request.getWorkerEventRequest().getWorkerEventType().getNumber(), workerInfoList);
 
+        case ApplicationMeta:
+          appId = request.getApplicationMetaRequest().getAppId();
+          String secret = request.getApplicationMetaRequest().getSecret();
+          metaSystem.updateApplicationMeta(appId, secret);
+          break;
+
         default:
           throw new IOException("Can not parse this command!" + request);
       }

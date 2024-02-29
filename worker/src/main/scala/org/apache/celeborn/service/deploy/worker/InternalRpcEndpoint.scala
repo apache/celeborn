@@ -18,8 +18,9 @@
 package org.apache.celeborn.service.deploy.worker
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.network.sasl.SecretRegistry
+import org.apache.celeborn.common.protocol.PbApplicationMeta
 import org.apache.celeborn.common.rpc._
 
 /**
@@ -28,7 +29,8 @@ import org.apache.celeborn.common.rpc._
  */
 private[celeborn] class InternalRpcEndpoint(
     override val rpcEnv: RpcEnv,
-    val conf: CelebornConf)
+    val conf: CelebornConf,
+    val secretRegistry: SecretRegistry)
   extends RpcEndpoint with Logging {
 
   override def onDisconnected(address: RpcAddress): Unit = {
@@ -36,8 +38,10 @@ private[celeborn] class InternalRpcEndpoint(
   }
 
   override def receive: PartialFunction[Any, Unit] = {
-    // TODO: [CELEBORN-1234] Handle the application secret from the Master
-    case _ => throw new CelebornException(self + " not implemented")
+    case pb: PbApplicationMeta =>
+      val appId = pb.getAppId
+      val secret = pb.getSecret
+      logInfo(s"Received application meta for $appId from the coordinator")
+      secretRegistry.register(appId, secret)
   }
-
 }

@@ -38,6 +38,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
+import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.network.sasl.SecretRegistryImpl
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
@@ -76,7 +77,7 @@ private[celeborn] class Master(
   metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
 
   private val authEnabled = conf.authEnabled
-  private val secretRegistry = new SecretRegistryImpl()
+  private val secretRegistry = new MasterSecretRegistryImpl()
 
   override val rpcEnv: RpcEnv =
     if (!authEnabled) {
@@ -144,6 +145,7 @@ private[celeborn] class Master(
     } else {
       new SingleMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
     }
+  secretRegistry.setMetadataHandler(statusSystem)
 
   // Threads
   private val forwardMessageThread =
@@ -850,6 +852,26 @@ private[celeborn] class Master(
       logInfo(s"Offered extra $offerSlotsExtraSize slots for $shuffleKey")
     }
 
+    if (authEnabled) {
+      // Pass application registration information to the workers
+      val pbApplicationMeta = PbApplicationMeta.newBuilder()
+        .setAppId(requestSlots.applicationId)
+        .setSecret(secretRegistry.getSecretKey(requestSlots.applicationId))
+        .build()
+      val transportMessage =
+        new TransportMessage(MessageType.APPLICATION_META, pbApplicationMeta.toByteArray)
+      slots.keySet().forEach(worker => {
+        try {
+          logInfo(s"Sending app registration info to ${worker.host}:${worker.internalPort}")
+          internalRpcEnvInUse.setupEndpointRef(
+            RpcAddress.apply(worker.host, worker.internalPort),
+            RpcNameConstants.WORKER_INTERNAL_EP).send(transportMessage)
+        } catch {
+          case t: Throwable =>
+            logError(s"Send application meta info to workers failed!", t)
+        }
+      })
+    }
     context.reply(RequestSlotsResponse(StatusCode.SUCCESS, slots.asInstanceOf[WorkerResource]))
   }
 

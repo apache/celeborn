@@ -417,7 +417,8 @@ object PbSerDeUtils {
       currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot,
       lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long],
       shutdownWorkers: java.util.Set[WorkerInfo],
-      workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo]): PbSnapshotMetaInfo = {
+      workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo],
+      applicationMetas: ConcurrentHashMap[String, ApplicationMeta]): PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
       .addAllRegisteredShuffle(registeredShuffle)
@@ -446,7 +447,22 @@ object PbSerDeUtils {
       builder.setCurrentAppDiskUsageMetricsSnapshot(
         toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))
     }
+    if (applicationMetas != null) {
+      builder.putAllApplicationMetas(applicationMetas.asScala.map {
+        case (appId, applicationMeta) => (appId, toPbApplicationMeta(applicationMeta))
+      }.asJava)
+    }
     builder.build()
+  }
+
+  def toPbApplicationMeta(meta: ApplicationMeta): PbApplicationMeta = {
+    PbApplicationMeta.newBuilder()
+      .setAppId(meta.getAppId)
+      .setSecret(meta.getSecret).build()
+  }
+
+  def fromPbApplicationMeta(pbApplicationMeta: PbApplicationMeta): ApplicationMeta = {
+    new ApplicationMeta(pbApplicationMeta.getAppId, pbApplicationMeta.getSecret)
   }
 
   def toPbWorkerStatus(workerStatus: WorkerStatus): PbWorkerStatus = {

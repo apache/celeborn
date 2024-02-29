@@ -375,4 +375,23 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       throw e;
     }
   }
+
+  @Override
+  public void handleApplicationMeta(String appId, String secret) {
+    try {
+      ratisServer.submitRequest(
+          ResourceRequest.newBuilder()
+              .setCmdType(Type.ApplicationMeta)
+              .setRequestId(MasterClient.genRequestId())
+              .setApplicationMetaRequest(
+                  ResourceProtos.ApplicationMetaRequest.newBuilder()
+                      .setAppId(appId)
+                      .setSecret(secret)
+                      .build())
+              .build());
+    } catch (CelebornRuntimeException e) {
+      LOG.error("Handle app meta failed!", e);
+      throw e;
+    }
+  }
 }

@@ -52,6 +52,7 @@ import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
 import org.apache.celeborn.common.protocol.PbWorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
+import org.apache.celeborn.common.util.ApplicationMeta;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
@@ -83,6 +84,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final LongAdder partitionTotalWritten = new LongAdder();
   public final LongAdder partitionTotalFileCount = new LongAdder();
   public AppDiskUsageMetric appDiskUsageMetric = null;
+
+  public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
+      JavaUtils.newConcurrentHashMap();
 
   public void updateRequestSlotsMeta(
       String shuffleKey, String hostName, Map<String, Map<String, Integer>> workerWithAllocations) {
@@ -117,6 +121,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public void updateAppLostMeta(String appId) {
     registeredShuffle.removeIf(shuffleKey -> shuffleKey.startsWith(appId));
     appHeartbeatTime.remove(appId);
+    applicationMetas.remove(appId);
   }
 
   public void updateWorkerExcludeMeta(
@@ -269,7 +274,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 appDiskUsageMetric.currentSnapShot().get(),
                 lostWorkers,
                 shutdownWorkers,
-                workerEventInfos)
+                workerEventInfos,
+                applicationMetas)
             .toByteArray();
     Files.write(file.toPath(), snapshotBytes);
   }
@@ -357,6 +363,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           new AtomicReference<AppDiskUsageSnapShot>(
               PbSerDeUtils.fromPbAppDiskUsageSnapshot(
                   snapshotMetaInfo.getCurrentAppDiskUsageMetricsSnapshot())));
+
+      snapshotMetaInfo
+          .getApplicationMetasMap()
+          .forEach(
+              (key, value) -> applicationMetas.put(key, PbSerDeUtils.fromPbApplicationMeta(value)));
     } catch (Exception e) {
       throw new IOException(e);
     }
@@ -384,6 +395,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     partitionTotalWritten.reset();
     partitionTotalFileCount.reset();
     workerEventInfos.clear();
+    applicationMetas.clear();
   }
 
   public void updateMetaByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
@@ -441,5 +453,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         && !manuallyExcludedWorkers.contains(workerInfo)
         && (!workerEventInfos.containsKey(workerInfo)
             && workerInfo.getWorkerStatus().getState() == PbWorkerStatus.State.Normal);
+  }
+
+  public void updateApplicationMeta(String appId, String secret) {
+    applicationMetas.computeIfAbsent(appId, k -> new ApplicationMeta(appId, secret));
   }
 }

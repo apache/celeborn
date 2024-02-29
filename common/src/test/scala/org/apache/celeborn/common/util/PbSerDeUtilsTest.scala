@@ -282,4 +282,12 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
 
     assert(restoredWorkerStatus.equals(workerStatus))
   }
+
+  test("fromAndToPbApplicationMeta") {
+    val applicationMeta = new ApplicationMeta("app1", "secret1")
+    val pbApplicationMeta = PbSerDeUtils.toPbApplicationMeta(applicationMeta)
+    val restoredApplicationMeta = PbSerDeUtils.fromPbApplicationMeta(pbApplicationMeta)
+
+    assert(restoredApplicationMeta.equals(applicationMeta))
+  }
 }

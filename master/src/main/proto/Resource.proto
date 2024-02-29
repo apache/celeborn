@@ -38,6 +38,7 @@ enum Type {
   RemoveWorkersUnavailableInfo = 23;
   WorkerExclude = 24;
   WorkerEvent = 25;
+  ApplicationMeta = 26;
 }
 
 enum WorkerEventType {
@@ -69,6 +70,7 @@ message ResourceRequest {
   optional RemoveWorkersUnavailableInfoRequest removeWorkersUnavailableInfoRequest = 20;
   optional WorkerExcludeRequest workerExcludeRequest = 21;
   optional WorkerEventRequest workerEventRequest = 22;
+  optional ApplicationMetaRequest applicationMetaRequest = 23;
 }
 
 message DiskInfo {
@@ -221,4 +223,9 @@ message ResourceResponse {
   optional string message = 3;
 
   required Status status = 4;
+}
+
+message ApplicationMetaRequest {
+  required string appId = 1;
+  optional string secret = 2;
 }

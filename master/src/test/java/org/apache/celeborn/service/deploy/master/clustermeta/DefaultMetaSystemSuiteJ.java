@@ -447,13 +447,15 @@ public class DefaultMetaSystemSuiteJ {
     workersToAllocate.put(workerInfo1.toUniqueId(), allocation);
     workersToAllocate.put(workerInfo2.toUniqueId(), allocation);
 
+    statusSystem.handleApplicationMeta(APPID1, "testSecret");
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
     assertEquals(1, statusSystem.registeredShuffle.size());
-
+    assertEquals(1, statusSystem.applicationMetas.size());
     statusSystem.handleAppLost(APPID1, getNewReqeustId());
 
     assertTrue(statusSystem.registeredShuffle.isEmpty());
+    assertTrue(statusSystem.applicationMetas.isEmpty());
   }
 
   @Test
@@ -689,5 +691,19 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleUpdatePartitionSize() {
     statusSystem.handleUpdatePartitionSize();
+  }
+
+  @Test
+  public void testHandleApplicationMeta() {
+    String appSecret = "testSecret";
+    statusSystem.handleApplicationMeta(APPID1, appSecret);
+    assertEquals(appSecret, statusSystem.applicationMetas.get(APPID1).getSecret());
+
+    String appId2 = "app02";
+    String appSecret2 = "testSecret2";
+    statusSystem.handleApplicationMeta(appId2, appSecret2);
+    assertEquals(appSecret2, statusSystem.applicationMetas.get(appId2).getSecret());
+
+    assertEquals(2, statusSystem.applicationMetas.size());
   }
 }
