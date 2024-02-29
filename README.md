@@ -55,7 +55,7 @@ package apache-celeborn-${project.version}-bin.tgz will be generated.
 
 |            | Java 8/Scala 2.11 | Java 8/Scala 2.12 | Java 11/Scala 2.12 | Java 17/Scala 2.12 | Java 8/Scala 2.13 | Java 11/Scala 2.13 | Java 17/Scala 2.13 |
 |------------|-------------------|-------------------|--------------------|--------------------|-------------------|--------------------|--------------------|
-| Spark 2.4  | &#10004;          | &#x274C;          | &#x274C;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
+| Spark 2.4  | &#10004;          | &#10004;          | &#x274C;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Spark 3.0  | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Spark 3.1  | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Spark 3.2  | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#10004;          | &#10004;           | &#x274C;           |
@@ -66,6 +66,17 @@ package apache-celeborn-${project.version}-bin.tgz will be generated.
 | Flink 1.15 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.17 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.18 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
+
+To compile Spark 2.4 with Scala 2.12, please use the following command
+
+#### Scala 2.12.8/2.12.9/2.12.10
+```shell
+./build/make-distribution.sh -DskipTests -Pspark-2.4 -Dscala.version=${scala.version} -Dscala.binary.version=2.12 -Dmaven.plugin.scala.version=3.2.2 -Dmaven.plugin.silencer.version=1.6.0
+```
+#### Scala 2.12.13-2.12.18
+```shell
+./build/make-distribution.sh -DskipTests -Pspark-2.4 -Dscala.version=${scala.version} -Dscala.binary.version=2.12
+```
 
 ### Package Details
 Build procedure will create a compressed package.
