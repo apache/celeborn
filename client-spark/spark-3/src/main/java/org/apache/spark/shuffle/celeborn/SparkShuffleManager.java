@@ -195,7 +195,8 @@ public class SparkShuffleManager implements ShuffleManager {
     }
     // For Spark driver side trigger unregister shuffle.
     if (lifecycleManager != null) {
-      lifecycleManager.unregisterAppShuffle(appShuffleId);
+      lifecycleManager.unregisterAppShuffle(
+          appShuffleId, celebornConf.clientFetchThrowsFetchFailure());
     }
     // For Spark executor side cleanup shuffle related info.
     if (shuffleClient != null) {
