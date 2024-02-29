@@ -73,7 +73,7 @@ To compile the client for Spark 2.4 with Scala 2.12, please use the following co
 ```shell
 ./build/make-distribution.sh -DskipTests -Pspark-2.4 -Dscala.version=${scala.version} -Dscala.binary.version=2.12 -Dmaven.plugin.scala.version=3.2.2 -Dmaven.plugin.silencer.version=1.6.0
 ```
-#### Scala 2.12.13-2.12.18
+- Scala 2.12.13-2.12.18
 ```shell
 ./build/make-distribution.sh -DskipTests -Pspark-2.4 -Dscala.version=${scala.version} -Dscala.binary.version=2.12
 ```
