@@ -39,11 +39,16 @@ import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLoc
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.TransportContext
+import org.apache.celeborn.common.network.sasl.SaslServerBootstrap
+import org.apache.celeborn.common.network.sasl.SecretRegistryImpl
+import org.apache.celeborn.common.network.server.TransportServerBootstrap
+import org.apache.celeborn.common.network.util.TransportConf
 import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants, WorkerEventType}
 import org.apache.celeborn.common.protocol.PbWorkerStatus.State
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
+import org.apache.celeborn.common.rpc.{RpcSecurityContextBuilder, ServerSaslContextBuilder}
 import org.apache.celeborn.common.util.{CelebornExitKind, CollectionUtils, JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
@@ -78,27 +83,65 @@ private[celeborn] class Worker(
   metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_WORKER))
 
   val workerStatusManager = new WorkerStatusManager(conf)
-  val rpcEnv: RpcEnv = RpcEnv.create(
-    RpcNameConstants.WORKER_SYS,
-    workerArgs.host,
-    workerArgs.host,
-    workerArgs.port,
-    conf,
-    Math.min(64, Math.max(4, Runtime.getRuntime.availableProcessors())))
+  private val authEnabled = conf.authEnabled
+  private val secretRegistry = new SecretRegistryImpl()
+  val rpcEnv: RpcEnv =
+    if (!authEnabled) {
+      RpcEnv.create(
+        RpcNameConstants.WORKER_SYS,
+        workerArgs.host,
+        workerArgs.host,
+        workerArgs.port,
+        conf,
+        Math.min(64, Math.max(4, Runtime.getRuntime.availableProcessors())))
+    } else {
+      val externalSecurityContext = new RpcSecurityContextBuilder()
+        .withServerSaslContext(
+          new ServerSaslContextBuilder()
+            .withAddRegistrationBootstrap(false)
+            .withSecretRegistry(secretRegistry).build()).build()
+      logInfo(
+        s"Secure port enabled ${workerArgs.port} for secured RPC.")
+      RpcEnv.create(
+        RpcNameConstants.WORKER_SYS,
+        workerArgs.host,
+        workerArgs.host,
+        workerArgs.port,
+        conf,
+        Math.max(64, Runtime.getRuntime.availableProcessors()),
+        Some(externalSecurityContext))
+    }
+
+  private[worker] var internalRpcEnvInUse =
+    if (!conf.internalPortEnabled) {
+      rpcEnv
+    } else {
+      RpcEnv.create(
+        RpcNameConstants.WORKER_INTERNAL_SYS,
+        workerArgs.host,
+        workerArgs.host,
+        workerArgs.internalPort,
+        conf,
+        Math.min(64, Math.max(4, Runtime.getRuntime.availableProcessors())))
+    }
 
   private val host = rpcEnv.address.host
   private val rpcPort = rpcEnv.address.port
+  private val internalPort = internalRpcEnvInUse.address.port
   Utils.checkHost(host)
 
   private val WORKER_SHUTDOWN_PRIORITY = 100
   val shutdown = new AtomicBoolean(false)
   private val gracefulShutdown = conf.workerGracefulShutdown
   if (gracefulShutdown) {
-    val checkPortMap = Map(
+    var checkPortMap = Map(
       WORKER_RPC_PORT -> conf.workerRpcPort,
       WORKER_FETCH_PORT -> conf.workerFetchPort,
       WORKER_PUSH_PORT -> conf.workerPushPort,
       WORKER_REPLICATE_PORT -> conf.workerReplicatePort)
+    if (conf.internalPortEnabled) {
+      checkPortMap += (WORKER_INTERNAL_PORT -> conf.workerInternalPort)
+    }
     assert(
       !checkPortMap.values.exists(_ == 0),
       "If enable graceful shutdown, the worker should use non-zero port. " +
@@ -141,6 +184,16 @@ private[celeborn] class Worker(
   var controller = new Controller(rpcEnv, conf, metricsSystem, workerSource)
   rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
 
+  // Visible for testing
+  private[worker] var internalRpcEndpoint: RpcEndpoint = _
+  private var internalRpcEndpointRef: RpcEndpointRef = _
+  if (conf.internalPortEnabled) {
+    internalRpcEndpoint = new InternalRpcEndpoint(internalRpcEnvInUse, conf)
+    internalRpcEndpointRef = internalRpcEnvInUse.setupEndpoint(
+      RpcNameConstants.WORKER_INTERNAL_EP,
+      internalRpcEndpoint)
+  }
+
   val pushDataHandler = new PushDataHandler(workerSource)
   private val pushServer = {
     val closeIdleConnections = conf.workerCloseIdleConnections
@@ -156,7 +209,7 @@ private[celeborn] class Worker(
         pushServerLimiter,
         conf.workerPushHeartbeatEnabled,
         workerSource)
-    transportContext.createServer(conf.workerPushPort)
+    transportContext.createServer(conf.workerPushPort, getServerBootstraps(transportConf))
   }
 
   val replicateHandler = new PushDataHandler(workerSource)
@@ -194,7 +247,7 @@ private[celeborn] class Worker(
         closeIdleConnections,
         conf.workerFetchHeartbeatEnabled,
         workerSource)
-    transportContext.createServer(conf.workerFetchPort)
+    transportContext.createServer(conf.workerFetchPort, getServerBootstraps(transportConf))
   }
 
   private val pushPort = pushServer.getPort
@@ -221,6 +274,7 @@ private[celeborn] class Worker(
       pushPort,
       fetchPort,
       replicatePort,
+      internalPort,
       diskInfos,
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption])
 
@@ -237,8 +291,7 @@ private[celeborn] class Worker(
   val shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]] =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
 
-  // TODO: pass the internal rpc env here when internal port is added to the worker.
-  private val masterClient = new MasterClient(rpcEnv, conf, true)
+  private val masterClient = new MasterClient(internalRpcEnvInUse, conf, true)
 
   // (workerInfo -> last connect timeout timestamp)
   val unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] =
@@ -435,6 +488,9 @@ private[celeborn] class Worker(
 
     logInfo("Worker started.")
     rpcEnv.awaitTermination()
+    if (conf.internalPortEnabled) {
+      internalRpcEnvInUse.awaitTermination()
+    }
   }
 
   override def stop(exitKind: Int): Unit = {
@@ -482,7 +538,9 @@ private[celeborn] class Worker(
       fetchServer.shutdown(exitKind)
       pushServer.shutdown(exitKind)
       metricsSystem.stop()
-
+      if (conf.internalPortEnabled) {
+        internalRpcEnvInUse.stop(internalRpcEndpointRef)
+      }
       super.stop(exitKind)
 
       logInfo("Worker is stopped.")
@@ -504,6 +562,7 @@ private[celeborn] class Worker(
               pushPort,
               fetchPort,
               replicatePort,
+              internalPort,
               // Use WorkerInfo's diskInfo since re-register when heartbeat return not-registered,
               // StorageManager have update the disk info.
               workerInfo.diskInfos.asScala.toMap,
@@ -860,6 +919,17 @@ private[celeborn] class Worker(
 
   @VisibleForTesting
   def getPushFetchServerPort: (Int, Int) = (pushPort, fetchPort)
+
+  def getServerBootstraps(transportConf: TransportConf)
+      : java.util.List[TransportServerBootstrap] = {
+    val serverBootstraps = new java.util.ArrayList[TransportServerBootstrap]()
+    if (authEnabled) {
+      serverBootstraps.add(new SaslServerBootstrap(
+        transportConf,
+        secretRegistry))
+    }
+    serverBootstraps
+  }
 }
 
 private[deploy] object Worker extends Logging {

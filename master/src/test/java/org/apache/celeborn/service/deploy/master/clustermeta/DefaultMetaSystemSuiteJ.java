@@ -57,6 +57,7 @@ public class DefaultMetaSystemSuiteJ {
   private static final int PUSHPORT1 = 1112;
   private static final int FETCHPORT1 = 1113;
   private static final int REPLICATEPORT1 = 1114;
+  private static final int INTERNALPORT1 = 1115;
   private static final Map<String, DiskInfo> disks1 = new HashMap<>();
   private static final Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 =
       new HashMap<>();
@@ -66,6 +67,7 @@ public class DefaultMetaSystemSuiteJ {
   private static final int PUSHPORT2 = 2112;
   private static final int FETCHPORT2 = 2113;
   private static final int REPLICATEPORT2 = 2114;
+  private static final int INTERNALPORT2 = 2115;
   private static final Map<String, DiskInfo> disks2 = new HashMap<>();
   private static final Map<UserIdentifier, ResourceConsumption> userResourceConsumption2 =
       new HashMap<>();
@@ -75,6 +77,7 @@ public class DefaultMetaSystemSuiteJ {
   private static final int PUSHPORT3 = 3112;
   private static final int FETCHPORT3 = 3113;
   private static final int REPLICATEPORT3 = 3114;
+  private static final int INTERNALPORT3 = 3115;
   private static final Map<String, DiskInfo> disks3 = new HashMap<>();
   private static final Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 =
       new HashMap<>();
@@ -121,6 +124,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT1,
         FETCHPORT1,
         REPLICATEPORT1,
+        INTERNALPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -130,6 +134,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT2,
         FETCHPORT2,
         REPLICATEPORT2,
+        INTERNALPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -139,6 +144,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT3,
         FETCHPORT3,
         REPLICATEPORT3,
+        INTERNALPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -155,6 +161,7 @@ public class DefaultMetaSystemSuiteJ {
             PUSHPORT1,
             FETCHPORT1,
             REPLICATEPORT1,
+            INTERNALPORT1,
             disks1,
             userResourceConsumption1);
     WorkerInfo workerInfo2 =
@@ -164,6 +171,7 @@ public class DefaultMetaSystemSuiteJ {
             PUSHPORT2,
             FETCHPORT2,
             REPLICATEPORT2,
+            INTERNALPORT2,
             disks2,
             userResourceConsumption2);
 
@@ -173,6 +181,7 @@ public class DefaultMetaSystemSuiteJ {
         workerInfo1.pushPort(),
         workerInfo1.fetchPort(),
         workerInfo1.replicatePort(),
+        workerInfo1.internalPort(),
         workerInfo1.diskInfos(),
         workerInfo1.userResourceConsumption(),
         getNewReqeustId());
@@ -182,6 +191,7 @@ public class DefaultMetaSystemSuiteJ {
         workerInfo2.pushPort(),
         workerInfo2.fetchPort(),
         workerInfo2.replicatePort(),
+        workerInfo2.internalPort(),
         workerInfo2.diskInfos(),
         workerInfo2.userResourceConsumption(),
         getNewReqeustId());
@@ -203,6 +213,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT1,
         FETCHPORT1,
         REPLICATEPORT1,
+        INTERNALPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -212,6 +223,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT2,
         FETCHPORT2,
         REPLICATEPORT2,
+        INTERNALPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -221,6 +233,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT3,
         FETCHPORT3,
         REPLICATEPORT3,
+        INTERNALPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -242,6 +255,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT1,
         FETCHPORT1,
         REPLICATEPORT1,
+        INTERNALPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -251,6 +265,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT2,
         FETCHPORT2,
         REPLICATEPORT2,
+        INTERNALPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -260,6 +275,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT3,
         FETCHPORT3,
         REPLICATEPORT3,
+        INTERNALPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -271,6 +287,7 @@ public class DefaultMetaSystemSuiteJ {
             PUSHPORT1,
             FETCHPORT1,
             REPLICATEPORT1,
+            INTERNALPORT1,
             disks1,
             userResourceConsumption1);
     WorkerInfo workerInfo2 =
@@ -280,6 +297,7 @@ public class DefaultMetaSystemSuiteJ {
             PUSHPORT2,
             FETCHPORT2,
             REPLICATEPORT2,
+            INTERNALPORT2,
             disks2,
             userResourceConsumption2);
     WorkerInfo workerInfo3 =
@@ -289,6 +307,7 @@ public class DefaultMetaSystemSuiteJ {
             PUSHPORT3,
             FETCHPORT3,
             REPLICATEPORT3,
+            INTERNALPORT3,
             disks3,
             userResourceConsumption3);
 
@@ -313,6 +332,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT1,
         FETCHPORT1,
         REPLICATEPORT1,
+        INTERNALPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -322,6 +342,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT2,
         FETCHPORT2,
         REPLICATEPORT2,
+        INTERNALPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -331,6 +352,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT3,
         FETCHPORT3,
         REPLICATEPORT3,
+        INTERNALPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -373,6 +395,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT1,
         FETCHPORT1,
         REPLICATEPORT1,
+        INTERNALPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -382,6 +405,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT2,
         FETCHPORT2,
         REPLICATEPORT2,
+        INTERNALPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -391,6 +415,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT3,
         FETCHPORT3,
         REPLICATEPORT3,
+        INTERNALPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -402,6 +427,7 @@ public class DefaultMetaSystemSuiteJ {
             PUSHPORT1,
             FETCHPORT1,
             REPLICATEPORT1,
+            INTERNALPORT1,
             disks1,
             userResourceConsumption1);
     WorkerInfo workerInfo2 =
@@ -411,6 +437,7 @@ public class DefaultMetaSystemSuiteJ {
             PUSHPORT2,
             FETCHPORT2,
             REPLICATEPORT2,
+            INTERNALPORT2,
             disks2,
             userResourceConsumption2);
 
@@ -437,6 +464,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT1,
         FETCHPORT1,
         REPLICATEPORT1,
+        INTERNALPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -446,6 +474,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT2,
         FETCHPORT2,
         REPLICATEPORT2,
+        INTERNALPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -455,6 +484,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT3,
         FETCHPORT3,
         REPLICATEPORT3,
+        INTERNALPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -466,6 +496,7 @@ public class DefaultMetaSystemSuiteJ {
             PUSHPORT1,
             FETCHPORT1,
             REPLICATEPORT1,
+            INTERNALPORT1,
             disks1,
             userResourceConsumption1);
     WorkerInfo workerInfo2 =
@@ -475,6 +506,7 @@ public class DefaultMetaSystemSuiteJ {
             PUSHPORT2,
             FETCHPORT2,
             REPLICATEPORT2,
+            INTERNALPORT2,
             disks2,
             userResourceConsumption2);
 
@@ -514,6 +546,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT1,
         FETCHPORT1,
         REPLICATEPORT1,
+        INTERNALPORT1,
         new HashMap<>(),
         userResourceConsumption1,
         getNewReqeustId());
@@ -523,6 +556,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT2,
         FETCHPORT2,
         REPLICATEPORT2,
+        INTERNALPORT2,
         new HashMap<>(),
         userResourceConsumption2,
         getNewReqeustId());
@@ -532,6 +566,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT3,
         FETCHPORT3,
         REPLICATEPORT3,
+        INTERNALPORT3,
         new HashMap<>(),
         userResourceConsumption3,
         getNewReqeustId());
@@ -609,6 +644,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT1,
         FETCHPORT1,
         REPLICATEPORT1,
+        INTERNALPORT1,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -618,6 +654,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT2,
         FETCHPORT2,
         REPLICATEPORT2,
+        INTERNALPORT2,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -627,6 +664,7 @@ public class DefaultMetaSystemSuiteJ {
         PUSHPORT3,
         FETCHPORT3,
         REPLICATEPORT3,
+        INTERNALPORT3,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -639,6 +677,7 @@ public class DefaultMetaSystemSuiteJ {
             PUSHPORT1,
             FETCHPORT1,
             REPLICATEPORT1,
+            INTERNALPORT1,
             disks1,
             userResourceConsumption1));
 

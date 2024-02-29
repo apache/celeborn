@@ -83,6 +83,7 @@ license: |
 | celeborn.worker.graceful.shutdown.timeout | 600s | false | The worker's graceful shutdown timeout time. | 0.2.0 |  | 
 | celeborn.worker.http.host | &lt;localhost&gt; | false | Worker's http host. | 0.4.0 | celeborn.metrics.worker.prometheus.host,celeborn.worker.metrics.prometheus.host | 
 | celeborn.worker.http.port | 9096 | false | Worker's http port. | 0.4.0 | celeborn.metrics.worker.prometheus.port,celeborn.worker.metrics.prometheus.port | 
+| celeborn.worker.internal.port | 0 | false | Internal server port on the Worker where the master nodes connect. | 0.5.0 |  | 
 | celeborn.worker.jvmQuake.check.interval | 1s | false | Interval of gc behavior checking for worker jvm quake. | 0.4.0 |  | 
 | celeborn.worker.jvmQuake.dump.enabled | true | false | Whether to heap dump for the maximum GC 'deficit' during worker jvm quake. | 0.4.0 |  | 
 | celeborn.worker.jvmQuake.dump.path | &lt;tmp&gt;/jvm-quake/dump/&lt;pid&gt; | false | The path of heap dump for the maximum GC 'deficit' during worker jvm quake. | 0.4.0 |  | 

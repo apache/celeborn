@@ -164,6 +164,7 @@ message PbWorkerInfo {
   int32 replicatePort = 5;
   repeated PbDiskInfo disks = 6;
   map<string, PbResourceConsumption> userResourceConsumption = 7;
+  int32 internalPort = 8;
 }
 
 message PbFileGroup {
@@ -179,6 +180,7 @@ message PbRegisterWorker {
   repeated PbDiskInfo disks = 6;
   string requestId = 9;
   map<string, PbResourceConsumption> userResourceConsumption = 8;
+  int32 internalPort = 10;
 }
 
 message PbHeartbeatFromWorker {

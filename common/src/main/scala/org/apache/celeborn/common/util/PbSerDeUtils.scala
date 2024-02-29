@@ -230,6 +230,7 @@ object PbSerDeUtils {
       pbWorkerInfo.getPushPort,
       pbWorkerInfo.getFetchPort,
       pbWorkerInfo.getReplicatePort,
+      pbWorkerInfo.getInternalPort,
       disks,
       userResourceConsumption)
   }
@@ -246,6 +247,7 @@ object PbSerDeUtils {
       .setFetchPort(workerInfo.fetchPort)
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
+      .setInternalPort(workerInfo.internalPort)
       .addAllDisks(pbDiskInfos)
     if (!eliminateUserResourceConsumption) {
       builder.putAllUserResourceConsumption(

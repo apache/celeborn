@@ -1155,17 +1155,19 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       }
     }
 
-  // //////////////////////////////////////////////////////
-  //                     Rack Resolver                   //
-  // //////////////////////////////////////////////////////
-  def rackResolverRefreshInterval = get(RACKRESOLVER_REFRESH_INTERVAL)
-
   def haMasterNodeInternalPort(nodeId: String): Int = {
     val key = HA_MASTER_NODE_INTERNAL_PORT.key.replace("<id>", nodeId)
     getInt(key, HA_MASTER_NODE_INTERNAL_PORT.defaultValue.get)
   }
 
   def masterInternalPort: Int = get(MASTER_INTERNAL_PORT)
+
+  def workerInternalPort: Int = get(WORKER_INTERNAL_PORT)
+
+  // //////////////////////////////////////////////////////
+  //                     Rack Resolver                   //
+  // //////////////////////////////////////////////////////
+  def rackResolverRefreshInterval = get(RACKRESOLVER_REFRESH_INTERVAL)
 }
 
 object CelebornConf extends Logging {
@@ -4609,4 +4611,11 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
+  val WORKER_INTERNAL_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.internal.port")
+      .categories("worker")
+      .doc("Internal server port on the Worker where the master nodes connect.")
+      .version("0.5.0")
+      .intConf
+      .createWithDefault(0)
 }

@@ -136,12 +136,12 @@ public class SlotsAllocatorRackAwareSuiteJ {
 
   private List<WorkerInfo> prepareWorkers(CelebornRackResolver resolver) {
     ArrayList<WorkerInfo> workers = new ArrayList<>(3);
-    workers.add(new WorkerInfo("host1", 9, 10, 110, 113, new HashMap<>(), null));
-    workers.add(new WorkerInfo("host2", 9, 11, 111, 114, new HashMap<>(), null));
-    workers.add(new WorkerInfo("host3", 9, 12, 112, 115, new HashMap<>(), null));
-    workers.add(new WorkerInfo("host4", 9, 10, 110, 113, new HashMap<>(), null));
-    workers.add(new WorkerInfo("host5", 9, 11, 111, 114, new HashMap<>(), null));
-    workers.add(new WorkerInfo("host6", 9, 12, 112, 115, new HashMap<>(), null));
+    workers.add(new WorkerInfo("host1", 9, 10, 110, 113, 212, new HashMap<>(), null));
+    workers.add(new WorkerInfo("host2", 9, 11, 111, 114, 212, new HashMap<>(), null));
+    workers.add(new WorkerInfo("host3", 9, 12, 112, 115, 212, new HashMap<>(), null));
+    workers.add(new WorkerInfo("host4", 9, 10, 110, 113, 212, new HashMap<>(), null));
+    workers.add(new WorkerInfo("host5", 9, 11, 111, 114, 212, new HashMap<>(), null));
+    workers.add(new WorkerInfo("host6", 9, 12, 112, 115, 212, new HashMap<>(), null));
 
     workers.forEach(
         new Consumer<WorkerInfo>() {
@@ -391,7 +391,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
       diskInfoMap.put(diskInfo.mountPoint(), diskInfo);
 
       WorkerInfo workerInfo =
-          new WorkerInfo(host, 1, 2, 3, 4, Collections.unmodifiableMap(diskInfoMap), null);
+          new WorkerInfo(host, 1, 2, 3, 4, 5, Collections.unmodifiableMap(diskInfoMap), null);
       workerInfo.networkLocation_$eq(rack);
       return workerInfo;
     }

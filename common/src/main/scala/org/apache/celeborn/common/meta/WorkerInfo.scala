@@ -36,6 +36,7 @@ class WorkerInfo(
     val pushPort: Int,
     val fetchPort: Int,
     val replicatePort: Int,
+    val internalPort: Int,
     _diskInfos: util.Map[String, DiskInfo],
     _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) extends Serializable
   with Logging {
@@ -50,13 +51,37 @@ class WorkerInfo(
     else null
   var endpoint: RpcEndpointRef = null
 
-  def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
+  def this(
+      host: String,
+      rpcPort: Int,
+      pushPort: Int,
+      fetchPort: Int,
+      replicatePort: Int) = {
     this(
       host,
       rpcPort,
       pushPort,
       fetchPort,
       replicatePort,
+      -1,
+      new util.HashMap[String, DiskInfo](),
+      new util.HashMap[UserIdentifier, ResourceConsumption]())
+  }
+
+  def this(
+      host: String,
+      rpcPort: Int,
+      pushPort: Int,
+      fetchPort: Int,
+      replicatePort: Int,
+      internalPort: Int) = {
+    this(
+      host,
+      rpcPort,
+      pushPort,
+      fetchPort,
+      replicatePort,
+      internalPort,
       new util.HashMap[String, DiskInfo](),
       new util.HashMap[UserIdentifier, ResourceConsumption]())
   }
@@ -128,7 +153,7 @@ class WorkerInfo(
 
   def readableAddress(): String = {
     s"Host:$host:RpcPort:$rpcPort:PushPort:$pushPort:" +
-      s"FetchPort:$fetchPort:ReplicatePort:$replicatePort"
+      s"FetchPort:$fetchPort:ReplicatePort:$replicatePort:$internalPort"
   }
 
   def toUniqueId(): String = {
@@ -232,6 +257,7 @@ class WorkerInfo(
        |PushPort: $pushPort
        |FetchPort: $fetchPort
        |ReplicatePort: $replicatePort
+       |InternalPort: $internalPort
        |SlotsUsed: $slots
        |LastHeartbeat: $lastHeartbeat
        |HeartbeatElapsedSeconds: ${TimeUnit.MILLISECONDS.toSeconds(

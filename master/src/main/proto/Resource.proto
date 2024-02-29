@@ -170,6 +170,7 @@ message RegisterWorkerRequest {
   required int32 replicatePort = 5;
   map<string, DiskInfo> disks = 6;
   map<string, ResourceConsumption> userResourceConsumption = 7;
+  required int32 internalPort = 8;
 }
 
 message ReportWorkerUnavailableRequest {
@@ -191,6 +192,7 @@ message WorkerAddress {
   required int32 pushPort = 3;
   required int32 fetchPort = 4;
   required int32 replicatePort = 5;
+  required int32 internalPort = 6;
 }
 
 message UserIdentifier {

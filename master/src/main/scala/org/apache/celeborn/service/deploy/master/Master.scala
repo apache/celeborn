@@ -394,6 +394,7 @@ private[celeborn] class Master(
       val pushPort = pbRegisterWorker.getPushPort
       val fetchPort = pbRegisterWorker.getFetchPort
       val replicatePort = pbRegisterWorker.getReplicatePort
+      val internalPort = pbRegisterWorker.getInternalPort
       val disks = pbRegisterWorker.getDisksList.asScala
         .map { pbDiskInfo => pbDiskInfo.getMountPoint -> PbSerDeUtils.fromPbDiskInfo(pbDiskInfo) }
         .toMap.asJava
@@ -411,6 +412,7 @@ private[celeborn] class Master(
           pushPort,
           fetchPort,
           replicatePort,
+          internalPort,
           disks,
           userResourceConsumption,
           requestId))
@@ -667,6 +669,7 @@ private[celeborn] class Master(
       pushPort,
       fetchPort,
       replicatePort,
+      -1,
       new util.HashMap[String, DiskInfo](),
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]())
     val worker: WorkerInfo = workersSnapShot
@@ -691,6 +694,7 @@ private[celeborn] class Master(
       pushPort: Int,
       fetchPort: Int,
       replicatePort: Int,
+      internalPort: Int,
       disks: util.Map[String, DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       requestId: String): Unit = {
@@ -701,6 +705,7 @@ private[celeborn] class Master(
         pushPort,
         fetchPort,
         replicatePort,
+        internalPort,
         disks,
         userResourceConsumption)
     if (workersSnapShot.contains(workerToRegister)) {
@@ -715,6 +720,7 @@ private[celeborn] class Master(
         pushPort,
         fetchPort,
         replicatePort,
+        internalPort,
         disks,
         userResourceConsumption,
         newRequestId)
@@ -729,6 +735,7 @@ private[celeborn] class Master(
         pushPort,
         fetchPort,
         replicatePort,
+        internalPort,
         disks,
         userResourceConsumption,
         requestId)
@@ -740,6 +747,7 @@ private[celeborn] class Master(
         pushPort,
         fetchPort,
         replicatePort,
+        internalPort,
         disks,
         userResourceConsumption,
         requestId)

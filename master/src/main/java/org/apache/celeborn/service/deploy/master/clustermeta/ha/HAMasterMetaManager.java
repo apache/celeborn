@@ -290,6 +290,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       int pushPort,
       int fetchPort,
       int replicatePort,
+      int internalPort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId) {
@@ -305,6 +306,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setPushPort(pushPort)
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
+                      .setInternalPort(internalPort)
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
                       .putAllUserResourceConsumption(
                           MetaUtil.toPbUserResourceConsumption(userResourceConsumption))

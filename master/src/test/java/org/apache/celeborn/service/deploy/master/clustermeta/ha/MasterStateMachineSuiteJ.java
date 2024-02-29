@@ -185,9 +185,9 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             3,
             Collections.singletonMap("appId3", new ResourceConsumption(2000, 2, 2000, 2, null))));
 
-    WorkerInfo info1 = new WorkerInfo("host1", 1, 2, 3, 10, disks1, userResourceConsumption1);
-    WorkerInfo info2 = new WorkerInfo("host2", 4, 5, 6, 11, disks2, userResourceConsumption2);
-    WorkerInfo info3 = new WorkerInfo("host3", 7, 8, 9, 12, disks3, userResourceConsumption3);
+    WorkerInfo info1 = new WorkerInfo("host1", 1, 2, 3, 10, 13, disks1, userResourceConsumption1);
+    WorkerInfo info2 = new WorkerInfo("host2", 4, 5, 6, 11, 15, disks2, userResourceConsumption2);
+    WorkerInfo info3 = new WorkerInfo("host3", 7, 8, 9, 12, 17, disks3, userResourceConsumption3);
 
     String host1 = "host1";
     String host2 = "host2";
@@ -220,9 +220,9 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     AppDiskUsageSnapShot originCurrentSnapshot =
         masterStatusSystem.appDiskUsageMetric.currentSnapShot().get();
 
-    masterStatusSystem.workers.add(new WorkerInfo(host1, 9095, 9094, 9093, 9092));
-    masterStatusSystem.workers.add(new WorkerInfo(host2, 9095, 9094, 9093, 9092));
-    masterStatusSystem.workers.add(new WorkerInfo(host3, 9095, 9094, 9093, 9092));
+    masterStatusSystem.workers.add(new WorkerInfo(host1, 9095, 9094, 9093, 9092, 9091));
+    masterStatusSystem.workers.add(new WorkerInfo(host2, 9095, 9094, 9093, 9092, 9091));
+    masterStatusSystem.workers.add(new WorkerInfo(host3, 9095, 9094, 9093, 9092, 9091));
 
     masterStatusSystem.writeMetaInfoToFile(tmpFile);
 
