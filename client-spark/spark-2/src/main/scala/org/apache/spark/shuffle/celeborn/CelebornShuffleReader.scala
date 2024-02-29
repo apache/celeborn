@@ -142,7 +142,7 @@ class CelebornShuffleReader[K, C](
         metricsCallback.incReadTime(
           TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
         // ensure inputStream is closed when task completes
-        context.addTaskCompletionListener(_ => inputStream.close())
+        context.addTaskCompletionListener[Unit](_ => inputStream.close())
         (partitionId, inputStream)
       } else {
         (partitionId, CelebornInputStream.empty())
@@ -211,7 +211,7 @@ class CelebornShuffleReader[K, C](
         context.taskMetrics().incDiskBytesSpilled(sorter.diskBytesSpilled)
         context.taskMetrics().incPeakExecutionMemory(sorter.peakMemoryUsedBytes)
         // Use completion callback to stop sorter if task was finished/cancelled.
-        context.addTaskCompletionListener(_ => {
+        context.addTaskCompletionListener[Unit](_ => {
           sorter.stop()
         })
         CompletionIterator[Product2[K, C], Iterator[Product2[K, C]]](sorter.iterator, sorter.stop())
