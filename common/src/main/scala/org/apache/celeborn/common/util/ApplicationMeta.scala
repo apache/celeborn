@@ -36,4 +36,5 @@ class ApplicationMeta(private val appId: String, private val secret: String) {
     var result = appId.hashCode()
     result = 31 * result + secret.hashCode()
     result
-  }}
+  }
+}
