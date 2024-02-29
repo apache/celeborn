@@ -973,15 +973,20 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     logInfo(s"Unregister for $shuffleId success.")
   }
 
-  def unregisterAppShuffle(appShuffleId: Int): Unit = {
+  def unregisterAppShuffle(appShuffleId: Int, hasMapping: Boolean): Unit = {
     logInfo(s"Unregister appShuffleId $appShuffleId starts...")
-    val shuffleIds = shuffleIdMapping.remove(appShuffleId)
-    if (shuffleIds != null) {
-      shuffleIds.synchronized(
-        shuffleIds.values.map {
-          case (shuffleId, _) =>
-            unregisterShuffle(shuffleId)
-        })
+    appShuffleDeterminateMap.remove(appShuffleId)
+    if (hasMapping) {
+      val shuffleIds = shuffleIdMapping.remove(appShuffleId)
+      if (shuffleIds != null) {
+        shuffleIds.synchronized(
+          shuffleIds.values.map {
+            case (shuffleId, _) =>
+              unregisterShuffle(shuffleId)
+          })
+      }
+    } else {
+      unregisterShuffle(appShuffleId)
     }
   }
 
@@ -1624,10 +1629,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   def registerAppShuffleDeterminate(appShuffleId: Int, determinate: Boolean): Unit = {
     appShuffleDeterminateMap.put(appShuffleId, determinate)
-  }
-
-  def unregisterAppShuffleDeterminate(appShuffleId: Int): Unit = {
-    appShuffleDeterminateMap.remove(appShuffleId)
   }
 
   // Initialize at the end of LifecycleManager construction.
