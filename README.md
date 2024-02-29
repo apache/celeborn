@@ -69,7 +69,7 @@ package apache-celeborn-${project.version}-bin.tgz will be generated.
 
 To compile the client for Spark 2.4 with Scala 2.12, please use the following command
 
-#### Scala 2.12.8/2.12.9/2.12.10
+- Scala 2.12.8/2.12.9/2.12.10
 ```shell
 ./build/make-distribution.sh -DskipTests -Pspark-2.4 -Dscala.version=${scala.version} -Dscala.binary.version=2.12 -Dmaven.plugin.scala.version=3.2.2 -Dmaven.plugin.silencer.version=1.6.0
 ```
