@@ -67,7 +67,7 @@ package apache-celeborn-${project.version}-bin.tgz will be generated.
 | Flink 1.17 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.18 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 
-To compile Spark 2.4 with Scala 2.12, please use the following command
+To compile the client for Spark 2.4 with Scala 2.12, please use the following command
 
 #### Scala 2.12.8/2.12.9/2.12.10
 ```shell
