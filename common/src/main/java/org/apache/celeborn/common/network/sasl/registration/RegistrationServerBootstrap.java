@@ -35,7 +35,8 @@ public class RegistrationServerBootstrap implements TransportServerBootstrap {
 
   private final boolean authEnabled;
 
-  public RegistrationServerBootstrap(TransportConf conf, ApplicationRegistry applicationRegistry, boolean authEnabled) {
+  public RegistrationServerBootstrap(
+      TransportConf conf, ApplicationRegistry applicationRegistry, boolean authEnabled) {
     this.conf = conf;
     this.applicationRegistry = applicationRegistry;
     this.authEnabled = authEnabled;

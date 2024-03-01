@@ -76,11 +76,10 @@ private[celeborn] class Master(
   metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
 
   private val authEnabled = conf.authEnabled
-  private val appRegisterEnabled = conf.appRegisterEnabled
   private val secretRegistry = new ApplicationRegistryImpl()
 
   override val rpcEnv: RpcEnv =
-    if (!authEnabled && !appRegisterEnabled) {
+    if (!conf.appRegisterEnabled) {
       RpcEnv.create(
         RpcNameConstants.MASTER_SYS,
         masterArgs.host,

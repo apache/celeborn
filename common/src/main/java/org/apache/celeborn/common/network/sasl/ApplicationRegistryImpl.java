@@ -17,16 +17,16 @@
 
 package org.apache.celeborn.common.network.sasl;
 
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.ApplicationRegistration;
-
-import java.util.concurrent.ConcurrentHashMap;
 
 /** A simple implementation of {@link ApplicationRegistry} that stores secrets in memory. */
 public class ApplicationRegistryImpl implements ApplicationRegistry {
 
   private final ConcurrentHashMap<String, ApplicationRegistration> appRegistrations =
-          new ConcurrentHashMap<>();
+      new ConcurrentHashMap<>();
 
   public ConcurrentHashMap<String, ApplicationRegistration> getAppRegistrations() {
     return appRegistrations;
