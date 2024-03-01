@@ -266,8 +266,8 @@ public class MasterClient {
   }
 
   private List<String> resolveMasterEndpoints() {
-    if (isWorker && conf.internalPortEnabled()) {
-      // For worker, we should use the internal endpoints if internal port is enabled.
+    if (isWorker) {
+      // For worker, we should use the internal endpoints.
       masterEndpointName = RpcNameConstants.MASTER_INTERNAL_EP;
       return Arrays.asList(conf.masterInternalEndpoints());
     } else {

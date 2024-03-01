@@ -26,7 +26,7 @@ import scala.collection.JavaConverters._
 import com.google.protobuf.InvalidProtocolBufferException
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, DiskFileInfo, DiskInfo, FileInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationInfo, ApplicationRegistration, DiskFileInfo, DiskInfo, FileInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
@@ -409,7 +409,7 @@ object PbSerDeUtils {
       excludedWorkers: java.util.Set[WorkerInfo],
       manuallyExcludedWorkers: java.util.Set[WorkerInfo],
       workerLostEvent: java.util.Set[WorkerInfo],
-      appHeartbeatTime: java.util.Map[String, java.lang.Long],
+      applications: java.util.Map[String, ApplicationInfo],
       workers: java.util.List[WorkerInfo],
       partitionTotalWritten: java.lang.Long,
       partitionTotalFileCount: java.lang.Long,
@@ -417,7 +417,9 @@ object PbSerDeUtils {
       currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot,
       lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long],
       shutdownWorkers: java.util.Set[WorkerInfo],
-      workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo]): PbSnapshotMetaInfo = {
+      workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo],
+      applicationRegistrations: ConcurrentHashMap[String, ApplicationRegistration])
+      : PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
       .addAllRegisteredShuffle(registeredShuffle)
@@ -426,7 +428,9 @@ object PbSerDeUtils {
       .addAllManuallyExcludedWorkers(manuallyExcludedWorkers.asScala
         .map(toPbWorkerInfo(_, true)).asJava)
       .addAllWorkerLostEvents(workerLostEvent.asScala.map(toPbWorkerInfo(_, true)).asJava)
-      .putAllAppHeartbeatTime(appHeartbeatTime)
+      .putAllApplications(applications.asScala.map {
+        case (appId, applicationInfo) => (appId, toPbApplicationInfo(applicationInfo))
+      }.asJava)
       .addAllWorkers(workers.asScala.map(toPbWorkerInfo(_, true)).asJava)
       .setPartitionTotalWritten(partitionTotalWritten)
       .setPartitionTotalFileCount(partitionTotalFileCount)
@@ -441,6 +445,10 @@ object PbSerDeUtils {
       .putAllWorkerEventInfos(workerEventInfos.asScala.map {
         case (worker, workerEventInfo) =>
           (worker.toUniqueId(), PbSerDeUtils.toPbWorkerEventInfo(workerEventInfo))
+      }.asJava)
+      .putAllApplicationRegistrations(applicationRegistrations.asScala.map {
+        case (appId, applicationRegistration) =>
+          (appId, PbSerDeUtils.toPbApplicationRegistration(applicationRegistration))
       }.asJava)
     if (currentAppDiskUsageMetricsSnapshot != null) {
       builder.setCurrentAppDiskUsageMetricsSnapshot(
@@ -471,5 +479,36 @@ object PbSerDeUtils {
     new WorkerEventInfo(
       pbWorkerEventInfo.getWorkerEventType.getNumber,
       pbWorkerEventInfo.getEventStartTime())
+  }
+
+  def toPbApplicationRegistration(applicationRegistration: ApplicationRegistration)
+      : PbApplicationRegistration = {
+    PbApplicationRegistration.newBuilder()
+      .setUserIdentifier(toPbUserIdentifier(applicationRegistration.userIdentifier))
+      .setSecret(applicationRegistration.secret)
+      .build()
+  }
+
+  def fromPbApplicationRegistration(pbApplicationRegistration: PbApplicationRegistration)
+      : ApplicationRegistration = {
+    new ApplicationRegistration(
+      fromPbUserIdentifier(pbApplicationRegistration.getUserIdentifier),
+      pbApplicationRegistration.getSecret)
+  }
+
+  def fromPbApplicationInfo(pbApplicationInfo: PbApplicationInfo): ApplicationInfo = {
+    val applicationInfo = new ApplicationInfo()
+    applicationInfo.updateFileCount(pbApplicationInfo.getFileCount)
+    applicationInfo.updateTotalWritten(pbApplicationInfo.getTotalWritten)
+    applicationInfo.setHeartbeatTime(pbApplicationInfo.getLastHeartbeatTime)
+    applicationInfo
+  }
+
+  def toPbApplicationInfo(applicationInfo: ApplicationInfo): PbApplicationInfo = {
+    PbApplicationInfo.newBuilder()
+      .setTotalWritten(applicationInfo.getTotalWritten)
+      .setFileCount(applicationInfo.getFileCount)
+      .setLastHeartbeatTime(applicationInfo.getHeartbeatTime)
+      .build()
   }
 }

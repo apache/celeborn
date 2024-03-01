@@ -1132,21 +1132,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //               Authentication                        //
   // //////////////////////////////////////////////////////
-  def authEnabled: Boolean = {
-    val authEnabled = get(AUTH_ENABLED)
-    val internalPortEnabled = get(INTERNAL_PORT_ENABLED)
-    if (authEnabled && !internalPortEnabled) {
-      throw new IllegalArgumentException(
-        s"${AUTH_ENABLED.key} is true, but ${INTERNAL_PORT_ENABLED.key} is false")
-    }
-    return authEnabled && internalPortEnabled
-  }
+  def authEnabled: Boolean = get(AUTH_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                     Internal Port                   //
   // //////////////////////////////////////////////////////
-  def internalPortEnabled: Boolean = get(INTERNAL_PORT_ENABLED)
-
   def masterInternalEndpoints: Array[String] =
     get(MASTER_INTERNAL_ENDPOINTS).toArray.map { endpoint =>
       Utils.parseHostPort(endpoint.replace("<localhost>", Utils.localHostName(this))) match {
@@ -4549,23 +4539,11 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
-  val INTERNAL_PORT_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.internal.port.enabled")
-      .categories("master", "worker")
-      .version("0.5.0")
-      .doc("Whether to create a internal port on Masters/Workers for " +
-        "inter-Masters/Workers communication. This is beneficial when SASL authentication " +
-        "is enforced for all interactions between clients and Celeborn Services, but the services " +
-        "can exchange messages without being subject to SASL authentication.")
-      .booleanConf
-      .createWithDefault(false)
-
   val AUTH_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.auth.enabled")
       .categories("auth")
       .version("0.5.0")
-      .doc("Whether to enable authentication. Authentication will be enabled only when " +
-        s"${INTERNAL_PORT_ENABLED.key} is enabled as well.")
+      .doc("Whether to enable authentication.")
       .booleanConf
       .createWithDefault(false)
 
