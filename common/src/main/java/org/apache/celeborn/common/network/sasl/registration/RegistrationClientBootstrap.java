@@ -31,12 +31,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
-import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.exception.CelebornException;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientBootstrap;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
@@ -54,6 +53,7 @@ import org.apache.celeborn.common.protocol.PbRegisterApplicationResponse;
 import org.apache.celeborn.common.protocol.PbSaslMechanism;
 import org.apache.celeborn.common.protocol.PbSaslRequest;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.common.util.PbSerDeUtils;
 
 /**
  * Bootstraps a {@link TransportClient} by registering application (if the application is not
@@ -90,10 +90,10 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
   private final boolean authEnabled;
 
   public RegistrationClientBootstrap(
-          TransportConf conf,
-          String appId,
-          SaslCredentials saslCredentials,
-          RegistrationInfo registrationInfo) {
+      TransportConf conf,
+      String appId,
+      SaslCredentials saslCredentials,
+      RegistrationInfo registrationInfo) {
     this(conf, appId, saslCredentials, registrationInfo, true);
   }
 
@@ -219,7 +219,8 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
             MessageType.REGISTER_APPLICATION_REQUEST,
             PbRegisterApplicationRequest.newBuilder()
                 .setId(appId)
-                .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(UserIdentifier.UNKNOWN_USER_IDENTIFIER()))
+                .setUserIdentifier(
+                    PbSerDeUtils.toPbUserIdentifier(UserIdentifier.UNKNOWN_USER_IDENTIFIER()))
                 .setSecret(saslCredentials.getPassword())
                 .build()
                 .toByteArray());

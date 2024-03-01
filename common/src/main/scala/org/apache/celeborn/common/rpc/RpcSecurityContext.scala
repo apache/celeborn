@@ -16,7 +16,7 @@
  */
 package org.apache.celeborn.common.rpc
 
-import org.apache.celeborn.common.network.sasl.{SaslCredentials, ApplicationRegistry}
+import org.apache.celeborn.common.network.sasl.{ApplicationRegistry, SaslCredentials}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 
 /**
@@ -53,9 +53,9 @@ private[celeborn] case class ClientSaslContext(
  * @param addRegistrationBootstrap  Whether to add registration bootstrap.
  */
 private[celeborn] case class ServerSaslContext(
-                                                secretRegistry: ApplicationRegistry,
-                                                addRegistrationBootstrap: Boolean = false,
-                                                authEnabled: Boolean = false) extends SaslContext
+    secretRegistry: ApplicationRegistry,
+    addRegistrationBootstrap: Boolean = false,
+    authEnabled: Boolean = false) extends SaslContext
 
 /**
  * Builder for [[ClientSaslContext]].
@@ -123,7 +123,7 @@ private[celeborn] class ClientSaslContextBuilder {
 private[celeborn] class ServerSaslContextBuilder {
   private var secretRegistry: ApplicationRegistry = _
   private var addRegistrationBootstrap: Boolean = false
-  private var authEnabled: Boolean =false
+  private var authEnabled: Boolean = false
 
   def withSecretRegistry(secretRegistry: ApplicationRegistry): ServerSaslContextBuilder = {
     this.secretRegistry = secretRegistry

@@ -27,7 +27,6 @@ import java.util.List;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import io.netty.channel.Channel;
-import org.apache.celeborn.common.network.sasl.ApplicationRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +36,7 @@ import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.RpcFailure;
 import org.apache.celeborn.common.network.protocol.RpcRequest;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistry;
 import org.apache.celeborn.common.network.sasl.CelebornSaslServer;
 import org.apache.celeborn.common.network.sasl.SaslRpcHandler;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;

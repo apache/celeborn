@@ -21,7 +21,7 @@ import org.scalatest.matchers.must.Matchers.be
 import org.scalatest.matchers.should.Matchers.{an, convertToAnyShouldWrapper}
 
 import org.apache.celeborn.CelebornFunSuite
-import org.apache.celeborn.common.network.sasl.{SaslCredentials, ApplicationRegistryImpl}
+import org.apache.celeborn.common.network.sasl.{ApplicationRegistryImpl, SaslCredentials}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 
 class RpcSecurityContextSuite extends CelebornFunSuite {

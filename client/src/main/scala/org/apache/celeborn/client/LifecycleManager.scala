@@ -113,6 +113,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private val mockDestroyFailure = conf.testMockDestroySlotsFailure
   private val authEnabled = conf.authEnabled
+  private val appRegisterEnabled = conf.appRegisterEnabled
 
   @VisibleForTesting
   def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, ShufflePartitionLocationInfo] =
@@ -170,8 +171,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private var masterRpcEnvInUse = rpcEnv
   private var workerRpcEnvInUse = rpcEnv
-  if (authEnabled) {
-    logInfo(s"Authentication is enabled; setting up master and worker RPC environments")
+  if (appRegisterEnabled) {
+    logInfo(s"Application register is enabled; setting up master RPC environments")
     val appSecret = createSecret()
     val registrationInfo = new RegistrationInfo()
     masterRpcEnvInUse =
@@ -184,13 +185,17 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           appSecret,
           addClientRegistrationBootstrap = true,
           Some(registrationInfo)))
-    workerRpcEnvInUse =
-      RpcEnv.create(
-        RpcNameConstants.LIFECYCLE_MANAGER_WORKER_SYS,
-        lifecycleHost,
-        0,
-        conf,
-        createRpcSecurityContext(appSecret))
+
+    if (authEnabled) {
+      logInfo(s"Authentication is enabled; setting up worker RPC environments")
+      workerRpcEnvInUse =
+        RpcEnv.create(
+          RpcNameConstants.LIFECYCLE_MANAGER_WORKER_SYS,
+          lifecycleHost,
+          0,
+          conf,
+          createRpcSecurityContext(appSecret))
+    }
   }
 
   private val masterClient = new MasterClient(masterRpcEnvInUse, conf, false)
@@ -248,11 +253,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       rpcEnv.shutdown()
       rpcEnv.awaitTermination()
     }
-    if (authEnabled) {
+    if (appRegisterEnabled) {
       if (masterRpcEnvInUse != null) {
         masterRpcEnvInUse.shutdown()
         masterRpcEnvInUse.awaitTermination()
       }
+    }
+    if (authEnabled) {
       if (workerRpcEnvInUse != null) {
         workerRpcEnvInUse.shutdown()
         workerRpcEnvInUse.awaitTermination()

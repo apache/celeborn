@@ -24,10 +24,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.google.common.base.Throwables;
-import org.apache.celeborn.common.identity.UserIdentifier;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBootstrap;
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo;
 import org.apache.celeborn.common.network.sasl.registration.RegistrationRpcHandler;
