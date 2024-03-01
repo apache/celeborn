@@ -108,8 +108,7 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
   @Test
   public void testObjSerde() throws IOException, InterruptedException {
     CelebornConf conf = new CelebornConf();
-    HAMasterMetaManager masterStatusSystem =
-        new HAMasterMetaManager(null, conf, new ApplicationRegistryImpl());
+    HAMasterMetaManager masterStatusSystem = new HAMasterMetaManager(null, conf);
     File tmpFile = File.createTempFile("tef", "test" + System.currentTimeMillis());
 
     Map<String, DiskInfo> disks1 = new HashMap<>();

@@ -76,7 +76,7 @@ private[celeborn] class Master(
   metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
 
   private val authEnabled = conf.authEnabled
-  private val secretRegistry = new ApplicationRegistryImpl()
+  private val appRegistry = new ApplicationRegistryImpl()
 
   override val rpcEnv: RpcEnv =
     if (!conf.appRegisterEnabled) {
@@ -93,7 +93,7 @@ private[celeborn] class Master(
           new ServerSaslContextBuilder()
             .withAddRegistrationBootstrap(true)
             .withAUthEnabled(authEnabled)
-            .withSecretRegistry(secretRegistry).build()).build()
+            .withSecretRegistry(appRegistry).build()).build()
       logInfo(
         s"Secure port enabled ${masterArgs.port} for secured RPC.")
       RpcEnv.create(
@@ -119,7 +119,7 @@ private[celeborn] class Master(
   private val rackResolver = new CelebornRackResolver(conf)
   private val statusSystem =
     if (conf.haEnabled) {
-      val sys = new HAMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
+      val sys = new HAMasterMetaManager(internalRpcEnvInUse, conf, rackResolver, appRegistry)
       val handler = new MetaHandler(sys)
       try {
         handler.setUpMasterRatisServer(conf, masterArgs.masterClusterInfo.get)
@@ -137,7 +137,7 @@ private[celeborn] class Master(
       }
       sys
     } else {
-      new SingleMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
+      new SingleMasterMetaManager(internalRpcEnvInUse, conf, rackResolver, appRegistry)
     }
 
   // Threads
@@ -211,7 +211,7 @@ private[celeborn] class Master(
   masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.workers.size }
   masterSource.addGauge(MasterSource.LOST_WORKER_COUNT) { () => statusSystem.lostWorkers.size }
   masterSource.addGauge(MasterSource.RUNNING_APPLICATION_COUNT) { () =>
-    statusSystem.appHeartbeatTime.size
+    statusSystem.applications.size
   }
   masterSource.addGauge(MasterSource.PARTITION_SIZE) { () => statusSystem.estimatedPartitionSize }
   masterSource.addGauge(MasterSource.ACTIVE_SHUFFLE_SIZE) { () =>
@@ -559,8 +559,8 @@ private[celeborn] class Master(
     if (HAHelper.getAppTimeoutDeadline(statusSystem) > currentTime) {
       return
     }
-    statusSystem.appHeartbeatTime.keySet().asScala.foreach { key =>
-      if (statusSystem.appHeartbeatTime.get(key) < currentTime - appHeartbeatTimeoutMs) {
+    statusSystem.applications.asScala.foreach { case (key, appInfo) =>
+      if (appInfo.getHeartbeatTime < currentTime - appHeartbeatTimeoutMs) {
         logWarning(s"Application $key timeout, trigger applicationLost event.")
         val requestId = MasterClient.genRequestId()
         var res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
@@ -899,7 +899,7 @@ private[celeborn] class Master(
         val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
         while (iter.hasNext && isMasterActive == 1) {
           val fileStatus = iter.next()
-          if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
+          if (!statusSystem.applications.containsKey(fileStatus.getPath.getName)) {
             CelebornHadoopUtils.deleteHDFSPathOrLogError(hadoopFs, fileStatus.getPath, true)
           }
         }
@@ -1129,8 +1129,18 @@ private[celeborn] class Master(
   override def getApplicationList: String = {
     val sb = new StringBuilder
     sb.append("================= LifecycleManager Application List ======================\n")
-    statusSystem.appHeartbeatTime.asScala.toSeq.sortBy(_._2).foreach { case (appId, time) =>
-      sb.append(s"${appId.padTo(40, " ").mkString}${Utils.formatTimestamp(time)}\n")
+    statusSystem.applications.asScala.toSeq.sortBy(_._2.getHeartbeatTime).foreach {
+      case (appId, appInfo) =>
+        val userIdentifier = Option(appRegistry.getUserIdentifier(appId)).getOrElse(
+          UserIdentifier.UNKNOWN_USER_IDENTIFIER)
+        sb.append(
+          s"""
+             |Application: $appId
+             |UserIdentifier: $userIdentifier
+             |TotalWritten: ${appInfo.getTotalWritten}
+             |FileCount: ${appInfo.getFileCount}
+             |LastHeartbeat: ${Utils.formatTimestamp(appInfo.getHeartbeatTime)}\n
+             |""".stripMargin)
     }
     sb.toString()
   }
