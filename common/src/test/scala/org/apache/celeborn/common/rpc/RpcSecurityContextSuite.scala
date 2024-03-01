@@ -21,6 +21,7 @@ import org.scalatest.matchers.must.Matchers.be
 import org.scalatest.matchers.should.Matchers.{an, convertToAnyShouldWrapper}
 
 import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.network.sasl.{ApplicationRegistryImpl, SaslCredentials}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 
@@ -70,6 +71,7 @@ class RpcSecurityContextSuite extends CelebornFunSuite {
       .withSaslUser("user")
       .withSaslPassword("password")
       .withAppId("clientAppId")
+      .withUserIdentifier(UserIdentifier("default", "user"))
       .withAddRegistrationBootstrap(true)
       .withRegistrationInfo(new RegistrationInfo())
       .build()
@@ -79,6 +81,7 @@ class RpcSecurityContextSuite extends CelebornFunSuite {
     clientContext.saslCredentials.getPassword shouldBe "password"
     clientContext.addRegistrationBootstrap shouldBe true
     clientContext.registrationInfo shouldNot be(null)
+    clientContext.userIdentifier shouldBe UserIdentifier("default", "user")
   }
 
   test("ClientSaslContext build should throw IllegalArgumentException when sasl user/password is not set") {
