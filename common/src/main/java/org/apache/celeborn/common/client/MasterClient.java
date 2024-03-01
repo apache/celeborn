@@ -266,7 +266,7 @@ public class MasterClient {
   }
 
   private List<String> resolveMasterEndpoints() {
-    if (isWorker) {
+    if (isWorker && conf.appRegisterEnabled()) {
       // For worker, we should use the internal endpoints.
       masterEndpointName = RpcNameConstants.MASTER_INTERNAL_EP;
       return Arrays.asList(conf.masterInternalEndpoints());
