@@ -268,6 +268,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       .withAppId(appUniqueId)
       .withSaslUser(appUniqueId)
       .withSaslPassword(appSecret)
+      .withAuthEnabled(authEnabled)
     if (registrationInfo.isDefined) {
       clientSaslContextBuilder.withRegistrationInfo(registrationInfo.get)
     }

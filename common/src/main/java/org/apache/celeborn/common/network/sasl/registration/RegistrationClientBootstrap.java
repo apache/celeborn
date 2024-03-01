@@ -31,6 +31,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
+import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -217,6 +219,7 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
             MessageType.REGISTER_APPLICATION_REQUEST,
             PbRegisterApplicationRequest.newBuilder()
                 .setId(appId)
+                .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(UserIdentifier.UNKNOWN_USER_IDENTIFIER()))
                 .setSecret(saslCredentials.getPassword())
                 .build()
                 .toByteArray());
