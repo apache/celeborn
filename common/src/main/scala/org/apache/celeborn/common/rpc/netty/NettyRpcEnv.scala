@@ -71,7 +71,8 @@ class NettyRpcEnv(
           clientSaslContext.appId,
           clientSaslContext.saslCredentials,
           clientSaslContext.registrationInfo,
-          clientSaslContext.authEnabled)
+          clientSaslContext.authEnabled,
+          clientSaslContext.userIdentifier)
       } else {
         logInfo("Add sasl client bootstrap")
         new SaslClientBootstrap(

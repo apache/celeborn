@@ -64,12 +64,13 @@ class MasterSuite extends AnyFunSuite
     master.rpcEnv.shutdown()
   }
 
-  test("test internal port receives") {
+  test("test dedicated internal port receives") {
     val conf = new CelebornConf()
     conf.set(CelebornConf.HA_ENABLED.key, "false")
     conf.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR.key, getTmpDir())
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, getTmpDir())
     conf.set(CelebornConf.METRICS_ENABLED.key, "true")
+    conf.set(CelebornConf.APP_REGISTER_ENABLED.key, "true")
 
     val args = Array("-h", "localhost", "-p", "9097", "--internal-port", "8097")
 

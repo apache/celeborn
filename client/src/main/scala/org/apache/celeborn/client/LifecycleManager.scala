@@ -277,6 +277,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val clientSaslContextBuilder = new ClientSaslContextBuilder()
       .withAddRegistrationBootstrap(addClientRegistrationBootstrap)
       .withAppId(appUniqueId)
+      .withUserIdentifier(userIdentifier)
       .withSaslUser(appUniqueId)
       .withSaslPassword(appSecret)
       .withAuthEnabled(authEnabled)

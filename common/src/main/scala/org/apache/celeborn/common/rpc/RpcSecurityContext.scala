@@ -16,6 +16,7 @@
  */
 package org.apache.celeborn.common.rpc
 
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.network.sasl.{ApplicationRegistry, SaslCredentials}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 
@@ -45,7 +46,8 @@ private[celeborn] case class ClientSaslContext(
     saslCredentials: SaslCredentials,
     addRegistrationBootstrap: Boolean = false,
     authEnabled: Boolean = false,
-    registrationInfo: RegistrationInfo = null) extends SaslContext
+    registrationInfo: RegistrationInfo = null,
+    userIdentifier: UserIdentifier = UserIdentifier.UNKNOWN_USER_IDENTIFIER) extends SaslContext
 
 /**
  * Represents the server SASL context.
@@ -67,6 +69,7 @@ private[celeborn] class ClientSaslContextBuilder {
   private var addRegistrationBootstrap: Boolean = false
   private var authEnabled: Boolean = false
   private var registrationInfo: RegistrationInfo = _
+  private var userIdentifier: UserIdentifier = _
 
   def withSaslUser(user: String): ClientSaslContextBuilder = {
     this.saslUser = user
@@ -80,6 +83,11 @@ private[celeborn] class ClientSaslContextBuilder {
 
   def withAppId(appId: String): ClientSaslContextBuilder = {
     this.appId = appId
+    this
+  }
+
+  def withUserIdentifier(userIdentifier: UserIdentifier): ClientSaslContextBuilder = {
+    this.userIdentifier = userIdentifier
     this
   }
 
@@ -108,12 +116,16 @@ private[celeborn] class ClientSaslContextBuilder {
     if (addRegistrationBootstrap && registrationInfo == null) {
       throw new IllegalArgumentException("Registration info is not set.")
     }
+    if (userIdentifier == null) {
+      throw new IllegalArgumentException("User identifier is not set.")
+    }
     ClientSaslContext(
       appId,
       new SaslCredentials(saslUser, saslPassword),
       addRegistrationBootstrap,
       authEnabled,
-      registrationInfo)
+      registrationInfo,
+      userIdentifier)
   }
 }
 

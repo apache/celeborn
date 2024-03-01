@@ -83,6 +83,7 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
 
   private final TransportConf conf;
   private final String appId;
+  private final UserIdentifier userIdentifier;
   private final SaslCredentials saslCredentials;
 
   private final RegistrationInfo registrationInfo;
@@ -94,7 +95,13 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
       String appId,
       SaslCredentials saslCredentials,
       RegistrationInfo registrationInfo) {
-    this(conf, appId, saslCredentials, registrationInfo, true);
+    this(
+        conf,
+        appId,
+        saslCredentials,
+        registrationInfo,
+        true,
+        UserIdentifier.UNKNOWN_USER_IDENTIFIER());
   }
 
   public RegistrationClientBootstrap(
@@ -102,12 +109,14 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
       String appId,
       SaslCredentials saslCredentials,
       RegistrationInfo registrationInfo,
-      boolean authEnabled) {
+      boolean authEnabled,
+      UserIdentifier userIdentifier) {
     this.conf = Preconditions.checkNotNull(conf, "conf");
     this.appId = Preconditions.checkNotNull(appId, "appId");
     this.saslCredentials = Preconditions.checkNotNull(saslCredentials, "saslCredentials");
     this.registrationInfo = Preconditions.checkNotNull(registrationInfo, "registrationInfo");
     this.authEnabled = authEnabled;
+    this.userIdentifier = Preconditions.checkNotNull(userIdentifier, "userIdentifier");
   }
 
   @Override
@@ -219,8 +228,7 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
             MessageType.REGISTER_APPLICATION_REQUEST,
             PbRegisterApplicationRequest.newBuilder()
                 .setId(appId)
-                .setUserIdentifier(
-                    PbSerDeUtils.toPbUserIdentifier(UserIdentifier.UNKNOWN_USER_IDENTIFIER()))
+                .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
                 .setSecret(saslCredentials.getPassword())
                 .build()
                 .toByteArray());
