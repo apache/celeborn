@@ -31,11 +31,11 @@ import org.apache.celeborn.common.network.util.TransportConf;
 public class SaslServerBootstrap implements TransportServerBootstrap {
 
   private final TransportConf conf;
-  private final SecretRegistry secretKeyHolder;
+  private final ApplicationRegistry secretKeyHolder;
 
-  public SaslServerBootstrap(TransportConf conf, SecretRegistry secretRegistry) {
+  public SaslServerBootstrap(TransportConf conf, ApplicationRegistry applicationRegistry) {
     this.conf = conf;
-    this.secretKeyHolder = secretRegistry;
+    this.secretKeyHolder = applicationRegistry;
   }
 
   /**

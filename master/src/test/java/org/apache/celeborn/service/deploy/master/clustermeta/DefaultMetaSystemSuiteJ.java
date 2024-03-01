@@ -36,6 +36,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -84,7 +85,7 @@ public class DefaultMetaSystemSuiteJ {
   @Before
   public void setUp() {
     when(mockRpcEnv.setupEndpointRef(any(), any())).thenReturn(dummyRef);
-    statusSystem = new SingleMasterMetaManager(mockRpcEnv, conf);
+    statusSystem = new SingleMasterMetaManager(mockRpcEnv, conf, new ApplicationRegistryImpl());
 
     disks1.clear();
     disks1.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
@@ -497,13 +498,13 @@ public class DefaultMetaSystemSuiteJ {
   public void testHandleAppHeartbeat() {
     Long dummy = 1235L;
     statusSystem.handleAppHeartbeat(APPID1, 1, 1, dummy, getNewReqeustId());
-    assertEquals(dummy, statusSystem.appHeartbeatTime.get(APPID1));
+    assertEquals(dummy, statusSystem.applications.get(APPID1));
 
     String appId2 = "app02";
     statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
-    assertEquals(dummy, statusSystem.appHeartbeatTime.get(appId2));
+    assertEquals(dummy, statusSystem.applications.get(appId2).getHeartbeatTime());
 
-    assertEquals(2, statusSystem.appHeartbeatTime.size());
+    assertEquals(2, statusSystem.applications.size());
   }
 
   @Test

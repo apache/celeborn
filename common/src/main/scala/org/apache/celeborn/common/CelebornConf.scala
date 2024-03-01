@@ -771,6 +771,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
+  def appRegisterEnabled: Boolean = get(APP_REGISTER_ENABLED)
   def applicationUnregisterEnabled: Boolean = get(APPLICATION_UNREGISTER_ENABLED)
 
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
@@ -4541,6 +4542,14 @@ object CelebornConf extends Logging {
       .categories("auth")
       .version("0.5.0")
       .doc("Whether to enable authentication.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val APP_REGISTER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.application.register.enabled")
+      .categories("master", "client")
+      .version("0.5.0")
+      .doc("Whether to enable application register.")
       .booleanConf
       .createWithDefault(false)
 

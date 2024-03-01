@@ -16,7 +16,7 @@
  */
 package org.apache.celeborn.common.rpc
 
-import org.apache.celeborn.common.network.sasl.{SaslCredentials, SecretRegistry}
+import org.apache.celeborn.common.network.sasl.{SaslCredentials, ApplicationRegistry}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 
 /**
@@ -44,6 +44,7 @@ private[celeborn] case class ClientSaslContext(
     appId: String,
     saslCredentials: SaslCredentials,
     addRegistrationBootstrap: Boolean = false,
+    authEnabled: Boolean = false,
     registrationInfo: RegistrationInfo = null) extends SaslContext
 
 /**
@@ -52,8 +53,9 @@ private[celeborn] case class ClientSaslContext(
  * @param addRegistrationBootstrap  Whether to add registration bootstrap.
  */
 private[celeborn] case class ServerSaslContext(
-    secretRegistry: SecretRegistry,
-    addRegistrationBootstrap: Boolean = false) extends SaslContext
+                                                secretRegistry: ApplicationRegistry,
+                                                addRegistrationBootstrap: Boolean = false,
+                                                authEnabled: Boolean = false) extends SaslContext
 
 /**
  * Builder for [[ClientSaslContext]].
@@ -63,6 +65,7 @@ private[celeborn] class ClientSaslContextBuilder {
   private var saslPassword: String = _
   private var appId: String = _
   private var addRegistrationBootstrap: Boolean = false
+  private var authEnabled: Boolean = false
   private var registrationInfo: RegistrationInfo = _
 
   def withSaslUser(user: String): ClientSaslContextBuilder = {
@@ -85,6 +88,11 @@ private[celeborn] class ClientSaslContextBuilder {
     this
   }
 
+  def withAuthEnabled(authEnabled: Boolean): ClientSaslContextBuilder = {
+    this.authEnabled = authEnabled
+    this
+  }
+
   def withRegistrationInfo(registrationInfo: RegistrationInfo): ClientSaslContextBuilder = {
     this.registrationInfo = registrationInfo
     this
@@ -104,6 +112,7 @@ private[celeborn] class ClientSaslContextBuilder {
       appId,
       new SaslCredentials(saslUser, saslPassword),
       addRegistrationBootstrap,
+      authEnabled,
       registrationInfo)
   }
 }
@@ -112,10 +121,11 @@ private[celeborn] class ClientSaslContextBuilder {
  * Builder for [[ServerSaslContext]].
  */
 private[celeborn] class ServerSaslContextBuilder {
-  private var secretRegistry: SecretRegistry = _
+  private var secretRegistry: ApplicationRegistry = _
   private var addRegistrationBootstrap: Boolean = false
+  private var authEnabled: Boolean =false
 
-  def withSecretRegistry(secretRegistry: SecretRegistry): ServerSaslContextBuilder = {
+  def withSecretRegistry(secretRegistry: ApplicationRegistry): ServerSaslContextBuilder = {
     this.secretRegistry = secretRegistry
     this
   }
@@ -125,13 +135,19 @@ private[celeborn] class ServerSaslContextBuilder {
     this
   }
 
+  def withAUthEnabled(authEnabled: Boolean): ServerSaslContextBuilder = {
+    this.authEnabled = authEnabled
+    this
+  }
+
   def build(): ServerSaslContext = {
     if (secretRegistry == null) {
       throw new IllegalArgumentException("Secret registry is not set.")
     }
     ServerSaslContext(
       secretRegistry,
-      addRegistrationBootstrap)
+      addRegistrationBootstrap,
+      authEnabled)
   }
 }
 

@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.google.common.base.Throwables;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -43,7 +44,7 @@ public class RegistrationSuiteJ extends SaslTestBase {
   public void testRegistration() throws Throwable {
     TransportConf conf = new TransportConf("shuffle", new CelebornConf());
     RegistrationServerBootstrap serverBootstrap =
-        new RegistrationServerBootstrap(conf, new TestSecretRegistry());
+        new RegistrationServerBootstrap(conf, new TestApplicationRegistry());
     RegistrationClientBootstrap clientBootstrap =
         new RegistrationClientBootstrap(
             conf, TEST_USER, new SaslCredentials(TEST_USER, TEST_SECRET), new RegistrationInfo());
@@ -56,7 +57,7 @@ public class RegistrationSuiteJ extends SaslTestBase {
     // The SecretRegistryImpl already has the entry for TEST_USER so re-registering the app should
     // fail.
     RegistrationServerBootstrap serverBootstrap =
-        new RegistrationServerBootstrap(conf, secretRegistry);
+        new RegistrationServerBootstrap(conf, applicationRegistry);
     RegistrationClientBootstrap clientBootstrap =
         new RegistrationClientBootstrap(
             conf, TEST_USER, new SaslCredentials(TEST_USER, TEST_SECRET), new RegistrationInfo());
@@ -73,7 +74,7 @@ public class RegistrationSuiteJ extends SaslTestBase {
   public void testConnectionAuthWithoutRegistrationShouldFail() throws Throwable {
     TransportConf conf = new TransportConf("shuffle", new CelebornConf());
     RegistrationServerBootstrap serverBootstrap =
-        new RegistrationServerBootstrap(conf, new TestSecretRegistry());
+        new RegistrationServerBootstrap(conf, new TestApplicationRegistry());
     SaslClientBootstrap clientBootstrap =
         new SaslClientBootstrap(conf, TEST_USER, new SaslCredentials(TEST_USER, TEST_SECRET));
 
@@ -86,18 +87,21 @@ public class RegistrationSuiteJ extends SaslTestBase {
     }
   }
 
-  static class TestSecretRegistry implements SecretRegistry {
+  static class TestApplicationRegistry implements ApplicationRegistry {
 
     private final Map<String, String> secrets = new HashMap<>();
+    private final Map<String, UserIdentifier> userIdentifiers = new HashMap<>();
 
     @Override
-    public void register(String appId, String secret) {
+    public void register(String appId, UserIdentifier userIdentifier, String secret) {
       secrets.put(appId, secret);
+      userIdentifiers.put(appId, userIdentifier);
     }
 
     @Override
     public void unregister(String appId) {
       secrets.remove(appId);
+      userIdentifiers.remove(appId);
     }
 
     @Override
@@ -108,6 +112,11 @@ public class RegistrationSuiteJ extends SaslTestBase {
     @Override
     public String getSecretKey(String appId) {
       return secrets.get(appId);
+    }
+
+    @Override
+    public UserIdentifier getUserIdentifier(String appId) {
+      return userIdentifiers.get(appId);
     }
   }
 }

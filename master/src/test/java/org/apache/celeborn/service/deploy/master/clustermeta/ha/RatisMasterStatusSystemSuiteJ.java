@@ -35,6 +35,8 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistry;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -88,9 +90,13 @@ public class RatisMasterStatusSystemSuiteJ {
 
     while (!serversStarted) {
       try {
-        STATUSSYSTEM1 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
-        STATUSSYSTEM2 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
-        STATUSSYSTEM3 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
+        ApplicationRegistry applicationRegistry = new ApplicationRegistryImpl();
+        STATUSSYSTEM1 =
+            new HAMasterMetaManager(mockRpcEnv, new CelebornConf(), applicationRegistry);
+        STATUSSYSTEM2 =
+            new HAMasterMetaManager(mockRpcEnv, new CelebornConf(), applicationRegistry);
+        STATUSSYSTEM3 =
+            new HAMasterMetaManager(mockRpcEnv, new CelebornConf(), applicationRegistry);
 
         MetaHandler handler1 = new MetaHandler(STATUSSYSTEM1);
         MetaHandler handler2 = new MetaHandler(STATUSSYSTEM2);
@@ -741,21 +747,27 @@ public class RatisMasterStatusSystemSuiteJ {
     long dummy = 1235L;
     statusSystem.handleAppHeartbeat(APPID1, 1, 1, dummy, getNewReqeustId());
     Thread.sleep(3000L);
-    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM1.appHeartbeatTime.get(APPID1));
-    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM2.appHeartbeatTime.get(APPID1));
-    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM3.appHeartbeatTime.get(APPID1));
+    Assert.assertEquals(
+        Long.valueOf(dummy), STATUSSYSTEM1.applications.get(APPID1).getHeartbeatTime());
+    Assert.assertEquals(
+        Long.valueOf(dummy), STATUSSYSTEM2.applications.get(APPID1).getHeartbeatTime());
+    Assert.assertEquals(
+        Long.valueOf(dummy), STATUSSYSTEM3.applications.get(APPID1).getHeartbeatTime());
 
     String appId2 = "app02";
     statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM1.appHeartbeatTime.get(appId2));
-    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM2.appHeartbeatTime.get(appId2));
-    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM3.appHeartbeatTime.get(appId2));
+    Assert.assertEquals(
+        Long.valueOf(dummy), STATUSSYSTEM1.applications.get(appId2).getHeartbeatTime());
+    Assert.assertEquals(
+        Long.valueOf(dummy), STATUSSYSTEM2.applications.get(appId2).getHeartbeatTime());
+    Assert.assertEquals(
+        Long.valueOf(dummy), STATUSSYSTEM3.applications.get(appId2).getHeartbeatTime());
 
-    Assert.assertEquals(2, STATUSSYSTEM1.appHeartbeatTime.size());
-    Assert.assertEquals(2, STATUSSYSTEM2.appHeartbeatTime.size());
-    Assert.assertEquals(2, STATUSSYSTEM3.appHeartbeatTime.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.applications.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.applications.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.applications.size());
   }
 
   @Test
@@ -875,21 +887,21 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM1.registeredShuffle.clear();
     STATUSSYSTEM1.hostnameSet.clear();
     STATUSSYSTEM1.workers.clear();
-    STATUSSYSTEM1.appHeartbeatTime.clear();
+    STATUSSYSTEM1.applications.clear();
     STATUSSYSTEM1.excludedWorkers.clear();
     STATUSSYSTEM1.workerLostEvents.clear();
 
     STATUSSYSTEM2.registeredShuffle.clear();
     STATUSSYSTEM2.hostnameSet.clear();
     STATUSSYSTEM2.workers.clear();
-    STATUSSYSTEM2.appHeartbeatTime.clear();
+    STATUSSYSTEM2.applications.clear();
     STATUSSYSTEM2.excludedWorkers.clear();
     STATUSSYSTEM2.workerLostEvents.clear();
 
     STATUSSYSTEM3.registeredShuffle.clear();
     STATUSSYSTEM3.hostnameSet.clear();
     STATUSSYSTEM3.workers.clear();
-    STATUSSYSTEM3.appHeartbeatTime.clear();
+    STATUSSYSTEM3.applications.clear();
     STATUSSYSTEM3.excludedWorkers.clear();
     STATUSSYSTEM3.workerLostEvents.clear();
 
