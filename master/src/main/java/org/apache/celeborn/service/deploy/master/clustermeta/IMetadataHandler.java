@@ -27,7 +27,6 @@ import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.util.ApplicationMeta;
 
-
 public interface IMetadataHandler {
   void handleRequestSlots(
       String shuffleKey,
