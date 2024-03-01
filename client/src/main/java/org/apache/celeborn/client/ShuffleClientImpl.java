@@ -1658,11 +1658,13 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public CelebornInputStream readPartition(
       int shuffleId,
+      int appShuffleId,
       int partitionId,
       int attemptNumber,
       int startMapIndex,
       int endMapIndex,
-      MetricsCallback metricsCallback)
+      MetricsCallback metricsCallback,
+      ExceptionMaker exceptionMaker)
       throws IOException {
     if (partitionId == Utils$.MODULE$.UNKNOWN_APP_SHUFFLE_ID()) {
       logger.warn("Shuffle data is empty for shuffle {}: UNKNOWN_APP_SHUFFLE_ID.", shuffleId);
@@ -1686,7 +1688,12 @@ public class ShuffleClientImpl extends ShuffleClient {
           startMapIndex,
           endMapIndex,
           fetchExcludedWorkers,
-          metricsCallback);
+          metricsCallback,
+          this,
+          appShuffleId,
+          shuffleId,
+          partitionId,
+          exceptionMaker);
     }
   }
 

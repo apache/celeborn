@@ -42,6 +42,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.unsafe.Platform;
+import org.apache.celeborn.common.util.ExceptionMaker;
 import org.apache.celeborn.common.util.Utils;
 
 public abstract class CelebornInputStream extends InputStream {
@@ -57,7 +58,12 @@ public abstract class CelebornInputStream extends InputStream {
       int startMapIndex,
       int endMapIndex,
       ConcurrentHashMap<String, Long> fetchExcludedWorkers,
-      MetricsCallback metricsCallback)
+      MetricsCallback metricsCallback,
+      ShuffleClient shuffleClient,
+      int appShuffleId,
+      int shuffleId,
+      int partitionId,
+      ExceptionMaker exceptionMaker)
       throws IOException {
     if (locations == null || locations.length == 0) {
       return emptyInputStream;
@@ -72,7 +78,12 @@ public abstract class CelebornInputStream extends InputStream {
           startMapIndex,
           endMapIndex,
           fetchExcludedWorkers,
-          metricsCallback);
+          metricsCallback,
+          shuffleClient,
+          appShuffleId,
+          shuffleId,
+          partitionId,
+          exceptionMaker);
     }
   }
 
@@ -151,6 +162,11 @@ public abstract class CelebornInputStream extends InputStream {
     private final ConcurrentHashMap<String, Long> fetchExcludedWorkers;
 
     private boolean containLocalRead = false;
+    private ShuffleClient shuffleClient;
+    private int appShuffleId;
+    private int shuffleId;
+    private int partitionId;
+    private ExceptionMaker exceptionMaker;
 
     CelebornInputStreamImpl(
         CelebornConf conf,
@@ -162,8 +178,18 @@ public abstract class CelebornInputStream extends InputStream {
         int startMapIndex,
         int endMapIndex,
         ConcurrentHashMap<String, Long> fetchExcludedWorkers,
-        MetricsCallback metricsCallback)
+        MetricsCallback metricsCallback,
+        ShuffleClient shuffleClient,
+        int appShuffleId,
+        int shuffleId,
+        int partitionId,
+        ExceptionMaker exceptionMaker)
         throws IOException {
+      this.exceptionMaker = exceptionMaker;
+      this.partitionId = partitionId;
+      this.appShuffleId = appShuffleId;
+      this.shuffleId = shuffleId;
+      this.shuffleClient = shuffleClient;
       this.conf = conf;
       this.clientFactory = clientFactory;
       this.shuffleKey = shuffleKey;
@@ -318,7 +344,7 @@ public abstract class CelebornInputStream extends InputStream {
           if (isExcluded(location)) {
             throw new CelebornIOException("Fetch data from excluded worker! " + location);
           }
-          return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
+          return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry, shuffleClient);
         } catch (Exception e) {
           lastException = e;
           excludeFailedLocation(location, e);
@@ -401,7 +427,10 @@ public abstract class CelebornInputStream extends InputStream {
     }
 
     private PartitionReader createReader(
-        PartitionLocation location, int fetchChunkRetryCnt, int fetchChunkMaxRetry)
+        PartitionLocation location,
+        int fetchChunkRetryCnt,
+        int fetchChunkMaxRetry,
+        ShuffleClient shuffleClient)
         throws IOException, InterruptedException {
       if (!location.hasPeer()) {
         logger.debug("Partition {} has only one partition replica.", location);
@@ -430,7 +459,8 @@ public abstract class CelebornInputStream extends InputStream {
                 endMapIndex,
                 fetchChunkRetryCnt,
                 fetchChunkMaxRetry,
-                callback);
+                callback,
+                shuffleClient);
           }
         case HDFS:
           return new DfsPartitionReader(
@@ -557,7 +587,6 @@ public abstract class CelebornInputStream extends InputStream {
 
           currentChunk.readBytes(rawDataBuf, 0, size);
         }
-
         // de-duplicate
         if (attemptId == attempts[mapId]) {
           if (!batchesRead.containsKey(mapId)) {

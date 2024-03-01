@@ -18,8 +18,10 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
+import java.util
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function
 
 import org.apache.spark.{Aggregator, InterruptibleIterator, ShuffleDependency, TaskContext}
 import org.apache.spark.internal.Logging
@@ -33,7 +35,8 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.read.{CelebornInputStream, MetricsCallback}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.{CelebornIOException, PartitionUnRetryAbleException}
-import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.common.protocol.PartitionLocation
+import org.apache.celeborn.common.util.{ExceptionMaker, JavaUtils, ThreadUtils}
 
 class CelebornShuffleReader[K, C](
     handle: CelebornShuffleHandle[K, _, C],
@@ -89,6 +92,23 @@ class CelebornShuffleReader[K, C](
       }
     }
 
+    val exceptionMaker = new ExceptionMaker() {
+      override def makeException(
+          appShuffleId: Int,
+          shuffleId: Int,
+          partitionId: Int,
+          e: Exception): Exception = {
+        new FetchFailedException(
+          null,
+          handle.shuffleId,
+          -1,
+          -1,
+          partitionId,
+          SparkUtils.FETCH_FAILURE_ERROR_MSG + shuffleId,
+          e)
+      }
+    }
+
     val streams = new ConcurrentHashMap[Integer, CelebornInputStream]()
     (startPartition until endPartition).map(partitionId => {
       streamCreatorPool.submit(new Runnable {
@@ -97,11 +117,13 @@ class CelebornShuffleReader[K, C](
             try {
               val inputStream = shuffleClient.readPartition(
                 shuffleId,
+                handle.shuffleId,
                 partitionId,
                 context.attemptNumber(),
                 startMapIndex,
                 endMapIndex,
-                metricsCallback)
+                metricsCallback,
+                exceptionMaker)
               streams.put(partitionId, inputStream)
             } catch {
               case e: IOException =>

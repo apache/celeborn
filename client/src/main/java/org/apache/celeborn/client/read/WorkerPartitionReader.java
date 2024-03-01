@@ -69,6 +69,7 @@ public class WorkerPartitionReader implements PartitionReader {
   private int fetchChunkRetryCnt;
   private int fetchChunkMaxRetry;
   private final boolean testFetch;
+  private ShuffleClient shuffleClient;
 
   WorkerPartitionReader(
       CelebornConf conf,
@@ -79,8 +80,10 @@ public class WorkerPartitionReader implements PartitionReader {
       int endMapIndex,
       int fetchChunkRetryCnt,
       int fetchChunkMaxRetry,
-      MetricsCallback metricsCallback)
+      MetricsCallback metricsCallback,
+      ShuffleClient shuffleClient)
       throws IOException, InterruptedException {
+    this.shuffleClient = shuffleClient;
     this.shuffleKey = shuffleKey;
     fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
