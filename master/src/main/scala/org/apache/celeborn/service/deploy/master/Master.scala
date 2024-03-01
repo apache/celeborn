@@ -860,7 +860,8 @@ private[celeborn] class Master(
         .build()
       val transportMessage =
         new TransportMessage(MessageType.APPLICATION_META, pbApplicationMeta.toByteArray)
-      slots.keySet().forEach(worker => {
+
+      slots.keySet().forEach((worker: WorkerInfo) => {
         try {
           logInfo(s"Sending app registration info to ${worker.host}:${worker.internalPort}")
           internalRpcEnvInUse.setupEndpointRef(
