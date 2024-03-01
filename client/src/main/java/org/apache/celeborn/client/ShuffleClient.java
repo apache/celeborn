@@ -221,11 +221,11 @@ public abstract class ShuffleClient {
       throws IOException {
     return readPartition(
         shuffleId,
+        shuffleId,
         partitionId,
         attemptNumber,
         startMapIndex,
         endMapIndex,
-        shuffleId,
         metricsCallback,
         null);
   }
