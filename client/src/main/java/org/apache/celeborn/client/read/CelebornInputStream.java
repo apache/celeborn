@@ -185,11 +185,6 @@ public abstract class CelebornInputStream extends InputStream {
         int partitionId,
         ExceptionMaker exceptionMaker)
         throws IOException {
-      this.exceptionMaker = exceptionMaker;
-      this.partitionId = partitionId;
-      this.appShuffleId = appShuffleId;
-      this.shuffleId = shuffleId;
-      this.shuffleClient = shuffleClient;
       this.conf = conf;
       this.clientFactory = clientFactory;
       this.shuffleKey = shuffleKey;
@@ -227,6 +222,12 @@ public abstract class CelebornInputStream extends InputStream {
           Utils.fromCelebornConf(conf, TransportModuleConstants.DATA_MODULE, 0);
       retryWaitMs = transportConf.ioRetryWaitTimeMs();
       this.callback = metricsCallback;
+      this.exceptionMaker = exceptionMaker;
+      this.partitionId = partitionId;
+      this.appShuffleId = appShuffleId;
+      this.shuffleId = shuffleId;
+      this.shuffleClient = shuffleClient;
+
       moveToNextReader();
     }
 
@@ -344,7 +345,7 @@ public abstract class CelebornInputStream extends InputStream {
           if (isExcluded(location)) {
             throw new CelebornIOException("Fetch data from excluded worker! " + location);
           }
-          return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry, shuffleClient);
+          return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
         } catch (Exception e) {
           lastException = e;
           excludeFailedLocation(location, e);
@@ -427,10 +428,7 @@ public abstract class CelebornInputStream extends InputStream {
     }
 
     private PartitionReader createReader(
-        PartitionLocation location,
-        int fetchChunkRetryCnt,
-        int fetchChunkMaxRetry,
-        ShuffleClient shuffleClient)
+        PartitionLocation location, int fetchChunkRetryCnt, int fetchChunkMaxRetry)
         throws IOException, InterruptedException {
       if (!location.hasPeer()) {
         logger.debug("Partition {} has only one partition replica.", location);
@@ -459,8 +457,7 @@ public abstract class CelebornInputStream extends InputStream {
                 endMapIndex,
                 fetchChunkRetryCnt,
                 fetchChunkMaxRetry,
-                callback,
-                shuffleClient);
+                callback);
           }
         case HDFS:
           return new DfsPartitionReader(
@@ -562,65 +559,78 @@ public abstract class CelebornInputStream extends InputStream {
     }
 
     private boolean fillBuffer() throws IOException {
-      if (currentChunk == null) {
-        return false;
-      }
-
-      boolean hasData = false;
-      while (currentChunk.isReadable() || moveToNextChunk()) {
-        currentChunk.readBytes(sizeBuf);
-        int mapId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET);
-        int attemptId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 4);
-        int batchId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 8);
-        int size = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 12);
-
-        if (shuffleCompressionEnabled) {
-          if (size > compressedBuf.length) {
-            compressedBuf = new byte[size];
-          }
-
-          currentChunk.readBytes(compressedBuf, 0, size);
-        } else {
-          if (size > rawDataBuf.length) {
-            rawDataBuf = new byte[size];
-          }
-
-          currentChunk.readBytes(rawDataBuf, 0, size);
+      try {
+        if (currentChunk == null) {
+          return false;
         }
-        // de-duplicate
-        if (attemptId == attempts[mapId]) {
-          if (!batchesRead.containsKey(mapId)) {
-            Set<Integer> batchSet = new HashSet<>();
-            batchesRead.put(mapId, batchSet);
-          }
-          Set<Integer> batchSet = batchesRead.get(mapId);
-          if (!batchSet.contains(batchId)) {
-            batchSet.add(batchId);
-            callback.incBytesRead(BATCH_HEADER_SIZE + size);
-            if (shuffleCompressionEnabled) {
-              // decompress data
-              int originalLength = decompressor.getOriginalLen(compressedBuf);
-              if (rawDataBuf.length < originalLength) {
-                rawDataBuf = new byte[originalLength];
-              }
-              limit = decompressor.decompress(compressedBuf, rawDataBuf, 0);
-            } else {
-              limit = size;
+
+        boolean hasData = false;
+        while (currentChunk.isReadable() || moveToNextChunk()) {
+          currentChunk.readBytes(sizeBuf);
+          int mapId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET);
+          int attemptId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 4);
+          int batchId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 8);
+          int size = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 12);
+
+          if (shuffleCompressionEnabled) {
+            if (size > compressedBuf.length) {
+              compressedBuf = new byte[size];
             }
-            position = 0;
-            hasData = true;
-            break;
+
+            currentChunk.readBytes(compressedBuf, 0, size);
           } else {
-            logger.debug(
-                "Skip duplicated batch: mapId {}, attemptId {}, batchId {}.",
-                mapId,
-                attemptId,
-                batchId);
+            if (size > rawDataBuf.length) {
+              rawDataBuf = new byte[size];
+            }
+
+            currentChunk.readBytes(rawDataBuf, 0, size);
+          }
+
+          // de-duplicate
+          if (attemptId == attempts[mapId]) {
+            if (!batchesRead.containsKey(mapId)) {
+              Set<Integer> batchSet = new HashSet<>();
+              batchesRead.put(mapId, batchSet);
+            }
+            Set<Integer> batchSet = batchesRead.get(mapId);
+            if (!batchSet.contains(batchId)) {
+              batchSet.add(batchId);
+              callback.incBytesRead(BATCH_HEADER_SIZE + size);
+              if (shuffleCompressionEnabled) {
+                // decompress data
+                int originalLength = decompressor.getOriginalLen(compressedBuf);
+                if (rawDataBuf.length < originalLength) {
+                  rawDataBuf = new byte[originalLength];
+                }
+                limit = decompressor.decompress(compressedBuf, rawDataBuf, 0);
+              } else {
+                limit = size;
+              }
+              position = 0;
+              hasData = true;
+              break;
+            } else {
+              logger.debug(
+                  "Skip duplicated batch: mapId {}, attemptId {}, batchId {}.",
+                  mapId,
+                  attemptId,
+                  batchId);
+            }
           }
         }
-      }
 
-      return hasData;
+        return hasData;
+      } catch (IOException e) {
+        IOException ioe = e;
+        if (exceptionMaker != null) {
+          if (shuffleClient.reportShuffleFetchFailure(appShuffleId, shuffleId)) {
+            ioe =
+                new CelebornIOException(
+                    exceptionMaker.makeException(appShuffleId, shuffleId, partitionId, e));
+          }
+        }
+        throw ioe;
+      }
     }
 
     @Override
