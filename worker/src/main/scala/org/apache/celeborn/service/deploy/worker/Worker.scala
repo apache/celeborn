@@ -39,8 +39,8 @@ import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLoc
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.TransportContext
+import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl
 import org.apache.celeborn.common.network.sasl.SaslServerBootstrap
-import org.apache.celeborn.common.network.sasl.SecretRegistryImpl
 import org.apache.celeborn.common.network.server.TransportServerBootstrap
 import org.apache.celeborn.common.network.util.TransportConf
 import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants, WorkerEventType}
@@ -84,7 +84,7 @@ private[celeborn] class Worker(
 
   val workerStatusManager = new WorkerStatusManager(conf)
   private val authEnabled = conf.authEnabled
-  private val secretRegistry = new SecretRegistryImpl()
+  private val secretRegistry = new ApplicationRegistryImpl()
   val rpcEnv: RpcEnv =
     if (!authEnabled) {
       RpcEnv.create(
@@ -113,7 +113,7 @@ private[celeborn] class Worker(
     }
 
   private[worker] var internalRpcEnvInUse =
-    if (!conf.internalPortEnabled) {
+    if (!conf.appRegisterEnabled) {
       rpcEnv
     } else {
       RpcEnv.create(
@@ -139,7 +139,7 @@ private[celeborn] class Worker(
       WORKER_FETCH_PORT -> conf.workerFetchPort,
       WORKER_PUSH_PORT -> conf.workerPushPort,
       WORKER_REPLICATE_PORT -> conf.workerReplicatePort)
-    if (conf.internalPortEnabled) {
+    if (conf.appRegisterEnabled) {
       checkPortMap += (WORKER_INTERNAL_PORT -> conf.workerInternalPort)
     }
     assert(
@@ -187,7 +187,7 @@ private[celeborn] class Worker(
   // Visible for testing
   private[worker] var internalRpcEndpoint: RpcEndpoint = _
   private var internalRpcEndpointRef: RpcEndpointRef = _
-  if (conf.internalPortEnabled) {
+  if (conf.appRegisterEnabled) {
     internalRpcEndpoint = new InternalRpcEndpoint(internalRpcEnvInUse, conf)
     internalRpcEndpointRef = internalRpcEnvInUse.setupEndpoint(
       RpcNameConstants.WORKER_INTERNAL_EP,
@@ -488,7 +488,7 @@ private[celeborn] class Worker(
 
     logInfo("Worker started.")
     rpcEnv.awaitTermination()
-    if (conf.internalPortEnabled) {
+    if (conf.appRegisterEnabled) {
       internalRpcEnvInUse.awaitTermination()
     }
   }
@@ -538,7 +538,7 @@ private[celeborn] class Worker(
       fetchServer.shutdown(exitKind)
       pushServer.shutdown(exitKind)
       metricsSystem.stop()
-      if (conf.internalPortEnabled) {
+      if (conf.appRegisterEnabled) {
         internalRpcEnvInUse.stop(internalRpcEndpointRef)
       }
       super.stop(exitKind)

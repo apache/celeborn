@@ -530,7 +530,7 @@ public class DefaultMetaSystemSuiteJ {
   public void testHandleAppHeartbeat() {
     Long dummy = 1235L;
     statusSystem.handleAppHeartbeat(APPID1, 1, 1, dummy, getNewReqeustId());
-    assertEquals(dummy, statusSystem.applications.get(APPID1));
+    assertEquals(dummy, statusSystem.applications.get(APPID1).getHeartbeatTime());
 
     String appId2 = "app02";
     statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
