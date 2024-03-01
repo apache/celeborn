@@ -107,14 +107,20 @@ private[celeborn] class Master(
     }
 
   // Visible for testing
-  private[master] var internalRpcEnvInUse: RpcEnv = RpcEnv.create(
-    RpcNameConstants.MASTER_INTERNAL_SYS,
-    masterArgs.host,
-    masterArgs.host,
-    masterArgs.internalPort,
-    conf,
-    Math.max(64, Runtime.getRuntime.availableProcessors()))
-  logInfo(s"Using internal port ${masterArgs.internalPort} for internal RPC.")
+  private[master] var internalRpcEnvInUse: RpcEnv =
+    if (!conf.appRegisterEnabled) {
+      rpcEnv
+    } else {
+      logInfo(
+        s"Internal port enabled, using internal port ${masterArgs.internalPort} for internal RPC.")
+      RpcEnv.create(
+        RpcNameConstants.MASTER_INTERNAL_SYS,
+        masterArgs.host,
+        masterArgs.host,
+        masterArgs.internalPort,
+        conf,
+        Math.max(64, Runtime.getRuntime.availableProcessors()))
+    }
 
   private val rackResolver = new CelebornRackResolver(conf)
   private val statusSystem =
@@ -239,11 +245,14 @@ private[celeborn] class Master(
   private val threadsStarted: AtomicBoolean = new AtomicBoolean(false)
   rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
   // Visible for testing
-  private[master] var internalRpcEndpoint: RpcEndpoint =
-    new InternalRpcEndpoint(this, internalRpcEnvInUse, conf)
-  private var internalRpcEndpointRef: RpcEndpointRef = internalRpcEnvInUse.setupEndpoint(
-    RpcNameConstants.MASTER_INTERNAL_EP,
-    internalRpcEndpoint)
+  private[master] var internalRpcEndpoint: RpcEndpoint = _
+  private var internalRpcEndpointRef: RpcEndpointRef = _
+  if (conf.appRegisterEnabled) {
+    internalRpcEndpoint = new InternalRpcEndpoint(this, internalRpcEnvInUse, conf)
+    internalRpcEndpointRef = internalRpcEnvInUse.setupEndpoint(
+      RpcNameConstants.MASTER_INTERNAL_EP,
+      internalRpcEndpoint)
+  }
 
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
@@ -1248,14 +1257,18 @@ private[celeborn] class Master(
     super.initialize()
     logInfo("Master started.")
     rpcEnv.awaitTermination()
-    internalRpcEnvInUse.awaitTermination()
+    if (conf.appRegisterEnabled) {
+      internalRpcEnvInUse.awaitTermination()
+    }
   }
 
   override def stop(exitKind: Int): Unit = synchronized {
     if (!stopped) {
       logInfo("Stopping Master")
       rpcEnv.stop(self)
-      internalRpcEnvInUse.stop(internalRpcEndpointRef)
+      if (conf.appRegisterEnabled) {
+        internalRpcEnvInUse.stop(internalRpcEndpointRef)
+      }
       super.stop(exitKind)
       logInfo("Master stopped.")
       stopped = true
