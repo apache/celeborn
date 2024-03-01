@@ -123,8 +123,8 @@ public class DummyShuffleClient extends ShuffleClient {
       int attemptNumber,
       int startMapIndex,
       int endMapIndex,
-      MetricsCallback metricsCallback,
-      ExceptionMaker exceptionMaker)
+      ExceptionMaker exceptionMaker,
+      MetricsCallback metricsCallback)
       throws IOException {
     return null;
   }

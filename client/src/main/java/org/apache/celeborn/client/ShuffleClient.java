@@ -226,8 +226,8 @@ public abstract class ShuffleClient {
         attemptNumber,
         startMapIndex,
         endMapIndex,
-        metricsCallback,
-        null);
+        null,
+        metricsCallback);
   }
 
   public abstract CelebornInputStream readPartition(
@@ -237,8 +237,8 @@ public abstract class ShuffleClient {
       int attemptNumber,
       int startMapIndex,
       int endMapIndex,
-      MetricsCallback metricsCallback,
-      ExceptionMaker exceptionMaker)
+      ExceptionMaker exceptionMaker,
+      MetricsCallback metricsCallback)
       throws IOException;
 
   public abstract boolean cleanupShuffle(int shuffleId);

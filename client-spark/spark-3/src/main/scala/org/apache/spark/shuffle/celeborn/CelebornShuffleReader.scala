@@ -120,8 +120,8 @@ class CelebornShuffleReader[K, C](
                 context.attemptNumber(),
                 startMapIndex,
                 endMapIndex,
-                metricsCallback,
-                if (throwsFetchFailure) exceptionMaker else null)
+                if (throwsFetchFailure) exceptionMaker else null,
+                metricsCallback)
               streams.put(partitionId, inputStream)
             } catch {
               case e: IOException =>

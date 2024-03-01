@@ -58,12 +58,12 @@ public abstract class CelebornInputStream extends InputStream {
       int startMapIndex,
       int endMapIndex,
       ConcurrentHashMap<String, Long> fetchExcludedWorkers,
-      MetricsCallback metricsCallback,
       ShuffleClient shuffleClient,
       int appShuffleId,
       int shuffleId,
       int partitionId,
-      ExceptionMaker exceptionMaker)
+      ExceptionMaker exceptionMaker,
+      MetricsCallback metricsCallback)
       throws IOException {
     if (locations == null || locations.length == 0) {
       return emptyInputStream;
@@ -78,12 +78,12 @@ public abstract class CelebornInputStream extends InputStream {
           startMapIndex,
           endMapIndex,
           fetchExcludedWorkers,
-          metricsCallback,
           shuffleClient,
           appShuffleId,
           shuffleId,
           partitionId,
-          exceptionMaker);
+          exceptionMaker,
+          metricsCallback);
     }
   }
 
@@ -178,12 +178,12 @@ public abstract class CelebornInputStream extends InputStream {
         int startMapIndex,
         int endMapIndex,
         ConcurrentHashMap<String, Long> fetchExcludedWorkers,
-        MetricsCallback metricsCallback,
         ShuffleClient shuffleClient,
         int appShuffleId,
         int shuffleId,
         int partitionId,
-        ExceptionMaker exceptionMaker)
+        ExceptionMaker exceptionMaker,
+        MetricsCallback metricsCallback)
         throws IOException {
       this.conf = conf;
       this.clientFactory = clientFactory;
