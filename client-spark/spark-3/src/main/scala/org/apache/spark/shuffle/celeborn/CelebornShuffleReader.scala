@@ -100,7 +100,7 @@ class CelebornShuffleReader[K, C](
           e: Exception): Exception = {
         new FetchFailedException(
           null,
-          handle.shuffleId,
+          appShuffleId,
           -1,
           -1,
           partitionId,
