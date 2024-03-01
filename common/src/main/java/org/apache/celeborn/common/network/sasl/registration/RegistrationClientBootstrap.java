@@ -85,30 +85,46 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
 
   private final RegistrationInfo registrationInfo;
 
+  private final boolean authEnabled;
+
+  public RegistrationClientBootstrap(
+          TransportConf conf,
+          String appId,
+          SaslCredentials saslCredentials,
+          RegistrationInfo registrationInfo) {
+    this(conf, appId, saslCredentials, registrationInfo, true);
+  }
+
   public RegistrationClientBootstrap(
       TransportConf conf,
       String appId,
       SaslCredentials saslCredentials,
-      RegistrationInfo registrationInfo) {
+      RegistrationInfo registrationInfo,
+      boolean authEnabled) {
     this.conf = Preconditions.checkNotNull(conf, "conf");
     this.appId = Preconditions.checkNotNull(appId, "appId");
     this.saslCredentials = Preconditions.checkNotNull(saslCredentials, "saslCredentials");
     this.registrationInfo = Preconditions.checkNotNull(registrationInfo, "registrationInfo");
+    this.authEnabled = authEnabled;
   }
 
   @Override
   public void doBootstrap(TransportClient client) throws RuntimeException {
     if (registrationInfo.getRegistrationState() == RegistrationInfo.RegistrationState.REGISTERED) {
       LOG.info("client has already registered, skip register.");
-      doSaslBootstrap(client);
+      if (authEnabled) {
+        doSaslBootstrap(client);
+      }
       return;
     }
     try {
-      LOG.info("authentication initiation started for {}", appId);
-      doAuthInitiation(client);
-      LOG.info("authentication initiation successful for {}", appId);
-      doClientAuthentication(client);
-      LOG.info("client authenticated for {}", appId);
+      if (authEnabled) {
+        LOG.info("authentication initiation started for {}", appId);
+        doAuthInitiation(client);
+        LOG.info("authentication initiation successful for {}", appId);
+        doClientAuthentication(client);
+        LOG.info("client authenticated for {}", appId);
+      }
       register(client);
       LOG.info("Registration for {}", appId);
       registrationInfo.setRegistrationState(RegistrationInfo.RegistrationState.REGISTERED);

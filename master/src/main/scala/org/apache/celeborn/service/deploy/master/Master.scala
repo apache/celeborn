@@ -38,7 +38,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
-import org.apache.celeborn.common.network.sasl.SecretRegistryImpl
+import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -76,10 +76,11 @@ private[celeborn] class Master(
   metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
 
   private val authEnabled = conf.authEnabled
-  private val secretRegistry = new SecretRegistryImpl()
+  private val appRegisterEnabled = conf.appRegisterEnabled
+  private val secretRegistry = new ApplicationRegistryImpl()
 
   override val rpcEnv: RpcEnv =
-    if (!authEnabled) {
+    if (!authEnabled && !appRegisterEnabled) {
       RpcEnv.create(
         RpcNameConstants.MASTER_SYS,
         masterArgs.host,
@@ -92,6 +93,7 @@ private[celeborn] class Master(
         .withServerSaslContext(
           new ServerSaslContextBuilder()
             .withAddRegistrationBootstrap(true)
+            .withAUthEnabled(authEnabled)
             .withSecretRegistry(secretRegistry).build()).build()
       logInfo(
         s"Secure port enabled ${masterArgs.port} for secured RPC.")

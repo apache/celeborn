@@ -27,6 +27,7 @@ import java.util.List;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import io.netty.channel.Channel;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +39,6 @@ import org.apache.celeborn.common.network.protocol.RpcRequest;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.sasl.CelebornSaslServer;
 import org.apache.celeborn.common.network.sasl.SaslRpcHandler;
-import org.apache.celeborn.common.network.sasl.SecretRegistry;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PbAuthType;
@@ -84,7 +84,9 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
   private RegistrationState registrationState = RegistrationState.NONE;
 
   /** Class which provides secret keys which are shared by server and client on a per-app basis. */
-  private final SecretRegistry secretRegistry;
+  private final ApplicationRegistry applicationRegistry;
+
+  private final boolean authEnabled;
 
   private SaslRpcHandler saslHandler;
 
@@ -95,12 +97,14 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
       TransportConf conf,
       Channel channel,
       BaseMessageHandler delegate,
-      SecretRegistry secretRegistry) {
+      ApplicationRegistry applicationRegistry,
+      boolean authEnabled) {
     this.conf = conf;
     this.channel = channel;
-    this.secretRegistry = secretRegistry;
+    this.applicationRegistry = applicationRegistry;
+    this.authEnabled = authEnabled;
     this.delegate = delegate;
-    this.saslHandler = new SaslRpcHandler(conf, channel, delegate, secretRegistry);
+    this.saslHandler = new SaslRpcHandler(conf, channel, delegate, applicationRegistry);
   }
 
   @Override
@@ -177,7 +181,9 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
         break;
       case REGISTER_APPLICATION_REQUEST_VALUE:
         PbRegisterApplicationRequest registerApplicationRequest = pbMsg.getParsedPayload();
-        checkRequestAllowed(RegistrationState.AUTHENTICATED);
+        if (authEnabled) {
+          checkRequestAllowed(RegistrationState.AUTHENTICATED);
+        }
         LOG.trace("Application registration started {}", registerApplicationRequest.getId());
         processRegisterApplicationRequest(registerApplicationRequest, callback);
         registrationState = RegistrationState.REGISTERED;
@@ -229,12 +235,12 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
 
   private void processRegisterApplicationRequest(
       PbRegisterApplicationRequest registerApplicationRequest, RpcResponseCallback callback) {
-    if (secretRegistry.isRegistered(registerApplicationRequest.getId())) {
+    if (applicationRegistry.isRegistered(registerApplicationRequest.getId())) {
       // Re-registration is not allowed.
       throw new IllegalStateException(
           "Application is already registered " + registerApplicationRequest.getId());
     }
-    secretRegistry.register(
+    applicationRegistry.register(
         registerApplicationRequest.getId(), registerApplicationRequest.getSecret());
     PbRegisterApplicationResponse response =
         PbRegisterApplicationResponse.newBuilder().setStatus(true).build();

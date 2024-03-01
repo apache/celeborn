@@ -21,7 +21,7 @@ import org.scalatest.matchers.must.Matchers.be
 import org.scalatest.matchers.should.Matchers.{an, convertToAnyShouldWrapper}
 
 import org.apache.celeborn.CelebornFunSuite
-import org.apache.celeborn.common.network.sasl.{SaslCredentials, SecretRegistryImpl}
+import org.apache.celeborn.common.network.sasl.{SaslCredentials, ApplicationRegistryImpl}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 
 class RpcSecurityContextSuite extends CelebornFunSuite {
@@ -55,7 +55,7 @@ class RpcSecurityContextSuite extends CelebornFunSuite {
   }
 
   test("RpcSecurityContext should be created with only server sasl context") {
-    val serverContext = ServerSaslContext(new SecretRegistryImpl())
+    val serverContext = ServerSaslContext(new ApplicationRegistryImpl())
 
     val rpcSecurityContext = new RpcSecurityContextBuilder()
       .withServerSaslContext(serverContext)
@@ -115,7 +115,7 @@ class RpcSecurityContextSuite extends CelebornFunSuite {
 
   test("ServerSaslContext build should build ServerSaslContext with valid parameters") {
     val serverContext = new ServerSaslContextBuilder()
-      .withSecretRegistry(new SecretRegistryImpl())
+      .withSecretRegistry(new ApplicationRegistryImpl())
       .withAddRegistrationBootstrap(true)
       .build()
 
