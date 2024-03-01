@@ -25,6 +25,8 @@ import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
+import org.apache.celeborn.common.util.ApplicationMeta;
+
 
 public interface IMetadataHandler {
   void handleRequestSlots(
@@ -83,5 +85,5 @@ public interface IMetadataHandler {
 
   void handleUpdatePartitionSize();
 
-  void handleApplicationMeta(String appId, String secret);
+  void handleApplicationMeta(ApplicationMeta applicationMeta);
 }

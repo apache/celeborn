@@ -27,8 +27,8 @@ class ApplicationMeta(private val appId: String, private val secret: String) {
 
   override def equals(other: Any): Boolean = other match {
     case that: ApplicationMeta =>
-      appId == that.getAppId &&
-        secret == that.getSecret
+      appId.equals(that.getAppId) &&
+        secret.equals(that.getSecret)
     case _ => false
   }
 

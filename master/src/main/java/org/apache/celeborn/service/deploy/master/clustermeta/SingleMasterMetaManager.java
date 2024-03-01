@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.celeborn.common.util.ApplicationMeta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -165,7 +166,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleApplicationMeta(String appId, String secret) {
-    updateApplicationMeta(appId, secret);
+  public void handleApplicationMeta(ApplicationMeta applicationMeta) {
+    updateApplicationMeta(applicationMeta);
   }
 }

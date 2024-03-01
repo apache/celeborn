@@ -31,6 +31,7 @@ import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
+import org.apache.celeborn.common.util.{CollectionUtils => localCollectionUtils}
 
 object PbSerDeUtils {
 
@@ -447,7 +448,7 @@ object PbSerDeUtils {
       builder.setCurrentAppDiskUsageMetricsSnapshot(
         toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))
     }
-    if (applicationMetas != null) {
+    if (localCollectionUtils.isNotEmpty(applicationMetas)) {
       builder.putAllApplicationMetas(applicationMetas.asScala.map {
         case (appId, applicationMeta) => (appId, toPbApplicationMeta(applicationMeta))
       }.asJava)

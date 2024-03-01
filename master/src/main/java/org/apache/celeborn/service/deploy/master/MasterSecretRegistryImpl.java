@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master;
 
+import org.apache.celeborn.common.util.ApplicationMeta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +40,7 @@ public class MasterSecretRegistryImpl extends SecretRegistryImpl {
     super.register(appId, secret);
     if (metadataHandler != null) {
       LOG.info("Persisting metadata for appId: {}", appId);
-      metadataHandler.handleApplicationMeta(appId, secret);
+      metadataHandler.handleApplicationMeta(new ApplicationMeta(appId, secret));
     }
   }
 

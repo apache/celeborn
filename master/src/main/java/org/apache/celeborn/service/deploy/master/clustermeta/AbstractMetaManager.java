@@ -455,7 +455,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             && workerInfo.getWorkerStatus().getState() == PbWorkerStatus.State.Normal);
   }
 
-  public void updateApplicationMeta(String appId, String secret) {
-    applicationMetas.computeIfAbsent(appId, k -> new ApplicationMeta(appId, secret));
+  public void updateApplicationMeta(ApplicationMeta applicationMeta) {
+    applicationMetas.putIfAbsent(applicationMeta.getAppId(), applicationMeta);
   }
 }

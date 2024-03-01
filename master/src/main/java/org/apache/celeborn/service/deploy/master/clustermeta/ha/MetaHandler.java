@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.apache.celeborn.common.util.ApplicationMeta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -270,7 +271,7 @@ public class MetaHandler {
         case ApplicationMeta:
           appId = request.getApplicationMetaRequest().getAppId();
           String secret = request.getApplicationMetaRequest().getSecret();
-          metaSystem.updateApplicationMeta(appId, secret);
+          metaSystem.updateApplicationMeta(new ApplicationMeta(appId, secret));
           break;
 
         default:

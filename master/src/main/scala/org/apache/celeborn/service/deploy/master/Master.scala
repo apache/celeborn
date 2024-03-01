@@ -861,7 +861,7 @@ private[celeborn] class Master(
       val transportMessage =
         new TransportMessage(MessageType.APPLICATION_META, pbApplicationMeta.toByteArray)
 
-      slots.keySet().forEach((worker: WorkerInfo) => {
+      slots.keySet().asScala.foreach { worker =>
         try {
           logInfo(s"Sending app registration info to ${worker.host}:${worker.internalPort}")
           internalRpcEnvInUse.setupEndpointRef(
@@ -871,7 +871,7 @@ private[celeborn] class Master(
           case t: Throwable =>
             logError(s"Send application meta info to workers failed!", t)
         }
-      })
+      }
     }
     context.reply(RequestSlotsResponse(StatusCode.SUCCESS, slots.asInstanceOf[WorkerResource]))
   }

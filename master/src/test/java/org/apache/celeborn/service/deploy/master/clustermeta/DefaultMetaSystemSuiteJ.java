@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.celeborn.common.util.ApplicationMeta;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -447,7 +448,7 @@ public class DefaultMetaSystemSuiteJ {
     workersToAllocate.put(workerInfo1.toUniqueId(), allocation);
     workersToAllocate.put(workerInfo2.toUniqueId(), allocation);
 
-    statusSystem.handleApplicationMeta(APPID1, "testSecret");
+    statusSystem.handleApplicationMeta(new ApplicationMeta(APPID1, "testSecret"));
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
     assertEquals(1, statusSystem.registeredShuffle.size());
@@ -696,14 +697,13 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleApplicationMeta() {
     String appSecret = "testSecret";
-    statusSystem.handleApplicationMeta(APPID1, appSecret);
+    statusSystem.handleApplicationMeta(new ApplicationMeta(APPID1, appSecret));
     assertEquals(appSecret, statusSystem.applicationMetas.get(APPID1).getSecret());
 
     String appId2 = "app02";
     String appSecret2 = "testSecret2";
-    statusSystem.handleApplicationMeta(appId2, appSecret2);
+    statusSystem.handleApplicationMeta(new ApplicationMeta(appId2, appSecret2));
     assertEquals(appSecret2, statusSystem.applicationMetas.get(appId2).getSecret());
-
     assertEquals(2, statusSystem.applicationMetas.size());
   }
 }

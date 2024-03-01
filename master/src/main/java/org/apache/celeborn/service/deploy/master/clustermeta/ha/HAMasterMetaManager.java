@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.celeborn.common.util.ApplicationMeta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -377,7 +378,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleApplicationMeta(String appId, String secret) {
+  public void handleApplicationMeta(ApplicationMeta applicationMeta) {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
@@ -385,8 +386,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
               .setRequestId(MasterClient.genRequestId())
               .setApplicationMetaRequest(
                   ResourceProtos.ApplicationMetaRequest.newBuilder()
-                      .setAppId(appId)
-                      .setSecret(secret)
+                      .setAppId(applicationMeta.getAppId())
+                      .setSecret(applicationMeta.getSecret())
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {
