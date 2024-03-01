@@ -137,6 +137,7 @@ public abstract class CelebornInputStream extends InputStream {
     private Decompressor decompressor;
 
     private ByteBuf currentChunk;
+    private boolean firstChunk = true;
     private PartitionReader currentReader;
     private final int fetchChunkMaxRetry;
     private int fetchChunkRetryCnt = 0;
@@ -228,7 +229,7 @@ public abstract class CelebornInputStream extends InputStream {
       this.shuffleId = shuffleId;
       this.shuffleClient = shuffleClient;
 
-      moveToNextReader();
+      moveToNextReader(false);
     }
 
     private boolean skipLocation(int startMapIndex, int endMapIndex, PartitionLocation location) {
@@ -270,7 +271,7 @@ public abstract class CelebornInputStream extends InputStream {
       return currentLocation;
     }
 
-    private void moveToNextReader() throws IOException {
+    private void moveToNextReader(boolean fetchChunk) throws IOException {
       if (currentReader != null) {
         currentReader.close();
         currentReader = null;
@@ -291,7 +292,9 @@ public abstract class CelebornInputStream extends InputStream {
         currentReader = createReaderWithRetry(currentLocation);
         fileIndex++;
       }
-      currentChunk = getNextChunk();
+      if (fetchChunk) {
+        currentChunk = getNextChunk();
+      }
     }
 
     private void excludeFailedLocation(PartitionLocation location, Exception e) {
@@ -548,7 +551,7 @@ public abstract class CelebornInputStream extends InputStream {
         currentChunk = getNextChunk();
         return true;
       } else if (fileIndex < locations.length) {
-        moveToNextReader();
+        moveToNextReader(true);
         return currentReader != null;
       }
       if (currentReader != null) {
@@ -560,6 +563,10 @@ public abstract class CelebornInputStream extends InputStream {
 
     private boolean fillBuffer() throws IOException {
       try {
+        if (firstChunk && currentReader != null) {
+          currentChunk = getNextChunk();
+          firstChunk = false;
+        }
         if (currentChunk == null) {
           return false;
         }
