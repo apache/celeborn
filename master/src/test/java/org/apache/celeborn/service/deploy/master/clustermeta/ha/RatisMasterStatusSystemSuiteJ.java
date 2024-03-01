@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
 import org.junit.*;
 import org.mockito.Mockito;
 
@@ -36,8 +35,6 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
-import org.apache.celeborn.common.network.sasl.ApplicationRegistry;
-import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -91,12 +88,9 @@ public class RatisMasterStatusSystemSuiteJ {
 
     while (!serversStarted) {
       try {
-        STATUSSYSTEM1 =
-            new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
-        STATUSSYSTEM2 =
-            new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
-        STATUSSYSTEM3 =
-            new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
+        STATUSSYSTEM1 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
+        STATUSSYSTEM2 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
+        STATUSSYSTEM3 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
 
         MetaHandler handler1 = new MetaHandler(STATUSSYSTEM1);
         MetaHandler handler2 = new MetaHandler(STATUSSYSTEM2);

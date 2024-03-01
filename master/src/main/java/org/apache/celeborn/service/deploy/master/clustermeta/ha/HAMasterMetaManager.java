@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +33,7 @@ import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.network.sasl.ApplicationRegistry;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
@@ -48,8 +48,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   protected HARaftServer ratisServer;
 
-  public HAMasterMetaManager(
-      RpcEnv rpcEnv, CelebornConf conf) {
+  public HAMasterMetaManager(RpcEnv rpcEnv, CelebornConf conf) {
     this(rpcEnv, conf, new CelebornRackResolver(conf), new ApplicationRegistryImpl());
   }
 

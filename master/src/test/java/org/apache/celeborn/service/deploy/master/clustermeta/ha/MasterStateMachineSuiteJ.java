@@ -33,7 +33,6 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
