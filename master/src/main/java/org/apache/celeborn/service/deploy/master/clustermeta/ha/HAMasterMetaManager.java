@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,8 +49,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   protected HARaftServer ratisServer;
 
   public HAMasterMetaManager(
-      RpcEnv rpcEnv, CelebornConf conf, ApplicationRegistry applicationRegistry) {
-    this(rpcEnv, conf, new CelebornRackResolver(conf), applicationRegistry);
+      RpcEnv rpcEnv, CelebornConf conf) {
+    this(rpcEnv, conf, new CelebornRackResolver(conf), new ApplicationRegistryImpl());
   }
 
   public HAMasterMetaManager(
@@ -63,6 +64,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
     this.appDiskUsageMetric = new AppDiskUsageMetric(conf);
     this.rackResolver = rackResolver;
+    this.applicationRegistry = (ApplicationRegistryImpl) applicationRegistry;
   }
 
   public HARaftServer getRatisServer() {

@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
 import org.junit.*;
 import org.mockito.Mockito;
 
@@ -90,13 +91,12 @@ public class RatisMasterStatusSystemSuiteJ {
 
     while (!serversStarted) {
       try {
-        ApplicationRegistry applicationRegistry = new ApplicationRegistryImpl();
         STATUSSYSTEM1 =
-            new HAMasterMetaManager(mockRpcEnv, new CelebornConf(), applicationRegistry);
+            new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
         STATUSSYSTEM2 =
-            new HAMasterMetaManager(mockRpcEnv, new CelebornConf(), applicationRegistry);
+            new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
         STATUSSYSTEM3 =
-            new HAMasterMetaManager(mockRpcEnv, new CelebornConf(), applicationRegistry);
+            new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
 
         MetaHandler handler1 = new MetaHandler(STATUSSYSTEM1);
         MetaHandler handler2 = new MetaHandler(STATUSSYSTEM2);
