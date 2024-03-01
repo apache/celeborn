@@ -698,12 +698,12 @@ public class DefaultMetaSystemSuiteJ {
   public void testHandleApplicationMeta() {
     String appSecret = "testSecret";
     statusSystem.handleApplicationMeta(new ApplicationMeta(APPID1, appSecret));
-    assertEquals(appSecret, statusSystem.applicationMetas.get(APPID1).getSecret());
+    assertEquals(appSecret, statusSystem.applicationMetas.get(APPID1).secret());
 
     String appId2 = "app02";
     String appSecret2 = "testSecret2";
     statusSystem.handleApplicationMeta(new ApplicationMeta(appId2, appSecret2));
-    assertEquals(appSecret2, statusSystem.applicationMetas.get(appId2).getSecret());
+    assertEquals(appSecret2, statusSystem.applicationMetas.get(appId2).secret());
     assertEquals(2, statusSystem.applicationMetas.size());
   }
 }

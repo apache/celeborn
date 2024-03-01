@@ -448,18 +448,19 @@ object PbSerDeUtils {
       builder.setCurrentAppDiskUsageMetricsSnapshot(
         toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))
     }
-    if (localCollectionUtils.isNotEmpty(applicationMetas)) {
-      builder.putAllApplicationMetas(applicationMetas.asScala.map {
-        case (appId, applicationMeta) => (appId, toPbApplicationMeta(applicationMeta))
-      }.asJava)
+    val pbApplicationMetas = applicationMetas.asScala.map {
+      case (appId, applicationMeta) => (appId, toPbApplicationMeta(applicationMeta))
+    }.asJava
+    if (localCollectionUtils.isNotEmpty(pbApplicationMetas)) {
+      builder.putAllApplicationMetas(pbApplicationMetas)
     }
     builder.build()
   }
 
   def toPbApplicationMeta(meta: ApplicationMeta): PbApplicationMeta = {
     PbApplicationMeta.newBuilder()
-      .setAppId(meta.getAppId)
-      .setSecret(meta.getSecret).build()
+      .setAppId(meta.appId)
+      .setSecret(meta.secret).build()
   }
 
   def fromPbApplicationMeta(pbApplicationMeta: PbApplicationMeta): ApplicationMeta = {

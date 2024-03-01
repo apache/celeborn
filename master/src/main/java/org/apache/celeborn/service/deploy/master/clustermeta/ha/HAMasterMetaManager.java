@@ -386,12 +386,12 @@ public class HAMasterMetaManager extends AbstractMetaManager {
               .setRequestId(MasterClient.genRequestId())
               .setApplicationMetaRequest(
                   ResourceProtos.ApplicationMetaRequest.newBuilder()
-                      .setAppId(applicationMeta.getAppId())
-                      .setSecret(applicationMeta.getSecret())
+                      .setAppId(applicationMeta.appId())
+                      .setSecret(applicationMeta.secret())
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {
-      LOG.error("Handle app meta failed!", e);
+      LOG.error("Handle app meta for {} failed!", applicationMeta.appId(), e);
       throw e;
     }
   }

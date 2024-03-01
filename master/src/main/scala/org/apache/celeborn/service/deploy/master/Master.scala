@@ -869,7 +869,9 @@ private[celeborn] class Master(
             RpcNameConstants.WORKER_INTERNAL_EP).send(transportMessage)
         } catch {
           case t: Throwable =>
-            logError(s"Send application meta info to workers failed!", t)
+            logInfo(
+              s"Send application meta info to ${worker.host}:${worker.internalPort} failed!",
+              t)
         }
       }
     }

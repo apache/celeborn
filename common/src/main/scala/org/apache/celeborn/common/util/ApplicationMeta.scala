@@ -20,21 +20,4 @@ package org.apache.celeborn.common.util;
 /**
  * Application meta
  */
-class ApplicationMeta(private val appId: String, private val secret: String) {
-  def getAppId: String = appId
-
-  def getSecret: String = secret
-
-  override def equals(other: Any): Boolean = other match {
-    case that: ApplicationMeta =>
-      appId.equals(that.getAppId) &&
-        secret.equals(that.getSecret)
-    case _ => false
-  }
-
-  override def hashCode(): Int = {
-    var result = appId.hashCode()
-    result = 31 * result + secret.hashCode()
-    result
-  }
-}
+case class ApplicationMeta(appId: String, secret: String)
