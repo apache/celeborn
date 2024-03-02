@@ -104,7 +104,18 @@ trait ReadWriteTestBase extends AnyFunSuite
       override def incBytesRead(bytesWritten: Long): Unit = {}
       override def incReadTime(time: Long): Unit = {}
     }
-    val inputStream = shuffleClient.readPartition(1, 0, 0, 0, Integer.MAX_VALUE, metricsCallback)
+    val inputStream = shuffleClient.readPartition(
+      1,
+      1,
+      0,
+      0,
+      0,
+      Integer.MAX_VALUE,
+      null,
+      null,
+      null,
+      null,
+      metricsCallback)
     val outputStream = new ByteArrayOutputStream()
 
     var b = inputStream.read()
