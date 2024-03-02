@@ -28,27 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.exception.CelebornIOException;
-import org.apache.celeborn.common.protocol.MessageType;
-import org.apache.celeborn.common.protocol.PbAuthenticationInitiationRequest;
-import org.apache.celeborn.common.protocol.PbAuthenticationInitiationResponse;
-import org.apache.celeborn.common.protocol.PbBacklogAnnouncement;
-import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
-import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
-import org.apache.celeborn.common.protocol.PbGetShuffleId;
-import org.apache.celeborn.common.protocol.PbGetShuffleIdResponse;
-import org.apache.celeborn.common.protocol.PbOpenStream;
-import org.apache.celeborn.common.protocol.PbPushDataHandShake;
-import org.apache.celeborn.common.protocol.PbReadAddCredit;
-import org.apache.celeborn.common.protocol.PbRegionFinish;
-import org.apache.celeborn.common.protocol.PbRegionStart;
-import org.apache.celeborn.common.protocol.PbRegisterApplicationRequest;
-import org.apache.celeborn.common.protocol.PbRegisterApplicationResponse;
-import org.apache.celeborn.common.protocol.PbReportShuffleFetchFailure;
-import org.apache.celeborn.common.protocol.PbReportShuffleFetchFailureResponse;
-import org.apache.celeborn.common.protocol.PbSaslRequest;
-import org.apache.celeborn.common.protocol.PbStreamChunkSlice;
-import org.apache.celeborn.common.protocol.PbStreamHandler;
-import org.apache.celeborn.common.protocol.PbTransportableError;
+import org.apache.celeborn.common.protocol.*;
 
 public class TransportMessage implements Serializable {
   private static final long serialVersionUID = -3259000920699629773L;
@@ -117,6 +97,10 @@ public class TransportMessage implements Serializable {
         return (T) PbRegisterApplicationRequest.parseFrom(payload);
       case REGISTER_APPLICATION_RESPONSE_VALUE:
         return (T) PbRegisterApplicationResponse.parseFrom(payload);
+      case OPEN_STREAM_LIST_VALUE:
+        return (T) PbOpenStreamList.parseFrom(payload);
+      case OPEN_STREAM_LIST_RESPONSE_VALUE:
+        return (T) PbOpenStreamListResponse.parseFrom(payload);
       default:
         logger.error("Unexpected type {}", type);
     }

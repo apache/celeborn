@@ -1631,7 +1631,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
   }
 
-  protected ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
+  public ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
       throws CelebornIOException {
     if (reduceFileGroupsMap.containsKey(shuffleId)) {
       return reduceFileGroupsMap.get(shuffleId);
@@ -1664,16 +1664,23 @@ public class ShuffleClientImpl extends ShuffleClient {
       int startMapIndex,
       int endMapIndex,
       ExceptionMaker exceptionMaker,
+      ArrayList<PartitionLocation> locations,
+      ArrayList<PbStreamHandler> streamHandlers,
+      int[] mapAttempts,
       MetricsCallback metricsCallback)
       throws IOException {
     if (partitionId == Utils$.MODULE$.UNKNOWN_APP_SHUFFLE_ID()) {
       logger.warn("Shuffle data is empty for shuffle {}: UNKNOWN_APP_SHUFFLE_ID.", shuffleId);
       return CelebornInputStream.empty();
     }
-    ReduceFileGroups fileGroups = updateFileGroup(shuffleId, partitionId);
 
-    if (fileGroups.partitionGroups.isEmpty()
-        || !fileGroups.partitionGroups.containsKey(partitionId)) {
+    if (mapAttempts == null) {
+      ReduceFileGroups fileGroups = updateFileGroup(shuffleId, partitionId);
+      locations = new ArrayList(fileGroups.partitionGroups.get(partitionId));
+      mapAttempts = fileGroups.mapAttempts;
+    }
+
+    if (locations == null || locations.size() == 0) {
       logger.warn("Shuffle data is empty for shuffle {} partition {}.", shuffleId, partitionId);
       return CelebornInputStream.empty();
     } else {
@@ -1682,8 +1689,9 @@ public class ShuffleClientImpl extends ShuffleClient {
           conf,
           dataClientFactory,
           shuffleKey,
-          fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]),
-          fileGroups.mapAttempts,
+          locations,
+          streamHandlers,
+          mapAttempts,
           attemptNumber,
           startMapIndex,
           endMapIndex,

@@ -36,7 +36,10 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.client.read.MetricsCallback;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.util.ExceptionMaker;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -116,6 +119,12 @@ public class DummyShuffleClient extends ShuffleClient {
   public void cleanup(int shuffleId, int mapId, int attemptId) {}
 
   @Override
+  public ShuffleClientImpl.ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
+      throws CelebornIOException {
+    return null;
+  }
+
+  @Override
   public CelebornInputStream readPartition(
       int shuffleId,
       int appShuffleId,
@@ -124,6 +133,9 @@ public class DummyShuffleClient extends ShuffleClient {
       int startMapIndex,
       int endMapIndex,
       ExceptionMaker exceptionMaker,
+      ArrayList<PartitionLocation> locations,
+      ArrayList<PbStreamHandler> streamHandlers,
+      int[] mapAttempts,
       MetricsCallback metricsCallback)
       throws IOException {
     return null;
@@ -168,6 +180,11 @@ public class DummyShuffleClient extends ShuffleClient {
   @Override
   public boolean reportShuffleFetchFailure(int appShuffleId, int shuffleId) {
     return true;
+  }
+
+  @Override
+  public TransportClientFactory getDataClientFactory() {
+    return null;
   }
 
   public void initReducePartitionMap(int shuffleId, int numPartitions, int workerNum) {
