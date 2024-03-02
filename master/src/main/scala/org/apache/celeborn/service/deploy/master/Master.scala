@@ -93,7 +93,7 @@ private[celeborn] class Master(
           new ServerSaslContextBuilder()
             .withAddRegistrationBootstrap(true)
             .withAUthEnabled(authEnabled)
-            .withSecretRegistry(appRegistry).build()).build()
+            .withApplicationRegistry(appRegistry).build()).build()
       logInfo(
         s"Secure port enabled ${masterArgs.port} for secured RPC.")
       RpcEnv.create(

@@ -84,7 +84,7 @@ private[celeborn] class Worker(
 
   val workerStatusManager = new WorkerStatusManager(conf)
   private val authEnabled = conf.authEnabled
-  private val secretRegistry = new ApplicationRegistryImpl()
+  private val applicationRegistry = new ApplicationRegistryImpl()
   val rpcEnv: RpcEnv =
     if (!authEnabled) {
       RpcEnv.create(
@@ -99,7 +99,7 @@ private[celeborn] class Worker(
         .withServerSaslContext(
           new ServerSaslContextBuilder()
             .withAddRegistrationBootstrap(false)
-            .withSecretRegistry(secretRegistry).build()).build()
+            .withApplicationRegistry(applicationRegistry).build()).build()
       logInfo(
         s"Secure port enabled ${workerArgs.port} for secured RPC.")
       RpcEnv.create(
@@ -926,7 +926,7 @@ private[celeborn] class Worker(
     if (authEnabled) {
       serverBootstraps.add(new SaslServerBootstrap(
         transportConf,
-        secretRegistry))
+        applicationRegistry))
     }
     serverBootstraps
   }

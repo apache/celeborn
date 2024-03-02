@@ -51,11 +51,11 @@ private[celeborn] case class ClientSaslContext(
 
 /**
  * Represents the server SASL context.
- * @param secretRegistry  The secret registry.
+ * @param applicationRegistry  The application registry.
  * @param addRegistrationBootstrap  Whether to add registration bootstrap.
  */
 private[celeborn] case class ServerSaslContext(
-    secretRegistry: ApplicationRegistry,
+    applicationRegistry: ApplicationRegistry,
     addRegistrationBootstrap: Boolean = false,
     authEnabled: Boolean = false) extends SaslContext
 
@@ -133,12 +133,13 @@ private[celeborn] class ClientSaslContextBuilder {
  * Builder for [[ServerSaslContext]].
  */
 private[celeborn] class ServerSaslContextBuilder {
-  private var secretRegistry: ApplicationRegistry = _
+  private var applicationRegistry: ApplicationRegistry = _
   private var addRegistrationBootstrap: Boolean = false
   private var authEnabled: Boolean = false
 
-  def withSecretRegistry(secretRegistry: ApplicationRegistry): ServerSaslContextBuilder = {
-    this.secretRegistry = secretRegistry
+  def withApplicationRegistry(applicationRegistry: ApplicationRegistry)
+      : ServerSaslContextBuilder = {
+    this.applicationRegistry = applicationRegistry
     this
   }
 
@@ -153,11 +154,11 @@ private[celeborn] class ServerSaslContextBuilder {
   }
 
   def build(): ServerSaslContext = {
-    if (secretRegistry == null) {
-      throw new IllegalArgumentException("Secret registry is not set.")
+    if (applicationRegistry == null) {
+      throw new IllegalArgumentException("Application registry is not set.")
     }
     ServerSaslContext(
-      secretRegistry,
+      applicationRegistry,
       addRegistrationBootstrap,
       authEnabled)
   }

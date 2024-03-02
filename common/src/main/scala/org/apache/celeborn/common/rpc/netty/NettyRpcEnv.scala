@@ -121,13 +121,13 @@ class NettyRpcEnv(
         logInfo("Add registration server bootstrap")
         new RegistrationServerBootstrap(
           transportConf,
-          serverSaslContext.secretRegistry,
+          serverSaslContext.applicationRegistry,
           serverSaslContext.authEnabled)
       } else {
         logInfo("Add sasl server bootstrap")
         new SaslServerBootstrap(
           transportConf,
-          serverSaslContext.secretRegistry)
+          serverSaslContext.applicationRegistry)
       }
     })
     bootstrapOpt.toList.asJava
