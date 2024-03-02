@@ -25,6 +25,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.LongAdder;
 
+import scala.Tuple2;
+
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.buffer.ByteBuf;
 import org.roaringbitmap.RoaringBitmap;
@@ -37,10 +39,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.util.TransportConf;
-import org.apache.celeborn.common.protocol.CompressionCodec;
-import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.common.protocol.StorageInfo;
-import org.apache.celeborn.common.protocol.TransportModuleConstants;
+import org.apache.celeborn.common.protocol.*;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.ExceptionMaker;
 import org.apache.celeborn.common.util.Utils;
@@ -52,7 +51,8 @@ public abstract class CelebornInputStream extends InputStream {
       CelebornConf conf,
       TransportClientFactory clientFactory,
       String shuffleKey,
-      PartitionLocation[] locations,
+      ArrayList<PartitionLocation> locations,
+      ArrayList<PbStreamHandler> streamHandlers,
       int[] attempts,
       int attemptNumber,
       int startMapIndex,
@@ -65,7 +65,7 @@ public abstract class CelebornInputStream extends InputStream {
       ExceptionMaker exceptionMaker,
       MetricsCallback metricsCallback)
       throws IOException {
-    if (locations == null || locations.length == 0) {
+    if (locations == null || locations.size() == 0) {
       return emptyInputStream;
     } else {
       return new CelebornInputStreamImpl(
@@ -73,6 +73,7 @@ public abstract class CelebornInputStream extends InputStream {
           clientFactory,
           shuffleKey,
           locations,
+          streamHandlers,
           attempts,
           attemptNumber,
           startMapIndex,
@@ -124,7 +125,8 @@ public abstract class CelebornInputStream extends InputStream {
     private final CelebornConf conf;
     private final TransportClientFactory clientFactory;
     private final String shuffleKey;
-    private PartitionLocation[] locations;
+    private ArrayList<PartitionLocation> locations;
+    private ArrayList<PbStreamHandler> streamHandlers;
     private int[] attempts;
     private final int attemptNumber;
     private final int startMapIndex;
@@ -174,7 +176,8 @@ public abstract class CelebornInputStream extends InputStream {
         CelebornConf conf,
         TransportClientFactory clientFactory,
         String shuffleKey,
-        PartitionLocation[] locations,
+        ArrayList<PartitionLocation> locations,
+        ArrayList<PbStreamHandler> streamHandlers,
         int[] attempts,
         int attemptNumber,
         int startMapIndex,
@@ -190,7 +193,10 @@ public abstract class CelebornInputStream extends InputStream {
       this.conf = conf;
       this.clientFactory = clientFactory;
       this.shuffleKey = shuffleKey;
-      this.locations = (PartitionLocation[]) Utils.randomizeInPlace(locations, RAND);
+      this.locations = locations;
+      if (streamHandlers != null && streamHandlers.size() == locations.size()) {
+        this.streamHandlers = streamHandlers;
+      }
       this.attempts = attempts;
       this.attemptNumber = attemptNumber;
       this.startMapIndex = startMapIndex;
@@ -242,24 +248,25 @@ public abstract class CelebornInputStream extends InputStream {
       return true;
     }
 
-    private PartitionLocation nextReadableLocation() {
-      int locationCount = locations.length;
+    private Tuple2<PartitionLocation, PbStreamHandler> nextReadableLocation() {
+      int locationCount = locations.size();
       if (fileIndex >= locationCount) {
         return null;
       }
-      PartitionLocation currentLocation = locations[fileIndex];
+      PartitionLocation currentLocation = locations.get(fileIndex);
       while (skipLocation(startMapIndex, endMapIndex, currentLocation)) {
         skipCount.increment();
         fileIndex++;
         if (fileIndex == locationCount) {
           return null;
         }
-        currentLocation = locations[fileIndex];
+        currentLocation = locations.get(fileIndex);
       }
 
       fetchChunkRetryCnt = 0;
 
-      return currentLocation;
+      return new Tuple2(
+          currentLocation, streamHandlers == null ? null : streamHandlers.get(fileIndex));
     }
 
     private void moveToNextReader(boolean fetchChunk) throws IOException {
@@ -267,11 +274,11 @@ public abstract class CelebornInputStream extends InputStream {
         currentReader.close();
         currentReader = null;
       }
-      PartitionLocation currentLocation = nextReadableLocation();
+      Tuple2<PartitionLocation, PbStreamHandler> currentLocation = nextReadableLocation();
       if (currentLocation == null) {
         return;
       }
-      currentReader = createReaderWithRetry(currentLocation);
+      currentReader = createReaderWithRetry(currentLocation._1, currentLocation._2);
       fileIndex++;
       while (!currentReader.hasNext()) {
         currentReader.close();
@@ -280,7 +287,7 @@ public abstract class CelebornInputStream extends InputStream {
         if (currentLocation == null) {
           return;
         }
-        currentReader = createReaderWithRetry(currentLocation);
+        currentReader = createReaderWithRetry(currentLocation._1, currentLocation._2);
         fileIndex++;
       }
       if (fetchChunk) {
@@ -332,14 +339,15 @@ public abstract class CelebornInputStream extends InputStream {
       return connectException || rpcTimeout || fetchChunkTimeout;
     }
 
-    private PartitionReader createReaderWithRetry(PartitionLocation location) throws IOException {
+    private PartitionReader createReaderWithRetry(
+        PartitionLocation location, PbStreamHandler pbStreamHandler) throws IOException {
       Exception lastException = null;
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
           if (isExcluded(location)) {
             throw new CelebornIOException("Fetch data from excluded worker! " + location);
           }
-          return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
+          return createReader(location, pbStreamHandler, fetchChunkRetryCnt, fetchChunkMaxRetry);
         } catch (Exception e) {
           lastException = e;
           excludeFailedLocation(location, e);
@@ -404,7 +412,7 @@ public abstract class CelebornInputStream extends InputStream {
               if (fetchChunkRetryCnt % 2 == 0) {
                 Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
               }
-              currentReader = createReaderWithRetry(currentReader.getLocation().getPeer());
+              currentReader = createReaderWithRetry(currentReader.getLocation().getPeer(), null);
             } else {
               logger.warn(
                   "Fetch chunk failed {}/{} times for location {}",
@@ -413,7 +421,7 @@ public abstract class CelebornInputStream extends InputStream {
                   currentReader.getLocation(),
                   e);
               Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
-              currentReader = createReaderWithRetry(currentReader.getLocation());
+              currentReader = createReaderWithRetry(currentReader.getLocation(), null);
             }
           }
         }
@@ -422,7 +430,10 @@ public abstract class CelebornInputStream extends InputStream {
     }
 
     private PartitionReader createReader(
-        PartitionLocation location, int fetchChunkRetryCnt, int fetchChunkMaxRetry)
+        PartitionLocation location,
+        PbStreamHandler pbStreamHandler,
+        int fetchChunkRetryCnt,
+        int fetchChunkMaxRetry)
         throws IOException, InterruptedException {
       if (!location.hasPeer()) {
         logger.debug("Partition {} has only one partition replica.", location);
@@ -446,6 +457,7 @@ public abstract class CelebornInputStream extends InputStream {
                 conf,
                 shuffleKey,
                 location,
+                pbStreamHandler,
                 clientFactory,
                 startMapIndex,
                 endMapIndex,
@@ -513,7 +525,7 @@ public abstract class CelebornInputStream extends InputStream {
     @Override
     public synchronized void close() {
       if (!closed) {
-        int locationsCount = locations.length;
+        int locationsCount = locations.size();
         logger.debug(
             "AppShuffleId {}, shuffleId {}, partitionId {}, total location count {}, read {}, skip {}",
             appShuffleId,
@@ -556,7 +568,7 @@ public abstract class CelebornInputStream extends InputStream {
       if (currentReader.hasNext()) {
         currentChunk = getNextChunk();
         return true;
-      } else if (fileIndex < locations.length) {
+      } else if (fileIndex < locations.size()) {
         moveToNextReader(true);
         return currentReader != null;
       }
@@ -668,7 +680,7 @@ public abstract class CelebornInputStream extends InputStream {
 
     @Override
     public int totalPartitionsToRead() {
-      return locations.length;
+      return locations.size();
     }
 
     @Override

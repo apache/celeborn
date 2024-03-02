@@ -152,11 +152,33 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     }
 
     // reduce normal empty CelebornInputStream
-    var stream = shuffleClient.readPartition(shuffleId, 1, 1, 0, Integer.MAX_VALUE, metricsCallback)
+    var stream = shuffleClient.readPartition(
+      shuffleId,
+      shuffleId,
+      1,
+      1,
+      0,
+      Integer.MAX_VALUE,
+      null,
+      null,
+      null,
+      null,
+      metricsCallback)
     Assert.assertEquals(stream.read(), -1)
 
     // reduce normal null partition for CelebornInputStream
-    stream = shuffleClient.readPartition(shuffleId, 3, 1, 0, Integer.MAX_VALUE, metricsCallback)
+    stream = shuffleClient.readPartition(
+      shuffleId,
+      shuffleId,
+      3,
+      1,
+      0,
+      Integer.MAX_VALUE,
+      null,
+      null,
+      null,
+      null,
+      metricsCallback)
     Assert.assertEquals(stream.read(), -1)
   }
 
