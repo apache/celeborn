@@ -862,17 +862,10 @@ private[celeborn] class Master(
         new TransportMessage(MessageType.APPLICATION_META, pbApplicationMeta.toByteArray)
 
       slots.keySet().asScala.foreach { worker =>
-        try {
-          logInfo(s"Sending app registration info to ${worker.host}:${worker.internalPort}")
-          internalRpcEnvInUse.setupEndpointRef(
-            RpcAddress.apply(worker.host, worker.internalPort),
-            RpcNameConstants.WORKER_INTERNAL_EP).send(transportMessage)
-        } catch {
-          case t: Throwable =>
-            logInfo(
-              s"Send application meta info to ${worker.host}:${worker.internalPort} failed!",
-              t)
-        }
+        logDebug(s"Sending app registration info to ${worker.host}:${worker.internalPort}")
+        internalRpcEnvInUse.setupEndpointRef(
+          RpcAddress.apply(worker.host, worker.internalPort),
+          RpcNameConstants.WORKER_INTERNAL_EP).send(transportMessage)
       }
     }
     context.reply(RequestSlotsResponse(StatusCode.SUCCESS, slots.asInstanceOf[WorkerResource]))
