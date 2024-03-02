@@ -4552,7 +4552,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.application.register.enabled")
       .categories("master", "client")
       .version("0.5.0")
-      .doc("Whether to enable application register.")
+      .doc("Whether to enable application register." +
+        " If authentication enabled, the application register is always enabled.")
       .booleanConf
       .createWithDefault(false)
 
@@ -4561,7 +4562,8 @@ object CelebornConf extends Logging {
       .categories("master")
       .version("0.5.0")
       .doc(
-        "Internal port on the master where both workers and other master nodes connect.")
+        "Internal port on the master where both workers and other master nodes connect." +
+          " The port will be used if application register or authentication is enabled.")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(8097)
