@@ -204,16 +204,6 @@ public abstract class CelebornInputStream extends InputStream {
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.fetchExcludedWorkers = fetchExcludedWorkers;
 
-      int bufferSize = conf.clientFetchBufferSize();
-      if (shuffleCompressionEnabled) {
-        int headerLen = Decompressor.getCompressionHeaderLength(conf);
-        bufferSize += headerLen;
-        compressedBuf = new byte[bufferSize];
-
-        decompressor = Decompressor.getDecompressor(conf);
-      }
-      rawDataBuf = new byte[bufferSize];
-
       if (conf.clientPushReplicateEnabled()) {
         fetchChunkMaxRetry = conf.clientFetchMaxRetriesForEachReplica() * 2;
       } else {
@@ -561,13 +551,28 @@ public abstract class CelebornInputStream extends InputStream {
       return false;
     }
 
+    private void init() {
+      int bufferSize = conf.clientFetchBufferSize();
+
+      if (shuffleCompressionEnabled) {
+        int headerLen = Decompressor.getCompressionHeaderLength(conf);
+        bufferSize += headerLen;
+        compressedBuf = new byte[bufferSize];
+        decompressor = Decompressor.getDecompressor(conf);
+      }
+      rawDataBuf = new byte[bufferSize];
+    }
+
     private boolean fillBuffer() throws IOException {
       try {
         if (firstChunk && currentReader != null) {
+          init();
           currentChunk = getNextChunk();
           firstChunk = false;
         }
         if (currentChunk == null) {
+          compressedBuf = null;
+          rawDataBuf = null;
           return false;
         }
 

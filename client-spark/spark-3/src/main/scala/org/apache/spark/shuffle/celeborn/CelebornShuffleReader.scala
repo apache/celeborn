@@ -123,6 +123,7 @@ class CelebornShuffleReader[K, C](
                 if (throwsFetchFailure) exceptionMaker else null,
                 metricsCallback)
               streams.put(partitionId, inputStream)
+              logInfo("input stream created, streams size " +  streams.size())
             } catch {
               case e: IOException =>
                 logError(s"Exception caught when readPartition $partitionId!", e)
