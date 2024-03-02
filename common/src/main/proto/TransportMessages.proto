@@ -99,6 +99,7 @@ enum MessageType {
   WORKER_EVENT_REQUEST = 76;
   WORKER_EVENT_RESPONSE = 77;
   APPLICATION_META = 78;
+  APPLICATION_META_REQUEST = 79;
 }
 
 enum StreamType {
@@ -732,3 +733,6 @@ message PbApplicationMeta {
   string secret = 2;
 }
 
+message PbApplicationMetaRequest {
+  string appId = 1;
+}

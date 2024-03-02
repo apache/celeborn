@@ -1144,6 +1144,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def masterSendApplicationMetaThreads: Int = get(MASTER_SEND_APPLICATION_META_THREADS)
 
+  def authEnabledOnClient: Boolean = {
+    get(AUTH_ENABLED)
+  }
+
   // //////////////////////////////////////////////////////
   //                     Internal Port                   //
   // //////////////////////////////////////////////////////

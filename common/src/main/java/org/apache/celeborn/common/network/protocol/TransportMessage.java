@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbApplicationMeta;
+import org.apache.celeborn.common.protocol.PbApplicationMetaRequest;
 import org.apache.celeborn.common.protocol.PbAuthenticationInitiationRequest;
 import org.apache.celeborn.common.protocol.PbAuthenticationInitiationResponse;
 import org.apache.celeborn.common.protocol.PbBacklogAnnouncement;
@@ -120,6 +121,8 @@ public class TransportMessage implements Serializable {
         return (T) PbRegisterApplicationResponse.parseFrom(payload);
       case APPLICATION_META_VALUE:
         return (T) PbApplicationMeta.parseFrom(payload);
+      case APPLICATION_META_REQUEST_VALUE:
+        return (T) PbApplicationMetaRequest.parseFrom(payload);
       default:
         logger.error("Unexpected type {}", type);
     }
