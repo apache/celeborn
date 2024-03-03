@@ -32,6 +32,19 @@ import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 trait SparkTestBase extends AnyFunSuite
   with Logging with MiniClusterFeature with BeforeAndAfterAll with BeforeAndAfterEach {
+
+  val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+  val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
+  val version =
+    try {
+      sparkSession.sql("select version()").collect()(0).getString(0)
+    } catch {
+      case _: Exception => ""
+    }
+  sparkSession.close()
+  val Spark3OrNewer = version >= "3.0"
+  println(s"version is ${version}, newer ${Spark3OrNewer}")
+
   private val sampleSeq = (1 to 78)
     .map(Random.alphanumeric)
     .toList
