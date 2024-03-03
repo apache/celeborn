@@ -47,7 +47,8 @@ import org.apache.celeborn.reflect.DynMethods;
 public class SparkUtils {
   private static final Logger LOG = LoggerFactory.getLogger(SparkUtils.class);
 
-  public static final String FETCH_FAILURE_ERROR_MSG = "Celeborn FetchFailure with shuffle id ";
+  public static final String FETCH_FAILURE_ERROR_MSG =
+      "Celeborn FetchFailure appShuffleId/shuffleId: ";
 
   public static MapStatus createMapStatus(
       BlockManagerId loc, long[] uncompressedSizes, long mapTaskId) {
