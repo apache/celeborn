@@ -32,6 +32,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.util.CelebornHadoopUtils;
+import org.apache.celeborn.common.util.ExceptionMaker;
 import org.apache.celeborn.common.write.PushState;
 
 /**
@@ -210,12 +211,33 @@ public abstract class ShuffleClient {
    * @return
    * @throws IOException
    */
-  public abstract CelebornInputStream readPartition(
+  public CelebornInputStream readPartition(
       int shuffleId,
       int partitionId,
       int attemptNumber,
       int startMapIndex,
       int endMapIndex,
+      MetricsCallback metricsCallback)
+      throws IOException {
+    return readPartition(
+        shuffleId,
+        shuffleId,
+        partitionId,
+        attemptNumber,
+        startMapIndex,
+        endMapIndex,
+        null,
+        metricsCallback);
+  }
+
+  public abstract CelebornInputStream readPartition(
+      int shuffleId,
+      int appShuffleId,
+      int partitionId,
+      int attemptNumber,
+      int startMapIndex,
+      int endMapIndex,
+      ExceptionMaker exceptionMaker,
       MetricsCallback metricsCallback)
       throws IOException;
 

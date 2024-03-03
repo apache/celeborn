@@ -38,6 +38,7 @@ import org.apache.celeborn.client.read.MetricsCallback;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
+import org.apache.celeborn.common.util.ExceptionMaker;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.write.PushState;
 
@@ -117,11 +118,14 @@ public class DummyShuffleClient extends ShuffleClient {
   @Override
   public CelebornInputStream readPartition(
       int shuffleId,
+      int appShuffleId,
       int partitionId,
       int attemptNumber,
       int startMapIndex,
       int endMapIndex,
-      MetricsCallback metricsCallback) {
+      ExceptionMaker exceptionMaker,
+      MetricsCallback metricsCallback)
+      throws IOException {
     return null;
   }
 

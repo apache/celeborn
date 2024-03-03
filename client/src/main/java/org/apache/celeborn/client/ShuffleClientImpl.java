@@ -1658,10 +1658,12 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public CelebornInputStream readPartition(
       int shuffleId,
+      int appShuffleId,
       int partitionId,
       int attemptNumber,
       int startMapIndex,
       int endMapIndex,
+      ExceptionMaker exceptionMaker,
       MetricsCallback metricsCallback)
       throws IOException {
     if (partitionId == Utils$.MODULE$.UNKNOWN_APP_SHUFFLE_ID()) {
@@ -1686,6 +1688,11 @@ public class ShuffleClientImpl extends ShuffleClient {
           startMapIndex,
           endMapIndex,
           fetchExcludedWorkers,
+          this,
+          appShuffleId,
+          shuffleId,
+          partitionId,
+          exceptionMaker,
           metricsCallback);
     }
   }
