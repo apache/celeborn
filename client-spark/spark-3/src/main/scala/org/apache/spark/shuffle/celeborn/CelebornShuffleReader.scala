@@ -91,7 +91,7 @@ class CelebornShuffleReader[K, C](
     }
 
     val exceptionMaker = new ExceptionMaker() {
-      override def makeException(
+      override def makeFetchFailureException(
           appShuffleId: Int,
           shuffleId: Int,
           partitionId: Int,
