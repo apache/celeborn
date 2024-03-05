@@ -31,10 +31,13 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
   celebornConf
     .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "true")
     .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
+    .set(CelebornConf.APP_REGISTER_ENABLED.key, "true")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val (master, _) = setupMiniClusterWithRandomPorts()
+    val appRegisterConf = Map(CelebornConf.APP_REGISTER_ENABLED.key -> "true")
+    val (master, _) =
+      setupMiniClusterWithRandomPorts(masterConf = appRegisterConf, workerConf = appRegisterConf)
     logInfo(s"master address is: ${master.conf.get(CelebornConf.MASTER_ENDPOINTS.key)}")
     celebornConf.set(
       CelebornConf.MASTER_ENDPOINTS.key,
