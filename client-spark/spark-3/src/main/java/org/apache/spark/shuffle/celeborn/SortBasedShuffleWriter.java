@@ -87,6 +87,11 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private final boolean unsafeRowFastWrite;
 
+  private int attemptId;
+
+  private String shuffleKey;
+  private String mapKey;
+
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
   public SortBasedShuffleWriter(
@@ -97,7 +102,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       CelebornConf conf,
       ShuffleClient client,
       ShuffleWriteMetricsReporter metrics,
-      SendBufferPool sendBufferPool)
+      SendBufferPool sendBufferPool,
+      String appUniqueId)
       throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = dep;
@@ -110,6 +116,10 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.numPartitions = dep.partitioner().numPartitions();
     this.shuffleClient = client;
     unsafeRowFastWrite = conf.clientPushUnsafeRowFastWrite();
+
+    this.attemptId = taskContext.attemptNumber();
+    this.shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
+    this.mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
 
     serBuffer = new OpenByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
     serOutputStream = serializer.serializeStream(serBuffer);
@@ -137,7 +147,9 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             writeMetrics::incBytesWritten,
             mapStatusLengths,
             conf.clientPushSortMemoryThreshold(),
-            sendBufferPool);
+            sendBufferPool,
+          shuffleKey,
+          mapKey);
   }
 
   public SortBasedShuffleWriter(
@@ -156,7 +168,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         conf,
         client,
         metrics,
-        sendBufferPool);
+        sendBufferPool, null);
   }
 
   private void updatePeakMemoryUsed() {
@@ -300,6 +312,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             mapId,
             taskContext.attemptNumber(),
             partitionId,
+            shuffleKey,
+            mapKey,
             buffer,
             0,
             numBytes,

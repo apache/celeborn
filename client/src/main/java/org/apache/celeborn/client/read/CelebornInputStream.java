@@ -602,11 +602,11 @@ public abstract class CelebornInputStream extends InputStream {
 
         boolean hasData = false;
         while (currentChunk.isReadable() || moveToNextChunk()) {
-          currentChunk.readBytes(sizeBuf);
-          int mapId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET);
-          int attemptId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 4);
-          int batchId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 8);
-          int size = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 12);
+//          currentChunk.readBytes(sizeBuf);
+          int mapId = currentChunk.readInt();
+          int attemptId = currentChunk.readInt();
+          int batchId = currentChunk.readInt();
+          int size = currentChunk.readInt();
 
           if (shuffleCompressionEnabled) {
             if (size > compressedBuf.length) {

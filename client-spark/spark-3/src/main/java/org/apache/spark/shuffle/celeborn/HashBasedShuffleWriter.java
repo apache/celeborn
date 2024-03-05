@@ -98,6 +98,11 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private final boolean unsafeRowFastWrite;
 
+  private int attemptId;
+
+  private String shuffleKey;
+  private String mapKey;
+
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
   public HashBasedShuffleWriter(
@@ -107,7 +112,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       CelebornConf conf,
       ShuffleClient client,
       ShuffleWriteMetricsReporter metrics,
-      SendBufferPool sendBufferPool)
+      SendBufferPool sendBufferPool,
+      String appUniqueId)
       throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = handle.dependency();
@@ -119,6 +125,10 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.numMappers = handle.numMappers();
     this.numPartitions = dep.partitioner().numPartitions();
     this.shuffleClient = client;
+
+    this.attemptId = taskContext.attemptNumber();
+    this.shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
+    this.mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
 
     unsafeRowFastWrite = conf.clientPushUnsafeRowFastWrite();
     serBuffer = new OpenByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
@@ -143,8 +153,10 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           new DataPusher(
               shuffleId,
               mapId,
-              taskContext.attemptNumber(),
+              attemptId,
               taskContext.taskAttemptId(),
+              shuffleKey,
+              mapKey,
               numMappers,
               numPartitions,
               conf,
@@ -278,8 +290,10 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         shuffleClient.pushData(
             shuffleId,
             mapId,
-            taskContext.attemptNumber(),
+            attemptId,
             partitionId,
+            shuffleKey,
+            mapKey,
             buffer,
             0,
             numBytes,
@@ -328,7 +342,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       if (size > 0) {
         mergeData(i, sendBuffers[i], 0, size);
         // free buffer
-        sendBuffers[i] = null;
+//        sendBuffers[i] = null;
       }
     }
     sendBufferPool.returnBuffer(sendBuffers);
@@ -344,6 +358,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             mapId,
             taskContext.attemptNumber(),
             partitionId,
+            shuffleKey,
+            mapKey,
             buffer,
             offset,
             length,

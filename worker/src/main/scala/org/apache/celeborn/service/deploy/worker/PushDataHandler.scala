@@ -702,8 +702,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     // header: mapId attemptId batchId compressedTotalSize
     val header = new Array[Byte](8)
     body.getBytes(body.readerIndex(), header)
-    val mapId = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET)
-    val attemptId = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET + 4)
+    val mapId = body.getInt(body.readerIndex())
+    val attemptId = body.getInt(body.readerIndex() + 4)
     (mapId, attemptId)
   }
 

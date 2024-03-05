@@ -72,6 +72,9 @@ public class SortBasedPusher extends MemoryConsumer {
   private int[] inversedShuffledPartitions = null;
   private final SendBufferPool sendBufferPool;
 
+  private String shuffleKey;
+  private String mapKey;
+
   public SortBasedPusher(
       TaskMemoryManager memoryManager,
       ShuffleClient shuffleClient,
@@ -86,7 +89,9 @@ public class SortBasedPusher extends MemoryConsumer {
       Consumer<Integer> afterPush,
       LongAdder[] mapStatusLengths,
       long pushSortMemoryThreshold,
-      SendBufferPool sendBufferPool) {
+      SendBufferPool sendBufferPool,
+      String shuffleKey,
+      String mapKey) {
     super(
         memoryManager,
         (int) Math.min(PackedRecordPointer.MAXIMUM_PAGE_SIZE_BYTES, memoryManager.pageSizeBytes()),
@@ -100,6 +105,9 @@ public class SortBasedPusher extends MemoryConsumer {
     this.attemptNumber = attemptNumber;
     this.numMappers = numMappers;
     this.numPartitions = numPartitions;
+
+    this.shuffleKey = shuffleKey;
+    this.mapKey = mapKey;
 
     if (conf.clientPushSortRandomizePartitionIdEnabled()) {
       shuffledPartitions = new int[numPartitions];
@@ -120,6 +128,8 @@ public class SortBasedPusher extends MemoryConsumer {
               mapId,
               attemptNumber,
               taskAttemptId,
+              shuffleKey,
+              mapKey,
               numMappers,
               numPartitions,
               conf,
@@ -162,6 +172,8 @@ public class SortBasedPusher extends MemoryConsumer {
                   mapId,
                   attemptNumber,
                   currentPartition,
+                shuffleKey,
+                mapKey,
                   dataBuf,
                   0,
                   offSet,

@@ -25,6 +25,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
+import org.apache.celeborn.common.network.util.NettyUtils;
 import scala.Tuple2;
 import scala.reflect.ClassTag$;
 
@@ -814,6 +817,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       int mapId,
       int attemptId,
       int partitionId,
+      String shuffleKey,
+      String mapKey,
       byte[] data,
       int offset,
       int length,
@@ -822,7 +827,6 @@ public class ShuffleClientImpl extends ShuffleClient {
       boolean doPush)
       throws IOException {
     // mapKey
-    final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     // return if shuffle stage already ended
     if (mapperEnded(shuffleId, mapId)) {
       logger.debug(
@@ -898,12 +902,20 @@ public class ShuffleClientImpl extends ShuffleClient {
       length = compressor.getCompressedTotalSize();
     }
 
-    final byte[] body = new byte[BATCH_HEADER_SIZE + length];
-    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET, mapId);
-    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 4, attemptId);
-    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 8, nextBatchId);
-    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 12, length);
-    System.arraycopy(data, offset, body, BATCH_HEADER_SIZE, length);
+//    final byte[] body = new byte[BATCH_HEADER_SIZE + length];
+//    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET, mapId);
+//    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 4, attemptId);
+//    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 8, nextBatchId);
+//    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 12, length);
+//    System.arraycopy(data, offset, body, BATCH_HEADER_SIZE, length);
+
+    ByteBuf bodyBuf = dataClientFactory.pooledAllocator.buffer(
+      BATCH_HEADER_SIZE + length, BATCH_HEADER_SIZE + length);
+    bodyBuf.writeInt(mapId);
+    bodyBuf.writeInt(attemptId);
+    bodyBuf.writeInt(nextBatchId);
+    bodyBuf.writeInt(length);
+    bodyBuf.writeBytes(data, offset, length);
 
     if (doPush) {
       // check limit
@@ -913,8 +925,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       pushState.addBatch(nextBatchId, loc.hostAndPushPort());
 
       // build PushData request
-      NettyManagedBuffer buffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
-      final String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
+      NettyManagedBuffer buffer = new NettyManagedBuffer(bodyBuf);
       PushData pushData = new PushData(PRIMARY_MODE, shuffleKey, loc.getUniqueId(), buffer);
 
       // build callback
@@ -1004,7 +1015,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       () ->
                           submitRetryPushData(
                               shuffleId,
-                              body,
+                              null,
                               nextBatchId,
                               this,
                               pushState,
@@ -1090,7 +1101,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                     () ->
                         submitRetryPushData(
                             shuffleId,
-                            body,
+                            null,
                             nextBatchId,
                             this,
                             pushState,
@@ -1143,7 +1154,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       // add batch data
       logger.debug("Merge batch {}.", nextBatchId);
       Pair<String, String> addressPair = genAddressPair(loc);
-      boolean shouldPush = pushState.addBatchData(addressPair, loc, nextBatchId, body);
+      boolean shouldPush = pushState.addBatchData(addressPair, loc, nextBatchId, bodyBuf);
       if (shouldPush) {
         limitMaxInFlight(mapKey, pushState, loc.hostAndPushPort());
         DataBatches dataBatches = pushState.takeDataBatches(addressPair);
@@ -1158,7 +1169,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       }
     }
 
-    return body.length;
+    return BATCH_HEADER_SIZE + length;
   }
 
   private void splitPartition(int shuffleId, int partitionId, PartitionLocation loc) {
@@ -1194,6 +1205,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       int mapId,
       int attemptId,
       int partitionId,
+      String shuffleKey,
+      String mapKey,
       byte[] data,
       int offset,
       int length,
@@ -1205,6 +1218,8 @@ public class ShuffleClientImpl extends ShuffleClient {
         mapId,
         attemptId,
         partitionId,
+        shuffleKey,
+        mapKey,
         data,
         offset,
         length,
@@ -1228,6 +1243,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       int mapId,
       int attemptId,
       int partitionId,
+      String shuffleKey,
+      String mapKey,
       byte[] data,
       int offset,
       int length,
@@ -1239,6 +1256,8 @@ public class ShuffleClientImpl extends ShuffleClient {
         mapId,
         attemptId,
         partitionId,
+        shuffleKey,
+        mapKey,
         data,
         offset,
         length,
@@ -1298,8 +1317,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       partitionUniqueIds[i] = batch.loc.getUniqueId();
       offsets[i] = currentSize;
       batchIds[i] = batch.batchId;
-      currentSize += batch.body.length;
-      byteBuf.addComponent(true, Unpooled.wrappedBuffer(batch.body));
+      currentSize += batch.body.readableBytes();
+      byteBuf.addComponent(true, batch.body);
     }
     NettyManagedBuffer buffer = new NettyManagedBuffer(byteBuf);
     String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);

@@ -19,6 +19,7 @@ package org.apache.celeborn.common.write;
 
 import java.util.ArrayList;
 
+import io.netty.buffer.ByteBuf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 
 public class DataBatches {
@@ -28,19 +29,19 @@ public class DataBatches {
   public static class DataBatch {
     public final PartitionLocation loc;
     public final int batchId;
-    public final byte[] body;
+    public final ByteBuf body;
 
-    public DataBatch(PartitionLocation loc, int batchId, byte[] body) {
+    public DataBatch(PartitionLocation loc, int batchId, ByteBuf body) {
       this.loc = loc;
       this.batchId = batchId;
       this.body = body;
     }
   }
 
-  public synchronized void addDataBatch(PartitionLocation loc, int batchId, byte[] body) {
+  public synchronized void addDataBatch(PartitionLocation loc, int batchId, ByteBuf body) {
     DataBatch dataBatch = new DataBatch(loc, batchId, body);
     batches.add(dataBatch);
-    totalSize += body.length;
+    totalSize += body.readableBytes();
   }
 
   public int getTotalSize() {
@@ -64,8 +65,8 @@ public class DataBatches {
     while (currentSize < requestSize) {
       DataBatch elem = batches.remove(0);
       retBatches.add(elem);
-      currentSize += elem.body.length;
-      totalSize -= elem.body.length;
+      currentSize += elem.body.readableBytes();
+      totalSize -= elem.body.readableBytes();
     }
     return retBatches;
   }

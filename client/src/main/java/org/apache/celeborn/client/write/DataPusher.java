@@ -19,9 +19,11 @@ package org.apache.celeborn.client.write;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.Condition;
@@ -60,12 +62,16 @@ public class DataPusher {
   private volatile boolean terminated;
   private final LongAdder[] mapStatusLengths;
   private Thread pushThread;
+  private String shuffleKey;
+  private String mapKey;
 
   public DataPusher(
       int shuffleId,
       int mapId,
       int attemptId,
       long taskId,
+      String shuffleKey,
+      String mapKey,
       int numMappers,
       int numPartitions,
       CelebornConf conf,
@@ -74,6 +80,8 @@ public class DataPusher {
       Consumer<Integer> afterPush,
       LongAdder[] mapStatusLengths)
       throws InterruptedException {
+    this.shuffleKey = shuffleKey;
+    this.mapKey = mapKey;
     final int pushQueueCapacity = conf.clientPushQueueCapacity();
     final int pushBufferMaxSize = conf.clientPushBufferMaxSize();
 
@@ -118,9 +126,19 @@ public class DataPusher {
 
           @Override
           public void run() {
+            ArrayList<PushTask> t= new ArrayList<>();
+            HashMap<String, Integer> workerCapacity = new HashMap<>();
+            HashMap<String, AtomicInteger> workerWaitAttempts = new HashMap<>();
             while (stillRunning()) {
               try {
-                ArrayList<PushTask> tasks = dataPushQueue.takePushTasks();
+                t.clear();
+                workerCapacity.clear();
+                workerWaitAttempts.clear();
+                ArrayList<PushTask> tasks = dataPushQueue.takePushTasks(
+                  t,
+                  workerCapacity,
+                  workerWaitAttempts
+                );
                 for (int i = 0; i < tasks.size(); i++) {
                   PushTask task = tasks.get(i);
                   pushData(task);
@@ -202,6 +220,8 @@ public class DataPusher {
             mapId,
             attemptId,
             task.getPartitionId(),
+            shuffleKey,
+            mapKey,
             task.getBuffer(),
             0,
             task.getSize(),

@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
+import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -47,7 +48,7 @@ public class PushState {
       JavaUtils.newConcurrentHashMap();
 
   public boolean addBatchData(
-      Pair<String, String> addressPair, PartitionLocation loc, int batchId, byte[] body) {
+      Pair<String, String> addressPair, PartitionLocation loc, int batchId, ByteBuf body) {
     DataBatches batches = batchesMap.computeIfAbsent(addressPair, (s) -> new DataBatches());
     batches.addDataBatch(loc, batchId, body);
     return batches.getTotalSize() > pushBufferMaxSize;

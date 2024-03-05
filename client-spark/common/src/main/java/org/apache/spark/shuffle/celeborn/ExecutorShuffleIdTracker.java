@@ -22,13 +22,20 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ExecutorShuffleIdTracker {
+  private static final Logger logger = LoggerFactory.getLogger(ExecutorShuffleIdTracker.class);
+
   // track appShuffleId -> shuffleId Set in executor for cleanup
   private ConcurrentHashMap<Integer, HashSet<Integer>> shuffleIdMap =
       JavaUtils.newConcurrentHashMap();
 
   public void track(int appShuffleId, int shuffleId) {
+    logger.info("ExecutorShuffleIdTracker#track appShuffleId {}, shuffleId {}",
+      appShuffleId,
+      shuffleId);
     HashSet<Integer> shuffleIds = shuffleIdMap.computeIfAbsent(appShuffleId, id -> new HashSet<>());
 
     synchronized (shuffleIds) {
@@ -38,6 +45,9 @@ public class ExecutorShuffleIdTracker {
 
   public void unregisterAppShuffleId(ShuffleClient shuffleClient, int appShuffleId) {
     HashSet<Integer> shuffleIds = shuffleIdMap.remove(appShuffleId);
+    logger.info("inside ExecutorShuffleIdTracker#unregisterAppShuffleId, appShuffleId{}, empty {} ",
+      appShuffleId,
+      shuffleIds == null);
     if (shuffleIds != null) {
       synchronized (shuffleIds) {
         shuffleIds.forEach(shuffleClient::cleanupShuffle);

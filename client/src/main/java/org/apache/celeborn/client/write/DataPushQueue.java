@@ -81,10 +81,11 @@ public class DataPushQueue {
    * Now, `takePushTasks` is only used by one thread,
    * so it is not thread-safe.
    * */
-  public ArrayList<PushTask> takePushTasks() throws IOException, InterruptedException {
-    ArrayList<PushTask> tasks = new ArrayList<>();
-    HashMap<String, Integer> workerCapacity = new HashMap<>();
-    HashMap<String, AtomicInteger> workerWaitAttempts = new HashMap<>();
+  public ArrayList<PushTask> takePushTasks(
+    ArrayList<PushTask> tasks,
+    HashMap<String, Integer> workerCapacity,
+    HashMap<String, AtomicInteger> workerWaitAttempts
+  ) throws IOException, InterruptedException {
     while (dataPusher.stillRunning()) {
       // clear() here is necessary since inflight pushes might change after sleeping
       // takeTaskWaitTimeMs

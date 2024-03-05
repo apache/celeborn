@@ -190,6 +190,7 @@ public class SparkShuffleManager implements ShuffleManager {
 
   @Override
   public boolean unregisterShuffle(int appShuffleId) {
+    logger.info("UnregisterShuffle called!");
     if (sortShuffleIds.contains(appShuffleId)) {
       return sortShuffleManager().unregisterShuffle(appShuffleId);
     }
@@ -276,7 +277,8 @@ public class SparkShuffleManager implements ShuffleManager {
               celebornConf,
               shuffleClient,
               metrics,
-              SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout));
+              SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout),
+            h.appUniqueId());
         } else if (ShuffleMode.HASH.equals(shuffleMode)) {
           SendBufferPool pool =
               SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout);
@@ -286,7 +288,7 @@ public class SparkShuffleManager implements ShuffleManager {
                 shuffleId, h, context, celebornConf, shuffleClient, metrics, pool);
           } else {
             return new HashBasedShuffleWriter<>(
-                shuffleId, h, context, celebornConf, shuffleClient, metrics, pool);
+                shuffleId, h, context, celebornConf, shuffleClient, metrics, pool, h.appUniqueId());
           }
         } else {
           throw new UnsupportedOperationException(

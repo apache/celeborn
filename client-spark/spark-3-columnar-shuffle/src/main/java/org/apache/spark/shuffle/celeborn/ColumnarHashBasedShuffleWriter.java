@@ -64,9 +64,9 @@ public class ColumnarHashBasedShuffleWriter<K, V, C> extends HashBasedShuffleWri
       CelebornConf conf,
       ShuffleClient client,
       ShuffleWriteMetricsReporter metrics,
-      SendBufferPool sendBufferPool)
+      SendBufferPool sendBufferPool, String appUniqueId)
       throws IOException {
-    super(shuffleId, handle, taskContext, conf, client, metrics, sendBufferPool);
+    super(shuffleId, handle, taskContext, conf, client, metrics, sendBufferPool, appUniqueId);
     columnarShuffleBatchSize = conf.columnarShuffleBatchSize();
     columnarShuffleCodeGenEnabled = conf.columnarShuffleCodeGenEnabled();
     columnarShuffleDictionaryEnabled = conf.columnarShuffleDictionaryEnabled();

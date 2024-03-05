@@ -43,6 +43,6 @@ public class HashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
         conf,
         client,
         metrics,
-        SendBufferPool.get(1, 30, 60));
+        SendBufferPool.get(1, 30, 60), null);
   }
 }

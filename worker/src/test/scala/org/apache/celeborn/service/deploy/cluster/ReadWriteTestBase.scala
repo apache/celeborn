@@ -88,13 +88,13 @@ trait ReadWriteTestBase extends AnyFunSuite
     dataPrefixMap.put(dataPrefix(2), STR3)
     val DATA3 = STR3.getBytes(StandardCharsets.UTF_8)
     val LENGTH3 = DATA3.length
-    shuffleClient.mergeData(1, 0, 0, 0, DATA3, 0, LENGTH3, 1, 1)
+    shuffleClient.mergeData(1, 0, 0, 0, null, null, DATA3, 0, LENGTH3, 1, 1)
 
     val STR4 = dataPrefix(3) + RandomStringUtils.random(16 * 1024)
     dataPrefixMap.put(dataPrefix(3), STR4)
     val DATA4 = STR4.getBytes(StandardCharsets.UTF_8)
     val LENGTH4 = DATA4.length
-    shuffleClient.mergeData(1, 0, 0, 0, DATA4, 0, LENGTH4, 1, 1)
+    shuffleClient.mergeData(1, 0, 0, 0, null, null, DATA4, 0, LENGTH4, 1, 1)
     shuffleClient.pushMergedData(1, 0, 0)
     Thread.sleep(1000)
 
