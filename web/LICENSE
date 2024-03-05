@@ -217,6 +217,7 @@ MIT licenses
    @rushstack/eslint-patch 1.7.2: https://www.npmjs.com/package/@rushstack/eslint-patch/v/1.7.2 MIT
    @tsconfig/node20 20.1.2: https://www.npmjs.com/package/@tsconfig/node20/v/20.1.2 MIT
    @types/node 20.11.16 https://www.npmjs.com/package/@types/node/v/20.11.16 MIT
+   @varlet/axle 0.6.0 https://www.npmjs.com/package/@varlet/axle/v/0.6.0 MIT
    @vitejs/plugin-vue 5.0.3 https://www.npmjs.com/package/@vitejs/plugin-vue/v/5.0.3 MIT
    @vitejs/plugin-vue-jsx 3.1.0 https://www.npmjs.com/package/@vitejs/plugin-vue-jsx/v/3.1.0 MIT
    @vue/eslint-config-prettier 9.0.0 https://www.npmjs.com/package/@vue/eslint-config-prettier/v/9.0.0 MIT
@@ -243,5 +244,3 @@ BSD licenses
 ========================================================================
 The following components are provided under a BSD license. See project link for details.
 The text of each license is also included at licenses/LICENSE-[project].txt.
-
-   license-checker 25.0.1 https://www.npmjs.com/package/license-checker/v/25.0.1 BSD-3-Clause
