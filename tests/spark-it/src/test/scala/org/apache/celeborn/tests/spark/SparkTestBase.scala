@@ -43,7 +43,7 @@ trait SparkTestBase extends AnyFunSuite
     }
   sparkSession.close()
   val Spark3OrNewer = version >= "3.0"
-  println(s"version is ${version}, newer ${Spark3OrNewer}")
+  logInfo(s"version is ${version}, newer ${Spark3OrNewer}")
 
   private val sampleSeq = (1 to 78)
     .map(Random.alphanumeric)
