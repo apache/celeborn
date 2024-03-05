@@ -886,10 +886,12 @@ private[celeborn] class Master(
       new TransportMessage(MessageType.APPLICATION_META, pbApplicationMeta.toByteArray)
     val workerSet = workersAssignedToApp.computeIfAbsent(
       requestSlots.applicationId,
-      (_: String) =>
-        util.Collections.newSetFromMap(new util.concurrent.ConcurrentHashMap[
-          WorkerInfo,
-          java.lang.Boolean]()))
+      new util.function.Function[String, util.Set[WorkerInfo]] {
+        override def apply(key: String): util.Set[WorkerInfo] =
+          util.Collections.newSetFromMap(new util.concurrent.ConcurrentHashMap[
+            WorkerInfo,
+            java.lang.Boolean]())
+      })
     slots.keySet().asScala.foreach { worker =>
       // The app meta info is send to a Worker only if it wasn't previously sent.
       if (workerSet.add(worker)) {
