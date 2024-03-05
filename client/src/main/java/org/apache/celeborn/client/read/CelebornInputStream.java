@@ -124,19 +124,20 @@ public abstract class CelebornInputStream extends InputStream {
     private final CelebornConf conf;
     private final TransportClientFactory clientFactory;
     private final String shuffleKey;
-    private final PartitionLocation[] locations;
-    private final int[] attempts;
+    private PartitionLocation[] locations;
+    private int[] attempts;
     private final int attemptNumber;
     private final int startMapIndex;
     private final int endMapIndex;
 
-    private final Map<Integer, Set<Integer>> batchesRead = new HashMap<>();
+    private Map<Integer, Set<Integer>> batchesRead = new HashMap<>();
 
     private byte[] compressedBuf;
     private byte[] rawDataBuf;
     private Decompressor decompressor;
 
     private ByteBuf currentChunk;
+    private boolean firstChunk = true;
     private PartitionReader currentReader;
     private final int fetchChunkMaxRetry;
     private int fetchChunkRetryCnt = 0;
@@ -159,7 +160,7 @@ public abstract class CelebornInputStream extends InputStream {
     private boolean fetchExcludeWorkerOnFailureEnabled;
     private boolean shuffleCompressionEnabled;
     private long fetchExcludedWorkerExpireTimeout;
-    private final ConcurrentHashMap<String, Long> fetchExcludedWorkers;
+    private ConcurrentHashMap<String, Long> fetchExcludedWorkers;
 
     private boolean containLocalRead = false;
     private ShuffleClient shuffleClient;
@@ -167,6 +168,7 @@ public abstract class CelebornInputStream extends InputStream {
     private int shuffleId;
     private int partitionId;
     private ExceptionMaker exceptionMaker;
+    private boolean closed = false;
 
     CelebornInputStreamImpl(
         CelebornConf conf,
@@ -203,16 +205,6 @@ public abstract class CelebornInputStream extends InputStream {
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.fetchExcludedWorkers = fetchExcludedWorkers;
 
-      int bufferSize = conf.clientFetchBufferSize();
-      if (shuffleCompressionEnabled) {
-        int headerLen = Decompressor.getCompressionHeaderLength(conf);
-        bufferSize += headerLen;
-        compressedBuf = new byte[bufferSize];
-
-        decompressor = Decompressor.getDecompressor(conf);
-      }
-      rawDataBuf = new byte[bufferSize];
-
       if (conf.clientPushReplicateEnabled()) {
         fetchChunkMaxRetry = conf.clientFetchMaxRetriesForEachReplica() * 2;
       } else {
@@ -228,7 +220,7 @@ public abstract class CelebornInputStream extends InputStream {
       this.shuffleId = shuffleId;
       this.shuffleClient = shuffleClient;
 
-      moveToNextReader();
+      moveToNextReader(false);
     }
 
     private boolean skipLocation(int startMapIndex, int endMapIndex, PartitionLocation location) {
@@ -270,7 +262,7 @@ public abstract class CelebornInputStream extends InputStream {
       return currentLocation;
     }
 
-    private void moveToNextReader() throws IOException {
+    private void moveToNextReader(boolean fetchChunk) throws IOException {
       if (currentReader != null) {
         currentReader.close();
         currentReader = null;
@@ -291,7 +283,9 @@ public abstract class CelebornInputStream extends InputStream {
         currentReader = createReaderWithRetry(currentLocation);
         fileIndex++;
       }
-      currentChunk = getNextChunk();
+      if (fetchChunk) {
+        currentChunk = getNextChunk();
+      }
     }
 
     private void excludeFailedLocation(PartitionLocation location, Exception e) {
@@ -517,25 +511,40 @@ public abstract class CelebornInputStream extends InputStream {
     }
 
     @Override
-    public void close() {
-      int locationsCount = locations.length;
-      logger.debug(
-          "total location count {} read {} skip {}",
-          locationsCount,
-          locationsCount - skipCount.sum(),
-          skipCount.sum());
-      if (currentChunk != null) {
-        logger.debug("Release chunk {}", currentChunk);
-        currentChunk.release();
-        currentChunk = null;
-      }
-      if (currentReader != null) {
-        logger.debug("Closing reader");
-        currentReader.close();
-        currentReader = null;
-      }
-      if (containLocalRead) {
-        ShuffleClient.printReadStats(logger);
+    public synchronized void close() {
+      if (!closed) {
+        int locationsCount = locations.length;
+        logger.debug(
+            "AppShuffleId {}, shuffleId {}, partitionId {}, total location count {}, read {}, skip {}",
+            appShuffleId,
+            shuffleId,
+            partitionId,
+            locationsCount,
+            locationsCount - skipCount.sum(),
+            skipCount.sum());
+        if (currentChunk != null) {
+          logger.debug("Release chunk {}", currentChunk);
+          currentChunk.release();
+          currentChunk = null;
+        }
+        if (currentReader != null) {
+          logger.debug("Closing reader");
+          currentReader.close();
+          currentReader = null;
+        }
+        if (containLocalRead) {
+          ShuffleClient.printReadStats(logger);
+        }
+
+        compressedBuf = null;
+        rawDataBuf = null;
+        batchesRead = null;
+        locations = null;
+        attempts = null;
+        decompressor = null;
+        fetchExcludedWorkers = null;
+
+        closed = true;
       }
     }
 
@@ -548,7 +557,7 @@ public abstract class CelebornInputStream extends InputStream {
         currentChunk = getNextChunk();
         return true;
       } else if (fileIndex < locations.length) {
-        moveToNextReader();
+        moveToNextReader(true);
         return currentReader != null;
       }
       if (currentReader != null) {
@@ -558,9 +567,27 @@ public abstract class CelebornInputStream extends InputStream {
       return false;
     }
 
+    private void init() {
+      int bufferSize = conf.clientFetchBufferSize();
+
+      if (shuffleCompressionEnabled) {
+        int headerLen = Decompressor.getCompressionHeaderLength(conf);
+        bufferSize += headerLen;
+        compressedBuf = new byte[bufferSize];
+        decompressor = Decompressor.getDecompressor(conf);
+      }
+      rawDataBuf = new byte[bufferSize];
+    }
+
     private boolean fillBuffer() throws IOException {
       try {
+        if (firstChunk && currentReader != null) {
+          init();
+          currentChunk = getNextChunk();
+          firstChunk = false;
+        }
         if (currentChunk == null) {
+          close();
           return false;
         }
 
