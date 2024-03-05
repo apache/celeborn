@@ -41,7 +41,9 @@ private[celeborn] class InternalRpcEndpoint(
     case pb: PbApplicationMeta =>
       val appId = pb.getAppId
       val secret = pb.getSecret
-      logInfo(s"Received application meta for $appId from the coordinator")
-      secretRegistry.register(appId, secret)
+      if (!secretRegistry.isRegistered(appId)) {
+        logInfo(s"Received application meta for $appId from the Master.")
+        secretRegistry.register(appId, secret)
+      }
   }
 }

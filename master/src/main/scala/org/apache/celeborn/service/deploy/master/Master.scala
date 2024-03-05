@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
 
@@ -255,10 +255,19 @@ private[celeborn] class Master(
       internalRpcEndpoint)
   }
 
+  private val sendApplicationMetaThreads = conf.masterSendApplicationMetaThreads
+  // Send ApplicationMeta to workers
+  private var sendApplicationMetaExecutor: ExecutorService = _
+
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
     if (!threadsStarted.compareAndSet(false, true)) {
       return
+    }
+    if (authEnabled) {
+      sendApplicationMetaExecutor = ThreadUtils.newDaemonFixedThreadPool(
+        sendApplicationMetaThreads,
+        "send-application-meta")
     }
     checkForWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
@@ -323,6 +332,9 @@ private[celeborn] class Master(
     }
     forwardMessageThread.shutdownNow()
     rackResolver.stop()
+    if (authEnabled) {
+      sendApplicationMetaExecutor.shutdownNow()
+    }
     logInfo("Celeborn Master is stopped.")
   }
 
@@ -853,22 +865,33 @@ private[celeborn] class Master(
     }
 
     if (authEnabled) {
-      // Pass application registration information to the workers
-      val pbApplicationMeta = PbApplicationMeta.newBuilder()
-        .setAppId(requestSlots.applicationId)
-        .setSecret(secretRegistry.getSecretKey(requestSlots.applicationId))
-        .build()
-      val transportMessage =
-        new TransportMessage(MessageType.APPLICATION_META, pbApplicationMeta.toByteArray)
-
-      slots.keySet().asScala.foreach { worker =>
-        logDebug(s"Sending app registration info to ${worker.host}:${worker.internalPort}")
-        internalRpcEnvInUse.setupEndpointRef(
-          RpcAddress.apply(worker.host, worker.internalPort),
-          RpcNameConstants.WORKER_INTERNAL_EP).send(transportMessage)
-      }
+      pushApplicationMetaToWorkers(requestSlots, slots)
     }
     context.reply(RequestSlotsResponse(StatusCode.SUCCESS, slots.asInstanceOf[WorkerResource]))
+  }
+
+  def pushApplicationMetaToWorkers(
+      requestSlots: RequestSlots,
+      slots: util.Map[WorkerInfo, (util.List[PartitionLocation], util.List[PartitionLocation])])
+      : Unit = {
+    // Pass application registration information to the workers
+    val pbApplicationMeta = PbApplicationMeta.newBuilder()
+      .setAppId(requestSlots.applicationId)
+      .setSecret(secretRegistry.getSecretKey(requestSlots.applicationId))
+      .build()
+    val transportMessage =
+      new TransportMessage(MessageType.APPLICATION_META, pbApplicationMeta.toByteArray)
+
+    slots.keySet().asScala.foreach { worker =>
+      sendApplicationMetaExecutor.submit(new Runnable {
+        override def run(): Unit = {
+          logDebug(s"Sending app registration info to ${worker.host}:${worker.internalPort}")
+          internalRpcEnvInUse.setupEndpointRef(
+            RpcAddress.apply(worker.host, worker.internalPort),
+            RpcNameConstants.WORKER_INTERNAL_EP).send(transportMessage)
+        }
+      })
+    }
   }
 
   def handleUnregisterShuffle(
