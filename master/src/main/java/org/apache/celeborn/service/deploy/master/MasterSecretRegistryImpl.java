@@ -20,9 +20,9 @@ package org.apache.celeborn.service.deploy.master;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.network.sasl.SecretRegistry;
 import org.apache.celeborn.common.network.sasl.SecretRegistryImpl;
-import org.apache.celeborn.common.util.ApplicationMeta;
 import org.apache.celeborn.service.deploy.master.clustermeta.IMetadataHandler;
 
 /**

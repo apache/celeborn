@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.util;
+package org.apache.celeborn.common.meta
 
 /**
  * Application meta

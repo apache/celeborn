@@ -4624,8 +4624,8 @@ object CelebornConf extends Logging {
   val MASTER_SEND_APPLICATION_META_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.master.send.applicationMeta.threads")
       .categories("master")
-      .doc("Number of threads used by the Master to send ApplicationMeta to Worker.")
-      .version("0.8.0")
+      .doc("Number of threads used by the Master to send ApplicationMeta to Workers.")
+      .version("0.5.0")
       .intConf
       .createWithDefault(8)
 }
