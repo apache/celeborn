@@ -38,12 +38,15 @@ axle.useRequestInterceptor(
 
 axle.useResponseInterceptor({
   onFulfilled(response) {
-    const { status, statusText } = response.data
-    if (status !== 200 && statusText) {
+    const { status, message } = response.data
+    if (status !== 200 && message) {
       // do something there
       return Promise.reject(response.data)
     }
     return response.data
+  },
+  onRejected(error) {
+    if (!error.response) return Promise.reject(error)
   }
 })
 
