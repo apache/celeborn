@@ -19,6 +19,7 @@ package org.apache.celeborn.tests.spark
 
 import scala.util.Random
 
+import org.apache.spark.SPARK_VERSION
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf
@@ -32,6 +33,10 @@ import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 trait SparkTestBase extends AnyFunSuite
   with Logging with MiniClusterFeature with BeforeAndAfterAll with BeforeAndAfterEach {
+
+  val Spark3OrNewer = SPARK_VERSION >= "3.0"
+  println(s"Spark version is $SPARK_VERSION, Spark3OrNewer: $Spark3OrNewer")
+
   private val sampleSeq = (1 to 78)
     .map(Random.alphanumeric)
     .toList
