@@ -87,6 +87,19 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private final boolean unsafeRowFastWrite;
 
+  public SortBasedShuffleWriter(
+      int shuffleId,
+      ShuffleDependency<K, V, C> dep,
+      int numMappers,
+      TaskContext taskContext,
+      CelebornConf conf,
+      ShuffleClient client,
+      ShuffleWriteMetricsReporter metrics,
+      SendBufferPool sendBufferPool)
+      throws IOException {
+    this(shuffleId, dep, numMappers, taskContext, conf, client, metrics, sendBufferPool, null);
+  }
+
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
   public SortBasedShuffleWriter(
@@ -97,7 +110,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       CelebornConf conf,
       ShuffleClient client,
       ShuffleWriteMetricsReporter metrics,
-      SendBufferPool sendBufferPool)
+      SendBufferPool sendBufferPool,
+      SortBasedPusher pusher)
       throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = dep;
@@ -122,22 +136,26 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
 
-    pusher =
-        new SortBasedPusher(
-            taskContext.taskMemoryManager(),
-            shuffleClient,
-            taskContext,
-            shuffleId,
-            mapId,
-            taskContext.attemptNumber(),
-            taskContext.taskAttemptId(),
-            numMappers,
-            numPartitions,
-            conf,
-            writeMetrics::incBytesWritten,
-            mapStatusLengths,
-            conf.clientPushSortMemoryThreshold(),
-            sendBufferPool);
+    if (pusher == null) {
+      this.pusher =
+          new SortBasedPusher(
+              taskContext.taskMemoryManager(),
+              shuffleClient,
+              taskContext,
+              shuffleId,
+              mapId,
+              taskContext.attemptNumber(),
+              taskContext.taskAttemptId(),
+              numMappers,
+              numPartitions,
+              conf,
+              writeMetrics::incBytesWritten,
+              mapStatusLengths,
+              conf.clientPushSortMemoryThreshold(),
+              sendBufferPool);
+    } else {
+      this.pusher = pusher;
+    }
   }
 
   public SortBasedShuffleWriter(
@@ -159,6 +177,27 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         sendBufferPool);
   }
 
+  public SortBasedShuffleWriter(
+      CelebornShuffleHandle<K, V, C> handle,
+      TaskContext taskContext,
+      CelebornConf conf,
+      ShuffleClient client,
+      ShuffleWriteMetricsReporter metrics,
+      SendBufferPool sendBufferPool,
+      SortBasedPusher pusher)
+      throws IOException {
+    this(
+        SparkUtils.celebornShuffleId(client, handle, taskContext, true),
+        handle.dependency(),
+        handle.numMappers(),
+        taskContext,
+        conf,
+        client,
+        metrics,
+        sendBufferPool,
+        pusher);
+  }
+
   private void updatePeakMemoryUsed() {
     long mem = pusher.getPeakMemoryUsedBytes();
     if (mem > peakMemoryUsedBytes) {
@@ -172,8 +211,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     return peakMemoryUsedBytes;
   }
 
-  @Override
-  public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
+  void doWrite(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
     if (canUseFastWrite()) {
       fastWrite0(records);
     } else if (dep.mapSideCombine()) {
@@ -185,6 +223,12 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     } else {
       write0(records);
     }
+    close();
+  }
+
+  @Override
+  public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
+    doWrite(records);
     close();
   }
 
@@ -245,7 +289,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private void doPush() throws IOException {
     long start = System.nanoTime();
-    pusher.pushData();
+    pusher.pushData(true);
     writeMetrics.incWriteTime(System.nanoTime() - start);
   }
 
@@ -312,7 +356,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void close() throws IOException {
     logger.info("Memory used {}", Utils.bytesToString(pusher.getUsed()));
     long pushStartTime = System.nanoTime();
-    pusher.pushData();
+    pusher.pushData(false);
     pusher.close();
 
     shuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
