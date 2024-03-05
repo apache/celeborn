@@ -257,6 +257,10 @@ private[celeborn] class Master(
   private val sendApplicationMetaThreads = conf.masterSendApplicationMetaThreads
   // Send ApplicationMeta to workers
   private var sendApplicationMetaExecutor: ExecutorService = _
+  // Maintains the mapping for the workers assigned to each application
+  private val workersAssignedToApp
+      : util.concurrent.ConcurrentHashMap[String, util.Set[WorkerInfo]] =
+    JavaUtils.newConcurrentHashMap[String, util.Set[WorkerInfo]]()
 
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
@@ -880,16 +884,24 @@ private[celeborn] class Master(
       .build()
     val transportMessage =
       new TransportMessage(MessageType.APPLICATION_META, pbApplicationMeta.toByteArray)
-
+    val workerSet = workersAssignedToApp.computeIfAbsent(
+      requestSlots.applicationId,
+      _ =>
+        util.Collections.newSetFromMap(new util.concurrent.ConcurrentHashMap[
+          WorkerInfo,
+          java.lang.Boolean]()))
     slots.keySet().asScala.foreach { worker =>
-      sendApplicationMetaExecutor.submit(new Runnable {
-        override def run(): Unit = {
-          logDebug(s"Sending app registration info to ${worker.host}:${worker.internalPort}")
-          internalRpcEnvInUse.setupEndpointRef(
-            RpcAddress.apply(worker.host, worker.internalPort),
-            RpcNameConstants.WORKER_INTERNAL_EP).send(transportMessage)
-        }
-      })
+      // The app meta info is send to a Worker only if it wasn't previously sent.
+      if (workerSet.add(worker)) {
+        sendApplicationMetaExecutor.submit(new Runnable {
+          override def run(): Unit = {
+            logDebug(s"Sending app registration info to ${worker.host}:${worker.internalPort}")
+            internalRpcEnvInUse.setupEndpointRef(
+              RpcAddress.apply(worker.host, worker.internalPort),
+              RpcNameConstants.WORKER_INTERNAL_EP).send(transportMessage)
+          }
+        })
+      }
     }
   }
 
@@ -917,6 +929,7 @@ private[celeborn] class Master(
   def handleApplicationLost(context: RpcCallContext, appId: String, requestId: String): Unit = {
     nonEagerHandler.submit(new Runnable {
       override def run(): Unit = {
+        workersAssignedToApp.remove(appId)
         statusSystem.handleAppLost(appId, requestId)
         logInfo(s"Removed application $appId")
         if (hasHDFSStorage) {
