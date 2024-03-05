@@ -515,7 +515,10 @@ public abstract class CelebornInputStream extends InputStream {
       if (!closed) {
         int locationsCount = locations.length;
         logger.debug(
-            "Total location count {} read {} skip {}",
+            "AppShuffleId {}, shuffleId {}, partitionId {}, total location count {}, read {}, skip {}",
+            appShuffleId,
+            shuffleId,
+            partitionId,
             locationsCount,
             locationsCount - skipCount.sum(),
             skipCount.sum());
