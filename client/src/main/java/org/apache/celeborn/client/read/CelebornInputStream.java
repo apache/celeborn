@@ -510,8 +510,6 @@ public abstract class CelebornInputStream extends InputStream {
       return readBytes;
     }
 
-    private void clear() {}
-
     @Override
     public synchronized void close() {
       if (!closed) {
