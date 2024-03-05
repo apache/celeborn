@@ -886,7 +886,7 @@ private[celeborn] class Master(
       new TransportMessage(MessageType.APPLICATION_META, pbApplicationMeta.toByteArray)
     val workerSet = workersAssignedToApp.computeIfAbsent(
       requestSlots.applicationId,
-      _ =>
+      (_: String) =>
         util.Collections.newSetFromMap(new util.concurrent.ConcurrentHashMap[
           WorkerInfo,
           java.lang.Boolean]()))
