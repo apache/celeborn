@@ -198,6 +198,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     String module = TransportModuleConstants.DATA_MODULE;
     dataTransportConf =
         Utils.fromCelebornConf(conf, module, conf.getInt("celeborn." + module + ".io.threads", 8));
+    initDataClientFactoryIfNeeded();
     int pushDataRetryThreads = conf.clientPushRetryThreads();
     pushDataRetryPool =
         ThreadUtils.newDaemonCachedThreadPool("celeborn-retry-sender", pushDataRetryThreads, 60);
@@ -221,7 +222,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (!authEnabled) {
       logger.info("Initializing data client factory for {}.", appUniqueId);
       dataClientFactory = context.createClientFactory();
-    } else {
+    } else if (lifecycleManagerRef != null) {
       PbApplicationMetaRequest pbApplicationMetaRequest =
           PbApplicationMetaRequest.newBuilder().setAppId(appUniqueId).build();
       PbApplicationMeta pbApplicationMeta =
