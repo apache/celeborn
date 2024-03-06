@@ -69,9 +69,9 @@ jobs:
           - 8
         spark:
           - '2.4'
-        scala-binary:
-          - '2.11'
-          - '2.12'
+        scala:
+          - '2.11.12'
+          - '2.12.10'
     steps:
       - uses: actions/checkout@v2
       - name: Setup JDK ${{ matrix.java }}
@@ -82,7 +82,7 @@ jobs:
           check-latest: false
       - name: Test with SBT
         run: |
-          build/sbt -Pspark-${{ matrix.spark }} "clean; celeborn-spark-group/test"
+          build/sbt -Pspark-${{ matrix.spark }} ++${{ matrix.scala }} "clean; celeborn-spark-group/test"
       - name: Upload test log
         if: failure()
         uses: actions/upload-artifact@v3
