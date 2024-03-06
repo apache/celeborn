@@ -85,7 +85,9 @@ nav:
   - Migration Guide: migration.md
   - Developers Doc:
       - Overview: developers/overview.md
-      - Master: developers/master.md
+      - Master:
+        - Overview: developers/master.md
+        - Slots Allocation: developers/slotsallocation.md
       - Worker:
         - Overview: developers/worker.md
         - Storage: developers/storage.md
