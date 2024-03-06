@@ -223,7 +223,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     } else {
       write0(records);
     }
-    close();
   }
 
   @Override
