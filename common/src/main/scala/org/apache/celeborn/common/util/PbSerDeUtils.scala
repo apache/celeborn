@@ -26,11 +26,12 @@ import scala.collection.JavaConverters._
 import com.google.protobuf.InvalidProtocolBufferException
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, DiskFileInfo, DiskInfo, FileInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationMeta, DiskFileInfo, DiskInfo, FileInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
+import org.apache.celeborn.common.util.{CollectionUtils => localCollectionUtils}
 
 object PbSerDeUtils {
 
@@ -417,7 +418,8 @@ object PbSerDeUtils {
       currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot,
       lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long],
       shutdownWorkers: java.util.Set[WorkerInfo],
-      workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo]): PbSnapshotMetaInfo = {
+      workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo],
+      applicationMetas: ConcurrentHashMap[String, ApplicationMeta]): PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
       .addAllRegisteredShuffle(registeredShuffle)
@@ -446,7 +448,23 @@ object PbSerDeUtils {
       builder.setCurrentAppDiskUsageMetricsSnapshot(
         toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))
     }
+    val pbApplicationMetas = applicationMetas.asScala.map {
+      case (appId, applicationMeta) => (appId, toPbApplicationMeta(applicationMeta))
+    }.asJava
+    if (localCollectionUtils.isNotEmpty(pbApplicationMetas)) {
+      builder.putAllApplicationMetas(pbApplicationMetas)
+    }
     builder.build()
+  }
+
+  def toPbApplicationMeta(meta: ApplicationMeta): PbApplicationMeta = {
+    PbApplicationMeta.newBuilder()
+      .setAppId(meta.appId)
+      .setSecret(meta.secret).build()
+  }
+
+  def fromPbApplicationMeta(pbApplicationMeta: PbApplicationMeta): ApplicationMeta = {
+    new ApplicationMeta(pbApplicationMeta.getAppId, pbApplicationMeta.getSecret)
   }
 
   def toPbWorkerStatus(workerStatus: WorkerStatus): PbWorkerStatus = {

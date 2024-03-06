@@ -1139,8 +1139,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       throw new IllegalArgumentException(
         s"${AUTH_ENABLED.key} is true, but ${INTERNAL_PORT_ENABLED.key} is false")
     }
-    return authEnabled && internalPortEnabled
+    authEnabled && internalPortEnabled
   }
+
+  def masterSendApplicationMetaThreads: Int = get(MASTER_SEND_APPLICATION_META_THREADS)
 
   // //////////////////////////////////////////////////////
   //                     Internal Port                   //
@@ -4618,4 +4620,12 @@ object CelebornConf extends Logging {
       .version("0.5.0")
       .intConf
       .createWithDefault(0)
+
+  val MASTER_SEND_APPLICATION_META_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.master.send.applicationMeta.threads")
+      .categories("master")
+      .doc("Number of threads used by the Master to send ApplicationMeta to Workers.")
+      .version("0.5.0")
+      .intConf
+      .createWithDefault(8)
 }

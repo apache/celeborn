@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
 
@@ -38,7 +38,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
-import org.apache.celeborn.common.network.sasl.SecretRegistryImpl
+import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -76,7 +76,7 @@ private[celeborn] class Master(
   metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
 
   private val authEnabled = conf.authEnabled
-  private val secretRegistry = new SecretRegistryImpl()
+  private val secretRegistry = new MasterSecretRegistryImpl()
 
   override val rpcEnv: RpcEnv =
     if (!authEnabled) {
@@ -144,6 +144,7 @@ private[celeborn] class Master(
     } else {
       new SingleMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
     }
+  secretRegistry.setMetadataHandler(statusSystem)
 
   // Threads
   private val forwardMessageThread =
@@ -253,10 +254,23 @@ private[celeborn] class Master(
       internalRpcEndpoint)
   }
 
+  private val sendApplicationMetaThreads = conf.masterSendApplicationMetaThreads
+  // Send ApplicationMeta to workers
+  private var sendApplicationMetaExecutor: ExecutorService = _
+  // Maintains the mapping for the workers assigned to each application
+  private val workersAssignedToApp
+      : util.concurrent.ConcurrentHashMap[String, util.Set[WorkerInfo]] =
+    JavaUtils.newConcurrentHashMap[String, util.Set[WorkerInfo]]()
+
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
     if (!threadsStarted.compareAndSet(false, true)) {
       return
+    }
+    if (authEnabled) {
+      sendApplicationMetaExecutor = ThreadUtils.newDaemonFixedThreadPool(
+        sendApplicationMetaThreads,
+        "send-application-meta")
     }
     checkForWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
@@ -321,6 +335,9 @@ private[celeborn] class Master(
     }
     forwardMessageThread.shutdownNow()
     rackResolver.stop()
+    if (authEnabled) {
+      sendApplicationMetaExecutor.shutdownNow()
+    }
     logInfo("Celeborn Master is stopped.")
   }
 
@@ -850,7 +867,44 @@ private[celeborn] class Master(
       logInfo(s"Offered extra $offerSlotsExtraSize slots for $shuffleKey")
     }
 
+    if (authEnabled) {
+      pushApplicationMetaToWorkers(requestSlots, slots)
+    }
     context.reply(RequestSlotsResponse(StatusCode.SUCCESS, slots.asInstanceOf[WorkerResource]))
+  }
+
+  def pushApplicationMetaToWorkers(
+      requestSlots: RequestSlots,
+      slots: util.Map[WorkerInfo, (util.List[PartitionLocation], util.List[PartitionLocation])])
+      : Unit = {
+    // Pass application registration information to the workers
+    val pbApplicationMeta = PbApplicationMeta.newBuilder()
+      .setAppId(requestSlots.applicationId)
+      .setSecret(secretRegistry.getSecretKey(requestSlots.applicationId))
+      .build()
+    val transportMessage =
+      new TransportMessage(MessageType.APPLICATION_META, pbApplicationMeta.toByteArray)
+    val workerSet = workersAssignedToApp.computeIfAbsent(
+      requestSlots.applicationId,
+      new util.function.Function[String, util.Set[WorkerInfo]] {
+        override def apply(key: String): util.Set[WorkerInfo] =
+          util.Collections.newSetFromMap(new util.concurrent.ConcurrentHashMap[
+            WorkerInfo,
+            java.lang.Boolean]())
+      })
+    slots.keySet().asScala.foreach { worker =>
+      // The app meta info is send to a Worker only if it wasn't previously sent.
+      if (workerSet.add(worker)) {
+        sendApplicationMetaExecutor.submit(new Runnable {
+          override def run(): Unit = {
+            logDebug(s"Sending app registration info to ${worker.host}:${worker.internalPort}")
+            internalRpcEnvInUse.setupEndpointRef(
+              RpcAddress.apply(worker.host, worker.internalPort),
+              RpcNameConstants.WORKER_INTERNAL_EP).send(transportMessage)
+          }
+        })
+      }
+    }
   }
 
   def handleUnregisterShuffle(
@@ -877,6 +931,7 @@ private[celeborn] class Master(
   def handleApplicationLost(context: RpcCallContext, appId: String, requestId: String): Unit = {
     nonEagerHandler.submit(new Runnable {
       override def run(): Unit = {
+        workersAssignedToApp.remove(appId)
         statusSystem.handleAppLost(appId, requestId)
         logInfo(s"Removed application $appId")
         if (hasHDFSStorage) {

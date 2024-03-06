@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
@@ -266,6 +267,12 @@ public class MetaHandler {
               workerAddresses.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
           metaSystem.updateWorkerEventMeta(
               request.getWorkerEventRequest().getWorkerEventType().getNumber(), workerInfoList);
+
+        case ApplicationMeta:
+          appId = request.getApplicationMetaRequest().getAppId();
+          String secret = request.getApplicationMetaRequest().getSecret();
+          metaSystem.updateApplicationMeta(new ApplicationMeta(appId, secret));
+          break;
 
         default:
           throw new IOException("Can not parse this command!" + request);

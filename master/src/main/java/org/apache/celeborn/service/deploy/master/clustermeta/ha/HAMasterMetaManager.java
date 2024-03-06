@@ -29,6 +29,7 @@ import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.AppDiskUsageMetric;
+import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
@@ -372,6 +373,25 @@ public class HAMasterMetaManager extends AbstractMetaManager {
               .build());
     } catch (CelebornRuntimeException e) {
       LOG.error("Handle update partition size failed!", e);
+      throw e;
+    }
+  }
+
+  @Override
+  public void handleApplicationMeta(ApplicationMeta applicationMeta) {
+    try {
+      ratisServer.submitRequest(
+          ResourceRequest.newBuilder()
+              .setCmdType(Type.ApplicationMeta)
+              .setRequestId(MasterClient.genRequestId())
+              .setApplicationMetaRequest(
+                  ResourceProtos.ApplicationMetaRequest.newBuilder()
+                      .setAppId(applicationMeta.appId())
+                      .setSecret(applicationMeta.secret())
+                      .build())
+              .build());
+    } catch (CelebornRuntimeException e) {
+      LOG.error("Handle app meta for {} failed!", applicationMeta.appId(), e);
       throw e;
     }
   }

@@ -33,6 +33,7 @@ import org.junit.Test;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
@@ -447,13 +448,15 @@ public class DefaultMetaSystemSuiteJ {
     workersToAllocate.put(workerInfo1.toUniqueId(), allocation);
     workersToAllocate.put(workerInfo2.toUniqueId(), allocation);
 
+    statusSystem.handleApplicationMeta(new ApplicationMeta(APPID1, "testSecret"));
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
     assertEquals(1, statusSystem.registeredShuffle.size());
-
+    assertEquals(1, statusSystem.applicationMetas.size());
     statusSystem.handleAppLost(APPID1, getNewReqeustId());
 
     assertTrue(statusSystem.registeredShuffle.isEmpty());
+    assertTrue(statusSystem.applicationMetas.isEmpty());
   }
 
   @Test
@@ -689,5 +692,18 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleUpdatePartitionSize() {
     statusSystem.handleUpdatePartitionSize();
+  }
+
+  @Test
+  public void testHandleApplicationMeta() {
+    String appSecret = "testSecret";
+    statusSystem.handleApplicationMeta(new ApplicationMeta(APPID1, appSecret));
+    assertEquals(appSecret, statusSystem.applicationMetas.get(APPID1).secret());
+
+    String appId2 = "app02";
+    String appSecret2 = "testSecret2";
+    statusSystem.handleApplicationMeta(new ApplicationMeta(appId2, appSecret2));
+    assertEquals(appSecret2, statusSystem.applicationMetas.get(appId2).secret());
+    assertEquals(2, statusSystem.applicationMetas.size());
   }
 }
