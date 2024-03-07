@@ -16,10 +16,10 @@
  */
 
 import { api } from '@/api/request'
-import type { ClusterOverviewResponse } from './types'
+import type { ClusterOverview } from './types'
 
 export * from './types'
 
 export const getClusterOverview = () => {
-  return api<ClusterOverviewResponse>('/cluster/overview', 'get')
+  return api<ClusterOverview>('/cluster/overview', 'get')
 }

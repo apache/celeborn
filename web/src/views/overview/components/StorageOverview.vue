@@ -30,12 +30,12 @@
   </n-card>
 </template>
 <script lang="ts" setup>
-import type { StorageOverviewResponse } from '@/api'
+import type { StorageOverview } from '@/api'
 import type { PropType } from 'vue'
 
 defineProps({
   data: {
-    type: Object as PropType<StorageOverviewResponse>,
+    type: Object as PropType<StorageOverview>,
     default: () => ({
       diskUsage: '',
       memoryUsage: '',

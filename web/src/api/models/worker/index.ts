@@ -16,10 +16,10 @@
  */
 
 import { api } from '@/api/request'
-import type { WorkerOverviewResponse } from './types'
+import type { WorkerOverview } from './types'
 
 export * from './types'
 
 export const getWorkerOverview = () => {
-  return api<WorkerOverviewResponse>('/worker/overview', 'get')
+  return api<WorkerOverview>('/worker/overview', 'get')
 }

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-export interface StorageOverviewResponse {
+export interface StorageOverview {
   diskUsage: string
   memoryUsage: string
   hdfsUsage: string

@@ -28,12 +28,12 @@
 </template>
 
 <script lang="ts" setup>
-import type { WorkerOverviewResponse } from '@/api'
+import type { WorkerOverview } from '@/api'
 import type { PropType } from 'vue'
 
 defineProps({
   data: {
-    type: Object as PropType<WorkerOverviewResponse>,
+    type: Object as PropType<WorkerOverview>,
     default: () => ({
       decommissionNum: 0,
       lostNum: 0,

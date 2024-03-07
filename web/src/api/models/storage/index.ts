@@ -16,10 +16,10 @@
  */
 
 import { api } from '@/api/request'
-import type { StorageOverviewResponse } from './types'
+import type { StorageOverview } from './types'
 
 export * from './types'
 
 export const getStorageOverview = () => {
-  return api<StorageOverviewResponse>('/storage/overview', 'get')
+  return api<StorageOverview>('/storage/overview', 'get')
 }
