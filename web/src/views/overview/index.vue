@@ -25,11 +25,11 @@ import {
   getWorkerOverview
 } from '@/api'
 import {
-  ApplicationOverviewComp,
-  ClusterOverviewComp,
-  MasterOverviewComp,
-  StorageOverviewComp,
-  WorkerOverviewComp
+  ApplicationOverviewService,
+  ClusterOverviewService,
+  MasterOverviewService,
+  StorageOverviewService,
+  WorkerOverviewService
 } from './components'
 import { useHasLoading } from '@varlet/axle/use'
 
@@ -56,19 +56,19 @@ const loading = useHasLoading(
   <n-spin :show="loading">
     <n-grid :x-gap="24" :y-gap="24" :cols="2">
       <n-grid-item :span="2">
-        <ClusterOverviewComp :data="cluster" />
+        <ClusterOverviewService :data="cluster" />
       </n-grid-item>
       <n-grid-item>
-        <MasterOverviewComp :data="master" />
+        <MasterOverviewService :data="master" />
       </n-grid-item>
       <n-grid-item>
-        <ApplicationOverviewComp :data="application" />
+        <ApplicationOverviewService :data="application" />
       </n-grid-item>
       <n-grid-item>
-        <WorkerOverviewComp :data="worker" />
+        <WorkerOverviewService :data="worker" />
       </n-grid-item>
       <n-grid-item>
-        <StorageOverviewComp :data="storage" />
+        <StorageOverviewService :data="storage" />
       </n-grid-item>
     </n-grid>
   </n-spin>

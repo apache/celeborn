@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-import ClusterOverviewComp from './ClusterOverview.vue'
-import MasterOverviewComp from './MasterOverview.vue'
-import WorkerOverviewComp from './WorkerOverview.vue'
-import ApplicationOverviewComp from './ApplicationOverview.vue'
-import StorageOverviewComp from './StorageOverview.vue'
+import ClusterOverviewService from './ClusterOverview.vue'
+import MasterOverviewService from './MasterOverview.vue'
+import WorkerOverviewService from './WorkerOverview.vue'
+import ApplicationOverviewService from './ApplicationOverview.vue'
+import StorageOverviewService from './StorageOverview.vue'
 
 export {
-  ClusterOverviewComp,
-  MasterOverviewComp,
-  WorkerOverviewComp,
-  ApplicationOverviewComp,
-  StorageOverviewComp
+  ClusterOverviewService,
+  MasterOverviewService,
+  WorkerOverviewService,
+  ApplicationOverviewService,
+  StorageOverviewService
 }

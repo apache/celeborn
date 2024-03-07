@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-export interface WorkerOverview {
+export interface WorkerOverviewResponse {
   decommissionNum: number
   lostNum: number
   shutdownNum: number
+  normalNum: number
 }

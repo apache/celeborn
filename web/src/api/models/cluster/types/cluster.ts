@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-export interface ClusterOverview {
+export interface ClusterOverviewResponse {
   endpoint: string
   leader: string
 }

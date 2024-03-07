@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-export interface ApplicationOverview {
+export interface ApplicationOverviewResponse {
   runningNum: number
   totalShuffleSize: string
 }

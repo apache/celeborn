@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-export interface MasterOverview {
+export interface MasterOverviewResponse {
   leaderNum: number
   followerNum: number
 }

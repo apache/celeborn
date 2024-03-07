@@ -18,8 +18,9 @@
 
 <template>
   <n-card hoverable>
-    <n-descriptions label-placement="left" title="Worker State Nums">
+    <n-descriptions label-placement="left" title="Worker State Nums" :column="4">
       <n-descriptions-item label="Decommission"> {{ data.decommissionNum }} </n-descriptions-item>
+      <n-descriptions-item label="Normal"> {{ data.normalNum }} </n-descriptions-item>
       <n-descriptions-item label="Lost"> {{ data.lostNum }} </n-descriptions-item>
       <n-descriptions-item label="Shutdown"> {{ data.shutdownNum }} </n-descriptions-item>
     </n-descriptions>
@@ -27,12 +28,12 @@
 </template>
 
 <script lang="ts" setup>
-import type { WorkerOverview } from '@/api'
+import type { WorkerOverviewResponse } from '@/api'
 import type { PropType } from 'vue'
 
 defineProps({
   data: {
-    type: Object as PropType<WorkerOverview>,
+    type: Object as PropType<WorkerOverviewResponse>,
     default: () => ({
       decommissionNum: 0,
       lostNum: 0,

@@ -16,10 +16,10 @@
  */
 
 import { api } from '@/api/request'
-import type { MasterOverview } from './types'
+import type { MasterOverviewResponse } from './types'
 
 export * from './types'
 
 export const getMasterOverview = () => {
-  return api<MasterOverview>('/master/overview', 'get')
+  return api<MasterOverviewResponse>('/master/overview', 'get')
 }

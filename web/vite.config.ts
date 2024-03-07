@@ -25,7 +25,7 @@ import { NaiveUiResolver } from 'unplugin-vue-components/resolvers'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  // FIXME: Get the real service address and then change it
+  // TODO: Get the backend service address and then change this uri.
   server: {
     proxy: {
       '/api': {

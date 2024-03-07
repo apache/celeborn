@@ -25,12 +25,12 @@
   </n-card>
 </template>
 <script lang="ts" setup>
-import type { ClusterOverview } from '@/api'
+import type { ClusterOverviewResponse } from '@/api'
 import type { PropType } from 'vue'
 
 defineProps({
   data: {
-    type: Object as PropType<ClusterOverview>,
+    type: Object as PropType<ClusterOverviewResponse>,
     default: () => ({
       endpoint: '',
       leader: ''

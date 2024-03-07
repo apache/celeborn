@@ -26,12 +26,12 @@
 </template>
 
 <script lang="ts" setup>
-import type { MasterOverview } from '@/api'
+import type { MasterOverviewResponse } from '@/api'
 import type { PropType } from 'vue'
 
 defineProps({
   data: {
-    type: Object as PropType<MasterOverview>,
+    type: Object as PropType<MasterOverviewResponse>,
     default: () => ({
       leaderNum: 0,
       followerNum: 0

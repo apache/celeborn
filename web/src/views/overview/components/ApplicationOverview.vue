@@ -27,12 +27,12 @@
   </n-card>
 </template>
 <script lang="ts" setup>
-import type { ApplicationOverview } from '@/api'
+import type { ApplicationOverviewResponse } from '@/api'
 import type { PropType } from 'vue'
 
 defineProps({
   data: {
-    type: Object as PropType<ApplicationOverview>,
+    type: Object as PropType<ApplicationOverviewResponse>,
     default: () => ({
       runningNum: 0,
       totalShuffleSize: ''

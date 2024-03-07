@@ -19,23 +19,23 @@
 <template>
   <n-card hoverable>
     <n-descriptions label-placement="left" title="Storage Usage Infos">
-      <n-descriptions-item label="disk"> {{ data.diskUsage }} </n-descriptions-item>
-      <n-descriptions-item label="memory">
+      <n-descriptions-item label="Disk"> {{ data.diskUsage }} </n-descriptions-item>
+      <n-descriptions-item label="Memory">
         {{ data.memoryUsage }}
       </n-descriptions-item>
-      <n-descriptions-item label="hdfs">
+      <n-descriptions-item label="HDFS">
         {{ data.hdfsUsage }}
       </n-descriptions-item>
     </n-descriptions>
   </n-card>
 </template>
 <script lang="ts" setup>
-import type { StorageOverview } from '@/api'
+import type { StorageOverviewResponse } from '@/api'
 import type { PropType } from 'vue'
 
 defineProps({
   data: {
-    type: Object as PropType<StorageOverview>,
+    type: Object as PropType<StorageOverviewResponse>,
     default: () => ({
       diskUsage: '',
       memoryUsage: '',
