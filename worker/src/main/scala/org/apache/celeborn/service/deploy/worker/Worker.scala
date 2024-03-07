@@ -291,7 +291,7 @@ private[celeborn] class Worker(
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
 
   private val masterClient = new MasterClient(internalRpcEnvInUse, conf, true)
-  secretRegistry.setMasterClient(masterClient)
+  secretRegistry.initialize(masterClient)
 
   // (workerInfo -> last connect timeout timestamp)
   val unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] =

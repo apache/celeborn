@@ -1107,15 +1107,15 @@ private[celeborn] class Master(
       context: RpcCallContext,
       pb: PbApplicationMetaRequest): Unit = {
     val appId = pb.getAppId
-    logDebug(
-      s"Handling request for application meta info $appId.")
-    if (!secretRegistry.isRegistered(appId)) {
+    logDebug(s"Handling request for application meta info $appId.")
+    val secret = secretRegistry.getSecretKey(appId)
+    if (secret == null) {
       logWarning(s"Could not find the application meta of $appId.")
       context.sendFailure(new CelebornException(s"$appId is not registered."))
     } else {
       val pbApplicationMeta = PbApplicationMeta.newBuilder()
         .setAppId(appId)
-        .setSecret(secretRegistry.getSecretKey(appId))
+        .setSecret(secret)
         .build()
       val transportMessage =
         new TransportMessage(MessageType.APPLICATION_META, pbApplicationMeta.toByteArray)

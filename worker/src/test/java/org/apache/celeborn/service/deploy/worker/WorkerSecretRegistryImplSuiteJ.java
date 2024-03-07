@@ -37,7 +37,7 @@ public class WorkerSecretRegistryImplSuiteJ {
   @Before
   public void setUp() {
     secretRegistry = new WorkerSecretRegistryImpl(10000);
-    secretRegistry.setMasterClient(masterClient);
+    secretRegistry.initialize(masterClient);
   }
 
   @Test
