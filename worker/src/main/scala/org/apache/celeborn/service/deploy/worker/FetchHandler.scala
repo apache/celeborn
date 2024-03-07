@@ -370,20 +370,26 @@ class FetchHandler(
         getRawDiskFileInfo(shuffleKey, fileName).closeStream(
           streamId)
       case StreamType.CreditStream =>
-        workerSource.recordAppActiveConnection(
-          client,
-          creditStreamManager.getStreamShuffleKey(streamId))
-        creditStreamManager.notifyStreamEndByClient(streamId)
+        val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)
+        if (shuffleKey != null) {
+          workerSource.recordAppActiveConnection(
+            client,
+            shuffleKey)
+          creditStreamManager.notifyStreamEndByClient(streamId)
+        }
       case _ =>
         logError(s"Received a PbBufferStreamEnd message with unknown type $streamType")
     }
   }
 
   def handleReadAddCredit(client: TransportClient, credit: Int, streamId: Long): Unit = {
-    workerSource.recordAppActiveConnection(
-      client,
-      creditStreamManager.getStreamShuffleKey(streamId))
-    creditStreamManager.addCredit(credit, streamId)
+    val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)
+    if (shuffleKey != null) {
+      workerSource.recordAppActiveConnection(
+        client,
+        shuffleKey)
+      creditStreamManager.addCredit(credit, streamId)
+    }
   }
 
   def handleChunkFetchRequest(
