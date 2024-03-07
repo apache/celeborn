@@ -4550,7 +4550,7 @@ object CelebornConf extends Logging {
 
   val APP_REGISTER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.application.register.enabled")
-      .categories("master", "client")
+      .categories("master", "worker", "client")
       .version("0.5.0")
       .doc("Whether to enable application register." +
         " If authentication enabled, the application register is always enabled.")

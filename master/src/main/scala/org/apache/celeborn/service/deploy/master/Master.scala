@@ -123,7 +123,8 @@ private[celeborn] class Master(
     }
 
   private val rackResolver = new CelebornRackResolver(conf)
-  private val statusSystem =
+  // Visible for testing
+  private[celeborn] val statusSystem =
     if (conf.haEnabled) {
       val sys = new HAMasterMetaManager(internalRpcEnvInUse, conf, rackResolver, appRegistry)
       val handler = new MetaHandler(sys)

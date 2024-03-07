@@ -237,7 +237,7 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
 
   private void processRegisterApplicationRequest(
       PbRegisterApplicationRequest registerApplicationRequest, RpcResponseCallback callback) {
-    if (authEnabled && applicationRegistry.isRegistered(registerApplicationRequest.getId())) {
+    if (applicationRegistry.isRegistered(registerApplicationRequest.getId())) {
       // Re-registration is not allowed.
       throw new IllegalStateException(
           "Application is already registered " + registerApplicationRequest.getId());
