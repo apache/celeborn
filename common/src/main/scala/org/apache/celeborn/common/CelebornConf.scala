@@ -4636,7 +4636,7 @@ object CelebornConf extends Logging {
       .createWithDefault(8)
 
   val WORKER_APPLICATION_REGISTRY_CACHE_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.worker.applicationRegistryCache.size")
+    buildConf("celeborn.worker.applicationRegistry.cache.size")
       .categories("worker", "auth")
       .doc("Cache size of the application registry on Workers.")
       .version("0.5.0")

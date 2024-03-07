@@ -892,7 +892,7 @@ private[celeborn] class Master(
       requestSlots.applicationId,
       new util.function.Function[String, util.Set[WorkerInfo]] {
         override def apply(key: String): util.Set[WorkerInfo] =
-          util.Collections.newSetFromMap(new util.concurrent.ConcurrentHashMap[
+          util.Collections.newSetFromMap(new JavaUtils.newConcurrentHashMap[
             WorkerInfo,
             java.lang.Boolean]())
       })
@@ -1110,7 +1110,7 @@ private[celeborn] class Master(
     logDebug(
       s"Handling request for application meta info $appId.")
     if (!secretRegistry.isRegistered(appId)) {
-      logWarning(s"Couldn't find the app .")
+      logWarning(s"Could not find the application meta of $appId.")
       context.sendFailure(new CelebornException(s"$appId is not registered."))
     } else {
       val pbApplicationMeta = PbApplicationMeta.newBuilder()
