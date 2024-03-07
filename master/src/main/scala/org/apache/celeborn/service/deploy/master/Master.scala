@@ -33,6 +33,7 @@ import org.apache.ratis.proto.RaftProtos.RaftPeerRole
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
+import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
@@ -534,6 +535,9 @@ private[celeborn] class Master(
           pb.getWorkerEventType.getNumber,
           workers,
           context))
+
+    case pb: PbApplicationMetaRequest =>
+      executeWithLeaderChecker(context, handleRequestForApplicationMeta(context, pb))
   }
 
   private def timeoutDeadWorkers(): Unit = {
@@ -1097,6 +1101,26 @@ private[celeborn] class Master(
     workersSnapShot.asScala.filter { w =>
       statusSystem.isWorkerAvailable(w) && !tmpExcludedWorkerList.contains(w)
     }.asJava
+  }
+
+  private def handleRequestForApplicationMeta(
+      context: RpcCallContext,
+      pb: PbApplicationMetaRequest): Unit = {
+    val appId = pb.getAppId
+    logDebug(
+      s"Handling request for application meta info $appId.")
+    if (!secretRegistry.isRegistered(appId)) {
+      logWarning(s"Couldn't find the app .")
+      context.sendFailure(new CelebornException(s"$appId is not registered."))
+    } else {
+      val pbApplicationMeta = PbApplicationMeta.newBuilder()
+        .setAppId(appId)
+        .setSecret(secretRegistry.getSecretKey(appId))
+        .build()
+      val transportMessage =
+        new TransportMessage(MessageType.APPLICATION_META, pbApplicationMeta.toByteArray)
+      context.reply(transportMessage)
+    }
   }
 
   override def getMasterGroupInfo: String = {

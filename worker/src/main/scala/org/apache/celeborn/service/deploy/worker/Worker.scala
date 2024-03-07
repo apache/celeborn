@@ -40,7 +40,6 @@ import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.sasl.SaslServerBootstrap
-import org.apache.celeborn.common.network.sasl.SecretRegistryImpl
 import org.apache.celeborn.common.network.server.TransportServerBootstrap
 import org.apache.celeborn.common.network.util.TransportConf
 import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants, WorkerEventType}
@@ -84,7 +83,7 @@ private[celeborn] class Worker(
 
   val workerStatusManager = new WorkerStatusManager(conf)
   private val authEnabled = conf.authEnabled
-  private val secretRegistry = new SecretRegistryImpl()
+  private val secretRegistry = new WorkerSecretRegistryImpl(conf.workerApplicationRegistryCacheSize)
   val rpcEnv: RpcEnv =
     if (!authEnabled) {
       RpcEnv.create(
@@ -292,6 +291,7 @@ private[celeborn] class Worker(
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
 
   private val masterClient = new MasterClient(internalRpcEnvInUse, conf, true)
+  secretRegistry.setMasterClient(masterClient)
 
   // (workerInfo -> last connect timeout timestamp)
   val unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] =
