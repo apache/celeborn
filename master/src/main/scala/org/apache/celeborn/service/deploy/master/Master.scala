@@ -892,7 +892,7 @@ private[celeborn] class Master(
       requestSlots.applicationId,
       new util.function.Function[String, util.Set[WorkerInfo]] {
         override def apply(key: String): util.Set[WorkerInfo] =
-          util.Collections.newSetFromMap(new JavaUtils.newConcurrentHashMap[
+          util.Collections.newSetFromMap(JavaUtils.newConcurrentHashMap[
             WorkerInfo,
             java.lang.Boolean]())
       })

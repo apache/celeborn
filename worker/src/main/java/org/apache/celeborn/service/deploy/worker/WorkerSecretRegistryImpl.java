@@ -75,7 +75,8 @@ public class WorkerSecretRegistryImpl implements SecretRegistry {
   public void register(String appId, String secret) {
     String existingSecret = secretCache.getIfPresent(appId);
     if (existingSecret != null && !existingSecret.equals(secret)) {
-      throw new IllegalArgumentException("AppId " + appId + " is already registered. Cannot re-register.");
+      throw new IllegalArgumentException(
+          "AppId " + appId + " is already registered. Cannot re-register.");
     }
     secretCache.put(appId, secret);
   }
