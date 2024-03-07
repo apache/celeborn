@@ -19,7 +19,6 @@ package org.apache.celeborn.client
 
 import java.lang
 import java.util.concurrent.Callable
-import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConverters._
 
@@ -35,8 +34,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
 
   protected val celebornConf: CelebornConf = new CelebornConf()
 
-  private val appCounter = new AtomicInteger()
-  protected def APP = "app-" + appCounter.getAndIncrement()
+  protected val APP = "app-1"
   protected val userIdentifier: UserIdentifier = UserIdentifier("mock", "mock")
   private val numMappers = 8
   private val mapId = 1
