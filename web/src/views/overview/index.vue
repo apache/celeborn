@@ -17,11 +17,59 @@
 -->
 
 <script setup lang="ts">
+import {
+  getApplicationOverview,
+  getClusterOverview,
+  getMasterOverview,
+  getStorageOverview,
+  getWorkerOverview
+} from '@/api'
+import {
+  ApplicationOverviewComp,
+  ClusterOverviewComp,
+  MasterOverviewComp,
+  StorageOverviewComp,
+  WorkerOverviewComp
+} from './components'
+import { useHasLoading } from '@varlet/axle/use'
+
 defineOptions({
   name: 'OverView'
 })
+
+const { data: cluster, loading: isClusterLoading } = getClusterOverview().use()
+const { data: master, loading: isMasterLoading } = getMasterOverview().use()
+const { data: application, loading: isApplicationLoading } = getApplicationOverview().use()
+const { data: storage, loading: isStorageLoading } = getStorageOverview().use()
+const { data: worker, loading: isWorkerLoading } = getWorkerOverview().use()
+
+const loading = useHasLoading(
+  isClusterLoading,
+  isMasterLoading,
+  isApplicationLoading,
+  isStorageLoading,
+  isWorkerLoading
+)
 </script>
 
-<template>Welcome to Apache Celeborn. There is OverView.</template>
-
-<style scoped lang="scss"></style>
+<template>
+  <n-spin :show="loading">
+    <n-grid :x-gap="24" :y-gap="24" :cols="2">
+      <n-grid-item :span="2">
+        <ClusterOverviewComp :data="cluster" />
+      </n-grid-item>
+      <n-grid-item>
+        <MasterOverviewComp :data="master" />
+      </n-grid-item>
+      <n-grid-item>
+        <ApplicationOverviewComp :data="application" />
+      </n-grid-item>
+      <n-grid-item>
+        <WorkerOverviewComp :data="worker" />
+      </n-grid-item>
+      <n-grid-item>
+        <StorageOverviewComp :data="storage" />
+      </n-grid-item>
+    </n-grid>
+  </n-spin>
+</template>

@@ -56,13 +56,18 @@ export const useAxle = createUseAxle({
   immediate: true
 })
 
-export function api(url: string, method: RunnerMethod) {
-  function load<V, P = Record<string, any>>(params?: P, config?: AxleRequestConfig): Promise<V> {
+export function api<V, P = Record<string, any>, R = V>(url: string, method: RunnerMethod) {
+  function load(params?: P, config?: AxleRequestConfig): Promise<V> {
     return axle[method](url, params, config)
   }
 
-  function use<V, RV = V, P = Record<string, any>, R = RV>(options: Options<V, R, P> = {}) {
-    return useAxle({ url, method, ...options })
+  function use(options: Options<V, R, P> = {}) {
+    const [data, getData, extra] = useAxle({ url, method, ...options })
+    return {
+      data,
+      getData,
+      ...extra
+    }
   }
 
   return {

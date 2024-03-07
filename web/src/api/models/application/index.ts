@@ -15,9 +15,11 @@
  * limitations under the License.
  */
 
-export * from './models/application'
-export * from './models/cluster'
-export * from './models/master'
-export * from './models/storage'
-export * from './models/tenant'
-export * from './models/worker'
+import { api } from '@/api/request'
+import type { ApplicationOverview } from './types'
+
+export * from './types'
+
+export const getApplicationOverview = () => {
+  return api<ApplicationOverview>('/application/overview', 'get')
+}
