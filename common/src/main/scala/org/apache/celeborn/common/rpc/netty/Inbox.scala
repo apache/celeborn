@@ -30,14 +30,14 @@ import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpoint, ThreadSafeRpcEnd
 sealed private[celeborn] trait InboxMessage
 
 private[celeborn] case class OneWayMessage(
-                                            senderAddress: RpcAddress,
-                                            content: Any)
+    senderAddress: RpcAddress,
+    content: Any)
   extends InboxMessage
 
 private[celeborn] case class RpcMessage(
-                                         senderAddress: RpcAddress,
-                                         content: Any,
-                                         context: NettyRpcCallContext)
+    senderAddress: RpcAddress,
+    content: Any,
+    context: NettyRpcCallContext)
   extends InboxMessage
 
 private[celeborn] case object OnStart
@@ -52,18 +52,18 @@ private[celeborn] case class RemoteProcessConnected(remoteAddress: RpcAddress)
 
 /** A message to tell all endpoints that a remote process has disconnected. */
 private[celeborn] case class RemoteProcessDisconnected(
-                                                        remoteAddress: RpcAddress)
+    remoteAddress: RpcAddress)
   extends InboxMessage
 
 /** A message to tell all endpoints that a network error has happened. */
 private[celeborn] case class RemoteProcessConnectionError(
-                                                           cause: Throwable,
-                                                           remoteAddress: RpcAddress)
+    cause: Throwable,
+    remoteAddress: RpcAddress)
   extends InboxMessage
 
 abstract private[celeborn] class InboxBase(
-                                            val endpointRef: NettyRpcEndpointRef,
-                                            val endpoint: RpcEndpoint) extends Logging {
+    val endpointRef: NettyRpcEndpointRef,
+    val endpoint: RpcEndpoint) extends Logging {
 
   inbox => // Give this an alias so we can use it more clearly in closures.
 
@@ -224,8 +224,8 @@ abstract private[celeborn] class InboxBase(
    * Calls action closure, and calls the endpoint's onError function in the case of exceptions.
    */
   protected def safelyCall(
-                            endpoint: RpcEndpoint,
-                            endpointRefName: String)(action: => Unit): Unit = {
+      endpoint: RpcEndpoint,
+      endpointRefName: String)(action: => Unit): Unit = {
     def dealWithFatalError(fatal: Throwable): Unit = {
       inbox.synchronized {
         assert(numActiveThreads > 0, "The number of active threads should be positive.")
@@ -262,8 +262,8 @@ abstract private[celeborn] class InboxBase(
  * An inbox that stores messages for an [[RpcEndpoint]] and posts messages to it thread-safely.
  */
 private[celeborn] class InMemoryInbox(
-                                       endpointRef: NettyRpcEndpointRef,
-                                       endpoint: RpcEndpoint)
+    endpointRef: NettyRpcEndpointRef,
+    endpoint: RpcEndpoint)
   extends InboxBase(endpointRef, endpoint) {
 
   inbox => // Give this an alias so we can use it more clearly in closures.
@@ -302,9 +302,9 @@ private[celeborn] class InMemoryInbox(
 }
 
 private[celeborn] class InMemoryBoundedInbox(
-                                              endpointRef: NettyRpcEndpointRef,
-                                              endpoint: RpcEndpoint,
-                                              capacity: Int) extends InboxBase(endpointRef, endpoint) {
+    endpointRef: NettyRpcEndpointRef,
+    endpoint: RpcEndpoint,
+    capacity: Int) extends InboxBase(endpointRef, endpoint) {
 
   inbox =>
 

@@ -24,8 +24,8 @@ import org.apache.celeborn.common.rpc.TestRpcEndpoint
 class InMemoryBoundedInboxSuite extends InboxSuite {
 
   override def initInbox[T](
-     testRpcEndpoint: TestRpcEndpoint,
-     onDropOverride: Option[InboxMessage => T]): InboxBase = {
+      testRpcEndpoint: TestRpcEndpoint,
+      onDropOverride: Option[InboxMessage => T]): InboxBase = {
     val rpcEnvRef = mock(classOf[NettyRpcEndpointRef])
     if (onDropOverride.isEmpty) {
       new InMemoryBoundedInbox(rpcEnvRef, testRpcEndpoint, 10000)
