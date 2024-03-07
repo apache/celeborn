@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master.network
+package org.apache.celeborn.common.network;
 
 import java.io.{File, FileWriter}
 import java.nio.charset.StandardCharsets
-import java.util
+import java.util.ArrayList
 import java.util.concurrent.TimeUnit
 
 import com.google.common.io.Files
@@ -62,7 +62,7 @@ class CelebornRackResolverSuite extends AnyFunSuite {
     assertEquals("/rack1", resultMap(hostName1).getNetworkLocation)
     assertEquals("/rack2", resultMap(hostName2).getNetworkLocation)
 
-    val hostNamesList = new util.ArrayList[String]()
+    val hostNamesList = new ArrayList[String]()
     hostNamesList.add(hostName1)
     hostNamesList.add(hostName2)
     val resultMap2: Map[String, Node] = resolver.resolveToMap(hostNamesList)

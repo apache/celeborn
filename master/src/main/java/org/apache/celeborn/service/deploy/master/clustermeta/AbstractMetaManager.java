@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 
 import scala.Option;
 
+import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +50,7 @@ import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.WorkerEventInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
 import org.apache.celeborn.common.protocol.PbWorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
@@ -57,7 +59,6 @@ import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.util.WorkerStatusUtils;
-import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
 
 public abstract class AbstractMetaManager implements IMetadataHandler {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractMetaManager.class);
@@ -225,6 +226,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int fetchPort,
       int replicatePort,
       int internalPort,
+      String networkLocation,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption) {
     WorkerInfo workerInfo =
@@ -238,7 +240,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             disks,
             userResourceConsumption);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
-    workerInfo.networkLocation_$eq(rackResolver.resolve(host).getNetworkLocation());
+    if (networkLocation != null
+        && !networkLocation.isEmpty()
+        && !networkLocation.equals(NetworkTopology.DEFAULT_RACK)) {
+      workerInfo.networkLocation_$eq(networkLocation);
+    }
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
     synchronized (workers) {
       if (!workers.contains(workerInfo)) {
@@ -330,8 +336,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
               .peek(
                   workerInfo -> {
                     // Reset worker's network location with current master's configuration.
-                    workerInfo.networkLocation_$eq(
-                        resolveMap.get(workerInfo.host()).get().getNetworkLocation());
+                    if (workerInfo.networkLocation().equals(NetworkTopology.DEFAULT_RACK)) {
+                      workerInfo.networkLocation_$eq(
+                          resolveMap.get(workerInfo.host()).get().getNetworkLocation());
+                    }
                   })
               .collect(Collectors.toSet()));
 

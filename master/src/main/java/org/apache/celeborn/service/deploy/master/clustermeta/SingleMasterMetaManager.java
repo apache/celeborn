@@ -30,9 +30,9 @@ import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
-import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
 
 public class SingleMasterMetaManager extends AbstractMetaManager {
   private static final Logger LOG = LoggerFactory.getLogger(SingleMasterMetaManager.class);
@@ -136,6 +136,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       int internalPort,
+      String networkLocation,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId) {
@@ -146,6 +147,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
         fetchPort,
         replicatePort,
         internalPort,
+        networkLocation,
         disks,
         userResourceConsumption);
   }

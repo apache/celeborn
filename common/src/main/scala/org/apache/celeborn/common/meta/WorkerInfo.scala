@@ -22,6 +22,8 @@ import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 
+import org.apache.hadoop.net.NetworkTopology
+
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.StorageInfo
@@ -40,7 +42,7 @@ class WorkerInfo(
     _diskInfos: util.Map[String, DiskInfo],
     _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) extends Serializable
   with Logging {
-  var networkLocation = "/default-rack"
+  var networkLocation = NetworkTopology.DEFAULT_RACK
   var lastHeartbeat: Long = 0
   var workerStatus = WorkerStatus.normalWorkerStatus()
   val diskInfos =

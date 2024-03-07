@@ -73,6 +73,7 @@ public interface IMetadataHandler {
       int fetchPort,
       int replicatePort,
       int internalPort,
+      String networkLocation,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId);
