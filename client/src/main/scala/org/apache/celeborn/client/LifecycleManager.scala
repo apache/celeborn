@@ -42,7 +42,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.{ApplicationMeta, ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
@@ -112,8 +112,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
 
   private val mockDestroyFailure = conf.testMockDestroySlotsFailure
-  private val authEnabled = conf.authEnabled
-
+  private val authEnabled = conf.authEnabledOnClient
+  private var applicationMeta: ApplicationMeta = _
   @VisibleForTesting
   def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, ShufflePartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
@@ -173,6 +173,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   if (authEnabled) {
     logInfo(s"Authentication is enabled; setting up master and worker RPC environments")
     val appSecret = createSecret()
+    applicationMeta = ApplicationMeta(appUniqueId, appSecret)
     val registrationInfo = new RegistrationInfo()
     masterRpcEnvInUse =
       RpcEnv.create(
@@ -412,6 +413,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val shuffleId = pb.getShuffleId
       logDebug(s"Received ReportShuffleFetchFailure request, appShuffleId $appShuffleId shuffleId $shuffleId")
       handleReportShuffleFetchFailure(context, appShuffleId, shuffleId)
+
+    case pb: PbApplicationMetaRequest =>
+      logDebug(s"Received request for meta info ${pb.getAppId}.")
+      if (applicationMeta == null) {
+        context.sendFailure(
+          new IllegalArgumentException("Application meta is not initialized for this app."))
+      } else {
+        context.reply(PbSerDeUtils.toPbApplicationMeta(applicationMeta))
+      }
   }
 
   def setupEndpoints(

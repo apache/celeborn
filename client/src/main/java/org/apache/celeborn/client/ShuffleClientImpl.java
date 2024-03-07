@@ -29,6 +29,7 @@ import scala.Tuple2;
 import scala.reflect.ClassTag$;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import org.apache.commons.lang3.StringUtils;
@@ -46,9 +47,12 @@ import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
+import org.apache.celeborn.common.network.client.TransportClientBootstrap;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.PushData;
 import org.apache.celeborn.common.network.protocol.PushMergedData;
+import org.apache.celeborn.common.network.sasl.SaslClientBootstrap;
+import org.apache.celeborn.common.network.sasl.SaslCredentials;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.*;
@@ -119,6 +123,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final Map<Integer, Set<Integer>> splitting = JavaUtils.newConcurrentHashMap();
 
   protected final String appUniqueId;
+  private final boolean authEnabled;
+  private final TransportConf dataTransportConf;
 
   private final ThreadLocal<Compressor> compressorThreadLocal =
       new ThreadLocal<Compressor>() {
@@ -178,6 +184,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     } else {
       pushDataTimeout = conf.pushDataTimeoutMs();
     }
+    authEnabled = conf.authEnabledOnClient();
 
     // init rpc env
     rpcEnv =
@@ -189,13 +196,9 @@ public class ShuffleClientImpl extends ShuffleClient {
             scala.None$.empty());
 
     String module = TransportModuleConstants.DATA_MODULE;
-    TransportConf dataTransportConf =
+    dataTransportConf =
         Utils.fromCelebornConf(conf, module, conf.getInt("celeborn." + module + ".io.threads", 8));
-    TransportContext context =
-        new TransportContext(
-            dataTransportConf, new BaseMessageHandler(), conf.clientCloseIdleConnections());
-    dataClientFactory = context.createClientFactory();
-
+    initDataClientFactoryIfNeeded();
     int pushDataRetryThreads = conf.clientPushRetryThreads();
     pushDataRetryPool =
         ThreadUtils.newDaemonCachedThreadPool("celeborn-retry-sender", pushDataRetryThreads, 60);
@@ -207,6 +210,35 @@ public class ShuffleClientImpl extends ShuffleClient {
     reviveManager = new ReviveManager(this, conf);
 
     logger.info("Created ShuffleClientImpl, appUniqueId: {}", appUniqueId);
+  }
+
+  private void initDataClientFactoryIfNeeded() {
+    if (dataClientFactory != null) {
+      return;
+    }
+    TransportContext context =
+        new TransportContext(
+            dataTransportConf, new BaseMessageHandler(), conf.clientCloseIdleConnections());
+    if (!authEnabled) {
+      logger.info("Initializing data client factory for {}.", appUniqueId);
+      dataClientFactory = context.createClientFactory();
+    } else if (lifecycleManagerRef != null) {
+      PbApplicationMetaRequest pbApplicationMetaRequest =
+          PbApplicationMetaRequest.newBuilder().setAppId(appUniqueId).build();
+      PbApplicationMeta pbApplicationMeta =
+          lifecycleManagerRef.askSync(
+              pbApplicationMetaRequest,
+              conf.clientRpcRegisterShuffleRpcAskTimeout(),
+              ClassTag$.MODULE$.apply(PbApplicationMeta.class));
+      logger.info("Initializing data client factory for secured {}.", appUniqueId);
+      List<TransportClientBootstrap> bootstraps = Lists.newArrayList();
+      bootstraps.add(
+          new SaslClientBootstrap(
+              dataTransportConf,
+              appUniqueId,
+              new SaslCredentials(appUniqueId, pbApplicationMeta.getSecret())));
+      dataClientFactory = context.createClientFactory(bootstraps);
+    }
   }
 
   private boolean isPushTargetWorkerExcluded(
@@ -290,6 +322,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       try {
         if (!isPushTargetWorkerExcluded(newLoc, pushDataRpcResponseCallback)) {
           if (!testRetryRevive || remainReviveTimes < 1) {
+            assert dataClientFactory != null;
             TransportClient client =
                 dataClientFactory.createClient(newLoc.getHost(), newLoc.getPushPort(), partitionId);
             NettyManagedBuffer newBuffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
@@ -1116,6 +1149,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       try {
         if (!isPushTargetWorkerExcluded(loc, wrappedCallback)) {
           if (!testRetryRevive) {
+            assert dataClientFactory != null;
             TransportClient client =
                 dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
             client.pushData(pushData, pushDataTimeout, wrappedCallback);
@@ -1494,6 +1528,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     try {
       if (!isPushTargetWorkerExcluded(batches.get(0).loc, wrappedCallback)) {
         if (!testRetryRevive || remainReviveTimes < 1) {
+          assert dataClientFactory != null;
           TransportClient client = dataClientFactory.createClient(host, port);
           client.pushMergedData(mergedData, pushDataTimeout, wrappedCallback);
         } else {
@@ -1678,6 +1713,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       return CelebornInputStream.empty();
     } else {
       String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
+      assert dataClientFactory != null;
       return CelebornInputStream.create(
           conf,
           dataClientFactory,
@@ -1733,11 +1769,13 @@ public class ShuffleClientImpl extends ShuffleClient {
   public void setupLifecycleManagerRef(String host, int port) {
     lifecycleManagerRef =
         rpcEnv.setupEndpointRef(new RpcAddress(host, port), RpcNameConstants.LIFECYCLE_MANAGER_EP);
+    initDataClientFactoryIfNeeded();
   }
 
   @Override
   public void setupLifecycleManagerRef(RpcEndpointRef endpointRef) {
     lifecycleManagerRef = endpointRef;
+    initDataClientFactoryIfNeeded();
   }
 
   @Override
