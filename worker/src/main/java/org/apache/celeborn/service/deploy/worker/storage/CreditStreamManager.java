@@ -186,7 +186,8 @@ public class CreditStreamManager {
   }
 
   public String getStreamShuffleKey(Long streamId) {
-    return streams.get(streamId).getShuffleKey();
+    StreamState streamState = streams.get(streamId);
+    return streamState == null ? null : streamState.getShuffleKey();
   }
 
   private void startRecycleThread() {
@@ -220,7 +221,7 @@ public class CreditStreamManager {
           streams.remove(streamId);
           if (mapDataPartition.getReaders().isEmpty()) {
             FileInfo fileInfo = mapDataPartition.getFileInfo();
-            activeMapPartitions.compute(
+            activeMapPartitions.computeIfPresent(
                 fileInfo,
                 (k, v) -> {
                   if (v.getReaders().isEmpty()) {
