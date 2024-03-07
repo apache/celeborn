@@ -19,7 +19,7 @@ package org.apache.celeborn.client
 
 import java.util
 import java.util.{Set => JSet}
-import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ExecutorService, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
 
@@ -79,19 +79,19 @@ class ChangePartitionManager(
                 batchHandleChangePartitionExecutors.submit {
                   new Runnable {
                     override def run(): Unit = {
-                      requests.synchronized {
+                      val distinctPartitions = requests.synchronized {
                         // For each partition only need handle one request
-                        val distinctPartitions = requests.asScala.filter { case (partitionId, _) =>
+                        requests.asScala.filter { case (partitionId, _) =>
                           !inBatchPartitions.get(shuffleId).contains(partitionId)
                         }.map { case (partitionId, request) =>
                           inBatchPartitions.get(shuffleId).add(partitionId)
                           request.asScala.toArray.maxBy(_.epoch)
                         }.toArray
-                        if (distinctPartitions.nonEmpty) {
-                          handleRequestPartitions(
-                            shuffleId,
-                            distinctPartitions)
-                        }
+                      }
+                      if (distinctPartitions.nonEmpty) {
+                        handleRequestPartitions(
+                          shuffleId,
+                          distinctPartitions)
                       }
                     }
                   }
