@@ -21,20 +21,29 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 
 import org.mockito.Mockito._
+import org.scalatest.BeforeAndAfter
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.rpc.{RpcAddress, TestRpcEndpoint}
 
-class InboxSuite extends CelebornFunSuite {
+abstract class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
+
+  private var inbox: InboxBase = _
+  private var endpoint: TestRpcEndpoint = _
+
+  def initInbox[T](testRpcEndpoint: TestRpcEndpoint, onDrop: Option[InboxMessage => T]): InboxBase
+
+  before {
+    endpoint = new TestRpcEndpoint
+    inbox = initInbox(endpoint, None)
+  }
 
   test("post") {
-    val endpoint = new TestRpcEndpoint
-    val rpcEnvRef = mock(classOf[NettyRpcEndpointRef])
     val dispatcher = mock(classOf[Dispatcher])
 
-    val inbox = new Inbox(rpcEnvRef, endpoint)
     val message = OneWayMessage(null, "hi")
     inbox.post(message)
+    println("posted msg")
     inbox.process(dispatcher)
     assert(inbox.isEmpty)
 
@@ -48,11 +57,8 @@ class InboxSuite extends CelebornFunSuite {
   }
 
   test("post: with reply") {
-    val endpoint = new TestRpcEndpoint
-    val rpcEnvRef = mock(classOf[NettyRpcEndpointRef])
     val dispatcher = mock(classOf[Dispatcher])
 
-    val inbox = new Inbox(rpcEnvRef, endpoint)
     val message = RpcMessage(null, "hi", null)
     inbox.post(message)
     inbox.process(dispatcher)
@@ -62,16 +68,21 @@ class InboxSuite extends CelebornFunSuite {
   }
 
   test("post: multiple threads") {
-    val endpoint = new TestRpcEndpoint
     val rpcEnvRef = mock(classOf[NettyRpcEndpointRef])
     val dispatcher = mock(classOf[Dispatcher])
 
     val numDroppedMessages = new AtomicInteger(0)
-    val inbox = new Inbox(rpcEnvRef, endpoint) {
-      override def onDrop(message: InboxMessage): Unit = {
-        numDroppedMessages.incrementAndGet()
-      }
+
+    /**
+     * override def onDrop(message: InboxMessage): Unit = {
+     * numDroppedMessages.incrementAndGet()
+     * }
+     */
+
+    val overrideOnDrop = (msg: InboxMessage) => {
+      numDroppedMessages.incrementAndGet()
     }
+    val inbox = initInbox(endpoint, Some(overrideOnDrop))
 
     val exitLatch = new CountDownLatch(10)
 
@@ -102,12 +113,9 @@ class InboxSuite extends CelebornFunSuite {
   }
 
   test("post: Associated") {
-    val endpoint = new TestRpcEndpoint
-    val rpcEnvRef = mock(classOf[NettyRpcEndpointRef])
     val dispatcher = mock(classOf[Dispatcher])
     val remoteAddress = RpcAddress("localhost", 11111)
 
-    val inbox = new Inbox(rpcEnvRef, endpoint)
     inbox.post(RemoteProcessConnected(remoteAddress))
     inbox.process(dispatcher)
 
@@ -115,13 +123,10 @@ class InboxSuite extends CelebornFunSuite {
   }
 
   test("post: Disassociated") {
-    val endpoint = new TestRpcEndpoint
-    val rpcEnvRef = mock(classOf[NettyRpcEndpointRef])
     val dispatcher = mock(classOf[Dispatcher])
 
     val remoteAddress = RpcAddress("localhost", 11111)
 
-    val inbox = new Inbox(rpcEnvRef, endpoint)
     inbox.post(RemoteProcessDisconnected(remoteAddress))
     inbox.process(dispatcher)
 
@@ -129,14 +134,11 @@ class InboxSuite extends CelebornFunSuite {
   }
 
   test("post: AssociationError") {
-    val endpoint = new TestRpcEndpoint
-    val rpcEnvRef = mock(classOf[NettyRpcEndpointRef])
     val dispatcher = mock(classOf[Dispatcher])
 
     val remoteAddress = RpcAddress("localhost", 11111)
     val cause = new RuntimeException("Oops")
 
-    val inbox = new Inbox(rpcEnvRef, endpoint)
     inbox.post(RemoteProcessConnectionError(cause, remoteAddress))
     inbox.process(dispatcher)
 
@@ -146,9 +148,8 @@ class InboxSuite extends CelebornFunSuite {
   test("should reduce the number of active threads when fatal error happens") {
     val endpoint = mock(classOf[TestRpcEndpoint])
     when(endpoint.receive).thenThrow(new OutOfMemoryError())
-    val rpcEnvRef = mock(classOf[NettyRpcEndpointRef])
     val dispatcher = mock(classOf[Dispatcher])
-    val inbox = new Inbox(rpcEnvRef, endpoint)
+    val inbox = initInbox(endpoint, None)
     inbox.post(OneWayMessage(null, "hi"))
     intercept[OutOfMemoryError] {
       inbox.process(dispatcher)

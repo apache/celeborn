@@ -39,7 +39,18 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
       val name: String,
       val endpoint: RpcEndpoint,
       val ref: NettyRpcEndpointRef) {
-    val inbox = new Inbox(ref, endpoint)
+    val celebornConf = nettyEnv.celebornConf
+    val inbox = {
+      if (celebornConf.rpcInboxType() == "IN_MEMORY") {
+        logInfo(s"created in-memory inbox for $name")
+        new InMemoryInbox(ref, endpoint)
+      } else if (celebornConf.rpcInboxType() == "IN_MEMORY_BOUNDED") {
+        logInfo(s"created InMemoryBounded based inbox for $name")
+        new InMemoryBoundedInbox(ref, endpoint, celebornConf.rpcInMemoryBoundedInboxCapacity())
+      } else {
+        throw new IllegalArgumentException(s"unsupported inbox type ${celebornConf.rpcInboxType()}")
+      }
+    }
   }
 
   private val endpoints: ConcurrentMap[String, EndpointData] =
