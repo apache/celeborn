@@ -244,6 +244,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         && !networkLocation.isEmpty()
         && !networkLocation.equals(NetworkTopology.DEFAULT_RACK)) {
       workerInfo.networkLocation_$eq(networkLocation);
+    } else {
+      workerInfo.networkLocation_$eq(rackResolver.resolve(host).getNetworkLocation());
     }
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
     synchronized (workers) {
