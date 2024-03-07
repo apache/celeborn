@@ -19,8 +19,8 @@
 <template>
   <n-card hoverable>
     <n-descriptions label-placement="left" title="Worker State Nums" :column="4">
-      <n-descriptions-item label="Decommission"> {{ data.decommissionNum }} </n-descriptions-item>
       <n-descriptions-item label="Normal"> {{ data.normalNum }} </n-descriptions-item>
+      <n-descriptions-item label="Decommission"> {{ data.decommissionNum }} </n-descriptions-item>
       <n-descriptions-item label="Lost"> {{ data.lostNum }} </n-descriptions-item>
       <n-descriptions-item label="Shutdown"> {{ data.shutdownNum }} </n-descriptions-item>
     </n-descriptions>
