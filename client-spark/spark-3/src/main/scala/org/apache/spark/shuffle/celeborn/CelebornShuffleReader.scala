@@ -114,6 +114,7 @@ class CelebornShuffleReader[K, C](
       }
     }
 
+    val startTime = System.currentTimeMillis()
     val fetchTimeoutMs = conf.clientFetchTimeoutMs
     val localFetchEnabled = conf.enableReadLocalShuffleFile
     val shuffleKey = Utils.makeShuffleKey(handle.appUniqueId, shuffleId)
@@ -124,9 +125,12 @@ class CelebornShuffleReader[K, C](
       String,
       (TransportClient, util.ArrayList[PartitionLocation], PbOpenStreamList.Builder)]()
 
+    var partCnt = 0
+
     (startPartition until endPartition).foreach { partitionId =>
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
         fileGroups.partitionGroups.get(partitionId).asScala.foreach { location =>
+          partCnt += 1
           val hostPort = location.hostAndFetchPort
           if (!workerRequestMap.containsKey(hostPort)) {
             val client = shuffleClient.getDataClientFactory().createClient(
@@ -183,6 +187,8 @@ class CelebornShuffleReader[K, C](
     }.toList
     // wait for all futures to complete
     futures.foreach(f => f.get())
+    val end = System.currentTimeMillis()
+    logInfo(s"openstreamlist for ${partCnt} cost ${end - startTime}ms")
 
     val streams = new ConcurrentHashMap[Integer, CelebornInputStream]()
     (startPartition until endPartition).map(partitionId => {

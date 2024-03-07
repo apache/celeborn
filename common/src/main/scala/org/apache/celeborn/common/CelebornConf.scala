@@ -713,6 +713,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerPushHeartbeatEnabled: Boolean = get(WORKER_PUSH_HEARTBEAT_ENABLED)
   def workerPushMaxComponents: Int = get(WORKER_PUSH_COMPOSITEBUFFER_MAXCOMPONENTS)
   def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
+  def workerOpenstreamThreads: Int = get(WORKER_FETCH_OPENSTREAM_THREADS)
   def workerPartitionSplitEnabled: Boolean = get(WORKER_PARTITION_SPLIT_ENABLED)
   def workerActiveConnectionMax: Option[Long] = get(WORKER_ACTIVE_CONNECTION_MAX)
   def workerJvmQuakeEnabled: Boolean = get(WORKER_JVM_QUAKE_ENABLED)
@@ -3103,6 +3104,14 @@ object CelebornConf extends Logging {
       .doc("enable the heartbeat from worker to client when fetching data")
       .booleanConf
       .createWithDefault(false)
+
+  val WORKER_FETCH_OPENSTREAM_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.fetch.openstream.threads")
+      .categories("worker")
+      .version("0.5.0")
+      .doc("Number of threads for handling open stream requests")
+      .intConf
+      .createWithDefault(8)
 
   val WORKER_ACTIVE_CONNECTION_MAX: OptionalConfigEntry[Long] =
     buildConf("celeborn.worker.activeConnection.max")
