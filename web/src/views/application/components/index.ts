@@ -15,11 +15,6 @@
  * limitations under the License.
  */
 
-html,
-body,
-#app {
-  margin: 0;
-  padding: 0;
-  width: 100vw;
-  height: 100vh;
-}
+import ApplicationDataTable from './ApplicationDataTable.vue'
+
+export { ApplicationDataTable }

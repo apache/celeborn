@@ -17,26 +17,51 @@
 -->
 
 <script setup lang="ts">
-import { getApplicationOverview, getApplicationList } from '@/api'
-import { useHasLoading } from '@varlet/axle/use'
-import { ApplicationOverviewService } from '@/views/overview/components'
-import { ApplicationDataTable } from '@/views/application/components'
+import type { PropType } from 'vue'
+import type { DataTableColumns } from 'naive-ui'
+import type { Application } from '@/api'
+import { normalizeDatetime } from '@/utils/datetime'
 
 defineOptions({
-  name: 'ApplicationView'
+  name: 'ApplicationDataTable'
 })
 
-const { data: appOverview, loading: isAppOverviewLoading } = getApplicationOverview().use()
-const { data: appList, loading: isAppListLoading } = getApplicationList().use()
+defineProps({
+  data: {
+    type: Array as PropType<Application[]>,
+    default: () => []
+  }
+})
 
-const loading = useHasLoading(isAppOverviewLoading, isAppListLoading)
+const columns: DataTableColumns<Application> = [
+  {
+    title: 'ApplicationId',
+    key: 'appId'
+  },
+  {
+    title: 'SubUser',
+    key: 'subUser'
+  },
+  {
+    title: 'Tenant',
+    key: 'tenant'
+  },
+  {
+    title: 'HeartbeatTime',
+    key: 'heartbeatTime',
+    render: ({ heartbeatTime }) => normalizeDatetime(heartbeatTime)
+  },
+  {
+    title: 'ShuffleSize',
+    key: 'shuffleSize'
+  },
+  {
+    title: 'ActiveShuffle',
+    key: 'shuffleFileCount'
+  }
+]
 </script>
 
 <template>
-  <n-spin :show="loading">
-    <n-flex vertical>
-      <ApplicationOverviewService :data="appOverview" />
-      <ApplicationDataTable :data="appList" />
-    </n-flex>
-  </n-spin>
+  <n-data-table :columns="columns" :data="data" :pagination="false" />
 </template>
