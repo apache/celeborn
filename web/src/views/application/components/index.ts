@@ -15,6 +15,6 @@
  * limitations under the License.
  */
 
-import ApplicationDataTable from './ApplicationDataTable.vue'
+import ApplicationListService from './ApplicationList.vue'
 
-export { ApplicationDataTable }
+export { ApplicationListService }

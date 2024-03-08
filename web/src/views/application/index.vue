@@ -20,7 +20,7 @@
 import { getApplicationOverview, getApplicationList } from '@/api'
 import { useHasLoading } from '@varlet/axle/use'
 import { ApplicationOverviewService } from '@/views/overview/components'
-import { ApplicationDataTable } from '@/views/application/components'
+import { ApplicationListService } from '@/views/application/components'
 
 defineOptions({
   name: 'ApplicationView'
@@ -36,7 +36,7 @@ const loading = useHasLoading(isAppOverviewLoading, isAppListLoading)
   <n-spin :show="loading">
     <n-flex vertical>
       <ApplicationOverviewService :data="appOverview" />
-      <ApplicationDataTable :data="appList" />
+      <ApplicationListService :data="appList" />
     </n-flex>
   </n-spin>
 </template>
