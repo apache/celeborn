@@ -326,10 +326,8 @@ private[celeborn] class InMemoryBoundedInbox(
   }
 
   override def nextMessage(quitWithNoProcessingThread: Boolean): Option[InboxMessage] = {
-    inbox.synchronized {
-      if (quitWithNoProcessingThread && !enableConcurrent && numActiveThreads != 0) {
-        return None
-      }
+    if (quitWithNoProcessingThread && !enableConcurrent && numActiveThreads != 0) {
+      return None
     }
     val startTime = System.nanoTime()
     val message: Option[InboxMessage] = Option(messages.poll())
