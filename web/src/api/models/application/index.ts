@@ -16,7 +16,7 @@
  */
 
 import { api } from '@/api/request'
-import type { Application, ApplicationOverview } from '@/api'
+import type { Application, ApplicationOverview } from './types'
 
 export * from './types'
 
