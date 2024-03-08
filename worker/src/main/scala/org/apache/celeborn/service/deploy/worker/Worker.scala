@@ -662,6 +662,7 @@ private[celeborn] class Worker(
           // resource consumption source should remove lose application gauges.
           removeAppResourceConsumption(applicationId)
           removeAppActiveConnection(applicationId)
+          secretRegistry.unregister(applicationId)
         }
         logInfo(s"Cleaned up expired shuffle $shuffleKey")
       }
