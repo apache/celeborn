@@ -15,4 +15,7 @@
  * limitations under the License.
  */
 
-import { api } from '@/api/request'
+export interface MasterOverview {
+  leaderNum: number
+  followerNum: number
+}

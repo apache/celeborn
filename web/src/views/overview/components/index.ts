@@ -15,8 +15,16 @@
  * limitations under the License.
  */
 
-export * from './models/application'
-export * from './models/cluster'
-export * from './models/master'
-export * from './models/storage'
-export * from './models/worker'
+import ClusterOverviewService from './ClusterOverview.vue'
+import MasterOverviewService from './MasterOverview.vue'
+import WorkerOverviewService from './WorkerOverview.vue'
+import ApplicationOverviewService from './ApplicationOverview.vue'
+import StorageOverviewService from './StorageOverview.vue'
+
+export {
+  ClusterOverviewService,
+  MasterOverviewService,
+  WorkerOverviewService,
+  ApplicationOverviewService,
+  StorageOverviewService
+}
