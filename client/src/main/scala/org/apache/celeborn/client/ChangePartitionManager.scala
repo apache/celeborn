@@ -19,7 +19,7 @@ package org.apache.celeborn.client
 
 import java.util
 import java.util.{Set => JSet}
-import java.util.concurrent.{ConcurrentHashMap, ExecutorService, ScheduledExecutorService, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
 
