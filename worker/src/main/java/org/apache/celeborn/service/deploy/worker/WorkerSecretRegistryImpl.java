@@ -99,7 +99,9 @@ public class WorkerSecretRegistryImpl implements SecretRegistry {
       throw new IllegalArgumentException(
           "AppId " + appId + " is already registered. Cannot re-register.");
     }
-    secretCache.put(appId, secret);
+    if (existingSecret != null) {
+      secretCache.put(appId, secret);
+    }
   }
 
   @Override
