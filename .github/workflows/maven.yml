@@ -23,6 +23,7 @@ jobs:
           - 8
           - 11
           - 17
+          - 21
     steps:
     - uses: actions/checkout@v2
     - name: Setup JDK ${{ matrix.java }}
