@@ -184,7 +184,7 @@ class CelebornShuffleReader[K, C](
     // wait for all futures to complete
     futures.foreach(f => f.get())
     val end = System.currentTimeMillis()
-    logInfo(s"openstreamlist for ${partCnt} cost ${end - startTime}ms")
+    logInfo(s"BatchOpenStream for $partCnt cost ${end - startTime}ms")
 
     def createInputStream(partitionId: Int): CelebornInputStream = {
       val locations =
@@ -230,24 +230,22 @@ class CelebornShuffleReader[K, C](
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
         val inputStream: CelebornInputStream = createInputStream(partitionId)
-        while (inputStream == null) {
-          if (exceptionRef.get() != null) {
-            exceptionRef.get() match {
-              case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
-                if (throwsFetchFailure &&
-                  shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
-                  throw new FetchFailedException(
-                    null,
-                    handle.shuffleId,
-                    -1,
-                    -1,
-                    partitionId,
-                    SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + shuffleId,
-                    ce)
-                } else
-                  throw ce
-              case e => throw e
-            }
+        if (exceptionRef.get() != null) {
+          exceptionRef.get() match {
+            case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
+              if (throwsFetchFailure &&
+                shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
+                throw new FetchFailedException(
+                  null,
+                  handle.shuffleId,
+                  -1,
+                  -1,
+                  partitionId,
+                  SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + shuffleId,
+                  ce)
+              } else
+                throw ce
+            case e => throw e
           }
         }
         metricsCallback.incReadTime(

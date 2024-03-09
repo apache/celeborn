@@ -62,8 +62,6 @@ class FetchHandler(
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
   var registered: Option[AtomicBoolean] = None
-  val openStreamThreads = conf.workerOpenstreamThreads
-  val openStreamThreadPool = ThreadUtils.newDaemonCachedThreadPool("openstream", openStreamThreads)
 
   def init(worker: Worker): Unit = {
     workerSource.addGauge(WorkerSource.ACTIVE_CHUNK_STREAM_COUNT) { () =>
@@ -149,51 +147,21 @@ class FetchHandler(
         val endIndices = openStreamList.getEndIndexList
         val readLocalFlags = openStreamList.getReadLocalShuffleList
         val pbOpenStreamListResponse = PbOpenStreamListResponse.newBuilder()
-        val results = new Array[PbStreamHandlerOpt](files.size())
-//        val futures = 0 until files.size() map { idx =>
-//            openStreamThreadPool.submit(new Runnable {
-//              override def run(): Unit = {
-//                val pbStreamHandlerOpt = handleReduceOpenStreamInternal(
-//                  client,
-//                  shuffleKey,
-//                  files.get(idx),
-//                  startIndices.get(idx),
-//                  endIndices.get(idx),
-//                  readLocalFlags.get(idx))
-//                results(idx) = pbStreamHandlerOpt
-//              }
-//            })
-//        }
 
-        val stepLen = Math.max(files.size() / openStreamThreads, 1)
-        val futures = new util.ArrayList[JFuture[_]]()
-        for (i <- 0 until files.size() by stepLen) {
-          val end = Math.min(files.size(), i + stepLen)
-          val future: JFuture[_] = openStreamThreadPool.submit(new Runnable {
-            override def run(): Unit = {
-              i until end foreach { idx =>
-                val pbStreamHandlerOpt = handleReduceOpenStreamInternal(
-                  client,
-                  shuffleKey,
-                  files.get(idx),
-                  startIndices.get(idx),
-                  endIndices.get(idx),
-                  readLocalFlags.get(idx))
-                results(idx) = pbStreamHandlerOpt
-              }
-            }
-          })
-          futures.add(future)
-        }
-
-        futures.asScala.foreach(_.get())
-
-        results.foreach { streamHandlerOpt =>
-          if (streamHandlerOpt.getStatus != StatusCode.SUCCESS.getValue) {
+        0 until files.size() foreach { idx =>
+          val pbStreamHandlerOpt = handleReduceOpenStreamInternal(
+            client,
+            shuffleKey,
+            files.get(idx),
+            startIndices.get(idx),
+            endIndices.get(idx),
+            readLocalFlags.get(idx))
+          if (pbStreamHandlerOpt.getStatus != StatusCode.SUCCESS.getValue) {
             workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
           }
-          pbOpenStreamListResponse.addStreamHandlerOpt(streamHandlerOpt)
+          pbOpenStreamListResponse.addStreamHandlerOpt(pbStreamHandlerOpt)
         }
+
         client.getChannel.writeAndFlush(new RpcResponse(
           rpcRequest.requestId,
           new NioManagedBuffer(new TransportMessage(
