@@ -46,7 +46,7 @@ import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.{RpcSecurityContextBuilder, ServerSaslContextBuilder}
 import org.apache.celeborn.common.util.{CelebornHadoopUtils, CollectionUtils, JavaUtils, PbSerDeUtils, SignalUtils, ThreadUtils, Utils}
-import org.apache.celeborn.server.common.{HttpService, Service}
+import org.apache.celeborn.server.common.{HttpService, RestService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver
@@ -55,7 +55,7 @@ import org.apache.celeborn.service.deploy.master.quota.QuotaManager
 private[celeborn] class Master(
     override val conf: CelebornConf,
     val masterArgs: MasterArguments)
-  extends HttpService with RpcEndpoint with Logging {
+  extends RestService with RpcEndpoint with Logging {
 
   @volatile private var stopped = false
 

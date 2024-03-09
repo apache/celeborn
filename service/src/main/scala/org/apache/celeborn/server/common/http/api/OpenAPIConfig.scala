@@ -20,7 +20,10 @@ package org.apache.celeborn.server.common.http.api
 import org.glassfish.jersey.server.ResourceConfig
 
 class OpenAPIConfig extends ResourceConfig {
-  packages("org.apache.celeborn.server.common.http.api")
+  packages(
+    "org.apache.celeborn.server.common.http.api",
+    "org.apache.celeborn.service.deploy.master.http.api",
+    "org.apache.celeborn.service.deploy.worker.http.api")
   register(classOf[CelebornOpenApiResource])
   register(classOf[CelebornScalaObjectMapper])
 }

@@ -52,7 +52,7 @@ import org.apache.celeborn.common.rpc.{RpcSecurityContextBuilder, ServerSaslCont
 import org.apache.celeborn.common.util.{CelebornExitKind, CollectionUtils, JavaUtils, ShutdownHookManager, SignalUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
-import org.apache.celeborn.server.common.{HttpService, Service}
+import org.apache.celeborn.server.common.{RestService, Service}
 import org.apache.celeborn.service.deploy.worker.WorkerSource.ACTIVE_CONNECTION_COUNT
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
@@ -63,7 +63,7 @@ import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, 
 private[celeborn] class Worker(
     override val conf: CelebornConf,
     val workerArgs: WorkerArguments)
-  extends HttpService with Logging {
+  extends RestService with Logging {
 
   @volatile private var stopped = false
 

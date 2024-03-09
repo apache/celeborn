@@ -17,11 +17,10 @@
 
 package org.apache.celeborn.server.common.http.api
 
+import org.apache.celeborn.server.common.RestService
 import org.eclipse.jetty.servlet.{ServletContextHandler, ServletHolder}
 import org.glassfish.jersey.server.ResourceConfig
 import org.glassfish.jersey.servlet.ServletContainer
-
-import org.apache.celeborn.server.common.http.RestService
 
 private[celeborn] object ApiRootResource {
   def getServletHandler(rs: RestService): ServletContextHandler = {
