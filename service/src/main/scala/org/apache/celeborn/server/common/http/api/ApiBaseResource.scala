@@ -116,7 +116,7 @@ private[api] class ApiBaseResource extends ApiRequestContext {
       mediaType = MediaType.TEXT_PLAIN)),
     description =
       "For MASTER: List the top disk usage application ids. It will return the top disk usage application ids for the cluster.\n" +
-        "List the top disk usage application ids. It only return application ids running in that worker.")
+        "For WORKER: List the top disk usage application ids. It only return application ids running in that worker.")
   @GET
   def listTopDiskUsedApps(): String = {
     httpService.listTopDiskUseApps
