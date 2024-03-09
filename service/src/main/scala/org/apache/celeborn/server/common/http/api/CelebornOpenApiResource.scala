@@ -29,9 +29,8 @@ import io.swagger.v3.jaxrs2.integration.resources.BaseOpenApiResource
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.integration.api.OpenApiContext
 import io.swagger.v3.oas.models.OpenAPI
-import io.swagger.v3.oas.models.info.{Contact, Info, License}
+import io.swagger.v3.oas.models.info.{Info, License}
 import io.swagger.v3.oas.models.servers.Server
-import io.swagger.v3.oas.models.tags.Tag
 import org.apache.commons.lang3.StringUtils
 
 @Path("/openapi.{type:json|yaml}")
@@ -54,7 +53,7 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
     val ctx: OpenApiContext = new CelebornJaxrsOpenApiContextBuilder()
       .servletConfig(config)
       .application(app)
-      .resourcePackages(resourcePackages)
+      .resourcePackages(OpenAPIConfig.packages.toSet.asJava)
       .configLocation(configLocation)
       .openApiConfiguration(openApiConfiguration)
       .ctxId(ctxId)
@@ -86,7 +85,10 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
     val apiUrl = s"http://${httpService.connectionUrl}/"
     openApi.info(
       new Info().title(
-        s"Apache Celeborn (Incubating) REST API Documentation - ${httpService.serviceName}"))
+        s"Apache Celeborn (Incubating) REST API Documentation - ${httpService.serviceName}")
+        .license(
+          new License().name("Apache License 2.0")
+            .url("https://www.apache.org/licenses/LICENSE-2.0.txt")))
       .servers(List(new Server().url(apiUrl)).asJava)
   }
 }

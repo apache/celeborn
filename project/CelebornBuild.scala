@@ -137,8 +137,6 @@ object Dependencies {
   val jettyServlet = "org.eclipse.jetty" % "jetty-servlet" % jettyVersion
   val jettyProxy = "org.eclipse.jetty" % "jetty-proxy" % jettyVersion
   val jakartaServletApi = "jakarta.servlet" % "jakarta.servlet-api" % jakartaServeletApiVersion
-  val jerseyCommon = "org.glassfish.jersey.core" % "jersey-common" % jerseyVersion excludeAll(
-    ExclusionRule("com.sun.activation", "jakarta.activation"))
   val jerseyServer = "org.glassfish.jersey.core" % "jersey-server" % jerseyVersion excludeAll(
     ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"))
   val jerseyContainerServletCore = "org.glassfish.jersey.containers" % "jersey-container-servlet-core" % jerseyVersion
