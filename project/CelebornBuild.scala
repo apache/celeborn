@@ -147,7 +147,8 @@ object Dependencies {
   val jerseyMediaJsonJackson = "org.glassfish.jersey.media" % "jersey-media-json-jackson" % jerseyVersion
   val jerseyMediaMultipart = "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyVersion
   val swaggerJaxrs2 = "io.swagger.core.v3" % "swagger-jaxrs2" %swaggerVersion excludeAll(
-    ExclusionRule("com.sun.activation", "jakarta.activation"))
+    ExclusionRule("com.sun.activation", "jakarta.activation"),
+    ExclusionRule("org.javassist", "javassist"))
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html
