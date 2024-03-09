@@ -197,7 +197,7 @@ class FetchHandler(
         client.getChannel.writeAndFlush(new RpcResponse(
           rpcRequest.requestId,
           new NioManagedBuffer(new TransportMessage(
-            MessageType.OPEN_STREAM_LIST_RESPONSE,
+            MessageType.BATCH_OPEN_STREAM_RESPONSE,
             pbOpenStreamListResponse.build().toByteArray).toByteBuffer)))
       case bufferStreamEnd: PbBufferStreamEnd =>
         handleEndStreamFromClient(
@@ -374,7 +374,11 @@ class FetchHandler(
           val creditStreamHandler =
             new Consumer[java.lang.Long] {
               override def accept(streamId: java.lang.Long): Unit = {
-                replyStreamHandler(client, rpcRequestId, streamId, 0, isLegacy)
+                val pbStreamHandler = PbStreamHandler.newBuilder
+                  .setStreamId(streamId)
+                  .setNumChunks(0)
+                  .build()
+                replyStreamHandler(client, rpcRequestId, pbStreamHandler, isLegacy)
               }
             }
 
@@ -425,36 +429,6 @@ class FetchHandler(
           pbStreamHandler.getStreamId,
           pbStreamHandler.getNumChunks).toByteBuffer)))
     } else {
-      client.getChannel.writeAndFlush(new RpcResponse(
-        requestId,
-        new NioManagedBuffer(new TransportMessage(
-          MessageType.STREAM_HANDLER,
-          pbStreamHandler.toByteArray).toByteBuffer)))
-    }
-  }
-
-  private def replyStreamHandler(
-      client: TransportClient,
-      requestId: Long,
-      streamId: Long,
-      numChunks: Int,
-      isLegacy: Boolean,
-      offsets: util.List[java.lang.Long] = null,
-      filepath: String = ""): Unit = {
-    if (isLegacy) {
-      client.getChannel.writeAndFlush(new RpcResponse(
-        requestId,
-        new NioManagedBuffer(new StreamHandle(streamId, numChunks).toByteBuffer)))
-    } else {
-      val pbStreamHandlerBuilder = PbStreamHandler.newBuilder.setStreamId(streamId).setNumChunks(
-        numChunks)
-      if (offsets != null) {
-        pbStreamHandlerBuilder.addAllChunkOffsets(offsets)
-      }
-      if (filepath.nonEmpty) {
-        pbStreamHandlerBuilder.setFullPath(filepath)
-      }
-      val pbStreamHandler = pbStreamHandlerBuilder.build()
       client.getChannel.writeAndFlush(new RpcResponse(
         requestId,
         new NioManagedBuffer(new TransportMessage(

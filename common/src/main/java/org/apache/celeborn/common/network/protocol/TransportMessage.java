@@ -101,9 +101,9 @@ public class TransportMessage implements Serializable {
         return (T) PbApplicationMeta.parseFrom(payload);
       case APPLICATION_META_REQUEST_VALUE:
         return (T) PbApplicationMetaRequest.parseFrom(payload);
-      case OPEN_STREAM_LIST_VALUE:
+      case BATCH_OPEN_STREAM_VALUE:
         return (T) PbOpenStreamList.parseFrom(payload);
-      case OPEN_STREAM_LIST_RESPONSE_VALUE:
+      case BATCH_OPEN_STREAM_RESPONSE_VALUE:
         return (T) PbOpenStreamListResponse.parseFrom(payload);
       default:
         logger.error("Unexpected type {}", type);

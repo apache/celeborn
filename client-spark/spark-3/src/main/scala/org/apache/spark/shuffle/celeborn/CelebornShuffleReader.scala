@@ -148,11 +148,7 @@ class CelebornShuffleReader[K, C](
           pbOpenStreamListBuilder.addFileName(location.getFileName)
             .addStartIndex(startMapIndex)
             .addEndIndex(endMapIndex)
-          if (localFetchEnabled) {
-            pbOpenStreamListBuilder.addReadLocalShuffle(true)
-          } else {
-            pbOpenStreamListBuilder.addReadLocalShuffle(false)
-          }
+          pbOpenStreamListBuilder.addReadLocalShuffle(localFetchEnabled)
         }
       }
     }
@@ -165,7 +161,7 @@ class CelebornShuffleReader[K, C](
         override def run(): Unit = {
           val (client, locArr, pbOpenStreamListBuilder) = entry
           val msg = new TransportMessage(
-            MessageType.OPEN_STREAM_LIST,
+            MessageType.BATCH_OPEN_STREAM,
             pbOpenStreamListBuilder.build().toByteArray)
           val pbOpenStreamListResponse =
             try {
@@ -190,8 +186,7 @@ class CelebornShuffleReader[K, C](
     val end = System.currentTimeMillis()
     logInfo(s"openstreamlist for ${partCnt} cost ${end - startTime}ms")
 
-    val streams = new ConcurrentHashMap[Integer, CelebornInputStream]()
-    (startPartition until endPartition).map(partitionId => {
+    def createInputStream(partitionId: Int): CelebornInputStream = {
       val locations =
         if (fileGroups.partitionGroups.containsKey(partitionId)) {
           new util.ArrayList(fileGroups.partitionGroups.get(partitionId))
@@ -206,7 +201,7 @@ class CelebornShuffleReader[K, C](
         } else null
       if (exceptionRef.get() == null) {
         try {
-          val inputStream = shuffleClient.readPartition(
+          shuffleClient.readPartition(
             shuffleId,
             handle.shuffleId,
             partitionId,
@@ -218,23 +213,23 @@ class CelebornShuffleReader[K, C](
             streamHandlers,
             fileGroups.mapAttempts,
             metricsCallback)
-          streams.put(partitionId, inputStream)
-          logInfo("input stream created, streams size " + streams.size())
         } catch {
           case e: IOException =>
             logError(s"Exception caught when readPartition $partitionId!", e)
             exceptionRef.compareAndSet(null, e)
+            null
           case e: Throwable =>
             logError(s"Non IOException caught when readPartition $partitionId!", e)
             exceptionRef.compareAndSet(null, new CelebornIOException(e))
+            null
         }
-      }
-    })
+      } else null
+    }
 
     val recordIter = (startPartition until endPartition).iterator.map(partitionId => {
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
-        var inputStream: CelebornInputStream = streams.get(partitionId)
+        val inputStream: CelebornInputStream = createInputStream(partitionId)
         while (inputStream == null) {
           if (exceptionRef.get() != null) {
             exceptionRef.get() match {
@@ -254,7 +249,6 @@ class CelebornShuffleReader[K, C](
               case e => throw e
             }
           }
-          inputStream = streams.get(partitionId)
         }
         metricsCallback.incReadTime(
           TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))

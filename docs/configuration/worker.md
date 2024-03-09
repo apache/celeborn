@@ -63,6 +63,7 @@ license: |
 | celeborn.worker.disk.clean.threads | 4 | false | Thread number of worker to clean up directories of expired shuffle keys on disk. | 0.3.2 |  | 
 | celeborn.worker.fetch.heartbeat.enabled | false | false | enable the heartbeat from worker to client when fetching data | 0.3.0 |  | 
 | celeborn.worker.fetch.io.threads | &lt;undefined&gt; | false | Netty IO thread number of worker to handle client fetch data. The default threads number is the number of flush thread. | 0.2.0 |  | 
+| celeborn.worker.fetch.openstream.threads | 8 | false | Number of threads for handling open stream requests | 0.5.0 |  | 
 | celeborn.worker.fetch.port | 0 | false | Server port for Worker to receive fetch data request from ShuffleClient. | 0.2.0 |  | 
 | celeborn.worker.flusher.buffer.size | 256k | false | Size of buffer used by a single flusher. | 0.2.0 |  | 
 | celeborn.worker.flusher.diskTime.slidingWindow.size | 20 | false | The size of sliding windows used to calculate statistics about flushed time and count. | 0.3.0 | celeborn.worker.flusher.avgFlushTime.slidingWindow.size | 
