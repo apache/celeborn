@@ -56,7 +56,10 @@ private[api] class ApiBaseResource extends ApiRequestContext {
       @QueryParam("LEVEL") level: String,
       @QueryParam("TENANT") tenant: String,
       @QueryParam("NAME") name: String): String = {
-    httpService.getDynamicConfigs(trim(level), trim(tenant), trim(name))
+    httpService.getDynamicConfigs(
+      normalizeParam(level),
+      normalizeParam(tenant),
+      normalizeParam(name))
   }
 
   @Path("/workerInfo")

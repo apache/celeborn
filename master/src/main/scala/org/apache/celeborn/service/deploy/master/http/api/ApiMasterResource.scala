@@ -85,7 +85,7 @@ class ApiMasterResource extends ApiRequestContext {
   def sendWorkerEvent(
       @QueryParam("TYPE") eventType: String,
       @QueryParam("WORKERS") workers: String): String = {
-    httpService.handleWorkerEvent(trim(eventType), trim(workers))
+    httpService.handleWorkerEvent(normalizeParam(eventType), normalizeParam(workers))
   }
 
   @Path("/workerEventInfo")
@@ -107,6 +107,6 @@ class ApiMasterResource extends ApiRequestContext {
   def excludeWorkers(
       @QueryParam("ADD") addWorkers: String,
       @QueryParam("REMOVE") removeWorkers: String): String = {
-    httpService.exclude(trim(addWorkers), trim(removeWorkers))
+    httpService.exclude(normalizeParam(addWorkers), normalizeParam(removeWorkers))
   }
 }

@@ -34,7 +34,7 @@ private[celeborn] trait ApiRequestContext {
 
   final protected def httpService: HttpService = HttpServiceContext.get(servletContext)
 
-  protected def trim(str: String): String = Option(str).map(_.trim).getOrElse("")
+  protected def normalizeParam(param: String): String = Option(param).map(_.trim).getOrElse("")
 }
 
 private[celeborn] object HttpServiceContext {
