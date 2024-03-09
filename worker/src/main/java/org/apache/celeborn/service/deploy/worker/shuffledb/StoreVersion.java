@@ -52,4 +52,9 @@ public class StoreVersion {
     result = 31 * result + minor;
     return result;
   }
+
+  @Override
+  public String toString() {
+    return "StoreVersion[" + major + "." + minor + ']';
+  }
 }
