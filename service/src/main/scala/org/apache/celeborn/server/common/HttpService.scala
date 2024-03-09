@@ -28,6 +28,7 @@ import org.apache.celeborn.server.common.http.api.ApiRootResource
 import org.apache.celeborn.server.common.service.config.ConfigLevel
 
 abstract class HttpService extends Service with Logging {
+
   private var httpServer: HttpServer = _
 
   def getConf: String = {

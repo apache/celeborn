@@ -234,7 +234,6 @@ trait MiniClusterFeature extends Logging {
   }
 
   def shutdownMiniCluster(): Unit = {
-    Thread.sleep(3600000L)
     // shutdown workers
     workerInfos.foreach {
       case (worker, _) =>
