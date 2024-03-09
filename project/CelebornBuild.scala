@@ -1044,7 +1044,8 @@ object MRClientProjects {
         libraryDependencies ++= Seq(
           Dependencies.hadoopClientApi,
           Dependencies.hadoopClientRuntime,
-          Dependencies.hadoopMapreduceClientApp
+          Dependencies.hadoopMapreduceClientApp excludeAll(
+            ExclusionRule("org.eclipse.jetty", "*"))
         ) ++ commonUnitTestDependencies
       )
   }
