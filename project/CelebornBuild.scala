@@ -488,8 +488,8 @@ object CelebornService {
         Dependencies.log4jSlf4jImpl % "test",
         Dependencies.log4j12Api % "test",
         Dependencies.h2 % "test",
-        Dependencies.jerseyTestFrameworkCore,
-        Dependencies.jerseyTestFrameworkProviderJetty
+        Dependencies.jerseyTestFrameworkCore % "test",
+        Dependencies.jerseyTestFrameworkProviderJetty % "test"
       ) ++ commonUnitTestDependencies
     )
 }
