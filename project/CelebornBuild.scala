@@ -66,6 +66,10 @@ object Dependencies {
   val mybatisVersion = "3.5.15"
   val hikaricpVersion = "4.0.3"
   val h2Version = "2.2.224"
+  val swaggerVersion = "2.2.1"
+  val jerseyVersion = "2.39.1"
+  val jettyVersion = "9.4.52.v20230823"
+  val jakartaServeletApiVersion = "4.0.4"
 
   // Versions for proto
   val protocVersion = "3.21.7"
@@ -128,6 +132,22 @@ object Dependencies {
   val zstdJni = "com.github.luben" % "zstd-jni" % zstdJniVersion
   val mybatis = "org.mybatis" % "mybatis" % mybatisVersion
   val hikaricp = "com.zaxxer" % "HikariCP" % hikaricpVersion
+  val jettyClient = "org.eclipse.jetty" % "jetty-client" % jettyVersion
+  val jettyServer = "org.eclipse.jetty" % "jetty-server" % jettyVersion excludeAll(
+    ExclusionRule("javax.servlet", "javax.servlet-api"))
+  val jettyServlet = "org.eclipse.jetty" % "jetty-servlet" % jettyVersion
+  val jettyProxy = "org.eclipse.jetty" % "jetty-proxy" % jettyVersion
+  val jakartaServletApi = "jakarta.servlet" % "jakarta.servlet-api" % jakartaServeletApiVersion
+  val jerseyCommon = "org.glassfish.jersey.core" % "jersey-common" % jerseyVersion excludeAll(
+    ExclusionRule("com.sun.activation", "jakarta.activation"))
+  val jerseyServer = "org.glassfish.jersey.core" % "jersey-server" % jerseyVersion excludeAll(
+    ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"))
+  val jerseyContainerServletCore = "org.glassfish.jersey.containers" % "jersey-container-servlet-core" % jerseyVersion
+  val jerseyHk2 = "org.glassfish.jersey.inject" % "jersey-jk2" % jerseyVersion
+  val jerseyMediaJsonJackson = "org.glassfish.jersey.media" % "jersey-media-json-jackson" % jerseyVersion
+  val jerseyMediaMultipart = "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyVersion
+  val swaggerJaxrs2 = "io.swagger.core.v3" % "swagger-jaxrs2" %swaggerVersion excludeAll(
+    ExclusionRule("com.sun.activation", "jakarta.activation"))
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html
@@ -138,6 +158,10 @@ object Dependencies {
   val scalatestMockito = "org.mockito" %% "mockito-scala-scalatest" % scalatestMockitoVersion
   val scalatest = "org.scalatest" %% "scalatest" % scalatestVersion
   val h2 = "com.h2database" % "h2" % h2Version
+  val jerseyTestFrameworkCore = "org.glassfish.jersey.test-framework" % "jersey-test-framework-core" % jerseyVersion
+  val jerseyTestFrameworkProviderJetty = "org.glassfish.jersey.test-framework.providers" % "jersey-test-framework-provider-jetty" % jerseyVersion excludeAll(
+    ExclusionRule("rg.eclipse.jetty", "jetty-util"),
+    ExclusionRule("rg.eclipse.jetty", "jetty-continuation"))
 }
 
 object CelebornCommonSettings {
@@ -451,9 +475,21 @@ object CelebornService {
         Dependencies.slf4jApi,
         Dependencies.mybatis,
         Dependencies.hikaricp,
+        Dependencies.swaggerJaxrs2,
+        Dependencies.jakartaServletApi,
+        Dependencies.jerseyServer,
+        Dependencies.jerseyContainerServletCore,
+        Dependencies.jerseyHk2,
+        Dependencies.jerseyMediaJsonJackson,
+        Dependencies.jerseyMediaMultipart,
+        Dependencies.jettyServer,
+        Dependencies.jettyServlet,
+        Dependencies.jettyProxy,
         Dependencies.log4jSlf4jImpl % "test",
         Dependencies.log4j12Api % "test",
-        Dependencies.h2 % "test"
+        Dependencies.h2 % "test",
+        Dependencies.jerseyTestFrameworkCore,
+        Dependencies.jerseyTestFrameworkProviderJetty
       ) ++ commonUnitTestDependencies
     )
 }
@@ -711,7 +747,9 @@ trait SparkClientProjects {
         libraryDependencies ++= Seq(
           "org.apache.spark" %% "spark-core" % sparkVersion % "test",
           "org.apache.spark" %% "spark-sql" % sparkVersion % "test",
-          "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests",
+          "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests" excludeAll(
+            ExclusionRule("org.glassfish.jersey.inject", "*"),
+            ExclusionRule("org.glassfish.jersey.core", "*")),
           "org.apache.spark" %% "spark-sql" % sparkVersion % "test" classifier "tests"
         ) ++ commonUnitTestDependencies
       )
