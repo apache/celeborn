@@ -23,7 +23,7 @@ import javax.ws.rs.core.Context
 
 import org.eclipse.jetty.server.handler.ContextHandler
 
-import org.apache.celeborn.server.common.RestService
+import org.apache.celeborn.server.common.HttpService
 
 private[celeborn] trait ApiRequestContext {
   @Context
@@ -32,17 +32,17 @@ private[celeborn] trait ApiRequestContext {
   @Context
   protected var httpRequest: HttpServletRequest = _
 
-  final protected def rs: RestService = RestServiceContext.get(servletContext)
+  final protected def rs: HttpService = RestServiceContext.get(servletContext)
 }
 
 private[celeborn] object RestServiceContext {
   private val attribute = getClass.getCanonicalName
 
-  def set(contextHandler: ContextHandler, rs: RestService): Unit = {
+  def set(contextHandler: ContextHandler, rs: HttpService): Unit = {
     contextHandler.setAttribute(attribute, rs)
   }
 
-  def get(context: ServletContext): RestService = {
-    context.getAttribute(attribute).asInstanceOf[RestService]
+  def get(context: ServletContext): HttpService = {
+    context.getAttribute(attribute).asInstanceOf[HttpService]
   }
 }

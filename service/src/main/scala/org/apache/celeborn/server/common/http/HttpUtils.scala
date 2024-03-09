@@ -18,78 +18,72 @@
 package org.apache.celeborn.server.common.http
 
 import java.net.URL
-import java.util.Locale
+import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 
-import org.apache.celeborn.server.common.{HttpService, Service}
+import org.eclipse.jetty.servlet.{DefaultServlet, ServletContextHandler, ServletHolder}
 
-object HttpUtils {
+import org.apache.celeborn.common.exception.CelebornException
 
-  private val baseEndpoints: List[HttpEndpoint] =
-    List(
-      Conf,
-      ListDynamicConfigs,
-      WorkerInfo,
-      ThreadDump,
-      Shuffles,
-      Applications,
-      ListTopDiskUsedApps,
-      Help)
-  private val masterEndpoints: List[HttpEndpoint] = List(
-    MasterGroupInfo,
-    LostWorkers,
-    ExcludedWorkers,
-    ShutdownWorkers,
-    Hostnames,
-    SendWorkerEvent,
-    WorkerEventInfo,
-    Exclude) ++ baseEndpoints
-  private val workerEndpoints: List[HttpEndpoint] =
-    List(
-      ListPartitionLocationInfo,
-      UnavailablePeers,
-      IsShutdown,
-      IsRegistered,
-      Exit) ++ baseEndpoints
+private[celeborn] object HttpUtils {
 
-  def parseUri(uri: String): (String, Map[String, String]) = {
-    val url = new URL(s"https://127.0.0.1:9000$uri")
-    val parameter =
-      if (url.getQuery == null) {
-        Map.empty[String, String]
-      } else {
-        url.getQuery
-          .split("&")
-          .map(_.split("="))
-          .map(arr => arr(0).toUpperCase(Locale.ROOT) -> arr(1)).toMap
+  /**
+   * Create a handler for serving files from a static directory
+   *
+   * @param resourceBase the resource directory contains static resource files
+   * @param contextPath the content path to set for the handler
+   * @return a static [[ServletContextHandler]]
+   */
+  def createStaticHandler(
+      resourceBase: String,
+      contextPath: String): ServletContextHandler = {
+    val contextHandler = new ServletContextHandler()
+    val holder = new ServletHolder(classOf[DefaultServlet])
+    Option(Thread.currentThread().getContextClassLoader.getResource(resourceBase)) match {
+      case Some(res) =>
+        holder.setInitParameter("resourceBase", res.toString)
+      case None =>
+        throw new CelebornException("Could not find resource path for Web UI: " + resourceBase)
+    }
+    contextHandler.setContextPath(contextPath)
+    contextHandler.addServlet(holder, "/")
+    contextHandler
+  }
+
+  def createServletHandler(contextPath: String, servlet: HttpServlet): ServletContextHandler = {
+    val handler = new ServletContextHandler()
+    val holder = new ServletHolder(servlet)
+    handler.setContextPath(contextPath)
+    handler.addServlet(holder, "/")
+    handler
+  }
+
+  def createRedirectHandler(src: String, dest: String): ServletContextHandler = {
+    val redirectedServlet = new HttpServlet {
+      private def doReq(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
+        val newURL = new URL(new URL(req.getRequestURL.toString), dest).toString
+        resp.sendRedirect(newURL)
       }
-    (url.getPath, parameter)
-  }
+      override def doGet(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
+        doReq(req, resp)
+      }
 
-  def handleRequest(
-      service: HttpService,
-      path: String,
-      parameters: Map[String, String]): String = {
-    endpoints(service.serviceName).find(endpoint => endpoint.path == path).orElse(
-      Some(Invalid)).get.handle(
-      service,
-      parameters)
-  }
+      override def doPut(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
+        doReq(req, resp)
+      }
 
-  def help(service: String): String = {
-    val sb = new StringBuilder
-    sb.append("Available API providers include:\n")
-    val httpEndpoints: List[HttpEndpoint] = endpoints(service)
-    val maxLength = httpEndpoints.map(_.path.length).max
-    httpEndpoints.sortBy(_.path).foreach(endpoint =>
-      sb.append(
-        s"${endpoint.path.padTo(maxLength, " ").mkString} ${endpoint.description(service)}\n"))
-    sb.toString
-  }
+      override def doPost(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
+        doReq(req, resp)
+      }
 
-  private def endpoints(service: String): List[HttpEndpoint] = {
-    if (service == Service.MASTER)
-      masterEndpoints
-    else
-      workerEndpoints
+      override def doDelete(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
+        doReq(req, resp)
+      }
+
+      override protected def doTrace(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
+        resp.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED)
+      }
+    }
+
+    createServletHandler(src, redirectedServlet)
   }
 }

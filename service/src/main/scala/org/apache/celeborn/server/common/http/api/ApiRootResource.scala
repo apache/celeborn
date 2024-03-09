@@ -21,10 +21,10 @@ import org.eclipse.jetty.servlet.{ServletContextHandler, ServletHolder}
 import org.glassfish.jersey.server.ResourceConfig
 import org.glassfish.jersey.servlet.ServletContainer
 
-import org.apache.celeborn.server.common.RestService
+import org.apache.celeborn.server.common.HttpService
 
 private[celeborn] object ApiRootResource {
-  def getServletHandler(rs: RestService): ServletContextHandler = {
+  def getServletHandler(rs: HttpService): ServletContextHandler = {
     val openapiConf: ResourceConfig = new OpenAPIConfig
     val holder = new ServletHolder(new ServletContainer(openapiConf))
     val handler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS)
