@@ -36,18 +36,23 @@ private[celeborn] case class HttpServer(
 
   @throws[Exception]
   def start(): Unit = synchronized {
-    server.start()
-    connector.start()
-    server.addConnector(connector)
-    server.setStopAtShutdown(true)
-    logInfo(s"$role: HttpServer started on ${connector.getHost}:${connector.getPort}.")
-    isStarted = true
+    try {
+      server.start()
+      connector.start()
+      server.addConnector(connector)
+      server.setStopAtShutdown(true)
+      logInfo(s"$role: HttpServer started on ${connector.getHost}:${connector.getPort}.")
+      isStarted = true
+    } catch {
+      case e: Exception =>
+        stop(CelebornExitKind.EXIT_IMMEDIATELY)
+        throw e
+    }
   }
 
   def stop(exitCode: Int): Unit = synchronized {
     if (isStarted) {
       if (exitCode == CelebornExitKind.EXIT_IMMEDIATELY) {
-        // default graceful timeout is 30000L milliseconds
         server.setStopTimeout(0)
       }
       logInfo(s"$role: Stopping HttpServer")
