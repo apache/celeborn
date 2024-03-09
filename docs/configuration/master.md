@@ -41,7 +41,9 @@ license: |
 | celeborn.master.heartbeat.worker.timeout | 120s | false | Worker heartbeat timeout. | 0.3.0 | celeborn.worker.heartbeat.timeout | 
 | celeborn.master.host | &lt;localhost&gt; | false | Hostname for master to bind. | 0.2.0 |  | 
 | celeborn.master.http.host | &lt;localhost&gt; | false | Master's http host. | 0.4.0 | celeborn.metrics.master.prometheus.host,celeborn.master.metrics.prometheus.host | 
+| celeborn.master.http.maxWorkerThreads | 999 | false | Maximum number of threads in the master http worker thread pool. | 0.5.0 |  | 
 | celeborn.master.http.port | 9098 | false | Master's http port. | 0.4.0 | celeborn.metrics.master.prometheus.port,celeborn.master.metrics.prometheus.port | 
+| celeborn.master.http.stopTimeout | 5s | false | Master http server stop timeout. | 0.5.0 |  | 
 | celeborn.master.internal.port | 8097 | false | Internal port on the master where both workers and other master nodes connect. | 0.5.0 |  | 
 | celeborn.master.port | 9097 | false | Port for master to bind. | 0.2.0 |  | 
 | celeborn.master.rackResolver.refresh.interval | 30s | false | Interval for refreshing the node rack information periodically. | 0.5.0 |  | 
@@ -60,4 +62,5 @@ license: |
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | false | HDFS base directory for Celeborn to store shuffle data. | 0.2.0 |  | 
 | celeborn.storage.hdfs.kerberos.keytab | &lt;undefined&gt; | false | Kerberos keytab file path for HDFS storage connection. | 0.3.2 |  | 
 | celeborn.storage.hdfs.kerberos.principal | &lt;undefined&gt; | false | Kerberos principal for HDFS storage connection. | 0.3.2 |  | 
+| celeborn.worker.http.maxWorkerThreads | 999 | false | Maximum number of threads in the worker http worker thread pool. | 0.5.0 |  | 
 <!--end-include-->

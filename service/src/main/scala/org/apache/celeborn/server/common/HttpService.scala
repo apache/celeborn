@@ -178,7 +178,8 @@ abstract class HttpService extends Service with Logging {
       serviceName,
       httpHost(),
       httpPort(),
-      999)
+      httpMaxWorkerThreads(),
+      httpStopTimeout())
     httpServer.start()
     startInternal()
     // block until the HTTP server is started, otherwise, we may get
@@ -204,6 +205,24 @@ abstract class HttpService extends Service with Logging {
         conf.masterHttpPort
       case Service.WORKER =>
         conf.workerHttpPort
+    }
+  }
+
+  private def httpMaxWorkerThreads(): Int = {
+    serviceName match {
+      case Service.MASTER =>
+        conf.masterHttpMaxWorkerThreads
+      case Service.WORKER =>
+        conf.workerHttpMaxWorkerThreads
+    }
+  }
+
+  private def httpStopTimeout(): Long = {
+    serviceName match {
+      case Service.MASTER =>
+        conf.masterHttpStopTimeout
+      case Service.WORKER =>
+        conf.workerHttpStopTimeout
     }
   }
 
