@@ -132,7 +132,6 @@ object Dependencies {
   val zstdJni = "com.github.luben" % "zstd-jni" % zstdJniVersion
   val mybatis = "org.mybatis" % "mybatis" % mybatisVersion
   val hikaricp = "com.zaxxer" % "HikariCP" % hikaricpVersion
-  val jettyClient = "org.eclipse.jetty" % "jetty-client" % jettyVersion
   val jettyServer = "org.eclipse.jetty" % "jetty-server" % jettyVersion excludeAll(
     ExclusionRule("javax.servlet", "javax.servlet-api"))
   val jettyServlet = "org.eclipse.jetty" % "jetty-servlet" % jettyVersion
@@ -542,7 +541,9 @@ object CelebornWorker {
         Dependencies.leveldbJniAll,
         Dependencies.roaringBitmap,
         Dependencies.rocksdbJni,
-        Dependencies.scalatestMockito % "test"
+        Dependencies.scalatestMockito % "test",
+        Dependencies.jerseyTestFrameworkCore % "test",
+        Dependencies.jerseyTestFrameworkProviderJetty % "test"
       ) ++ commonUnitTestDependencies
     )
 }

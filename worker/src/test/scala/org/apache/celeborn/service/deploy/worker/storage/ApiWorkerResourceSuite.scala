@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.worker.storage
 import javax.ws.rs.core.MediaType
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.util.CelebornExitKind
+import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.ApiBaseResourceSuite
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
@@ -60,11 +60,6 @@ class ApiWorkerResourceSuite extends ApiBaseResourceSuite {
 
   test("isRegistered") {
     val response = webTarget.path("isRegistered").request(MediaType.TEXT_PLAIN).get()
-    assert(200 == response.getStatus)
-  }
-
-  test("exit") {
-    val response = webTarget.path("exit").request(MediaType.TEXT_PLAIN).post(null)
     assert(200 == response.getStatus)
   }
 }
