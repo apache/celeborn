@@ -17,12 +17,13 @@
 
 package org.apache.celeborn.server.common.http.api
 
-import org.apache.celeborn.server.common.RestService
-
 import javax.servlet.ServletContext
 import javax.servlet.http.HttpServletRequest
 import javax.ws.rs.core.Context
+
 import org.eclipse.jetty.server.handler.ContextHandler
+
+import org.apache.celeborn.server.common.RestService
 
 private[celeborn] trait ApiRequestContext {
   @Context

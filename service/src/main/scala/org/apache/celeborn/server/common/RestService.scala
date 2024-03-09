@@ -17,14 +17,15 @@
 
 package org.apache.celeborn.server.common
 
+import java.util
+
+import scala.collection.JavaConverters._
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.JettyServer
 import org.apache.celeborn.server.common.http.api.ApiRootResource
 import org.apache.celeborn.server.common.service.config.ConfigLevel
-
-import java.util
-import scala.collection.JavaConverters._
 
 abstract class RestService extends Service with Logging {
   private var httpServer: JettyServer = _
