@@ -36,7 +36,7 @@ class ApiMasterResource extends ApiRequestContext {
     description =
       "List master group information of the service. It will list all master's LEADER, FOLLOWER information.")
   @GET
-  def masterGroupInfo: String = rs.getMasterGroupInfo
+  def masterGroupInfo: String = httpService.getMasterGroupInfo
 
   @Path("/lostWorkers")
   @ApiResponse(
@@ -45,7 +45,7 @@ class ApiMasterResource extends ApiRequestContext {
       mediaType = MediaType.TEXT_PLAIN)),
     description = "List all lost workers of the master.")
   @GET
-  def lostWorkers: String = rs.getLostWorkers
+  def lostWorkers: String = httpService.getLostWorkers
 
   @Path("/excludedWorkers")
   @ApiResponse(
@@ -54,7 +54,7 @@ class ApiMasterResource extends ApiRequestContext {
       mediaType = MediaType.TEXT_PLAIN)),
     description = "List all excluded workers of the master.")
   @GET
-  def excludedWorkers: String = rs.getExcludedWorkers
+  def excludedWorkers: String = httpService.getExcludedWorkers
 
   @Path("/shutdownWorkers")
   @ApiResponse(
@@ -63,7 +63,7 @@ class ApiMasterResource extends ApiRequestContext {
       mediaType = MediaType.TEXT_PLAIN)),
     description = "List all shutdown workers of the master.")
   @GET
-  def shutdownWorkers: String = rs.getShutdownWorkers
+  def shutdownWorkers: String = httpService.getShutdownWorkers
 
   @Path("/hostnames")
   @ApiResponse(
@@ -72,7 +72,7 @@ class ApiMasterResource extends ApiRequestContext {
       mediaType = MediaType.TEXT_PLAIN)),
     description = "List all running application's LifecycleManager's hostnames of the cluster.")
   @GET
-  def hostnames: String = rs.getHostnameList
+  def hostnames: String = httpService.getHostnameList
 
   @Path("/sendWorkerEvent")
   @ApiResponse(
@@ -85,7 +85,7 @@ class ApiMasterResource extends ApiRequestContext {
   def sendWorkerEvent(
       @QueryParam("TYPE") eventType: String,
       @QueryParam("WORKERS") workers: String): String = {
-    rs.handleWorkerEvent(trim(eventType), trim(workers))
+    httpService.handleWorkerEvent(trim(eventType), trim(workers))
   }
 
   @Path("/workerEventInfo")
@@ -95,7 +95,7 @@ class ApiMasterResource extends ApiRequestContext {
       mediaType = MediaType.TEXT_PLAIN)),
     description = "List all worker event infos of the master.")
   @GET
-  def workerEventInfo: String = rs.getWorkerEventInfo()
+  def workerEventInfo: String = httpService.getWorkerEventInfo()
 
   @Path("/exclude")
   @ApiResponse(
@@ -107,6 +107,6 @@ class ApiMasterResource extends ApiRequestContext {
   def excludeWorkers(
       @QueryParam("ADD") addWorkers: String,
       @QueryParam("REMOVE") removeWorkers: String): String = {
-    rs.exclude(trim(addWorkers), trim(removeWorkers))
+    httpService.exclude(trim(addWorkers), trim(removeWorkers))
   }
 }

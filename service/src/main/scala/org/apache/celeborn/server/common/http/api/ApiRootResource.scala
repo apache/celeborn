@@ -29,7 +29,7 @@ private[celeborn] object ApiRootResource {
     val holder = new ServletHolder(new ServletContainer(openapiConf))
     val handler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS)
     handler.setContextPath("/")
-    RestServiceContext.set(handler, rs)
+    HttpServiceContext.set(handler, rs)
     handler.addServlet(holder, "/*")
     handler
   }

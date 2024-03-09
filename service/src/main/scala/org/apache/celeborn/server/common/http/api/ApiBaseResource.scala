@@ -25,7 +25,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 
 @Path("/")
 private[api] class ApiBaseResource extends ApiRequestContext {
-  def service: String = rs.serviceName
+  def service: String = httpService.serviceName
 
   @GET
   @Path("ping")
@@ -39,7 +39,7 @@ private[api] class ApiBaseResource extends ApiRequestContext {
       mediaType = MediaType.TEXT_PLAIN)),
     description = "List the conf setting.")
   @GET
-  def conf: String = rs.getConf
+  def conf: String = httpService.getConf
 
   @Path("/listDynamicConfigs")
   @ApiResponse(
@@ -56,7 +56,7 @@ private[api] class ApiBaseResource extends ApiRequestContext {
       @QueryParam("LEVEL") level: String,
       @QueryParam("TENANT") tenant: String,
       @QueryParam("NAME") name: String): String = {
-    rs.getDynamicConfigs(trim(level), trim(tenant), trim(name))
+    httpService.getDynamicConfigs(trim(level), trim(tenant), trim(name))
   }
 
   @Path("/workerInfo")
@@ -69,7 +69,7 @@ private[api] class ApiBaseResource extends ApiRequestContext {
         "For WORKER: List the worker information of the worker.")
   @GET
   def workerInfo(): String = {
-    rs.getWorkerInfo
+    httpService.getWorkerInfo
   }
 
   @Path("/threadDump")
@@ -80,7 +80,7 @@ private[api] class ApiBaseResource extends ApiRequestContext {
     description = "List the current thread dump.")
   @GET
   def threadDump(): String = {
-    rs.getThreadDump
+    httpService.getThreadDump
   }
 
   @Path("shuffle")
@@ -93,7 +93,7 @@ private[api] class ApiBaseResource extends ApiRequestContext {
         "For WORKER: List all the running shuffle keys of the worker. It only return keys of shuffles running in that worker.")
   @GET
   def shuffles(): String = {
-    rs.getShuffleList
+    httpService.getShuffleList
   }
 
   @Path("applications")
@@ -106,7 +106,7 @@ private[api] class ApiBaseResource extends ApiRequestContext {
         "For WORKER: List all running application's ids of the worker. It only return application ids running in that worker.")
   @GET
   def applications(): String = {
-    rs.getApplicationList
+    httpService.getApplicationList
   }
 
   @Path("listTopDiskUsedApps")
@@ -119,6 +119,6 @@ private[api] class ApiBaseResource extends ApiRequestContext {
         "List the top disk usage application ids. It only return application ids running in that worker.")
   @GET
   def listTopDiskUsedApps(): String = {
-    rs.listTopDiskUseApps
+    httpService.listTopDiskUseApps
   }
 }

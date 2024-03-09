@@ -32,12 +32,12 @@ private[celeborn] trait ApiRequestContext {
   @Context
   protected var httpRequest: HttpServletRequest = _
 
-  final protected def rs: HttpService = RestServiceContext.get(servletContext)
+  final protected def httpService: HttpService = HttpServiceContext.get(servletContext)
 
   protected def trim(str: String): String = Option(str).map(_.trim).getOrElse("")
 }
 
-private[celeborn] object RestServiceContext {
+private[celeborn] object HttpServiceContext {
   private val attribute = getClass.getCanonicalName
 
   def set(contextHandler: ContextHandler, rs: HttpService): Unit = {

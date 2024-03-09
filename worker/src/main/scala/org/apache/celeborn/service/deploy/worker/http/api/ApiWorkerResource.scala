@@ -34,7 +34,7 @@ class ApiWorkerResource extends ApiRequestContext {
       mediaType = MediaType.TEXT_PLAIN)),
     description = "List all the living PartitionLocation information in that worker.")
   @GET
-  def listPartitionLocationInfo: String = rs.listPartitionLocationInfo
+  def listPartitionLocationInfo: String = httpService.listPartitionLocationInfo
 
   @Path("/unavailablePeers")
   @ApiResponse(
@@ -44,7 +44,7 @@ class ApiWorkerResource extends ApiRequestContext {
     description =
       "List the unavailable peers of the worker, this always means the worker connect to the peer failed.")
   @GET
-  def unavailablePeers: String = rs.getUnavailablePeers
+  def unavailablePeers: String = httpService.getUnavailablePeers
 
   @Path("/isShutdown")
   @ApiResponse(
@@ -53,7 +53,7 @@ class ApiWorkerResource extends ApiRequestContext {
       mediaType = MediaType.TEXT_PLAIN)),
     description = "Show if the worker is during the process of shutdown.")
   @GET
-  def isShutdown: String = rs.isShutdown
+  def isShutdown: String = httpService.isShutdown
 
   @Path("/isRegistered")
   @ApiResponse(
@@ -62,7 +62,7 @@ class ApiWorkerResource extends ApiRequestContext {
       mediaType = MediaType.TEXT_PLAIN)),
     description = "Show if the worker is registered to the master success.")
   @GET
-  def isRegistered: String = rs.isShutdown
+  def isRegistered: String = httpService.isRegistered
 
   @Path("/exit")
   @ApiResponse(
@@ -73,6 +73,6 @@ class ApiWorkerResource extends ApiRequestContext {
       "Trigger this worker to exit. Legal types are 'DECOMMISSION', 'GRACEFUL' and 'IMMEDIATELY'.")
   @POST
   def exit(@QueryParam("TYPE") exitType: String): String = {
-    rs.exit(trim(exitType))
+    httpService.exit(trim(exitType))
   }
 }
