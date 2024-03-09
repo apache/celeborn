@@ -17,10 +17,32 @@
 
 package org.apache.celeborn.server.common.http.api
 
-import org.glassfish.jersey.server.ResourceConfig
+import javax.servlet.ServletContext
+import javax.servlet.http.HttpServletRequest
+import javax.ws.rs.core.Context
 
-class OpenAPIConfig extends ResourceConfig {
-  packages("org.apache.celeborn.server.common.http.api")
-  register(classOf[CelebornOpenApiResource])
-  register(classOf[CelebornScalaObjectMapper])
+import org.eclipse.jetty.server.handler.ContextHandler
+
+import org.apache.celeborn.server.common.http.RestService
+
+private[api] trait ApiRequestContext {
+  @Context
+  protected var servletContext: ServletContext = _
+
+  @Context
+  protected var httpRequest: HttpServletRequest = _
+
+  final protected def rs: RestService = RestServiceContext.get(servletContext)
+}
+
+private[api] object RestServiceContext {
+  private val attribute = getClass.getCanonicalName
+
+  def set(contextHandler: ContextHandler, rs: RestService): Unit = {
+    contextHandler.setAttribute(attribute, rs)
+  }
+
+  def get(context: ServletContext): RestService = {
+    context.getAttribute(attribute).asInstanceOf[RestService]
+  }
 }

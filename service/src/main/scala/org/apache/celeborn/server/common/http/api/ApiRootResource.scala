@@ -17,10 +17,20 @@
 
 package org.apache.celeborn.server.common.http.api
 
+import org.eclipse.jetty.servlet.{ServletContextHandler, ServletHolder}
 import org.glassfish.jersey.server.ResourceConfig
+import org.glassfish.jersey.servlet.ServletContainer
 
-class OpenAPIConfig extends ResourceConfig {
-  packages("org.apache.celeborn.server.common.http.api")
-  register(classOf[CelebornOpenApiResource])
-  register(classOf[CelebornScalaObjectMapper])
+import org.apache.celeborn.server.common.http.RestService
+
+private[celeborn] object ApiRootResource {
+  def getServletHandler(rs: RestService): ServletContextHandler = {
+    val openapiConf: ResourceConfig = new OpenAPIConfig
+    val holder = new ServletHolder(new ServletContainer(openapiConf))
+    val handler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS)
+    handler.setContextPath("/")
+    RestServiceContext.set(handler, rs)
+    handler.addServlet(holder, "/*")
+    handler
+  }
 }

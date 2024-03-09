@@ -17,10 +17,13 @@
 
 package org.apache.celeborn.server.common.http.api
 
-import org.glassfish.jersey.server.ResourceConfig
+import javax.ws.rs.ext.ContextResolver
 
-class OpenAPIConfig extends ResourceConfig {
-  packages("org.apache.celeborn.server.common.http.api")
-  register(classOf[CelebornOpenApiResource])
-  register(classOf[CelebornScalaObjectMapper])
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
+
+class CelebornScalaObjectMapper extends ContextResolver[ObjectMapper] {
+  private val mapper = new ObjectMapper().registerModule(DefaultScalaModule)
+
+  override def getContext(aClass: Class[_]): ObjectMapper = mapper
 }

@@ -17,13 +17,14 @@
 
 package org.apache.celeborn.server.common.http
 
-import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.util.CelebornExitKind
 import org.apache.commons.lang3.SystemUtils
 import org.eclipse.jetty.server.{Handler, HttpConfiguration, HttpConnectionFactory, Server, ServerConnector}
 import org.eclipse.jetty.server.handler.{ContextHandlerCollection, ErrorHandler}
 import org.eclipse.jetty.util.component.LifeCycle
 import org.eclipse.jetty.util.thread.{QueuedThreadPool, ScheduledExecutorScheduler}
+
+import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.util.CelebornExitKind
 
 private[celeborn] case class JettyServer(
     role: String,
