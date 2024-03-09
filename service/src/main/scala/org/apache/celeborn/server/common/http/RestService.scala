@@ -18,12 +18,11 @@
 package org.apache.celeborn.server.common.http
 
 import java.util
-
 import scala.collection.JavaConverters._
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.Service
+import org.apache.celeborn.server.common.http.api.ApiRootResource
 import org.apache.celeborn.server.common.service.config.ConfigLevel
 
 abstract class RestService extends Service with Logging {
@@ -133,6 +132,59 @@ abstract class RestService extends Service with Logging {
   private def config(configKey: String, configVal: String, maxKeyLength: Int): String =
     s"${configKey.padTo(maxKeyLength + 10, " ").mkString}$configVal\n"
 
+  def getWorkerInfo: String
+
+  def getThreadDump: String
+
+  def getShuffleList: String
+
+  def getApplicationList: String
+
+  def listTopDiskUseApps: String
+
+  def getMasterGroupInfo: String = throw new UnsupportedOperationException()
+
+  def getLostWorkers: String = throw new UnsupportedOperationException()
+
+  def getShutdownWorkers: String = throw new UnsupportedOperationException()
+
+  def getExcludedWorkers: String = throw new UnsupportedOperationException()
+
+  def getHostnameList: String = throw new UnsupportedOperationException()
+
+  def exclude(addWorkers: String, removeWorkers: String): String =
+    throw new UnsupportedOperationException()
+
+  def listPartitionLocationInfo: String = throw new UnsupportedOperationException()
+
+  def getUnavailablePeers: String = throw new UnsupportedOperationException()
+
+  def isShutdown: String = throw new UnsupportedOperationException()
+
+  def isRegistered: String = throw new UnsupportedOperationException()
+
+  def exit(exitType: String): String = throw new UnsupportedOperationException()
+
+  def handleWorkerEvent(workerEventType: String, workers: String): String =
+    throw new UnsupportedOperationException()
+
+  def getWorkerEventInfo(): String = throw new UnsupportedOperationException()
+
+  def startHttpServer(): Unit = {
+    httpServer = JettyServer(
+      serviceName,
+      httpHost(),
+      httpPort(),
+      999)
+    startInternal()
+    // block until the HTTP server is started, otherwise, we may get
+    // the wrong HTTP server port -1
+    while (httpServer.getState != "STARTED") {
+      logInfo(s"Waiting for $serviceName's HTTP server getting started")
+      Thread.sleep(1000)
+    }
+  }
+
   private def httpHost(): String = {
     serviceName match {
       case Service.MASTER =>
@@ -151,35 +203,28 @@ abstract class RestService extends Service with Logging {
     }
   }
 
-  def startHttpServer(): Unit = {
-    httpServer = JettyServer(
-      serviceName,
-      httpHost(),
-      httpPort(),
-      999)
-    startInternal()
-    // block until the HTTP server is started, otherwise, we may get
-    // the wrong HTTP server port -1
-    while (httpServer.getState != "STARTED") {
-      logInfo(s"Waiting for $serviceName's HTTP server getting started")
-      Thread.sleep(1000)
-    }
-  }
-
   def connectionUrl: String = {
     httpServer.getServerUri
   }
 
-  protected def startInternal(): Unit = {}
+  protected def startInternal(): Unit = {
+    httpServer.addHandler(ApiRootResource.getServletHandler(this))
+    httpServer.addStaticHandler("org/apache/celeborn/swagger", "swagger")
+    httpServer.addRedirectHandler("/", "/swagger")
+    httpServer.addRedirectHandler("/help", "/swagger")
+    httpServer.addRedirectHandler("/docs", "/swagger")
+  }
 
-  def getWorkerInfo: String
+  override def initialize(): Unit = {
+    super.initialize()
+    startHttpServer()
+  }
 
-  def getThreadDump: String
-
-  def getShuffleList: String
-
-  def getApplicationList: String
-
-  def listTopDiskUseApps: String
-
+  override def stop(exitKind: Int): Unit = {
+    // may be null when running the unit test
+    if (null != httpServer) {
+      httpServer.stop(exitKind)
+    }
+    super.stop(exitKind)
+  }
 }
