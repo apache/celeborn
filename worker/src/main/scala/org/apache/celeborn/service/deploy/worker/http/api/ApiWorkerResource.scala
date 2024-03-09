@@ -72,7 +72,7 @@ class ApiWorkerResource extends ApiRequestContext {
     description =
       "Trigger this worker to exit. Legal types are 'DECOMMISSION', 'GRACEFUL' and 'IMMEDIATELY'.")
   @POST
-  def exit(@QueryParam("TYPE") exitType: String = ""): String = {
-    rs.exit(exitType)
+  def exit(@QueryParam("TYPE") exitType: String): String = {
+    rs.exit(trim(exitType))
   }
 }

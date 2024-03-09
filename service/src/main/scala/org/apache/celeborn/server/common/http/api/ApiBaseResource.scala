@@ -23,8 +23,6 @@ import javax.ws.rs.core.MediaType
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 
-import org.apache.celeborn.server.common.Service
-
 @Path("/")
 private[api] class ApiBaseResource extends ApiRequestContext {
   def service: String = rs.serviceName
@@ -55,10 +53,10 @@ private[api] class ApiBaseResource extends ApiRequestContext {
       "Meanwhile, either none or all of the parameter tenant and name are specified for TENANT_USER level.")
   @GET
   def listDynamicConfigs(
-      @QueryParam("LEVEL") level: String = "",
-      @QueryParam("TENANT") tenant: String = "",
-      @QueryParam("NAME") name: String = ""): String = {
-    rs.getDynamicConfigs(level.trim, tenant.trim, name.trim)
+      @QueryParam("LEVEL") level: String,
+      @QueryParam("TENANT") tenant: String,
+      @QueryParam("NAME") name: String): String = {
+    rs.getDynamicConfigs(trim(level), trim(tenant), trim(name))
   }
 
   @Path("/workerInfo")

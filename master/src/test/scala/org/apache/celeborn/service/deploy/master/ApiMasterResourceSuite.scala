@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.service.deploy.master
 
+import javax.ws.rs.core.MediaType
+
 import com.google.common.io.Files
 
 import org.apache.celeborn.common.CelebornConf
@@ -50,7 +52,11 @@ class ApiMasterResourceSuite extends ApiBaseResourceSuite {
 
     val masterArgs = new MasterArguments(args, conf)
     master = new Master(conf, masterArgs)
-    master.initialize()
+    new Thread() {
+      override def run(): Unit = {
+        master.initialize()
+      }
+    }.start()
     super.beforeAll()
   }
 
@@ -58,5 +64,47 @@ class ApiMasterResourceSuite extends ApiBaseResourceSuite {
     super.afterAll()
     master.stop(CelebornExitKind.EXIT_IMMEDIATELY)
     master.rpcEnv.shutdown()
+  }
+
+  test("masterGroupInfo") {
+    val response = webTarget.path("masterGroupInfo").request(MediaType.TEXT_PLAIN).get()
+    assert(200 == response.getStatus)
+  }
+
+  test("lostWorkers") {
+    val response = webTarget.path("lostWorkers").request(MediaType.TEXT_PLAIN).get()
+    assert(200 == response.getStatus)
+  }
+
+  test("excludedWorkers") {
+    val response = webTarget.path("excludedWorkers").request(MediaType.TEXT_PLAIN).get()
+    assert(200 == response.getStatus)
+  }
+
+  test("shutdownWorkers") {
+    val response = webTarget.path("shutdownWorkers").request(MediaType.TEXT_PLAIN).get()
+    assert(200 == response.getStatus)
+  }
+
+  test("hostnames") {
+    val response = webTarget.path("hostnames").request(MediaType.TEXT_PLAIN).get()
+    assert(200 == response.getStatus)
+  }
+
+  test("sendWorkerEvent") {
+    val response = webTarget.path("sendWorkerEvent")
+      .request(MediaType.TEXT_PLAIN)
+      .post(null)
+    assert(200 == response.getStatus)
+  }
+
+  test("workerEventInfo") {
+    val response = webTarget.path("workerEventInfo").request(MediaType.TEXT_PLAIN).get()
+    assert(200 == response.getStatus)
+  }
+
+  test("exclude") {
+    val response = webTarget.path("exclude").request(MediaType.TEXT_PLAIN).post(null)
+    assert(200 == response.getStatus)
   }
 }

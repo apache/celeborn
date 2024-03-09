@@ -497,7 +497,7 @@ object CelebornService {
 object CelebornMaster {
   lazy val master = Project("celeborn-master", file("master"))
     .dependsOn(CelebornCommon.common)
-    .dependsOn(CelebornService.service % "test->test")
+    .dependsOn(CelebornService.service % "test->test;compile->compile")
     .settings (
       commonSettings,
       protoSettings,

@@ -33,6 +33,8 @@ private[celeborn] trait ApiRequestContext {
   protected var httpRequest: HttpServletRequest = _
 
   final protected def rs: HttpService = RestServiceContext.get(servletContext)
+
+  protected def trim(str: String): String = Option(str).map(_.trim).getOrElse("")
 }
 
 private[celeborn] object RestServiceContext {

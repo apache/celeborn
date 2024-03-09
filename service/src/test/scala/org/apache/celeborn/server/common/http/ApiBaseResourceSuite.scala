@@ -17,12 +17,50 @@
 
 package org.apache.celeborn.server.common.http
 
-import javax.ws.rs.client.Entity
 import javax.ws.rs.core.MediaType
 
 abstract class ApiBaseResourceSuite extends HttpTestHelper {
+  test("ping") {
+    val response = webTarget.path("ping").request(MediaType.TEXT_PLAIN).get()
+    assert(200 == response.getStatus)
+    assert(response.readEntity(classOf[String]) == "pong")
+  }
+
   test("conf") {
     val response = webTarget.path("conf").request(MediaType.TEXT_PLAIN).get()
+    assert(200 == response.getStatus)
+  }
+
+  test("listDynamicConfigs") {
+    val response = webTarget.path("listDynamicConfigs")
+      .queryParam("LEVEL", "TENANT")
+      .request(MediaType.TEXT_PLAIN)
+      .get()
+    assert(200 == response.getStatus)
+  }
+
+  test("workerInfo") {
+    val response = webTarget.path("workerInfo").request(MediaType.TEXT_PLAIN).get()
+    assert(200 == response.getStatus)
+  }
+
+  test("threadDump") {
+    val response = webTarget.path("threadDump").request(MediaType.TEXT_PLAIN).get()
+    assert(200 == response.getStatus)
+  }
+
+  test("shuffle") {
+    val response = webTarget.path("shuffle").request(MediaType.TEXT_PLAIN).get()
+    assert(200 == response.getStatus)
+  }
+
+  test("applications") {
+    val response = webTarget.path("applications").request(MediaType.TEXT_PLAIN).get()
+    assert(200 == response.getStatus)
+  }
+
+  test("listTopDiskUsedApps") {
+    val response = webTarget.path("listTopDiskUsedApps").request(MediaType.TEXT_PLAIN).get()
     assert(200 == response.getStatus)
   }
 }

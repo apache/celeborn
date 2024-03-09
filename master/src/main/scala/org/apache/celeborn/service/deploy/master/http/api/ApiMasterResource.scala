@@ -83,9 +83,9 @@ class ApiMasterResource extends ApiRequestContext {
       "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'")
   @POST
   def sendWorkerEvent(
-      @QueryParam("TYPE") eventType: String = "",
-      @QueryParam("WORKERS") workers: String = ""): String = {
-    rs.handleWorkerEvent(eventType, workers)
+      @QueryParam("TYPE") eventType: String,
+      @QueryParam("WORKERS") workers: String): String = {
+    rs.handleWorkerEvent(trim(eventType), trim(workers))
   }
 
   @Path("/workerEventInfo")
@@ -105,8 +105,8 @@ class ApiMasterResource extends ApiRequestContext {
     description = "List all worker event infos of the master.")
   @POST
   def excludeWorkers(
-      @QueryParam("ADD") addWorkers: String = "",
-      @QueryParam("REMOVE") removeWorkers: String = ""): String = {
-    rs.exclude(addWorkers, removeWorkers)
+      @QueryParam("ADD") addWorkers: String,
+      @QueryParam("REMOVE") removeWorkers: String): String = {
+    rs.exclude(trim(addWorkers), trim(removeWorkers))
   }
 }
