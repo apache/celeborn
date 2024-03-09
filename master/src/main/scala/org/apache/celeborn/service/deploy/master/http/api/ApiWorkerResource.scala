@@ -26,7 +26,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 
 @Path("/")
-class ApiWorkerResource extends ApiRequestContext {
+class ApiMasterResource extends ApiRequestContext {
 
   @Path("/masterGroupInfo")
   @ApiResponse(

@@ -177,6 +177,7 @@ abstract class RestService extends Service with Logging {
       httpHost(),
       httpPort(),
       999)
+    httpServer.start()
     startInternal()
     // block until the HTTP server is started, otherwise, we may get
     // the wrong HTTP server port -1
@@ -210,7 +211,7 @@ abstract class RestService extends Service with Logging {
 
   protected def startInternal(): Unit = {
     httpServer.addHandler(ApiRootResource.getServletHandler(this))
-    httpServer.addStaticHandler("org/apache/celeborn/swagger", "swagger")
+    httpServer.addStaticHandler("org/apache/celeborn/swagger", "/swagger")
     httpServer.addRedirectHandler("/", "/swagger")
     httpServer.addRedirectHandler("/help", "/swagger")
     httpServer.addRedirectHandler("/docs", "/swagger")

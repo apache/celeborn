@@ -60,7 +60,7 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
       .ctxId(ctxId)
       .buildContext(true)
 
-    val openApi = setKyuubiOpenAPIDefinition(ctx.read())
+      val openApi = setCelebornOpenAPIDefinition(ctx.read())
 
     if (StringUtils.isNotBlank(tpe) && tpe.trim().equalsIgnoreCase("yaml")) {
       Response.status(Response.Status.OK)
@@ -81,19 +81,11 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
     }
   }
 
-  private def setKyuubiOpenAPIDefinition(openApi: OpenAPI): OpenAPI = {
+  private def setCelebornOpenAPIDefinition(openApi: OpenAPI): OpenAPI = {
     // TODO: to improve when https is enabled.
-    val apiUrl = s"http://${rs.connectionUrl}/api"
+    val apiUrl = s"http://${rs.connectionUrl}/"
     openApi.info(
-      new Info().title("Apache Celeborn (Incubating) REST API Documentation")
-        .description("Apache Celeborn (Incubating) REST API Documentation")
-        .contact(
-          new Contact().name("Apache Celeborn Community")
-            .email("dev@celeborn.apache.org"))
-        .license(
-          new License().name("Apache License 2.0")
-            .url("https://www.apache.org/licenses/LICENSE-2.0.txt")))
-      .tags(List(new Tag().name("Session"), new Tag().name("Operation")).asJava)
+      new Info().title(s"Apache Celeborn (Incubating) REST API Documentation - ${rs.serviceName}"))
       .servers(List(new Server().url(apiUrl)).asJava)
   }
 }
