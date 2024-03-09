@@ -60,7 +60,7 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
       .ctxId(ctxId)
       .buildContext(true)
 
-      val openApi = setCelebornOpenAPIDefinition(ctx.read())
+    val openApi = setCelebornOpenAPIDefinition(ctx.read())
 
     if (StringUtils.isNotBlank(tpe) && tpe.trim().equalsIgnoreCase("yaml")) {
       Response.status(Response.Status.OK)
