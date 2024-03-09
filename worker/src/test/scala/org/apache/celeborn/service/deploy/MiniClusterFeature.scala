@@ -144,7 +144,25 @@ trait MiniClusterFeature extends Logging {
       workerConf: Map[String, String] = null,
       workerNum: Int = 3): (Master, collection.Set[Worker]) = {
     val timeout = 30000
-    val master = createMaster(masterConf)
+    var master: Master = null
+    var masterCreated = false
+    var masterCreateRetry = 0
+    while (!masterCreated) {
+      try {
+        master = createMaster(masterConf)
+      } catch {
+        case ex: Exception =>
+          masterCreated = false
+          masterCreateRetry += 1
+          logError(s"cannot create master, retrying: ", ex)
+          if (masterCreateRetry == 3) {
+            logError(s"cannot create master, reached to max retrying", ex)
+            throw ex
+          } else {
+            Thread.sleep(math.pow(2000, masterCreateRetry).toInt)
+          }
+      }
+    }
     val masterStartedSignal = Array(false)
     val masterThread = new RunnerWrap({
       try {
