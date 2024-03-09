@@ -248,6 +248,11 @@ io.netty:netty-transport-native-unix-common
 io.netty:netty-transport-rxtx
 io.netty:netty-transport-sctp
 io.netty:netty-transport-udt
+io.swagger.core.v3:swagger-annotations
+io.swagger.core.v3:swagger-core
+io.swagger.core.v3:swagger-integration
+io.swagger.core.v3:swagger-jaxrs2
+io.swagger.core.v3:swagger-models
 org.apache.commons:commons-crypto
 org.apache.commons:commons-lang3
 org.apache.hadoop:hadoop-client-api
@@ -267,6 +272,13 @@ org.apache.ratis:ratis-server
 org.apache.ratis:ratis-server-api
 org.apache.ratis:ratis-shell
 org.apache.ratis:ratis-thirdparty-misc
+org.eclipse.jetty:jetty-http
+org.eclipse.jetty:jetty-io
+org.eclipse.jetty:jetty-security
+org.eclipse.jetty:jetty-server
+org.eclipse.jetty:jetty-servlet
+org.eclipse.jetty:jetty-util-ajax
+org.eclipse.jetty:jetty-util
 org.javassist:javassist
 org.reflections:reflections
 org.roaringbitmap:RoaringBitmap
