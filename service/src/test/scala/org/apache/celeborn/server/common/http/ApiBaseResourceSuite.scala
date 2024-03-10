@@ -63,4 +63,18 @@ abstract class ApiBaseResourceSuite extends HttpTestHelper {
     val response = webTarget.path("listTopDiskUsedApps").request(MediaType.TEXT_PLAIN).get()
     assert(200 == response.getStatus)
   }
+
+  test("openapi.json") {
+    val response = webTarget.path("openapi.json").request(MediaType.APPLICATION_JSON).get()
+    assert(200 == response.getStatus)
+    assert(response.readEntity(classOf[String]).contains("/conf"))
+  }
+
+  test("swagger") {
+    Seq("swagger", "docs", "help").foreach { path =>
+      val response = webTarget.path(path).request(MediaType.TEXT_HTML).get()
+      assert(200 == response.getStatus)
+      assert(response.readEntity(classOf[String]).contains("swagger-ui"))
+    }
+  }
 }
