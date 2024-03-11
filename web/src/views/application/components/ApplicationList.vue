@@ -56,16 +56,13 @@ const doSearch = () => {
 
 const resetSearch = () => {
   searchFormModel.value.pageNum = 1
-  searchFormModel.value.applicationId =
-    searchFormModel.value.subUser =
-    searchFormModel.value.tenant =
-      ''
+  searchFormModel.value.appId = searchFormModel.value.subUser = searchFormModel.value.tenant = ''
   $emits('do-search', searchFormModel.value)
 }
 
 const columns: DataTableColumns<Application> = [
   {
-    title: 'ApplicationId',
+    title: 'AppId',
     key: 'appId',
     sorter: true
   },
@@ -98,7 +95,7 @@ const pagination = reactive({
   pageSize: searchFormModel.value.pageSize,
   itemCount: $props.count,
   showSizePicker: true,
-  pageSizes: [10, 20, 40],
+  pageSizes: [30, 50, 100],
   onChange: (page: number) => {
     searchFormModel.value.pageNum = pagination.page = page
     doSearch()
@@ -119,26 +116,14 @@ const pagination = reactive({
     @keydown.enter="doSearch"
   >
     <n-grid :x-gap="24" :y-gap="24" :cols="4">
-      <n-form-item-gi label="ApplicationId" path="applicationId">
-        <n-input
-          v-model:value="searchFormModel.applicationId"
-          placeholder="Please input the applicationId"
-          clearable
-        />
+      <n-form-item-gi label="AppId" path="appId">
+        <n-input v-model:value="searchFormModel.appId" placeholder="" clearable />
       </n-form-item-gi>
       <n-form-item-gi label="SubUser" path="subUser">
-        <n-input
-          v-model:value="searchFormModel.subUser"
-          placeholder="Please input the sub user"
-          clearable
-        />
+        <n-input v-model:value="searchFormModel.subUser" placeholder="" clearable />
       </n-form-item-gi>
       <n-form-item-gi label="Tenant" path="tenant">
-        <n-input
-          v-model:value="searchFormModel.tenant"
-          placeholder="Please input the tenant"
-          clearable
-        />
+        <n-input v-model:value="searchFormModel.tenant" placeholder="" clearable />
       </n-form-item-gi>
       <n-grid-item>
         <n-flex>

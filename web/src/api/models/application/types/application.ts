@@ -32,7 +32,7 @@ export interface Application {
 export interface ApplicationSearchModel {
   pageSize: number
   pageNum: number
-  applicationId?: string
+  appId?: string
   subUser?: string
   tenant?: string
 }

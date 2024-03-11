@@ -30,7 +30,7 @@ defineOptions({
 
 const pageInfos = reactive<Page>({
   pageNum: 1,
-  pageSize: 10
+  pageSize: 30
 })
 
 const { use: useApplicationList, load: loadApplicationList } = getApplicationList()
