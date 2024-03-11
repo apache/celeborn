@@ -302,12 +302,6 @@ public class SortBasedPusher extends MemoryConsumer {
     }
 
     long threshold = pushSortMemoryThreshold;
-    System.out.println("used:" + getUsed() + " threshold: " + threshold + " pageCursor:" +
-        pageCursor + " required:" + required);
-    if (currentPage != null) {
-      System.out.println(" currentPage.getBaseOffset():" +
-          currentPage.getBaseOffset() + " size: " + currentPage.size());
-    }
     if (getUsed() > threshold
         && pageCursor + required > currentPage.getBaseOffset() + currentPage.size()) {
       logger.info(

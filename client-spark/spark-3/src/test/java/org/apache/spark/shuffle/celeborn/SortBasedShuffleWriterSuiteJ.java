@@ -182,8 +182,8 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
     System.out.println(total.get());
     writer.doWrite(iterator);
     // given that the send buffer size is 32K and memory threshold is also 32K, with sortbasedwriter
-    // we have pushed for 4 times (1 time per each partition), so we will grow the threshold to 64K
-    // to mitigate too many pushes
+    // we have pushed for 3 times (1 time per each existing partition),
+    // so we will grow the threshold to 64K to mitigate too many pushes
     assertEquals(64 * 1024, pusher.getPushSortMemoryThreshold());
     System.out.println("time 2");
     iterator = getUnsafeRowIterator(32 * 1024, 8 * 1024, total, numPartitions);
