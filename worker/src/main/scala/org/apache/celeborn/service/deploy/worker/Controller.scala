@@ -697,10 +697,6 @@ private[deploy] class Controller(
       val releaseReplicaLocations =
         partitionLocationInfo.removeReplicaPartitions(shuffleKey, replicaLocations)
       workerInfo.releaseSlots(shuffleKey, releaseReplicaLocations._1)
-      workerSource.incCounter(
-        WorkerSource.SLOTS_ALLOCATED,
-        -(primaryLocations.size() + replicaLocations.size() - failedPrimaries.size()
-          - failedReplicas.size()))
     }
     // reply
     if (failedPrimaries.isEmpty && failedReplicas.isEmpty) {
