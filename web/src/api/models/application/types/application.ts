@@ -33,6 +33,8 @@ export interface ApplicationSearchModel {
   pageSize: number
   pageNum: number
   applicationId?: string
+  subUser?: string
+  tenant?: string
 }
 
 export interface ApplicationResponse {

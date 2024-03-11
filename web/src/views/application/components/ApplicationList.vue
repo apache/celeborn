@@ -56,7 +56,10 @@ const doSearch = () => {
 
 const resetSearch = () => {
   searchFormModel.value.pageNum = 1
-  searchFormModel.value.applicationId = ''
+  searchFormModel.value.applicationId =
+    searchFormModel.value.subUser =
+    searchFormModel.value.tenant =
+      ''
   $emits('do-search', searchFormModel.value)
 }
 
@@ -120,6 +123,20 @@ const pagination = reactive({
         <n-input
           v-model:value="searchFormModel.applicationId"
           placeholder="Please input the applicationId"
+          clearable
+        />
+      </n-form-item-gi>
+      <n-form-item-gi label="SubUser" path="subUser">
+        <n-input
+          v-model:value="searchFormModel.subUser"
+          placeholder="Please input the sub user"
+          clearable
+        />
+      </n-form-item-gi>
+      <n-form-item-gi label="Tenant" path="tenant">
+        <n-input
+          v-model:value="searchFormModel.tenant"
+          placeholder="Please input the tenant"
           clearable
         />
       </n-form-item-gi>
