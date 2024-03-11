@@ -1148,6 +1148,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(AUTH_ENABLED)
   }
 
+  def workerApplicationRegistryCacheSize: Int = get(WORKER_APPLICATION_REGISTRY_CACHE_SIZE)
+
   // //////////////////////////////////////////////////////
   //                     Internal Port                   //
   // //////////////////////////////////////////////////////
@@ -4632,4 +4634,12 @@ object CelebornConf extends Logging {
       .version("0.5.0")
       .intConf
       .createWithDefault(8)
+
+  val WORKER_APPLICATION_REGISTRY_CACHE_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.worker.applicationRegistry.cache.size")
+      .categories("worker", "auth")
+      .doc("Cache size of the application registry on Workers.")
+      .version("0.5.0")
+      .intConf
+      .createWithDefault(10000)
 }

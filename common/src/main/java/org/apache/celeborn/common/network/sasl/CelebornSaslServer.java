@@ -134,7 +134,6 @@ public class CelebornSaslServer {
           PasswordCallback pc = (PasswordCallback) callback;
           String secret = secretRegistry.getSecretKey(userName);
           if (secret == null) {
-            // TODO: CELEBORN-1179 Add support for fetching the secret from the Celeborn master.
             throw new RuntimeException("Registration information not found for " + userName);
           }
           pc.setPassword(encodePassword(secret));
