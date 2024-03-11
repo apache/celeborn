@@ -23,6 +23,7 @@ import javax.annotation.concurrent.GuardedBy
 
 import scala.util.control.NonFatal
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpoint, ThreadSafeRpcEndpoint}
@@ -61,9 +62,10 @@ private[celeborn] case class RemoteProcessConnectionError(
     remoteAddress: RpcAddress)
   extends InboxMessage
 
-abstract private[celeborn] class InboxBase(
+private[celeborn] class Inbox(
     val endpointRef: NettyRpcEndpointRef,
-    val endpoint: RpcEndpoint) extends Logging {
+    val endpoint: RpcEndpoint,
+    val conf: CelebornConf) extends Logging {
 
   inbox => // Give this an alias so we can use it more clearly in closures.
 
@@ -79,9 +81,22 @@ abstract private[celeborn] class InboxBase(
   @GuardedBy("this")
   protected var enableConcurrent = false
 
-  def isEmpty: Boolean
+  @GuardedBy("this")
+  protected val messages = {
+    val capacity = conf.get(CelebornConf.RPC_IN_MEMORY_BOUNDED_INBOX_CAPACITY)
+    if (capacity < 0) {
+      new LinkedBlockingQueue[InboxMessage]
+    } else {
+      new LinkedBlockingQueue[InboxMessage](capacity)
+    }
+  }
 
-  def addMessage(message: InboxMessage): Unit
+  private val messageCount = new AtomicLong(0)
+
+  // OnStart should be the first message to process
+  inbox.synchronized {
+    messages.add(OnStart)
+  }
 
   def stop(): Unit = inbox.synchronized {
     // The following codes should be in `synchronized` so that we can make sure "OnStop" is the last
@@ -97,13 +112,12 @@ abstract private[celeborn] class InboxBase(
     }
   }
 
-  def post(message: InboxMessage): Unit = inbox.synchronized {
+  def post(message: InboxMessage): Unit = {
     if (stopped) {
       // We already put "OnStop" into "messages", so we should drop further messages
       onDrop(message)
     } else {
       addMessage(message)
-      false
     }
   }
 
@@ -114,7 +128,29 @@ abstract private[celeborn] class InboxBase(
     }
   }
 
-  protected def processInternal(dispatcher: Dispatcher, message: InboxMessage): Unit = {
+  def nextMessage(quitWithNoProcessingThread: Boolean): Option[InboxMessage] = {
+    var message: Option[InboxMessage] = None
+    if (quitWithNoProcessingThread && !enableConcurrent && numActiveThreads != 0) {
+      return None
+    }
+    val startTime = System.nanoTime()
+    message = Option(messages.poll())
+    if (message.isDefined) {
+      logDebug(s"message count: ${messageCount.incrementAndGet()}," +
+        s" read cost :${System.nanoTime() - startTime}, message queue length: ${messages.size()}")
+    }
+    message
+  }
+
+  def addMessage(message: InboxMessage): Unit = {
+    messages.add(message)
+  }
+
+  def isEmpty: Boolean = inbox.synchronized {
+    messages.isEmpty
+  }
+
+  private def processInternal(dispatcher: Dispatcher, message: InboxMessage): Unit = {
     message match {
       case RpcMessage(_sender, content, context) =>
         try {
@@ -208,20 +244,18 @@ abstract private[celeborn] class InboxBase(
     }
   }
 
-  def nextMessage(quitWithNoProcessingThread: Boolean): Option[InboxMessage]
-
   /**
    * Called when we are dropping a message. Test cases override this to test message dropping.
    * Exposed for testing.
    */
-  protected def onDrop(message: InboxMessage): Unit = {
+  private def onDrop(message: InboxMessage): Unit = {
     logWarning(s"Drop $message because $endpointRef is stopped")
   }
 
   /**
    * Calls action closure, and calls the endpoint's onError function in the case of exceptions.
    */
-  protected def safelyCall(
+  private def safelyCall(
       endpoint: RpcEndpoint,
       endpointRefName: String)(action: => Unit): Unit = {
     def dealWithFatalError(fatal: Throwable): Unit = {
@@ -252,96 +286,6 @@ abstract private[celeborn] class InboxBase(
         }
       case fatal: Throwable =>
         dealWithFatalError(fatal)
-    }
-  }
-}
-
-/**
- * An inbox that stores messages for an [[RpcEndpoint]] and posts messages to it thread-safely.
- */
-private[celeborn] class InMemoryInbox(
-    endpointRef: NettyRpcEndpointRef,
-    endpoint: RpcEndpoint)
-  extends InboxBase(endpointRef, endpoint) {
-
-  inbox => // Give this an alias so we can use it more clearly in closures.
-
-  @GuardedBy("this")
-  protected val messages = new java.util.LinkedList[InboxMessage]
-
-  private val messageCount = new AtomicLong(0)
-
-  // OnStart should be the first message to process
-  inbox.synchronized {
-    messages.add(OnStart)
-  }
-
-  override def nextMessage(quitWithNoProcessingThread: Boolean): Option[InboxMessage] = {
-    var message: Option[InboxMessage] = None
-    if (quitWithNoProcessingThread && !enableConcurrent && numActiveThreads != 0) {
-      return None
-    }
-    val startTime = System.nanoTime()
-    message = Option(messages.poll())
-    if (message.isDefined) {
-      logDebug(s"message count: ${messageCount.incrementAndGet()}," +
-        s" read cost :${System.nanoTime() - startTime}, message queue length: ${messages.size()}")
-    }
-    message
-  }
-
-  override def addMessage(message: InboxMessage): Unit = {
-    messages.add(message)
-  }
-
-  override def isEmpty: Boolean = inbox.synchronized {
-    messages.isEmpty
-  }
-}
-
-private[celeborn] class InMemoryBoundedInbox(
-    endpointRef: NettyRpcEndpointRef,
-    endpoint: RpcEndpoint,
-    capacity: Int) extends InboxBase(endpointRef, endpoint) {
-
-  inbox =>
-
-  @GuardedBy("this")
-  protected val messages = new LinkedBlockingQueue[InboxMessage](capacity)
-
-  private val messageCount = new AtomicLong(0)
-
-  inbox.synchronized {
-    messages.add(OnStart)
-  }
-
-  override def isEmpty: Boolean = {
-    messages.isEmpty
-  }
-
-  override def addMessage(message: InboxMessage): Unit = {
-    messages.put(message)
-  }
-
-  override def nextMessage(quitWithNoProcessingThread: Boolean): Option[InboxMessage] = {
-    if (quitWithNoProcessingThread && !enableConcurrent && numActiveThreads != 0) {
-      return None
-    }
-    val startTime = System.nanoTime()
-    val message: Option[InboxMessage] = Option(messages.poll())
-    if (message.isDefined) {
-      logDebug(s"message count: ${messageCount.incrementAndGet()}," +
-        s" read cost :${System.nanoTime() - startTime}, backlog length: ${messages.size()}")
-    }
-    message
-  }
-
-  override def post(message: InboxMessage): Unit = {
-    if (stopped) {
-      // We already put "OnStop" into "messages", so we should drop further messages
-      onDrop(message)
-    } else {
-      addMessage(message)
     }
   }
 }

@@ -24,14 +24,28 @@ import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfter
 
 import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.rpc.{RpcAddress, TestRpcEndpoint}
 
-abstract class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
+class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
 
-  private var inbox: InboxBase = _
+  private var inbox: Inbox = _
   private var endpoint: TestRpcEndpoint = _
 
-  def initInbox[T](testRpcEndpoint: TestRpcEndpoint, onDrop: Option[InboxMessage => T]): InboxBase
+  def initInbox[T](
+      testRpcEndpoint: TestRpcEndpoint,
+      onDropOverride: Option[InboxMessage => T]): Inbox = {
+    val rpcEnvRef = mock(classOf[NettyRpcEndpointRef])
+    if (onDropOverride.isEmpty) {
+      new Inbox(rpcEnvRef, testRpcEndpoint, new CelebornConf())
+    } else {
+      new Inbox(rpcEnvRef, testRpcEndpoint, new CelebornConf()) {
+        override protected def onDrop(message: InboxMessage): Unit = {
+          onDropOverride.get(message)
+        }
+      }
+    }
+  }
 
   before {
     endpoint = new TestRpcEndpoint
