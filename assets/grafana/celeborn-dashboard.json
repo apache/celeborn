@@ -1077,13 +1077,13 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_LostWorkers_Value",
+              "expr": "metrics_LostWorkerCount_Value",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_LostWorkers_Value",
+          "title": "metrics_LostWorkerCount_Value",
           "type": "timeseries"
         }
       ],

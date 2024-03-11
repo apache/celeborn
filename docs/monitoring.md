@@ -98,7 +98,7 @@ These metrics are exposed by Celeborn master.
     - ActiveShuffleFileCount
         - The active shuffle file count of workers.
     - WorkerCount
-    - LostWorkers
+    - LostWorkerCount
     - ExcludedWorkerCount
     - IsActiveMaster
     - PartitionSize
