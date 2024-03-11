@@ -20,6 +20,7 @@ package org.apache.celeborn.client.commit
 import java.nio.ByteBuffer
 import java.util
 import java.util.concurrent.{Callable, ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
+import java.util.function
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -82,6 +83,13 @@ class ReducePartitionCommitHandler(
     .expireAfterWrite(rpcCacheExpireTime, TimeUnit.MILLISECONDS)
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
+
+  val newMapFunc: function.Function[Int, ConcurrentHashMap[Integer, util.Set[PushFailedBatch]]] =
+    new util.function.Function[Int, ConcurrentHashMap[Integer, util.Set[PushFailedBatch]]]() {
+      override def apply(s: Int): ConcurrentHashMap[Integer, util.Set[PushFailedBatch]] = {
+        JavaUtils.newConcurrentHashMap[Integer, util.Set[PushFailedBatch]]()
+      }
+    }
 
   override def getPartitionType(): PartitionType = {
     PartitionType.REDUCE
@@ -255,9 +263,7 @@ class ReducePartitionCommitHandler(
         if (null != pushFailedBatches && !pushFailedBatches.isEmpty) {
           val pushFailedBatchesMap = shufflePushFailedBatches.computeIfAbsent(
             shuffleId,
-            _ => {
-              JavaUtils.newConcurrentHashMap[Integer, util.Set[PushFailedBatch]]()
-            })
+            newMapFunc)
           pushFailedBatchesMap.put(mapId, pushFailedBatches)
         }
         // Mapper with this attemptId finished, also check all other mapper finished or not.

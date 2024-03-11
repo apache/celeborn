@@ -25,6 +25,7 @@ license: |
 | celeborn.client.chunk.prefetch.enabled | false | false | Whether to enable chunk prefetch when creating CelebornInputStream. | 0.6.0 |  | 
 | celeborn.client.closeIdleConnections | true | false | Whether client will close idle connections. | 0.3.0 |  | 
 | celeborn.client.commitFiles.ignoreExcludedWorker | false | false | When true, LifecycleManager will skip workers which are in the excluded list. | 0.3.0 |  | 
+| celeborn.client.dataPushFailure.tracking.enabled | false | false | When client push data to worker failed, client will record the failed batch info. Feature used to optimize skew join by avoid data sorting | 0.5.0 |  | 
 | celeborn.client.eagerlyCreateInputStream.threads | 32 | false | Threads count for streamCreatorPool in CelebornShuffleReader. | 0.3.1 |  | 
 | celeborn.client.excludePeerWorkerOnFailure.enabled | true | false | When true, Celeborn will exclude partition's peer worker on failure when push data to replica failed. | 0.3.0 |  | 
 | celeborn.client.excludedWorker.expireTimeout | 180s | false | Timeout time for LifecycleManager to clear reserved excluded worker. Default to be 1.5 * `celeborn.master.heartbeat.worker.timeout` to cover worker heartbeat timeout check period | 0.3.0 | celeborn.worker.excluded.expireTimeout | 
