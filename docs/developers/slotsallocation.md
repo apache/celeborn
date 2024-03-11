@@ -37,6 +37,7 @@ celeborn.master.slot.assign.loadAware.fetchTimeWeight 0
 ```
 ### Detail
 Load-aware slots allocation will take following elements into consideration.
+
 - disk's fetch time 
 - disk's flush time 
 - disk's usable space

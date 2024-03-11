@@ -90,7 +90,7 @@ and easy to implement plugins for various engines.
 
 Currently, Celeborn officially supports [Spark](https://spark.apache.org/)(both Spark 2.x and Spark 3.x),
 [Flink](https://flink.apache.org/)(1.14/1.15/1.17), and
-[Gluten](https://github.com/oap-project/gluten). Also developers are integrating Celeborn with other engines,
+[Gluten](https://github.com/apache/incubator-gluten). Also developers are integrating Celeborn with other engines,
 for example [MR3](https://mr3docs.datamonad.com/docs/mr3/).
 
 Celeborn community is also working on integrating Celeborn with other engines.

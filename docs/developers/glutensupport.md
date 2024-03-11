@@ -19,9 +19,9 @@ license: |
 # Gluten Support
 ## Velox Backend
 
-[Gluten](https://github.com/oap-project/gluten) with velox backend supports Celeborn as remote shuffle service. Below introduction is used to enable this feature
+[Gluten](https://github.com/apache/incubator-gluten) with velox backend supports Celeborn as remote shuffle service. Below introduction is used to enable this feature
 
-First refer to this URL(https://github.com/oap-project/gluten/blob/main/docs/get-started/Velox.md) to build Gluten with velox backend.
+First refer to [Get Started With Velox](https://github.com/apache/incubator-gluten/blob/main/docs/get-started/Velox.md) to build Gluten with velox backend.
 
 When compiling the Gluten Java module, it's required to enable `rss` profile, as follows:
 
