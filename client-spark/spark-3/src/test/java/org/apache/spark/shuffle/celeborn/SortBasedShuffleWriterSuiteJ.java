@@ -195,9 +195,8 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
     iterator = getUnsafeRowIterator(32 * 1024, 8 * 1024, total, numPartitions);
     writer.doWrite(iterator);
     assertEquals(128 * 1024, pusher.getPushSortMemoryThreshold());
-    System.out.println("pushing data");
+    // some cleanup before the next test
     pusher.pushData(false);
-    System.out.println("cleaned data");
     pusher.memoryThresholdManager.pushedCount = 0;
     pusher.memoryThresholdManager.pushedMemorySizeInBytes = 0;
     // now we insert 256K data but limited to 1 partition,

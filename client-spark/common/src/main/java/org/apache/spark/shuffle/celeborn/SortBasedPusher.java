@@ -52,9 +52,7 @@ public class SortBasedPusher extends MemoryConsumer {
     private long sendBufferSizeInBytes;
 
     MemoryThresholdManager(
-        int numPartitions,
-        long sendBufferSizeInBytes,
-        double smallPushTolerateFactor) {
+        int numPartitions, long sendBufferSizeInBytes, double smallPushTolerateFactor) {
       this.maxMemoryThresholdInBytes = numPartitions * sendBufferSizeInBytes;
       this.smallPushTolerateFactor = smallPushTolerateFactor;
       this.sendBufferSizeInBytes = sendBufferSizeInBytes;
@@ -66,8 +64,9 @@ public class SortBasedPusher extends MemoryConsumer {
       if (this.expectedPushedCount != 0) {
         expectedPushSize = this.expectedPushedBytes * 1.0 / this.expectedPushedCount;
       }
-      boolean tooManyPushed = pushedMemorySizeInBytes * 1.0 / pushedCount *
-          (1 + this.smallPushTolerateFactor) < expectedPushSize;
+      boolean tooManyPushed =
+          pushedMemorySizeInBytes * 1.0 / pushedCount * (1 + this.smallPushTolerateFactor)
+              < expectedPushSize;
       return enoughSpace && tooManyPushed;
     }
 
@@ -268,7 +267,7 @@ public class SortBasedPusher extends MemoryConsumer {
     if (offSet > 0) {
       try {
         dataPusher.addTask(currentPartition, dataBuf, offSet);
-        memoryThresholdManager.updateStats(offSet,  offSet == pushBufferMaxSize);
+        memoryThresholdManager.updateStats(offSet, offSet == pushBufferMaxSize);
       } catch (InterruptedException e) {
         TaskInterruptedHelper.throwTaskKillException();
       }
