@@ -56,7 +56,6 @@ public class SortBasedPusher extends MemoryConsumer {
         long sendBufferSizeInBytes,
         double smallPushTolerateFactor) {
       this.maxMemoryThresholdInBytes = numPartitions * sendBufferSizeInBytes;
-      System.out.println("max memory threshold: " + this.maxMemoryThresholdInBytes);
       this.smallPushTolerateFactor = smallPushTolerateFactor;
       this.sendBufferSizeInBytes = sendBufferSizeInBytes;
     }
@@ -69,7 +68,6 @@ public class SortBasedPusher extends MemoryConsumer {
       }
       boolean tooManyPushed = pushedMemorySizeInBytes * 1.0 / pushedCount *
           (1 + this.smallPushTolerateFactor) < expectedPushSize;
-      System.out.println(pushedMemorySizeInBytes + ":" + pushedCount + ":" + expectedPushSize);
       return enoughSpace && tooManyPushed;
     }
 
@@ -77,7 +75,6 @@ public class SortBasedPusher extends MemoryConsumer {
       if (shouldGrow()) {
         long oldThreshold = pushSortMemoryThreshold;
         pushSortMemoryThreshold = pushSortMemoryThreshold * 2;
-        System.out.println("updated threshold to " + pushSortMemoryThreshold);
         logger.info(
             "grow memory threshold from "
                 + oldThreshold / 1024 / 1024
@@ -243,7 +240,6 @@ public class SortBasedPusher extends MemoryConsumer {
                   numPartitions);
           mapStatusLengths[currentPartition].add(bytesWritten);
           afterPush.accept(bytesWritten);
-          System.out.println("pushing partition " + currentPartition);
           memoryThresholdManager.updateStats(offSet, offSet == pushBufferMaxSize);
           currentPartition = partition;
           offSet = 0;
@@ -256,7 +252,6 @@ public class SortBasedPusher extends MemoryConsumer {
 
       if (offSet + recordSize > dataBuf.length) {
         try {
-          System.out.println("pushing for partition " + currentPartition);
           dataPusher.addTask(partition, dataBuf, offSet);
           memoryThresholdManager.updateStats(offSet, true);
         } catch (InterruptedException e) {
@@ -272,7 +267,6 @@ public class SortBasedPusher extends MemoryConsumer {
     }
     if (offSet > 0) {
       try {
-        System.out.println("pushing for partition " + currentPartition);
         dataPusher.addTask(currentPartition, dataBuf, offSet);
         memoryThresholdManager.updateStats(offSet,  offSet == pushBufferMaxSize);
       } catch (InterruptedException e) {
