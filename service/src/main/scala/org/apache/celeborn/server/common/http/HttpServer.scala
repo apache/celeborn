@@ -40,7 +40,6 @@ private[celeborn] case class HttpServer(
       server.start()
       connector.start()
       server.addConnector(connector)
-      server.setStopAtShutdown(true)
       logInfo(s"$role: HttpServer started on ${connector.getHost}:${connector.getPort}.")
       isStarted = true
     } catch {
