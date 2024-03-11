@@ -84,7 +84,7 @@ private[celeborn] class Inbox(
   @GuardedBy("this")
   protected val messages = {
     val capacity = conf.get(CelebornConf.RPC_IN_MEMORY_BOUNDED_INBOX_CAPACITY)
-    if (capacity < 0) {
+    if (capacity == 0) {
       new LinkedBlockingQueue[InboxMessage]
     } else {
       new LinkedBlockingQueue[InboxMessage](capacity)
@@ -212,6 +212,7 @@ private[celeborn] class Inbox(
   def process(dispatcher: Dispatcher): Unit = {
 
     var nextMsg: Option[InboxMessage] = None
+
     inbox.synchronized {
       nextMsg = nextMessage(quitWithNoProcessingThread = true)
       if (nextMsg.isDefined) {

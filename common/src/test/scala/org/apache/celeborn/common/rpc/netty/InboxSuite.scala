@@ -40,7 +40,7 @@ class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
       new Inbox(rpcEnvRef, testRpcEndpoint, new CelebornConf())
     } else {
       new Inbox(rpcEnvRef, testRpcEndpoint, new CelebornConf()) {
-        override protected def onDrop(message: InboxMessage): Unit = {
+        protected def onDrop(message: InboxMessage): Unit = {
           onDropOverride.get(message)
         }
       }
