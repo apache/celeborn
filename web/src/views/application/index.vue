@@ -21,22 +21,39 @@ import { getApplicationOverview, getApplicationList } from '@/api'
 import { useHasLoading } from '@varlet/axle/use'
 import { ApplicationOverviewService } from '@/views/overview/components'
 import { ApplicationListService } from '@/views/application/components'
+import type { Application } from '@/api/models/application/types'
+import type { Page } from '@/api/types'
 
 defineOptions({
   name: 'ApplicationView'
 })
 
+const pageInfos = reactive<Page>({
+  pageNum: 1,
+  pageSize: 10
+})
+
+const { use: useApplicationList, load: loadApplicationList } = getApplicationList()
+
 const { data: appOverview, loading: isAppOverviewLoading } = getApplicationOverview().use()
-const { data: appList, loading: isAppListLoading } = getApplicationList().use()
+const { data: appResponse, loading: isAppListLoading } = useApplicationList({ params: pageInfos })
 
 const loading = useHasLoading(isAppOverviewLoading, isAppListLoading)
+
+const applicationList = computed<Application[]>(() => appResponse.value?.applicationInfos || [])
+const applicationTotalCount = computed<number>(() => appResponse.value?.totalCount || 0)
 </script>
 
 <template>
   <n-spin :show="loading">
-    <n-flex vertical>
+    <n-flex :style="{ gap: '24px' }" vertical>
       <ApplicationOverviewService :data="appOverview" />
-      <ApplicationListService :data="appList" />
+      <ApplicationListService
+        :data="applicationList"
+        :count="applicationTotalCount"
+        :page="pageInfos"
+        @do-search="(search) => loadApplicationList(search)"
+      />
     </n-flex>
   </n-spin>
 </template>

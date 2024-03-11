@@ -31,3 +31,8 @@ export interface PaginationType<T> {
   page_size?: number
   total?: number
 }
+
+export interface Page {
+  pageSize: number
+  pageNum: number
+}

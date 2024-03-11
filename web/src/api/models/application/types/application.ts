@@ -28,3 +28,15 @@ export interface Application {
   shuffleSize: string
   shuffleFileCount: number
 }
+
+export interface ApplicationSearchModel {
+  pageSize: number
+  pageNum: number
+  worker?: string
+  master?: string
+}
+
+export interface ApplicationResponse {
+  applicationInfos: Application[]
+  totalCount: number
+}

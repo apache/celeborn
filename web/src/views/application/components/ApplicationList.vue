@@ -19,28 +19,58 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import type { DataTableColumns } from 'naive-ui'
-import type { Application } from '@/api'
+import type { Application, ApplicationSearchModel } from '@/api/models/application/types'
+import type { Page } from '@/api/types'
 import { normalizeDatetime } from '@/utils/datetime'
 
 defineOptions({
   name: 'ApplicationDataTable'
 })
 
-defineProps({
+const $props = defineProps({
   data: {
     type: Array as PropType<Application[]>,
     default: () => []
+  },
+  count: {
+    type: Number as PropType<number>,
+    default: 0
+  },
+  page: {
+    type: Object as PropType<Page>,
+    default: () => {
+      return { pageSize: 10, pageNum: 1 }
+    }
   }
 })
+
+const $emits = defineEmits(['do-search'])
+
+const searchFormModel = ref<ApplicationSearchModel>({
+  pageNum: $props.page.pageNum,
+  pageSize: $props.page.pageSize
+})
+
+const doSearch = () => {
+  $emits('do-search', searchFormModel.value)
+}
+
+const resetSearch = () => {
+  searchFormModel.value.pageNum = 1
+  searchFormModel.value.master = searchFormModel.value.worker = ''
+  $emits('do-search', searchFormModel.value)
+}
 
 const columns: DataTableColumns<Application> = [
   {
     title: 'ApplicationId',
-    key: 'appId'
+    key: 'appId',
+    sorter: true
   },
   {
     title: 'SubUser',
-    key: 'subUser'
+    key: 'subUser',
+    sorter: true
   },
   {
     title: 'Tenant',
@@ -57,11 +87,58 @@ const columns: DataTableColumns<Application> = [
   },
   {
     title: 'ActiveShuffle',
-    key: 'shuffleFileCount'
+    key: 'shuffleFileCount',
+    sorter: true
   }
 ]
+
+const pagination = reactive({
+  page: searchFormModel.value.pageNum,
+  pageSize: searchFormModel.value.pageSize,
+  itemCount: $props.count,
+  showSizePicker: true,
+  pageSizes: [10, 20, 40],
+  onChange: (page: number) => {
+    searchFormModel.value.pageNum = pagination.page = page
+    doSearch()
+  },
+  onUpdatePageSize: (pageSize: number) => {
+    searchFormModel.value.pageSize = pagination.pageSize = pageSize
+    searchFormModel.value.pageNum = pagination.page = 1
+    doSearch()
+  }
+})
 </script>
 
 <template>
-  <n-data-table :columns="columns" :data="data" :pagination="false" />
+  <n-form
+    :model="searchFormModel"
+    :show-feedback="false"
+    label-placement="left"
+    @keydown.enter="doSearch"
+  >
+    <n-grid :x-gap="24" :y-gap="24" :cols="4">
+      <n-form-item-gi label="Master" path="master">
+        <n-input
+          v-model:value="searchFormModel.master"
+          placeholder="Please input the hostname of master"
+          clearable
+        />
+      </n-form-item-gi>
+      <n-form-item-gi label="Worker" path="worker">
+        <n-input
+          v-model:value="searchFormModel.worker"
+          placeholder="Please input the hostname of worker"
+          clearable
+        />
+      </n-form-item-gi>
+      <n-grid-item :span="2">
+        <n-flex>
+          <n-button type="primary" ghost @click="doSearch">Search</n-button>
+          <n-button ghost @click="resetSearch">Reset</n-button>
+        </n-flex>
+      </n-grid-item>
+    </n-grid>
+  </n-form>
+  <n-data-table :columns="columns" :data="data" :pagination="pagination" />
 </template>
