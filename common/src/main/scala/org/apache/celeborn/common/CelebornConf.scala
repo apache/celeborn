@@ -2448,7 +2448,7 @@ object CelebornConf extends Logging {
 
   val WORKER_HTTP_MAX_WORKER_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.http.maxWorkerThreads")
-      .categories("master")
+      .categories("worker")
       .version("0.5.0")
       .doc("Maximum number of threads in the worker http worker thread pool.")
       .intConf
