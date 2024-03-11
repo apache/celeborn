@@ -47,66 +47,62 @@ public class SortBasedPusher extends MemoryConsumer {
   class MemoryThresholdManager {
 
     private long maxMemoryThresholdInBytes;
-    private long currentMemoryThresholdInBytes;
-
     private double smallPushTolerateFactor;
+
+    private long sendBufferSizeInBytes;
 
     MemoryThresholdManager(
         int numPartitions,
         long sendBufferSizeInBytes,
-        long currentMemoryThresholdInBytes,
         double smallPushTolerateFactor) {
       this.maxMemoryThresholdInBytes = numPartitions * sendBufferSizeInBytes;
-      this.currentMemoryThresholdInBytes = currentMemoryThresholdInBytes;
+      System.out.println("max memory threshold: " + this.maxMemoryThresholdInBytes);
       this.smallPushTolerateFactor = smallPushTolerateFactor;
+      this.sendBufferSizeInBytes = sendBufferSizeInBytes;
     }
 
     private boolean shouldGrow() {
-      boolean enoughSpace = this.currentMemoryThresholdInBytes * 2 <= maxMemoryThresholdInBytes;
-      long shouldPushedBytes;
-      if (shouldPushedCount == 0) {
-        shouldPushedBytes = 0;
-      } else {
-        shouldPushedBytes =
-            (long) ((1 + smallPushTolerateFactor) * shouldPushedSizeInBytes / shouldPushedCount);
+      boolean enoughSpace = pushSortMemoryThreshold * 2 <= maxMemoryThresholdInBytes;
+      double expectedPushSize = Long.MAX_VALUE;
+      if (this.expectedPushedCount != 0) {
+        expectedPushSize = this.expectedPushedBytes * 1.0 / this.expectedPushedCount;
       }
-      boolean tooManyPushed = pushedMemorySizeInBytes * 1.0 / pushedCount > shouldPushedBytes;
+      boolean tooManyPushed = pushedMemorySizeInBytes * 1.0 / pushedCount *
+          (1 + this.smallPushTolerateFactor) < expectedPushSize;
+      System.out.println(pushedMemorySizeInBytes + ":" + pushedCount + ":" + expectedPushSize);
       return enoughSpace && tooManyPushed;
     }
 
     public void growThresholdIfNeeded() {
       if (shouldGrow()) {
-        long oldThreshold = this.currentMemoryThresholdInBytes;
-        this.currentMemoryThresholdInBytes = this.currentMemoryThresholdInBytes * 2;
+        long oldThreshold = pushSortMemoryThreshold;
+        pushSortMemoryThreshold = pushSortMemoryThreshold * 2;
+        System.out.println("updated threshold to " + pushSortMemoryThreshold);
         logger.info(
             "grow memory threshold from "
                 + oldThreshold / 1024 / 1024
                 + "Mb to "
-                + this.currentMemoryThresholdInBytes / 1024 / 1024
+                + pushSortMemoryThreshold / 1024 / 1024
                 + " Mb");
         pushedCount = 0;
         pushedMemorySizeInBytes = 0;
-        shouldPushedCount = 0;
-        shouldPushedSizeInBytes = 0;
+        expectedPushedBytes = 0;
+        expectedPushedCount = 0;
       }
-    }
-
-    public long getCurrentMemoryThresholdInBytes() {
-      return currentMemoryThresholdInBytes;
     }
 
     long pushedCount = 0;
     long pushedMemorySizeInBytes = 0;
 
-    long shouldPushedCount = 0;
-    long shouldPushedSizeInBytes = 0;
+    long expectedPushedCount = 0;
+    long expectedPushedBytes = 0;
 
     public void updateStats(long pushedBytes, boolean updateExpected) {
-      memoryThresholdManager.pushedMemorySizeInBytes += pushedBytes;
-      memoryThresholdManager.pushedCount += 1;
+      this.pushedMemorySizeInBytes += pushedBytes;
+      this.pushedCount += 1;
       if (updateExpected) {
-        memoryThresholdManager.shouldPushedSizeInBytes += pushedBytes;
-        memoryThresholdManager.shouldPushedCount += 1;
+        this.expectedPushedBytes += pushedBytes;
+        this.expectedPushedCount += 1;
       }
     }
   }
@@ -127,7 +123,7 @@ public class SortBasedPusher extends MemoryConsumer {
   private final TaskContext taskContext;
   private DataPusher dataPusher;
   private final int pushBufferMaxSize;
-  private final long pushSortMemoryThreshold;
+  private long pushSortMemoryThreshold;
   private final int shuffleId;
   private final int mapId;
   private final int attemptNumber;
@@ -141,11 +137,7 @@ public class SortBasedPusher extends MemoryConsumer {
 
   final MemoryThresholdManager memoryThresholdManager;
 
-  private final boolean adaptiveThreshold;
-
-  public boolean getAdaptiveThreshold() {
-    return adaptiveThreshold;
-  }
+  private final boolean useAdaptiveThreshold;
 
   public SortBasedPusher(
       TaskMemoryManager memoryManager,
@@ -207,14 +199,13 @@ public class SortBasedPusher extends MemoryConsumer {
     }
 
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
-    adaptiveThreshold = conf.clientPushSortMemoryAdaptiveThreshold();
+    useAdaptiveThreshold = conf.clientPushSortUseAdaptiveMemoryThreshold();
     this.pushSortMemoryThreshold = pushSortMemoryThreshold;
 
     this.memoryThresholdManager =
         new MemoryThresholdManager(
             this.numPartitions,
             this.pushBufferMaxSize,
-            this.pushSortMemoryThreshold,
             conf.clientPushSortSmallPushTolerateFactor());
 
     int initialSize = Math.min((int) pushSortMemoryThreshold / 8, 1024 * 1024);
@@ -252,6 +243,7 @@ public class SortBasedPusher extends MemoryConsumer {
                   numPartitions);
           mapStatusLengths[currentPartition].add(bytesWritten);
           afterPush.accept(bytesWritten);
+          System.out.println("pushing partition " + currentPartition);
           memoryThresholdManager.updateStats(offSet, offSet == pushBufferMaxSize);
           currentPartition = partition;
           offSet = 0;
@@ -264,6 +256,7 @@ public class SortBasedPusher extends MemoryConsumer {
 
       if (offSet + recordSize > dataBuf.length) {
         try {
+          System.out.println("pushing for partition " + currentPartition);
           dataPusher.addTask(partition, dataBuf, offSet);
           memoryThresholdManager.updateStats(offSet, true);
         } catch (InterruptedException e) {
@@ -279,8 +272,9 @@ public class SortBasedPusher extends MemoryConsumer {
     }
     if (offSet > 0) {
       try {
+        System.out.println("pushing for partition " + currentPartition);
         dataPusher.addTask(currentPartition, dataBuf, offSet);
-        memoryThresholdManager.updateStats(offSet, offSet == pushBufferMaxSize);
+        memoryThresholdManager.updateStats(offSet,  offSet == pushBufferMaxSize);
       } catch (InterruptedException e) {
         TaskInterruptedHelper.throwTaskKillException();
       }
@@ -307,11 +301,13 @@ public class SortBasedPusher extends MemoryConsumer {
       required = recordSize + UAO_SIZE;
     }
 
-    long threshold =
-        this.adaptiveThreshold
-            ? memoryThresholdManager.currentMemoryThresholdInBytes
-            : pushSortMemoryThreshold;
-
+    long threshold = pushSortMemoryThreshold;
+    System.out.println("used:" + getUsed() + " threshold: " + threshold + " pageCursor:" +
+        pageCursor + " required:" + required);
+    if (currentPage != null) {
+      System.out.println(" currentPage.getBaseOffset():" +
+          currentPage.getBaseOffset() + " size: " + currentPage.size());
+    }
     if (getUsed() > threshold
         && pageCursor + required > currentPage.getBaseOffset() + currentPage.size()) {
       logger.info(
@@ -491,6 +487,10 @@ public class SortBasedPusher extends MemoryConsumer {
       inMemSorter = null;
     }
     taskContext.taskMetrics().incMemoryBytesSpilled(freedBytes);
+  }
+
+  public long getPushSortMemoryThreshold() {
+    return this.pushSortMemoryThreshold;
   }
 
   public void close() throws IOException {

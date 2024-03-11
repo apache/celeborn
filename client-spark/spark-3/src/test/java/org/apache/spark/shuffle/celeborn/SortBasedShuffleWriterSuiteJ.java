@@ -90,7 +90,7 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
     TaskMemoryManager taskMemoryManager = new TaskMemoryManager(unifiedMemoryManager, 0);
 
     final ShuffleClient client = new DummyShuffleClient(conf, tempFile);
-    conf.set(CelebornConf.CLIENT_PUSH_SORT_MEMORY_ADAPTIVE_THRESHOLD().key(), "true");
+    conf.set(CelebornConf.CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD().key(), "true");
     LongAdder[] mapStatusLengths = new LongAdder[numPartitions];
     for (int i = 0; i < numPartitions; i++) {
       mapStatusLengths[i] = new LongAdder();
@@ -149,7 +149,7 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(1, null);
     final CelebornConf conf =
         new CelebornConf()
-            .set(CelebornConf.CLIENT_PUSH_SORT_MEMORY_ADAPTIVE_THRESHOLD().key(), "true")
+            .set(CelebornConf.CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD().key(), "true")
             .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "32k");
 
     String PartitionIdPassthroughClazz;
@@ -177,25 +177,35 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
         createShuffleWriterWithPusher(
             handle, taskContext, conf, client, metrics.shuffleWriteMetrics(), pusher);
     AtomicInteger total = new AtomicInteger(0);
+    System.out.println("time 1");
     Iterator iterator = getUnsafeRowIterator(32 * 1024, 8 * 1024, total, numPartitions);
+    System.out.println(total.get());
     writer.doWrite(iterator);
     // given that the send buffer size is 32K and memory threshold is also 32K, with sortbasedwriter
     // we have pushed for 4 times (1 time per each partition), so we will grow the threshold to 64K
     // to mitigate too many pushes
-    assertEquals(64 * 1024, pusher.memoryThresholdManager.getCurrentMemoryThresholdInBytes());
+    assertEquals(64 * 1024, pusher.getPushSortMemoryThreshold());
+    System.out.println("time 2");
     iterator = getUnsafeRowIterator(32 * 1024, 8 * 1024, total, numPartitions);
     writer.doWrite(iterator);
     // no change on the threshold since we only pushed 32K more data
-    assertEquals(64 * 1024, pusher.memoryThresholdManager.getCurrentMemoryThresholdInBytes());
+    assertEquals(64 * 1024, pusher.getPushSortMemoryThreshold());
     // write 32K more data will trigger the growth of threshold to 128K
+    System.out.println("time 3");
     iterator = getUnsafeRowIterator(32 * 1024, 8 * 1024, total, numPartitions);
     writer.doWrite(iterator);
-    assertEquals(128 * 1024, pusher.memoryThresholdManager.getCurrentMemoryThresholdInBytes());
+    assertEquals(128 * 1024, pusher.getPushSortMemoryThreshold());
+    System.out.println("pushing data");
+    pusher.pushData(false);
+    System.out.println("cleaned data");
+    pusher.memoryThresholdManager.pushedCount = 0;
+    pusher.memoryThresholdManager.pushedMemorySizeInBytes = 0;
     // now we insert 256K data but limited to 1 partition,
     // this time, we won't trigger the growing of memory threshold, because we have fully filled
     // the send buffer for each partition so that we are not "pushing data unnecessarily"
+    System.out.println("time 4");
     iterator = getUnsafeRowIterator(256 * 1024, 8 * 1024, total, 1);
     writer.doWrite(iterator);
-    assertEquals(128 * 1024, pusher.memoryThresholdManager.getCurrentMemoryThresholdInBytes());
+    assertEquals(128 * 1024, pusher.getPushSortMemoryThreshold());
   }
 }

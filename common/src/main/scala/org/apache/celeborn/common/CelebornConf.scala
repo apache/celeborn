@@ -841,8 +841,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushReviveInterval: Long = get(CLIENT_PUSH_REVIVE_INTERVAL)
   def clientPushReviveBatchSize: Int = get(CLIENT_PUSH_REVIVE_BATCHSIZE)
   def clientPushSortMemoryThreshold: Long = get(CLIENT_PUSH_SORT_MEMORY_THRESHOLD)
-  def clientPushSortMemoryAdaptiveThreshold: Boolean =
-    get(CLIENT_PUSH_SORT_MEMORY_ADAPTIVE_THRESHOLD)
+  def clientPushSortUseAdaptiveMemoryThreshold: Boolean =
+    get(CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD)
   def clientPushSortSmallPushTolerateFactor: Double =
     get(CLIENT_PUSH_SORT_SMALL_PUSH_TOLERATE_FACTOR)
   def clientPushSortRandomizePartitionIdEnabled: Boolean =
@@ -4022,9 +4022,9 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64m")
 
-  val CLIENT_PUSH_SORT_MEMORY_ADAPTIVE_THRESHOLD: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.spark.push.sort.memory.adaptiveThreshold")
-      .withAlternative("celeborn.push.sortMemory.adaptiveThreshold")
+  val CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.push.sort.memory.useAdaptiveThreshold")
+      .withAlternative("celeborn.push.sortMemory.useAdaptiveThreshold")
       .categories("client")
       .doc("adaptively adjust threshold for sort shuffle writer's memory threshold")
       .version("0.5.0")

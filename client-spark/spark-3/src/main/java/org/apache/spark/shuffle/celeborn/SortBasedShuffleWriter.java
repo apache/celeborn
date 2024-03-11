@@ -273,6 +273,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             pusher.insertRecord(
                 row.getBaseObject(), row.getBaseOffset(), rowSize, partitionId, true);
         if (!success) {
+          System.out.println("failed to write for partition " + partitionId);
           doPush();
           success =
               pusher.insertRecord(
@@ -280,6 +281,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           if (!success) {
             throw new CelebornIOException("Unable to push after switching pusher!");
           }
+        } else {
+          System.out.println("write for partition " + partitionId);
         }
       }
       tmpRecords[partitionId] += 1;
