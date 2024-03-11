@@ -749,7 +749,9 @@ trait SparkClientProjects {
         libraryDependencies ++= Seq(
           "org.apache.spark" %% "spark-core" % sparkVersion % "test",
           "org.apache.spark" %% "spark-sql" % sparkVersion % "test",
-          "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests",
+          "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests" excludeAll(
+            ExclusionRule("org.glassfish.jersey.inject", "*"),
+            ExclusionRule("org.glassfish.jersey.core", "*")),
           "org.apache.spark" %% "spark-sql" % sparkVersion % "test" classifier "tests"
         ) ++ commonUnitTestDependencies
       )
