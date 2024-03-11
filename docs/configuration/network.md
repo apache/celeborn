@@ -50,7 +50,7 @@ license: |
 | celeborn.rpc.askTimeout | 60s | false | Timeout for RPC ask operations. It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes` | 0.2.0 |  | 
 | celeborn.rpc.connect.threads | 64 | false |  | 0.2.0 |  | 
 | celeborn.rpc.dispatcher.threads | 0 | false | Threads number of message dispatcher event loop. Default to 0, which is availableCore. | 0.3.0 | celeborn.rpc.dispatcher.numThreads | 
-| celeborn.rpc.inbox.inmemorybounded.capacity | 10000 | false | Specifies size of the in memory bounded capacity. | 0.5.0 |  | 
+| celeborn.rpc.inbox.inmemorybounded.capacity | 0 | false | Specifies size of the in memory bounded capacity. | 0.5.0 |  | 
 | celeborn.rpc.inbox.type | IN_MEMORY | false | Specifies the type of RPC endpoint Inbox. | 0.5.0 |  | 
 | celeborn.rpc.io.threads | &lt;undefined&gt; | false | Netty IO thread number of NettyRpcEnv to handle RPC request. The default threads number is the number of runtime available processors. | 0.2.0 |  | 
 | celeborn.rpc.lookupTimeout | 30s | false | Timeout for RPC lookup operations. | 0.2.0 |  | 
