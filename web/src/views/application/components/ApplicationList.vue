@@ -21,7 +21,6 @@ import type { PropType } from 'vue'
 import type { DataTableColumns } from 'naive-ui'
 import type { Application, ApplicationSearchModel } from '@/api/models/application/types'
 import type { Page } from '@/api/types'
-import { normalizeDatetime } from '@/utils/datetime'
 
 defineOptions({
   name: 'ApplicationDataTable'
@@ -78,8 +77,7 @@ const columns: DataTableColumns<Application> = [
   },
   {
     title: 'HeartbeatTime',
-    key: 'heartbeatTime',
-    render: ({ heartbeatTime }) => normalizeDatetime(heartbeatTime)
+    key: 'heartbeatTime'
   },
   {
     title: 'ShuffleSize',
