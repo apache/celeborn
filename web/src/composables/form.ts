@@ -15,16 +15,24 @@
  * limitations under the License.
  */
 
-import { api } from '@/api/request'
-import type { PaginationType } from '@/api/types'
-import type { Worker, WorkerOverview } from './types'
+import { getCurrentInstance, unref } from 'vue'
 
-export * from './types'
+export const useFormEvent = (formData: Record<string, any>) => {
+  const instance = getCurrentInstance()
 
-export const getWorkerOverview = () => {
-  return api<WorkerOverview>('/worker/overview', 'get')
-}
+  const doSearch = () => {
+    instance?.emit('search', formData)
+  }
 
-export const getWorkerList = () => {
-  return api<PaginationType<{ workerInfos: Worker[] }>>('/worker/list', 'get')
+  const resetSearch = () => {
+    Object.keys(formData).forEach((key) => {
+      formData[key] = ''
+    })
+    instance?.emit('reset', unref(formData))
+  }
+
+  return {
+    doSearch,
+    resetSearch
+  }
 }

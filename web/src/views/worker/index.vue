@@ -17,11 +17,37 @@
 -->
 
 <script setup lang="ts">
+import { getWorkerList, getWorkerOverview } from '@/api'
+import { usePagination } from '@/composables'
+import { WorkerOverviewService } from '@/views/overview/components'
+import { useHasLoading } from '@varlet/axle/use'
+import { WorkerFormService, WorkerTableService } from './components'
+
 defineOptions({
   name: 'WorkerView'
 })
+
+const { data: overview, loading: isOverviewLoading } = getWorkerOverview().use()
+
+const {
+  data,
+  getData: onLoadData,
+  loading: isTableLoading
+} = getWorkerList().use({ immediate: false })
+
+const { pagination, doSearch, resetSearch } = usePagination({
+  onLoadData
+})
+
+const loading = useHasLoading(isOverviewLoading, isTableLoading)
 </script>
 
-<template>Welcome to Apache Celeborn. There is Worker.</template>
-
-<style scoped lang="scss"></style>
+<template>
+  <n-spin :show="loading">
+    <n-flex :style="{ gap: '24px' }" vertical>
+      <WorkerOverviewService :data="overview" />
+      <WorkerFormService @search="doSearch" @reset="resetSearch" />
+      <WorkerTableService :data="data?.workerInfos" :pagination="pagination" />
+    </n-flex>
+  </n-spin>
+</template>

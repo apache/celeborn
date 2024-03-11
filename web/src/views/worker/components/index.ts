@@ -15,16 +15,7 @@
  * limitations under the License.
  */
 
-import { api } from '@/api/request'
-import type { PaginationType } from '@/api/types'
-import type { Worker, WorkerOverview } from './types'
+import WorkerFormService from './WorkerForm.vue'
+import WorkerTableService from './WorkerTable.vue'
 
-export * from './types'
-
-export const getWorkerOverview = () => {
-  return api<WorkerOverview>('/worker/overview', 'get')
-}
-
-export const getWorkerList = () => {
-  return api<PaginationType<{ workerInfos: Worker[] }>>('/worker/list', 'get')
-}
+export { WorkerFormService, WorkerTableService }
