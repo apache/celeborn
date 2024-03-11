@@ -643,11 +643,11 @@ private[celeborn] class Master(
     val expiredShuffleKeys = new util.HashSet[String]
     activeShuffleKeys.asScala.foreach { shuffleKey =>
       if (!statusSystem.registeredShuffle.contains(shuffleKey)) {
-        logWarning(
-          s"Shuffle $shuffleKey expired on $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
         expiredShuffleKeys.add(shuffleKey)
       }
     }
+    logDebug(
+      s"Shuffle ${expiredShuffleKeys.asScala.mkString("[", " ,", "]")} expired on ${targetWorker.toUniqueId()}.")
 
     val workerEventInfo = statusSystem.workerEventInfos.get(targetWorker)
     if (workerEventInfo == null) {
