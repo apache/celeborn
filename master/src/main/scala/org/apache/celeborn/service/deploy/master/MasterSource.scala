@@ -34,7 +34,7 @@ class MasterSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
 object MasterSource {
   val WORKER_COUNT = "WorkerCount"
 
-  val LOST_WORKER_COUNT = "LostWorkers"
+  val LOST_WORKER_COUNT = "LostWorkerCount"
 
   val EXCLUDED_WORKER_COUNT = "ExcludedWorkerCount"
 
