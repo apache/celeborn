@@ -185,27 +185,25 @@ abstract private[celeborn] class InboxBase(
       }
     }
 
-    if (nextMsg.nonEmpty) {
-      var message = nextMsg.get
-      while (true) {
-        safelyCall(endpoint, endpointRef.name) {
-          processInternal(dispatcher, message)
+    var message = nextMsg.get
+    while (true) {
+      safelyCall(endpoint, endpointRef.name) {
+        processInternal(dispatcher, message)
+      }
+      inbox.synchronized {
+        // "enableConcurrent" will be set to false after `onStop` is called, so we should check it
+        // every time.
+        if (!enableConcurrent && numActiveThreads != 1) {
+          // If we are not the only one worker, exit
+          numActiveThreads -= 1
+          return
         }
-        inbox.synchronized {
-          // "enableConcurrent" will be set to false after `onStop` is called, so we should check it
-          // every time.
-          if (!enableConcurrent && numActiveThreads != 1) {
-            // If we are not the only one worker, exit
-            numActiveThreads -= 1
-            return
-          }
-          nextMsg = nextMessage(quitWithNoProcessingThread = false)
-          if (nextMsg.isEmpty) {
-            numActiveThreads -= 1
-            return
-          }
-          message = nextMsg.get
+        nextMsg = nextMessage(quitWithNoProcessingThread = false)
+        if (nextMsg.isEmpty) {
+          numActiveThreads -= 1
+          return
         }
+        message = nextMsg.get
       }
     }
   }

@@ -179,7 +179,7 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
         None
       }
     }
-    if (data != null) {
+    if (error.isEmpty) {
       data.inbox.post(message)
       receivers.offer(data)
     }
