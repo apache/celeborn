@@ -68,8 +68,7 @@ const columns: DataTableColumns<Application> = [
   },
   {
     title: 'SubUser',
-    key: 'subUser',
-    sorter: true
+    key: 'subUser'
   },
   {
     title: 'Tenant',
