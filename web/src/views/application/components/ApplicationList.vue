@@ -56,7 +56,7 @@ const doSearch = () => {
 
 const resetSearch = () => {
   searchFormModel.value.pageNum = 1
-  searchFormModel.value.master = searchFormModel.value.worker = ''
+  searchFormModel.value.applicationId = ''
   $emits('do-search', searchFormModel.value)
 }
 
@@ -116,21 +116,14 @@ const pagination = reactive({
     @keydown.enter="doSearch"
   >
     <n-grid :x-gap="24" :y-gap="24" :cols="4">
-      <n-form-item-gi label="Master" path="master">
+      <n-form-item-gi label="ApplicationId" path="applicationId">
         <n-input
-          v-model:value="searchFormModel.master"
-          placeholder="Please input the hostname of master"
+          v-model:value="searchFormModel.applicationId"
+          placeholder="Please input the applicationId"
           clearable
         />
       </n-form-item-gi>
-      <n-form-item-gi label="Worker" path="worker">
-        <n-input
-          v-model:value="searchFormModel.worker"
-          placeholder="Please input the hostname of worker"
-          clearable
-        />
-      </n-form-item-gi>
-      <n-grid-item :span="2">
+      <n-grid-item>
         <n-flex>
           <n-button type="primary" ghost @click="doSearch">Search</n-button>
           <n-button ghost @click="resetSearch">Reset</n-button>
