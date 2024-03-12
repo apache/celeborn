@@ -87,6 +87,7 @@ Here is an example of Grafana dashboard importing.
 |              WorkerCount               |      master       |                                              The count of active workers.                                              |
 |            LostWorkerCount             |      master       |                                           The count of workers in lost list.                                           |
 |          ExcludedWorkerCount           |      master       |                                         The count of workers in excluded list.                                         |
+|          ShutdownWorkerCount           |      master       |                                         The count of workers in shutdown list.                                         |
 |             IsActiveMaster             |      master       |                                         Whether the current master is active.                                          |
 |             PartitionSize              |      master       |              The estimated partition size of last 20 flush window whose length is 15 seconds by defaults.              |
 |             OfferSlotsTime             |      master       |                                                The time of offer slots.                                                |

@@ -38,6 +38,8 @@ object MasterSource {
 
   val EXCLUDED_WORKER_COUNT = "ExcludedWorkerCount"
 
+  val SHUTDOWN_WORKER_COUNT = "ShutdownWorkerCount"
+
   val REGISTERED_SHUFFLE_COUNT = "RegisteredShuffleCount"
 
   val RUNNING_APPLICATION_COUNT = "RunningApplicationCount"

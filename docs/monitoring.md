@@ -100,6 +100,7 @@ These metrics are exposed by Celeborn master.
     - WorkerCount
     - LostWorkerCount
     - ExcludedWorkerCount
+    - ShutdownWorkerCount
     - IsActiveMaster
     - PartitionSize
         - The size of estimated shuffle partition.

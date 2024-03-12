@@ -212,11 +212,14 @@ private[celeborn] class Master(
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
     statusSystem.registeredShuffle.size
   }
+  masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.workers.size }
+  masterSource.addGauge(MasterSource.LOST_WORKER_COUNT) { () => statusSystem.lostWorkers.size }
   masterSource.addGauge(MasterSource.EXCLUDED_WORKER_COUNT) { () =>
     statusSystem.excludedWorkers.size + statusSystem.manuallyExcludedWorkers.size
   }
-  masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.workers.size }
-  masterSource.addGauge(MasterSource.LOST_WORKER_COUNT) { () => statusSystem.lostWorkers.size }
+  masterSource.addGauge(MasterSource.SHUTDOWN_WORKER_COUNT) { () =>
+    statusSystem.shutdownWorkers.size
+  }
   masterSource.addGauge(MasterSource.RUNNING_APPLICATION_COUNT) { () =>
     statusSystem.appHeartbeatTime.size
   }
