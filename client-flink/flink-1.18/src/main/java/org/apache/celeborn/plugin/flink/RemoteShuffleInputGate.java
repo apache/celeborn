@@ -214,7 +214,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
       // [FLINK-31642][network] Introduce the MemoryTierConsumerAgent to TieredStorageConsumerClient
       super(
           new SingleInputGate(
-              "",
+              inputGateDelegation.getTaskName(),
               inputGateDelegation.getGateIndex(),
               new IntermediateDataSetID(),
               ResultPartitionType.BLOCKING,
