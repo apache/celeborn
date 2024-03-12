@@ -242,7 +242,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
     if (networkLocation != null
         && !networkLocation.isEmpty()
-        && !networkLocation.equals(NetworkTopology.DEFAULT_RACK)) {
+        && !NetworkTopology.DEFAULT_RACK.equals(networkLocation)) {
       workerInfo.networkLocation_$eq(networkLocation);
     } else {
       workerInfo.networkLocation_$eq(rackResolver.resolve(host).getNetworkLocation());
@@ -329,8 +329,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           snapshotMetaInfo.getWorkersList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
               .collect(Collectors.toSet());
-      List<String> workerHostList =
-          workerInfoSet.stream().map(WorkerInfo::host).collect(Collectors.toList());
+      List<String> workerHostList = workerInfoSet.stream()
+              .filter(w -> NetworkTopology.DEFAULT_RACK.equals(w.networkLocation()))
+              .map(WorkerInfo::host).collect(Collectors.toList());
       scala.collection.immutable.Map<String, Node> resolveMap =
           rackResolver.resolveToMap(workerHostList);
       workers.addAll(
