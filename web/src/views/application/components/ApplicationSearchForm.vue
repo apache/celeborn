@@ -17,24 +17,19 @@
 -->
 
 <script setup lang="ts">
-import type { ApplicationSearchModel } from '@/api/models/application/types'
+import { useFormEvent } from '@/composables'
 
 defineOptions({
   name: 'ApplicationSearchForm'
 })
 
-const searchForm = ref<ApplicationSearchModel>({})
+const searchForm = reactive({
+  appId: '',
+  subUser: '',
+  tenant: ''
+})
 
-const $emits = defineEmits(['do-search', 'do-reset'])
-
-const doSearch = () => {
-  $emits('do-search', unref(searchForm))
-}
-
-const resetSearch = () => {
-  searchForm.value.appId = searchForm.value.subUser = searchForm.value.tenant = ''
-  $emits('do-reset', unref(searchForm))
-}
+const { doSearch, resetSearch } = useFormEvent(searchForm)
 </script>
 
 <template>

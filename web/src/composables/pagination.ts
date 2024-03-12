@@ -16,7 +16,6 @@
  */
 
 import type { PaginationProps } from 'naive-ui'
-import type { PaginationType } from '@/api/types'
 
 export interface UsePaginationOptions {
   currentPage?: number
