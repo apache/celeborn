@@ -15,11 +15,8 @@
  * limitations under the License.
  */
 
-html,
-body,
-#app {
-  margin: 0;
-  padding: 0;
-  width: 100vw;
-  height: 100vh;
+import dayjs from 'dayjs'
+
+export const normalizeDatetime = (datetime?: string) => {
+  return datetime ? dayjs(datetime).format('YYYY-MM-DD HH:mm:ss') : ''
 }

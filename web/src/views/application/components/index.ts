@@ -15,11 +15,7 @@
  * limitations under the License.
  */
 
-html,
-body,
-#app {
-  margin: 0;
-  padding: 0;
-  width: 100vw;
-  height: 100vh;
-}
+import ApplicationListService from './ApplicationList.vue'
+import ApplicationSearchFormService from './ApplicationSearchForm.vue'
+
+export { ApplicationListService, ApplicationSearchFormService }

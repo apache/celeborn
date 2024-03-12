@@ -19,3 +19,23 @@ export interface ApplicationOverview {
   runningNum: number
   totalShuffleSize: string
 }
+
+export interface Application {
+  appId: string
+  subUser: string
+  tenant: string
+  heartbeatTime: string
+  shuffleSize: string
+  shuffleFileCount: number
+}
+
+export interface ApplicationSearchModel {
+  appId?: string
+  subUser?: string
+  tenant?: string
+}
+
+export interface ApplicationResponse {
+  applicationInfos: Application[]
+  totalCount: number
+}

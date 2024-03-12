@@ -17,11 +17,42 @@
 -->
 
 <script setup lang="ts">
+import { getApplicationOverview, getApplicationList } from '@/api'
+import { useHasLoading } from '@varlet/axle/use'
+import { ApplicationOverviewService } from '@/views/overview/components'
+import {
+  ApplicationListService,
+  ApplicationSearchFormService
+} from '@/views/application/components'
+import { usePagination } from '@/composables'
+import type { Application } from '@/api/models/application/types'
+
 defineOptions({
   name: 'ApplicationView'
 })
+
+const {
+  data: appResponse,
+  loading: isAppListLoading,
+  getData: loadApplicationList
+} = getApplicationList().use({ immediate: false })
+const { data: appOverview, loading: isAppOverviewLoading } = getApplicationOverview().use()
+
+const loading = useHasLoading(isAppOverviewLoading, isAppListLoading)
+
+const { pagination, reset, search } = usePagination<{ applicationInfos: Application[] }>({
+  onLoadData: loadApplicationList
+})
+
+const applicationList = computed<Application[]>(() => appResponse.value?.applicationInfos || [])
 </script>
 
-<template>Welcome to Apache Celeborn. There is Application.</template>
-
-<style scoped lang="scss"></style>
+<template>
+  <n-spin :show="loading">
+    <n-flex :style="{ gap: '24px' }" vertical>
+      <ApplicationOverviewService :data="appOverview" />
+      <ApplicationSearchFormService @do-reset="reset" @do-search="search" />
+      <ApplicationListService :data="applicationList" :pagination="pagination" />
+    </n-flex>
+  </n-spin>
+</template>
