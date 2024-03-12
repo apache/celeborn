@@ -339,7 +339,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
               .peek(
                   workerInfo -> {
                     // Reset worker's network location with current master's configuration.
-                    if (workerInfo.networkLocation().equals(NetworkTopology.DEFAULT_RACK)) {
+                    if (NetworkTopology.DEFAULT_RACK.equals(workerInfo.networkLocation())) {
                       workerInfo.networkLocation_$eq(
                           resolveMap.get(workerInfo.host()).get().getNetworkLocation());
                     }
