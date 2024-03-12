@@ -105,6 +105,7 @@ public class FlinkShuffleClientImplSuiteJ {
             });
     int pushDataLen =
         shuffleClient.pushDataToLocation(2, 3, 4, 5, byteBuf, primaryLocation, () -> {});
+    Assert.assertEquals(BufferSize, pushDataLen);
   }
 
   @Test

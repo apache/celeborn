@@ -32,7 +32,7 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class RemoteShuffleServiceFactorySuitJ {
+public class RemoteShuffleServiceFactorySuiteJ {
   @Test
   public void testCreateShuffleEnvironment() {
     RemoteShuffleServiceFactory remoteShuffleServiceFactory = new RemoteShuffleServiceFactory();

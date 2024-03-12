@@ -35,16 +35,16 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
 
 public class RemoteShuffleOutputGateSuiteJ {
-  private RemoteShuffleOutputGate remoteShuffleOutputGate = mock(RemoteShuffleOutputGate.class);
-  private FlinkShuffleClientImpl shuffleClient = mock(FlinkShuffleClientImpl.class);
+  private final RemoteShuffleOutputGate remoteShuffleOutputGate =
+      mock(RemoteShuffleOutputGate.class);
+  private final FlinkShuffleClientImpl shuffleClient = mock(FlinkShuffleClientImpl.class);
   private static final int BUFFER_SIZE = 20;
-  private NetworkBufferPool networkBufferPool;
   private BufferPool bufferPool;
 
   @Before
   public void setup() throws IOException {
     remoteShuffleOutputGate.flinkShuffleClient = shuffleClient;
-    networkBufferPool = new NetworkBufferPool(10, BUFFER_SIZE);
+    NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, BUFFER_SIZE);
     bufferPool = networkBufferPool.createBufferPool(10, 10);
   }
 
