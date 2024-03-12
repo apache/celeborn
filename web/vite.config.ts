@@ -29,7 +29,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://virtserver.swaggerhub.com/PROGRAMGEEK/Celeborn/1.0.0/',
+        target: '',
         changeOrigin: true,
         rewrite(path) {
           return path.replace(/^\/api/, '')
