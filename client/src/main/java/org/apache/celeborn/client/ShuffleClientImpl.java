@@ -1005,7 +1005,19 @@ public class ShuffleClientImpl extends ShuffleClient {
                       attemptId,
                       partitionId,
                       nextBatchId);
-                  splitPartition(shuffleId, partitionId, latest);
+                  if (!newerPartitionLocationExists(
+                      reducePartitionMap.get(shuffleId), partitionId, latest.getEpoch(), false)) {
+                    ReviveRequest reviveRequest =
+                        new ReviveRequest(
+                            shuffleId,
+                            mapId,
+                            attemptId,
+                            partitionId,
+                            latest.getEpoch(),
+                            latest,
+                            StatusCode.SOFT_SPLIT);
+                    reviveManager.addRequest(reviveRequest);
+                  }
                   pushState.onSuccess(latest.hostAndPushPort());
                   pushState.removeBatch(nextBatchId, latest.hostAndPushPort());
                   callback.onSuccess(response);
@@ -1193,33 +1205,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     return body.length;
-  }
-
-  private void splitPartition(int shuffleId, int partitionId, PartitionLocation loc) {
-    Set<Integer> splittingSet =
-        splitting.computeIfAbsent(shuffleId, integer -> ConcurrentHashMap.newKeySet());
-    //noinspection SynchronizationOnLocalVariableOrMethodParameter
-    synchronized (splittingSet) {
-      if (splittingSet.contains(partitionId)) {
-        logger.debug(
-            "Splitting for shuffle {} partition {}, skip split request.", shuffleId, partitionId);
-        return;
-      }
-      splittingSet.add(partitionId);
-    }
-
-    ConcurrentHashMap<Integer, PartitionLocation> currentShuffleLocs =
-        reducePartitionMap.get(shuffleId);
-
-    ShuffleClientHelper.sendShuffleSplitAsync(
-        lifecycleManagerRef,
-        conf,
-        PartitionSplit$.MODULE$.apply(shuffleId, partitionId, loc.getEpoch(), loc),
-        partitionSplitPool,
-        splittingSet,
-        partitionId,
-        shuffleId,
-        currentShuffleLocs);
   }
 
   @Override
