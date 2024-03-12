@@ -329,9 +329,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           snapshotMetaInfo.getWorkersList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
               .collect(Collectors.toSet());
-      List<String> workerHostList = workerInfoSet.stream()
+      List<String> workerHostList =
+          workerInfoSet.stream()
               .filter(w -> NetworkTopology.DEFAULT_RACK.equals(w.networkLocation()))
-              .map(WorkerInfo::host).collect(Collectors.toList());
+              .map(WorkerInfo::host)
+              .collect(Collectors.toList());
       scala.collection.immutable.Map<String, Node> resolveMap =
           rackResolver.resolveToMap(workerHostList);
       workers.addAll(
