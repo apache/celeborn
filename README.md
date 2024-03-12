@@ -79,6 +79,12 @@ To compile the client for Spark 2.4 with Scala 2.12, please use the following co
 ./build/make-distribution.sh -DskipTests -Pspark-2.4 -Dscala.version=${scala.version} -Dscala.binary.version=2.12
 ```
 
+To compile for Spark 3.5 with Java21,  please use the following command
+```shell
+./build/make-distribution.sh -Pspark-3.5 -Pjdk-21
+```
+
+
 ### Package Details
 Build procedure will create a compressed package.
 
