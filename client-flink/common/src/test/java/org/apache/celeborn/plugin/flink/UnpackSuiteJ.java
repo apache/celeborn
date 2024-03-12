@@ -70,12 +70,12 @@ public class UnpackSuiteJ {
     Assert.assertEquals(2, bufferQueue.size());
     Buffer buffer1 = bufferQueue.poll();
     Assert.assertEquals(buffer1.getDataType(), Buffer.DataType.DATA_BUFFER);
-    Assert.assertEquals(buffer1.isCompressed(), true);
+    Assert.assertTrue(buffer1.isCompressed());
     Assert.assertEquals(buffer1.getSize(), 3);
 
     Buffer buffer2 = bufferQueue.poll();
     Assert.assertEquals(buffer2.getDataType(), Buffer.DataType.EVENT_BUFFER);
-    Assert.assertEquals(buffer2.isCompressed(), false);
+    Assert.assertFalse(buffer2.isCompressed());
     Assert.assertEquals(buffer2.getSize(), 5);
   }
 }

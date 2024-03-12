@@ -38,7 +38,7 @@ import org.apache.celeborn.common.meta.ShufflePartitionLocationInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 
-public class ShuffleResourceTrackerTest {
+public class ShuffleResourceTrackerSuiteJ {
 
   @Test
   public void testNotifyUnknownWorkers() {

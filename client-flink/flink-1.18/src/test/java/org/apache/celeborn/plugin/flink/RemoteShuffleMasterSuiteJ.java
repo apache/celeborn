@@ -56,9 +56,9 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.Utils$;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 
-public class RemoteShuffleMasterTest {
+public class RemoteShuffleMasterSuiteJ {
 
-  private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleMasterTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleMasterSuiteJ.class);
   private RemoteShuffleMaster remoteShuffleMaster;
   private Configuration configuration;
 

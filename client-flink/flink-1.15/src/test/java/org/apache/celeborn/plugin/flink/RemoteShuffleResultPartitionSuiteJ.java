@@ -68,9 +68,9 @@ import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 
 public class RemoteShuffleResultPartitionSuiteJ {
   private final int networkBufferSize = 32 * 1024;
-  private BufferCompressor bufferCompressor = new BufferCompressor(networkBufferSize, "lz4");
-  private RemoteShuffleOutputGate remoteShuffleOutputGate = mock(RemoteShuffleOutputGate.class);
-  private final String compressCodec = "LZ4";
+  private final BufferCompressor bufferCompressor = new BufferCompressor(networkBufferSize, "lz4");
+  private final RemoteShuffleOutputGate remoteShuffleOutputGate =
+      mock(RemoteShuffleOutputGate.class);
   private final CelebornConf conf = new CelebornConf();
   BufferDecompressor bufferDecompressor = new BufferDecompressor(networkBufferSize, "LZ4");
 
@@ -551,7 +551,7 @@ public class RemoteShuffleResultPartitionSuiteJ {
     }
   }
 
-  private RemoteShuffleDescriptor getShuffleDescriptor() throws Exception {
+  private RemoteShuffleDescriptor getShuffleDescriptor() {
     Random random = new Random();
     byte[] bytes = new byte[16];
     random.nextBytes(bytes);

@@ -20,7 +20,7 @@ package org.apache.celeborn.plugin.flink;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class ShuffleTaskInfoSuitJ {
+public class ShuffleTaskInfoSuiteJ {
   @Test
   public void testEncode() {
     ShuffleTaskInfo shuffleTaskInfo = new ShuffleTaskInfo();

@@ -41,7 +41,7 @@ import org.junit.Test;
 import org.apache.celeborn.plugin.flink.buffer.PartitionSortedBuffer;
 import org.apache.celeborn.plugin.flink.buffer.SortBuffer;
 
-public class PartitionSortedBufferSuitJ {
+public class PartitionSortedBufferSuiteJ {
   @Test
   public void testWriteAndReadSortBuffer() throws Exception {
     int numSubpartitions = 10;

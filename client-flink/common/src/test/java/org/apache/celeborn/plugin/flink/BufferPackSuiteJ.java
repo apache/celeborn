@@ -37,7 +37,7 @@ import org.junit.Test;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 
-public class BufferPackSuitJ {
+public class BufferPackSuiteJ {
   private static final int BUFFER_SIZE = 20 + 16;
 
   private NetworkBufferPool networkBufferPool;
