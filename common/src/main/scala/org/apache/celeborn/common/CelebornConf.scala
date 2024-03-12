@@ -4026,7 +4026,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.spark.push.sort.memory.useAdaptiveThreshold")
       .withAlternative("celeborn.push.sortMemory.useAdaptiveThreshold")
       .categories("client")
-      .doc("adaptively adjust threshold for sort shuffle writer's memory threshold")
+      .doc("Adaptively adjust sort-based shuffle writer's memory threshold")
       .version("0.5.0")
       .booleanConf
       .createWithDefault(false)
@@ -4035,17 +4035,16 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.spark.push.sort.smallPushTolerateFactor")
       .withAlternative("celeborn.push.sortMemory.adaptiveThreshold")
       .categories("client")
-      .doc("only be in effect when celeborn.client.spark.push.sort.memory.adaptiveThreshold is" +
-        " turned on. It controls when to enlarge the sort shuffle writer's memory threshold. With" +
-        " N bytes data in memory and V as the value of this config, if the number of pushes, C," +
+      .doc("Only be in effect when celeborn.client.spark.push.sort.memory.useAdaptiveThreshold is" +
+        " turned on. The larger this value is, the more aggressive Celeborn will enlarge the " +
+        " Sort-based Shuffle writer's memory threshold. Specifically, this config controls when to" +
+        " enlarge the sort shuffle writer's memory threshold. With N bytes data in memory and V as" +
+        " the value of this config, if the number of pushes, C," +
         " when using sort based shuffle writer C >= (1 + V) * C' where C' is the number of pushes" +
         " if we were using hash based writer, we will enlarge the memory threshold by 2X.")
       .version("0.5.0")
       .doubleConf
-      .checkValue(
-        v => v >= 0.0,
-        "the value of" +
-          " celeborn.client.spark.push.sort.smallPushTolerateFactor must be no less than 0")
+      .checkValue(v => v >= 0.0, "Value must be no less than 0")
       .createWithDefault(0.2)
 
   val TEST_ALTERNATIVE: OptionalConfigEntry[String] =

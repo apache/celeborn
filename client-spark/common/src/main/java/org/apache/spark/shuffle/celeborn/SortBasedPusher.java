@@ -46,10 +46,10 @@ public class SortBasedPusher extends MemoryConsumer {
 
   class MemoryThresholdManager {
 
-    private long maxMemoryThresholdInBytes;
-    private double smallPushTolerateFactor;
+    private final long maxMemoryThresholdInBytes;
+    private final double smallPushTolerateFactor;
 
-    private long sendBufferSizeInBytes;
+    private final long sendBufferSizeInBytes;
 
     MemoryThresholdManager(
         int numPartitions, long sendBufferSizeInBytes, double smallPushTolerateFactor) {
@@ -76,10 +76,9 @@ public class SortBasedPusher extends MemoryConsumer {
         pushSortMemoryThreshold = pushSortMemoryThreshold * 2;
         logger.info(
             "grow memory threshold from "
-                + oldThreshold / 1024 / 1024
-                + "Mb to "
-                + pushSortMemoryThreshold / 1024 / 1024
-                + " Mb");
+                + Utils.bytesToString(oldThreshold)
+                + " to "
+                + Utils.bytesToString(pushSortMemoryThreshold));
         pushedCount = 0;
         pushedMemorySizeInBytes = 0;
         expectedPushedBytes = 0;
