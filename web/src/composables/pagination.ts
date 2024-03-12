@@ -51,30 +51,32 @@ export function usePagination<T>(options: UsePaginationOptions<T> = {}) {
     return { params: { pageNum: pageNum.value, pageSize: pageSize.value, ...(searchForm || {}) } }
   }
 
+  async function updatePaginationState(newSearch?: SearchForm) {
+    const { totalCount: total } = await onLoadData!(mergeParams(newSearch))
+    totalCount.value = total || 0
+    pageCount.value = Math.ceil(totalCount.value / pageSize.value)
+  }
+
   function onUpdatePageChange(value: number) {
     pageNum.value = value
-    onLoadData!(mergeParams(searchParams.value))
+    updatePaginationState(searchParams.value)
   }
 
   function onUpdateSizeChange(value: number) {
     pageSize.value = value
-    onLoadData!(mergeParams(searchParams.value))
+    updatePaginationState(searchParams.value)
   }
 
   async function reset(newSearch?: SearchForm) {
     pageNum.value = defaultPageNum
     pageSize.value = defaultPageSize
     pageCount.value = defaultPageCount
-    const { totalCount: total } = await onLoadData!(mergeParams(newSearch))
-    totalCount.value = total || 0
-    pageCount.value = Math.ceil(totalCount.value / pageSize.value)
+    await updatePaginationState(newSearch)
   }
 
   async function search(newSearch?: SearchForm) {
     pageNum.value = 1
-    const { totalCount: total } = await onLoadData!(mergeParams(newSearch))
-    totalCount.value = total || 0
-    pageCount.value = Math.ceil(totalCount.value / pageSize.value)
+    await updatePaginationState(newSearch)
   }
 
   onMounted(() => {
