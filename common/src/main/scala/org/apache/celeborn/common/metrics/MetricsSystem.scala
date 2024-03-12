@@ -25,11 +25,12 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.matching.Regex
 
 import com.codahale.metrics.{Metric, MetricFilter, MetricRegistry}
+import org.eclipse.jetty.servlet.ServletContextHandler
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.{METRICS_JSON_PATH, METRICS_PROMETHEUS_PATH}
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.metrics.sink.{JsonServlet, PrometheusServlet, ServletHttpRequestHandler, Sink}
+import org.apache.celeborn.common.metrics.sink.{JsonServlet, PrometheusServlet, Sink}
 import org.apache.celeborn.common.metrics.source.Source
 import org.apache.celeborn.common.util.Utils
 
@@ -51,7 +52,7 @@ class MetricsSystem(
 
   metricsConfig.initialize()
 
-  def getServletHandlers: Array[ServletHttpRequestHandler] = {
+  def getServletContextHandlers: Array[ServletContextHandler] = {
     require(running, "Can only call getServletHandlers on a running MetricsSystem")
     prometheusServlet.map(_.getHandlers(conf)).getOrElse(Array()) ++
       jsonServlet.map(_.getHandlers(conf)).getOrElse(Array())

@@ -19,7 +19,13 @@ package org.apache.celeborn.server.common.http
 
 import javax.ws.rs.core.MediaType
 
+import org.apache.celeborn.common.CelebornConf
+
 abstract class ApiBaseResourceSuite extends HttpTestHelper {
+  celebornConf.set(
+    CelebornConf.METRICS_CONF.key,
+    Thread.currentThread().getContextClassLoader.getResource("metrics-api.properties").getFile)
+
   test("ping") {
     val response = webTarget.path("ping").request(MediaType.TEXT_PLAIN).get()
     assert(200 == response.getStatus)
@@ -76,5 +82,17 @@ abstract class ApiBaseResourceSuite extends HttpTestHelper {
       assert(200 == response.getStatus)
       assert(response.readEntity(classOf[String]).contains("swagger-ui"))
     }
+  }
+
+  test("metrics/prometheus") {
+    val response = webTarget.path("metrics/prometheus").request(MediaType.APPLICATION_JSON).get()
+    assert(200 == response.getStatus)
+    assert(response.readEntity(classOf[String]).contains("metrics_jvm_memory_heap_max_Value"))
+  }
+
+  test("metrics/json") {
+    val response = webTarget.path("metrics/json").request(MediaType.APPLICATION_JSON).get()
+    assert(200 == response.getStatus)
+    assert(response.readEntity(classOf[String]).contains("\"name\" : \"jvm.memory.heap.max\""))
   }
 }

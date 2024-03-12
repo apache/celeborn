@@ -25,8 +25,10 @@ import com.codahale.metrics.MetricRegistry
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.{ClassTagExtensions, DefaultScalaModule}
 import io.netty.channel.ChannelHandler.Sharable
+import org.eclipse.jetty.servlet.ServletContextHandler
 
 import org.apache.celeborn.common.metrics.{CelebornHistogram, CelebornTimer, ResettableSlidingWindowReservoir}
+import org.apache.celeborn.common.metrics.sink.ServletUtils.ServletParams
 import org.apache.celeborn.common.metrics.source.{AbstractSource, NamedCounter, NamedGauge, NamedHistogram, NamedTimer, Source}
 
 object JsonConverter {
@@ -72,8 +74,10 @@ class JsonServlet(
     }
   }
 
-  override def createHttpRequestHandler(): ServletHttpRequestHandler = {
-    new JsonHttpRequestHandler(servletPath, this)
+  override def createServletHandler(): ServletContextHandler = {
+    ServletUtils.createServletHandler(
+      servletPath,
+      new ServletParams(_ => getMetricsSnapshot, "text/json"))
   }
 
   override def stop(): Unit = {}
@@ -342,14 +346,5 @@ class JsonServlet(
     if (metricDatas.size < absSource.metricsCapacity) {
       metricDatas += metricData
     }
-  }
-}
-
-@Sharable
-class JsonHttpRequestHandler(path: String, jsonServlet: JsonServlet)
-  extends ServletHttpRequestHandler(path) {
-
-  override def handleRequest(uri: String): String = {
-    jsonServlet.getMetricsSnapshot
   }
 }

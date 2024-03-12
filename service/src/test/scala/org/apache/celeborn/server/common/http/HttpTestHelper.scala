@@ -30,6 +30,7 @@ import org.glassfish.jersey.test.spi.TestContainerFactory
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.HttpTestHelper.RestApiBaseSuite
@@ -55,6 +56,7 @@ trait HttpTestHelper extends AnyFunSuite
   with BeforeAndAfterEach
   with Logging {
 
+  protected val celebornConf = new CelebornConf()
   protected def httpService: HttpService
 
   protected val restApiBaseSuite: JerseyTest = new RestApiBaseSuite

@@ -16,17 +16,19 @@
  */
 package org.apache.celeborn.common.metrics.sink
 
+import org.eclipse.jetty.servlet.ServletContextHandler
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.source.Source
 
 abstract class AbstractServlet(sources: Seq[Source]) extends Sink with Logging {
-  def getHandlers(conf: CelebornConf): Array[ServletHttpRequestHandler] = {
-    Array[ServletHttpRequestHandler](
-      createHttpRequestHandler())
+  def getHandlers(conf: CelebornConf): Array[ServletContextHandler] = {
+    Array[ServletContextHandler](
+      createServletHandler())
   }
 
-  def createHttpRequestHandler(): ServletHttpRequestHandler
+  def createServletHandler(): ServletContextHandler
 
   def getMetricsSnapshot: String = {
     sources.map(_.getMetrics).mkString
@@ -37,12 +39,4 @@ abstract class AbstractServlet(sources: Seq[Source]) extends Sink with Logging {
   override def stop(): Unit = {}
 
   override def report(): Unit = {}
-}
-
-abstract class ServletHttpRequestHandler(path: String) extends Logging {
-
-  def handleRequest(uri: String): String
-
-  def getServletPath(): String = path
-
 }

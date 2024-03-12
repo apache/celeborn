@@ -20,8 +20,9 @@ package org.apache.celeborn.common.metrics.sink
 import java.util.Properties
 
 import com.codahale.metrics.MetricRegistry
-import io.netty.channel.ChannelHandler.Sharable
+import org.eclipse.jetty.servlet.ServletContextHandler
 
+import org.apache.celeborn.common.metrics.sink.ServletUtils.ServletParams
 import org.apache.celeborn.common.metrics.source.Source
 
 class PrometheusServlet(
@@ -30,17 +31,9 @@ class PrometheusServlet(
     val sources: Seq[Source],
     val servletPath: String) extends AbstractServlet(sources) {
 
-  override def createHttpRequestHandler(): ServletHttpRequestHandler = {
-    new PrometheusHttpRequestHandler(servletPath, this)
-  }
-}
-
-@Sharable
-class PrometheusHttpRequestHandler(
-    path: String,
-    prometheusServlet: PrometheusServlet) extends ServletHttpRequestHandler(path) {
-
-  override def handleRequest(uri: String): String = {
-    prometheusServlet.getMetricsSnapshot
+  override def createServletHandler(): ServletContextHandler = {
+    ServletUtils.createServletHandler(
+      servletPath,
+      new ServletParams(_ => getMetricsSnapshot, "text/plain"))
   }
 }

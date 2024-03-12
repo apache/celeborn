@@ -235,6 +235,11 @@ abstract class HttpService extends Service with Logging {
     httpServer.addStaticHandler("org/apache/celeborn/swagger", "/swagger")
     httpServer.addRedirectHandler("/help", "/swagger")
     httpServer.addRedirectHandler("/docs", "/swagger")
+    if (metricsSystem.running) {
+      metricsSystem.getServletContextHandlers.foreach { handler =>
+        httpServer.addHandler(handler)
+      }
+    }
   }
 
   override def initialize(): Unit = {

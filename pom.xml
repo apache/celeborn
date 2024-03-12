@@ -80,7 +80,6 @@
     <google.jsr305.version>1.3.9</google.jsr305.version>
     <grpc.version>1.44.0</grpc.version>
     <guava.version>32.1.3-jre</guava.version>
-    <javaxservlet.version>3.1.0</javaxservlet.version>
     <junit.version>4.13.2</junit.version>
     <leveldb.version>1.8</leveldb.version>
     <log4j2.version>2.17.2</log4j2.version>
@@ -360,11 +359,6 @@
         <version>${protobuf.version}</version>
       </dependency>
       <dependency>
-        <groupId>javax.servlet</groupId>
-        <artifactId>javax.servlet-api</artifactId>
-        <version>${javaxservlet.version}</version>
-      </dependency>
-      <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-all</artifactId>
         <version>${netty.version}</version>
@@ -456,6 +450,33 @@
       </dependency>
 
       <!-- RESTful service dependencies -->
+      <dependency>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-server</artifactId>
+        <version>${jetty.version}</version>
+        <exclusions>
+          <!--
+            Use `jakarta.servlet-api` instead.
+            -->
+          <exclusion>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-servlet</artifactId>
+        <version>${jetty.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-proxy</artifactId>
+        <version>${jetty.version}</version>
+      </dependency>
+
       <dependency>
         <groupId>jakarta.servlet</groupId>
         <artifactId>jakarta.servlet-api</artifactId>

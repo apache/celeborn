@@ -44,7 +44,6 @@ object Dependencies {
   val findbugsVersion = "1.3.9"
   val guavaVersion = "32.1.3-jre"
   val hadoopVersion = "3.3.6"
-  val javaxServletVersion = "3.1.0"
   val junitInterfaceVersion = "0.13.3"
   // don't forget update `junitInterfaceVersion` when we upgrade junit
   val junitVersion = "4.13.2"
@@ -104,7 +103,6 @@ object Dependencies {
   val ioDropwizardMetricsJvm = "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion
   val ioNetty = "io.netty" % "netty-all" % nettyVersion excludeAll(
     ExclusionRule("io.netty", "netty-handler-ssl-ocsp"))
-  val javaxServletApi = "javax.servlet" % "javax.servlet-api" % javaxServletVersion
   val leveldbJniAll = "org.fusesource.leveldbjni" % "leveldbjni-all" % leveldbJniVersion
   val log4j12Api = "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version
   val log4jSlf4jImpl = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version
@@ -413,6 +411,8 @@ object CelebornCommon {
         Dependencies.jacksonCore,
         Dependencies.jacksonDatabind,
         Dependencies.jacksonAnnotations,
+        Dependencies.jettyServlet,
+        Dependencies.jakartaServletApi,
         Dependencies.log4jSlf4jImpl % "test",
         Dependencies.log4j12Api % "test"
       ) ++ commonUnitTestDependencies,
@@ -468,7 +468,6 @@ object CelebornService {
         Dependencies.findbugsJsr305,
         Dependencies.commonsIo,
         Dependencies.ioNetty,
-        Dependencies.javaxServletApi,
         Dependencies.commonsCrypto,
         Dependencies.slf4jApi,
         Dependencies.mybatis,

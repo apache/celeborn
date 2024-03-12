@@ -30,9 +30,8 @@ class ApiWorkerResourceSuite extends ApiBaseResourceSuite {
   override protected def httpService: HttpService = worker
 
   override def beforeAll(): Unit = {
-    val conf = new CelebornConf()
-    val workerArgs = new WorkerArguments(Array(), conf)
-    worker = new Worker(conf, workerArgs)
+    val workerArgs = new WorkerArguments(Array(), celebornConf)
+    worker = new Worker(celebornConf, workerArgs)
     worker.startHttpServer()
     super.beforeAll()
   }
