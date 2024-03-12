@@ -199,7 +199,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
     FakedRemoteInputChannel(int channelIndex) {
       super(
           new SingleInputGate(
-              "",
+              inputGateDelegation.getTaskName(),
               inputGateDelegation.getGateIndex(),
               new IntermediateDataSetID(),
               ResultPartitionType.BLOCKING,
