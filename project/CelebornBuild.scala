@@ -132,7 +132,8 @@ object Dependencies {
   val hikaricp = "com.zaxxer" % "HikariCP" % hikaricpVersion
   val jettyServer = "org.eclipse.jetty" % "jetty-server" % jettyVersion excludeAll(
     ExclusionRule("javax.servlet", "javax.servlet-api"))
-  val jettyServlet = "org.eclipse.jetty" % "jetty-servlet" % jettyVersion
+  val jettyServlet = "org.eclipse.jetty" % "jetty-servlet" % jettyVersion excludeAll(
+    ExclusionRule("javax.servlet", "javax.servlet-api"))
   val jettyProxy = "org.eclipse.jetty" % "jetty-proxy" % jettyVersion
   val jakartaServletApi = "jakarta.servlet" % "jakarta.servlet-api" % jakartaServeletApiVersion
   val jerseyServer = "org.glassfish.jersey.core" % "jersey-server" % jerseyVersion excludeAll(
