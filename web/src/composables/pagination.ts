@@ -15,57 +15,91 @@
  * limitations under the License.
  */
 
-export interface UsePaginationOptions {
-  search?: string
-  current_page?: number
-  page_size?: number
-  page_count?: number
-  item_count?: number
-  onLoadData?: Function
+import type { PaginationProps } from 'naive-ui'
+import type { PaginationType } from '@/api/types'
+
+export interface UsePaginationOptions<T> {
+  pageNum?: number
+  pageSize?: number
+  pageSizes?: number[]
+  pageCount?: number
+  totalCount?: number
+  onLoadData?(params?: Record<string, any>): Promise<PaginationType<T>>
 }
 
-export function usePagination(options: UsePaginationOptions = {}) {
-  const search = ref(options.search ?? '')
-  const current_page = ref(options.current_page ?? 1)
-  const page_size = ref(options.page_size ?? 20)
-  const page_count = ref(options.page_count ?? 0)
-  const item_count = ref(options.item_count ?? 0)
+export type SearchForm = Record<string, string>
+
+export function usePagination<T>(options: UsePaginationOptions<T> = {}) {
+  const {
+    pageNum: defaultPageNum = 1,
+    pageSize: defaultPageSize = 30,
+    pageSizes: defaultPageSizes = [30, 50, 100],
+    pageCount: defaultPageCount = 0,
+    totalCount: defaultTotalCount = 0,
+    onLoadData
+  } = options
+
+  const searchParams = ref<SearchForm | undefined>({})
+  const pageNum = ref(defaultPageNum)
+  const pageSize = ref(defaultPageSize)
+  const pageSizes = ref(defaultPageSizes)
+  const pageCount = ref(defaultPageCount)
+  const totalCount = ref(defaultTotalCount)
+
+  function mergeParams(searchForm?: SearchForm) {
+    searchParams.value = searchForm
+    return { params: { pageNum: pageNum.value, pageSize: pageSize.value, ...(searchForm || {}) } }
+  }
 
   function onUpdatePageChange(value: number) {
-    current_page.value = value
-    options.onLoadData!()
+    pageNum.value = value
+    onLoadData!(mergeParams(searchParams.value))
   }
 
   function onUpdateSizeChange(value: number) {
-    page_size.value = value
-    options.onLoadData!()
+    pageSize.value = value
+    onLoadData!(mergeParams(searchParams.value))
   }
 
-  function reset() {
-    current_page.value = options.current_page ?? 1
-    page_size.value = options.page_size ?? 20
-    page_count.value = options.page_count ?? 0
-    item_count.value = options.item_count ?? 0
+  async function reset(newSearch?: SearchForm) {
+    pageNum.value = defaultPageNum
+    pageSize.value = defaultPageSize
+    pageCount.value = defaultPageCount
+    const { totalCount: total } = await onLoadData!(mergeParams(newSearch))
+    totalCount.value = total || 0
+    pageCount.value = Math.ceil(totalCount.value / pageSize.value)
   }
+
+  async function search(newSearch?: SearchForm) {
+    pageNum.value = 1
+    const { totalCount: total } = await onLoadData!(mergeParams(newSearch))
+    totalCount.value = total || 0
+    pageCount.value = Math.ceil(totalCount.value / pageSize.value)
+  }
+
+  onMounted(() => {
+    search()
+  })
 
   return {
+    searchParams,
+    pageNum,
+    pageSize,
+    pageSizes,
+    pageCount,
+    totalCount,
     search,
-    current_page,
-    page_size,
-    page_count,
-    item_count,
     reset,
-    props: computed(() => {
+    pagination: computed<PaginationProps>(() => {
       return {
-        current_page: current_page.value,
-        page_size: page_size.value,
-        page_count: page_count.value,
-        item_count: item_count.value
+        page: pageNum.value,
+        pageSize: pageSize.value,
+        pageSizes: pageSizes.value,
+        pageCount: pageCount.value,
+        showSizePicker: true,
+        onChange: onUpdatePageChange,
+        onPageSizeChange: onUpdateSizeChange
       }
-    }),
-    emits: {
-      'update:page': onUpdatePageChange,
-      'update:pageSize': onUpdateSizeChange
-    }
+    })
   }
 }

@@ -24,12 +24,8 @@ export interface Response<T> {
 
 export type Options<V, R, P> = Partial<UseAxleOptions<V, R, P>>
 
-export interface PaginationType<T> {
-  current_page?: number
-  items: T[]
-  page_count?: number
-  page_size?: number
-  total?: number
+export type PaginationType<T> = T & {
+  totalCount?: number
 }
 
 export interface Page {

@@ -16,5 +16,6 @@
  */
 
 import ApplicationListService from './ApplicationList.vue'
+import ApplicationSearchFormService from './ApplicationSearchForm.vue'
 
-export { ApplicationListService }
+export { ApplicationListService, ApplicationSearchFormService }

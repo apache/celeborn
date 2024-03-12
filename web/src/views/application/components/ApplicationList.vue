@@ -18,47 +18,23 @@
 
 <script setup lang="ts">
 import type { PropType } from 'vue'
-import type { DataTableColumns } from 'naive-ui'
-import type { Application, ApplicationSearchModel } from '@/api/models/application/types'
-import type { Page } from '@/api/types'
+import type { DataTableColumns, PaginationProps } from 'naive-ui'
+import type { Application } from '@/api/models/application/types'
 
 defineOptions({
   name: 'ApplicationDataTable'
 })
 
-const $props = defineProps({
+defineProps({
   data: {
     type: Array as PropType<Application[]>,
     default: () => []
   },
-  count: {
-    type: Number as PropType<number>,
-    default: 0
-  },
-  page: {
-    type: Object as PropType<Page>,
-    default: () => {
-      return { pageSize: 10, pageNum: 1 }
-    }
+  pagination: {
+    type: Object as PropType<PaginationProps>,
+    default: () => ({})
   }
 })
-
-const $emits = defineEmits(['do-search'])
-
-const searchFormModel = ref<ApplicationSearchModel>({
-  pageNum: $props.page.pageNum,
-  pageSize: $props.page.pageSize
-})
-
-const doSearch = () => {
-  $emits('do-search', searchFormModel.value)
-}
-
-const resetSearch = () => {
-  searchFormModel.value.pageNum = 1
-  searchFormModel.value.appId = searchFormModel.value.subUser = searchFormModel.value.tenant = ''
-  $emits('do-search', searchFormModel.value)
-}
 
 const columns: DataTableColumns<Application> = [
   {
@@ -88,49 +64,8 @@ const columns: DataTableColumns<Application> = [
     sorter: true
   }
 ]
-
-const pagination = reactive({
-  page: searchFormModel.value.pageNum,
-  pageSize: searchFormModel.value.pageSize,
-  itemCount: $props.count,
-  showSizePicker: true,
-  pageSizes: [30, 50, 100],
-  onChange: (page: number) => {
-    searchFormModel.value.pageNum = pagination.page = page
-    doSearch()
-  },
-  onUpdatePageSize: (pageSize: number) => {
-    searchFormModel.value.pageSize = pagination.pageSize = pageSize
-    searchFormModel.value.pageNum = pagination.page = 1
-    doSearch()
-  }
-})
 </script>
 
 <template>
-  <n-form
-    :model="searchFormModel"
-    :show-feedback="false"
-    label-placement="left"
-    @keydown.enter="doSearch"
-  >
-    <n-grid :x-gap="24" :y-gap="24" :cols="4">
-      <n-form-item-gi label="AppId" path="appId">
-        <n-input v-model:value="searchFormModel.appId" placeholder="" clearable />
-      </n-form-item-gi>
-      <n-form-item-gi label="SubUser" path="subUser">
-        <n-input v-model:value="searchFormModel.subUser" placeholder="" clearable />
-      </n-form-item-gi>
-      <n-form-item-gi label="Tenant" path="tenant">
-        <n-input v-model:value="searchFormModel.tenant" placeholder="" clearable />
-      </n-form-item-gi>
-      <n-grid-item>
-        <n-flex>
-          <n-button type="primary" ghost @click="doSearch">Search</n-button>
-          <n-button ghost @click="resetSearch">Reset</n-button>
-        </n-flex>
-      </n-grid-item>
-    </n-grid>
-  </n-form>
   <n-data-table :columns="columns" :data="data" :pagination="pagination" />
 </template>

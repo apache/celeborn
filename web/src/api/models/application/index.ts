@@ -16,7 +16,8 @@
  */
 
 import { api } from '@/api/request'
-import type { ApplicationOverview, ApplicationResponse } from './types'
+import type { Application, ApplicationOverview } from './types'
+import type { PaginationType } from '@/api/types'
 
 export * from './types'
 
@@ -25,5 +26,5 @@ export const getApplicationOverview = () => {
 }
 
 export const getApplicationList = () => {
-  return api<ApplicationResponse>('/application/list', 'get')
+  return api<PaginationType<{ applicationInfos: Application[] }>>('/application/list', 'get')
 }

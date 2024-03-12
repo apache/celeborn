@@ -20,40 +20,39 @@
 import { getApplicationOverview, getApplicationList } from '@/api'
 import { useHasLoading } from '@varlet/axle/use'
 import { ApplicationOverviewService } from '@/views/overview/components'
-import { ApplicationListService } from '@/views/application/components'
+import {
+  ApplicationListService,
+  ApplicationSearchFormService
+} from '@/views/application/components'
+import { usePagination } from '@/composables'
 import type { Application } from '@/api/models/application/types'
-import type { Page } from '@/api/types'
 
 defineOptions({
   name: 'ApplicationView'
 })
 
-const pageInfos = reactive<Page>({
-  pageNum: 1,
-  pageSize: 30
-})
-
-const { use: useApplicationList, load: loadApplicationList } = getApplicationList()
-
+const {
+  data: appResponse,
+  loading: isAppListLoading,
+  getData: loadApplicationList
+} = getApplicationList().use({ immediate: false })
 const { data: appOverview, loading: isAppOverviewLoading } = getApplicationOverview().use()
-const { data: appResponse, loading: isAppListLoading } = useApplicationList({ params: pageInfos })
 
 const loading = useHasLoading(isAppOverviewLoading, isAppListLoading)
 
+const { pagination, reset, search } = usePagination<{ applicationInfos: Application[] }>({
+  onLoadData: loadApplicationList
+})
+
 const applicationList = computed<Application[]>(() => appResponse.value?.applicationInfos || [])
-const applicationTotalCount = computed<number>(() => appResponse.value?.totalCount || 0)
 </script>
 
 <template>
   <n-spin :show="loading">
     <n-flex :style="{ gap: '24px' }" vertical>
       <ApplicationOverviewService :data="appOverview" />
-      <ApplicationListService
-        :data="applicationList"
-        :count="applicationTotalCount"
-        :page="pageInfos"
-        @do-search="(search) => loadApplicationList(search)"
-      />
+      <ApplicationSearchFormService @do-reset="reset" @do-search="search" />
+      <ApplicationListService :data="applicationList" :pagination="pagination" />
     </n-flex>
   </n-spin>
 </template>
