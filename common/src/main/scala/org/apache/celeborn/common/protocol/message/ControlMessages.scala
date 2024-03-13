@@ -87,6 +87,7 @@ object ControlMessages extends Logging {
         fetchPort: Int,
         replicatePort: Int,
         internalPort: Int,
+        networkLocation: String,
         disks: Map[String, DiskInfo],
         userResourceConsumption: Map[UserIdentifier, ResourceConsumption],
         requestId: String): PbRegisterWorker = {
@@ -100,6 +101,7 @@ object ControlMessages extends Logging {
         .setFetchPort(fetchPort)
         .setReplicatePort(replicatePort)
         .setInternalPort(internalPort)
+        .setNetworkLocation(networkLocation)
         .addAllDisks(pbDisks)
         .putAllUserResourceConsumption(pbUserResourceConsumption)
         .setRequestId(requestId)

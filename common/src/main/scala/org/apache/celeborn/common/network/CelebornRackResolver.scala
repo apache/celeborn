@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master.network
+package org.apache.celeborn.common.network
 
 import java.io.File
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
