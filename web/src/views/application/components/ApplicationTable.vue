@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import type { PropType } from 'vue'
-import type { DataTableColumns, PaginationProps } from 'naive-ui'
+import {type DataTableColumns, NButton, type PaginationProps} from 'naive-ui'
 import type { Application } from '@/api/models/application/types'
 
 defineOptions({
@@ -62,6 +62,21 @@ const columns: DataTableColumns<Application> = [
     title: 'ActiveShuffle',
     key: 'shuffleFileCount',
     sorter: true
+  },
+  {
+    title: 'More',
+    key: 'more',
+    render: () => {
+      return h(
+        NButton,
+        {
+          text: true,
+          type: 'primary',
+          size: 'small'
+        },
+        { default: () => 'more' }
+      )
+    }
   }
 ]
 </script>
