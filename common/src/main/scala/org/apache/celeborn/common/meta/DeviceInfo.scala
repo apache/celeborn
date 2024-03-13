@@ -131,7 +131,7 @@ class DiskInfo(
     activeSlots = activeSlots + slots
   }
 
-  def releaseSlots(shuffleKey: String, slots: Int): Unit = this.synchronized {
+  def releaseSlots(shuffleKey: String, slots: Int): Int = this.synchronized {
     val applicationId = Utils.splitShuffleKey(shuffleKey)._1
     val shuffleAllocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
     val applicationAllocated = applicationAllocations.getOrDefault(applicationId, 0)
@@ -141,10 +141,12 @@ class DiskInfo(
       shuffleAllocations.put(shuffleKey, shuffleAllocated - slots)
       applicationAllocations.put(applicationId, applicationAllocated - slots)
     }
-    activeSlots = activeSlots - Math.min(shuffleAllocated, slots)
+    val returnedSlotsCount = Math.min(shuffleAllocated, slots)
+    activeSlots = activeSlots - returnedSlotsCount
+    returnedSlotsCount
   }
 
-  def releaseSlots(shuffleKey: String): Unit = this.synchronized {
+  def releaseSlots(shuffleKey: String): Int = this.synchronized {
     val allocated = shuffleAllocations.remove(shuffleKey)
     if (allocated != null) {
       val applicationId = Utils.splitShuffleKey(shuffleKey)._1
@@ -156,6 +158,9 @@ class DiskInfo(
         applicationAllocations.put(applicationId, applicationAllocated)
       }
       activeSlots = activeSlots - allocated
+      allocated
+    } else {
+      0
     }
   }
 

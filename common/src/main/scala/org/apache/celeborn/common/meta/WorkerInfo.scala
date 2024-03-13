@@ -111,16 +111,18 @@ class WorkerInfo(
     }
   }
 
-  def releaseSlots(shuffleKey: String, slots: util.Map[String, Integer]): Unit = this.synchronized {
-    slots.asScala.foreach { case (disk, slot) =>
+  def releaseSlots(shuffleKey: String, slots: util.Map[String, Integer]): Int = this.synchronized {
+    slots.asScala.map { case (disk, slot) =>
       if (diskInfos.containsKey(disk)) {
         diskInfos.get(disk).releaseSlots(shuffleKey, slot)
+      } else {
+        0
       }
-    }
+    }.sum
   }
 
-  def releaseSlots(shuffleKey: String): Unit = this.synchronized {
-    diskInfos.asScala.foreach(_._2.releaseSlots(shuffleKey))
+  def releaseSlots(shuffleKey: String): Int = this.synchronized {
+    diskInfos.asScala.map(_._2.releaseSlots(shuffleKey)).sum
   }
 
   def getShuffleKeySet: util.HashSet[String] = this.synchronized {
