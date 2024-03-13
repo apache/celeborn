@@ -83,7 +83,7 @@ const columns: DataTableColumns<Worker> = [
   {
     title: 'More',
     key: 'more',
-    render: (row) => {
+    render: () => {
       return h(
         NButton,
         {
