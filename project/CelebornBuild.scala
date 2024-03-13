@@ -160,7 +160,7 @@ object CelebornCommonSettings {
   val scala213 = "2.13.5"
   val ALL_SCALA_VERSIONS = Seq(SCALA_2_11_12, SCALA_2_12_10, SCALA_2_12_15, SCALA_2_12_17, SCALA_2_12_18, scala213)
 
-  val DEFAULT_SCALA_VERSION = SCALA_2_12_15
+  val DEFAULT_SCALA_VERSION = SCALA_2_12_18
 
   val projectScalaVersion = defaultScalaVersion()
 
