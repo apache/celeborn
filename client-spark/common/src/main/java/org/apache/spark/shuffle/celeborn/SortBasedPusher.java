@@ -49,17 +49,14 @@ public class SortBasedPusher extends MemoryConsumer {
     private final long maxMemoryThresholdInBytes;
     private final double smallPushTolerateFactor;
 
-    private final long sendBufferSizeInBytes;
-
     MemoryThresholdManager(
         int numPartitions, long sendBufferSizeInBytes, double smallPushTolerateFactor) {
       this.maxMemoryThresholdInBytes = numPartitions * sendBufferSizeInBytes;
       this.smallPushTolerateFactor = smallPushTolerateFactor;
-      this.sendBufferSizeInBytes = sendBufferSizeInBytes;
     }
 
     private boolean shouldGrow() {
-      boolean enoughSpace = pushSortMemoryThreshold * 2 <= maxMemoryThresholdInBytes;
+      boolean enoughSpace = pushSortMemoryThreshold <= maxMemoryThresholdInBytes;
       double expectedPushSize = Long.MAX_VALUE;
       if (this.expectedPushedCount != 0) {
         expectedPushSize = this.expectedPushedBytes * 1.0 / this.expectedPushedCount;
@@ -67,13 +64,13 @@ public class SortBasedPusher extends MemoryConsumer {
       boolean tooManyPushed =
           pushedMemorySizeInBytes * 1.0 / pushedCount * (1 + this.smallPushTolerateFactor)
               < expectedPushSize;
-      return enoughSpace && tooManyPushed;
+      return useAdaptiveThreshold && enoughSpace && tooManyPushed;
     }
 
     public void growThresholdIfNeeded() {
       if (shouldGrow()) {
         long oldThreshold = pushSortMemoryThreshold;
-        pushSortMemoryThreshold = pushSortMemoryThreshold * 2;
+        pushSortMemoryThreshold = Math.min(pushSortMemoryThreshold * 2, maxMemoryThresholdInBytes);
         logger.info(
             "grow memory threshold from "
                 + Utils.bytesToString(oldThreshold)
