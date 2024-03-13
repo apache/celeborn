@@ -46,13 +46,13 @@ export function usePagination(options: UsePaginationOptions) {
 
   function onUpdatePage(value: number) {
     currentPage.value = value
-    toLoadData()
+    loadData()
   }
 
   function onUpdatePageSize(value: number) {
     currentPage.value = 1
     pageSize.value = value
-    toLoadData()
+    loadData()
   }
 
   function resetSearch(formData: Record<string, string>) {
@@ -61,23 +61,23 @@ export function usePagination(options: UsePaginationOptions) {
     itemCount.value = 0
 
     searchParams.value = formData
-    toLoadData()
+    loadData()
   }
 
   function doSearch(formData: Record<string, string>) {
     currentPage.value = 1
     searchParams.value = formData
-    toLoadData()
+    loadData()
   }
 
-  async function toLoadData() {
+  async function loadData() {
     const params = mergeParams(searchParams.value)
     const data = await onLoadData!({ params })
     itemCount.value = data.totalCount
   }
 
   onMounted(() => {
-    toLoadData()
+    loadData()
   })
 
   return {
