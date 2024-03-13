@@ -21,3 +21,17 @@ export interface WorkerOverview {
   lostNum: number
   shutdownNum: number
 }
+
+export interface Worker {
+  hostname: string
+  ip: string
+  state: string
+  startTime: string
+  heartbeatTime: string
+  rpcPort: number
+  restPort: number
+  fetchPort: number
+  pushPort: number
+  replicatePort: number
+  version: string
+}

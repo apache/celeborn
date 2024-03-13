@@ -27,8 +27,3 @@ export type Options<V, R, P> = Partial<UseAxleOptions<V, R, P>>
 export type PaginationType<T> = T & {
   totalCount?: number
 }
-
-export interface Page {
-  pageSize: number
-  pageNum: number
-}

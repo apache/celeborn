@@ -16,38 +16,25 @@
 * limitations under the License.
 -->
 
-<script setup lang="ts">
+<script lang="ts" setup>
 import { useFormEvent } from '@/composables'
 
-defineOptions({
-  name: 'ApplicationSearchForm'
+const formData = reactive({
+  ip: '',
+  state: ''
 })
 
-const searchForm = reactive({
-  appId: '',
-  subUser: '',
-  tenant: ''
-})
-
-const { doSearch, resetSearch } = useFormEvent(searchForm)
+const { doSearch, resetSearch } = useFormEvent(formData)
 </script>
 
 <template>
-  <n-form
-    :model="searchForm"
-    :show-feedback="false"
-    label-placement="left"
-    @keydown.enter="doSearch"
-  >
+  <n-form :model="formData" :show-feedback="false" label-placement="left" @keydown.enter="doSearch">
     <n-grid :x-gap="24" :y-gap="24" :cols="6">
-      <n-form-item-gi label="AppId" path="appId">
-        <n-input v-model:value="searchForm.appId" placeholder="" clearable />
+      <n-form-item-gi label="IP" path="ip">
+        <n-input v-model:value="formData.ip" placeholder="" clearable />
       </n-form-item-gi>
-      <n-form-item-gi label="SubUser" path="subUser">
-        <n-input v-model:value="searchForm.subUser" placeholder="" clearable />
-      </n-form-item-gi>
-      <n-form-item-gi label="Tenant" path="tenant">
-        <n-input v-model:value="searchForm.tenant" placeholder="" clearable />
+      <n-form-item-gi label="State" path="state">
+        <n-select v-model:value="formData.state" placeholder="" clearable />
       </n-form-item-gi>
       <n-grid-item>
         <n-flex>

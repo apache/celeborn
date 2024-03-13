@@ -17,15 +17,15 @@
 -->
 
 <script setup lang="ts">
-import { getApplicationOverview, getApplicationList } from '@/api'
-import { useHasLoading } from '@varlet/axle/use'
-import { ApplicationOverviewService } from '@/views/overview/components'
+import { getApplicationList, getApplicationOverview } from '@/api'
+import type { Application } from '@/api/models/application/types'
+import { usePagination } from '@/composables'
 import {
   ApplicationListService,
   ApplicationSearchFormService
 } from '@/views/application/components'
-import { usePagination } from '@/composables'
-import type { Application } from '@/api/models/application/types'
+import { ApplicationOverviewService } from '@/views/overview/components'
+import { useHasLoading } from '@varlet/axle/use'
 
 defineOptions({
   name: 'ApplicationView'
@@ -40,7 +40,7 @@ const { data: appOverview, loading: isAppOverviewLoading } = getApplicationOverv
 
 const loading = useHasLoading(isAppOverviewLoading, isAppListLoading)
 
-const { pagination, reset, search } = usePagination<{ applicationInfos: Application[] }>({
+const { pagination, resetSearch, doSearch } = usePagination({
   onLoadData: loadApplicationList
 })
 
@@ -51,7 +51,7 @@ const applicationList = computed<Application[]>(() => appResponse.value?.applica
   <n-spin :show="loading">
     <n-flex :style="{ gap: '24px' }" vertical>
       <ApplicationOverviewService :data="appOverview" />
-      <ApplicationSearchFormService @do-reset="reset" @do-search="search" />
+      <ApplicationSearchFormService @reset="resetSearch" @search="doSearch" />
       <ApplicationListService :data="applicationList" :pagination="pagination" />
     </n-flex>
   </n-spin>
