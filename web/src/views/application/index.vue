@@ -17,13 +17,10 @@
 -->
 
 <script setup lang="ts">
-import { getApplicationList, getApplicationOverview } from '@/api'
 import type { Application } from '@/api/models/application/types'
+import { getApplicationList, getApplicationOverview } from '@/api'
 import { usePagination } from '@/composables'
-import {
-  ApplicationListService,
-  ApplicationSearchFormService
-} from '@/views/application/components'
+import { ApplicationTableService, ApplicationFormService } from '@/views/application/components'
 import { ApplicationOverviewService } from '@/views/overview/components'
 import { useHasLoading } from '@varlet/axle/use'
 
@@ -51,8 +48,8 @@ const applicationList = computed<Application[]>(() => appResponse.value?.applica
   <n-spin :show="loading">
     <n-flex :style="{ gap: '24px' }" vertical>
       <ApplicationOverviewService :data="appOverview" />
-      <ApplicationSearchFormService @reset="resetSearch" @search="doSearch" />
-      <ApplicationListService :data="applicationList" :pagination="pagination" />
+      <ApplicationFormService @reset="resetSearch" @search="doSearch" />
+      <ApplicationTableService :data="applicationList" :pagination="pagination" />
     </n-flex>
   </n-spin>
 </template>
