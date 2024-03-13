@@ -15,9 +15,13 @@
  * limitations under the License.
  */
 
-export * from './models/application'
-export * from './models/cluster'
-export * from './models/master'
-export * from './models/storage'
-export * from './models/worker'
-export * from './models/tenant'
+export interface TenantOverview {
+  applicationNum: number
+  shuffleSize: string
+}
+
+export interface Tenant {
+  subUser: string
+  totalApplicationNum: number
+  totalShuffleSize: string
+}

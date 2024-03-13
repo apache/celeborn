@@ -15,9 +15,8 @@
  * limitations under the License.
  */
 
-export * from './models/application'
-export * from './models/cluster'
-export * from './models/master'
-export * from './models/storage'
-export * from './models/worker'
-export * from './models/tenant'
+import TenantFormService from './TenantForm.vue'
+import TenantOverviewService from './TenantOverview.vue'
+import TenantTableService from './TenantTable.vue'
+
+export { TenantFormService, TenantOverviewService, TenantTableService }
