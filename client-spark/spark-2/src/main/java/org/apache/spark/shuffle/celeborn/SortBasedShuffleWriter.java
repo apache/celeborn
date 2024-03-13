@@ -211,7 +211,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private void doPush() throws IOException {
     long start = System.nanoTime();
-    pusher.pushData();
+    pusher.pushData(false);
     writeMetrics.incWriteTime(System.nanoTime() - start);
   }
 
@@ -291,7 +291,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void close() throws IOException {
     logger.info("Memory used {}", Utils.bytesToString(pusher.getUsed()));
     long pushStartTime = System.nanoTime();
-    pusher.pushData();
+    pusher.pushData(false);
     pusher.close();
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
 
