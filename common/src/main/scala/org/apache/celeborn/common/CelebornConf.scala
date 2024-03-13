@@ -845,6 +845,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD)
   def clientPushSortSmallPushTolerateFactor: Double =
     get(CLIENT_PUSH_SORT_SMALL_PUSH_TOLERATE_FACTOR)
+  def clientPushSortMaxMemoryFactor: Double =
+    get(CLIENT_PUSH_SORT_MAX_MEMORY_FACTOR)
   def clientPushSortRandomizePartitionIdEnabled: Boolean =
     get(CLIENT_PUSH_SORT_RANDOMIZE_PARTITION_ENABLED)
   def clientPushRetryThreads: Int = get(CLIENT_PUSH_RETRY_THREADS)
@@ -4041,7 +4043,7 @@ object CelebornConf extends Logging {
 
   val CLIENT_PUSH_SORT_SMALL_PUSH_TOLERATE_FACTOR: ConfigEntry[Double] =
     buildConf("celeborn.client.spark.push.sort.smallPushTolerateFactor")
-      .withAlternative("celeborn.push.sortMemory.adaptiveThreshold")
+      .withAlternative("celeborn.push.sortMemory.smallPushTolerateFactor")
       .categories("client")
       .doc("Only be in effect when celeborn.client.spark.push.sort.memory.useAdaptiveThreshold is" +
         " turned on. The larger this value is, the more aggressive Celeborn will enlarge the " +
@@ -4054,6 +4056,16 @@ object CelebornConf extends Logging {
       .doubleConf
       .checkValue(v => v >= 0.0, "Value must be no less than 0")
       .createWithDefault(0.2)
+
+  val CLIENT_PUSH_SORT_MAX_MEMORY_FACTOR: ConfigEntry[Double] =
+    buildConf("celeborn.client.spark.push.sort.maxMemoryFactor")
+      .withAlternative("celeborn.push.sortMemory.maxMemoryFactor")
+      .categories("client")
+      .doc("the max portion of executor memory which can be used for SortBasedWriter buffer")
+      .version("0.5.0")
+      .doubleConf
+      .checkValue(v => v >= 0.0 && v <= 1.0, "Value must be no less than 0 and no larger than 1")
+      .createWithDefault(0.4)
 
   val TEST_ALTERNATIVE: OptionalConfigEntry[String] =
     buildConf("celeborn.test.alternative.key")
