@@ -83,6 +83,9 @@ To compile for Spark 3.5 with Java21,  please use the following command
 ```shell
 ./build/make-distribution.sh -Pspark-3.5 -Pjdk-21
 ```
+```shell
+./build/make-distribution.sh --sbt-enabled -Pspark-3.5 -Pjdk-21
+```
 
 
 ### Package Details
