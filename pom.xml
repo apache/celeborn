@@ -58,7 +58,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <java.version>8</java.version>
-    <scala.version>2.12.15</scala.version>
+    <scala.version>2.12.18</scala.version>
     <scala.binary.version>2.12</scala.binary.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
@@ -119,7 +119,7 @@
     <maven.plugin.os.version>1.7.0</maven.plugin.os.version>
     <maven.plugin.protobuf.version>0.6.1</maven.plugin.protobuf.version>
     <maven.plugin.rat.version>0.13</maven.plugin.rat.version>
-    <maven.plugin.scala.version>4.8.1</maven.plugin.scala.version>
+    <maven.plugin.scala.version>4.7.2</maven.plugin.scala.version>
     <maven.plugin.scalatest.version>2.1.0</maven.plugin.scalatest.version>
     <maven.plugin.shade.version>3.5.2</maven.plugin.shade.version>
     <maven.plugin.spotless.version>2.24.1</maven.plugin.spotless.version>
