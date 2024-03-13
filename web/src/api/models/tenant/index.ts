@@ -15,9 +15,16 @@
  * limitations under the License.
  */
 
-export * from './models/application'
-export * from './models/cluster'
-export * from './models/master'
-export * from './models/storage'
-export * from './models/worker'
-export * from './models/tenant'
+import { api } from '@/api/request'
+import type { PaginationType } from '@/api/types'
+import type { TenantOverview, Tenant } from './types'
+
+export * from './types'
+
+export const getTenantOverview = () => {
+  return api<TenantOverview>('/tenant/overview', 'get')
+}
+
+export const getTenantList = () => {
+  return api<PaginationType<{ tenantInfos: Tenant[] }>>('/tenant/list', 'get')
+}

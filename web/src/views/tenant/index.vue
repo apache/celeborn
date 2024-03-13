@@ -17,11 +17,36 @@
 -->
 
 <script setup lang="ts">
+import { getTenantList, getTenantOverview } from '@/api'
+import { usePagination } from '@/composables'
+import { useHasLoading } from '@varlet/axle/use'
+import { TenantFormService, TenantTableService, TenantOverviewService } from './components'
+
 defineOptions({
   name: 'TenantView'
 })
+
+const { data: overview, loading: isOverviewLoading } = getTenantOverview().use()
+
+const {
+  data,
+  getData: onLoadData,
+  loading: isTableLoading
+} = getTenantList().use({ immediate: false })
+
+const { pagination, doSearch, resetSearch } = usePagination({
+  onLoadData
+})
+
+const loading = useHasLoading(isOverviewLoading, isTableLoading)
 </script>
 
-<template>Welcome to Apache Celeborn. There is Tenant.</template>
-
-<style scoped lang="scss"></style>
+<template>
+  <n-spin :show="loading">
+    <n-flex :style="{ gap: '24px' }" vertical>
+      <TenantOverviewService :data="overview" />
+      <TenantFormService @search="doSearch" @reset="resetSearch" />
+      <TenantTableService :data="data?.tenantInfos" :pagination="pagination" />
+    </n-flex>
+  </n-spin>
+</template>
