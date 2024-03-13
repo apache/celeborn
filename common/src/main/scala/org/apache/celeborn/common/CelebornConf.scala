@@ -4042,7 +4042,7 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val CLIENT_PUSH_SORT_SMALL_PUSH_TOLERATE_FACTOR: ConfigEntry[Double] =
-    buildConf("celeborn.client.spark.push.sort.smallPushTolerateFactor")
+    buildConf("celeborn.client.spark.push.sort.memory.smallPushTolerateFactor")
       .withAlternative("celeborn.push.sortMemory.smallPushTolerateFactor")
       .categories("client")
       .doc("Only be in effect when celeborn.client.spark.push.sort.memory.useAdaptiveThreshold is" +
@@ -4058,10 +4058,11 @@ object CelebornConf extends Logging {
       .createWithDefault(0.2)
 
   val CLIENT_PUSH_SORT_MAX_MEMORY_FACTOR: ConfigEntry[Double] =
-    buildConf("celeborn.client.spark.push.sort.maxMemoryFactor")
+    buildConf("celeborn.client.spark.push.sort.memory.maxMemoryFactor")
       .withAlternative("celeborn.push.sortMemory.maxMemoryFactor")
       .categories("client")
-      .doc("the max portion of executor memory which can be used for SortBasedWriter buffer")
+      .doc("the max portion of executor memory which can be used for SortBasedWriter buffer (only" +
+        " valid when celeborn.client.spark.push.sort.memory.useAdaptiveThreshold is enabled")
       .version("0.5.0")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "Value must be no less than 0 and no larger than 1")
