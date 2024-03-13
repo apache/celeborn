@@ -20,7 +20,8 @@
 import { useFormEvent } from '@/composables'
 
 const formData = reactive({
-  master: ''
+  ip: '',
+  state: ''
 })
 
 const { doSearch, resetSearch } = useFormEvent(formData)
@@ -28,9 +29,12 @@ const { doSearch, resetSearch } = useFormEvent(formData)
 
 <template>
   <n-form :model="formData" :show-feedback="false" label-placement="left" @keydown.enter="doSearch">
-    <n-grid :x-gap="24" :y-gap="24" :cols="4">
-      <n-form-item-gi label="Master" path="master">
-        <n-input v-model:value="formData.master" placeholder="" clearable />
+    <n-grid :x-gap="24" :y-gap="24" :cols="6">
+      <n-form-item-gi label="IP" path="ip">
+        <n-input v-model:value="formData.ip" placeholder="" clearable />
+      </n-form-item-gi>
+      <n-form-item-gi label="State" path="state">
+        <n-select v-model:value="formData.state" placeholder="" clearable />
       </n-form-item-gi>
       <n-grid-item>
         <n-flex>

@@ -39,7 +39,7 @@ const { doSearch, resetSearch } = useFormEvent(searchForm)
     label-placement="left"
     @keydown.enter="doSearch"
   >
-    <n-grid :x-gap="24" :y-gap="24" :cols="4">
+    <n-grid :x-gap="24" :y-gap="24" :cols="6">
       <n-form-item-gi label="AppId" path="appId">
         <n-input v-model:value="searchForm.appId" placeholder="" clearable />
       </n-form-item-gi>

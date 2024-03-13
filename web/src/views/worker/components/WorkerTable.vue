@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import type { Worker } from '@/api'
-import type { DataTableColumns, PaginationProps } from 'naive-ui'
+import { NButton, type DataTableColumns, type PaginationProps } from 'naive-ui'
 import type { PropType } from 'vue'
 
 defineOptions({
@@ -38,12 +38,11 @@ defineProps({
 
 const columns: DataTableColumns<Worker> = [
   {
-    title: 'HostName',
-    key: 'hostname'
-  },
-  {
-    title: 'IP',
-    key: 'ip'
+    title: 'Hostname/IP',
+    key: 'hostname',
+    render({ hostname, ip }) {
+      return `${hostname}/${ip}`
+    }
   },
   {
     title: 'State',
@@ -83,7 +82,18 @@ const columns: DataTableColumns<Worker> = [
   },
   {
     title: 'More',
-    key: 'more'
+    key: 'more',
+    render: (row) => {
+      return h(
+        NButton,
+        {
+          text: true,
+          type: 'primary',
+          size: 'small'
+        },
+        { default: () => 'More' }
+      )
+    }
   }
 ]
 </script>
