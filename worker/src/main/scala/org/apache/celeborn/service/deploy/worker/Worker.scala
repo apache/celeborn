@@ -432,7 +432,7 @@ private[celeborn] class Worker(
       classOf[HeartbeatFromWorkerResponse])
     val returnedSlots = response.expiredShuffleKeys.asScala.map(shuffleKey =>
       workerInfo.releaseSlots(shuffleKey)).sum
-    workerSource.incCounter(WorkerSource.SLOTS_ALLOCATED, -1 * returnedSlots)
+    workerSource.incCounter(WorkerSource.ACTIVE_SLOTS, -1 * returnedSlots)
     cleanTaskQueue.put(response.expiredShuffleKeys)
 
     val workerEvent = response.workerEvent
@@ -673,7 +673,7 @@ private[celeborn] class Worker(
         shuffleMapperAttempts.remove(shuffleKey)
         shuffleCommitInfos.remove(shuffleKey)
         val returnedSlots = workerInfo.releaseSlots(shuffleKey)
-        workerSource.incCounter(WorkerSource.SLOTS_ALLOCATED, -1 * returnedSlots)
+        workerSource.incCounter(WorkerSource.ACTIVE_SLOTS, -1 * returnedSlots)
         val applicationId = Utils.splitShuffleKey(shuffleKey)._1
         if (!workerInfo.getApplicationIdSet.contains(applicationId)) {
           // When the running applications does not contain the application corresponding to expired shuffle key,

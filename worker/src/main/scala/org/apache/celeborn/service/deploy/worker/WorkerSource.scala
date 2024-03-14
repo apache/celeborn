@@ -58,6 +58,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   addCounter(ACTIVE_CONNECTION_COUNT)
 
   addCounter(SLOTS_ALLOCATED)
+  addCounter(ACTIVE_SLOTS)
 
   // add timers
   addTimer(COMMIT_FILES_TIME)
@@ -170,6 +171,7 @@ object WorkerSource {
 
   // slots
   val SLOTS_ALLOCATED = "SlotsAllocated"
+  val ACTIVE_SLOTS = "ActiveSlots"
   val RESERVE_SLOTS_TIME = "ReserveSlotsTime"
 
   // connection
