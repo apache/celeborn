@@ -16,20 +16,27 @@
 * limitations under the License.
 -->
 
-<script setup lang="ts">
+<script lang="ts">
 import { useFormEvent } from '@/composables'
 
-defineOptions({
-  name: 'ApplicationSearchForm'
-})
+export default defineComponent({
+  name: 'ApplicationSearchForm',
+  setup(_, ctx) {
+    const searchForm = reactive({
+      appId: '',
+      subUser: '',
+      tenant: ''
+    })
 
-const searchForm = reactive({
-  appId: '',
-  subUser: '',
-  tenant: ''
-})
+    const { doSearch, resetSearch } = useFormEvent(searchForm, ctx)
 
-const { doSearch, resetSearch } = useFormEvent(searchForm)
+    return {
+      searchForm,
+      doSearch,
+      resetSearch
+    }
+  }
+})
 </script>
 
 <template>
@@ -39,7 +46,7 @@ const { doSearch, resetSearch } = useFormEvent(searchForm)
     label-placement="left"
     @keydown.enter="doSearch"
   >
-    <n-grid :x-gap="24" :y-gap="24" :cols="6">
+    <n-grid :x-gap="24" :y-gap="24" cols="1 400:2 800:4 1200:6">
       <n-form-item-gi label="AppId" path="appId">
         <n-input v-model:value="searchForm.appId" placeholder="" clearable />
       </n-form-item-gi>

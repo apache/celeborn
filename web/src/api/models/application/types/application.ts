@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+import type { PaginationProps } from 'naive-ui'
+
 export interface ApplicationOverview {
   runningNum: number
   totalShuffleSize: string
@@ -38,4 +40,9 @@ export interface ApplicationSearchModel {
 export interface ApplicationResponse {
   applicationInfos: Application[]
   totalCount: number
+}
+
+export interface ApplicationTab {
+  pagination: PaginationProps
+  data: Application[]
 }

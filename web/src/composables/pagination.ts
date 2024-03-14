@@ -18,6 +18,7 @@
 import type { PaginationProps } from 'naive-ui'
 
 export interface UsePaginationOptions {
+  params?: Record<string, string>
   currentPage?: number
   pageSize?: number
   onLoadData?: Function
@@ -25,6 +26,7 @@ export interface UsePaginationOptions {
 
 export function usePagination(options: UsePaginationOptions) {
   const {
+    params,
     currentPage: defaultCurrentPage = 1,
     pageSize: defaultPageSize = 30,
     onLoadData
@@ -77,6 +79,9 @@ export function usePagination(options: UsePaginationOptions) {
   }
 
   onMounted(() => {
+    if (params) {
+      searchParams.value = params
+    }
     loadData()
   })
 
