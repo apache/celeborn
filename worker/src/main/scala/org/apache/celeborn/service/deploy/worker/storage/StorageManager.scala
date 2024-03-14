@@ -203,8 +203,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     conf.workerGracefulShutdownSaveCommittedFileInfoSync
   private val saveCommittedFileInfoInterval =
     conf.workerGracefulShutdownSaveCommittedFileInfoInterval
-  private var committedFileInfos
-      : ConcurrentHashMap[String, ConcurrentHashMap[String, DiskFileInfo]] = _
+  private val committedFileInfos =
+    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, DiskFileInfo]]()
   // ShuffleClient can fetch data from a restarted worker only
   // when the worker's fetching port is stable.
   val workerGracefulShutdown = conf.workerGracefulShutdown
@@ -220,8 +220,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         logError("Init level DB failed:", e)
         this.db = null
     }
-    committedFileInfos =
-      JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, DiskFileInfo]]()
     saveCommittedFileInfosExecutor =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor(
         "worker-storage-manager-committed-fileinfo-saver")
