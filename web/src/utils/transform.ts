@@ -15,8 +15,12 @@
  * limitations under the License.
  */
 
-import dayjs from 'dayjs'
-
-export const normalizeDatetime = (datetime?: string) => {
-  return datetime ? dayjs(datetime).format('YYYY-MM-DD HH:mm:ss') : ''
+export function objectToArray(obj: Record<string, any>) {
+  const keys = Object.keys(obj)
+  return keys.map((key) => {
+    return {
+      key,
+      value: obj[key]
+    }
+  })
 }

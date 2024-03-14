@@ -16,20 +16,29 @@
 * limitations under the License.
 -->
 
-<script lang="ts" setup>
+<script lang="ts">
 import { useFormEvent } from '@/composables'
 
-const formData = reactive({
-  ip: '',
-  state: ''
+export default defineComponent({
+  name: 'WorkerForm',
+  setup(_, ctx) {
+    const formData = reactive({
+      ip: '',
+      state: ''
+    })
+    const { doSearch, resetSearch } = useFormEvent(formData, ctx)
+    return {
+      formData,
+      doSearch,
+      resetSearch
+    }
+  }
 })
-
-const { doSearch, resetSearch } = useFormEvent(formData)
 </script>
 
 <template>
   <n-form :model="formData" :show-feedback="false" label-placement="left" @keydown.enter="doSearch">
-    <n-grid :x-gap="24" :y-gap="24" :cols="6">
+    <n-grid :x-gap="24" :y-gap="24" cols="1 400:2 800:4 1200:6">
       <n-form-item-gi label="IP" path="ip">
         <n-input v-model:value="formData.ip" placeholder="" clearable />
       </n-form-item-gi>

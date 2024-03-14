@@ -149,10 +149,10 @@ object PbSerDeUtils {
     fileInfoMap
   }
 
-  def toPbFileInfoMap(fileInfoMap: ConcurrentHashMap[String, FileInfo]): Array[Byte] = {
+  def toPbFileInfoMap(fileInfoMap: ConcurrentHashMap[String, DiskFileInfo]): Array[Byte] = {
     val pbFileInfoMap = JavaUtils.newConcurrentHashMap[String, PbFileInfo]()
     fileInfoMap.entrySet().asScala.foreach { entry =>
-      pbFileInfoMap.put(entry.getKey, toPbFileInfo(entry.getValue.asInstanceOf[DiskFileInfo]))
+      pbFileInfoMap.put(entry.getKey, toPbFileInfo(entry.getValue))
     }
     PbFileInfoMap.newBuilder.putAllValues(pbFileInfoMap).build.toByteArray
   }

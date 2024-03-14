@@ -15,22 +15,4 @@
  * limitations under the License.
  */
 
-import { unref, type SetupContext } from 'vue'
-
-export const useFormEvent = (formData: Record<string, any>, ctx: SetupContext) => {
-  const doSearch = () => {
-    ctx.emit('search', formData)
-  }
-
-  const resetSearch = () => {
-    Object.keys(formData).forEach((key) => {
-      formData[key] = ''
-    })
-    ctx.emit('reset', unref(formData))
-  }
-
-  return {
-    doSearch,
-    resetSearch
-  }
-}
+export * from './transform'

@@ -16,32 +16,34 @@
 * limitations under the License.
 -->
 
-<script setup lang="ts">
-import type { MenuOption } from 'naive-ui'
+<script lang="ts" setup>
+import { objectToArray } from '@/utils'
 import type { PropType } from 'vue'
 
-const router = useRouter()
-
-defineOptions({
-  name: 'SiderMenu'
-})
-
-defineProps({
-  menus: {
-    type: Array as PropType<MenuOption[]>,
-    default: () => []
+const props = defineProps({
+  data: {
+    type: Object as PropType<Record<string, string>>,
+    default: () => ({})
   }
 })
 
-const path = computed(() => {
-  return `/${router.currentRoute.value.fullPath.split('/')[1]}`
+const tableData = computed(() => {
+  return objectToArray(props.data)
 })
 
-const updateValue = (value: string) => {
-  router.push(value)
-}
+const columns = [
+  {
+    title: 'Key',
+    key: 'key',
+    width: 150
+  },
+  {
+    title: 'Value',
+    key: 'value',
+    width: 150
+  }
+]
 </script>
-
 <template>
-  <n-menu :options="menus" :default-value="path" @update:value="updateValue" />
+  <n-data-table :columns="columns" :data="tableData" :pagination="false" />
 </template>

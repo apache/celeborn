@@ -16,32 +16,49 @@
 * limitations under the License.
 -->
 
-<script setup lang="ts">
-import type { MenuOption } from 'naive-ui'
+<script lang="ts" setup>
+import { objectToArray } from '@/utils'
 import type { PropType } from 'vue'
 
-const router = useRouter()
-
-defineOptions({
-  name: 'SiderMenu'
-})
-
-defineProps({
-  menus: {
-    type: Array as PropType<MenuOption[]>,
-    default: () => []
+const props = defineProps({
+  static: {
+    type: Object as PropType<Record<string, string>>,
+    default: () => ({})
+  },
+  dynamic: {
+    type: Object as PropType<Record<string, string>>,
+    default: () => ({})
   }
 })
 
-const path = computed(() => {
-  return `/${router.currentRoute.value.fullPath.split('/')[1]}`
+const staticData = computed(() => {
+  return objectToArray(props.static)
 })
 
-const updateValue = (value: string) => {
-  router.push(value)
-}
-</script>
+const dynamicData = computed(() => {
+  return objectToArray(props.dynamic)
+})
 
+const columns = [
+  {
+    title: 'Key',
+    key: 'key',
+    width: 150
+  },
+  {
+    title: 'Value',
+    key: 'value',
+    width: 150
+  }
+]
+</script>
 <template>
-  <n-menu :options="menus" :default-value="path" @update:value="updateValue" />
+  <n-flex :wrap="false">
+    <n-card title="Static Config">
+      <n-data-table :columns="columns" :data="staticData" :pagination="false" />
+    </n-card>
+    <n-card title="Dynamic Config">
+      <n-data-table :columns="columns" :data="dynamicData" :pagination="false" />
+    </n-card>
+  </n-flex>
 </template>
