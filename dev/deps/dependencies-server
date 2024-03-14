@@ -90,7 +90,7 @@ ratis-server/2.5.1//ratis-server-2.5.1.jar
 ratis-shell/2.5.1//ratis-shell-2.5.1.jar
 ratis-thirdparty-misc/1.0.4//ratis-thirdparty-misc-1.0.4.jar
 reflections/0.10.2//reflections-0.10.2.jar
-rocksdbjni/8.5.3//rocksdbjni-8.5.3.jar
+rocksdbjni/8.11.3//rocksdbjni-8.11.3.jar
 scala-library/2.12.15//scala-library-2.12.15.jar
 scala-reflect/2.12.15//scala-reflect-2.12.15.jar
 shims/0.9.32//shims-0.9.32.jar

@@ -56,7 +56,7 @@ object Dependencies {
   val nettyVersion = "4.1.101.Final"
   val ratisVersion = "2.5.1"
   val roaringBitmapVersion = "0.9.32"
-  val rocksdbJniVersion = "8.5.3"
+  val rocksdbJniVersion = "8.11.3"
   val jacksonVersion = "2.15.3"
   val scalatestMockitoVersion = "1.17.14"
   val scalatestVersion = "3.2.16"
