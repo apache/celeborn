@@ -4062,7 +4062,7 @@ object CelebornConf extends Logging {
         " valid when celeborn.client.spark.push.sort.memory.useAdaptiveThreshold is enabled")
       .version("0.5.0")
       .doubleConf
-      .checkValue(v => v >= 0.0 && v <= 1.0, "Value must be no less than 0 and no larger than 1")
+      .checkValue(v => v > 0.0 && v <= 1.0, "Value must be between 0 and 1 (inclusive)")
       .createWithDefault(0.4)
 
   val TEST_ALTERNATIVE: OptionalConfigEntry[String] =
