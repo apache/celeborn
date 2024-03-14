@@ -17,9 +17,9 @@
 -->
 
 <script setup lang="ts">
-import type { PropType } from 'vue'
+import type { Application } from '@/api'
 import type { DataTableColumns, PaginationProps } from 'naive-ui'
-import type { Application } from '@/api/models/application/types'
+import type { PropType } from 'vue'
 
 defineOptions({
   name: 'ApplicationDataTable'
@@ -67,5 +67,5 @@ const columns: DataTableColumns<Application> = [
 </script>
 
 <template>
-  <n-data-table :columns="columns" :data="data" :pagination="pagination" />
+  <n-data-table scroll-x="1000" :columns="columns" :data="data" :pagination="pagination" />
 </template>

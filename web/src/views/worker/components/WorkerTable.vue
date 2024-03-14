@@ -18,8 +18,18 @@
 
 <script setup lang="ts">
 import type { Worker } from '@/api'
-import { NButton, type DataTableColumns, type PaginationProps } from 'naive-ui'
+import { QuestionCircleOutlined } from '@vicons/antd'
+import {
+  NButton,
+  NIcon,
+  NSpace,
+  NTooltip,
+  type DataTableColumns,
+  type PaginationProps
+} from 'naive-ui'
 import type { PropType } from 'vue'
+
+const router = useRouter()
 
 defineOptions({
   name: 'WorkerTable'
@@ -35,6 +45,27 @@ defineProps({
     default: () => ({})
   }
 })
+
+const toWorkerDetail = ({ ip, rpcPort, pushPort, fetchPort, replicatePort }: Worker) => {
+  const worker = `${ip}:${rpcPort}:${pushPort}:${fetchPort}:${replicatePort}`
+  router.push({
+    name: 'workerDetail',
+    query: { worker }
+  })
+}
+
+const renderToolTip = () => {
+  return h(NSpace, null, {
+    default: () => [
+      h('span', null, { default: () => 'Ports' }),
+      h(NTooltip, null, {
+        default: () => 'RpcPort:PushPort:FetchPort:ReplicatePort',
+        trigger: () =>
+          h(NIcon, { style: { paddingTop: '4px' } }, { default: () => h(QuestionCircleOutlined) })
+      })
+    ]
+  })
+}
 
 const columns: DataTableColumns<Worker> = [
   {
@@ -57,24 +88,12 @@ const columns: DataTableColumns<Worker> = [
     key: 'heartbeatTime'
   },
   {
-    title: 'RPCPort',
-    key: 'rpcPort'
-  },
-  {
-    title: 'RestPort',
-    key: 'restPort'
-  },
-  {
-    title: 'FetchPort',
-    key: 'fetchPort'
-  },
-  {
-    title: 'PushPort',
-    key: 'pushPort'
-  },
-  {
-    title: 'ReplicatePort',
-    key: 'replicatePort'
+    key: 'ports',
+    title: renderToolTip,
+    render({ rpcPort, pushPort, fetchPort, replicatePort }) {
+      const ports = `${rpcPort}:${pushPort}:${fetchPort}:${replicatePort}`
+      return ports
+    }
   },
   {
     title: 'Version',
@@ -83,13 +102,16 @@ const columns: DataTableColumns<Worker> = [
   {
     title: 'More',
     key: 'more',
-    render: () => {
+    render: (row) => {
       return h(
         NButton,
         {
           text: true,
           type: 'primary',
-          size: 'small'
+          size: 'small',
+          onClick: () => {
+            toWorkerDetail(row)
+          }
         },
         { default: () => 'More' }
       )
@@ -99,5 +121,5 @@ const columns: DataTableColumns<Worker> = [
 </script>
 
 <template>
-  <n-data-table :columns="columns" :data="data" remote :pagination="pagination" />
+  <n-data-table :scroll-x="1000" :columns="columns" :data="data" remote :pagination="pagination" />
 </template>

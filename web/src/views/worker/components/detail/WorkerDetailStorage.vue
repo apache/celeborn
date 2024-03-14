@@ -16,32 +16,48 @@
 * limitations under the License.
 -->
 
-<script setup lang="ts">
-import type { MenuOption } from 'naive-ui'
+<script lang="ts" setup>
+import type { WorkerDiskInfo } from '@/api'
+import type { DataTableColumns } from 'naive-ui'
 import type { PropType } from 'vue'
 
-const router = useRouter()
-
-defineOptions({
-  name: 'SiderMenu'
-})
-
 defineProps({
-  menus: {
-    type: Array as PropType<MenuOption[]>,
+  data: {
+    type: Array as PropType<WorkerDiskInfo[]>,
     default: () => []
   }
 })
 
-const path = computed(() => {
-  return `/${router.currentRoute.value.fullPath.split('/')[1]}`
-})
-
-const updateValue = (value: string) => {
-  router.push(value)
-}
+const columns: DataTableColumns<WorkerDiskInfo> = [
+  {
+    title: 'DiskInfo',
+    key: 'index',
+    render: (_, index) => {
+      return `DiskInfo${index + 1}`
+    }
+  },
+  {
+    title: 'MountPoint',
+    key: 'mountPoint'
+  },
+  {
+    title: 'TotalSpace',
+    key: 'totalSpace'
+  },
+  {
+    title: 'UsedSpace',
+    key: 'usedSpace'
+  },
+  {
+    title: 'UsedPercent',
+    key: 'usedPercent'
+  },
+  {
+    title: 'DiskType',
+    key: 'diskType'
+  }
+]
 </script>
-
 <template>
-  <n-menu :options="menus" :default-value="path" @update:value="updateValue" />
+  <n-data-table scroll-x="800" :columns="columns" :data="data" :pagination="false" />
 </template>

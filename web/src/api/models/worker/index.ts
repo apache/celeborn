@@ -17,7 +17,7 @@
 
 import { api } from '@/api/request'
 import type { PaginationType } from '@/api/types'
-import type { Worker, WorkerOverview } from './types'
+import type { Worker, WorkerDetail, WorkerOverview } from './types'
 
 export * from './types'
 
@@ -27,4 +27,8 @@ export const getWorkerOverview = () => {
 
 export const getWorkerList = () => {
   return api<PaginationType<{ workerInfos: Worker[] }>>('/worker/list', 'get')
+}
+
+export const getWorkerDetail = () => {
+  return api<WorkerDetail>('/worker/detail', 'get')
 }

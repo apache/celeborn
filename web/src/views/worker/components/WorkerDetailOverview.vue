@@ -17,31 +17,26 @@
 -->
 
 <script setup lang="ts">
-import type { MenuOption } from 'naive-ui'
+import type { WorkerDetail } from '@/api'
 import type { PropType } from 'vue'
 
-const router = useRouter()
-
-defineOptions({
-  name: 'SiderMenu'
-})
-
 defineProps({
-  menus: {
-    type: Array as PropType<MenuOption[]>,
-    default: () => []
+  data: {
+    type: Object as PropType<WorkerDetail>,
+    default: () => ({})
   }
 })
-
-const path = computed(() => {
-  return `/${router.currentRoute.value.fullPath.split('/')[1]}`
-})
-
-const updateValue = (value: string) => {
-  router.push(value)
-}
 </script>
-
 <template>
-  <n-menu :options="menus" :default-value="path" @update:value="updateValue" />
+  <n-card hoverable>
+    <n-descriptions label-placement="left" title="Worker Detail Overview" :column="4">
+      <n-descriptions-item label="HostName"> {{ data.hostname }} </n-descriptions-item>
+      <n-descriptions-item label="IP"> {{ data.ip }} </n-descriptions-item>
+      <n-descriptions-item label="State"> {{ data.state }} </n-descriptions-item>
+      <n-descriptions-item label="StartTime"> {{ data.startTime }} </n-descriptions-item>
+      <n-descriptions-item label="FetchPort"> {{ data.fetchPort }} </n-descriptions-item>
+      <n-descriptions-item label="PushPort"> {{ data.pushPort }} </n-descriptions-item>
+      <n-descriptions-item label="ReplicatePort"> {{ data.replicatePort }} </n-descriptions-item>
+    </n-descriptions>
+  </n-card>
 </template>

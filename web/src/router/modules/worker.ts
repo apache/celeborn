@@ -19,5 +19,18 @@ export default {
   path: '/worker',
   name: 'worker',
   meta: { title: 'Worker' },
-  component: () => import('@/views/worker/index.vue')
+  children: [
+    {
+      path: '/worker',
+      name: 'worker',
+      meta: { title: 'Worker' },
+      component: () => import('@/views/worker/index.vue')
+    },
+    {
+      path: '/worker/detail',
+      name: 'workerDetail',
+      meta: { title: 'WorkerDetail' },
+      component: () => import('@/views/worker/detail.vue')
+    }
+  ]
 }

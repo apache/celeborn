@@ -15,22 +15,14 @@
  * limitations under the License.
  */
 
-import { unref, type SetupContext } from 'vue'
+import WorkerDetailConfigService from './WorkerDetailConfig.vue'
+import WorkerDetailLogFileService from './WorkerDetailLogFile.vue'
+import WorkerDetailMemoryService from './WorkerDetailMemory.vue'
+import WorkerDetailStorageService from './WorkerDetailStorage.vue'
 
-export const useFormEvent = (formData: Record<string, any>, ctx: SetupContext) => {
-  const doSearch = () => {
-    ctx.emit('search', formData)
-  }
-
-  const resetSearch = () => {
-    Object.keys(formData).forEach((key) => {
-      formData[key] = ''
-    })
-    ctx.emit('reset', unref(formData))
-  }
-
-  return {
-    doSearch,
-    resetSearch
-  }
+export {
+  WorkerDetailConfigService,
+  WorkerDetailLogFileService,
+  WorkerDetailMemoryService,
+  WorkerDetailStorageService
 }

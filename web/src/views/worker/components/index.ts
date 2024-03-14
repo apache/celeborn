@@ -15,7 +15,16 @@
  * limitations under the License.
  */
 
+import WorkerDetailContentService from './WorkerDetailContent.vue'
+import WorkerDetailOverviewService from './WorkerDetailOverview.vue'
 import WorkerFormService from './WorkerForm.vue'
 import WorkerTableService from './WorkerTable.vue'
 
-export { WorkerFormService, WorkerTableService }
+export * from './detail'
+
+export {
+  WorkerDetailContentService,
+  WorkerDetailOverviewService,
+  WorkerFormService,
+  WorkerTableService
+}
