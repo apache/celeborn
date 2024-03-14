@@ -69,7 +69,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     new ReduceFileMeta(chunkOffsets2),
     file2.getAbsolutePath,
     6000L)
-  val fileInfoMap = JavaUtils.newConcurrentHashMap[String, FileInfo]()
+  val fileInfoMap = JavaUtils.newConcurrentHashMap[String, DiskFileInfo]()
   fileInfoMap.put("file1", fileInfo1)
   fileInfoMap.put("file2", fileInfo2)
   val cache = JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
