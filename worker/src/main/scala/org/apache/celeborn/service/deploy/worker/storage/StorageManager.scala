@@ -203,7 +203,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     conf.workerGracefulShutdownSaveCommittedFileInfoSync
   private val saveCommittedFileInfoInterval =
     conf.workerGracefulShutdownSaveCommittedFileInfoInterval
-  private var committedFileInfos: ConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]] = _
+  private val committedFileInfos: ConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]] =
+    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
   // ShuffleClient can fetch data from a restarted worker only
   // when the worker's fetching port is stable.
   val workerGracefulShutdown = conf.workerGracefulShutdown
@@ -219,8 +220,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         logError("Init level DB failed:", e)
         this.db = null
     }
-    committedFileInfos =
-      JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
     saveCommittedFileInfosExecutor =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor(
         "worker-storage-manager-committed-fileinfo-saver")
@@ -266,6 +265,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue, cache)
             logDebug(s"Reload DB: $shuffleKey -> $files")
             fileInfos.put(shuffleKey, files)
+            committedFileInfos.put(shuffleKey, files)
             db.delete(entry.getKey)
           } catch {
             case exception: Exception =>
