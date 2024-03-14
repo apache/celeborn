@@ -1303,7 +1303,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.network.bind.preferIpAddress")
       .categories("network")
       .version("0.3.0")
-      .doc("When `ture`, prefer to use IP address, otherwise FQDN. This configuration only " +
+      .doc("When `true`, prefer to use IP address, otherwise FQDN. This configuration only " +
         "takes effects when the bind hostname is not set explicitly, in such case, Celeborn " +
         "will find the first non-loopback address to bind.")
       .booleanConf
