@@ -4034,7 +4034,6 @@ object CelebornConf extends Logging {
 
   val CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.push.sort.memory.useAdaptiveThreshold")
-      .withAlternative("celeborn.push.sortMemory.useAdaptiveThreshold")
       .categories("client")
       .doc("Adaptively adjust sort-based shuffle writer's memory threshold")
       .version("0.5.0")
@@ -4043,7 +4042,6 @@ object CelebornConf extends Logging {
 
   val CLIENT_PUSH_SORT_SMALL_PUSH_TOLERATE_FACTOR: ConfigEntry[Double] =
     buildConf("celeborn.client.spark.push.sort.memory.smallPushTolerateFactor")
-      .withAlternative("celeborn.push.sortMemory.smallPushTolerateFactor")
       .categories("client")
       .doc("Only be in effect when celeborn.client.spark.push.sort.memory.useAdaptiveThreshold is" +
         " turned on. The larger this value is, the more aggressive Celeborn will enlarge the " +
@@ -4059,7 +4057,6 @@ object CelebornConf extends Logging {
 
   val CLIENT_PUSH_SORT_MAX_MEMORY_FACTOR: ConfigEntry[Double] =
     buildConf("celeborn.client.spark.push.sort.memory.maxMemoryFactor")
-      .withAlternative("celeborn.push.sortMemory.maxMemoryFactor")
       .categories("client")
       .doc("the max portion of executor memory which can be used for SortBasedWriter buffer (only" +
         " valid when celeborn.client.spark.push.sort.memory.useAdaptiveThreshold is enabled")
