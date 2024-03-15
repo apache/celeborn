@@ -867,7 +867,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         pushDataTimeoutMs * clientPushMaxReviveTimes * 2)
     }
   def clientPushLimitInFlightSleepDeltaMs: Long = get(CLIENT_PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
-  def clientPushSplitPartitionThreads: Int = get(CLIENT_PUSH_SPLIT_PARTITION_THREADS)
   def clientPushTakeTaskWaitIntervalMs: Long = get(CLIENT_PUSH_TAKE_TASK_WAIT_INTERVAL)
   def clientPushTakeTaskMaxWaitAttempts: Int = get(CLIENT_PUSH_TAKE_TASK_MAX_WAIT_ATTEMPTS)
   def clientPushSendBufferPoolExpireTimeout: Long = get(CLIENT_PUSH_SENDBUFFERPOOL_EXPIRETIMEOUT)
@@ -3450,15 +3449,6 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.push.retry.threads")
       .categories("client")
       .doc("Thread number to process shuffle re-send push data requests.")
-      .version("0.3.0")
-      .intConf
-      .createWithDefault(8)
-
-  val CLIENT_PUSH_SPLIT_PARTITION_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.client.push.splitPartition.threads")
-      .withAlternative("celeborn.push.splitPartition.threads")
-      .categories("client")
-      .doc("Thread number to process shuffle split request in shuffle client.")
       .version("0.3.0")
       .intConf
       .createWithDefault(8)
