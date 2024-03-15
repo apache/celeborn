@@ -36,6 +36,8 @@ license: |
 
 - Since 0.5.0, Celeborn deprecate `celeborn.quota.configuration.path`. Please use `celeborn.dynamicConfig.store.fs.path` instead.
 
+- Since 0.5.0, Celeborn client removes configuration `celeborn.client.push.splitPartition.threads`.
+
 ## Upgrading from 0.3 to 0.4
 
 - Since 0.4.0, Celeborn won't be compatible with Celeborn client that versions below 0.3.0.
