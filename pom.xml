@@ -1023,6 +1023,7 @@
     <profile>
       <id>hadoop-3</id>
       <activation>
+        <activeByDefault>true</activeByDefault>
         <property>
           <name>hadoop.version</name>
           <value>/^3\..*$/</value>
@@ -1036,11 +1037,13 @@
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-client-api</artifactId>
           <version>${hadoop.version}</version>
+          <scope>provided</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-client-runtime</artifactId>
           <version>${hadoop.version}</version>
+          <scope>provided</scope>
         </dependency>
       </dependencies>
     </profile>
@@ -1060,6 +1063,7 @@
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-client</artifactId>
           <version>${hadoop.version}</version>
+          <scope>provided</scope>
           <exclusions>
             <exclusion>
               <groupId>org.apache.hadoop</groupId>
@@ -1212,18 +1216,12 @@
     <profile>
       <id>jdk-8</id>
       <activation>
+        <activeByDefault>true</activeByDefault>
         <jdk>1.8</jdk>
       </activation>
       <properties>
         <java.version>8</java.version>
       </properties>
-      <dependencies>
-        <dependency>
-          <groupId>com.github.olivergondza</groupId>
-          <artifactId>maven-jdk-tools-wrapper</artifactId>
-          <version>0.1</version>
-        </dependency>
-      </dependencies>
       <build>
         <plugins>
           <!-- Based on https://github.com/google/error-prone/blob/f8e33bc460be82ab22256a7ef8b979d7a2cacaba/docs/installation.md#jdk-8 -->
