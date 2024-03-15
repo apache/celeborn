@@ -23,13 +23,14 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
 /**
  * An exception thrown if RpcTimeout modifies a `TimeoutException`.
  */
 private[celeborn] class RpcTimeoutException(message: String, cause: TimeoutException)
-  extends TimeoutException(message) { initCause(cause) }
+  extends CelebornIOException(message, cause)
 
 /**
  * Associates a timeout with a description so that a when a TimeoutException occurs, additional
