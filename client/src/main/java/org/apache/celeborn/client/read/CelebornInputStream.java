@@ -77,7 +77,7 @@ public abstract class CelebornInputStream extends InputStream {
       boolean splitSkewPartitionWithoutMapRange =
           conf.clientPushFailureTrackingEnabled() && startMapIndex > endMapIndex;
       if (splitSkewPartitionWithoutMapRange) {
-        filterLocations = getSkewPartitionLocations(locations, startMapIndex, endMapIndex);
+        filterLocations = getSubSkewPartitionLocations(locations, startMapIndex, endMapIndex);
         endMapIndex = Integer.MAX_VALUE;
       }
       return new CelebornInputStreamImpl(
@@ -103,22 +103,11 @@ public abstract class CelebornInputStream extends InputStream {
     }
   }
 
-  public static ArrayList<PartitionLocation> getSkewPartitionLocations(
-      List<PartitionLocation> locations, int subPartitionSize, int subPartitionIndex) {
-    Set<PartitionLocation> sortSet =
-        new TreeSet<>(
-            (o1, o2) -> {
-              if (o1.getStorageInfo().fileSize > o2.getStorageInfo().fileSize) {
-                return 1;
-              } else if (o1.getStorageInfo().fileSize < o2.getStorageInfo().fileSize) {
-                return -1;
-              } else {
-                return o1.hashCode() - o2.hashCode();
-              }
-            });
-    sortSet.addAll(locations);
-    PartitionLocation[] orderedPartitionLocations = sortSet.toArray(new PartitionLocation[0]);
-
+  public static ArrayList<PartitionLocation> getSubSkewPartitionLocations(
+      ArrayList<PartitionLocation> locations, int subPartitionSize, int subPartitionIndex) {
+    locations.sort(
+        Comparator.comparingLong((PartitionLocation o) -> o.getStorageInfo().fileSize)
+            .thenComparing(PartitionLocation::getUniqueId));
     int step = locations.size() / subPartitionSize;
     ArrayList<PartitionLocation> result = new ArrayList<>(step + 1);
 
@@ -128,10 +117,10 @@ public abstract class CelebornInputStream extends InputStream {
     // task 2: 3, 4, 9, 10
     for (int i = 0; i < step + 1; i++) {
       if (i % 2 == 0 && (i * subPartitionSize + subPartitionIndex) < locations.size()) {
-        result.add(orderedPartitionLocations[i * subPartitionSize + subPartitionIndex]);
+        result.add(locations.get(i * subPartitionSize + subPartitionIndex));
       } else if (i % 2 == 1
           && ((i + 1) * subPartitionSize - subPartitionIndex - 1) < locations.size()) {
-        result.add(orderedPartitionLocations[(i + 1) * subPartitionSize - subPartitionIndex - 1]);
+        result.add(locations.get((i + 1) * subPartitionSize - subPartitionIndex - 1));
       }
     }
 
