@@ -25,7 +25,6 @@ import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-import com.google.common.collect.Sets
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
