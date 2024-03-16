@@ -18,6 +18,7 @@
 package org.apache.celeborn.client
 
 import java.util
+import java.util.Collections
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
 
@@ -218,7 +219,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
       attemptId: Int,
       numMappers: Int,
       partitionId: Int = -1,
-      pushFailedBatches: util.Set[PushFailedBatch] = Sets.newHashSet()): (Boolean, Boolean) = {
+      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]] = Collections.emptyMap())
+      : (Boolean, Boolean) = {
     getCommitHandler(shuffleId).finishMapperAttempt(
       shuffleId,
       mapId,

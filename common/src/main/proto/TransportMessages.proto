@@ -354,7 +354,11 @@ message PbMapperEnd {
   int32 attemptId = 3;
   int32 numMappers = 4;
   int32 partitionId = 5;
-  repeated PbPushFailedBatch pushFailedBatches = 6;
+  map<string, PbPushFailedBatchSet> pushFailureBatches= 6;
+}
+
+message PbPushFailedBatchSet {
+  repeated PbPushFailedBatch failureBatches = 1;
 }
 
 message PbPushFailedBatch {
@@ -362,7 +366,6 @@ message PbPushFailedBatch {
   int32 attemptId = 2;
   int32 batchId = 3;
   int32 epoch = 4;
-  int32 reduceId =5;
 }
 
 message PbMapperEndResponse {
@@ -385,7 +388,7 @@ message PbGetReducerFileGroupResponse {
   // only map partition mode has succeed partitionIds
   repeated int32 partitionIds = 4;
 
-  repeated PbPushFailedBatch pushFailedBatches = 5;
+  map<string, PbPushFailedBatchSet> pushFailedBatches = 5;
 }
 
 message PbGetShuffleId {

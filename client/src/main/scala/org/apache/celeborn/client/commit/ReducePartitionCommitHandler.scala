@@ -26,6 +26,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 import com.google.common.cache.{Cache, CacheBuilder}
+import com.google.common.collect.Sets
 
 import org.apache.celeborn.client.{ClientUtils, ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
@@ -84,10 +85,19 @@ class ReducePartitionCommitHandler(
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
 
-  val newMapFunc: function.Function[Int, ConcurrentHashMap[Integer, util.Set[PushFailedBatch]]] =
-    new util.function.Function[Int, ConcurrentHashMap[Integer, util.Set[PushFailedBatch]]]() {
-      override def apply(s: Int): ConcurrentHashMap[Integer, util.Set[PushFailedBatch]] = {
-        JavaUtils.newConcurrentHashMap[Integer, util.Set[PushFailedBatch]]()
+  private val newShuffleId2PushFailedBatchMapFunc
+      : function.Function[Int, util.HashMap[String, util.Set[PushFailedBatch]]] =
+    new util.function.Function[Int, util.HashMap[String, util.Set[PushFailedBatch]]]() {
+      override def apply(s: Int): util.HashMap[String, util.Set[PushFailedBatch]] = {
+        new util.HashMap[String, util.Set[PushFailedBatch]]()
+      }
+    }
+
+  private val uniqueId2PushFailedBatchMapFunc
+      : function.Function[String, util.Set[PushFailedBatch]] =
+    new util.function.Function[String, util.Set[PushFailedBatch]]() {
+      override def apply(s: String): util.Set[PushFailedBatch] = {
+        Sets.newHashSet[PushFailedBatch]()
       }
     }
 
@@ -249,7 +259,7 @@ class ReducePartitionCommitHandler(
       attemptId: Int,
       numMappers: Int,
       partitionId: Int,
-      pushFailedBatches: util.Set[PushFailedBatch],
+      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]],
       recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean) = {
     shuffleMapperAttempts.synchronized {
       if (getMapperAttempts(shuffleId) == null) {
@@ -263,8 +273,14 @@ class ReducePartitionCommitHandler(
         if (null != pushFailedBatches && !pushFailedBatches.isEmpty) {
           val pushFailedBatchesMap = shufflePushFailedBatches.computeIfAbsent(
             shuffleId,
-            newMapFunc)
-          pushFailedBatchesMap.put(mapId, pushFailedBatches)
+            newShuffleId2PushFailedBatchMapFunc)
+          pushFailedBatches.forEach((k, v) => {
+            val partitionPushFailedBatches = pushFailedBatchesMap.computeIfAbsent(
+              k,
+              uniqueId2PushFailedBatchMapFunc)
+            partitionPushFailedBatches.addAll(v)
+          })
+          pushFailedBatchesMap.get(pushFailedBatches)
         }
         // Mapper with this attemptId finished, also check all other mapper finished or not.
         (true, ClientUtils.areAllMapperAttemptsFinished(attempts))
@@ -321,8 +337,7 @@ class ReducePartitionCommitHandler(
                 pushFailedBatches =
                   shufflePushFailedBatches.getOrDefault(
                     shuffleId,
-                    JavaUtils.newConcurrentHashMap()).values().asScala.flatMap(x =>
-                    x.asScala.toSet[PushFailedBatch]).toSet.asJava)
+                    new util.HashMap[String, util.Set[PushFailedBatch]]()))
               context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
             }
           })

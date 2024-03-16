@@ -29,7 +29,6 @@ public class PushFailedBatch implements Serializable {
   private int attemptId;
   private int batchId;
   private int epoch;
-  private int reduceId;
 
   public int getMapId() {
     return mapId;
@@ -55,14 +54,6 @@ public class PushFailedBatch implements Serializable {
     this.batchId = batchId;
   }
 
-  public int getReduceId() {
-    return reduceId;
-  }
-
-  public void setReduceId(int reduceId) {
-    this.reduceId = reduceId;
-  }
-
   public int getEpoch() {
     return epoch;
   }
@@ -71,11 +62,10 @@ public class PushFailedBatch implements Serializable {
     this.epoch = epoch;
   }
 
-  public PushFailedBatch(int mapId, int attemptId, int batchId, int reduceId, int epoch) {
+  public PushFailedBatch(int mapId, int attemptId, int batchId, int epoch) {
     this.mapId = mapId;
     this.attemptId = attemptId;
     this.batchId = batchId;
-    this.reduceId = reduceId;
     this.epoch = epoch;
   }
 
@@ -85,17 +75,12 @@ public class PushFailedBatch implements Serializable {
       return false;
     }
     PushFailedBatch o = (PushFailedBatch) other;
-    return super.equals(o)
-        && mapId == o.mapId
-        && attemptId == o.attemptId
-        && batchId == o.batchId
-        && reduceId == o.reduceId
-        && epoch == o.epoch;
+    return mapId == o.mapId && attemptId == o.attemptId && batchId == o.batchId && epoch == o.epoch;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(super.hashCode(), mapId, attemptId, batchId, reduceId, epoch);
+    return Objects.hashCode(mapId, attemptId, batchId, epoch);
   }
 
   @Override
@@ -104,7 +89,6 @@ public class PushFailedBatch implements Serializable {
         .append("mapId", mapId)
         .append("attemptId", attemptId)
         .append("batchId", batchId)
-        .append("reduceId", reduceId)
         .append("epoch", epoch)
         .toString();
   }

@@ -136,7 +136,6 @@ class FetchHandler(
           rpcRequest.requestId,
           isLegacy = false,
           openStream.getReadLocalShuffle,
-          openStream.getShuffleDataNeedSort,
           callback)
       case openStreamList: PbOpenStreamList =>
         val shuffleKey = openStreamList.getShuffleKey()
@@ -208,7 +207,6 @@ class FetchHandler(
             isLegacy = true,
             // legacy [[OpenStream]] doesn't support read local shuffle
             readLocalShuffle = false,
-            shuffleNeedSort = true,
             callback)
         case Message.Type.OPEN_STREAM_WITH_CREDIT =>
           val openStreamWithCredit = message.asInstanceOf[OpenStreamWithCredit]
@@ -222,7 +220,6 @@ class FetchHandler(
             rpcRequestId = rpcRequest.requestId,
             isLegacy = true,
             readLocalShuffle = false,
-            shuffleNeedSort = true,
             callback)
         case _ =>
           logError(s"Received an unknown message type id: ${message.`type`.id}")
@@ -346,7 +343,6 @@ class FetchHandler(
       rpcRequestId: Long,
       isLegacy: Boolean,
       readLocalShuffle: Boolean = false,
-      shuffleNeedSort: Boolean = true,
       callback: RpcResponseCallback): Unit = {
     checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
     workerSource.recordAppActiveConnection(client, shuffleKey)
@@ -362,8 +358,7 @@ class FetchHandler(
               fileName,
               startIndex,
               endIndex,
-              readLocalShuffle,
-              shuffleNeedSort)
+              readLocalShuffle)
 
           if (pbStreamHandlerOpt.getStatus != StatusCode.SUCCESS.getValue) {
             throw new CelebornIOException(pbStreamHandlerOpt.getErrorMsg)

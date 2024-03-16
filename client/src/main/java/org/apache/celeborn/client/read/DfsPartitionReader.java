@@ -107,7 +107,6 @@ public class DfsPartitionReader implements PartitionReader {
                     .setFileName(location.getFileName())
                     .setStartIndex(startMapIndex)
                     .setEndIndex(endMapIndex)
-                    .setShuffleDataNeedSort(conf.clientPushFailureTrackingEnabled())
                     .build()
                     .toByteArray());
         ByteBuffer response = client.sendRpcSync(openStream.toByteBuffer(), fetchTimeoutMs);
