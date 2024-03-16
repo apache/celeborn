@@ -726,7 +726,6 @@ object PbSerDeUtils {
       .setMapId(pushFailedBatch.getMapId)
       .setAttemptId(pushFailedBatch.getAttemptId)
       .setBatchId(pushFailedBatch.getBatchId)
-      .setReduceId(pushFailedBatch.getReduceId)
       .setEpoch(pushFailedBatch.getEpoch)
 
     builder.build()
@@ -737,7 +736,6 @@ object PbSerDeUtils {
       pbPushFailedBatch.getMapId,
       pbPushFailedBatch.getAttemptId,
       pbPushFailedBatch.getBatchId,
-      pbPushFailedBatch.getReduceId,
       pbPushFailedBatch.getEpoch)
   }
 

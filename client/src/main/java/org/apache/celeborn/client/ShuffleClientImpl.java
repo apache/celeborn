@@ -144,7 +144,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   protected static class ReduceFileGroups {
     public Map<Integer, Set<PartitionLocation>> partitionGroups;
-    public Set<PushFailedBatch> pushFailedBatchSet;
+    public Map<String, Set<PushFailedBatch>> pushFailedBatches;
     public int[] mapAttempts;
     public Set<Integer> partitionIds;
 
@@ -152,25 +152,25 @@ public class ShuffleClientImpl extends ShuffleClient {
         Map<Integer, Set<PartitionLocation>> partitionGroups,
         int[] mapAttempts,
         Set<Integer> partitionIds,
-        Set<PushFailedBatch> pushFailedBatches) {
+        Map<String, Set<PushFailedBatch>> pushFailedBatches) {
       this.partitionGroups = partitionGroups;
       this.mapAttempts = mapAttempts;
       this.partitionIds = partitionIds;
-      this.pushFailedBatchSet = pushFailedBatches;
+      this.pushFailedBatches = pushFailedBatches;
     }
 
     public ReduceFileGroups() {
       this.partitionGroups = null;
       this.mapAttempts = null;
       this.partitionIds = null;
-      this.pushFailedBatchSet = null;
+      this.pushFailedBatches = null;
     }
 
     public void update(ReduceFileGroups fileGroups) {
       partitionGroups = fileGroups.partitionGroups;
       mapAttempts = fileGroups.mapAttempts;
       partitionIds = fileGroups.partitionIds;
-      pushFailedBatchSet = fileGroups.pushFailedBatchSet;
+      pushFailedBatches = fileGroups.pushFailedBatches;
     }
   }
 
@@ -1098,8 +1098,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                       nextBatchId);
                   if (dataPushFailureTrackingEnabled) {
                     pushState.addFailedBatch(
-                        new PushFailedBatch(
-                            mapId, attemptId, nextBatchId, partitionId, latest.getEpoch()));
+                        latest.getUniqueId(),
+                        new PushFailedBatch(mapId, attemptId, nextBatchId, latest.getEpoch()));
                   }
                   ReviveRequest reviveRequest =
                       new ReviveRequest(
@@ -1169,8 +1169,8 @@ public class ShuffleClientImpl extends ShuffleClient {
             public void onFailure(Throwable e) {
               if (dataPushFailureTrackingEnabled) {
                 pushState.addFailedBatch(
-                    new PushFailedBatch(
-                        mapId, attemptId, nextBatchId, partitionId, latest.getEpoch()));
+                    latest.getUniqueId(),
+                    new PushFailedBatch(mapId, attemptId, nextBatchId, latest.getEpoch()));
               }
               if (pushState.exception.get() != null) {
                 return;
@@ -1474,8 +1474,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                 if (dataPushFailureTrackingEnabled) {
                   for (int i = 0; i < numBatches; i++) {
                     pushState.addFailedBatch(
-                        new PushFailedBatch(
-                            mapId, attemptId, batchIds[i], partitionIds[i], epochs[i]));
+                        partitionUniqueIds[i],
+                        new PushFailedBatch(mapId, attemptId, batchIds[i], epochs[i]));
                   }
                 }
                 ReviveRequest[] requests =
@@ -1538,7 +1538,8 @@ public class ShuffleClientImpl extends ShuffleClient {
             if (dataPushFailureTrackingEnabled) {
               for (int i = 0; i < numBatches; i++) {
                 pushState.addFailedBatch(
-                    new PushFailedBatch(mapId, attemptId, batchIds[i], partitionIds[i], epochs[i]));
+                    partitionUniqueIds[i],
+                    new PushFailedBatch(mapId, attemptId, batchIds[i], epochs[i]));
               }
             }
             if (pushState.exception.get() != null) {

@@ -104,7 +104,6 @@ public class LocalPartitionReader implements PartitionReader {
                   .setStartIndex(startMapIndex)
                   .setEndIndex(endMapIndex)
                   .setReadLocalShuffle(true)
-                  .setShuffleDataNeedSort(conf.clientPushFailureTrackingEnabled())
                   .build()
                   .toByteArray());
       ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);

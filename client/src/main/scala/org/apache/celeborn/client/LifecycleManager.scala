@@ -63,8 +63,9 @@ object LifecycleManager {
   // shuffle id -> partition id -> partition locations
   type ShuffleFileGroups =
     ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[PartitionLocation]]]
+  // shuffle id -> partition uniqueId -> PushFailedBatch set
   type ShufflePushFailedBatches =
-    ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[PushFailedBatch]]]
+    ConcurrentHashMap[Int, util.HashMap[String, util.Set[PushFailedBatch]]]
   type ShuffleAllocatedWorkers =
     ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]]
   type ShuffleFailedWorkers = ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]
@@ -801,7 +802,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       mapId: Int,
       attemptId: Int,
       numMappers: Int,
-      pushFailedBatches: util.Set[PushFailedBatch]): Unit = {
+      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]]): Unit = {
 
     val (mapperAttemptFinishedSuccess, allMapperFinished) =
       commitManager.finishMapperAttempt(
