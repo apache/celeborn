@@ -26,7 +26,7 @@ import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.client.listener.{WorkersStatus, WorkerStatusListener}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.WorkerInfo
+import org.apache.celeborn.common.meta.{WorkerInfo, WorkerSummary}
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromApplicationResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -38,8 +38,8 @@ class WorkerStatusTracker(
   private val excludedWorkerExpireTimeout = conf.clientExcludedWorkerExpireTimeout
   private val workerStatusListeners = ConcurrentHashMap.newKeySet[WorkerStatusListener]()
 
-  val excludedWorkers = new ShuffleFailedWorkers()
-  val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
+  val excludedWorkers = new ConcurrentHashMap[WorkerSummary, (StatusCode, Long)]()
+  val shuttingWorkers: JSet[WorkerSummary] = new JHashSet[WorkerSummary]()
 
   def registerWorkerStatusListener(workerStatusListener: WorkerStatusListener): Unit = {
     workerStatusListeners.add(workerStatusListener)
@@ -49,16 +49,19 @@ class WorkerStatusTracker(
     if (conf.clientCheckedUseAllocatedWorkers) {
       lifecycleManager.getAllocatedWorkers()
     } else {
-      excludedWorkers.asScala.keys.toSet ++ shuttingWorkers.asScala.toSet
+      excludedWorkers.asScala.keys.map(
+        WorkerInfo.fromWorkerSummary).toSet ++ shuttingWorkers.asScala.map(
+        WorkerInfo.fromWorkerSummary).toSet
     }
   }
 
   def workerExcluded(worker: WorkerInfo): Boolean = {
-    excludedWorkers.containsKey(worker)
+    excludedWorkers.containsKey(WorkerSummary.fromWorkerInfo(worker))
   }
 
   def workerAvailable(worker: WorkerInfo): Boolean = {
-    !excludedWorkers.containsKey(worker) && !shuttingWorkers.contains(worker)
+    !excludedWorkers.containsKey(WorkerSummary.fromWorkerInfo(worker)) && !shuttingWorkers.contains(
+      WorkerSummary.fromWorkerInfo(worker))
   }
 
   def workerAvailable(loc: PartitionLocation): Boolean = {
@@ -130,21 +133,25 @@ class WorkerStatusTracker(
            |$failedWorkersMsg$currentFailedWorkers""".stripMargin)
       failedWorkers.asScala.foreach {
         case (worker, (StatusCode.WORKER_SHUTDOWN, _)) =>
-          shuttingWorkers.add(worker)
-        case (worker, (statusCode, registerTime)) if !excludedWorkers.containsKey(worker) =>
-          excludedWorkers.put(worker, (statusCode, registerTime))
+          shuttingWorkers.add(WorkerSummary.fromWorkerInfo(worker))
+        case (worker, (statusCode, registerTime))
+            if !excludedWorkers.containsKey(WorkerSummary.fromWorkerInfo(worker)) =>
+          excludedWorkers.put(WorkerSummary.fromWorkerInfo(worker), (statusCode, registerTime))
         case (worker, (statusCode, _))
             if statusCode == StatusCode.NO_AVAILABLE_WORKING_DIR ||
               statusCode == StatusCode.RESERVE_SLOTS_FAILED ||
               statusCode == StatusCode.WORKER_UNKNOWN =>
-          excludedWorkers.put(worker, (statusCode, excludedWorkers.get(worker)._2))
+          excludedWorkers.put(
+            WorkerSummary.fromWorkerInfo(worker),
+            (statusCode, excludedWorkers.get(WorkerSummary.fromWorkerInfo(worker))._2))
         case _ => // Not cover
       }
     }
   }
 
   def removeFromExcludedWorkers(workers: JHashSet[WorkerInfo]): Unit = {
-    excludedWorkers.keySet.removeAll(workers)
+    val workerSummaries = workers.asScala.map(WorkerSummary.fromWorkerInfo).asJava
+    excludedWorkers.keySet.removeAll(workerSummaries)
   }
 
   def handleHeartbeatResponse(res: HeartbeatFromApplicationResponse): Unit = {
@@ -155,7 +162,7 @@ class WorkerStatusTracker(
       var statusChanged = false
 
       excludedWorkers.asScala.foreach {
-        case (workerInfo: WorkerInfo, (statusCode, registerTime)) =>
+        case (workerSummary: WorkerSummary, (statusCode, registerTime)) =>
           statusCode match {
             case StatusCode.WORKER_UNKNOWN |
                 StatusCode.NO_AVAILABLE_WORKING_DIR |
@@ -168,6 +175,7 @@ class WorkerStatusTracker(
                 StatusCode.PUSH_DATA_TIMEOUT_REPLICA
                 if current - registerTime < excludedWorkerExpireTimeout => // reserve
             case _ =>
+              val workerInfo = WorkerInfo.fromWorkerSummary(workerSummary)
               if (!res.excludedWorkers.contains(workerInfo) &&
                 !res.shuttingWorkers.contains(workerInfo) &&
                 !res.unknownWorkers.contains(workerInfo)) {
@@ -176,20 +184,22 @@ class WorkerStatusTracker(
               }
           }
       }
-      for (worker <- res.excludedWorkers.asScala) {
-        if (!excludedWorkers.containsKey(worker)) {
-          excludedWorkers.put(worker, (StatusCode.WORKER_EXCLUDED, current))
+      for (workerSummary <- res.excludedWorkers.asScala.map(WorkerSummary.fromWorkerInfo)) {
+        if (!excludedWorkers.containsKey(workerSummary)) {
+          excludedWorkers.put(workerSummary, (StatusCode.WORKER_EXCLUDED, current))
           statusChanged = true
         }
       }
-      for (worker <- res.unknownWorkers.asScala) {
-        if (!excludedWorkers.containsKey(worker)) {
-          excludedWorkers.put(worker, (StatusCode.WORKER_UNKNOWN, current))
+      for (workerSummary <- res.unknownWorkers.asScala.map(WorkerSummary.fromWorkerInfo)) {
+        if (!excludedWorkers.containsKey(workerSummary)) {
+          excludedWorkers.put(workerSummary, (StatusCode.WORKER_UNKNOWN, current))
           statusChanged = true
         }
       }
-      val retainResult = shuttingWorkers.retainAll(res.shuttingWorkers)
-      val addResult = shuttingWorkers.addAll(res.shuttingWorkers)
+      val shuttingWorkerSummaries =
+        res.shuttingWorkers.asScala.map(WorkerSummary.fromWorkerInfo).asJavaCollection
+      val retainResult = shuttingWorkers.retainAll(shuttingWorkerSummaries)
+      val addResult = shuttingWorkers.addAll(shuttingWorkerSummaries)
       statusChanged = statusChanged || retainResult || addResult
       // Always trigger commit files for shutting down workers from HeartbeatFromApplicationResponse
       // See details in CELEBORN-696

@@ -32,17 +32,79 @@ import org.apache.celeborn.common.rpc.RpcEndpointRef
 import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
 
-class WorkerInfo(
+class WorkerSummary(
     val host: String,
     val rpcPort: Int,
     val pushPort: Int,
     val fetchPort: Int,
     val replicatePort: Int,
-    val internalPort: Int,
-    _diskInfos: util.Map[String, DiskInfo],
-    _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) extends Serializable
+    val internalPort: Int) extends Serializable
   with Logging {
-  var networkLocation = NetworkTopology.DEFAULT_RACK
+  var networkLocation: String = NetworkTopology.DEFAULT_RACK
+  var endpoint: RpcEndpointRef = null
+
+  def setupEndpoint(endpointRef: RpcEndpointRef): Unit = {
+    if (this.endpoint == null) {
+      this.endpoint = endpointRef
+    }
+  }
+
+  def toUniqueId(): String = {
+    s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
+  }
+
+  def readableAddress(): String = {
+    s"Host:$host:RpcPort:$rpcPort:PushPort:$pushPort:" +
+      s"FetchPort:$fetchPort:ReplicatePort:$replicatePort:$internalPort"
+  }
+
+  override def equals(other: Any): Boolean = other match {
+    case that: WorkerInfo =>
+      host == that.host &&
+        rpcPort == that.rpcPort &&
+        pushPort == that.pushPort &&
+        fetchPort == that.fetchPort &&
+        replicatePort == that.replicatePort
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    var result = host.hashCode()
+    result = 31 * result + rpcPort.hashCode()
+    result = 31 * result + pushPort.hashCode()
+    result = 31 * result + fetchPort.hashCode()
+    result = 31 * result + replicatePort.hashCode()
+    result
+  }
+}
+
+object WorkerSummary {
+  def fromWorkerInfo(workerInfo: WorkerInfo): WorkerSummary = {
+    new WorkerSummary(
+      workerInfo.host,
+      workerInfo.rpcPort,
+      workerInfo.pushPort,
+      workerInfo.fetchPort,
+      workerInfo.replicatePort,
+      workerInfo.internalPort)
+  }
+}
+
+class WorkerInfo(
+    override val host: String,
+    override val rpcPort: Int,
+    override val pushPort: Int,
+    override val fetchPort: Int,
+    override val replicatePort: Int,
+    override val internalPort: Int,
+    _diskInfos: util.Map[String, DiskInfo],
+    _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) extends WorkerSummary(
+    host,
+    rpcPort,
+    pushPort,
+    fetchPort,
+    replicatePort,
+    internalPort) {
   var lastHeartbeat: Long = 0
   var workerStatus = WorkerStatus.normalWorkerStatus()
   val diskInfos =
@@ -51,7 +113,6 @@ class WorkerInfo(
     if (_userResourceConsumption != null)
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](_userResourceConsumption)
     else null
-  var endpoint: RpcEndpointRef = null
 
   def this(
       host: String,
@@ -145,21 +206,6 @@ class WorkerInfo(
     host == other.host &&
     fetchPort == other.fetchPort &&
     replicatePort == other.replicatePort
-  }
-
-  def setupEndpoint(endpointRef: RpcEndpointRef): Unit = {
-    if (this.endpoint == null) {
-      this.endpoint = endpointRef
-    }
-  }
-
-  def readableAddress(): String = {
-    s"Host:$host:RpcPort:$rpcPort:PushPort:$pushPort:" +
-      s"FetchPort:$fetchPort:ReplicatePort:$replicatePort:$internalPort"
-  }
-
-  def toUniqueId(): String = {
-    s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
   }
 
   def slotAvailable(): Boolean = this.synchronized {
@@ -271,25 +317,6 @@ class WorkerInfo(
        |""".stripMargin
   }
 
-  override def equals(other: Any): Boolean = other match {
-    case that: WorkerInfo =>
-      host == that.host &&
-        rpcPort == that.rpcPort &&
-        pushPort == that.pushPort &&
-        fetchPort == that.fetchPort &&
-        replicatePort == that.replicatePort
-    case _ => false
-  }
-
-  override def hashCode(): Int = {
-    var result = host.hashCode()
-    result = 31 * result + rpcPort.hashCode()
-    result = 31 * result + pushPort.hashCode()
-    result = 31 * result + fetchPort.hashCode()
-    result = 31 * result + replicatePort.hashCode()
-    result
-  }
-
   def haveDisk(): Boolean = {
     diskInfos.values().asScala.exists(p =>
       p.storageType == StorageInfo.Type.SSD || p.storageType == StorageInfo.Type.HDD)
@@ -302,5 +329,14 @@ object WorkerInfo {
     val Array(host, rpcPort, pushPort, fetchPort, replicatePort) =
       Utils.parseColonSeparatedHostPorts(id, portsNum = 4)
     new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
+  }
+
+  def fromWorkerSummary(summary: WorkerSummary): WorkerInfo = {
+    new WorkerInfo(
+      summary.host,
+      summary.rpcPort,
+      summary.pushPort,
+      summary.fetchPort,
+      summary.replicatePort)
   }
 }

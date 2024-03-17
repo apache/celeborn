@@ -1522,7 +1522,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       ids: util.ArrayList[Integer]): RequestSlotsResponse = {
     val excludedWorkerSet =
       if (excludedWorkersFilter) {
-        workerStatusTracker.excludedWorkers.asScala.keys.toSet
+        workerStatusTracker.excludedWorkers.asScala.keys.map(WorkerInfo.fromWorkerSummary).toSet
       } else {
         Set.empty[WorkerInfo]
       }
