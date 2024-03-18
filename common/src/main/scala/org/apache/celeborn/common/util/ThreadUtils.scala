@@ -31,6 +31,7 @@ import com.google.common.util.concurrent.{MoreExecutors, ThreadFactoryBuilder}
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.source.ThreadPoolSource
+import org.apache.celeborn.common.rpc.RpcTimeoutException
 
 object ThreadUtils {
 
@@ -316,6 +317,8 @@ object ThreadUtils {
       awaitable.result(atMost)(awaitPermission)
     } catch {
       // TimeoutException is thrown in the current thread, so not need to warp the exception.
+      case e: RpcTimeoutException =>
+        throw e
       case NonFatal(t) if !t.isInstanceOf[TimeoutException] =>
         throw new CelebornException("Exception thrown in awaitResult: ", t)
       case e: Throwable =>
@@ -339,6 +342,8 @@ object ThreadUtils {
       awaitable.ready(atMost)(awaitPermission)
     } catch {
       // TimeoutException is thrown in the current thread, so not need to warp the exception.
+      case e: RpcTimeoutException =>
+        throw e
       case NonFatal(t) if !t.isInstanceOf[TimeoutException] =>
         throw new CelebornException("Exception thrown in awaitResult: ", t)
     }
