@@ -310,6 +310,7 @@ if [ "$SBT_ENABLED" == "true" ]; then
     sbt_build_client -Pflink-1.15
     sbt_build_client -Pflink-1.17
     sbt_build_client -Pflink-1.18
+    sbt_build_client -Pflink-1.19
     sbt_build_client -Pmr
   else
     echo "build client with $@"
@@ -341,6 +342,7 @@ else
     build_flink_client -Pflink-1.15
     build_flink_client -Pflink-1.17
     build_flink_client -Pflink-1.18
+    build_flink_client -Pflink-1.19
     build_mr_client -Pmr
   else
     ## build release package on demand
