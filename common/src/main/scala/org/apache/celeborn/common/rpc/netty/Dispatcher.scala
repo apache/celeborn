@@ -158,20 +158,17 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
       endpointName: String,
       message: InboxMessage,
       callbackIfStopped: Exception => Unit): Unit = {
-    var data: EndpointData = null
     val error = synchronized {
-      data = endpoints.get(endpointName)
+      val data = endpoints.get(endpointName)
       if (stopped) {
         Some(new RpcEnvStoppedException())
       } else if (data == null) {
         Some(new CelebornException(s"Could not find $endpointName."))
       } else {
+        data.inbox.post(message)
+        receivers.offer(data)
         None
       }
-    }
-    if (error.isEmpty) {
-      data.inbox.post(message)
-      receivers.offer(data)
     }
     // We don't need to call `onStop` in the `synchronized` block
     error.foreach(callbackIfStopped)

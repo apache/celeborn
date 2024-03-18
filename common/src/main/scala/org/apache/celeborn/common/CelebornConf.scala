@@ -400,9 +400,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(get(RPC_LOOKUP_TIMEOUT).milli, RPC_LOOKUP_TIMEOUT.key)
   def rpcAskTimeout: RpcTimeout =
     new RpcTimeout(get(RPC_ASK_TIMEOUT).milli, RPC_ASK_TIMEOUT.key)
-  def rpcInboxType(): String = {
-    get(RPC_INBOX_TYPE)
-  }
   def rpcInMemoryBoundedInboxCapacity(): Int = {
     get(RPC_IN_MEMORY_BOUNDED_INBOX_CAPACITY)
   }
@@ -1597,16 +1594,6 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .intConf
       .createWithDefault(0)
-
-  val RPC_INBOX_TYPE: ConfigEntry[String] =
-    buildConf("celeborn.rpc.inbox.type")
-      .categories("network")
-      .doc("Specifies the type of RPC endpoint Inbox.")
-      .version("0.5.0")
-      .stringConf
-      .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(Set("IN_MEMORY", "IN_MEMORY_BOUNDED"))
-      .createWithDefault("IN_MEMORY")
 
   val RPC_IN_MEMORY_BOUNDED_INBOX_CAPACITY: ConfigEntry[Int] =
     buildConf("celeborn.rpc.inbox.inmemorybounded.capacity")

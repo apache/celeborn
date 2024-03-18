@@ -128,25 +128,11 @@ private[celeborn] class Inbox(
     }
   }
 
-  def nextMessage(quitWithNoProcessingThread: Boolean): Option[InboxMessage] = {
-    var message: Option[InboxMessage] = None
-    if (quitWithNoProcessingThread && !enableConcurrent && numActiveThreads != 0) {
-      return None
-    }
-    val startTime = System.nanoTime()
-    message = Option(messages.poll())
-    if (message.isDefined) {
-      logDebug(s"message count: ${messageCount.incrementAndGet()}," +
-        s" read cost :${System.nanoTime() - startTime}, message queue length: ${messages.size()}")
-    }
-    message
-  }
-
   def addMessage(message: InboxMessage): Unit = {
     messages.add(message)
   }
 
-  def isEmpty: Boolean = inbox.synchronized {
+  def isEmpty: Boolean = {
     messages.isEmpty
   }
 
@@ -211,18 +197,20 @@ private[celeborn] class Inbox(
 
   def process(dispatcher: Dispatcher): Unit = {
 
-    var nextMsg: Option[InboxMessage] = None
+    var message: InboxMessage = null
 
     inbox.synchronized {
-      nextMsg = nextMessage(quitWithNoProcessingThread = true)
-      if (nextMsg.isDefined) {
+      if (!enableConcurrent && numActiveThreads != 0) {
+        return
+      }
+      message = messages.poll()
+      if (message != null) {
         numActiveThreads += 1
       } else {
         return
       }
     }
 
-    var message = nextMsg.get
     while (true) {
       safelyCall(endpoint, endpointRef.name) {
         processInternal(dispatcher, message)
@@ -235,12 +223,11 @@ private[celeborn] class Inbox(
           numActiveThreads -= 1
           return
         }
-        nextMsg = nextMessage(quitWithNoProcessingThread = false)
-        if (nextMsg.isEmpty) {
+        message = messages.poll()
+        if (message == null) {
           numActiveThreads -= 1
           return
         }
-        message = nextMsg.get
       }
     }
   }
