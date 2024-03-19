@@ -30,7 +30,7 @@ public class SlowStartPushStrategyTest {
   public void testSleepTime() {
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REQS_IN_FLIGHT_PERWORKER().key(), "32");
     conf.set(CelebornConf.CLIENT_PUSH_LIMIT_STRATEGY().key(), "slowstart");
-    conf.set(CelebornConf.CLIENT_PUSH_SLOW_START_MAX_SLEEP_TIME().key(), "3s");
+    conf.set(CelebornConf.CLIENT_PUSH_SLOW_START_MAX_SLEEP_TIME().key(), "3ms");
     SlowStartPushStrategy strategy = (SlowStartPushStrategy) PushStrategy.getStrategy(conf);
     String dummyHostPort = "test:9087";
     SlowStartPushStrategy.CongestControlContext context =

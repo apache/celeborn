@@ -856,8 +856,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushDataTimeoutMs: Long = get(CLIENT_PUSH_DATA_TIMEOUT)
   def clientPushLimitStrategy: String = get(CLIENT_PUSH_LIMIT_STRATEGY)
   def clientPushSlowStartInitialSleepTime: Long = get(CLIENT_PUSH_SLOW_START_INITIAL_SLEEP_TIME)
+  def clientPushSlowStartStepTime: Long = get(CLIENT_PUSH_SLOW_START_STEP_TIME)
+  def clientPushSlowStartCongestedRequestSleepTime: Long =
+    get(CLIENT_PUSH_SLOW_START_CONGESTED_REQUEST_SLEEP_TIME)
   def clientSlotAssignMaxWorkers: Int = get(CLIENT_SLOT_ASSIGN_MAX_WORKERS)
-  def clientPushSlowStartMaxSleepMills: Long = get(CLIENT_PUSH_SLOW_START_MAX_SLEEP_TIME)
+  def clientPushSlowStartMaxSleepNanos: Long = get(CLIENT_PUSH_SLOW_START_MAX_SLEEP_TIME)
   def clientPushLimitInFlightTimeoutMs: Long =
     if (clientPushReplicateEnabled) {
       get(CLIENT_PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(
@@ -3372,8 +3375,24 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.3.0")
       .doc(s"The initial sleep time if the current max in flight requests is 0")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("500ms")
+      .timeConf(TimeUnit.MICROSECONDS)
+      .createWithDefaultString("500us")
+
+  val CLIENT_PUSH_SLOW_START_STEP_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.slowStart.stepTime")
+      .categories("client")
+      .version("0.3.0")
+      .doc(s"The initial sleep time step interval for each current allowed request.")
+      .timeConf(TimeUnit.MICROSECONDS)
+      .createWithDefaultString("60us")
+
+  val CLIENT_PUSH_SLOW_START_CONGESTED_REQUEST_SLEEP_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.slowStart.congestedPushSleepTime")
+      .categories("client")
+      .version("0.3.0")
+      .doc(s"The initial sleep time step interval for each current allowed request.")
+      .timeConf(TimeUnit.MICROSECONDS)
+      .createWithDefaultString("1000us")
 
   val CLIENT_PUSH_SLOW_START_MAX_SLEEP_TIME: ConfigEntry[Long] =
     buildConf("celeborn.client.push.slowStart.maxSleepTime")
@@ -3382,8 +3401,8 @@ object CelebornConf extends Logging {
       .doc(s"If ${CLIENT_PUSH_LIMIT_STRATEGY.key} is set to SLOWSTART, push side will " +
         "take a sleep strategy for each batch of requests, this controls " +
         "the max sleep time if the max in flight requests limit is 1 for a long time")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("2s")
+      .timeConf(TimeUnit.MICROSECONDS)
+      .createWithDefaultString("2000us")
 
   val CLIENT_PUSH_DATA_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.push.timeout")

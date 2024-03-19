@@ -102,15 +102,19 @@ public class SlowStartPushStrategy extends PushStrategy {
   private static final Logger logger = LoggerFactory.getLogger(SlowStartPushStrategy.class);
 
   private final int maxInFlightPerWorker;
-  private final long initialSleepMills;
-  private final long maxSleepMills;
+  private final long initialSleepMicros;
+  private final long stepSleepMicros;
+  private final long congestedRequestSleepMicros;
+  private final long maxSleepMicros;
   private final ConcurrentHashMap<String, CongestControlContext> congestControlInfoPerAddress;
 
   public SlowStartPushStrategy(CelebornConf conf) {
     super(conf);
     this.maxInFlightPerWorker = conf.clientPushMaxReqsInFlightPerWorker();
-    this.initialSleepMills = conf.clientPushSlowStartInitialSleepTime();
-    this.maxSleepMills = conf.clientPushSlowStartMaxSleepMills();
+    this.initialSleepMicros = conf.clientPushSlowStartInitialSleepTime();
+    this.stepSleepMicros = conf.clientPushSlowStartStepTime();
+    this.congestedRequestSleepMicros = conf.clientPushSlowStartCongestedRequestSleepTime();
+    this.maxSleepMicros = conf.clientPushSlowStartMaxSleepNanos();
     this.congestControlInfoPerAddress = JavaUtils.newConcurrentHashMap();
   }
 
@@ -140,10 +144,10 @@ public class SlowStartPushStrategy extends PushStrategy {
       return 0;
     }
 
-    long sleepInterval = initialSleepMills - 60L * currentMaxReqs;
+    long sleepInterval = initialSleepMicros - stepSleepMicros * currentMaxReqs;
 
     if (currentMaxReqs == 1) {
-      return Math.min(sleepInterval + context.getContinueCongestedNumber() * 1000L, maxSleepMills);
+      return Math.min(sleepInterval + context.getContinueCongestedNumber() * congestedRequestSleepMicros, maxSleepMicros);
     }
 
     return Math.max(sleepInterval, 0);
@@ -161,7 +165,8 @@ public class SlowStartPushStrategy extends PushStrategy {
       try {
         logger.debug(
             "Will sleep {} ms to control the push speed to {}.", sleepInterval, hostAndPushPort);
-        Thread.sleep(sleepInterval);
+
+        Thread.sleep(sleepInterval / 1000, (int) (sleepInterval % 1000));
       } catch (InterruptedException e) {
         pushState.exception.set(new CelebornIOException(e));
       }
