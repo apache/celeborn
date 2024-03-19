@@ -20,7 +20,7 @@
 import { useFormEvent } from '@/composables'
 
 export default defineComponent({
-  name: 'ApplicationSearchForm',
+  name: 'ApplicationForm',
   setup(_, ctx) {
     const searchForm = reactive({
       appId: '',

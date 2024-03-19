@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import type { ApplicationTab, WorkerDetail } from '@/api'
-import { ApplicationListService } from '@/views/application/components'
+import { ApplicationTableService } from '@/views/application/components'
 import type { PropType } from 'vue'
 import { WorkerDetailMemoryService, WorkerDetailStorageService } from '.'
 
@@ -43,7 +43,7 @@ defineProps({
         <WorkerDetailMemoryService :data="data.memoryInfo" />
       </n-tab-pane>
       <n-tab-pane name="Application" tab="Application">
-        <ApplicationListService :="application" />
+        <ApplicationTableService :="application" />
       </n-tab-pane>
       <n-tab-pane name="Configuration" tab="Configuration">
         <ConfigurationService :dynamic="data.dynamicConfigs" :static="data.staticConfigs" />

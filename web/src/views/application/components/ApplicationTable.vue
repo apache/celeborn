@@ -22,7 +22,7 @@ import type { DataTableColumns, PaginationProps } from 'naive-ui'
 import type { PropType } from 'vue'
 
 defineOptions({
-  name: 'ApplicationDataTable'
+  name: 'ApplicationTable'
 })
 
 defineProps({
