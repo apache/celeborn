@@ -147,7 +147,9 @@ public class SlowStartPushStrategy extends PushStrategy {
     long sleepInterval = initialSleepMicros - stepSleepMicros * currentMaxReqs;
 
     if (currentMaxReqs == 1) {
-      return Math.min(sleepInterval + context.getContinueCongestedNumber() * congestedRequestSleepMicros, maxSleepMicros);
+      return Math.min(
+          sleepInterval + context.getContinueCongestedNumber() * congestedRequestSleepMicros,
+          maxSleepMicros);
     }
 
     return Math.max(sleepInterval, 0);
