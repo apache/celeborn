@@ -18,5 +18,13 @@
 import TenantFormService from './TenantForm.vue'
 import TenantOverviewService from './TenantOverview.vue'
 import TenantTableService from './TenantTable.vue'
+import TenantDetailOverviewService from './TenantDetailOverview.vue'
+import TenantDetailTableService from './TenantDetailTable.vue'
 
-export { TenantFormService, TenantOverviewService, TenantTableService }
+export {
+  TenantFormService,
+  TenantOverviewService,
+  TenantTableService,
+  TenantDetailOverviewService,
+  TenantDetailTableService
+}

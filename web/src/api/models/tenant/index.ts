@@ -17,7 +17,7 @@
 
 import { api } from '@/api/request'
 import type { PaginationType } from '@/api/types'
-import type { TenantOverview, Tenant } from './types'
+import type { TenantOverview, Tenant, TenantDetail } from './types'
 
 export * from './types'
 
@@ -27,4 +27,8 @@ export const getTenantOverview = () => {
 
 export const getTenantList = () => {
   return api<PaginationType<{ tenantInfos: Tenant[] }>>('/tenant/list', 'get')
+}
+
+export const getTenantDetail = () => {
+  return api<TenantDetail>('/tenant/detail', 'get')
 }
