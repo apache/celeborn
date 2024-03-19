@@ -29,7 +29,7 @@ defineProps({
 </script>
 <template>
   <n-card hoverable>
-    <n-descriptions label-placement="left" title="Worker Detail" :column="4">
+    <n-descriptions label-placement="left" title="Master Detail" :column="4">
       <n-descriptions-item label="HostName"> {{ data.hostname }} </n-descriptions-item>
       <n-descriptions-item label="State"> {{ data.state }} </n-descriptions-item>
       <n-descriptions-item label="AvailableSlots"> {{ data.availableSlots }} </n-descriptions-item>
