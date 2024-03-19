@@ -16,6 +16,7 @@
  */
 
 export interface TenantDetail {
+  subUser: string
   applicationNum: number
   shuffleSize: string
 }

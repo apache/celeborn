@@ -36,25 +36,26 @@ defineProps({
   }
 })
 
-const toTenantDetail = (tenant: Tenant) => {
+const toTenantDetail = (tenantRow: Tenant) => {
+  const { tenant, totalApplicationNum, totalShuffleSize } = tenantRow
   router.push({
     name: 'tenantDetail',
-    query: { tenant: tenant.subUser }
+    query: { tenant, totalApplicationNum, totalShuffleSize }
   })
 }
 
 const columns: DataTableColumns<Tenant> = [
   {
-    title: 'SubUser',
-    key: 'subUser'
-  },
-  {
-    title: 'TotalApps',
-    key: 'totalApplicationNum'
+    title: 'Tenant',
+    key: 'tenant'
   },
   {
     title: 'TotalShuffleSize',
     key: 'totalShuffleSize'
+  },
+  {
+    title: 'TotalAppNums',
+    key: 'totalApplicationNum'
   },
   {
     title: 'More',

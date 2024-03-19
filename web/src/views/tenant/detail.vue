@@ -17,17 +17,34 @@
 -->
 
 <script setup lang="ts">
-import { getTenantDetail } from '@/api'
+import { getTenantSubUserList, type Tenant } from '@/api'
 import { useHasLoading } from '@varlet/axle/use'
-import { TenantDetailOverviewService } from './components'
+import { TenantDetailTableService, TenantDetailOverviewService } from './components'
+import { usePagination } from '@/composables'
 
 defineOptions({ name: 'TenantDetail' })
 
 const route = useRoute()
-const tenant = route.query.tenant as string
 
-const { data, loading: isDetailLoading } = getTenantDetail().use({
-  params: { tenant }
+const tenant = route.query.tenant as string
+const totalApplicationNum = Number(route.query.totalApplicationNum).valueOf()
+const totalShuffleSize = route.query.totalShuffleSize as string
+
+const tenantData: Tenant = { tenant, totalApplicationNum, totalShuffleSize }
+const {
+  data: tenantSubUserResponse,
+  loading: isDetailLoading,
+  getData: loadTenantSubUserList
+} = getTenantSubUserList().use({
+  params: { tenant: tenantData.tenant },
+  immediate: false
+})
+
+const { pagination } = usePagination({
+  onLoadData: loadTenantSubUserList,
+  params: {
+    tenant: tenantData.tenant
+  }
 })
 
 const loading = useHasLoading(isDetailLoading)
@@ -36,7 +53,11 @@ const loading = useHasLoading(isDetailLoading)
 <template>
   <n-spin :show="loading">
     <n-flex :style="{ gap: '24px' }" vertical>
-      <TenantDetailOverviewService :data="data" />
+      <TenantDetailOverviewService :data="tenantData" />
+      <TenantDetailTableService
+        :data="tenantSubUserResponse?.tenantInfos"
+        :pagination="pagination"
+      />
     </n-flex>
   </n-spin>
 </template>
