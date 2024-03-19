@@ -17,9 +17,38 @@
 -->
 
 <script setup lang="ts">
+import type { PropType } from 'vue'
+import type { TenantDetail } from '@/api'
+import { type DataTableColumns, type PaginationProps } from 'naive-ui'
 defineOptions({ name: 'TenantDetailTable' })
+
+defineProps({
+  data: {
+    type: Array as PropType<TenantDetail[]>,
+    default: () => []
+  },
+  pagination: {
+    type: Object as PropType<PaginationProps>,
+    default: () => ({})
+  }
+})
+
+const columns: DataTableColumns<TenantDetail> = [
+  {
+    title: 'SubUser',
+    key: 'subUser'
+  },
+  {
+    title: 'TotalAppNums',
+    key: 'totalApplicationNum'
+  },
+  {
+    title: 'TotalShuffleSize',
+    key: 'totalShuffleSize'
+  }
+]
 </script>
 
-<template></template>
-
-<style scoped lang="scss"></style>
+<template>
+  <n-data-table :columns="columns" :data="data" remote :pagination="pagination" />
+</template>

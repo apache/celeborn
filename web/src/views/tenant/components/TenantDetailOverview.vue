@@ -18,13 +18,13 @@
 
 <script setup lang="ts">
 import type { PropType } from 'vue'
-import type { TenantDetail } from '@/api'
+import type { Tenant } from '@/api'
 
 defineOptions({ name: 'TenantDetailOverview' })
 
 defineProps({
   data: {
-    type: Object as PropType<TenantDetail>,
+    type: Object as PropType<Tenant>,
     default: () => ({})
   }
 })
@@ -33,11 +33,14 @@ defineProps({
 <template>
   <n-card hoverable>
     <n-descriptions label-placement="left" title="Tenant Detail" :column="4">
+      <n-descriptions-item label="Tenant">
+        {{ data.tenant }}
+      </n-descriptions-item>
       <n-descriptions-item label="TotalShuffleSize">
-        {{ data.shuffleSize }}
+        {{ data.totalShuffleSize }}
       </n-descriptions-item>
       <n-descriptions-item label="TotalAppNums">
-        {{ data.applicationNum }}
+        {{ data.totalApplicationNum }}
       </n-descriptions-item>
     </n-descriptions>
   </n-card>

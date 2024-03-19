@@ -20,7 +20,7 @@
 import { getTenantList, getTenantOverview } from '@/api'
 import { usePagination } from '@/composables'
 import { useHasLoading } from '@varlet/axle/use'
-import { TenantFormService, TenantTableService, TenantOverviewService } from './components'
+import { TenantTableService, TenantOverviewService } from './components'
 
 defineOptions({
   name: 'TenantView'
@@ -34,7 +34,7 @@ const {
   loading: isTableLoading
 } = getTenantList().use({ immediate: false })
 
-const { pagination, doSearch, resetSearch } = usePagination({
+const { pagination } = usePagination({
   onLoadData
 })
 
@@ -45,7 +45,6 @@ const loading = useHasLoading(isOverviewLoading, isTableLoading)
   <n-spin :show="loading">
     <n-flex :style="{ gap: '24px' }" vertical>
       <TenantOverviewService :data="overview" />
-      <TenantFormService @search="doSearch" @reset="resetSearch" />
       <TenantTableService :data="data?.tenantInfos" :pagination="pagination" />
     </n-flex>
   </n-spin>

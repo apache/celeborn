@@ -21,7 +21,7 @@ export interface TenantOverview {
 }
 
 export interface Tenant {
-  subUser: string
+  tenant: string
   totalApplicationNum: number
   totalShuffleSize: string
 }
