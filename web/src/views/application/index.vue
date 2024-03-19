@@ -17,8 +17,8 @@
 -->
 
 <script setup lang="ts">
-import type { Application } from '@/api/models/application/types'
 import { getApplicationList, getApplicationOverview } from '@/api'
+import type { Application } from '@/api/models/application/types'
 import { usePagination } from '@/composables'
 import { ApplicationTableService, ApplicationFormService } from '@/views/application/components'
 import { ApplicationOverviewService } from '@/views/overview/components'

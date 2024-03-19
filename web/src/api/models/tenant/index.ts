@@ -30,5 +30,5 @@ export const getTenantList = () => {
 }
 
 export const getTenantSubUserList = () => {
-  return api<PaginationType<{ tenantInfos: TenantDetail[] }>>('/tenant/subuser/list', 'get')
+  return api<PaginationType<{ subUserInfos: TenantDetail[] }>>('/tenant/subuser/list', 'get')
 }

@@ -55,7 +55,7 @@ const loading = useHasLoading(isDetailLoading)
     <n-flex :style="{ gap: '24px' }" vertical>
       <TenantDetailOverviewService :data="tenantData" />
       <TenantDetailTableService
-        :data="tenantSubUserResponse?.tenantInfos"
+        :data="tenantSubUserResponse?.subUserInfos"
         :pagination="pagination"
       />
     </n-flex>
