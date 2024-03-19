@@ -29,12 +29,12 @@
 </template>
 
 <script lang="ts" setup>
-import type { MasterLeader } from '@/api'
+import type { Master } from '@/api'
 import type { PropType } from 'vue'
 
 const props = defineProps({
   data: {
-    type: Object as PropType<MasterLeader>,
+    type: Object as PropType<Master>,
     default: () => ({})
   }
 })

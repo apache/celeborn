@@ -15,21 +15,6 @@
  * limitations under the License.
  */
 
-export interface MasterLeader {
-  hostname: string
-  ip: string
-  state: string
-  rpcPort: number
-  restPort: number
-  version: string
-}
-
-export interface MasterOverview {
-  leaderNum: number
-  followerNum: number
-  leader: MasterLeader
-}
-
 export interface Master {
   hostname: string
   ip: string
@@ -38,4 +23,10 @@ export interface Master {
   restPort: number
   version: string
   leader: boolean
+}
+
+export interface MasterOverview {
+  leaderNum: number
+  followerNum: number
+  leader: Master
 }
