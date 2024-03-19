@@ -20,6 +20,8 @@ import java.nio.charset.StandardCharsets.UTF_8
 import java.util.Locale
 
 import scala.util.Properties
+import scala.xml._
+import scala.xml.transform._
 
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtprotoc.ProtocPlugin.autoImport._
@@ -388,6 +390,21 @@ object Utils {
     val v = sparkClientProjects.map(_.sparkProjectScalaVersion).getOrElse(DEFAULT_SCALA_VERSION)
     require(ALL_SCALA_VERSIONS.contains(v), s"found not allow scala version: $v")
     v
+  }
+
+  /**
+   * The deps for shaded clients are already packaged in the jar,
+   * so we should not expose the shipped transitive deps.
+   */
+  def removeDependenciesTransformer: xml.Node => xml.Node = { node =>
+    new RuleTransformer(new RewriteRule {
+      override def transform(n: xml.Node): Seq[xml.Node] = n match {
+        case e: Elem if e.label == "dependencies" =>
+          Nil
+        case _ =>
+          n
+      }
+    }).transform(node).head
   }
 }
 
@@ -773,9 +790,14 @@ trait SparkClientProjects {
   }
 
   def sparkClientShade: Project = {
-    val p = Project(sparkClientShadedProjectName, file(sparkClientShadedProjectPath))
+    var p = Project(sparkClientShadedProjectName, file(sparkClientShadedProjectPath))
       .dependsOn(sparkClient)
-      .disablePlugins(AddMetaInfLicenseFiles)
+
+    if (includeColumnarShuffle) {
+      p = p.dependsOn(sparkColumnarShuffle)
+    }
+
+    p = p.disablePlugins(AddMetaInfLicenseFiles)
       .settings (
         commonSettings,
         releaseSettings,
@@ -836,13 +858,10 @@ trait SparkClientProjects {
           case _ => MergeStrategy.first
         },
 
-        Compile / packageBin := assembly.value
+        Compile / packageBin := assembly.value,
+        pomPostProcess := removeDependenciesTransformer
       )
-    if (includeColumnarShuffle) {
-        p.dependsOn(sparkColumnarShuffle)
-    } else {
-        p
-    }
+    p
   }
 }
 
@@ -1052,7 +1071,8 @@ trait FlinkClientProjects {
           case _ => MergeStrategy.first
         },
 
-        Compile / packageBin := assembly.value
+        Compile / packageBin := assembly.value,
+        pomPostProcess := removeDependenciesTransformer
       )
   }
 }
@@ -1164,7 +1184,8 @@ object MRClientProjects {
           case _ => MergeStrategy.first
         },
 
-        Compile / packageBin := assembly.value
+        Compile / packageBin := assembly.value,
+        pomPostProcess := removeDependenciesTransformer
       )
   }
 
