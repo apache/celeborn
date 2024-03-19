@@ -15,22 +15,16 @@
  * limitations under the License.
  */
 
-export default {
-  path: '/tenant',
-  name: 'tenant',
-  meta: { title: 'Tenant' },
-  children: [
-    {
-      path: '/tenant',
-      name: 'tenant',
-      meta: { title: 'Tenant' },
-      component: () => import('@/views/tenant/index.vue')
-    },
-    {
-      path: '/tenant/detail',
-      name: 'tenantDetail',
-      meta: { title: 'TenantDetail' },
-      component: () => import('@/views/tenant/detail.vue')
-    }
-  ]
+import TenantFormService from './TenantForm.vue'
+import TenantOverviewService from './TenantOverview.vue'
+import TenantTableService from './TenantTable.vue'
+import TenantDetailOverviewService from './TenantDetailOverview.vue'
+import TenantDetailTableService from './TenantDetailTable.vue'
+
+export {
+  TenantFormService,
+  TenantOverviewService,
+  TenantTableService,
+  TenantDetailOverviewService,
+  TenantDetailTableService
 }

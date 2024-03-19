@@ -15,22 +15,20 @@
  * limitations under the License.
  */
 
-export default {
-  path: '/tenant',
-  name: 'tenant',
-  meta: { title: 'Tenant' },
-  children: [
-    {
-      path: '/tenant',
-      name: 'tenant',
-      meta: { title: 'Tenant' },
-      component: () => import('@/views/tenant/index.vue')
-    },
-    {
-      path: '/tenant/detail',
-      name: 'tenantDetail',
-      meta: { title: 'TenantDetail' },
-      component: () => import('@/views/tenant/detail.vue')
-    }
-  ]
+import { api } from '@/api/request'
+import type { PaginationType } from '@/api/types'
+import type { TenantOverview, Tenant, TenantDetail } from './types'
+
+export * from './types'
+
+export const getTenantOverview = () => {
+  return api<TenantOverview>('/tenant/overview', 'get')
+}
+
+export const getTenantList = () => {
+  return api<PaginationType<{ tenantInfos: Tenant[] }>>('/tenant/list', 'get')
+}
+
+export const getTenantSubUserList = () => {
+  return api<PaginationType<{ subUserInfos: TenantDetail[] }>>('/tenant/subuser/list', 'get')
 }

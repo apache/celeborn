@@ -15,22 +15,8 @@
  * limitations under the License.
  */
 
-export default {
-  path: '/tenant',
-  name: 'tenant',
-  meta: { title: 'Tenant' },
-  children: [
-    {
-      path: '/tenant',
-      name: 'tenant',
-      meta: { title: 'Tenant' },
-      component: () => import('@/views/tenant/index.vue')
-    },
-    {
-      path: '/tenant/detail',
-      name: 'tenantDetail',
-      meta: { title: 'TenantDetail' },
-      component: () => import('@/views/tenant/detail.vue')
-    }
-  ]
+export interface TenantDetail {
+  subUser: string
+  applicationNum: number
+  shuffleSize: string
 }
