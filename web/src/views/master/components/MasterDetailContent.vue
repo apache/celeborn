@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import type { ApplicationTab, MasterDetail, WorkerTab } from '@/api'
-import { ApplicationListService } from '@/views/application/components'
+import { ApplicationTableService } from '@/views/application/components'
 import { WorkerTableService } from '@/views/worker/components'
 import type { PropType } from 'vue'
 
@@ -44,7 +44,7 @@ defineProps({
         <WorkerTableService :="worker" />
       </n-tab-pane>
       <n-tab-pane name="Application" tab="Application">
-        <ApplicationListService :="application" />
+        <ApplicationTableService :="application" />
       </n-tab-pane>
       <n-tab-pane name="Configuration" tab="Configuration">
         <ConfigurationService :dynamic="data.dynamicConfigs" :static="data.staticConfigs" />
