@@ -119,7 +119,6 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final ExecutorService pushDataRetryPool;
 
-  private final ExecutorService partitionSplitPool;
   private final Map<Integer, Set<Integer>> splitting = JavaUtils.newConcurrentHashMap();
 
   protected final String appUniqueId;
@@ -203,10 +202,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     pushDataRetryPool =
         ThreadUtils.newDaemonCachedThreadPool("celeborn-retry-sender", pushDataRetryThreads, 60);
 
-    int pushSplitPartitionThreads = conf.clientPushSplitPartitionThreads();
-    partitionSplitPool =
-        ThreadUtils.newDaemonCachedThreadPool(
-            "celeborn-shuffle-split", pushSplitPartitionThreads, 60);
     reviveManager = new ReviveManager(this, conf);
 
     logger.info("Created ShuffleClientImpl, appUniqueId: {}", appUniqueId);
@@ -1736,9 +1731,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     if (null != pushDataRetryPool) {
       pushDataRetryPool.shutdown();
-    }
-    if (null != partitionSplitPool) {
-      partitionSplitPool.shutdown();
     }
     if (null != lifecycleManagerRef) {
       lifecycleManagerRef = null;

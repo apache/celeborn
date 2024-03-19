@@ -20,6 +20,10 @@
 import { objectToArray } from '@/utils'
 import type { PropType } from 'vue'
 
+defineOptions({
+  name: 'LogFilesService'
+})
+
 const props = defineProps({
   data: {
     type: Object as PropType<Record<string, string>>,

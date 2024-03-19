@@ -17,18 +17,22 @@
 -->
 
 <script setup lang="ts">
-import type { ApplicationTab, WorkerDetail } from '@/api'
-import { ApplicationTableService } from '@/views/application/components'
+import type { ApplicationTab, MasterDetail, WorkerTab } from '@/api'
+import { ApplicationListService } from '@/views/application/components'
+import { WorkerTableService } from '@/views/worker/components'
 import type { PropType } from 'vue'
-import { WorkerDetailMemoryService, WorkerDetailStorageService } from '.'
 
 defineProps({
   data: {
-    type: Object as PropType<WorkerDetail>,
+    type: Object as PropType<MasterDetail>,
     default: () => ({})
   },
   application: {
     type: Object as PropType<ApplicationTab>,
+    default: () => {}
+  },
+  worker: {
+    type: Object as PropType<WorkerTab>,
     default: () => {}
   }
 })
@@ -36,14 +40,11 @@ defineProps({
 <template>
   <n-card title="" style="margin-bottom: 16px">
     <n-tabs type="line" animated>
-      <n-tab-pane name="Storages" tab="Storages">
-        <WorkerDetailStorageService :data="data.diskInfos" />
-      </n-tab-pane>
-      <n-tab-pane name="Memory" tab="Memory">
-        <WorkerDetailMemoryService :data="data.memoryInfo" />
+      <n-tab-pane name="Workers" tab="Workers">
+        <WorkerTableService :="worker" />
       </n-tab-pane>
       <n-tab-pane name="Application" tab="Application">
-        <ApplicationTableService :="application" />
+        <ApplicationListService :="application" />
       </n-tab-pane>
       <n-tab-pane name="Configuration" tab="Configuration">
         <ConfigurationService :dynamic="data.dynamicConfigs" :static="data.staticConfigs" />
