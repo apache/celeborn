@@ -16,23 +16,32 @@
 * limitations under the License.
 -->
 
-<script setup lang="ts">
+<script lang="ts">
 import { useFormEvent } from '@/composables'
 
-defineOptions({ name: 'TenantForm' })
+export default defineComponent({
+  name: 'TenantForm',
+  setup(_, ctx) {
+    const formData = reactive({
+      tenant: ''
+    })
 
-const formData = reactive({
-  subUser: ''
+    const { doSearch, resetSearch } = useFormEvent(formData, ctx)
+
+    return {
+      formData,
+      doSearch,
+      resetSearch
+    }
+  }
 })
-
-const { doSearch, resetSearch } = useFormEvent(formData)
 </script>
 
 <template>
   <n-form :model="formData" :show-feedback="false" label-placement="left" @keydown.enter="doSearch">
     <n-grid :x-gap="24" :y-gap="24" :cols="6">
-      <n-form-item-gi label="SubUser" path="subUser">
-        <n-input v-model:value="formData.subUser" placeholder="" clearable />
+      <n-form-item-gi label="Tenant" path="tenant">
+        <n-input v-model:value="formData.tenant" placeholder="" clearable />
       </n-form-item-gi>
       <n-grid-item>
         <n-flex>
