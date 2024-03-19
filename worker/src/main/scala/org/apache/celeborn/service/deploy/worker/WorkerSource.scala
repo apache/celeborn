@@ -58,7 +58,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   addCounter(ACTIVE_CONNECTION_COUNT)
 
   addCounter(SLOTS_ALLOCATED)
-  addCounter(ACTIVE_SLOTS)
+  addGauge(ACTIVE_SLOTS)
 
   // add timers
   addTimer(COMMIT_FILES_TIME)

@@ -391,6 +391,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_AND_REPLICATE_COUNT) { () =>
     memoryManager.getPausePushDataAndReplicateCounter
   }
+  workerSource.addGauge(WorkerSource.ACTIVE_SLOTS) { () =>
+    workerInfo.usedSlots()
+  }
 
   private def highWorkload: Boolean = {
     (memoryManager.currentServingState, conf.workerActiveConnectionMax) match {
@@ -430,9 +433,7 @@ private[celeborn] class Worker(
         highWorkload,
         workerStatusManager.currentWorkerStatus),
       classOf[HeartbeatFromWorkerResponse])
-    val returnedSlots = response.expiredShuffleKeys.asScala.map(shuffleKey =>
-      workerInfo.releaseSlots(shuffleKey)).sum
-    workerSource.incCounter(WorkerSource.ACTIVE_SLOTS, -1 * returnedSlots)
+    response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
     cleanTaskQueue.put(response.expiredShuffleKeys)
 
     val workerEvent = response.workerEvent
@@ -672,8 +673,7 @@ private[celeborn] class Worker(
         shufflePushDataTimeout.remove(shuffleKey)
         shuffleMapperAttempts.remove(shuffleKey)
         shuffleCommitInfos.remove(shuffleKey)
-        val returnedSlots = workerInfo.releaseSlots(shuffleKey)
-        workerSource.incCounter(WorkerSource.ACTIVE_SLOTS, -1 * returnedSlots)
+        workerInfo.releaseSlots(shuffleKey)
         val applicationId = Utils.splitShuffleKey(shuffleKey)._1
         if (!workerInfo.getApplicationIdSet.contains(applicationId)) {
           // When the running applications does not contain the application corresponding to expired shuffle key,

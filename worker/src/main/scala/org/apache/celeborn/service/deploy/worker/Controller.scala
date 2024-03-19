@@ -260,7 +260,6 @@ private[deploy] class Controller(
       shuffleKey,
       Utils.getSlotsPerDisk(requestPrimaryLocs, requestReplicaLocs))
     workerSource.incCounter(WorkerSource.SLOTS_ALLOCATED, primaryLocs.size() + replicaLocs.size())
-    workerSource.incCounter(WorkerSource.ACTIVE_SLOTS, primaryLocs.size() + replicaLocs.size())
 
     logInfo(s"Reserved ${primaryLocs.size()} primary location" +
       s" and ${replicaLocs.size()} replica location for $shuffleKey ")
@@ -507,11 +506,8 @@ private[deploy] class Controller(
         s" slots count ${releasePrimaryLocations._2 + releaseReplicaLocations._2}")
       logDebug(s"CommitFiles result" +
         s" $committedPrimaryStorageInfos $committedReplicaStorageInfos")
-      val returnedPrimarySlots = workerInfo.releaseSlots(shuffleKey, releasePrimaryLocations._1)
-      val returnedReplicaSlots = workerInfo.releaseSlots(shuffleKey, releaseReplicaLocations._1)
-      workerSource.incCounter(
-        WorkerSource.ACTIVE_SLOTS,
-        -1 * (returnedPrimarySlots + returnedReplicaSlots))
+      workerInfo.releaseSlots(shuffleKey, releasePrimaryLocations._1)
+      workerInfo.releaseSlots(shuffleKey, releaseReplicaLocations._1)
 
       val committedPrimaryIdList = new jArrayList[String](committedPrimaryIds)
       val committedReplicaIdList = new jArrayList[String](committedReplicaIds)
@@ -682,8 +678,7 @@ private[deploy] class Controller(
       // remove primary locations from WorkerInfo
       val releasePrimaryLocations =
         partitionLocationInfo.removePrimaryPartitions(shuffleKey, primaryLocations)
-      val returnedSlots = workerInfo.releaseSlots(shuffleKey, releasePrimaryLocations._1)
-      workerSource.incCounter(WorkerSource.ACTIVE_SLOTS, -1 * returnedSlots)
+      workerInfo.releaseSlots(shuffleKey, releasePrimaryLocations._1)
     }
     // destroy replica locations
     if (replicaLocations != null && !replicaLocations.isEmpty) {
@@ -701,8 +696,7 @@ private[deploy] class Controller(
       // remove replica locations from worker info
       val releaseReplicaLocations =
         partitionLocationInfo.removeReplicaPartitions(shuffleKey, replicaLocations)
-      val returnedSlots = workerInfo.releaseSlots(shuffleKey, releaseReplicaLocations._1)
-      workerSource.incCounter(WorkerSource.ACTIVE_SLOTS, -1 * returnedSlots)
+      workerInfo.releaseSlots(shuffleKey, releaseReplicaLocations._1)
     }
     // reply
     if (failedPrimaries.isEmpty && failedReplicas.isEmpty) {
