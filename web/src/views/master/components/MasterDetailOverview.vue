@@ -16,49 +16,26 @@
 * limitations under the License.
 -->
 
-<script lang="ts" setup>
-import { objectToArray } from '@/utils'
+<script setup lang="ts">
+import type { MasterDetail } from '@/api'
 import type { PropType } from 'vue'
 
-const props = defineProps({
-  static: {
-    type: Object as PropType<Record<string, string>>,
-    default: () => ({})
-  },
-  dynamic: {
-    type: Object as PropType<Record<string, string>>,
+defineProps({
+  data: {
+    type: Object as PropType<MasterDetail>,
     default: () => ({})
   }
 })
-
-const staticData = computed(() => {
-  return objectToArray(props.static)
-})
-
-const dynamicData = computed(() => {
-  return objectToArray(props.dynamic)
-})
-
-const columns = [
-  {
-    title: 'Key',
-    key: 'key',
-    width: 150
-  },
-  {
-    title: 'Value',
-    key: 'value',
-    width: 150
-  }
-]
 </script>
 <template>
-  <n-flex :wrap="false">
-    <n-card title="Static Config">
-      <n-data-table :columns="columns" :data="staticData" :pagination="false" />
-    </n-card>
-    <n-card title="Dynamic Config">
-      <n-data-table :columns="columns" :data="dynamicData" :pagination="false" />
-    </n-card>
-  </n-flex>
+  <n-card hoverable>
+    <n-descriptions label-placement="left" title="Worker Detail" :column="4">
+      <n-descriptions-item label="HostName"> {{ data.hostname }} </n-descriptions-item>
+      <n-descriptions-item label="State"> {{ data.state }} </n-descriptions-item>
+      <n-descriptions-item label="AvailableSlots"> {{ data.availableSlots }} </n-descriptions-item>
+      <n-descriptions-item label="PartitionSize"> {{ data.partitionSize }} </n-descriptions-item>
+      <n-descriptions-item label="WorkerNum"> {{ data.workerNum }} </n-descriptions-item>
+      <n-descriptions-item label="ApplicationNum"> {{ data.applicationNum }} </n-descriptions-item>
+    </n-descriptions>
+  </n-card>
 </template>

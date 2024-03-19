@@ -15,7 +15,18 @@
  * limitations under the License.
  */
 
-import WorkerDetailMemoryService from './WorkerDetailMemory.vue'
-import WorkerDetailStorageService from './WorkerDetailStorage.vue'
-
-export { WorkerDetailMemoryService, WorkerDetailStorageService }
+export interface MasterDetail {
+  hostname: string
+  state: string
+  availableSlots: 30
+  partitionSize: string
+  workerNum: 10
+  applicationNum: 50
+  staticConfigs: Record<string, string>
+  dynamicConfigs: Record<string, string>
+  flameGraph: string
+  threadDump: string
+  metrics: string
+  logs: string
+  logFiles: Record<string, string>
+}

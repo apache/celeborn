@@ -19,16 +19,27 @@
 <script lang="ts" setup>
 import { objectToArray } from '@/utils'
 import type { PropType } from 'vue'
+defineOptions({
+  name: 'ConfigurationService'
+})
 
 const props = defineProps({
-  data: {
+  static: {
+    type: Object as PropType<Record<string, string>>,
+    default: () => ({})
+  },
+  dynamic: {
     type: Object as PropType<Record<string, string>>,
     default: () => ({})
   }
 })
 
-const tableData = computed(() => {
-  return objectToArray(props.data)
+const staticData = computed(() => {
+  return objectToArray(props.static)
+})
+
+const dynamicData = computed(() => {
+  return objectToArray(props.dynamic)
 })
 
 const columns = [
@@ -45,5 +56,12 @@ const columns = [
 ]
 </script>
 <template>
-  <n-data-table :columns="columns" :data="tableData" :pagination="false" />
+  <n-flex :wrap="false">
+    <n-card title="Static Config">
+      <n-data-table :columns="columns" :data="staticData" :pagination="false" />
+    </n-card>
+    <n-card title="Dynamic Config">
+      <n-data-table :columns="columns" :data="dynamicData" :pagination="false" />
+    </n-card>
+  </n-flex>
 </template>

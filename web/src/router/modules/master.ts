@@ -19,5 +19,18 @@ export default {
   path: '/master',
   name: 'master',
   meta: { title: 'Master' },
-  component: () => import('@/views/master/index.vue')
+  children: [
+    {
+      path: '/master',
+      name: 'master',
+      meta: { title: 'Master' },
+      component: () => import('@/views/master/index.vue')
+    },
+    {
+      path: '/master/detail',
+      name: 'masterDetail',
+      meta: { title: 'MasterDetail' },
+      component: () => import('@/views/master/detail.vue')
+    }
+  ]
 }

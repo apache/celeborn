@@ -16,36 +16,38 @@
 * limitations under the License.
 -->
 
-<script setup lang="ts">
-import { getMasterList, getMasterOverview } from '@/api'
-import { usePagination } from '@/composables'
-import { useHasLoading } from '@varlet/axle/use'
-import { MasterLeaderService, MasterTableService } from './components'
+<script lang="ts" setup>
+import { objectToArray } from '@/utils'
+import type { PropType } from 'vue'
 
 defineOptions({
-  name: 'MasterView'
+  name: 'LogFilesService'
 })
 
-const { data: overview, loading: isOverviewLoading } = getMasterOverview().use()
-
-const {
-  data,
-  getData: onLoadData,
-  loading: isTableLoading
-} = getMasterList().use({ immediate: false })
-
-const { pagination } = usePagination({
-  onLoadData
+const props = defineProps({
+  data: {
+    type: Object as PropType<Record<string, string>>,
+    default: () => ({})
+  }
 })
 
-const loading = useHasLoading(isOverviewLoading, isTableLoading)
+const tableData = computed(() => {
+  return objectToArray(props.data)
+})
+
+const columns = [
+  {
+    title: 'Key',
+    key: 'key',
+    width: 150
+  },
+  {
+    title: 'Value',
+    key: 'value',
+    width: 150
+  }
+]
 </script>
-
 <template>
-  <n-spin :show="loading">
-    <n-flex :style="{ gap: '24px' }" vertical>
-      <MasterLeaderService :data="overview?.leader" />
-      <MasterTableService :data="data?.masterInfos" :pagination="pagination" />
-    </n-flex>
-  </n-spin>
+  <n-data-table :columns="columns" :data="tableData" :pagination="false" />
 </template>

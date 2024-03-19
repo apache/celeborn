@@ -15,7 +15,14 @@
  * limitations under the License.
  */
 
-import WorkerDetailMemoryService from './WorkerDetailMemory.vue'
-import WorkerDetailStorageService from './WorkerDetailStorage.vue'
+import MasterDetailContentService from './MasterDetailContent.vue'
+import MasterDetailOverviewService from './MasterDetailOverview.vue'
+import MasterLeaderService from './MasterLeader.vue'
+import MasterTableService from './MasterTable.vue'
 
-export { WorkerDetailMemoryService, WorkerDetailStorageService }
+export {
+  MasterDetailContentService,
+  MasterDetailOverviewService,
+  MasterLeaderService,
+  MasterTableService
+}

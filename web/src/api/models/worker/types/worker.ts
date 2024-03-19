@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+import type { PaginationProps } from 'naive-ui'
+
 export interface WorkerOverview {
   normalNum: number
   decommissionNum: number
@@ -34,4 +36,9 @@ export interface Worker {
   pushPort: number
   replicatePort: number
   version: string
+}
+
+export interface WorkerTab {
+  pagination: PaginationProps
+  data: Worker[]
 }
