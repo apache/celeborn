@@ -24,7 +24,7 @@ import org.junit.Assert
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT
-import org.apache.celeborn.common.meta.{WorkerInfo, WorkerSummary}
+import org.apache.celeborn.common.meta.{WorkerId, WorkerInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromApplicationResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
 
@@ -112,7 +112,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     new WorkerInfo(host, -1, -1, -1, -1)
   }
 
-  private def mockSummary(host: String): WorkerSummary = {
-    WorkerSummary.fromWorkerInfo(mock(host))
+  private def mockSummary(host: String): WorkerId = {
+    WorkerId.fromWorkerInfo(mock(host))
   }
 }

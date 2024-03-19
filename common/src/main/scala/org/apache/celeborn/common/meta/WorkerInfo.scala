@@ -32,7 +32,7 @@ import org.apache.celeborn.common.rpc.RpcEndpointRef
 import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
 
-class WorkerSummary(
+class WorkerId(
     val host: String,
     val rpcPort: Int,
     val pushPort: Int,
@@ -59,7 +59,7 @@ class WorkerSummary(
   }
 
   override def equals(other: Any): Boolean = other match {
-    case that: WorkerInfo =>
+    case that: WorkerId =>
       host == that.host &&
         rpcPort == that.rpcPort &&
         pushPort == that.pushPort &&
@@ -78,9 +78,9 @@ class WorkerSummary(
   }
 }
 
-object WorkerSummary {
-  def fromWorkerInfo(workerInfo: WorkerInfo): WorkerSummary = {
-    new WorkerSummary(
+object WorkerId {
+  def fromWorkerInfo(workerInfo: WorkerInfo): WorkerId = {
+    new WorkerId(
       workerInfo.host,
       workerInfo.rpcPort,
       workerInfo.pushPort,
@@ -98,7 +98,7 @@ class WorkerInfo(
     override val replicatePort: Int,
     override val internalPort: Int,
     _diskInfos: util.Map[String, DiskInfo],
-    _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) extends WorkerSummary(
+    _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) extends WorkerId(
     host,
     rpcPort,
     pushPort,
@@ -331,7 +331,7 @@ object WorkerInfo {
     new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
   }
 
-  def fromWorkerSummary(summary: WorkerSummary): WorkerInfo = {
+  def fromWorkerSummary(summary: WorkerId): WorkerInfo = {
     new WorkerInfo(
       summary.host,
       summary.rpcPort,
