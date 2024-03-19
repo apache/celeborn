@@ -19,6 +19,9 @@
 <script lang="ts" setup>
 import { objectToArray } from '@/utils'
 import type { PropType } from 'vue'
+defineOptions({
+  name: 'ConfigurationService'
+})
 
 const props = defineProps({
   static: {
