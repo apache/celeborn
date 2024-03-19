@@ -37,10 +37,10 @@ defineProps({
 <template>
   <n-card hoverable>
     <n-descriptions label-placement="left" title="Tenant State Nums" :column="4">
-      <n-descriptions-item label="Tenant Shuffle Size">
+      <n-descriptions-item label="TenantShuffleSize">
         {{ data.shuffleSize }}
       </n-descriptions-item>
-      <n-descriptions-item label="Application nums">
+      <n-descriptions-item label="TenantAppNums">
         {{ data.applicationNum }}
       </n-descriptions-item>
     </n-descriptions>

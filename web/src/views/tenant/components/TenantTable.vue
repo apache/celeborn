@@ -23,6 +23,8 @@ import { type DataTableColumns, NButton, type PaginationProps } from 'naive-ui'
 
 defineOptions({ name: 'TenantTable' })
 
+const router = useRouter()
+
 defineProps({
   data: {
     type: Array as PropType<Tenant[]>,
@@ -33,6 +35,13 @@ defineProps({
     default: () => ({})
   }
 })
+
+const toTenantDetail = (tenant: Tenant) => {
+  router.push({
+    name: 'tenantDetail',
+    query: { tenant: tenant.subUser }
+  })
+}
 
 const columns: DataTableColumns<Tenant> = [
   {
@@ -50,13 +59,16 @@ const columns: DataTableColumns<Tenant> = [
   {
     title: 'More',
     key: 'more',
-    render: () => {
+    render: (row) => {
       return h(
         NButton,
         {
           text: true,
           type: 'primary',
-          size: 'small'
+          size: 'small',
+          onClick: () => {
+            toTenantDetail(row)
+          }
         },
         { default: () => 'More' }
       )
