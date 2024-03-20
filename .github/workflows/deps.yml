@@ -52,6 +52,7 @@ jobs:
           - 'flink-1.15'
           - 'flink-1.17'
           - 'flink-1.18'
+          - 'flink-1.19'
           - 'mr'
     steps:
     - uses: actions/checkout@v2
@@ -83,6 +84,7 @@ jobs:
           - 'flink-1.15'
           - 'flink-1.17'
           - 'flink-1.18'
+          - 'flink-1.19'
           - 'mr'
     steps:
     - uses: actions/checkout@v2

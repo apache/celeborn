@@ -119,16 +119,22 @@ INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success wit
 
 ## Start Flink with Celeborn
 #### Copy Celeborn Client to Flink's lib
-Celeborn release binary contains clients for Flink 1.14.x, Flink 1.15.x, Flink 1.17.x and Flink 1.18.x, copy the corresponding client jar into Flink's
+Celeborn release binary contains clients for Flink 1.14.x, Flink 1.15.x, Flink 1.17.x, Flink 1.18.x and Flink 1.19.x, copy the corresponding client jar into Flink's
 `lib/` directory:
 ```shell
 cp $CELEBORN_HOME/flink/<Celeborn Client Jar> $FLINK_HOME/lib/
 ```
 #### Add Celeborn configuration to Flink's conf
 Set `shuffle-service-factory.class` to Celeborn's ShuffleServiceFactory in Flink configuration file:
+- Flink 1.14.x, Flink 1.15.x, Flink 1.17.x, Flink 1.18.x
 ```shell
 cd $FLINK_HOME
 vi conf/flink-conf.yaml
+```
+- Flink 1.19.x
+```shell
+cd $FLINK_HOME
+vi conf/config.yaml
 ```
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
