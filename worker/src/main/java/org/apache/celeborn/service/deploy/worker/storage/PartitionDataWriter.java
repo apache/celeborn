@@ -43,6 +43,7 @@ import org.apache.celeborn.common.exception.AlreadyClosedException;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.DiskStatus;
+import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.meta.MemoryFileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
@@ -120,7 +121,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     this.splitMode = writerContext.getPartitionSplitMode();
     this.rangeReadFilter = writerContext.isRangeReadFilter();
     this.shuffleKey = writerContext.getShuffleKey();
-    this.memoryFileStorageMaxFileSize = conf.workerMemoryFileStraogeMaxFileSize();
+    this.memoryFileStorageMaxFileSize = conf.workerMemoryFileStorageMaxFileSize();
     this.filename = writerContext.getPartitionLocation().getFileName();
     this.workerPushMaxComponents = conf.workerPushMaxComponents();
     this.writerContext = writerContext;
@@ -510,6 +511,14 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       if (!diskFileInfo.isHdfs()) {
         deviceMonitor.unregisterFileWriter(this);
       }
+    }
+  }
+
+  protected FileInfo getCurrentFileInfo() {
+    if (!isMemoryShuffleFile.get()) {
+      return diskFileInfo;
+    } else {
+      return memoryFileInfo;
     }
   }
 

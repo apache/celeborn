@@ -24,7 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.meta.ReduceFileMeta;
+import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 
 /*
@@ -44,14 +44,8 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
   }
 
   private void updateLastChunkOffset() {
-    ReduceFileMeta reduceFileMeta;
-    if (!isMemoryShuffleFile.get()) {
-      reduceFileMeta = diskFileInfo.getReduceFileMeta();
-      reduceFileMeta.updateChunkOffset(diskFileInfo.getFileLength(), true);
-    } else {
-      reduceFileMeta = memoryFileInfo.getReduceFileMeta();
-      reduceFileMeta.updateChunkOffset(memoryFileInfo.getFileLength(), true);
-    }
+    FileInfo fileInfo = getCurrentFileInfo();
+    fileInfo.getReduceFileMeta().updateChunkOffset(fileInfo.getFileLength(), true);
   }
 
   private boolean isChunkOffsetValid() {

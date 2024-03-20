@@ -39,6 +39,7 @@ public class ShuffleBlockInfoUtils {
       long fetchChunkSize,
       Map<Integer, List<ShuffleBlockInfo>> indexMap) {
     List<Long> sortedChunkOffset = new ArrayList<>();
+    sortedChunkOffset.add(0l);
     ShuffleBlockInfo lastBlock = null;
     int maxMapIndex = endMapIndex;
     if (endMapIndex == Integer.MAX_VALUE) {

@@ -1074,7 +1074,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_DIRECT_MEMORY_TRIM_FLUSH_WAIT_INTERVAL)
   def workerDirectMemoryRatioForMemoryFilesStorage: Double =
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE)
-  def workerMemoryFileStraogeMaxFileSize: Long =
+  def workerMemoryFileStorageMaxFileSize: Long =
     get(WORKER_MEMORY_FILE_STORAGE_MAX_FILE_SIZE)
 
   // //////////////////////////////////////////////////////

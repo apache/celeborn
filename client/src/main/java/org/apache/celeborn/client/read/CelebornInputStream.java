@@ -442,10 +442,10 @@ public abstract class CelebornInputStream extends InputStream {
             return new LocalPartitionReader(
                 conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex, callback);
           } else {
-            return getWorkerPartitionReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
+            return createWorkerPartitionReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
           }
         case MEMORY:
-          return getWorkerPartitionReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
+          return createWorkerPartitionReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
         case HDFS:
           return new DfsPartitionReader(
               conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex, callback);
@@ -455,7 +455,7 @@ public abstract class CelebornInputStream extends InputStream {
       }
     }
 
-    private WorkerPartitionReader getWorkerPartitionReader(
+    private WorkerPartitionReader createWorkerPartitionReader(
         PartitionLocation location, int fetchChunkRetryCnt, int fetchChunkMaxRetry)
         throws IOException, InterruptedException {
       return new WorkerPartitionReader(

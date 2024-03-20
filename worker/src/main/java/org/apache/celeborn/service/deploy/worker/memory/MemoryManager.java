@@ -236,44 +236,46 @@ public class MemoryManager {
                   || currentServingState() != ServingState.NONE_PAUSED) {
                 List<PartitionDataWriter> committedWriters = new ArrayList<>();
                 List<PartitionDataWriter> unCommittedWriters = new ArrayList<>();
-                for (PartitionDataWriter writer : storageManager.memoryWriters().values()) {
-                  if (writer.isClosed() && writer.getMemoryFileInfo().isFullyRead()) {
-                    committedWriters.add(writer);
-                  } else {
-                    unCommittedWriters.add(writer);
-                  }
-                }
-                if (committedWriters.isEmpty() && unCommittedWriters.isEmpty()) {
-                  return;
-                }
-                logger.info(
-                    "Start evicting memory fileinfo committed {} uncommitted {}",
-                    committedWriters.size(),
-                    unCommittedWriters.size());
-                committedWriters.sort(
-                    (o1, o2) ->
-                        o1.getMemoryFileInfo().getFileLength()
-                                > o2.getMemoryFileInfo().getFileLength()
-                            ? 1
-                            : 0);
-                unCommittedWriters.sort(
-                    (o1, o2) ->
-                        o1.getMemoryFileInfo().getFileLength()
-                                > o2.getMemoryFileInfo().getFileLength()
-                            ? 1
-                            : 0);
-                while ((memoryFileStorageCounter.get() >= memoryFileStorageThreshold)
-                    || currentServingState() != ServingState.NONE_PAUSED) {
-                  try {
-                    if (!committedWriters.isEmpty()) {
-                      committedWriters.remove(0).evict();
-                    } else if (!unCommittedWriters.isEmpty()) {
-                      unCommittedWriters.remove(0).evict();
+                synchronized (storageManager.memoryFileInfos()) {
+                  for (PartitionDataWriter writer : storageManager.memoryWriters().values()) {
+                    if (writer.isClosed() && writer.getMemoryFileInfo().isFullyRead()) {
+                      committedWriters.add(writer);
                     } else {
-                      break;
+                      unCommittedWriters.add(writer);
                     }
-                  } catch (IOException e) {
-                    logger.warn("Partition data writer evict failed", e);
+                  }
+                  if (committedWriters.isEmpty() && unCommittedWriters.isEmpty()) {
+                    return;
+                  }
+                  logger.info(
+                      "Start evicting memory fileinfo committed {} uncommitted {}",
+                      committedWriters.size(),
+                      unCommittedWriters.size());
+                  committedWriters.sort(
+                      (o1, o2) ->
+                          o1.getMemoryFileInfo().getFileLength()
+                                  > o2.getMemoryFileInfo().getFileLength()
+                              ? 1
+                              : 0);
+                  unCommittedWriters.sort(
+                      (o1, o2) ->
+                          o1.getMemoryFileInfo().getFileLength()
+                                  > o2.getMemoryFileInfo().getFileLength()
+                              ? 1
+                              : 0);
+                  while ((memoryFileStorageCounter.get() >= memoryFileStorageThreshold)
+                      || currentServingState() != ServingState.NONE_PAUSED) {
+                    try {
+                      if (!committedWriters.isEmpty()) {
+                        committedWriters.remove(0).evict();
+                      } else if (!unCommittedWriters.isEmpty()) {
+                        unCommittedWriters.remove(0).evict();
+                      } else {
+                        break;
+                      }
+                    } catch (IOException e) {
+                      logger.warn("Partition data writer evict failed", e);
+                    }
                   }
                 }
               }

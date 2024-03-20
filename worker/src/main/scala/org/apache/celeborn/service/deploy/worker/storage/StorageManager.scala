@@ -37,7 +37,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, DiskStatus, MapFileMeta, MemoryFileInfo, ReduceFileMeta, TimeWindow}
+import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, DiskStatus, FileInfo, MapFileMeta, MemoryFileInfo, ReduceFileMeta, TimeWindow}
 import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
@@ -60,7 +60,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   // include localDiskFileInfos
   private val diskFileInfos =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, DiskFileInfo]]()
-  private val memoryFileInfos =
+  val memoryFileInfos =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, MemoryFileInfo]]()
 
   val hasHDFSStorage = conf.hasHDFSStorage

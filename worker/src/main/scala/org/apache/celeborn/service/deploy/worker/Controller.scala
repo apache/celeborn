@@ -311,10 +311,12 @@ private[deploy] class Controller(
                     committedStorageInfos.put(uniqueId, fileWriter.getStorageInfo)
                     if (fileWriter.getMapIdBitMap != null) {
                       val mapIdBitMap = fileWriter.getMapIdBitMap
-                      fileWriter.getDiskFileInfo.getFileMeta match {
-                        case meta: ReduceFileMeta =>
-                          meta.setMapIds(mapIdBitMap)
-                        case _ =>
+                      if (fileWriter.getDiskFileInfo != null) {
+                        fileWriter.getDiskFileInfo.getFileMeta match {
+                          case meta: ReduceFileMeta =>
+                            meta.setMapIds(mapIdBitMap)
+                          case _ =>
+                        }
                       }
                       committedMapIdBitMap.put(uniqueId, mapIdBitMap)
                       // resue mapid bitmap if this is memory storage shuffle file
