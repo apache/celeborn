@@ -131,7 +131,7 @@ celeborn-worker-0.celeborn-worker-svc.default.svc.cluster.local`
 After a restart, the StatefulSet Pod IP changes but the DNS name remains, this is important for rolling upgrade.
 
 When bind address is not set explicitly, Celeborn worker is going to find the first non-loopback address to bind. By default,
-it use IP address both for address binding and registering, that causes the Master and Client use the IP address to access the
+it uses IP address both for address binding and registering, that causes the Master and Client use the IP address to access the
 Worker, it's problematic after Worker restart as explained above, especially when Graceful Shutdown is enabled.
 
 You may want to set `celeborn.network.bind.preferIpAddress=false` to address such issue. Note that, depends on your Kubernetes

@@ -20,11 +20,11 @@ license: |
 ---
 Quick Start
 ===
-This documentation gives a quick start guide for running Apache Spark/Flink with Apache Celeborn™(Incubating).
+This documentation gives a quick start guide for running Apache Spark/Flink/MapReduce with Apache Celeborn™(Incubating).
 
 ### Download Celeborn
 Download the latest Celeborn binary from the [Downloading Page](https://celeborn.apache.org/download/).
-Decompress the binary and set `$CELEBORN_HOME`
+Decompress the binary and set `$CELEBORN_HOME`.
 ```shell
 tar -C <DST_DIR> -zxvf apache-celeborn-<VERSION>-bin.tgz
 export CELEBORN_HOME=<Decompressed path>
@@ -37,7 +37,7 @@ cd $CELEBORN_HOME/conf
 cp log4j2.xml.template log4j2.xml
 ```
 #### Configure Storage
-Configure the directory to store shuffle data, for example `$CELEBORN_HOME/shuffle`
+Configure the directory to store shuffle data, for example `$CELEBORN_HOME/shuffle`.
 ```shell
 cd $CELEBORN_HOME/conf
 echo "celeborn.worker.storage.dirs=$CELEBORN_HOME/shuffle" > celeborn-defaults.conf
@@ -160,11 +160,15 @@ INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success wit
 ```
 
 ## Start MapReduce With Celeborn
-### Add Celeborn client jar to MapReduce's classpath
-1.Add $CELEBORN_HOME/mr/*.jar to `mapreduce.application.classpath` and `yarn.application.classpath`.
-2.Restart your yarn cluster.
-### Add Celeborn configurations to MapReduce's conf
-Modify `${HADOOP_CONF_DIR}/yarn-site.xml`
+### Copy Celeborn Client to MapReduce's classpath
+1. Copy `$CELEBORN_HOME/mr/*.jar` into `mapreduce.application.classpath` and `yarn.application.classpath`.
+```shell
+cp $CELEBORN_HOME/mr/<Celeborn Client Jar> <mapreduce.application.classpath>
+cp $CELEBORN_HOME/mr/<Celeborn Client Jar> <yarn.application.classpath>
+```
+2. Restart your yarn cluster.
+### Add Celeborn configuration to MapReduce's conf
+- Modify configurations in `${HADOOP_CONF_DIR}/yarn-site.xml`.
 ```xml
 <configuration>
     <property>
@@ -179,7 +183,7 @@ Modify `${HADOOP_CONF_DIR}/yarn-site.xml`
     </property>
 </configuration>
 ```
-Modify `${HADOOP_CONF_DIR}/mapred-site.xml`
+- Modify configurations in `${HADOOP_CONF_DIR}/mapred-site.xml`.
 ```xml
 <configuration>
     <property>
@@ -201,10 +205,11 @@ Modify `${HADOOP_CONF_DIR}/mapred-site.xml`
     </property>
 </configuration>
 ```
-Then you can run a word count to check whether your configs are correct.
+Then deploy the example word count to the running cluster for verifying whether above configurations are correct.
 ```shell
 cd $HADOOP_HOME
-hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-3.2.1.jar wordcount /sometext /someoutput
+
+./bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-3.2.1.jar wordcount /someinput /someoutput
 ```
 During the MapReduce Job, you should see the following message in Celeborn Master's log:
 ```log
