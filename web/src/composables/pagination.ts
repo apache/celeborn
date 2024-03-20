@@ -16,91 +16,90 @@
  */
 
 import type { PaginationProps } from 'naive-ui'
-import type { PaginationType } from '@/api/types'
 
-export interface UsePaginationOptions<T> {
-  pageNum?: number
+export interface UsePaginationOptions {
+  params?: Record<string, string>
+  currentPage?: number
   pageSize?: number
-  pageSizes?: number[]
-  pageCount?: number
-  totalCount?: number
-  onLoadData?(params?: Record<string, any>): Promise<PaginationType<T>>
+  onLoadData?: Function
 }
 
-export type SearchForm = Record<string, string>
-
-export function usePagination<T>(options: UsePaginationOptions<T> = {}) {
+export function usePagination(options: UsePaginationOptions) {
   const {
-    pageNum: defaultPageNum = 1,
+    params,
+    currentPage: defaultCurrentPage = 1,
     pageSize: defaultPageSize = 30,
-    pageSizes: defaultPageSizes = [30, 50, 100],
-    pageCount: defaultPageCount = 0,
-    totalCount: defaultTotalCount = 0,
     onLoadData
   } = options
 
-  const searchParams = ref<SearchForm | undefined>({})
-  const pageNum = ref(defaultPageNum)
+  const pageSizes = [30, 50, 100]
+  const currentPage = ref(defaultCurrentPage)
   const pageSize = ref(defaultPageSize)
-  const pageSizes = ref(defaultPageSizes)
-  const pageCount = ref(defaultPageCount)
-  const totalCount = ref(defaultTotalCount)
+  const itemCount = ref(0)
+  const searchParams = ref({})
 
-  function mergeParams(searchForm?: SearchForm) {
-    searchParams.value = searchForm
-    return { params: { pageNum: pageNum.value, pageSize: pageSize.value, ...(searchForm || {}) } }
+  function mergeParams(formData?: Record<string, string>) {
+    return {
+      ...formData,
+      pageNum: currentPage.value,
+      pageSize: pageSize.value
+    }
   }
 
-  async function updatePaginationState(newSearch?: SearchForm) {
-    const { totalCount: total } = await onLoadData!(mergeParams(newSearch))
-    totalCount.value = total || 0
-    pageCount.value = Math.ceil(totalCount.value / pageSize.value)
+  function onUpdatePage(value: number) {
+    currentPage.value = value
+    loadData()
   }
 
-  function onUpdatePageChange(value: number) {
-    pageNum.value = value
-    updatePaginationState(searchParams.value)
-  }
-
-  function onUpdateSizeChange(value: number) {
+  function onUpdatePageSize(value: number) {
+    currentPage.value = 1
     pageSize.value = value
-    updatePaginationState(searchParams.value)
+    loadData()
   }
 
-  async function reset(newSearch?: SearchForm) {
-    pageNum.value = defaultPageNum
+  function resetSearch(formData: Record<string, string>) {
+    currentPage.value = defaultCurrentPage
     pageSize.value = defaultPageSize
-    pageCount.value = defaultPageCount
-    await updatePaginationState(newSearch)
+    itemCount.value = 0
+
+    searchParams.value = formData
+    loadData()
   }
 
-  async function search(newSearch?: SearchForm) {
-    pageNum.value = 1
-    await updatePaginationState(newSearch)
+  function doSearch(formData: Record<string, string>) {
+    currentPage.value = 1
+    searchParams.value = formData
+    loadData()
+  }
+
+  async function loadData() {
+    const params = mergeParams(searchParams.value)
+    const data = await onLoadData!({ params })
+    itemCount.value = data.totalCount
   }
 
   onMounted(() => {
-    search()
+    if (params) {
+      searchParams.value = params
+    }
+    loadData()
   })
 
   return {
-    searchParams,
-    pageNum,
+    currentPage,
     pageSize,
-    pageSizes,
-    pageCount,
-    totalCount,
-    search,
-    reset,
+    itemCount,
+    doSearch,
+    resetSearch,
     pagination: computed<PaginationProps>(() => {
       return {
-        page: pageNum.value,
-        pageSize: pageSize.value,
-        pageSizes: pageSizes.value,
-        pageCount: pageCount.value,
+        pageSizes,
         showSizePicker: true,
-        onChange: onUpdatePageChange,
-        onPageSizeChange: onUpdateSizeChange
+        page: currentPage.value,
+        pageSize: pageSize.value,
+        itemCount: itemCount.value,
+        onChange: onUpdatePage,
+        onUpdatePageSize
       }
     })
   }

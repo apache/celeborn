@@ -16,10 +16,19 @@
  */
 
 import { api } from '@/api/request'
-import type { MasterOverview } from './types'
+import type { PaginationType } from '@/api/types'
+import type { Master, MasterDetail, MasterOverview } from './types'
 
 export * from './types'
 
 export const getMasterOverview = () => {
   return api<MasterOverview>('/master/overview', 'get')
+}
+
+export const getMasterList = () => {
+  return api<PaginationType<{ masterInfos: Master[] }>>('/master/list', 'get')
+}
+
+export const getMasterDetail = () => {
+  return api<MasterDetail>('/master/detail', 'get')
 }

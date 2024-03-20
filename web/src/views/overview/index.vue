@@ -24,6 +24,7 @@ import {
   getStorageOverview,
   getWorkerOverview
 } from '@/api'
+import { useHasLoading } from '@varlet/axle/use'
 import {
   ApplicationOverviewService,
   ClusterOverviewService,
@@ -31,7 +32,6 @@ import {
   StorageOverviewService,
   WorkerOverviewService
 } from './components'
-import { useHasLoading } from '@varlet/axle/use'
 
 defineOptions({
   name: 'OverView'

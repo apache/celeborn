@@ -34,7 +34,7 @@ defineProps({
 })
 
 const path = computed(() => {
-  return router.currentRoute.value.fullPath
+  return `/${router.currentRoute.value.fullPath.split('/')[1]}`
 })
 
 const updateValue = (value: string) => {

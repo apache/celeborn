@@ -183,6 +183,7 @@ message PbRegisterWorker {
   string requestId = 9;
   map<string, PbResourceConsumption> userResourceConsumption = 8;
   int32 internalPort = 10;
+  string networkLocation = 11;
 }
 
 message PbHeartbeatFromWorker {

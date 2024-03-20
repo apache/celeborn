@@ -37,7 +37,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, DiskStatus, FileInfo, MapFileMeta, MemoryFileInfo, ReduceFileMeta, TimeWindow}
+import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, DiskStatus, MapFileMeta, MemoryFileInfo, ReduceFileMeta, TimeWindow}
 import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
@@ -216,7 +216,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     conf.workerGracefulShutdownSaveCommittedFileInfoSync
   private val saveCommittedFileInfoInterval =
     conf.workerGracefulShutdownSaveCommittedFileInfoInterval
-  private var committedFileInfos: ConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]] = _
+  private val committedFileInfos =
+    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, DiskFileInfo]]()
   // ShuffleClient can fetch data from a restarted worker only
   // when the worker's fetching port is stable.
   val workerGracefulShutdown = conf.workerGracefulShutdown
@@ -232,8 +233,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         logError("Init level DB failed:", e)
         this.db = null
     }
-    committedFileInfos =
-      JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
     saveCommittedFileInfosExecutor =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor(
         "worker-storage-manager-committed-fileinfo-saver")
@@ -279,6 +278,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue, cache)
             logDebug(s"Reload DB: $shuffleKey -> $files")
             diskFileInfos.put(shuffleKey, files)
+            committedFileInfos.put(shuffleKey, files)
             db.delete(entry.getKey)
           } catch {
             case exception: Exception =>
@@ -320,8 +320,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   private def getNextIndex = counter.getAndUpdate(counterOperator)
 
   private val newMapFunc =
-    new java.util.function.Function[String, ConcurrentHashMap[String, FileInfo]]() {
-      override def apply(key: String): ConcurrentHashMap[String, FileInfo] =
+    new java.util.function.Function[String, ConcurrentHashMap[String, DiskFileInfo]]() {
+      override def apply(key: String): ConcurrentHashMap[String, DiskFileInfo] =
         JavaUtils.newConcurrentHashMap()
     }
 
@@ -848,7 +848,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def notifyFileInfoCommitted(
       shuffleKey: String,
       fileName: String,
-      fileInfo: FileInfo): Unit = {
+      fileInfo: DiskFileInfo): Unit = {
     committedFileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
   }
 

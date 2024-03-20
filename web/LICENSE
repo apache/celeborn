@@ -233,7 +233,7 @@ MIT licenses
    unplugin-vue-components 0.26.0 https://www.npmjs.com/package/unplugin-vue-components/v/0.26.0 MIT
    vite 5.0.12 https://www.npmjs.com/package/vite/v/5.0.12 MIT
    vue-tsc 1.8.27 https://www.npmjs.com/package/vue-tsc/v/1.8.27 MIT
-   dayjs 1.11.10 https://www.npmjs.com/package/dayjs/v/1.11.10 MIT
+   @vicons/antd 0.12.0 https://www.npmjs.com/package/@vicons/antd/v/0.12.0 MIT
 
 ========================================
 Apache 2.0 licenses

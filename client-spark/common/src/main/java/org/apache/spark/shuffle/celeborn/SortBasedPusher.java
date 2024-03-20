@@ -44,6 +44,61 @@ import org.apache.celeborn.common.util.Utils;
 
 public class SortBasedPusher extends MemoryConsumer {
 
+  class MemoryThresholdManager {
+
+    private final long maxMemoryThresholdInBytes;
+    private final double smallPushTolerateFactor;
+
+    MemoryThresholdManager(
+        int numPartitions, long sendBufferSizeInBytes, double smallPushTolerateFactor) {
+      this.maxMemoryThresholdInBytes = numPartitions * sendBufferSizeInBytes;
+      this.smallPushTolerateFactor = smallPushTolerateFactor;
+    }
+
+    private boolean shouldGrow() {
+      boolean enoughSpace = pushSortMemoryThreshold <= maxMemoryThresholdInBytes;
+      double expectedPushSize = Long.MAX_VALUE;
+      if (this.expectedPushedCount != 0) {
+        expectedPushSize = this.expectedPushedBytes * 1.0 / this.expectedPushedCount;
+      }
+      boolean tooManyPushed =
+          pushedMemorySizeInBytes * 1.0 / pushedCount * (1 + this.smallPushTolerateFactor)
+              < expectedPushSize;
+      return useAdaptiveThreshold && enoughSpace && tooManyPushed;
+    }
+
+    public void growThresholdIfNeeded() {
+      if (shouldGrow()) {
+        long oldThreshold = pushSortMemoryThreshold;
+        pushSortMemoryThreshold = Math.min(pushSortMemoryThreshold * 2, maxMemoryThresholdInBytes);
+        logger.info(
+            "grow memory threshold from "
+                + Utils.bytesToString(oldThreshold)
+                + " to "
+                + Utils.bytesToString(pushSortMemoryThreshold));
+        pushedCount = 0;
+        pushedMemorySizeInBytes = 0;
+        expectedPushedBytes = 0;
+        expectedPushedCount = 0;
+      }
+    }
+
+    long pushedCount = 0;
+    long pushedMemorySizeInBytes = 0;
+
+    long expectedPushedCount = 0;
+    long expectedPushedBytes = 0;
+
+    public void updateStats(long pushedBytes, boolean updateExpected) {
+      this.pushedMemorySizeInBytes += pushedBytes;
+      this.pushedCount += 1;
+      if (updateExpected) {
+        this.expectedPushedBytes += pushedBytes;
+        this.expectedPushedCount += 1;
+      }
+    }
+  }
+
   private static final Logger logger = LoggerFactory.getLogger(SortBasedPusher.class);
 
   private static final int UAO_SIZE = UnsafeAlignedOffset.getUaoSize();
@@ -60,7 +115,7 @@ public class SortBasedPusher extends MemoryConsumer {
   private final TaskContext taskContext;
   private DataPusher dataPusher;
   private final int pushBufferMaxSize;
-  private final long pushSortMemoryThreshold;
+  private long pushSortMemoryThreshold;
   private final int shuffleId;
   private final int mapId;
   private final int attemptNumber;
@@ -71,6 +126,10 @@ public class SortBasedPusher extends MemoryConsumer {
   private int[] shuffledPartitions = null;
   private int[] inversedShuffledPartitions = null;
   private final SendBufferPool sendBufferPool;
+
+  final MemoryThresholdManager memoryThresholdManager;
+
+  private final boolean useAdaptiveThreshold;
 
   public SortBasedPusher(
       TaskMemoryManager memoryManager,
@@ -132,14 +191,21 @@ public class SortBasedPusher extends MemoryConsumer {
     }
 
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
+    useAdaptiveThreshold = conf.clientPushSortUseAdaptiveMemoryThreshold();
     this.pushSortMemoryThreshold = pushSortMemoryThreshold;
+
+    this.memoryThresholdManager =
+        new MemoryThresholdManager(
+            this.numPartitions,
+            this.pushBufferMaxSize,
+            conf.clientPushSortSmallPushTolerateFactor());
 
     int initialSize = Math.min((int) pushSortMemoryThreshold / 8, 1024 * 1024);
     this.inMemSorter = new ShuffleInMemorySorter(this, initialSize);
     this.peakMemoryUsedBytes = getMemoryUsage();
   }
 
-  public long pushData() throws IOException {
+  public long pushData(boolean growThreshold) throws IOException {
     final ShuffleInMemorySorter.ShuffleSorterIterator sortedRecords =
         inMemSorter.getSortedIterator();
 
@@ -169,6 +235,7 @@ public class SortBasedPusher extends MemoryConsumer {
                   numPartitions);
           mapStatusLengths[currentPartition].add(bytesWritten);
           afterPush.accept(bytesWritten);
+          memoryThresholdManager.updateStats(offSet, offSet == pushBufferMaxSize);
           currentPartition = partition;
           offSet = 0;
         }
@@ -181,6 +248,7 @@ public class SortBasedPusher extends MemoryConsumer {
       if (offSet + recordSize > dataBuf.length) {
         try {
           dataPusher.addTask(partition, dataBuf, offSet);
+          memoryThresholdManager.updateStats(offSet, true);
         } catch (InterruptedException e) {
           TaskInterruptedHelper.throwTaskKillException();
         }
@@ -195,11 +263,15 @@ public class SortBasedPusher extends MemoryConsumer {
     if (offSet > 0) {
       try {
         dataPusher.addTask(currentPartition, dataBuf, offSet);
+        memoryThresholdManager.updateStats(offSet, offSet == pushBufferMaxSize);
       } catch (InterruptedException e) {
         TaskInterruptedHelper.throwTaskKillException();
       }
     }
 
+    if (growThreshold) {
+      memoryThresholdManager.growThresholdIfNeeded();
+    }
     long freedBytes = freeMemory();
     inMemSorter.freeMemory();
     taskContext.taskMetrics().incMemoryBytesSpilled(freedBytes);
@@ -218,7 +290,8 @@ public class SortBasedPusher extends MemoryConsumer {
       required = recordSize + UAO_SIZE;
     }
 
-    if (getUsed() > pushSortMemoryThreshold
+    long threshold = pushSortMemoryThreshold;
+    if (getUsed() > threshold
         && pageCursor + required > currentPage.getBaseOffset() + currentPage.size()) {
       logger.info(
           "Memory used {} exceeds threshold {}, need to trigger push. currentPage size: {}",
@@ -276,7 +349,7 @@ public class SortBasedPusher extends MemoryConsumer {
         logger.info(
             "Pushdata in growPointerArrayIfNecessary, memory used {}",
             Utils.bytesToString(getUsed()));
-        pushData();
+        pushData(true);
       } catch (SparkOutOfMemoryError rethrow) {
         // should have trigger spilling
         if (inMemSorter.numRecords() > 0) {
@@ -397,6 +470,10 @@ public class SortBasedPusher extends MemoryConsumer {
       inMemSorter = null;
     }
     taskContext.taskMetrics().incMemoryBytesSpilled(freedBytes);
+  }
+
+  public long getPushSortMemoryThreshold() {
+    return this.pushSortMemoryThreshold;
   }
 
   public void close() throws IOException {

@@ -317,6 +317,9 @@ public class TransportClient implements Closeable {
 
   @Override
   public void close() {
+    // Mark the connection as timed out, so we do not return a connection that's being closed
+    // from the TransportClientFactory if closing takes some time (e.g. with SSL)
+    this.timedOut = true;
     // close is a local operation and should finish with milliseconds; timeout just to be safe
     channel.close().awaitUninterruptibly(10, TimeUnit.SECONDS);
   }
@@ -324,7 +327,7 @@ public class TransportClient implements Closeable {
   @Override
   public String toString() {
     return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
-        .append("remoteAdress", channel.remoteAddress())
+        .append("remoteAddress", channel.remoteAddress())
         .append("clientId", clientId)
         .append("isActive", isActive())
         .toString();

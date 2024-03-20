@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-import ApplicationListService from './ApplicationList.vue'
-import ApplicationSearchFormService from './ApplicationSearchForm.vue'
+import ApplicationTableService from './ApplicationTable.vue'
+import ApplicationFormService from './ApplicationForm.vue'
 
-export { ApplicationListService, ApplicationSearchFormService }
+export { ApplicationTableService, ApplicationFormService }

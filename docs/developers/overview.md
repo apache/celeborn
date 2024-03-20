@@ -79,7 +79,7 @@ In abnormal cases, such as when the file grows too large, or push data fails, Ce
 to guarantee no data is lost.
 
 ## Data Storage
-Celeborn stores shuffle data in configurable multiple layers, i.e. `Memroy`, `Local Disks`, `Distributed File System`,
+Celeborn stores shuffle data in configurable multiple layers, i.e. `Memory`, `Local Disks`, `Distributed File System`,
 and `Object Store`. Users can specify any combination of the layers on each Worker.
 
 Currently, Celeborn only supports `Local Disks` and `HDFS`. Supporting for other storage systems are under working.

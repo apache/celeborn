@@ -42,9 +42,9 @@ import org.junit.Test;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
-import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
 
 public class SlotsAllocatorRackAwareSuiteJ {
 

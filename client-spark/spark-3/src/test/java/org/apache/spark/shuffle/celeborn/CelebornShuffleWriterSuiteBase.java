@@ -91,14 +91,14 @@ public abstract class CelebornShuffleWriterSuiteBase {
 
   private final Random rand = new Random(System.currentTimeMillis());
 
-  private final String appId = "appId";
-  private final String host = "host";
-  private final int port = 0;
+  protected final String appId = "appId";
+  protected final String host = "host";
+  protected final int port = 0;
   protected final int shuffleId = 0;
 
   protected final UserIdentifier userIdentifier = new UserIdentifier("mock", "mock");
 
-  private final int numMaps = 10;
+  protected final int numMaps = 10;
   protected final int numPartitions = 10;
   protected final SparkConf sparkConf = new SparkConf(false);
   private final BlockManagerId bmId = BlockManagerId.apply("execId", "host", 1, None$.empty());
@@ -301,7 +301,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
         total.decrementAndGet();
 
         assertTrue(
-            "value should equals to normal record or giant record with key.",
+            "value " + value + " should equals to normal record or giant record with key.",
             value.equals(key + ": " + NORMAL_RECORD) || value.equals(key + ": " + GIANT_RECORD));
       }
       assertEquals(0, total.intValue());

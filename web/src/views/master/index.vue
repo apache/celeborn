@@ -17,11 +17,35 @@
 -->
 
 <script setup lang="ts">
+import { getMasterList, getMasterOverview } from '@/api'
+import { usePagination } from '@/composables'
+import { useHasLoading } from '@varlet/axle/use'
+import { MasterLeaderService, MasterTableService } from './components'
+
 defineOptions({
   name: 'MasterView'
 })
+
+const { data: overview, loading: isOverviewLoading } = getMasterOverview().use()
+
+const {
+  data,
+  getData: onLoadData,
+  loading: isTableLoading
+} = getMasterList().use({ immediate: false })
+
+const { pagination } = usePagination({
+  onLoadData
+})
+
+const loading = useHasLoading(isOverviewLoading, isTableLoading)
 </script>
 
-<template>Welcome to Apache Celeborn. There is Master.</template>
-
-<style scoped lang="scss"></style>
+<template>
+  <n-spin :show="loading">
+    <n-flex :style="{ gap: '24px' }" vertical>
+      <MasterLeaderService :data="overview?.leader" />
+      <MasterTableService :data="data?.masterInfos" :pagination="pagination" />
+    </n-flex>
+  </n-spin>
+</template>

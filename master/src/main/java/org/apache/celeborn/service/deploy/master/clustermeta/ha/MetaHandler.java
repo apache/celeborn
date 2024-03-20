@@ -214,6 +214,7 @@ public class MetaHandler {
           pushPort = request.getRegisterWorkerRequest().getPushPort();
           fetchPort = request.getRegisterWorkerRequest().getFetchPort();
           replicatePort = request.getRegisterWorkerRequest().getReplicatePort();
+          String networkLocation = request.getRegisterWorkerRequest().getNetworkLocation();
           int internalPort = request.getRegisterWorkerRequest().getInternalPort();
           diskInfos = MetaUtil.fromPbDiskInfos(request.getRegisterWorkerRequest().getDisksMap());
           userResourceConsumption =
@@ -236,6 +237,7 @@ public class MetaHandler {
               fetchPort,
               replicatePort,
               internalPort,
+              networkLocation,
               diskInfos,
               userResourceConsumption);
           break;

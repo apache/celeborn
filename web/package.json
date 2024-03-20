@@ -13,7 +13,6 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
-    "dayjs": "^1.11.10",
     "pinia": "^2.1.7",
     "vue": "^3.3.11",
     "vue-router": "^4.2.5"
@@ -23,6 +22,7 @@
     "@tsconfig/node18": "^18.2.2",
     "@types/node": "^18.19.3",
     "@varlet/axle": "^0.6.0",
+    "@vicons/antd": "^0.12.0",
     "@vitejs/plugin-vue": "^4.5.2",
     "@vitejs/plugin-vue-jsx": "^3.1.0",
     "@vue/eslint-config-prettier": "^8.0.0",

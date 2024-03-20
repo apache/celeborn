@@ -15,4 +15,5 @@
  * limitations under the License.
  */
 
+export * from './detail'
 export * from './worker'
