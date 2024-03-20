@@ -27,7 +27,7 @@ This article briefly describes an example of integrating Celeborn into a simple 
 Celeborn `Client`.
 
 ## Background
-Say we have an distributed application who has two phases:
+Say we have a distributed application who has two phases:
 
 - Write phase that parallel tasks write data to some data service, each record is classified into some logical id,
   say partition id.

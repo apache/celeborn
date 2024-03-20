@@ -19,7 +19,7 @@ license: |
 # Gluten Support
 ## Velox Backend
 
-[Gluten](https://github.com/apache/incubator-gluten) with velox backend supports Celeborn as remote shuffle service. Below introduction is used to enable this feature
+[Gluten](https://github.com/apache/incubator-gluten) with velox backend supports Celeborn as remote shuffle service. Below introduction is used to enable this feature.
 
 First refer to [Get Started With Velox](https://github.com/apache/incubator-gluten/blob/main/docs/get-started/Velox.md) to build Gluten with velox backend.
 
@@ -31,10 +31,10 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -Prss -DskipTests
 
 Then add the Gluten and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
 
-- Celeborn: celeborn-client-spark-3-shaded_2.12-0.3.0-incubating.jar
-- Gluten: gluten-velox-bundle-spark3.x_2.12-xx-xx-SNAPSHOT.jar, gluten-thirdparty-lib-xx.jar
+- Celeborn: `celeborn-client-spark-3-shaded_2.12-0.3.0-incubating.jar`
+- Gluten: `gluten-velox-bundle-spark3.x_2.12-xx-xx-SNAPSHOT.jar`, `gluten-thirdparty-lib-xx.jar`
 
-Currently to use Gluten following configurations are required in `spark-defaults.conf`
+Currently, to use Gluten following configurations are required in `spark-defaults.conf`.
 
 ```
 spark.shuffle.manager org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager
@@ -42,7 +42,7 @@ spark.shuffle.manager org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleMa
 # celeborn master
 spark.celeborn.master.endpoints clb-master:9097
 
-# we recommend set spark.celeborn.push.replicate.enabled to true to enable server-side data replication
+# we recommend set `spark.celeborn.push.replicate.enabled` to true to enable server-side data replication
 # If you have only one worker, this setting must be false 
 spark.celeborn.client.push.replicate.enabled true
 

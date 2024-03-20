@@ -18,8 +18,8 @@ license: |
 
 # Deploy Celeborn
 
-1. Unzip the tarball to `$CELEBORN_HOME`
-2. Modify environment variables in `$CELEBORN_HOME/conf/celeborn-env.sh`
+1. Unzip the tarball to `$CELEBORN_HOME`.
+2. Modify environment variables in `$CELEBORN_HOME/conf/celeborn-env.sh`.
 
 EXAMPLE:
 ```properties
@@ -28,7 +28,7 @@ CELEBORN_MASTER_MEMORY=4g
 CELEBORN_WORKER_MEMORY=2g
 CELEBORN_WORKER_OFFHEAP_MEMORY=4g
 ```
-3. Modify configurations in `$CELEBORN_HOME/conf/celeborn-defaults.conf`
+3. Modify configurations in `$CELEBORN_HOME/conf/celeborn-defaults.conf`.
 
 EXAMPLE: single master cluster
 ```properties
@@ -44,7 +44,7 @@ celeborn.worker.flusher.buffer.size 256k
 
 # If Celeborn workers have local disks and HDFS. Following configs should be added.
 # If Celeborn workers have local disks, use following config.
-# Disk type is HDD by defaut.
+# Disk type is HDD by default.
 celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
 
 # If Celeborn workers don't have local disks. You can use HDFS.
@@ -62,7 +62,7 @@ celeborn.worker.replicate.fastFail.duration 240s
 celeborn.storage.hdfs.kerberos.principal user@REALM
 celeborn.storage.hdfs.kerberos.keytab /path/to/user.keytab
 
-# If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
+# If your hosts have disk raid or use lvm, set `celeborn.worker.monitor.disk.enabled` to false
 celeborn.worker.monitor.disk.enabled false
 ```   
 
@@ -109,25 +109,25 @@ celeborn.worker.flusher.hdfs.buffer.size 4m
 celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 celeborn.worker.replicate.fastFail.duration 240s
 
-# If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
+# If your hosts have disk raid or use lvm, set `celeborn.worker.monitor.disk.enabled` to false
 celeborn.worker.monitor.disk.enabled false
 ```
 
 Flink engine related configurations:
 ```properties
-# if you are using Celeborn for flink, these settings will be needed
+# If you are using Celeborn for flink, these settings will be needed.
 celeborn.worker.directMemoryRatioForReadBuffer 0.4
 celeborn.worker.directMemoryRatioToResume 0.5
-# these setting will affect performance. 
-# If there is enough off-heap memory you can try to increase read buffers.
+# These setting will affect performance. 
+# If there is enough off-heap memory, you can try to increase read buffers.
 # Read buffer max memory usage for a data partition is `taskmanager.memory.segment-size * readBuffersMax`
 celeborn.worker.partition.initial.readBuffersMin 512
 celeborn.worker.partition.initial.readBuffersMax 1024
 celeborn.worker.readBuffer.allocationWait 10ms
 ```
 
-4. Copy Celeborn and configurations to all nodes
-5. Start all services. If you install Celeborn distribution in same path on every node and your
+4. Copy Celeborn and configurations to all nodes.
+5. Start all services. If you install Celeborn distribution in the same path on every node and your
    cluster can perform SSH login then you can fill `$CELEBORN_HOME/conf/hosts` and
    use `$CELEBORN_HOME/sbin/start-all.sh` to start all
    services. If the installation paths are not identical, you will need to start service manually.  
@@ -135,7 +135,7 @@ celeborn.worker.readBuffer.allocationWait 10ms
    `$CELEBORN_HOME/sbin/start-master.sh`  
    Start Celeborn worker  
    `$CELEBORN_HOME/sbin/start-worker.sh`
-6. If Celeborn start success, the output of Master's log should be like this:
+6. If Celeborn starts success, the output of the Master's log should be like this:
 ```
 22/10/08 19:29:11,805 INFO [main] Dispatcher: Dispatcher numThreads: 64
 22/10/08 19:29:11,875 INFO [main] TransportClientFactory: mode NIO threads 64
@@ -156,14 +156,14 @@ WorkerRef: null
 ```
 
 ## Deploy Spark client
-Copy $CELEBORN_HOME/spark/*.jar to $SPARK_HOME/jars/
+Copy `$CELEBORN_HOME/spark/*.jar` to `$SPARK_HOME/jars/`.
 
 ### Spark Configuration
-To use Celeborn, following spark configurations should be added.
+To use Celeborn, the following spark configurations should be added.
 ```properties
 # Shuffle manager class name changed in 0.3.0:
-#    before 0.3.0: org.apache.spark.shuffle.celeborn.RssShuffleManager
-#    since 0.3.0: org.apache.spark.shuffle.celeborn.SparkShuffleManager
+#    before 0.3.0: `org.apache.spark.shuffle.celeborn.RssShuffleManager`
+#    since 0.3.0: `org.apache.spark.shuffle.celeborn.SparkShuffleManager`
 spark.shuffle.manager org.apache.spark.shuffle.celeborn.SparkShuffleManager
 # must use kryo serializer because java serializer do not support relocation
 spark.serializer org.apache.spark.serializer.KryoSerializer
@@ -178,13 +178,13 @@ spark.shuffle.service.enabled false
 # Sort shuffle writer uses less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort hash writer.  
 spark.celeborn.client.spark.shuffle.writer hash
 
-# We recommend setting spark.celeborn.client.push.replicate.enabled to true to enable server-side data replication
+# We recommend setting `spark.celeborn.client.push.replicate.enabled` to true to enable server-side data replication
 # If you have only one worker, this setting must be false 
 # If your Celeborn is using HDFS, it's recommended to set this setting to false
 spark.celeborn.client.push.replicate.enabled true
 
 # Support for Spark AQE only tested under Spark 3
-# we recommend setting localShuffleReader to false to get better performance of Celeborn
+# we recommend setting localShuffleReader to false for getting better performance of Celeborn
 spark.sql.adaptive.localShuffleReader.enabled false
 
 # If Celeborn is using HDFS
@@ -202,10 +202,10 @@ spark.dynamicAllocation.shuffleTracking.enabled false
 ```
 
 ## Deploy Flink client
-Copy $CELEBORN_HOME/flink/*.jar to $FLINK_HOME/lib/
+Copy `$CELEBORN_HOME/flink/*.jar` to `$FLINK_HOME/lib/`.
 
 ### Flink Configuration
-To use Celeborn, following flink configurations should be added.
+To use Celeborn, the following flink configurations should be added.
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
 execution.batch-shuffle-mode: ALL_EXCHANGES_BLOCKING
@@ -227,3 +227,15 @@ taskmanager.network.memory.buffers-per-channel: 0
 taskmanager.memory.task.off-heap.size: 512m
 ```
 **Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_BLOCKING`.
+
+## Deploy MapReduce client
+Copy `$CELEBORN_HOME/mr/*.jar` into `mapreduce.application.classpath` and `yarn.application.classpath`.
+Meanwhile, configure the following settings in YARN and MapReduce config.
+```bash
+-Dyarn.app.mapreduce.am.job.recovery.enable=false
+-Dmapreduce.job.reduce.slowstart.completedmaps=1
+-Dmapreduce.celeborn.master.endpoints=<master-1-1>:9097
+-Dyarn.app.mapreduce.am.command-opts=org.apache.celeborn.mapreduce.v2.app.MRAppMasterWithCeleborn
+-Dmapreduce.job.map.output.collector.class=org.apache.hadoop.mapred.CelebornMapOutputCollector
+-Dmapreduce.job.reduce.shuffle.consumer.plugin.class=org.apache.hadoop.mapreduce.task.reduce.CelebornShuffleConsumer
+```
