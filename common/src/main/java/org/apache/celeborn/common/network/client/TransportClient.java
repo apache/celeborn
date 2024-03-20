@@ -324,7 +324,7 @@ public class TransportClient implements Closeable {
   @Override
   public String toString() {
     return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
-        .append("remoteAdress", channel.remoteAddress())
+        .append("remoteAddress", channel.remoteAddress())
         .append("clientId", clientId)
         .append("isActive", isActive())
         .toString();
