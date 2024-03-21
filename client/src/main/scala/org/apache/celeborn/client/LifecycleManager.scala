@@ -173,7 +173,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   if (authEnabled) {
     logInfo(s"Authentication is enabled; setting up master and worker RPC environments")
     val appSecret = createSecret()
-    applicationMeta = ApplicationMeta(appUniqueId, appSecret)
+    applicationMeta = ApplicationMeta(appUniqueId, appSecret, userIdentifier)
     val registrationInfo = new RegistrationInfo()
     masterRpcEnvInUse =
       RpcEnv.create(
@@ -192,6 +192,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         0,
         conf,
         createRpcSecurityContext(appSecret))
+  } else {
+    applicationMeta = ApplicationMeta(appUniqueId, "", userIdentifier)
   }
 
   private val masterClient = new MasterClient(masterRpcEnvInUse, conf, false)
@@ -207,6 +209,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val changePartitionManager = new ChangePartitionManager(conf, this)
   private val releasePartitionManager = new ReleasePartitionManager(conf, this)
 
+  private def updateApplicationMeta(): Unit = {
+    Utils.tryLogNonFatalError(masterClient.askSync[PbApplicationMetaUpdateResponse](
+      PbSerDeUtils.toPbApplicationMeta(applicationMeta),
+      classOf[PbApplicationMetaUpdateResponse]))
+  }
+
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
   // `masterClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
   // a reference to `masterClient`, there may be cases where `masterClient` is null when
@@ -214,6 +222,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   // method at the end of the construction of the class to perform the initialization operations.
   private def initialize(): Unit = {
     // noinspection ConvertExpressionToSAM
+    updateApplicationMeta()
     commitManager.start()
     heartbeater.start()
     changePartitionManager.start()

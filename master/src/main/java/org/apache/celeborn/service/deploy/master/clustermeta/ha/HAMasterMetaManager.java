@@ -390,6 +390,11 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                   ResourceProtos.ApplicationMetaRequest.newBuilder()
                       .setAppId(applicationMeta.appId())
                       .setSecret(applicationMeta.secret())
+                      .setUserIdentifier(
+                          ResourceProtos.UserIdentifier.newBuilder()
+                              .setTenantId(applicationMeta.userIdentifier().tenantId())
+                              .setName(applicationMeta.userIdentifier().name())
+                              .build())
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {

@@ -273,7 +273,11 @@ public class MetaHandler {
         case ApplicationMeta:
           appId = request.getApplicationMetaRequest().getAppId();
           String secret = request.getApplicationMetaRequest().getSecret();
-          metaSystem.updateApplicationMeta(new ApplicationMeta(appId, secret));
+          UserIdentifier userIdentifier =
+              new UserIdentifier(
+                  request.getApplicationMetaRequest().getUserIdentifier().getTenantId(),
+                  request.getApplicationMetaRequest().getUserIdentifier().getName());
+          metaSystem.updateApplicationMeta(new ApplicationMeta(appId, secret, userIdentifier));
           break;
 
         default:

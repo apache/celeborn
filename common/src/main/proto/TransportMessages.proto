@@ -102,6 +102,7 @@ enum MessageType {
   APPLICATION_META_REQUEST = 79;
   BATCH_OPEN_STREAM = 80;
   BATCH_OPEN_STREAM_RESPONSE = 81;
+  APPLICATION_META_UPDATE_RESPONSE = 82;
 }
 
 enum StreamType {
@@ -753,8 +754,13 @@ message PbRegisterApplicationResponse {
 message PbApplicationMeta {
   string appId = 1;
   string secret = 2;
+  PbUserIdentifier userIdentifier = 3;
 }
 
 message PbApplicationMetaRequest {
   string appId = 1;
+}
+
+message PbApplicationMetaUpdateResponse {
+  bool status = 1;
 }

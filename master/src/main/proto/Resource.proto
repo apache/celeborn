@@ -229,4 +229,5 @@ message ResourceResponse {
 message ApplicationMetaRequest {
   required string appId = 1;
   optional string secret = 2;
+  required UserIdentifier userIdentifier = 3;
 }

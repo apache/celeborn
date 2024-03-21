@@ -763,5 +763,20 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleApplicationMeta(new ApplicationMeta(appId2, appSecret2));
     assertEquals(appSecret2, statusSystem.applicationMetas.get(appId2).secret());
     assertEquals(2, statusSystem.applicationMetas.size());
+    assertTrue(
+        statusSystem.applicationMetas.get(appId2).userIdentifier()
+            == UserIdentifier.UNKNOWN_USER_IDENTIFIER());
+
+    UserIdentifier userIdentifier = new UserIdentifier("celeborn", "celeborn");
+    statusSystem.handleApplicationMeta(new ApplicationMeta(appId2, appSecret2, userIdentifier));
+    assertEquals(appSecret2, statusSystem.applicationMetas.get(appId2).secret());
+    assertEquals(2, statusSystem.applicationMetas.size());
+    assertTrue(statusSystem.applicationMetas.get(appId2).userIdentifier() == userIdentifier);
+
+    String appId3 = "app03";
+    statusSystem.handleApplicationMeta(new ApplicationMeta(appId3, "", userIdentifier));
+    assertEquals("", statusSystem.applicationMetas.get(appId3).secret());
+    assertEquals(3, statusSystem.applicationMetas.size());
+    assertTrue(statusSystem.applicationMetas.get(appId3).userIdentifier() == userIdentifier);
   }
 }

@@ -460,11 +460,16 @@ object PbSerDeUtils {
   def toPbApplicationMeta(meta: ApplicationMeta): PbApplicationMeta = {
     PbApplicationMeta.newBuilder()
       .setAppId(meta.appId)
-      .setSecret(meta.secret).build()
+      .setSecret(meta.secret)
+      .setUserIdentifier(Option(meta.userIdentifier).map(toPbUserIdentifier).orNull).build()
   }
 
   def fromPbApplicationMeta(pbApplicationMeta: PbApplicationMeta): ApplicationMeta = {
-    new ApplicationMeta(pbApplicationMeta.getAppId, pbApplicationMeta.getSecret)
+    new ApplicationMeta(
+      pbApplicationMeta.getAppId,
+      pbApplicationMeta.getSecret,
+      Option(pbApplicationMeta.getUserIdentifier).map(fromPbUserIdentifier).getOrElse(
+        UserIdentifier.UNKNOWN_USER_IDENTIFIER))
   }
 
   def toPbWorkerStatus(workerStatus: WorkerStatus): PbWorkerStatus = {
