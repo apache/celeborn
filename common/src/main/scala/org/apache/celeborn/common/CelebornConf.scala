@@ -715,6 +715,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
   def workerPartitionSplitEnabled: Boolean = get(WORKER_PARTITION_SPLIT_ENABLED)
   def workerActiveConnectionMax: Option[Long] = get(WORKER_ACTIVE_CONNECTION_MAX)
+  def workerJvmProfilerEnabled: Boolean = get(WORKER_JVM_PROFILER_ENABLED)
+  def workerJvmProfilerOptions: String = get(WORKER_JVM_PROFILER_OPTIONS)
+  def workerJvmProfilerLocalDir: String = get(WORKER_JVM_PROFILER_LOCAL_DIR)
   def workerJvmQuakeEnabled: Boolean = get(WORKER_JVM_QUAKE_ENABLED)
   def workerJvmQuakeCheckInterval: Long = get(WORKER_JVM_QUAKE_CHECK_INTERVAL)
   def workerJvmQuakeRuntimeWeight: Double = get(WORKER_JVM_QUAKE_RUNTIME_WEIGHT)
@@ -3118,6 +3121,31 @@ object CelebornConf extends Logging {
       .version("0.3.1")
       .longConf
       .createOptional
+
+  val WORKER_JVM_PROFILER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.jvmProfiler.enabled")
+      .categories("worker")
+      .version("0.5.0")
+      .doc("Turn on code profiling via async_profiler in workers.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val WORKER_JVM_PROFILER_OPTIONS: ConfigEntry[String] =
+    buildConf("celeborn.worker.jvmProfiler.options")
+      .categories("worker")
+      .version("0.5.0")
+      .doc("Options to pass on to the async profiler.")
+      .stringConf
+      .createWithDefault("event=wall,interval=10ms,alloc=2m,lock=10ms,chunktime=300s")
+
+  val WORKER_JVM_PROFILER_LOCAL_DIR: ConfigEntry[String] =
+    buildConf("celeborn.worker.jvmProfiler.localDir")
+      .categories("worker")
+      .version("0.5.0")
+      .doc("Local file system path on worker where profiler output is saved. "
+        + "Defaults to the working directory of the worker process.")
+      .stringConf
+      .createWithDefault(".")
 
   val WORKER_JVM_QUAKE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.jvmQuake.enabled")

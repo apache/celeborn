@@ -36,6 +36,7 @@ object Dependencies {
   val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.8.0")
 
   // Dependent library versions
+  val apLoaderVersion = "3.0-8"
   val commonsCompressVersion = "1.4.1"
   val commonsCryptoVersion = "1.0.0"
   val commonsIoVersion = "2.13.0"
@@ -71,6 +72,7 @@ object Dependencies {
   val protocVersion = "3.21.7"
   val protoVersion = "3.21.7"
 
+  val apLoader = "me.bechberger" % "ap-loader-all" % apLoaderVersion
   val commonsCompress = "org.apache.commons" % "commons-compress" % commonsCompressVersion
   val commonsCrypto = "org.apache.commons" % "commons-crypto" % commonsCryptoVersion excludeAll(
     ExclusionRule("net.java.dev.jna", "jna"))
@@ -495,6 +497,7 @@ object CelebornWorker {
         ExclusionRule("org.apache.ratis", "ratis-client")
       ),
       libraryDependencies ++= Seq(
+        Dependencies.apLoader,
         Dependencies.guava,
         Dependencies.commonsIo,
         Dependencies.ioNetty,

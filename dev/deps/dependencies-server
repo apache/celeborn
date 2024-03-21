@@ -17,6 +17,7 @@
 
 HikariCP/4.0.3//HikariCP-4.0.3.jar
 RoaringBitmap/0.9.32//RoaringBitmap-0.9.32.jar
+ap-loader-all/3.0-8//ap-loader-all-3.0-8.jar
 commons-cli/1.5.0//commons-cli-1.5.0.jar
 commons-crypto/1.0.0//commons-crypto-1.0.0.jar
 commons-io/2.13.0//commons-io-2.13.0.jar
