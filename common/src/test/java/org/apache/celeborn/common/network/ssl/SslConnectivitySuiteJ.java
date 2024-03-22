@@ -283,9 +283,9 @@ public class SslConnectivitySuiteJ {
     // a truststore/certchain which does not have it.
 
     final String certchainWithoutJkscert =
-        SslSampleConfigs.getAbsolutePath("/certchain-without-jkscert.pem");
+        SslSampleConfigs.getAbsolutePath("/ssl/certchain-without-jkscert.pem");
     final String truststoreWithoutOpensslCert =
-        SslSampleConfigs.getAbsolutePath("/truststore-without-openssl-cert");
+        SslSampleConfigs.getAbsolutePath("/ssl/truststore-without-openssl-cert");
 
     // since we are specifying for the exact module, this is fine
     final String certChainKey = "celeborn.ssl." + TEST_MODULE + ".certChain";

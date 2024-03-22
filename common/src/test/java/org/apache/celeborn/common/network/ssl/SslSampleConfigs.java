@@ -36,13 +36,13 @@ import javax.security.auth.x500.X500Principal;
 import org.bouncycastle.x509.X509V1CertificateGenerator;
 
 public class SslSampleConfigs {
-  public static final String keyStorePath = getAbsolutePath("/keystore");
-  public static final String privateKeyPath = getAbsolutePath("/key.pem");
-  public static final String certChainPath = getAbsolutePath("/certchain.pem");
-  public static final String trustStorePath = getAbsolutePath("/truststore");
-  public static final String unencryptedPrivateKeyPath = getAbsolutePath("/unencrypted-key.pem");
+  public static final String keyStorePath = getAbsolutePath("/ssl/keystore");
+  public static final String privateKeyPath = getAbsolutePath("/ssl/key.pem");
+  public static final String certChainPath = getAbsolutePath("/ssl/certchain.pem");
+  public static final String trustStorePath = getAbsolutePath("/ssl/truststore");
+  public static final String unencryptedPrivateKeyPath = getAbsolutePath("/ssl/unencrypted-key.pem");
   public static final String unencryptedCertChainPath =
-      getAbsolutePath("/unencrypted-certchain.pem");
+      getAbsolutePath("/ssl/unencrypted-certchain.pem");
 
   /**
    * Updates config with settings needed to enable the SSL feature All the settings are
