@@ -69,7 +69,7 @@ public class SslConnectivitySuiteJ {
           celebornConf, SslSampleConfigs.createDefaultConfigMapForModule(module, useNettySsl));
     }
 
-    postProcessConf.apply(celebornConf);
+    celebornConf = postProcessConf.apply(celebornConf);
 
     TransportConf conf = new TransportConf(module, celebornConf);
     assertEquals(enableSsl, conf.sslEnabled());

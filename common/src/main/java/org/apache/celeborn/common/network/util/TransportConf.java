@@ -260,8 +260,12 @@ public class TransportConf {
       }
       return true;
     } else {
+      // It is not required to have a keyStore for client side connections - only server side
+      // connectivity ... so transport conf's without keystore can be used in
+      // client mode only.
+      // In case it is specified, we check for its validity
       File keyStore = sslKeyStore();
-      if (keyStore == null || !keyStore.exists()) {
+      if (keyStore != null && !keyStore.exists()) {
         return false;
       }
       // It's fine for the trust store to be missing, we would default to trusting all.

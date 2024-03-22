@@ -85,12 +85,19 @@ public class SSLFactory {
   }
 
   private void initJdkSslContext(final Builder b) throws IOException, GeneralSecurityException {
-    this.keyManagers = keyManagers(b.keyStore, b.keyPassword, b.keyStorePassword);
+    this.keyManagers =
+        null != b.keyStore ? keyManagers(b.keyStore, b.keyPassword, b.keyStorePassword) : null;
     this.trustManagers =
         trustStoreManagers(
             b.trustStore, b.trustStorePassword,
             b.trustStoreReloadingEnabled, b.trustStoreReloadIntervalMs);
     this.jdkSslContext = createSSLContext(requestedProtocol, keyManagers, trustManagers);
+  }
+
+  public boolean hasKeyManagers() {
+    // nettyServerSslContext requires keys to be specified, this path applies when
+    // applies only when jks is being used without keyManagers
+    return null == jdkSslContext || null != keyManagers;
   }
 
   private void initNettySslContexts(final Builder b) throws SSLException {

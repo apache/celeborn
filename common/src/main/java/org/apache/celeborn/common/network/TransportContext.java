@@ -170,6 +170,11 @@ public class TransportContext implements Closeable {
       }
 
       if (sslEncryptionEnabled()) {
+
+        if (!isClient && !sslFactory.hasKeyManagers()) {
+          throw new IllegalStateException("Not a client connection and no keys configured");
+        }
+
         SslHandler sslHandler;
         try {
           sslHandler = new SslHandler(sslFactory.createSSLEngine(isClient, channel.alloc()));
