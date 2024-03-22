@@ -40,7 +40,8 @@ public class SslSampleConfigs {
   public static final String privateKeyPath = getAbsolutePath("/ssl/key.pem");
   public static final String certChainPath = getAbsolutePath("/ssl/certchain.pem");
   public static final String trustStorePath = getAbsolutePath("/ssl/truststore");
-  public static final String unencryptedPrivateKeyPath = getAbsolutePath("/ssl/unencrypted-key.pem");
+  public static final String unencryptedPrivateKeyPath =
+      getAbsolutePath("/ssl/unencrypted-key.pem");
   public static final String unencryptedCertChainPath =
       getAbsolutePath("/ssl/unencrypted-certchain.pem");
 
