@@ -55,10 +55,12 @@ import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
 
 public class ChunkFetchIntegrationSuiteJ {
+  static final String TEST_MODULE = "shuffle";
   static final long STREAM_ID = 1;
   static final int BUFFER_CHUNK_INDEX = 0;
   static final int FILE_CHUNK_INDEX = 1;
 
+  static TransportContext transportContext;
   static TransportServer server;
   static TransportClientFactory clientFactory;
   static ChunkStreamManager chunkStreamManager;
@@ -69,6 +71,14 @@ public class ChunkFetchIntegrationSuiteJ {
 
   @BeforeClass
   public static void setUp() throws Exception {
+    // TODO: remove me
+    System.out.println("ChunkFetchIntegrationSuiteJ.setUp");
+    System.out.flush();
+
+    initialize((new CelebornConf()));
+  }
+
+  static void initialize(CelebornConf celebornConf) throws Exception {
     int bufSize = 100_000;
     final ByteBuffer buf = ByteBuffer.allocate(bufSize);
     for (int i = 0; i < bufSize; i++) {
@@ -90,7 +100,7 @@ public class ChunkFetchIntegrationSuiteJ {
       Closeables.close(fp, shouldSuppressIOException);
     }
 
-    final TransportConf conf = new TransportConf("shuffle", new CelebornConf());
+    final TransportConf conf = new TransportConf(TEST_MODULE, celebornConf);
     fileChunk = new FileSegmentManagedBuffer(conf, testFile, 10, testFile.length() - 25);
 
     chunkStreamManager =
@@ -144,9 +154,9 @@ public class ChunkFetchIntegrationSuiteJ {
             return true;
           }
         };
-    TransportContext context = new TransportContext(conf, handler);
-    server = context.createServer();
-    clientFactory = context.createClientFactory();
+    transportContext = new TransportContext(conf, handler);
+    server = transportContext.createServer();
+    clientFactory = transportContext.createClientFactory();
   }
 
   @AfterClass
@@ -154,6 +164,7 @@ public class ChunkFetchIntegrationSuiteJ {
     bufferChunk.release();
     server.close();
     clientFactory.close();
+    transportContext.close();
     testFile.delete();
   }
 
@@ -203,6 +214,11 @@ public class ChunkFetchIntegrationSuiteJ {
     }
     client.close();
     return res;
+  }
+
+  // for subclasses to validate
+  TransportConf fetchTransportConf() {
+    return transportContext.getConf();
   }
 
   @Test

@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.network.util;
 
+import java.io.File;
+
 import org.apache.celeborn.common.CelebornConf;
 
 /** A central location that tracks all the settings we expose to users. */
@@ -162,5 +164,108 @@ public class TransportConf {
   /** Whether authentication is enabled or not. */
   public boolean authEnabled() {
     return celebornConf.authEnabled();
+  }
+
+  /** Whether Secure (SSL/TLS) wire communication is enabled. */
+  public boolean sslEnabled() {
+    return celebornConf.sslEnabled(module);
+  }
+
+  /**
+   * If the OpenSSL implementation is enabled, (if available on host system), requires certChain and
+   * keyFile arguments
+   */
+  public boolean sslOpenSslEnabled() {
+    return celebornConf.sslOpenSslEnabled(module);
+  }
+
+  /** SSL protocol (remember that SSLv3 was compromised) supported by Java */
+  public String sslProtocol() {
+    return celebornConf.sslProtocol(module);
+  }
+
+  /** A comma separated list of ciphers */
+  public String[] sslRequestedCiphers() {
+    return celebornConf.sslRequestedCiphers(module);
+  }
+
+  /** The key-store file; can be relative to the current directory */
+  public File sslKeyStore() {
+    return celebornConf.sslKeyStore(module);
+  }
+
+  /** The password to the key-store file */
+  public String sslKeyStorePassword() {
+    return celebornConf.sslKeyStorePassword(module);
+  }
+
+  /** A PKCS#8 private key file in PEM format; can be relative to the current directory */
+  public File sslPrivateKey() {
+    return celebornConf.sslPrivateKey(module);
+  }
+
+  /** The password to the private key */
+  public String sslPrivateKeyPassword() {
+    return celebornConf.sslPrivateKeyPassword(module);
+  }
+
+  /** A X.509 certificate chain file in PEM format; can be relative to the current directory */
+  public File sslCertChain() {
+    return celebornConf.sslCertChain(module);
+  }
+
+  /** The trust-store file; can be relative to the current directory */
+  public File sslTrustStore() {
+    return celebornConf.sslTrustStore(module);
+  }
+
+  /** The password to the trust-store file */
+  public String sslTrustStorePassword() {
+    return celebornConf.sslTrustStorePassword(module);
+  }
+
+  /**
+   * If using a trust-store that that reloads its configuration is enabled. If true, when the
+   * trust-store file on disk changes, it will be reloaded
+   */
+  public boolean sslTrustStoreReloadingEnabled() {
+    return celebornConf.sslTrustStoreReloadingEnabled(module);
+  }
+
+  /** The interval, in milliseconds, the trust-store will reload its configuration */
+  public int sslTrustStoreReloadIntervalMs() {
+    return celebornConf.sslTrustStoreReloadIntervalMs(module);
+  }
+
+  /** Internal config: the max size when chunking the stream with SSL */
+  public int maxSslEncryptedBlockSize() {
+    return celebornConf.maxSslEncryptedBlockSize(module);
+  }
+
+  // suppressing to ensure clarity of code.
+  @SuppressWarnings("RedundantIfStatement")
+  public boolean sslEnabledAndKeysAreValid() {
+    if (!sslEnabled()) {
+      return false;
+    }
+    if (sslOpenSslEnabled()) {
+      // OpenSSL requires both the privateKey and certChain
+      File privateKey = sslPrivateKey();
+      if (privateKey == null || !privateKey.exists()) {
+        return false;
+      }
+      File certChain = sslCertChain();
+      if (certChain == null || !certChain.exists()) {
+        return false;
+      }
+      return true;
+    } else {
+      File keyStore = sslKeyStore();
+      if (keyStore == null || !keyStore.exists()) {
+        return false;
+      }
+      // It's fine for the trust store to be missing, we would default to trusting all.
+      return true;
+    }
   }
 }

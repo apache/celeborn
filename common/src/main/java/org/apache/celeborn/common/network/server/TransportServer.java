@@ -142,7 +142,7 @@ public class TransportServer implements Closeable {
                   "Adding bootstrap to TransportServer {}.", bootstrap.getClass().getName());
               baseHandler = bootstrap.doBootstrap(ch, baseHandler);
             }
-            context.initializePipeline(ch, baseHandler);
+            context.initializePipeline(ch, baseHandler, false);
           }
         });
   }

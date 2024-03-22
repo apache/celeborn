@@ -60,6 +60,8 @@ import org.apache.celeborn.service.deploy.worker.storage.ChunkStreamManager;
  */
 public class RequestTimeoutIntegrationSuiteJ {
 
+  static final String TEST_MODULE = "shuffle";
+
   private TransportServer server;
   private TransportClientFactory clientFactory;
 
@@ -68,11 +70,18 @@ public class RequestTimeoutIntegrationSuiteJ {
   // A large timeout that "shouldn't happen", for the sake of faulty tests not hanging forever.
   private static final int FOREVER = 60 * 1000;
 
+  protected void doSetup(CelebornConf celebornConf) {
+    celebornConf.set("celeborn.shuffle.io.connectionTimeout", "2s");
+    conf = new TransportConf(TEST_MODULE, celebornConf);
+  }
+
   @Before
   public void setUp() throws Exception {
-    CelebornConf _conf = new CelebornConf();
-    _conf.set("celeborn.shuffle.io.connectionTimeout", "2s");
-    conf = new TransportConf("shuffle", _conf);
+    // TODO: remove me
+    System.out.println("RequestTimeoutIntegrationSuiteJ.setUp");
+    System.out.flush();
+
+    doSetup(new CelebornConf());
   }
 
   @After
@@ -83,6 +92,11 @@ public class RequestTimeoutIntegrationSuiteJ {
     if (clientFactory != null) {
       clientFactory.close();
     }
+  }
+
+  // for validation in subclasses
+  protected TransportConf getConf() {
+    return this.conf;
   }
 
   // Basic suite: First request completes quickly, and second waits for longer than network timeout.
@@ -136,6 +150,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     callback1.latch.await(60, TimeUnit.SECONDS);
     assertNotNull(callback1.failure);
     assertTrue(callback1.failure instanceof IOException);
+    context.close();
 
     semaphore.release();
   }
@@ -195,6 +210,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     callback1.latch.await();
     assertEquals(responseSize, callback1.successLength);
     assertNull(callback1.failure);
+    context.close();
   }
 
   // The timeout is relative to the LAST request sent, which is kinda weird, but still.
@@ -265,6 +281,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     callback1.latch.await(60, TimeUnit.SECONDS);
     // failed at same time as previous
     assertTrue(callback1.failure instanceof IOException);
+    context.close();
   }
 
   /**

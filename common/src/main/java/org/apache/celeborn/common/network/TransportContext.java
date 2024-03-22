@@ -17,14 +17,19 @@
 
 package org.apache.celeborn.common.network;
 
+import java.io.Closeable;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nullable;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.timeout.IdleStateHandler;
+import org.apache.celeborn.common.network.protocol.SslMessageEncoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +40,9 @@ import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.MessageEncoder;
 import org.apache.celeborn.common.network.server.*;
+import org.apache.celeborn.common.network.ssl.SSLFactory;
 import org.apache.celeborn.common.network.util.FrameDecoder;
+import org.apache.celeborn.common.network.util.NettyLogger;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.network.util.TransportFrameDecoder;
 
@@ -52,17 +59,22 @@ import org.apache.celeborn.common.network.util.TransportFrameDecoder;
  * channel. As each TransportChannelHandler contains a TransportClient, this enables server
  * processes to send messages back to the client on an existing channel.
  */
-public class TransportContext {
+public class TransportContext implements Closeable {
   private static final Logger logger = LoggerFactory.getLogger(TransportContext.class);
+  private static final NettyLogger nettyLogger = new NettyLogger();
 
   private final TransportConf conf;
   private final BaseMessageHandler msgHandler;
   private final ChannelDuplexHandler channelsLimiter;
   private final boolean closeIdleConnections;
+  // Non-null if SSL is enabled, null otherwise.
+  @Nullable
+  private final SSLFactory sslFactory;
   private final boolean enableHeartbeat;
   private final AbstractSource source;
 
   private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
+  private static final SslMessageEncoder SSL_ENCODER = SslMessageEncoder.INSTANCE;
 
   public TransportContext(
       TransportConf conf,
@@ -74,6 +86,7 @@ public class TransportContext {
     this.conf = conf;
     this.msgHandler = msgHandler;
     this.closeIdleConnections = closeIdleConnections;
+    this.sslFactory = createSslFactory();
     this.channelsLimiter = channelsLimiter;
     this.enableHeartbeat = enableHeartbeat;
     this.source = source;
@@ -132,28 +145,50 @@ public class TransportContext {
     return createServer(null, 0, Collections.emptyList());
   }
 
-  public TransportChannelHandler initializePipeline(
-      SocketChannel channel, ChannelInboundHandlerAdapter decoder) {
-    return initializePipeline(channel, decoder, msgHandler);
+  public boolean sslEncryptionEnabled() {
+    return this.sslFactory != null;
   }
 
   public TransportChannelHandler initializePipeline(
-      SocketChannel channel, BaseMessageHandler resolvedMsgHandler) {
-    return initializePipeline(channel, new TransportFrameDecoder(), resolvedMsgHandler);
+      SocketChannel channel, ChannelInboundHandlerAdapter decoder, boolean isClient) {
+    return initializePipeline(channel, decoder, msgHandler, isClient);
+  }
+
+  public TransportChannelHandler initializePipeline(
+      SocketChannel channel, BaseMessageHandler resolvedMsgHandler, boolean isClient) {
+    return initializePipeline(channel, new TransportFrameDecoder(), resolvedMsgHandler, isClient);
   }
 
   public TransportChannelHandler initializePipeline(
       SocketChannel channel,
       ChannelInboundHandlerAdapter decoder,
-      BaseMessageHandler resolvedMsgHandler) {
+      BaseMessageHandler resolvedMsgHandler,
+      boolean isClient) {
     try {
+      if (nettyLogger.getLoggingHandler() != null) {
+        channel.pipeline().addLast("loggingHandler", nettyLogger.getLoggingHandler());
+      }
+
+      if (sslEncryptionEnabled()) {
+        SslHandler sslHandler;
+        try {
+          sslHandler = new SslHandler(sslFactory.createSSLEngine(isClient, channel.alloc()));
+        } catch (Exception e) {
+          throw new IllegalStateException("Error creating Netty SslHandler", e);
+        }
+        channel.pipeline().addFirst("NettySslEncryptionHandler", sslHandler);
+        // Cannot use zero-copy with HTTPS, so we add in our ChunkedWriteHandler just before the
+        // MessageEncoder
+        channel.pipeline().addLast("chunkedWriter", new ChunkedWriteHandler());
+      }
+
       if (channelsLimiter != null) {
         channel.pipeline().addLast("limiter", channelsLimiter);
       }
       TransportChannelHandler channelHandler = createChannelHandler(channel, resolvedMsgHandler);
       channel
           .pipeline()
-          .addLast("encoder", ENCODER)
+          .addLast("encoder", sslEncryptionEnabled() ? SSL_ENCODER : ENCODER)
           .addLast(FrameDecoder.HANDLER_NAME, decoder)
           .addLast(
               "idleStateHandler",
@@ -165,6 +200,35 @@ public class TransportContext {
     } catch (RuntimeException e) {
       logger.error("Error while initializing Netty pipeline", e);
       throw e;
+    }
+  }
+
+  private SSLFactory createSslFactory() {
+    if (conf.sslEnabled()) {
+      if (conf.sslEnabledAndKeysAreValid()) {
+        return new SSLFactory.Builder()
+            .openSslEnabled(conf.sslOpenSslEnabled())
+            .requestedProtocol(conf.sslProtocol())
+            .requestedCiphers(conf.sslRequestedCiphers())
+            .keyStore(conf.sslKeyStore(), conf.sslKeyStorePassword())
+            .privateKey(conf.sslPrivateKey())
+            .privateKeyPassword(conf.sslPrivateKeyPassword())
+            .keyPassword(conf.sslPrivateKeyPassword())
+            .certChain(conf.sslCertChain())
+            .trustStore(
+                conf.sslTrustStore(),
+                conf.sslTrustStorePassword(),
+                conf.sslTrustStoreReloadingEnabled(),
+                conf.sslTrustStoreReloadIntervalMs())
+            .build();
+      } else {
+        logger.error("SSL encryption enabled but keys not found for " + conf.getModuleName() +
+            "! Please ensure the configured keys are present.");
+        throw new IllegalArgumentException(conf.getModuleName() +
+            " SSL encryption enabled for " + conf.getModuleName() + " but keys not found!");
+      }
+    } else {
+      return null;
     }
   }
 
@@ -191,5 +255,12 @@ public class TransportContext {
 
   public BaseMessageHandler getMsgHandler() {
     return msgHandler;
+  }
+
+  @Override
+  public void close() {
+    if (sslFactory != null) {
+      sslFactory.destroy();
+    }
   }
 }
