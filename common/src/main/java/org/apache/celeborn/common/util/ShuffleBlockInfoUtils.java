@@ -37,9 +37,9 @@ public class ShuffleBlockInfoUtils {
       int startMapIndex,
       int endMapIndex,
       long fetchChunkSize,
-      Map<Integer, List<ShuffleBlockInfo>> indexMap) {
+      Map<Integer, List<ShuffleBlockInfo>> indexMap,
+      boolean isInMemory) {
     List<Long> sortedChunkOffset = new ArrayList<>();
-    sortedChunkOffset.add(0l);
     ShuffleBlockInfo lastBlock = null;
     int maxMapIndex = endMapIndex;
     if (endMapIndex == Integer.MAX_VALUE) {
@@ -47,24 +47,46 @@ public class ShuffleBlockInfoUtils {
       maxMapIndex = indexMap.keySet().stream().max(Integer::compareTo).get() + 1;
     }
 
-    for (int i = startMapIndex; i < maxMapIndex; i++) {
-      List<ShuffleBlockInfo> blockInfos = indexMap.get(i);
-      if (blockInfos != null) {
-        for (ShuffleBlockInfo info : blockInfos) {
-          if (sortedChunkOffset.size() == 0) {
-            sortedChunkOffset.add(info.offset);
+    if (isInMemory) {
+      long currentChunkOffset = 0;
+      long lastChunkOffset = 0;
+      sortedChunkOffset.add(0l);
+      for (int i = startMapIndex; i < maxMapIndex; i++) {
+        List<ShuffleBlockInfo> blockInfos = indexMap.get(i);
+        if (blockInfos != null) {
+          for (ShuffleBlockInfo info : blockInfos) {
+            currentChunkOffset += info.length;
+            if (currentChunkOffset - lastChunkOffset > fetchChunkSize) {
+              lastChunkOffset = currentChunkOffset;
+              sortedChunkOffset.add(currentChunkOffset);
+            }
           }
-          if (info.offset - sortedChunkOffset.get(sortedChunkOffset.size() - 1) >= fetchChunkSize) {
-            sortedChunkOffset.add(info.offset);
-          }
-          lastBlock = info;
         }
       }
-    }
-    if (lastBlock != null) {
-      long endChunkOffset = lastBlock.length + lastBlock.offset;
-      if (!sortedChunkOffset.contains(endChunkOffset)) {
-        sortedChunkOffset.add(endChunkOffset);
+      if (lastChunkOffset != currentChunkOffset) {
+        sortedChunkOffset.add(currentChunkOffset);
+      }
+    } else {
+      for (int i = startMapIndex; i < maxMapIndex; i++) {
+        List<ShuffleBlockInfo> blockInfos = indexMap.get(i);
+        if (blockInfos != null) {
+          for (ShuffleBlockInfo info : blockInfos) {
+            if (sortedChunkOffset.size() == 0) {
+              sortedChunkOffset.add(info.offset);
+            }
+            if (info.offset - sortedChunkOffset.get(sortedChunkOffset.size() - 1)
+                >= fetchChunkSize) {
+              sortedChunkOffset.add(info.offset);
+            }
+            lastBlock = info;
+          }
+        }
+      }
+      if (lastBlock != null) {
+        long endChunkOffset = lastBlock.length + lastBlock.offset;
+        if (!sortedChunkOffset.contains(endChunkOffset)) {
+          sortedChunkOffset.add(endChunkOffset);
+        }
       }
     }
     return sortedChunkOffset;

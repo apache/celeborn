@@ -211,7 +211,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       ReduceFileMeta tMeta =
           new ReduceFileMeta(
               ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
-                  startMapIndex, endMapIndex, shuffleChunkSize, indexesMap),
+                  startMapIndex, endMapIndex, shuffleChunkSize, indexesMap, true),
               shuffleChunkSize);
       CompositeByteBuf targetBuffer =
           MemoryManager.instance()
@@ -645,7 +645,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     ReduceFileMeta reduceFileMeta =
         new ReduceFileMeta(
             ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
-                startMapIndex, endMapIndex, shuffleChunkSize, indexMap),
+                startMapIndex, endMapIndex, shuffleChunkSize, indexMap, false),
             shuffleChunkSize);
     return new DiskFileInfo(userIdentifier, reduceFileMeta, sortedFilePath);
   }
