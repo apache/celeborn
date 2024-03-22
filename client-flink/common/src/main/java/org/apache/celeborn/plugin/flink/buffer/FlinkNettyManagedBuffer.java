@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.plugin.flink.buffer;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 
@@ -62,6 +63,11 @@ public class FlinkNettyManagedBuffer extends ManagedBuffer {
 
   @Override
   public Object convertToNetty() {
+    return buf.duplicate().retain();
+  }
+
+  @Override
+  public Object convertToNettyForSsl() throws IOException {
     return buf.duplicate().retain();
   }
 }

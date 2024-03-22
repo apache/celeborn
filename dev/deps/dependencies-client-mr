@@ -162,6 +162,12 @@ netty-resolver-dns-native-macos/4.1.107.Final/osx-aarch_64/netty-resolver-dns-na
 netty-resolver-dns-native-macos/4.1.107.Final/osx-x86_64/netty-resolver-dns-native-macos-4.1.107.Final-osx-x86_64.jar
 netty-resolver-dns/4.1.107.Final//netty-resolver-dns-4.1.107.Final.jar
 netty-resolver/4.1.107.Final//netty-resolver-4.1.107.Final.jar
+netty-tcnative-boringssl-static/2.0.62.Final/linux-aarch_64/netty-tcnative-boringssl-static-2.0.62.Final-linux-aarch_64.jar
+netty-tcnative-boringssl-static/2.0.62.Final/linux-x86_64/netty-tcnative-boringssl-static-2.0.62.Final-linux-x86_64.jar
+netty-tcnative-boringssl-static/2.0.62.Final/osx-aarch_64/netty-tcnative-boringssl-static-2.0.62.Final-osx-aarch_64.jar
+netty-tcnative-boringssl-static/2.0.62.Final/osx-x86_64/netty-tcnative-boringssl-static-2.0.62.Final-osx-x86_64.jar
+netty-tcnative-boringssl-static/2.0.62.Final/windows-x86_64/netty-tcnative-boringssl-static-2.0.62.Final-windows-x86_64.jar
+netty-tcnative-classes/2.0.62.Final//netty-tcnative-classes-2.0.62.Final.jar
 netty-transport-classes-epoll/4.1.107.Final//netty-transport-classes-epoll-4.1.107.Final.jar
 netty-transport-classes-kqueue/4.1.107.Final//netty-transport-classes-kqueue-4.1.107.Final.jar
 netty-transport-native-epoll/4.1.107.Final/linux-aarch_64/netty-transport-native-epoll-4.1.107.Final-linux-aarch_64.jar
