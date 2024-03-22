@@ -66,7 +66,8 @@ public class SslSampleConfigs {
     return confMap;
   }
 
-  public static Map<String, String> createDefaultConfigMapForModule(String module) {
+  public static Map<String, String> createDefaultConfigMapForModule(String module,
+      boolean useNettySsl) {
     Map<String, String> confMap = new HashMap<>();
     confMap.put("celeborn.ssl." + module + ".enabled", "true");
     confMap.put("celeborn.ssl." + module + ".trustStoreReloadingEnabled", "false");
@@ -74,10 +75,14 @@ public class SslSampleConfigs {
     confMap.put("celeborn.ssl." + module + ".trustStoreReloadIntervalMs", "10000");
     confMap.put("celeborn.ssl." + module + ".keyStore", SslSampleConfigs.keyStorePath);
     confMap.put("celeborn.ssl." + module + ".keyStorePassword", "password");
-    confMap.put("celeborn.ssl." + module + ".privateKey", SslSampleConfigs.privateKeyPath);
     confMap.put("celeborn.ssl." + module + ".keyPassword", "password");
     confMap.put("celeborn.ssl." + module + ".privateKeyPassword", "password");
-    confMap.put("celeborn.ssl." + module + ".certChain", SslSampleConfigs.certChainPath);
+    if (useNettySsl) {
+      confMap.put("celeborn.ssl." + module + ".certChain", SslSampleConfigs.certChainPath);
+      confMap.put("celeborn.ssl." + module + ".privateKey", SslSampleConfigs.privateKeyPath);
+    } else {
+      confMap.put("celeborn.ssl." + module + ".protocol", "TLSv1.2");
+    }
     confMap.put("celeborn.ssl." + module + ".trustStore", SslSampleConfigs.trustStorePath);
     confMap.put("celeborn.ssl." + module + ".trustStorePassword", "password");
     return confMap;

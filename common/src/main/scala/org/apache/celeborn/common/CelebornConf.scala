@@ -1142,7 +1142,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     // replace the module wildcard and check for global value
     val globalKey = config.key.replace(".<module>.", ".")
 
-    config.valueConverter(getOption(moduleKey).getOrElse(get(globalKey, config.defaultValueString)))
+    val defaultValue = if (config.defaultValue.isDefined) config.defaultValueString else null
+
+    config.valueConverter(getOption(moduleKey).getOrElse(get(globalKey, defaultValue)))
   }
 
   private def asFileOrNull(fileName: Option[String]): File = {

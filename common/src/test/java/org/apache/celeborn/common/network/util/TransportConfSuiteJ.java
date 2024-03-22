@@ -35,7 +35,7 @@ public class TransportConfSuiteJ {
       new TransportConf(
           "rpc",
           TestHelper.updateCelebornConfWithMap(
-              new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule("rpc")));
+              new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule("rpc", true)));
 
   @Test
   public void testKeyStorePath() {
