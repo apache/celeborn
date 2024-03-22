@@ -17,13 +17,14 @@
 
 package org.apache.celeborn.common.network;
 
-import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
+import static org.junit.Assert.assertTrue;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.assertTrue;
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
 
 public class SSLTransportClientFactorySuiteJ extends TransportClientFactorySuiteJ {
 
@@ -34,8 +35,9 @@ public class SSLTransportClientFactorySuiteJ extends TransportClientFactorySuite
     System.out.flush();
 
     // set up SSL for TEST_MODULE
-    doSetup(TestHelper.updateCelebornConfWithMap(new CelebornConf(),
-        SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE)));
+    doSetup(
+        TestHelper.updateCelebornConfWithMap(
+            new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE)));
   }
 
   @After

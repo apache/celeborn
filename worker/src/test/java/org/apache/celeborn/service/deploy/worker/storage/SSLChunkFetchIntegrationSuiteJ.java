@@ -17,14 +17,15 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
-import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.network.TestHelper;
-import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
+import static org.junit.Assert.assertTrue;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.junit.Assert.assertTrue;
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.TestHelper;
+import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
 
 public class SSLChunkFetchIntegrationSuiteJ extends ChunkFetchIntegrationSuiteJ {
 
@@ -35,15 +36,14 @@ public class SSLChunkFetchIntegrationSuiteJ extends ChunkFetchIntegrationSuiteJ 
     System.out.flush();
 
     SSLChunkFetchIntegrationSuiteJ.initialize(
-        TestHelper.updateCelebornConfWithMap(new CelebornConf(),
-            SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE)));
+        TestHelper.updateCelebornConfWithMap(
+            new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE)));
   }
 
   @AfterClass
   public static void tearDown() {
     ChunkFetchIntegrationSuiteJ.tearDown();
   }
-
 
   @Test
   public void validateSslConfig() {

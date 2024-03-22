@@ -259,19 +259,23 @@ public class TransportClientFactory implements Closeable {
     }
     if (context.sslEncryptionEnabled()) {
       final SslHandler sslHandler = cf.channel().pipeline().get(SslHandler.class);
-      Future<Channel> future = sslHandler.handshakeFuture().addListener(
-          new GenericFutureListener<Future<Channel>>() {
-            @Override
-            public void operationComplete(final Future<Channel> handshakeFuture) {
-              if (handshakeFuture.isSuccess()) {
-                logger.debug("{} successfully completed TLS handshake to ", address);
-              } else {
-                logger.info(
-                    "failed to complete TLS handshake to " + address, handshakeFuture.cause());
-                cf.channel().close();
-              }
-            }
-          });
+      Future<Channel> future =
+          sslHandler
+              .handshakeFuture()
+              .addListener(
+                  new GenericFutureListener<Future<Channel>>() {
+                    @Override
+                    public void operationComplete(final Future<Channel> handshakeFuture) {
+                      if (handshakeFuture.isSuccess()) {
+                        logger.debug("{} successfully completed TLS handshake to ", address);
+                      } else {
+                        logger.info(
+                            "failed to complete TLS handshake to " + address,
+                            handshakeFuture.cause());
+                        cf.channel().close();
+                      }
+                    }
+                  });
       if (!future.await(connectionTimeoutMs)) {
         cf.channel().close();
         throw new IOException(

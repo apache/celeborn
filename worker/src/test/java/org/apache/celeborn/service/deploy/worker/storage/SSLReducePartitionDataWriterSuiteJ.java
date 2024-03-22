@@ -17,20 +17,19 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.TestHelper;
 import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
 import org.apache.celeborn.common.network.util.TransportConf;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import static org.junit.Assert.assertTrue;
 
 public class SSLReducePartitionDataWriterSuiteJ extends ReducePartitionDataWriterSuiteJ {
   protected TransportConf createModuleTransportConf(String module) {
-    CelebornConf conf = TestHelper.updateCelebornConfWithMap(new CelebornConf(),
-        SslSampleConfigs.createDefaultConfigMapForModule(module));
+    CelebornConf conf =
+        TestHelper.updateCelebornConfWithMap(
+            new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule(module));
     return new TransportConf(module, conf);
   }
 

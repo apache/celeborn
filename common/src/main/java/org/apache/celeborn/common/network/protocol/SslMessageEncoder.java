@@ -41,7 +41,6 @@ public final class SslMessageEncoder extends MessageToMessageEncoder<Message> {
 
   private SslMessageEncoder() {}
 
-
   /**
    * Encodes a Message by invoking its encode() method. For non-data messages, we will add one
    * ByteBuf to 'out' containing the total frame length, the message type, and the message itself.

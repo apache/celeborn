@@ -20,6 +20,7 @@ package org.apache.celeborn.common.network;
 import java.io.Closeable;
 import java.util.Collections;
 import java.util.List;
+
 import javax.annotation.Nullable;
 
 import io.netty.channel.Channel;
@@ -29,7 +30,6 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.timeout.IdleStateHandler;
-import org.apache.celeborn.common.network.protocol.SslMessageEncoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +39,7 @@ import org.apache.celeborn.common.network.client.TransportClientBootstrap;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.MessageEncoder;
+import org.apache.celeborn.common.network.protocol.SslMessageEncoder;
 import org.apache.celeborn.common.network.server.*;
 import org.apache.celeborn.common.network.ssl.SSLFactory;
 import org.apache.celeborn.common.network.util.FrameDecoder;
@@ -68,8 +69,7 @@ public class TransportContext implements Closeable {
   private final ChannelDuplexHandler channelsLimiter;
   private final boolean closeIdleConnections;
   // Non-null if SSL is enabled, null otherwise.
-  @Nullable
-  private final SSLFactory sslFactory;
+  @Nullable private final SSLFactory sslFactory;
   private final boolean enableHeartbeat;
   private final AbstractSource source;
 
@@ -222,10 +222,15 @@ public class TransportContext implements Closeable {
                 conf.sslTrustStoreReloadIntervalMs())
             .build();
       } else {
-        logger.error("SSL encryption enabled but keys not found for " + conf.getModuleName() +
-            "! Please ensure the configured keys are present.");
-        throw new IllegalArgumentException(conf.getModuleName() +
-            " SSL encryption enabled for " + conf.getModuleName() + " but keys not found!");
+        logger.error(
+            "SSL encryption enabled but keys not found for "
+                + conf.getModuleName()
+                + "! Please ensure the configured keys are present.");
+        throw new IllegalArgumentException(
+            conf.getModuleName()
+                + " SSL encryption enabled for "
+                + conf.getModuleName()
+                + " but keys not found!");
       }
     } else {
       return null;

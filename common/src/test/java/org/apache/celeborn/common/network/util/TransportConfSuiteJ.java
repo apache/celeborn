@@ -23,18 +23,19 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 
-import org.apache.celeborn.common.network.TestHelper;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.TestHelper;
 import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
 
 public class TransportConfSuiteJ {
 
   private TransportConf transportConf =
-      new TransportConf("rpc",
-          TestHelper.updateCelebornConfWithMap(new CelebornConf(),
-              SslSampleConfigs.createDefaultConfigMapForModule("rpc")));
+      new TransportConf(
+          "rpc",
+          TestHelper.updateCelebornConfWithMap(
+              new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule("rpc")));
 
   @Test
   public void testKeyStorePath() {

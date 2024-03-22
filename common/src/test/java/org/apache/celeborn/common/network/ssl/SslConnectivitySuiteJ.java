@@ -17,9 +17,20 @@
 
 package org.apache.celeborn.common.network.ssl;
 
-import com.google.common.collect.Sets;
+import static org.apache.celeborn.common.util.JavaUtils.getLocalHost;
+import static org.junit.Assert.*;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.commons.lang3.tuple.Pair;
+import org.junit.Test;
+
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.network.RpcIntegrationSuiteJ;
 import org.apache.celeborn.common.network.TestHelper;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
@@ -30,23 +41,9 @@ import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.util.JavaUtils;
-import org.apache.commons.lang3.tuple.Pair;
-import org.junit.Test;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static org.apache.celeborn.common.util.JavaUtils.getLocalHost;
-import static org.junit.Assert.*;
-
 
 /**
- * A few negative tests to ensure that a non SSL client cant talk to an SSL server and
- * vice versa.
+ * A few negative tests to ensure that a non SSL client cant talk to an SSL server and vice versa.
  */
 public class SslConnectivitySuiteJ {
 
@@ -65,8 +62,8 @@ public class SslConnectivitySuiteJ {
     final TransportServer server;
     final TransportClientFactory clientFactory;
 
-    TestTransportState(BaseMessageHandler handler, String module,
-        boolean sslServer, boolean sslClient) {
+    TestTransportState(
+        BaseMessageHandler handler, String module, boolean sslServer, boolean sslClient) {
       this.serverConf = createTransportConf(module, sslServer);
       this.clientConf = createTransportConf(module, sslClient);
 
@@ -86,8 +83,8 @@ public class SslConnectivitySuiteJ {
       // in case the default gets flipped to true in future
       celebornConf.set("celeborn.ssl." + module + ".enabled", "false");
       if (enableSsl) {
-        TestHelper.updateCelebornConfWithMap(celebornConf,
-            SslSampleConfigs.createDefaultConfigMapForModule(module));
+        TestHelper.updateCelebornConfWithMap(
+            celebornConf, SslSampleConfigs.createDefaultConfigMapForModule(module));
       }
 
       TransportConf conf = new TransportConf(module, celebornConf);
@@ -111,13 +108,14 @@ public class SslConnectivitySuiteJ {
     public void receive(
         TransportClient client, RequestMessage requestMessage, RpcResponseCallback callback) {
       try {
-      String msg = JavaUtils.bytesToString(requestMessage.body().nioByteBuffer());
-      String response = RESPONSE_PREFIX + msg + RESPONSE_SUFFIX;
-      callback.onSuccess(JavaUtils.stringToBytes(response));
+        String msg = JavaUtils.bytesToString(requestMessage.body().nioByteBuffer());
+        String response = RESPONSE_PREFIX + msg + RESPONSE_SUFFIX;
+        callback.onSuccess(JavaUtils.stringToBytes(response));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
     }
+
     @Override
     public boolean checkRegistered() {
       return true;
@@ -126,8 +124,8 @@ public class SslConnectivitySuiteJ {
 
   // Pair<Success, Failure> ... should be an Either actually.
 
-  private Pair<String, String> sendRPC(TransportClient client, String message,
-      boolean canTimeout) throws Exception {
+  private Pair<String, String> sendRPC(TransportClient client, String message, boolean canTimeout)
+      throws Exception {
     final Semaphore sem = new Semaphore(0);
 
     final AtomicReference<String> response = new AtomicReference<>(null);
@@ -162,7 +160,6 @@ public class SslConnectivitySuiteJ {
     return Pair.of(response.get(), errorResponse.get());
   }
 
-
   // This is a test to validate that this test suite is working fine - so that the negative
   // tests are not indicating an error
   @Test
@@ -187,8 +184,8 @@ public class SslConnectivitySuiteJ {
 
   private void testSuccessfulConnectivity(boolean enableSsl) throws Exception {
     try (TestTransportState state =
-             new TestTransportState(DEFAULT_HANDLER, TEST_MODULE, enableSsl, enableSsl);
-         TransportClient client = state.createClient()) {
+            new TestTransportState(DEFAULT_HANDLER, TEST_MODULE, enableSsl, enableSsl);
+        TransportClient client = state.createClient()) {
 
       String msg = " hi ";
       Pair<String, String> response = sendRPC(client, msg, false);
@@ -200,8 +197,8 @@ public class SslConnectivitySuiteJ {
 
   private void testConnectivityFailure(boolean serverSsl, boolean clientSsl) throws Exception {
     try (TestTransportState state =
-             new TestTransportState(DEFAULT_HANDLER, TEST_MODULE, serverSsl, clientSsl);
-         TransportClient client = state.createClient()) {
+            new TestTransportState(DEFAULT_HANDLER, TEST_MODULE, serverSsl, clientSsl);
+        TransportClient client = state.createClient()) {
 
       String msg = " hi ";
       Pair<String, String> response = sendRPC(client, msg, true);

@@ -25,6 +25,7 @@ import java.security.KeyStore;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.concurrent.atomic.AtomicReference;
+
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
@@ -34,13 +35,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link TrustManager} implementation that reloads its configuration when
- * the truststore file on disk changes.
- * This implementation is based off of the
+ * A {@link TrustManager} implementation that reloads its configuration when the truststore file on
+ * disk changes. This implementation is based off of the
  * org.apache.hadoop.security.ssl.ReloadingX509TrustManager class in the Apache Hadoop Encrypted
  * Shuffle implementation.
  *
- * @see <a href="https://hadoop.apache.org/docs/current/hadoop-mapreduce-client/hadoop-mapreduce-client-core/EncryptedShuffle.html">Hadoop MapReduce Next Generation - Encrypted Shuffle</a>
+ * @see <a
+ *     href="https://hadoop.apache.org/docs/current/hadoop-mapreduce-client/hadoop-mapreduce-client-core/EncryptedShuffle.html">Hadoop
+ *     MapReduce Next Generation - Encrypted Shuffle</a>
  */
 public class ReloadingX509TrustManager implements X509TrustManager, Runnable {
 

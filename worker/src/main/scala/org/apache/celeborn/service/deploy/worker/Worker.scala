@@ -208,7 +208,8 @@ private[celeborn] class Worker(
         pushServerLimiter,
         conf.workerPushHeartbeatEnabled,
         workerSource)
-    (transportContext,
+    (
+      transportContext,
       transportContext.createServer(conf.workerPushPort, getServerBootstraps(transportConf)))
   }
 
@@ -248,7 +249,8 @@ private[celeborn] class Worker(
         closeIdleConnections,
         conf.workerFetchHeartbeatEnabled,
         workerSource)
-    (transportContext,
+    (
+      transportContext,
       transportContext.createServer(conf.workerFetchPort, getServerBootstraps(transportConf)))
   }
 

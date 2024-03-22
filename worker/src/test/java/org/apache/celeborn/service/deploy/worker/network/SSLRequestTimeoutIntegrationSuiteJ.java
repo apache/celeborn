@@ -17,14 +17,15 @@
 
 package org.apache.celeborn.service.deploy.worker.network;
 
-import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.network.TestHelper;
-import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
+import static org.junit.Assert.assertTrue;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.assertTrue;
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.TestHelper;
+import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
 
 public class SSLRequestTimeoutIntegrationSuiteJ extends RequestTimeoutIntegrationSuiteJ {
   @Before
@@ -34,8 +35,9 @@ public class SSLRequestTimeoutIntegrationSuiteJ extends RequestTimeoutIntegratio
     System.out.flush();
 
     // set up SSL for TEST_MODULE
-    doSetup(TestHelper.updateCelebornConfWithMap(new CelebornConf(),
-        SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE)));
+    doSetup(
+        TestHelper.updateCelebornConfWithMap(
+            new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE)));
   }
 
   @After

@@ -17,13 +17,11 @@
 
 package org.apache.celeborn.common.network;
 
-import org.apache.celeborn.common.CelebornConf;
-
 import java.util.Map;
 
-/**
- * A few helper utilities to reduce duplication within test code.
- */
+import org.apache.celeborn.common.CelebornConf;
+
+/** A few helper utilities to reduce duplication within test code. */
 public class TestHelper {
 
   public static CelebornConf updateCelebornConfWithMap(CelebornConf conf, Map<String, String> map) {
@@ -32,5 +30,4 @@ public class TestHelper {
     }
     return conf;
   }
-
 }

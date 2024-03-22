@@ -17,13 +17,14 @@
 
 package org.apache.celeborn.common.network;
 
-import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
+import static org.junit.Assert.assertTrue;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.junit.Assert.assertTrue;
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
 
 public class SSLRpcIntegrationSuiteJ extends RpcIntegrationSuiteJ {
 
@@ -35,8 +36,8 @@ public class SSLRpcIntegrationSuiteJ extends RpcIntegrationSuiteJ {
 
     // set up SSL for TEST_MODULE
     RpcIntegrationSuiteJ.initialize(
-        TestHelper.updateCelebornConfWithMap(new CelebornConf(),
-            SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE)));
+        TestHelper.updateCelebornConfWithMap(
+            new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE)));
   }
 
   @AfterClass
