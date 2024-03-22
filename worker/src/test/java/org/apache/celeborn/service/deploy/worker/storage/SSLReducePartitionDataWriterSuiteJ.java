@@ -28,8 +28,8 @@ import org.apache.celeborn.common.network.util.TransportConf;
 public class SSLReducePartitionDataWriterSuiteJ extends ReducePartitionDataWriterSuiteJ {
   protected TransportConf createModuleTransportConf(String module) {
     CelebornConf conf =
-        TestHelper.updateCelebornConfWithMap(new CelebornConf(),
-            SslSampleConfigs.createDefaultConfigMapForModule(module, false));
+        TestHelper.updateCelebornConfWithMap(
+            new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule(module, false));
     return new TransportConf(module, conf);
   }
 

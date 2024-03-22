@@ -55,16 +55,18 @@ public class SslConnectivitySuiteJ {
 
   private static final TestBaseMessageHandler DEFAULT_HANDLER = new TestBaseMessageHandler();
 
-  private static TransportConf createTransportConf(String module,
-      boolean enableSsl, boolean useNettySsl,
+  private static TransportConf createTransportConf(
+      String module,
+      boolean enableSsl,
+      boolean useNettySsl,
       Function<CelebornConf, CelebornConf> postProcessConf) {
 
     CelebornConf celebornConf = new CelebornConf();
     // in case the default gets flipped to true in future
     celebornConf.set("celeborn.ssl." + module + ".enabled", "false");
     if (enableSsl) {
-      TestHelper.updateCelebornConfWithMap(celebornConf,
-          SslSampleConfigs.createDefaultConfigMapForModule(module, useNettySsl));
+      TestHelper.updateCelebornConfWithMap(
+          celebornConf, SslSampleConfigs.createDefaultConfigMapForModule(module, useNettySsl));
     }
 
     postProcessConf.apply(celebornConf);
@@ -91,9 +93,7 @@ public class SslConnectivitySuiteJ {
     final TransportClientFactory clientFactory;
 
     TestTransportState(
-        BaseMessageHandler handler,
-        TransportConf serverConf,
-        TransportConf clientConf) {
+        BaseMessageHandler handler, TransportConf serverConf, TransportConf clientConf) {
       this.serverContext = new TransportContext(serverConf, handler);
       this.clientContext = new TransportContext(clientConf, handler);
 
@@ -182,12 +182,13 @@ public class SslConnectivitySuiteJ {
   @Test
   public void testBasicSslClientConnectivityWorks() throws Exception {
 
-    final Function<CelebornConf, CelebornConf> updateClientConf = conf -> {
-      // ignore incoming conf, and return a new which only has ssl enabled = true
-      CelebornConf newConf = new CelebornConf();
-      newConf.set("celeborn.ssl." + TEST_MODULE + ".enabled", "true");
-      return newConf;
-    };
+    final Function<CelebornConf, CelebornConf> updateClientConf =
+        conf -> {
+          // ignore incoming conf, and return a new which only has ssl enabled = true
+          CelebornConf newConf = new CelebornConf();
+          newConf.set("celeborn.ssl." + TEST_MODULE + ".enabled", "true");
+          return newConf;
+        };
 
     testSuccessfulConnectivity(true, false, false, Function.identity(), updateClientConf);
     testSuccessfulConnectivity(true, true, false, Function.identity(), updateClientConf);
@@ -226,16 +227,20 @@ public class SslConnectivitySuiteJ {
     testConnectivityFailure(false, true, false, false, Function.identity(), Function.identity());
   }
 
-  private void testSuccessfulConnectivity(boolean enableSsl,
-      boolean useNettySslForServer, boolean useNettySslForClient,
+  private void testSuccessfulConnectivity(
+      boolean enableSsl,
+      boolean useNettySslForServer,
+      boolean useNettySslForClient,
       Function<CelebornConf, CelebornConf> postProcessServerConf,
-      Function<CelebornConf, CelebornConf> postProcessClientConf) throws Exception {
+      Function<CelebornConf, CelebornConf> postProcessClientConf)
+      throws Exception {
     try (TestTransportState state =
-            new TestTransportState(DEFAULT_HANDLER,
-                createTransportConf(TEST_MODULE, enableSsl, useNettySslForServer,
-                    postProcessServerConf),
-                createTransportConf(TEST_MODULE, enableSsl, useNettySslForClient,
-                    postProcessClientConf));
+            new TestTransportState(
+                DEFAULT_HANDLER,
+                createTransportConf(
+                    TEST_MODULE, enableSsl, useNettySslForServer, postProcessServerConf),
+                createTransportConf(
+                    TEST_MODULE, enableSsl, useNettySslForClient, postProcessClientConf));
         TransportClient client = state.createClient()) {
 
       String msg = " hi ";
@@ -246,16 +251,21 @@ public class SslConnectivitySuiteJ {
     }
   }
 
-  private void testConnectivityFailure(boolean serverSsl, boolean clientSsl,
-      boolean useNettySslForServer, boolean useNettySslForClient,
+  private void testConnectivityFailure(
+      boolean serverSsl,
+      boolean clientSsl,
+      boolean useNettySslForServer,
+      boolean useNettySslForClient,
       Function<CelebornConf, CelebornConf> postProcessServerConf,
-      Function<CelebornConf, CelebornConf> postProcessClientConf) throws Exception {
+      Function<CelebornConf, CelebornConf> postProcessClientConf)
+      throws Exception {
     try (TestTransportState state =
-            new TestTransportState(DEFAULT_HANDLER,
-                createTransportConf(TEST_MODULE, serverSsl, useNettySslForServer,
-                    postProcessServerConf),
-                createTransportConf(TEST_MODULE, clientSsl, useNettySslForClient,
-                    postProcessClientConf));
+            new TestTransportState(
+                DEFAULT_HANDLER,
+                createTransportConf(
+                    TEST_MODULE, serverSsl, useNettySslForServer, postProcessServerConf),
+                createTransportConf(
+                    TEST_MODULE, clientSsl, useNettySslForClient, postProcessClientConf));
         TransportClient client = state.createClient()) {
 
       String msg = " hi ";
@@ -281,15 +291,16 @@ public class SslConnectivitySuiteJ {
     final String certChainKey = "celeborn.ssl." + TEST_MODULE + ".certChain";
     final String trustStoreKey = "celeborn.ssl." + TEST_MODULE + ".trustStore";
 
-    final Function<CelebornConf, CelebornConf> updateConf = conf -> {
-      if (conf.getOption(certChainKey).isDefined()) {
-        conf.set(certChainKey, certchainWithoutJkscert);
-      }
-      if (conf.getOption(trustStoreKey).isDefined()) {
-        conf.set(trustStoreKey, truststoreWithoutOpensslCert);
-      }
-      return conf;
-    };
+    final Function<CelebornConf, CelebornConf> updateConf =
+        conf -> {
+          if (conf.getOption(certChainKey).isDefined()) {
+            conf.set(certChainKey, certchainWithoutJkscert);
+          }
+          if (conf.getOption(trustStoreKey).isDefined()) {
+            conf.set(trustStoreKey, truststoreWithoutOpensslCert);
+          }
+          return conf;
+        };
 
     testConnectivityFailure(true, true, true, false, updateConf, updateConf);
     testConnectivityFailure(true, true, false, true, updateConf, updateConf);
@@ -302,17 +313,16 @@ public class SslConnectivitySuiteJ {
 
     final String trustStoreKey = "celeborn.ssl." + TEST_MODULE + ".trustStore";
 
-    final Function<CelebornConf, CelebornConf> updateConf = conf -> {
-      if (conf.getOption(trustStoreKey).isDefined()) {
-        conf.unset(trustStoreKey);
-      }
-      return conf;
-    };
-
+    final Function<CelebornConf, CelebornConf> updateConf =
+        conf -> {
+          if (conf.getOption(trustStoreKey).isDefined()) {
+            conf.unset(trustStoreKey);
+          }
+          return conf;
+        };
 
     // checking nettyssl == false at both client and server does not make sense in this context
     // it is the same cert for both :)
     testSuccessfulConnectivity(true, true, false, updateConf, updateConf);
   }
-
 }

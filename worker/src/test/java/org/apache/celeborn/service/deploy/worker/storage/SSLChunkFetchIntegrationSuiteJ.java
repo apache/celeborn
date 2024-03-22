@@ -36,7 +36,8 @@ public class SSLChunkFetchIntegrationSuiteJ extends ChunkFetchIntegrationSuiteJ 
     System.out.flush();
 
     SSLChunkFetchIntegrationSuiteJ.initialize(
-        TestHelper.updateCelebornConfWithMap(new CelebornConf(),
+        TestHelper.updateCelebornConfWithMap(
+            new CelebornConf(),
             SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE, true)));
   }
 

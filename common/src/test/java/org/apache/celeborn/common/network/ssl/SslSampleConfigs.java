@@ -66,8 +66,8 @@ public class SslSampleConfigs {
     return confMap;
   }
 
-  public static Map<String, String> createDefaultConfigMapForModule(String module,
-      boolean useNettySsl) {
+  public static Map<String, String> createDefaultConfigMapForModule(
+      String module, boolean useNettySsl) {
     Map<String, String> confMap = new HashMap<>();
     confMap.put("celeborn.ssl." + module + ".enabled", "true");
     confMap.put("celeborn.ssl." + module + ".trustStoreReloadingEnabled", "false");
