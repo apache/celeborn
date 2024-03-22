@@ -699,6 +699,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     if (hasHDFSStorage) Math.max(128, get(WORKER_COMMIT_THREADS)) else get(WORKER_COMMIT_THREADS)
   def workerCleanThreads: Int = get(WORKER_CLEAN_THREADS)
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
+  def maxPartitionSizeToEstimate: Long =
+    get(ESTIMATED_PARTITION_SIZE_MAX_SIZE).getOrElse(partitionSplitMaximumSize * 2)
   def minPartitionSizeToEstimate: Long = get(ESTIMATED_PARTITION_SIZE_MIN_SIZE)
   def workerPartitionSorterSortPartitionTimeout: Long = get(WORKER_PARTITION_SORTER_SORT_TIMEOUT)
   def workerPartitionSorterPrefetchEnabled: Boolean =
@@ -2214,10 +2216,19 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64mb")
 
+  val ESTIMATED_PARTITION_SIZE_MAX_SIZE: OptionalConfigEntry[Long] =
+    buildConf("celeborn.master.estimatedPartitionSize.maxSize")
+      .categories("master")
+      .doc(
+        "Max partition size for estimation.")
+      .version("0.4.1")
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
+
   val ESTIMATED_PARTITION_SIZE_MIN_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.master.estimatedPartitionSize.minSize")
       .withAlternative("celeborn.shuffle.minPartitionSizeToEstimate")
-      .categories("worker")
+      .categories("master", "worker")
       .doc(
         "Ignore partition size smaller than this configuration of partition size for estimation.")
       .version("0.3.0")

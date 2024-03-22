@@ -1121,8 +1121,33 @@ public class RatisMasterStatusSystemSuiteJ {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
 
+    CelebornConf conf = new CelebornConf();
+
     statusSystem.handleUpdatePartitionSize();
-    Thread.sleep(3000L);
+    Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.initialEstimatedPartitionSize());
+
+    Long dummy = 1235L;
+    statusSystem.handleAppHeartbeat(APPID1, 10000000000l, 1, dummy, getNewReqeustId());
+    String appId2 = "app02";
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
+
+    // Max size
+    statusSystem.handleUpdatePartitionSize();
+    Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.maxPartitionSizeToEstimate());
+
+    statusSystem.handleAppHeartbeat(APPID1, 1000000000l, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
+
+    // Size between minEstimateSize -> maxEstimateSize
+    statusSystem.handleUpdatePartitionSize();
+    Assert.assertEquals(statusSystem.estimatedPartitionSize, 500000000);
+
+    statusSystem.handleAppHeartbeat(APPID1, 1000l, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1000l, 1, dummy, getNewReqeustId());
+
+    // Min size
+    statusSystem.handleUpdatePartitionSize();
+    Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.minPartitionSizeToEstimate());
   }
 
   @AfterClass
