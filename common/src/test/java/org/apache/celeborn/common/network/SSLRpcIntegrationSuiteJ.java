@@ -30,10 +30,6 @@ public class SSLRpcIntegrationSuiteJ extends RpcIntegrationSuiteJ {
 
   @BeforeClass
   public static void setUp() throws Exception {
-    // TODO: remove me
-    System.out.println("SSLRpcIntegrationSuiteJ.setUp");
-    System.out.flush();
-
     // set up SSL for TEST_MODULE
     RpcIntegrationSuiteJ.initialize(
         TestHelper.updateCelebornConfWithMap(

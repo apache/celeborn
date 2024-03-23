@@ -30,10 +30,6 @@ import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
 public class SSLRequestTimeoutIntegrationSuiteJ extends RequestTimeoutIntegrationSuiteJ {
   @Before
   public void setUp() {
-    // TODO: remove me
-    System.out.println("SSLRequestTimeoutIntegrationSuiteJ.setUp");
-    System.out.flush();
-
     // set up SSL for TEST_MODULE
     doSetup(
         TestHelper.updateCelebornConfWithMap(

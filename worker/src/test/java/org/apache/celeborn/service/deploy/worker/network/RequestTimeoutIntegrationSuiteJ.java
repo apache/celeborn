@@ -77,10 +77,6 @@ public class RequestTimeoutIntegrationSuiteJ {
 
   @Before
   public void setUp() throws Exception {
-    // TODO: remove me
-    System.out.println("RequestTimeoutIntegrationSuiteJ.setUp");
-    System.out.flush();
-
     doSetup(new CelebornConf());
   }
 

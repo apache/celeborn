@@ -71,10 +71,6 @@ public class ChunkFetchIntegrationSuiteJ {
 
   @BeforeClass
   public static void setUp() throws Exception {
-    // TODO: remove me
-    System.out.println("ChunkFetchIntegrationSuiteJ.setUp");
-    System.out.flush();
-
     initialize((new CelebornConf()));
   }
 

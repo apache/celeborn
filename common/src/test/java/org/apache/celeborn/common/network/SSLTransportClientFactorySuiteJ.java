@@ -30,10 +30,6 @@ public class SSLTransportClientFactorySuiteJ extends TransportClientFactorySuite
 
   @Before
   public void setUp() {
-    // TODO: remove me
-    System.out.println("SSLTransportClientFactorySuiteJ.setUp");
-    System.out.flush();
-
     // set up SSL for TEST_MODULE
     doSetup(
         TestHelper.updateCelebornConfWithMap(

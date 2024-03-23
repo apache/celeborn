@@ -54,10 +54,6 @@ public class TransportClientFactorySuiteJ {
 
   @Before
   public void setUp() {
-    // TODO: remove me
-    System.out.println("TransportClientFactorySuiteJ.setUp");
-    System.out.flush();
-
     doSetup(new CelebornConf());
   }
 

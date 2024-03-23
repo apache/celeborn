@@ -54,10 +54,6 @@ public class RpcIntegrationSuiteJ {
 
   @BeforeClass
   public static void setUp() throws Exception {
-    // TODO: remove me
-    System.out.println("RpcIntegrationSuiteJ.setUp");
-    System.out.flush();
-
     initialize((new CelebornConf()));
   }
 

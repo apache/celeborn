@@ -31,10 +31,6 @@ public class SSLChunkFetchIntegrationSuiteJ extends ChunkFetchIntegrationSuiteJ 
 
   @BeforeClass
   public static void setUp() throws Exception {
-    // TODO: remove me
-    System.out.println("SSLChunkFetchIntegrationSuiteJ.setUp");
-    System.out.flush();
-
     SSLChunkFetchIntegrationSuiteJ.initialize(
         TestHelper.updateCelebornConfWithMap(
             new CelebornConf(),
