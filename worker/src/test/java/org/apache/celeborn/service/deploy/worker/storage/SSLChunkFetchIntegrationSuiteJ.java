@@ -33,8 +33,7 @@ public class SSLChunkFetchIntegrationSuiteJ extends ChunkFetchIntegrationSuiteJ 
   public static void setUp() throws Exception {
     SSLChunkFetchIntegrationSuiteJ.initialize(
         TestHelper.updateCelebornConfWithMap(
-            new CelebornConf(),
-            SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE)));
+            new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE)));
   }
 
   @AfterClass

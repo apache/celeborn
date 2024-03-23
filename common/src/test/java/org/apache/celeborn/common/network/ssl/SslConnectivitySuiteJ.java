@@ -173,10 +173,13 @@ public class SslConnectivitySuiteJ {
   // tests are not indicating an error
   @Test
   public void testNormalConnectivityWorks() throws Exception {
-    testSuccessfulConnectivity(false,
+    testSuccessfulConnectivity(
+        false,
         // does not matter what these are set to
-        true, true,
-        Function.identity(), Function.identity());
+        true,
+        true,
+        Function.identity(),
+        Function.identity());
   }
 
   @Test
