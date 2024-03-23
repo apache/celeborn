@@ -35,36 +35,21 @@ public class TransportConfSuiteJ {
       new TransportConf(
           "rpc",
           TestHelper.updateCelebornConfWithMap(
-              new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule("rpc", true)));
+              new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule("rpc")));
 
   @Test
   public void testKeyStorePath() {
-    assertEquals(new File(SslSampleConfigs.keyStorePath), transportConf.sslKeyStore());
-  }
-
-  @Test
-  public void testPrivateKeyPath() {
-    assertEquals(new File(SslSampleConfigs.privateKeyPath), transportConf.sslPrivateKey());
-  }
-
-  @Test
-  public void testCertChainPath() {
-    assertEquals(new File(SslSampleConfigs.certChainPath), transportConf.sslCertChain());
+    assertEquals(new File(SslSampleConfigs.DEFAULT_KEY_STORE_PATH), transportConf.sslKeyStore());
   }
 
   @Test
   public void testTrustStorePath() {
-    assertEquals(new File(SslSampleConfigs.trustStorePath), transportConf.sslTrustStore());
+    assertEquals(new File(SslSampleConfigs.TRUST_STORE_PATH), transportConf.sslTrustStore());
   }
 
   @Test
   public void testTrustStoreReloadingEnabled() {
     assertFalse(transportConf.sslTrustStoreReloadingEnabled());
-  }
-
-  @Test
-  public void testOpenSslEnabled() {
-    assertFalse(transportConf.sslOpenSslEnabled());
   }
 
   @Test
@@ -75,11 +60,6 @@ public class TransportConfSuiteJ {
   @Test
   public void testSslKeyStorePassword() {
     assertEquals("password", transportConf.sslKeyStorePassword());
-  }
-
-  @Test
-  public void testSslKeyPassword() {
-    assertEquals("password", transportConf.sslPrivateKeyPassword());
   }
 
   @Test

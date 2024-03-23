@@ -171,14 +171,6 @@ public class TransportConf {
     return celebornConf.sslEnabled(module);
   }
 
-  /**
-   * If the OpenSSL implementation is enabled, (if available on host system), requires certChain and
-   * keyFile arguments
-   */
-  public boolean sslOpenSslEnabled() {
-    return celebornConf.sslOpenSslEnabled(module);
-  }
-
   /** SSL protocol (remember that SSLv3 was compromised) supported by Java */
   public String sslProtocol() {
     return celebornConf.sslProtocol(module);
@@ -197,21 +189,6 @@ public class TransportConf {
   /** The password to the key-store file */
   public String sslKeyStorePassword() {
     return celebornConf.sslKeyStorePassword(module);
-  }
-
-  /** A PKCS#8 private key file in PEM format; can be relative to the current directory */
-  public File sslPrivateKey() {
-    return celebornConf.sslPrivateKey(module);
-  }
-
-  /** The password to the private key */
-  public String sslPrivateKeyPassword() {
-    return celebornConf.sslPrivateKeyPassword(module);
-  }
-
-  /** A X.509 certificate chain file in PEM format; can be relative to the current directory */
-  public File sslCertChain() {
-    return celebornConf.sslCertChain(module);
   }
 
   /** The trust-store file; can be relative to the current directory */
@@ -248,28 +225,15 @@ public class TransportConf {
     if (!sslEnabled()) {
       return false;
     }
-    if (sslOpenSslEnabled()) {
-      // OpenSSL requires both the privateKey and certChain
-      File privateKey = sslPrivateKey();
-      if (privateKey == null || !privateKey.exists()) {
-        return false;
-      }
-      File certChain = sslCertChain();
-      if (certChain == null || !certChain.exists()) {
-        return false;
-      }
-      return true;
-    } else {
-      // It is not required to have a keyStore for client side connections - only server side
-      // connectivity ... so transport conf's without keystore can be used in
-      // client mode only.
-      // In case it is specified, we check for its validity
-      File keyStore = sslKeyStore();
-      if (keyStore != null && !keyStore.exists()) {
-        return false;
-      }
-      // It's fine for the trust store to be missing, we would default to trusting all.
-      return true;
+    // It is not required to have a keyStore for client side connections - only server side
+    // connectivity ... so transport conf's without keystore can be used in
+    // client mode only.
+    // In case it is specified, we check for its validity
+    File keyStore = sslKeyStore();
+    if (keyStore != null && !keyStore.exists()) {
+      return false;
     }
+    // It's fine for the trust store to be missing, we would default to trusting all.
+    return true;
   }
 }

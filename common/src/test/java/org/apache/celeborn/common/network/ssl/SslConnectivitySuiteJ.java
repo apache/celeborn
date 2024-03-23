@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -58,15 +59,20 @@ public class SslConnectivitySuiteJ {
   private static TransportConf createTransportConf(
       String module,
       boolean enableSsl,
-      boolean useNettySsl,
+      boolean useDefault,
       Function<CelebornConf, CelebornConf> postProcessConf) {
 
     CelebornConf celebornConf = new CelebornConf();
     // in case the default gets flipped to true in future
     celebornConf.set("celeborn.ssl." + module + ".enabled", "false");
     if (enableSsl) {
-      TestHelper.updateCelebornConfWithMap(
-          celebornConf, SslSampleConfigs.createDefaultConfigMapForModule(module, useNettySsl));
+      Map<String, String> configMap;
+      if (useDefault) {
+        configMap = SslSampleConfigs.createDefaultConfigMapForModule(module);
+      } else {
+        configMap = SslSampleConfigs.createAnotherConfigMapForModule(module);
+      }
+      TestHelper.updateCelebornConfWithMap(celebornConf, configMap);
     }
 
     celebornConf = postProcessConf.apply(celebornConf);
@@ -74,15 +80,6 @@ public class SslConnectivitySuiteJ {
     TransportConf conf = new TransportConf(module, celebornConf);
     assertEquals(enableSsl, conf.sslEnabled());
 
-    if (enableSsl) {
-      if (useNettySsl) {
-        assertNotNull(conf.sslCertChain());
-        assertNotNull(conf.sslPrivateKey());
-      } else {
-        assertNull(conf.sslCertChain());
-        assertNull(conf.sslPrivateKey());
-      }
-    }
     return conf;
   }
 
@@ -176,7 +173,10 @@ public class SslConnectivitySuiteJ {
   // tests are not indicating an error
   @Test
   public void testNormalConnectivityWorks() throws Exception {
-    testSuccessfulConnectivity(false, false, false, Function.identity(), Function.identity());
+    testSuccessfulConnectivity(false,
+        // does not matter what these are set to
+        true, true,
+        Function.identity(), Function.identity());
   }
 
   @Test
@@ -190,7 +190,7 @@ public class SslConnectivitySuiteJ {
           return newConf;
         };
 
-    testSuccessfulConnectivity(true, false, false, Function.identity(), updateClientConf);
+    testSuccessfulConnectivity(true, true, true, Function.identity(), updateClientConf);
     testSuccessfulConnectivity(true, true, false, Function.identity(), updateClientConf);
 
     // just for validation, this should fail (ssl for client, plain for server) ...
@@ -198,39 +198,21 @@ public class SslConnectivitySuiteJ {
   }
 
   @Test
-  public void testSslConnectivityWorksBothNetty() throws Exception {
-    testSuccessfulConnectivity(true, true, true, Function.identity(), Function.identity());
-  }
-
-  @Test
-  public void testSslConnectivityWorksBothJdk() throws Exception {
-    testSuccessfulConnectivity(true, false, false, Function.identity(), Function.identity());
-  }
-
-  @Test
-  public void testSslConnectivityWorksNettyClientJdkServer() throws Exception {
-    testSuccessfulConnectivity(true, false, true, Function.identity(), Function.identity());
-  }
-
-  @Test
-  public void testSslConnectivityWorksJdkClientNettyServer() throws Exception {
-    testSuccessfulConnectivity(true, true, false, Function.identity(), Function.identity());
-  }
-
-  @Test
   public void testSslServerNormalClientFails() throws Exception {
     testConnectivityFailure(true, false, true, true, Function.identity(), Function.identity());
+    testConnectivityFailure(true, false, false, true, Function.identity(), Function.identity());
   }
 
   @Test
   public void testSslClientNormalServerFails() throws Exception {
     testConnectivityFailure(false, true, false, false, Function.identity(), Function.identity());
+    testConnectivityFailure(false, true, false, true, Function.identity(), Function.identity());
   }
 
   private void testSuccessfulConnectivity(
       boolean enableSsl,
-      boolean useNettySslForServer,
-      boolean useNettySslForClient,
+      boolean primaryConfigForServer,
+      boolean primaryConfigForClient,
       Function<CelebornConf, CelebornConf> postProcessServerConf,
       Function<CelebornConf, CelebornConf> postProcessClientConf)
       throws Exception {
@@ -238,9 +220,9 @@ public class SslConnectivitySuiteJ {
             new TestTransportState(
                 DEFAULT_HANDLER,
                 createTransportConf(
-                    TEST_MODULE, enableSsl, useNettySslForServer, postProcessServerConf),
+                    TEST_MODULE, enableSsl, primaryConfigForServer, postProcessServerConf),
                 createTransportConf(
-                    TEST_MODULE, enableSsl, useNettySslForClient, postProcessClientConf));
+                    TEST_MODULE, enableSsl, primaryConfigForClient, postProcessClientConf));
         TransportClient client = state.createClient()) {
 
       String msg = " hi ";
@@ -254,8 +236,8 @@ public class SslConnectivitySuiteJ {
   private void testConnectivityFailure(
       boolean serverSsl,
       boolean clientSsl,
-      boolean useNettySslForServer,
-      boolean useNettySslForClient,
+      boolean primaryConfigForServer,
+      boolean primaryConfigForClient,
       Function<CelebornConf, CelebornConf> postProcessServerConf,
       Function<CelebornConf, CelebornConf> postProcessClientConf)
       throws Exception {
@@ -263,9 +245,9 @@ public class SslConnectivitySuiteJ {
             new TestTransportState(
                 DEFAULT_HANDLER,
                 createTransportConf(
-                    TEST_MODULE, serverSsl, useNettySslForServer, postProcessServerConf),
+                    TEST_MODULE, serverSsl, primaryConfigForServer, postProcessServerConf),
                 createTransportConf(
-                    TEST_MODULE, clientSsl, useNettySslForClient, postProcessClientConf));
+                    TEST_MODULE, clientSsl, primaryConfigForClient, postProcessClientConf));
         TransportClient client = state.createClient()) {
 
       String msg = " hi ";
@@ -279,31 +261,22 @@ public class SslConnectivitySuiteJ {
 
   @Test
   public void testUntrustedServerCertFails() throws Exception {
-    // test for both jks and nettyssl case - note the default stores have both certs, so we use
-    // a truststore/certchain which does not have it.
-
-    final String certchainWithoutJkscert =
-        SslSampleConfigs.getAbsolutePath("/ssl/certchain-without-jkscert.pem");
-    final String truststoreWithoutOpensslCert =
-        SslSampleConfigs.getAbsolutePath("/ssl/truststore-without-openssl-cert");
-
     // since we are specifying for the exact module, this is fine
-    final String certChainKey = "celeborn.ssl." + TEST_MODULE + ".certChain";
     final String trustStoreKey = "celeborn.ssl." + TEST_MODULE + ".trustStore";
 
     final Function<CelebornConf, CelebornConf> updateConf =
         conf -> {
-          if (conf.getOption(certChainKey).isDefined()) {
-            conf.set(certChainKey, certchainWithoutJkscert);
-          }
           if (conf.getOption(trustStoreKey).isDefined()) {
-            conf.set(trustStoreKey, truststoreWithoutOpensslCert);
+            conf.set(trustStoreKey, SslSampleConfigs.TRUST_STORE_WITHOUT_CA);
           }
           return conf;
         };
 
+    // will fail for all combinations - since we dont have the CA's in the truststore
     testConnectivityFailure(true, true, true, false, updateConf, updateConf);
     testConnectivityFailure(true, true, false, true, updateConf, updateConf);
+    testConnectivityFailure(true, true, true, true, updateConf, updateConf);
+    testConnectivityFailure(true, true, false, false, updateConf, updateConf);
   }
 
   @Test
@@ -323,6 +296,9 @@ public class SslConnectivitySuiteJ {
 
     // checking nettyssl == false at both client and server does not make sense in this context
     // it is the same cert for both :)
+    testSuccessfulConnectivity(true, true, true, updateConf, updateConf);
     testSuccessfulConnectivity(true, true, false, updateConf, updateConf);
+    testSuccessfulConnectivity(true, false, true, updateConf, updateConf);
+    testSuccessfulConnectivity(true, false, false, updateConf, updateConf);
   }
 }

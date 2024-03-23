@@ -34,7 +34,7 @@ public class SSLTransportClientFactorySuiteJ extends TransportClientFactorySuite
     doSetup(
         TestHelper.updateCelebornConfWithMap(
             new CelebornConf(),
-            SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE, false)));
+            SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE)));
   }
 
   @After

@@ -29,7 +29,7 @@ public class SSLReducePartitionDataWriterSuiteJ extends ReducePartitionDataWrite
   protected TransportConf createModuleTransportConf(String module) {
     CelebornConf conf =
         TestHelper.updateCelebornConfWithMap(
-            new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule(module, false));
+            new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule(module));
     return new TransportConf(module, conf);
   }
 

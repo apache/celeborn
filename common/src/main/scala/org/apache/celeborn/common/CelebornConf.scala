@@ -1159,14 +1159,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   /**
-   * If the OpenSSL implementation is enabled,
-   * (if available on host system), requires certChain and keyFile arguments
-   */
-  def sslOpenSslEnabled(module: String): Boolean = {
-    getSslConfig(SSL_OPENSSL_ENABLED, module)
-  }
-
-  /**
    * SSL protocol (remember that SSLv3 was compromised) supported by Java
    */
   def sslProtocol(module: String): String = {
@@ -1193,27 +1185,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
    */
   def sslKeyStorePassword(module: String): String = {
     getSslConfig(SSL_KEY_STORE_PASSWORD, module).orNull
-  }
-
-  /**
-   * A PKCS#8 private key file in PEM format; can be relative to the current directory
-   */
-  def sslPrivateKey(module: String): File = {
-    asFileOrNull(getSslConfig(SSL_PRIVATE_KEY, module))
-  }
-
-  /**
-   * The password to the private key
-   */
-  def sslPrivateKeyPassword(module: String): String = {
-    getSslConfig(SSL_PRIVATE_KEY_PASSWORD, module).orNull
-  }
-
-  /**
-   * A X.509 certificate chain file in PEM format; can be relative to the current directory
-   */
-  def sslCertChain(module: String): File = {
-    asFileOrNull(getSslConfig(SSL_CERT_CHAIN, module))
   }
 
   /**
@@ -4792,18 +4763,6 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val SSL_OPENSSL_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.ssl.<module>.openSslEnabled")
-      .categories("network", "ssl")
-      .version("0.5.0")
-      .doc("Whether to use OpenSSL for cryptographic operations instead of the JDK SSL " +
-        "provider. This setting requires the `certChain` and `privateKey` settings to be set. " +
-        "This takes precedence over the `keyStore` and `trustStore` settings if both are " +
-        "specified. If the OpenSSL library is not available at runtime, we will fall back to " +
-        "the JDK provider.")
-      .booleanConf
-      .createWithDefault(false)
-
   val SSL_PROTOCOL: ConfigEntry[String] =
     buildConf("celeborn.ssl.<module>.protocol")
       .categories("network", "ssl")
@@ -4839,35 +4798,6 @@ object CelebornConf extends Logging {
       .categories("network", "ssl")
       .version("0.5.0")
       .doc("Password to the key store.")
-      .stringConf
-      .createOptional
-
-  val SSL_PRIVATE_KEY: OptionalConfigEntry[String] =
-    buildConf("celeborn.ssl.<module>.privateKey")
-      .categories("network", "ssl")
-      .version("0.5.0")
-      .doc("Path to the private key file in PEM format. The path can be absolute or relative to " +
-        "directory in which the process is started. This setting is required when using the " +
-        "OpenSSL implementation.")
-      .stringConf
-      .createOptional
-
-  val SSL_PRIVATE_KEY_PASSWORD: OptionalConfigEntry[String] =
-    buildConf("celeborn.ssl.<module>.privateKeyPassword")
-      .categories("network", "ssl")
-      .version("0.5.0")
-      .doc("The password to the above private key file in PEM format.")
-      .stringConf
-      .createOptional
-
-  val SSL_CERT_CHAIN: OptionalConfigEntry[String] =
-    buildConf("celeborn.ssl.<module>.certChain")
-      .categories("network", "ssl")
-      .version("0.5.0")
-      .doc(
-        "Path to the certificate chain file in PEM format. The path can be absolute or relative " +
-          "to the directory in which the process is started. This setting is required when using " +
-          "the OpenSSL implementation.")
       .stringConf
       .createOptional
 

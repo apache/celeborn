@@ -36,55 +36,42 @@ import javax.security.auth.x500.X500Principal;
 import org.bouncycastle.x509.X509V1CertificateGenerator;
 
 public class SslSampleConfigs {
-  public static final String keyStorePath = getAbsolutePath("/ssl/keystore");
-  public static final String privateKeyPath = getAbsolutePath("/ssl/key.pem");
-  public static final String certChainPath = getAbsolutePath("/ssl/certchain.pem");
-  public static final String trustStorePath = getAbsolutePath("/ssl/truststore");
-  public static final String unencryptedPrivateKeyPath =
-      getAbsolutePath("/ssl/unencrypted-key.pem");
-  public static final String unencryptedCertChainPath =
-      getAbsolutePath("/ssl/unencrypted-certchain.pem");
 
-  /**
-   * Updates config with settings needed to enable the SSL feature All the settings are
-   * intentionally set on the parent namespace so that we can verify settings inheritance works. We
-   * intentionally set conflicting options for the key password to verify that is handled correctly.
-   */
-  public static Map<String, String> createDefaultConfigMap() {
-    Map<String, String> confMap = new HashMap<>();
-    confMap.put("celeborn.ssl.enabled", "true");
-    confMap.put("celeborn.ssl.openSslEnabled", "true");
-    confMap.put("celeborn.ssl.privateKey", SslSampleConfigs.unencryptedPrivateKeyPath);
-    confMap.put("celeborn.ssl.certChain", SslSampleConfigs.unencryptedCertChainPath);
-    confMap.put("celeborn.ssl.keyPassword", "password");
-    confMap.put("celeborn.ssl.trustStoreReloadingEnabled", "false");
-    confMap.put("celeborn.ssl.trustStoreReloadIntervalMs", "10000");
-    confMap.put("celeborn.ssl.keyStore", SslSampleConfigs.keyStorePath);
-    confMap.put("celeborn.ssl.keyStorePassword", "password");
-    confMap.put("celeborn.ssl.trustStore", SslSampleConfigs.trustStorePath);
-    confMap.put("celeborn.ssl.trustStorePassword", "password");
-    confMap.put("celeborn.ssl.protocol", "TLSv1.3");
-    return confMap;
+  public static final String DEFAULT_KEY_STORE_PATH = getAbsolutePath("/ssl/server.jks");
+  public static final String SECOND_KEY_STORE_PATH =
+      getAbsolutePath("/ssl/server_another.jks");
+
+  // trust store has ca's for both keys.
+  public static final String TRUST_STORE_PATH = getAbsolutePath("/ssl/truststore.jks");
+
+  // this is a trust store which does not have either the primary or second cert's ca
+  public static final String TRUST_STORE_WITHOUT_CA =
+      getAbsolutePath("/ssl/truststore-without-ca.jks");
+
+  public static Map<String, String> createDefaultConfigMapForModule(String module) {
+    return createConfigMapForModule(module, true);
   }
 
-  public static Map<String, String> createDefaultConfigMapForModule(
-      String module, boolean useNettySsl) {
+  public static Map<String, String> createAnotherConfigMapForModule(String module) {
+    return createConfigMapForModule(module, false);
+  }
+
+  private static Map<String, String> createConfigMapForModule(String module, boolean forDefault) {
     Map<String, String> confMap = new HashMap<>();
     confMap.put("celeborn.ssl." + module + ".enabled", "true");
     confMap.put("celeborn.ssl." + module + ".trustStoreReloadingEnabled", "false");
     confMap.put("celeborn.ssl." + module + ".openSslEnabled", "false");
     confMap.put("celeborn.ssl." + module + ".trustStoreReloadIntervalMs", "10000");
-    confMap.put("celeborn.ssl." + module + ".keyStore", SslSampleConfigs.keyStorePath);
+    if (forDefault) {
+      confMap.put("celeborn.ssl." + module + ".keyStore", DEFAULT_KEY_STORE_PATH);
+    } else {
+      confMap.put("celeborn.ssl." + module + ".keyStore", SECOND_KEY_STORE_PATH);
+    }
     confMap.put("celeborn.ssl." + module + ".keyStorePassword", "password");
     confMap.put("celeborn.ssl." + module + ".keyPassword", "password");
     confMap.put("celeborn.ssl." + module + ".privateKeyPassword", "password");
-    if (useNettySsl) {
-      confMap.put("celeborn.ssl." + module + ".certChain", SslSampleConfigs.certChainPath);
-      confMap.put("celeborn.ssl." + module + ".privateKey", SslSampleConfigs.privateKeyPath);
-    } else {
-      confMap.put("celeborn.ssl." + module + ".protocol", "TLSv1.2");
-    }
-    confMap.put("celeborn.ssl." + module + ".trustStore", SslSampleConfigs.trustStorePath);
+    confMap.put("celeborn.ssl." + module + ".protocol", "TLSv1.2");
+    confMap.put("celeborn.ssl." + module + ".trustStore", TRUST_STORE_PATH);
     confMap.put("celeborn.ssl." + module + ".trustStorePassword", "password");
     return confMap;
   }

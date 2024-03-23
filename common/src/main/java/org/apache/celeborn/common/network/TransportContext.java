@@ -212,14 +212,9 @@ public class TransportContext implements Closeable {
     if (conf.sslEnabled()) {
       if (conf.sslEnabledAndKeysAreValid()) {
         return new SSLFactory.Builder()
-            .openSslEnabled(conf.sslOpenSslEnabled())
             .requestedProtocol(conf.sslProtocol())
             .requestedCiphers(conf.sslRequestedCiphers())
             .keyStore(conf.sslKeyStore(), conf.sslKeyStorePassword())
-            .privateKey(conf.sslPrivateKey())
-            .privateKeyPassword(conf.sslPrivateKeyPassword())
-            .keyPassword(conf.sslPrivateKeyPassword())
-            .certChain(conf.sslCertChain())
             .trustStore(
                 conf.sslTrustStore(),
                 conf.sslTrustStorePassword(),

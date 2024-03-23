@@ -34,7 +34,7 @@ public class SSLRpcIntegrationSuiteJ extends RpcIntegrationSuiteJ {
     RpcIntegrationSuiteJ.initialize(
         TestHelper.updateCelebornConfWithMap(
             new CelebornConf(),
-            SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE, true)));
+            SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE)));
   }
 
   @AfterClass

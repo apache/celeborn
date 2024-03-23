@@ -38,16 +38,12 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 
 import com.google.common.io.Files;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.handler.ssl.OpenSsl;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,11 +56,6 @@ public class SSLFactory {
   /** For a configuration specifying keystore/truststore files */
   private SSLContext jdkSslContext;
 
-  /** For a configuration specifying a PEM cert chain, and a PEM private key */
-  private SslContext nettyClientSslContext;
-
-  private SslContext nettyServerSslContext;
-
   private KeyManager[] keyManagers;
   private TrustManager[] trustManagers;
   private String requestedProtocol;
@@ -74,11 +65,7 @@ public class SSLFactory {
     this.requestedProtocol = b.requestedProtocol;
     this.requestedCiphers = b.requestedCiphers;
     try {
-      if (b.certChain != null && b.privateKey != null) {
-        initNettySslContexts(b);
-      } else {
-        initJdkSslContext(b);
-      }
+      initJdkSslContext(b);
     } catch (Exception e) {
       throw new RuntimeException("SSLFactory creation failed", e);
     }
@@ -100,19 +87,6 @@ public class SSLFactory {
     return null == jdkSslContext || null != keyManagers;
   }
 
-  private void initNettySslContexts(final Builder b) throws SSLException {
-    nettyClientSslContext =
-        SslContextBuilder.forClient()
-            .sslProvider(getSslProvider(b))
-            .trustManager(b.certChain)
-            .build();
-
-    nettyServerSslContext =
-        SslContextBuilder.forServer(b.certChain, b.privateKey, b.privateKeyPassword)
-            .sslProvider(getSslProvider(b))
-            .build();
-  }
-
   /**
    * If OpenSSL is requested, this will check if an implementation is available on the local host.
    * If an implementation is not available it will fall back to the JDK {@link SslProvider}.
@@ -121,13 +95,6 @@ public class SSLFactory {
    * @return
    */
   private SslProvider getSslProvider(Builder b) {
-    if (b.openSslEnabled) {
-      if (OpenSsl.isAvailable()) {
-        return SslProvider.OPENSSL;
-      } else {
-        logger.warn("OpenSSL Provider requested but it is not available, using JDK SSL Provider");
-      }
-    }
     return SslProvider.JDK;
   }
 
@@ -147,8 +114,6 @@ public class SSLFactory {
 
     keyManagers = null;
     jdkSslContext = null;
-    nettyClientSslContext = null;
-    nettyServerSslContext = null;
     requestedProtocol = null;
     requestedCiphers = null;
   }
@@ -159,15 +124,11 @@ public class SSLFactory {
     private String[] requestedCiphers;
     private File keyStore;
     private String keyStorePassword;
-    private File privateKey;
-    private String privateKeyPassword;
     private String keyPassword;
-    private File certChain;
     private File trustStore;
     private String trustStorePassword;
     private boolean trustStoreReloadingEnabled;
     private int trustStoreReloadIntervalMs;
-    private boolean openSslEnabled;
 
     /**
      * Sets the requested protocol, i.e., "TLSv1.2", "TLSv1.1", etc
@@ -205,17 +166,6 @@ public class SSLFactory {
     }
 
     /**
-     * Sets a PKCS#8 private key file in PEM format
-     *
-     * @param privateKey The private key file to use
-     * @return The builder object
-     */
-    public Builder privateKey(File privateKey) {
-      this.privateKey = privateKey;
-      return this;
-    }
-
-    /**
      * Sets the key password
      *
      * @param keyPassword The password for the private key in the key store
@@ -223,37 +173,6 @@ public class SSLFactory {
      */
     public Builder keyPassword(String keyPassword) {
       this.keyPassword = keyPassword;
-      return this;
-    }
-
-    /**
-     * Sets the private key password
-     *
-     * @param privateKeyPassword The password for the private key
-     * @return The builder object
-     */
-    public Builder privateKeyPassword(String privateKeyPassword) {
-      this.privateKeyPassword = privateKeyPassword;
-      return this;
-    }
-
-    /**
-     * Sets a X.509 certificate chain file in PEM format
-     *
-     * @param certChain The certificate chain file to use
-     * @return The builder object
-     */
-    public Builder certChain(File certChain) {
-      this.certChain = certChain;
-      return this;
-    }
-
-    /**
-     * @param enabled Whether to use the OpenSSL implementation
-     * @return The builder object
-     */
-    public Builder openSslEnabled(boolean enabled) {
-      this.openSslEnabled = enabled;
       return this;
     }
 
@@ -323,21 +242,7 @@ public class SSLFactory {
   }
 
   private SSLEngine createEngine(boolean isClient, ByteBufAllocator allocator) {
-    SSLEngine engine;
-    if (isClient) {
-      if (nettyClientSslContext != null) {
-        engine = nettyClientSslContext.newEngine(allocator);
-      } else {
-        engine = jdkSslContext.createSSLEngine();
-      }
-    } else {
-      if (nettyServerSslContext != null) {
-        engine = nettyServerSslContext.newEngine(allocator);
-      } else {
-        engine = jdkSslContext.createSSLEngine();
-      }
-    }
-    return engine;
+    return jdkSslContext.createSSLEngine();
   }
 
   private static TrustManager[] credulousTrustStoreManagers() {

@@ -34,7 +34,7 @@ public class SSLRequestTimeoutIntegrationSuiteJ extends RequestTimeoutIntegratio
     doSetup(
         TestHelper.updateCelebornConfWithMap(
             new CelebornConf(),
-            SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE, true)));
+            SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE)));
   }
 
   @After
