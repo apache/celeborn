@@ -67,6 +67,10 @@ object Dependencies {
   val hikaricpVersion = "4.0.3"
   val h2Version = "2.2.224"
 
+  // For SSL support
+  val nettyTcnativeVersion = "2.0.62.Final"
+  val bouncycastleVersion = "1.77"
+
   // Versions for proto
   val protocVersion = "3.21.7"
   val protoVersion = "3.21.7"
@@ -138,6 +142,22 @@ object Dependencies {
   val scalatestMockito = "org.mockito" %% "mockito-scala-scalatest" % scalatestMockitoVersion
   val scalatest = "org.scalatest" %% "scalatest" % scalatestVersion
   val h2 = "com.h2database" % "h2" % h2Version
+
+  // SSL support
+  val nettyTcnativeBoringsslStaticLinuxX8664 = "io.netty" %
+    "netty-tcnative-boringssl-static" % nettyTcnativeVersion classifier "linux-x86_64"
+
+  val nettyTcnativeBoringsslStaticLinuxAarch64 = "io.netty" % "netty-tcnative-boringssl-static" %
+    nettyTcnativeVersion classifier "linux-aarch_64"
+
+  val nettyTcnativeBoringsslStaticOsxAarch64 = "io.netty" % "netty-tcnative-boringssl-static" %
+    nettyTcnativeVersion classifier "osx-aarch_64"
+
+  val nettyTcnativeBoringsslStaticOsxX8664 = "io.netty" % "netty-tcnative-boringssl-static" %
+    nettyTcnativeVersion classifier "osx-x86_64"
+
+  val bouncycastleBcprovJdk18on = "org.bouncycastle" % "bcprov-jdk18on" % bouncycastleVersion % "test"
+  val bouncycastleBcpkixJdk18on = "org.bouncycastle" % "bcpkix-jdk18on" % bouncycastleVersion % "test"
 }
 
 object CelebornCommonSettings {
@@ -392,7 +412,14 @@ object CelebornCommon {
         Dependencies.jacksonDatabind,
         Dependencies.jacksonAnnotations,
         Dependencies.log4jSlf4jImpl % "test",
-        Dependencies.log4j12Api % "test"
+        Dependencies.log4j12Api % "test",
+        // SSL support
+        Dependencies.nettyTcnativeBoringsslStaticLinuxX8664,
+        Dependencies.nettyTcnativeBoringsslStaticLinuxAarch64,
+        Dependencies.nettyTcnativeBoringsslStaticOsxAarch64,
+        Dependencies.nettyTcnativeBoringsslStaticOsxX8664,
+        Dependencies.bouncycastleBcprovJdk18on,
+        Dependencies.bouncycastleBcpkixJdk18on
       ) ++ commonUnitTestDependencies,
 
       Compile / sourceGenerators += Def.task {
