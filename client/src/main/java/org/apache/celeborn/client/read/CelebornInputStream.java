@@ -74,10 +74,15 @@ public abstract class CelebornInputStream extends InputStream {
       // if startMapIndex > endMapIndex, means partition is skew partition.
       // locations will split to sub-partitions with startMapIndex size.
       ArrayList<PartitionLocation> filterLocations = locations;
+      logger.error("current split info: {}，{}", startMapIndex, endMapIndex);
       boolean splitSkewPartitionWithoutMapRange =
           conf.clientPushFailureTrackingEnabled() && startMapIndex > endMapIndex;
       if (splitSkewPartitionWithoutMapRange) {
+        logger.error("use new mode to handle skew partition without map range");
         filterLocations = getSubSkewPartitionLocations(locations, startMapIndex, endMapIndex);
+
+        logger.error("current partition locations: {}", filterLocations);
+
         endMapIndex = Integer.MAX_VALUE;
       }
       return new CelebornInputStreamImpl(
@@ -660,14 +665,15 @@ public abstract class CelebornInputStream extends InputStream {
           // de-duplicate
           if (attemptId == attempts[mapId]) {
             if (splitSkewPartitionWithoutMapRange) {
-              PushFailedBatch failedBatch =
-                  new PushFailedBatch(
-                      mapId, attemptId, batchId, currentReader.getLocation().getEpoch());
-              if (this.failedBatches
-                  .get(currentReader.getLocation().getUniqueId())
-                  .contains(failedBatch)) {
-                logger.warn("Skip duplicated batch: {}.", failedBatch);
-                continue;
+              Set<PushFailedBatch> failedBatchSet = this.failedBatches
+                  .get(currentReader.getLocation().getUniqueId());
+              if (null != failedBatchSet) {
+                PushFailedBatch failedBatch =
+                    new PushFailedBatch(mapId, attemptId, batchId);
+                if (failedBatchSet.contains(failedBatch)) {
+                  logger.warn("Skip duplicated batch: {}.", failedBatch);
+                  continue;
+                }
               }
             }
             if (!batchesRead.containsKey(mapId)) {
