@@ -16,6 +16,12 @@
 
 
 # A simple utility to (re-)generate the files within resources/ssl
+# These generated certificates are used for a variety of test scenarios for SSL.
+# The utility ends up generating two certificates - which are saved into two different keystores
+# The certificates generated are signed by two different CA cert's (also generated here).
+# There are two truststores generated - the first truststore has both CA certs as part of it
+# Hence this trust can be used to validate both client certificates.
+# The second trust store has NO CA certs in it - and so when used will fail both the certificates.
 
 function gen_certs() {
 
