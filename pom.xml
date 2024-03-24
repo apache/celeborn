@@ -519,30 +519,6 @@
       </dependency>
       <!-- for SSL support -->
       <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-tcnative-boringssl-static</artifactId>
-        <version>${netty-tcnative.version}</version>
-        <classifier>linux-x86_64</classifier>
-      </dependency>
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-tcnative-boringssl-static</artifactId>
-        <version>${netty-tcnative.version}</version>
-        <classifier>linux-aarch_64</classifier>
-      </dependency>
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-tcnative-boringssl-static</artifactId>
-        <version>${netty-tcnative.version}</version>
-        <classifier>osx-aarch_64</classifier>
-      </dependency>
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-tcnative-boringssl-static</artifactId>
-        <version>${netty-tcnative.version}</version>
-        <classifier>osx-x86_64</classifier>
-      </dependency>
-      <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcprov-jdk18on</artifactId>
         <version>${bouncycastle.version}</version>
