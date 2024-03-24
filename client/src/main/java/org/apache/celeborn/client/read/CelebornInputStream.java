@@ -665,11 +665,10 @@ public abstract class CelebornInputStream extends InputStream {
           // de-duplicate
           if (attemptId == attempts[mapId]) {
             if (splitSkewPartitionWithoutMapRange) {
-              Set<PushFailedBatch> failedBatchSet = this.failedBatches
-                  .get(currentReader.getLocation().getUniqueId());
+              Set<PushFailedBatch> failedBatchSet =
+                  this.failedBatches.get(currentReader.getLocation().getUniqueId());
               if (null != failedBatchSet) {
-                PushFailedBatch failedBatch =
-                    new PushFailedBatch(mapId, attemptId, batchId);
+                PushFailedBatch failedBatch = new PushFailedBatch(mapId, attemptId, batchId);
                 if (failedBatchSet.contains(failedBatch)) {
                   logger.warn("Skip duplicated batch: {}.", failedBatch);
                   continue;
