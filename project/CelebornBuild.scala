@@ -68,7 +68,7 @@ object Dependencies {
   val h2Version = "2.2.224"
 
   // For SSL support
-  val nettyTcnativeVersion = "2.0.62.Final"
+  val nettyTcnativeVersion = "2.0.65.Final"
   val bouncycastleVersion = "1.77"
 
   // Versions for proto
