@@ -1098,8 +1098,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       nextBatchId);
                   if (dataPushFailureTrackingEnabled) {
                     pushState.addFailedBatch(
-                        latest.getUniqueId(),
-                        new PushFailedBatch(mapId, attemptId, nextBatchId));
+                        latest.getUniqueId(), new PushFailedBatch(mapId, attemptId, nextBatchId));
                   }
                   ReviveRequest reviveRequest =
                       new ReviveRequest(
@@ -1169,8 +1168,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             public void onFailure(Throwable e) {
               if (dataPushFailureTrackingEnabled) {
                 pushState.addFailedBatch(
-                    latest.getUniqueId(),
-                    new PushFailedBatch(mapId, attemptId, nextBatchId));
+                    latest.getUniqueId(), new PushFailedBatch(mapId, attemptId, nextBatchId));
               }
               if (pushState.exception.get() != null) {
                 return;
@@ -1472,8 +1470,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 if (dataPushFailureTrackingEnabled) {
                   for (int i = 0; i < numBatches; i++) {
                     pushState.addFailedBatch(
-                        partitionUniqueIds[i],
-                        new PushFailedBatch(mapId, attemptId, batchIds[i]));
+                        partitionUniqueIds[i], new PushFailedBatch(mapId, attemptId, batchIds[i]));
                   }
                 }
                 ReviveRequest[] requests =
@@ -1536,8 +1533,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             if (dataPushFailureTrackingEnabled) {
               for (int i = 0; i < numBatches; i++) {
                 pushState.addFailedBatch(
-                    partitionUniqueIds[i],
-                    new PushFailedBatch(mapId, attemptId, batchIds[i]));
+                    partitionUniqueIds[i], new PushFailedBatch(mapId, attemptId, batchIds[i]));
               }
             }
             if (pushState.exception.get() != null) {
