@@ -1111,7 +1111,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   if (dataPushFailureTrackingEnabled) {
                     pushState.addFailedBatch(
                         latest.getUniqueId(),
-                        new PushFailedBatch(mapId, attemptId, nextBatchId, latest.getEpoch()));
+                        new PushFailedBatch(mapId, attemptId, nextBatchId));
                   }
                   ReviveRequest reviveRequest =
                       new ReviveRequest(
@@ -1182,7 +1182,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               if (dataPushFailureTrackingEnabled) {
                 pushState.addFailedBatch(
                     latest.getUniqueId(),
-                    new PushFailedBatch(mapId, attemptId, nextBatchId, latest.getEpoch()));
+                    new PushFailedBatch(mapId, attemptId, nextBatchId));
               }
               if (pushState.exception.get() != null) {
                 return;
@@ -1406,7 +1406,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     final String[] partitionUniqueIds = new String[numBatches];
     final int[] offsets = new int[numBatches];
     final int[] batchIds = new int[numBatches];
-    final int[] epochs = new int[numBatches];
     int currentSize = 0;
     CompositeByteBuf byteBuf = Unpooled.compositeBuffer();
     for (int i = 0; i < numBatches; i++) {
@@ -1415,7 +1414,6 @@ public class ShuffleClientImpl extends ShuffleClient {
       partitionUniqueIds[i] = batch.loc.getUniqueId();
       offsets[i] = currentSize;
       batchIds[i] = batch.batchId;
-      epochs[i] = batch.loc.getEpoch();
       currentSize += batch.body.length;
       byteBuf.addComponent(true, Unpooled.wrappedBuffer(batch.body));
     }
@@ -1556,7 +1554,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   for (int i = 0; i < numBatches; i++) {
                     pushState.addFailedBatch(
                         partitionUniqueIds[i],
-                        new PushFailedBatch(mapId, attemptId, batchIds[i], epochs[i]));
+                        new PushFailedBatch(mapId, attemptId, batchIds[i]));
                   }
                 }
                 ReviveRequest[] requests =
@@ -1618,7 +1616,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               for (int i = 0; i < numBatches; i++) {
                 pushState.addFailedBatch(
                     partitionUniqueIds[i],
-                    new PushFailedBatch(mapId, attemptId, batchIds[i], epochs[i]));
+                    new PushFailedBatch(mapId, attemptId, batchIds[i]));
               }
             }
             if (pushState.exception.get() != null) {

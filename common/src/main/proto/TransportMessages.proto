@@ -365,7 +365,6 @@ message PbPushFailedBatch {
   int32 mapId = 1;
   int32 attemptId = 2;
   int32 batchId = 3;
-  int32 epoch = 4;
 }
 
 message PbMapperEndResponse {

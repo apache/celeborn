@@ -274,13 +274,12 @@ class ReducePartitionCommitHandler(
           val pushFailedBatchesMap = shufflePushFailedBatches.computeIfAbsent(
             shuffleId,
             newShuffleId2PushFailedBatchMapFunc)
-          pushFailedBatches.forEach((k, v) => {
+          for ((partitionUniqId, pushFailedBatchSet) <- pushFailedBatches.asScala) {
             val partitionPushFailedBatches = pushFailedBatchesMap.computeIfAbsent(
-              k,
+              partitionUniqId,
               uniqueId2PushFailedBatchMapFunc)
-            partitionPushFailedBatches.addAll(v)
-          })
-          pushFailedBatchesMap.get(pushFailedBatches)
+            partitionPushFailedBatches.addAll(pushFailedBatchSet)
+          }
         }
         // Mapper with this attemptId finished, also check all other mapper finished or not.
         (true, ClientUtils.areAllMapperAttemptsFinished(attempts))
