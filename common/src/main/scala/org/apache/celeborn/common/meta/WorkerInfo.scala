@@ -331,12 +331,12 @@ object WorkerInfo {
     new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
   }
 
-  def fromWorkerSummary(summary: WorkerId): WorkerInfo = {
+  def fromWorkerId(workerId: WorkerId): WorkerInfo = {
     new WorkerInfo(
-      summary.host,
-      summary.rpcPort,
-      summary.pushPort,
-      summary.fetchPort,
-      summary.replicatePort)
+      workerId.host,
+      workerId.rpcPort,
+      workerId.pushPort,
+      workerId.fetchPort,
+      workerId.replicatePort)
   }
 }

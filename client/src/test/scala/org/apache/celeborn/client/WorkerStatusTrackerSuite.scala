@@ -37,10 +37,10 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
 
     val registerTime = System.currentTimeMillis()
     statusTracker.excludedWorkers.put(
-      mockSummary("host1"),
+      mockId("host1"),
       (StatusCode.WORKER_UNKNOWN, registerTime))
     statusTracker.excludedWorkers.put(
-      mockSummary("host2"),
+      mockId("host2"),
       (StatusCode.WORKER_SHUTDOWN, registerTime))
 
     // test reserve (only statusCode list in handleHeartbeatResponse)
@@ -49,9 +49,9 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
 
     // only reserve host1
     Assert.assertEquals(
-      statusTracker.excludedWorkers.get(mockSummary("host1")),
+      statusTracker.excludedWorkers.get(mockId("host1")),
       (StatusCode.WORKER_UNKNOWN, registerTime))
-    Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mockSummary("host2")))
+    Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mockId("host2")))
 
     // add shutdown/excluded worker
     val response1 = buildResponse(Array("host0"), Array("host1", "host3"), Array("host4"))
@@ -59,33 +59,33 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
 
     // test keep Unknown register time
     Assert.assertEquals(
-      statusTracker.excludedWorkers.get(mockSummary("host1")),
+      statusTracker.excludedWorkers.get(mockId("host1")),
       (StatusCode.WORKER_UNKNOWN, registerTime))
 
     // test new added workers
-    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mockSummary("host0")))
-    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mockSummary("host3")))
-    Assert.assertTrue(!statusTracker.excludedWorkers.containsKey(mockSummary("host4")))
-    Assert.assertTrue(statusTracker.shuttingWorkers.contains(mockSummary("host4")))
+    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mockId("host0")))
+    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mockId("host3")))
+    Assert.assertTrue(!statusTracker.excludedWorkers.containsKey(mockId("host4")))
+    Assert.assertTrue(statusTracker.shuttingWorkers.contains(mockId("host4")))
 
     // test re heartbeat with shutdown workers
     val response3 = buildResponse(Array.empty, Array.empty, Array("host4"))
     statusTracker.handleHeartbeatResponse(response3)
-    Assert.assertTrue(!statusTracker.excludedWorkers.containsKey(mockSummary("host4")))
-    Assert.assertTrue(statusTracker.shuttingWorkers.contains(mockSummary("host4")))
+    Assert.assertTrue(!statusTracker.excludedWorkers.containsKey(mockId("host4")))
+    Assert.assertTrue(statusTracker.shuttingWorkers.contains(mockId("host4")))
 
     // test remove
     val workers = new util.HashSet[WorkerInfo]
     workers.add(mock("host3"))
     statusTracker.removeFromExcludedWorkers(workers)
-    Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mockSummary("host3")))
+    Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mockId("host3")))
 
     // test register time elapsed
     Thread.sleep(3000)
     val response2 = buildResponse(Array.empty, Array("host5", "host6"), Array.empty)
     statusTracker.handleHeartbeatResponse(response2)
     Assert.assertEquals(statusTracker.excludedWorkers.size(), 2)
-    Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mockSummary("host1")))
+    Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mockId("host1")))
   }
 
   private def buildResponse(
@@ -112,7 +112,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     new WorkerInfo(host, -1, -1, -1, -1)
   }
 
-  private def mockSummary(host: String): WorkerId = {
+  private def mockId(host: String): WorkerId = {
     WorkerId.fromWorkerInfo(mock(host))
   }
 }
