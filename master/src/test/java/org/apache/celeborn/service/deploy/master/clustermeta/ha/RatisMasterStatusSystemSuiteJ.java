@@ -1122,6 +1122,8 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertNotNull(statusSystem);
 
     CelebornConf conf = new CelebornConf();
+    statusSystem.partitionTotalWritten.reset();
+    statusSystem.partitionTotalFileCount.reset();
 
     statusSystem.handleUpdatePartitionSize();
     Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.initialEstimatedPartitionSize());

@@ -721,6 +721,9 @@ public class DefaultMetaSystemSuiteJ {
 
   @Test
   public void testHandleUpdatePartitionSize() {
+    statusSystem.partitionTotalWritten.reset();
+    statusSystem.partitionTotalFileCount.reset();
+
     // Default size
     statusSystem.handleUpdatePartitionSize();
     Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.initialEstimatedPartitionSize());

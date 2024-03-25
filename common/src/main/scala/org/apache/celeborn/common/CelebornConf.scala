@@ -2219,8 +2219,7 @@ object CelebornConf extends Logging {
   val ESTIMATED_PARTITION_SIZE_MAX_SIZE: OptionalConfigEntry[Long] =
     buildConf("celeborn.master.estimatedPartitionSize.maxSize")
       .categories("master")
-      .doc(
-        "Max partition size for estimation.")
+      .doc("Max partition size for estimation. Default value should be celeborn.worker.shuffle.partitionSplit.max * 2.")
       .version("0.4.1")
       .bytesConf(ByteUnit.BYTE)
       .createOptional
