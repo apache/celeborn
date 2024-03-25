@@ -3618,7 +3618,9 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.compression.codec")
       .withAlternative("remote-shuffle.job.compression.codec")
       .categories("client")
-      .doc("The codec used to compress shuffle data. By default, Celeborn provides three codecs: `lz4`, `zstd`, `none`.")
+      .doc("The codec used to compress shuffle data. By default, Celeborn provides three codecs: `lz4`, `zstd`, `none`. " +
+        "`none` means that shuffle compression is disabled. " +
+        "Since Flink version 1.17, zstd is supported for Flink shuffle client.")
       .version("0.3.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
