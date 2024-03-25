@@ -74,6 +74,7 @@ public class WorkerPartitionReader implements PartitionReader {
       CelebornConf conf,
       String shuffleKey,
       PartitionLocation location,
+      PbStreamHandler pbStreamHandler,
       TransportClientFactory clientFactory,
       int startMapIndex,
       int endMapIndex,
@@ -116,18 +117,22 @@ public class WorkerPartitionReader implements PartitionReader {
       throw ie;
     }
 
-    TransportMessage openStreamMsg =
-        new TransportMessage(
-            MessageType.OPEN_STREAM,
-            PbOpenStream.newBuilder()
-                .setShuffleKey(shuffleKey)
-                .setFileName(location.getFileName())
-                .setStartIndex(startMapIndex)
-                .setEndIndex(endMapIndex)
-                .build()
-                .toByteArray());
-    ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
-    streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
+    if (pbStreamHandler == null) {
+      TransportMessage openStreamMsg =
+          new TransportMessage(
+              MessageType.OPEN_STREAM,
+              PbOpenStream.newBuilder()
+                  .setShuffleKey(shuffleKey)
+                  .setFileName(location.getFileName())
+                  .setStartIndex(startMapIndex)
+                  .setEndIndex(endMapIndex)
+                  .build()
+                  .toByteArray());
+      ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
+      this.streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
+    } else {
+      this.streamHandler = pbStreamHandler;
+    }
 
     this.location = location;
     this.clientFactory = clientFactory;

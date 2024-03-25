@@ -18,6 +18,7 @@
 package org.apache.celeborn.client;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -28,8 +29,11 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.client.read.MetricsCallback;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.util.CelebornHadoopUtils;
 import org.apache.celeborn.common.util.ExceptionMaker;
@@ -197,6 +201,9 @@ public abstract class ShuffleClient {
   // Cleanup states of the map task
   public abstract void cleanup(int shuffleId, int mapId, int attemptId);
 
+  public abstract ShuffleClientImpl.ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
+      throws CelebornIOException;
+
   // Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
   // is a self-incrementing variable hidden in the implementation when sending data.
   /**
@@ -227,6 +234,9 @@ public abstract class ShuffleClient {
         startMapIndex,
         endMapIndex,
         null,
+        null,
+        null,
+        null,
         metricsCallback);
   }
 
@@ -238,6 +248,9 @@ public abstract class ShuffleClient {
       int startMapIndex,
       int endMapIndex,
       ExceptionMaker exceptionMaker,
+      ArrayList<PartitionLocation> locations,
+      ArrayList<PbStreamHandler> streamHandlers,
+      int[] mapAttempts,
       MetricsCallback metricsCallback)
       throws IOException;
 
@@ -261,4 +274,6 @@ public abstract class ShuffleClient {
    * incorrect shuffle data can be fetched in re-run tasks
    */
   public abstract boolean reportShuffleFetchFailure(int appShuffleId, int shuffleId);
+
+  public abstract TransportClientFactory getDataClientFactory();
 }

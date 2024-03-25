@@ -100,6 +100,8 @@ enum MessageType {
   WORKER_EVENT_RESPONSE = 77;
   APPLICATION_META = 78;
   APPLICATION_META_REQUEST = 79;
+  BATCH_OPEN_STREAM = 80;
+  BATCH_OPEN_STREAM_RESPONSE = 81;
 }
 
 enum StreamType {
@@ -633,6 +635,25 @@ message PbStreamHandler {
   int32 numChunks = 2;
   repeated int64 chunkOffsets = 3;
   string fullPath = 4;
+}
+
+message PbOpenStreamList {
+  string shuffleKey = 1;
+  repeated string fileName = 2;
+  repeated int32 startIndex = 3;
+  repeated int32 endIndex = 4;
+  repeated int32 initialCredit = 5;
+  repeated bool readLocalShuffle = 6;
+}
+
+message PbStreamHandlerOpt {
+  int32 status = 1;
+  PbStreamHandler streamHandler = 2;
+  string errorMsg = 3;
+}
+
+message PbOpenStreamListResponse {
+  repeated PbStreamHandlerOpt streamHandlerOpt = 2;
 }
 
 message PbPushDataHandShake {
