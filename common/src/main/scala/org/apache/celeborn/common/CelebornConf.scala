@@ -4043,7 +4043,7 @@ object CelebornConf extends Logging {
   val CLIENT_PUSH_SORT_SMALL_PUSH_TOLERATE_FACTOR: ConfigEntry[Double] =
     buildConf("celeborn.client.spark.push.sort.memory.smallPushTolerateFactor")
       .categories("client")
-      .doc("Only be in effect when celeborn.client.spark.push.sort.memory.useAdaptiveThreshold is" +
+      .doc(s"Only be in effect when ${CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD.key} is" +
         " turned on. The larger this value is, the more aggressive Celeborn will enlarge the " +
         " Sort-based Shuffle writer's memory threshold. Specifically, this config controls when to" +
         " enlarge the sort shuffle writer's memory threshold. With N bytes data in memory and V as" +
