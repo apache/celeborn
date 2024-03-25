@@ -845,6 +845,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD)
   def clientPushSortSmallPushTolerateFactor: Double =
     get(CLIENT_PUSH_SORT_SMALL_PUSH_TOLERATE_FACTOR)
+  def clientPushSortMaxMemoryFactor: Double =
+    get(CLIENT_PUSH_SORT_MAX_MEMORY_FACTOR)
   def clientPushSortRandomizePartitionIdEnabled: Boolean =
     get(CLIENT_PUSH_SORT_RANDOMIZE_PARTITION_ENABLED)
   def clientPushRetryThreads: Int = get(CLIENT_PUSH_RETRY_THREADS)
@@ -4022,7 +4024,6 @@ object CelebornConf extends Logging {
 
   val CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.push.sort.memory.useAdaptiveThreshold")
-      .withAlternative("celeborn.push.sortMemory.useAdaptiveThreshold")
       .categories("client")
       .doc("Adaptively adjust sort-based shuffle writer's memory threshold")
       .version("0.5.0")
@@ -4030,10 +4031,9 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val CLIENT_PUSH_SORT_SMALL_PUSH_TOLERATE_FACTOR: ConfigEntry[Double] =
-    buildConf("celeborn.client.spark.push.sort.smallPushTolerateFactor")
-      .withAlternative("celeborn.push.sortMemory.adaptiveThreshold")
+    buildConf("celeborn.client.spark.push.sort.memory.smallPushTolerateFactor")
       .categories("client")
-      .doc("Only be in effect when celeborn.client.spark.push.sort.memory.useAdaptiveThreshold is" +
+      .doc(s"Only be in effect when ${CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD.key} is" +
         " turned on. The larger this value is, the more aggressive Celeborn will enlarge the " +
         " Sort-based Shuffle writer's memory threshold. Specifically, this config controls when to" +
         " enlarge the sort shuffle writer's memory threshold. With N bytes data in memory and V as" +
@@ -4044,6 +4044,17 @@ object CelebornConf extends Logging {
       .doubleConf
       .checkValue(v => v >= 0.0, "Value must be no less than 0")
       .createWithDefault(0.2)
+
+  val CLIENT_PUSH_SORT_MAX_MEMORY_FACTOR: ConfigEntry[Double] =
+    buildConf("celeborn.client.spark.push.sort.memory.maxMemoryFactor")
+      .categories("client")
+      .doc(
+        "the max portion of executor memory which can be used for SortBasedWriter buffer (only" +
+          s" valid when ${CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD.key} is enabled")
+      .version("0.5.0")
+      .doubleConf
+      .checkValue(v => v > 0.0 && v <= 1.0, "Value must be between 0 and 1 (inclusive)")
+      .createWithDefault(0.4)
 
   val TEST_ALTERNATIVE: OptionalConfigEntry[String] =
     buildConf("celeborn.test.alternative.key")
