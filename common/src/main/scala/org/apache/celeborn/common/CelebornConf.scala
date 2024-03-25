@@ -4058,8 +4058,9 @@ object CelebornConf extends Logging {
   val CLIENT_PUSH_SORT_MAX_MEMORY_FACTOR: ConfigEntry[Double] =
     buildConf("celeborn.client.spark.push.sort.memory.maxMemoryFactor")
       .categories("client")
-      .doc(s"the max portion of executor memory which can be used for SortBasedWriter buffer (only" +
-        " valid when ${CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD.key} is enabled")
+      .doc(
+        s"the max portion of executor memory which can be used for SortBasedWriter buffer (only" +
+          " valid when ${CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD.key} is enabled")
       .version("0.5.0")
       .doubleConf
       .checkValue(v => v > 0.0 && v <= 1.0, "Value must be between 0 and 1 (inclusive)")
