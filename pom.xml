@@ -99,6 +99,7 @@
     <rocksdbjni.version>8.11.3</rocksdbjni.version>
     <jackson.version>2.15.3</jackson.version>
     <snappy.version>1.1.10.5</snappy.version>
+    <ap.loader.version>3.0-8</ap.loader.version>
 
     <!-- Db dependencies -->
     <mybatis.version>3.5.15</mybatis.version>
@@ -429,6 +430,12 @@
             <artifactId>jackson-annotations</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      <!-- async-profiler loader contains async_profiler binaries for multiple platforms -->
+      <dependency>
+        <groupId>me.bechberger</groupId>
+        <artifactId>ap-loader-all</artifactId>
+        <version>${ap.loader.version}</version>
       </dependency>
 
       <!-- Db dependencies -->

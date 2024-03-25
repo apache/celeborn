@@ -80,6 +80,10 @@
       <groupId>org.rocksdb</groupId>
       <artifactId>rocksdbjni</artifactId>
     </dependency>
+    <dependency>
+      <groupId>me.bechberger</groupId>
+      <artifactId>ap-loader-all</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>org.apache.celeborn</groupId>
