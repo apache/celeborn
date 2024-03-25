@@ -359,7 +359,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         Utils.bytesToString(tmpTotalWritten),
         tmpFileCount);
     if (tmpFileCount != 0) {
-      estimatedPartitionSize = tmpTotalWritten / tmpFileCount;
+      estimatedPartitionSize =
+          Math.max(
+              conf.minPartitionSizeToEstimate(),
+              Math.min(tmpTotalWritten / tmpFileCount, conf.maxPartitionSizeToEstimate()));
     } else {
       estimatedPartitionSize = initialEstimatedPartitionSize;
     }

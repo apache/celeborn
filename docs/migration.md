@@ -21,6 +21,11 @@ license: |
 
 # Migration Guide
 
+## Upgrading from 0.4.0 to 0.4.1
+
+- Since 0.4.1, Celeborn master adds a limit to the estimated partition size used for computing worker slots. 
+  This size is now constrained within the range specified by `celeborn.master.estimatedPartitionSize.minSize` and `celeborn.master.estimatedPartitionSize.maxSize`.
+
 ## Upgrading from 0.3 to 0.4
 
 - Since 0.4.0, Celeborn won't be compatible with Celeborn client that versions below 0.3.0.
