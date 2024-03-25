@@ -134,14 +134,6 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
       ShuffleDescriptor shuffleDescriptor,
       CelebornConf celebornConf,
       int numMappers) {
-
-    // in flink1.14/1.15, just support LZ4
-    if (!compressionCodec.equals(CompressionCodec.LZ4.name())) {
-      throw new IllegalStateException("Unknown CompressionMethod " + compressionCodec);
-    }
-    final BufferCompressor bufferCompressor =
-        new BufferCompressor(networkBufferSize, compressionCodec);
-    RemoteShuffleDescriptor rsd = (RemoteShuffleDescriptor) shuffleDescriptor;
     ResultPartition partition =
         createRemoteShuffleResultPartitionInternal(
             taskNameWithSubtaskAndId,
@@ -153,8 +145,8 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
             bufferPoolFactories,
             celebornConf,
             numMappers,
-            bufferCompressor,
-            rsd);
+            getBufferCompressor(),
+            (RemoteShuffleDescriptor) shuffleDescriptor);
     LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
     return partition;
   }
@@ -194,5 +186,12 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
   @VisibleForTesting
   int getNetworkBufferSize() {
     return networkBufferSize;
+  }
+
+  @VisibleForTesting
+  BufferCompressor getBufferCompressor() {
+    return CompressionCodec.NONE.name().equals(compressionCodec)
+        ? null
+        : new BufferCompressor(networkBufferSize, compressionCodec);
   }
 }
