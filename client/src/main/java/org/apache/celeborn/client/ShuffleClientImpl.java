@@ -1709,6 +1709,9 @@ public class ShuffleClientImpl extends ShuffleClient {
       return CelebornInputStream.empty();
     }
 
+    // When `mapAttempts` is not null, it's guaranteed that the code path comes from
+    // CelebornShuffleReader, which means `updateFileGroup` is already called and
+    // batch open stream has been tried
     if (mapAttempts == null) {
       ReduceFileGroups fileGroups = updateFileGroup(shuffleId, partitionId);
       mapAttempts = fileGroups.mapAttempts;
