@@ -20,7 +20,7 @@ license: |
 ---
 Quick Start
 ===
-This documentation gives a quick start guide for running Spark/Flink/MapReduce with Apache Celeborn™(Incubating).
+This documentation gives a quick start guide for running Apache Spark/Flink/MapReduce with Apache Celeborn™(Incubating).
 
 ### Download Celeborn
 Download the latest Celeborn binary from the [Downloading Page](https://celeborn.apache.org/download/).
@@ -126,13 +126,11 @@ cp $CELEBORN_HOME/flink/<Celeborn Client Jar> $FLINK_HOME/lib/
 ```
 #### Add Celeborn configuration to Flink's conf
 Set `shuffle-service-factory.class` to Celeborn's ShuffleServiceFactory in Flink configuration file:
-
 - Flink 1.14.x, Flink 1.15.x, Flink 1.17.x, Flink 1.18.x
 ```shell
 cd $FLINK_HOME
 vi conf/flink-conf.yaml
 ```
-
 - Flink 1.19.x
 ```shell
 cd $FLINK_HOME

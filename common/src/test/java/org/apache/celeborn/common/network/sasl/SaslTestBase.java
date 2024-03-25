@@ -137,6 +137,9 @@ public class SaslTestBase {
       if (server != null) {
         server.close();
       }
+      if (null != ctx) {
+        ctx.close();
+      }
     }
   }
 }

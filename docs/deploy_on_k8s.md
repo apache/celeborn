@@ -33,7 +33,7 @@ Celeborn currently supports rapid deployment by using helm.
 
 ### 1. Get Celeborn Binary Package
 
-You can find released version of Celeborn on [Downloading Page](https://celeborn.apache.org/download/).
+You can find released version of Celeborn on https://celeborn.apache.org/download/.
 
 Of course, you can build binary package from master branch or your own branch by using `./build/make-distribution.sh` in
 source code.
@@ -139,7 +139,7 @@ network infrastructure, this may cause pressure on DNS service or other network 
 
 ### 6. Build Celeborn Client
 
-Here, without going into detail on how to configure Spark/Flink/MapReduce to find celeborn master/worker, mention the key
+Here, without going into detail on how to configure spark/flink to find celeborn master/worker, mention the key
 configuration:
 
 ```
@@ -149,5 +149,5 @@ spark.celeborn.master.endpoints: celeborn-master-0.celeborn-master-svc.<namespac
 You can find why config endpoints such way
 in [Kubernetes DNS for Service And Pods](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/)
 
-> Notice: You should ensure that Spark/Flink/MapReduce can find the Celeborn Master/Worker via IP or the Kubernetes DNS mentioned
+> Notice: You should ensure that Spark/Flink can find the Celeborn Master/Worker via IP or the Kubernetes DNS mentioned
 > above
