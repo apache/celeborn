@@ -88,6 +88,8 @@
     <mockito.version>4.11.0</mockito.version>
     <mockito-scalatest.version>1.17.14</mockito-scalatest.version>
     <netty.version>4.1.107.Final</netty.version>
+    <netty-tcnative.version>2.0.65.Final</netty-tcnative.version>
+    <bouncycastle.version>1.77</bouncycastle.version>
     <protobuf.version>3.21.7</protobuf.version>
     <ratis.version>2.5.1</ratis.version>
     <scalatest.version>3.2.16</scalatest.version>
@@ -521,6 +523,19 @@
         <groupId>org.xerial.snappy</groupId>
         <artifactId>snappy-java</artifactId>
         <version>${snappy.version}</version>
+      </dependency>
+      <!-- for SSL support -->
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-jdk18on</artifactId>
+        <version>${bouncycastle.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpkix-jdk18on</artifactId>
+        <version>${bouncycastle.version}</version>
+        <scope>test</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
