@@ -144,7 +144,7 @@ public class MemoryManager {
             CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(),
             pausePushDataRatio));
     Preconditions.checkArgument(pausePushDataRatio > resumeRatio);
-    if (memoryFileStorageRatio == 0) {
+    if (memoryFileStorageRatio > 0) {
       Preconditions.checkArgument(resumeRatio > (readBufferRatio + memoryFileStorageRatio));
     }
 
@@ -531,10 +531,7 @@ public class MemoryManager {
   }
 
   public double workerMemoryUsageRatio() {
-    long memoryUsage = getMemoryUsage();
-    long currentMemoryFileStorage = memoryFileStorageCounter.get();
-    return (memoryUsage - currentMemoryFileStorage)
-        / (double) (maxDirectorMemory - currentMemoryFileStorage);
+    return getMemoryUsage() / (double) (maxDirectorMemory);
   }
 
   public long getMemoryFileStorageCounter() {
