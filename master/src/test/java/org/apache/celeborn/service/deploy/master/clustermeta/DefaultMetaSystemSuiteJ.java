@@ -27,6 +27,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -720,7 +721,35 @@ public class DefaultMetaSystemSuiteJ {
 
   @Test
   public void testHandleUpdatePartitionSize() {
+    statusSystem.partitionTotalWritten.reset();
+    statusSystem.partitionTotalFileCount.reset();
+
+    // Default size
     statusSystem.handleUpdatePartitionSize();
+    Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.initialEstimatedPartitionSize());
+
+    Long dummy = 1235L;
+    statusSystem.handleAppHeartbeat(APPID1, 10000000000l, 1, dummy, getNewReqeustId());
+    String appId2 = "app02";
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
+
+    // Max size
+    statusSystem.handleUpdatePartitionSize();
+    Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.maxPartitionSizeToEstimate());
+
+    statusSystem.handleAppHeartbeat(APPID1, 1000000000l, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
+
+    // Size between minEstimateSize -> maxEstimateSize
+    statusSystem.handleUpdatePartitionSize();
+    Assert.assertEquals(statusSystem.estimatedPartitionSize, 500000000);
+
+    statusSystem.handleAppHeartbeat(APPID1, 1000l, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1000l, 1, dummy, getNewReqeustId());
+
+    // Min size
+    statusSystem.handleUpdatePartitionSize();
+    Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.minPartitionSizeToEstimate());
   }
 
   @Test
