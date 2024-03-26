@@ -18,7 +18,7 @@ license: |
 
 <!--begin-include-->
 | Key | Default | isDynamic | Description | Since | Deprecated |
-| --- | ------- | --------- | ----------- | ----- | ---------- |
+| --- | ------- | --------- | ----------- |-------| ---------- |
 | celeborn.client.application.heartbeatInterval | 10s | false | Interval for client to send heartbeat message to master. | 0.3.0 | celeborn.application.heartbeatInterval | 
 | celeborn.client.application.unregister.enabled | true | false | When true, Celeborn client will inform celeborn master the application is already shutdown during client exit, this allows the cluster to release resources immediately, resulting in resource savings. | 0.3.2 |  | 
 | celeborn.client.closeIdleConnections | true | false | Whether client will close idle connections. | 0.3.0 |  | 
@@ -59,9 +59,9 @@ license: |
 | celeborn.client.push.sendBufferPool.checkExpireInterval | 30s | false | Interval to check expire for send buffer pool. If the pool has been idle for more than `celeborn.client.push.sendBufferPool.expireTimeout`, the pooled send buffers and push tasks will be cleaned up. | 0.3.1 |  | 
 | celeborn.client.push.sendBufferPool.expireTimeout | 60s | false | Timeout before clean up SendBufferPool. If SendBufferPool is idle for more than this time, the send buffers and push tasks will be cleaned up. | 0.3.1 |  | 
 | celeborn.client.push.slowStart.congestedPushSleepTime | 1000us | false | The initial sleep time step interval for each current allowed request. | 0.3.0 |  | 
-| celeborn.client.push.slowStart.initialSleepTime | 500us | false | The initial sleep time if the current max in flight requests is 0 | 0.3.0 |  | 
+| celeborn.client.push.slowStart.initialSleepTime | 500us | false | The initial sleep time if the current max in flight requests is 0 | 0.5.0 |  | 
 | celeborn.client.push.slowStart.maxSleepTime | 2000us | false | If celeborn.client.push.limit.strategy is set to SLOWSTART, push side will take a sleep strategy for each batch of requests, this controls the max sleep time if the max in flight requests limit is 1 for a long time | 0.3.0 |  | 
-| celeborn.client.push.slowStart.stepTime | 60us | false | The initial sleep time step interval for each current allowed request. | 0.3.0 |  | 
+| celeborn.client.push.slowStart.stepTime | 60us | false | The initial sleep time step interval for each current allowed request. | 0.5.0 |  | 
 | celeborn.client.push.sort.randomizePartitionId.enabled | false | false | Whether to randomize partitionId in push sorter. If true, partitionId will be randomized when sort data to avoid skew when push to worker | 0.3.0 | celeborn.push.sort.randomizePartitionId.enabled | 
 | celeborn.client.push.stageEnd.timeout | &lt;value of celeborn.&lt;module&gt;.io.connectionTimeout&gt; | false | Timeout for waiting StageEnd. During this process, there are `celeborn.client.requestCommitFiles.maxRetries` times for retry opportunities for committing files and 1 times for releasing slots request. User can customize this value according to your setting. By default, the value is the max timeout value `celeborn.<module>.io.connectionTimeout`. | 0.3.0 | celeborn.push.stageEnd.timeout | 
 | celeborn.client.push.takeTaskMaxWaitAttempts | 1 | false | Max wait times if no task available to push to worker. | 0.3.0 |  | 
