@@ -114,7 +114,7 @@ public class SlowStartPushStrategy extends PushStrategy {
     this.initialSleepMicros = conf.clientPushSlowStartInitialSleepTime();
     this.stepSleepMicros = conf.clientPushSlowStartStepTime();
     this.congestedRequestSleepMicros = conf.clientPushSlowStartCongestedRequestSleepTime();
-    this.maxSleepMicros = conf.clientPushSlowStartMaxSleepNanos();
+    this.maxSleepMicros = conf.clientPushSlowStartMaxSleepMicros();
     this.congestControlInfoPerAddress = JavaUtils.newConcurrentHashMap();
   }
 

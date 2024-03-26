@@ -860,7 +860,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushSlowStartCongestedRequestSleepTime: Long =
     get(CLIENT_PUSH_SLOW_START_CONGESTED_REQUEST_SLEEP_TIME)
   def clientSlotAssignMaxWorkers: Int = get(CLIENT_SLOT_ASSIGN_MAX_WORKERS)
-  def clientPushSlowStartMaxSleepNanos: Long = get(CLIENT_PUSH_SLOW_START_MAX_SLEEP_TIME)
+  def clientPushSlowStartMaxSleepMicros: Long = get(CLIENT_PUSH_SLOW_START_MAX_SLEEP_TIME)
   def clientPushLimitInFlightTimeoutMs: Long =
     if (clientPushReplicateEnabled) {
       get(CLIENT_PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(
