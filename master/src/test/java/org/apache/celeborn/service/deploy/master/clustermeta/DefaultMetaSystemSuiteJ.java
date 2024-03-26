@@ -26,7 +26,6 @@ import static org.mockito.Mockito.when;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.celeborn.common.meta.*;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -35,6 +34,7 @@ import org.junit.Test;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.meta.*;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;

@@ -82,7 +82,9 @@ public interface IMetadataHandler {
 
   void handleUpdatePartitionSize();
 
+  /** handle application auth meta */
   void handleApplicationAuthMeta(ApplicationAuthMeta applicationAuthMeta);
 
+  /** handle application general meta */
   void handleApplicationMeta(ApplicationMeta applicationMeta);
 }
