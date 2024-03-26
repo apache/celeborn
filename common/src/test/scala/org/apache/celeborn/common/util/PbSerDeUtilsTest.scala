@@ -24,7 +24,7 @@ import scala.collection.JavaConverters._
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, FileInfo, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.{ApplicationAuthMeta, DeviceInfo, DiskFileInfo, DiskInfo, FileInfo, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.protocol.{PartitionLocation, StorageInfo}
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
@@ -283,11 +283,11 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     assert(restoredWorkerStatus.equals(workerStatus))
   }
 
-  test("fromAndToPbApplicationMeta") {
-    val applicationMeta = new ApplicationMeta("app1", "secret1")
-    val pbApplicationMeta = PbSerDeUtils.toPbApplicationMeta(applicationMeta)
-    val restoredApplicationMeta = PbSerDeUtils.fromPbApplicationMeta(pbApplicationMeta)
+  test("fromAndToPbApplicationAuthMeta") {
+    val applicationAuthMeta = new ApplicationAuthMeta("app1", "secret1")
+    val pbApplicationAuthMeta = PbSerDeUtils.toPbApplicationAuthMeta(applicationAuthMeta)
+    val restoredApplicationAuthMeta = PbSerDeUtils.fromPbApplicationAuthMeta(pbApplicationAuthMeta)
 
-    assert(restoredApplicationMeta.equals(applicationMeta))
+    assert(restoredApplicationAuthMeta.equals(applicationAuthMeta))
   }
 }

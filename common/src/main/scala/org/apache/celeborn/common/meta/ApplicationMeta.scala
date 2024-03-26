@@ -18,6 +18,6 @@
 package org.apache.celeborn.common.meta
 
 /**
- * Application meta
+ * Application auth meta
  */
-case class ApplicationMeta(appId: String, secret: String)
+case class ApplicationAuthMeta(appId: String, secret: String)

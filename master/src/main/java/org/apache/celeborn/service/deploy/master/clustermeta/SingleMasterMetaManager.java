@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.AppDiskUsageMetric;
-import org.apache.celeborn.common.meta.ApplicationMeta;
+import org.apache.celeborn.common.meta.ApplicationAuthMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
@@ -168,7 +168,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleApplicationMeta(ApplicationMeta applicationMeta) {
-    updateApplicationMeta(applicationMeta);
+  public void handleApplicationAuthMeta(ApplicationAuthMeta applicationAuthMeta) {
+    updateApplicationAuthMeta(applicationAuthMeta);
   }
 }

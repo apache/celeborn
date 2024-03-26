@@ -218,20 +218,20 @@ public class ShuffleClientImpl extends ShuffleClient {
       logger.info("Initializing data client factory for {}.", appUniqueId);
       dataClientFactory = context.createClientFactory();
     } else if (lifecycleManagerRef != null) {
-      PbApplicationMetaRequest pbApplicationMetaRequest =
-          PbApplicationMetaRequest.newBuilder().setAppId(appUniqueId).build();
-      PbApplicationMeta pbApplicationMeta =
+      PbApplicationAuthMetaRequest pbApplicationAuthMetaRequest =
+          PbApplicationAuthMetaRequest.newBuilder().setAppId(appUniqueId).build();
+      PbApplicationAuthMeta pbApplicationAuthMeta =
           lifecycleManagerRef.askSync(
-              pbApplicationMetaRequest,
+              pbApplicationAuthMetaRequest,
               conf.clientRpcRegisterShuffleRpcAskTimeout(),
-              ClassTag$.MODULE$.apply(PbApplicationMeta.class));
+              ClassTag$.MODULE$.apply(PbApplicationAuthMeta.class));
       logger.info("Initializing data client factory for secured {}.", appUniqueId);
       List<TransportClientBootstrap> bootstraps = Lists.newArrayList();
       bootstraps.add(
           new SaslClientBootstrap(
               dataTransportConf,
               appUniqueId,
-              new SaslCredentials(appUniqueId, pbApplicationMeta.getSecret())));
+              new SaslCredentials(appUniqueId, pbApplicationAuthMeta.getSecret())));
       dataClientFactory = context.createClientFactory(bootstraps);
     }
   }

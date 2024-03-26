@@ -26,7 +26,7 @@ import scala.collection.JavaConverters._
 import com.google.protobuf.InvalidProtocolBufferException
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationMeta, DiskFileInfo, DiskInfo, FileInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationAuthMeta, DiskFileInfo, DiskInfo, FileInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
@@ -419,7 +419,7 @@ object PbSerDeUtils {
       lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long],
       shutdownWorkers: java.util.Set[WorkerInfo],
       workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo],
-      applicationMetas: ConcurrentHashMap[String, ApplicationMeta]): PbSnapshotMetaInfo = {
+      applicationAuthMetas: ConcurrentHashMap[String, ApplicationAuthMeta]): PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
       .addAllRegisteredShuffle(registeredShuffle)
@@ -448,23 +448,23 @@ object PbSerDeUtils {
       builder.setCurrentAppDiskUsageMetricsSnapshot(
         toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))
     }
-    val pbApplicationMetas = applicationMetas.asScala.map {
-      case (appId, applicationMeta) => (appId, toPbApplicationMeta(applicationMeta))
+    val pbApplicationAuthMetas = applicationAuthMetas.asScala.map {
+      case (appId, applicationAuthMeta) => (appId, toPbApplicationAuthMeta(applicationAuthMeta))
     }.asJava
-    if (localCollectionUtils.isNotEmpty(pbApplicationMetas)) {
-      builder.putAllApplicationMetas(pbApplicationMetas)
+    if (localCollectionUtils.isNotEmpty(pbApplicationAuthMetas)) {
+      builder.putAllApplicationAuthMetas(pbApplicationAuthMetas)
     }
     builder.build()
   }
 
-  def toPbApplicationMeta(meta: ApplicationMeta): PbApplicationMeta = {
-    PbApplicationMeta.newBuilder()
+  def toPbApplicationAuthMeta(meta: ApplicationAuthMeta): PbApplicationAuthMeta = {
+    PbApplicationAuthMeta.newBuilder()
       .setAppId(meta.appId)
       .setSecret(meta.secret).build()
   }
 
-  def fromPbApplicationMeta(pbApplicationMeta: PbApplicationMeta): ApplicationMeta = {
-    new ApplicationMeta(pbApplicationMeta.getAppId, pbApplicationMeta.getSecret)
+  def fromPbApplicationAuthMeta(pbApplicationAuthMeta: PbApplicationAuthMeta): ApplicationAuthMeta = {
+    new ApplicationAuthMeta(pbApplicationAuthMeta.getAppId, pbApplicationAuthMeta.getSecret)
   }
 
   def toPbWorkerStatus(workerStatus: WorkerStatus): PbWorkerStatus = {

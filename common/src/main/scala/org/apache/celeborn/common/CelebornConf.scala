@@ -1152,7 +1152,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     authEnabled && internalPortEnabled
   }
 
-  def masterSendApplicationMetaThreads: Int = get(MASTER_SEND_APPLICATION_META_THREADS)
+  def masterSendApplicationAuthMetaThreads: Int = get(MASTER_SEND_APPLICATION_AUTH_META_THREADS)
 
   def authEnabledOnClient: Boolean = {
     get(AUTH_ENABLED)
@@ -4697,10 +4697,10 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(0)
 
-  val MASTER_SEND_APPLICATION_META_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.master.send.applicationMeta.threads")
+  val MASTER_SEND_APPLICATION_AUTH_META_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.master.send.applicationAuthMeta.threads")
       .categories("master")
-      .doc("Number of threads used by the Master to send ApplicationMeta to Workers.")
+      .doc("Number of threads used by the Master to send ApplicationAuthMeta to Workers.")
       .version("0.5.0")
       .intConf
       .createWithDefault(8)

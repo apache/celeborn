@@ -28,8 +28,8 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.network.sasl.SecretRegistry;
-import org.apache.celeborn.common.protocol.PbApplicationMeta;
-import org.apache.celeborn.common.protocol.PbApplicationMetaRequest;
+import org.apache.celeborn.common.protocol.PbApplicationAuthMeta;
+import org.apache.celeborn.common.protocol.PbApplicationAuthMetaRequest;
 
 /** A secret registry that fetches the secret from the master if it is not found locally. */
 public class WorkerSecretRegistryImpl implements SecretRegistry {
@@ -53,22 +53,22 @@ public class WorkerSecretRegistryImpl implements SecretRegistry {
           @Override
           public String load(String appId) {
             LOG.debug("Missing the secret for {}; fetching it from the master", appId);
-            PbApplicationMetaRequest pbApplicationMetaRequest =
-                PbApplicationMetaRequest.newBuilder().setAppId(appId).build();
+            PbApplicationAuthMetaRequest pbApplicationAuthMetaRequest =
+                PbApplicationAuthMetaRequest.newBuilder().setAppId(appId).build();
             try {
-              PbApplicationMeta pbApplicationMeta =
-                  masterClient.askSync(pbApplicationMetaRequest, PbApplicationMeta.class);
+              PbApplicationAuthMeta pbApplicationAuthMeta =
+                  masterClient.askSync(pbApplicationAuthMetaRequest, PbApplicationAuthMeta.class);
               LOG.debug(
-                  "Successfully fetched the application meta info for "
+                  "Successfully fetched the application auth meta info for "
                       + appId
                       + " from the master");
-              return pbApplicationMeta.getSecret();
+              return pbApplicationAuthMeta.getSecret();
             } catch (Throwable e) {
               // We catch Throwable here because masterClient.askSync declares it in its definition.
               // If the secret is null, the authentication will fail so just logging the exception
               // here.
               LOG.error(
-                  "Failed to fetch the application meta info for {} from the master", appId, e);
+                  "Failed to fetch the application auth meta info for {} from the master", appId, e);
             }
             return null;
           }
@@ -82,7 +82,7 @@ public class WorkerSecretRegistryImpl implements SecretRegistry {
     try {
       return secretCache.get(appId);
     } catch (ExecutionException ee) {
-      LOG.error("Failed to retrieve the the application meta info for {} ", appId, ee);
+      LOG.error("Failed to retrieve the the application auth meta info for {} ", appId, ee);
     }
     return null;
   }
