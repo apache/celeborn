@@ -283,11 +283,19 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     assert(restoredWorkerStatus.equals(workerStatus))
   }
 
-  test("fromAndToPbApplicationMeta") {
+  test("fromAndToPbApplicationAuthMeta") {
     val applicationAuthMeta = new ApplicationAuthMeta("app1", "secret1")
     val pbApplicationAuthMeta = PbSerDeUtils.toPbApplicationAuthMeta(applicationAuthMeta)
-    val restoredApplicationMeta = PbSerDeUtils.fromPbApplicationAuthMeta(pbApplicationAuthMeta)
+    val restoredApplicationAuthMeta = PbSerDeUtils.fromPbApplicationAuthMeta(pbApplicationAuthMeta)
 
-    assert(restoredApplicationMeta.equals(applicationAuthMeta))
+    assert(restoredApplicationAuthMeta.equals(applicationAuthMeta))
+  }
+
+  test("fromAndToPbApplicationMeta") {
+    val applicationMeta = new ApplicationMeta("app1", UserIdentifier("default", "celeborn"))
+    val pbApplicationMeta = PbSerDeUtils.toPbApplicationMeta(applicationMeta)
+    val restoredApplicationMeta = PbSerDeUtils.fromPbApplicationMeta(pbApplicationMeta)
+
+    assert(restoredApplicationMeta.equals(applicationMeta))
   }
 }
