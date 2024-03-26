@@ -22,6 +22,7 @@
 # There are two truststores generated - the first truststore has both CA certs as part of it
 # Hence this trust can be used to validate both client certificates.
 # The second trust store has NO CA certs in it - and so when used will fail both the certificates.
+# Requires: "openssl" (typically the openssl package) and java "keytool" in the PATH
 
 function gen_certs() {
 
