@@ -62,24 +62,15 @@ private[celeborn] case class RemoteProcessConnectionError(
     remoteAddress: RpcAddress)
   extends InboxMessage
 
+/**
+ * An inbox that stores messages for an [[RpcEndpoint]] and posts messages to it thread-safely.
+ */
 private[celeborn] class Inbox(
     val endpointRef: NettyRpcEndpointRef,
     val endpoint: RpcEndpoint,
     val conf: CelebornConf) extends Logging {
 
   inbox => // Give this an alias so we can use it more clearly in closures.
-
-  /** True if the inbox (and its associated endpoint) is stopped. */
-  @GuardedBy("this")
-  protected var stopped = false
-
-  /** The number of threads processing messages for this inbox. */
-  @GuardedBy("this")
-  protected var numActiveThreads = 0
-
-  /** Allow multiple threads to process messages at the same time. */
-  @GuardedBy("this")
-  protected var enableConcurrent = false
 
   @GuardedBy("this")
   protected val messages = {
@@ -93,23 +84,21 @@ private[celeborn] class Inbox(
 
   private val messageCount = new AtomicLong(0)
 
+  /** True if the inbox (and its associated endpoint) is stopped. */
+  @GuardedBy("this")
+  private var stopped = false
+
+  /** The number of threads processing messages for this inbox. */
+  @GuardedBy("this")
+  private var numActiveThreads = 0
+
+  /** Allow multiple threads to process messages at the same time. */
+  @GuardedBy("this")
+  private var enableConcurrent = false
+
   // OnStart should be the first message to process
   inbox.synchronized {
     messages.add(OnStart)
-  }
-
-  def stop(): Unit = inbox.synchronized {
-    // The following codes should be in `synchronized` so that we can make sure "OnStop" is the last
-    // message
-    if (!stopped) {
-      // We should disable concurrent here. Then when RpcEndpoint.onStop is called, it's the only
-      // thread that is processing messages. So `RpcEndpoint.onStop` can release its resources
-      // safely.
-      enableConcurrent = false
-      stopped = true
-      addMessage(OnStop)
-      // Note: The concurrent events in messages will be processed one by one.
-    }
   }
 
   def post(message: InboxMessage): Unit = {
@@ -121,19 +110,8 @@ private[celeborn] class Inbox(
     }
   }
 
-  // exposed only for testing
-  def getNumActiveThreads: Int = {
-    inbox.synchronized {
-      inbox.numActiveThreads
-    }
-  }
-
   def addMessage(message: InboxMessage): Unit = {
     messages.add(message)
-  }
-
-  def isEmpty: Boolean = {
-    messages.isEmpty
   }
 
   private def processInternal(dispatcher: Dispatcher, message: InboxMessage): Unit = {
@@ -232,6 +210,20 @@ private[celeborn] class Inbox(
     }
   }
 
+  def stop(): Unit = inbox.synchronized {
+    // The following codes should be in `synchronized` so that we can make sure "OnStop" is the last
+    // message
+    if (!stopped) {
+      // We should disable concurrent here. Then when RpcEndpoint.onStop is called, it's the only
+      // thread that is processing messages. So `RpcEndpoint.onStop` can release its resources
+      // safely.
+      enableConcurrent = false
+      stopped = true
+      addMessage(OnStop)
+      // Note: The concurrent events in messages will be processed one by one.
+    }
+  }
+
   /**
    * Called when we are dropping a message. Test cases override this to test message dropping.
    * Exposed for testing.
@@ -274,6 +266,17 @@ private[celeborn] class Inbox(
         }
       case fatal: Throwable =>
         dealWithFatalError(fatal)
+    }
+  }
+
+  def isEmpty: Boolean = {
+    messages.isEmpty
+  }
+
+  // exposed only for testing
+  def getNumActiveThreads: Int = {
+    inbox.synchronized {
+      inbox.numActiveThreads
     }
   }
 }

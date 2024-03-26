@@ -57,7 +57,6 @@ class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
 
     val message = OneWayMessage(null, "hi")
     inbox.post(message)
-    println("posted msg")
     inbox.process(dispatcher)
     assert(inbox.isEmpty)
 
@@ -86,12 +85,6 @@ class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
     val dispatcher = mock(classOf[Dispatcher])
 
     val numDroppedMessages = new AtomicInteger(0)
-
-    /**
-     * override def onDrop(message: InboxMessage): Unit = {
-     * numDroppedMessages.incrementAndGet()
-     * }
-     */
 
     val overrideOnDrop = (msg: InboxMessage) => {
       numDroppedMessages.incrementAndGet()
