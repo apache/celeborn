@@ -221,7 +221,7 @@ private[celeborn] class Inbox(
     }
   }
 
-  def isEmpty: Boolean = {
+  def isEmpty: Boolean = inbox.synchronized {
     messages.isEmpty
   }
 
