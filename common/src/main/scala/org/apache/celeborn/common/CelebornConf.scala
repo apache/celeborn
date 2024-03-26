@@ -3381,7 +3381,7 @@ object CelebornConf extends Logging {
   val CLIENT_PUSH_SLOW_START_STEP_TIME: ConfigEntry[Long] =
     buildConf("celeborn.client.push.slowStart.stepTime")
       .categories("client")
-      .version("0.3.0")
+      .version("0.5.0")
       .doc(s"The initial sleep time step interval for each current allowed request.")
       .timeConf(TimeUnit.MICROSECONDS)
       .createWithDefaultString("60us")
@@ -3389,7 +3389,7 @@ object CelebornConf extends Logging {
   val CLIENT_PUSH_SLOW_START_CONGESTED_REQUEST_SLEEP_TIME: ConfigEntry[Long] =
     buildConf("celeborn.client.push.slowStart.congestedPushSleepTime")
       .categories("client")
-      .version("0.3.0")
+      .version("0.5.0")
       .doc(s"The initial sleep time step interval for each current allowed request.")
       .timeConf(TimeUnit.MICROSECONDS)
       .createWithDefaultString("1000us")
