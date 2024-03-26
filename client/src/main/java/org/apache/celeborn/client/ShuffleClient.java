@@ -258,7 +258,7 @@ public abstract class ShuffleClient {
       ExceptionMaker exceptionMaker,
       ArrayList<PartitionLocation> locations,
       ArrayList<PbStreamHandler> streamHandlers,
-      Set<PushFailedBatch> pushFailedBatchSet,
+      Map<String, Set<PushFailedBatch>> failedBatchSetMap,
       int[] mapAttempts,
       MetricsCallback metricsCallback)
       throws IOException;

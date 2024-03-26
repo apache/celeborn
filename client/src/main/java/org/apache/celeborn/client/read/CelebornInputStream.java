@@ -55,7 +55,7 @@ public abstract class CelebornInputStream extends InputStream {
       ArrayList<PartitionLocation> locations,
       ArrayList<PbStreamHandler> streamHandlers,
       int[] attempts,
-      Map<String, Set<PushFailedBatch>> failedBatchSet,
+      Map<String, Set<PushFailedBatch>> failedBatchSetMap,
       int attemptNumber,
       long taskId,
       int startMapIndex,
@@ -74,15 +74,11 @@ public abstract class CelebornInputStream extends InputStream {
       // if startMapIndex > endMapIndex, means partition is skew partition.
       // locations will split to sub-partitions with startMapIndex size.
       ArrayList<PartitionLocation> filterLocations = locations;
-      logger.error("current split info: {}，{}", startMapIndex, endMapIndex);
       boolean splitSkewPartitionWithoutMapRange =
           conf.clientPushFailureTrackingEnabled() && startMapIndex > endMapIndex;
       if (splitSkewPartitionWithoutMapRange) {
-        logger.error("use new mode to handle skew partition without map range");
         filterLocations = getSubSkewPartitionLocations(locations, startMapIndex, endMapIndex);
-
-        logger.error("current partition locations: {}", filterLocations);
-
+        logger.debug("Current sub-partition locations: {}", filterLocations);
         endMapIndex = Integer.MAX_VALUE;
       }
       return new CelebornInputStreamImpl(
@@ -92,7 +88,7 @@ public abstract class CelebornInputStream extends InputStream {
           filterLocations,
           streamHandlers,
           attempts,
-          failedBatchSet,
+          failedBatchSetMap,
           attemptNumber,
           taskId,
           startMapIndex,

@@ -727,9 +727,7 @@ object ControlMessages extends Logging {
 
     case MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId, pushFailedBatch) =>
       val pushFailedMap = pushFailedBatch.asScala.map { case (k, v) =>
-        val resultValue =
-          PbPushFailedBatchSet.newBuilder().addAllFailureBatches(v.asScala.map(PbSerDeUtils
-            .toPbPushFailedBatch).asJava).build()
+        val resultValue = PbSerDeUtils.toPbPushFailedBatchSet(v)
         (k, resultValue)
       }.toMap.asJava
       val payload = PbMapperEnd.newBuilder()
@@ -771,11 +769,7 @@ object ControlMessages extends Logging {
       builder.putAllPushFailedBatches(
         failedBatches.asScala.map {
           case (uniqueId, pushFailedBatchSet) =>
-            (
-              uniqueId,
-              PbPushFailedBatchSet.newBuilder().addAllFailureBatches(
-                pushFailedBatchSet.asScala.map(PbSerDeUtils
-                  .toPbPushFailedBatch).asJava).build())
+            (uniqueId, PbSerDeUtils.toPbPushFailedBatchSet(pushFailedBatchSet))
         }.asJava)
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
@@ -1164,10 +1158,7 @@ object ControlMessages extends Logging {
           pbMapperEnd.getPartitionId,
           pbMapperEnd.getPushFailureBatchesMap.asScala.map {
             case (partitionId, pushFailedBatchSet) =>
-              (
-                partitionId,
-                pushFailedBatchSet.getFailureBatchesList.asScala.map(PbSerDeUtils
-                  .fromPbPushFailedBatch).toSet.asJava)
+              (partitionId, PbSerDeUtils.fromPbPushFailedBatchSet(pushFailedBatchSet))
           }.toMap.asJava)
 
       case MAPPER_END_RESPONSE_VALUE =>
@@ -1206,10 +1197,7 @@ object ControlMessages extends Logging {
         val partitionIds = new util.HashSet(pbGetReducerFileGroupResponse.getPartitionIdsList)
         val pushFailedBatches = pbGetReducerFileGroupResponse.getPushFailedBatchesMap.asScala.map {
           case (uniqueId, pushFailedBatchSet) =>
-            (
-              uniqueId,
-              pushFailedBatchSet.getFailureBatchesList.asScala.map(PbSerDeUtils
-                .fromPbPushFailedBatch).toSet.asJava)
+            (uniqueId, PbSerDeUtils.fromPbPushFailedBatchSet(pushFailedBatchSet))
         }.toMap.asJava
         GetReducerFileGroupResponse(
           Utils.toStatusCode(pbGetReducerFileGroupResponse.getStatus),
