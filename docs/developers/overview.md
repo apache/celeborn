@@ -89,8 +89,8 @@ Celeborn's primary components(i.e. Master, Worker, Client) are engine irrelevant
 and easy to implement plugins for various engines.
 
 Currently, Celeborn officially supports [Spark](https://spark.apache.org/)(both Spark 2.x and Spark 3.x),
-[Flink](https://flink.apache.org/)(1.14/1.15/1.17), and
-[Gluten](https://github.com/apache/incubator-gluten). Also developers are integrating Celeborn with other engines,
+[Flink](https://flink.apache.org/)(1.14/1.15/1.17/1.18/1.19), and
+[Gluten](https://github.com/apache/incubator-gluten). Also, developers are integrating Celeborn with other engines,
 for example [MR3](https://mr3docs.datamonad.com/docs/mr3/).
 
 Celeborn community is also working on integrating Celeborn with other engines.
@@ -100,11 +100,11 @@ In order not to impact running applications when upgrading Celeborn Cluster, Cel
 
 When graceful shutdown is turned on, upon shutdown, Celeborn will do the following things:
 
-1. Master will not allocate slots on the Worker
-2. Worker will inform Clients to split
-3. Client will send `CommitFiles` to the Worker
+1. Master will not allocate slots on the Worker.
+2. Worker will inform Clients to split.
+3. Client will send `CommitFiles` to the Worker.
 
-Then the Worker waits until all `PartitionLocation` flushes data to persistent storage, stores states in local leveldb,
+Then the Worker waits until all `PartitionLocation` flushes data to persistent storage, stores states in local RocksDB or LevelDB(deprecated),
 then stops itself. The process is typically within one minute.
 
 For more details, please refer to [Rolling upgrade](../../upgrading/#rolling-upgrade)

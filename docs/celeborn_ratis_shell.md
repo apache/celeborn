@@ -28,9 +28,9 @@ then it's convenient for Celeborn Admin to operate the master ratis service.
 
 ## Availability
 |  Version  | Available in src tarball? | Available in bin tarball? |
-|:---------:| :-----------------------: |:-------------------------:|
-|  < 0.3.0  | No                        |            No             |
-| \>= 0.3.0 | Yes                       |            Yes            |
+|:---------:|:-------------------------:|:-------------------------:|
+|  < 0.3.0  |            No             |            No             |
+| \>= 0.3.0 |            Yes            |            Yes            |
 
 ## Setting up the Celeborn ratis-shell
 

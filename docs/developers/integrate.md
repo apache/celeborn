@@ -20,14 +20,13 @@ license: |
 ## Overview
 The core components of Celeborn, i.e. `Master`, `Worker`, and `Client` are all engine irrelevant. Developers can
 integrate Celeborn with various engines or applications by using or extending Celeborn's `Client`, as the officially
-supported plugins for Apache Spark and Apache Flink, see [Spark Plugin](../../developers/spark) and 
-[Flink Plugin](../../developers/flink).
+supported plugins for Spark/Flink/MapReduce.
 
 This article briefly describes an example of integrating Celeborn into a simple distributed application using
 Celeborn `Client`.
 
 ## Background
-Say we have an distributed application who has two phases:
+Say we have a distributed application who has two phases:
 
 - Write phase that parallel tasks write data to some data service, each record is classified into some logical id,
   say partition id.

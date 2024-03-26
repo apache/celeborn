@@ -41,15 +41,15 @@ Celeborn Worker's slot count is decided by `total usable disk size / average shu
 Celeborn worker's slot count decreases when a partition is allocated and increments when a partition is freed.
 
 ## Build
-1. Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3/3.4/3.5, Flink 1.14/1.15/1.17/1.18 and Hadoop MapReduce 2/3.
+1. Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3/3.4/3.5, Flink 1.14/1.15/1.17/1.18/1.19 and Hadoop MapReduce 2/3.
 2. Celeborn tested under Scala 2.11/2.12/2.13 and Java 8/11/17 environment.
 
-Build Celeborn
+Build Celeborn via `make-distribution.sh`:
 ```shell
-./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pspark-3.4/-Pflink-1.14/-Pflink-1.15/-Pflink-1.17/-Pflink-1.18/-Pmr
+./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pspark-3.4/-Pflink-1.14/-Pflink-1.15/-Pflink-1.17/-Pflink-1.18/-Pflink-1.19/-Pmr
 ```
 
-package apache-celeborn-${project.version}-bin.tgz will be generated.
+Package `apache-celeborn-${project.version}-bin.tgz` will be generated.
 
 > **_NOTE:_** The following table indicates the compatibility of Celeborn Spark and Flink clients with different versions of Spark and Flink for various Java and Scala versions.
 
@@ -66,8 +66,9 @@ package apache-celeborn-${project.version}-bin.tgz will be generated.
 | Flink 1.15 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.17 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.18 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
+| Flink 1.19 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 
-To compile the client for Spark 2.4 with Scala 2.12, please use the following command
+To compile the client for Spark 2.4 with Scala 2.12, please use the following command:
 
 - Scala 2.12.8/2.12.9/2.12.10
 ```shell
@@ -107,8 +108,8 @@ Celeborn cluster composes of Master and Worker nodes, the Master supports both s
 
 ### Deploy Celeborn
 #### Deploy on host
-1. Unzip the tarball to `$CELEBORN_HOME`
-2. Modify environment variables in `$CELEBORN_HOME/conf/celeborn-env.sh`
+1. Unzip the tarball to `$CELEBORN_HOME`.
+2. Modify environment variables in `$CELEBORN_HOME/conf/celeborn-env.sh`.
 
 EXAMPLE:
 ```properties
@@ -117,7 +118,7 @@ CELEBORN_MASTER_MEMORY=4g
 CELEBORN_WORKER_MEMORY=2g
 CELEBORN_WORKER_OFFHEAP_MEMORY=4g
 ```
-3. Modify configurations in `$CELEBORN_HOME/conf/celeborn-defaults.conf`
+3. Modify configurations in `$CELEBORN_HOME/conf/celeborn-defaults.conf`.
 
 EXAMPLE: single master cluster
 ```properties
@@ -151,7 +152,7 @@ celeborn.worker.replicate.fastFail.duration 240s
 celeborn.storage.hdfs.kerberos.principal user@REALM
 celeborn.storage.hdfs.kerberos.keytab /path/to/user.keytab
 
-# If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
+# If your hosts have disk raid or use lvm, set `celeborn.worker.monitor.disk.enabled` to false
 celeborn.worker.monitor.disk.enabled false
 ```   
 
@@ -198,26 +199,24 @@ celeborn.worker.flusher.hdfs.buffer.size 4m
 celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 celeborn.worker.replicate.fastFail.duration 240s
 
-# If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
+# If your hosts have disk raid or use lvm, set `celeborn.worker.monitor.disk.enabled` to false
 celeborn.worker.monitor.disk.enabled false
 ```
 
 Flink engine related configurations:
 ```properties
-# if you are using Celeborn for flink, these settings will be needed
+# If you are using Celeborn for flink, these settings will be needed.
 celeborn.worker.directMemoryRatioForReadBuffer 0.4
-celeborn.worker.directMemoryRatioToResume 0.6
-# these setting will affect performance. 
+celeborn.worker.directMemoryRatioToResume 0.5
+# These setting will affect performance. 
 # If there is enough off-heap memory, you can try to increase read buffers.
 # Read buffer max memory usage for a data partition is `taskmanager.memory.segment-size * readBuffersMax`
 celeborn.worker.partition.initial.readBuffersMin 512
 celeborn.worker.partition.initial.readBuffersMax 1024
 celeborn.worker.readBuffer.allocationWait 10ms
-# Currently, shuffle partitionSplit is not supported, so you should disable split in celeborn worker side or set `celeborn.client.shuffle.partitionSplit.threshold` to a high value in flink client side.
-celeborn.worker.shuffle.partitionSplit.enabled false
 ```
 
-4. Copy Celeborn and configurations to all nodes
+4. Copy Celeborn and configurations to all nodes.
 5. Start all services. If you install Celeborn distribution in the same path on every node and your
    cluster can perform SSH login then you can fill `$CELEBORN_HOME/conf/hosts` and
    use `$CELEBORN_HOME/sbin/start-all.sh` to start all
@@ -250,14 +249,14 @@ WorkerRef: null
 Please refer to our [website](https://celeborn.apache.org/docs/latest/deploy_on_k8s/)
 
 ### Deploy Spark client
-Copy $CELEBORN_HOME/spark/*.jar to $SPARK_HOME/jars/
+Copy `$CELEBORN_HOME/spark/*.jar` to `$SPARK_HOME/jars/`.
 
 #### Spark Configuration
-To use Celeborn,the following spark configurations should be added.
+To use Celeborn, the following spark configurations should be added.
 ```properties
 # Shuffle manager class name changed in 0.3.0:
-#    before 0.3.0: org.apache.spark.shuffle.celeborn.RssShuffleManager
-#    since 0.3.0: org.apache.spark.shuffle.celeborn.SparkShuffleManager
+#    before 0.3.0: `org.apache.spark.shuffle.celeborn.RssShuffleManager`
+#    since 0.3.0: `org.apache.spark.shuffle.celeborn.SparkShuffleManager`
 spark.shuffle.manager org.apache.spark.shuffle.celeborn.SparkShuffleManager
 # must use kryo serializer because java serializer do not support relocation
 spark.serializer org.apache.spark.serializer.KryoSerializer
@@ -272,13 +271,13 @@ spark.shuffle.service.enabled false
 # Sort shuffle writer uses less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort hash writer.  
 spark.celeborn.client.spark.shuffle.writer hash
 
-# We recommend setting spark.celeborn.client.push.replicate.enabled to true to enable server-side data replication
+# We recommend setting `spark.celeborn.client.push.replicate.enabled` to true to enable server-side data replication
 # If you have only one worker, this setting must be false 
 # If your Celeborn is using HDFS, it's recommended to set this setting to false
 spark.celeborn.client.push.replicate.enabled true
 
 # Support for Spark AQE only tested under Spark 3
-# we recommend setting localShuffleReader to false to get better performance of Celeborn
+# we recommend setting localShuffleReader to false for getting better performance of Celeborn
 spark.sql.adaptive.localShuffleReader.enabled false
 
 # If Celeborn is using HDFS
@@ -296,7 +295,7 @@ spark.dynamicAllocation.shuffleTracking.enabled false
 ```
 
 ### Deploy Flink client
-Copy $CELEBORN_HOME/flink/*.jar to $FLINK_HOME/lib/
+Copy `$CELEBORN_HOME/flink/*.jar` to `$FLINK_HOME/lib/`.
 
 #### Flink Configuration
 To use Celeborn, the following flink cw
@@ -323,9 +322,9 @@ taskmanager.memory.task.off-heap.size: 512m
 ```
 **Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_BLOCKING`.
 
-### Deploy mapreduce client 
-Add $CELEBORN_HOME/mr/*.jar to to `mapreduce.application.classpath` and `yarn.application.classpath`.
-And setting the following settings in YARN and MapReduce config.
+### Deploy MapReduce client 
+Copy `$CELEBORN_HOME/mr/*.jar` into `mapreduce.application.classpath` and `yarn.application.classpath`.
+Meanwhile, configure the following settings in YARN and MapReduce config.
 ```bash
 -Dyarn.app.mapreduce.am.job.recovery.enable=false
 -Dmapreduce.job.reduce.slowstart.completedmaps=1
@@ -334,7 +333,6 @@ And setting the following settings in YARN and MapReduce config.
 -Dmapreduce.job.map.output.collector.class=org.apache.hadoop.mapred.CelebornMapOutputCollector
 -Dmapreduce.job.reduce.shuffle.consumer.plugin.class=org.apache.hadoop.mapreduce.task.reduce.CelebornShuffleConsumer
 ```
-
 
 ### Best Practice
 If you want to set up a production-ready Celeborn cluster, your cluster should have at least 3 masters and at least 4 workers.

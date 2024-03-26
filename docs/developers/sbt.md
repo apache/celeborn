@@ -39,6 +39,7 @@ The following table indicates the compatibility of Celeborn Spark and Flink clie
 | Flink 1.15 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.17 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.18 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
+| Flink 1.19 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 
 ## Useful SBT commands
 
@@ -50,7 +51,7 @@ As an example, one can build a version of Celeborn as follows:
 ./build/sbt clean package
 ```
 
-To create a Celeborn distribution like those distributed by the [Celeborn Downloads](https://celeborn.apache.org/download/) page, and that is laid out so as to be runnable, use `./build/make-distribution.sh` in the project root directory.
+To create a Celeborn distribution like those distributed by the [Celeborn Downloads](https://celeborn.apache.org/download/) page, and that is laid out to be runnable, use `./build/make-distribution.sh` in the project root directory.
 
 ```
 ./build/make-distribution.sh --sbt-enabled --release
@@ -172,7 +173,7 @@ $ ./build/sbt -Pflink-1.15 celeborn-flink-group/test
 
 When developing locally, it’s often convenient to run a single test or a few tests, rather than running the entire test suite.
 
-The fastest way to run individual tests is to use the sbt console. It’s fastest to keep a sbt console open, and use it to re-run tests as necessary. For example, to run all of the tests in a particular project, e.g., master:
+The fastest way to run individual tests is to use the sbt console. It’s fastest to keep a sbt console open, and use it to re-run tests as necessary. For example, to run all the tests in a particular project, e.g., master:
 
 ```
 $ ./build/sbt
@@ -189,7 +190,7 @@ The `testOnly` command accepts wildcards; e.g., you can also run the `SlotsAlloc
 ```
 > testOnly *SlotsAllocatorSuiteJ
 ```
-Or you could run all of the tests in the `master` package:
+Or you could run all the tests in the `master` package:
 
 ```
 > testOnly org.apache.celeborn.service.deploy.master.*
@@ -200,7 +201,7 @@ If you’d like to run just a single Java test in the `SlotsAllocatorSuiteJ`, e.
 > testOnly *SlotsAllocatorSuiteJ -- *SlotsAllocatorSuiteJ.testAllocateSlotsForSinglePartitionId
 ```
 
-If you’d like to run just a single Scala test in the `AppDiskUsageMetricSuite`, e.g., a test that incudes "app usage snapshot" in the name, you run the following command in the sbt console:
+If you’d like to run just a single Scala test in the `AppDiskUsageMetricSuite`, e.g., a test that includes "app usage snapshot" in the name, you run the following command in the sbt console:
 
 ```
 > testOnly *AppDiskUsageMetricSuite -- -z "app usage snapshot"
@@ -290,7 +291,7 @@ SBT supports publishing shade clients (Spark/Flink/MapReduce) to an internal Mav
 Before executing the publish command, ensure that the following environment variables are correctly set:
 
 | Environment Variable   | Description                                                                                                                           |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+|------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
 | ASF_USERNAME           | Sonatype repository username                                                                                                          |
 | ASF_PASSWORD           | Sonatype repository password                                                                                                          |
 | SONATYPE_SNAPSHOTS_URL | Sonatype repository URL for snapshot version releases, default is "https://repository.apache.org/content/repositories/snapshots"      |

@@ -49,9 +49,8 @@ public class SortBasedPusher extends MemoryConsumer {
     private final long maxMemoryThresholdInBytes;
     private final double smallPushTolerateFactor;
 
-    MemoryThresholdManager(
-        int numPartitions, long sendBufferSizeInBytes, double smallPushTolerateFactor) {
-      this.maxMemoryThresholdInBytes = numPartitions * sendBufferSizeInBytes;
+    MemoryThresholdManager(double maxMemoryFactor, double smallPushTolerateFactor) {
+      this.maxMemoryThresholdInBytes = (long) (Runtime.getRuntime().maxMemory() * maxMemoryFactor);
       this.smallPushTolerateFactor = smallPushTolerateFactor;
     }
 
@@ -131,6 +130,8 @@ public class SortBasedPusher extends MemoryConsumer {
 
   private final boolean useAdaptiveThreshold;
 
+  private final double maxMemoryFactor;
+
   public SortBasedPusher(
       TaskMemoryManager memoryManager,
       ShuffleClient shuffleClient,
@@ -192,13 +193,11 @@ public class SortBasedPusher extends MemoryConsumer {
 
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
     useAdaptiveThreshold = conf.clientPushSortUseAdaptiveMemoryThreshold();
+    maxMemoryFactor = conf.clientPushSortMaxMemoryFactor();
     this.pushSortMemoryThreshold = pushSortMemoryThreshold;
 
     this.memoryThresholdManager =
-        new MemoryThresholdManager(
-            this.numPartitions,
-            this.pushBufferMaxSize,
-            conf.clientPushSortSmallPushTolerateFactor());
+        new MemoryThresholdManager(maxMemoryFactor, conf.clientPushSortSmallPushTolerateFactor());
 
     int initialSize = Math.min((int) pushSortMemoryThreshold / 8, 1024 * 1024);
     this.inMemSorter = new ShuffleInMemorySorter(this, initialSize);

@@ -92,6 +92,7 @@ nav:
         - Overview: developers/worker.md
         - Storage: developers/storage.md
         - Traffic Control: developers/trafficcontrol.md
+        - JVM Profiler: developers/jvmprofiler.md
       - Client:
         - Overview: developers/client.md
         - LifecycleManager: developers/lifecyclemanager.md

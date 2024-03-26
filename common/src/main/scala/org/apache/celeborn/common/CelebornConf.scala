@@ -699,6 +699,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     if (hasHDFSStorage) Math.max(128, get(WORKER_COMMIT_THREADS)) else get(WORKER_COMMIT_THREADS)
   def workerCleanThreads: Int = get(WORKER_CLEAN_THREADS)
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
+  def maxPartitionSizeToEstimate: Long =
+    get(ESTIMATED_PARTITION_SIZE_MAX_SIZE).getOrElse(partitionSplitMaximumSize * 2)
   def minPartitionSizeToEstimate: Long = get(ESTIMATED_PARTITION_SIZE_MIN_SIZE)
   def workerPartitionSorterSortPartitionTimeout: Long = get(WORKER_PARTITION_SORTER_SORT_TIMEOUT)
   def workerPartitionSorterPrefetchEnabled: Boolean =
@@ -715,6 +717,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
   def workerPartitionSplitEnabled: Boolean = get(WORKER_PARTITION_SPLIT_ENABLED)
   def workerActiveConnectionMax: Option[Long] = get(WORKER_ACTIVE_CONNECTION_MAX)
+  def workerJvmProfilerEnabled: Boolean = get(WORKER_JVM_PROFILER_ENABLED)
+  def workerJvmProfilerOptions: String = get(WORKER_JVM_PROFILER_OPTIONS)
+  def workerJvmProfilerLocalDir: String = get(WORKER_JVM_PROFILER_LOCAL_DIR)
   def workerJvmQuakeEnabled: Boolean = get(WORKER_JVM_QUAKE_ENABLED)
   def workerJvmQuakeCheckInterval: Long = get(WORKER_JVM_QUAKE_CHECK_INTERVAL)
   def workerJvmQuakeRuntimeWeight: Double = get(WORKER_JVM_QUAKE_RUNTIME_WEIGHT)
@@ -845,6 +850,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD)
   def clientPushSortSmallPushTolerateFactor: Double =
     get(CLIENT_PUSH_SORT_SMALL_PUSH_TOLERATE_FACTOR)
+  def clientPushSortMaxMemoryFactor: Double =
+    get(CLIENT_PUSH_SORT_MAX_MEMORY_FACTOR)
   def clientPushSortRandomizePartitionIdEnabled: Boolean =
     get(CLIENT_PUSH_SORT_RANDOMIZE_PARTITION_ENABLED)
   def clientPushRetryThreads: Int = get(CLIENT_PUSH_RETRY_THREADS)
@@ -2216,10 +2223,18 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64mb")
 
+  val ESTIMATED_PARTITION_SIZE_MAX_SIZE: OptionalConfigEntry[Long] =
+    buildConf("celeborn.master.estimatedPartitionSize.maxSize")
+      .categories("master")
+      .doc("Max partition size for estimation. Default value should be celeborn.worker.shuffle.partitionSplit.max * 2.")
+      .version("0.4.1")
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
+
   val ESTIMATED_PARTITION_SIZE_MIN_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.master.estimatedPartitionSize.minSize")
       .withAlternative("celeborn.shuffle.minPartitionSizeToEstimate")
-      .categories("worker")
+      .categories("master", "worker")
       .doc(
         "Ignore partition size smaller than this configuration of partition size for estimation.")
       .version("0.3.0")
@@ -3132,6 +3147,31 @@ object CelebornConf extends Logging {
       .longConf
       .createOptional
 
+  val WORKER_JVM_PROFILER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.jvmProfiler.enabled")
+      .categories("worker")
+      .version("0.5.0")
+      .doc("Turn on code profiling via async_profiler in workers.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val WORKER_JVM_PROFILER_OPTIONS: ConfigEntry[String] =
+    buildConf("celeborn.worker.jvmProfiler.options")
+      .categories("worker")
+      .version("0.5.0")
+      .doc("Options to pass on to the async profiler.")
+      .stringConf
+      .createWithDefault("event=wall,interval=10ms,alloc=2m,lock=10ms,chunktime=300s")
+
+  val WORKER_JVM_PROFILER_LOCAL_DIR: ConfigEntry[String] =
+    buildConf("celeborn.worker.jvmProfiler.localDir")
+      .categories("worker")
+      .version("0.5.0")
+      .doc("Local file system path on worker where profiler output is saved. "
+        + "Defaults to the working directory of the worker process.")
+      .stringConf
+      .createWithDefault(".")
+
   val WORKER_JVM_QUAKE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.jvmQuake.enabled")
       .categories("worker")
@@ -3631,7 +3671,9 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.compression.codec")
       .withAlternative("remote-shuffle.job.compression.codec")
       .categories("client")
-      .doc("The codec used to compress shuffle data. By default, Celeborn provides three codecs: `lz4`, `zstd`, `none`.")
+      .doc("The codec used to compress shuffle data. By default, Celeborn provides three codecs: `lz4`, `zstd`, `none`. " +
+        "`none` means that shuffle compression is disabled. " +
+        "Since Flink version 1.17, zstd is supported for Flink shuffle client.")
       .version("0.3.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
@@ -4035,7 +4077,6 @@ object CelebornConf extends Logging {
 
   val CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.push.sort.memory.useAdaptiveThreshold")
-      .withAlternative("celeborn.push.sortMemory.useAdaptiveThreshold")
       .categories("client")
       .doc("Adaptively adjust sort-based shuffle writer's memory threshold")
       .version("0.5.0")
@@ -4043,10 +4084,9 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val CLIENT_PUSH_SORT_SMALL_PUSH_TOLERATE_FACTOR: ConfigEntry[Double] =
-    buildConf("celeborn.client.spark.push.sort.smallPushTolerateFactor")
-      .withAlternative("celeborn.push.sortMemory.adaptiveThreshold")
+    buildConf("celeborn.client.spark.push.sort.memory.smallPushTolerateFactor")
       .categories("client")
-      .doc("Only be in effect when celeborn.client.spark.push.sort.memory.useAdaptiveThreshold is" +
+      .doc(s"Only be in effect when ${CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD.key} is" +
         " turned on. The larger this value is, the more aggressive Celeborn will enlarge the " +
         " Sort-based Shuffle writer's memory threshold. Specifically, this config controls when to" +
         " enlarge the sort shuffle writer's memory threshold. With N bytes data in memory and V as" +
@@ -4057,6 +4097,17 @@ object CelebornConf extends Logging {
       .doubleConf
       .checkValue(v => v >= 0.0, "Value must be no less than 0")
       .createWithDefault(0.2)
+
+  val CLIENT_PUSH_SORT_MAX_MEMORY_FACTOR: ConfigEntry[Double] =
+    buildConf("celeborn.client.spark.push.sort.memory.maxMemoryFactor")
+      .categories("client")
+      .doc(
+        "the max portion of executor memory which can be used for SortBasedWriter buffer (only" +
+          s" valid when ${CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD.key} is enabled")
+      .version("0.5.0")
+      .doubleConf
+      .checkValue(v => v > 0.0 && v <= 1.0, "Value must be between 0 and 1 (inclusive)")
+      .createWithDefault(0.4)
 
   val TEST_ALTERNATIVE: OptionalConfigEntry[String] =
     buildConf("celeborn.test.alternative.key")

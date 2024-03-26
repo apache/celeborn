@@ -58,8 +58,6 @@ The layout of `MapPartition` is as follows:
 Each region has an in-memory index which points to start positions of each partition. Upon requesting data from
 some partition, `Worker` reads the partition data from every region.
 
-For more details about reading data, please refer to [ReadData](../../developers/readdata).
-
 ## Local Disk and Memory Buffer
 To the time this article is written, the most common case is local disk only. Users specify directories and
 capacity that Celeborn can use to store data. It is recommended to specify one directory per disk. If users

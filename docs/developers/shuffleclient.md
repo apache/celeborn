@@ -65,7 +65,7 @@ responds to `LifecycleManager` with the allocated `PartitionLocation`s.
 In normal cases, the process of pushing data is as follows:
 
 - `ShuffleClient` compresses data, currently supports `zstd` and `lz4`
-- `ShuffleClient` addes Header for the data: `mapId`, `attemptId`, `batchId` and `size`. The `bastchId` is a unique
+- `ShuffleClient` adds Header for the data: `mapId`, `attemptId`, `batchId` and `size`. The `bastchId` is a unique
   id for the data batch inside the (`mapId`, `attemptId`), for the purpose of de-duplication
 - `ShuffleClient` sends `PushData` to the `Worker` on which the current `PartitionLocation` is allocated, and holds push
   state for this pushing
@@ -124,19 +124,25 @@ to guarantee no data is lost.
 ```java
   public abstract CelebornInputStream readPartition(
       int shuffleId,
+      int appShuffleId,
       int partitionId,
       int attemptNumber,
       int startMapIndex,
-      int endMapIndex)
+      int endMapIndex,
+      ExceptionMaker exceptionMaker,
+      MetricsCallback metricsCallback)
 ```
 
-- `shuffleId` is the unique shuffle id of the application
+- `shuffleId` is the unique shuffle id of Celeborn
+- `appShuffleId` is the unique shuffle id of the application
 - `partitionId` is the partition id to read from
 - `attemptNumber` is the attempt id of reduce task, can be safely set to any value
 - `startMapIndex` is the index of start map index of interested map range, set to 0 if you want to read all
   partition data
 - `endMapIndex` is the index of end map index of interested map range, set to `Integer.MAX_VALUE` if you want
   to read all partition data
+- `exceptionMaker` is the marker of exception including fetch failure exception.
+- `metricsCallback` is the callback of monitoring metrics to increase read bytes and time etc.
 
 The returned input stream is guaranteed to be `Exactly Once`, meaning no data lost and no duplicated reading, or else
 an exception will be thrown, see [Here](../../developers/faulttolerant#exactly-once).

@@ -25,6 +25,7 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
 import scala.collection.JavaConverters._
+import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
@@ -57,6 +58,7 @@ import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionContro
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
 import org.apache.celeborn.service.deploy.worker.monitor.JVMQuake
+import org.apache.celeborn.service.deploy.worker.profiler.JVMProfiler
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 private[celeborn] class Worker(
@@ -326,6 +328,12 @@ private[celeborn] class Worker(
   var cleaner: ExecutorService =
     ThreadUtils.newDaemonSingleThreadExecutor("worker-expired-shuffle-cleaner")
 
+  private var jvmProfiler: JVMProfiler = _
+  if (conf.workerJvmProfilerEnabled) {
+    jvmProfiler = new JVMProfiler(conf)
+    jvmProfiler.start()
+  }
+
   private var jvmQuake: JVMQuake = _
   if (conf.workerJvmQuakeEnabled) {
     jvmQuake = JVMQuake.create(conf, workerInfo.toUniqueId().replace(":", "-"))
@@ -513,6 +521,9 @@ private[celeborn] class Worker(
     if (!stopped) {
       logInfo("Stopping Worker.")
 
+      if (jvmProfiler != null) {
+        jvmProfiler.stop()
+      }
       if (jvmQuake != null) {
         jvmQuake.stop()
       }

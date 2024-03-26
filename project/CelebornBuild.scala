@@ -36,6 +36,7 @@ object Dependencies {
   val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.8.0")
 
   // Dependent library versions
+  val apLoaderVersion = "3.0-8"
   val commonsCompressVersion = "1.4.1"
   val commonsCryptoVersion = "1.0.0"
   val commonsIoVersion = "2.13.0"
@@ -71,6 +72,7 @@ object Dependencies {
   val protocVersion = "3.21.7"
   val protoVersion = "3.21.7"
 
+  val apLoader = "me.bechberger" % "ap-loader-all" % apLoaderVersion
   val commonsCompress = "org.apache.commons" % "commons-compress" % commonsCompressVersion
   val commonsCrypto = "org.apache.commons" % "commons-crypto" % commonsCryptoVersion excludeAll(
     ExclusionRule("net.java.dev.jna", "jna"))
@@ -174,7 +176,6 @@ object CelebornCommonSettings {
     Compile / compile / javacOptions ++= Seq("-target", "1.8"),
 
     dependencyOverrides := Seq(
-      Dependencies.commonsCompress,
       Dependencies.commonsLogging,
       Dependencies.findbugsJsr305,
       Dependencies.slf4jApi),
@@ -335,6 +336,7 @@ object Utils {
     case Some("flink-1.15") => Some(Flink115)
     case Some("flink-1.17") => Some(Flink117)
     case Some("flink-1.18") => Some(Flink118)
+    case Some("flink-1.19") => Some(Flink119)
     case _ => None
   }
 
@@ -495,6 +497,7 @@ object CelebornWorker {
         ExclusionRule("org.apache.ratis", "ratis-client")
       ),
       libraryDependencies ++= Seq(
+        Dependencies.apLoader,
         Dependencies.guava,
         Dependencies.commonsIo,
         Dependencies.ioNetty,
@@ -839,6 +842,16 @@ object Flink118 extends FlinkClientProjects {
   val flinkClientShadedProjectName: String = "celeborn-client-flink-1_18-shaded"
 }
 
+object Flink119 extends FlinkClientProjects {
+  val flinkVersion = "1.19.0"
+
+  // note that SBT does not allow using the period symbol (.) in project names.
+  val flinkClientProjectPath = "client-flink/flink-1.19"
+  val flinkClientProjectName = "celeborn-client-flink-1_19"
+  val flinkClientShadedProjectPath: String = "client-flink/flink-1.19-shaded"
+  val flinkClientShadedProjectName: String = "celeborn-client-flink-1_19-shaded"
+}
+
 trait FlinkClientProjects {
 
   val flinkVersion: String
@@ -860,6 +873,7 @@ trait FlinkClientProjects {
     .aggregate(flinkCommon, flinkClient, flinkIt)
 
   // get flink major version. e.g:
+  //   1.19.0 -> 1.19
   //   1.18.1 -> 1.18
   //   1.17.2 -> 1.17
   //   1.15.4 -> 1.15
@@ -1005,7 +1019,8 @@ object MRClientProjects {
           Dependencies.hadoopClientApi,
           Dependencies.hadoopClientRuntime,
           Dependencies.hadoopMapreduceClientApp
-        ) ++ commonUnitTestDependencies
+        ) ++ commonUnitTestDependencies,
+        dependencyOverrides += Dependencies.commonsCompress
       )
   }
 
