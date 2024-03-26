@@ -22,16 +22,17 @@
 # There are two truststores generated - the first truststore has both CA certs as part of it
 # Hence this trust can be used to validate both client certificates.
 # The second trust store has NO CA certs in it - and so when used will fail both the certificates.
+# Requires: "openssl" (typically the openssl package) and java "keytool" in the PATH
 
 function gen_certs() {
 
   openssl genrsa -out ca.key 2048
-  openssl req -x509 -new -days 9000 -key ca.key -out ca.crt   -subj "/C=US/ST=YourState/L=YourCity/O=YourOrganization/CN=MyCACert"
+  openssl req -x509 -new -days 9000 -key ca.key -out ca.crt -subj "/C=US/ST=YourState/L=YourCity/O=YourOrganization/CN=MyCACert"
   openssl genrsa -out server.key 2048
-  openssl req -new -key server.key -out server.csr   -subj "/C=US/ST=YourState/L=YourCity/O=YourOrganization/CN=MyServer"
+  openssl req -new -key server.key -out server.csr -subj "/C=US/ST=YourState/L=YourCity/O=YourOrganization/CN=MyServer"
   openssl x509 -req -CA ca.crt -CAkey ca.key -CAcreateserial -in server.csr -out server.crt -days 8000
   openssl pkcs12 -export -in server.crt -inkey server.key -out keystore.p12 -name servercert -password pass:password
-  keytool -importkeystore -destkeystore server.jks -srckeystore keystore.p12 -srcstoretype PKCS12 -deststoretype pkcs12 -srcstorepass password  -deststorepass password -noprompt
+  keytool -importkeystore -destkeystore server.jks -srckeystore keystore.p12 -srcstoretype PKCS12 -deststoretype pkcs12 -srcstorepass password -deststorepass password -noprompt
 
   keytool -import -trustcacerts -alias CACert -file ca.crt -keystore truststore.jks -storepass password -noprompt
 
