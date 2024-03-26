@@ -26,7 +26,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import org.apache.celeborn.common.client.MasterClient;
-import org.apache.celeborn.common.protocol.PbApplicationMeta;
+import org.apache.celeborn.common.protocol.PbApplicationAuthMeta;
 
 public class WorkerSecretRegistryImplSuiteJ {
 
@@ -46,17 +46,19 @@ public class WorkerSecretRegistryImplSuiteJ {
     String secret = "testSecret";
     secretRegistry.register(appId, secret);
     assertEquals(secret, secretRegistry.getSecretKey(appId));
-    verify(masterClient, never()).askSync((GeneratedMessageV3) any(), eq(PbApplicationMeta.class));
+    verify(masterClient, never())
+        .askSync((GeneratedMessageV3) any(), eq(PbApplicationAuthMeta.class));
   }
 
   @Test
   public void testGetSecretKeyCacheMiss() throws Throwable {
     String appId = "testAppId";
     String secret = "testSecret";
-    when(masterClient.askSync((GeneratedMessageV3) any(), eq(PbApplicationMeta.class)))
-        .thenReturn(PbApplicationMeta.newBuilder().setAppId(appId).setSecret(secret).build());
+    when(masterClient.askSync((GeneratedMessageV3) any(), eq(PbApplicationAuthMeta.class)))
+        .thenReturn(PbApplicationAuthMeta.newBuilder().setAppId(appId).setSecret(secret).build());
     assertEquals(secret, secretRegistry.getSecretKey(appId));
-    verify(masterClient, times(1)).askSync((GeneratedMessageV3) any(), eq(PbApplicationMeta.class));
+    verify(masterClient, times(1))
+        .askSync((GeneratedMessageV3) any(), eq(PbApplicationAuthMeta.class));
   }
 
   @Test

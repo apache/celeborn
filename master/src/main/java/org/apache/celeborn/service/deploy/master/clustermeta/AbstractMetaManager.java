@@ -35,7 +35,6 @@ import java.util.stream.Collectors;
 
 import scala.Option;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.Node;
 import org.slf4j.Logger;
@@ -43,14 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.AppDiskUsageMetric;
-import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
-import org.apache.celeborn.common.meta.ApplicationMeta;
-import org.apache.celeborn.common.meta.DiskInfo;
-import org.apache.celeborn.common.meta.DiskStatus;
-import org.apache.celeborn.common.meta.WorkerEventInfo;
-import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.meta.*;
 import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
 import org.apache.celeborn.common.protocol.PbWorkerStatus;
@@ -87,6 +79,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final LongAdder partitionTotalFileCount = new LongAdder();
   public AppDiskUsageMetric appDiskUsageMetric = null;
 
+  public final ConcurrentHashMap<String, ApplicationAuthMeta> applicationAuthMetas =
+      JavaUtils.newConcurrentHashMap();
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
       JavaUtils.newConcurrentHashMap();
 
@@ -284,6 +278,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 lostWorkers,
                 shutdownWorkers,
                 workerEventInfos,
+                applicationAuthMetas,
                 applicationMetas)
             .toByteArray();
     Files.write(file.toPath(), snapshotBytes);
@@ -472,15 +467,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             && workerInfo.getWorkerStatus().getState() == PbWorkerStatus.State.Normal);
   }
 
+  public void updateApplicationAuthMeta(ApplicationAuthMeta applicationAuthMeta) {
+    applicationAuthMetas.putIfAbsent(applicationAuthMeta.appId(), applicationAuthMeta);
+  }
+
   public void updateApplicationMeta(ApplicationMeta applicationMeta) {
-    ApplicationMeta existing = applicationMetas.get(applicationMeta.appId());
-    if (null == existing) {
-      applicationMetas.put(applicationMeta.appId(), applicationMeta);
-    } else if (StringUtils.isNotBlank(existing.secret())
-        && existing.secret().equals(applicationMeta.secret())) {
-      applicationMetas.put(
-          applicationMeta.appId(),
-          existing.copy(existing.appId(), existing.secret(), applicationMeta.userIdentifier()));
-    }
+    applicationMetas.putIfAbsent(applicationMeta.appId(), applicationMeta);
   }
 }

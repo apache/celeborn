@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.worker
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.sasl.SecretRegistry
-import org.apache.celeborn.common.protocol.PbApplicationMeta
+import org.apache.celeborn.common.protocol.PbApplicationAuthMeta
 import org.apache.celeborn.common.rpc._
 
 /**
@@ -38,11 +38,11 @@ private[celeborn] class InternalRpcEndpoint(
   }
 
   override def receive: PartialFunction[Any, Unit] = {
-    case pb: PbApplicationMeta =>
+    case pb: PbApplicationAuthMeta =>
       val appId = pb.getAppId
       val secret = pb.getSecret
       if (!secretRegistry.isRegistered(appId)) {
-        logInfo(s"Received application meta for $appId from the Master.")
+        logInfo(s"Received application auth meta for $appId from the Master.")
         secretRegistry.register(appId, secret)
       }
   }

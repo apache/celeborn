@@ -893,7 +893,7 @@ object ControlMessages extends Logging {
       new TransportMessage(MessageType.CHECK_WORKERS_AVAILABLE_RESPONSE, pb.toByteArray)
 
     case pb: PbApplicationMeta =>
-      new TransportMessage(MessageType.APPLICATION_META, pb.toByteArray)
+      new TransportMessage(MessageType.APPLICATION_AUTH_META, pb.toByteArray)
 
     case pb: PbApplicationMetaUpdateResponse =>
       new TransportMessage(MessageType.APPLICATION_META_UPDATE_RESPONSE, pb.toByteArray)
@@ -1245,7 +1245,7 @@ object ControlMessages extends Logging {
       case CHECK_WORKERS_AVAILABLE_RESPONSE_VALUE =>
         PbCheckWorkersAvailableResponse.parseFrom(message.getPayload)
 
-      case APPLICATION_META_VALUE =>
+      case APPLICATION_AUTH_META_VALUE =>
         PbApplicationMeta.parseFrom(message.getPayload)
 
       case APPLICATION_META_UPDATE_RESPONSE_VALUE =>

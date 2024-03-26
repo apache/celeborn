@@ -43,7 +43,7 @@ class LifecycleManagerApplicationMetaSuite extends CelebornFunSuite with MiniClu
       master.conf.get(CelebornConf.MASTER_ENDPOINTS.key))
   }
 
-  test("application meta") {
+  test("application auth meta") {
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
 
     val arrayList = new util.ArrayList[Integer]()

@@ -97,14 +97,18 @@ public class TransportMessage implements Serializable {
         return (T) PbRegisterApplicationRequest.parseFrom(payload);
       case REGISTER_APPLICATION_RESPONSE_VALUE:
         return (T) PbRegisterApplicationResponse.parseFrom(payload);
-      case APPLICATION_META_VALUE:
-        return (T) PbApplicationMeta.parseFrom(payload);
-      case APPLICATION_META_REQUEST_VALUE:
-        return (T) PbApplicationMetaRequest.parseFrom(payload);
+      case APPLICATION_AUTH_META_VALUE:
+        return (T) PbApplicationAuthMeta.parseFrom(payload);
+      case APPLICATION_AUTH_META_REQUEST_VALUE:
+        return (T) PbApplicationAuthMetaRequest.parseFrom(payload);
       case BATCH_OPEN_STREAM_VALUE:
         return (T) PbOpenStreamList.parseFrom(payload);
       case BATCH_OPEN_STREAM_RESPONSE_VALUE:
         return (T) PbOpenStreamListResponse.parseFrom(payload);
+      case APPLICATION_META_VALUE:
+        return (T) PbApplicationMeta.parseFrom(payload);
+      case APPLICATION_META_UPDATE_RESPONSE_VALUE:
+        return (T) PbApplicationMetaUpdateResponse.parseFrom(payload);
       default:
         logger.error("Unexpected type {}", type);
     }

@@ -98,11 +98,12 @@ enum MessageType {
   REGISTER_APPLICATION_RESPONSE = 75;
   WORKER_EVENT_REQUEST = 76;
   WORKER_EVENT_RESPONSE = 77;
-  APPLICATION_META = 78;
-  APPLICATION_META_REQUEST = 79;
+  APPLICATION_AUTH_META = 78;
+  APPLICATION_AUTH_META_REQUEST = 79;
   BATCH_OPEN_STREAM = 80;
   BATCH_OPEN_STREAM_RESPONSE = 81;
-  APPLICATION_META_UPDATE_RESPONSE = 82;
+  APPLICATION_META = 82;
+  APPLICATION_META_UPDATE_RESPONSE = 83;
 }
 
 enum StreamType {
@@ -619,7 +620,8 @@ message PbSnapshotMetaInfo {
   repeated PbWorkerInfo shutdownWorkers = 13;
   repeated PbWorkerInfo manuallyExcludedWorkers = 14;
   map<string, PbWorkerEventInfo> workerEventInfos = 15;
-  map<string, PbApplicationMeta> applicationMetas = 16;
+  map<string, PbApplicationAuthMeta> applicationAuthMetas = 16;
+  map<string, PbApplicationMeta> applicationMetas = 17;
 }
 
 message PbOpenStream {
@@ -751,14 +753,18 @@ message PbRegisterApplicationResponse {
   bool status = 1;
 }
 
-message PbApplicationMeta {
+message PbApplicationAuthMeta {
   string appId = 1;
   string secret = 2;
-  PbUserIdentifier userIdentifier = 3;
 }
 
-message PbApplicationMetaRequest {
+message PbApplicationAuthMetaRequest {
   string appId = 1;
+}
+
+message PbApplicationMeta {
+  string appId = 1;
+  PbUserIdentifier userIdentifier = 2;
 }
 
 message PbApplicationMetaUpdateResponse {

@@ -28,11 +28,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.AppDiskUsageMetric;
-import org.apache.celeborn.common.meta.ApplicationMeta;
-import org.apache.celeborn.common.meta.DiskInfo;
-import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.meta.*;
 import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
@@ -380,6 +376,25 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void handleApplicationAuthMeta(ApplicationAuthMeta applicationAuthMeta) {
+    try {
+      ratisServer.submitRequest(
+          ResourceRequest.newBuilder()
+              .setCmdType(Type.ApplicationAuthMeta)
+              .setRequestId(MasterClient.genRequestId())
+              .setApplicationAuthMetaRequest(
+                  ResourceProtos.ApplicationAuthMetaRequest.newBuilder()
+                      .setAppId(applicationAuthMeta.appId())
+                      .setSecret(applicationAuthMeta.secret())
+                      .build())
+              .build());
+    } catch (CelebornRuntimeException e) {
+      LOG.error("Handle app auth meta for {} failed!", applicationAuthMeta.appId(), e);
+      throw e;
+    }
+  }
+
+  @Override
   public void handleApplicationMeta(ApplicationMeta applicationMeta) {
     try {
       ratisServer.submitRequest(
@@ -389,7 +404,6 @@ public class HAMasterMetaManager extends AbstractMetaManager {
               .setApplicationMetaRequest(
                   ResourceProtos.ApplicationMetaRequest.newBuilder()
                       .setAppId(applicationMeta.appId())
-                      .setSecret(applicationMeta.secret())
                       .setUserIdentifier(
                           ResourceProtos.UserIdentifier.newBuilder()
                               .setTenantId(applicationMeta.userIdentifier().tenantId())

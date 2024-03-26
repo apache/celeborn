@@ -27,10 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.ApplicationMeta;
-import org.apache.celeborn.common.meta.DiskInfo;
-import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.meta.*;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -270,14 +267,18 @@ public class MetaHandler {
           metaSystem.updateWorkerEventMeta(
               request.getWorkerEventRequest().getWorkerEventType().getNumber(), workerInfoList);
 
+        case ApplicationAuthMeta:
+          appId = request.getApplicationAuthMetaRequest().getAppId();
+          String secret = request.getApplicationAuthMetaRequest().getSecret();
+          metaSystem.updateApplicationAuthMeta(new ApplicationAuthMeta(appId, secret));
+          break;
+
         case ApplicationMeta:
           appId = request.getApplicationMetaRequest().getAppId();
-          String secret = request.getApplicationMetaRequest().getSecret();
-          UserIdentifier userIdentifier =
-              new UserIdentifier(
-                  request.getApplicationMetaRequest().getUserIdentifier().getTenantId(),
-                  request.getApplicationMetaRequest().getUserIdentifier().getName());
-          metaSystem.updateApplicationMeta(new ApplicationMeta(appId, secret, userIdentifier));
+          String tenantId = request.getApplicationMetaRequest().getUserIdentifier().getTenantId();
+          String name = request.getApplicationMetaRequest().getUserIdentifier().getName();
+          metaSystem.updateApplicationMeta(
+              new ApplicationMeta(appId, new UserIdentifier(tenantId, name)));
           break;
 
         default:

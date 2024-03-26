@@ -20,12 +20,11 @@ package org.apache.celeborn.common.meta
 import org.apache.celeborn.common.identity.UserIdentifier
 
 /**
- * Application meta
+ * Application auth meta
  */
-case class ApplicationMeta(
-    appId: String,
-    secret: String,
-    userIdentifier: UserIdentifier = UserIdentifier.UNKNOWN_USER_IDENTIFIER) {
-  def this(appId: String, secret: String) =
-    this(appId, secret, UserIdentifier.UNKNOWN_USER_IDENTIFIER)
-}
+case class ApplicationAuthMeta(appId: String, secret: String)
+
+/**
+ * Application general meta
+ */
+case class ApplicationMeta(appId: String, userIdentifier: UserIdentifier)

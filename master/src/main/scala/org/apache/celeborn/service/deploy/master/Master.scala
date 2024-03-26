@@ -541,11 +541,11 @@ private[celeborn] class Master(
           workers,
           context))
 
-    case pb: PbApplicationMetaRequest =>
-      executeWithLeaderChecker(context, handleRequestForApplicationMeta(context, pb))
+    case pb: PbApplicationAuthMetaRequest =>
+      executeWithLeaderChecker(context, handleRequestForApplicationAuthMeta(context, pb))
 
     case pb: PbApplicationMeta =>
-      executeWithLeaderChecker(context, handleApplicationMetaUpdate(context, pb))
+      executeWithLeaderChecker(context, handleApplicationMeta(context, pb))
   }
 
   private def timeoutDeadWorkers(): Unit = {
@@ -884,22 +884,22 @@ private[celeborn] class Master(
     }
 
     if (authEnabled) {
-      pushApplicationMetaToWorkers(requestSlots, slots)
+      pushApplicationAuthMetaToWorkers(requestSlots, slots)
     }
     context.reply(RequestSlotsResponse(StatusCode.SUCCESS, slots.asInstanceOf[WorkerResource]))
   }
 
-  def pushApplicationMetaToWorkers(
+  def pushApplicationAuthMetaToWorkers(
       requestSlots: RequestSlots,
       slots: util.Map[WorkerInfo, (util.List[PartitionLocation], util.List[PartitionLocation])])
       : Unit = {
     // Pass application registration information to the workers
-    val pbApplicationMeta = PbApplicationMeta.newBuilder()
+    val pbApplicationAuthMeta = PbApplicationAuthMeta.newBuilder()
       .setAppId(requestSlots.applicationId)
       .setSecret(secretRegistry.getSecretKey(requestSlots.applicationId))
       .build()
     val transportMessage =
-      new TransportMessage(MessageType.APPLICATION_META, pbApplicationMeta.toByteArray)
+      new TransportMessage(MessageType.APPLICATION_AUTH_META, pbApplicationAuthMeta.toByteArray)
     val workerSet = workersAssignedToApp.computeIfAbsent(
       requestSlots.applicationId,
       new util.function.Function[String, util.Set[WorkerInfo]] {
@@ -1115,32 +1115,31 @@ private[celeborn] class Master(
     }.asJava
   }
 
-  private def handleRequestForApplicationMeta(
+  private def handleRequestForApplicationAuthMeta(
       context: RpcCallContext,
-      pb: PbApplicationMetaRequest): Unit = {
+      pb: PbApplicationAuthMetaRequest): Unit = {
     val appId = pb.getAppId
-    logDebug(s"Handling request for application meta info $appId.")
+    logDebug(s"Handling request for application auth meta info $appId.")
     val secret = secretRegistry.getSecretKey(appId)
     if (secret == null) {
-      logWarning(s"Could not find the application meta of $appId.")
+      logWarning(s"Could not find the application auth meta of $appId.")
       context.sendFailure(new CelebornException(s"$appId is not registered."))
     } else {
-      val pbApplicationMeta = PbApplicationMeta.newBuilder()
+      val pbApplicationAuthMeta = PbApplicationAuthMeta.newBuilder()
         .setAppId(appId)
         .setSecret(secret)
         .build()
       val transportMessage =
-        new TransportMessage(MessageType.APPLICATION_META, pbApplicationMeta.toByteArray)
+        new TransportMessage(MessageType.APPLICATION_AUTH_META, pbApplicationAuthMeta.toByteArray)
       context.reply(transportMessage)
     }
   }
 
-  private def handleApplicationMetaUpdate(
+  private def handleApplicationMeta(
       context: RpcCallContext,
       pb: PbApplicationMeta): Unit = {
     statusSystem.handleApplicationMeta(ApplicationMeta(
       pb.getAppId,
-      pb.getSecret,
       Option(pb.getUserIdentifier).map(PbSerDeUtils.fromPbUserIdentifier).getOrElse(
         UserIdentifier.UNKNOWN_USER_IDENTIFIER)))
     val pbApplicationMetaUpdateResponse = PbApplicationMetaUpdateResponse.newBuilder()

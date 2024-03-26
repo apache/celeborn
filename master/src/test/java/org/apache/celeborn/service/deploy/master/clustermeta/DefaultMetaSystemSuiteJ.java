@@ -34,10 +34,7 @@ import org.junit.Test;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.ApplicationMeta;
-import org.apache.celeborn.common.meta.DiskInfo;
-import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.meta.*;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -469,7 +466,7 @@ public class DefaultMetaSystemSuiteJ {
     workersToAllocate.put(workerInfo1.toUniqueId(), allocation);
     workersToAllocate.put(workerInfo2.toUniqueId(), allocation);
 
-    statusSystem.handleApplicationMeta(new ApplicationMeta(APPID1, "testSecret"));
+    statusSystem.handleApplicationAuthMeta(new ApplicationAuthMeta(APPID1, "testSecret"));
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
     assertEquals(1, statusSystem.registeredShuffle.size());
@@ -753,30 +750,15 @@ public class DefaultMetaSystemSuiteJ {
   }
 
   @Test
-  public void testHandleApplicationMeta() {
+  public void testHandleApplicationAuthMeta() {
     String appSecret = "testSecret";
-    statusSystem.handleApplicationMeta(new ApplicationMeta(APPID1, appSecret));
-    assertEquals(appSecret, statusSystem.applicationMetas.get(APPID1).secret());
+    statusSystem.handleApplicationAuthMeta(new ApplicationAuthMeta(APPID1, appSecret));
+    assertEquals(appSecret, statusSystem.applicationAuthMetas.get(APPID1).secret());
 
     String appId2 = "app02";
     String appSecret2 = "testSecret2";
-    statusSystem.handleApplicationMeta(new ApplicationMeta(appId2, appSecret2));
-    assertEquals(appSecret2, statusSystem.applicationMetas.get(appId2).secret());
-    assertEquals(2, statusSystem.applicationMetas.size());
-    assertTrue(
-        statusSystem.applicationMetas.get(appId2).userIdentifier()
-            == UserIdentifier.UNKNOWN_USER_IDENTIFIER());
-
-    UserIdentifier userIdentifier = new UserIdentifier("celeborn", "celeborn");
-    statusSystem.handleApplicationMeta(new ApplicationMeta(appId2, appSecret2, userIdentifier));
-    assertEquals(appSecret2, statusSystem.applicationMetas.get(appId2).secret());
-    assertEquals(2, statusSystem.applicationMetas.size());
-    assertTrue(statusSystem.applicationMetas.get(appId2).userIdentifier() == userIdentifier);
-
-    String appId3 = "app03";
-    statusSystem.handleApplicationMeta(new ApplicationMeta(appId3, "", userIdentifier));
-    assertEquals("", statusSystem.applicationMetas.get(appId3).secret());
-    assertEquals(3, statusSystem.applicationMetas.size());
-    assertTrue(statusSystem.applicationMetas.get(appId3).userIdentifier() == userIdentifier);
+    statusSystem.handleApplicationAuthMeta(new ApplicationAuthMeta(appId2, appSecret2));
+    assertEquals(appSecret2, statusSystem.applicationAuthMetas.get(appId2).secret());
+    assertEquals(2, statusSystem.applicationAuthMetas.size());
   }
 }
