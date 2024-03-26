@@ -26,6 +26,8 @@ import scala.util.Random
 
 import org.apache.hadoop.shaded.org.apache.commons.lang3.RandomStringUtils
 
+import com.google.common.collect.Sets
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta._
@@ -35,6 +37,7 @@ import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, WorkerResource}
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.PbSerDeUtils.{fromPbPackedPartitionLocationsPair, toPbPackedPartitionLocationsPair}
+import org.apache.celeborn.common.write.PushFailedBatch
 
 class PbSerDeUtilsTest extends CelebornFunSuite {
 
@@ -565,4 +568,21 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     locations.asScala.foreach(p => uniqueIds.remove(p.getUniqueId))
     assert(uniqueIds.isEmpty)
   }
+
+  test("fromAndToPushFailedBatch") {
+    val failedBatch = new PushFailedBatch(1, 1, 2)
+    val pbPushFailedBatch = PbSerDeUtils.toPbPushFailedBatch(failedBatch)
+    val restoredFailedBatch = PbSerDeUtils.fromPbPushFailedBatch(pbPushFailedBatch)
+
+    assert(restoredFailedBatch.equals(failedBatch))
+  }
+
+  test("fromAndToPushFailedBatchSet") {
+    val failedBatchSet = Sets.newHashSet(new PushFailedBatch(1, 1, 2), new PushFailedBatch(2, 2, 3))
+    val pbPushFailedBatchSet = PbSerDeUtils.toPbPushFailedBatchSet(failedBatchSet)
+    val restoredFailedBatchSet = PbSerDeUtils.fromPbPushFailedBatchSet(pbPushFailedBatchSet)
+
+    assert(restoredFailedBatchSet.equals(failedBatchSet))
+  }
+
 }
