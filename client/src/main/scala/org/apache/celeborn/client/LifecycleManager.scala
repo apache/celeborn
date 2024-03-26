@@ -25,24 +25,21 @@ import java.util.{function, List => JList}
 import java.util.concurrent.{Callable, ConcurrentHashMap, LinkedBlockingQueue, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Consumer
-
 import scala.collection.JavaConverters._
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 import scala.util.Random
-
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
-
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.client.listener.WorkerStatusListener
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{ApplicationAuthMeta, ShufflePartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.{ApplicationAuthMeta, ApplicationMeta, ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
@@ -114,6 +111,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val mockDestroyFailure = conf.testMockDestroySlotsFailure
   private val authEnabled = conf.authEnabledOnClient
   private var applicationAuthMeta: ApplicationAuthMeta = _
+  private val applicationMeta = ApplicationMeta(appUniqueId, userIdentifier)
   @VisibleForTesting
   def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, ShufflePartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
@@ -207,6 +205,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val changePartitionManager = new ChangePartitionManager(conf, this)
   private val releasePartitionManager = new ReleasePartitionManager(conf, this)
 
+  private def updateApplicationMeta(): Unit = {
+    Utils.tryLogNonFatalError(masterClient.askSync[PbApplicationMetaUpdateResponse](
+      PbSerDeUtils.toPbApplicationMeta(applicationMeta),
+      classOf[PbApplicationMetaUpdateResponse]))
+  }
+
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
   // `masterClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
   // a reference to `masterClient`, there may be cases where `masterClient` is null when
@@ -214,6 +218,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   // method at the end of the construction of the class to perform the initialization operations.
   private def initialize(): Unit = {
     // noinspection ConvertExpressionToSAM
+    updateApplicationMeta()
     commitManager.start()
     heartbeater.start()
     changePartitionManager.start()

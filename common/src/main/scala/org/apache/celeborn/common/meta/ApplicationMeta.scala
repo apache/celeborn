@@ -17,7 +17,14 @@
 
 package org.apache.celeborn.common.meta
 
+import org.apache.celeborn.common.identity.UserIdentifier
+
 /**
  * Application auth meta
  */
 case class ApplicationAuthMeta(appId: String, secret: String)
+
+/**
+ * Application general meta
+ */
+case class ApplicationMeta(appId: String, userIdentifier: UserIdentifier)
