@@ -39,6 +39,7 @@ enum Type {
   WorkerExclude = 24;
   WorkerEvent = 25;
   ApplicationAuthMeta = 26;
+  ApplicationMeta = 27;
 }
 
 enum WorkerEventType {
@@ -71,6 +72,7 @@ message ResourceRequest {
   optional WorkerExcludeRequest workerExcludeRequest = 21;
   optional WorkerEventRequest workerEventRequest = 22;
   optional ApplicationAuthMetaRequest applicationAuthMetaRequest = 23;
+  optional ApplicationMetaRequest applicationMetaRequest = 24;
 }
 
 message DiskInfo {
@@ -229,4 +231,9 @@ message ResourceResponse {
 message ApplicationAuthMetaRequest {
   required string appId = 1;
   optional string secret = 2;
+}
+
+message ApplicationMetaRequest {
+  required string appId = 1;
+  required UserIdentifier userIdentifier = 2;
 }

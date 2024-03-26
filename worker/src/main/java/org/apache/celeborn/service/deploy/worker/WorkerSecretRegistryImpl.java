@@ -68,7 +68,9 @@ public class WorkerSecretRegistryImpl implements SecretRegistry {
               // If the secret is null, the authentication will fail so just logging the exception
               // here.
               LOG.error(
-                  "Failed to fetch the application auth meta info for {} from the master", appId, e);
+                  "Failed to fetch the application auth meta info for {} from the master",
+                  appId,
+                  e);
             }
             return null;
           }

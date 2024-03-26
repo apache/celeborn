@@ -46,7 +46,8 @@ public class WorkerSecretRegistryImplSuiteJ {
     String secret = "testSecret";
     secretRegistry.register(appId, secret);
     assertEquals(secret, secretRegistry.getSecretKey(appId));
-    verify(masterClient, never()).askSync((GeneratedMessageV3) any(), eq(PbApplicationAuthMeta.class));
+    verify(masterClient, never())
+        .askSync((GeneratedMessageV3) any(), eq(PbApplicationAuthMeta.class));
   }
 
   @Test
@@ -56,7 +57,8 @@ public class WorkerSecretRegistryImplSuiteJ {
     when(masterClient.askSync((GeneratedMessageV3) any(), eq(PbApplicationAuthMeta.class)))
         .thenReturn(PbApplicationAuthMeta.newBuilder().setAppId(appId).setSecret(secret).build());
     assertEquals(secret, secretRegistry.getSecretKey(appId));
-    verify(masterClient, times(1)).askSync((GeneratedMessageV3) any(), eq(PbApplicationAuthMeta.class));
+    verify(masterClient, times(1))
+        .askSync((GeneratedMessageV3) any(), eq(PbApplicationAuthMeta.class));
   }
 
   @Test

@@ -36,7 +36,7 @@ import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.{ApplicationMeta, DiskInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.CelebornRackResolver
@@ -543,6 +543,9 @@ private[celeborn] class Master(
 
     case pb: PbApplicationAuthMetaRequest =>
       executeWithLeaderChecker(context, handleRequestForApplicationAuthMeta(context, pb))
+
+    case pb: PbApplicationMeta =>
+      executeWithLeaderChecker(context, handleApplicationMetaUpdate(context, pb))
   }
 
   private def timeoutDeadWorkers(): Unit = {
@@ -906,7 +909,7 @@ private[celeborn] class Master(
             java.lang.Boolean]())
       })
     slots.keySet().asScala.foreach { worker =>
-      // The app meta info is send to a Worker only if it wasn't previously sent.
+      // The app auth meta info is send to a Worker only if it wasn't previously sent.
       if (workerSet.add(worker)) {
         sendApplicationAuthMetaExecutor.submit(new Runnable {
           override def run(): Unit = {
@@ -1132,6 +1135,20 @@ private[celeborn] class Master(
     }
   }
 
+  private def handleApplicationMetaUpdate(context: RpcCallContext, pb: PbApplicationMeta): Unit = {
+    statusSystem.handleApplicationMeta(ApplicationMeta(
+      pb.getAppId,
+      Option(pb.getUserIdentifier).map(PbSerDeUtils.fromPbUserIdentifier).getOrElse(
+        UserIdentifier.UNKNOWN_USER_IDENTIFIER)))
+    val pbApplicationMetaUpdateResponse = PbApplicationMetaUpdateResponse.newBuilder()
+      .setStatus(true).build()
+    val transportMessage =
+      new TransportMessage(
+        MessageType.APPLICATION_META_UPDATE_RESPONSE,
+        pbApplicationMetaUpdateResponse.toByteArray)
+    context.reply(transportMessage)
+  }
+
   override def getMasterGroupInfo: String = {
     val sb = new StringBuilder
     sb.append("====================== Master Group INFO ==============================\n")
@@ -1226,7 +1243,9 @@ private[celeborn] class Master(
     val sb = new StringBuilder
     sb.append("================= LifecycleManager Application List ======================\n")
     statusSystem.appHeartbeatTime.asScala.toSeq.sortBy(_._2).foreach { case (appId, time) =>
-      sb.append(s"${appId.padTo(40, " ").mkString}${Utils.formatTimestamp(time)}\n")
+      val userIdentifier = Option(statusSystem.applicationMetas.get(appId)).map(_.userIdentifier)
+        .getOrElse(UserIdentifier.UNKNOWN_USER_IDENTIFIER)
+      sb.append(s"${appId.padTo(40, " ").mkString}${Utils.formatTimestamp(time).padTo(40, " ")}$userIdentifier\n")
     }
     sb.toString()
   }
