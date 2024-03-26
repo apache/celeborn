@@ -374,6 +374,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                   snapshotMetaInfo.getCurrentAppDiskUsageMetricsSnapshot())));
 
       snapshotMetaInfo
+          .getApplicationAuthMetasMap()
+          .forEach(
+              (key, value) ->
+                  applicationAuthMetas.put(key, PbSerDeUtils.fromPbApplicationAuthMeta(value)));
+
+      snapshotMetaInfo
           .getApplicationMetasMap()
           .forEach(
               (key, value) -> applicationMetas.put(key, PbSerDeUtils.fromPbApplicationMeta(value)));
