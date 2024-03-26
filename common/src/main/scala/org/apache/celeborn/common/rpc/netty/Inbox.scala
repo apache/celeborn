@@ -88,26 +88,17 @@ private[celeborn] class Inbox(
   @GuardedBy("this")
   private var stopped = false
 
-  /** The number of threads processing messages for this inbox. */
-  @GuardedBy("this")
-  private var numActiveThreads = 0
-
   /** Allow multiple threads to process messages at the same time. */
   @GuardedBy("this")
   private var enableConcurrent = false
 
+  /** The number of threads processing messages for this inbox. */
+  @GuardedBy("this")
+  private var numActiveThreads = 0
+
   // OnStart should be the first message to process
   inbox.synchronized {
     messages.add(OnStart)
-  }
-
-  def post(message: InboxMessage): Unit = {
-    if (stopped) {
-      // We already put "OnStop" into "messages", so we should drop further messages
-      onDrop(message)
-    } else {
-      addMessage(message)
-    }
   }
 
   def addMessage(message: InboxMessage): Unit = {
@@ -174,9 +165,7 @@ private[celeborn] class Inbox(
   }
 
   def process(dispatcher: Dispatcher): Unit = {
-
     var message: InboxMessage = null
-
     inbox.synchronized {
       if (!enableConcurrent && numActiveThreads != 0) {
         return
@@ -188,7 +177,6 @@ private[celeborn] class Inbox(
         return
       }
     }
-
     while (true) {
       safelyCall(endpoint, endpointRef.name) {
         processInternal(dispatcher, message)
@@ -210,6 +198,15 @@ private[celeborn] class Inbox(
     }
   }
 
+  def post(message: InboxMessage): Unit = {
+    if (stopped) {
+      // We already put "OnStop" into "messages", so we should drop further messages
+      onDrop(message)
+    } else {
+      addMessage(message)
+    }
+  }
+
   def stop(): Unit = inbox.synchronized {
     // The following codes should be in `synchronized` so that we can make sure "OnStop" is the last
     // message
@@ -222,6 +219,10 @@ private[celeborn] class Inbox(
       addMessage(OnStop)
       // Note: The concurrent events in messages will be processed one by one.
     }
+  }
+
+  def isEmpty: Boolean = {
+    messages.isEmpty
   }
 
   /**
@@ -267,10 +268,6 @@ private[celeborn] class Inbox(
       case fatal: Throwable =>
         dealWithFatalError(fatal)
     }
-  }
-
-  def isEmpty: Boolean = {
-    messages.isEmpty
   }
 
   // exposed only for testing
