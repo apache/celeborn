@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.security.*;
@@ -33,19 +34,20 @@ import java.util.Map;
 
 import javax.security.auth.x500.X500Principal;
 
+import org.apache.commons.io.FileUtils;
 import org.bouncycastle.x509.X509V1CertificateGenerator;
 
 public class SslSampleConfigs {
 
-  public static final String DEFAULT_KEY_STORE_PATH = getAbsolutePath("/ssl/server.jks");
-  public static final String SECOND_KEY_STORE_PATH = getAbsolutePath("/ssl/server_another.jks");
+  public static final String DEFAULT_KEY_STORE_PATH = getResourceAsAbsolutePath("/ssl/server.jks");
+  public static final String SECOND_KEY_STORE_PATH = getResourceAsAbsolutePath("/ssl/server_another.jks");
 
   // trust store has ca's for both keys.
-  public static final String TRUST_STORE_PATH = getAbsolutePath("/ssl/truststore.jks");
+  public static final String TRUST_STORE_PATH = getResourceAsAbsolutePath("/ssl/truststore.jks");
 
   // this is a trust store which does not have either the primary or second cert's ca
   public static final String TRUST_STORE_WITHOUT_CA =
-      getAbsolutePath("/ssl/truststore-without-ca.jks");
+      getResourceAsAbsolutePath("/ssl/truststore-without-ca.jks");
 
   public static Map<String, String> createDefaultConfigMapForModule(String module) {
     return createConfigMapForModule(module, true);
@@ -191,9 +193,16 @@ public class SslSampleConfigs {
     }
   }
 
-  public static String getAbsolutePath(String path) {
+  public static String getResourceAsAbsolutePath(String path) {
     try {
-      return new File(SslSampleConfigs.class.getResource(path).getFile()).getCanonicalPath();
+      File tempFile = File.createTempFile(new File(path).getName(), null);
+      tempFile.deleteOnExit();
+      URL url = SslSampleConfigs.class.getResource(path);
+      if (null == url) {
+        throw new IllegalArgumentException("Unable to find " + path);
+      }
+      FileUtils.copyInputStreamToFile(url.openStream(), tempFile);
+      return tempFile.getCanonicalPath();
     } catch (IOException e) {
       throw new RuntimeException("Failed to resolve path " + path, e);
     }
