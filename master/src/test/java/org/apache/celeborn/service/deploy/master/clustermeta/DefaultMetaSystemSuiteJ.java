@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.celeborn.common.meta.*;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -34,10 +35,6 @@ import org.junit.Test;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.ApplicationAuthMeta;
-import org.apache.celeborn.common.meta.DiskInfo;
-import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -763,5 +760,18 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleApplicationAuthMeta(new ApplicationAuthMeta(appId2, appSecret2));
     assertEquals(appSecret2, statusSystem.applicationAuthMetas.get(appId2).secret());
     assertEquals(2, statusSystem.applicationAuthMetas.size());
+  }
+
+  @Test
+  public void testHandleApplicationMeta() {
+    UserIdentifier userIdentifier = new UserIdentifier("default", "celeborn");
+    statusSystem.handleApplicationMeta(new ApplicationMeta(APPID1, userIdentifier));
+    assertEquals(userIdentifier, statusSystem.applicationMetas.get(APPID1).userIdentifier());
+
+    String appId2 = "app02";
+    UserIdentifier userIdentifier2 = new UserIdentifier("default", "celeborn2");
+    statusSystem.handleApplicationMeta(new ApplicationMeta(appId2, userIdentifier2));
+    assertEquals(userIdentifier2, statusSystem.applicationMetas.get(appId2).userIdentifier());
+    assertEquals(2, statusSystem.applicationMetas.size());
   }
 }
