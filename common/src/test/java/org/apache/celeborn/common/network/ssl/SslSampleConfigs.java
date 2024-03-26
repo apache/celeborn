@@ -40,7 +40,8 @@ import org.bouncycastle.x509.X509V1CertificateGenerator;
 public class SslSampleConfigs {
 
   public static final String DEFAULT_KEY_STORE_PATH = getResourceAsAbsolutePath("/ssl/server.jks");
-  public static final String SECOND_KEY_STORE_PATH = getResourceAsAbsolutePath("/ssl/server_another.jks");
+  public static final String SECOND_KEY_STORE_PATH =
+      getResourceAsAbsolutePath("/ssl/server_another.jks");
 
   // trust store has ca's for both keys.
   public static final String TRUST_STORE_PATH = getResourceAsAbsolutePath("/ssl/truststore.jks");
