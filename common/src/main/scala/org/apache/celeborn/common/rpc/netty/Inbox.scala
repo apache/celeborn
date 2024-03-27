@@ -98,11 +98,11 @@ private[celeborn] class Inbox(
 
   // OnStart should be the first message to process
   inbox.synchronized {
-    messages.add(OnStart)
+    messages.put(OnStart)
   }
 
   def addMessage(message: InboxMessage): Unit = {
-    messages.add(message)
+    messages.put(message)
   }
 
   private def processInternal(dispatcher: Dispatcher, message: InboxMessage): Unit = {
