@@ -236,7 +236,9 @@ EOF
 
 if [ "$SBT_ENABLED" == "true" ]; then
   if [ "$MODULE" == "server" ]; then
-    sbt_build_server_classpath
+    # TODO fix sbt_build_server_classpath
+    # sbt_build_server_classpath
+    true
   else
     sbt_build_client_classpath
   fi
