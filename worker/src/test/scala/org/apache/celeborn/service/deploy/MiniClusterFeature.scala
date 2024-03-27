@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy
 
+import java.io.IOException
 import java.net.BindException
 import java.nio.file.Files
 import java.util.concurrent.locks.{Lock, ReentrantLock}
@@ -70,7 +71,9 @@ trait MiniClusterFeature extends Logging {
         workers = w
         created = true
       } catch {
-        case e: BindException =>
+        case e: IOException
+            if e.isInstanceOf[BindException] || Option(e.getCause).exists(
+              _.isInstanceOf[BindException]) =>
           logError(s"failed to setup mini cluster, retrying (retry count: $retryCount)", e)
           retryCount += 1
           if (retryCount == 3) {
