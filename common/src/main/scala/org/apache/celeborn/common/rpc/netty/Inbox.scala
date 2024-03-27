@@ -177,7 +177,7 @@ private[celeborn] class Inbox(
   }
 
   private[netty] def waitOnFull(): Unit = {
-    if (capacity > 0) {
+    if (capacity > 0 && !stopped) {
       try {
         inboxLock.lockInterruptibly()
         while (messageCount.get() == capacity) {
