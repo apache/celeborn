@@ -15,9 +15,9 @@
 # limitations under the License.
 #
 
-site_name: Apache Celeborn™ (Incubating)
-repo_name: apache/incubator-celeborn
-repo_url: https://gitbox.apache.org/repos/asf/incubator-celeborn.git
+site_name: Apache Celeborn™
+repo_name: apache/celeborn
+repo_url: https://gitbox.apache.org/repos/asf/celeborn.git
 
 plugins:
   - search
@@ -53,21 +53,9 @@ extra:
     - icon: fontawesome/brands/github
 
 copyright: >
-  <img src="https://www.apachecon.com/event-images/acna2022-wide-dark.png" style="height: 100px;" alt="ApacheCon North America">
-  <img src="https://incubator.apache.org/images/incubator_feather_egg_logo_bw_crop.png" style="height: 87px; margin: 0 0 10px 0;">
   <br>
-  Copyright © 2022 The Apache Software Foundation
+  Copyright © 2024 The Apache Software Foundation, Licensed under the Apache License, Version 2.0.
   <a href="https://privacy.apache.org/policies/privacy-policy-public.html">Privacy Policy<a/><br>
-  <br>
-  Apache Celeborn™, Apache Incubator, Apache, the Apache feather logo, and the Apache Incubator project logo are
-  trademarks or registered trademarks of The Apache Software Foundation.<br>
-  <br>
-  Apache Celeborn™ is an effort undergoing incubation at The Apache Software Foundation (ASF), sponsored by the
-  Apache Incubator. Incubation is required of all newly accepted projects until a further review indicates that
-  the infrastructure, communications, and decision making process have stabilized in a manner consistent with
-  other successful ASF projects. While incubation status is not necessarily a reflection of the completeness or
-  stability of the code, it does indicate that the project has yet to be fully endorsed by the ASF.<br>
-  <br>
   Please visit <a href="https://www.apache.org/">Apache Software Foundation</a> for more details.<br>
   <br>
 

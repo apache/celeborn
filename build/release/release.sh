@@ -56,8 +56,8 @@ fi
 
 RELEASE_TAG="v${RELEASE_VERSION}-rc${RELEASE_RC_NO}"
 
-SVN_STAGING_REPO="https://dist.apache.org/repos/dist/dev/incubator/celeborn"
-SVN_RELEASE_REPO="https://dist.apache.org/repos/dist/release/incubator/celeborn"
+SVN_STAGING_REPO="https://dist.apache.org/repos/dist/dev/celeborn"
+SVN_RELEASE_REPO="https://dist.apache.org/repos/dist/release/celeborn"
 
 RELEASE_DIR="${PROJECT_DIR}/tmp"
 SVN_STAGING_DIR="${PROJECT_DIR}/tmp/svn-dev"

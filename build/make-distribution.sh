@@ -390,7 +390,6 @@ cp "$PROJECT_DIR/docker/Dockerfile" "$DIST_DIR/docker"
 cp -r "$PROJECT_DIR/charts" "$DIST_DIR"
 
 # Copy license files
-cp "$PROJECT_DIR/DISCLAIMER" "$DIST_DIR/DISCLAIMER"
 if [[ -f $"$PROJECT_DIR/LICENSE-binary" ]]; then
   cp "$PROJECT_DIR/LICENSE-binary" "$DIST_DIR/LICENSE"
   cp -r "$PROJECT_DIR/licenses-binary" "$DIST_DIR/licenses"
