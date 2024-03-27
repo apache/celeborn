@@ -158,8 +158,13 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
       endpointName: String,
       message: InboxMessage,
       callbackIfStopped: Exception => Unit): Unit = {
+    val data = synchronized {
+      endpoints.get(endpointName)
+    }
+    if (data != null) {
+      data.inbox.waitOnFull()
+    }
     val error = synchronized {
-      val data = endpoints.get(endpointName)
       if (stopped) {
         Some(new RpcEnvStoppedException())
       } else if (data == null) {
