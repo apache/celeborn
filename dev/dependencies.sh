@@ -236,9 +236,7 @@ EOF
 
 if [ "$SBT_ENABLED" == "true" ]; then
   if [ "$MODULE" == "server" ]; then
-    # TODO fix sbt_build_server_classpath
-    # sbt_build_server_classpath
-    true
+    sbt_build_server_classpath
   else
     sbt_build_client_classpath
   fi
@@ -252,6 +250,7 @@ if [ "$REPLACE" == "true" ]; then
   exit 0
 fi
 
-if [ "$CHECK" == "true" ]; then
+# skip check for sbt server now until sbt_build_server_classpath is refactored
+if [ "$CHECK" == "true" -a "$MODULE" != "server" ]; then
   check_diff
 fi
