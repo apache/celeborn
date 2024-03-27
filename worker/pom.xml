@@ -100,6 +100,12 @@
     </dependency>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
+      <artifactId>celeborn-service_${scala.binary.version}</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.celeborn</groupId>
       <artifactId>celeborn-master_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
@@ -107,6 +113,16 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-scala-scalatest_${scala.binary.version}</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish.jersey.test-framework</groupId>
+      <artifactId>jersey-test-framework-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish.jersey.test-framework.providers</groupId>
+      <artifactId>jersey-test-framework-provider-jetty</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

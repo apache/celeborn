@@ -15,32 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.metrics.sink
+package org.apache.celeborn.common.metrics
 
-import java.util.Properties
+import java.util.concurrent.TimeUnit
 
-import com.codahale.metrics.MetricRegistry
-import io.netty.channel.ChannelHandler.Sharable
+object MetricsUtils {
+  private[this] val MINIMAL_POLL_UNIT = TimeUnit.SECONDS
+  private[this] val MINIMAL_POLL_PERIOD = 1
 
-import org.apache.celeborn.common.metrics.source.Source
-
-class PrometheusServlet(
-    val property: Properties,
-    val registry: MetricRegistry,
-    val sources: Seq[Source],
-    val servletPath: String) extends AbstractServlet(sources) {
-
-  override def createHttpRequestHandler(): ServletHttpRequestHandler = {
-    new PrometheusHttpRequestHandler(servletPath, this)
-  }
-}
-
-@Sharable
-class PrometheusHttpRequestHandler(
-    path: String,
-    prometheusServlet: PrometheusServlet) extends ServletHttpRequestHandler(path) {
-
-  override def handleRequest(uri: String): String = {
-    prometheusServlet.getMetricsSnapshot
+  def checkMinimalPollingPeriod(pollUnit: TimeUnit, pollPeriod: Int) {
+    val period = MINIMAL_POLL_UNIT.convert(pollPeriod, pollUnit)
+    if (period < MINIMAL_POLL_PERIOD) {
+      throw new IllegalArgumentException("Polling period " + pollPeriod + " " + pollUnit +
+        " below than minimal polling period ")
+    }
   }
 }
