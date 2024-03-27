@@ -71,16 +71,21 @@ trait MiniClusterFeature extends Logging {
         workers = w
         created = true
       } catch {
-        case e: BindException | e: IOException =>
-          logError(s"failed to setup mini cluster, retrying (retry count: $retryCount)", e)
+        case e: Throwable =>
           retryCount += 1
-          if (retryCount == 3) {
-            logError("failed to setup mini cluster, reached the max retry count", e)
-            throw e
-          }
+          handleRetry(e, retryCount)
       }
     }
     (master, workers)
+  }
+
+  private def handleRetry(e: Throwable, retryCount: Int): Unit = e match {
+    case _: BindException | _: IOException =>
+      logError(s"failed to setup mini cluster, retrying (retry count: $retryCount)", e)
+      if (retryCount == 3) {
+        logError("failed to setup mini cluster, reached the max retry count", e)
+        throw e
+      }
   }
 
   def createTmpDir(): String = {
