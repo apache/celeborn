@@ -229,7 +229,7 @@ private[celeborn] class Inbox(
    * Called when we are dropping a message. Test cases override this to test message dropping.
    * Exposed for testing.
    */
-  private def onDrop(message: InboxMessage): Unit = {
+  protected def onDrop(message: InboxMessage): Unit = {
     logWarning(s"Drop $message because $endpointRef is stopped")
   }
 
