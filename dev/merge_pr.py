@@ -64,8 +64,8 @@ JIRA_ACCESS_TOKEN = os.environ.get("JIRA_ACCESS_TOKEN")
 GITHUB_OAUTH_KEY = os.environ.get("GITHUB_OAUTH_KEY")
 
 
-GITHUB_BASE = "https://github.com/apache/incubator-celeborn/pull"
-GITHUB_API_BASE = "https://api.github.com/repos/apache/incubator-celeborn"
+GITHUB_BASE = "https://github.com/apache/celeborn/pull"
+GITHUB_API_BASE = "https://api.github.com/repos/apache/celeborn"
 JIRA_BASE = "https://issues.apache.org/jira/browse"
 JIRA_API_BASE = "https://issues.apache.org/jira"
 # Prefix added to temporary branches

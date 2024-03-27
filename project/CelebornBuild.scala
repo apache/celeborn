@@ -265,8 +265,8 @@ object CelebornCommonSettings {
       pomExtra :=
         <url>https://celeborn.apache.org/</url>
         <scm>
-          <url>git@github.com:apache/incubator-celeborn.git</url>
-          <connection>scm:git:git@github.com:apache/incubator-celeborn.git</connection>
+          <url>git@github.com:apache/celeborn.git</url>
+          <connection>scm:git:git@github.com:apache/celeborn.git</connection>
         </scm>
   )
 
