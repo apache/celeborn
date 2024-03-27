@@ -18,7 +18,7 @@ license: |
 
 # Celeborn Architecture
 
-This article introduces high level Apache Celeborn™(Incubating) Architecture. For more detailed description of each module/process,
+This article introduces high level Apache Celeborn™ Architecture. For more detailed description of each module/process,
 please refer to dedicated articles.
 
 ## Why Celeborn
@@ -30,13 +30,13 @@ the disk and network inefficiency (M * N between Mappers and Reducers) in tradit
 Besides inefficiency, traditional shuffle framework requires large local storage in compute node to store shuffle
 data, thus blocks the adoption of disaggregated architecture.
 
-Apache Celeborn(Incubating) solves the problems by reorganizing shuffle data in a more efficient way, and storing the data in
+Apache Celeborn solves the problems by reorganizing shuffle data in a more efficient way, and storing the data in
 a separate service. The high level architecture of Celeborn is as follows:
 
 ![Celeborn](../../assets/img/celeborn.svg)
 
 ## Components
-Celeborn(Incubating) has three primary components: Master, Worker, and Client.
+Celeborn has three primary components: Master, Worker, and Client.
 
 - Master manages Celeborn cluster and achieves high availability(HA) based on Raft.
 - Worker processes read-write requests.
