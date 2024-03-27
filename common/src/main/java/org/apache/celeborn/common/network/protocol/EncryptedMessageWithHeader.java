@@ -34,7 +34,8 @@ import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 /**
  * A wrapper message that holds two separate pieces (a header and a body).
  *
- * <p>The header must be a ByteBuf, while the body can be any InputStream or ChunkedStream
+ * <p>The header must be a ByteBuf, while the body can be any InputStream or ChunkedStream Based on
+ * common/network-common/org.apache.spark.network.protocol.EncryptedMessageWithHeader
  */
 public class EncryptedMessageWithHeader implements ChunkedInput<ByteBuf> {
 

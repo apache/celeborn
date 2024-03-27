@@ -35,6 +35,9 @@ import org.junit.Test;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 
+/*
+ * Based on common/network-common/org.apache.spark.network.protocol.EncryptedMessageWithHeaderSuite
+ */
 public class EncryptedMessageWithHeaderSuiteJ {
 
   // Tests the case where the body is an input stream and that we manage the refcounts of the

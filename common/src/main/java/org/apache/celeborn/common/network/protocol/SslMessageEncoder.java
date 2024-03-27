@@ -31,7 +31,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Encoder used by the server side to encode secure (SSL) server-to-client responses. This encoder
- * is stateless so it is safe to be shared by multiple threads.
+ * is stateless so it is safe to be shared by multiple threads. Based on
+ * common/network-common/org.apache.spark.network.protocol.SslMessageEncoder
  */
 @ChannelHandler.Sharable
 public final class SslMessageEncoder extends MessageToMessageEncoder<Message> {
