@@ -54,8 +54,11 @@ extra:
 
 copyright: >
   <br>
-  Copyright © 2024 The Apache Software Foundation, Licensed under the Apache License, Version 2.0.
+  Copyright © 2022-2024 The Apache Software Foundation, Licensed under the Apache License, Version 2.0.
   <a href="https://privacy.apache.org/policies/privacy-policy-public.html">Privacy Policy<a/><br>
+  <br>
+  Apache Celeborn™, Apache, and the Apache feather logo are trademarks or registered trademarks of The Apache Software Foundation.<br>
+  <br>
   Please visit <a href="https://www.apache.org/">Apache Software Foundation</a> for more details.<br>
   <br>
 
