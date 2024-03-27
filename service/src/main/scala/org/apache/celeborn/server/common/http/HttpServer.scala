@@ -51,7 +51,6 @@ private[celeborn] case class HttpServer(
 
   def stop(exitCode: Int): Unit = synchronized {
     if (isStarted) {
-
       stopInternal(exitCode)
     }
   }
