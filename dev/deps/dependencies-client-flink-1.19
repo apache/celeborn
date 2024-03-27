@@ -77,8 +77,8 @@ ratis-client/2.5.1//ratis-client-2.5.1.jar
 ratis-common/2.5.1//ratis-common-2.5.1.jar
 ratis-proto/2.5.1//ratis-proto-2.5.1.jar
 ratis-thirdparty-misc/1.0.4//ratis-thirdparty-misc-1.0.4.jar
-scala-library/2.12.15//scala-library-2.12.15.jar
-scala-reflect/2.12.15//scala-reflect-2.12.15.jar
+scala-library/2.12.18//scala-library-2.12.18.jar
+scala-reflect/2.12.18//scala-reflect-2.12.18.jar
 shims/0.9.32//shims-0.9.32.jar
 slf4j-api/1.7.36//slf4j-api-1.7.36.jar
 snakeyaml/2.2//snakeyaml-2.2.jar
