@@ -71,9 +71,13 @@ trait MiniClusterFeature extends Logging {
         workers = w
         created = true
       } catch {
+<<<<<<< HEAD
         case e: IOException
             if e.isInstanceOf[BindException] || Option(e.getCause).exists(
               _.isInstanceOf[BindException]) =>
+=======
+        case e: BindException | e: IOException =>
+>>>>>>> c3be3e66 (fix build)
           logError(s"failed to setup mini cluster, retrying (retry count: $retryCount)", e)
           retryCount += 1
           if (retryCount == 3) {
