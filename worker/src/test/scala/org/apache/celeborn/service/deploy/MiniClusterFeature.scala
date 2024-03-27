@@ -71,7 +71,7 @@ trait MiniClusterFeature extends Logging {
         workers = w
         created = true
       } catch {
-        case e: BindException | IOException =>
+        case e: BindException | e: IOException =>
           logError(s"failed to setup mini cluster, retrying (retry count: $retryCount)", e)
           retryCount += 1
           if (retryCount == 3) {
