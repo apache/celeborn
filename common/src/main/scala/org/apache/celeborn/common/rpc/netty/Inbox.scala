@@ -18,15 +18,16 @@
 package org.apache.celeborn.common.rpc.netty
 
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.locks.ReentrantLock
 import javax.annotation.concurrent.GuardedBy
+
+import scala.collection.mutable
 import scala.util.control.NonFatal
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpoint, ThreadSafeRpcEndpoint}
-
-import java.util.concurrent.locks.ReentrantLock
-import scala.collection.mutable
 
 sealed private[celeborn] trait InboxMessage
 
@@ -147,12 +148,13 @@ private[celeborn] class Inbox(
         }
 
       case OnStop =>
-        val activeThreads = try {
-          inboxLock.lockInterruptibly()
-          inbox.numActiveThreads
-        } finally {
-          inboxLock.unlock()
-        }
+        val activeThreads =
+          try {
+            inboxLock.lockInterruptibly()
+            inbox.numActiveThreads
+          } finally {
+            inboxLock.unlock()
+          }
         assert(
           activeThreads == 1,
           s"There should be only a single active thread but found $activeThreads threads.")
