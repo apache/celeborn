@@ -632,6 +632,7 @@ public abstract class CelebornInputStream extends InputStream {
           return false;
         }
 
+        PushFailedBatch failedBatch = new PushFailedBatch(-1, -1, -1);
         boolean hasData = false;
         while (currentChunk.isReadable() || moveToNextChunk()) {
           currentChunk.readBytes(sizeBuf);
@@ -660,7 +661,9 @@ public abstract class CelebornInputStream extends InputStream {
               Set<PushFailedBatch> failedBatchSet =
                   this.failedBatches.get(currentReader.getLocation().getUniqueId());
               if (null != failedBatchSet) {
-                PushFailedBatch failedBatch = new PushFailedBatch(mapId, attemptId, batchId);
+                failedBatch.setMapId(mapId);
+                failedBatch.setAttemptId(attemptId);
+                failedBatch.setBatchId(batchId);
                 if (failedBatchSet.contains(failedBatch)) {
                   logger.warn("Skip duplicated batch: {}.", failedBatch);
                   continue;
