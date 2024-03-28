@@ -85,7 +85,7 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
     val apiUrl = s"http://${httpService.connectionUrl}/"
     openApi.info(
       new Info().title(
-        s"Apache Celeborn (Incubating) REST API Documentation")
+        s"Apache Celeborn REST API Documentation")
         .description(s"Role: ${httpService.serviceName}")
         .license(
           new License().name("Apache License 2.0")
