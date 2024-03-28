@@ -19,27 +19,30 @@ package org.apache.celeborn.service.deploy.worker.http.api
 
 import javax.ws.rs.core.MediaType
 
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.ApiBaseResourceSuite
-import org.apache.celeborn.service.deploy.MiniClusterFeature
-import org.apache.celeborn.service.deploy.worker.Worker
+import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 
-class ApiWorkerResourceSuite extends ApiBaseResourceSuite with MiniClusterFeature {
+class ApiWorkerResourceSuite extends ApiBaseResourceSuite {
   private var worker: Worker = _
   override protected def httpService: HttpService = worker
 
   override def beforeAll(): Unit = {
-    logInfo("test initialized, setup celeborn mini cluster")
-    val (_, w) =
-      setupMiniClusterWithRandomPorts(workerConf = celebornConf.getAll.toMap, workerNum = 1)
-    worker = w.head
+    celebornConf.set(CelebornConf.WORKER_HTTP_PORT.key, s"${Utils.selectRandomPort(1024, 65535)}")
+    val workerArgs = new WorkerArguments(Array(), celebornConf)
+    worker = new Worker(celebornConf, workerArgs)
+    worker.metricsSystem.start()
+    worker.startHttpServer()
     super.beforeAll()
   }
 
   override def afterAll(): Unit = {
     super.afterAll()
-    logInfo("all test complete, stop celeborn mini cluster")
-    shutdownMiniCluster()
+    worker.metricsSystem.stop()
+    worker.rpcEnv.shutdown()
+    worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
   }
 
   test("listPartitionLocationInfo") {

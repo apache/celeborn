@@ -217,6 +217,8 @@ Apache Spark
 ./common/src/main/java/org/apache/celeborn/common/util/JavaUtils.java
 ./common/src/main/scala/org/apache/celeborn/common/util/SignalUtils.scala
 ./common/src/test/java/org/apache/celeborn/common/network/ssl/ReloadingX509TrustManagerSuiteJ.java
+./service/src/main/scala/org/apache/celeborn/server/common/http/api/api.scala
+./service/src/main/scala/org/apache/celeborn/server/common/http/api/ApiUtils.scala
 ./common/src/test/java/org/apache/celeborn/common/network/ssl/SslSampleConfigs.java
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/DB.java
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/DBIterator.java
