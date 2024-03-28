@@ -25,7 +25,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.http.HttpServer
-import org.apache.celeborn.server.common.http.api.ApiRootResource
+import org.apache.celeborn.server.common.http.api.{ApiRootResource, ApiUtils}
 import org.apache.celeborn.server.common.service.config.ConfigLevel
 
 abstract class HttpService extends Service with Logging {
@@ -139,7 +139,13 @@ abstract class HttpService extends Service with Logging {
 
   def getWorkerInfo: String
 
-  def getThreadDump: String
+  def getThreadDump: String = {
+    val sb = new StringBuilder
+    sb.append(
+      s"========================= ${serviceName.capitalize} ThreadDump ==========================\n")
+    sb.append(ApiUtils.getThreadDump().mkString("\n")).append("\n")
+    sb.toString()
+  }
 
   def getShuffleList: String
 

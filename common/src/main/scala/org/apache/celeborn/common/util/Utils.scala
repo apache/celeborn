@@ -647,12 +647,6 @@ object Utils extends Logging {
     System.currentTimeMillis - start
   }
 
-  def getThreadDump(): String = {
-    val runtimeMXBean = ManagementFactory.getRuntimeMXBean
-    val pid = runtimeMXBean.getName.split("@")(0)
-    runCommand(s"jstack -l ${pid}")
-  }
-
   private def readProcessStdout(process: Process): String = {
     val source = Source.fromInputStream(process.getInputStream)
     try {

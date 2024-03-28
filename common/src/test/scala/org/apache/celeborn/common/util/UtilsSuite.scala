@@ -112,10 +112,6 @@ class UtilsSuite extends CelebornFunSuite {
     assert(1596081225 == Utils.bytesToInt(Array(73.toByte, 68.toByte, 34.toByte, 95.toByte), false))
   }
 
-  test("getThreadDump") {
-    assert(Utils.getThreadDump().nonEmpty)
-  }
-
   test("MapperEnd class convert with pb") {
     val mapperEnd = MapperEnd(1, 1, 1, 2, 1)
     val mapperEndTrans =

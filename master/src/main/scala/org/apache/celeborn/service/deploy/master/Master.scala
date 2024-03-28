@@ -1215,13 +1215,6 @@ private[celeborn] class Master(
     sb.toString()
   }
 
-  override def getThreadDump: String = {
-    val sb = new StringBuilder
-    sb.append("========================= Master ThreadDump ==========================\n")
-    sb.append(Utils.getThreadDump()).append("\n")
-    sb.toString()
-  }
-
   override def getHostnameList: String = {
     val sb = new StringBuilder
     sb.append("================= LifecycleManager Hostname List ======================\n")
