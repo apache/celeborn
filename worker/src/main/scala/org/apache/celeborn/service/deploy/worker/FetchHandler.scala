@@ -237,8 +237,7 @@ class FetchHandler(
       fileName: String,
       startIndex: Int,
       endIndex: Int,
-      readLocalShuffle: Boolean = false,
-      shuffleNeedSort: Boolean = true): PbStreamHandlerOpt = {
+      readLocalShuffle: Boolean = false): PbStreamHandlerOpt = {
     try {
       logDebug(s"Received open stream request $shuffleKey $fileName $startIndex " +
         s"$endIndex get file name $fileName from client channel " +
@@ -250,9 +249,8 @@ class FetchHandler(
       // 1. when the current request is a non-range openStream, but the original unsorted file
       //    has been deleted by another range's openStream request.
       // 2. when the current request is a range openStream request.
-      if (shuffleNeedSort && ((endIndex != Int.MaxValue) || (endIndex == Int.MaxValue && !fileInfo
-          .addStream(
-            streamId)))) {
+      if ((endIndex != Int.MaxValue) || (endIndex == Int.MaxValue && !fileInfo.addStream(
+          streamId))) {
         fileInfo = partitionsSorter.getSortedFileInfo(
           shuffleKey,
           fileName,
