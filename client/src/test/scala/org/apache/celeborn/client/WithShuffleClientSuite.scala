@@ -41,7 +41,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
   private val attemptId = 0
 
   private var lifecycleManager: LifecycleManager = _
-  private var shuffleClient: ShuffleClientImpl = _
+  protected var shuffleClient: ShuffleClientImpl = _
 
   var _shuffleId = 0
   def nextShuffleId: Int = {
