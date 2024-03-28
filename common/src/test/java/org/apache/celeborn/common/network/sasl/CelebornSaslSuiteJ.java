@@ -24,6 +24,7 @@ import static org.mockito.Mockito.*;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.util.TransportConf;
 
@@ -43,7 +44,8 @@ public class CelebornSaslSuiteJ extends SaslTestBase {
         new CelebornSaslServer(
             DIGEST_MD5,
             DEFAULT_SASL_SERVER_PROPS,
-            new CelebornSaslServer.DigestCallbackHandler(secretRegistry));
+            new CelebornSaslServer.DigestCallbackHandler(
+                mock(TransportClient.class), secretRegistry));
 
     assertFalse(client.isComplete());
     assertFalse(server.isComplete());
@@ -73,7 +75,8 @@ public class CelebornSaslSuiteJ extends SaslTestBase {
         new CelebornSaslServer(
             DIGEST_MD5,
             DEFAULT_SASL_SERVER_PROPS,
-            new CelebornSaslServer.DigestCallbackHandler(secretRegistry));
+            new CelebornSaslServer.DigestCallbackHandler(
+                mock(TransportClient.class), secretRegistry));
 
     assertFalse(client.isComplete());
     assertFalse(server.isComplete());

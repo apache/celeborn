@@ -37,6 +37,8 @@ import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.network.client.TransportClient;
+
 /**
  * A SASL Server for Celeborn which simply keeps track of the state of a single SASL session, from
  * the initial state to the "authenticated" state. (It is not a server in the sense of accepting
@@ -106,6 +108,7 @@ public class CelebornSaslServer {
    */
   static class DigestCallbackHandler implements CallbackHandler {
     private final SecretRegistry secretRegistry;
+    private final TransportClient client;
 
     /**
      * The use of 'volatile' is not necessary here because the 'handle' invocation includes both the
@@ -114,7 +117,8 @@ public class CelebornSaslServer {
      */
     private String userName = null;
 
-    DigestCallbackHandler(SecretRegistry secretRegistry) {
+    DigestCallbackHandler(TransportClient client, SecretRegistry secretRegistry) {
+      this.client = Preconditions.checkNotNull(client);
       this.secretRegistry = Preconditions.checkNotNull(secretRegistry);
     }
 
@@ -129,6 +133,7 @@ public class CelebornSaslServer {
             throw new SaslException("No username provided by client");
           }
           userName = decodeIdentifier(encodedName);
+          client.setClientId(userName);
         } else if (callback instanceof PasswordCallback) {
           logger.trace("SASL server callback: setting password");
           PasswordCallback pc = (PasswordCallback) callback;

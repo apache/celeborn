@@ -46,4 +46,12 @@ public class BaseMessageHandler {
   public void channelInactive(TransportClient client) {}
 
   public void exceptionCaught(Throwable cause, TransportClient client) {}
+
+  protected void checkAuth(TransportClient client, String appId) {
+    if (client.getClientId() != null && !client.getClientId().equals(appId)) {
+      throw new SecurityException(
+          String.format(
+              "Client for %s not authorized for application %s.", client.getClientId(), appId));
+    }
+  }
 }
