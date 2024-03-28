@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master
+package org.apache.celeborn.service.deploy.master.http.api
 
 import javax.ws.rs.core.MediaType
 
@@ -25,6 +25,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.ApiBaseResourceSuite
+import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 
 class ApiMasterResourceSuite extends ApiBaseResourceSuite {
   private var master: Master = _
