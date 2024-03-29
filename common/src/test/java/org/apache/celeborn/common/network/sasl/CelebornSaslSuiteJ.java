@@ -40,12 +40,13 @@ public class CelebornSaslSuiteJ extends SaslTestBase {
             DIGEST_MD5,
             DEFAULT_SASL_CLIENT_PROPS,
             new CelebornSaslClient.ClientCallbackHandler(TEST_USER, TEST_SECRET));
+    TransportClient transportClient = mock(TransportClient.class);
     CelebornSaslServer server =
         new CelebornSaslServer(
             DIGEST_MD5,
             DEFAULT_SASL_SERVER_PROPS,
             new CelebornSaslServer.DigestCallbackHandler(
-                mock(TransportClient.class), secretRegistry));
+                transportClient, secretRegistry));
 
     assertFalse(client.isComplete());
     assertFalse(server.isComplete());
@@ -56,6 +57,7 @@ public class CelebornSaslSuiteJ extends SaslTestBase {
       clientMessage = client.response(server.response(clientMessage));
     }
     assertTrue(server.isComplete());
+    verify(transportClient, times(1)).setClientId(TEST_USER);
 
     // Disposal should invalidate
     server.dispose();
