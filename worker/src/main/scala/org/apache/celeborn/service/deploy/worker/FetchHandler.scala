@@ -269,47 +269,48 @@ class FetchHandler(
             meta.getNumChunks,
             meta.getChunkOffsets,
             fileInfo.asInstanceOf[DiskFileInfo].getFilePath)
-        } else if (fileInfo.asInstanceOf[DiskFileInfo].isHdfs) {
-          chunkStreamManager.registerStream(
-            streamId,
-            shuffleKey,
-            fileName,
-            startIndex,
-            endIndex)
-          makeStreamHandler(streamId, numChunks = 0)
-        } else {
-          val managedBuffer = fileInfo match {
-            case df: DiskFileInfo =>
-              new FileChunkBuffers(df, transportConf)
-            case mf: MemoryFileInfo =>
-              new MemoryChunkBuffers(mf)
-          }
-          val fetchTimeMetric =
-            fileInfo match {
-              case info: DiskFileInfo =>
-                storageManager.getFetchTimeMetric(info.getFile)
-              case _ =>
-                null
+        } else fileInfo match {
+          case info: DiskFileInfo if info.isHdfs =>
+            chunkStreamManager.registerStream(
+              streamId,
+              shuffleKey,
+              fileName,
+              startIndex,
+              endIndex)
+            makeStreamHandler(streamId, numChunks = 0)
+          case _ =>
+            val managedBuffer = fileInfo match {
+              case df: DiskFileInfo =>
+                new FileChunkBuffers(df, transportConf)
+              case mf: MemoryFileInfo =>
+                new MemoryChunkBuffers(mf)
             }
-          chunkStreamManager.registerStream(
-            streamId,
-            shuffleKey,
-            managedBuffer,
-            fileName,
-            fetchTimeMetric,
-            startIndex,
-            endIndex)
-          if (meta.getNumChunks == 0)
-            logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
-              s"[$startIndex-$endIndex] is empty. Received from client channel " +
-              s"${NettyUtils.getRemoteAddress(client.getChannel)}")
-          else logDebug(
-            s"StreamId $streamId, fileName $fileName, numChunks ${meta.getNumChunks}, " +
-              s"mapRange [$startIndex-$endIndex]. Received from client channel " +
-              s"${NettyUtils.getRemoteAddress(client.getChannel)}")
-          makeStreamHandler(
-            streamId,
-            meta.getNumChunks)
+            val fetchTimeMetric =
+              fileInfo match {
+                case info: DiskFileInfo =>
+                  storageManager.getFetchTimeMetric(info.getFile)
+                case _ =>
+                  null
+              }
+            chunkStreamManager.registerStream(
+              streamId,
+              shuffleKey,
+              managedBuffer,
+              fileName,
+              fetchTimeMetric,
+              startIndex,
+              endIndex)
+            if (meta.getNumChunks == 0)
+              logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
+                s"[$startIndex-$endIndex] is empty. Received from client channel " +
+                s"${NettyUtils.getRemoteAddress(client.getChannel)}")
+            else logDebug(
+              s"StreamId $streamId, fileName $fileName, numChunks ${meta.getNumChunks}, " +
+                s"mapRange [$startIndex-$endIndex]. Received from client channel " +
+                s"${NettyUtils.getRemoteAddress(client.getChannel)}")
+            makeStreamHandler(
+              streamId,
+              meta.getNumChunks)
         }
       workerSource.incCounter(WorkerSource.OPEN_STREAM_SUCCESS_COUNT)
       PbStreamHandlerOpt.newBuilder().setStreamHandler(streamHandler)
