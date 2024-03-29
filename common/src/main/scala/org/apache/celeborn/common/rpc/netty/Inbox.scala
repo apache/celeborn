@@ -210,6 +210,7 @@ private[celeborn] class Inbox(
         messageCount.decrementAndGet()
         signalNotFull()
       } else {
+        signalNotFull()
         return
       }
     } finally {
@@ -232,6 +233,7 @@ private[celeborn] class Inbox(
         message = messages.poll()
         if (message == null) {
           numActiveThreads -= 1
+          signalNotFull()
           return
         } else {
           messageCount.decrementAndGet()
