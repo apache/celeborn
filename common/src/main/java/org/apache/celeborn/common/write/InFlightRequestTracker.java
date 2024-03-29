@@ -181,8 +181,8 @@ public class InFlightRequestTracker {
   }
 
   public int remainingAllowPushes(String hostAndPushPort) {
-    return pushStrategy.getCurrentMaxReqsInFlight(hostAndPushPort) -
-            getBatchIdSetByAddressPair(hostAndPushPort).size();
+    return pushStrategy.getCurrentMaxReqsInFlight(hostAndPushPort)
+        - getBatchIdSetByAddressPair(hostAndPushPort).size();
   }
 
   protected int nextBatchId() {
