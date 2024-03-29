@@ -354,7 +354,8 @@ public class TransportClient implements Closeable {
    * <p>Trying to set a different client ID after it's been set will result in an exception.
    */
   public void setClientId(String id) {
-    Preconditions.checkState(clientId == null, "Client ID has already been set.");
+    Preconditions.checkState(
+        clientId == null || clientId.equals(id), "Client ID has already been set.");
     this.clientId = id;
   }
 

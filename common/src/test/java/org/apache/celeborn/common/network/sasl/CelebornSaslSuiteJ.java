@@ -45,8 +45,7 @@ public class CelebornSaslSuiteJ extends SaslTestBase {
         new CelebornSaslServer(
             DIGEST_MD5,
             DEFAULT_SASL_SERVER_PROPS,
-            new CelebornSaslServer.DigestCallbackHandler(
-                transportClient, secretRegistry));
+            new CelebornSaslServer.DigestCallbackHandler(transportClient, secretRegistry));
 
     assertFalse(client.isComplete());
     assertFalse(server.isComplete());
