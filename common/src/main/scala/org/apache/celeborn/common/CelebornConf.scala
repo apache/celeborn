@@ -1989,7 +1989,7 @@ object CelebornConf extends Logging {
       .doc("Maximum number of threads in the master http worker thread pool.")
       .intConf
       .checkValue(_ > 0, "Must be positive.")
-      .createWithDefault(999)
+      .createWithDefault(200)
 
   val MASTER_HTTP_STOP_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.http.stopTimeout")
@@ -2564,7 +2564,7 @@ object CelebornConf extends Logging {
       .doc("Maximum number of threads in the worker http worker thread pool.")
       .intConf
       .checkValue(_ > 0, "Must be positive.")
-      .createWithDefault(999)
+      .createWithDefault(200)
 
   val WORKER_HTTP_STOP_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.http.stopTimeout")

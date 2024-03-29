@@ -97,7 +97,7 @@ private[celeborn] case class HttpServer(
 object HttpServer {
 
   def apply(role: String, host: String, port: Int, poolSize: Int, stopTimeout: Long): HttpServer = {
-    val pool = new QueuedThreadPool(poolSize)
+    val pool = new QueuedThreadPool(math.max(poolSize, 8))
     pool.setName(s"$role-JettyThreadPool")
     pool.setDaemon(true)
     val server = new Server(pool)
