@@ -85,7 +85,7 @@ public class PushState {
     return inFlightRequestTracker.limitZeroInFlight();
   }
 
-  public int inflightPushes(String hostAndPushPort) {
-    return inFlightRequestTracker.getBatchIdSetByAddressPair(hostAndPushPort).size();
+  public int remainingAllowPushes(String hostAndPushPort) {
+    return inFlightRequestTracker.remainingAllowPushes(hostAndPushPort);
   }
 }

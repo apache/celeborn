@@ -46,7 +46,6 @@ public class DataPushQueue {
   private final LinkedBlockingQueue<PushTask> workingQueue;
   private final PushState pushState;
   private final DataPusher dataPusher;
-  private final int maxInFlightPerWorker;
   private final int shuffleId;
   private final int numMappers;
   private final int numPartitions;
@@ -70,7 +69,6 @@ public class DataPushQueue {
     this.dataPusher = dataPusher;
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     this.pushState = client.getPushState(mapKey);
-    this.maxInFlightPerWorker = conf.clientPushMaxReqsInFlightPerWorker();
     this.takeTaskWaitIntervalMs = conf.clientPushTakeTaskWaitIntervalMs();
     this.takeTaskMaxWaitAttempts = conf.clientPushTakeTaskMaxWaitAttempts();
     final int capacity = conf.clientPushQueueCapacity();
@@ -106,7 +104,7 @@ public class DataPushQueue {
           if (loc != null) {
             Integer oldCapacity = workerCapacity.get(loc.hostAndPushPort());
             if (oldCapacity == null) {
-              oldCapacity = maxInFlightPerWorker - pushState.inflightPushes(loc.hostAndPushPort());
+              oldCapacity = pushState.remainingAllowPushes(loc.hostAndPushPort());
               workerCapacity.put(loc.hostAndPushPort(), oldCapacity);
             }
             workerWaitAttempts.putIfAbsent(loc.hostAndPushPort(), new AtomicInteger(0));
