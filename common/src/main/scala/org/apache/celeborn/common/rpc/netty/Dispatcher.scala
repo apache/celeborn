@@ -165,7 +165,7 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
       data.inbox.waitOnFull()
     }
     val error = synchronized {
-      // double check 
+      // double check
       val data = endpoints.get(endpointName)
       if (stopped) {
         Some(new RpcEnvStoppedException())
