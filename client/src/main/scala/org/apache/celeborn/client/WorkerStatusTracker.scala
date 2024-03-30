@@ -134,8 +134,7 @@ class WorkerStatusTracker(
       failedWorkers.asScala.map(e => (WorkerId.fromWorkerInfo(e._1), e._2)).foreach {
         case (workerId, (StatusCode.WORKER_SHUTDOWN, _)) =>
           shuttingWorkers.add(workerId)
-        case (workerId, (statusCode, registerTime))
-            if !excludedWorkers.containsKey(workerId) =>
+        case (workerId, (statusCode, registerTime)) if !excludedWorkers.containsKey(workerId) =>
           excludedWorkers.put(workerId, (statusCode, registerTime))
         case (workerId, (statusCode, _))
             if statusCode == StatusCode.NO_AVAILABLE_WORKING_DIR ||
