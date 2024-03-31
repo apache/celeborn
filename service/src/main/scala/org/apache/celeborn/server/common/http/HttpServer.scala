@@ -125,6 +125,7 @@ object HttpServer {
     connector.setPort(port)
     connector.setReuseAddress(!SystemUtils.IS_OS_WINDOWS)
     connector.setAcceptQueueSize(math.min(connector.getAcceptors, 8))
+    connector.setStopTimeout(stopTimeout)
 
     new HttpServer(role, server, connector, collection)
   }
