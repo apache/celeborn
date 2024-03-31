@@ -32,18 +32,18 @@ import CelebornCommonSettings._
 
 object Dependencies {
 
-  val zstdJniVersion = sparkClientProjects.map(_.zstdJniVersion).getOrElse("1.5.2-1")
+  val zstdJniVersion = sparkClientProjects.map(_.zstdJniVersion).getOrElse("1.5.6-1")
   val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.8.0")
 
   // Dependent library versions
-  val apLoaderVersion = "3.0-8"
+  val apLoaderVersion = "3.0-9"
   val commonsCompressVersion = "1.4.1"
-  val commonsCryptoVersion = "1.0.0"
-  val commonsIoVersion = "2.13.0"
+  val commonsCryptoVersion = "1.2.0"
+  val commonsIoVersion = "2.16.0"
   val commonsLoggingVersion = "1.1.3"
-  val commonsLang3Version = "3.12.0"
-  val findbugsVersion = "1.3.9"
-  val guavaVersion = "32.1.3-jre"
+  val commonsLang3Version = "3.14.0"
+  val findbugsVersion = "3.0.2"
+  val guavaVersion = "33.1.0-jre"
   val hadoopVersion = "3.3.6"
   val junitInterfaceVersion = "0.13.3"
   // don't forget update `junitInterfaceVersion` when we upgrade junit
@@ -51,15 +51,15 @@ object Dependencies {
   val leveldbJniVersion = "1.8"
   val log4j2Version = "2.17.2"
   val jdkToolsVersion = "0.1"
-  val metricsVersion = "3.2.6"
+  val metricsVersion = "4.2.25"
   val mockitoVersion = "4.11.0"
-  val nettyVersion = "4.1.107.Final"
-  val ratisVersion = "2.5.1"
-  val roaringBitmapVersion = "0.9.32"
-  val rocksdbJniVersion = "8.11.3"
-  val jacksonVersion = "2.15.3"
-  val scalatestMockitoVersion = "1.17.14"
-  val scalatestVersion = "3.2.16"
+  val nettyVersion = "4.1.108.Final"
+  val ratisVersion = "3.0.1"
+  val roaringBitmapVersion = "1.0.5"
+  val rocksdbJniVersion = "9.0.0"
+  val jacksonVersion = "2.17.0"
+  val scalatestMockitoVersion = "1.17.30"
+  val scalatestVersion = "3.2.18"
   val slf4jVersion = "1.7.36"
   val snakeyamlVersion = "2.2"
   val snappyVersion = "1.1.10.5"
@@ -644,7 +644,7 @@ object Spark33 extends SparkClientProjects {
   // scalaBinaryVersion
   // val scalaBinaryVersion = "2.12"
   val sparkVersion = "3.3.4"
-  val zstdJniVersion = "1.5.2-1"
+  val zstdJniVersion = "1.5.6-1"
 
   override val includeColumnarShuffle: Boolean = true
 }
