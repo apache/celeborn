@@ -76,19 +76,13 @@ trait MiniClusterFeature extends Logging {
               _.isInstanceOf[BindException]) =>
           logError(s"failed to setup mini cluster, retrying (retry count: $retryCount)", e)
           retryCount += 1
-          handleRetry(e, retryCount)
+          if (retryCount == 3) {
+            logError("failed to setup mini cluster, reached the max retry count", e)
+            throw e
+          }
       }
     }
     (master, workers)
-  }
-
-  private def handleRetry(e: Throwable, retryCount: Int): Unit = e match {
-    case _: BindException | _: IOException =>
-      logError(s"failed to setup mini cluster, retrying (retry count: $retryCount)", e)
-      if (retryCount == 3) {
-        logError("failed to setup mini cluster, reached the max retry count", e)
-        throw e
-      }
   }
 
   def createTmpDir(): String = {
