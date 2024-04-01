@@ -1127,9 +1127,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
-  def clientFlinkMemoryPerResultPartitionMin: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION_MIN)
   def clientFlinkMemoryPerResultPartition: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION)
-  def clientFlinkMemoryPerInputGateMin: Long = get(CLIENT_MEMORY_PER_INPUT_GATE_MIN)
   def clientFlinkMemoryPerInputGate: Long = get(CLIENT_MEMORY_PER_INPUT_GATE)
   def clientFlinkNumConcurrentReading: Int = get(CLIENT_NUM_CONCURRENT_READINGS)
   def clientFlinkInputGateSupportFloatingBuffer: Boolean =
@@ -4489,25 +4487,6 @@ object CelebornConf extends Logging {
       .doc("Whether to use codegen for columnar-based shuffle.")
       .booleanConf
       .createWithDefault(false)
-
-  // Flink specific client configurations.
-  val CLIENT_MEMORY_PER_RESULT_PARTITION_MIN: ConfigEntry[Long] =
-    buildConf("celeborn.client.flink.resultPartition.minMemory")
-      .withAlternative("remote-shuffle.job.min.memory-per-partition")
-      .categories("client")
-      .version("0.3.0")
-      .doc("Min memory reserved for a result partition.")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("8m")
-
-  val CLIENT_MEMORY_PER_INPUT_GATE_MIN: ConfigEntry[Long] =
-    buildConf("celeborn.client.flink.inputGate.minMemory")
-      .withAlternative("remote-shuffle.job.min.memory-per-gate")
-      .categories("client")
-      .doc("Min memory reserved for a input gate.")
-      .version("0.3.0")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("8m")
 
   val CLIENT_NUM_CONCURRENT_READINGS: ConfigEntry[Int] =
     buildConf("celeborn.client.flink.inputGate.concurrentReadings")
