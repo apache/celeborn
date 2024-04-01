@@ -44,9 +44,6 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
   /** Number of max concurrent reading channels. */
   protected final int numConcurrentReading;
 
-  /** Codec used for compression / decompression. */
-  protected static final String compressionCodec = "LZ4";
-
   /** Network buffer size. */
   protected final int networkBufferSize;
 
@@ -94,7 +91,7 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
     SupplierWithException<BufferPool, IOException> bufferPoolFactory =
         createBufferPoolFactory(networkBufferPool, numBuffersPerGate, supportFloatingBuffers);
     BufferDecompressor bufferDecompressor =
-        new BufferDecompressor(networkBufferSize, compressionCodec);
+        new BufferDecompressor(networkBufferSize, celebornConf.shuffleCompressionCodec().name());
 
     return createInputGate(owningTaskName, gateIndex, igdd, bufferPoolFactory, bufferDecompressor);
   }
