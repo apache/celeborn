@@ -44,27 +44,34 @@ private[celeborn] case class HttpServer(
       isStarted = true
     } catch {
       case e: Exception =>
-        stop(CelebornExitKind.EXIT_IMMEDIATELY)
+        stopInternal(CelebornExitKind.EXIT_IMMEDIATELY)
         throw e
     }
   }
 
   def stop(exitCode: Int): Unit = synchronized {
     if (isStarted) {
-      if (exitCode == CelebornExitKind.EXIT_IMMEDIATELY) {
-        server.setStopTimeout(0)
-      }
-      logInfo(s"$role: Stopping HttpServer")
-      server.stop()
-      connector.stop()
-      server.getThreadPool match {
-        case lifeCycle: LifeCycle => lifeCycle.stop()
-        case _ =>
-      }
-      logInfo(s"$role: HttpServer stopped.")
-      isStarted = false
+      stopInternal(exitCode)
     }
   }
+
+  private def stopInternal(exitCode: Int): Unit = {
+    if (exitCode == CelebornExitKind.EXIT_IMMEDIATELY) {
+      server.setStopTimeout(0)
+      connector.setStopTimeout(0)
+    }
+    logInfo(s"$role: Stopping HttpServer")
+    server.stop()
+    server.join()
+    connector.stop()
+    server.getThreadPool match {
+      case lifeCycle: LifeCycle => lifeCycle.stop()
+      case _ =>
+    }
+    logInfo(s"$role: HttpServer stopped.")
+    isStarted = false
+  }
+
   def getServerUri: String = connector.getHost + ":" + connector.getLocalPort
 
   def addHandler(handler: Handler): Unit = synchronized {
@@ -90,7 +97,7 @@ private[celeborn] case class HttpServer(
 object HttpServer {
 
   def apply(role: String, host: String, port: Int, poolSize: Int, stopTimeout: Long): HttpServer = {
-    val pool = new QueuedThreadPool(poolSize)
+    val pool = new QueuedThreadPool(math.max(poolSize, 8))
     pool.setName(s"$role-JettyThreadPool")
     pool.setDaemon(true)
     val server = new Server(pool)
@@ -118,6 +125,7 @@ object HttpServer {
     connector.setPort(port)
     connector.setReuseAddress(!SystemUtils.IS_OS_WINDOWS)
     connector.setAcceptQueueSize(math.min(connector.getAcceptors, 8))
+    connector.setStopTimeout(stopTimeout)
 
     new HttpServer(role, server, connector, collection)
   }

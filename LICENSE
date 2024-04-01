@@ -234,6 +234,7 @@ Apache Spark
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/LevelDBIterator.java
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/RocksDB.java
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/RocksDBProvider.java
+./worker/src/main/scala/org/apache/celeborn/service/deploy/worker/profiler/JVMProfiler.scala
 
 Apache Kyuubi
 ./common/src/main/java/org/apache/celeborn/reflect/DynClasses.java

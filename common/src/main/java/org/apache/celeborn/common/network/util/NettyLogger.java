@@ -28,6 +28,11 @@ import io.netty.handler.logging.LoggingHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A Netty logger that constructs a log handler depending on the log level.
+ *
+ * <p>Note: code copied from Apache Spark.
+ */
 public class NettyLogger {
   private static final Logger logger = LoggerFactory.getLogger(NettyLogger.class);
 

@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
@@ -62,8 +63,8 @@ import org.apache.celeborn.common.network.util.TransportFrameDecoder;
  */
 public class TransportContext implements Closeable {
   private static final Logger logger = LoggerFactory.getLogger(TransportContext.class);
-  private static final NettyLogger nettyLogger = new NettyLogger();
 
+  private static final NettyLogger nettyLogger = new NettyLogger();
   private final TransportConf conf;
   private final BaseMessageHandler msgHandler;
   private final ChannelDuplexHandler channelsLimiter;
@@ -165,12 +166,11 @@ public class TransportContext implements Closeable {
       BaseMessageHandler resolvedMsgHandler,
       boolean isClient) {
     try {
+      ChannelPipeline pipeline = channel.pipeline();
       if (nettyLogger.getLoggingHandler() != null) {
-        channel.pipeline().addLast("loggingHandler", nettyLogger.getLoggingHandler());
+        pipeline.addLast("loggingHandler", nettyLogger.getLoggingHandler());
       }
-
       if (sslEncryptionEnabled()) {
-
         if (!isClient && !sslFactory.hasKeyManagers()) {
           throw new IllegalStateException("Not a client connection and no keys configured");
         }
@@ -181,18 +181,17 @@ public class TransportContext implements Closeable {
         } catch (Exception e) {
           throw new IllegalStateException("Error creating Netty SslHandler", e);
         }
-        channel.pipeline().addFirst("NettySslEncryptionHandler", sslHandler);
+        pipeline.addFirst("NettySslEncryptionHandler", sslHandler);
         // Cannot use zero-copy with HTTPS, so we add in our ChunkedWriteHandler just before the
         // MessageEncoder
-        channel.pipeline().addLast("chunkedWriter", new ChunkedWriteHandler());
+        pipeline.addLast("chunkedWriter", new ChunkedWriteHandler());
       }
 
       if (channelsLimiter != null) {
-        channel.pipeline().addLast("limiter", channelsLimiter);
+        pipeline.addLast("limiter", channelsLimiter);
       }
       TransportChannelHandler channelHandler = createChannelHandler(channel, resolvedMsgHandler);
-      channel
-          .pipeline()
+      pipeline
           .addLast("encoder", sslEncryptionEnabled() ? SSL_ENCODER : ENCODER)
           .addLast(FrameDecoder.HANDLER_NAME, decoder)
           .addLast(
