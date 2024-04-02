@@ -87,9 +87,7 @@ public class SSLFactory {
   }
 
   public boolean hasKeyManagers() {
-    // nettyServerSslContext requires keys to be specified, this path applies when
-    // applies only when jks is being used without keyManagers
-    return null == jdkSslContext || null != keyManagers;
+    return null != keyManagers;
   }
 
   /**
