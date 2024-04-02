@@ -50,7 +50,7 @@ Users can increase the configuration value appropriately according to the situat
 Shuffle client records the shuffle partition location's host, service port, and filename,
 to support workers recovering reading existing shuffle data after worker restart,
 during worker shutdown, workers should store the meta about reading shuffle partition files
-in LevelDB, and restore the meta after restarting workers.
+in RocksDB or LevelDB(deprecated), and restore the meta after restarting workers.
 Users should set `celeborn.worker.graceful.shutdown.enabled` to `true` to enable graceful shutdown.
 During this process, worker will wait all allocated partition's in this worker to be committed
 within a timeout of `celeborn.worker.graceful.shutdown.checkSlotsFinished.timeout`, which default value is `480s`.
@@ -70,7 +70,7 @@ In order to speed up the restart process, worker let all push data requests retu
 during worker shutdown, and shuffle client will re-apply for a new partition location for these allocated partitions.
 Then client side can record all HARD_SPLIT partition information and pre-commit these partition,
 then the worker side allocated partitions can be committed in a very short time. User should enable
-`celeborn.client.shuffle.batchHandleCommitPartition.enabled`, the default value is false.
+`celeborn.client.shuffle.batchHandleCommitPartition.enabled`, the default value is true.
 
 ### Example setting
 
