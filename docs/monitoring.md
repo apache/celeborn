@@ -200,7 +200,7 @@ These metrics are exposed by Celeborn worker.
         - The time for a worker to flush buffers and close files related to specified shuffle.
     - SlotsAllocated
     - ActiveSlotsCount
-      - The number of slots currently being used in a worker 
+        - The number of slots currently being used in a worker 
     - ReserveSlotsTime
     - ActiveConnectionCount
     - NettyMemory
