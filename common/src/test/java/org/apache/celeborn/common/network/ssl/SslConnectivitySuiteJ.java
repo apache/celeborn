@@ -46,6 +46,8 @@ import org.apache.celeborn.common.util.JavaUtils;
 
 /**
  * A few negative tests to ensure that a non SSL client cant talk to an SSL server and vice versa.
+ * Also, a few tests to ensure non-SSL client and servers can talk to each other, SSL client and server
+ * also can talk to each other.
  */
 public class SslConnectivitySuiteJ {
 
@@ -169,8 +171,9 @@ public class SslConnectivitySuiteJ {
     return Pair.of(response.get(), errorResponse.get());
   }
 
-  // This is a test to validate that this test suite is working fine - so that the negative
-  // tests are not indicating an error
+  // A basic validation test to check if non-ssl client and non-ssl server can talk to each other.
+  // This not only validates non-SSL flow, but also is a check to verify that the negative
+  // tests are not indicating any other error.
   @Test
   public void testNormalConnectivityWorks() throws Exception {
     testSuccessfulConnectivity(
@@ -182,17 +185,24 @@ public class SslConnectivitySuiteJ {
         Function.identity());
   }
 
+  // Both server and client are on SSL, and should be able to successfully communicate
+  // This is the SSL version of testNormalConnectivityWorks above.
   @Test
   public void testBasicSslClientConnectivityWorks() throws Exception {
 
     final Function<CelebornConf, CelebornConf> updateClientConf =
         conf -> {
           // ignore incoming conf, and return a new which only has ssl enabled = true
+          // This is essentially testing two things:
+          // a) client can talk SSL to a server, and does not need anything else to be specified
+          // b) When no truststore is configured at client, it is trusts all server certs
           CelebornConf newConf = new CelebornConf();
           newConf.set("celeborn.ssl." + TEST_MODULE + ".enabled", "true");
           return newConf;
         };
 
+    // primaryConfigForClient param does not matter - we are completely overriding it above
+    // in updateClientConf. Adding both just for completeness sake.
     testSuccessfulConnectivity(true, true, true, Function.identity(), updateClientConf);
     testSuccessfulConnectivity(true, true, false, Function.identity(), updateClientConf);
 
@@ -200,86 +210,60 @@ public class SslConnectivitySuiteJ {
     testConnectivityFailure(false, true, false, false, Function.identity(), updateClientConf);
   }
 
+  // Only SSL client can talk to a SSL server.
   @Test
   public void testSslServerNormalClientFails() throws Exception {
+    // Will fail for both primary and seconday jks (primaryConfigForServer) - adding
+    // both just for completeness
     testConnectivityFailure(true, false, true, true, Function.identity(), Function.identity());
     testConnectivityFailure(true, false, false, true, Function.identity(), Function.identity());
   }
 
+  // Only non-SSL client can talk to SSL server
   @Test
   public void testSslClientNormalServerFails() throws Exception {
+    // Will fail for both primaryConfigForClient - adding both just for completeness
     testConnectivityFailure(false, true, false, false, Function.identity(), Function.identity());
     testConnectivityFailure(false, true, false, true, Function.identity(), Function.identity());
   }
 
-  private void testSuccessfulConnectivity(
-      boolean enableSsl,
-      boolean primaryConfigForServer,
-      boolean primaryConfigForClient,
-      Function<CelebornConf, CelebornConf> postProcessServerConf,
-      Function<CelebornConf, CelebornConf> postProcessClientConf)
-      throws Exception {
-    try (TestTransportState state =
-            new TestTransportState(
-                DEFAULT_HANDLER,
-                createTransportConf(
-                    TEST_MODULE, enableSsl, primaryConfigForServer, postProcessServerConf),
-                createTransportConf(
-                    TEST_MODULE, enableSsl, primaryConfigForClient, postProcessClientConf));
-        TransportClient client = state.createClient()) {
-
-      String msg = " hi ";
-      Pair<String, String> response = sendRPC(client, msg, false);
-      assertNotNull("Failed ? " + response.getRight(), response.getLeft());
-      assertNull(response.getRight());
-      assertEquals(RESPONSE_PREFIX + msg + RESPONSE_SUFFIX, response.getLeft());
-    }
-  }
-
-  private void testConnectivityFailure(
-      boolean serverSsl,
-      boolean clientSsl,
-      boolean primaryConfigForServer,
-      boolean primaryConfigForClient,
-      Function<CelebornConf, CelebornConf> postProcessServerConf,
-      Function<CelebornConf, CelebornConf> postProcessClientConf)
-      throws Exception {
-    try (TestTransportState state =
-            new TestTransportState(
-                DEFAULT_HANDLER,
-                createTransportConf(
-                    TEST_MODULE, serverSsl, primaryConfigForServer, postProcessServerConf),
-                createTransportConf(
-                    TEST_MODULE, clientSsl, primaryConfigForClient, postProcessClientConf));
-        TransportClient client = state.createClient()) {
-
-      String msg = " hi ";
-      Pair<String, String> response = sendRPC(client, msg, true);
-      assertNull(response.getLeft());
-      assertNotNull(response.getRight());
-    } catch (IOException ioEx) {
-      // this is fine - expected to fail
-    }
-  }
-
   @Test
   public void testUntrustedServerCertFails() throws Exception {
-    // since we are specifying for the exact module, this is fine
     final String trustStoreKey = "celeborn.ssl." + TEST_MODULE + ".trustStore";
 
     final Function<CelebornConf, CelebornConf> updateConf =
         conf -> {
-          if (conf.getOption(trustStoreKey).isDefined()) {
-            conf.set(trustStoreKey, SslSampleConfigs.TRUST_STORE_WITHOUT_CA);
-          }
+          assertTrue(conf.getOption(trustStoreKey).isDefined());
+          conf.set(trustStoreKey, SslSampleConfigs.TRUST_STORE_WITHOUT_CA);
           return conf;
         };
 
     // will fail for all combinations - since we dont have the CA's in the truststore
     testConnectivityFailure(true, true, true, false, updateConf, updateConf);
-    testConnectivityFailure(true, true, false, true, updateConf, updateConf);
     testConnectivityFailure(true, true, true, true, updateConf, updateConf);
+    testConnectivityFailure(true, true, false, true, updateConf, updateConf);
     testConnectivityFailure(true, true, false, false, updateConf, updateConf);
+  }
+
+  // This is a variant of testUntrustedServerCertFails - where the server does not trust the
+  // client cert, and the client does provide a cert.
+  @Test
+  public void testUntrustedClientCertFails() throws Exception {
+    final String trustStoreKey = "celeborn.ssl." + TEST_MODULE + ".trustStore";
+
+    final Function<CelebornConf, CelebornConf> updateConf =
+            conf -> {
+              assertTrue(conf.getOption(trustStoreKey).isDefined());
+              conf.set(trustStoreKey, SslSampleConfigs.TRUST_STORE_WITHOUT_CA);
+              return conf;
+            };
+
+    // will fail for all combinations - since server does not have the client cert's CA
+    // in its truststore
+    testConnectivityFailure(true, true, true, false, updateConf, Function.identity());
+    testConnectivityFailure(true, true, true, true, updateConf, Function.identity());
+    testConnectivityFailure(true, true, false, true, updateConf, Function.identity());
+    testConnectivityFailure(true, true, false, false, updateConf, Function.identity());
   }
 
   @Test
@@ -291,9 +275,9 @@ public class SslConnectivitySuiteJ {
 
     final Function<CelebornConf, CelebornConf> updateConf =
         conf -> {
-          if (conf.getOption(trustStoreKey).isDefined()) {
-            conf.unset(trustStoreKey);
-          }
+          assertTrue(conf.getOption(trustStoreKey).isDefined());
+          conf.unset(trustStoreKey);
+          assertNull(new TransportConf(TEST_MODULE, conf).sslTrustStore());
           return conf;
         };
 
@@ -303,5 +287,55 @@ public class SslConnectivitySuiteJ {
     testSuccessfulConnectivity(true, true, false, updateConf, updateConf);
     testSuccessfulConnectivity(true, false, true, updateConf, updateConf);
     testSuccessfulConnectivity(true, false, false, updateConf, updateConf);
+  }
+
+  private void testSuccessfulConnectivity(
+          boolean enableSsl,
+          boolean primaryConfigForServer,
+          boolean primaryConfigForClient,
+          Function<CelebornConf, CelebornConf> postProcessServerConf,
+          Function<CelebornConf, CelebornConf> postProcessClientConf)
+          throws Exception {
+    try (TestTransportState state =
+                 new TestTransportState(
+                         DEFAULT_HANDLER,
+                         createTransportConf(
+                                 TEST_MODULE, enableSsl, primaryConfigForServer, postProcessServerConf),
+                         createTransportConf(
+                                 TEST_MODULE, enableSsl, primaryConfigForClient, postProcessClientConf));
+         TransportClient client = state.createClient()) {
+
+      String msg = " hi ";
+      Pair<String, String> response = sendRPC(client, msg, false);
+      assertNotNull("Failed ? " + response.getRight(), response.getLeft());
+      assertNull(response.getRight());
+      assertEquals(RESPONSE_PREFIX + msg + RESPONSE_SUFFIX, response.getLeft());
+    }
+  }
+
+  private void testConnectivityFailure(
+          boolean serverSsl,
+          boolean clientSsl,
+          boolean primaryConfigForServer,
+          boolean primaryConfigForClient,
+          Function<CelebornConf, CelebornConf> postProcessServerConf,
+          Function<CelebornConf, CelebornConf> postProcessClientConf)
+          throws Exception {
+    try (TestTransportState state =
+                 new TestTransportState(
+                         DEFAULT_HANDLER,
+                         createTransportConf(
+                                 TEST_MODULE, serverSsl, primaryConfigForServer, postProcessServerConf),
+                         createTransportConf(
+                                 TEST_MODULE, clientSsl, primaryConfigForClient, postProcessClientConf));
+         TransportClient client = state.createClient()) {
+
+      String msg = " hi ";
+      Pair<String, String> response = sendRPC(client, msg, true);
+      assertNull(response.getLeft());
+      assertNotNull(response.getRight());
+    } catch (IOException ioEx) {
+      // this is fine - expected to fail
+    }
   }
 }

@@ -50,6 +50,11 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.util.JavaUtils;
 
+/**
+ * SSLFactory to initialize and configure use of JSSE for SSL in Celeborn.
+ *
+ * <p>Note: code was initially copied from Apache Spark.
+ */
 public class SSLFactory {
   private static final Logger logger = LoggerFactory.getLogger(SSLFactory.class);
 
@@ -235,7 +240,7 @@ public class SSLFactory {
   public SSLEngine createSSLEngine(boolean isClient, ByteBufAllocator allocator) {
     SSLEngine engine = createEngine(isClient, allocator);
     engine.setUseClientMode(isClient);
-    engine.setNeedClientAuth(false);
+    engine.setWantClientAuth(true);
     engine.setEnabledProtocols(enabledProtocols(engine, requestedProtocol));
     engine.setEnabledCipherSuites(enabledCipherSuites(engine, requestedCiphers));
     return engine;
@@ -245,6 +250,7 @@ public class SSLFactory {
     return jdkSslContext.createSSLEngine();
   }
 
+  private static final X509Certificate[] EMPTY_CERT_ARRAY = new X509Certificate[0];
   private static TrustManager[] credulousTrustStoreManagers() {
     return new TrustManager[] {
       new X509TrustManager() {
@@ -258,7 +264,7 @@ public class SSLFactory {
 
         @Override
         public X509Certificate[] getAcceptedIssuers() {
-          return null;
+          return EMPTY_CERT_ARRAY;
         }
       }
     };
