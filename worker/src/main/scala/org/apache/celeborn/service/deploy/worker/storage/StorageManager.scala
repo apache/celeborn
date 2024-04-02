@@ -450,12 +450,16 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   def getFileInfo(
       shuffleKey: String,
-      fileName: String): FileInfo = {
+      fileName: String,
+      read: Boolean = false): FileInfo = {
     memoryFileInfos.synchronized {
       val memoryShuffleMap = memoryFileInfos.get(shuffleKey)
       if (memoryShuffleMap != null) {
         val memoryFileInfo = memoryShuffleMap.get(fileName)
         if (memoryFileInfo != null) {
+          if (read) {
+            memoryFileInfo.incrementReaderCount()
+          }
           return memoryFileInfo
         }
       }

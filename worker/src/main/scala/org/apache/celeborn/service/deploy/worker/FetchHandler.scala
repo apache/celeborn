@@ -83,9 +83,10 @@ class FetchHandler(
 
   def getRawFileInfo(
       shuffleKey: String,
-      fileName: String): FileInfo = {
+      fileName: String,
+      read: Boolean = false): FileInfo = {
     // find FileWriter responsible for the data
-    val fileInfo = storageManager.getFileInfo(shuffleKey, fileName)
+    val fileInfo = storageManager.getFileInfo(shuffleKey, fileName, read)
     if (fileInfo == null) {
       val errMsg = s"Could not find file $fileName for $shuffleKey."
       logWarning(errMsg)
@@ -299,7 +300,8 @@ class FetchHandler(
               fileName,
               fetchTimeMetric,
               startIndex,
-              endIndex)
+              endIndex,
+              fileInfo)
             if (meta.getNumChunks == 0)
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
                 s"[$startIndex-$endIndex] is empty. Received from client channel " +
@@ -342,7 +344,7 @@ class FetchHandler(
     workerSource.recordAppActiveConnection(client, shuffleKey)
     workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     try {
-      val fileInfo = getRawFileInfo(shuffleKey, fileName)
+      val fileInfo = getRawFileInfo(shuffleKey, fileName, true)
       fileInfo.getFileMeta match {
         case _: ReduceFileMeta =>
           val pbStreamHandlerOpt =
@@ -470,6 +472,7 @@ class FetchHandler(
         fileinfo.closeStream(streamId)
         if (fileinfo.isInstanceOf[MemoryFileInfo]) {
           fileinfo.getFileMeta.asInstanceOf[ReduceFileMeta].removeMapIds(startIndex, endIndex)
+          fileinfo.asInstanceOf[MemoryFileInfo].decrementReaderCount()
         }
       case StreamType.CreditStream =>
         val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)

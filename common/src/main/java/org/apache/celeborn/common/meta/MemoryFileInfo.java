@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.meta;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.netty.buffer.CompositeByteBuf;
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ public class MemoryFileInfo extends FileInfo {
   private CompositeByteBuf buffer;
   private CompositeByteBuf sortedBuffer;
   private Map<Integer, List<ShuffleBlockInfo>> sortedIndexes;
+  private AtomicInteger readerCount = new AtomicInteger(0);
 
   public MemoryFileInfo(
       UserIdentifier userIdentifier, boolean partitionSplitEnabled, FileMeta fileMeta) {
@@ -82,5 +84,19 @@ public class MemoryFileInfo extends FileInfo {
     }
     logger.info("Memory File Info {} expire, removed {}", this, bufferSize);
     return bufferSize;
+  }
+
+  public void incrementReaderCount() {
+    readerCount.incrementAndGet();
+  }
+
+  public void decrementReaderCount() {
+    if (readerCount.get() > 0) {
+      readerCount.decrementAndGet();
+    }
+  }
+
+  public boolean hasReader() {
+    return readerCount.get() > 0;
   }
 }

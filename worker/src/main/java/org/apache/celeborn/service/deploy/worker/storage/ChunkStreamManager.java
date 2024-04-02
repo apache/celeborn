@@ -28,6 +28,8 @@ import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.MemoryFileInfo;
 import org.apache.celeborn.common.meta.TimeWindow;
 import org.apache.celeborn.common.network.buffer.ChunkBuffers;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
@@ -56,6 +58,7 @@ public class ChunkStreamManager {
     public final int endIndex;
     // Used to keep track of the number of chunks being transferred and not finished yet.
     volatile long chunksBeingTransferred = 0L;
+    public MemoryFileInfo memoryFileInfo;
 
     StreamState(
         String shuffleKey,
@@ -70,6 +73,29 @@ public class ChunkStreamManager {
       this.fetchTimeMetric = fetchTimeMetric;
       this.startIndex = startIndex;
       this.endIndex = endIndex;
+    }
+
+    StreamState(
+        String shuffleKey,
+        ChunkBuffers buffers,
+        String fileName,
+        TimeWindow fetchTimeMetric,
+        int startIndex,
+        int endIndex,
+        MemoryFileInfo memoryFileInfo) {
+      this.buffers = buffers;
+      this.shuffleKey = shuffleKey;
+      this.fileName = fileName;
+      this.fetchTimeMetric = fetchTimeMetric;
+      this.startIndex = startIndex;
+      this.endIndex = endIndex;
+      this.memoryFileInfo = memoryFileInfo;
+    }
+
+    public void tryDecrementReaderCount() {
+      if (memoryFileInfo != null) {
+        memoryFileInfo.decrementReaderCount();
+      }
     }
   }
 
@@ -136,7 +162,7 @@ public class ChunkStreamManager {
    */
   public long registerStream(
       long streamId, String shuffleKey, String fileName, int startIndex, int endIndex) {
-    return registerStream(streamId, shuffleKey, null, fileName, null, startIndex, endIndex);
+    return registerStream(streamId, shuffleKey, null, fileName, null, startIndex, endIndex, null);
   }
 
   /**
@@ -155,7 +181,7 @@ public class ChunkStreamManager {
       String shuffleKey, ChunkBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
     long myStreamId = nextStreamId.getAndIncrement();
     return registerStream(
-        myStreamId, shuffleKey, buffers, fileName, fetchTimeMetric, 0, Integer.MAX_VALUE);
+        myStreamId, shuffleKey, buffers, fileName, fetchTimeMetric, 0, Integer.MAX_VALUE, null);
   }
 
   public long registerStream(
@@ -165,10 +191,24 @@ public class ChunkStreamManager {
       String fileName,
       TimeWindow fetchTimeMetric,
       int startIndex,
-      int endIndex) {
-    streams.put(
-        streamId,
-        new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric, startIndex, endIndex));
+      int endIndex,
+      FileInfo fileInfo) {
+    StreamState streamState = null;
+    if (fileInfo != null && fileInfo instanceof MemoryFileInfo) {
+      streamState =
+          new StreamState(
+              shuffleKey,
+              buffers,
+              fileName,
+              fetchTimeMetric,
+              startIndex,
+              endIndex,
+              (MemoryFileInfo) fileInfo);
+    } else {
+      streamState =
+          new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric, startIndex, endIndex);
+    }
+    streams.put(streamId, streamState);
     shuffleStreamIds.compute(
         shuffleKey,
         (key, value) -> {
@@ -195,7 +235,9 @@ public class ChunkStreamManager {
 
       // normally expiredStreamIds set will be empty as streamId will be removed when be fully read
       if (expiredStreamIds != null && !expiredStreamIds.isEmpty()) {
-        expiredStreamIds.forEach(streams::remove);
+        for (Long streamId : expiredStreamIds) {
+          streams.remove(streamId).tryDecrementReaderCount();
+        }
       }
     }
     logger.info(
