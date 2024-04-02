@@ -46,8 +46,8 @@ import org.apache.celeborn.common.util.JavaUtils;
 
 /**
  * A few negative tests to ensure that a non SSL client cant talk to an SSL server and vice versa.
- * Also, a few tests to ensure non-SSL client and servers can talk to each other, SSL client and server
- * also can talk to each other.
+ * Also, a few tests to ensure non-SSL client and servers can talk to each other, SSL client and
+ * server also can talk to each other.
  */
 public class SslConnectivitySuiteJ {
 
@@ -252,11 +252,11 @@ public class SslConnectivitySuiteJ {
     final String trustStoreKey = "celeborn.ssl." + TEST_MODULE + ".trustStore";
 
     final Function<CelebornConf, CelebornConf> updateConf =
-            conf -> {
-              assertTrue(conf.getOption(trustStoreKey).isDefined());
-              conf.set(trustStoreKey, SslSampleConfigs.TRUST_STORE_WITHOUT_CA);
-              return conf;
-            };
+        conf -> {
+          assertTrue(conf.getOption(trustStoreKey).isDefined());
+          conf.set(trustStoreKey, SslSampleConfigs.TRUST_STORE_WITHOUT_CA);
+          return conf;
+        };
 
     // will fail for all combinations - since server does not have the client cert's CA
     // in its truststore
@@ -290,20 +290,20 @@ public class SslConnectivitySuiteJ {
   }
 
   private void testSuccessfulConnectivity(
-          boolean enableSsl,
-          boolean primaryConfigForServer,
-          boolean primaryConfigForClient,
-          Function<CelebornConf, CelebornConf> postProcessServerConf,
-          Function<CelebornConf, CelebornConf> postProcessClientConf)
-          throws Exception {
+      boolean enableSsl,
+      boolean primaryConfigForServer,
+      boolean primaryConfigForClient,
+      Function<CelebornConf, CelebornConf> postProcessServerConf,
+      Function<CelebornConf, CelebornConf> postProcessClientConf)
+      throws Exception {
     try (TestTransportState state =
-                 new TestTransportState(
-                         DEFAULT_HANDLER,
-                         createTransportConf(
-                                 TEST_MODULE, enableSsl, primaryConfigForServer, postProcessServerConf),
-                         createTransportConf(
-                                 TEST_MODULE, enableSsl, primaryConfigForClient, postProcessClientConf));
-         TransportClient client = state.createClient()) {
+            new TestTransportState(
+                DEFAULT_HANDLER,
+                createTransportConf(
+                    TEST_MODULE, enableSsl, primaryConfigForServer, postProcessServerConf),
+                createTransportConf(
+                    TEST_MODULE, enableSsl, primaryConfigForClient, postProcessClientConf));
+        TransportClient client = state.createClient()) {
 
       String msg = " hi ";
       Pair<String, String> response = sendRPC(client, msg, false);
@@ -314,21 +314,21 @@ public class SslConnectivitySuiteJ {
   }
 
   private void testConnectivityFailure(
-          boolean serverSsl,
-          boolean clientSsl,
-          boolean primaryConfigForServer,
-          boolean primaryConfigForClient,
-          Function<CelebornConf, CelebornConf> postProcessServerConf,
-          Function<CelebornConf, CelebornConf> postProcessClientConf)
-          throws Exception {
+      boolean serverSsl,
+      boolean clientSsl,
+      boolean primaryConfigForServer,
+      boolean primaryConfigForClient,
+      Function<CelebornConf, CelebornConf> postProcessServerConf,
+      Function<CelebornConf, CelebornConf> postProcessClientConf)
+      throws Exception {
     try (TestTransportState state =
-                 new TestTransportState(
-                         DEFAULT_HANDLER,
-                         createTransportConf(
-                                 TEST_MODULE, serverSsl, primaryConfigForServer, postProcessServerConf),
-                         createTransportConf(
-                                 TEST_MODULE, clientSsl, primaryConfigForClient, postProcessClientConf));
-         TransportClient client = state.createClient()) {
+            new TestTransportState(
+                DEFAULT_HANDLER,
+                createTransportConf(
+                    TEST_MODULE, serverSsl, primaryConfigForServer, postProcessServerConf),
+                createTransportConf(
+                    TEST_MODULE, clientSsl, primaryConfigForClient, postProcessClientConf));
+        TransportClient client = state.createClient()) {
 
       String msg = " hi ";
       Pair<String, String> response = sendRPC(client, msg, true);

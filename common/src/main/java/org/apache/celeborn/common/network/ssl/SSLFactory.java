@@ -251,6 +251,7 @@ public class SSLFactory {
   }
 
   private static final X509Certificate[] EMPTY_CERT_ARRAY = new X509Certificate[0];
+
   private static TrustManager[] credulousTrustStoreManagers() {
     return new TrustManager[] {
       new X509TrustManager() {
