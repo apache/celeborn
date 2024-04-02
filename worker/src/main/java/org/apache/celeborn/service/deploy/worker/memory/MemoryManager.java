@@ -267,9 +267,15 @@ public class MemoryManager {
                       || currentServingState() != ServingState.NONE_PAUSED) {
                     try {
                       if (!committedWriters.isEmpty()) {
-                        committedWriters.remove(0).evict();
+                        PartitionDataWriter writer = committedWriters.remove(0);
+                        if (!writer.getMemoryFileInfo().hasReader()) {
+                          writer.evict();
+                        }
                       } else if (!unCommittedWriters.isEmpty()) {
-                        unCommittedWriters.remove(0).evict();
+                        PartitionDataWriter writer = unCommittedWriters.remove(0);
+                        if (!writer.getMemoryFileInfo().hasReader()) {
+                          writer.evict();
+                        }
                       } else {
                         break;
                       }
