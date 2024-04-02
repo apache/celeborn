@@ -189,7 +189,7 @@ Example can refer to [Hadoop Rack Awareness](https://hadoop.apache.org/docs/stab
 
 `ShuffleClient` records the shuffle partition location's host, service port, and filename,
 to support workers recovering reading existing shuffle data after worker restart,
-during worker shutdown, workers should store the meta about reading shuffle partition files in RocksDB or LevelDB(deprecated),
+during worker shutdown, workers should store the meta about reading shuffle partition files in LevelDB,
 and restore the meta after restarting workers, also workers should keep a stable service port to support
 `ShuffleClient` retry reading data. Users should set `celeborn.worker.graceful.shutdown.enabled` to `true` and
 set below service port with stable port to support worker recover status.

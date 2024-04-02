@@ -46,7 +46,7 @@ For more information of Celeborn configurations, see [CONFIGURATIONS](../CONFIGU
 
 #### Install Celeborn
 ```
-helm install celeborn ${CELEBORN_HOME}/charts/celeborn -n ${celeborn namespace}
+helm install celeborn ${CELEBORN_HOME}/charts/celebron -n ${celeborn namespace}
 ```
 
 #### Connect to Celeborn in K8s pod

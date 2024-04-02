@@ -342,6 +342,9 @@ class NettyRpcEnv(
     if (clientFactory != null) {
       clientFactory.close()
     }
+    if (null != transportContext) {
+      transportContext.close();
+    }
     if (clientConnectionExecutor != null) {
       clientConnectionExecutor.shutdownNow()
     }

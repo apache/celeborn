@@ -104,7 +104,7 @@ When graceful shutdown is turned on, upon shutdown, Celeborn will do the followi
 2. Worker will inform Clients to split.
 3. Client will send `CommitFiles` to the Worker.
 
-Then the Worker waits until all `PartitionLocation` flushes data to persistent storage, stores states in local RocksDB or LevelDB(deprecated),
+Then the Worker waits until all `PartitionLocation` flushes data to persistent storage, stores states in local leveldb/rocksdb,
 then stops itself. The process is typically within one minute.
 
 For more details, please refer to [Rolling upgrade](../../upgrading/#rolling-upgrade)

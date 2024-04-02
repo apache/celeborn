@@ -43,7 +43,9 @@ import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.util.JavaUtils;
 
 public class RpcIntegrationSuiteJ {
+  static final String TEST_MODULE = "shuffle";
   static TransportConf conf;
+  static TransportContext context;
   static TransportServer server;
   static TransportClientFactory clientFactory;
   static BaseMessageHandler handler;
@@ -52,7 +54,11 @@ public class RpcIntegrationSuiteJ {
 
   @BeforeClass
   public static void setUp() throws Exception {
-    conf = new TransportConf("shuffle", new CelebornConf());
+    initialize((new CelebornConf()));
+  }
+
+  static void initialize(CelebornConf celebornConf) throws Exception {
+    conf = new TransportConf(TEST_MODULE, celebornConf);
     testData = new StreamTestHelper();
     handler =
         new BaseMessageHandler() {
@@ -91,7 +97,7 @@ public class RpcIntegrationSuiteJ {
             return true;
           }
         };
-    TransportContext context = new TransportContext(conf, handler);
+    context = new TransportContext(conf, handler);
     server = context.createServer();
     clientFactory = context.createClientFactory();
     oneWayMsgs = new ArrayList<>();
@@ -101,6 +107,7 @@ public class RpcIntegrationSuiteJ {
   public static void tearDown() {
     server.close();
     clientFactory.close();
+    context.close();
     testData.cleanup();
   }
 
