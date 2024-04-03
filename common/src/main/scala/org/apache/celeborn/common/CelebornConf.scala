@@ -1282,14 +1282,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def rackResolverRefreshInterval = get(RACKRESOLVER_REFRESH_INTERVAL)
 
-  /**
-   * Return a string listing all keys and values, one per line. This is useful to print the
-   * configuration out for debugging.
-   */
-  def toDebugString: String = {
-    getAll.sorted.map { case (k, v) => k + "=" + v }.mkString("\n")
-  }
-
   def logMasterConfEnabled = get(LOG_MASTER_CONF)
 
   def logWorkerConfEnabled = get(LOG_WORKER_CONF)

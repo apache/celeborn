@@ -88,7 +88,7 @@ private[celeborn] class Worker(
   private val secretRegistry = new WorkerSecretRegistryImpl(conf.workerApplicationRegistryCacheSize)
 
   if (conf.logWorkerConfEnabled) {
-    logInfo("Celeborn Worker configuration:\n" + conf.toDebugString)
+    logInfo(getConf)
   }
 
   val rpcEnv: RpcEnv =
