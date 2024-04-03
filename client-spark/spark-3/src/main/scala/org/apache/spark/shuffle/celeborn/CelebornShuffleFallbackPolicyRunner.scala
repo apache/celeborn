@@ -19,13 +19,18 @@ package org.apache.spark.shuffle.celeborn
 
 import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
 
 class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
-    applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
-    !checkQuota(lifecycleManager) || !checkWorkersAvailable(lifecycleManager)
+    val needFallback = applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
+      !checkQuota(lifecycleManager) || !checkWorkersAvailable(lifecycleManager)
+    if (needFallback && !conf.shuffleFallbackEnabled) {
+      throw new CelebornIOException("Fallback to Spark's default shuffle is prohibited.")
+    }
+    needFallback
   }
 
   /**
