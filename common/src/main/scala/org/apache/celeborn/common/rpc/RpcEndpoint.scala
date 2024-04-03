@@ -18,6 +18,8 @@
 package org.apache.celeborn.common.rpc
 
 import org.apache.celeborn.common.exception.CelebornException
+import org.apache.celeborn.common.network.client.TransportClient
+import org.apache.celeborn.common.rpc.netty.RemoteNettyRpcCallContext
 
 /**
  * A factory class to create the [[RpcEnv]]. It must have an empty constructor so that it can be
@@ -133,6 +135,20 @@ trait RpcEndpoint {
     if (_self != null) {
       rpcEnv.stop(_self)
     }
+  }
+
+  def checkAuth(context: RpcCallContext, appId: String): Unit = {
+    context match {
+      case remoteContext: RemoteNettyRpcCallContext =>
+        checkAuth(remoteContext.transportClient, appId)
+    }
+  }
+  private def checkAuth(client: TransportClient, appId: String): Unit = {
+    if (client.getClientId != null && !(client.getClientId == appId))
+      throw new SecurityException(String.format(
+        "Client for %s not authorized for application %s.",
+        client.getClientId,
+        appId))
   }
 }
 

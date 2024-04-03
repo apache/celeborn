@@ -26,7 +26,7 @@ import scala.util.control.NonFatal
 
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.network.client.RpcResponseCallback
+import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
@@ -120,9 +120,12 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
   }
 
   /** Posts a message sent by a remote endpoint. */
-  def postRemoteMessage(message: RequestMessage, callback: RpcResponseCallback): Unit = {
+  def postRemoteMessage(
+      message: RequestMessage,
+      callback: RpcResponseCallback,
+      client: TransportClient): Unit = {
     val rpcCallContext =
-      new RemoteNettyRpcCallContext(nettyEnv, callback, message.senderAddress)
+      new RemoteNettyRpcCallContext(nettyEnv, callback, message.senderAddress, client)
     val rpcMessage = RpcMessage(message.senderAddress, message.content, rpcCallContext)
     postMessage(message.receiver.name, rpcMessage, (e) => callback.onFailure(e))
   }
