@@ -323,7 +323,7 @@ public class FetchHandlerSuiteJ {
     return fetchHandler;
   }
 
-  private final String shuffleKey = "dummyShuffleKey";
+  private final String shuffleKey = "dummyShuffleKey-123";
   private final String fileName = "dummyFileName";
   private final long dummyRequestId = 0;
 
