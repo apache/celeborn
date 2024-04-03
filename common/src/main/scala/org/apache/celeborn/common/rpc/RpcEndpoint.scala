@@ -141,15 +141,15 @@ trait RpcEndpoint {
     context match {
       case remoteContext: RemoteNettyRpcCallContext =>
         checkAuth(remoteContext.transportClient, appId)
+      case _ =>
+      // Do nothing if the context is not RemoteNettyRpcCallContext
     }
   }
 
   private def checkAuth(client: TransportClient, appId: String): Unit = {
     if (client.getClientId != null && !(client.getClientId == appId))
-      throw new SecurityException(String.format(
-        "Client for %s not authorized for application %s.",
-        client.getClientId,
-        appId))
+      throw new SecurityException(
+        s"Client for ${client.getClientId} not authorized for application $appId.")
   }
 }
 
