@@ -328,7 +328,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   /** Does the configuration contain a given parameter? */
   def contains(key: String): Boolean = {
     settings.containsKey(key) ||
-      configsWithAlternatives.get(key).toSeq.flatten.exists { alt => contains(alt.key) }
+    configsWithAlternatives.get(key).toSeq.flatten.exists { alt => contains(alt.key) }
   }
 
   private[celeborn] def contains(entry: ConfigEntry[_]): Boolean = contains(entry.key)
@@ -1294,9 +1294,9 @@ object CelebornConf extends Logging {
    * @param deprecationMessage Message to include in the deprecation warning.
    */
   private case class DeprecatedConfig(
-                                       key: String,
-                                       version: String,
-                                       deprecationMessage: String)
+      key: String,
+      version: String,
+      deprecationMessage: String)
 
   /**
    * Information about an alternate configuration key that has been deprecated.
@@ -1306,9 +1306,9 @@ object CelebornConf extends Logging {
    * @param translation A translation function for converting old config values into new ones.
    */
   private case class AlternateConfig(
-                                      key: String,
-                                      version: String,
-                                      translation: String => String = null)
+      key: String,
+      version: String,
+      translation: String => String = null)
 
   /**
    * Holds information about keys that have been removed.
@@ -4176,7 +4176,7 @@ object CelebornConf extends Logging {
   val SPARK_SHUFFLE_FALLBACK_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.shuffle.fallback.enabled")
       .categories("client")
-      .version("0.4.0")
+      .version("0.5.0")
       .doc("When false, job failed immediately instead of trying to fall back to Spark's default shuffle.")
       .booleanConf
       .createWithDefault(true)
