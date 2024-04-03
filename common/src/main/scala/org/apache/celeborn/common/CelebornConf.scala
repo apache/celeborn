@@ -1281,6 +1281,18 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                     Rack Resolver                   //
   // //////////////////////////////////////////////////////
   def rackResolverRefreshInterval = get(RACKRESOLVER_REFRESH_INTERVAL)
+
+  /**
+   * Return a string listing all keys and values, one per line. This is useful to print the
+   * configuration out for debugging.
+   */
+  def toDebugString: String = {
+    getAll.sorted.map { case (k, v) => k + "=" + v }.mkString("\n")
+  }
+
+  def logMasterConfEnabled = get(LOG_MASTER_CONF)
+
+  def logWorkerConfEnabled = get(LOG_WORKER_CONF)
 }
 
 object CelebornConf extends Logging {
@@ -4922,5 +4934,21 @@ object CelebornConf extends Logging {
         p => p > 0 && p <= Int.MaxValue,
         s"Invalid maxEncryptedBlockSize, must be a position number upto ${Int.MaxValue}")
       .createWithDefaultString("64k")
+
+  val LOG_MASTER_CONF: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.logConf")
+      .categories("master")
+      .version("0.5.0")
+      .doc("When `true`, log the master conf for debugging purposes.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val LOG_WORKER_CONF: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.logConf")
+      .categories("worker")
+      .version("0.5.0")
+      .doc("When `true`, log the worker conf for debugging purposes.")
+      .booleanConf
+      .createWithDefault(false)
 
 }

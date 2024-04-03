@@ -86,6 +86,11 @@ private[celeborn] class Worker(
   val workerStatusManager = new WorkerStatusManager(conf)
   private val authEnabled = conf.authEnabled
   private val secretRegistry = new WorkerSecretRegistryImpl(conf.workerApplicationRegistryCacheSize)
+
+  if (conf.logWorkerConfEnabled) {
+    logInfo("Celeborn Worker configuration:\n" + conf.toDebugString)
+  }
+
   val rpcEnv: RpcEnv =
     if (!authEnabled) {
       RpcEnv.create(

@@ -79,6 +79,10 @@ private[celeborn] class Master(
   private val authEnabled = conf.authEnabled
   private val secretRegistry = new MasterSecretRegistryImpl()
 
+  if (conf.logMasterConfEnabled) {
+    logInfo("Celeborn Master configuration:\n" + conf.toDebugString)
+  }
+
   override val rpcEnv: RpcEnv =
     if (!authEnabled) {
       RpcEnv.create(
