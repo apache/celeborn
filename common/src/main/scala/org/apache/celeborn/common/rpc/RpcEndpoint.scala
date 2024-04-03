@@ -143,6 +143,7 @@ trait RpcEndpoint {
         checkAuth(remoteContext.transportClient, appId)
     }
   }
+
   private def checkAuth(client: TransportClient, appId: String): Unit = {
     if (client.getClientId != null && !(client.getClientId == appId))
       throw new SecurityException(String.format(
