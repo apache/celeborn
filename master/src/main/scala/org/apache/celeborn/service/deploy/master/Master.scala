@@ -78,6 +78,9 @@ private[celeborn] class Master(
 
   private val authEnabled = conf.authEnabled
   private val secretRegistry = new MasterSecretRegistryImpl()
+  private val sendApplicationMetaThreads = conf.masterSendApplicationMetaThreads
+  // Send ApplicationMeta to workers
+  private var sendApplicationMetaExecutor: ExecutorService = _
 
   override val rpcEnv: RpcEnv =
     if (!authEnabled) {
@@ -258,9 +261,6 @@ private[celeborn] class Master(
       internalRpcEndpoint)
   }
 
-  private val sendApplicationMetaThreads = conf.masterSendApplicationMetaThreads
-  // Send ApplicationMeta to workers
-  private var sendApplicationMetaExecutor: ExecutorService = _
   // Maintains the mapping for the workers assigned to each application
   private val workersAssignedToApp
       : util.concurrent.ConcurrentHashMap[String, util.Set[WorkerInfo]] =
