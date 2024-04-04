@@ -147,8 +147,8 @@ trait RpcEndpoint {
   }
 
   private def checkAuth(client: TransportClient, appId: String): Unit = {
-    if (client.getClientId != null && !(client.getClientId == appId))
-      throw new SecurityException(
+    if (client.getClientId != null && client.getClientId != appId)
+      throw new IllegalStateException(
         s"Client for ${client.getClientId} not authorized for application $appId.")
   }
 }
