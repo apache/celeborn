@@ -119,6 +119,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           client,
           pushData,
           pushData.requestId,
+          pushData.shuffleKey,
           () => {
             val partitionType =
               shufflePartitionType.getOrDefault(pushData.shuffleKey, PartitionType.REDUCE)
@@ -143,6 +144,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           client,
           pushMergedData,
           pushMergedData.requestId,
+          pushMergedData.shuffleKey,
           () =>
             handlePushMergedData(
               pushMergedData,
@@ -748,8 +750,10 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       client: TransportClient,
       message: RequestMessage,
       requestId: Long,
+      shuffleKey: String,
       handler: () => Unit,
       callback: RpcResponseCallback): Unit = {
+    checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
     try {
       handler()
     } catch {
@@ -843,6 +847,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       client,
       rpcRequest,
       requestId,
+      shuffleKey,
       () =>
         handleMapPartitionRpcRequestCore(
           requestId,

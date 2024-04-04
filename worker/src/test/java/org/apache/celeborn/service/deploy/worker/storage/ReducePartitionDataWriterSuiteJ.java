@@ -212,7 +212,7 @@ public class ReducePartitionDataWriterSuiteJ {
         new TransportMessage(
             MessageType.OPEN_STREAM,
             PbOpenStream.newBuilder()
-                .setShuffleKey("shuffleKey")
+                .setShuffleKey("shuffleKey-123")
                 .setFileName("location")
                 .setStartIndex(0)
                 .setEndIndex(Integer.MAX_VALUE)

@@ -94,7 +94,7 @@ public class SaslRpcHandler extends AbstractAuthRpcHandler {
             new CelebornSaslServer(
                 DIGEST_MD5,
                 DEFAULT_SASL_SERVER_PROPS,
-                new CelebornSaslServer.DigestCallbackHandler(secretRegistry));
+                new CelebornSaslServer.DigestCallbackHandler(client, secretRegistry));
       }
       byte[] response = saslServer.response(saslMessage.getPayload().toByteArray());
       callback.onSuccess(ByteBuffer.wrap(response));
