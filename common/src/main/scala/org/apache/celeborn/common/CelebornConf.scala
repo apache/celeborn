@@ -4813,7 +4813,7 @@ object CelebornConf extends Logging {
       .doc("Number of threads used by the Master to send ApplicationMeta to Workers.")
       .version("0.5.0")
       .intConf
-      .checkValue(v => v > 0, "number of threads should be positive")
+      .checkValue(_ > 0, "number of threads should be positive")
       .createWithDefault(8)
 
   val WORKER_APPLICATION_REGISTRY_CACHE_SIZE: ConfigEntry[Int] =
