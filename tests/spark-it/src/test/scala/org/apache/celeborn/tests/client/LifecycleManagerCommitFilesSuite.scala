@@ -183,8 +183,8 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
     val buffer = "hello world".getBytes(StandardCharsets.UTF_8);
 
     0 until 3 foreach { partitionId =>
-        shuffleClient.pushData(shuffleId, 0, 0, partitionId, buffer, 0, buffer.length, 1, 1)
-        lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
+      shuffleClient.pushData(shuffleId, 0, 0, partitionId, buffer, 0, buffer.length, 1, 1)
+      lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
     }
 
     val commitHandler = lifecycleManager.commitManager.getCommitHandler(shuffleId)
