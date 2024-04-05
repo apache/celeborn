@@ -193,6 +193,11 @@ public class RatisMasterStatusSystemSuiteJ {
             : (RATISSERVER2.isLeader() ? RATISSERVER2 : RATISSERVER3);
     // one of them must be the follower given the three servers we have
     HARaftServer follower = RATISSERVER1.isLeader() ? RATISSERVER2 : RATISSERVER1;
+
+    // This is expected to be false, but as a side effect, updates getCachedLeaderPeerRpcEndpoint
+    boolean isFollowerCurrentLeader = follower.isLeader();
+    Assert.assertFalse(isFollowerCurrentLeader);
+
     Optional<Tuple2<String, String>> cachedLeaderPeerRpcEndpoint =
         follower.getCachedLeaderPeerRpcEndpoint();
 
