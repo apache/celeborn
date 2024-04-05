@@ -341,8 +341,8 @@ private[deploy] class Controller(
                     val fileMeta = fileWriter.getDiskFileInfo.getFileMeta
                     fileMeta match {
                       case meta: ReduceFileMeta =>
-                        storageInfo.setNumChunks(meta.getNumChunks)
                         storageInfo.setFileSize(bytes)
+                        storageInfo.setChunkOffsets(meta.getChunkOffsets)
                       case _ =>
                     }
                     committedStorageInfos.put(uniqueId, storageInfo)

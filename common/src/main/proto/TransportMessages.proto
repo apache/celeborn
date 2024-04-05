@@ -134,6 +134,8 @@ message PbStorageInfo {
   bool finalResult = 3;
   string filePath = 4;
   int32 availableStorageTypes = 5;
+  int64 fileSize = 6;
+  repeated int64 chunkOffsets = 7;
 }
 
 message PbPartitionLocation {

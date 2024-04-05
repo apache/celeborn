@@ -70,7 +70,7 @@ public class StorageInfo implements Serializable {
 
   public long fileSize;
 
-  public int numChunks;
+  public List<Long> chunkOffsets;
 
   public StorageInfo() {}
 
@@ -99,6 +99,23 @@ public class StorageInfo implements Serializable {
     this.availableStorageTypes = availableStorageTypes;
   }
 
+  public StorageInfo(
+      Type type,
+      String mountPoint,
+      boolean finalResult,
+      String filePath,
+      int availableStorageTypes,
+      long fileSize,
+      List<Long> chunkOffsets) {
+    this.type = type;
+    this.mountPoint = mountPoint;
+    this.finalResult = finalResult;
+    this.filePath = filePath;
+    this.availableStorageTypes = availableStorageTypes;
+    this.fileSize = fileSize;
+    this.chunkOffsets = chunkOffsets;
+  }
+
   public boolean isFinalResult() {
     return finalResult;
   }
@@ -123,12 +140,12 @@ public class StorageInfo implements Serializable {
     return filePath;
   }
 
-  public void setNumChunks(int numChunks) {
-    this.numChunks = numChunks;
+  public void setChunkOffsets(List<Long> chunkOffsets) {
+    this.chunkOffsets = chunkOffsets;
   }
 
-  public int getNumChunks() {
-    return this.numChunks;
+  public List<Long> getChunkOffsets() {
+    return this.chunkOffsets;
   }
 
   public void setFileSize(long fileSize) {
@@ -235,7 +252,11 @@ public class StorageInfo implements Serializable {
         .setType(storageInfo.type.value)
         .setFinalResult(storageInfo.finalResult)
         .setMountPoint(storageInfo.mountPoint)
-        .setAvailableStorageTypes(storageInfo.availableStorageTypes);
+        .setAvailableStorageTypes(storageInfo.availableStorageTypes)
+        .setFileSize(storageInfo.getFileSize());
+    if (storageInfo.getChunkOffsets() != null) {
+      builder.addAllChunkOffsets(storageInfo.getChunkOffsets());
+    }
     if (filePath != null) {
       builder.setFilePath(filePath);
     }
@@ -248,7 +269,9 @@ public class StorageInfo implements Serializable {
         pbStorageInfo.getMountPoint(),
         pbStorageInfo.getFinalResult(),
         pbStorageInfo.getFilePath(),
-        pbStorageInfo.getAvailableStorageTypes());
+        pbStorageInfo.getAvailableStorageTypes(),
+        pbStorageInfo.getFileSize(),
+        pbStorageInfo.getChunkOffsetsList());
   }
 
   public static int getAvailableTypes(List<Type> types) {
