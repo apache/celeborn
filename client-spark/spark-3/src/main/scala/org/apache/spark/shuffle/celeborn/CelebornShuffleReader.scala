@@ -201,7 +201,7 @@ class CelebornShuffleReader[K, C](
           new util.ArrayList(fileGroups.partitionGroups.get(partitionId))
         } else new util.ArrayList[PartitionLocation]()
       val streamHandlers =
-        if (locations != null) {
+        if (locations != null && !conf.clientPushFailureTrackingEnabled) {
           val streamHandlerArr = new util.ArrayList[PbStreamHandler](locations.size())
           locations.asScala.foreach { loc =>
             streamHandlerArr.add(locationStreamHandlerMap.get(loc))
