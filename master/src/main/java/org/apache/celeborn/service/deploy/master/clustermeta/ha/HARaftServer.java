@@ -74,6 +74,7 @@ public class HARaftServer {
 
   private final InetSocketAddress ratisAddr;
   private final String rpcEndpoint;
+  private final String internalRpcEndpoint;
   private final RaftServer server;
   private final RaftGroup raftGroup;
   private final RaftPeerId raftPeerId;
@@ -89,7 +90,7 @@ public class HARaftServer {
   private long roleCheckIntervalMs;
   private final ReentrantReadWriteLock roleCheckLock = new ReentrantReadWriteLock();
   private Optional<RaftProtos.RaftPeerRole> cachedPeerRole = Optional.empty();
-  private Optional<String> cachedLeaderPeerRpcEndpoint = Optional.empty();
+  private Optional<Tuple2<String, String>> cachedLeaderPeerRpcEndpoints = Optional.empty();
   private final CelebornConf conf;
   private long workerTimeoutDeadline;
   private long appTimeoutDeadline;
@@ -109,11 +110,13 @@ public class HARaftServer {
       RaftPeerId localRaftPeerId,
       InetSocketAddress ratisAddr,
       String rpcEndpoint,
+      String internalRpcEndpoint,
       List<RaftPeer> raftPeers)
       throws IOException {
     this.metaHandler = metaHandler;
     this.ratisAddr = ratisAddr;
     this.rpcEndpoint = rpcEndpoint;
+    this.internalRpcEndpoint = internalRpcEndpoint;
     this.raftPeerId = localRaftPeerId;
     this.raftGroup = RaftGroup.valueOf(RAFT_GROUP_ID, raftPeers);
     this.masterStateMachine = getStateMachine();
@@ -163,6 +166,8 @@ public class HARaftServer {
             .setId(localRaftPeerId)
             .setAddress(ratisAddr)
             .setClientAddress(localNode.rpcEndpoint())
+            // We use admin address to host the internal rpc address
+            .setAdminAddress(localNode.internalRpcEndpoint())
             .build();
     List<RaftPeer> raftPeers = new ArrayList<>();
     // Add this Ratis server to the Ratis ring
@@ -178,6 +183,8 @@ public class HARaftServer {
                     .setId(raftPeerId)
                     .setAddress(peer.ratisEndpoint())
                     .setClientAddress(peer.rpcEndpoint())
+                    // We use admin address to host the internal rpc address
+                    .setAdminAddress(peer.internalRpcEndpoint())
                     .build();
           } else {
             InetSocketAddress peerRatisAddr = peer.ratisAddr();
@@ -186,6 +193,8 @@ public class HARaftServer {
                     .setId(raftPeerId)
                     .setAddress(peerRatisAddr)
                     .setClientAddress(peer.rpcEndpoint())
+                    // We use admin address to host the internal rpc address
+                    .setAdminAddress(peer.internalRpcEndpoint())
                     .build();
           }
 
@@ -193,7 +202,8 @@ public class HARaftServer {
           raftPeers.add(raftPeer);
         });
     return new HARaftServer(
-        metaHandler, conf, localRaftPeerId, ratisAddr, localNode.rpcEndpoint(), raftPeers);
+        metaHandler, conf, localRaftPeerId, ratisAddr, localNode.rpcEndpoint(),
+        localNode.internalRpcEndpoint(), raftPeers);
   }
 
   public ResourceResponse submitRequest(ResourceProtos.ResourceRequest request)
@@ -421,12 +431,12 @@ public class HARaftServer {
   /**
    * Get the suggested leader peer id.
    *
-   * @return RaftPeerId of the suggested leader node.
+   * @return RaftPeerId of the suggested leader node - Tuple2(rpc endpoint, internal rpc endpoint)
    */
-  public Optional<String> getCachedLeaderPeerRpcEndpoint() {
+  public Optional<Tuple2<String, String>> getCachedLeaderPeerRpcEndpoint() {
     this.roleCheckLock.readLock().lock();
     try {
-      return cachedLeaderPeerRpcEndpoint;
+      return cachedLeaderPeerRpcEndpoints;
     } finally {
       this.roleCheckLock.readLock().unlock();
     }
@@ -442,22 +452,29 @@ public class HARaftServer {
       RaftProtos.RaftPeerRole thisNodeRole = roleInfoProto.getRole();
 
       if (thisNodeRole.equals(RaftProtos.RaftPeerRole.LEADER)) {
-        setServerRole(thisNodeRole, getRpcEndpoint());
+        setServerRole(thisNodeRole, getRpcEndpoint(), getInternalRpcEndpoint());
       } else if (thisNodeRole.equals(RaftProtos.RaftPeerRole.FOLLOWER)) {
         ByteString leaderNodeId = roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getId();
         // There may be a chance, here we get leaderNodeId as null. For
         // example, in 3 node Ratis, if 2 nodes are down, there will
         // be no leader.
         String leaderPeerRpcEndpoint = null;
+        String leaderPeerInternalRpcEndpoint = null;
         if (leaderNodeId != null && !leaderNodeId.isEmpty()) {
           leaderPeerRpcEndpoint =
               roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getClientAddress();
+          // We use admin address to host the internal rpc address
+          if (conf.internalPortEnabled()) {
+            leaderPeerInternalRpcEndpoint = roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getAdminAddress();
+          } else {
+            leaderPeerInternalRpcEndpoint = leaderPeerRpcEndpoint;
+          }
         }
 
-        setServerRole(thisNodeRole, leaderPeerRpcEndpoint);
+        setServerRole(thisNodeRole, leaderPeerRpcEndpoint, leaderPeerInternalRpcEndpoint);
 
       } else {
-        setServerRole(thisNodeRole, null);
+        setServerRole(thisNodeRole, null, null);
       }
     } catch (IOException e) {
       LOG.error(
@@ -465,12 +482,13 @@ public class HARaftServer {
               + "{} and resetting leader info.",
           RaftProtos.RaftPeerRole.UNRECOGNIZED,
           e);
-      setServerRole(null, null);
+      setServerRole(null, null, null);
     }
   }
 
   /** Set the current server role and the leader peer rpc endpoint. */
-  private void setServerRole(RaftProtos.RaftPeerRole currentRole, String leaderPeerRpcEndpoint) {
+  private void setServerRole(RaftProtos.RaftPeerRole currentRole,
+      String leaderPeerRpcEndpoint, String leaderPeerInternalRpcEndpoint) {
     this.roleCheckLock.writeLock().lock();
     try {
       boolean leaderChanged = false;
@@ -490,7 +508,12 @@ public class HARaftServer {
       }
 
       this.cachedPeerRole = Optional.ofNullable(currentRole);
-      this.cachedLeaderPeerRpcEndpoint = Optional.ofNullable(leaderPeerRpcEndpoint);
+      if (null != leaderPeerRpcEndpoint) {
+        this.cachedLeaderPeerRpcEndpoints =
+                Optional.of(Tuple2.apply(leaderPeerRpcEndpoint, leaderPeerInternalRpcEndpoint));
+      } else {
+        this.cachedLeaderPeerRpcEndpoints = Optional.empty();
+      }
     } finally {
       this.roleCheckLock.writeLock().unlock();
     }
@@ -508,6 +531,10 @@ public class HARaftServer {
 
   public String getRpcEndpoint() {
     return this.rpcEndpoint;
+  }
+
+  public String getInternalRpcEndpoint() {
+    return this.internalRpcEndpoint;
   }
 
   void stepDown() {

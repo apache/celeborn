@@ -43,7 +43,14 @@ object MasterClusterInfo extends Logging {
       val ratisPort = conf.haMasterRatisPort(nodeId)
       val rpcHost = conf.haMasterNodeHost(nodeId)
       val rpcPort = conf.haMasterNodePort(nodeId)
-      MasterNode(nodeId, ratisHost, ratisPort, rpcHost, rpcPort)
+      val internalPort = {
+        if (conf.internalPortEnabled) {
+          conf.haMasterNodeInternalPort(nodeId)
+        } else {
+          rpcPort
+        }
+      }
+      MasterNode(nodeId, ratisHost, ratisPort, rpcHost, rpcPort, internalPort)
     }
 
     val (localNodes, peerNodes) = localNodeIdOpt match {

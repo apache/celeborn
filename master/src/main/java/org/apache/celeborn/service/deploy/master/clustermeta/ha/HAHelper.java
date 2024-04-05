@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Optional;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.ratis.protocol.Message;
@@ -30,6 +31,7 @@ import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.rpc.RpcCallContext;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
+import scala.Tuple2;
 
 public class HAHelper {
 
@@ -50,11 +52,13 @@ public class HAHelper {
       RpcCallContext context, HARaftServer ratisServer, Throwable cause) {
     if (context != null) {
       if (ratisServer != null) {
-        if (ratisServer.getCachedLeaderPeerRpcEndpoint().isPresent()) {
+        Optional<Tuple2<String, String>> leaderPeer = ratisServer.getCachedLeaderPeerRpcEndpoint();
+        if (leaderPeer.isPresent()) {
           context.sendFailure(
               new MasterNotLeaderException(
                   ratisServer.getRpcEndpoint(),
-                  ratisServer.getCachedLeaderPeerRpcEndpoint().get(),
+                  leaderPeer.get()._1(),
+                  leaderPeer.get()._2(),
                   cause));
         } else {
           context.sendFailure(

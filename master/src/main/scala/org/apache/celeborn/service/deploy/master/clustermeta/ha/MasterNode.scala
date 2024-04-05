@@ -29,7 +29,8 @@ case class MasterNode(
     ratisHost: String,
     ratisPort: Int,
     rpcHost: String,
-    rpcPort: Int) {
+    rpcPort: Int,
+    internalRpcPort: Int) {
 
   def isRatisHostUnresolved: Boolean = ratisAddr.isUnresolved
 
@@ -38,6 +39,8 @@ case class MasterNode(
   def ratisEndpoint: String = ratisHost + ":" + ratisPort
 
   def rpcEndpoint: String = rpcHost + ":" + rpcPort
+
+  def internalRpcEndpoint: String = rpcHost + ":" + internalRpcPort
 
   lazy val ratisAddr = MasterNode.createSocketAddr(ratisHost, ratisPort)
 
@@ -52,6 +55,7 @@ object MasterNode extends Logging {
     private var ratisPort = 0
     private var rpcHost: String = _
     private var rpcPort = 0
+    private var internalRpcPort = 0
 
     def setNodeId(nodeId: String): this.type = {
       this.nodeId = nodeId
@@ -84,7 +88,12 @@ object MasterNode extends Logging {
       this
     }
 
-    def build: MasterNode = MasterNode(nodeId, ratisHost, ratisPort, rpcHost, rpcPort)
+    def setInternalRpcPort(internalRpcPort: Int): this.type = {
+      this.internalRpcPort = internalRpcPort
+      this
+    }
+
+    def build: MasterNode = MasterNode(nodeId, ratisHost, ratisPort, rpcHost, rpcPort, internalRpcPort)
   }
 
   private def createSocketAddr(host: String, port: Int): InetSocketAddress = {

@@ -28,26 +28,38 @@ public class MasterNotLeaderException extends IOException {
   private static final long serialVersionUID = -2552475565785098271L;
 
   private final String leaderPeer;
+  private final String internalLeaderPeer;
 
   public static final String LEADER_NOT_PRESENTED = "leader is not present";
 
   public MasterNotLeaderException(
       String currentPeer, String suggestedLeaderPeer, @Nullable Throwable cause) {
+    this(currentPeer, suggestedLeaderPeer, suggestedLeaderPeer, cause);
+  }
+
+  public MasterNotLeaderException(String currentPeer,
+      String suggestedLeaderPeer, String suggestedInternalLeaderPeer, @Nullable Throwable cause) {
     super(
         String.format(
             "Master:%s is not the leader.%s%s",
             currentPeer,
             currentPeer.equals(suggestedLeaderPeer)
                 ? StringUtils.EMPTY
-                : String.format(" Suggested leader is Master:%s.", suggestedLeaderPeer),
+                : String.format(" Suggested leader is Master:%s (%s).",
+                    suggestedLeaderPeer, suggestedInternalLeaderPeer),
             cause == null
                 ? StringUtils.EMPTY
                 : String.format(" Exception:%s.", cause.getMessage())),
         cause);
     this.leaderPeer = suggestedLeaderPeer;
+    this.internalLeaderPeer = suggestedInternalLeaderPeer;
   }
 
   public String getSuggestedLeaderAddress() {
     return leaderPeer;
+  }
+
+  public String getSuggestedInternalLeaderAddress() {
+    return internalLeaderPeer;
   }
 }
