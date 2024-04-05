@@ -21,6 +21,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Optional;
 
+import scala.Tuple2;
+
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.ratis.protocol.Message;
 import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
@@ -31,7 +33,6 @@ import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.rpc.RpcCallContext;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
-import scala.Tuple2;
 
 public class HAHelper {
 

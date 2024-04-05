@@ -175,8 +175,10 @@ public class MasterClient {
     // 'CelebornException: Exception thrown in awaitResult'
     if (e.getCause() instanceof MasterNotLeaderException) {
       MasterNotLeaderException exception = (MasterNotLeaderException) e.getCause();
-      String leaderAddr = isWorker ? exception.getSuggestedInternalLeaderAddress():
-              exception.getSuggestedLeaderAddress();
+      String leaderAddr =
+          isWorker
+              ? exception.getSuggestedInternalLeaderAddress()
+              : exception.getSuggestedLeaderAddress();
       if (!leaderAddr.equals(MasterNotLeaderException.LEADER_NOT_PRESENTED)) {
         setRpcEndpointRef(leaderAddr);
       } else {

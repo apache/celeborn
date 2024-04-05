@@ -93,7 +93,8 @@ object MasterNode extends Logging {
       this
     }
 
-    def build: MasterNode = MasterNode(nodeId, ratisHost, ratisPort, rpcHost, rpcPort, internalRpcPort)
+    def build: MasterNode =
+      MasterNode(nodeId, ratisHost, ratisPort, rpcHost, rpcPort, internalRpcPort)
   }
 
   private def createSocketAddr(host: String, port: Int): InetSocketAddress = {

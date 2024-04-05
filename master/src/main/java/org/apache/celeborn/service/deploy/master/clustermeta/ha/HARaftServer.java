@@ -202,8 +202,13 @@ public class HARaftServer {
           raftPeers.add(raftPeer);
         });
     return new HARaftServer(
-        metaHandler, conf, localRaftPeerId, ratisAddr, localNode.rpcEndpoint(),
-        localNode.internalRpcEndpoint(), raftPeers);
+        metaHandler,
+        conf,
+        localRaftPeerId,
+        ratisAddr,
+        localNode.rpcEndpoint(),
+        localNode.internalRpcEndpoint(),
+        raftPeers);
   }
 
   public ResourceResponse submitRequest(ResourceProtos.ResourceRequest request)
@@ -465,7 +470,8 @@ public class HARaftServer {
               roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getClientAddress();
           // We use admin address to host the internal rpc address
           if (conf.internalPortEnabled()) {
-            leaderPeerInternalRpcEndpoint = roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getAdminAddress();
+            leaderPeerInternalRpcEndpoint =
+                roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getAdminAddress();
           } else {
             leaderPeerInternalRpcEndpoint = leaderPeerRpcEndpoint;
           }
@@ -487,8 +493,10 @@ public class HARaftServer {
   }
 
   /** Set the current server role and the leader peer rpc endpoint. */
-  private void setServerRole(RaftProtos.RaftPeerRole currentRole,
-      String leaderPeerRpcEndpoint, String leaderPeerInternalRpcEndpoint) {
+  private void setServerRole(
+      RaftProtos.RaftPeerRole currentRole,
+      String leaderPeerRpcEndpoint,
+      String leaderPeerInternalRpcEndpoint) {
     this.roleCheckLock.writeLock().lock();
     try {
       boolean leaderChanged = false;
@@ -510,7 +518,7 @@ public class HARaftServer {
       this.cachedPeerRole = Optional.ofNullable(currentRole);
       if (null != leaderPeerRpcEndpoint) {
         this.cachedLeaderPeerRpcEndpoints =
-                Optional.of(Tuple2.apply(leaderPeerRpcEndpoint, leaderPeerInternalRpcEndpoint));
+            Optional.of(Tuple2.apply(leaderPeerRpcEndpoint, leaderPeerInternalRpcEndpoint));
       } else {
         this.cachedLeaderPeerRpcEndpoints = Optional.empty();
       }

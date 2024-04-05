@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+import scala.Tuple2;
+
 import org.junit.*;
 import org.mockito.Mockito;
 
@@ -43,7 +45,6 @@ import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.util.Utils$;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
-import scala.Tuple2;
 
 public class RatisMasterStatusSystemSuiteJ {
   protected static HARaftServer RATISSERVER1 = null;
@@ -186,11 +187,14 @@ public class RatisMasterStatusSystemSuiteJ {
 
     // Check if the rpc endpoint and internal rpc endpoint of the leader is as expected.
 
-    HARaftServer leader = RATISSERVER1.isLeader() ? RATISSERVER1 :
-        (RATISSERVER2.isLeader() ? RATISSERVER2 : RATISSERVER3);
+    HARaftServer leader =
+        RATISSERVER1.isLeader()
+            ? RATISSERVER1
+            : (RATISSERVER2.isLeader() ? RATISSERVER2 : RATISSERVER3);
     // one of them must be the follower given the three servers we have
     HARaftServer follower = RATISSERVER1.isLeader() ? RATISSERVER2 : RATISSERVER1;
-    Optional<Tuple2<String, String>> cachedLeaderPeerRpcEndpoint = follower.getCachedLeaderPeerRpcEndpoint();
+    Optional<Tuple2<String, String>> cachedLeaderPeerRpcEndpoint =
+        follower.getCachedLeaderPeerRpcEndpoint();
 
     Assert.assertTrue(cachedLeaderPeerRpcEndpoint.isPresent());
     Assert.assertEquals(leader.getRpcEndpoint(), cachedLeaderPeerRpcEndpoint.get()._1());

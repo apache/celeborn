@@ -37,15 +37,19 @@ public class MasterNotLeaderException extends IOException {
     this(currentPeer, suggestedLeaderPeer, suggestedLeaderPeer, cause);
   }
 
-  public MasterNotLeaderException(String currentPeer,
-      String suggestedLeaderPeer, String suggestedInternalLeaderPeer, @Nullable Throwable cause) {
+  public MasterNotLeaderException(
+      String currentPeer,
+      String suggestedLeaderPeer,
+      String suggestedInternalLeaderPeer,
+      @Nullable Throwable cause) {
     super(
         String.format(
             "Master:%s is not the leader.%s%s",
             currentPeer,
             currentPeer.equals(suggestedLeaderPeer)
                 ? StringUtils.EMPTY
-                : String.format(" Suggested leader is Master:%s (%s).",
+                : String.format(
+                    " Suggested leader is Master:%s (%s).",
                     suggestedLeaderPeer, suggestedInternalLeaderPeer),
             cause == null
                 ? StringUtils.EMPTY
