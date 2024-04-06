@@ -339,4 +339,14 @@ object WorkerInfo {
       workerId.fetchPort,
       workerId.replicatePort)
   }
+
+  def toPrunedWorkerInfo(workerInfo: WorkerInfo): WorkerInfo = {
+    new WorkerInfo(
+      workerInfo.host,
+      workerInfo.rpcPort,
+      workerInfo.pushPort,
+      workerInfo.fetchPort,
+      workerInfo.replicatePort,
+      workerInfo.internalPort)
+  }
 }
