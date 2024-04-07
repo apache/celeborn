@@ -21,6 +21,7 @@ import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.protocol.FallbackPolicy
 
 class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
 
@@ -28,22 +29,22 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
     val needFallback =
       applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
         !checkQuota(lifecycleManager) || !checkWorkersAvailable(lifecycleManager)
-    if (needFallback && !conf.shuffleFallbackEnabled) {
+    if (needFallback && FallbackPolicy.NEVER.equals(conf.shuffleFallbackPolicy)) {
       throw new CelebornIOException("Fallback to Spark's default shuffle is prohibited.")
     }
     needFallback
   }
 
   /**
-   * if celeborn.shuffle.forceFallback.enabled is true, fallback to external shuffle
-   * @return return celeborn.shuffle.forceFallback.enabled
+   * if celeborn.client.spark.shuffle.fallback.policy is ALWAYS, fallback to external shuffle
+   * @return return if celeborn.client.spark.shuffle.fallback.policy is ALWAYS
    */
   def applyForceFallbackPolicy(): Boolean = {
-    if (conf.shuffleForceFallbackEnabled) {
-      val conf = CelebornConf.SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED
-      logWarning(s"${conf.alternatives.foldLeft(conf.key)((x, y) => s"$x or $y")} is enabled, which will force fallback.")
+    if (FallbackPolicy.ALWAYS.equals(conf.shuffleFallbackPolicy)) {
+      logWarning(
+        s"${CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY.key} is ${FallbackPolicy.ALWAYS.name}, which will force fallback.")
     }
-    conf.shuffleForceFallbackEnabled
+    FallbackPolicy.ALWAYS.equals(conf.shuffleFallbackPolicy)
   }
 
   /**
