@@ -58,11 +58,11 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <java.version>8</java.version>
-    <scala.version>2.12.15</scala.version>
+    <scala.version>2.12.18</scala.version>
     <scala.binary.version>2.12</scala.binary.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
-    <maven.version>3.8.8</maven.version>
+    <maven.version>3.9.6</maven.version>
 
     <flink.version>1.14.6</flink.version>
     <spark.version>3.3.4</spark.version>
@@ -79,8 +79,7 @@
     <error-prone.jdk8.javac.version>9+181-r4173-1</error-prone.jdk8.javac.version>
     <google.jsr305.version>1.3.9</google.jsr305.version>
     <grpc.version>1.44.0</grpc.version>
-    <guava.version>32.1.3-jre</guava.version>
-    <javaxservlet.version>3.1.0</javaxservlet.version>
+    <guava.version>33.1.0-jre</guava.version>
     <junit.version>4.13.2</junit.version>
     <leveldb.version>1.8</leveldb.version>
     <log4j2.version>2.17.2</log4j2.version>
@@ -88,6 +87,7 @@
     <mockito.version>4.11.0</mockito.version>
     <mockito-scalatest.version>1.17.14</mockito-scalatest.version>
     <netty.version>4.1.107.Final</netty.version>
+    <bouncycastle.version>1.77</bouncycastle.version>
     <protobuf.version>3.21.7</protobuf.version>
     <ratis.version>2.5.1</ratis.version>
     <scalatest.version>3.2.16</scalatest.version>
@@ -106,21 +106,28 @@
     <hikaricp.version>4.0.3</hikaricp.version>
     <h2.version>2.2.224</h2.version>
 
+    <!-- RESTful service dependencies -->
+    <swagger.version>2.2.1</swagger.version>
+    <swagger-ui.version>4.9.1</swagger-ui.version>
+    <jersey.version>2.39.1</jersey.version>
+    <jetty.version>9.4.52.v20230823</jetty.version>
+    <jakarta.servlet-api.version>4.0.4</jakarta.servlet-api.version>
+
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
 
     <maven.plugin.antrun.version>3.0.0</maven.plugin.antrun.version>
     <maven.plugin.clean.version>3.2.0</maven.plugin.clean.version>
-    <maven.plugin.compiler.version>3.11.0</maven.plugin.compiler.version>
+    <maven.plugin.compiler.version>3.12.1</maven.plugin.compiler.version>
     <maven.plugin.dependency.version>3.1.1</maven.plugin.dependency.version>
     <maven.plugin.flatten.version>1.3.0</maven.plugin.flatten.version>
-    <maven.plugin.jacoco.version>0.8.7</maven.plugin.jacoco.version>
+    <maven.plugin.jacoco.version>0.8.11</maven.plugin.jacoco.version>
     <maven.plugin.jar.version>3.0.2</maven.plugin.jar.version>
     <maven.plugin.os.version>1.7.0</maven.plugin.os.version>
     <maven.plugin.protobuf.version>0.6.1</maven.plugin.protobuf.version>
     <maven.plugin.rat.version>0.13</maven.plugin.rat.version>
     <maven.plugin.scala.version>4.7.2</maven.plugin.scala.version>
     <maven.plugin.scalatest.version>2.1.0</maven.plugin.scalatest.version>
-    <maven.plugin.shade.version>3.4.0</maven.plugin.shade.version>
+    <maven.plugin.shade.version>3.5.2</maven.plugin.shade.version>
     <maven.plugin.spotless.version>2.24.1</maven.plugin.spotless.version>
     <maven.plugin.surefire.version>3.0.0-M7</maven.plugin.surefire.version>
     <maven.plugin.silencer.version>1.7.13</maven.plugin.silencer.version>
@@ -355,11 +362,6 @@
         <version>${protobuf.version}</version>
       </dependency>
       <dependency>
-        <groupId>javax.servlet</groupId>
-        <artifactId>javax.servlet-api</artifactId>
-        <version>${javaxservlet.version}</version>
-      </dependency>
-      <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-all</artifactId>
         <version>${netty.version}</version>
@@ -456,6 +458,105 @@
         <scope>test</scope>
       </dependency>
 
+      <!-- RESTful service dependencies -->
+      <dependency>
+        <groupId>jakarta.servlet</groupId>
+        <artifactId>jakarta.servlet-api</artifactId>
+        <version>${jakarta.servlet-api.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.glassfish.jersey.core</groupId>
+        <artifactId>jersey-server</artifactId>
+        <version>${jersey.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>jakarta.xml.bind</groupId>
+            <artifactId>jakarta.xml.bind-api</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.glassfish.jersey.containers</groupId>
+        <artifactId>jersey-container-servlet-core</artifactId>
+        <version>${jersey.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.glassfish.jersey.inject</groupId>
+        <artifactId>jersey-hk2</artifactId>
+        <version>${jersey.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.glassfish.jersey.media</groupId>
+        <artifactId>jersey-media-json-jackson</artifactId>
+        <version>${jersey.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.glassfish.jersey.media</groupId>
+        <artifactId>jersey-media-multipart</artifactId>
+        <version>${jersey.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.glassfish.jersey.test-framework</groupId>
+        <artifactId>jersey-test-framework-core</artifactId>
+        <version>${jersey.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>jakarta.activation</groupId>
+            <artifactId>jakarta.activation-api</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.glassfish.jersey.test-framework.providers</groupId>
+        <artifactId>jersey-test-framework-provider-jetty</artifactId>
+        <version>${jersey.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-util</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-continuation</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>io.swagger.core.v3</groupId>
+        <artifactId>swagger-jaxrs2</artifactId>
+        <version>${swagger.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.sun.activation</groupId>
+            <artifactId>jakarta.activation</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.javassist</groupId>
+            <artifactId>javassist</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <!--
+      1. This library only contains swagger-ui static resource (.html/.css/.js/.png), for more detail, see
+      https://github.com/swagger-api/swagger-ui/blob/master/dist/
+      2. Note that when trying to upgrade swagger-ui, we should also update the version in the file(
+      service/src/main/scala/org/apache/celeborn/server/common/HttpService.scala).
+      -->
+      <dependency>
+        <groupId>org.webjars</groupId>
+        <artifactId>swagger-ui</artifactId>
+        <version>${swagger-ui.version}</version>
+      </dependency>
+
       <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
@@ -521,6 +622,19 @@
         <groupId>org.xerial.snappy</groupId>
         <artifactId>snappy-java</artifactId>
         <version>${snappy.version}</version>
+      </dependency>
+      <!-- for SSL support -->
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-jdk18on</artifactId>
+        <version>${bouncycastle.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpkix-jdk18on</artifactId>
+        <version>${bouncycastle.version}</version>
+        <scope>test</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -1264,6 +1378,62 @@
       </activation>
       <properties>
         <java.version>17</java.version>
+      </properties>
+      <build>
+        <plugins>
+          <!-- Based on https://github.com/google/error-prone/blob/f8e33bc460be82ab22256a7ef8b979d7a2cacaba/docs/installation.md#jdk-16 -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>${maven.plugin.compiler.version}</version>
+            <configuration>
+              <source>${java.version}</source>
+              <target>${java.version}</target>
+              <encoding>UTF-8</encoding>
+              <compilerArgs>
+                <arg>-XDcompilePolicy=simple</arg>
+                <arg>-Xplugin:ErrorProne \
+                  -XepExcludedPaths:.*/target/generated-sources/protobuf/.* \
+                  -Xep:FutureReturnValueIgnored:OFF \
+                  -Xep:TypeParameterUnusedInFormals:OFF \
+                  -Xep:UnusedVariable:OFF \
+                  -Xep:StringSplitter:OFF \
+                  -Xep:EmptyBlockTag:OFF \
+                  -Xep:EqualsGetClass:OFF \
+                  -Xep:MissingSummary:OFF \
+                  -Xep:BadImport:OFF</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
+                <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
+                <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+                <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
+              </compilerArgs>
+              <annotationProcessorPaths>
+                <path>
+                  <groupId>com.google.errorprone</groupId>
+                  <artifactId>error_prone_core</artifactId>
+                  <version>${error-prone.version}</version>
+                </path>
+              </annotationProcessorPaths>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <profile>
+      <id>jdk-21</id>
+      <activation>
+        <jdk>21</jdk>
+      </activation>
+      <properties>
+        <java.version>21</java.version>
+        <error-prone.version>2.25.0</error-prone.version>
       </properties>
       <build>
         <plugins>

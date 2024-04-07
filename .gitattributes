@@ -31,3 +31,6 @@ assets/img/* export-ignore
 *.scala text eol=lf
 *.xml text eol=lf
 *.py text eol=lf
+common/src/test/resources/ssl/generate_certs.sh text
+common/src/test/resources/ssl/* -text
+worker/src/test/resources/ssl/* -text

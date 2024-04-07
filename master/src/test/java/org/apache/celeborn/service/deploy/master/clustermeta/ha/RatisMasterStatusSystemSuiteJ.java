@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+import scala.Tuple2;
+
 import org.junit.*;
 import org.mockito.Mockito;
 
@@ -127,6 +129,7 @@ public class RatisMasterStatusSystemSuiteJ {
                 .setHost(Utils.localHostName(conf1))
                 .setRatisPort(ratisPort1)
                 .setRpcPort(ratisPort1)
+                .setInternalRpcPort(ratisPort1)
                 .setNodeId(id1)
                 .build();
         MasterNode masterNode2 =
@@ -134,6 +137,7 @@ public class RatisMasterStatusSystemSuiteJ {
                 .setHost(Utils.localHostName(conf2))
                 .setRatisPort(ratisPort2)
                 .setRpcPort(ratisPort2)
+                .setInternalRpcPort(ratisPort2)
                 .setNodeId(id2)
                 .build();
         MasterNode masterNode3 =
@@ -141,6 +145,7 @@ public class RatisMasterStatusSystemSuiteJ {
                 .setHost(Utils.localHostName(conf3))
                 .setRatisPort(ratisPort3)
                 .setRpcPort(ratisPort3)
+                .setInternalRpcPort(ratisPort3)
                 .setNodeId(id3)
                 .build();
 
@@ -179,6 +184,26 @@ public class RatisMasterStatusSystemSuiteJ {
     boolean hasLeader =
         RATISSERVER1.isLeader() || RATISSERVER2.isLeader() || RATISSERVER3.isLeader();
     Assert.assertTrue(hasLeader);
+
+    // Check if the rpc endpoint and internal rpc endpoint of the leader is as expected.
+
+    HARaftServer leader =
+        RATISSERVER1.isLeader()
+            ? RATISSERVER1
+            : (RATISSERVER2.isLeader() ? RATISSERVER2 : RATISSERVER3);
+    // one of them must be the follower given the three servers we have
+    HARaftServer follower = RATISSERVER1.isLeader() ? RATISSERVER2 : RATISSERVER1;
+
+    // This is expected to be false, but as a side effect, updates getCachedLeaderPeerRpcEndpoint
+    boolean isFollowerCurrentLeader = follower.isLeader();
+    Assert.assertFalse(isFollowerCurrentLeader);
+
+    Optional<Tuple2<String, String>> cachedLeaderPeerRpcEndpoint =
+        follower.getCachedLeaderPeerRpcEndpoint();
+
+    Assert.assertTrue(cachedLeaderPeerRpcEndpoint.isPresent());
+    Assert.assertEquals(leader.getRpcEndpoint(), cachedLeaderPeerRpcEndpoint.get()._1());
+    Assert.assertEquals(leader.getInternalRpcEndpoint(), cachedLeaderPeerRpcEndpoint.get()._2());
   }
 
   private static final String HOSTNAME1 = "host1";

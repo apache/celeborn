@@ -212,9 +212,16 @@ Apache License 2.0
 Apache Spark
 ./client-spark/spark-2/src/main/java/org/apache/spark/shuffle/celeborn/SparkUtils.java
 ./client-spark/spark-3/src/main/java/org/apache/spark/shuffle/celeborn/SparkUtils.java
+./common/src/main/java/org/apache/celeborn/common/network/protocol/EncryptedMessageWithHeader.java
+./common/src/main/java/org/apache/celeborn/common/network/protocol/SslMessageEncoder.java
+./common/src/main/java/org/apache/celeborn/common/network/ssl/ReloadingX509TrustManager.java
+./common/src/main/java/org/apache/celeborn/common/network/util/NettyLogger.java
 ./common/src/main/java/org/apache/celeborn/common/unsafe/Platform.java
 ./common/src/main/java/org/apache/celeborn/common/util/JavaUtils.java
 ./common/src/main/scala/org/apache/celeborn/common/util/SignalUtils.scala
+./common/src/test/java/org/apache/celeborn/common/network/protocol/EncryptedMessageWithHeaderSuiteJ.java
+./common/src/test/java/org/apache/celeborn/common/network/ssl/ReloadingX509TrustManagerSuiteJ.java
+./common/src/test/java/org/apache/celeborn/common/network/ssl/SslSampleConfigs.java
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/DB.java
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/DBIterator.java
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/LevelDB.java
@@ -226,6 +233,7 @@ Apache Spark
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/LevelDBIterator.java
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/RocksDB.java
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/RocksDBProvider.java
+./worker/src/main/scala/org/apache/celeborn/service/deploy/worker/profiler/JVMProfiler.scala
 
 Apache Kyuubi
 ./common/src/main/java/org/apache/celeborn/reflect/DynClasses.java

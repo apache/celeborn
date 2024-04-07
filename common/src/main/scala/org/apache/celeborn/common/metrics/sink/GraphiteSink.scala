@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.graphite.{Graphite, GraphiteReporter, GraphiteUDP}
 
-import org.apache.celeborn.common.metrics.MetricsSystem
+import org.apache.celeborn.common.metrics.MetricsUtils
 
 private class GraphiteSink(val property: Properties, val registry: MetricRegistry) extends Sink {
   val GRAPHITE_DEFAULT_PERIOD = 10
@@ -62,7 +62,7 @@ private class GraphiteSink(val property: Properties, val registry: MetricRegistr
 
   val prefix = propertyToOption(GRAPHITE_KEY_PREFIX).getOrElse(GRAPHITE_DEFAULT_PREFIX)
 
-  MetricsSystem.checkMinimalPollingPeriod(pollUnit, pollPeriod)
+  MetricsUtils.checkMinimalPollingPeriod(pollUnit, pollPeriod)
 
   val graphite = propertyToOption(GRAPHITE_KEY_PROTOCOL).map(_.toLowerCase(Locale.ROOT)) match {
     case Some("udp") => new GraphiteUDP(host, port)

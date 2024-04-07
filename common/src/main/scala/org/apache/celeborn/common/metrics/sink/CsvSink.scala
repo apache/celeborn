@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 
 import com.codahale.metrics.{CsvReporter, MetricRegistry}
 
-import org.apache.celeborn.common.metrics.MetricsSystem
+import org.apache.celeborn.common.metrics.MetricsUtils
 
 class CsvSink(val property: Properties, val registry: MetricRegistry) extends Sink {
   val CSV_KEY_PERIOD = "period"
@@ -44,7 +44,7 @@ class CsvSink(val property: Properties, val registry: MetricRegistry) extends Si
     case None => TimeUnit.valueOf(CSV_DEFAULT_UNIT)
   }
 
-  MetricsSystem.checkMinimalPollingPeriod(pollUnit, pollPeriod)
+  MetricsUtils.checkMinimalPollingPeriod(pollUnit, pollPeriod)
 
   val pollDir = Option(property.getProperty(CSV_KEY_DIR)) match {
     case Some(s) => s

@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common
 
-import java.io.IOException
+import java.io.{File, IOException}
 import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Locale, Map => JMap}
 import java.util.concurrent.TimeUnit
 
@@ -586,6 +586,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def masterHttpPort: Int = get(MASTER_HTTP_PORT)
 
+  def masterHttpMaxWorkerThreads: Int = get(MASTER_HTTP_MAX_WORKER_THREADS)
+
+  def masterHttpStopTimeout: Long = get(MASTER_HTTP_STOP_TIMEOUT)
+
   def haEnabled: Boolean = get(HA_ENABLED)
 
   def haMasterNodeId: Option[String] = get(HA_MASTER_NODE_ID)
@@ -676,6 +680,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerHttpHost: String =
     get(WORKER_HTTP_HOST).replace("<localhost>", Utils.localHostName(this))
   def workerHttpPort: Int = get(WORKER_HTTP_PORT)
+  def workerHttpMaxWorkerThreads: Int = get(WORKER_HTTP_MAX_WORKER_THREADS)
+  def workerHttpStopTimeout: Long = get(WORKER_HTTP_STOP_TIMEOUT)
   def workerRpcPort: Int = get(WORKER_RPC_PORT)
   def workerPushPort: Int = get(WORKER_PUSH_PORT)
   def workerFetchPort: Int = get(WORKER_FETCH_PORT)
@@ -1123,9 +1129,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
-  def clientFlinkMemoryPerResultPartitionMin: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION_MIN)
   def clientFlinkMemoryPerResultPartition: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION)
-  def clientFlinkMemoryPerInputGateMin: Long = get(CLIENT_MEMORY_PER_INPUT_GATE_MIN)
   def clientFlinkMemoryPerInputGate: Long = get(CLIENT_MEMORY_PER_INPUT_GATE)
   def clientFlinkNumConcurrentReading: Int = get(CLIENT_NUM_CONCURRENT_READINGS)
   def clientFlinkInputGateSupportFloatingBuffer: Boolean =
@@ -1140,6 +1144,97 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def hdfsStorageKerberosPrincipal = get(HDFS_STORAGE_KERBEROS_PRINCIPAL)
   def hdfsStorageKerberosKeytab = get(HDFS_STORAGE_KERBEROS_KEYTAB)
+
+  // //////////////////////////////////////////////////////
+  //                     TLS                             //
+  // //////////////////////////////////////////////////////
+  private def getSslConfig[V](config: ConfigEntry[V], module: String): V = {
+    // For ssl, we look at the module specific value - and then fallback to without the
+    // module for global defaults, before falling back on what is in code
+    val moduleKey = config.key.replace("<module>", module)
+    // replace the module wildcard and check for global value
+    val globalKey = config.key.replace(".<module>.", ".")
+
+    val defaultValue = if (config.defaultValue.isDefined) config.defaultValueString else null
+
+    config.valueConverter(getOption(moduleKey).getOrElse(get(globalKey, defaultValue)))
+  }
+
+  private def asFileOrNull(fileName: Option[String]): File = {
+    fileName.map(new File(_)).orNull
+  }
+
+  /**
+   * Whether Secure (SSL/TLS) wire communication is enabled.
+   */
+  def sslEnabled(module: String): Boolean = {
+    getSslConfig(SSL_ENABLED, module)
+  }
+
+  /**
+   * SSL protocol (remember that SSLv3 was compromised) supported by Java
+   */
+  def sslProtocol(module: String): String = {
+    getSslConfig(SSL_PROTOCOL, module)
+  }
+
+  /**
+   * A comma separated list of ciphers
+   */
+  def sslRequestedCiphers(module: String): Array[String] = {
+    getSslConfig(SSL_ENABLED_CIPHERS, module).map(_.split(",")).orNull
+  }
+
+  /**
+   * The key-store file; can be relative to the current directory
+   */
+  def sslKeyStore(module: String): File = {
+    val keyStore = getSslConfig(SSL_KEY_STORE, module)
+    asFileOrNull(keyStore)
+  }
+
+  /**
+   * The password to the key-store file
+   */
+  def sslKeyStorePassword(module: String): String = {
+    getSslConfig(SSL_KEY_STORE_PASSWORD, module).orNull
+  }
+
+  /**
+   * The trust-store file; can be relative to the current directory
+   */
+  def sslTrustStore(module: String): File = {
+    asFileOrNull(getSslConfig(SSL_TRUST_STORE, module))
+  }
+
+  /**
+   * The password to the trust-store file
+   */
+  def sslTrustStorePassword(module: String): String = {
+    getSslConfig(SSL_TRUST_STORE_PASSWORD, module).orNull
+  }
+
+  /**
+   * If using a trust-store that that reloads its configuration is enabled. If true,
+   * when the trust-store file on disk changes, it will be reloaded
+   */
+  def sslTrustStoreReloadingEnabled(module: String): Boolean = {
+    getSslConfig(SSL_TRUST_STORE_RELOADING_ENABLED, module)
+  }
+
+  /**
+   * The interval, in milliseconds, the trust-store will reload its configuration
+   */
+  def sslTrustStoreReloadIntervalMs(module: String): Int = {
+    getSslConfig(SSL_TRUST_STORE_RELOAD_INTERVAL_MS, module).toInt
+  }
+
+  /**
+   * Internal config: the max size when chunking the stream with SSL
+   */
+  def maxSslEncryptedBlockSize(module: String): Int = {
+    getSslConfig(MAX_SSL_ENCRYPTED_BLOCK_SIZE, module).toInt
+  }
 
   // //////////////////////////////////////////////////////
   //               Authentication                        //
@@ -1887,6 +1982,23 @@ object CelebornConf extends Logging {
       .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(9098)
 
+  val MASTER_HTTP_MAX_WORKER_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.master.http.maxWorkerThreads")
+      .categories("master")
+      .version("0.5.0")
+      .doc("Maximum number of threads in the master http worker thread pool.")
+      .intConf
+      .checkValue(_ > 0, "Must be positive.")
+      .createWithDefault(200)
+
+  val MASTER_HTTP_STOP_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.http.stopTimeout")
+      .categories("master")
+      .version("0.5.0")
+      .doc("Master http server stop timeout.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
+
   val HA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.master.ha.enabled")
       .withAlternative("celeborn.ha.enabled")
@@ -2445,6 +2557,23 @@ object CelebornConf extends Logging {
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(9096)
+
+  val WORKER_HTTP_MAX_WORKER_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.http.maxWorkerThreads")
+      .categories("worker")
+      .version("0.5.0")
+      .doc("Maximum number of threads in the worker http worker thread pool.")
+      .intConf
+      .checkValue(_ > 0, "Must be positive.")
+      .createWithDefault(200)
+
+  val WORKER_HTTP_STOP_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.http.stopTimeout")
+      .categories("worker")
+      .version("0.5.0")
+      .doc("Worker http server stop timeout.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
 
   val WORKER_RPC_PORT: ConfigEntry[Int] =
     buildConf("celeborn.worker.rpc.port")
@@ -4372,25 +4501,6 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  // Flink specific client configurations.
-  val CLIENT_MEMORY_PER_RESULT_PARTITION_MIN: ConfigEntry[Long] =
-    buildConf("celeborn.client.flink.resultPartition.minMemory")
-      .withAlternative("remote-shuffle.job.min.memory-per-partition")
-      .categories("client")
-      .version("0.3.0")
-      .doc("Min memory reserved for a result partition.")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("8m")
-
-  val CLIENT_MEMORY_PER_INPUT_GATE_MIN: ConfigEntry[Long] =
-    buildConf("celeborn.client.flink.inputGate.minMemory")
-      .withAlternative("remote-shuffle.job.min.memory-per-gate")
-      .categories("client")
-      .doc("Min memory reserved for a input gate.")
-      .version("0.3.0")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("8m")
-
   val CLIENT_NUM_CONCURRENT_READINGS: ConfigEntry[Int] =
     buildConf("celeborn.client.flink.inputGate.concurrentReadings")
       .withAlternative("remote-shuffle.job.concurrent-readings-per-gate")
@@ -4716,6 +4826,7 @@ object CelebornConf extends Logging {
       .doc("Number of threads used by the Master to send ApplicationMeta to Workers.")
       .version("0.5.0")
       .intConf
+      .checkValue(_ > 0, "number of threads should be positive")
       .createWithDefault(8)
 
   val WORKER_APPLICATION_REGISTRY_CACHE_SIZE: ConfigEntry[Int] =
@@ -4725,4 +4836,105 @@ object CelebornConf extends Logging {
       .version("0.5.0")
       .intConf
       .createWithDefault(10000)
+
+  //  SSL Configs
+
+  val SSL_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.ssl.<module>.enabled")
+      .categories("network", "ssl")
+      .version("0.5.0")
+      .doc("Enables SSL for securing wire traffic.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val SSL_PROTOCOL: ConfigEntry[String] =
+    buildConf("celeborn.ssl.<module>.protocol")
+      .categories("network", "ssl")
+      .version("0.5.0")
+      .doc("SSL protocol to use")
+      .stringConf
+      // TLSv1.3 requires specific java version, defaulting to v1.2
+      .createWithDefault("TLSv1.2")
+
+  val SSL_ENABLED_CIPHERS: OptionalConfigEntry[String] =
+    buildConf("celeborn.ssl.<module>.enabledAlgorithms")
+      .categories("network", "ssl")
+      .version("0.5.0")
+      .doc("A comma-separated list of ciphers. The specified ciphers must be supported by JVM. " +
+        "The reference list of protocols can be found in the \"JSSE Cipher Suite Names\" section " +
+        "of the Java security guide. The list for Java 17 can be found at " +
+        "https://docs.oracle.com/en/java/javase/17/docs/specs/security/standard-names.html#jsse-cipher-suite-names " +
+        ". Note: If not set, the default cipher suite for the JRE will be used.")
+      .stringConf
+      .createOptional
+
+  val SSL_KEY_STORE: OptionalConfigEntry[String] =
+    buildConf("celeborn.ssl.<module>.keyStore")
+      .categories("network", "ssl")
+      .version("0.5.0")
+      .doc("Path to the key store file. The path can be absolute or relative to the directory in which the " +
+        "process is started.")
+      .stringConf
+      .createOptional
+
+  val SSL_KEY_STORE_PASSWORD: OptionalConfigEntry[String] =
+    buildConf("celeborn.ssl.<module>.keyStorePassword")
+      .categories("network", "ssl")
+      .version("0.5.0")
+      .doc("Password to the key store.")
+      .stringConf
+      .createOptional
+
+  val SSL_TRUST_STORE: OptionalConfigEntry[String] =
+    buildConf("celeborn.ssl.<module>.trustStore")
+      .categories("network", "ssl")
+      .version("0.5.0")
+      .doc("Path to the trust store file. The path can be absolute or relative to the directory " +
+        "in which the process is started.")
+      .stringConf
+      .createOptional
+
+  val SSL_TRUST_STORE_PASSWORD: OptionalConfigEntry[String] =
+    buildConf("celeborn.ssl.<module>.trustStorePassword")
+      .categories("network", "ssl")
+      .version("0.5.0")
+      .doc("Password for the trust store.")
+      .stringConf
+      .createOptional
+
+  val SSL_TRUST_STORE_RELOADING_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.ssl.<module>.trustStoreReloadingEnabled")
+      .categories("network", "ssl")
+      .version("0.5.0")
+      .doc("Whether the trust store should be reloaded periodically. This setting is mostly only " +
+        "useful for server components, not applications.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val SSL_TRUST_STORE_RELOAD_INTERVAL_MS: ConfigEntry[Long] =
+    buildConf("celeborn.ssl.<module>.trustStoreReloadIntervalMs")
+      .categories("network", "ssl")
+      .version("0.5.0")
+      .doc("The interval at which the trust store should be reloaded (in milliseconds). This " +
+        "setting is mostly only useful for server components, not applications.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      // We treat this as an int, so validate
+      .checkValue(
+        p => p > 0 && p <= Int.MaxValue,
+        s"Invalid trustStoreReloadIntervalMs, must be a position number upto ${Int.MaxValue}")
+      .createWithDefaultString("10s")
+
+  val MAX_SSL_ENCRYPTED_BLOCK_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.ssl.<module>.maxEncryptedBlockSize")
+      .categories("network", "ssl")
+      .version("0.5.0")
+      .internal
+      .doc("The max size when chunking the stream with SSL")
+      .bytesConf(ByteUnit.BYTE)
+      // We treat this as an int, so validate
+      .checkValue(
+        p => p > 0 && p <= Int.MaxValue,
+        s"Invalid maxEncryptedBlockSize, must be a position number upto ${Int.MaxValue}")
+      .createWithDefaultString("64k")
+
 }

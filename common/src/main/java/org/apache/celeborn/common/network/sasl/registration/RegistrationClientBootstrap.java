@@ -112,6 +112,7 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
       register(client);
       LOG.info("Registration for {}", appId);
       registrationInfo.setRegistrationState(RegistrationInfo.RegistrationState.REGISTERED);
+      client.setClientId(appId);
     } catch (IOException | CelebornException e) {
       throw new RuntimeException(e);
     } finally {

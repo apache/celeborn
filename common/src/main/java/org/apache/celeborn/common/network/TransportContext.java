@@ -23,6 +23,7 @@ import java.util.List;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
@@ -36,6 +37,7 @@ import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.MessageEncoder;
 import org.apache.celeborn.common.network.server.*;
 import org.apache.celeborn.common.network.util.FrameDecoder;
+import org.apache.celeborn.common.network.util.NettyLogger;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.network.util.TransportFrameDecoder;
 
@@ -55,6 +57,7 @@ import org.apache.celeborn.common.network.util.TransportFrameDecoder;
 public class TransportContext {
   private static final Logger logger = LoggerFactory.getLogger(TransportContext.class);
 
+  private static final NettyLogger nettyLogger = new NettyLogger();
   private final TransportConf conf;
   private final BaseMessageHandler msgHandler;
   private final ChannelDuplexHandler channelsLimiter;
@@ -147,12 +150,15 @@ public class TransportContext {
       ChannelInboundHandlerAdapter decoder,
       BaseMessageHandler resolvedMsgHandler) {
     try {
+      ChannelPipeline pipeline = channel.pipeline();
+      if (nettyLogger.getLoggingHandler() != null) {
+        pipeline.addLast("loggingHandler", nettyLogger.getLoggingHandler());
+      }
       if (channelsLimiter != null) {
-        channel.pipeline().addLast("limiter", channelsLimiter);
+        pipeline.addLast("limiter", channelsLimiter);
       }
       TransportChannelHandler channelHandler = createChannelHandler(channel, resolvedMsgHandler);
-      channel
-          .pipeline()
+      pipeline
           .addLast("encoder", ENCODER)
           .addLast(FrameDecoder.HANDLER_NAME, decoder)
           .addLast(

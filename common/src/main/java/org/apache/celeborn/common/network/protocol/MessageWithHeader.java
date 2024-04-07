@@ -192,4 +192,9 @@ class MessageWithHeader extends AbstractFileRegion {
     }
     return super.release(decrement);
   }
+
+  @Override
+  public String toString() {
+    return "MessageWithHeader [headerLength: " + headerLength + ", bodyLength: " + bodyLength + "]";
+  }
 }

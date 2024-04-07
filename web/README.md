@@ -4,7 +4,7 @@ Celeborn Web is a dashboard to display and manage the Master and Worker of Celeb
 
 > **⚠️ Important**
 >
-> Before running commands, you must ensure that you are in the front-end directory `incubator-celeborn/web`. If not, run `cd web` first.
+> Before running commands, you must ensure that you are in the front-end directory `celeborn/web`. If not, run `cd web` first.
 
 ---
 

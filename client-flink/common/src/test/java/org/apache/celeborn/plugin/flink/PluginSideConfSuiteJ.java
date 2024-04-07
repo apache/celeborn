@@ -29,8 +29,6 @@ public class PluginSideConfSuiteJ {
   public void testCoalesce() {
     Configuration flinkConf = new Configuration();
     CelebornConf celebornConf = FlinkUtils.toCelebornConf(flinkConf);
-    Assert.assertEquals(8 * 1024 * 1024, celebornConf.clientFlinkMemoryPerResultPartitionMin());
-    Assert.assertEquals(8 * 1024 * 1024, celebornConf.clientFlinkMemoryPerInputGateMin());
     Assert.assertEquals(Integer.MAX_VALUE, celebornConf.clientFlinkNumConcurrentReading());
     Assert.assertEquals(64 * 1024 * 1024, celebornConf.clientFlinkMemoryPerResultPartition());
     Assert.assertEquals(32 * 1024 * 1024, celebornConf.clientFlinkMemoryPerInputGate());
@@ -38,8 +36,6 @@ public class PluginSideConfSuiteJ {
     Assert.assertTrue(celebornConf.clientFlinkDataCompressionEnabled());
     Assert.assertEquals("LZ4", celebornConf.shuffleCompressionCodec().name());
 
-    flinkConf.setString("remote-shuffle.job.min.memory-per-partition", "16m");
-    flinkConf.setString("remote-shuffle.job.min.memory-per-gate", "17m");
     flinkConf.setString("remote-shuffle.job.concurrent-readings-per-gate", "12323");
     flinkConf.setString("remote-shuffle.job.memory-per-partition", "1888m");
     flinkConf.setString("remote-shuffle.job.memory-per-gate", "176m");
@@ -48,8 +44,6 @@ public class PluginSideConfSuiteJ {
     flinkConf.setString("remote-shuffle.job.compression.codec", "ZSTD");
 
     celebornConf = FlinkUtils.toCelebornConf(flinkConf);
-    Assert.assertEquals(16 * 1024 * 1024, celebornConf.clientFlinkMemoryPerResultPartitionMin());
-    Assert.assertEquals(17 * 1024 * 1024, celebornConf.clientFlinkMemoryPerInputGateMin());
     Assert.assertEquals(12323, celebornConf.clientFlinkNumConcurrentReading());
     Assert.assertEquals(1888 * 1024 * 1024, celebornConf.clientFlinkMemoryPerResultPartition());
     Assert.assertEquals(176 * 1024 * 1024, celebornConf.clientFlinkMemoryPerInputGate());

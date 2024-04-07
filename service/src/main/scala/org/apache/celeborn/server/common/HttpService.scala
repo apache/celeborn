@@ -23,7 +23,8 @@ import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.server.common.http.{HttpRequestHandler, HttpServer, HttpServerInitializer}
+import org.apache.celeborn.server.common.http.HttpServer
+import org.apache.celeborn.server.common.http.api.ApiRootResource
 import org.apache.celeborn.server.common.service.config.ConfigLevel
 
 abstract class HttpService extends Service with Logging {
@@ -173,18 +174,20 @@ abstract class HttpService extends Service with Logging {
   def getWorkerEventInfo(): String = throw new UnsupportedOperationException()
 
   def startHttpServer(): Unit = {
-    val handlers =
-      if (metricsSystem.running) {
-        new HttpRequestHandler(this, metricsSystem.getServletHandlers)
-      } else {
-        new HttpRequestHandler(this, null)
-      }
-    httpServer = new HttpServer(
+    httpServer = HttpServer(
       serviceName,
       httpHost(),
       httpPort(),
-      new HttpServerInitializer(handlers))
+      httpMaxWorkerThreads(),
+      httpStopTimeout())
     httpServer.start()
+    startInternal()
+    // block until the HTTP server is started, otherwise, we may get
+    // the wrong HTTP server port -1
+    while (httpServer.getState != "STARTED") {
+      logInfo(s"Waiting for $serviceName's HTTP server getting started")
+      Thread.sleep(1000)
+    }
   }
 
   private def httpHost(): String = {
@@ -202,6 +205,41 @@ abstract class HttpService extends Service with Logging {
         conf.masterHttpPort
       case Service.WORKER =>
         conf.workerHttpPort
+    }
+  }
+
+  private def httpMaxWorkerThreads(): Int = {
+    serviceName match {
+      case Service.MASTER =>
+        conf.masterHttpMaxWorkerThreads
+      case Service.WORKER =>
+        conf.workerHttpMaxWorkerThreads
+    }
+  }
+
+  private def httpStopTimeout(): Long = {
+    serviceName match {
+      case Service.MASTER =>
+        conf.masterHttpStopTimeout
+      case Service.WORKER =>
+        conf.workerHttpStopTimeout
+    }
+  }
+
+  def connectionUrl: String = {
+    httpServer.getServerUri
+  }
+
+  protected def startInternal(): Unit = {
+    httpServer.addHandler(ApiRootResource.getServletHandler(this))
+    httpServer.addStaticHandler("META-INF/resources/webjars/swagger-ui/4.9.1/", "/swagger-static/")
+    httpServer.addStaticHandler("org/apache/celeborn/swagger", "/swagger")
+    httpServer.addRedirectHandler("/help", "/swagger")
+    httpServer.addRedirectHandler("/docs", "/swagger")
+    if (metricsSystem.running) {
+      metricsSystem.getServletContextHandlers.foreach { handler =>
+        httpServer.addHandler(handler)
+      }
     }
   }
 

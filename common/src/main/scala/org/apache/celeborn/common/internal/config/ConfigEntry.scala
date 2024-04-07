@@ -240,7 +240,7 @@ class OptionalConfigEntry[T](
     prependedKey,
     prependSeparator,
     alternatives,
-    s => Some(rawValueConverter(s)),
+    s => Option(rawValueConverter(s)),
     v => v.map(rawStringConverter).orNull,
     doc,
     isPublic,

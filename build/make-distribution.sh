@@ -306,6 +306,7 @@ if [ "$SBT_ENABLED" == "true" ]; then
   if [ "$RELEASE" == "true" ]; then
     sbt_build_client -Pspark-2.4
     sbt_build_client -Pspark-3.4
+    sbt_build_client -Pspark-3.5
     sbt_build_client -Pflink-1.14
     sbt_build_client -Pflink-1.15
     sbt_build_client -Pflink-1.17
@@ -338,6 +339,7 @@ else
     build_service
     build_spark_client -Pspark-2.4
     build_spark_client -Pspark-3.4
+    build_spark_client -Pspark-3.5
     build_flink_client -Pflink-1.14
     build_flink_client -Pflink-1.15
     build_flink_client -Pflink-1.17
@@ -396,7 +398,6 @@ cp "$PROJECT_DIR/docker/Dockerfile" "$DIST_DIR/docker"
 cp -r "$PROJECT_DIR/charts" "$DIST_DIR"
 
 # Copy license files
-cp "$PROJECT_DIR/DISCLAIMER" "$DIST_DIR/DISCLAIMER"
 if [[ -f $"$PROJECT_DIR/LICENSE-binary" ]]; then
   cp "$PROJECT_DIR/LICENSE-binary" "$DIST_DIR/LICENSE"
   cp -r "$PROJECT_DIR/licenses-binary" "$DIST_DIR/licenses"
