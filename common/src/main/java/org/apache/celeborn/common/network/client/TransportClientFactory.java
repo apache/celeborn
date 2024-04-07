@@ -267,10 +267,11 @@ public class TransportClientFactory implements Closeable {
                     @Override
                     public void operationComplete(final Future<Channel> handshakeFuture) {
                       if (handshakeFuture.isSuccess()) {
-                        logger.debug("{} successfully completed TLS handshake to ", address);
+                        logger.debug("successfully completed TLS handshake to {}", address);
                       } else {
                         logger.info(
-                            "failed to complete TLS handshake to " + address,
+                            "failed to complete TLS handshake to {}",
+                            address,
                             handshakeFuture.cause());
                         cf.channel().close();
                       }

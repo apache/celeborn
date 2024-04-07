@@ -44,7 +44,6 @@ import javax.net.ssl.X509TrustManager;
 
 import com.google.common.io.Files;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.handler.ssl.SslProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,17 +89,6 @@ public class SSLFactory {
     return null != keyManagers;
   }
 
-  /**
-   * If OpenSSL is requested, this will check if an implementation is available on the local host.
-   * If an implementation is not available it will fall back to the JDK {@link SslProvider}.
-   *
-   * @param b
-   * @return
-   */
-  private SslProvider getSslProvider(Builder b) {
-    return SslProvider.JDK;
-  }
-
   public void destroy() {
     if (trustManagers != null) {
       for (int i = 0; i < trustManagers.length; i++) {
@@ -108,7 +96,7 @@ public class SSLFactory {
           try {
             ((ReloadingX509TrustManager) trustManagers[i]).destroy();
           } catch (InterruptedException ex) {
-            logger.info("Interrupted while destroying trust manager: " + ex.toString(), ex);
+            logger.info("Interrupted while destroying trust manager: {}", ex, ex);
           }
         }
       }
