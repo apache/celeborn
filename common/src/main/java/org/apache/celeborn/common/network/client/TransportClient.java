@@ -208,13 +208,12 @@ public class TransportClient implements Closeable {
 
   public ChannelFuture pushData(
       PushData pushData, long pushDataTimeout, RpcResponseCallback callback) {
-    Runnable rpcSendoutCallback =
-        new Runnable() {
-          @Override
-          public void run() {
-            pushData.body().release();
-          }
-        };
+    Runnable rpcSendoutCallback = new Runnable() {
+      @Override
+      public void run() {
+        pushData.body().release();
+      }
+    };
     return pushData(pushData, pushDataTimeout, callback, rpcSendoutCallback);
   }
 
@@ -240,13 +239,12 @@ public class TransportClient implements Closeable {
 
   public ChannelFuture pushMergedData(
       PushMergedData pushMergedData, long pushDataTimeout, RpcResponseCallback callback) {
-    Runnable rpcSendoutCallback =
-        new Runnable() {
-          @Override
-          public void run() {
-            pushMergedData.body().release();
-          }
-        };
+    Runnable rpcSendoutCallback = new Runnable() {
+      @Override
+      public void run() {
+        pushMergedData.body().release();
+      }
+    };
     return pushMergedData(pushMergedData, pushDataTimeout, callback, rpcSendoutCallback);
   }
 
