@@ -207,14 +207,15 @@ public class TransportClient implements Closeable {
   }
 
   public ChannelFuture pushData(
-      PushData pushData, long pushDataTimeout, RpcResponseCallback callback) {
-    Runnable rpcFailureCallback =
-        new Runnable() {
-          @Override
-          public void run() {
-            pushData.body().release();
-          }
-        };
+      PushData pushData,
+      long pushDataTimeout,
+      RpcResponseCallback callback) {
+    Runnable rpcFailureCallback = new Runnable() {
+      @Override
+      public void run() {
+        pushData.body().release();
+      }
+    };
     return pushData(pushData, pushDataTimeout, callback, null, rpcFailureCallback);
   }
 
@@ -241,14 +242,15 @@ public class TransportClient implements Closeable {
   }
 
   public ChannelFuture pushMergedData(
-      PushMergedData pushMergedData, long pushDataTimeout, RpcResponseCallback callback) {
-    Runnable rpcFailureCallback =
-        new Runnable() {
-          @Override
-          public void run() {
-            pushMergedData.body().release();
-          }
-        };
+      PushMergedData pushMergedData,
+      long pushDataTimeout,
+      RpcResponseCallback callback) {
+    Runnable rpcFailureCallback = new Runnable() {
+      @Override
+      public void run() {
+        pushMergedData.body().release();
+      }
+    };
     return pushMergedData(pushMergedData, pushDataTimeout, callback, null, rpcFailureCallback);
   }
 
@@ -450,7 +452,9 @@ public class TransportClient implements Closeable {
     }
 
     PushChannelListener(
-        long pushRequestId, Runnable rpcSendOutCallback, Runnable rpcFailureCallback) {
+        long pushRequestId,
+        Runnable rpcSendOutCallback,
+        Runnable rpcFailureCallback) {
       super("PUSH " + pushRequestId);
       this.pushRequestId = pushRequestId;
       this.rpcSendOutCallback = rpcSendOutCallback;
@@ -468,7 +472,7 @@ public class TransportClient implements Closeable {
     @Override
     protected void handleFailure(String errorMsg, Throwable cause) {
       handler.handlePushFailure(pushRequestId, errorMsg, cause);
-      if (rpcFailureCallback != null) {
+      if(rpcFailureCallback != null) {
         rpcFailureCallback.run();
       }
     }
