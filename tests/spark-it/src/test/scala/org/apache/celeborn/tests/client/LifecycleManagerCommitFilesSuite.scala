@@ -205,7 +205,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
 
     shuffleCommittedInfo.committedReplicaStorageInfos.values().asScala.foreach { storageInfo =>
       storageInfo.fileSize == buffer.length
-      storageInfo.numChunks == 1
+      storageInfo.chunkOffsets.size() == 1
     }
 
     lifecycleManager.stop()
