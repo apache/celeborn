@@ -207,15 +207,24 @@ public class TransportClient implements Closeable {
   }
 
   public ChannelFuture pushData(
-      PushData pushData, long pushDataTimeout, RpcResponseCallback callback) {
-    return pushData(pushData, pushDataTimeout, callback, null);
+      PushData pushData,
+      long pushDataTimeout,
+      RpcResponseCallback callback) {
+    Runnable rpcFailureCallback = new Runnable() {
+      @Override
+      public void run() {
+        pushData.body().release();
+      }
+    };
+    return pushData(pushData, pushDataTimeout, callback, null, rpcFailureCallback);
   }
 
   public ChannelFuture pushData(
       PushData pushData,
       long pushDataTimeout,
       RpcResponseCallback callback,
-      Runnable rpcSendoutCallback) {
+      Runnable rpcSendoutCallback,
+      Runnable rpcFailureCallback) {
     if (logger.isTraceEnabled()) {
       logger.trace("Pushing data to {}", NettyUtils.getRemoteAddress(channel));
     }
@@ -225,14 +234,32 @@ public class TransportClient implements Closeable {
     PushRequestInfo info = new PushRequestInfo(dueTime, callback);
     handler.addPushRequest(requestId, info);
     pushData.requestId = requestId;
-    PushChannelListener listener = new PushChannelListener(requestId, rpcSendoutCallback);
+    PushChannelListener listener =
+        new PushChannelListener(requestId, rpcSendoutCallback, rpcFailureCallback);
     ChannelFuture channelFuture = channel.writeAndFlush(pushData).addListener(listener);
     info.setChannelFuture(channelFuture);
     return channelFuture;
   }
 
   public ChannelFuture pushMergedData(
-      PushMergedData pushMergedData, long pushDataTimeout, RpcResponseCallback callback) {
+      PushMergedData pushMergedData,
+      long pushDataTimeout,
+      RpcResponseCallback callback) {
+    Runnable rpcFailureCallback = new Runnable() {
+      @Override
+      public void run() {
+        pushMergedData.body().release();
+      }
+    };
+    return pushMergedData(pushMergedData, pushDataTimeout, callback, null, rpcFailureCallback);
+  }
+
+  public ChannelFuture pushMergedData(
+      PushMergedData pushMergedData,
+      long pushDataTimeout,
+      RpcResponseCallback callback,
+      Runnable rpcSendoutCallback,
+      Runnable rpcFailureCallback) {
     if (logger.isTraceEnabled()) {
       logger.trace("Pushing merged data to {}", NettyUtils.getRemoteAddress(channel));
     }
@@ -243,7 +270,8 @@ public class TransportClient implements Closeable {
     handler.addPushRequest(requestId, info);
     pushMergedData.requestId = requestId;
 
-    PushChannelListener listener = new PushChannelListener(requestId);
+    PushChannelListener listener =
+        new PushChannelListener(requestId, rpcSendoutCallback, rpcFailureCallback);
     ChannelFuture channelFuture = channel.writeAndFlush(pushMergedData).addListener(listener);
     info.setChannelFuture(channelFuture);
     return channelFuture;
@@ -417,14 +445,20 @@ public class TransportClient implements Closeable {
     final long pushRequestId;
     Runnable rpcSendOutCallback;
 
+    Runnable rpcFailureCallback;
+
     PushChannelListener(long pushRequestId) {
-      this(pushRequestId, null);
+      this(pushRequestId, null, null);
     }
 
-    PushChannelListener(long pushRequestId, Runnable rpcSendOutCallback) {
+    PushChannelListener(
+        long pushRequestId,
+        Runnable rpcSendOutCallback,
+        Runnable rpcFailureCallback) {
       super("PUSH " + pushRequestId);
       this.pushRequestId = pushRequestId;
       this.rpcSendOutCallback = rpcSendOutCallback;
+      this.rpcFailureCallback = rpcFailureCallback;
     }
 
     @Override
@@ -438,6 +472,9 @@ public class TransportClient implements Closeable {
     @Override
     protected void handleFailure(String errorMsg, Throwable cause) {
       handler.handlePushFailure(pushRequestId, errorMsg, cause);
+      if(rpcFailureCallback != null) {
+        rpcFailureCallback.run();
+      }
     }
   }
 }
