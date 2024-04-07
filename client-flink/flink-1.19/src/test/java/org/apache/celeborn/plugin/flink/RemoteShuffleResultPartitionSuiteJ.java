@@ -62,7 +62,7 @@ import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
-import org.apache.celeborn.plugin.flink.buffer.SortBuffer;
+import org.apache.celeborn.plugin.flink.buffer.DataBuffer;
 import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 
@@ -129,10 +129,10 @@ public class RemoteShuffleResultPartitionSuiteJ {
     doNothing().when(remoteShuffleOutputGate).regionStart(anyBoolean());
     doNothing().when(remoteShuffleOutputGate).regionFinish();
     when(remoteShuffleOutputGate.getBufferPool()).thenReturn(bufferPool.get(1).get());
-    SortBuffer sortBuffer = remoteShuffleResultPartition.getDelegation().getUnicastSortBuffer();
+    DataBuffer dataBuffer = remoteShuffleResultPartition.getDelegation().getUnicastDataBuffer();
     ByteBuffer byteBuffer = ByteBuffer.wrap(new byte[] {1, 2, 3});
-    sortBuffer.append(byteBuffer, 0, Buffer.DataType.DATA_BUFFER);
-    remoteShuffleResultPartition.getDelegation().flushSortBuffer(sortBuffer, true);
+    dataBuffer.append(byteBuffer, 0, Buffer.DataType.DATA_BUFFER);
+    remoteShuffleResultPartition.getDelegation().flushDataBuffer(dataBuffer, true);
   }
 
   private List<SupplierWithException<BufferPool, IOException>> createBufferPoolFactory() {

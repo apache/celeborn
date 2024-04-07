@@ -34,8 +34,9 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.plugin.flink.buffer.PartitionSortedBuffer;
-import org.apache.celeborn.plugin.flink.buffer.SortBuffer;
+import org.apache.celeborn.plugin.flink.buffer.BufferWithSubpartition;
+import org.apache.celeborn.plugin.flink.buffer.DataBuffer;
+import org.apache.celeborn.plugin.flink.buffer.SortBasedDataBuffer;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
@@ -46,11 +47,11 @@ public class RemoteShuffleResultPartitionDelegation {
   /** Size of network buffer and write buffer. */
   public int networkBufferSize;
 
-  /** {@link SortBuffer} for records sent by broadcastRecord. */
-  public SortBuffer broadcastSortBuffer;
+  /** {@link DataBuffer} for records sent by broadcastRecord. */
+  public DataBuffer broadcastDataBuffer;
 
-  /** {@link SortBuffer} for records sent by emitRecord. */
-  public SortBuffer unicastSortBuffer;
+  /** {@link DataBuffer} for records sent by emitRecord. */
+  public DataBuffer unicastDataBuffer;
 
   /** Utility to spill data to shuffle workers. */
   public RemoteShuffleOutputGate outputGate;
@@ -58,17 +59,17 @@ public class RemoteShuffleResultPartitionDelegation {
   /** Whether notifyEndOfData has been called or not. */
   private boolean endOfDataNotified;
 
-  private int numSubpartitions;
+  private final int numSubpartitions;
   private BufferPool bufferPool;
   private BufferCompressor bufferCompressor;
   private Function<Buffer, Boolean> canBeCompressed;
   private Runnable checkProducerState;
-  private BiConsumer<SortBuffer.BufferWithChannel, Boolean> statisticsConsumer;
+  private final BiConsumer<BufferWithSubpartition, Boolean> statisticsConsumer;
 
   public RemoteShuffleResultPartitionDelegation(
       int networkBufferSize,
       RemoteShuffleOutputGate outputGate,
-      BiConsumer<SortBuffer.BufferWithChannel, Boolean> statisticsConsumer,
+      BiConsumer<BufferWithSubpartition, Boolean> statisticsConsumer,
       int numSubpartitions) {
     this.networkBufferSize = networkBufferSize;
     this.outputGate = outputGate;
@@ -105,20 +106,20 @@ public class RemoteShuffleResultPartitionDelegation {
           targetSubpartition == 0, "Target subpartition index can only be 0 when broadcast.");
     }
 
-    SortBuffer sortBuffer = isBroadcast ? getBroadcastSortBuffer() : getUnicastSortBuffer();
-    if (sortBuffer.append(record, targetSubpartition, dataType)) {
+    DataBuffer dataBuffer = isBroadcast ? getBroadcastDataBuffer() : getUnicastDataBuffer();
+    if (dataBuffer.append(record, targetSubpartition, dataType)) {
       return;
     }
 
     try {
-      if (!sortBuffer.hasRemaining()) {
+      if (!dataBuffer.hasRemaining()) {
         // the record can not be appended to the free sort buffer because it is too large
-        sortBuffer.finish();
-        sortBuffer.release();
+        dataBuffer.finish();
+        dataBuffer.release();
         writeLargeRecord(record, targetSubpartition, dataType, isBroadcast);
         return;
       }
-      flushSortBuffer(sortBuffer, isBroadcast);
+      flushDataBuffer(dataBuffer, isBroadcast);
     } catch (InterruptedException e) {
       LOG.error("Failed to flush the sort buffer.", e);
       Utils.rethrowAsRuntimeException(e);
@@ -127,62 +128,62 @@ public class RemoteShuffleResultPartitionDelegation {
   }
 
   @VisibleForTesting
-  public SortBuffer getUnicastSortBuffer() throws IOException {
-    flushBroadcastSortBuffer();
+  public DataBuffer getUnicastDataBuffer() throws IOException {
+    flushBroadcastDataBuffer();
 
-    if (unicastSortBuffer != null && !unicastSortBuffer.isFinished()) {
-      return unicastSortBuffer;
+    if (unicastDataBuffer != null && !unicastDataBuffer.isFinished()) {
+      return unicastDataBuffer;
     }
 
-    unicastSortBuffer =
-        new PartitionSortedBuffer(bufferPool, numSubpartitions, networkBufferSize, null);
-    return unicastSortBuffer;
+    unicastDataBuffer =
+        new SortBasedDataBuffer(bufferPool, numSubpartitions, networkBufferSize, null);
+    return unicastDataBuffer;
   }
 
-  public SortBuffer getBroadcastSortBuffer() throws IOException {
-    flushUnicastSortBuffer();
+  public DataBuffer getBroadcastDataBuffer() throws IOException {
+    flushUnicastDataBuffer();
 
-    if (broadcastSortBuffer != null && !broadcastSortBuffer.isFinished()) {
-      return broadcastSortBuffer;
+    if (broadcastDataBuffer != null && !broadcastDataBuffer.isFinished()) {
+      return broadcastDataBuffer;
     }
 
-    broadcastSortBuffer =
-        new PartitionSortedBuffer(bufferPool, numSubpartitions, networkBufferSize, null);
-    return broadcastSortBuffer;
+    broadcastDataBuffer =
+        new SortBasedDataBuffer(bufferPool, numSubpartitions, networkBufferSize, null);
+    return broadcastDataBuffer;
   }
 
-  public void flushBroadcastSortBuffer() throws IOException {
-    flushSortBuffer(broadcastSortBuffer, true);
+  public void flushBroadcastDataBuffer() throws IOException {
+    flushDataBuffer(broadcastDataBuffer, true);
   }
 
-  public void flushUnicastSortBuffer() throws IOException {
-    flushSortBuffer(unicastSortBuffer, false);
+  public void flushUnicastDataBuffer() throws IOException {
+    flushDataBuffer(unicastDataBuffer, false);
   }
 
   @VisibleForTesting
-  void flushSortBuffer(SortBuffer sortBuffer, boolean isBroadcast) throws IOException {
-    if (sortBuffer == null || sortBuffer.isReleased()) {
+  void flushDataBuffer(DataBuffer dataBuffer, boolean isBroadcast) throws IOException {
+    if (dataBuffer == null || dataBuffer.isReleased()) {
       return;
     }
-    sortBuffer.finish();
-    if (sortBuffer.hasRemaining()) {
+    dataBuffer.finish();
+    if (dataBuffer.hasRemaining()) {
       try {
         outputGate.regionStart(isBroadcast);
-        while (sortBuffer.hasRemaining()) {
+        while (dataBuffer.hasRemaining()) {
           MemorySegment segment = outputGate.getBufferPool().requestMemorySegmentBlocking();
-          SortBuffer.BufferWithChannel bufferWithChannel;
+          BufferWithSubpartition bufferWithSubpartition;
           try {
-            bufferWithChannel =
-                sortBuffer.copyIntoSegment(
+            bufferWithSubpartition =
+                dataBuffer.getNextBuffer(
                     segment, outputGate.getBufferPool(), BufferUtils.HEADER_LENGTH);
           } catch (Throwable t) {
             outputGate.getBufferPool().recycle(segment);
             throw new FlinkRuntimeException("Shuffle write failure.", t);
           }
 
-          Buffer buffer = bufferWithChannel.getBuffer();
-          int subpartitionIndex = bufferWithChannel.getChannelIndex();
-          statisticsConsumer.accept(bufferWithChannel, isBroadcast);
+          Buffer buffer = bufferWithSubpartition.getBuffer();
+          int subpartitionIndex = bufferWithSubpartition.getSubpartitionIndex();
+          statisticsConsumer.accept(bufferWithSubpartition, isBroadcast);
           writeCompressedBufferIfPossible(buffer, subpartitionIndex);
         }
         outputGate.regionFinish();
@@ -190,7 +191,7 @@ public class RemoteShuffleResultPartitionDelegation {
         throw new IOException("Failed to flush the sort buffer, broadcast=" + isBroadcast, e);
       }
     }
-    releaseSortBuffer(sortBuffer);
+    releaseDataBuffer(dataBuffer);
   }
 
   public void writeCompressedBufferIfPossible(Buffer buffer, int targetSubpartition)
@@ -234,9 +235,9 @@ public class RemoteShuffleResultPartitionDelegation {
               dataType,
               toCopy + BufferUtils.HEADER_LENGTH);
 
-      SortBuffer.BufferWithChannel bufferWithChannel =
-          new SortBuffer.BufferWithChannel(buffer, targetSubpartition);
-      statisticsConsumer.accept(bufferWithChannel, isBroadcast);
+      BufferWithSubpartition bufferWithSubpartition =
+          new BufferWithSubpartition(buffer, targetSubpartition);
+      statisticsConsumer.accept(bufferWithSubpartition, isBroadcast);
       writeCompressedBufferIfPossible(buffer, targetSubpartition);
     }
     outputGate.regionFinish();
@@ -246,17 +247,17 @@ public class RemoteShuffleResultPartitionDelegation {
     emit(record, 0, dataType, true);
   }
 
-  public void releaseSortBuffer(SortBuffer sortBuffer) {
-    if (sortBuffer != null) {
-      sortBuffer.release();
+  public void releaseDataBuffer(DataBuffer dataBuffer) {
+    if (dataBuffer != null) {
+      dataBuffer.release();
     }
   }
 
   public void finish() throws IOException {
     Utils.checkState(
-        unicastSortBuffer == null || unicastSortBuffer.isReleased(),
+        unicastDataBuffer == null || unicastDataBuffer.isReleased(),
         "The unicast sort buffer should be either null or released.");
-    flushBroadcastSortBuffer();
+    flushBroadcastDataBuffer();
     try {
       outputGate.finish();
     } catch (InterruptedException e) {
@@ -265,22 +266,21 @@ public class RemoteShuffleResultPartitionDelegation {
   }
 
   public synchronized void close(Runnable closeHandler) {
-    Throwable closeException = null;
+    Throwable closeException;
     closeException =
         checkException(
-            () -> releaseSortBuffer(unicastSortBuffer),
-            closeException,
+            () -> releaseDataBuffer(unicastDataBuffer),
+            null,
             "Failed to release unicast sort buffer.");
 
     closeException =
         checkException(
-            () -> releaseSortBuffer(broadcastSortBuffer),
+            () -> releaseDataBuffer(broadcastDataBuffer),
             closeException,
             "Failed to release broadcast sort buffer.");
 
     closeException =
-        checkException(
-            () -> closeHandler.run(), closeException, "Failed to call super#close() method.");
+        checkException(closeHandler, closeException, "Failed to call super#close() method.");
 
     try {
       outputGate.close();
@@ -307,8 +307,8 @@ public class RemoteShuffleResultPartitionDelegation {
 
   public void flushAll() {
     try {
-      flushUnicastSortBuffer();
-      flushBroadcastSortBuffer();
+      flushUnicastDataBuffer();
+      flushBroadcastDataBuffer();
     } catch (Throwable t) {
       LOG.error("Failed to flush the current sort buffer.", t);
       Utils.rethrowAsRuntimeException(t);

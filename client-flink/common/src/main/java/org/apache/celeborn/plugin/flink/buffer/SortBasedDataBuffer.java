@@ -38,19 +38,20 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.util.FlinkRuntimeException;
 
 /**
- * A {@link SortBuffer} implementation which sorts all appended records only by subpartition index.
+ * A {@link DataBuffer} implementation which sorts all appended records only by subpartition index.
  * Records of the same subpartition keep the appended order.
  *
  * <p>It maintains a list of {@link MemorySegment}s as a joint buffer. Data will be appended to the
  * joint buffer sequentially. When writing a record, an index entry will be appended first. An index
- * entry consists of 4 fields: 4 bytes for record length, 4 bytes for {@link DataType} and 8 bytes
- * for address pointing to the next index entry of the same channel which will be used to index the
- * next record to read when coping data from this {@link SortBuffer}. For simplicity, no index entry
- * can span multiple segments. The corresponding record data is seated right after its index entry
- * and different from the index entry, records have variable length thus may span multiple segments.
+ * entry consists of 4 fields: 4 bytes for record length, 4 bytes for {@link Buffer.DataType} and 8
+ * bytes for address pointing to the next index entry of the same subpartition which will be used to
+ * index the next record to read when coping data from this {@link DataBuffer}. For simplicity, no
+ * index entry can span multiple segments. The corresponding record data is seated right after its
+ * index entry and different from the index entry, records have variable length thus may span
+ * multiple segments.
  */
 @NotThreadSafe
-public class PartitionSortedBuffer implements SortBuffer {
+public class SortBasedDataBuffer implements DataBuffer {
 
   /**
    * Size of an index entry: 4 bytes for record length, 4 bytes for data type and 8 bytes for
@@ -105,10 +106,10 @@ public class PartitionSortedBuffer implements SortBuffer {
   /** Record bytes remaining after last copy, which must be read first in next copy. */
   private int recordRemainingBytes;
 
-  /** Used to index the current available channel to read data from. */
+  /** Used to index the current available subpartition to read data from. */
   private int readOrderIndex = -1;
 
-  public PartitionSortedBuffer(
+  public SortBasedDataBuffer(
       BufferPool bufferPool,
       int numSubpartitions,
       int bufferSize,
@@ -120,7 +121,7 @@ public class PartitionSortedBuffer implements SortBuffer {
     this.firstIndexEntryAddresses = new long[numSubpartitions];
     this.lastIndexEntryAddresses = new long[numSubpartitions];
 
-    // initialized with -1 means the corresponding channel has no data.
+    // initialized with -1 means the corresponding subpartition has no data.
     Arrays.fill(firstIndexEntryAddresses, -1L);
     Arrays.fill(lastIndexEntryAddresses, -1L);
 
@@ -129,14 +130,14 @@ public class PartitionSortedBuffer implements SortBuffer {
       checkArgument(customReadOrder.length == numSubpartitions, "Illegal data read order.");
       System.arraycopy(customReadOrder, 0, this.subpartitionReadOrder, 0, numSubpartitions);
     } else {
-      for (int channel = 0; channel < numSubpartitions; ++channel) {
-        this.subpartitionReadOrder[channel] = channel;
+      for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
+        this.subpartitionReadOrder[subpartition] = subpartition;
       }
     }
   }
 
   @Override
-  public boolean append(ByteBuffer source, int targetChannel, DataType dataType)
+  public boolean append(ByteBuffer source, int targetSubpartition, DataType dataType)
       throws IOException {
     checkArgument(source.hasRemaining(), "Cannot append empty data.");
     checkState(!isFinished, "Sort buffer is already finished.");
@@ -150,7 +151,7 @@ public class PartitionSortedBuffer implements SortBuffer {
     }
 
     // write the index entry and record or event data
-    writeIndex(targetChannel, totalBytes, dataType);
+    writeIndex(targetSubpartition, totalBytes, dataType);
     writeRecord(source);
 
     ++numTotalRecords;
@@ -159,7 +160,7 @@ public class PartitionSortedBuffer implements SortBuffer {
     return true;
   }
 
-  private void writeIndex(int channelIndex, int numRecordBytes, DataType dataType) {
+  private void writeIndex(int subpartitionIndex, int numRecordBytes, DataType dataType) {
     MemorySegment segment = buffers.get(writeSegmentIndex);
 
     // record length takes the high 32 bits and data type takes the low 32 bits
@@ -168,15 +169,15 @@ public class PartitionSortedBuffer implements SortBuffer {
     // segment index takes the high 32 bits and segment offset takes the low 32 bits
     long indexEntryAddress = ((long) writeSegmentIndex << 32) | writeSegmentOffset;
 
-    long lastIndexEntryAddress = lastIndexEntryAddresses[channelIndex];
-    lastIndexEntryAddresses[channelIndex] = indexEntryAddress;
+    long lastIndexEntryAddress = lastIndexEntryAddresses[subpartitionIndex];
+    lastIndexEntryAddresses[subpartitionIndex] = indexEntryAddress;
 
     if (lastIndexEntryAddress >= 0) {
-      // link the previous index entry of the given channel to the new index entry
+      // link the previous index entry of the given subpartition to the new index entry
       segment = buffers.get(getSegmentIndexFromPointer(lastIndexEntryAddress));
       segment.putLong(getSegmentOffsetFromPointer(lastIndexEntryAddress) + 8, indexEntryAddress);
     } else {
-      firstIndexEntryAddresses[channelIndex] = indexEntryAddress;
+      firstIndexEntryAddresses[subpartitionIndex] = indexEntryAddress;
     }
 
     // move the writer position forward to write the corresponding record
@@ -262,15 +263,15 @@ public class PartitionSortedBuffer implements SortBuffer {
   }
 
   @Override
-  public BufferWithChannel copyIntoSegment(
-      MemorySegment target, BufferRecycler recycler, int offset) {
+  public BufferWithSubpartition getNextBuffer(
+      MemorySegment transitBuffer, BufferRecycler recycler, int offset) {
     checkState(hasRemaining(), "No data remaining.");
     checkState(isFinished, "Should finish the sort buffer first before coping any data.");
     checkState(!isReleased, "Sort buffer is already released.");
 
     int numBytesCopied = 0;
     DataType bufferDataType = DataType.DATA_BUFFER;
-    int channelIndex = subpartitionReadOrder[readOrderIndex];
+    int subpartitionIndex = subpartitionReadOrder[readOrderIndex];
 
     do {
       int sourceSegmentIndex = getSegmentIndexFromPointer(readIndexEntryAddress);
@@ -292,27 +293,32 @@ public class PartitionSortedBuffer implements SortBuffer {
       sourceSegmentOffset += INDEX_ENTRY_SIZE;
 
       // throws if the event is too big to be accommodated by a buffer.
-      if (bufferDataType.isEvent() && target.size() - offset < length) {
+      if (bufferDataType.isEvent() && transitBuffer.size() - offset < length) {
         throw new FlinkRuntimeException("Event is too big to be accommodated by a buffer");
       }
 
       numBytesCopied +=
           copyRecordOrEvent(
-              target, numBytesCopied + offset, sourceSegmentIndex, sourceSegmentOffset, length);
+              transitBuffer,
+              numBytesCopied + offset,
+              sourceSegmentIndex,
+              sourceSegmentOffset,
+              length);
 
       if (recordRemainingBytes == 0) {
-        // move to next channel if the current channel has been finished
-        if (readIndexEntryAddress == lastIndexEntryAddresses[channelIndex]) {
+        // move to next subpartition if the current subpartition has been finished
+        if (readIndexEntryAddress == lastIndexEntryAddresses[subpartitionIndex]) {
           updateReadChannelAndIndexEntryAddress();
           break;
         }
         readIndexEntryAddress = nextReadIndexEntryAddress;
       }
-    } while (numBytesCopied < target.size() - offset && bufferDataType.isBuffer());
+    } while (numBytesCopied < transitBuffer.size() - offset && bufferDataType.isBuffer());
 
     numTotalBytesRead += numBytesCopied;
-    Buffer buffer = new NetworkBuffer(target, recycler, bufferDataType, numBytesCopied + offset);
-    return new BufferWithChannel(buffer, channelIndex);
+    Buffer buffer =
+        new NetworkBuffer(transitBuffer, recycler, bufferDataType, numBytesCopied + offset);
+    return new BufferWithSubpartition(buffer, subpartitionIndex);
   }
 
   private int copyRecordOrEvent(
@@ -354,10 +360,10 @@ public class PartitionSortedBuffer implements SortBuffer {
   }
 
   private void updateReadChannelAndIndexEntryAddress() {
-    // skip the channels without any data
+    // skip the subpartitions without any data
     while (++readOrderIndex < firstIndexEntryAddresses.length) {
-      int channelIndex = subpartitionReadOrder[readOrderIndex];
-      if ((readIndexEntryAddress = firstIndexEntryAddresses[channelIndex]) >= 0) {
+      int subpartitionIndex = subpartitionReadOrder[readOrderIndex];
+      if ((readIndexEntryAddress = firstIndexEntryAddresses[subpartitionIndex]) >= 0) {
         break;
       }
     }
@@ -372,12 +378,12 @@ public class PartitionSortedBuffer implements SortBuffer {
   }
 
   @Override
-  public long numRecords() {
+  public long numTotalRecords() {
     return numTotalRecords;
   }
 
   @Override
-  public long numBytes() {
+  public long numTotalBytes() {
     return numTotalBytes;
   }
 
@@ -388,7 +394,7 @@ public class PartitionSortedBuffer implements SortBuffer {
 
   @Override
   public void finish() {
-    checkState(!isFinished, SortBuffer.class.getCanonicalName() + " is already finished.");
+    checkState(!isFinished, DataBuffer.class.getCanonicalName() + " is already finished.");
 
     isFinished = true;
 

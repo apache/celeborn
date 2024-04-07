@@ -252,6 +252,6 @@ Remote Shuffle Service for Flink
 ./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/BufferRecycler.java
 ./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/utils/BufferUtils.java
 ./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/CreditListener.java
-./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/PartitionSortedBuffer.java
-./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/SortBuffer.java
+./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/DataBuffer.java
+./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/SortBasedDataBuffer.java
 ./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/TransferBufferPool.java

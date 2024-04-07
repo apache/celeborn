@@ -37,15 +37,16 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.*;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.apache.celeborn.plugin.flink.buffer.SortBuffer;
+import org.apache.celeborn.plugin.flink.buffer.BufferWithSubpartition;
+import org.apache.celeborn.plugin.flink.buffer.DataBuffer;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /**
- * A {@link ResultPartition} which appends records and events to {@link SortBuffer} and after the
- * {@link SortBuffer} is full, all data in the {@link SortBuffer} will be copied and spilled to the
+ * A {@link ResultPartition} which appends records and events to {@link DataBuffer} and after the
+ * {@link DataBuffer} is full, all data in the {@link DataBuffer} will be copied and spilled to the
  * remote shuffle service in subpartition index order sequentially. Large records that can not be
- * appended to an empty {@link SortBuffer} will be spilled directly.
+ * appended to an empty {@link DataBuffer} will be spilled directly.
  */
 public class RemoteShuffleResultPartition extends ResultPartition {
 
@@ -77,10 +78,7 @@ public class RemoteShuffleResultPartition extends ResultPartition {
 
     delegation =
         new RemoteShuffleResultPartitionDelegation(
-            networkBufferSize,
-            outputGate,
-            (bufferWithChannel, isBroadcast) -> updateStatistics(bufferWithChannel, isBroadcast),
-            numSubpartitions);
+            networkBufferSize, outputGate, this::updateStatistics, numSubpartitions);
   }
 
   @Override
@@ -88,10 +86,7 @@ public class RemoteShuffleResultPartition extends ResultPartition {
     super.setup();
     BufferUtils.reserveNumRequiredBuffers(bufferPool, 1);
     delegation.setup(
-        bufferPool,
-        bufferCompressor,
-        buffer -> canBeCompressed(buffer),
-        () -> checkInProduceState());
+        bufferPool, bufferCompressor, this::canBeCompressed, this::checkInProduceState);
   }
 
   @Override
@@ -136,7 +131,7 @@ public class RemoteShuffleResultPartition extends ResultPartition {
 
   @Override
   public synchronized void close() {
-    delegation.close(() -> super.close());
+    delegation.close(super::close);
   }
 
   @Override
@@ -211,15 +206,14 @@ public class RemoteShuffleResultPartition extends ResultPartition {
     return delegation;
   }
 
-  public void updateStatistics(
-      SortBuffer.BufferWithChannel bufferWithChannel, boolean isBroadcast) {
+  public void updateStatistics(BufferWithSubpartition bufferWithSubpartition, boolean isBroadcast) {
     numBuffersOut.inc(isBroadcast ? numSubpartitions : 1);
     long readableBytes =
-        (long) bufferWithChannel.getBuffer().readableBytes() - BufferUtils.HEADER_LENGTH;
+        (long) bufferWithSubpartition.getBuffer().readableBytes() - BufferUtils.HEADER_LENGTH;
     if (isBroadcast) {
       resultPartitionBytes.incAll(readableBytes);
     } else {
-      resultPartitionBytes.inc(bufferWithChannel.getChannelIndex(), readableBytes);
+      resultPartitionBytes.inc(bufferWithSubpartition.getSubpartitionIndex(), readableBytes);
     }
     numBytesOut.inc(isBroadcast ? readableBytes * numSubpartitions : readableBytes);
   }
