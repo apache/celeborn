@@ -284,7 +284,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     // do push data
     try {
       TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
-      client.pushData(pushData, pushDataTimeout, callback, closeCallBack, null);
+      client.pushData(pushData, pushDataTimeout, callback, closeCallBack);
     } catch (Exception e) {
       logger.error(
           "Exception raised while pushing data byteBuf for shuffle {} map {} attempt {} partitionId {} batch {} location {}.",
