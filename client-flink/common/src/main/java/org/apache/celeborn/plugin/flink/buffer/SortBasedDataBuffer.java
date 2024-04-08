@@ -72,25 +72,25 @@ public class SortBasedDataBuffer implements DataBuffer {
   private final long[] lastIndexEntryAddresses;
   /** Size of buffers requested from buffer pool. All buffers must be of the same size. */
   private final int bufferSize;
-  /** Data of different subpartitions in this sort buffer will be read in this order. */
+  /** Data of different subpartitions in this data buffer will be read in this order. */
   private final int[] subpartitionReadOrder;
 
   // ---------------------------------------------------------------------------------------------
   // Statistics and states
   // ---------------------------------------------------------------------------------------------
-  /** Total number of bytes already appended to this sort buffer. */
+  /** Total number of bytes already appended to this data buffer. */
   private long numTotalBytes;
-  /** Total number of records already appended to this sort buffer. */
+  /** Total number of records already appended to this data buffer. */
   private long numTotalRecords;
-  /** Total number of bytes already read from this sort buffer. */
+  /** Total number of bytes already read from this data buffer. */
   private long numTotalBytesRead;
-  /** Whether this sort buffer is finished. One can only read a finished sort buffer. */
+  /** Whether this data buffer is finished. One can only read a finished data buffer. */
   private boolean isFinished;
 
   // ---------------------------------------------------------------------------------------------
   // For writing
   // ---------------------------------------------------------------------------------------------
-  /** Whether this sort buffer is released. A released sort buffer can not be used. */
+  /** Whether this data buffer is released. A released data buffer can not be used. */
   private boolean isReleased;
   /** Array index in the segment list of the current available buffer for writing. */
   private int writeSegmentIndex;
@@ -140,8 +140,8 @@ public class SortBasedDataBuffer implements DataBuffer {
   public boolean append(ByteBuffer source, int targetSubpartition, DataType dataType)
       throws IOException {
     checkArgument(source.hasRemaining(), "Cannot append empty data.");
-    checkState(!isFinished, "Sort buffer is already finished.");
-    checkState(!isReleased, "Sort buffer is already released.");
+    checkState(!isFinished, "Data buffer is already finished.");
+    checkState(!isReleased, "Data buffer is already released.");
 
     int totalBytes = source.remaining();
 
@@ -233,7 +233,7 @@ public class SortBasedDataBuffer implements DataBuffer {
 
     if (isReleased) {
       bufferPool.recycle(segment);
-      throw new IllegalStateException("Sort buffer is already released.");
+      throw new IllegalStateException("Data buffer is already released.");
     }
 
     buffers.add(segment);
@@ -266,8 +266,8 @@ public class SortBasedDataBuffer implements DataBuffer {
   public BufferWithSubpartition getNextBuffer(
       MemorySegment transitBuffer, BufferRecycler recycler, int offset) {
     checkState(hasRemaining(), "No data remaining.");
-    checkState(isFinished, "Should finish the sort buffer first before coping any data.");
-    checkState(!isReleased, "Sort buffer is already released.");
+    checkState(isFinished, "Should finish the data buffer first before coping any data.");
+    checkState(!isReleased, "Data buffer is already released.");
 
     int numBytesCopied = 0;
     DataType bufferDataType = DataType.DATA_BUFFER;
@@ -409,7 +409,7 @@ public class SortBasedDataBuffer implements DataBuffer {
 
   @Override
   public void release() {
-    // the sort buffer can be released by other threads
+    // the data buffer can be released by other threads
     if (isReleased) {
       return;
     }

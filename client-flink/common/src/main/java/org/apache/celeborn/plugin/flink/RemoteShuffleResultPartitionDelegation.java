@@ -113,7 +113,7 @@ public class RemoteShuffleResultPartitionDelegation {
 
     try {
       if (!dataBuffer.hasRemaining()) {
-        // the record can not be appended to the free sort buffer because it is too large
+        // the record can not be appended to the free data buffer because it is too large
         dataBuffer.finish();
         dataBuffer.release();
         writeLargeRecord(record, targetSubpartition, dataType, isBroadcast);
@@ -121,7 +121,7 @@ public class RemoteShuffleResultPartitionDelegation {
       }
       flushDataBuffer(dataBuffer, isBroadcast);
     } catch (InterruptedException e) {
-      LOG.error("Failed to flush the sort buffer.", e);
+      LOG.error("Failed to flush the data buffer.", e);
       Utils.rethrowAsRuntimeException(e);
     }
     emit(record, targetSubpartition, dataType, isBroadcast);
@@ -188,7 +188,7 @@ public class RemoteShuffleResultPartitionDelegation {
         }
         outputGate.regionFinish();
       } catch (InterruptedException e) {
-        throw new IOException("Failed to flush the sort buffer, broadcast=" + isBroadcast, e);
+        throw new IOException("Failed to flush the data buffer, broadcast=" + isBroadcast, e);
       }
     }
     releaseDataBuffer(dataBuffer);
@@ -256,7 +256,7 @@ public class RemoteShuffleResultPartitionDelegation {
   public void finish() throws IOException {
     Utils.checkState(
         unicastDataBuffer == null || unicastDataBuffer.isReleased(),
-        "The unicast sort buffer should be either null or released.");
+        "The unicast data buffer should be either null or released.");
     flushBroadcastDataBuffer();
     try {
       outputGate.finish();
@@ -271,13 +271,13 @@ public class RemoteShuffleResultPartitionDelegation {
         checkException(
             () -> releaseDataBuffer(unicastDataBuffer),
             null,
-            "Failed to release unicast sort buffer.");
+            "Failed to release unicast data buffer.");
 
     closeException =
         checkException(
             () -> releaseDataBuffer(broadcastDataBuffer),
             closeException,
-            "Failed to release broadcast sort buffer.");
+            "Failed to release broadcast data buffer.");
 
     closeException =
         checkException(closeHandler, closeException, "Failed to call super#close() method.");
@@ -310,7 +310,7 @@ public class RemoteShuffleResultPartitionDelegation {
       flushUnicastDataBuffer();
       flushBroadcastDataBuffer();
     } catch (Throwable t) {
-      LOG.error("Failed to flush the current sort buffer.", t);
+      LOG.error("Failed to flush the current data buffer.", t);
       Utils.rethrowAsRuntimeException(t);
     }
   }

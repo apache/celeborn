@@ -50,7 +50,7 @@ public class SortBasedDataBufferSuiteJ {
     int bufferPoolSize = 1000;
     Random random = new Random(1111);
 
-    // used to store data written to and read from sort buffer for correctness check
+    // used to store data written to and read from data buffer for correctness check
     Queue<DataAndType>[] dataWritten = new Queue[numSubpartitions];
     Queue<Buffer>[] buffersRead = new Queue[numSubpartitions];
     for (int i = 0; i < numSubpartitions; ++i) {
@@ -63,7 +63,7 @@ public class SortBasedDataBufferSuiteJ {
     Arrays.fill(numBytesWritten, 0);
     Arrays.fill(numBytesRead, 0);
 
-    // fill the sort buffer with randomly generated data
+    // fill the data buffer with randomly generated data
     int totalBytesWritten = 0;
     DataBuffer dataBuffer =
         createDataBuffer(
@@ -97,7 +97,7 @@ public class SortBasedDataBufferSuiteJ {
       totalBytesWritten += recordSize;
     }
 
-    // read all data from the sort buffer
+    // read all data from the data buffer
     while (dataBuffer.hasRemaining()) {
       MemorySegment readBuffer = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
       BufferWithSubpartition bufferWithSubpartition =
