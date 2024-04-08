@@ -42,6 +42,7 @@ abstract class HttpService extends Service with Logging {
         sb.append(config(key, value, maxKeyLength))
       }
     }
+    sb.toString()
   }
 
   def getDynamicConfigs(
