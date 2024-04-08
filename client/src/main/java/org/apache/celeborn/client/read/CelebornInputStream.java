@@ -75,7 +75,7 @@ public abstract class CelebornInputStream extends InputStream {
       // if startMapIndex > endMapIndex, means partition is skew partition.
       // locations will split to sub-partitions with startMapIndex size.
       boolean splitSkewPartitionWithoutMapRange =
-          conf.clientPushFailureTrackingEnabled() && startMapIndex > endMapIndex;
+          conf.clientAdaptiveOptimizeSkewedPartitionReadEnabled() && startMapIndex > endMapIndex;
       if (splitSkewPartitionWithoutMapRange) {
         Map<String, Pair<Integer, Integer>> partitionLocationToChunkRange =
             splitSkewedPartitionLocations(locations, startMapIndex, endMapIndex);

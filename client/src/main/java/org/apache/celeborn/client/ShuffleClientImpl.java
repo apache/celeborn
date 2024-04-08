@@ -201,7 +201,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       pushDataTimeout = conf.pushDataTimeoutMs();
     }
     authEnabled = conf.authEnabledOnClient();
-    dataPushFailureTrackingEnabled = conf.clientPushFailureTrackingEnabled();
+    dataPushFailureTrackingEnabled = conf.clientAdaptiveOptimizeSkewedPartitionReadEnabled();
 
     // init rpc env
     rpcEnv =
