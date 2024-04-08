@@ -1890,6 +1890,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       ArrayList<PartitionLocation> locations,
       ArrayList<PbStreamHandler> streamHandlers,
       Map<String, Set<PushFailedBatch>> failedBatchSetMap,
+      Map<String, Pair<Integer, Integer>> chunksRange,
       int[] mapAttempts,
       MetricsCallback metricsCallback)
       throws IOException {
@@ -1923,6 +1924,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           streamHandlers,
           mapAttempts,
           failedBatchSetMap,
+          chunksRange,
           attemptNumber,
           startMapIndex,
           endMapIndex,
