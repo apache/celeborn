@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.server.common.http
 
+import scala.util.Try
+
 import org.apache.commons.lang3.SystemUtils
 import org.eclipse.jetty.server.{Handler, HttpConfiguration, HttpConnectionFactory, Server, ServerConnector}
 import org.eclipse.jetty.server.handler.{ContextHandlerCollection, ErrorHandler}
@@ -60,11 +62,20 @@ private[celeborn] case class HttpServer(
       server.setStopTimeout(0)
       connector.setStopTimeout(0)
     }
+    val threadPool = server.getThreadPool
+    threadPool match {
+      case pool: QueuedThreadPool =>
+        // avoid Jetty's acceptor thread shrink
+        Try(pool.setIdleTimeout(0))
+      case _ =>
+    }
     logInfo(s"$role: Stopping HttpServer")
     server.stop()
     server.join()
     connector.stop()
-    server.getThreadPool match {
+    // Stop the ThreadPool if it supports stop() method (through LifeCycle).
+    // It is needed because stopping the Server won't stop the ThreadPool it uses.
+    threadPool match {
       case lifeCycle: LifeCycle => lifeCycle.stop()
       case _ =>
     }
