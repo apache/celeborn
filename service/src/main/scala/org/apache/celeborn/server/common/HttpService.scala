@@ -38,7 +38,7 @@ abstract class HttpService extends Service with Logging {
     if (conf.getAll.nonEmpty) {
       val redactedConf = Utils.redact(conf, conf.getAll)
       val maxKeyLength = redactedConf.toMap.keys.map(_.length).max
-      conf.getAll.sortBy(_._1).foreach { case (key, value) =>
+      redactedConf.sortBy(_._1).foreach { case (key, value) =>
         sb.append(config(key, value, maxKeyLength))
       }
     }
