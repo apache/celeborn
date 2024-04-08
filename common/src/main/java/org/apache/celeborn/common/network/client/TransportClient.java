@@ -208,7 +208,22 @@ public class TransportClient implements Closeable {
 
   public ChannelFuture pushData(
       PushData pushData, long pushDataTimeout, RpcResponseCallback callback) {
-    return pushData(pushData, pushDataTimeout, callback, null, () -> pushData.body().release());
+    return pushData(pushData, pushDataTimeout, callback, null);
+  }
+
+  public ChannelFuture pushData(
+      PushData pushData,
+      long pushDataTimeout,
+      RpcResponseCallback callback,
+      Runnable rpcSendoutCallback) {
+    Runnable rpcFailureCallback = () -> {
+      try {
+        pushData.body().release();
+      } catch (Throwable e) {
+        logger.error("Error release buffer for PUSH_DATA request " + pushData.requestId, e);
+      }
+    };
+    return pushData(pushData, pushDataTimeout, callback, rpcSendoutCallback, rpcFailureCallback);
   }
 
   public ChannelFuture pushData(
@@ -235,8 +250,15 @@ public class TransportClient implements Closeable {
 
   public ChannelFuture pushMergedData(
       PushMergedData pushMergedData, long pushDataTimeout, RpcResponseCallback callback) {
+    Runnable rpcFailureCallback = () -> {
+      try {
+        pushMergedData.body().release();
+      } catch (Throwable e) {
+        logger.error("Error release buffer for PUSH_MERGED_DATA request " + pushMergedData.requestId, e);
+      }
+    };
     return pushMergedData(
-        pushMergedData, pushDataTimeout, callback, null, () -> pushMergedData.body().release());
+        pushMergedData, pushDataTimeout, callback, null, rpcFailureCallback);
   }
 
   public ChannelFuture pushMergedData(
