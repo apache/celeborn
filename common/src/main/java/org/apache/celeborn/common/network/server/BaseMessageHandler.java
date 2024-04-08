@@ -49,7 +49,7 @@ public class BaseMessageHandler {
 
   protected void checkAuth(TransportClient client, String appId) {
     if (client.getClientId() != null && !client.getClientId().equals(appId)) {
-      throw new SecurityException(
+      throw new IllegalStateException(
           String.format(
               "Client for %s not authorized for application %s.", client.getClientId(), appId));
     }

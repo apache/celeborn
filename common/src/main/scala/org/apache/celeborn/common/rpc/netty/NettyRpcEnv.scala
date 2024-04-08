@@ -585,7 +585,7 @@ private[celeborn] class NettyRpcHandler(
     try {
       val message = requestMessage.body().nioByteBuffer()
       val messageToDispatch = internalReceive(client, message)
-      dispatcher.postRemoteMessage(messageToDispatch, callback)
+      dispatcher.postRemoteMessage(messageToDispatch, callback, client)
     } catch {
       case e: Exception =>
         val rpcReq = requestMessage.asInstanceOf[RpcRequest]

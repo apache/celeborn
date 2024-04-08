@@ -89,6 +89,7 @@ private[deploy] class Controller(
           userIdentifier,
           pushDataTimeout,
           partitionSplitEnabled) =>
+      checkAuth(context, applicationId)
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.RESERVE_SLOTS_TIME, shuffleKey) {
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
@@ -118,6 +119,7 @@ private[deploy] class Controller(
           mapAttempts,
           epoch,
           mockFailure) =>
+      checkAuth(context, applicationId)
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       logDebug(s"Received CommitFiles request, $shuffleKey, primary files" +
         s" ${primaryIds.asScala.mkString(",")}; replica files ${replicaIds.asScala.mkString(",")}.")
@@ -135,6 +137,7 @@ private[deploy] class Controller(
         s"$commitFilesTimeMs ms.")
 
     case DestroyWorkerSlots(shuffleKey, primaryLocations, replicaLocations, mockFailure) =>
+      checkAuth(context, Utils.splitShuffleKey(shuffleKey)._1)
       handleDestroy(context, shuffleKey, primaryLocations, replicaLocations, mockFailure)
   }
 
