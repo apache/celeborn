@@ -1282,9 +1282,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def rackResolverRefreshInterval = get(RACKRESOLVER_REFRESH_INTERVAL)
 
-  def logMasterConfEnabled = get(LOG_MASTER_CONF)
+  def logCelebornConfEnabled = get(LOG_CELEBORN_CONF_ENABLED)
 
-  def logWorkerConfEnabled = get(LOG_WORKER_CONF)
+  def secretRedactionPattern = get(SECRET_REDACTION_PATTERN)
 }
 
 object CelebornConf extends Logging {
@@ -4927,19 +4927,21 @@ object CelebornConf extends Logging {
         s"Invalid maxEncryptedBlockSize, must be a position number upto ${Int.MaxValue}")
       .createWithDefaultString("64k")
 
-  val LOG_MASTER_CONF: ConfigEntry[Boolean] =
-    buildConf("celeborn.master.logConf")
-      .categories("master")
+  val SECRET_REDACTION_PATTERN =
+    buildConf("celeborn.redaction.regex")
+      .categories("master", "worker")
+      .doc("Regex to decide which Celeborn configuration properties and environment variables in " +
+        "master and worker environments contain sensitive information. When this regex matches " +
+        "a property key or value, the value is redacted from the logging.")
       .version("0.5.0")
-      .doc("When `true`, log the master conf for debugging purposes.")
-      .booleanConf
-      .createWithDefault(false)
+      .regexConf
+      .createWithDefault("(?i)secret|password|token|access[.]key".r)
 
-  val LOG_WORKER_CONF: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.logConf")
-      .categories("worker")
+  val LOG_CELEBORN_CONF_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.logConf.enabled")
+      .categories("master", "worker")
       .version("0.5.0")
-      .doc("When `true`, log the worker conf for debugging purposes.")
+      .doc("When `true`, log the CelebornConf for debugging purposes.")
       .booleanConf
       .createWithDefault(false)
 

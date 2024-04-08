@@ -23,6 +23,7 @@ import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.http.HttpServer
 import org.apache.celeborn.server.common.http.api.ApiRootResource
 import org.apache.celeborn.server.common.service.config.ConfigLevel
@@ -35,12 +36,12 @@ abstract class HttpService extends Service with Logging {
     val sb = new StringBuilder
     sb.append("=========================== Configuration ============================\n")
     if (conf.getAll.nonEmpty) {
-      val maxKeyLength = conf.getAll.toMap.keys.map(_.length).max
+      val redactedConf = Utils.redact(conf, conf.getAll)
+      val maxKeyLength = redactedConf.toMap.keys.map(_.length).max
       conf.getAll.sortBy(_._1).foreach { case (key, value) =>
         sb.append(config(key, value, maxKeyLength))
       }
     }
-    sb.toString()
   }
 
   def getDynamicConfigs(

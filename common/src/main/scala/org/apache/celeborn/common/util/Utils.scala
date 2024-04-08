@@ -34,6 +34,7 @@ import scala.io.Source
 import scala.reflect.ClassTag
 import scala.util.{Random => ScalaRandom, Try}
 import scala.util.control.{ControlThrowable, NonFatal}
+import scala.util.matching.Regex
 
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
@@ -1100,5 +1101,45 @@ object Utils extends Logging {
     val portsArr = components.takeRight(portsNum)
     val host = components.dropRight(portsNum).mkString(":")
     Array(host) ++ portsArr
+  }
+
+  private val REDACTION_REPLACEMENT_TEXT = "*********(redacted)"
+
+  /**
+   * Redact the sensitive values in the given map. If a map key matches the redaction pattern then
+   * its value is replaced with a dummy text.
+   */
+  def redact(conf: CelebornConf, kvs: Seq[(String, String)]): Seq[(String, String)] = {
+    val redactionPattern = conf.secretRedactionPattern
+    redact(redactionPattern, kvs)
+  }
+
+  private def redact[K, V](redactionPattern: Regex, kvs: Seq[(K, V)]): Seq[(K, V)] = {
+    // If the sensitive information regex matches with either the key or the value, redact the value
+    // While the original intent was to only redact the value if the key matched with the regex,
+    // we've found that especially in verbose mode, the value of the property may contain sensitive
+    // information like so:
+    //
+    // celeborn.dynamicConfig.store.db.hikari.password=secret_password ...
+    //
+    // And, in such cases, simply searching for the sensitive information regex in the key name is
+    // not sufficient. The values themselves have to be searched as well and redacted if matched.
+    // This does mean we may be accounting more false positives - for example, if the value of an
+    // arbitrary property contained the term 'password', we may redact the value from the UI and
+    // logs. In order to work around it, user would have to make the celeborn.redaction.regex property
+    // more specific.
+    kvs.map {
+      case (key: String, value: String) =>
+        redactionPattern.findFirstIn(key)
+          .orElse(redactionPattern.findFirstIn(value))
+          .map { _ => (key, REDACTION_REPLACEMENT_TEXT) }
+          .getOrElse((key, value))
+      case (key, value: String) =>
+        redactionPattern.findFirstIn(value)
+          .map { _ => (key, REDACTION_REPLACEMENT_TEXT) }
+          .getOrElse((key, value))
+      case (key, value) =>
+        (key, value)
+    }.asInstanceOf[Seq[(K, V)]]
   }
 }

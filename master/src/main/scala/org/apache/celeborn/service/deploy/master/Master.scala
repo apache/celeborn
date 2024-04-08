@@ -79,7 +79,7 @@ private[celeborn] class Master(
   private val authEnabled = conf.authEnabled
   private val secretRegistry = new MasterSecretRegistryImpl()
 
-  if (conf.logMasterConfEnabled) {
+  if (conf.logCelebornConfEnabled) {
     logInfo(getConf)
   }
 
