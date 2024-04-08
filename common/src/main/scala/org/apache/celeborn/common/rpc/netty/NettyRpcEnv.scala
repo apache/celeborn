@@ -59,7 +59,8 @@ class NettyRpcEnv(
 
   private var worker: RpcEndpoint = null
 
-  private val transportContext =
+  // Visible for tests
+  private[netty] val transportContext =
     new TransportContext(transportConf, new NettyRpcHandler(dispatcher, this))
 
   private def createClientBootstraps(): java.util.List[TransportClientBootstrap] = {
@@ -342,6 +343,9 @@ class NettyRpcEnv(
     if (clientFactory != null) {
       clientFactory.close()
     }
+    if (null != transportContext) {
+      transportContext.close();
+    }
     if (clientConnectionExecutor != null) {
       clientConnectionExecutor.shutdownNow()
     }
@@ -585,7 +589,7 @@ private[celeborn] class NettyRpcHandler(
     try {
       val message = requestMessage.body().nioByteBuffer()
       val messageToDispatch = internalReceive(client, message)
-      dispatcher.postRemoteMessage(messageToDispatch, callback)
+      dispatcher.postRemoteMessage(messageToDispatch, callback, client)
     } catch {
       case e: Exception =>
         val rpcReq = requestMessage.asInstanceOf[RpcRequest]

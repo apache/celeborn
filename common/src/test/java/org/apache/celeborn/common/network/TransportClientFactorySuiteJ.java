@@ -37,23 +37,36 @@ import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.util.JavaUtils;
 
 public class TransportClientFactorySuiteJ {
+
+  static final String TEST_MODULE = "shuffle";
+
   private TransportContext context;
   private TransportServer server1;
   private TransportServer server2;
 
-  @Before
-  public void setUp() {
-    TransportConf conf = new TransportConf("shuffle", new CelebornConf());
+  protected void doSetup(CelebornConf celebornConf) {
+    TransportConf conf = new TransportConf(TEST_MODULE, celebornConf);
     BaseMessageHandler handler = new BaseMessageHandler();
     context = new TransportContext(conf, handler);
     server1 = context.createServer();
     server2 = context.createServer();
   }
 
+  @Before
+  public void setUp() {
+    doSetup(new CelebornConf());
+  }
+
+  // for validation in subclasses
+  TransportConf getTransportContextConf() {
+    return context.getConf();
+  }
+
   @After
   public void tearDown() {
     JavaUtils.closeQuietly(server1);
     JavaUtils.closeQuietly(server2);
+    JavaUtils.closeQuietly(context);
   }
 
   /**
@@ -68,7 +81,7 @@ public class TransportClientFactorySuiteJ {
 
     CelebornConf _conf = new CelebornConf();
     _conf.set("celeborn.shuffle.io.numConnectionsPerPeer", Integer.toString(maxConnections));
-    TransportConf conf = new TransportConf("shuffle", _conf);
+    TransportConf conf = new TransportConf(TEST_MODULE, _conf);
 
     BaseMessageHandler handler = new BaseMessageHandler();
     TransportContext context = new TransportContext(conf, handler);
@@ -114,6 +127,7 @@ public class TransportClientFactorySuiteJ {
     }
 
     factory.close();
+    context.close();
   }
 
   @Test
@@ -177,7 +191,7 @@ public class TransportClientFactorySuiteJ {
   public void closeIdleConnectionForRequestTimeOut() throws IOException, InterruptedException {
     CelebornConf _conf = new CelebornConf();
     _conf.set("celeborn.shuffle.io.connectionTimeout", "1s");
-    TransportConf conf = new TransportConf("shuffle", _conf);
+    TransportConf conf = new TransportConf(TEST_MODULE, _conf);
     TransportContext context = new TransportContext(conf, new BaseMessageHandler(), true);
     try (TransportClientFactory factory = context.createClientFactory()) {
       TransportClient c1 = factory.createClient(getLocalHost(), server1.getPort());
@@ -188,6 +202,7 @@ public class TransportClientFactorySuiteJ {
       }
       assertFalse(c1.isActive());
     }
+    context.close();
   }
 
   @Test(expected = IOException.class)

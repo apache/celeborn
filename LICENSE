@@ -215,6 +215,7 @@ Apache Spark
 ./common/src/main/java/org/apache/celeborn/common/network/protocol/EncryptedMessageWithHeader.java
 ./common/src/main/java/org/apache/celeborn/common/network/protocol/SslMessageEncoder.java
 ./common/src/main/java/org/apache/celeborn/common/network/ssl/ReloadingX509TrustManager.java
+./common/src/main/java/org/apache/celeborn/common/network/ssl/SSLFactory.java
 ./common/src/main/java/org/apache/celeborn/common/network/util/NettyLogger.java
 ./common/src/main/java/org/apache/celeborn/common/unsafe/Platform.java
 ./common/src/main/java/org/apache/celeborn/common/util/JavaUtils.java

@@ -196,7 +196,7 @@ private[celeborn] class Worker(
   }
 
   val pushDataHandler = new PushDataHandler(workerSource)
-  private val pushServer = {
+  private val (pushServerTransportContext, pushServer) = {
     val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads = conf.workerPushIoThreads.getOrElse(storageManager.totalFlusherThread)
     val transportConf =
@@ -210,11 +210,13 @@ private[celeborn] class Worker(
         pushServerLimiter,
         conf.workerPushHeartbeatEnabled,
         workerSource)
-    transportContext.createServer(conf.workerPushPort, getServerBootstraps(transportConf))
+    (
+      transportContext,
+      transportContext.createServer(conf.workerPushPort, getServerBootstraps(transportConf)))
   }
 
   val replicateHandler = new PushDataHandler(workerSource)
-  val (replicateServer, replicateClientFactory) = {
+  val (replicateTransportContext, replicateServer, replicateClientFactory) = {
     val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads =
       conf.workerReplicateIoThreads.getOrElse(storageManager.totalFlusherThread)
@@ -230,12 +232,13 @@ private[celeborn] class Worker(
         false,
         workerSource)
     (
+      transportContext,
       transportContext.createServer(conf.workerReplicatePort),
       transportContext.createClientFactory())
   }
 
   var fetchHandler: FetchHandler = _
-  private val fetchServer = {
+  private val (fetchServerTransportContext, fetchServer) = {
     val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads = conf.workerFetchIoThreads.getOrElse(storageManager.totalFlusherThread)
     val transportConf =
@@ -248,7 +251,9 @@ private[celeborn] class Worker(
         closeIdleConnections,
         conf.workerFetchHeartbeatEnabled,
         workerSource)
-    transportContext.createServer(conf.workerFetchPort, getServerBootstraps(transportConf))
+    (
+      transportContext,
+      transportContext.createServer(conf.workerFetchPort, getServerBootstraps(transportConf)))
   }
 
   private val pushPort = pushServer.getPort
@@ -403,6 +408,9 @@ private[celeborn] class Worker(
   }
   workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_AND_REPLICATE_COUNT) { () =>
     memoryManager.getPausePushDataAndReplicateCounter
+  }
+  workerSource.addGauge(WorkerSource.ACTIVE_SLOTS_COUNT) { () =>
+    workerInfo.usedSlots()
   }
 
   private def highWorkload: Boolean = {
@@ -564,6 +572,9 @@ private[celeborn] class Worker(
       replicateServer.shutdown(exitKind)
       fetchServer.shutdown(exitKind)
       pushServer.shutdown(exitKind)
+      replicateTransportContext.close()
+      fetchServerTransportContext.close()
+      pushServerTransportContext.close()
       metricsSystem.stop()
       if (conf.internalPortEnabled) {
         internalRpcEnvInUse.stop(internalRpcEndpointRef)

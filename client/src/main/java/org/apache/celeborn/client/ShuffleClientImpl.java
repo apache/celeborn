@@ -88,6 +88,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   protected RpcEndpointRef lifecycleManagerRef;
 
+  private TransportContext transportContext;
   protected TransportClientFactory dataClientFactory;
 
   protected final int BATCH_HEADER_SIZE = 4 * 4;
@@ -211,12 +212,12 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (dataClientFactory != null) {
       return;
     }
-    TransportContext context =
+    this.transportContext =
         new TransportContext(
             dataTransportConf, new BaseMessageHandler(), conf.clientCloseIdleConnections());
     if (!authEnabled) {
       logger.info("Initializing data client factory for {}.", appUniqueId);
-      dataClientFactory = context.createClientFactory();
+      dataClientFactory = transportContext.createClientFactory();
     } else if (lifecycleManagerRef != null) {
       PbApplicationMetaRequest pbApplicationMetaRequest =
           PbApplicationMetaRequest.newBuilder().setAppId(appUniqueId).build();
@@ -232,7 +233,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               dataTransportConf,
               appUniqueId,
               new SaslCredentials(appUniqueId, pbApplicationMeta.getSecret())));
-      dataClientFactory = context.createClientFactory(bootstraps);
+      dataClientFactory = transportContext.createClientFactory(bootstraps);
     }
   }
 
@@ -1741,6 +1742,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     if (null != dataClientFactory) {
       dataClientFactory.close();
+    }
+    if (null != transportContext) {
+      transportContext.close();
     }
     if (null != pushDataRetryPool) {
       pushDataRetryPool.shutdown();

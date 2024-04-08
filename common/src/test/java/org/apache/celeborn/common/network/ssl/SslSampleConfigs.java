@@ -62,7 +62,6 @@ public class SslSampleConfigs {
     Map<String, String> confMap = new HashMap<>();
     confMap.put("celeborn.ssl." + module + ".enabled", "true");
     confMap.put("celeborn.ssl." + module + ".trustStoreReloadingEnabled", "false");
-    confMap.put("celeborn.ssl." + module + ".openSslEnabled", "false");
     confMap.put("celeborn.ssl." + module + ".trustStoreReloadIntervalMs", "10000");
     if (forDefault) {
       confMap.put("celeborn.ssl." + module + ".keyStore", DEFAULT_KEY_STORE_PATH);

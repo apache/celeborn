@@ -34,6 +34,9 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +84,7 @@ public class TransportClientFactory implements Closeable {
   private final int numConnectionsPerPeer;
 
   private final int connectTimeoutMs;
+  private final int connectionTimeoutMs;
 
   private final int receiveBuf;
 
@@ -97,6 +101,7 @@ public class TransportClientFactory implements Closeable {
     this.connectionPool = JavaUtils.newConcurrentHashMap();
     this.numConnectionsPerPeer = conf.numConnectionsPerPeer();
     this.connectTimeoutMs = conf.connectTimeoutMs();
+    this.connectionTimeoutMs = conf.connectionTimeoutMs();
     this.receiveBuf = conf.receiveBuf();
     this.sendBuf = conf.sendBuf();
     this.rand = new Random();
@@ -237,7 +242,7 @@ public class TransportClientFactory implements Closeable {
         new ChannelInitializer<SocketChannel>() {
           @Override
           public void initChannel(SocketChannel ch) {
-            TransportChannelHandler clientHandler = context.initializePipeline(ch, decoder);
+            TransportChannelHandler clientHandler = context.initializePipeline(ch, decoder, true);
             clientRef.set(clientHandler.getClient());
             channelRef.set(ch);
           }
@@ -251,6 +256,32 @@ public class TransportClientFactory implements Closeable {
           String.format("Connecting to %s timed out (%s ms)", address, connectTimeoutMs));
     } else if (cf.cause() != null) {
       throw new CelebornIOException(String.format("Failed to connect to %s", address), cf.cause());
+    }
+    if (context.sslEncryptionEnabled()) {
+      final SslHandler sslHandler = cf.channel().pipeline().get(SslHandler.class);
+      Future<Channel> future =
+          sslHandler
+              .handshakeFuture()
+              .addListener(
+                  new GenericFutureListener<Future<Channel>>() {
+                    @Override
+                    public void operationComplete(final Future<Channel> handshakeFuture) {
+                      if (handshakeFuture.isSuccess()) {
+                        logger.debug("successfully completed TLS handshake to {}", address);
+                      } else {
+                        logger.info(
+                            "failed to complete TLS handshake to {}",
+                            address,
+                            handshakeFuture.cause());
+                        cf.channel().close();
+                      }
+                    }
+                  });
+      if (!future.await(connectionTimeoutMs)) {
+        cf.channel().close();
+        throw new IOException(
+            String.format("Failed to connect to %s within connection timeout", address));
+      }
     }
 
     TransportClient client = clientRef.get();

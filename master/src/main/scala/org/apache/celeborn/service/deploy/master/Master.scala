@@ -397,6 +397,7 @@ private[celeborn] class Master(
           requestId,
           shouldResponse) =>
       logDebug(s"Received heartbeat from app $appId")
+      checkAuth(context, appId)
       executeWithLeaderChecker(
         context,
         handleHeartbeatFromApplication(
@@ -446,6 +447,7 @@ private[celeborn] class Master(
 
     case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
+      checkAuth(context, applicationId)
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
     case pb: PbUnregisterShuffle =>
@@ -453,6 +455,7 @@ private[celeborn] class Master(
       val shuffleId = pb.getShuffleId
       val requestId = pb.getRequestId
       logDebug(s"Received UnregisterShuffle request $requestId, $applicationId, $shuffleId")
+      checkAuth(context, applicationId)
       executeWithLeaderChecker(
         context,
         handleUnregisterShuffle(context, applicationId, shuffleId, requestId))
@@ -460,6 +463,7 @@ private[celeborn] class Master(
     case ApplicationLost(appId, requestId) =>
       logDebug(
         s"Received ApplicationLost request $requestId, $appId from ${context.senderAddress}.")
+      checkAuth(context, appId)
       executeWithLeaderChecker(context, handleApplicationLost(context, appId, requestId))
 
     case HeartbeatFromWorker(
@@ -542,6 +546,7 @@ private[celeborn] class Master(
           context))
 
     case pb: PbApplicationMetaRequest =>
+      // This request is from a worker
       executeWithLeaderChecker(context, handleRequestForApplicationMeta(context, pb))
   }
 

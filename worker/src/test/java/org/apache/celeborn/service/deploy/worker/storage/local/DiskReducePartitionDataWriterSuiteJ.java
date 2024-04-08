@@ -85,14 +85,12 @@ public class DiskReducePartitionDataWriterSuiteJ {
   private static LocalFlusher localFlusher = null;
   private static WorkerSource source = null;
 
-  private static TransportServer server;
-  private static TransportClientFactory clientFactory;
+  private TransportContext transportContext;
+  private TransportServer server;
+  private TransportClientFactory clientFactory;
   private static long streamId;
   private static int numChunks;
   private final UserIdentifier userIdentifier = new UserIdentifier("mock-tenantId", "mock-name");
-
-  private static final TransportConf transConf = new TransportConf("shuffle", new CelebornConf());
-  private static final CelebornConf celebornConf = new CelebornConf();
 
   @BeforeClass
   public static void beforeAll() {
@@ -134,7 +132,13 @@ public class DiskReducePartitionDataWriterSuiteJ {
     MemoryManager.initialize(conf);
   }
 
-  public static void setupChunkServer(DiskFileInfo info) throws IOException {
+  protected TransportConf createModuleTransportConf(String module) {
+    return new TransportConf(module, new CelebornConf());
+  }
+
+  public void setupChunkServer(DiskFileInfo info) throws IOException {
+    TransportConf transConf = createModuleTransportConf("shuffle");
+
     FetchHandler handler =
         new FetchHandler(transConf.getCelebornConf(), transConf, mock(WorkerSource.class)) {
           @Override
@@ -161,10 +165,10 @@ public class DiskReducePartitionDataWriterSuiteJ {
         .when(sorter)
         .getSortedFileInfo(anyString(), anyString(), eq(info), anyInt(), anyInt());
     handler.setPartitionsSorter(sorter);
-    TransportContext context = new TransportContext(transConf, handler);
-    server = context.createServer();
+    transportContext = new TransportContext(transConf, handler);
+    server = transportContext.createServer();
 
-    clientFactory = context.createClientFactory();
+    clientFactory = transportContext.createClientFactory();
   }
 
   @AfterClass
@@ -179,9 +183,10 @@ public class DiskReducePartitionDataWriterSuiteJ {
     }
   }
 
-  public static void closeChunkServer() {
+  public void closeChunkServer() {
     server.close();
     clientFactory.close();
+    transportContext.close();
   }
 
   static class FetchResult {
