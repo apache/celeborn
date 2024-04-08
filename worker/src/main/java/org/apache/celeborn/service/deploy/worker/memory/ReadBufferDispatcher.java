@@ -76,33 +76,44 @@ public class ReadBufferDispatcher extends Thread {
         logger.info("Buffer dispatcher is closing");
       }
 
-      if (request != null) {
-        long start = System.nanoTime();
-        List<ByteBuf> buffers = new ArrayList<>();
-        int bufferSize = request.getBufferSize();
-        while (buffers.size() < request.getNumber()) {
-          if (memoryManager.readBufferAvailable(bufferSize)) {
-            memoryManager.changeReadBufferCounter(bufferSize);
-            ByteBuf buf = readBufferAllocator.buffer(bufferSize, bufferSize);
-            buffers.add(buf);
-            allocatedReadBuffers.increment();
-          } else {
-            try {
-              // If dispatcher can not allocate requested buffers, it will wait here until necessary
-              // buffers are get.
-              Thread.sleep(this.readBufferAllocationWait);
-            } catch (InterruptedException e) {
-              logger.info("Buffer dispatcher is closing");
+      List<ByteBuf> buffers = null;
+      try {
+        if (request != null) {
+          long start = System.nanoTime();
+          int bufferSize = request.getBufferSize();
+          buffers = new ArrayList<>();
+          while (buffers.size() < request.getNumber()) {
+            if (memoryManager.readBufferAvailable(bufferSize)) {
+              ByteBuf buf = readBufferAllocator.buffer(bufferSize, bufferSize);
+              buffers.add(buf);
+              memoryManager.changeReadBufferCounter(bufferSize);
+              allocatedReadBuffers.increment();
+            } else {
+              try {
+                // If dispatcher can not allocate requested buffers, it will wait here until
+                // necessary
+                // buffers are get.
+                Thread.sleep(this.readBufferAllocationWait);
+              } catch (InterruptedException e) {
+                logger.info("Buffer dispatcher is closing");
+              }
             }
           }
+          long end = System.nanoTime();
+          logger.debug(
+              "process read buffer request using {} ms",
+              TimeUnit.NANOSECONDS.toMillis(end - start));
+          request.getBufferListener().notifyBuffers(buffers, null);
+        } else {
+          // Free buffer pool memory to main direct memory when dispatcher is idle.
+          readBufferAllocator.trimCurrentThreadCache();
         }
-        long end = System.nanoTime();
-        logger.debug(
-            "process read buffer request using {} ms", TimeUnit.NANOSECONDS.toMillis(end - start));
-        request.getBufferListener().notifyBuffers(buffers, null);
-      } else {
-        // Free buffer pool memory to main direct memory when dispatcher is idle.
-        readBufferAllocator.trimCurrentThreadCache();
+      } catch (Throwable e) {
+        logger.error(e.getMessage(), e);
+        // recycle all allocated buffers
+        if (buffers != null) {
+          buffers.forEach(this::recycle);
+        }
       }
     }
   }
