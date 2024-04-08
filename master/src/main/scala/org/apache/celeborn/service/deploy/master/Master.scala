@@ -82,6 +82,10 @@ private[celeborn] class Master(
   // Send ApplicationMeta to workers
   private var sendApplicationMetaExecutor: ExecutorService = _
 
+  if (conf.logCelebornConfEnabled) {
+    logInfo(getConf)
+  }
+
   override val rpcEnv: RpcEnv =
     if (!authEnabled) {
       RpcEnv.create(
