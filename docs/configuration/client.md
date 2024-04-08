@@ -19,13 +19,13 @@ license: |
 <!--begin-include-->
 | Key | Default | isDynamic | Description | Since | Deprecated |
 | --- | ------- | --------- | ----------- | ----- | ---------- |
+| celeborn.client.adaptive.optimizeSkewedPartitionRead.enabled | false | false | If this is true, Celeborn will adaptively split skewed partitions instead of reading them by Spark map range. Please note that this feature requires the `Celeborn-Optimize-Skew-Partitions-spark3_3.patch`.  | 0.5.0 |  | 
 | celeborn.client.application.heartbeatInterval | 10s | false | Interval for client to send heartbeat message to master. | 0.3.0 | celeborn.application.heartbeatInterval | 
 | celeborn.client.application.unregister.enabled | true | false | When true, Celeborn client will inform celeborn master the application is already shutdown during client exit, this allows the cluster to release resources immediately, resulting in resource savings. | 0.3.2 |  | 
 | celeborn.client.application.uuidSuffix.enabled | false | false | Whether to add UUID suffix for application id for unique. When `true`, add UUID suffix for unique application id. Currently, this only applies to Spark and MR. | 0.6.0 |  | 
 | celeborn.client.chunk.prefetch.enabled | false | false | Whether to enable chunk prefetch when creating CelebornInputStream. | 0.6.0 |  | 
 | celeborn.client.closeIdleConnections | true | false | Whether client will close idle connections. | 0.3.0 |  | 
 | celeborn.client.commitFiles.ignoreExcludedWorker | false | false | When true, LifecycleManager will skip workers which are in the excluded list. | 0.3.0 |  | 
-| celeborn.client.dataPushFailure.tracking.enabled | false | false | When client push data to worker failed, client will record the failed batch info. Feature used to optimize skew join by avoid data sorting | 0.5.0 |  | 
 | celeborn.client.eagerlyCreateInputStream.threads | 32 | false | Threads count for streamCreatorPool in CelebornShuffleReader. | 0.3.1 |  | 
 | celeborn.client.excludePeerWorkerOnFailure.enabled | true | false | When true, Celeborn will exclude partition's peer worker on failure when push data to replica failed. | 0.3.0 |  | 
 | celeborn.client.excludedWorker.expireTimeout | 180s | false | Timeout time for LifecycleManager to clear reserved excluded worker. Default to be 1.5 * `celeborn.master.heartbeat.worker.timeout` to cover worker heartbeat timeout check period | 0.3.0 | celeborn.worker.excluded.expireTimeout | 
