@@ -1,43 +1,47 @@
-From 39eeab2426f9676580e4e19c8b079e1967081c7d Mon Sep 17 00:00:00 2001
-From: wangshengjie <wangshengjie3@xiaomi.com>
-Date: Sun, 24 Mar 2024 19:51:05 +0800
-Subject: [PATCH] [SQL] Handle skew partitions with Celeborn
-
----
- .../org/apache/spark/sql/internal/SQLConf.scala      | 10 ++++++++++
- .../execution/adaptive/ShufflePartitionsUtil.scala   | 12 +++++++++++-
- 2 files changed, 21 insertions(+), 1 deletion(-)
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 diff --git a/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala b/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala
-index af03ad9a4cb..1e55af89160 100644
+index af03ad9a4cb..3b5c7ce4fce 100644
 --- a/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala
 +++ b/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala
-@@ -3784,6 +3784,13 @@ object SQLConf {
+@@ -3784,6 +3784,12 @@ object SQLConf {
      .booleanConf
      .createWithDefault(false)
  
-+  val CELEBORN_CLIENT_DATA_PUSH_FAILURE_TRACKING_ENABLED =
-+    buildConf("spark.celeborn.client.dataPushFailure.tracking.enabled")
-+      .withAlternative("celeborn.client.dataPushFailure.tracking.enabled")
-+      .version("3.1.2-mdh")
++  val CELEBORN_CLIENT_ADAPTIVE_OPTIMIZE_SKEWED_PARTITION_READ =
++    buildConf("spark.celeborn.client.adaptive.optimizeSkewedPartitionRead.enabled")
++      .version("3.3.0")
 +      .booleanConf
 +      .createWithDefault(false)
 +
    /**
     * Holds information about keys that have been deprecated.
     *
-@@ -4549,6 +4556,9 @@ class SQLConf extends Serializable with Logging {
+@@ -4549,6 +4555,9 @@ class SQLConf extends Serializable with Logging {
    def histogramNumericPropagateInputType: Boolean =
      getConf(SQLConf.HISTOGRAM_NUMERIC_PROPAGATE_INPUT_TYPE)
  
-+  def isCelebornClientPushFailedTrackingEnabled: Boolean = getConf(
-+    SQLConf.CELEBORN_CLIENT_DATA_PUSH_FAILURE_TRACKING_ENABLED)
++  def celebornClientAdaptiveOptimizeSkewedPartitionReadEnabled: Boolean =
++    getConf(SQLConf.CELEBORN_CLIENT_ADAPTIVE_OPTIMIZE_SKEWED_PARTITION_READ)
 +
    /** ********************** SQLConf functionality methods ************ */
  
    /** Set Spark SQL configuration properties. */
 diff --git a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
-index af689db3379..7da6211e509 100644
+index af689db3379..38e54b3ed0a 100644
 --- a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
 +++ b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
 @@ -22,6 +22,8 @@ import scala.collection.mutable.ArrayBuffer
@@ -54,8 +58,8 @@ index af689db3379..7da6211e509 100644
        mapPartitionSizes, targetSize, smallPartitionFactor)
      if (mapStartIndices.length > 1) {
 +      // If Celeborn is enabled, split skew partitions without shuffle mapper-range reading
-+      val splitSkewPartitionWithCeleborn = Utils.isCelebornEnabled(SparkEnv.get.conf) &&
-+        SQLConf.get.isCelebornClientPushFailedTrackingEnabled
++      val isCelebornClientAdaptiveOptimizeSkewedPartitionReadEnabled = Utils.isCelebornEnabled(SparkEnv.get.conf) &&
++        SQLConf.get.celebornClientAdaptiveOptimizeSkewedPartitionReadEnabled
 +
        Some(mapStartIndices.indices.map { i =>
          val startMapIndex = mapStartIndices(i)
@@ -65,14 +69,11 @@ index af689db3379..7da6211e509 100644
            mapIndex += 1
          }
 -        PartialReducerPartitionSpec(reducerId, startMapIndex, endMapIndex, dataSize)
-+        if (splitSkewPartitionWithCeleborn) {
-+          PartialReducerPartitionSpec(reducerId, mapStartIndices.length, i, dataSize)
++        if (isCelebornClientAdaptiveOptimizeSkewedPartitionReadEnabled) {
++          PartialReducerPartitionSpec(reducerId, mapStartIndices.length, i, -1)
 +        } else {
 +          PartialReducerPartitionSpec(reducerId, startMapIndex, endMapIndex, dataSize)
 +        }
        })
      } else {
        None
--- 
-2.25.1
-
