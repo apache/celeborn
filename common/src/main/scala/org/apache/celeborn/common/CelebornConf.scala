@@ -4186,7 +4186,7 @@ object CelebornConf extends Logging {
       .version("0.5.0")
       .doc(
         s"Celeborn supports the following kind of fallback policies. 1. ${FallbackPolicy.ALWAYS.name}: force fallback shuffle to Spark's default; " +
-          s"2. ${FallbackPolicy.AUTO.name}: consider other factors like availability of enough workers and quota, or whether shuffle of partition number is lower than celeborn.client.spark.shuffle.forceFallback.numPartitionsThreshold" +
+          s"2. ${FallbackPolicy.AUTO.name}: consider other factors like availability of enough workers and quota, or whether shuffle of partition number is lower than celeborn.client.spark.shuffle.forceFallback.numPartitionsThreshold; " +
           s"3. ${FallbackPolicy.NEVER.name}: the job will fail if it is concluded that fallback is required based on factors above.")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
