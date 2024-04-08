@@ -396,6 +396,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_AND_REPLICATE_COUNT) { () =>
     memoryManager.getPausePushDataAndReplicateCounter
   }
+  workerSource.addGauge(WorkerSource.ACTIVE_SLOTS_COUNT) { () =>
+    workerInfo.usedSlots()
+  }
 
   private def highWorkload: Boolean = {
     (memoryManager.currentServingState, conf.workerActiveConnectionMax) match {

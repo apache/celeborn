@@ -141,7 +141,7 @@ class DiskInfo(
       shuffleAllocations.put(shuffleKey, shuffleAllocated - slots)
       applicationAllocations.put(applicationId, applicationAllocated - slots)
     }
-    activeSlots = activeSlots - Math.min(shuffleAllocated, slots)
+    activeSlots -= Math.min(shuffleAllocated, slots)
   }
 
   def releaseSlots(shuffleKey: String): Unit = this.synchronized {
