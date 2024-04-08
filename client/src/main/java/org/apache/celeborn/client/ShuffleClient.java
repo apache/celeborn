@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -244,6 +245,7 @@ public abstract class ShuffleClient {
         null,
         null,
         null,
+        null,
         metricsCallback);
   }
 
@@ -259,6 +261,7 @@ public abstract class ShuffleClient {
       ArrayList<PartitionLocation> locations,
       ArrayList<PbStreamHandler> streamHandlers,
       Map<String, Set<PushFailedBatch>> failedBatchSetMap,
+      Map<String, Pair<Integer, Integer>> chunksRange,
       int[] mapAttempts,
       MetricsCallback metricsCallback)
       throws IOException;
