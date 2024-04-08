@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
+import org.apache.celeborn.service.deploy.worker.storage.local.DiskReducePartitionDataWriterSuiteJ;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
@@ -25,7 +26,7 @@ import org.apache.celeborn.common.network.TestHelper;
 import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
 import org.apache.celeborn.common.network.util.TransportConf;
 
-public class SSLReducePartitionDataWriterSuiteJ extends ReducePartitionDataWriterSuiteJ {
+public class SSLReducePartitionDataWriterSuiteJ extends DiskReducePartitionDataWriterSuiteJ {
   protected TransportConf createModuleTransportConf(String module) {
     CelebornConf conf =
         TestHelper.updateCelebornConfWithMap(
@@ -35,11 +36,11 @@ public class SSLReducePartitionDataWriterSuiteJ extends ReducePartitionDataWrite
 
   @BeforeClass
   public static void beforeAll() {
-    ReducePartitionDataWriterSuiteJ.beforeAll();
+    DiskReducePartitionDataWriterSuiteJ.beforeAll();
   }
 
   @AfterClass
   public static void afterAll() {
-    ReducePartitionDataWriterSuiteJ.afterAll();
+    DiskReducePartitionDataWriterSuiteJ.afterAll();
   }
 }

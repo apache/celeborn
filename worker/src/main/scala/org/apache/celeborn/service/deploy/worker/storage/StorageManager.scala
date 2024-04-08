@@ -425,12 +425,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       fileInfo: MemoryFileInfo,
       shuffleKey: String,
       fileName: String): Unit = {
-    memoryFileInfos.synchronized {
-      memoryWriters.remove(fileInfo)
-      val map = memoryFileInfos.get(shuffleKey)
-      if (map != null) {
-        map.remove(fileName)
-      }
+    memoryWriters.remove(fileInfo)
+    val map = memoryFileInfos.get(shuffleKey)
+    if (map != null) {
+      map.remove(fileName)
     }
   }
 
@@ -452,15 +450,17 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       shuffleKey: String,
       fileName: String,
       read: Boolean = false): FileInfo = {
-    memoryFileInfos.synchronized {
-      val memoryShuffleMap = memoryFileInfos.get(shuffleKey)
-      if (memoryShuffleMap != null) {
-        val memoryFileInfo = memoryShuffleMap.get(fileName)
-        if (memoryFileInfo != null) {
-          if (read) {
-            memoryFileInfo.incrementReaderCount()
+    val memoryShuffleMap = memoryFileInfos.get(shuffleKey)
+    if (memoryShuffleMap != null) {
+      val memoryFileInfo = memoryShuffleMap.get(fileName)
+      if (memoryFileInfo != null) {
+        memoryFileInfo.synchronized {
+          if (!memoryFileInfo.getEvicted.get()) {
+            if (read) {
+              memoryFileInfo.incrementReaderCount()
+            }
+            return memoryFileInfo
           }
-          return memoryFileInfo
         }
       }
     }

@@ -269,7 +269,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, CONF),
             source,
-            celebornConf,
+            CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             new PartitionDataWriterContext(
                 SPLIT_THRESHOLD,
@@ -320,7 +320,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, CONF),
             source,
-            celebornConf,
+            CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             new PartitionDataWriterContext(
                 SPLIT_THRESHOLD,
@@ -372,7 +372,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, CONF),
             source,
-            celebornConf,
+            CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             new PartitionDataWriterContext(
                 SPLIT_THRESHOLD,
@@ -438,7 +438,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, CONF),
             source,
-            celebornConf,
+            CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             new PartitionDataWriterContext(
                 SPLIT_THRESHOLD,

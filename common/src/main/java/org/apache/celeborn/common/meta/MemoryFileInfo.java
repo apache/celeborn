@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.meta;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.netty.buffer.CompositeByteBuf;
@@ -33,6 +34,7 @@ public class MemoryFileInfo extends FileInfo {
   private CompositeByteBuf sortedBuffer;
   private Map<Integer, List<ShuffleBlockInfo>> sortedIndexes;
   private AtomicInteger readerCount = new AtomicInteger(0);
+  private AtomicBoolean evicted = new AtomicBoolean(false);
 
   public MemoryFileInfo(
       UserIdentifier userIdentifier, boolean partitionSplitEnabled, FileMeta fileMeta) {
@@ -98,5 +100,9 @@ public class MemoryFileInfo extends FileInfo {
 
   public boolean hasReader() {
     return readerCount.get() > 0;
+  }
+
+  public AtomicBoolean getEvicted() {
+    return evicted;
   }
 }

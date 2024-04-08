@@ -307,8 +307,7 @@ spark.dynamicAllocation.shuffleTracking.enabled false
 Copy `$CELEBORN_HOME/flink/*.jar` to `$FLINK_HOME/lib/`.
 
 #### Flink Configuration
-To use Celeborn, the following flink cw
-wonfigurations should be added.
+To use Celeborn, the following flink configurations should be added.
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
 execution.batch-shuffle-mode: ALL_EXCHANGES_BLOCKING

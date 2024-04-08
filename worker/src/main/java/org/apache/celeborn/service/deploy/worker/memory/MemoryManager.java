@@ -268,13 +268,17 @@ public class MemoryManager {
                     try {
                       if (!committedWriters.isEmpty()) {
                         PartitionDataWriter writer = committedWriters.remove(0);
-                        if (!writer.getMemoryFileInfo().hasReader()) {
-                          writer.evict();
+                        synchronized (writer.getMemoryFileInfo()) {
+                          if (!writer.getMemoryFileInfo().hasReader()) {
+                            writer.evict();
+                          }
                         }
                       } else if (!unCommittedWriters.isEmpty()) {
                         PartitionDataWriter writer = unCommittedWriters.remove(0);
-                        if (!writer.getMemoryFileInfo().hasReader()) {
-                          writer.evict();
+                        synchronized (writer.getMemoryFileInfo()) {
+                          if (!writer.getMemoryFileInfo().hasReader()) {
+                            writer.evict();
+                          }
                         }
                       } else {
                         break;

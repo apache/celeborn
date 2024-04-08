@@ -364,6 +364,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         initFileChannelsForDiskFile();
         flushInternal(closed, true);
 
+        memoryFileInfo.getEvicted().set(true);
         storageManager.unregisterMemoryPartitionWriterAndFileInfo(
             memoryFileInfo, writerContext.getShuffleKey(), filename);
 
