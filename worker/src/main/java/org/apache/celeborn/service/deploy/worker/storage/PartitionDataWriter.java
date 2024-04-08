@@ -156,9 +156,9 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     numPendingWrites.decrementAndGet();
   }
 
-  protected void flush(boolean finalFlush) throws IOException {
+  public void flush(boolean finalFlush) throws IOException {
     synchronized (flushLock) {
-      // flushBuffer == null here means writer already closed
+      // flushBuffer == null here means final flush already been called
       if (flushBuffer != null) {
         int numBytes = flushBuffer.readableBytes();
         if (numBytes != 0) {
@@ -416,12 +416,6 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   @Override
   public String toString() {
     return diskFileInfo.getFilePath();
-  }
-
-  public void flushOnMemoryPressure() throws IOException {
-    synchronized (flushLock) {
-      flush(false);
-    }
   }
 
   public long getSplitThreshold() {

@@ -671,7 +671,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           override def accept(file: String, writer: PartitionDataWriter): Unit = {
             if (writer.getException == null) {
               try {
-                writer.flushOnMemoryPressure()
+                writer.flush(false)
               } catch {
                 case t: Throwable =>
                   logError(
@@ -688,7 +688,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     })
     hdfsWriters.forEach(new BiConsumer[String, PartitionDataWriter] {
       override def accept(t: String, u: PartitionDataWriter): Unit = {
-        u.flushOnMemoryPressure()
+        u.flush(false)
       }
     })
   }

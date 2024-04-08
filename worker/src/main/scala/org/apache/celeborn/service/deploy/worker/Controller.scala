@@ -286,6 +286,21 @@ private[deploy] class Controller(
 
     if (uniqueIds != null) {
       uniqueIds.asScala.foreach { uniqueId =>
+        val location =
+          if (isPrimary) {
+            partitionLocationInfo.getPrimaryLocation(shuffleKey, uniqueId)
+          } else {
+            partitionLocationInfo.getReplicaLocation(shuffleKey, uniqueId)
+          }
+
+        if (location != null) {
+          val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
+          waitMapPartitionRegionFinished(fileWriter, conf.workerShuffleCommitTimeout)
+          fileWriter.flush(true)
+        }
+      }
+
+      uniqueIds.asScala.foreach { uniqueId =>
         val task = CompletableFuture.runAsync(
           new Runnable {
             override def run(): Unit = {
