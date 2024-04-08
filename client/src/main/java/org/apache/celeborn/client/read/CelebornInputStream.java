@@ -57,7 +57,6 @@ public abstract class CelebornInputStream extends InputStream {
       ArrayList<PbStreamHandler> streamHandlers,
       int[] attempts,
       Map<String, Set<PushFailedBatch>> failedBatchSetMap,
-      Map<String, Pair<Integer, Integer>> chunksRange,
       int attemptNumber,
       long taskId,
       int startMapIndex,
@@ -70,7 +69,7 @@ public abstract class CelebornInputStream extends InputStream {
       ExceptionMaker exceptionMaker,
       MetricsCallback metricsCallback)
       throws IOException {
-    if (locations == null || locations.isEmpty()) {
+    if (locations == null || locations.size() == 0) {
       return emptyInputStream;
     } else {
       // if startMapIndex > endMapIndex, means partition is skew partition.
@@ -78,6 +77,9 @@ public abstract class CelebornInputStream extends InputStream {
       boolean splitSkewPartitionWithoutMapRange =
           conf.clientPushFailureTrackingEnabled() && startMapIndex > endMapIndex;
       if (splitSkewPartitionWithoutMapRange) {
+        Map<String, Pair<Integer, Integer>> partitionLocationToChunkRange =
+            splitSkewedPartitionLocations(locations, startMapIndex, endMapIndex);
+        logger.debug("Current sub-partition locations: {}", locations);
         return new CelebornInputStreamImpl(
             conf,
             clientFactory,
@@ -88,7 +90,7 @@ public abstract class CelebornInputStream extends InputStream {
             failedBatchSetMap,
             attemptNumber,
             taskId,
-            chunksRange,
+            partitionLocationToChunkRange,
             fetchExcludedWorkers,
             shuffleClient,
             appShuffleId,
@@ -121,6 +123,38 @@ public abstract class CelebornInputStream extends InputStream {
             metricsCallback);
       }
     }
+  }
+
+  public static Map<String, Pair<Integer, Integer>> splitSkewedPartitionLocations(
+      ArrayList<PartitionLocation> locations, int subPartitionSize, int subPartitionIndex) {
+    locations.sort(Comparator.comparing((PartitionLocation p) -> p.getUniqueId()));
+
+    long totalPartitionSize =
+        locations.stream().mapToLong((PartitionLocation p) -> p.getStorageInfo().fileSize).sum();
+    long step = totalPartitionSize / subPartitionSize;
+    long startOffset = step * subPartitionIndex;
+    long endOffset = step * (subPartitionIndex + 1);
+    long partitionLocationOffset = 0;
+    Map<String, Pair<Integer, Integer>> chunkRange = new HashMap<>();
+    for (int i = 0; i < locations.size(); i++) {
+      PartitionLocation p = locations.get(i);
+      int left = -1;
+      int right = -1;
+      for (int j = 0; j < p.getStorageInfo().getChunkOffsets().size(); j++) {
+        long currentOffset = partitionLocationOffset + p.getStorageInfo().getChunkOffsets().get(j);
+        if (currentOffset >= startOffset && left < 0) {
+          left = j;
+        }
+        if (currentOffset < endOffset) {
+          right = j;
+        }
+        if (left >= 0 && right >= 0) {
+          chunkRange.put(p.getUniqueId(), Pair.of(left, right));
+        }
+      }
+      partitionLocationOffset += p.getStorageInfo().getFileSize();
+    }
+    return chunkRange;
   }
 
   public static CelebornInputStream empty() {
@@ -722,7 +756,9 @@ public abstract class CelebornInputStream extends InputStream {
                 failedBatch.setMapId(mapId);
                 failedBatch.setAttemptId(attemptId);
                 failedBatch.setBatchId(batchId);
-                if (failedBatchSet.contains(failedBatch)) {
+                String uid = currentReader.getLocation().getUniqueId();
+                if (failedBatches.containsKey(uid)
+                    && failedBatches.get(uid).contains(failedBatch)) {
                   logger.warn("Skip duplicated batch: {}.", failedBatch);
                   continue;
                 }
