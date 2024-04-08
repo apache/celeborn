@@ -59,7 +59,8 @@ class NettyRpcEnv(
 
   private var worker: RpcEndpoint = null
 
-  private val transportContext =
+  // Visible for tests
+  private[netty] val transportContext =
     new TransportContext(transportConf, new NettyRpcHandler(dispatcher, this))
 
   private def createClientBootstraps(): java.util.List[TransportClientBootstrap] = {
@@ -341,6 +342,9 @@ class NettyRpcEnv(
     }
     if (clientFactory != null) {
       clientFactory.close()
+    }
+    if (null != transportContext) {
+      transportContext.close();
     }
     if (clientConnectionExecutor != null) {
       clientConnectionExecutor.shutdownNow()
