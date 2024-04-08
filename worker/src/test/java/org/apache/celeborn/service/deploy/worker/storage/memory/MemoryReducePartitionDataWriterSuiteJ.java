@@ -171,7 +171,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new TransportMessage(
             MessageType.OPEN_STREAM,
             PbOpenStream.newBuilder()
-                .setShuffleKey("shuffleKey")
+                .setShuffleKey("app-1")
                 .setFileName("location")
                 .setStartIndex(0)
                 .setEndIndex(Integer.MAX_VALUE)

@@ -318,7 +318,9 @@ public class FetchHandlerSuiteJ {
     Mockito.doReturn(partitionFilesSorter).when(worker).partitionsSorter();
     fetchHandler0.init(worker);
     FetchHandler fetchHandler = spy(fetchHandler0);
-    Mockito.doReturn(fileInfo).when(fetchHandler).getRawFileInfo(anyString(), anyString(), false);
+    Mockito.doReturn(fileInfo)
+        .when(fetchHandler)
+        .getRawFileInfo(anyString(), anyString(), anyBoolean());
     return fetchHandler;
   }
 
