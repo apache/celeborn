@@ -38,6 +38,8 @@ license: |
 
 - Since 0.5.0, Celeborn client removes configuration `celeborn.client.push.splitPartition.threads`, `celeborn.client.flink.inputGate.minMemory` and `celeborn.client.flink.resultPartition.minMemory`.
 
+- Since 0.5.0, Celeborn deprecate `celeborn.client.spark.shuffle.forceFallback.enabled`. Please use `celeborn.client.spark.shuffle.fallback.policy` instead.
+
 ## Upgrading from 0.4.0 to 0.4.1
 
 - Since 0.4.1, Celeborn master adds a limit to the estimated partition size used for computing worker slots. 
