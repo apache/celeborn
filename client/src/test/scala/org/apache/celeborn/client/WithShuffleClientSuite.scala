@@ -164,6 +164,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
       null,
       null,
       null,
+      null,
       metricsCallback)
     Assert.assertEquals(stream.read(), -1)
 
@@ -175,6 +176,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
       1,
       0,
       Integer.MAX_VALUE,
+      null,
       null,
       null,
       null,
