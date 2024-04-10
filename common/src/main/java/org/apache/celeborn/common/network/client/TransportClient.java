@@ -221,7 +221,7 @@ public class TransportClient implements Closeable {
           try {
             pushData.body().release();
           } catch (Throwable e) {
-            logger.error("Error release buffer for PUSH_DATA request " + pushData.requestId, e);
+            logger.error("Error release buffer for PUSH_DATA request {}", pushData.requestId, e);
           }
         };
     return pushData(pushData, pushDataTimeout, callback, rpcSendoutCallback, rpcFailureCallback);
@@ -257,7 +257,7 @@ public class TransportClient implements Closeable {
             pushMergedData.body().release();
           } catch (Throwable e) {
             logger.error(
-                "Error release buffer for PUSH_MERGED_DATA request " + pushMergedData.requestId, e);
+                "Error release buffer for PUSH_MERGED_DATA request {}", pushMergedData.requestId, e);
           }
         };
     return pushMergedData(pushMergedData, pushDataTimeout, callback, null, rpcFailureCallback);
