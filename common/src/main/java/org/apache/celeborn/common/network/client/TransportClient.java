@@ -257,7 +257,9 @@ public class TransportClient implements Closeable {
             pushMergedData.body().release();
           } catch (Throwable e) {
             logger.error(
-                "Error release buffer for PUSH_MERGED_DATA request {}", pushMergedData.requestId, e);
+                "Error release buffer for PUSH_MERGED_DATA request {}",
+                pushMergedData.requestId,
+                e);
           }
         };
     return pushMergedData(pushMergedData, pushDataTimeout, callback, null, rpcFailureCallback);
