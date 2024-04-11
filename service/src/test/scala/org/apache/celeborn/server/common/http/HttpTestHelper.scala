@@ -64,6 +64,7 @@ trait HttpTestHelper extends AnyFunSuite
   override def beforeAll(): Unit = {
     super.beforeAll()
     restApiBaseSuite.setUp()
+    Thread.sleep(1000) // sleep for http server initialization
   }
 
   override def afterAll(): Unit = {

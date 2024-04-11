@@ -28,31 +28,6 @@ abstract class ApiBaseResourceSuite extends HttpTestHelper {
       CelebornConf.METRICS_CONF.key,
       Thread.currentThread().getContextClassLoader.getResource("metrics-api.properties").getFile)
 
-  test("swagger") {
-    Seq("swagger", "docs", "help").foreach { path =>
-      val response = webTarget.path(path).request(MediaType.TEXT_HTML).get()
-      assert(HttpServletResponse.SC_OK == response.getStatus)
-      assert(response.readEntity(classOf[String]).contains("swagger-ui"))
-    }
-    Seq(
-      "openapi.json" -> MediaType.APPLICATION_JSON,
-      "openapi.yaml" -> "application/yaml").foreach { case (path, mediaType) =>
-      val response = webTarget.path(path).request(mediaType).get()
-      assert(HttpServletResponse.SC_OK == response.getStatus)
-      assert(response.readEntity(classOf[String]).contains("/conf"))
-    }
-  }
-
-  test("metrics") {
-    var response = webTarget.path("metrics/prometheus").request(MediaType.APPLICATION_JSON).get()
-    assert(HttpServletResponse.SC_OK == response.getStatus)
-    assert(response.readEntity(classOf[String]).contains("metrics_jvm_memory_heap_max_Value"))
-
-    response = webTarget.path("metrics/json").request(MediaType.APPLICATION_JSON).get()
-    assert(HttpServletResponse.SC_OK == response.getStatus)
-    assert(response.readEntity(classOf[String]).contains("\"name\" : \"jvm.memory.heap.max\""))
-  }
-
   test("ping") {
     val response = webTarget.path("ping").request(MediaType.TEXT_PLAIN).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
@@ -95,5 +70,30 @@ abstract class ApiBaseResourceSuite extends HttpTestHelper {
   test("listTopDiskUsedApps") {
     val response = webTarget.path("listTopDiskUsedApps").request(MediaType.TEXT_PLAIN).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
+  }
+
+  test("swagger") {
+    Seq("swagger", "docs", "help").foreach { path =>
+      val response = webTarget.path(path).request(MediaType.TEXT_HTML).get()
+      assert(HttpServletResponse.SC_OK == response.getStatus)
+      assert(response.readEntity(classOf[String]).contains("swagger-ui"))
+    }
+    Seq(
+      "openapi.json" -> MediaType.APPLICATION_JSON,
+      "openapi.yaml" -> "application/yaml").foreach { case (path, mediaType) =>
+      val response = webTarget.path(path).request(mediaType).get()
+      assert(HttpServletResponse.SC_OK == response.getStatus)
+      assert(response.readEntity(classOf[String]).contains("/conf"))
+    }
+  }
+
+  test("metrics") {
+    var response = webTarget.path("metrics/prometheus").request(MediaType.APPLICATION_JSON).get()
+    assert(HttpServletResponse.SC_OK == response.getStatus)
+    assert(response.readEntity(classOf[String]).contains("metrics_jvm_memory_heap_max_Value"))
+
+    response = webTarget.path("metrics/json").request(MediaType.APPLICATION_JSON).get()
+    assert(HttpServletResponse.SC_OK == response.getStatus)
+    assert(response.readEntity(classOf[String]).contains("\"name\" : \"jvm.memory.heap.max\""))
   }
 }

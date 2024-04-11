@@ -58,31 +58,6 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
       Base64.getEncoder.encode(token.getBytes()),
       StandardCharsets.UTF_8)
 
-  test("swagger api do not need authentication") {
-    Seq("swagger", "docs", "help").foreach { path =>
-      val response = webTarget.path(path).request(MediaType.TEXT_HTML).get()
-      assert(HttpServletResponse.SC_OK == response.getStatus)
-      assert(response.readEntity(classOf[String]).contains("swagger-ui"))
-    }
-    Seq(
-      "openapi.json" -> MediaType.APPLICATION_JSON,
-      "openapi.yaml" -> "application/yaml").foreach { case (path, mediaType) =>
-      val response = webTarget.path(path).request(mediaType).get()
-      assert(HttpServletResponse.SC_OK == response.getStatus)
-      assert(response.readEntity(classOf[String]).contains("/conf"))
-    }
-  }
-
-  test("metrics api do not need authentication") {
-    var response = webTarget.path("metrics/prometheus").request(MediaType.APPLICATION_JSON).get()
-    assert(200 == response.getStatus)
-    assert(response.readEntity(classOf[String]).contains("metrics_jvm_memory_heap_max_Value"))
-
-    response = webTarget.path("metrics/json").request(MediaType.APPLICATION_JSON).get()
-    assert(200 == response.getStatus)
-    assert(response.readEntity(classOf[String]).contains("\"name\" : \"jvm.memory.heap.max\""))
-  }
-
   Seq("conf", "listDynamicConfigs", "workerInfo", "shuffle", "applications").foreach { api =>
     test(s"API $api authentication") {
       var response = webTarget.path(api)
@@ -115,5 +90,30 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
         .get()
       assert(HttpServletResponse.SC_FORBIDDEN == response.getStatus)
     }
+  }
+
+  test("swagger api do not need authentication") {
+    Seq("swagger", "docs", "help").foreach { path =>
+      val response = webTarget.path(path).request(MediaType.TEXT_HTML).get()
+      assert(HttpServletResponse.SC_OK == response.getStatus)
+      assert(response.readEntity(classOf[String]).contains("swagger-ui"))
+    }
+    Seq(
+      "openapi.json" -> MediaType.APPLICATION_JSON,
+      "openapi.yaml" -> "application/yaml").foreach { case (path, mediaType) =>
+      val response = webTarget.path(path).request(mediaType).get()
+      assert(HttpServletResponse.SC_OK == response.getStatus)
+      assert(response.readEntity(classOf[String]).contains("/conf"))
+    }
+  }
+
+  test("metrics api do not need authentication") {
+    var response = webTarget.path("metrics/prometheus").request(MediaType.APPLICATION_JSON).get()
+    assert(200 == response.getStatus)
+    assert(response.readEntity(classOf[String]).contains("metrics_jvm_memory_heap_max_Value"))
+
+    response = webTarget.path("metrics/json").request(MediaType.APPLICATION_JSON).get()
+    assert(200 == response.getStatus)
+    assert(response.readEntity(classOf[String]).contains("\"name\" : \"jvm.memory.heap.max\""))
   }
 }

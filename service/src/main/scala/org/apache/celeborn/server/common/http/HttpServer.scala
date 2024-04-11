@@ -102,10 +102,7 @@ private[celeborn] case class HttpServer(
     addHandler(HttpUtils.createRedirectHandler(src, dest))
   }
 
-  def serverGetStarted: Boolean = {
-    server.isStarted && connector.isStarted && Option(server.getThreadPool).filter(
-      _.isInstanceOf[LifeCycle]).map(_.asInstanceOf[LifeCycle]).forall(_.isStarted)
-  }
+  def getState: String = server.getState
 }
 
 object HttpServer {

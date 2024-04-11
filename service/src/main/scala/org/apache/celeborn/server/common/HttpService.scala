@@ -201,7 +201,7 @@ abstract class HttpService extends Service with Logging {
     startInternal()
     // block until the HTTP server is started, otherwise, we may get
     // the wrong HTTP server port -1
-    while (!httpServer.serverGetStarted) {
+    while (httpServer.getState != "STARTED") {
       logInfo(s"Waiting for $serviceName's HTTP server getting started")
       Thread.sleep(1000)
     }
@@ -257,15 +257,15 @@ abstract class HttpService extends Service with Logging {
   }
 
   protected def startInternal(): Unit = {
-    httpServer.addStaticHandler("META-INF/resources/webjars/swagger-ui/4.9.1/", "/swagger-static/")
-    httpServer.addStaticHandler("org/apache/celeborn/swagger", "/swagger")
-    httpServer.addRedirectHandler("/help", "/swagger")
-    httpServer.addRedirectHandler("/docs", "/swagger")
-
     val contextHandler = ApiRootResource.getServletHandler(this)
     val holder = new FilterHolder(new AuthenticationFilter(conf, serviceName))
     contextHandler.addFilter(holder, "/*", util.EnumSet.allOf(classOf[DispatcherType]))
     httpServer.addHandler(HttpAuthenticationFactory.wrapHandler(contextHandler))
+
+    httpServer.addStaticHandler("META-INF/resources/webjars/swagger-ui/4.9.1/", "/swagger-static/")
+    httpServer.addStaticHandler("org/apache/celeborn/swagger", "/swagger")
+    httpServer.addRedirectHandler("/help", "/swagger")
+    httpServer.addRedirectHandler("/docs", "/swagger")
 
     if (metricsSystem.running) {
       metricsSystem.getServletContextHandlers.foreach { handler =>
