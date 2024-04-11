@@ -102,7 +102,9 @@ private[celeborn] case class HttpServer(
     addHandler(HttpUtils.createRedirectHandler(src, dest))
   }
 
-  def getState: String = server.getState
+  def serverGetStarted: Boolean = {
+    server.getState == "STARTED" && connector.getState == "STARTED"
+  }
 }
 
 object HttpServer {
