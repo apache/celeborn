@@ -211,7 +211,10 @@ class MapPartitionCommitHandler(
     (dataCommitSuccess, false)
   }
 
-  override def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+  override def handleGetReducerFileGroup(
+      context: RpcCallContext,
+      shuffleId: Int,
+      packed: Boolean): Unit = {
     // we need obtain the last succeed partitionIds
     val lastSucceedPartitionIds =
       shuffleSucceedPartitionIds.getOrDefault(shuffleId, new util.HashSet[Integer]())
@@ -221,7 +224,8 @@ class MapPartitionCommitHandler(
       StatusCode.SUCCESS,
       reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
       getMapperAttempts(shuffleId),
-      succeedPartitionIds))
+      succeedPartitionIds,
+      packed))
   }
 
   override def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {

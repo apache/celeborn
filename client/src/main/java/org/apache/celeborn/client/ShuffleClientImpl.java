@@ -512,7 +512,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         numPartitions,
         () ->
             lifecycleManagerRef.askSync(
-                RegisterShuffle$.MODULE$.apply(shuffleId, numMappers, numPartitions),
+                RegisterShuffle$.MODULE$.apply(shuffleId, numMappers, numPartitions, true),
                 conf.clientRpcRegisterShuffleAskTimeout(),
                 ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
   }
@@ -605,14 +605,15 @@ public class ShuffleClientImpl extends ShuffleClient {
         StatusCode respStatus = Utils.toStatusCode(response.getStatus());
         if (StatusCode.SUCCESS.equals(respStatus)) {
           ConcurrentHashMap<Integer, PartitionLocation> result = JavaUtils.newConcurrentHashMap();
-          for (int i = 0; i < response.getPartitionLocationsList().size(); i++) {
-            PartitionLocation partitionLoc =
-                PbSerDeUtils.fromPbPartitionLocation(response.getPartitionLocationsList().get(i));
-            pushExcludedWorkers.remove(partitionLoc.hostAndPushPort());
-            if (partitionLoc.hasPeer()) {
-              pushExcludedWorkers.remove(partitionLoc.getPeer().hostAndPushPort());
+          Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
+              PbSerDeUtils.fromPbPackedPartitionLocationsPair(
+                  response.getPackedPartitionLocationsPair());
+          for (PartitionLocation location : locations._1) {
+            pushExcludedWorkers.remove(location.hostAndPushPort());
+            if (location.hasPeer()) {
+              pushExcludedWorkers.remove(location.getPeer().hostAndPushPort());
             }
-            result.put(partitionLoc.getId(), partitionLoc);
+            result.put(location.getId(), location);
           }
           return result;
         } else if (StatusCode.SLOT_NOT_AVAILABLE.equals(respStatus)) {
@@ -1597,7 +1598,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           exceptionMsg = "Driver endpoint is null!";
           logger.warn(exceptionMsg);
         } else {
-          GetReducerFileGroup getReducerFileGroup = new GetReducerFileGroup(shuffleId);
+          GetReducerFileGroup getReducerFileGroup = new GetReducerFileGroup(shuffleId, true);
 
           GetReducerFileGroupResponse response =
               lifecycleManagerRef.askSync(

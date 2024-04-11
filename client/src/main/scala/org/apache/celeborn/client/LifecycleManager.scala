@@ -136,7 +136,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     locations.asScala.foreach(location => map.put(location.getId, location))
   }
 
-  case class RegisterCallContext(context: RpcCallContext, partitionId: Int = -1) {
+  case class RegisterCallContext(
+      context: RpcCallContext,
+      partitionId: Int = -1,
+      packed: Boolean = true) {
     def reply(response: PbRegisterShuffleResponse) = {
       context.reply(response)
     }
@@ -313,10 +316,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val shuffleId = pb.getShuffleId
       val numMappers = pb.getNumMappers
       val numPartitions = pb.getNumPartitions
+      val packed = pb.getPacked
       logDebug(s"Received RegisterShuffle request, " +
         s"$shuffleId, $numMappers, $numPartitions.")
       offerAndReserveSlots(
-        RegisterCallContext(context),
+        RegisterCallContext(context, packed = packed),
         shuffleId,
         numMappers,
         numPartitions)
@@ -400,9 +404,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           throw new UnsupportedOperationException(s"Not support $partitionType yet")
       }
 
-    case GetReducerFileGroup(shuffleId: Int) =>
+    case GetReducerFileGroup(shuffleId: Int, packed: Boolean) =>
       logDebug(s"Received GetShuffleFileGroup request for shuffleId $shuffleId.")
-      handleGetReducerFileGroup(context, shuffleId)
+      handleGetReducerFileGroup(context, shuffleId, packed)
 
     case pb: PbGetShuffleId =>
       val appShuffleId = pb.getAppShuffleId
@@ -508,7 +512,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
               if (rpcContext.isInstanceOf[LocalNettyRpcCallContext]) {
                 context.reply(RegisterShuffleResponse(
                   StatusCode.SUCCESS,
-                  getInitialLocs(shuffleId, p => p.getEpoch == 0)))
+                  getInitialLocs(shuffleId, p => p.getEpoch == 0),
+                  context.packed))
               } else {
                 val cachedMsg = registerShuffleResponseRpcCache.get(
                   shuffleId,
@@ -630,17 +635,21 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     res.status match {
       case StatusCode.REQUEST_FAILED =>
         logInfo(s"OfferSlots RPC request failed for $shuffleId!")
-        replyRegisterShuffle(RegisterShuffleResponse(StatusCode.REQUEST_FAILED, Array.empty))
+        replyRegisterShuffle(RegisterShuffleResponse(StatusCode.REQUEST_FAILED, Array.empty, true))
         return
       case StatusCode.SLOT_NOT_AVAILABLE =>
         logInfo(s"OfferSlots for $shuffleId failed!")
-        replyRegisterShuffle(RegisterShuffleResponse(StatusCode.SLOT_NOT_AVAILABLE, Array.empty))
+        replyRegisterShuffle(RegisterShuffleResponse(
+          StatusCode.SLOT_NOT_AVAILABLE,
+          Array.empty))
         return
       case StatusCode.SUCCESS =>
         logInfo(s"OfferSlots for $shuffleId Success!Slots Info: ${res.workerResource}")
       case StatusCode.WORKER_EXCLUDED =>
         logInfo(s"OfferSlots for $shuffleId failed due to all workers be excluded!")
-        replyRegisterShuffle(RegisterShuffleResponse(StatusCode.WORKER_EXCLUDED, Array.empty))
+        replyRegisterShuffle(RegisterShuffleResponse(
+          StatusCode.WORKER_EXCLUDED,
+          Array.empty))
         return
       case _ => // won't happen
         throw new UnsupportedOperationException()
@@ -673,7 +682,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     // If reserve slots failed, clear allocated resources, reply ReserveSlotFailed and return.
     if (!reserveSlotsSuccess) {
       logError(s"reserve buffer for $shuffleId failed, reply to all.")
-      replyRegisterShuffle(RegisterShuffleResponse(StatusCode.RESERVE_SLOTS_FAILED, Array.empty))
+      replyRegisterShuffle(RegisterShuffleResponse(
+        StatusCode.RESERVE_SLOTS_FAILED,
+        Array.empty))
     } else {
       if (log.isDebugEnabled()) {
         logDebug(s"ReserveSlots for $shuffleId success with details:$slots!")
@@ -697,7 +708,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val allPrimaryPartitionLocations = slots.asScala.flatMap(_._2._1.asScala).toArray
       replyRegisterShuffle(RegisterShuffleResponse(
         StatusCode.SUCCESS,
-        allPrimaryPartitionLocations))
+        allPrimaryPartitionLocations,
+        true))
     }
   }
 
@@ -774,7 +786,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private def handleGetReducerFileGroup(
       context: RpcCallContext,
-      shuffleId: Int): Unit = {
+      shuffleId: Int,
+      packed: Boolean): Unit = {
     if (!registeredShuffle.contains(shuffleId)) {
       logWarning(s"[handleGetReducerFileGroup] shuffle $shuffleId not registered, maybe no shuffle data within this stage.")
       context.reply(GetReducerFileGroupResponse(
@@ -783,7 +796,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         Array.empty))
       return
     }
-    commitManager.handleGetReducerFileGroup(context, shuffleId)
+    commitManager.handleGetReducerFileGroup(context, shuffleId, packed)
   }
 
   private def handleGetShuffleIdForApp(
@@ -1540,7 +1553,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         userIdentifier,
         slotsAssignMaxWorkers,
         availableStorageTypes,
-        excludedWorkerSet)
+        excludedWorkerSet,
+        true)
     val res = requestMasterRequestSlots(req)
     if (res.status != StatusCode.SUCCESS) {
       requestMasterRequestSlots(req)

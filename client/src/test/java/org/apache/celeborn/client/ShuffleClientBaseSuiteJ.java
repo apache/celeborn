@@ -90,12 +90,12 @@ public abstract class ShuffleClientBaseSuiteJ {
     primaryLocation.setPeer(replicaLocation);
 
     when(endpointRef.askSync(
-            ControlMessages.RegisterShuffle$.MODULE$.apply(TEST_SHUFFLE_ID, 1, 1),
+            ControlMessages.RegisterShuffle$.MODULE$.apply(TEST_SHUFFLE_ID, 1, 1, true),
             ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)))
         .thenAnswer(
             t ->
                 ControlMessages.RegisterShuffleResponse$.MODULE$.apply(
-                    StatusCode.SUCCESS, new PartitionLocation[] {primaryLocation}));
+                    StatusCode.SUCCESS, new PartitionLocation[] {primaryLocation}, true));
 
     shuffleClient.setupLifecycleManagerRef(endpointRef);
     when(clientFactory.createClient(

@@ -174,7 +174,7 @@ abstract class CommitHandler(
    * partitions are complete by the time the method is called, as downstream tasks may start early before all tasks
    * are completed.So map partition may need refresh reducer file group if needed.
    */
-  def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit
+  def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int, packed: Boolean): Unit
 
   def removeExpiredShuffle(shuffleId: Int): Unit = {
     reducerFileGroupsMap.remove(shuffleId)
