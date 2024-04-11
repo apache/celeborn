@@ -103,7 +103,8 @@ private[celeborn] case class HttpServer(
   }
 
   def serverGetStarted: Boolean = {
-    server.getState == "STARTED" && connector.getState == "STARTED"
+    server.isStarted && connector.isStarted && Option(server.getThreadPool).filter(
+      _.isInstanceOf[LifeCycle]).map(_.asInstanceOf[LifeCycle]).forall(_.isStarted)
   }
 }
 
