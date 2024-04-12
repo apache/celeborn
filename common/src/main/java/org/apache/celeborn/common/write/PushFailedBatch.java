@@ -29,6 +29,12 @@ public class PushFailedBatch implements Serializable {
   private int attemptId;
   private int batchId;
 
+  public PushFailedBatch(int mapId, int attemptId, int batchId) {
+    this.mapId = mapId;
+    this.attemptId = attemptId;
+    this.batchId = batchId;
+  }
+
   public int getMapId() {
     return mapId;
   }
@@ -50,12 +56,6 @@ public class PushFailedBatch implements Serializable {
   }
 
   public void setBatchId(int batchId) {
-    this.batchId = batchId;
-  }
-
-  public PushFailedBatch(int mapId, int attemptId, int batchId) {
-    this.mapId = mapId;
-    this.attemptId = attemptId;
     this.batchId = batchId;
   }
 
