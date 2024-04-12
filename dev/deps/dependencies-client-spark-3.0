@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-RoaringBitmap/0.9.32//RoaringBitmap-0.9.32.jar
+RoaringBitmap/1.0.5//RoaringBitmap-1.0.5.jar
 commons-crypto/1.0.0//commons-crypto-1.0.0.jar
 commons-io/2.13.0//commons-io-2.13.0.jar
 commons-lang3/3.12.0//commons-lang3-3.12.0.jar
@@ -79,7 +79,6 @@ ratis-proto/2.5.1//ratis-proto-2.5.1.jar
 ratis-thirdparty-misc/1.0.4//ratis-thirdparty-misc-1.0.4.jar
 scala-library/2.12.10//scala-library-2.12.10.jar
 scala-reflect/2.12.10//scala-reflect-2.12.10.jar
-shims/0.9.32//shims-0.9.32.jar
 slf4j-api/1.7.36//slf4j-api-1.7.36.jar
 snakeyaml/2.2//snakeyaml-2.2.jar
 snappy-java/1.1.10.5//snappy-java-1.1.10.5.jar
