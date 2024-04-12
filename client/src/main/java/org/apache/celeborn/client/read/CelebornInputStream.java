@@ -36,7 +36,6 @@ import org.apache.celeborn.client.compress.Decompressor;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
-import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.CompressionCodec;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
@@ -210,9 +209,7 @@ public abstract class CelebornInputStream extends InputStream {
       } else {
         fetchChunkMaxRetry = conf.clientFetchMaxRetriesForEachReplica();
       }
-      TransportConf transportConf =
-          Utils.fromCelebornConf(conf, TransportModuleConstants.DATA_MODULE, 0);
-      retryWaitMs = transportConf.ioRetryWaitTimeMs();
+      this.retryWaitMs = conf.networkIoRetryWaitMs(TransportModuleConstants.DATA_MODULE);
       this.callback = metricsCallback;
       this.exceptionMaker = exceptionMaker;
       this.partitionId = partitionId;
