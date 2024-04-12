@@ -38,7 +38,6 @@ import org.apache.celeborn.client.compress.Decompressor;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
-import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.*;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.ExceptionMaker;
