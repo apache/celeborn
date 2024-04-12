@@ -266,7 +266,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
 
     0 until 3 foreach { partitionId =>
       bufferLength =
-        shuffleClient.pushData(shuffleId, 0, 0, partitionId, buffer, 0, buffer.length, 1, 1)
+        shuffleClient.pushData(shuffleId, 0, 0, partitionId, buffer, 0, buffer.length, 1, 3)
       lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
     }
 
