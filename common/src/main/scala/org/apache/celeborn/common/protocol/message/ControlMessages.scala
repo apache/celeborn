@@ -288,8 +288,7 @@ object ControlMessages extends Logging {
       fileGroup: util.Map[Integer, util.Set[PartitionLocation]],
       attempts: Array[Int],
       partitionIds: util.Set[Integer] = Collections.emptySet[Integer](),
-      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]] =
-        new util.HashMap[String, util.Set[PushFailedBatch]]())
+      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]] = Collections.emptyMap())
     extends MasterMessage
 
   object WorkerExclude {
