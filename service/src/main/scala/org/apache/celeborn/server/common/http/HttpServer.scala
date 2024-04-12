@@ -107,7 +107,13 @@ private[celeborn] case class HttpServer(
 
 object HttpServer {
 
-  def apply(role: String, host: String, port: Int, poolSize: Int, stopTimeout: Long): HttpServer = {
+  def apply(
+      role: String,
+      host: String,
+      port: Int,
+      poolSize: Int,
+      stopTimeout: Long,
+      idleTimeout: Long): HttpServer = {
     val pool = new QueuedThreadPool(math.max(poolSize, 8))
     pool.setName(s"$role-JettyThreadPool")
     pool.setDaemon(true)
@@ -137,6 +143,7 @@ object HttpServer {
     connector.setReuseAddress(!SystemUtils.IS_OS_WINDOWS)
     connector.setAcceptQueueSize(math.min(connector.getAcceptors, 8))
     connector.setStopTimeout(stopTimeout)
+    connector.setIdleTimeout(idleTimeout)
 
     new HttpServer(role, server, connector, collection)
   }

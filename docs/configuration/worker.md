@@ -85,6 +85,7 @@ license: |
 | celeborn.worker.graceful.shutdown.saveCommittedFileInfo.sync | false | false | Whether to call sync method to save committed file infos into Level DB to handle OS crash. | 0.3.1 |  | 
 | celeborn.worker.graceful.shutdown.timeout | 600s | false | The worker's graceful shutdown timeout time. | 0.2.0 |  | 
 | celeborn.worker.http.host | &lt;localhost&gt; | false | Worker's http host. | 0.4.0 | celeborn.metrics.worker.prometheus.host,celeborn.worker.metrics.prometheus.host | 
+| celeborn.worker.http.idleTimeout | 30s | false | Worker http server idle timeout. | 0.5.0 |  | 
 | celeborn.worker.http.maxWorkerThreads | 200 | false | Maximum number of threads in the worker http worker thread pool. | 0.5.0 |  | 
 | celeborn.worker.http.port | 9096 | false | Worker's http port. | 0.4.0 | celeborn.metrics.worker.prometheus.port,celeborn.worker.metrics.prometheus.port | 
 | celeborn.worker.http.stopTimeout | 5s | false | Worker http server stop timeout. | 0.5.0 |  | 

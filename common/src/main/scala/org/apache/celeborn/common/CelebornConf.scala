@@ -590,6 +590,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def masterHttpStopTimeout: Long = get(MASTER_HTTP_STOP_TIMEOUT)
 
+  def masterHttpIdleTimeout: Long = get(MASTER_HTTP_IDLE_TIMEOUT)
+
   def haEnabled: Boolean = get(HA_ENABLED)
 
   def haMasterNodeId: Option[String] = get(HA_MASTER_NODE_ID)
@@ -682,6 +684,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerHttpPort: Int = get(WORKER_HTTP_PORT)
   def workerHttpMaxWorkerThreads: Int = get(WORKER_HTTP_MAX_WORKER_THREADS)
   def workerHttpStopTimeout: Long = get(WORKER_HTTP_STOP_TIMEOUT)
+  def workerHttpIdleTimeout: Long = get(WORKER_HTTP_IDLE_TIMEOUT)
   def workerRpcPort: Int = get(WORKER_RPC_PORT)
   def workerPushPort: Int = get(WORKER_PUSH_PORT)
   def workerFetchPort: Int = get(WORKER_FETCH_PORT)
@@ -2001,6 +2004,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
 
+  val MASTER_HTTP_IDLE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.http.idleTimeout")
+      .categories("master")
+      .version("0.5.0")
+      .doc("Master http server idle timeout.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
   val HA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.master.ha.enabled")
       .withAlternative("celeborn.ha.enabled")
@@ -2575,6 +2586,14 @@ object CelebornConf extends Logging {
       .doc("Worker http server stop timeout.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
+
+  val WORKER_HTTP_IDLE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.http.idleTimeout")
+      .categories("worker")
+      .version("0.5.0")
+      .doc("Worker http server idle timeout.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
 
   val WORKER_RPC_PORT: ConfigEntry[Int] =
     buildConf("celeborn.worker.rpc.port")
