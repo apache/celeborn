@@ -216,9 +216,7 @@ public abstract class CelebornInputStream extends InputStream {
       } else {
         fetchChunkMaxRetry = conf.clientFetchMaxRetriesForEachReplica();
       }
-      TransportConf transportConf =
-          Utils.fromCelebornConf(conf, TransportModuleConstants.DATA_MODULE, 0);
-      retryWaitMs = transportConf.ioRetryWaitTimeMs();
+      this.retryWaitMs = conf.networkIoRetryWaitMs(TransportModuleConstants.DATA_MODULE);
       this.callback = metricsCallback;
       this.exceptionMaker = exceptionMaker;
       this.partitionId = partitionId;
