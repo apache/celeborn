@@ -180,10 +180,13 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
 
     lifecycleManager.commitManager.registerShuffle(shuffleId, 1)
 
-    val buffer = "hello world".getBytes(StandardCharsets.UTF_8);
+    val buffer = "hello world".getBytes(StandardCharsets.UTF_8)
+
+    var bufferLength = -1
 
     0 until 3 foreach { partitionId =>
-      shuffleClient.pushData(shuffleId, 0, 0, partitionId, buffer, 0, buffer.length, 1, 1)
+      bufferLength =
+        shuffleClient.pushData(shuffleId, 0, 0, partitionId, buffer, 0, buffer.length, 1, 3)
       lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
     }
 
@@ -204,8 +207,9 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       new ShuffleFailedWorkers)
 
     shuffleCommittedInfo.committedReplicaStorageInfos.values().asScala.foreach { storageInfo =>
-      storageInfo.fileSize == buffer.length
-      storageInfo.chunkOffsets.size() == 1
+      assert(storageInfo.fileSize == bufferLength)
+      // chunkOffsets contains 0 by default, and bufferFlushOffset
+      assert(storageInfo.chunkOffsets.size() == 2)
     }
 
     lifecycleManager.stop()
