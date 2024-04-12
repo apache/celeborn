@@ -16,7 +16,7 @@
 #
 
 HikariCP-java7/2.4.12//HikariCP-java7-2.4.12.jar
-RoaringBitmap/0.9.32//RoaringBitmap-0.9.32.jar
+RoaringBitmap/1.0.5//RoaringBitmap-1.0.5.jar
 aopalliance/1.0//aopalliance-1.0.jar
 asm-commons/9.4//asm-commons-9.4.jar
 asm-tree/9.4//asm-tree-9.4.jar
@@ -188,7 +188,6 @@ re2j/1.1//re2j-1.1.jar
 reload4j/1.2.22//reload4j-1.2.22.jar
 scala-library/2.12.18//scala-library-2.12.18.jar
 scala-reflect/2.12.18//scala-reflect-2.12.18.jar
-shims/0.9.32//shims-0.9.32.jar
 slf4j-api/1.7.36//slf4j-api-1.7.36.jar
 slf4j-reload4j/1.7.36//slf4j-reload4j-1.7.36.jar
 snakeyaml/2.2//snakeyaml-2.2.jar
