@@ -93,7 +93,7 @@ public abstract class FileInfo {
     }
   }
 
-  public void closeStream(long streamId) {
+  public void closeStream(long streamId, int startIndex, int endIndex) {
     if (!isReduceFileMeta()) {
       throw new IllegalStateException("In closeStream, filemeta cannot be MapFileMeta");
     }

@@ -322,13 +322,6 @@ private[deploy] class Controller(
                         }
                       }
                       committedMapIdBitMap.put(uniqueId, mapIdBitMap)
-                      // resue mapid bitmap if this is memory storage shuffle file
-                      val memoryFileInfo = fileWriter.getMemoryFileInfo
-                      if (fileWriter.getMemoryFileInfo != null && memoryFileInfo.getFileMeta.isInstanceOf[
-                          ReduceFileMeta]) {
-                        memoryFileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].setMapIds(
-                          mapIdBitMap)
-                      }
                     }
                     if (bytes >= minPartitionSizeToEstimate) {
                       partitionSizeList.add(bytes)

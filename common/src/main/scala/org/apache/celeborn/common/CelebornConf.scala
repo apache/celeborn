@@ -3025,7 +3025,7 @@ object CelebornConf extends Logging {
   val WORKER_DIRECT_MEMORY_RATIO_RESUME: ConfigEntry[Double] =
     buildConf("celeborn.worker.directMemoryRatioToResume")
       .categories("worker")
-      .doc("If direct memory usage minus memory storage files usage is less than this limit, worker will resume.")
+      .doc("If direct memory usage is less than this limit, worker will resume.")
       .version("0.2.0")
       .doubleConf
       .createWithDefault(0.7)
@@ -3034,7 +3034,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.memoryFileStorage.maxFileSize")
       .categories("worker")
       .doc("Max size for a memory storage file. It must be lesser than 2GB.")
-      .version("0.4.1")
+      .version("0.5.0")
       .bytesConf(ByteUnit.BYTE)
       .checkValue(v => v < Int.MaxValue, "A single memory storage file can not be larger than 2GB")
       .createWithDefaultString("8MB")

@@ -197,15 +197,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
       throws IOException {
     if (fileInfo instanceof MemoryFileInfo) {
-      ReduceFileMeta meta = ((ReduceFileMeta) fileInfo.getFileMeta());
       MemoryFileInfo memoryFileInfo = ((MemoryFileInfo) fileInfo);
       Map<Integer, List<ShuffleBlockInfo>> indexesMap;
-      synchronized (meta.getSorted()) {
-        if (!meta.getSorted().get()) {
-          sortMemoryShuffleFile(memoryFileInfo);
-          meta.setSorted();
-        }
-      }
+      sortMemoryShuffleFile(memoryFileInfo);
       indexesMap = memoryFileInfo.getSortedIndexes();
 
       ReduceFileMeta tMeta =
@@ -306,71 +300,75 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   public static void sortMemoryShuffleFile(MemoryFileInfo memoryFileInfo) {
     ReduceFileMeta reduceFileMeta = ((ReduceFileMeta) memoryFileInfo.getFileMeta());
-    CompositeByteBuf originBuffer = memoryFileInfo.getBuffer();
-    Map<Integer, List<ShuffleBlockInfo>> blocksMap = new TreeMap<>();
-    int originReaderIndex = originBuffer.readerIndex();
-    int originWriterIndex = originBuffer.writerIndex();
-    int bufLength = originBuffer.readableBytes();
-    int index = 0;
-    ByteBuffer headerBuf = ByteBuffer.allocate(16);
-    boolean fillMapBitMap = false;
-    RoaringBitmap mapIdBitMap = reduceFileMeta.getMapIds();
-    if (mapIdBitMap == null) {
-      mapIdBitMap = new RoaringBitmap();
-      fillMapBitMap = true;
-    }
+    synchronized (reduceFileMeta.getSorted()) {
+      if (!reduceFileMeta.getSorted().get()) {
+        CompositeByteBuf originBuffer = memoryFileInfo.getBuffer();
+        Map<Integer, List<ShuffleBlockInfo>> blocksMap = new TreeMap<>();
+        int originReaderIndex = originBuffer.readerIndex();
+        int originWriterIndex = originBuffer.writerIndex();
+        int bufLength = originBuffer.readableBytes();
+        int index = 0;
+        ByteBuffer headerBuf = ByteBuffer.allocate(16);
+        boolean fillMapBitMap = false;
+        RoaringBitmap mapIdBitMap = reduceFileMeta.getMapIds();
+        if (mapIdBitMap == null) {
+          mapIdBitMap = new RoaringBitmap();
+          fillMapBitMap = true;
+        }
 
-    while (index != bufLength) {
-      headerBuf.rewind();
-      originBuffer.readerIndex(index);
-      originBuffer.readBytes(headerBuf);
-      byte[] batchHeader = headerBuf.array();
-      int mapId = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET);
-      if (fillMapBitMap) {
-        mapIdBitMap.add(mapId);
-      }
-      int compressedSize = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12);
-      ShuffleBlockInfo shuffleBlockInfo = new ShuffleBlockInfo();
-      shuffleBlockInfo.offset = index;
-      shuffleBlockInfo.length = 16 + compressedSize;
-      List<ShuffleBlockInfo> singleMapIdShuffleBlockList =
-          blocksMap.computeIfAbsent(mapId, v -> new ArrayList<>());
-      singleMapIdShuffleBlockList.add(shuffleBlockInfo);
-      index += 16 + compressedSize;
-    }
-    originBuffer.setIndex(originReaderIndex, originWriterIndex);
+        while (index != bufLength) {
+          headerBuf.rewind();
+          originBuffer.readerIndex(index);
+          originBuffer.readBytes(headerBuf);
+          byte[] batchHeader = headerBuf.array();
+          int mapId = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET);
+          if (fillMapBitMap) {
+            mapIdBitMap.add(mapId);
+          }
+          int compressedSize = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12);
+          ShuffleBlockInfo shuffleBlockInfo = new ShuffleBlockInfo();
+          shuffleBlockInfo.offset = index;
+          shuffleBlockInfo.length = 16 + compressedSize;
+          List<ShuffleBlockInfo> singleMapIdShuffleBlockList =
+              blocksMap.computeIfAbsent(mapId, v -> new ArrayList<>());
+          singleMapIdShuffleBlockList.add(shuffleBlockInfo);
+          index += 16 + compressedSize;
+        }
+        originBuffer.setIndex(originReaderIndex, originWriterIndex);
 
-    // sorted buffer should not consolidate
-    // because this will affect origin buffer's reference count
-    CompositeByteBuf sortedBuffer =
-        MemoryManager.instance()
-            .getStoragePooledByteBufAllocator()
-            .compositeBuffer(Integer.MAX_VALUE - 1);
-    Map<Integer, List<ShuffleBlockInfo>> sortedBlocks = new TreeMap<>();
-    int sortedBufferIndex = 0;
-    for (Map.Entry<Integer, List<ShuffleBlockInfo>> entry : blocksMap.entrySet()) {
-      int mapId = entry.getKey();
-      List<ShuffleBlockInfo> blockInfos = entry.getValue();
-      List<ShuffleBlockInfo> sortedMapBlocks =
-          sortedBlocks.computeIfAbsent(mapId, v -> new ArrayList<>());
-      for (ShuffleBlockInfo blockInfo : blockInfos) {
-        int offset = (int) blockInfo.offset;
-        int length = (int) blockInfo.length;
-        ByteBuf slice = originBuffer.slice(offset, length);
-        sortedBuffer.addComponent(true, slice);
-        ShuffleBlockInfo shuffleBlockInfo = new ShuffleBlockInfo();
-        shuffleBlockInfo.offset = sortedBufferIndex;
-        shuffleBlockInfo.length = blockInfo.length;
-        sortedBufferIndex += (int) blockInfo.length;
-        sortedMapBlocks.add(shuffleBlockInfo);
+        // sorted buffer should not consolidate
+        // because this will affect origin buffer's reference count
+        CompositeByteBuf sortedBuffer =
+            MemoryManager.instance()
+                .getStoragePooledByteBufAllocator()
+                .compositeBuffer(Integer.MAX_VALUE - 1);
+        Map<Integer, List<ShuffleBlockInfo>> sortedBlocks = new TreeMap<>();
+        int sortedBufferIndex = 0;
+        for (Map.Entry<Integer, List<ShuffleBlockInfo>> entry : blocksMap.entrySet()) {
+          int mapId = entry.getKey();
+          List<ShuffleBlockInfo> blockInfos = entry.getValue();
+          List<ShuffleBlockInfo> sortedMapBlocks =
+              sortedBlocks.computeIfAbsent(mapId, v -> new ArrayList<>());
+          for (ShuffleBlockInfo blockInfo : blockInfos) {
+            int offset = (int) blockInfo.offset;
+            int length = (int) blockInfo.length;
+            ByteBuf slice = originBuffer.slice(offset, length);
+            sortedBuffer.addComponent(true, slice);
+            ShuffleBlockInfo shuffleBlockInfo = new ShuffleBlockInfo();
+            shuffleBlockInfo.offset = sortedBufferIndex;
+            shuffleBlockInfo.length = blockInfo.length;
+            sortedBufferIndex += (int) blockInfo.length;
+            sortedMapBlocks.add(shuffleBlockInfo);
+          }
+        }
+        memoryFileInfo.setSortedBuffer(sortedBuffer);
+        memoryFileInfo.setSortedIndexes(sortedBlocks);
+        if (fillMapBitMap) {
+          reduceFileMeta.setMapIds(mapIdBitMap);
+        }
+        reduceFileMeta.setSorted();
       }
     }
-    memoryFileInfo.setSortedBuffer(sortedBuffer);
-    memoryFileInfo.setSortedIndexes(sortedBlocks);
-    if (fillMapBitMap) {
-      reduceFileMeta.setMapIds(mapIdBitMap);
-    }
-    reduceFileMeta.setSorted();
   }
 
   public void cleanup(HashSet<String> expiredShuffleKeys) {

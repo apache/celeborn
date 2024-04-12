@@ -66,7 +66,7 @@ public class PartitionDataWriterSuiteUtils {
                 new Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File>(
                     null, flusher, fileInfo, file))
         .when(storageManager)
-        .createFile(Mockito.any(), Mockito.anyBoolean());
+        .createFile(Mockito.any());
     return storageManager;
   }
 
@@ -86,7 +86,7 @@ public class PartitionDataWriterSuiteUtils {
                 new Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File>(
                     memoryFileInfo, null, null, null))
         .when(storageManager)
-        .createFile(Mockito.any(), Mockito.anyBoolean());
+        .createFile(Mockito.any());
     return storageManager;
   }
 
@@ -141,7 +141,7 @@ public class PartitionDataWriterSuiteUtils {
               }
             })
         .when(storageManager)
-        .createFile(Mockito.any(), Mockito.anyBoolean());
+        .createFile(Mockito.any());
     return storageManager;
   }
 }

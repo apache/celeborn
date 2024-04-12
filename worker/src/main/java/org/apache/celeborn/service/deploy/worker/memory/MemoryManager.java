@@ -92,6 +92,7 @@ public class MemoryManager {
   private final AtomicLong memoryFileStorageCounter = new AtomicLong();
   private final StorageManager storageManager;
 
+  @VisibleForTesting
   public static MemoryManager initialize(CelebornConf conf) {
     return initialize(conf, null);
   }
@@ -269,16 +270,12 @@ public class MemoryManager {
                       if (!committedWriters.isEmpty()) {
                         PartitionDataWriter writer = committedWriters.remove(0);
                         synchronized (writer.getMemoryFileInfo()) {
-                          if (!writer.getMemoryFileInfo().hasReader()) {
-                            writer.evict();
-                          }
+                          writer.evict(false);
                         }
                       } else if (!unCommittedWriters.isEmpty()) {
                         PartitionDataWriter writer = unCommittedWriters.remove(0);
                         synchronized (writer.getMemoryFileInfo()) {
-                          if (!writer.getMemoryFileInfo().hasReader()) {
-                            writer.evict();
-                          }
+                          writer.evict(false);
                         }
                       } else {
                         break;

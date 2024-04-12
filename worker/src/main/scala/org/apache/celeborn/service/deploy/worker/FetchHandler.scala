@@ -470,11 +470,8 @@ class FetchHandler(
           streamState.endIndex)
         workerSource.recordAppActiveConnection(client, shuffleKey)
         val fileinfo = getRawFileInfo(shuffleKey, fileName)
-        fileinfo.closeStream(streamId)
-        if (fileinfo.isInstanceOf[MemoryFileInfo]) {
-          fileinfo.getFileMeta.asInstanceOf[ReduceFileMeta].removeMapIds(startIndex, endIndex)
-          fileinfo.asInstanceOf[MemoryFileInfo].decrementReaderCount()
-        }
+        fileinfo.closeStream(streamId, startIndex, endIndex)
+
       case StreamType.CreditStream =>
         val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)
         if (shuffleKey != null) {

@@ -71,38 +71,45 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
 
   @Override
   public synchronized long close() throws IOException {
-    return super.close(
-        () -> {
-          if (!isChunkOffsetValid()) {
-            updateLastChunkOffset();
-          }
-        },
-        () -> {
-          if (diskFileInfo != null) {
-            if (diskFileInfo.isHdfs()) {
-              if (StorageManager.hadoopFs().exists(diskFileInfo.getHdfsPeerWriterSuccessPath())) {
-                StorageManager.hadoopFs().delete(diskFileInfo.getHdfsPath(), false);
-                deleted = true;
-              } else {
-                StorageManager.hadoopFs().create(diskFileInfo.getHdfsWriterSuccessPath()).close();
-                FSDataOutputStream indexOutputStream =
-                    StorageManager.hadoopFs().create(diskFileInfo.getHdfsIndexPath());
-                indexOutputStream.writeInt(
-                    (diskFileInfo.getReduceFileMeta()).getChunkOffsets().size());
-                for (Long offset : (diskFileInfo.getReduceFileMeta()).getChunkOffsets()) {
-                  indexOutputStream.writeLong(offset);
-                }
-                indexOutputStream.close();
+    long streamId =
+        super.close(
+            () -> {
+              if (!isChunkOffsetValid()) {
+                updateLastChunkOffset();
               }
-            }
-          } else {
-            synchronized (flushLock) {
-              // merge and free small components
-              flushBuffer.consolidate();
-              memoryFileInfo.setBuffer(flushBuffer);
-            }
-          }
-        },
-        () -> {});
+            },
+            () -> {
+              if (diskFileInfo != null) {
+                if (diskFileInfo.isHdfs()) {
+                  if (StorageManager.hadoopFs()
+                      .exists(diskFileInfo.getHdfsPeerWriterSuccessPath())) {
+                    StorageManager.hadoopFs().delete(diskFileInfo.getHdfsPath(), false);
+                    deleted = true;
+                  } else {
+                    StorageManager.hadoopFs()
+                        .create(diskFileInfo.getHdfsWriterSuccessPath())
+                        .close();
+                    FSDataOutputStream indexOutputStream =
+                        StorageManager.hadoopFs().create(diskFileInfo.getHdfsIndexPath());
+                    indexOutputStream.writeInt(
+                        (diskFileInfo.getReduceFileMeta()).getChunkOffsets().size());
+                    for (Long offset : (diskFileInfo.getReduceFileMeta()).getChunkOffsets()) {
+                      indexOutputStream.writeLong(offset);
+                    }
+                    indexOutputStream.close();
+                  }
+                }
+              } else {
+                synchronized (flushLock) {
+                  // merge and free small components
+                  flushBuffer.consolidate();
+                  memoryFileInfo.setBuffer(flushBuffer);
+                }
+              }
+            },
+            () -> {});
+    FileInfo tmpFileInfo = getDiskFileInfo() == null ? getMemoryFileInfo() : getDiskFileInfo();
+    tmpFileInfo.getReduceFileMeta().setMapIds(getMapIdBitMap());
+    return streamId;
   }
 }

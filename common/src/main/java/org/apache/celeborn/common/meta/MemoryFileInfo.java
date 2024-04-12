@@ -102,7 +102,19 @@ public class MemoryFileInfo extends FileInfo {
     return readerCount.get() > 0;
   }
 
-  public AtomicBoolean getEvicted() {
-    return evicted;
+  public boolean getEvicted() {
+    return evicted.get();
+  }
+
+  public void setEvicted(Runnable runnable) {
+    evicted.set(true);
+    runnable.run();
+  }
+
+  @Override
+  public void closeStream(long streamId, int startIndex, int endIndex) {
+    super.closeStream(streamId, startIndex, endIndex);
+    ((ReduceFileMeta) fileMeta).removeMapIds(startIndex, endIndex);
+    decrementReaderCount();
   }
 }

@@ -313,7 +313,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   def saveAllMemoryStorageFileInfosToDB(): Unit = {
     for (writer <- memoryWriters.asScala) {
-      Utils.tryLogNonFatalError(writer._2.saveMemoryShuffleFileOnGracefulShutdown())
+      Utils.tryLogNonFatalError(writer._2.evict(true))
     }
   }
 
@@ -455,7 +455,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       val memoryFileInfo = memoryShuffleMap.get(fileName)
       if (memoryFileInfo != null) {
         memoryFileInfo.synchronized {
-          if (!memoryFileInfo.getEvicted.get()) {
+          if (!memoryFileInfo.getEvicted) {
             if (read) {
               memoryFileInfo.incrementReaderCount()
             }
@@ -504,39 +504,40 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def cleanFile(shuffleKey: String, fileName: String): Unit = {
-    val fileInfo = getFileInfo(shuffleKey, fileName)
-    if (fileInfo != null) {
-      fileInfo match {
-        case info: DiskFileInfo =>
-          cleanFileInternal(shuffleKey, info)
-        case _ =>
-          memoryWriters.get(fileInfo.asInstanceOf[MemoryFileInfo]).cleanPartitionWriter()
-      }
-    }
+    cleanFileInternal(shuffleKey, getFileInfo(shuffleKey, fileName))
   }
 
-  def cleanFileInternal(shuffleKey: String, fileInfo: DiskFileInfo): Boolean = {
+  def cleanFileInternal(shuffleKey: String, fileInfo: FileInfo): Boolean = {
+    if (fileInfo == null) return false
     var isHdfsExpired = false
-    if (fileInfo.isHdfs) {
-      isHdfsExpired = true
-      val hdfsFileWriter = hdfsWriters.get(fileInfo.getFilePath)
-      if (hdfsFileWriter != null) {
-        hdfsFileWriter.destroy(new IOException(
-          s"Destroy FileWriter $hdfsFileWriter caused by shuffle $shuffleKey expired."))
-        hdfsWriters.remove(fileInfo.getFilePath)
-      }
-    } else {
-      val workingDir =
-        fileInfo.getFile.getParentFile.getParentFile.getParentFile
-      val writers = workingDirWriters.get(workingDir)
-      if (writers != null) {
-        val fileWriter = writers.get(fileInfo.getFilePath)
-        if (fileWriter != null) {
-          fileWriter.destroy(new IOException(
-            s"Destroy FileWriter $fileWriter caused by shuffle $shuffleKey expired."))
-          writers.remove(fileInfo.getFilePath)
+    fileInfo match {
+      case info: DiskFileInfo =>
+        if (info.isHdfs) {
+          isHdfsExpired = true
+          val hdfsFileWriter = hdfsWriters.get(info.getFilePath)
+          if (hdfsFileWriter != null) {
+            hdfsFileWriter.destroy(new IOException(
+              s"Destroy FileWriter $hdfsFileWriter caused by shuffle $shuffleKey expired."))
+            hdfsWriters.remove(info.getFilePath)
+          }
+        } else {
+          val workingDir =
+            info.getFile.getParentFile.getParentFile.getParentFile
+          val writers = workingDirWriters.get(workingDir)
+          if (writers != null) {
+            val fileWriter = writers.get(info.getFilePath)
+            if (fileWriter != null) {
+              fileWriter.destroy(new IOException(
+                s"Destroy FileWriter $fileWriter caused by shuffle $shuffleKey expired."))
+              writers.remove(info.getFilePath)
+            }
+          }
         }
-      }
+      case _: MemoryFileInfo =>
+        val memoryWriter = memoryWriters.get(fileInfo.asInstanceOf[MemoryFileInfo])
+        memoryWriter.destroy(new IOException(
+          s"Destroy FileWriter $memoryWriter caused by shuffle $shuffleKey expired."))
+      case _ =>
     }
 
     isHdfsExpired
@@ -865,10 +866,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def createFile(
-      partitionDataWriterContext: PartitionDataWriterContext,
-      inMem: Boolean): (MemoryFileInfo, Flusher, DiskFileInfo, File) = {
+      partitionDataWriterContext: PartitionDataWriterContext)
+      : (MemoryFileInfo, Flusher, DiskFileInfo, File) = {
     val location = partitionDataWriterContext.getPartitionLocation
-    if (inMem && location.getStorageInfo.memoryAvailable() && MemoryManager.instance().memoryFileStorageAvailable()) {
+    if (partitionDataWriterContext.isCanUserMemory && location.getStorageInfo.memoryAvailable() && MemoryManager.instance().memoryFileStorageAvailable()) {
       logDebug(s"Create memory file for ${partitionDataWriterContext.getShuffleKey}-${partitionDataWriterContext.getPartitionLocation.getFileName}")
       (
         createMemoryFile(

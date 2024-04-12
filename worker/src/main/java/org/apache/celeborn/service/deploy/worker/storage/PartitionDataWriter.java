@@ -130,6 +130,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
     Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFileResult =
         createFile(writerContext);
+    writerContext.setCanUserMemory(false);
 
     // Reduce partition data writers support memory storage now
     if (supportInMemory && createFileResult._1() != null) {
@@ -335,7 +336,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
               "{} Evict, memory buffer is  {}",
               writerContext.getPartitionLocation().getFileName(),
               flushBufferReadableBytes);
-          evict();
+          evict(false);
         }
       }
 
@@ -349,31 +350,31 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     numPendingWrites.decrementAndGet();
   }
 
-  public void evict() throws IOException {
-    synchronized (flushLock) {
-      if (exception != null) {
-        return;
-      }
-      Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFileResult =
-          storageManager.createFile(writerContext, false);
-      if (createFileResult._4() != null) {
-        this.diskFileInfo = createFileResult._3();
-        this.flusher = createFileResult._2();
+  public void evictInternal() throws IOException {
+    if (exception != null) {
+      return;
+    }
+    Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFileResult =
+        storageManager.createFile(writerContext);
+    if (createFileResult._4() != null) {
+      this.diskFileInfo = createFileResult._3();
+      this.flusher = createFileResult._2();
 
-        isMemoryShuffleFile.set(false);
-        initFileChannelsForDiskFile();
-        flushInternal(closed, true);
+      isMemoryShuffleFile.set(false);
+      initFileChannelsForDiskFile();
+      flushInternal(closed, true);
 
-        memoryFileInfo.getEvicted().set(true);
-        storageManager.unregisterMemoryPartitionWriterAndFileInfo(
-            memoryFileInfo, writerContext.getShuffleKey(), filename);
+      memoryFileInfo.setEvicted(
+          () -> {
+            storageManager.unregisterMemoryPartitionWriterAndFileInfo(
+                memoryFileInfo, writerContext.getShuffleKey(), filename);
+            storageManager.evictedFileCount().incrementAndGet();
+          });
 
-        storageManager.evictedFileCount().incrementAndGet();
-        memoryFileInfo = null;
-      } else {
-        exception = new CelebornIOException("PartitionDataWriter create disk-related file failed");
-        throw (CelebornIOException) exception;
-      }
+      memoryFileInfo = null;
+    } else {
+      exception = new CelebornIOException("PartitionDataWriter create disk-related file failed");
+      throw (CelebornIOException) exception;
     }
   }
 
@@ -411,7 +412,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   public Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFile(
       PartitionDataWriterContext writerContext) {
-    return storageManager.createFile(writerContext, true);
+    writerContext.setCanUserMemory(true);
+    return storageManager.createFile(writerContext);
   }
 
   protected synchronized long close(
@@ -446,7 +448,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       tryClose.run();
       waitOnNoPending(notifier.numPendingFlushes);
     } finally {
-      returnBuffer();
+      returnBuffer(false);
       try {
         if (channel != null) {
           channel.close();
@@ -476,12 +478,21 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     }
   }
 
-  public synchronized void saveMemoryShuffleFileOnGracefulShutdown() throws IOException {
+  public synchronized void evict(boolean needSort) throws IOException {
     if (memoryFileInfo != null) {
-      PartitionFilesSorter.sortMemoryShuffleFile(memoryFileInfo);
-      evict();
-      storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), diskFileInfo);
-      waitOnNoPending(notifier.numPendingFlushes);
+      if (memoryFileInfo.hasReader()) {
+        return;
+      }
+      if (needSort) {
+        PartitionFilesSorter.sortMemoryShuffleFile(memoryFileInfo);
+      }
+      synchronized (flushLock) {
+        evictInternal();
+        if (isClosed()) {
+          waitOnNoPending(notifier.numPendingFlushes);
+          storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), diskFileInfo);
+        }
+      }
     }
   }
 
@@ -491,7 +502,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       if (!notifier.hasException()) {
         notifier.setException(ioException);
       }
-      returnBuffer();
+      returnBuffer(true);
       try {
         if (channel != null) {
           channel.close();
@@ -584,19 +595,19 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     }
   }
 
-  protected void returnBuffer() {
+  protected void returnBuffer(boolean destroy) {
     synchronized (flushLock) {
-      if (flushBuffer != null && flusher != null) {
-        flusher.returnBuffer(flushBuffer, true);
-        flushBuffer = null;
+      if (flushBuffer != null) {
+        if (flusher != null) {
+          flusher.returnBuffer(flushBuffer, true);
+          flushBuffer = null;
+        } else {
+          if (destroy) {
+            flushBuffer.removeComponents(0, flushBuffer.numComponents());
+            flushBuffer.release();
+          }
+        }
       }
-    }
-  }
-
-  public void cleanPartitionWriter() {
-    synchronized (this.flushLock) {
-      flushBuffer.removeComponents(0, flushBuffer.numComponents());
-      flushBuffer.release();
     }
   }
 

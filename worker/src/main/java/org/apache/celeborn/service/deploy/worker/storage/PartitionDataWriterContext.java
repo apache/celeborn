@@ -34,6 +34,7 @@ public class PartitionDataWriterContext {
   private final boolean partitionSplitEnabled;
   private final String shuffleKey;
   private final PartitionType partitionType;
+  private boolean canUserMemory;
 
   public PartitionDataWriterContext(
       long splitThreshold,
@@ -95,5 +96,13 @@ public class PartitionDataWriterContext {
 
   public PartitionType getPartitionType() {
     return partitionType;
+  }
+
+  public boolean isCanUserMemory() {
+    return canUserMemory;
+  }
+
+  public void setCanUserMemory(boolean canUserMemory) {
+    this.canUserMemory = canUserMemory;
   }
 }
