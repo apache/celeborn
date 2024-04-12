@@ -433,7 +433,7 @@ class CelebornShuffleReader[K, C](
     dep.serializer.newInstance()
   }
 
-  private def splitSkewedPartitionLocations(
+  def splitSkewedPartitionLocations(
       locations: util.ArrayList[PartitionLocation],
       subPartitionSize: Int,
       subPartitionIndex: Int): util.Map[String, Pair[Integer, Integer]] = {
@@ -442,7 +442,13 @@ class CelebornShuffleReader[K, C](
       locations.stream.mapToLong((p: PartitionLocation) => p.getStorageInfo.fileSize).sum
     val step = totalPartitionSize / subPartitionSize
     val startOffset = step * subPartitionIndex
-    val endOffset = step * (subPartitionIndex + 1)
+    val endOffset =
+      if (subPartitionIndex == subPartitionSize - 1) {
+        // last subPartition should include all remaining data
+        totalPartitionSize + 1
+      } else {
+        step * (subPartitionIndex + 1)
+      }
     var partitionLocationOffset: Long = 0
     val chunkRange = new util.HashMap[String, Pair[Integer, Integer]]
     for (i <- 0 until locations.size) {
