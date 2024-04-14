@@ -83,25 +83,25 @@ class ThreadPoolSource(
     addGauge(
       "is_terminating",
       label,
-      new Gauge[Boolean] {
-        override def getValue: Boolean = {
-          threadPoolExecutor.isTerminating
+      new Gauge[Int] {
+        override def getValue: Int = {
+          if (threadPoolExecutor.isTerminating) 1 else 0
         }
       })
     addGauge(
       "is_terminated",
       label,
-      new Gauge[Boolean] {
-        override def getValue: Boolean = {
-          threadPoolExecutor.isTerminated
+      new Gauge[Int] {
+        override def getValue: Int = {
+          if (threadPoolExecutor.isTerminated) 1 else 0
         }
       })
     addGauge(
       "is_shutdown",
       label,
-      new Gauge[Boolean] {
-        override def getValue: Boolean = {
-          threadPoolExecutor.isShutdown
+      new Gauge[Int] {
+        override def getValue: Int = {
+          if (threadPoolExecutor.isShutdown) 1 else 0
         }
       })
   }
@@ -129,7 +129,7 @@ class ThreadPoolSource(
       label,
       new Gauge[Int] {
         override def getValue: Int = {
-          threads.size
+          threads.length
         }
       })
     addGauge(
