@@ -44,6 +44,7 @@ license: |
 | celeborn.master.heartbeat.worker.timeout | 120s | false | Worker heartbeat timeout. | 0.3.0 | celeborn.worker.heartbeat.timeout | 
 | celeborn.master.host | &lt;localhost&gt; | false | Hostname for master to bind. | 0.2.0 |  | 
 | celeborn.master.http.host | &lt;localhost&gt; | false | Master's http host. | 0.4.0 | celeborn.metrics.master.prometheus.host,celeborn.master.metrics.prometheus.host | 
+| celeborn.master.http.idleTimeout | 30s | false | Master http server idle timeout. | 0.5.0 |  | 
 | celeborn.master.http.maxWorkerThreads | 200 | false | Maximum number of threads in the master http worker thread pool. | 0.5.0 |  | 
 | celeborn.master.http.port | 9098 | false | Master's http port. | 0.4.0 | celeborn.metrics.master.prometheus.port,celeborn.master.metrics.prometheus.port | 
 | celeborn.master.http.stopTimeout | 5s | false | Master http server stop timeout. | 0.5.0 |  | 
