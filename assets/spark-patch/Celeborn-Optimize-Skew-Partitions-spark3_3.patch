@@ -41,7 +41,7 @@ index af03ad9a4cb..7a3ee9ebfaf 100644
  
    /** Set Spark SQL configuration properties. */
 diff --git a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
-index af689db3379..d421ca80a3d 100644
+index af689db3379..f277bc396d4 100644
 --- a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
 +++ b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
 @@ -22,6 +22,7 @@ import scala.collection.mutable.ArrayBuffer
@@ -52,32 +52,31 @@ index af689db3379..d421ca80a3d 100644
  
  object ShufflePartitionsUtil extends Logging {
    final val SMALL_PARTITION_FACTOR = 0.2
-@@ -387,6 +388,24 @@ object ShufflePartitionsUtil extends Logging {
+@@ -387,6 +388,23 @@ object ShufflePartitionsUtil extends Logging {
      val mapStartIndices = splitSizeListByTargetSize(
        mapPartitionSizes, targetSize, smallPartitionFactor)
      if (mapStartIndices.length > 1) {
-+      val isCelebornClientAdaptiveOptimizeSkewedPartitionReadEnabled = {
-+        val throwsFetchFailure = SparkEnv.get
-+          .conf
-+          .get("spark.celeborn.client.spark.fetch.throwsFetchFailure", "false")
-+          .toBoolean
-+        if (throwsFetchFailure) {
-+          throw new UnsupportedOperationException(
-+            "Currently, the 'Optimize Skewed Partition Read' feature cannot be used " +
++      val isCelebornClientAdaptiveOptimizeSkewedPartitionReadEnabled =
++        // TODO: check fallback or not.
++        SparkEnv.get.conf.get("spark.shuffle.manager", "sort").contains("celeborn") &&
++          SQLConf.get.celebornClientAdaptiveOptimizeSkewedPartitionReadEnabled
++
++      val throwsFetchFailure = SparkEnv.get
++        .conf
++        .get("spark.celeborn.client.spark.fetch.throwsFetchFailure", "false")
++        .toBoolean
++      if (throwsFetchFailure && isCelebornClientAdaptiveOptimizeSkewedPartitionReadEnabled) {
++        throw new UnsupportedOperationException(
++          "Currently, the 'Optimize Skewed Partition Read' feature cannot be used " +
 +            "together with the 'Stage Re-run' feature. (The configuration parameters " +
 +            "`spark.celeborn.client.spark.fetch.throwsFetchFailure` and " +
 +            "`spark.celeborn.client.adaptive.optimizeSkewedPartitionRead.enabled` cannot be set " +
 +            "to `true` at the same time.)")
-+        } else {
-+          // TODO: check fallback or not.
-+          SparkEnv.get.conf.get("spark.shuffle.manager", "sort").contains("celeborn") &&
-+            SQLConf.get.celebornClientAdaptiveOptimizeSkewedPartitionReadEnabled
-+        }
 +      }
        Some(mapStartIndices.indices.map { i =>
          val startMapIndex = mapStartIndices(i)
          val endMapIndex = if (i == mapStartIndices.length - 1) {
-@@ -400,7 +419,14 @@ object ShufflePartitionsUtil extends Logging {
+@@ -400,7 +418,14 @@ object ShufflePartitionsUtil extends Logging {
            dataSize += mapPartitionSizes(mapIndex)
            mapIndex += 1
          }
