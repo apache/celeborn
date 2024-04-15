@@ -141,6 +141,9 @@ These metrics are exposed by Celeborn master.
     - is_terminating
     - is_terminated
     - is_shutdown
+    - thread_count
+    - thread_is_terminated_count
+    - thread_is_shutdown_count
 
 #### Worker
 These metrics are exposed by Celeborn worker.
