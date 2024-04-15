@@ -270,12 +270,12 @@ public class MemoryManager {
                       if (!committedWriters.isEmpty()) {
                         PartitionDataWriter writer = committedWriters.remove(0);
                         synchronized (writer.getMemoryFileInfo()) {
-                          writer.evict(false);
+                          writer.evict();
                         }
                       } else if (!unCommittedWriters.isEmpty()) {
                         PartitionDataWriter writer = unCommittedWriters.remove(0);
                         synchronized (writer.getMemoryFileInfo()) {
-                          writer.evict(false);
+                          writer.evict();
                         }
                       } else {
                         break;

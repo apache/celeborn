@@ -313,7 +313,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   def saveAllMemoryStorageFileInfosToDB(): Unit = {
     for (writer <- memoryWriters.asScala) {
-      Utils.tryLogNonFatalError(writer._2.evict(true))
+      Utils.tryLogNonFatalError(writer._2.evict())
     }
   }
 
@@ -533,8 +533,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             }
           }
         }
-      case _: MemoryFileInfo =>
-        val memoryWriter = memoryWriters.get(fileInfo.asInstanceOf[MemoryFileInfo])
+      case mInfo: MemoryFileInfo =>
+        val memoryWriter = memoryWriters.remove(mInfo)
         memoryWriter.destroy(new IOException(
           s"Destroy FileWriter $memoryWriter caused by shuffle $shuffleKey expired."))
       case _ =>
@@ -587,7 +587,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       if (memoryFileInfos.containsKey(shuffleKey)) {
         val memoryFileMaps = memoryFileInfos.remove(shuffleKey)
         memoryFileMaps.asScala.foreach(u => {
-          memoryWriters.remove(u._2)
           MemoryManager.instance().releaseMemoryFileStorage(u._2.expireMemoryBuffers())
         })
       }
@@ -869,7 +868,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionDataWriterContext: PartitionDataWriterContext)
       : (MemoryFileInfo, Flusher, DiskFileInfo, File) = {
     val location = partitionDataWriterContext.getPartitionLocation
-    if (partitionDataWriterContext.isCanUserMemory && location.getStorageInfo.memoryAvailable() && MemoryManager.instance().memoryFileStorageAvailable()) {
+    if (partitionDataWriterContext.isCanUseMemory && location.getStorageInfo.memoryAvailable() && MemoryManager.instance().memoryFileStorageAvailable()) {
       logDebug(s"Create memory file for ${partitionDataWriterContext.getShuffleKey}-${partitionDataWriterContext.getPartitionLocation.getFileName}")
       (
         createMemoryFile(

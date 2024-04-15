@@ -130,7 +130,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
     Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFileResult =
         createFile(writerContext);
-    writerContext.setCanUserMemory(false);
+    writerContext.setCanUseMemory(false);
 
     // Reduce partition data writers support memory storage now
     if (supportInMemory && createFileResult._1() != null) {
@@ -336,7 +336,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
               "{} Evict, memory buffer is  {}",
               writerContext.getPartitionLocation().getFileName(),
               flushBufferReadableBytes);
-          evict(false);
+          evict();
         }
       }
 
@@ -412,7 +412,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   public Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFile(
       PartitionDataWriterContext writerContext) {
-    writerContext.setCanUserMemory(true);
+    writerContext.setCanUseMemory(true);
     return storageManager.createFile(writerContext);
   }
 
@@ -478,12 +478,12 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     }
   }
 
-  public synchronized void evict(boolean needSort) throws IOException {
+  public synchronized void evict() throws IOException {
     if (memoryFileInfo != null) {
       if (memoryFileInfo.hasReader()) {
         return;
       }
-      if (needSort) {
+      if (isClosed()) {
         PartitionFilesSorter.sortMemoryShuffleFile(memoryFileInfo);
       }
       synchronized (flushLock) {
