@@ -14,7 +14,7 @@
 # limitations under the License.
 
 diff --git a/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala b/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala
-index af03ad9a4cb..3b5c7ce4fce 100644
+index af03ad9a4cb..7a3ee9ebfaf 100644
 --- a/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala
 +++ b/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala
 @@ -3784,6 +3784,12 @@ object SQLConf {
@@ -23,7 +23,7 @@ index af03ad9a4cb..3b5c7ce4fce 100644
  
 +  val CELEBORN_CLIENT_ADAPTIVE_OPTIMIZE_SKEWED_PARTITION_READ =
 +    buildConf("spark.celeborn.client.adaptive.optimizeSkewedPartitionRead.enabled")
-+      .version("3.3.0")
++      .version("3.0.0")
 +      .booleanConf
 +      .createWithDefault(false)
 +
@@ -41,36 +41,40 @@ index af03ad9a4cb..3b5c7ce4fce 100644
  
    /** Set Spark SQL configuration properties. */
 diff --git a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
-index af689db3379..38e54b3ed0a 100644
+index af689db3379..393ac402363 100644
 --- a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
 +++ b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
-@@ -22,6 +22,8 @@ import scala.collection.mutable.ArrayBuffer
+@@ -22,6 +22,7 @@ import scala.collection.mutable.ArrayBuffer
  import org.apache.spark.{MapOutputStatistics, MapOutputTrackerMaster, SparkEnv}
  import org.apache.spark.internal.Logging
  import org.apache.spark.sql.execution.{CoalescedPartitionSpec, PartialReducerPartitionSpec, ShufflePartitionSpec}
 +import org.apache.spark.sql.internal.SQLConf
-+import org.apache.spark.util.Utils
  
  object ShufflePartitionsUtil extends Logging {
    final val SMALL_PARTITION_FACTOR = 0.2
-@@ -387,6 +389,10 @@ object ShufflePartitionsUtil extends Logging {
+@@ -387,6 +388,12 @@ object ShufflePartitionsUtil extends Logging {
      val mapStartIndices = splitSizeListByTargetSize(
        mapPartitionSizes, targetSize, smallPartitionFactor)
      if (mapStartIndices.length > 1) {
 +      // If Celeborn is enabled, split skew partitions without shuffle mapper-range reading
-+      val isCelebornClientAdaptiveOptimizeSkewedPartitionReadEnabled = Utils.isCelebornEnabled(SparkEnv.get.conf) &&
-+        SQLConf.get.celebornClientAdaptiveOptimizeSkewedPartitionReadEnabled
-+
++      val isCelebornClientAdaptiveOptimizeSkewedPartitionReadEnabled = {
++        // TODO: check fallback or not.
++        SparkEnv.get.conf.get("spark.shuffle.manager", "sort").contains("celeborn") &&
++          SQLConf.get.celebornClientAdaptiveOptimizeSkewedPartitionReadEnabled
++      }
        Some(mapStartIndices.indices.map { i =>
          val startMapIndex = mapStartIndices(i)
          val endMapIndex = if (i == mapStartIndices.length - 1) {
-@@ -400,7 +406,11 @@ object ShufflePartitionsUtil extends Logging {
+@@ -400,7 +407,14 @@ object ShufflePartitionsUtil extends Logging {
            dataSize += mapPartitionSizes(mapIndex)
            mapIndex += 1
          }
 -        PartialReducerPartitionSpec(reducerId, startMapIndex, endMapIndex, dataSize)
 +        if (isCelebornClientAdaptiveOptimizeSkewedPartitionReadEnabled) {
-+          PartialReducerPartitionSpec(reducerId, mapStartIndices.length, i, -1)
++          // These `dataSize` variables may not be accurate as they only represent the sum of
++          // `dataSize` when the Celeborn optimize skewed partition read feature is enabled.
++          // Please not to use these dataSize variables in any other part of the codebase.
++          PartialReducerPartitionSpec(reducerId, mapStartIndices.length, i, dataSize)
 +        } else {
 +          PartialReducerPartitionSpec(reducerId, startMapIndex, endMapIndex, dataSize)
 +        }
