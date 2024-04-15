@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
 import javax.annotation.concurrent.GuardedBy
 
-import scala.collection.mutable
 import scala.util.control.NonFatal
 
 import org.apache.celeborn.common.CelebornConf
@@ -99,6 +98,7 @@ private[celeborn] class Inbox(
   try {
     inboxLock.lockInterruptibly()
     messages.add(OnStart)
+    messageCount.incrementAndGet()
   } finally {
     inboxLock.unlock()
   }
@@ -170,9 +170,6 @@ private[celeborn] class Inbox(
 
       case RemoteProcessConnectionError(cause, remoteAddress) =>
         endpoint.onNetworkError(cause, remoteAddress)
-
-      case other =>
-        throw new IllegalStateException(s"unsupported message $other")
     }
   }
 
@@ -180,7 +177,7 @@ private[celeborn] class Inbox(
     if (capacity > 0 && !stopped) {
       try {
         inboxLock.lockInterruptibly()
-        while (messageCount.get() == capacity) {
+        while (messageCount.get() >= capacity) {
           isFull.await()
         }
       } finally {
@@ -210,7 +207,6 @@ private[celeborn] class Inbox(
         messageCount.decrementAndGet()
         signalNotFull()
       } else {
-        signalNotFull()
         return
       }
     } finally {
@@ -233,7 +229,6 @@ private[celeborn] class Inbox(
         message = messages.poll()
         if (message == null) {
           numActiveThreads -= 1
-          signalNotFull()
           return
         } else {
           messageCount.decrementAndGet()
@@ -254,7 +249,6 @@ private[celeborn] class Inbox(
       } else {
         addMessage(message)
       }
-      signalNotFull()
     } finally {
       inboxLock.unlock()
     }
