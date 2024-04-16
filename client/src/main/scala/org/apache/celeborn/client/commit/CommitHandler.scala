@@ -84,6 +84,8 @@ abstract class CommitHandler(
 
   def getPartitionType(): PartitionType
 
+  def getShuffleFailedBatches(): ShufflePushFailedBatches = this.shufflePushFailedBatches
+
   def isStageEnd(shuffleId: Int): Boolean = false
 
   def isStageEndOrInProcess(shuffleId: Int): Boolean = false
