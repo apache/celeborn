@@ -47,6 +47,8 @@ class ChangePartitionManager(
   // shuffleId -> (partitionId -> set of ChangePartition)
   private val changePartitionRequests =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]()
+  private val locks = Array.fill(conf.batchHandleChangePartitionParallelism)(new AnyRef())
+
   // shuffleId -> set of partition id
   private val inBatchPartitions = JavaUtils.newConcurrentHashMap[Int, JSet[Integer]]()
 
@@ -79,14 +81,17 @@ class ChangePartitionManager(
                 batchHandleChangePartitionExecutors.submit {
                   new Runnable {
                     override def run(): Unit = {
-                      val distinctPartitions = requests.synchronized {
-                        // For each partition only need handle one request
-                        requests.asScala.filter { case (partitionId, _) =>
-                          !inBatchPartitions.get(shuffleId).contains(partitionId)
-                        }.map { case (partitionId, request) =>
-                          inBatchPartitions.get(shuffleId).add(partitionId)
-                          request.asScala.toArray.maxBy(_.epoch)
-                        }.toArray
+                      val distinctPartitions = {
+                        requests.asScala.map { case (partitionId, request) =>
+                          locks(partitionId % locks.length).synchronized {
+                            if (!inBatchPartitions.contains(partitionId)) {
+                              inBatchPartitions.get(shuffleId).add(partitionId)
+                              Some(request.asScala.toArray.maxBy(_.epoch))
+                            } else {
+                              None
+                            }
+                          }
+                        }.filter(_.isDefined).map(_.get).toArray
                       }
                       if (distinctPartitions.nonEmpty) {
                         handleRequestPartitions(
@@ -151,7 +156,7 @@ class ChangePartitionManager(
       oldPartition,
       cause)
 
-    requests.synchronized {
+    locks(partitionId % locks.length).synchronized {
       if (requests.containsKey(partitionId)) {
         requests.get(partitionId).add(changePartition)
         logTrace(s"[handleRequestPartitionLocation] For $shuffleId, request for same partition" +
