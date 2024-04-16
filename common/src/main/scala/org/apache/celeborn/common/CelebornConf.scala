@@ -400,6 +400,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(get(RPC_LOOKUP_TIMEOUT).milli, RPC_LOOKUP_TIMEOUT.key)
   def rpcAskTimeout: RpcTimeout =
     new RpcTimeout(get(RPC_ASK_TIMEOUT).milli, RPC_ASK_TIMEOUT.key)
+  def rpcInMemoryBoundedInboxCapacity(): Int = {
+    get(RPC_INBOX_CAPACITY)
+  }
   def rpcDispatcherNumThreads(availableCores: Int): Int = {
     val num = get(RPC_DISPATCHER_THREADS)
     if (num != 0) num else availableCores
@@ -1590,6 +1593,17 @@ object CelebornConf extends Logging {
       .doc("Threads number of message dispatcher event loop. Default to 0, which is availableCore.")
       .version("0.3.0")
       .intConf
+      .createWithDefault(0)
+
+  val RPC_INBOX_CAPACITY: ConfigEntry[Int] =
+    buildConf("celeborn.rpc.inbox.capacity")
+      .categories("network")
+      .doc("Specifies size of the in memory bounded capacity.")
+      .version("0.5.0")
+      .intConf
+      .checkValue(
+        v => v >= 0,
+        "the capacity of inbox must be no less than 0, 0 means no limitation")
       .createWithDefault(0)
 
   val RPC_ROLE_DISPATHER_THREADS: ConfigEntry[Int] =
