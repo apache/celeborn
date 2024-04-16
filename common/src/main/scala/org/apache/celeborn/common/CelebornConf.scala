@@ -87,6 +87,65 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     this
   }
 
+  private def getTransportConfContainsImpl[T](module: String, entry: ConfigEntry[T]): Boolean = {
+    var currentModule = module
+
+    while (null != currentModule) {
+      val key = entry.key.replace("<module>", currentModule)
+      val opt = getOption(key)
+      if (opt.isDefined) {
+        return true
+      }
+
+      currentModule = CelebornConf.TRANSPORT_MODULE_FALLBACKS.getOrElse(currentModule, null)
+    }
+
+    // Is there a fallback for the config entry itself ?
+    entry match {
+      case fallbackConfig: FallbackConfigEntry[T] =>
+        contains(fallbackConfig)
+      case _ =>
+        false
+    }
+  }
+
+  private def getTransportConfImpl[T](
+      module: String,
+      configEntry: ConfigEntry[T],
+      converter: String => T,
+      allowDefault: Boolean = true): Option[T] = {
+    var currentModule = module
+
+    while (null != currentModule) {
+      val key = configEntry.key.replace("<module>", currentModule)
+      val opt = getOption(key)
+      if (opt.isDefined) {
+        return opt.map(converter)
+      }
+
+      currentModule = CelebornConf.TRANSPORT_MODULE_FALLBACKS.getOrElse(currentModule, null)
+    }
+
+    // Is there a fallback for the config entry itself ?
+    configEntry match {
+      case fallbackConfig: FallbackConfigEntry[T] =>
+        if (fallbackConfig.fallback.defaultValue.isDefined || contains(fallbackConfig)) {
+          // We do not expect fallback key to be a transport conf
+          assert(!fallbackConfig.fallback.key.contains("<module>"))
+          Some(get(fallbackConfig.fallback))
+        } else {
+          // We return None if fallback config is defined, but it does not have a default
+          None
+        }
+      case _ =>
+        if (allowDefault) {
+          Some(converter(configEntry.defaultValueString))
+        } else {
+          None
+        }
+    }
+  }
+
   def set[T](entry: ConfigEntry[T], value: T): CelebornConf = {
     set(entry.key, entry.stringConverter(value))
     this
@@ -148,6 +207,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     entry.readFrom(reader)
   }
 
+  /** Get a transport config */
+  def getTransportConf(module: String, configEntry: ConfigEntry[String]): String = {
+    getTransportConfImpl(module, configEntry, Predef.identity).get
+  }
+
   /**
    * Get a time parameter as seconds; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then seconds are assumed.
@@ -167,6 +231,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     Utils.timeStringAsSeconds(get(key, defaultValue))
   }
 
+  /** Get time in seconds for a transport config */
+  def getTransportConfTimeAsSeconds(module: String, configEntry: ConfigEntry[Long]): Long = {
+    getTransportConfImpl(module, configEntry, Utils.timeStringAsSeconds).get
+  }
+
   /**
    * Get a time parameter as milliseconds; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then milliseconds are assumed.
@@ -184,6 +253,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
    */
   def getTimeAsMs(key: String, defaultValue: String): Long = catchIllegalValue(key) {
     Utils.timeStringAsMs(get(key, defaultValue))
+  }
+
+  /** Get time in ms for a transport config */
+  def getTransportConfTimeAsMs(module: String, configEntry: ConfigEntry[Long]): Long = {
+    getTransportConfImpl(module, configEntry, Utils.timeStringAsMs).get
   }
 
   /**
@@ -213,6 +287,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     Utils.byteStringAsBytes(get(key, defaultValue + "B"))
   }
 
+  /** Get a size parameter as bytes for a transport config */
+  def getTransportConfSizeAsBytes(module: String, configEntry: ConfigEntry[Long]): Long = {
+    getTransportConfImpl(module, configEntry, Utils.byteStringAsBytes).get
+  }
+
   /**
    * Get a size parameter as Kibibytes; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then Kibibytes are assumed.
@@ -230,6 +309,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
    */
   def getSizeAsKb(key: String, defaultValue: String): Long = catchIllegalValue(key) {
     Utils.byteStringAsKb(get(key, defaultValue))
+  }
+
+  /** Get a size parameter as kb for a transport config */
+  def getTransportConfSizeAsKb(module: String, configEntry: ConfigEntry[Long]): Long = {
+    getTransportConfImpl(module, configEntry, Utils.byteStringAsKb).get
   }
 
   /**
@@ -251,6 +335,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     Utils.byteStringAsMb(get(key, defaultValue))
   }
 
+  /** Get a size parameter as mb for a transport config */
+  def getTransportConfSizeAsMb(module: String, configEntry: ConfigEntry[Long]): Long = {
+    getTransportConfImpl(module, configEntry, Utils.byteStringAsMb).get
+  }
+
   /**
    * Get a size parameter as Gibibytes; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then Gibibytes are assumed.
@@ -268,6 +357,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
    */
   def getSizeAsGb(key: String, defaultValue: String): Long = catchIllegalValue(key) {
     Utils.byteStringAsGb(get(key, defaultValue))
+  }
+
+  /** Get a size parameter as Gb for a transport config */
+  def getTransportConfSizeAsGb(module: String, configEntry: ConfigEntry[Long]): Long = {
+    getTransportConfImpl(module, configEntry, Utils.byteStringAsGb).get
   }
 
   /** Get a parameter as an Option */
@@ -301,12 +395,22 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getOption(key).map(_.toInt).getOrElse(defaultValue)
   }
 
+  /** Get a parameter as an integer for a transport config */
+  def getTransportConfInt(module: String, configEntry: ConfigEntry[Int]): Int = {
+    getTransportConfImpl(module, configEntry, Integer.parseInt).get
+  }
+
   /**
    * Get a parameter as a long, falling back to a default if not set
    * @throws NumberFormatException If the value cannot be interpreted as a long
    */
   def getLong(key: String, defaultValue: Long): Long = catchIllegalValue(key) {
     getOption(key).map(_.toLong).getOrElse(defaultValue)
+  }
+
+  /** Get a parameter as a long for a transport config */
+  def getTransportConfLong(module: String, configEntry: ConfigEntry[Long]): Long = {
+    getTransportConfImpl(module, configEntry, java.lang.Long.parseLong).get
   }
 
   /**
@@ -317,12 +421,22 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getOption(key).map(_.toDouble).getOrElse(defaultValue)
   }
 
+  /** Get a parameter as a long for a transport config */
+  def getTransportConfDouble(module: String, configEntry: ConfigEntry[Double]): Double = {
+    getTransportConfImpl(module, configEntry, java.lang.Double.parseDouble).get
+  }
+
   /**
    * Get a parameter as a boolean, falling back to a default if not set
    * @throws IllegalArgumentException If the value cannot be interpreted as a boolean
    */
   def getBoolean(key: String, defaultValue: Boolean): Boolean = catchIllegalValue(key) {
     getOption(key).map(_.toBoolean).getOrElse(defaultValue)
+  }
+
+  /** Get a parameter as a long for a transport config */
+  def getTransportConfBoolean(module: String, configEntry: ConfigEntry[Boolean]): Boolean = {
+    getTransportConfImpl(module, configEntry, java.lang.Boolean.parseBoolean).get
   }
 
   /** Does the configuration contain a given parameter? */
@@ -332,6 +446,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   private[celeborn] def contains(entry: ConfigEntry[_]): Boolean = contains(entry.key)
+
+  private[celeborn] def getTransportConfContains[E](
+      module: String,
+      configEntry: ConfigEntry[E]): Boolean = {
+    getTransportConfContainsImpl(module, configEntry)
+  }
 
   /** Copy this object */
   override def clone: CelebornConf = {
@@ -415,78 +535,63 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   def networkIoMode(module: String): String = {
-    val key = NETWORK_IO_MODE.key.replace("<module>", module)
-    get(key, NETWORK_IO_MODE.defaultValue.get)
+    getTransportConf(module, NETWORK_IO_MODE)
   }
 
   def networkIoPreferDirectBufs(module: String): Boolean = {
-    val key = NETWORK_IO_PREFER_DIRECT_BUFS.key.replace("<module>", module)
-    getBoolean(key, NETWORK_IO_PREFER_DIRECT_BUFS.defaultValue.get)
+    getTransportConfBoolean(module, NETWORK_IO_PREFER_DIRECT_BUFS)
   }
 
   def networkIoConnectTimeoutMs(module: String): Int = {
-    val key = NETWORK_IO_CONNECT_TIMEOUT.key.replace("<module>", module)
-    getTimeAsMs(key, s"${networkConnectTimeout.duration.toMillis}ms").toInt
+    getTransportConfTimeAsMs(module, NETWORK_IO_CONNECT_TIMEOUT).toInt
   }
 
   def networkIoConnectionTimeoutMs(module: String): Int = {
-    val key = NETWORK_IO_CONNECTION_TIMEOUT.key.replace("<module>", module)
-    getTimeAsMs(key, s"${networkTimeout.duration.toMillis}ms").toInt
+    getTransportConfTimeAsMs(module, NETWORK_IO_CONNECTION_TIMEOUT).toInt
   }
 
   def networkIoNumConnectionsPerPeer(module: String): Int = {
-    val key = NETWORK_IO_NUM_CONNECTIONS_PER_PEER.key.replace("<module>", module)
-    getInt(key, NETWORK_IO_NUM_CONNECTIONS_PER_PEER.defaultValue.get)
+    getTransportConfInt(module, NETWORK_IO_NUM_CONNECTIONS_PER_PEER)
   }
 
   def networkIoBacklog(module: String): Int = {
-    val key = NETWORK_IO_BACKLOG.key.replace("<module>", module)
-    getInt(key, NETWORK_IO_BACKLOG.defaultValue.get)
+    getTransportConfInt(module, NETWORK_IO_BACKLOG)
   }
 
   def networkIoServerThreads(module: String): Int = {
-    val key = NETWORK_IO_SERVER_THREADS.key.replace("<module>", module)
-    getInt(key, NETWORK_IO_SERVER_THREADS.defaultValue.get)
+    getTransportConfInt(module, NETWORK_IO_SERVER_THREADS)
   }
 
   def networkIoClientThreads(module: String): Int = {
-    val key = NETWORK_IO_CLIENT_THREADS.key.replace("<module>", module)
-    getInt(key, NETWORK_IO_CLIENT_THREADS.defaultValue.get)
+    getTransportConfInt(module, NETWORK_IO_CLIENT_THREADS)
   }
 
   def networkIoReceiveBuf(module: String): Int = {
-    val key = NETWORK_IO_RECEIVE_BUFFER.key.replace("<module>", module)
-    getSizeAsBytes(key, NETWORK_IO_RECEIVE_BUFFER.defaultValueString).toInt
+    getTransportConfSizeAsBytes(module, NETWORK_IO_RECEIVE_BUFFER).toInt
   }
 
   def networkIoSendBuf(module: String): Int = {
-    val key = NETWORK_IO_SEND_BUFFER.key.replace("<module>", module)
-    getSizeAsBytes(key, NETWORK_IO_SEND_BUFFER.defaultValueString).toInt
+    getTransportConfSizeAsBytes(module, NETWORK_IO_SEND_BUFFER).toInt
   }
 
   def networkIoMaxRetries(module: String): Int = {
-    val key = NETWORK_IO_MAX_RETRIES.key.replace("<module>", module)
-    getInt(key, NETWORK_IO_MAX_RETRIES.defaultValue.get)
+    getTransportConfInt(module, NETWORK_IO_MAX_RETRIES)
   }
 
   def networkIoRetryWaitMs(module: String): Int = {
-    val key = NETWORK_IO_RETRY_WAIT.key.replace("<module>", module)
-    getTimeAsMs(key, NETWORK_IO_RETRY_WAIT.defaultValueString).toInt
+    getTransportConfTimeAsMs(module, NETWORK_IO_RETRY_WAIT).toInt
   }
 
   def networkIoMemoryMapBytes(module: String): Int = {
-    val key = NETWORK_IO_STORAGE_MEMORY_MAP_THRESHOLD.key.replace("<module>", module)
-    getSizeAsBytes(key, NETWORK_IO_STORAGE_MEMORY_MAP_THRESHOLD.defaultValueString).toInt
+    getTransportConfSizeAsBytes(module, NETWORK_IO_STORAGE_MEMORY_MAP_THRESHOLD).toInt
   }
 
   def networkIoLazyFileDescriptor(module: String): Boolean = {
-    val key = NETWORK_IO_LAZY_FD.key.replace("<module>", module)
-    getBoolean(key, NETWORK_IO_LAZY_FD.defaultValue.get)
+    getTransportConfBoolean(module, NETWORK_IO_LAZY_FD)
   }
 
   def networkIoVerboseMetrics(module: String): Boolean = {
-    val key = NETWORK_VERBOSE_METRICS.key.replace("<module>", module)
-    getBoolean(key, NETWORK_VERBOSE_METRICS.defaultValue.get)
+    getTransportConfBoolean(module, NETWORK_VERBOSE_METRICS)
   }
 
   def networkShareMemoryAllocator: Boolean = get(NETWORK_MEMORY_ALLOCATOR_SHARE)
@@ -505,35 +610,29 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   def clientHeartbeatInterval(module: String): Long = {
-    val key = CHANNEL_HEARTBEAT_INTERVAL.key.replace("<module>", module)
-    getTimeAsMs(key, CHANNEL_HEARTBEAT_INTERVAL.defaultValueString)
+    getTransportConfTimeAsMs(module, CHANNEL_HEARTBEAT_INTERVAL)
   }
 
   def pushDataTimeoutCheckerThreads(module: String): Int = {
-    val key = PUSH_TIMEOUT_CHECK_THREADS.key.replace("<module>", module)
-    getInt(key, PUSH_TIMEOUT_CHECK_THREADS.defaultValue.get)
+    getTransportConfInt(module, PUSH_TIMEOUT_CHECK_THREADS)
   }
 
   def pushDataTimeoutCheckInterval(module: String): Long = {
-    val key = PUSH_TIMEOUT_CHECK_INTERVAL.key.replace("<module>", module)
-    getTimeAsMs(key, PUSH_TIMEOUT_CHECK_INTERVAL.defaultValueString)
+    getTransportConfTimeAsMs(module, PUSH_TIMEOUT_CHECK_INTERVAL)
   }
 
   def fetchDataTimeoutCheckerThreads(module: String): Int = {
-    val key = FETCH_TIMEOUT_CHECK_THREADS.key.replace("<module>", module)
-    getInt(key, FETCH_TIMEOUT_CHECK_THREADS.defaultValue.get)
+    getTransportConfInt(module, FETCH_TIMEOUT_CHECK_THREADS)
   }
 
   def fetchDataTimeoutCheckInterval(module: String): Long = {
-    val key = FETCH_TIMEOUT_CHECK_INTERVAL.key.replace("<module>", module)
-    getTimeAsMs(key, FETCH_TIMEOUT_CHECK_INTERVAL.defaultValueString)
+    getTransportConfTimeAsMs(module, FETCH_TIMEOUT_CHECK_INTERVAL)
   }
 
   def maxDefaultNettyThreads: Int = get(MAX_DEFAULT_NETTY_THREADS)
 
   def networkIoSaslTimoutMs(module: String): Int = {
-    val key = NETWORK_IO_SASL_TIMEOUT.key.replace("<module>", module)
-    getTimeAsMs(key, s"${networkTimeout.duration.toMillis}ms").toInt
+    getTransportConfTimeAsMs(module, NETWORK_IO_SASL_TIMEOUT).toInt
   }
 
   // //////////////////////////////////////////////////////
@@ -1153,15 +1252,18 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                     TLS                             //
   // //////////////////////////////////////////////////////
   private def getSslConfig[V](config: ConfigEntry[V], module: String): V = {
-    // For ssl, we look at the module specific value - and then fallback to without the
-    // module for global defaults, before falling back on what is in code
-    val moduleKey = config.key.replace("<module>", module)
+    val valueOpt = getTransportConfImpl(module, config, config.valueConverter, allowDefault = false)
+
+    if (valueOpt.isDefined) {
+      return valueOpt.get
+    }
+
+    // Try without <module>, and if missing, use default
+
     // replace the module wildcard and check for global value
     val globalKey = config.key.replace(".<module>.", ".")
-
     val defaultValue = if (config.defaultValue.isDefined) config.defaultValueString else null
-
-    config.valueConverter(getOption(moduleKey).getOrElse(get(globalKey, defaultValue)))
+    config.valueConverter(get(globalKey, defaultValue))
   }
 
   private def asFileOrNull(fileName: Option[String]): File = {
@@ -1294,6 +1396,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 }
 
 object CelebornConf extends Logging {
+
+  val TRANSPORT_MODULE_FALLBACKS = Map(
+    "rpc_server" -> "rpc",
+    "rpc_app" -> "rpc",
+    // only for testing
+    "test_child_module" -> "test_parent_module")
 
   /**
    * Holds information about keys that have been deprecated and do not have a replacement.
@@ -1625,8 +1733,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.preferDirectBufs")
       .categories("network")
       .doc("If true, we will prefer allocating off-heap byte buffers within Netty. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
@@ -1642,8 +1752,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.connectTimeout")
       .categories("network")
       .doc("Socket connect timeout. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1654,8 +1766,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.connectionTimeout")
       .categories("network")
       .doc("Connection active timeout. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
@@ -1670,8 +1784,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.numConnectionsPerPeer")
       .categories("network")
       .doc("Number of concurrent connections between two nodes. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1684,8 +1800,10 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc(
         "Requested maximum length of the queue of incoming connections. Default 0 for no backlog. " +
-          s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-          s"it works for master or worker. " +
+          s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+          s"works for shuffle client. " +
+          s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+          s"works for master or worker. " +
           s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
           s"it works for worker receiving push data. " +
           s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1699,8 +1817,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.serverThreads")
       .categories("network")
       .doc("Number of threads used in the server thread pool. Default to 0, which is 2x#cores. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
         s"it works for worker receiving push data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1714,8 +1834,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.clientThreads")
       .categories("network")
       .doc("Number of threads used in the client thread pool. Default to 0, which is 2x#cores. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1729,8 +1851,10 @@ object CelebornConf extends Logging {
       .doc("Receive buffer size (SO_RCVBUF). Note: the optimal size for receive buffer and send buffer " +
         "should be latency * network_bandwidth. Assuming latency = 1ms, network_bandwidth = 10Gbps " +
         "buffer size should be ~ 1.25MB. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
@@ -1747,8 +1871,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.sendBuffer")
       .categories("network")
       .doc("Send buffer size (SO_SNDBUF). " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
@@ -1882,8 +2008,10 @@ object CelebornConf extends Logging {
       .categories("network")
       .version("0.3.0")
       .doc("The heartbeat interval between worker and client. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
