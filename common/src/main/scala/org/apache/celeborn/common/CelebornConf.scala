@@ -540,12 +540,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   def networkIoConnectTimeoutMs(module: String): Int = {
-    // TODO: handle fallback as well
     getTransportConfTimeAsMs(module, NETWORK_IO_CONNECT_TIMEOUT).toInt
   }
 
   def networkIoConnectionTimeoutMs(module: String): Int = {
-    // TODO: handle fallback as well
     getTransportConfTimeAsMs(module, NETWORK_IO_CONNECTION_TIMEOUT).toInt
   }
 
@@ -631,7 +629,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def maxDefaultNettyThreads: Int = get(MAX_DEFAULT_NETTY_THREADS)
 
   def networkIoSaslTimoutMs(module: String): Int = {
-    // TODO: handle fallback as well
     getTransportConfTimeAsMs(module, NETWORK_IO_SASL_TIMEOUT).toInt
   }
 
