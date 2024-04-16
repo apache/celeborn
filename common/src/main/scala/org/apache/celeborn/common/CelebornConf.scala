@@ -1722,8 +1722,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.preferDirectBufs")
       .categories("network")
       .doc("If true, we will prefer allocating off-heap byte buffers within Netty. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
@@ -1739,8 +1741,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.connectTimeout")
       .categories("network")
       .doc("Socket connect timeout. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1751,8 +1755,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.connectionTimeout")
       .categories("network")
       .doc("Connection active timeout. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
@@ -1767,8 +1773,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.numConnectionsPerPeer")
       .categories("network")
       .doc("Number of concurrent connections between two nodes. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1781,8 +1789,10 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc(
         "Requested maximum length of the queue of incoming connections. Default 0 for no backlog. " +
-          s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-          s"it works for master or worker. " +
+          s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+          s"works for shuffle client. " +
+          s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+          s"works for master or worker. " +
           s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
           s"it works for worker receiving push data. " +
           s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1796,8 +1806,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.serverThreads")
       .categories("network")
       .doc("Number of threads used in the server thread pool. Default to 0, which is 2x#cores. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
         s"it works for worker receiving push data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1811,8 +1823,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.clientThreads")
       .categories("network")
       .doc("Number of threads used in the client thread pool. Default to 0, which is 2x#cores. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1826,8 +1840,10 @@ object CelebornConf extends Logging {
       .doc("Receive buffer size (SO_RCVBUF). Note: the optimal size for receive buffer and send buffer " +
         "should be latency * network_bandwidth. Assuming latency = 1ms, network_bandwidth = 10Gbps " +
         "buffer size should be ~ 1.25MB. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
@@ -1844,8 +1860,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.sendBuffer")
       .categories("network")
       .doc("Send buffer size (SO_SNDBUF). " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
@@ -1979,8 +1997,10 @@ object CelebornConf extends Logging {
       .categories("network")
       .version("0.3.0")
       .doc("The heartbeat interval between worker and client. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVER_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +

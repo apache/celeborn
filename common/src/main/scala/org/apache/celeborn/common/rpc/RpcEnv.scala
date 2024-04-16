@@ -22,6 +22,7 @@ import java.io.File
 import scala.concurrent.Future
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.protocol.TransportModuleConstants
 import org.apache.celeborn.common.rpc.netty.NettyRpcEnvFactory
 
 /**
@@ -32,15 +33,17 @@ object RpcEnv {
 
   def create(
       name: String,
+      transportModule: String,
       host: String,
       port: Int,
       conf: CelebornConf,
       securityContext: Option[RpcSecurityContext]): RpcEnv = {
-    create(name, host, host, port, conf, 0, securityContext)
+    create(name, transportModule, host, host, port, conf, 0, securityContext)
   }
 
   def create(
       name: String,
+      transportModule: String,
       bindAddress: String,
       advertiseAddress: String,
       port: Int,
@@ -48,7 +51,15 @@ object RpcEnv {
       numUsableCores: Int,
       securityContext: Option[RpcSecurityContext] = None): RpcEnv = {
     val config =
-      RpcEnvConfig(conf, name, bindAddress, advertiseAddress, port, numUsableCores, securityContext)
+      RpcEnvConfig(
+        conf,
+        name,
+        transportModule,
+        bindAddress,
+        advertiseAddress,
+        port,
+        numUsableCores,
+        securityContext)
     new NettyRpcEnvFactory().create(config)
   }
 }
@@ -176,8 +187,13 @@ private[celeborn] trait RpcEnvFileServer {
 private[celeborn] case class RpcEnvConfig(
     conf: CelebornConf,
     name: String,
+    transportModule: String,
     bindAddress: String,
     advertiseAddress: String,
     port: Int,
     numUsableCores: Int,
-    securityContext: Option[RpcSecurityContext])
+    securityContext: Option[RpcSecurityContext]) {
+  assert(TransportModuleConstants.RPC_APP_MODULE == transportModule ||
+    TransportModuleConstants.RPC_SERVER_MODULE == transportModule ||
+    TransportModuleConstants.RPC_MODULE == transportModule)
+}

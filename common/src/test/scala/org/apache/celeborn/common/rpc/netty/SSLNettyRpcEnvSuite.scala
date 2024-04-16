@@ -28,7 +28,7 @@ class SSLNettyRpcEnvSuite extends NettyRpcEnvSuite {
     val conf = super.createCelebornConf()
     TestHelper.updateCelebornConfWithMap(
       conf,
-      SslSampleConfigs.createDefaultConfigMapForModule(TransportModuleConstants.RPC_MODULE))
+      SslSampleConfigs.createDefaultConfigMapForModule(transportModule))
     conf
   }
 

@@ -27,10 +27,13 @@ import org.scalatest.concurrent.{Signaler, ThreadSignaler, TimeLimits}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.network.client.TransportClient
+import org.apache.celeborn.common.protocol.TransportModuleConstants
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.ThreadUtils
 
 class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
+
+  final protected val transportModule = TransportModuleConstants.RPC_MODULE
 
   implicit private val signaler: Signaler = ThreadSignaler
 
@@ -39,7 +42,15 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
       name: String,
       port: Int,
       clientMode: Boolean = false): RpcEnv = {
-    val config = RpcEnvConfig(conf, "test", "localhost", "localhost", port, 0, None)
+    val config = RpcEnvConfig(
+      conf,
+      "test",
+      transportModule,
+      "localhost",
+      "localhost",
+      port,
+      0,
+      None)
     new NettyRpcEnvFactory().create(config)
   }
 
@@ -54,7 +65,15 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
 
   test("advertise address different from bind address") {
     val celebornConf = createCelebornConf()
-    val config = RpcEnvConfig(celebornConf, "test", "localhost", "example.com", 0, 0, None)
+    val config = RpcEnvConfig(
+      celebornConf,
+      "test",
+      transportModule,
+      "localhost",
+      "example.com",
+      0,
+      0,
+      None)
     val env = new NettyRpcEnvFactory().create(config)
     try {
       assert(env.address.hostPort.startsWith("example.com:"))
@@ -98,6 +117,7 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
     val config = RpcEnvConfig(
       conf,
       "test",
+      transportModule,
       "localhost",
       "localhost",
       0,

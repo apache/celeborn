@@ -52,7 +52,7 @@ class NettyRpcEnv(
 
   private[celeborn] val transportConf = Utils.fromCelebornConf(
     celebornConf.clone,
-    TransportModuleConstants.RPC_MODULE,
+    config.transportModule,
     celebornConf.rpcIoThreads.getOrElse(config.numUsableCores))
 
   private val dispatcher: Dispatcher = new Dispatcher(this)

@@ -90,6 +90,7 @@ private[celeborn] class Master(
     if (!authEnabled) {
       RpcEnv.create(
         RpcNameConstants.MASTER_SYS,
+        TransportModuleConstants.RPC_SERVER_MODULE,
         masterArgs.host,
         masterArgs.host,
         masterArgs.port,
@@ -105,6 +106,7 @@ private[celeborn] class Master(
         s"Secure port enabled ${masterArgs.port} for secured RPC.")
       RpcEnv.create(
         RpcNameConstants.MASTER_SYS,
+        TransportModuleConstants.RPC_SERVER_MODULE,
         masterArgs.host,
         masterArgs.host,
         masterArgs.port,
@@ -122,6 +124,7 @@ private[celeborn] class Master(
         s"Internal port enabled, using internal port ${masterArgs.internalPort} for internal RPC.")
       RpcEnv.create(
         RpcNameConstants.MASTER_INTERNAL_SYS,
+        TransportModuleConstants.RPC_SERVER_MODULE,
         masterArgs.host,
         masterArgs.host,
         masterArgs.internalPort,
