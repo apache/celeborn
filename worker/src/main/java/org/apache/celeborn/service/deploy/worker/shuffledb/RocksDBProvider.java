@@ -22,7 +22,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Objects;
 
-import org.rocksdb.*;
+import org.apache.commons.io.FileUtils;
+import org.rocksdb.BlockBasedTableConfig;
+import org.rocksdb.BloomFilter;
+import org.rocksdb.CompressionType;
+import org.rocksdb.InfoLogLevel;
+import org.rocksdb.Options;
+import org.rocksdb.RocksDBException;
+import org.rocksdb.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +74,7 @@ public class RocksDBProvider {
       } catch (RocksDBException e) {
         if (e.getStatus().getCode() == Status.Code.NotFound) {
           logger.info("Creating state database at " + dbFile);
-          dbOptions.setCreateIfMissing(true);
+          createIfMissing(dbOptions, dbFile);
           try {
             tmpDb = org.rocksdb.RocksDB.open(dbOptions, dbFile.toString());
           } catch (RocksDBException dbExc) {
@@ -77,21 +84,21 @@ public class RocksDBProvider {
           // the RocksDB file seems to be corrupt somehow.  Let's just blow it away and create
           // a new one, so we can keep processing new apps
           logger.error(
-              "error opening rocksdb file {}. Creating new file, will not be able to "
+              "Error opening rocksdb file {}. Creating new file, will not be able to "
                   + "recover state for existing applications",
               dbFile,
               e);
           if (dbFile.isDirectory()) {
             for (File f : Objects.requireNonNull(dbFile.listFiles())) {
               if (!f.delete()) {
-                logger.warn("error deleting {}", f.getPath());
+                logger.warn("Error deleting {}", f.getPath());
               }
             }
           }
           if (!dbFile.delete()) {
-            logger.warn("error deleting {}", dbFile.getPath());
+            logger.warn("Error deleting {}", dbFile.getPath());
           }
-          dbOptions.setCreateIfMissing(true);
+          createIfMissing(dbOptions, dbFile);
           try {
             tmpDb = org.rocksdb.RocksDB.open(dbOptions, dbFile.toString());
           } catch (RocksDBException dbExc) {
@@ -108,6 +115,19 @@ public class RocksDBProvider {
       }
     }
     return tmpDb;
+  }
+
+  private static void createIfMissing(Options dbOptions, File dbFile) {
+    logger.info("Creating database file {} if missing", dbFile);
+    dbOptions.setCreateIfMissing(true);
+    // RocksDB does not support creating non-existent multi-level directory.
+    if (!dbFile.exists()) {
+      try {
+        FileUtils.forceMkdir(dbFile);
+      } catch (IOException e) {
+        logger.warn("Failed to create database file {}", dbFile, e);
+      }
+    }
   }
 
   private static class RocksDBLogger extends org.rocksdb.Logger {
@@ -130,28 +150,28 @@ public class RocksDBProvider {
    * Minor version differences are allowed -- meaning we should be able to read dbs that are either
    * earlier *or* later on the minor version.
    */
-  public static void checkVersion(org.rocksdb.RocksDB db, StoreVersion newversion)
+  public static void checkVersion(org.rocksdb.RocksDB db, StoreVersion newVersion)
       throws IOException, RocksDBException {
     byte[] bytes = db.get(StoreVersion.KEY);
     if (bytes == null) {
-      storeVersion(db, newversion);
+      storeVersion(db, newVersion);
     } else {
       ArrayList<Integer> versions = PbSerDeUtils.fromPbStoreVersion(bytes);
       StoreVersion version = new StoreVersion(versions.get(0), versions.get(1));
-      if (version.major != newversion.major) {
+      if (version.major != newVersion.major) {
         throw new IOException(
-            "cannot read state DB with version "
+            "Cannot read state DB with version "
                 + version
                 + ", incompatible "
                 + "with current version "
-                + newversion);
+                + newVersion);
       }
-      storeVersion(db, newversion);
+      storeVersion(db, newVersion);
     }
   }
 
   public static void storeVersion(org.rocksdb.RocksDB db, StoreVersion version)
-      throws IOException, RocksDBException {
+      throws RocksDBException {
     db.put(StoreVersion.KEY, PbSerDeUtils.toPbStoreVersion(version.major, version.minor));
   }
 }
