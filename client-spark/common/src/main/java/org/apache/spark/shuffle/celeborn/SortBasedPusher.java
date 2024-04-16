@@ -377,7 +377,8 @@ public class SortBasedPusher extends MemoryConsumer {
               pushData(true);
             }
           } else {
-            // The new array could not be allocated, but that is not an issue as it is longer needed,
+            // The new array could not be allocated, but that is not an issue as it is longer
+            // needed,
             // as all records were spilled.
             cont = false;
           }
