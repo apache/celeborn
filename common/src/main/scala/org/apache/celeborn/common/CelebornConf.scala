@@ -3904,8 +3904,7 @@ object CelebornConf extends Logging {
   val CLIENT_BATCH_HANDLE_CHANGE_PARTITION_PARALLELISM: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.batchHandleChangePartition.parallelism")
       .categories("client")
-      .internal
-      .doc("max number of change partition requests which can be concurrently processed ")
+      .doc("Max number of change partition requests which can be concurrently processed ")
       .version("0.5.0")
       .intConf
       .createWithDefault(256)
