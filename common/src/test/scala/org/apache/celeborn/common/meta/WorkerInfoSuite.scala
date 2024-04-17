@@ -270,7 +270,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
     try {
       rpcEnv = RpcEnv.create(
         "mockEnv",
-        TransportModuleConstants.RPC_SERVER_MODULE,
+        TransportModuleConstants.RPC_SERVICE_MODULE,
         "localhost",
         "localhost",
         12345,

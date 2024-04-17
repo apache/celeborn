@@ -194,6 +194,6 @@ private[celeborn] case class RpcEnvConfig(
     numUsableCores: Int,
     securityContext: Option[RpcSecurityContext]) {
   assert(TransportModuleConstants.RPC_APP_MODULE == transportModule ||
-    TransportModuleConstants.RPC_SERVER_MODULE == transportModule ||
+    TransportModuleConstants.RPC_SERVICE_MODULE == transportModule ||
     TransportModuleConstants.RPC_MODULE == transportModule)
 }

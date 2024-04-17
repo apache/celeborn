@@ -179,7 +179,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     masterRpcEnvInUse =
       RpcEnv.create(
         RpcNameConstants.LIFECYCLE_MANAGER_MASTER_SYS,
-        TransportModuleConstants.RPC_SERVER_MODULE,
+        TransportModuleConstants.RPC_SERVICE_MODULE,
         lifecycleHost,
         0,
         conf,
@@ -190,7 +190,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     workerRpcEnvInUse =
       RpcEnv.create(
         RpcNameConstants.LIFECYCLE_MANAGER_WORKER_SYS,
-        TransportModuleConstants.RPC_SERVER_MODULE,
+        TransportModuleConstants.RPC_SERVICE_MODULE,
         lifecycleHost,
         0,
         conf,

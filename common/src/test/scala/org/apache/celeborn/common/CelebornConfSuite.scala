@@ -376,10 +376,10 @@ class CelebornConfSuite extends CelebornFunSuite {
     validateDefauitTransportConfValue(conf, "test_child_module")
   }
 
-  test("rpc_server and rpc_client should default to rpc if not configured") {
+  test("rpc_service and rpc_client should default to rpc if not configured") {
     val conf = setupCelebornConfForTransportTests("rpc")
     // set in rpc, so should work for specific rpc servers
-    validateDefauitTransportConfValue(conf, "rpc_server")
+    validateDefauitTransportConfValue(conf, "rpc_service")
     validateDefauitTransportConfValue(conf, "rpc_app")
   }
 

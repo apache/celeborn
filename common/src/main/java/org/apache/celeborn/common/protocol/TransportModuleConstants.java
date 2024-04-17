@@ -27,7 +27,7 @@ public class TransportModuleConstants {
   public static final String RPC_APP_MODULE = "rpc_app";
   // RPC module used to communicate with/between server components
   // This is used both at server (master/worker) and application side.
-  public static final String RPC_SERVER_MODULE = "rpc_server";
+  public static final String RPC_SERVICE_MODULE = "rpc_service";
 
   // Both RPC_APP and RPC_SERVER fallsback to earlier RPC_MODULE for backward
   // compatibility

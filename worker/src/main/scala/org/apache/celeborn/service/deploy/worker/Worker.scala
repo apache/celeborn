@@ -95,7 +95,7 @@ private[celeborn] class Worker(
     if (!authEnabled) {
       RpcEnv.create(
         RpcNameConstants.WORKER_SYS,
-        TransportModuleConstants.RPC_SERVER_MODULE,
+        TransportModuleConstants.RPC_SERVICE_MODULE,
         workerArgs.host,
         workerArgs.host,
         workerArgs.port,
@@ -111,7 +111,7 @@ private[celeborn] class Worker(
         s"Secure port enabled ${workerArgs.port} for secured RPC.")
       RpcEnv.create(
         RpcNameConstants.WORKER_SYS,
-        TransportModuleConstants.RPC_SERVER_MODULE,
+        TransportModuleConstants.RPC_SERVICE_MODULE,
         workerArgs.host,
         workerArgs.host,
         workerArgs.port,
@@ -126,7 +126,7 @@ private[celeborn] class Worker(
     } else {
       RpcEnv.create(
         RpcNameConstants.WORKER_INTERNAL_SYS,
-        TransportModuleConstants.RPC_SERVER_MODULE,
+        TransportModuleConstants.RPC_SERVICE_MODULE,
         workerArgs.host,
         workerArgs.host,
         workerArgs.internalPort,
