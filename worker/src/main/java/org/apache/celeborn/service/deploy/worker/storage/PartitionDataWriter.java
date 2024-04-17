@@ -104,6 +104,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   private final long localFlusherBufferSize;
   private final long hdfsFlusherBufferSize;
   private Exception exception = null;
+  private boolean metricsCollectCriticalEnabled;
 
   public PartitionDataWriter(
       StorageManager storageManager,
@@ -127,6 +128,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     this.writerContext = writerContext;
     this.localFlusherBufferSize = conf.workerFlusherBufferSize();
     this.hdfsFlusherBufferSize = conf.workerHdfsFlusherBufferSize();
+    this.metricsCollectCriticalEnabled = conf.metricsCollectCriticalEnabled();
 
     Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFileResult =
         createFile(writerContext);
@@ -566,7 +568,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   protected void takeBuffer() {
     String metricsName = null;
     String fileAbsPath = null;
-    if (source.metricsCollectCriticalEnabled()) {
+    if (metricsCollectCriticalEnabled) {
       metricsName = WorkerSource.TAKE_BUFFER_TIME();
       fileAbsPath = diskFileInfo.getFilePath();
       source.startTimer(metricsName, fileAbsPath);
@@ -582,7 +584,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       }
     }
 
-    if (source.metricsCollectCriticalEnabled()) {
+    if (metricsCollectCriticalEnabled) {
       source.stopTimer(metricsName, fileAbsPath);
     }
   }

@@ -93,7 +93,7 @@ object PbSerDeUtils {
   def fromPbFileInfo(pbFileInfo: PbFileInfo, userIdentifier: UserIdentifier) = {
     val meta = Utils.toPartitionType(pbFileInfo.getPartitionType) match {
       case PartitionType.REDUCE =>
-        new ReduceFileMeta(pbFileInfo.getChunkOffsetsList, pbFileInfo.getChunkSize)
+        new ReduceFileMeta(pbFileInfo.getChunkOffsetsList)
       case PartitionType.MAP =>
         new MapFileMeta(pbFileInfo.getBufferSize, pbFileInfo.getNumSubpartitions)
       case PartitionType.MAPGROUP =>
@@ -122,7 +122,6 @@ object PbSerDeUtils {
       val reduceFileMeta = fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta]
       builder.setPartitionType(PartitionType.REDUCE.getValue)
       builder.addAllChunkOffsets(reduceFileMeta.getChunkOffsets)
-      builder.setChunkSize(reduceFileMeta.getChunkSize)
     }
     builder.build
   }
