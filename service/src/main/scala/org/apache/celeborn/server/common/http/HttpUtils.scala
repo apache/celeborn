@@ -75,7 +75,6 @@ private[celeborn] object HttpUtils extends Logging {
   def createStaticHandler(
       resourceBase: String,
       contextPath: String): ServletContextHandler = {
-    val contextHandler = new ServletContextHandler()
     val holder = new ServletHolder(classOf[DefaultServlet])
     Option(Thread.currentThread().getContextClassLoader.getResource(resourceBase)) match {
       case Some(res) =>
@@ -83,17 +82,12 @@ private[celeborn] object HttpUtils extends Logging {
       case None =>
         throw new CelebornException("Could not find resource path for Web UI: " + resourceBase)
     }
-    contextHandler.setContextPath(contextPath)
-    contextHandler.addServlet(holder, "/")
-    contextHandler
+    createContextHandler(contextPath, holder)
   }
 
   def createServletHandler(contextPath: String, servlet: HttpServlet): ServletContextHandler = {
-    val handler = new ServletContextHandler()
     val holder = new ServletHolder(servlet)
-    handler.setContextPath(contextPath)
-    handler.addServlet(holder, "/")
-    handler
+    createContextHandler(contextPath, holder)
   }
 
   def createRedirectHandler(src: String, dest: String): ServletContextHandler = {
@@ -124,5 +118,15 @@ private[celeborn] object HttpUtils extends Logging {
     }
 
     createServletHandler(src, redirectedServlet)
+  }
+
+  def createContextHandler(
+      contextPath: String,
+      servletHolder: ServletHolder): ServletContextHandler = {
+    val contextHandler = new ServletContextHandler()
+    contextHandler.setContextPath(contextPath)
+    contextHandler.addServlet(servletHolder, "/")
+    contextHandler.setAllowNullPathInfo(true)
+    contextHandler
   }
 }
