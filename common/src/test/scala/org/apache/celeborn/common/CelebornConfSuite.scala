@@ -19,6 +19,7 @@ package org.apache.celeborn.common
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf._
+import org.apache.celeborn.common.internal.config.ConfigEntry
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.util.Utils
 
@@ -265,4 +266,144 @@ class CelebornConfSuite extends CelebornFunSuite {
     val conf = new CelebornConf()
     assert(conf.rpcDispatcherNumThreads(availableCores) === 5)
   }
+
+  // Transport conf tests
+
+  private val transportTestNetworkIoMode = "EPOLL"
+  private val transportTestNetworkIoPreferDirectBufs =
+    !NETWORK_IO_PREFER_DIRECT_BUFS.defaultValue.get
+
+  private val transportTestNetworkIoConnectTimeout = 50000
+  private val transportTestNetworkIoConnectionTimeout = 1000
+  private val transportTestNetworkIoNumConnectionsPerPeer =
+    NETWORK_IO_NUM_CONNECTIONS_PER_PEER.defaultValue.get + 5
+  private val transportTestNetworkIoBacklog = NETWORK_IO_BACKLOG.defaultValue.get + 5
+  private val transportTestNetworkIoServerThreads = NETWORK_IO_SERVER_THREADS.defaultValue.get + 5
+  private val transportTestNetworkIoClientThreads = NETWORK_IO_CLIENT_THREADS.defaultValue.get + 5
+  private val transportTestNetworkIoReceiveBuffer = NETWORK_IO_RECEIVE_BUFFER.defaultValue.get + 5
+  private val transportTestNetworkIoSendBuffer = NETWORK_IO_SEND_BUFFER.defaultValue.get + 5
+  private val transportTestNetworkIoMaxRetries = NETWORK_IO_MAX_RETRIES.defaultValue.get + 5
+  private val transportTestNetworkIoRetryWait = NETWORK_IO_RETRY_WAIT.defaultValue.get + 5
+  private val transportTestNetworkIoStorageMemoryMapThreshold =
+    NETWORK_IO_STORAGE_MEMORY_MAP_THRESHOLD.defaultValue.get + 5
+  private val transportTestNetworkIoLazyFd = !NETWORK_IO_LAZY_FD.defaultValue.get
+  private val transportTestNetworkVerboseMetrics = !NETWORK_VERBOSE_METRICS.defaultValue.get
+  private val transportTestChannelHeartbeatInterval =
+    CHANNEL_HEARTBEAT_INTERVAL.defaultValue.get + 5
+  private val transportTestPushTimeoutCheckThreads = PUSH_TIMEOUT_CHECK_THREADS.defaultValue.get + 5
+  private val transportTestPushTimeoutCheckInterval =
+    PUSH_TIMEOUT_CHECK_INTERVAL.defaultValue.get + 5
+  private val transportTestFetchTimeoutCheckThreads =
+    FETCH_TIMEOUT_CHECK_THREADS.defaultValue.get + 5
+  private val transportTestFetchTimeoutCheckInterval =
+    FETCH_TIMEOUT_CHECK_INTERVAL.defaultValue.get + 5
+  private val transportTestNetworkIoSaslTimeout = NETWORK_IO_SASL_TIMEOUT.defaultValue.get + 5
+
+  private def setupCelebornConfForTransportTests(module: String): CelebornConf = {
+    val conf = new CelebornConf()
+
+    def moduleKey(config: ConfigEntry[_]): String = {
+      config.key.replace("<module>", module)
+    }
+    conf.set(moduleKey(NETWORK_IO_MODE), transportTestNetworkIoMode)
+    conf.set(
+      moduleKey(NETWORK_IO_PREFER_DIRECT_BUFS),
+      transportTestNetworkIoPreferDirectBufs.toString)
+    conf.set(moduleKey(NETWORK_IO_CONNECT_TIMEOUT), transportTestNetworkIoConnectTimeout.toString)
+    conf.set(
+      moduleKey(NETWORK_IO_CONNECTION_TIMEOUT),
+      transportTestNetworkIoConnectionTimeout.toString)
+    conf.set(
+      moduleKey(NETWORK_IO_NUM_CONNECTIONS_PER_PEER),
+      transportTestNetworkIoNumConnectionsPerPeer.toString)
+    conf.set(moduleKey(NETWORK_IO_BACKLOG), transportTestNetworkIoBacklog.toString)
+    conf.set(moduleKey(NETWORK_IO_SERVER_THREADS), transportTestNetworkIoServerThreads.toString)
+    conf.set(moduleKey(NETWORK_IO_CLIENT_THREADS), transportTestNetworkIoClientThreads.toString)
+    conf.set(moduleKey(NETWORK_IO_RECEIVE_BUFFER), transportTestNetworkIoReceiveBuffer.toString)
+    conf.set(moduleKey(NETWORK_IO_SEND_BUFFER), transportTestNetworkIoSendBuffer.toString)
+    conf.set(moduleKey(NETWORK_IO_MAX_RETRIES), transportTestNetworkIoMaxRetries.toString)
+    conf.set(moduleKey(NETWORK_IO_RETRY_WAIT), transportTestNetworkIoRetryWait.toString)
+    conf.set(
+      moduleKey(NETWORK_IO_STORAGE_MEMORY_MAP_THRESHOLD),
+      transportTestNetworkIoStorageMemoryMapThreshold.toString)
+    conf.set(moduleKey(NETWORK_IO_LAZY_FD), transportTestNetworkIoLazyFd.toString)
+    conf.set(moduleKey(NETWORK_VERBOSE_METRICS), transportTestNetworkVerboseMetrics.toString)
+    conf.set(moduleKey(CHANNEL_HEARTBEAT_INTERVAL), transportTestChannelHeartbeatInterval.toString)
+    conf.set(moduleKey(PUSH_TIMEOUT_CHECK_THREADS), transportTestPushTimeoutCheckThreads.toString)
+    conf.set(moduleKey(PUSH_TIMEOUT_CHECK_INTERVAL), transportTestPushTimeoutCheckInterval.toString)
+    conf.set(moduleKey(FETCH_TIMEOUT_CHECK_THREADS), transportTestFetchTimeoutCheckThreads.toString)
+    conf.set(
+      moduleKey(FETCH_TIMEOUT_CHECK_INTERVAL),
+      transportTestFetchTimeoutCheckInterval.toString)
+    conf.set(moduleKey(NETWORK_IO_SASL_TIMEOUT), transportTestNetworkIoSaslTimeout.toString)
+
+    conf
+  }
+
+  private def validateDefauitTransportConfValue(conf: CelebornConf, module: String): Unit = {
+    assert(transportTestNetworkIoMode == conf.networkIoMode(module))
+    assert(transportTestNetworkIoPreferDirectBufs == conf.networkIoPreferDirectBufs(module))
+    assert(transportTestNetworkIoConnectTimeout == conf.networkIoConnectTimeoutMs(module))
+    assert(transportTestNetworkIoConnectionTimeout == conf.networkIoConnectionTimeoutMs(module))
+    assert(
+      transportTestNetworkIoNumConnectionsPerPeer == conf.networkIoNumConnectionsPerPeer(module))
+    assert(transportTestNetworkIoBacklog == conf.networkIoBacklog(module))
+    assert(transportTestNetworkIoServerThreads == conf.networkIoServerThreads(module))
+    assert(transportTestNetworkIoClientThreads == conf.networkIoClientThreads(module))
+    assert(transportTestNetworkIoReceiveBuffer == conf.networkIoReceiveBuf(module))
+    assert(transportTestNetworkIoSendBuffer == conf.networkIoSendBuf(module))
+    assert(transportTestNetworkIoMaxRetries == conf.networkIoMaxRetries(module))
+    assert(transportTestNetworkIoRetryWait == conf.networkIoRetryWaitMs(module))
+    assert(transportTestNetworkIoStorageMemoryMapThreshold == conf.networkIoMemoryMapBytes(module))
+    assert(transportTestNetworkIoLazyFd == conf.networkIoLazyFileDescriptor(module))
+    assert(transportTestNetworkVerboseMetrics == conf.networkIoVerboseMetrics(module))
+    assert(transportTestChannelHeartbeatInterval == conf.clientHeartbeatInterval(module))
+    assert(transportTestPushTimeoutCheckThreads == conf.pushDataTimeoutCheckerThreads(module))
+    assert(transportTestPushTimeoutCheckInterval == conf.pushDataTimeoutCheckInterval(module))
+    assert(transportTestFetchTimeoutCheckThreads == conf.fetchDataTimeoutCheckerThreads(module))
+    assert(transportTestFetchTimeoutCheckInterval == conf.fetchDataTimeoutCheckInterval(module))
+    assert(transportTestNetworkIoSaslTimeout == conf.networkIoSaslTimoutMs(module))
+  }
+
+  test("Basic fetch module config") {
+    val conf = setupCelebornConfForTransportTests("test")
+    validateDefauitTransportConfValue(conf, "test")
+  }
+
+  test("Fallback to parent module's config for transport conf when not defined for module") {
+    val conf = setupCelebornConfForTransportTests("test_parent_module")
+    // set in parent, but should work in child
+    validateDefauitTransportConfValue(conf, "test_child_module")
+  }
+
+  test("rpc_service and rpc_client should default to rpc if not configured") {
+    val conf = setupCelebornConfForTransportTests("rpc")
+    // set in rpc, so should work for specific rpc servers
+    validateDefauitTransportConfValue(conf, "rpc_service")
+    validateDefauitTransportConfValue(conf, "rpc_app")
+  }
+
+  test("Test fallback config works even with parent") {
+    // Using NETWORK_IO_CONNECT_TIMEOUT since it has fallback to NETWORK_CONNECT_TIMEOUT
+
+    val fallbackValue = 100001
+    val parentValue = 100002
+    val childValue = 100003
+
+    val conf = new CelebornConf()
+    conf.set("celeborn.test_child_module.io.connectTimeout", childValue.toString)
+    conf.set("celeborn.test_parent_module.io.connectTimeout", parentValue.toString)
+    conf.set("celeborn.network.connect.timeout", fallbackValue.toString)
+
+    assert(conf.networkIoConnectTimeoutMs("test_child_module") == childValue)
+
+    // remove child config, it should use parent value now
+    conf.unset("celeborn.test_child_module.io.connectTimeout")
+    assert(conf.networkIoConnectTimeoutMs("test_child_module") == parentValue)
+
+    // now remove parent as well, it should go to fallback value
+    conf.unset("celeborn.test_parent_module.io.connectTimeout")
+    assert(conf.networkIoConnectTimeoutMs("test_child_module") == fallbackValue)
+  }
+
 }

@@ -21,6 +21,17 @@ public class TransportModuleConstants {
   public static final String PUSH_MODULE = "push";
   public static final String REPLICATE_MODULE = "replicate";
   public static final String FETCH_MODULE = "fetch";
-  public static final String RPC_MODULE = "rpc";
+
+  // RPC module used by the application components to communicate with each other
+  // This is used only at the application side.
+  public static final String RPC_APP_MODULE = "rpc_app";
+  // RPC module used to communicate with/between server components
+  // This is used both at server (master/worker) and application side.
+  public static final String RPC_SERVICE_MODULE = "rpc_service";
+
+  // Both RPC_APP and RPC_SERVER fallsback to earlier RPC_MODULE for backward
+  // compatibility
+  @Deprecated public static final String RPC_MODULE = "rpc";
+
   public static final String DATA_MODULE = "data";
 }
