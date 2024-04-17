@@ -231,11 +231,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     Utils.timeStringAsSeconds(get(key, defaultValue))
   }
 
-  /** Get time in seconds for a transport config */
-  def getTransportConfTimeAsSeconds(module: String, configEntry: ConfigEntry[Long]): Long = {
-    getTransportConfImpl(module, configEntry, Utils.timeStringAsSeconds).get
-  }
-
   /**
    * Get a time parameter as milliseconds; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then milliseconds are assumed.
@@ -311,11 +306,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     Utils.byteStringAsKb(get(key, defaultValue))
   }
 
-  /** Get a size parameter as kb for a transport config */
-  def getTransportConfSizeAsKb(module: String, configEntry: ConfigEntry[Long]): Long = {
-    getTransportConfImpl(module, configEntry, Utils.byteStringAsKb).get
-  }
-
   /**
    * Get a size parameter as Mebibytes; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then Mebibytes are assumed.
@@ -335,11 +325,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     Utils.byteStringAsMb(get(key, defaultValue))
   }
 
-  /** Get a size parameter as mb for a transport config */
-  def getTransportConfSizeAsMb(module: String, configEntry: ConfigEntry[Long]): Long = {
-    getTransportConfImpl(module, configEntry, Utils.byteStringAsMb).get
-  }
-
   /**
    * Get a size parameter as Gibibytes; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then Gibibytes are assumed.
@@ -357,11 +342,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
    */
   def getSizeAsGb(key: String, defaultValue: String): Long = catchIllegalValue(key) {
     Utils.byteStringAsGb(get(key, defaultValue))
-  }
-
-  /** Get a size parameter as Gb for a transport config */
-  def getTransportConfSizeAsGb(module: String, configEntry: ConfigEntry[Long]): Long = {
-    getTransportConfImpl(module, configEntry, Utils.byteStringAsGb).get
   }
 
   /** Get a parameter as an Option */
@@ -408,22 +388,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getOption(key).map(_.toLong).getOrElse(defaultValue)
   }
 
-  /** Get a parameter as a long for a transport config */
-  def getTransportConfLong(module: String, configEntry: ConfigEntry[Long]): Long = {
-    getTransportConfImpl(module, configEntry, java.lang.Long.parseLong).get
-  }
-
   /**
    * Get a parameter as a double, falling back to a default if not ste
    * @throws NumberFormatException If the value cannot be interpreted as a double
    */
   def getDouble(key: String, defaultValue: Double): Double = catchIllegalValue(key) {
     getOption(key).map(_.toDouble).getOrElse(defaultValue)
-  }
-
-  /** Get a parameter as a long for a transport config */
-  def getTransportConfDouble(module: String, configEntry: ConfigEntry[Double]): Double = {
-    getTransportConfImpl(module, configEntry, java.lang.Double.parseDouble).get
   }
 
   /**
