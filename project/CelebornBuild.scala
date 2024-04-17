@@ -53,7 +53,7 @@ object Dependencies {
   val leveldbJniVersion = "1.8"
   val log4j2Version = "2.17.2"
   val jdkToolsVersion = "0.1"
-  val metricsVersion = "3.2.6"
+  val metricsVersion = "4.2.25"
   val mockitoVersion = "4.11.0"
   val nettyVersion = "4.1.107.Final"
   val ratisVersion = "2.5.1"
