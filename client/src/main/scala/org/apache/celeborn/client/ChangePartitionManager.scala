@@ -159,7 +159,8 @@ class ChangePartitionManager(
 
     locks(partitionId % locks.length).synchronized {
       var newEntry = false
-      val set = requests.computeIfAbsent(partitionId,
+      val set = requests.computeIfAbsent(
+        partitionId,
         (_: Integer) => {
           newEntry = true
           new util.HashSet[ChangePartitionRequest]()
