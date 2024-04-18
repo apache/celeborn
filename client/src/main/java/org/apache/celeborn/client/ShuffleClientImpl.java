@@ -145,7 +145,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final boolean dataPushFailureTrackingEnabled;
 
-  protected static class ReduceFileGroups {
+  public static class ReduceFileGroups {
     public Map<Integer, Set<PartitionLocation>> partitionGroups;
     public Map<String, Set<PushFailedBatch>> pushFailedBatches;
     public int[] mapAttempts;

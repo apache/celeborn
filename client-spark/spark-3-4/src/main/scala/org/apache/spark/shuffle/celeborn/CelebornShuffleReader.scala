@@ -18,7 +18,7 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
-import java.util
+import java.util.{ArrayList => JArrayList, Comparator, Map => JMap, HashMap => JHashMap, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
@@ -118,14 +118,13 @@ class CelebornShuffleReader[K, C](
     }
 
     // host-port -> (TransportClient, PartitionLocation Array, PbOpenStreamList)
-    val workerRequestMap = new util.HashMap[
+    val workerRequestMap = new JHashMap[
       String,
-      (TransportClient, util.ArrayList[PartitionLocation], PbOpenStreamList.Builder)]()
+      (TransportClient, JArrayList[PartitionLocation], PbOpenStreamList.Builder)]()
     // partitionId -> (partition uniqueId -> chunkRange pair)
-    val partitionId2ChunkRange =
-      new util.HashMap[Int, util.Map[String, Pair[Integer, Integer]]]()
+    val partitionId2ChunkRange = new JHashMap[Int, JMap[String, Pair[Integer, Integer]]]()
 
-    val partitionId2PartitionLocations = new util.HashMap[Int, util.Set[PartitionLocation]]()
+    val partitionId2PartitionLocations = new JHashMap[Int, JSet[PartitionLocation]]()
 
     var partCnt = 0
 
@@ -138,9 +137,8 @@ class CelebornShuffleReader[K, C](
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
         var locations = fileGroups.partitionGroups.get(partitionId)
         if (splitSkewPartitionWithoutMapRange) {
-          var partitionLocation2ChunkRange: util.Map[String, Pair[Integer, Integer]] = null
-          partitionLocation2ChunkRange =
-            splitSkewedPartitionLocations(new util.ArrayList(locations), startMapIndex, endMapIndex)
+          val partitionLocation2ChunkRange = splitSkewedPartitionLocations(
+            new JArrayList(locations), startMapIndex, endMapIndex)
           partitionId2ChunkRange.put(partitionId, partitionLocation2ChunkRange)
           // filter locations avoid OPEN_STREAM when split skew partition without map range
           val filterLocations = locations.asScala
@@ -164,7 +162,7 @@ class CelebornShuffleReader[K, C](
               pbOpenStreamList.setShuffleKey(shuffleKey)
               workerRequestMap.put(
                 hostPort,
-                (client, new util.ArrayList[PartitionLocation], pbOpenStreamList))
+                (client, new JArrayList[PartitionLocation], pbOpenStreamList))
             } catch {
               case ex: Exception =>
                 shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort, ex)
@@ -233,13 +231,13 @@ class CelebornShuffleReader[K, C](
 
       val locationList =
         if (null == locations) {
-          new util.ArrayList[PartitionLocation]()
+          new JArrayList[PartitionLocation]()
         } else {
-          new util.ArrayList[PartitionLocation](locations)
+          new JArrayList[PartitionLocation](locations)
         }
       val streamHandlers =
         if (locations != null) {
-          val streamHandlerArr = new util.ArrayList[PbStreamHandler](locationList.size)
+          val streamHandlerArr = new JArrayList[PbStreamHandler](locationList.size)
           locationList.asScala.foreach { loc =>
             streamHandlerArr.add(locationStreamHandlerMap.get(loc))
           }
@@ -434,9 +432,9 @@ class CelebornShuffleReader[K, C](
   }
 
   def splitSkewedPartitionLocations(
-      locations: util.ArrayList[PartitionLocation],
+      locations: JArrayList[PartitionLocation],
       subPartitionSize: Int,
-      subPartitionIndex: Int): util.Map[String, Pair[Integer, Integer]] = {
+      subPartitionIndex: Int): JMap[String, Pair[Integer, Integer]] = {
     locations.sort(CelebornShuffleReader.comparator)
     val totalPartitionSize =
       locations.stream.mapToLong((p: PartitionLocation) => p.getStorageInfo.fileSize).sum
@@ -450,7 +448,7 @@ class CelebornShuffleReader[K, C](
         step * (subPartitionIndex + 1)
       }
     var partitionLocationOffset: Long = 0
-    val chunkRange = new util.HashMap[String, Pair[Integer, Integer]]
+    val chunkRange = new JHashMap[String, Pair[Integer, Integer]]
     for (i <- 0 until locations.size) {
       val p = locations.get(i)
       var left = -1
@@ -470,9 +468,41 @@ class CelebornShuffleReader[K, C](
 
 object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
-  val comparator = new util.Comparator[PartitionLocation] {
+  val comparator = new Comparator[PartitionLocation] {
     override def compare(o1: PartitionLocation, o2: PartitionLocation): Int = {
       o1.getUniqueId.compareTo(o2.getUniqueId)
     }
+  }
+
+  def splitSkewedPartitionLocations(
+      locations: JArrayList[PartitionLocation],
+      subPartitionSize: Int,
+      subPartitionIndex: Int): JMap[String, Pair[Integer, Integer]] = {
+    locations.sort(comparator)
+    val totalPartitionSize = locations.stream.mapToLong((p: PartitionLocation) => p.getStorageInfo.fileSize).sum
+    val step = totalPartitionSize / subPartitionSize
+    val startOffset = step * subPartitionIndex
+    val endOffset =
+      if (subPartitionIndex == subPartitionSize - 1) {
+        // last subPartition should include all remaining data
+        totalPartitionSize + 1
+      } else {
+        step * (subPartitionIndex + 1)
+      }
+    var partitionLocationOffset: Long = 0
+    val chunkRange = new JHashMap[String, Pair[Integer, Integer]]
+    for (i <- 0 until locations.size) {
+      val p = locations.get(i)
+      var left = -1
+      var right = -1
+      for (j <- 0 until p.getStorageInfo.getChunkOffsets.size) {
+        val currentOffset = partitionLocationOffset + p.getStorageInfo.getChunkOffsets.get(j)
+        if (currentOffset >= startOffset && left < 0) left = j
+        if (currentOffset < endOffset) right = j
+        if (left >= 0 && right >= 0) chunkRange.put(p.getUniqueId, Pair.of(left, right))
+      }
+      partitionLocationOffset = partitionLocationOffset + p.getStorageInfo.getFileSize
+    }
+    chunkRange
   }
 }
