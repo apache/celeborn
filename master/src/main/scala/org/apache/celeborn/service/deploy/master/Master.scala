@@ -684,10 +684,7 @@ private[celeborn] class Master(
       workersToAdd: util.List[WorkerInfo],
       workersToRemove: util.List[WorkerInfo],
       requestId: String): Unit = {
-    statusSystem.handleWorkerExclude(
-      workersToAdd.asScala.filter(workersSnapShot.contains(_)).asJava,
-      workersToRemove.asScala.filter(workersSnapShot.contains(_)).asJava,
-      requestId)
+    statusSystem.handleWorkerExclude(workersToAdd, workersToRemove, requestId)
     if (context != null) {
       context.reply(WorkerExcludeResponse(true))
     }
