@@ -161,9 +161,11 @@ class ChangePartitionManager(
       var newEntry = false
       val set = requests.computeIfAbsent(
         partitionId,
-        (_: Integer) => {
-          newEntry = true
-          new util.HashSet[ChangePartitionRequest]()
+        new java.util.function.Function[Integer, util.Set[ChangePartitionRequest]] {
+          override def apply(t: Integer): util.Set[ChangePartitionRequest] = {
+            newEntry = true
+            new util.HashSet[ChangePartitionRequest]()
+          }
         })
 
       if (newEntry) {
