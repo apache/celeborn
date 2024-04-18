@@ -82,10 +82,11 @@ class ChangePartitionManager(
                   new Runnable {
                     override def run(): Unit = {
                       val distinctPartitions = {
+                        val requestSet = inBatchPartitions.get(shuffleId)
                         requests.asScala.map { case (partitionId, request) =>
                           locks(partitionId % locks.length).synchronized {
                             if (!inBatchPartitions.contains(partitionId)) {
-                              inBatchPartitions.get(shuffleId).add(partitionId)
+                              requestSet.add(partitionId)
                               Some(request.asScala.toArray.maxBy(_.epoch))
                             } else {
                               None
@@ -157,14 +158,17 @@ class ChangePartitionManager(
       cause)
 
     locks(partitionId % locks.length).synchronized {
-      if (requests.containsKey(partitionId)) {
-        requests.get(partitionId).add(changePartition)
+      var newEntry = false
+      val set = requests.computeIfAbsent(partitionId,
+        (_: Integer) => {
+          newEntry = true
+          new util.HashSet[ChangePartitionRequest]()
+        })
+
+      if (newEntry) {
         logTrace(s"[handleRequestPartitionLocation] For $shuffleId, request for same partition" +
           s"$partitionId-$oldEpoch exists, register context.")
-        return
       } else {
-        // If new slot for the partition has been allocated, reply and return.
-        // Else register and allocate for it.
         getLatestPartition(shuffleId, partitionId, oldEpoch).foreach { latestLoc =>
           context.reply(
             partitionId,
@@ -175,10 +179,8 @@ class ChangePartitionManager(
             s" shuffleId: $shuffleId $latestLoc")
           return
         }
-        val set = new util.HashSet[ChangePartitionRequest]()
-        set.add(changePartition)
-        requests.put(partitionId, set)
       }
+      set.add(changePartition)
     }
     if (!batchHandleChangePartitionEnabled) {
       handleRequestPartitions(shuffleId, Array(changePartition))
