@@ -47,7 +47,7 @@ class ChangePartitionManager(
   // shuffleId -> (partitionId -> set of ChangePartition)
   private val changePartitionRequests =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]()
-  private val locks = Array.fill(conf.batchHandleChangePartitionParallelism)(new AnyRef())
+  private val locks = Array.fill(conf.batchHandleChangePartitionBuckets)(new AnyRef())
 
   // shuffleId -> set of partition id
   private val inBatchPartitions =
