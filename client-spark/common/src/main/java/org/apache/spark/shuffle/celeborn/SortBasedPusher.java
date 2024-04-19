@@ -343,20 +343,20 @@ public class SortBasedPusher extends MemoryConsumer {
       int allocateMemoryRetryCount = 0;
       int maxMemoryAllocationRetry = 3;
       LongArray array = null;
-      boolean cont = true;
-      while (allocateMemoryRetryCount < maxMemoryAllocationRetry && cont) {
+      boolean continueRetry = true;
+      while (allocateMemoryRetryCount < maxMemoryAllocationRetry && continueRetry) {
         try {
           // could trigger spilling
           logger.info("asking for " + requestedBytes + " more bytes to accommodate more records");
-          array = allocateArray(used / 8 * 2);
-          cont = false;
+          array = allocateArray(requestedBytes);
+          continueRetry = false;
         } catch (TooLargePageException e) {
           // The pointer array is too big to fix in a single page, spill.
           logger.info(
               "Pushdata in growPointerArrayIfNecessary, memory used {}",
               Utils.bytesToString(getUsed()));
           pushData(true);
-          cont = false;
+          continueRetry = false;
         } catch (SparkOutOfMemoryError rethrow) {
           // should have trigger spilling
           allocateMemoryRetryCount += 1;
@@ -380,7 +380,7 @@ public class SortBasedPusher extends MemoryConsumer {
             // The new array could not be allocated, but that is not an issue as it is longer
             // needed,
             // as all records were spilled.
-            cont = false;
+            continueRetry = false;
           }
         }
       }
