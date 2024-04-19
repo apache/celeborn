@@ -78,7 +78,7 @@ class SSLUtils {
     keyStore.load(null, null); // Initialize empty keystore
 
     keyStore.setKeyEntry(
-        "my-self-signed-cert",
+        config.alias,
         privateKey,
         config.keyPassword.toCharArray(),
         new X509Certificate[] {certificate});
