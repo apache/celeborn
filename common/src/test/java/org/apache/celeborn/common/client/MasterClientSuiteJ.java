@@ -316,7 +316,7 @@ public class MasterClientSuiteJ {
         .when(rpcEnv)
         .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
 
-    MasterClient client = new MasterClient(rpcEnv, conf, false);
+    MasterClient client = new MasterClient(rpcEnv, conf);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
     HeartbeatFromWorkerResponse response = null;
