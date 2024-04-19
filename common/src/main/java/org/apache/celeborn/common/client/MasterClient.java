@@ -41,10 +41,7 @@ import org.apache.celeborn.common.protocol.RpcNameConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages.OneWayMessageResponse$;
 import org.apache.celeborn.common.protocol.message.MasterRequestMessage;
 import org.apache.celeborn.common.protocol.message.Message;
-import org.apache.celeborn.common.rpc.RpcAddress;
-import org.apache.celeborn.common.rpc.RpcEndpointRef;
-import org.apache.celeborn.common.rpc.RpcEnv;
-import org.apache.celeborn.common.rpc.RpcTimeout;
+import org.apache.celeborn.common.rpc.*;
 import org.apache.celeborn.common.util.ThreadUtils;
 
 public class MasterClient {
@@ -177,7 +174,7 @@ public class MasterClient {
         LOG.warn("Master leader is not present currently, please check masters' status!");
       }
       return true;
-    } else if (e.getCause() instanceof IOException) {
+    } else if (e.getCause() instanceof IOException || e instanceof RpcTimeoutException) {
       resetRpcEndpointRef(oldRef);
       return true;
     }
