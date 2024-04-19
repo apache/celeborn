@@ -211,4 +211,31 @@ public class TransportClientFactorySuiteJ {
     factory.close();
     factory.createClient(getLocalHost(), server1.getPort());
   }
+
+  @Test
+  public void unlimitedConnectionAndCreationTimeouts() throws IOException, InterruptedException {
+    CelebornConf _conf = new CelebornConf();
+    _conf.set("celeborn.shuffle.io.connectTimeout", "-1");
+    _conf.set("celeborn.shuffle.io.connectionTimeout", "-1");
+    TransportConf conf = new TransportConf(TEST_MODULE, _conf);
+    try (TransportContext ctx = new TransportContext(conf, new BaseMessageHandler(), true);
+        TransportClientFactory factory = ctx.createClientFactory()) {
+      TransportClient c1 = factory.createClient(getLocalHost(), server1.getPort());
+      assertTrue(c1.isActive());
+      long expiredTime = System.currentTimeMillis() + 5000;
+      while (c1.isActive() && System.currentTimeMillis() < expiredTime) {
+        Thread.sleep(10);
+      }
+      assertTrue(c1.isActive());
+      // When connectionTimeout is unlimited, the connection shall be able to fail when the server
+      // is not reachable.
+      TransportServer server = ctx.createServer();
+      int unreachablePort = server.getPort();
+      JavaUtils.closeQuietly(server);
+      IOException exception =
+          assertThrows(
+              IOException.class, () -> factory.createClient(getLocalHost(), unreachablePort));
+      assertNotEquals(exception.getCause(), null);
+    }
+  }
 }
