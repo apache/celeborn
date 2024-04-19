@@ -1312,6 +1312,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getSslConfig(MAX_SSL_ENCRYPTED_BLOCK_SIZE, module).toInt
   }
 
+  def isAutoSslEnabled(module: String): Boolean = {
+    getSslConfig(AUTO_SSL_ENABLED, module)
+  }
+
   // //////////////////////////////////////////////////////
   //               Authentication                        //
   // //////////////////////////////////////////////////////
@@ -5058,6 +5062,18 @@ object CelebornConf extends Logging {
         p => p > 0 && p <= Int.MaxValue,
         s"Invalid maxEncryptedBlockSize, must be a position number upto ${Int.MaxValue}")
       .createWithDefaultString("64k")
+
+  val AUTO_SSL_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.ssl.<module>.autoSslEnabled")
+      .categories("network", "ssl")
+      .version("0.5.0")
+      .internal
+      .doc("Enable auto ssl where lifecycle manager will generate a self-signed certificate, " +
+        s"which will be trusted by all executors connecting to it. This is applicable only for " +
+        s"${TransportModuleConstants.RPC_APP_MODULE} module, and ignored for others. " +
+        "Additionally if truststore or keystore are present, this config is ignored.")
+      .booleanConf
+      .createWithDefault(false)
 
   val SECRET_REDACTION_PATTERN =
     buildConf("celeborn.redaction.regex")

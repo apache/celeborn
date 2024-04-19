@@ -58,6 +58,14 @@ public class SslSampleConfigs {
     return createConfigMapForModule(module, false);
   }
 
+  public static Map<String, String> createAutoSslConfigForModule(String module) {
+    Map<String, String> confMap = new HashMap<>();
+    confMap.put("celeborn.ssl." + module + ".enabled", "true");
+    confMap.put("celeborn.ssl." + module + ".protocol", "TLSv1.2");
+    confMap.put("celeborn.ssl." + module + ".autoSslEnabled", "true");
+    return confMap;
+  }
+
   private static Map<String, String> createConfigMapForModule(String module, boolean forDefault) {
     Map<String, String> confMap = new HashMap<>();
     confMap.put("celeborn.ssl." + module + ".enabled", "true");

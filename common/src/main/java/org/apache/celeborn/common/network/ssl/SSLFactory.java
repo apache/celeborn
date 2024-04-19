@@ -76,6 +76,17 @@ public class SSLFactory {
   }
 
   private void initJdkSslContext(final Builder b) throws IOException, GeneralSecurityException {
+    // Validate invariants
+    if (b.autoSslEnabled) {
+      // this has been already validated - adding precondition check here since we are going to
+      // overwrite these configs
+      if (null != b.keyStore || null != b.trustStore) {
+        throw new IllegalArgumentException(
+            "keystore and truststore cant be configured for auto ssl");
+      }
+      configureAutoSsl(b);
+    }
+
     this.keyManagers =
         null != b.keyStore ? keyManagers(b.keyStore, b.keyPassword, b.keyStorePassword) : null;
     this.trustManagers =
@@ -83,6 +94,28 @@ public class SSLFactory {
             b.trustStore, b.trustStorePassword,
             b.trustStoreReloadingEnabled, b.trustStoreReloadIntervalMs);
     this.jdkSslContext = createSSLContext(requestedProtocol, keyManagers, trustManagers);
+  }
+
+  /*
+   * As b.trustStore is null, credulousTrustStoreManagers will be used - and so all
+   * certs will be accepted - and hence self-signed cert from lifecycle manager will
+   * be accepted at executors: nothing else needs to be done to enable its
+   * use - other than generation of the certificate itself, which is what gets done here.
+   */
+  private void configureAutoSsl(Builder b) {
+    // The keystore creation ideally be done only at Lifecycle manager, and not in executors
+    // It does not cause issues to run it at executors, though it is not necessary.
+    // How can be identify this scenario and ensure this is not invoked at executors ?
+    try {
+      SSLUtils.SelfSignedCertificateConfig config = new SSLUtils.SelfSignedCertificateConfig();
+      SSLUtils.generateSelfSignedCertificate(config);
+      // Now that we have create the self signed cert, update the builder config
+      b.keyStore(config.keystoreFile, config.keystorePassword).keyPassword(config.keyPassword);
+    } catch (CertificateException | KeyStoreException | IOException | NoSuchAlgorithmException e) {
+      // Unexpected
+      throw new IllegalStateException(
+          "Unable to create self signed certificate for configuring auto ssl", e);
+    }
   }
 
   public boolean hasKeyManagers() {
@@ -120,6 +153,7 @@ public class SSLFactory {
     private String trustStorePassword;
     private boolean trustStoreReloadingEnabled;
     private int trustStoreReloadIntervalMs;
+    private boolean autoSslEnabled;
 
     /**
      * Sets the requested protocol, i.e., "TLSv1.2", "TLSv1.1", etc
@@ -186,6 +220,18 @@ public class SSLFactory {
       this.trustStorePassword = trustStorePassword;
       this.trustStoreReloadingEnabled = trustStoreReloadingEnabled;
       this.trustStoreReloadIntervalMs = trustStoreReloadIntervalMs;
+      return this;
+    }
+
+    /**
+     * Enables auto ssl, which is applicable only to rpc_app transport module. When enabled,
+     * keystore and trust store should not be configured. A self signed certificate is generated,
+     * which is used for securing the communication - and on ssl client connection side, all
+     * certificates will be accepted. This allows for configuring network encryption without needing
+     * to provision certificates for each application.
+     */
+    public Builder autoSslEnabled(boolean autoSslEnabled) {
+      this.autoSslEnabled = autoSslEnabled;
       return this;
     }
 

@@ -19,10 +19,16 @@ package org.apache.celeborn.common.network.util;
 
 import java.io.File;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.protocol.TransportModuleConstants;
 
 /** A central location that tracks all the settings we expose to users. */
 public class TransportConf {
+
+  private static final Logger logger = LoggerFactory.getLogger(TransportConf.class);
 
   private final CelebornConf celebornConf;
 
@@ -235,5 +241,30 @@ public class TransportConf {
     }
     // It's fine for the trust store to be missing, we would default to trusting all.
     return true;
+  }
+
+  public boolean autoSslEnabled() {
+    // auto_ssl_enable is supported only for RPC_APP_MODULE
+    if (!TransportModuleConstants.RPC_APP_MODULE.equals(module)) return false;
+
+    // auto ssl must be enabled, and there should be no keystore or trust store is configured
+    boolean autoSslEnabled = celebornConf.isAutoSslEnabled(module);
+
+    if (!autoSslEnabled) return false;
+
+    File keystore = celebornConf.sslKeyStore(module);
+    File truststore = celebornConf.sslTrustStore(module);
+
+    boolean shouldAutoSslEnabled = null == keystore && null == truststore;
+
+    if (!shouldAutoSslEnabled) {
+      logger.warn(
+          "Auto ssl for {} disabled as keystore = {} or truststore = {} was configured",
+          module,
+          null != keystore ? keystore.getPath() : null,
+          null != truststore ? truststore.getPath() : null);
+    }
+
+    return shouldAutoSslEnabled;
   }
 }

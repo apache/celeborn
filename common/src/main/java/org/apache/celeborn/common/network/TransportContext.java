@@ -209,17 +209,27 @@ public class TransportContext implements Closeable {
 
   private SSLFactory createSslFactory() {
     if (conf.sslEnabled()) {
+
       if (conf.sslEnabledAndKeysAreValid()) {
-        return new SSLFactory.Builder()
-            .requestedProtocol(conf.sslProtocol())
-            .requestedCiphers(conf.sslRequestedCiphers())
-            .keyStore(conf.sslKeyStore(), conf.sslKeyStorePassword())
-            .trustStore(
-                conf.sslTrustStore(),
-                conf.sslTrustStorePassword(),
-                conf.sslTrustStoreReloadingEnabled(),
-                conf.sslTrustStoreReloadIntervalMs())
-            .build();
+        boolean autoSslEnabled = conf.autoSslEnabled();
+
+        SSLFactory.Builder builder =
+            new SSLFactory.Builder()
+                .requestedProtocol(conf.sslProtocol())
+                .requestedCiphers(conf.sslRequestedCiphers())
+                .autoSslEnabled(autoSslEnabled);
+
+        if (!autoSslEnabled) {
+          builder =
+              builder
+                  .keyStore(conf.sslKeyStore(), conf.sslKeyStorePassword())
+                  .trustStore(
+                      conf.sslTrustStore(),
+                      conf.sslTrustStorePassword(),
+                      conf.sslTrustStoreReloadingEnabled(),
+                      conf.sslTrustStoreReloadIntervalMs());
+        }
+        return builder.build();
       } else {
         logger.error(
             "SSL encryption enabled but keys not found for "
