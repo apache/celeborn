@@ -87,7 +87,7 @@ class ChangePartitionManager(
                         requests.asScala.map { case (partitionId, request) =>
                           locks(partitionId % locks.length).synchronized {
                             if (!requestSet.contains(partitionId)) {
-                              requestSet.put(partitionId, Unit)
+                              requestSet.put(partitionId, ())
                               Some(request.asScala.toArray.maxBy(_.epoch))
                             } else {
                               None
