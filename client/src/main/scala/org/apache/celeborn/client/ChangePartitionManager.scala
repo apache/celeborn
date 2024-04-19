@@ -85,7 +85,7 @@ class ChangePartitionManager(
                         val requestSet = inBatchPartitions.get(shuffleId)
                         requests.asScala.map { case (partitionId, request) =>
                           locks(partitionId % locks.length).synchronized {
-                            if (!inBatchPartitions.contains(partitionId)) {
+                            if (!requestSet.contains(partitionId)) {
                               requestSet.add(partitionId)
                               Some(request.asScala.toArray.maxBy(_.epoch))
                             } else {
