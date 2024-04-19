@@ -247,7 +247,7 @@ public class TransportConf {
     // auto_ssl_enable is supported only for RPC_APP_MODULE
     if (!TransportModuleConstants.RPC_APP_MODULE.equals(module)) return false;
 
-    // auto ssl must be enabled, and there should be no keystore or trust store is configured
+    // auto ssl must be enabled, and there should be no keystore or trust store configured
     boolean autoSslEnabled = celebornConf.isAutoSslEnabled(module);
 
     if (!autoSslEnabled) return false;
