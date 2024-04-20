@@ -43,7 +43,7 @@ import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.util.JavaUtils;
 
 public class RpcIntegrationSuiteJ {
-  static final String TEST_MODULE = "shuffle";
+  static String TEST_MODULE = "shuffle";
   static TransportConf conf;
   static TransportContext context;
   static TransportServer server;

@@ -28,6 +28,7 @@ import org.junit.Test;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.TestHelper;
 import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
+import org.apache.celeborn.common.protocol.TransportModuleConstants;
 
 public class TransportConfSuiteJ {
 
@@ -105,5 +106,42 @@ public class TransportConfSuiteJ {
 
     assertEquals(module1ReloadIntervalMs, module1TestConf.sslTrustStoreReloadIntervalMs());
     assertEquals(defaultReloadIntervalMs, module2TestConf.sslTrustStoreReloadIntervalMs());
+  }
+
+  @Test
+  public void testAutoSslConfiguration() {
+
+    // for rpc_app module, it can be enabled.
+    TransportConf conf =
+        new TransportConf(
+            TransportModuleConstants.RPC_APP_MODULE,
+            TestHelper.updateCelebornConfWithMap(
+                new CelebornConf(),
+                SslSampleConfigs.createAutoSslConfigForModule(
+                    TransportModuleConstants.RPC_APP_MODULE)));
+    assertTrue(conf.autoSslEnabled());
+
+    // for any other module, it cant be enabled.
+    conf =
+        new TransportConf(
+            TransportModuleConstants.RPC_SERVICE_MODULE,
+            TestHelper.updateCelebornConfWithMap(
+                new CelebornConf(),
+                SslSampleConfigs.createAutoSslConfigForModule(
+                    TransportModuleConstants.RPC_SERVICE_MODULE)));
+    assertFalse(conf.autoSslEnabled());
+
+    // even if set to true, it gets disabled in case
+    // keystore or truststore is specified (which the default config has specified)
+
+    CelebornConf celebornConf = new CelebornConf();
+    TestHelper.updateCelebornConfWithMap(
+        celebornConf,
+        SslSampleConfigs.createDefaultConfigMapForModule(TransportModuleConstants.RPC_APP_MODULE));
+    celebornConf.set(
+        "celeborn.ssl." + TransportModuleConstants.RPC_APP_MODULE + ".autoSslEnabled", "true");
+
+    conf = new TransportConf(TransportModuleConstants.RPC_APP_MODULE, celebornConf);
+    assertFalse(conf.autoSslEnabled());
   }
 }
