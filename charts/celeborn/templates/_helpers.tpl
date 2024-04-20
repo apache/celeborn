@@ -63,6 +63,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 Selector labels
 */}}
 {{- define "celeborn.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "celeborn.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 

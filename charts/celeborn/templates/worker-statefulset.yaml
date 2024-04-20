@@ -20,21 +20,13 @@ kind: StatefulSet
 metadata:
   name: {{ .Release.Name }}-worker
   labels:
-    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
-    app.kubernetes.io/name: {{ .Chart.Name }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    app.kubernetes.io/role: worker
     {{- include "celeborn.labels" . | nindent 4 }}
+    app.kubernetes.io/role: worker
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ .Chart.Name }}
-      app.kubernetes.io/instance: {{ .Release.Name }}
-      app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-      app.kubernetes.io/role: worker
       {{- include "celeborn.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/role: worker
   serviceName: {{ .Release.Name }}-worker
   replicas: {{ .Values.workerReplicas }}
   template:
@@ -44,12 +36,9 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        app.kubernetes.io/name: {{ .Chart.Name }}
-        app.kubernetes.io/instance: {{ .Release.Name }}
-        app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+        {{- include "celeborn.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/role: worker
         app.kubernetes.io/tag: {{ .Values.image.tag | quote }}
-        {{- include "celeborn.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.affinity.worker }}
       affinity:
