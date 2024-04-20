@@ -51,7 +51,7 @@ class ChangePartitionManager(
 
   // shuffleId -> set of partition id
   private val inBatchPartitions =
-    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Integer, Unit]]()
+    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap.KeySetView[Int, Unit]]()
 
   private val batchHandleChangePartitionEnabled = conf.batchHandleChangePartitionEnabled
   private val batchHandleChangePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
@@ -87,7 +87,7 @@ class ChangePartitionManager(
                         requests.asScala.map { case (partitionId, request) =>
                           locks(partitionId % locks.length).synchronized {
                             if (!requestSet.contains(partitionId)) {
-                              requestSet.put(partitionId, ())
+                              requestSet.add(partitionId)
                               Some(request.asScala.toArray.maxBy(_.epoch))
                             } else {
                               None
@@ -131,9 +131,9 @@ class ChangePartitionManager(
     }
 
   private val inBatchShuffleIdRegisterFunc =
-    new util.function.Function[Int, ConcurrentHashMap[Integer, Unit]]() {
-      override def apply(s: Int): ConcurrentHashMap[Integer, Unit] =
-        new ConcurrentHashMap[Integer, Unit]()
+    new util.function.Function[Int, ConcurrentHashMap.KeySetView[Int, Unit]]() {
+      override def apply(s: Int): ConcurrentHashMap.KeySetView[Int, Unit] =
+        JavaUtils.newConcurrentHashMap[Int, Unit]().keySet()
     }
 
   def handleRequestPartitionLocation(
