@@ -88,7 +88,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   private def warnIfInternalTransportModule(module: String, key: String): Unit = {
-    // for now, assert false to test
     if (INTERNAL_TRANSPORT_MODULES.contains(module)) {
       log.warn(s"$key configured for internal transport module $module, " +
         s"should be using ${INTERNAL_TRANSPORT_MODULES(module)} instead")
