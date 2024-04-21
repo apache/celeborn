@@ -198,7 +198,6 @@ private[celeborn] case class RpcEnvConfig(
 
 object RpcEnvConfig {
   private val VALID_TRANSPORT_MODULES = Set(
-    // These two are mainly for testing
     TransportModuleConstants.RPC_APP_MODULE,
     TransportModuleConstants.RPC_MODULE,
     TransportModuleConstants.RPC_APP_CLIENT_MODULE,

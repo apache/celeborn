@@ -90,7 +90,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   private def warnIfInternalTransportModule(module: String, key: String): Unit = {
     // for now, assert false to test
     if (INTERNAL_TRANSPORT_MODULES.contains(module)) {
-      log.warn(s"$key configured for internal an transport module $module, " +
+      log.warn(s"$key configured for internal transport module $module, " +
         s"should be using ${INTERNAL_TRANSPORT_MODULES(module)} instead")
     }
   }
@@ -1409,7 +1409,8 @@ object CelebornConf extends Logging {
     // only for testing
     "test_child_module" -> "test_parent_module")
 
-  // These modules are internal to Celeborn, and users are not expected to directly configure them
+  // The keys are modules are internal to Celeborn, and users are not expected to directly
+  // configure them. The values give the user exposed module.
   val INTERNAL_TRANSPORT_MODULES: Map[String, String] = Map(
     TransportModuleConstants.RPC_LIFECYCLEMANAGER_MODULE -> TransportModuleConstants.RPC_APP_MODULE,
     TransportModuleConstants.RPC_APP_CLIENT_MODULE -> TransportModuleConstants.RPC_APP_MODULE)

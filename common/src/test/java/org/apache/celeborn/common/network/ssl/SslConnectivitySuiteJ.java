@@ -299,8 +299,6 @@ public class SslConnectivitySuiteJ {
           return conf;
         };
 
-    // checking nettyssl == false at both client and server does not make sense in this context
-    // it is the same cert for both :)
     testSuccessfulConnectivity(true, true, true, updateConf, updateConf);
     testSuccessfulConnectivity(true, true, false, updateConf, updateConf);
     testSuccessfulConnectivity(true, false, true, updateConf, updateConf);
@@ -399,6 +397,10 @@ public class SslConnectivitySuiteJ {
   @Test
   public void testAutoSslConnectivity() throws Exception {
 
+    // Mirror how user will configure - so configure module based on RPC_APP_MODULE
+    // while create the server transport config for lifecycle manager (to match driver),
+    // and client to app_client similar to executors
+
     final Function<CelebornConf, CelebornConf> updateServerConf =
         conf -> {
           // return a new config
@@ -420,8 +422,6 @@ public class SslConnectivitySuiteJ {
           return celebornConf;
         };
 
-    // checking nettyssl == false at both client and server does not make sense in this context
-    // it is the same cert for both :)
     testSuccessfulConnectivity(
         TransportModuleConstants.RPC_LIFECYCLEMANAGER_MODULE,
         TransportModuleConstants.RPC_APP_CLIENT_MODULE,
