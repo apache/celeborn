@@ -87,6 +87,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     this
   }
 
+  private def warnIfInternalTransportModule(module: String, key: String): Unit = {
+    // for now, assert false to test
+    if (INTERNAL_TRANSPORT_MODULES.contains(module)) {
+      log.warn(s"$key configured for internal an transport module $module, " +
+        s"should be using ${INTERNAL_TRANSPORT_MODULES(module)} instead")
+    }
+  }
+
   private def getTransportConfContainsImpl[T](module: String, entry: ConfigEntry[T]): Boolean = {
     var currentModule = module
 
@@ -94,6 +102,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       val key = entry.key.replace("<module>", currentModule)
       val opt = getOption(key)
       if (opt.isDefined) {
+        warnIfInternalTransportModule(currentModule, key)
         return true
       }
 
@@ -120,6 +129,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       val key = configEntry.key.replace("<module>", currentModule)
       val opt = getOption(key)
       if (opt.isDefined) {
+        warnIfInternalTransportModule(currentModule, key)
         return opt.map(converter)
       }
 
@@ -144,6 +154,22 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
           None
         }
     }
+  }
+
+  def setTransportConfIfMissing[T](
+      module: String,
+      configEntry: ConfigEntry[T],
+      value: String): Unit = {
+
+    if (getTransportConfContainsImpl(module, configEntry)) {
+      return
+    }
+
+    val key = configEntry.key.replace(
+      "<module>",
+      // if this is an internal module. map it to the exposed module - else use the same
+      INTERNAL_TRANSPORT_MODULES.getOrElse(module, module))
+    set(key, value)
   }
 
   def set[T](entry: ConfigEntry[T], value: T): CelebornConf = {
@@ -1371,11 +1397,22 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
 object CelebornConf extends Logging {
 
-  val TRANSPORT_MODULE_FALLBACKS = Map(
-    "rpc_service" -> "rpc",
-    "rpc_app" -> "rpc",
+  val TRANSPORT_MODULE_FALLBACKS: Map[String, String] = Map(
+    TransportModuleConstants.RPC_SERVICE_MODULE -> TransportModuleConstants.RPC_MODULE,
+    TransportModuleConstants.RPC_APP_MODULE -> TransportModuleConstants.RPC_MODULE,
+
+    // Internally, RPC_APP_MODULE is split into RPC_LIFECYCLEMANAGER_MODULE and
+    // RPC_APP_CLIENT_MODULE, though this is not exposed to users.
+    TransportModuleConstants.RPC_LIFECYCLEMANAGER_MODULE -> TransportModuleConstants.RPC_APP_MODULE,
+    TransportModuleConstants.RPC_APP_CLIENT_MODULE -> TransportModuleConstants.RPC_APP_MODULE,
+
     // only for testing
     "test_child_module" -> "test_parent_module")
+
+  // These modules are internal to Celeborn, and users are not expected to directly configure them
+  val INTERNAL_TRANSPORT_MODULES: Map[String, String] = Map(
+    TransportModuleConstants.RPC_LIFECYCLEMANAGER_MODULE -> TransportModuleConstants.RPC_APP_MODULE,
+    TransportModuleConstants.RPC_APP_CLIENT_MODULE -> TransportModuleConstants.RPC_APP_MODULE)
 
   /**
    * Holds information about keys that have been deprecated and do not have a replacement.

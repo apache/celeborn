@@ -317,6 +317,7 @@ public class SslConnectivitySuiteJ {
 
     testSuccessfulConnectivity(
         TEST_MODULE,
+        TEST_MODULE,
         enableSsl,
         primaryConfigForServer,
         primaryConfigForClient,
@@ -325,7 +326,8 @@ public class SslConnectivitySuiteJ {
   }
 
   private void testSuccessfulConnectivity(
-      String module,
+      String serverModule,
+      String clientModule,
       boolean enableSsl,
       boolean primaryConfigForServer,
       boolean primaryConfigForClient,
@@ -336,9 +338,9 @@ public class SslConnectivitySuiteJ {
             new TestTransportState(
                 DEFAULT_HANDLER,
                 createTransportConf(
-                    module, enableSsl, primaryConfigForServer, postProcessServerConf),
+                    serverModule, enableSsl, primaryConfigForServer, postProcessServerConf),
                 createTransportConf(
-                    module, enableSsl, primaryConfigForClient, postProcessClientConf));
+                    clientModule, enableSsl, primaryConfigForClient, postProcessClientConf));
         TransportClient client = state.createClient()) {
 
       String msg = " hi ";
@@ -396,11 +398,11 @@ public class SslConnectivitySuiteJ {
 
   @Test
   public void testAutoSslConnectivity() throws Exception {
-    String module = TransportModuleConstants.RPC_MODULE;
 
-    final Function<CelebornConf, CelebornConf> updateConf =
+    final Function<CelebornConf, CelebornConf> updateServerConf =
         conf -> {
           // return a new config
+          String module = TransportModuleConstants.RPC_APP_MODULE;
           CelebornConf celebornConf = new CelebornConf();
           celebornConf.set("celeborn.ssl." + module + ".enabled", "true");
           celebornConf.set("celeborn.ssl." + module + ".protocol", "TLSv1.2");
@@ -408,9 +410,25 @@ public class SslConnectivitySuiteJ {
           return celebornConf;
         };
 
+    final Function<CelebornConf, CelebornConf> updateClientConf =
+        conf -> {
+          // return a new config
+          String module = TransportModuleConstants.RPC_APP_MODULE;
+          CelebornConf celebornConf = new CelebornConf();
+          celebornConf.set("celeborn.ssl." + module + ".enabled", "true");
+          celebornConf.set("celeborn.ssl." + module + ".protocol", "TLSv1.2");
+          return celebornConf;
+        };
+
     // checking nettyssl == false at both client and server does not make sense in this context
     // it is the same cert for both :)
     testSuccessfulConnectivity(
-        TransportModuleConstants.RPC_APP_MODULE, true, true, true, updateConf, updateConf);
+        TransportModuleConstants.RPC_LIFECYCLEMANAGER_MODULE,
+        TransportModuleConstants.RPC_APP_CLIENT_MODULE,
+        true,
+        true,
+        true,
+        updateServerConf,
+        updateClientConf);
   }
 }

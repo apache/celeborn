@@ -193,7 +193,15 @@ private[celeborn] case class RpcEnvConfig(
     port: Int,
     numUsableCores: Int,
     securityContext: Option[RpcSecurityContext]) {
-  assert(TransportModuleConstants.RPC_APP_MODULE == transportModule ||
-    TransportModuleConstants.RPC_SERVICE_MODULE == transportModule ||
-    TransportModuleConstants.RPC_MODULE == transportModule)
+  assert(RpcEnvConfig.VALID_TRANSPORT_MODULES.contains(transportModule))
+}
+
+object RpcEnvConfig {
+  private val VALID_TRANSPORT_MODULES = Set(
+    // These two are mainly for testing
+    TransportModuleConstants.RPC_APP_MODULE,
+    TransportModuleConstants.RPC_MODULE,
+    TransportModuleConstants.RPC_APP_CLIENT_MODULE,
+    TransportModuleConstants.RPC_LIFECYCLEMANAGER_MODULE,
+    TransportModuleConstants.RPC_SERVICE_MODULE)
 }

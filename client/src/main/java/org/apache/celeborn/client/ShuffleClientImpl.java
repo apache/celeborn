@@ -190,7 +190,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     rpcEnv =
         RpcEnv.create(
             RpcNameConstants.SHUFFLE_CLIENT_SYS,
-            TransportModuleConstants.RPC_APP_MODULE,
+            TransportModuleConstants.RPC_APP_CLIENT_MODULE,
             Utils.localHostName(conf),
             0,
             conf,

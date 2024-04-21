@@ -114,7 +114,7 @@ public class TransportConfSuiteJ {
     // for rpc_app module, it can be enabled.
     TransportConf conf =
         new TransportConf(
-            TransportModuleConstants.RPC_APP_MODULE,
+            TransportModuleConstants.RPC_LIFECYCLEMANAGER_MODULE,
             TestHelper.updateCelebornConfWithMap(
                 new CelebornConf(),
                 SslSampleConfigs.createAutoSslConfigForModule(
