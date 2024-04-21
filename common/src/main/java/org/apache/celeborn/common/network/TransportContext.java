@@ -91,6 +91,15 @@ public class TransportContext implements Closeable {
     this.channelsLimiter = channelsLimiter;
     this.enableHeartbeat = enableHeartbeat;
     this.source = source;
+
+    if (null != this.sslFactory) {
+      logger.info(
+          "SSL factory created for module {}, has keys ? {}",
+          conf.getModuleName(),
+          this.sslFactory.hasKeyManagers());
+    } else {
+      logger.info("SSL not enabled for module = {}", conf.getModuleName());
+    }
   }
 
   public TransportContext(
