@@ -160,7 +160,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   // init driver celeborn LifecycleManager rpc service
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.LIFECYCLE_MANAGER_SYS,
-    TransportModuleConstants.RPC_APP_MODULE,
+    TransportModuleConstants.RPC_LIFECYCLEMANAGER_MODULE,
     lifecycleHost,
     conf.shuffleManagerPort,
     conf,

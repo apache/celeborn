@@ -494,10 +494,19 @@ object Utils extends Logging {
     // assuming we have all the machine's cores).
     // NB: Only set if serverThreads/clientThreads not already set.
     val numThreads = defaultNumThreads(numUsableCores)
-    conf.setIfMissing(s"celeborn.$module.io.serverThreads", numThreads.toString)
-    conf.setIfMissing(s"celeborn.$module.io.clientThreads", numThreads.toString)
+    conf.setTransportConfIfMissing(
+      module,
+      CelebornConf.NETWORK_IO_SERVER_THREADS,
+      numThreads.toString)
+    conf.setTransportConfIfMissing(
+      module,
+      CelebornConf.NETWORK_IO_CLIENT_THREADS,
+      numThreads.toString)
     if (TransportModuleConstants.PUSH_MODULE == module) {
-      conf.setIfMissing(s"celeborn.$module.io.numConnectionsPerPeer", numThreads.toString)
+      conf.setTransportConfIfMissing(
+        module,
+        CelebornConf.NETWORK_IO_NUM_CONNECTIONS_PER_PEER,
+        numThreads.toString)
     }
 
     new TransportConf(module, conf)

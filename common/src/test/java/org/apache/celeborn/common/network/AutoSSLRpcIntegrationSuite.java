@@ -30,12 +30,16 @@ import org.apache.celeborn.common.protocol.TransportModuleConstants;
 public class AutoSSLRpcIntegrationSuite extends RpcIntegrationSuiteJ {
   @BeforeClass
   public static void setUp() throws Exception {
-    // change it to client module
-    RpcIntegrationSuiteJ.TEST_MODULE = TransportModuleConstants.RPC_APP_MODULE;
+    // change it to lifecycle manager module
+    RpcIntegrationSuiteJ.TEST_MODULE = TransportModuleConstants.RPC_LIFECYCLEMANAGER_MODULE;
     // set up SSL for TEST_MODULE
     RpcIntegrationSuiteJ.initialize(
         TestHelper.updateCelebornConfWithMap(
-            new CelebornConf(), SslSampleConfigs.createAutoSslConfigForModule(TEST_MODULE)));
+            new CelebornConf(),
+            // to validate, we are using TransportModuleConstants.RPC_APP_MODULE, to mirror how
+            // users will configure
+            SslSampleConfigs.createAutoSslConfigForModule(
+                TransportModuleConstants.RPC_APP_MODULE)));
   }
 
   @AfterClass
