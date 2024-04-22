@@ -49,7 +49,7 @@ class ChangePartitionManager(
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]()
 
   // shuffleId -> locks
-  private val locks = JavaUtils.newConcurrentHashMap[Int,Array[AnyRef]]()
+  private val locks = JavaUtils.newConcurrentHashMap[Int, Array[AnyRef]]()
   private val lockBucketSize = conf.batchHandleChangePartitionBuckets
 
   // shuffleId -> set of partition id
@@ -140,7 +140,7 @@ class ChangePartitionManager(
         ConcurrentHashMap.newKeySet[Int]()
     }
 
-  private val locksRegisterFunc =  new util.function.Function[Int, Array[AnyRef]] {
+  private val locksRegisterFunc = new util.function.Function[Int, Array[AnyRef]] {
     override def apply(t: Int): Array[AnyRef] = {
       Array.fill(lockBucketSize)(new AnyRef())
     }
