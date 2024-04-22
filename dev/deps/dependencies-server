@@ -16,7 +16,7 @@
 #
 
 HikariCP/4.0.3//HikariCP-4.0.3.jar
-RoaringBitmap/1.0.5//RoaringBitmap-1.0.5.jar
+RoaringBitmap/1.0.6//RoaringBitmap-1.0.6.jar
 aopalliance-repackaged/2.6.1//aopalliance-repackaged-2.6.1.jar
 ap-loader-all/3.0-8//ap-loader-all-3.0-8.jar
 classgraph/4.8.138//classgraph-4.8.138.jar
