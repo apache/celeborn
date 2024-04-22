@@ -92,7 +92,7 @@
     <ratis.version>2.5.1</ratis.version>
     <scalatest.version>3.2.16</scalatest.version>
     <slf4j.version>1.7.36</slf4j.version>
-    <roaringbitmap.version>1.0.5</roaringbitmap.version>
+    <roaringbitmap.version>1.0.6</roaringbitmap.version>
     <snakeyaml.version>2.2</snakeyaml.version>
     <zstd-jni.version>1.5.2-1</zstd-jni.version>
     <kubernetes-client.version>6.7.0</kubernetes-client.version>
