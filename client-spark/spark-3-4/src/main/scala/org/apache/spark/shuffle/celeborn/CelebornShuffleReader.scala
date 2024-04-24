@@ -18,12 +18,11 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
-import java.util.{ArrayList => JArrayList, Comparator, Map => JMap, HashMap => JHashMap, Set => JSet}
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 import org.apache.commons.lang3.tuple.Pair
 import org.apache.spark.{Aggregator, InterruptibleIterator, ShuffleDependency, TaskContext}
@@ -137,8 +136,10 @@ class CelebornShuffleReader[K, C](
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
         var locations = fileGroups.partitionGroups.get(partitionId)
         if (splitSkewPartitionWithoutMapRange) {
-          val partitionLocation2ChunkRange = splitSkewedPartitionLocations(
-            new JArrayList(locations), startMapIndex, endMapIndex)
+          val partitionLocation2ChunkRange = CelebornPartitionUtil.splitSkewedPartitionLocations(
+            new JArrayList(locations),
+            startMapIndex,
+            endMapIndex)
           partitionId2ChunkRange.put(partitionId, partitionLocation2ChunkRange)
           // filter locations avoid OPEN_STREAM when split skew partition without map range
           val filterLocations = locations.asScala
@@ -430,79 +431,8 @@ class CelebornShuffleReader[K, C](
   def newSerializerInstance(dep: ShuffleDependency[K, _, C]): SerializerInstance = {
     dep.serializer.newInstance()
   }
-
-  def splitSkewedPartitionLocations(
-      locations: JArrayList[PartitionLocation],
-      subPartitionSize: Int,
-      subPartitionIndex: Int): JMap[String, Pair[Integer, Integer]] = {
-    locations.sort(CelebornShuffleReader.comparator)
-    val totalPartitionSize =
-      locations.stream.mapToLong((p: PartitionLocation) => p.getStorageInfo.fileSize).sum
-    val step = totalPartitionSize / subPartitionSize
-    val startOffset = step * subPartitionIndex
-    val endOffset =
-      if (subPartitionIndex == subPartitionSize - 1) {
-        // last subPartition should include all remaining data
-        totalPartitionSize + 1
-      } else {
-        step * (subPartitionIndex + 1)
-      }
-    var partitionLocationOffset: Long = 0
-    val chunkRange = new JHashMap[String, Pair[Integer, Integer]]
-    for (i <- 0 until locations.size) {
-      val p = locations.get(i)
-      var left = -1
-      var right = -1
-      for (j <- 0 until p.getStorageInfo.getChunkOffsets.size) {
-        val currentOffset = partitionLocationOffset + p.getStorageInfo.getChunkOffsets.get(j)
-        if (currentOffset >= startOffset && left < 0) left = j
-        if (currentOffset < endOffset) right = j
-        if (left >= 0 && right >= 0) chunkRange.put(p.getUniqueId, Pair.of(left, right))
-      }
-      partitionLocationOffset = partitionLocationOffset + p.getStorageInfo.getFileSize
-    }
-    chunkRange
-  }
-
 }
 
 object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
-  val comparator = new Comparator[PartitionLocation] {
-    override def compare(o1: PartitionLocation, o2: PartitionLocation): Int = {
-      o1.getUniqueId.compareTo(o2.getUniqueId)
-    }
-  }
-
-  def splitSkewedPartitionLocations(
-      locations: JArrayList[PartitionLocation],
-      subPartitionSize: Int,
-      subPartitionIndex: Int): JMap[String, Pair[Integer, Integer]] = {
-    locations.sort(comparator)
-    val totalPartitionSize = locations.stream.mapToLong((p: PartitionLocation) => p.getStorageInfo.fileSize).sum
-    val step = totalPartitionSize / subPartitionSize
-    val startOffset = step * subPartitionIndex
-    val endOffset =
-      if (subPartitionIndex == subPartitionSize - 1) {
-        // last subPartition should include all remaining data
-        totalPartitionSize + 1
-      } else {
-        step * (subPartitionIndex + 1)
-      }
-    var partitionLocationOffset: Long = 0
-    val chunkRange = new JHashMap[String, Pair[Integer, Integer]]
-    for (i <- 0 until locations.size) {
-      val p = locations.get(i)
-      var left = -1
-      var right = -1
-      for (j <- 0 until p.getStorageInfo.getChunkOffsets.size) {
-        val currentOffset = partitionLocationOffset + p.getStorageInfo.getChunkOffsets.get(j)
-        if (currentOffset >= startOffset && left < 0) left = j
-        if (currentOffset < endOffset) right = j
-        if (left >= 0 && right >= 0) chunkRange.put(p.getUniqueId, Pair.of(left, right))
-      }
-      partitionLocationOffset = partitionLocationOffset + p.getStorageInfo.getFileSize
-    }
-    chunkRange
-  }
 }
