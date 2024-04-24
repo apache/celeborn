@@ -177,9 +177,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     conf.set("mapreduce.job.user.classpath.first", "true")
 
     conf.set("mapreduce.job.reduce.slowstart.completedmaps", "1")
-    conf.set(
-      "mapreduce.celeborn.master.endpoints",
-      s"errorhost:${master.conf.get(CelebornConf.MASTER_PORT)}")
+    conf.set("mapreduce.celeborn.master.endpoints", "errorhost:9097")
     conf.set(
       MRJobConfig.MAP_OUTPUT_COLLECTOR_CLASS_ATTR,
       "org.apache.hadoop.mapred.CelebornMapOutputCollector")
