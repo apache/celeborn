@@ -743,8 +743,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def haMasterRatisRpcType: String = get(HA_MASTER_RATIS_RPC_TYPE)
   def haMasterRatisStorageDir: String = get(HA_MASTER_RATIS_STORAGE_DIR)
+  def haMasterRatisStorageStartupOption: String = get(HA_MASTER_RATIS_STORAGE_STARTUP_OPTION)
   def haMasterRatisLogSegmentSizeMax: Long = get(HA_MASTER_RATIS_LOG_SEGMENT_SIZE_MAX)
   def haMasterRatisLogPreallocatedSize: Long = get(HA_MASTER_RATIS_LOG_PREALLOCATED_SIZE)
+  def haMasterRatisLogWriteBufferSize: Long = get(HA_MASTER_RATIS_LOG_WRITE_BUFFER_SIZE)
   def haMasterRatisLogAppenderQueueNumElements: Int =
     get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS)
   def haMasterRatisLogAppenderQueueBytesLimit: Long =
@@ -2265,9 +2267,19 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.ha.ratis.raft.server.storage.dir")
       .withAlternative("celeborn.ha.master.ratis.raft.server.storage.dir")
       .categories("ha")
+      .doc("Root storage directory to hold RaftServer data.")
       .version("0.3.0")
       .stringConf
       .createWithDefault("/tmp/ratis")
+
+  val HA_MASTER_RATIS_STORAGE_STARTUP_OPTION: ConfigEntry[String] =
+    buildConf("celeborn.master.ha.ratis.raft.server.storage.startup.option")
+      .categories("ha")
+      .doc("Startup option of RaftServer storage. Available options: RECOVER, FORMAT.")
+      .version("0.5.0")
+      .stringConf
+      .checkValues(Set("RECOVER", "FORMAT"))
+      .createWithDefault("RECOVER")
 
   val HA_MASTER_RATIS_LOG_SEGMENT_SIZE_MAX: ConfigEntry[Long] =
     buildConf("celeborn.master.ha.ratis.raft.server.log.segment.size.max")
@@ -2286,6 +2298,14 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("4MB")
+
+  val HA_MASTER_RATIS_LOG_WRITE_BUFFER_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.master.ha.ratis.raft.server.log.write.buffer.size")
+      .internal
+      .categories("ha")
+      .version("0.5.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("36MB")
 
   val HA_MASTER_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS: ConfigEntry[Int] =
     buildConf("celeborn.master.ha.ratis.raft.server.log.appender.buffer.element-limit")
