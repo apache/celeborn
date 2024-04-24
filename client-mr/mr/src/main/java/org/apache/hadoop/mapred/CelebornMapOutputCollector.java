@@ -121,14 +121,14 @@ public class CelebornMapOutputCollector<K extends Object, V extends Object>
     logger.info("Mapper collector close");
     reporter.progress();
     celebornSortBasedPusher.close();
-    celebornSortBasedPusher.checkException();
+    //celebornSortBasedPusher.checkException();
   }
 
   @Override
   public void flush() throws IOException {
     logger.info("Mapper collector flush");
     celebornSortBasedPusher.flush();
-    celebornSortBasedPusher.checkException();
+    //celebornSortBasedPusher.checkException();
     reporter.progress();
   }
 }

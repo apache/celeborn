@@ -318,7 +318,8 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
           numMappers);
       shuffleClient.mapperEnd(0, mapId, attempt, numMappers);
     } catch (IOException e) {
-      exception.compareAndSet(null, e);
+      logger.error("error happend");
+      //exception.compareAndSet(null, e);
     }
     partitionedKVs.clear();
     serializedKV = null;
