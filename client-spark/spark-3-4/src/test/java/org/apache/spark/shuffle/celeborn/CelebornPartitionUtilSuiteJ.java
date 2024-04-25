@@ -17,10 +17,7 @@
 
 package org.apache.spark.shuffle.celeborn;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Map;
+import java.util.*;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Assert;
@@ -35,100 +32,62 @@ public class CelebornPartitionUtilSuiteJ {
 
     ArrayList<PartitionLocation> locations = new ArrayList<>();
     for (int i = 0; i < 13; i++) {
-      PartitionLocation location =
-          new PartitionLocation(0, i, "localhost", 0, 0, 0, 0, PartitionLocation.Mode.PRIMARY);
-      StorageInfo storageInfo =
-          new StorageInfo(
-              StorageInfo.Type.HDD,
-              "mountPoint",
-              false,
-              "filePath",
-              StorageInfo.LOCAL_DISK_MASK,
-              1000,
-              Arrays.asList(0L, 100L, 200L, 300L, 500L, 1000L));
-      location.setStorageInfo(storageInfo);
-      locations.add(location);
+      locations.add(genPartitionLocation(i, new Long[] {0L, 100L, 200L, 300L, 500L, 1000L}));
     }
-
-    PartitionLocation location =
-        new PartitionLocation(0, 91, "localhost", 0, 0, 0, 0, PartitionLocation.Mode.PRIMARY);
-    StorageInfo storageInfo =
-        new StorageInfo(
-            StorageInfo.Type.HDD,
-            "mountPoint",
-            false,
-            "filePath",
-            StorageInfo.LOCAL_DISK_MASK,
-            1,
-            Arrays.asList(0L, 1L));
-    location.setStorageInfo(storageInfo);
-    locations.add(location);
+    locations.add(genPartitionLocation(91, new Long[] {0L, 1L}));
 
     int subPartitionSize = 3;
 
-    int subPartitionIndex = 0;
     Map<String, Pair<Integer, Integer>> result1 =
-        CelebornPartitionUtil.splitSkewedPartitionLocations(
-            locations, subPartitionSize, subPartitionIndex);
+        CelebornPartitionUtil.splitSkewedPartitionLocations(locations, subPartitionSize, 0);
     Map<String, Pair<Integer, Integer>> expectResult1 =
-        Map.ofEntries(
-            Map.entry("0-0", Pair.of(0, 4)),
-            Map.entry("0-1", Pair.of(0, 4)),
-            Map.entry("0-10", Pair.of(0, 4)),
-            Map.entry("0-11", Pair.of(0, 4)),
-            Map.entry("0-12", Pair.of(0, 2)));
+        genRanges(
+            new Object[][] {
+              {"0-0", 0, 4},
+              {"0-1", 0, 4},
+              {"0-10", 0, 4},
+              {"0-11", 0, 4},
+              {"0-12", 0, 2}
+            });
     Assert.assertEquals(expectResult1, result1);
 
-    subPartitionIndex = 1;
     Map<String, Pair<Integer, Integer>> result2 =
-        CelebornPartitionUtil.splitSkewedPartitionLocations(
-            locations, subPartitionSize, subPartitionIndex);
+        CelebornPartitionUtil.splitSkewedPartitionLocations(locations, subPartitionSize, 1);
     Map<String, Pair<Integer, Integer>> expectResult2 =
-        Map.ofEntries(
-            Map.entry("0-12", Pair.of(3, 4)),
-            Map.entry("0-2", Pair.of(0, 4)),
-            Map.entry("0-3", Pair.of(0, 4)),
-            Map.entry("0-4", Pair.of(0, 4)),
-            Map.entry("0-5", Pair.of(0, 3)));
+        genRanges(
+            new Object[][] {
+              {"0-12", 3, 4},
+              {"0-2", 0, 4},
+              {"0-3", 0, 4},
+              {"0-4", 0, 4},
+              {"0-5", 0, 3}
+            });
     Assert.assertEquals(expectResult2, result2);
 
-    subPartitionIndex = 2;
     Map<String, Pair<Integer, Integer>> result3 =
-        CelebornPartitionUtil.splitSkewedPartitionLocations(
-            locations, subPartitionSize, subPartitionIndex);
+        CelebornPartitionUtil.splitSkewedPartitionLocations(locations, subPartitionSize, 2);
     Map<String, Pair<Integer, Integer>> expectResult3 =
-        Map.ofEntries(
-            Map.entry("0-5", Pair.of(4, 4)),
-            Map.entry("0-6", Pair.of(0, 4)),
-            Map.entry("0-7", Pair.of(0, 4)),
-            Map.entry("0-8", Pair.of(0, 4)),
-            Map.entry("0-9", Pair.of(0, 4)),
-            Map.entry("0-91", Pair.of(0, 0)));
+        genRanges(
+            new Object[][] {
+              {"0-5", 4, 4},
+              {"0-6", 0, 4},
+              {"0-7", 0, 4},
+              {"0-8", 0, 4},
+              {"0-9", 0, 4},
+              {"0-91", 0, 0}
+            });
     Assert.assertEquals(expectResult3, result3);
   }
 
   @Test
   public void testBoundary() {
     ArrayList<PartitionLocation> locations = new ArrayList<>();
-    PartitionLocation location =
-        new PartitionLocation(0, 0, "localhost", 0, 0, 0, 0, PartitionLocation.Mode.PRIMARY);
-    StorageInfo storageInfo =
-        new StorageInfo(
-            StorageInfo.Type.HDD,
-            "mountPoint",
-            false,
-            "filePath",
-            StorageInfo.LOCAL_DISK_MASK,
-            500,
-            Arrays.asList(0L, 100L, 200L, 300L, 400L, 500L));
-    location.setStorageInfo(storageInfo);
-    locations.add(location);
+    locations.add(genPartitionLocation(0, new Long[] {0L, 100L, 200L, 300L, 400L, 500L}));
 
     for (int i = 0; i < 5; i++) {
       Map<String, Pair<Integer, Integer>> result =
           CelebornPartitionUtil.splitSkewedPartitionLocations(locations, 5, i);
-      Map<String, Pair<Integer, Integer>> expectResult =
-          Map.ofEntries(Map.entry("0-0", Pair.of(i, i)));
+      Map<String, Pair<Integer, Integer>> expectResult = genRanges(new Object[][] {{"0-0", i, i}});
       Assert.assertEquals(expectResult, result);
     }
   }
@@ -137,23 +96,51 @@ public class CelebornPartitionUtilSuiteJ {
   public void testSplitStable() {
     ArrayList<PartitionLocation> locations = new ArrayList<>();
     for (int i = 0; i < 13; i++) {
-      PartitionLocation location =
-          new PartitionLocation(0, i, "localhost", 0, 0, 0, 0, PartitionLocation.Mode.PRIMARY);
-      StorageInfo storageInfo =
-          new StorageInfo(
-              StorageInfo.Type.HDD,
-              "mountPoint",
-              false,
-              "filePath",
-              StorageInfo.LOCAL_DISK_MASK,
-              1000,
-              Arrays.asList(0L, 100L, 200L, 300L, 500L, 1000L));
-      location.setStorageInfo(storageInfo);
-      locations.add(location);
+      locations.add(genPartitionLocation(i, new Long[] {0L, 100L, 200L, 300L, 500L, 1000L}));
     }
+    locations.add(genPartitionLocation(91, new Long[] {0L, 1L}));
 
+    Collections.shuffle(locations);
+
+    Map<String, Pair<Integer, Integer>> result =
+        CelebornPartitionUtil.splitSkewedPartitionLocations(locations, 3, 0);
+    Map<String, Pair<Integer, Integer>> expectResult =
+        genRanges(
+            new Object[][] {
+              {"0-0", 0, 4},
+              {"0-1", 0, 4},
+              {"0-10", 0, 4},
+              {"0-11", 0, 4},
+              {"0-12", 0, 2}
+            });
+    Assert.assertEquals(expectResult, result);
+  }
+
+  private ArrayList<PartitionLocation> genPartitionLocations(Map<Integer, Long[]> epochToOffsets) {
+    ArrayList<PartitionLocation> locations = new ArrayList<>();
+    epochToOffsets.forEach(
+        (epoch, offsets) -> {
+          PartitionLocation location =
+              new PartitionLocation(
+                  0, epoch, "localhost", 0, 0, 0, 0, PartitionLocation.Mode.PRIMARY);
+          StorageInfo storageInfo =
+              new StorageInfo(
+                  StorageInfo.Type.HDD,
+                  "mountPoint",
+                  false,
+                  "filePath",
+                  StorageInfo.LOCAL_DISK_MASK,
+                  1,
+                  Arrays.asList(offsets));
+          location.setStorageInfo(storageInfo);
+          locations.add(location);
+        });
+    return locations;
+  }
+
+  private PartitionLocation genPartitionLocation(int epoch, Long[] offsets) {
     PartitionLocation location =
-        new PartitionLocation(0, 91, "localhost", 0, 0, 0, 0, PartitionLocation.Mode.PRIMARY);
+        new PartitionLocation(0, epoch, "localhost", 0, 0, 0, 0, PartitionLocation.Mode.PRIMARY);
     StorageInfo storageInfo =
         new StorageInfo(
             StorageInfo.Type.HDD,
@@ -161,22 +148,19 @@ public class CelebornPartitionUtilSuiteJ {
             false,
             "filePath",
             StorageInfo.LOCAL_DISK_MASK,
-            1,
-            Arrays.asList(0L, 1L));
+            offsets[offsets.length - 1],
+            Arrays.asList(offsets));
     location.setStorageInfo(storageInfo);
-    locations.add(location);
+    return location;
+  }
 
-    Collections.shuffle(locations);
-
-    Map<String, Pair<Integer, Integer>> result =
-        CelebornPartitionUtil.splitSkewedPartitionLocations(locations, 3, 0);
-    Map<String, Pair<Integer, Integer>> expectResult =
-        Map.ofEntries(
-            Map.entry("0-0", Pair.of(0, 4)),
-            Map.entry("0-1", Pair.of(0, 4)),
-            Map.entry("0-10", Pair.of(0, 4)),
-            Map.entry("0-11", Pair.of(0, 4)),
-            Map.entry("0-12", Pair.of(0, 2)));
-    Assert.assertEquals(expectResult, result);
+  private Map<String, Pair<Integer, Integer>> genRanges(Object[][] inputs) {
+    Map<String, Pair<Integer, Integer>> ranges = new HashMap<>();
+    for (Object[] idToChunkRange : inputs) {
+      String uid = (String) idToChunkRange[0];
+      Pair<Integer, Integer> range = Pair.of((int) idToChunkRange[1], (int) idToChunkRange[2]);
+      ranges.put(uid, range);
+    }
+    return ranges;
   }
 }
