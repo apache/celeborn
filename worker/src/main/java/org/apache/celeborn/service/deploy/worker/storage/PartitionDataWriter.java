@@ -519,11 +519,13 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
     if (!destroyed) {
       destroyed = true;
-      diskFileInfo.deleteAllFiles(StorageManager.hadoopFs());
+      if (diskFileInfo != null) {
+        diskFileInfo.deleteAllFiles(StorageManager.hadoopFs());
 
-      // unregister from DeviceMonitor
-      if (!diskFileInfo.isHdfs()) {
-        deviceMonitor.unregisterFileWriter(this);
+        // unregister from DeviceMonitor
+        if (!diskFileInfo.isHdfs()) {
+          deviceMonitor.unregisterFileWriter(this);
+        }
       }
     }
   }

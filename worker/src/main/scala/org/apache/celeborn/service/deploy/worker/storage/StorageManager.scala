@@ -587,6 +587,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       if (memoryFileInfos.containsKey(shuffleKey)) {
         val memoryFileMaps = memoryFileInfos.remove(shuffleKey)
         memoryFileMaps.asScala.foreach(u => {
+          cleanFileInternal(shuffleKey, u._2)
           MemoryManager.instance().releaseMemoryFileStorage(u._2.expireMemoryBuffers())
         })
       }
