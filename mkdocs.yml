@@ -68,6 +68,7 @@ nav:
       - Overview: deploy.md
       - Kubernetes: deploy_on_k8s.md
       - Monitoring: monitoring.md
+      - Security: security.md
       - Quota Management: quota_management.md
       - Upgrading: upgrading.md
       - Ratis Shell: celeborn_ratis_shell.md

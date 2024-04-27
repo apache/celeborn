@@ -93,6 +93,12 @@ end="<!--end-include-->"
 ### Network
 
 {!
+include-markdown "./network-module.md"
+start="<!--begin-include-->"
+end="<!--end-include-->"
+!}
+
+{!
 include-markdown "./network.md"
 start="<!--begin-include-->"
 end="<!--end-include-->"
