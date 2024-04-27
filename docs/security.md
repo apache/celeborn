@@ -32,27 +32,26 @@ start="<!--begin-include-->"
 end="<!--end-include-->"
 !}
 
-The namespace `${ns}` to configure SSL configuration is `celeborn.ssl.<module>` from the list above.
+The namespace `${ns}` in the property names below, to configure SSL,  `celeborn.ssl.<module>` - where `module` comes from the list above.
 
-Note that `celebord.ssl`, **without any module**, can be used to set SSL default values which apply to all modules.
+Note that `celebord.ssl`, **without any module**, can be used to set SSL default values which applies to all modules.
 
-Also note that at `data` module at application side, maps to `push` and `fetch` at worker side - hence, for SSL configuration, worker configuration for `push` and `fetch` should be compatible with each other and with `data` at application side.
+Also note that `data` module at application side, maps to `push` and `fetch` at worker - hence, for SSL configuration, worker configuration for `push` and `fetch` should be compatible with each other and with `data` at application side.
 
 The SSL options which are supported in Celeborn are detailed below. The `${ns}` placeholder should be replaced with one of the transport namespaces, as detailed above.
 
 | Property Name | Default | Description |
 | ------ | ------------- | ----------- |
 | ${ns}.enabled | false | Enables SSL |
-| ${ns}.enabledAlgorithms | Default cipher suite from the JRE | A comma-separated list of ciphers. The specified ciphers must be supported by JVM.<br/>The reference list of protocols can be found in the "JSSE Cipher Suite Names" section of the Java security guide. The list for Java 17 can be found at [this page](https://docs.oracle.com/en/java/javase/17/docs/specs/security/standard-names.html#jsse-cipher-suite-names)<br/>Note: If not set, the default cipher suite for the JRE will be used |
+| ${ns}.enabledAlgorithms | Default cipher suite from the JRE | A comma-separated list of ciphers. The specified ciphers must be supported by JVM.<br/>The reference list of protocols can be found in the "JSSE Cipher Suite Names" section of the Java security guide. The list for Java 11, for example, can be found at [this page](https://docs.oracle.com/en/java/javase/11/docs/specs/security/standard-names.html#jsse-cipher-suite-names)<br/>Note: If not set, the default cipher suite for the JRE will be used |
 | ${ns}.keyStore | None | Path to the key store file.<br/> The path can be absolute or relative to the directory in which the process is started. |
 | ${ns}.keyStorePassword | None | Password for the key store |
-| ${ns}.protocol | TLSv1.2 | TLS protocol to use.<br/> The protocol must be supported by JVM.<br/> The reference list of protocols can be found in the "Additional JSSE Standard Names" section of the Java security guide. For Java 17, the list can be found [here](https://docs.oracle.com/en/java/javase/17/docs/specs/security/standard-names.html#additional-jsse-standard-names) |
+| ${ns}.protocol | TLSv1.2 | TLS protocol to use.<br/> The protocol must be supported by JVM.<br/> The reference list of protocols can be found in the "Additional JSSE Standard Names" section of the Java security guide. For Java 11, for example, the list can be found [here](https://docs.oracle.com/en/java/javase/11/docs/specs/security/standard-names.html#additional-jsse-standard-names) |
 | ${ns}.trustStore | None | Path to the trust store file.<br/> The path can be absolute or relative to the directory in which the process is started.|
 | ${ns}.trustStorePassword | None | Password for the trust store |
 | ${ns}.trustStoreReloadingEnabled | false | Whether the trust store should be reloaded periodically. <br/> his setting is mostly only useful for Celeborn services (masters, workers), and not applications. |
 | ${ns}.trustStoreReloadIntervalMs | 10s | The interval at which the trust store should be reloaded (in milliseconds) - when enabled. |
 | ${ns}.autoSslEnabled | false | Enable auto ssl for encrypted communication between lifecyclemanager and executors. <br/><br/> This is applicable only for `rpc_app` module and ignored for others. Additionally if truststore or keystore are present, this config is ignored. <br/> <br/>Lifecyclemanager generates a self-signed certificate, which is used for SSL. Given use of self-signed certificate, auto ssl only provides over the wire encryption |
-
 
 ## Example configuration
 
