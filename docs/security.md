@@ -103,7 +103,7 @@ Note: SASL **requires use of internal port**.
 | Property Name | Default | Description |
 | ------ | ------------- | ----------- |
 | celeborn.auth.enabled | false | Enables Authentication |
-| celeborn.internal.port.enabled | false | Enable internal port for Celeborn services. This **must be** enabled when authentication is enabled.<br/>nly server components communicate with each other on the internal port, while applications continue to use the regular ports. |
+| celeborn.internal.port.enabled | false | Enable internal port for Celeborn services. This **must be** enabled when authentication is enabled.<br/>Only server components communicate with each other on the internal port, while applications continue to use the regular ports. |
 | celeborn.master.internal.endpoints | None | Analogous to `celeborn.master.endpoints`, but with internal ports instead. |
 | celeborn.master.ha.node.&lt;id&gt;.internal.port  | None | Analogous to `celeborn.master.ha.node.<id>.port`, but for internal ports instead |
 
