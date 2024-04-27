@@ -23,7 +23,7 @@ Celeborn can use TLS to encrypt data transmitted over the network, provide priva
 SASL is leveraged by Celeborn to authenticate requests from an application - it ensures clients can only mutate or access state and data that belongs to them.
 
 Note: **SSL** and **TLS** are used interchangeably in this document.
-# Network encryption with TLS
+## Network encryption with TLS
 When enabled, Celeborn leverages TLS to provide over the wire encryption.
 Celeborn has different transport namespaces, and each can be independently configured for TLS - an exhaustive list of all configurations which apply to a transport module are listed in [network configurations](configuration/network.md), but the subset which are relevant to TLS are detailed below.
 {!
@@ -53,9 +53,9 @@ The SSL options which are supported in Celeborn are detailed below. The `${ns}` 
 | ${ns}.trustStoreReloadIntervalMs | 10s | The interval at which the trust store should be reloaded (in milliseconds) - when enabled. |
 | ${ns}.autoSslEnabled | false | Enable auto ssl for encrypted communication between lifecyclemanager and executors. <br/><br/> This is applicable only for `rpc_app` module and ignored for others. Additionally if truststore or keystore are present, this config is ignored. <br/> <br/>Lifecyclemanager generates a self-signed certificate, which is used for SSL. Given use of self-signed certificate, auto ssl only provides over the wire encryption |
 
-## Example configuration
+### Example configuration
 
-### Master/Worker configuration for enabling TLS
+#### Master/Worker configuration for TLS
 
 ```properties
 
@@ -69,7 +69,7 @@ celeborn.ssl.rpc_service.trustStore             /mnt/disk1/celeborn/conf/ssl/tru
 celeborn.ssl.rpc_service.trustStorePassword     changeit
 ```
 
-### Application configuration for enabling TLS
+#### Application configuration for TLS
 
 ```properties
 
@@ -89,7 +89,7 @@ spark.celeborn.ssl.rpc_service.trustStorePassword               changeit
 ```
 
 
-# Authentication
+## Authentication
 
 Celeborn supports authentication to prevent unauthorized access or modifications to an application's data. 
 When enabled, lifecyclemanager registers the application with Celeborn service, and negotiates a shared secret.
@@ -109,8 +109,9 @@ An exhaustive list of all network configurations is documented [here](configurat
 | celeborn.master.internal.endpoints | None | Analogous to `celeborn.master.endpoints`, but with internal ports instead. |
 | celeborn.master.ha.node.&lt;id&gt;.internal.port  | None | Analogous to `celeborn.master.ha.node.<id>.port`, but for internal ports instead |
 
+### Example configuration
 
-### Master/Worker configuration for enabling authentication
+#### Master/Worker configuration for authentication
 
 ```properties
 
@@ -151,7 +152,7 @@ celeborn.master.ha.node.3.ratis.port    9872
 
 ```
 
-### Application configuration for enabling Authentication
+#### Application configuration for Authentication
 
 ```properties
 spark.celeborn.auth.enabled             true
