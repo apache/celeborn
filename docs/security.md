@@ -100,8 +100,6 @@ Even though Celeborn does not transmit the secret, in the clear, as part of auth
 
 Note: SASL **requires use of internal port**.
 
-An exhaustive list of all network configurations is documented [here](configuration/network.md), but the subset which are relevant to authentication are captured below.
-
 | Property Name | Default | Description |
 | ------ | ------------- | ----------- |
 | celeborn.auth.enabled | false | Enables Authentication |
