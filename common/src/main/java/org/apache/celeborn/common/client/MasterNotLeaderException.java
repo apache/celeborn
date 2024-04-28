@@ -22,6 +22,7 @@ import java.io.IOException;
 import javax.annotation.Nullable;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 
 public class MasterNotLeaderException extends IOException {
 
@@ -34,13 +35,19 @@ public class MasterNotLeaderException extends IOException {
 
   public MasterNotLeaderException(
       String currentPeer, String suggestedLeaderPeer, @Nullable Throwable cause) {
-    this(currentPeer, suggestedLeaderPeer, suggestedLeaderPeer, cause);
+    this(
+        currentPeer,
+        Pair.of(suggestedLeaderPeer, suggestedLeaderPeer),
+        Pair.of(suggestedLeaderPeer, suggestedLeaderPeer),
+        false,
+        cause);
   }
 
   public MasterNotLeaderException(
       String currentPeer,
-      String suggestedLeaderPeer,
-      String suggestedInternalLeaderPeer,
+      Pair<String, String> suggestedLeaderPeer,
+      Pair<String, String> suggestedInternalLeaderPeer,
+      boolean bindPreferIp,
       @Nullable Throwable cause) {
     super(
         String.format(
@@ -55,8 +62,11 @@ public class MasterNotLeaderException extends IOException {
                 ? StringUtils.EMPTY
                 : String.format(" Exception:%s.", cause.getMessage())),
         cause);
-    this.leaderPeer = suggestedLeaderPeer;
-    this.internalLeaderPeer = suggestedInternalLeaderPeer;
+    this.leaderPeer = bindPreferIp ? suggestedLeaderPeer.getKey() : suggestedLeaderPeer.getValue();
+    this.internalLeaderPeer =
+        bindPreferIp
+            ? suggestedInternalLeaderPeer.getKey()
+            : suggestedInternalLeaderPeer.getValue();
   }
 
   public String getSuggestedLeaderAddress() {

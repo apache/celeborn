@@ -25,8 +25,6 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-import scala.Tuple2;
-
 import org.junit.*;
 import org.mockito.Mockito;
 
@@ -180,7 +178,7 @@ public class RatisMasterStatusSystemSuiteJ {
   }
 
   @Test
-  public void testLeaderAvaiable() {
+  public void testLeaderAvailable() {
     boolean hasLeader =
         RATISSERVER1.isLeader() || RATISSERVER2.isLeader() || RATISSERVER3.isLeader();
     Assert.assertTrue(hasLeader);
@@ -198,12 +196,15 @@ public class RatisMasterStatusSystemSuiteJ {
     boolean isFollowerCurrentLeader = follower.isLeader();
     Assert.assertFalse(isFollowerCurrentLeader);
 
-    Optional<Tuple2<String, String>> cachedLeaderPeerRpcEndpoint =
+    Optional<HARaftServer.LeaderPeerEndpoints> cachedLeaderPeerRpcEndpoint =
         follower.getCachedLeaderPeerRpcEndpoint();
 
     Assert.assertTrue(cachedLeaderPeerRpcEndpoint.isPresent());
-    Assert.assertEquals(leader.getRpcEndpoint(), cachedLeaderPeerRpcEndpoint.get()._1());
-    Assert.assertEquals(leader.getInternalRpcEndpoint(), cachedLeaderPeerRpcEndpoint.get()._2());
+    Assert.assertEquals(
+        leader.getRpcEndpoint(), cachedLeaderPeerRpcEndpoint.get().rpcEndpoints.getValue());
+    Assert.assertEquals(
+        leader.getInternalRpcEndpoint(),
+        cachedLeaderPeerRpcEndpoint.get().rpcInternalEndpoints.getValue());
   }
 
   private static final String HOSTNAME1 = "host1";
