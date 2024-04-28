@@ -18,7 +18,7 @@ license: |
 
 <!--begin-include-->
 
-The various transport modules, which can be configured, are:
+The various transport modules which can be configured are:
 
 | Module | Parent Module | Description |
 | ------ | ------------- | ----------- |
