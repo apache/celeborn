@@ -47,8 +47,14 @@ class ChangePartitionManager(
   // shuffleId -> (partitionId -> set of ChangePartition)
   private val changePartitionRequests =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]()
+
+  // shuffleId -> locks
+  private val locks = JavaUtils.newConcurrentHashMap[Int, Array[AnyRef]]()
+  private val lockBucketSize = conf.batchHandleChangePartitionBuckets
+
   // shuffleId -> set of partition id
-  private val inBatchPartitions = JavaUtils.newConcurrentHashMap[Int, JSet[Integer]]()
+  private val inBatchPartitions =
+    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap.KeySetView[Int, java.lang.Boolean]]()
 
   private val batchHandleChangePartitionEnabled = conf.batchHandleChangePartitionEnabled
   private val batchHandleChangePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
@@ -79,14 +85,19 @@ class ChangePartitionManager(
                 batchHandleChangePartitionExecutors.submit {
                   new Runnable {
                     override def run(): Unit = {
-                      val distinctPartitions = requests.synchronized {
-                        // For each partition only need handle one request
-                        requests.asScala.filter { case (partitionId, _) =>
-                          !inBatchPartitions.get(shuffleId).contains(partitionId)
-                        }.map { case (partitionId, request) =>
-                          inBatchPartitions.get(shuffleId).add(partitionId)
-                          request.asScala.toArray.maxBy(_.epoch)
-                        }.toArray
+                      val distinctPartitions = {
+                        val requestSet = inBatchPartitions.get(shuffleId)
+                        val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
+                        requests.asScala.map { case (partitionId, request) =>
+                          locksForShuffle(partitionId % locksForShuffle.length).synchronized {
+                            if (!requestSet.contains(partitionId)) {
+                              requestSet.add(partitionId)
+                              Some(request.asScala.toArray.maxBy(_.epoch))
+                            } else {
+                              None
+                            }
+                          }
+                        }.filter(_.isDefined).map(_.get).toArray
                       }
                       if (distinctPartitions.nonEmpty) {
                         handleRequestPartitions(
@@ -123,8 +134,16 @@ class ChangePartitionManager(
         JavaUtils.newConcurrentHashMap()
     }
 
-  private val inBatchShuffleIdRegisterFunc = new util.function.Function[Int, util.Set[Integer]]() {
-    override def apply(s: Int): util.Set[Integer] = new util.HashSet[Integer]()
+  private val inBatchShuffleIdRegisterFunc =
+    new util.function.Function[Int, ConcurrentHashMap.KeySetView[Int, java.lang.Boolean]]() {
+      override def apply(s: Int): ConcurrentHashMap.KeySetView[Int, java.lang.Boolean] =
+        ConcurrentHashMap.newKeySet[Int]()
+    }
+
+  private val locksRegisterFunc = new util.function.Function[Int, Array[AnyRef]] {
+    override def apply(t: Int): Array[AnyRef] = {
+      Array.fill(lockBucketSize)(new AnyRef())
+    }
   }
 
   def handleRequestPartitionLocation(
@@ -151,15 +170,22 @@ class ChangePartitionManager(
       oldPartition,
       cause)
 
-    requests.synchronized {
-      if (requests.containsKey(partitionId)) {
-        requests.get(partitionId).add(changePartition)
+    val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
+    locksForShuffle(partitionId % locksForShuffle.length).synchronized {
+      var newEntry = false
+      val set = requests.computeIfAbsent(
+        partitionId,
+        new java.util.function.Function[Integer, util.Set[ChangePartitionRequest]] {
+          override def apply(t: Integer): util.Set[ChangePartitionRequest] = {
+            newEntry = true
+            new util.HashSet[ChangePartitionRequest]()
+          }
+        })
+
+      if (newEntry) {
         logTrace(s"[handleRequestPartitionLocation] For $shuffleId, request for same partition" +
           s"$partitionId-$oldEpoch exists, register context.")
-        return
       } else {
-        // If new slot for the partition has been allocated, reply and return.
-        // Else register and allocate for it.
         getLatestPartition(shuffleId, partitionId, oldEpoch).foreach { latestLoc =>
           context.reply(
             partitionId,
@@ -170,10 +196,8 @@ class ChangePartitionManager(
             s" shuffleId: $shuffleId $latestLoc")
           return
         }
-        val set = new util.HashSet[ChangePartitionRequest]()
-        set.add(changePartition)
-        requests.put(partitionId, set)
       }
+      set.add(changePartition)
     }
     if (!batchHandleChangePartitionEnabled) {
       handleRequestPartitions(shuffleId, Array(changePartition))
@@ -216,14 +240,16 @@ class ChangePartitionManager(
 
     // remove together to reduce lock time
     def replySuccess(locations: Array[PartitionLocation]): Unit = {
-      requestsMap.synchronized {
-        locations.map { location =>
+      val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
+      locations.map { location =>
+        locksForShuffle(location.getId % locksForShuffle.length).synchronized {
+          val ret = requestsMap.remove(location.getId)
           if (batchHandleChangePartitionEnabled) {
             inBatchPartitions.get(shuffleId).remove(location.getId)
           }
           // Here one partition id can be remove more than once,
           // so need to filter null result before reply.
-          location -> Option(requestsMap.remove(location.getId))
+          location -> Option(ret)
         }
       }.foreach { case (newLocation, requests) =>
         requests.map(_.asScala.toList.foreach(req =>
@@ -237,12 +263,14 @@ class ChangePartitionManager(
 
     // remove together to reduce lock time
     def replyFailure(status: StatusCode): Unit = {
-      requestsMap.synchronized {
-        changePartitions.map { changePartition =>
+      changePartitions.map { changePartition =>
+        val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
+        locksForShuffle(changePartition.partitionId % locksForShuffle.length).synchronized {
+          val r = requestsMap.remove(changePartition.partitionId)
           if (batchHandleChangePartitionEnabled) {
             inBatchPartitions.get(shuffleId).remove(changePartition.partitionId)
           }
-          Option(requestsMap.remove(changePartition.partitionId))
+          Option(r)
         }
       }.foreach { requests =>
         requests.map(_.asScala.toList.foreach(req =>
@@ -325,5 +353,6 @@ class ChangePartitionManager(
   def removeExpiredShuffle(shuffleId: Int): Unit = {
     changePartitionRequests.remove(shuffleId)
     inBatchPartitions.remove(shuffleId)
+    locks.remove(shuffleId)
   }
 }
