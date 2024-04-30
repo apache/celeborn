@@ -5014,7 +5014,11 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ssl.<module>.protocol")
       .categories("network", "ssl")
       .version("0.5.0")
-      .doc("SSL protocol to use")
+      .doc("TLS protocol to use.<br/> The protocol must be supported by JVM.<br/> The reference " +
+        "list of protocols can be found in the \"Additional JSSE Standard Names\" section of " +
+        "the Java security guide. For Java 11, for example, the list can be found " +
+        "[here](https://docs.oracle.com/en/java/javase/11/docs/specs/" +
+        "security/standard-names.html#additional-jsse-standard-names)")
       .stringConf
       // TLSv1.3 requires specific java version, defaulting to v1.2
       .createWithDefault("TLSv1.2")
@@ -5023,11 +5027,13 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ssl.<module>.enabledAlgorithms")
       .categories("network", "ssl")
       .version("0.5.0")
-      .doc("A comma-separated list of ciphers. The specified ciphers must be supported by JVM. " +
-        "The reference list of protocols can be found in the \"JSSE Cipher Suite Names\" section " +
-        "of the Java security guide. The list for Java 17 can be found at " +
-        "https://docs.oracle.com/en/java/javase/17/docs/specs/security/standard-names.html#jsse-cipher-suite-names " +
-        ". Note: If not set, the default cipher suite for the JRE will be used.")
+      .doc("A comma-separated list of ciphers. The " +
+        "specified ciphers must be supported by JVM.<br/>The reference list of protocols " +
+        "can be found in the \"JSSE Cipher Suite Names\" section of the Java security guide. " +
+        "The list for Java 11, for example, can be found at " +
+        "[this page](https://docs.oracle.com/en/java/javase/11/docs/specs/security/" +
+        "standard-names.html#jsse-cipher-suite-names)<br/>Note: If not set, the default " +
+        "cipher suite for the JRE will be used")
       .stringConf
       .createOptional
 
@@ -5035,8 +5041,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ssl.<module>.keyStore")
       .categories("network", "ssl")
       .version("0.5.0")
-      .doc("Path to the key store file. The path can be absolute or relative to the directory in which the " +
-        "process is started.")
+      .doc("Path to the key store file.<br/> The path can be absolute or relative to the " +
+        "directory in which the process is started.")
       .stringConf
       .createOptional
 
@@ -5052,8 +5058,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ssl.<module>.trustStore")
       .categories("network", "ssl")
       .version("0.5.0")
-      .doc("Path to the trust store file. The path can be absolute or relative to the directory " +
-        "in which the process is started.")
+      .doc("Path to the trust store file.<br/> The path can be absolute or relative to the " +
+        "directory in which the process is started.")
       .stringConf
       .createOptional
 
@@ -5069,8 +5075,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ssl.<module>.trustStoreReloadingEnabled")
       .categories("network", "ssl")
       .version("0.5.0")
-      .doc("Whether the trust store should be reloaded periodically. This setting is mostly only " +
-        "useful for server components, not applications.")
+      .doc("Whether the trust store should be reloaded periodically.<br/> This setting is " +
+        "mostly only useful for Celeborn services (masters, workers), and not applications.")
       .booleanConf
       .createWithDefault(false)
 
@@ -5078,8 +5084,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ssl.<module>.trustStoreReloadIntervalMs")
       .categories("network", "ssl")
       .version("0.5.0")
-      .doc("The interval at which the trust store should be reloaded (in milliseconds). This " +
-        "setting is mostly only useful for server components, not applications.")
+      .doc("The interval at which the trust store should be reloaded (in milliseconds), when " +
+        "enabled. This setting is mostly only useful for server components, not applications.")
       .timeConf(TimeUnit.MILLISECONDS)
       // We treat this as an int, so validate
       .checkValue(
@@ -5105,10 +5111,12 @@ object CelebornConf extends Logging {
       .categories("network", "ssl")
       .version("0.5.0")
       .internal
-      .doc("Enable auto ssl where lifecycle manager will generate a self-signed certificate, " +
-        s"which will be trusted by all executors connecting to it. This is applicable only for " +
-        s"${TransportModuleConstants.RPC_APP_MODULE} module, and ignored for others. " +
-        "Additionally if truststore or keystore are present, this config is ignored.")
+      .doc("Enable auto ssl for encrypted communication between lifecyclemanager and " +
+        "executors.<br/><br/> This is applicable only for " +
+        s"${TransportModuleConstants.RPC_APP_MODULE} module and ignored for " +
+        "others. Additionally if truststore or keystore are present, this config is " +
+        "ignored.<br/><br/>Lifecyclemanager generates a self-signed certificate, which is " +
+        "used for SSL. Given use of self-signed certificate, auto ssl only provides over the wire encryption")
       .booleanConf
       .createWithDefault(false)
 
