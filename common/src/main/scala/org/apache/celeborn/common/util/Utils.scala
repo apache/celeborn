@@ -18,7 +18,7 @@
 package org.apache.celeborn.common.util
 
 import java.io._
-import java.lang.management.ManagementFactory
+import java.lang.management.{LockInfo, ManagementFactory, MonitorInfo, ThreadInfo}
 import java.math.{MathContext, RoundingMode}
 import java.net._
 import java.nio.ByteBuffer
@@ -645,6 +645,64 @@ object Utils extends Logging {
     val start = System.currentTimeMillis
     f
     System.currentTimeMillis - start
+  }
+
+  def getThreadDump(): Seq[ThreadStackTrace] = {
+    ManagementFactory.getThreadMXBean.dumpAllThreads(true, true).filter(_ != null)
+      .sortWith { case (threadTrace1, threadTrace2) =>
+        val name1 = threadTrace1.getThreadName().toLowerCase(Locale.ROOT)
+        val name2 = threadTrace2.getThreadName().toLowerCase(Locale.ROOT)
+        val nameCmpRes = name1.compareTo(name2)
+        if (nameCmpRes == 0) {
+          threadTrace1.getThreadId < threadTrace2.getThreadId
+        } else {
+          nameCmpRes < 0
+        }
+      }.map(
+        threadInfoToThreadStackTrace)
+  }
+
+  /** Copied from Spark. */
+  private def threadInfoToThreadStackTrace(threadInfo: ThreadInfo): ThreadStackTrace = {
+    val threadState = threadInfo.getThreadState
+    val monitors = threadInfo.getLockedMonitors.map(m => m.getLockedStackDepth -> m.toString).toMap
+    val stackTrace = threadInfo.getStackTrace.zipWithIndex.map { case (frame, idx) =>
+      val locked =
+        if (idx == 0 && threadInfo.getLockInfo != null) {
+          threadState match {
+            case Thread.State.BLOCKED =>
+              s"\t-  blocked on ${threadInfo.getLockInfo}\n"
+            case Thread.State.WAITING | Thread.State.TIMED_WAITING =>
+              s"\t-  waiting on ${threadInfo.getLockInfo}\n"
+            case _ => ""
+          }
+        } else ""
+      val locking = monitors.get(idx).map(mi => s"\t-  locked $mi\n").getOrElse("")
+      s"${frame.toString}\n$locked$locking"
+    }
+
+    val synchronizers = threadInfo.getLockedSynchronizers.map(_.toString)
+    val monitorStrs = monitors.values.toSeq
+    ThreadStackTrace(
+      threadInfo.getThreadId,
+      threadInfo.getThreadName,
+      threadState,
+      stackTrace,
+      if (threadInfo.getLockOwnerId < 0) None else Some(threadInfo.getLockOwnerId),
+      Option(threadInfo.getLockInfo).map(lockString).getOrElse(""),
+      synchronizers,
+      monitorStrs,
+      Option(threadInfo.getLockName),
+      Option(threadInfo.getLockOwnerName),
+      threadInfo.isSuspended,
+      threadInfo.isInNative)
+  }
+
+  private def lockString(lock: LockInfo): String = {
+    lock match {
+      case monitor: MonitorInfo => s"Monitor(${monitor.toString})"
+      case _ => s"Lock(${lock.toString})"
+    }
   }
 
   private def readProcessStdout(process: Process): String = {

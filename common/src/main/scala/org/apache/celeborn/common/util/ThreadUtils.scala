@@ -401,3 +401,45 @@ class ThreadExceptionHandler(executorService: String)
   override def uncaughtException(t: Thread, e: Throwable): Unit =
     logError(s"Uncaught exception in executor service $executorService, thread $t", e)
 }
+
+/** Copied from Spark. */
+case class ThreadStackTrace(
+    threadId: Long,
+    threadName: String,
+    threadState: Thread.State,
+    stackTrace: Seq[String],
+    blockedByThreadId: Option[Long],
+    blockedByLock: String,
+    synchronizers: Seq[String],
+    monitors: Seq[String],
+    lockName: Option[String],
+    lockOwnerName: Option[String],
+    suspended: Boolean,
+    inNative: Boolean) {
+
+  /**
+   * Returns a string representation of this thread stack trace
+   * w.r.t java.lang.management.ThreadInfo(JDK 8)'s toString.
+   */
+  override def toString: String = {
+    val sb = new StringBuilder(
+      s""""$threadName Id=$threadId $threadState""")
+    lockName.foreach(lock => sb.append(s" on $lock"))
+    lockOwnerName.foreach {
+      owner => sb.append(s"""owned by "$owner"""")
+    }
+    blockedByThreadId.foreach(id => s" Id=$id")
+    if (suspended) sb.append(" (suspended)")
+    if (inNative) sb.append(" (in native)")
+    sb.append('\n')
+
+    sb.append(stackTrace.map(e => s"\tat $e").mkString)
+
+    if (synchronizers.nonEmpty) {
+      sb.append(s"\n\tNumber of locked synchronizers = ${synchronizers.length}\n")
+      synchronizers.foreach(sync => sb.append(s"\t- $sync\n"))
+    }
+    sb.append('\n')
+    sb.toString
+  }
+}
