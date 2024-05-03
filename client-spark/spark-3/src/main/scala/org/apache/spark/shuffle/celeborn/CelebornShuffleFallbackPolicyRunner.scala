@@ -24,12 +24,13 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.FallbackPolicy
 
 class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
+  private val shuffleFallbackPolicy = conf.shuffleFallbackPolicy
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     val needFallback =
       applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
         !checkQuota(lifecycleManager) || !checkWorkersAvailable(lifecycleManager)
-    if (needFallback && FallbackPolicy.NEVER.equals(conf.shuffleFallbackPolicy)) {
+    if (needFallback && FallbackPolicy.NEVER.equals(shuffleFallbackPolicy)) {
       throw new CelebornIOException("Fallback to Spark's default shuffle is prohibited.")
     }
     needFallback
@@ -40,11 +41,11 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
    * @return return if celeborn.client.spark.shuffle.fallback.policy is ALWAYS
    */
   def applyForceFallbackPolicy(): Boolean = {
-    if (FallbackPolicy.ALWAYS.equals(conf.shuffleFallbackPolicy)) {
+    if (FallbackPolicy.ALWAYS.equals(shuffleFallbackPolicy)) {
       logWarning(
         s"${CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY.key} is ${FallbackPolicy.ALWAYS.name}, which will force fallback.")
     }
-    FallbackPolicy.ALWAYS.equals(conf.shuffleFallbackPolicy)
+    FallbackPolicy.ALWAYS.equals(shuffleFallbackPolicy)
   }
 
   /**
