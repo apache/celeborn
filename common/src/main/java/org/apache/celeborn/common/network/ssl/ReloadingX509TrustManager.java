@@ -20,6 +20,8 @@ package org.apache.celeborn.common.network.ssl;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.CertificateException;
@@ -156,7 +158,7 @@ public class ReloadingX509TrustManager implements X509TrustManager, Runnable {
       // `file` can be a symbolic link. We need to reload if it points to another file,
       // or if the file has been modified
       if (latestCanonicalFile.getPath().equals(canonicalPath)
-          && latestCanonicalFile.lastModified() == lastLoaded) {
+          && getFileLastModified(latestCanonicalFile) == lastLoaded) {
         reload = false;
       }
     } else {
@@ -170,7 +172,7 @@ public class ReloadingX509TrustManager implements X509TrustManager, Runnable {
     KeyStore ks = KeyStore.getInstance(type);
     File latestCanonicalFile = file.getCanonicalFile();
     canonicalPath = latestCanonicalFile.getPath();
-    lastLoaded = latestCanonicalFile.lastModified();
+    lastLoaded = getFileLastModified(latestCanonicalFile);
     try (FileInputStream in = new FileInputStream(latestCanonicalFile)) {
       char[] passwordCharacters = password != null ? password.toCharArray() : null;
       ks.load(in, passwordCharacters);
@@ -213,6 +215,18 @@ public class ReloadingX509TrustManager implements X509TrustManager, Runnable {
         logger.warn("Could not check whether truststore needs reloading: " + ex.toString(), ex);
       }
       needsReloadCheckCounts++;
+    }
+  }
+
+  private static long getFileLastModified(File file) {
+    try {
+      BasicFileAttributes attributes =
+          Files.readAttributes(file.toPath(), BasicFileAttributes.class);
+      return attributes.lastModifiedTime().toMillis();
+    } catch (IOException ioEx) {
+      // fallback
+      logger.info("Unable to read attributes for {}", file, ioEx);
+      return file.lastModified();
     }
   }
 }
