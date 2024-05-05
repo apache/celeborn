@@ -235,10 +235,12 @@ object CelebornCommonSettings {
       }.get
 
       Credentials(
-        "Sonatype Nexus Repository Manager",
+        // Credentials matching is done using both: realm and host keys, sbt/sbt#2366 allows using
+        // credential without a realm by providing an empty string for realm.
+        "" /* realm */,
         host,
         sys.env.getOrElse("ASF_USERNAME", ""),
-        sys.env.getOrElse("ASF_PASSWORD", "")),
+        sys.env.getOrElse("ASF_PASSWORD", ""))
     },
     publishTo := {
       if (isSnapshot.value) {
