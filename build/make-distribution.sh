@@ -247,9 +247,9 @@ function build_mr_client {
 #########################
 
 function sbt_build_service {
-  VERSION=$("$SBT" "Show / version" | awk '/\[info\]/{ver=$2} END{print ver}')
+  VERSION=$("$SBT" -no-colors "Show / version" | awk '/\[info\]/{ver=$2} END{print ver}')
 
-  SCALA_VERSION=$("$SBT" "Show / scalaBinaryVersion" | awk '/\[info\]/{ver=$2} END{print ver}')
+  SCALA_VERSION=$("$SBT" -no-colors "Show / scalaBinaryVersion" | awk '/\[info\]/{ver=$2} END{print ver}')
 
   echo "Celeborn version is $VERSION"
   echo "Making apache-celeborn-$VERSION-$NAME.tgz"
@@ -288,9 +288,9 @@ function sbt_build_service {
 function sbt_build_client {
   PROFILE="$1"
   # get the client shaded project
-  CLIENT_PROJECT=$("$SBT" "$PROFILE" projects | grep shaded | awk '{print$2}')
+  CLIENT_PROJECT=$("$SBT" -no-colors "$PROFILE" projects | grep shaded | awk '{print$2}')
   # get the shaded jar file path
-  ASSEMBLY_OUTPUT_PATH=$("$SBT" "$PROFILE" "show $CLIENT_PROJECT/assembly/assemblyOutputPath" | awk '/\[info\]/{ver=$2} END{print ver}')
+  ASSEMBLY_OUTPUT_PATH=$("$SBT" -no-colors "$PROFILE" "show $CLIENT_PROJECT/assembly/assemblyOutputPath" | awk '/\[info\]/{ver=$2} END{print ver}')
   # build the shaded jar
   $SBT $PROFILE "clean;$CLIENT_PROJECT/assembly"
 
