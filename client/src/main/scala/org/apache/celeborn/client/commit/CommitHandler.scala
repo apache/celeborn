@@ -452,7 +452,7 @@ abstract class CommitHandler(
           message.replicaIds)
       }(ec)
     } else {
-      worker.endpoint.ask[CommitFilesResponse](message)
+      worker.endpoint.ask[CommitFilesResponse](message, conf.clientRpcCommitFilesRpcAskTimeout)
     }
   }
 
