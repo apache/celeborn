@@ -924,10 +924,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       get(CLIENT_RPC_GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).milli,
       CLIENT_RPC_GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
 
-  def clientRpcCommitFilesRpcAskTimeout: RpcTimeout =
+  def clientRpcCommitFilesAskTimeout: RpcTimeout =
     new RpcTimeout(
-      get(CLIENT_RPC_COMMIT_FILES_RPC_ASK_TIMEOUT).milli,
-      CLIENT_RPC_COMMIT_FILES_RPC_ASK_TIMEOUT.key)
+      get(CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT).milli,
+      CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT.key)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Client Fetch                  //
@@ -4248,7 +4248,7 @@ object CelebornConf extends Logging {
         s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
       .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
 
-  val CLIENT_RPC_COMMIT_FILES_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+  val CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.commitFiles.askTimeout")
       .categories("client")
       .version("0.4.1")
