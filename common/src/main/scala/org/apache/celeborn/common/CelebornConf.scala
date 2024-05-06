@@ -4252,8 +4252,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.rpc.commitFiles.askTimeout")
       .categories("client")
       .version("0.4.1")
-      .doc("Timeout for CommitHandler commit files. " +
-        s"By default, the value is the max timeout value `${RPC_ASK_TIMEOUT.key}`.")
+      .doc("Timeout for CommitHandler commit files.")
       .fallbackConf(RPC_ASK_TIMEOUT)
 
   val CLIENT_RPC_CACHE_SIZE: ConfigEntry[Int] =
