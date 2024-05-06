@@ -432,7 +432,7 @@ object Utils extends Logging {
     }
   }
 
-  def getIpHostAddressPair(host: String): (String, String) = {
+  private def getIpHostAddressPair(host: String): (String, String) = {
     try {
       val inetAddress = InetAddress.getByName(host)
       val hostAddress = inetAddress.getHostAddress
@@ -444,6 +444,15 @@ object Utils extends Logging {
     } catch {
       case _: Throwable => (host, host) // return original input
     }
+  }
+
+  // Convert address (ip:port or host:port) to (ip:port, host:port) pair
+  def addressToIpHostAddressPair(address: String): (String, String) = {
+    val hostPort = Utils.parseHostPort(address)
+    val internalIpHostAddressPair = Utils.getIpHostAddressPair(hostPort._1)
+    (
+      internalIpHostAddressPair._1 + ":" + hostPort._2,
+      internalIpHostAddressPair._2 + ":" + hostPort._2)
   }
 
   def checkHostPort(hostPort: String): Unit = {

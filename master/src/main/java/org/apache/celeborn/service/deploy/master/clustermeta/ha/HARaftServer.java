@@ -31,7 +31,6 @@ import scala.Tuple2;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.ratis.RaftConfigKeys;
 import org.apache.ratis.client.RaftClientConfigKeys;
 import org.apache.ratis.conf.RaftProperties;
@@ -452,28 +451,29 @@ public class HARaftServer {
       GroupInfoReply groupInfo = getGroupInfo();
       RaftProtos.RoleInfoProto roleInfoProto = groupInfo.getRoleInfoProto();
       RaftProtos.RaftPeerRole thisNodeRole = roleInfoProto.getRole();
-
+      Tuple2<String, String> leaderPeerRpcEndpoint = null;
+      Tuple2<String, String> leaderPeerInternalRpcEndpoint = null;
       if (thisNodeRole.equals(RaftProtos.RaftPeerRole.LEADER)) {
+        // Current Node always uses original rpcEndpoint/internalRpcEndpoint, as if something wrong
+        // they would never return to client.
         setServerRole(
             thisNodeRole,
-            Pair.of(localNode.rpcIpEndpoint(), localNode.rpcEndpoint()),
-            Pair.of(localNode.internalRpcIpEndpoint(), localNode.internalRpcEndpoint()));
+            Tuple2.apply(this.rpcEndpoint, this.rpcEndpoint),
+            Tuple2.apply(this.internalRpcEndpoint, this.internalRpcEndpoint));
       } else if (thisNodeRole.equals(RaftProtos.RaftPeerRole.FOLLOWER)) {
         ByteString leaderNodeId = roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getId();
         // There may be a chance, here we get leaderNodeId as null. For
         // example, in 3 node Ratis, if 2 nodes are down, there will
         // be no leader.
-        Pair<String, String> leaderPeerRpcEndpoint = null;
-        Pair<String, String> leaderPeerInternalRpcEndpoint = null;
         if (leaderNodeId != null && !leaderNodeId.isEmpty()) {
           String clientAddress =
               roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getClientAddress();
-          leaderPeerRpcEndpoint = addressToIpHostAddressPair(clientAddress);
+          leaderPeerRpcEndpoint = Utils.addressToIpHostAddressPair(clientAddress);
           // We use admin address to host the internal rpc address
           if (conf.internalPortEnabled()) {
             String adminAddress =
                 roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getAdminAddress();
-            leaderPeerInternalRpcEndpoint = addressToIpHostAddressPair(adminAddress);
+            leaderPeerInternalRpcEndpoint = Utils.addressToIpHostAddressPair(adminAddress);
           } else {
             leaderPeerInternalRpcEndpoint = leaderPeerRpcEndpoint;
           }
@@ -494,19 +494,11 @@ public class HARaftServer {
     }
   }
 
-  public Pair<String, String> addressToIpHostAddressPair(String address) {
-    Tuple2<String, Object> hostPort = Utils.parseHostPort(address);
-    Tuple2<String, String> internalIpHostAddressPair = Utils.getIpHostAddressPair(hostPort._1);
-    return Pair.of(
-        internalIpHostAddressPair._1 + ":" + hostPort._2,
-        internalIpHostAddressPair._2 + ":" + hostPort._2);
-  }
-
   /** Set the current server role and the leader peer rpc endpoint. */
   private void setServerRole(
       RaftProtos.RaftPeerRole currentRole,
-      Pair<String, String> leaderPeerRpcEndpoint,
-      Pair<String, String> leaderPeerInternalRpcEndpoint) {
+      Tuple2<String, String> leaderPeerRpcEndpoint,
+      Tuple2<String, String> leaderPeerInternalRpcEndpoint) {
     this.roleCheckLock.writeLock().lock();
     try {
       boolean leaderChanged = false;
@@ -591,14 +583,14 @@ public class HARaftServer {
   }
 
   public static class LeaderPeerEndpoints {
-    // the rpcEndpoints pair (ip:port, host:port)
-    public final Pair<String, String> rpcEndpoints;
+    // the rpcEndpoints Tuple2 (ip:port, host:port)
+    public final Tuple2<String, String> rpcEndpoints;
 
-    // the rpcInternalEndpoints pair (ip:port, host:port)
-    public final Pair<String, String> rpcInternalEndpoints;
+    // the rpcInternalEndpoints Tuple2 (ip:port, host:port)
+    public final Tuple2<String, String> rpcInternalEndpoints;
 
     public LeaderPeerEndpoints(
-        Pair<String, String> rpcEndpoints, Pair<String, String> rpcInternalEndpoints) {
+        Tuple2<String, String> rpcEndpoints, Tuple2<String, String> rpcInternalEndpoints) {
       this.rpcEndpoints = rpcEndpoints;
       this.rpcInternalEndpoints = rpcInternalEndpoints;
     }

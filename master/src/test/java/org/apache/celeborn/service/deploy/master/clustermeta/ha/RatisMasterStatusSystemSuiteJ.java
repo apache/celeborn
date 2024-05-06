@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+import scala.Tuple2;
+
 import org.junit.*;
 import org.mockito.Mockito;
 
@@ -200,11 +202,18 @@ public class RatisMasterStatusSystemSuiteJ {
         follower.getCachedLeaderPeerRpcEndpoint();
 
     Assert.assertTrue(cachedLeaderPeerRpcEndpoint.isPresent());
-    Assert.assertEquals(
-        leader.getRpcEndpoint(), cachedLeaderPeerRpcEndpoint.get().rpcEndpoints.getValue());
-    Assert.assertEquals(
-        leader.getInternalRpcEndpoint(),
-        cachedLeaderPeerRpcEndpoint.get().rpcInternalEndpoints.getValue());
+
+    Tuple2<String, String> rpcEndpointsPair = cachedLeaderPeerRpcEndpoint.get().rpcEndpoints;
+    Tuple2<String, String> rpcInternalEndpointsPair =
+        cachedLeaderPeerRpcEndpoint.get().rpcInternalEndpoints;
+
+    // rpc endpoint may use custom host name then this ut need check ever ip/host
+    Assert.assertTrue(
+        leader.getRpcEndpoint().equals(rpcEndpointsPair._1)
+            || leader.getRpcEndpoint().equals(rpcEndpointsPair._2));
+    Assert.assertTrue(
+        leader.getInternalRpcEndpoint().equals(rpcInternalEndpointsPair._1)
+            || leader.getRpcEndpoint().equals(rpcInternalEndpointsPair._2));
   }
 
   private static final String HOSTNAME1 = "host1";
