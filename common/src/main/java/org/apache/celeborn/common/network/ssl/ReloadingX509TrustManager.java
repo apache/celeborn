@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.CertificateException;
@@ -220,9 +219,7 @@ public class ReloadingX509TrustManager implements X509TrustManager, Runnable {
 
   private static long getFileLastModified(File file) {
     try {
-      BasicFileAttributes attributes =
-          Files.readAttributes(file.toPath(), BasicFileAttributes.class);
-      return attributes.lastModifiedTime().toMillis();
+      return Files.getLastModifiedTime(file.toPath()).toMillis();
     } catch (IOException ioEx) {
       // fallback
       logger.info("Unable to read attributes for {}", file, ioEx);
