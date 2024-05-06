@@ -447,7 +447,9 @@ public abstract class CelebornInputStream extends InputStream {
       switch (storageInfo.getType()) {
         case HDD:
         case SSD:
-          if (enabledReadLocalShuffle && location.getWorker().host().equals(localHostAddress)) {
+          if (enabledReadLocalShuffle
+              && location.getWorker().host().equals(localHostAddress)
+              && location.getStorageInfo().getType() != StorageInfo.Type.MEMORY) {
             logger.debug("Read local shuffle file {}", localHostAddress);
             containLocalRead = true;
             return new LocalPartitionReader(
