@@ -56,15 +56,15 @@
             <!--
               ~ Here are appender templates, keep the appender as your need.
               -->
-            <!--            <AppenderRef ref="stdout"/>-->
+            <!-- <AppenderRef ref="stdout"/>-->
             <AppenderRef ref="file"/>
         </Root>
         <Logger name="org.apache.hadoop.hdfs" level="WARN" additivity="false">
-            <!--            <Appender-ref ref="stdout" level="WARN" />-->
+            <!-- <Appender-ref ref="stdout" level="WARN" />-->
             <Appender-ref ref="file" level="WARN"/>
         </Logger>
         <Logger name="org.apache.ratis.server.RaftServerConfigKeys" level="WARN" additivity="false">
-            <!--             <Appender-ref ref="stdout" level="WARN" />-->
+            <!-- <Appender-ref ref="stdout" level="WARN" />-->
             <Appender-ref ref="file" level="WARN"/>
         </Logger>
     </Loggers>
