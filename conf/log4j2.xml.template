@@ -40,7 +40,7 @@
             </Policies>
             <DefaultRolloverStrategy max="7">
                 <Delete basePath="${env:CELEBORN_LOG_DIR}" maxDepth="1">
-                    <IfFileName glob="celeborn.log*">
+                    <IfFileName glob="celeborn*">
                         <IfAny>
                             <IfAccumulatedFileSize exceeds="1 GB" />
                             <IfAccumulatedFileCount exceeds="10" />
@@ -57,15 +57,15 @@
               ~ Here are appender templates, keep the appender as your need.
               -->
             <AppenderRef ref="stdout"/>
-            <AppenderRef ref="file"/>
+            <!-- <AppenderRef ref="file"/> -->
         </Root>
         <Logger name="org.apache.hadoop.hdfs" level="WARN" additivity="false">
             <Appender-ref ref="stdout" level="WARN" />
-            <Appender-ref ref="file" level="WARN"/>
+            <!-- <Appender-ref ref="file" level="WARN"/> -->
         </Logger>
         <Logger name="org.apache.ratis.server.RaftServerConfigKeys" level="WARN" additivity="false">
              <Appender-ref ref="stdout" level="WARN" />
-             <Appender-ref ref="file" level="WARN"/>
+             <!-- <Appender-ref ref="file" level="WARN"/> -->
         </Logger>
     </Loggers>
 </Configuration>
