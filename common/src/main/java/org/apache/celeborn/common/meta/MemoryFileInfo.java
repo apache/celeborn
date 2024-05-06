@@ -106,7 +106,7 @@ public class MemoryFileInfo extends FileInfo {
     return evicted.get();
   }
 
-  public void setEvicted(Runnable runnable) {
+  public synchronized void setEvicted(Runnable runnable) {
     evicted.set(true);
     runnable.run();
   }

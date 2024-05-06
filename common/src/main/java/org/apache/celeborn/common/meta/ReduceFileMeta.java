@@ -23,14 +23,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.roaringbitmap.RoaringBitmap;
 
-import org.apache.celeborn.common.CelebornConf;
-
 public class ReduceFileMeta implements FileMeta {
   private final AtomicBoolean sorted = new AtomicBoolean(false);
   private final List<Long> chunkOffsets;
   private RoaringBitmap mapIds;
-  private transient CelebornConf conf = new CelebornConf();
-  private long chunkSize = conf.shuffleChunkSize();
+  private long chunkSize;
   private long nextBoundary;
 
   public ReduceFileMeta(long chunkSize) {

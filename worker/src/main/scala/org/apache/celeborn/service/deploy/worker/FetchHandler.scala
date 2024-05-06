@@ -258,7 +258,7 @@ class FetchHandler(
       }
       val meta = fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta]
       val streamHandler =
-        if (readLocalShuffle) {
+        if (readLocalShuffle && !fileInfo.isInstanceOf[MemoryFileInfo]) {
           chunkStreamManager.registerStream(
             streamId,
             shuffleKey,
