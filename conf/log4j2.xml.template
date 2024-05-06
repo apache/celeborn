@@ -42,8 +42,8 @@
                 <Delete basePath="${env:CELEBORN_LOG_DIR}" maxDepth="1">
                     <IfFileName glob="celeborn.log*">
                         <IfAny>
-                            <IfAccumulatedFileSize exceeds="1 GB" />
-                            <IfAccumulatedFileCount exceeds="10" />
+                            <IfAccumulatedFileSize exceeds="1 GB"/>
+                            <IfAccumulatedFileCount exceeds="10"/>
                         </IfAny>
                     </IfFileName>
                 </Delete>
@@ -56,16 +56,16 @@
             <!--
               ~ Here are appender templates, keep the appender as your need.
               -->
-            <AppenderRef ref="stdout"/>
+            <!-- <AppenderRef ref="stdout"/>-->
             <AppenderRef ref="file"/>
         </Root>
         <Logger name="org.apache.hadoop.hdfs" level="WARN" additivity="false">
-            <Appender-ref ref="stdout" level="WARN" />
+            <!-- <Appender-ref ref="stdout" level="WARN"/>-->
             <Appender-ref ref="file" level="WARN"/>
         </Logger>
         <Logger name="org.apache.ratis.server.RaftServerConfigKeys" level="WARN" additivity="false">
-             <Appender-ref ref="stdout" level="WARN" />
-             <Appender-ref ref="file" level="WARN"/>
+            <!-- <Appender-ref ref="stdout" level="WARN"/>-->
+            <Appender-ref ref="file" level="WARN"/>
         </Logger>
     </Loggers>
 </Configuration>
