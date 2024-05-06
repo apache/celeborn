@@ -40,7 +40,7 @@
             </Policies>
             <DefaultRolloverStrategy max="7">
                 <Delete basePath="${env:CELEBORN_LOG_DIR}" maxDepth="1">
-                    <IfFileName glob="celeborn*">
+                    <IfFileName glob="celeborn.log*">
                         <IfAny>
                             <IfAccumulatedFileSize exceeds="1 GB"/>
                             <IfAccumulatedFileCount exceeds="10"/>
