@@ -797,6 +797,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       get(CLIENT_RPC_GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).milli,
       CLIENT_RPC_GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
 
+  def clientRpcCommitFilesAskTimeout: RpcTimeout =
+    new RpcTimeout(
+      get(CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT).milli,
+      CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT.key)
+
   // //////////////////////////////////////////////////////
   //               Shuffle Client Fetch                  //
   // //////////////////////////////////////////////////////
@@ -3794,6 +3799,13 @@ object CelebornConf extends Logging {
         s"and 1 times for releasing slots request. User can customize this value according to your setting. " +
         s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
       .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
+
+  val CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.client.rpc.commitFiles.askTimeout")
+      .categories("client")
+      .version("0.4.1")
+      .doc("Timeout for CommitHandler commit files.")
+      .fallbackConf(RPC_ASK_TIMEOUT)
 
   val CLIENT_RPC_CACHE_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.client.rpc.cache.size")
