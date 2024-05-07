@@ -439,7 +439,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     PbChangeLocationResponse response =
         lifecycleManagerRef.askSync(
             ControlMessages.Revive$.MODULE$.apply(shuffleId, mapIds, requests),
-            conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
+            conf.clientRpcRequestPartitionLocationAskTimeout(),
             ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
     // per partitionKey only serve single PartitionLocation in Client Cache.
     PbChangeLocationPartitionInfo partitionInfo = response.getPartitionInfo(0);

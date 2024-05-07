@@ -456,9 +456,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   requests,
                   remainReviveTimes - 1,
                   System.currentTimeMillis()
-                      + conf.clientRpcRequestPartitionLocationRpcAskTimeout()
-                          .duration()
-                          .toMillis()));
+                      + conf.clientRpcRequestPartitionLocationAskTimeout().duration().toMillis()));
     }
   }
 
@@ -479,7 +477,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         () ->
             lifecycleManagerRef.askSync(
                 RegisterShuffle$.MODULE$.apply(shuffleId, numMappers, numPartitions),
-                conf.clientRpcRegisterShuffleRpcAskTimeout(),
+                conf.clientRpcRegisterShuffleAskTimeout(),
                 ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
   }
 
@@ -502,7 +500,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 lifecycleManagerRef.askSync(
                     RegisterMapPartitionTask$.MODULE$.apply(
                         shuffleId, numMappers, mapId, attemptId, partitionId),
-                    conf.clientRpcRegisterShuffleRpcAskTimeout(),
+                    conf.clientRpcRegisterShuffleAskTimeout(),
                     ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
 
     if (partitionLocationMap == null) {
@@ -538,7 +536,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           PbGetShuffleIdResponse pbGetShuffleIdResponse =
               lifecycleManagerRef.askSync(
                   pbGetShuffleId,
-                  conf.clientRpcRegisterShuffleRpcAskTimeout(),
+                  conf.clientRpcRegisterShuffleAskTimeout(),
                   ClassTag$.MODULE$.apply(PbGetShuffleIdResponse.class));
           return pbGetShuffleIdResponse.getShuffleId();
         });
@@ -554,7 +552,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     PbReportShuffleFetchFailureResponse pbReportShuffleFetchFailureResponse =
         lifecycleManagerRef.askSync(
             pbReportShuffleFetchFailure,
-            conf.clientRpcRegisterShuffleRpcAskTimeout(),
+            conf.clientRpcRegisterShuffleAskTimeout(),
             ClassTag$.MODULE$.apply(PbReportShuffleFetchFailureResponse.class));
     return pbReportShuffleFetchFailureResponse.getSuccess();
   }
@@ -744,7 +742,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       PbChangeLocationResponse response =
           lifecycleManagerRef.askSync(
               Revive$.MODULE$.apply(shuffleId, mapIds, requests),
-              conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
+              conf.clientRpcRequestPartitionLocationAskTimeout(),
               ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
 
       for (int i = 0; i < response.getEndedMapIdCount(); i++) {
@@ -991,7 +989,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   reviveManager.addRequest(reviveRequest);
                   long dueTime =
                       System.currentTimeMillis()
-                          + conf.clientRpcRequestPartitionLocationRpcAskTimeout()
+                          + conf.clientRpcRequestPartitionLocationAskTimeout()
                               .duration()
                               .toMillis();
                   pushDataRetryPool.submit(
@@ -1077,9 +1075,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 reviveManager.addRequest(reviveRequest);
                 long dueTime =
                     System.currentTimeMillis()
-                        + conf.clientRpcRequestPartitionLocationRpcAskTimeout()
-                            .duration()
-                            .toMillis();
+                        + conf.clientRpcRequestPartitionLocationAskTimeout().duration().toMillis();
                 pushDataRetryPool.submit(
                     () ->
                         submitRetryPushData(
@@ -1385,7 +1381,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                             requests,
                             remainReviveTimes,
                             System.currentTimeMillis()
-                                + conf.clientRpcRequestPartitionLocationRpcAskTimeout()
+                                + conf.clientRpcRequestPartitionLocationAskTimeout()
                                     .duration()
                                     .toMillis()));
               } else if (reason == StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue()) {
@@ -1465,7 +1461,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                           requests,
                           remainReviveTimes - 1,
                           System.currentTimeMillis()
-                              + conf.clientRpcRequestPartitionLocationRpcAskTimeout()
+                              + conf.clientRpcRequestPartitionLocationAskTimeout()
                                   .duration()
                                   .toMillis()));
             } else {
@@ -1583,7 +1579,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           GetReducerFileGroupResponse response =
               lifecycleManagerRef.askSync(
                   getReducerFileGroup,
-                  conf.clientRpcGetReducerFileGroupRpcAskTimeout(),
+                  conf.clientRpcGetReducerFileGroupAskTimeout(),
                   ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
 
           switch (response.status()) {

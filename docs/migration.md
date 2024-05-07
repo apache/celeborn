@@ -26,6 +26,8 @@ license: |
 - Since 0.4.1, Celeborn master adds a limit to the estimated partition size used for computing worker slots. 
   This size is now constrained within the range specified by `celeborn.master.estimatedPartitionSize.minSize` and `celeborn.master.estimatedPartitionSize.maxSize`.
 
+- Since 0.4.1, Celeborn changed the fallback configuration of `celeborn.client.rpc.getReducerFileGroup.askTimeout`, `celeborn.client.rpc.registerShuffle.askTimeout` and `celeborn.client.rpc.requestPartition.askTimeout` from `celeborn.<module>.io.connectionTimeout` to `celeborn.rpc.askTimeout`.
+
 ## Upgrading from 0.3 to 0.4
 
 - Since 0.4.0, Celeborn won't be compatible with Celeborn client that versions below 0.3.0.

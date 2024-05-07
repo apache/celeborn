@@ -40,7 +40,7 @@ object ShuffleClientHelper extends Logging {
       shuffleLocs: ConcurrentHashMap[Integer, PartitionLocation]): Unit = {
     endpointRef.ask[PbChangeLocationResponse](
       req,
-      conf.clientRpcRequestPartitionLocationRpcAskTimeout).onComplete {
+      conf.clientRpcRequestPartitionLocationAskTimeout).onComplete {
       case Success(resp) =>
         val partitionInfo = resp.getPartitionInfo(0)
         val respStatus = Utils.toStatusCode(partitionInfo.getStatus)

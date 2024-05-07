@@ -782,20 +782,20 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       get(CLIENT_RESERVE_SLOTS_RPC_TIMEOUT).milli,
       CLIENT_RESERVE_SLOTS_RPC_TIMEOUT.key)
 
-  def clientRpcRegisterShuffleRpcAskTimeout: RpcTimeout =
+  def clientRpcRegisterShuffleAskTimeout: RpcTimeout =
     new RpcTimeout(
-      get(CLIENT_RPC_REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).milli,
-      CLIENT_RPC_REGISTER_SHUFFLE_RPC_ASK_TIMEOUT.key)
+      get(CLIENT_RPC_REGISTER_SHUFFLE_ASK_TIMEOUT).milli,
+      CLIENT_RPC_REGISTER_SHUFFLE_ASK_TIMEOUT.key)
 
-  def clientRpcRequestPartitionLocationRpcAskTimeout: RpcTimeout =
+  def clientRpcRequestPartitionLocationAskTimeout: RpcTimeout =
     new RpcTimeout(
-      get(CLIENT_RPC_REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT).milli,
-      CLIENT_RPC_REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT.key)
+      get(CLIENT_RPC_REQUEST_PARTITION_LOCATION_ASK_TIMEOUT).milli,
+      CLIENT_RPC_REQUEST_PARTITION_LOCATION_ASK_TIMEOUT.key)
 
-  def clientRpcGetReducerFileGroupRpcAskTimeout: RpcTimeout =
+  def clientRpcGetReducerFileGroupAskTimeout: RpcTimeout =
     new RpcTimeout(
-      get(CLIENT_RPC_GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).milli,
-      CLIENT_RPC_GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
+      get(CLIENT_RPC_GET_REDUCER_FILE_GROUP_ASK_TIMEOUT).milli,
+      CLIENT_RPC_GET_REDUCER_FILE_GROUP_ASK_TIMEOUT.key)
 
   def clientRpcCommitFilesAskTimeout: RpcTimeout =
     new RpcTimeout(
@@ -3767,7 +3767,7 @@ object CelebornConf extends Logging {
       .doc("Timeout for LifecycleManager request reserve slots.")
       .fallbackConf(RPC_ASK_TIMEOUT)
 
-  val CLIENT_RPC_REGISTER_SHUFFLE_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+  val CLIENT_RPC_REGISTER_SHUFFLE_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.registerShuffle.askTimeout")
       .withAlternative("celeborn.rpc.registerShuffle.askTimeout")
       .categories("client")
@@ -3776,29 +3776,26 @@ object CelebornConf extends Logging {
         s"During this process, there are two times for retry opportunities for requesting slots, " +
         s"one request for establishing a connection with Worker and " +
         s"`${CLIENT_RESERVE_SLOTS_MAX_RETRIES.key}` times for retry opportunities for reserving slots. " +
-        s"User can customize this value according to your setting. " +
-        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
-      .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
+        s"User can customize this value according to your setting.")
+      .fallbackConf(RPC_ASK_TIMEOUT)
 
-  val CLIENT_RPC_REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+  val CLIENT_RPC_REQUEST_PARTITION_LOCATION_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.requestPartition.askTimeout")
       .categories("client")
       .version("0.2.0")
       .doc(s"Timeout for ask operations during requesting change partition location, such as reviving or splitting partition. " +
         s"During this process, there are `${CLIENT_RESERVE_SLOTS_MAX_RETRIES.key}` times for retry opportunities for reserving slots. " +
-        s"User can customize this value according to your setting. " +
-        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
-      .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
+        s"User can customize this value according to your setting.")
+      .fallbackConf(RPC_ASK_TIMEOUT)
 
-  val CLIENT_RPC_GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+  val CLIENT_RPC_GET_REDUCER_FILE_GROUP_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.getReducerFileGroup.askTimeout")
       .categories("client")
       .version("0.2.0")
       .doc(s"Timeout for ask operations during getting reducer file group information. " +
         s"During this process, there are `${CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files " +
-        s"and 1 times for releasing slots request. User can customize this value according to your setting. " +
-        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
-      .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
+        s"and 1 times for releasing slots request. User can customize this value according to your setting.")
+      .fallbackConf(RPC_ASK_TIMEOUT)
 
   val CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.commitFiles.askTimeout")
