@@ -4369,13 +4369,13 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.spark.shuffle.fallback.policy")
       .categories("client")
       .version("0.5.0")
-      .doc(s"Celeborn supports the following kind of fallback policies. " +
+      .doc("Celeborn supports the following kind of fallback policies. " +
         s"1. ${FallbackPolicy.ALWAYS.name}: always use spark built-in shuffle implementation; " +
         s"2. ${FallbackPolicy.AUTO.name}: prefer to use celeborn shuffle implementation, and fallback to use spark " +
-        s"built-in shuffle implementation based on certain factors, e.g. availability of enough workers and quota, " +
-        s"shuffle partition number; " +
+        "built-in shuffle implementation based on certain factors, e.g. availability of enough workers and quota, " +
+        "shuffle partition number; " +
         s"3. ${FallbackPolicy.NEVER.name}: always use celeborn shuffle implementation, and fail fast when it it is " +
-        s"concluded that fallback is required based on factors above.")
+        "concluded that fallback is required based on factors above.")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set(
