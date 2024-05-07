@@ -46,7 +46,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
-import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -202,7 +201,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       sortMemoryShuffleFile(memoryFileInfo);
       indexesMap = memoryFileInfo.getSortedIndexes();
 
-      ReduceFileMeta tMeta =
+      ReduceFileMeta reduceFileMeta =
           new ReduceFileMeta(
               ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
                   startMapIndex, endMapIndex, shuffleChunkSize, indexesMap, true),
@@ -211,13 +210,14 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           MemoryManager.instance()
               .getStoragePooledByteBufAllocator()
               .compositeBuffer(Integer.MAX_VALUE);
-      ShuffleBlockInfoUtils.sortBufferByRange(
+      ShuffleBlockInfoUtils.sliceSortedBufferByMapRange(
           startMapIndex, endMapIndex, indexesMap, memoryFileInfo.getSortedBuffer(), targetBuffer);
       return new MemoryFileInfo(
           memoryFileInfo.getUserIdentifier(),
           memoryFileInfo.isPartitionSplitEnabled(),
-          tMeta,
-          targetBuffer);
+          reduceFileMeta,
+          targetBuffer,
+          (MemoryFileInfo) fileInfo);
     } else {
       DiskFileInfo diskFileInfo = ((DiskFileInfo) fileInfo);
       String fileId = shuffleKey + "-" + fileName;
@@ -300,8 +300,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   public static void sortMemoryShuffleFile(MemoryFileInfo memoryFileInfo) {
     ReduceFileMeta reduceFileMeta = ((ReduceFileMeta) memoryFileInfo.getFileMeta());
-    synchronized (reduceFileMeta.getSorted()) {
-      if (!reduceFileMeta.getSorted().get()) {
+    synchronized (reduceFileMeta.getModified()) {
+      if (!reduceFileMeta.getModified().get()) {
         CompositeByteBuf originBuffer = memoryFileInfo.getBuffer();
         Map<Integer, List<ShuffleBlockInfo>> blocksMap = new TreeMap<>();
         int originReaderIndex = originBuffer.readerIndex();
@@ -309,12 +309,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         int bufLength = originBuffer.readableBytes();
         int index = 0;
         ByteBuffer headerBuf = ByteBuffer.allocate(16);
-        boolean fillMapBitMap = false;
-        RoaringBitmap mapIdBitMap = reduceFileMeta.getMapIds();
-        if (mapIdBitMap == null) {
-          mapIdBitMap = new RoaringBitmap();
-          fillMapBitMap = true;
-        }
 
         while (index != bufLength) {
           headerBuf.rewind();
@@ -322,9 +316,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           originBuffer.readBytes(headerBuf);
           byte[] batchHeader = headerBuf.array();
           int mapId = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET);
-          if (fillMapBitMap) {
-            mapIdBitMap.add(mapId);
-          }
           int compressedSize = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12);
           ShuffleBlockInfo shuffleBlockInfo = new ShuffleBlockInfo();
           shuffleBlockInfo.offset = index;
@@ -347,8 +338,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         for (Map.Entry<Integer, List<ShuffleBlockInfo>> entry : blocksMap.entrySet()) {
           int mapId = entry.getKey();
           List<ShuffleBlockInfo> blockInfos = entry.getValue();
-          List<ShuffleBlockInfo> sortedMapBlocks =
-              sortedBlocks.computeIfAbsent(mapId, v -> new ArrayList<>());
+          List<ShuffleBlockInfo> sortedMapBlocks = new ArrayList<>(blockInfos.size());
+          sortedBlocks.put(mapId, sortedMapBlocks);
           for (ShuffleBlockInfo blockInfo : blockInfos) {
             int offset = (int) blockInfo.offset;
             int length = (int) blockInfo.length;
@@ -363,10 +354,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
         memoryFileInfo.setSortedBuffer(sortedBuffer);
         memoryFileInfo.setSortedIndexes(sortedBlocks);
-        if (fillMapBitMap) {
-          reduceFileMeta.setMapIds(mapIdBitMap);
-        }
-        reduceFileMeta.setSorted();
+        reduceFileMeta.setModified();
       }
     }
   }
@@ -748,7 +736,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
         updateSortedShuffleFiles(shuffleKey, fileId, originFileLen);
-        ((ReduceFileMeta) originFileInfo.getFileMeta()).setSorted();
+        ((ReduceFileMeta) originFileInfo.getFileMeta()).setModified();
         cleaner.add(this);
         logger.debug("sort complete for {} {}", shuffleKey, originFilePath);
       } catch (Exception e) {

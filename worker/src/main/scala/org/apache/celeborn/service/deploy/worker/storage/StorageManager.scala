@@ -23,11 +23,12 @@ import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
-import java.util.function.{BiConsumer, IntUnaryOperator}
+import java.util.function.{BiConsumer, Consumer, IntUnaryOperator}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
+import com.google.common.annotations.VisibleForTesting
 import io.netty.buffer.PooledByteBufAllocator
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -57,9 +58,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     JavaUtils.newConcurrentHashMap[File, ConcurrentHashMap[String, PartitionDataWriter]]()
   val hdfsWriters = JavaUtils.newConcurrentHashMap[String, PartitionDataWriter]()
   val memoryWriters = JavaUtils.newConcurrentHashMap[MemoryFileInfo, PartitionDataWriter]()
-  // include localDiskFileInfos
+  // (shuffleKey->(filename->DiskFileInfo))
   private val diskFileInfos =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, DiskFileInfo]]()
+  // (shuffleKey->(filename->MemoryFileInfo))
   val memoryFileInfos =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, MemoryFileInfo]]()
 
@@ -169,7 +171,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
 
   def totalFlusherThread: Int = _totalLocalFlusherThread + _totalHdfsFlusherThread
-  def activeTypes = conf.availableStorageTypes
+  val activeTypes = conf.availableStorageTypes
 
   def localOrHdfsStorageAvailable(): Boolean = {
     StorageInfo.HDFSAvailable(activeTypes) || StorageInfo.localDiskAvailable(
@@ -343,6 +345,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         JavaUtils.newConcurrentHashMap[String, PartitionDataWriter]()
     }
 
+  @VisibleForTesting
   val evictedFileCount = new AtomicLong
 
   @throws[IOException]
@@ -449,18 +452,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def getFileInfo(
       shuffleKey: String,
       fileName: String,
-      read: Boolean = false): FileInfo = {
+      streamId: Long = 0): FileInfo = {
     val memoryShuffleMap = memoryFileInfos.get(shuffleKey)
     if (memoryShuffleMap != null) {
       val memoryFileInfo = memoryShuffleMap.get(fileName)
       if (memoryFileInfo != null) {
-        memoryFileInfo.synchronized {
-          if (!memoryFileInfo.getEvicted) {
-            if (read) {
-              memoryFileInfo.incrementReaderCount()
-            }
-            return memoryFileInfo
-          }
+        if (!memoryFileInfo.addStream(streamId)) {
+          return memoryFileInfo
         }
       }
     }
@@ -588,7 +586,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val memoryFileMaps = memoryFileInfos.remove(shuffleKey)
         memoryFileMaps.asScala.foreach(u => {
           cleanFileInternal(shuffleKey, u._2)
-          MemoryManager.instance().releaseMemoryFileStorage(u._2.expireMemoryBuffers())
+          MemoryManager.instance().releaseMemoryFileStorage(u._2.releaseMemoryBuffers())
         })
       }
     }
@@ -869,7 +867,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionDataWriterContext: PartitionDataWriterContext)
       : (MemoryFileInfo, Flusher, DiskFileInfo, File) = {
     val location = partitionDataWriterContext.getPartitionLocation
-    if (partitionDataWriterContext.isCanUseMemory && location.getStorageInfo.memoryAvailable() && MemoryManager.instance().memoryFileStorageAvailable()) {
+    if (partitionDataWriterContext.canUseMemory
+      && location.getStorageInfo.memoryAvailable()
+      && MemoryManager.instance().memoryFileStorageAvailable()) {
       logDebug(s"Create memory file for ${partitionDataWriterContext.getShuffleKey}-${partitionDataWriterContext.getPartitionLocation.getFileName}")
       (
         createMemoryFile(
@@ -915,7 +915,16 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
     val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
     val memoryFileInfo =
-      new MemoryFileInfo(userIdentifier, partitionSplitEnabled, fileMeta)
+      new MemoryFileInfo(
+        userIdentifier,
+        partitionSplitEnabled,
+        fileMeta,
+        new Consumer[MemoryFileInfo] {
+          override def accept(m: MemoryFileInfo): Unit = {
+            unregisterMemoryPartitionWriterAndFileInfo(m, shuffleKey, fileName)
+            evictedFileCount.incrementAndGet
+          }
+        })
     memoryFileInfos.computeIfAbsent(shuffleKey, memoryFileInfoMapFunc).put(
       fileName,
       memoryFileInfo)

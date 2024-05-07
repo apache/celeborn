@@ -313,15 +313,7 @@ private[deploy] class Controller(
                   } else {
                     committedStorageInfos.put(uniqueId, fileWriter.getStorageInfo)
                     if (fileWriter.getMapIdBitMap != null) {
-                      val mapIdBitMap = fileWriter.getMapIdBitMap
-                      if (fileWriter.getDiskFileInfo != null) {
-                        fileWriter.getDiskFileInfo.getFileMeta match {
-                          case meta: ReduceFileMeta =>
-                            meta.setMapIds(mapIdBitMap)
-                          case _ =>
-                        }
-                      }
-                      committedMapIdBitMap.put(uniqueId, mapIdBitMap)
+                      committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)
                     }
                     if (bytes >= minPartitionSizeToEstimate) {
                       partitionSizeList.add(bytes)

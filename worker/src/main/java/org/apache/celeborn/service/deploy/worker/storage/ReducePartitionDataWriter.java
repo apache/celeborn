@@ -48,6 +48,14 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
     fileInfo.getReduceFileMeta().updateChunkOffset(fileInfo.getFileLength(), true);
   }
 
+  @Override
+  public void flush(boolean finalFlush, boolean evict) throws IOException {
+    super.flush(finalFlush, evict);
+    getCurrentFileInfo()
+        .getReduceFileMeta()
+        .updateChunkOffset(getCurrentFileInfo().getFileLength(), finalFlush);
+  }
+
   private boolean isChunkOffsetValid() {
     // Consider a scenario where some bytes have been flushed
     // but the chunk offset boundary has not yet been updated.
@@ -108,8 +116,6 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
               }
             },
             () -> {});
-    FileInfo tmpFileInfo = getDiskFileInfo() == null ? getMemoryFileInfo() : getDiskFileInfo();
-    tmpFileInfo.getReduceFileMeta().setMapIds(getMapIdBitMap());
     return streamId;
   }
 }

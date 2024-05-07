@@ -50,6 +50,9 @@ public class ShuffleBlockInfoUtils {
     if (isInMemory) {
       long currentChunkOffset = 0;
       long lastChunkOffset = 0;
+      // This sorted chunk offsets are used for fetch handler.
+      // Sorted byte buf is a new composite byte buf filled with small buffers.
+      // It will not reuse the old buffer of memory file, so the offset is start from 0.
       sortedChunkOffset.add(0l);
       for (int i = startMapIndex; i < maxMapIndex; i++) {
         List<ShuffleBlockInfo> blockInfos = indexMap.get(i);
@@ -117,7 +120,7 @@ public class ShuffleBlockInfoUtils {
     return indexMap;
   }
 
-  public static void sortBufferByRange(
+  public static void sliceSortedBufferByMapRange(
       int startMapIndex,
       int endMapIndex,
       Map<Integer, List<ShuffleBlockInfo>> indexMap,
@@ -128,8 +131,8 @@ public class ShuffleBlockInfoUtils {
       if (blockInfos != null) {
         for (ShuffleBlockInfo blockInfo : blockInfos) {
           ByteBuf slice = sortedByteBuf.slice((int) blockInfo.offset, (int) blockInfo.length);
-          // Do not retain this buffer because this buffer will be release when the fileinfo is
-          // release
+          // Do not retain this buffer because this buffer
+          // will be released when the fileinfo is released
           targetByteBuf.addComponent(slice);
         }
       }

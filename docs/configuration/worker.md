@@ -56,7 +56,7 @@ license: |
 | celeborn.worker.congestionControl.user.inactive.interval | 10min | false | How long will consider this user is inactive if it doesn't send data | 0.3.0 |  | 
 | celeborn.worker.decommission.checkInterval | 30s | false | The wait interval of checking whether all the shuffle expired during worker decommission | 0.4.0 |  | 
 | celeborn.worker.decommission.forceExitTimeout | 6h | false | The wait time of waiting for all the shuffle expire during worker decommission. | 0.4.0 |  | 
-| celeborn.worker.directMemoryRatioForMemoryFileStorage | 0.0 | false | Max ratio of direct memory to store shuffle data. Default value is zero means that this feature is disabled. | 0.5.0 |  | 
+| celeborn.worker.directMemoryRatioForMemoryFileStorage | 0.0 | false | Max ratio of direct memory to store shuffle data. This feature is experimental and disabled by default. | 0.5.0 |  | 
 | celeborn.worker.directMemoryRatioForReadBuffer | 0.1 | false | Max ratio of direct memory for read buffer | 0.2.0 |  | 
 | celeborn.worker.directMemoryRatioToPauseReceive | 0.85 | false | If direct memory usage reaches this limit, the worker will stop to receive data from Celeborn shuffle clients. | 0.2.0 |  | 
 | celeborn.worker.directMemoryRatioToPauseReplicate | 0.95 | false | If direct memory usage reaches this limit, the worker will stop to receive replication data from other workers. This value should be higher than celeborn.worker.directMemoryRatioToPauseReceive. | 0.2.0 |  | 
@@ -98,7 +98,7 @@ license: |
 | celeborn.worker.jvmQuake.exitCode | 502 | false | The exit code of system kill for the maximum GC 'deficit' during worker jvm quake. | 0.4.0 |  | 
 | celeborn.worker.jvmQuake.kill.threshold | 60s | false | The threshold of system kill for the maximum GC 'deficit' which can be accumulated before jvmquake takes action. | 0.4.0 |  | 
 | celeborn.worker.jvmQuake.runtimeWeight | 5.0 | false | The factor by which to multiply running JVM time, when weighing it against GCing time. 'Deficit' is accumulated as `gc_time - runtime * runtime_weight`, and is compared against threshold to determine whether to take action. | 0.4.0 |  | 
-| celeborn.worker.memoryFileStorage.maxFileSize | 8MB | false | Max size for a memory storage file. It must be lesser than 2GB. | 0.5.0 |  | 
+| celeborn.worker.memoryFileStorage.maxFileSize | 8MB | false | Max size for a memory storage file. It must be less than 2GB. | 0.5.0 |  | 
 | celeborn.worker.monitor.disk.check.interval | 30s | false | Intervals between device monitor to check disk. | 0.3.0 | celeborn.worker.monitor.disk.checkInterval | 
 | celeborn.worker.monitor.disk.check.timeout | 30s | false | Timeout time for worker check device status. | 0.3.0 | celeborn.worker.disk.check.timeout | 
 | celeborn.worker.monitor.disk.checklist | readwrite,diskusage | false | Monitor type for disk, available items are: iohang, readwrite and diskusage. | 0.2.0 |  | 

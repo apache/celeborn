@@ -57,7 +57,9 @@ public class MemoryPartitionFilesSorterSuiteJ {
   public long[] prepare(int mapCount) {
     long[] partitionSize = new long[MAX_MAP_ID];
     byte[] batchHeader = new byte[16];
-    fileInfo = new MemoryFileInfo(userIdentifier, true, new ReduceFileMeta(8 * 1024 * 1024));
+    fileInfo =
+        new MemoryFileInfo(userIdentifier, true, new ReduceFileMeta(8 * 1024 * 1024), m -> {});
+
     AbstractSource source = Mockito.mock(AbstractSource.class);
     PooledByteBufAllocator allocator =
         NettyUtils.getSharedPooledByteBufAllocator(new CelebornConf(), source, false);

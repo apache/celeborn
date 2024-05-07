@@ -84,9 +84,9 @@ class FetchHandler(
   def getRawFileInfo(
       shuffleKey: String,
       fileName: String,
-      read: Boolean = false): FileInfo = {
+      streamId: Long = 0): FileInfo = {
     // find FileWriter responsible for the data
-    val fileInfo = storageManager.getFileInfo(shuffleKey, fileName, read)
+    val fileInfo = storageManager.getFileInfo(shuffleKey, fileName, streamId)
     if (fileInfo == null) {
       val errMsg = s"Could not find file $fileName for $shuffleKey."
       logWarning(errMsg)
@@ -241,14 +241,15 @@ class FetchHandler(
         s"$endIndex get file name $fileName from client channel " +
         s"${NettyUtils.getRemoteAddress(client.getChannel)}")
 
-      var fileInfo = getRawFileInfo(shuffleKey, fileName)
       val streamId = chunkStreamManager.nextStreamId()
+      var fileInfo = getRawFileInfo(shuffleKey, fileName, streamId)
       // we must get sorted fileInfo for the following cases.
       // 1. when the current request is a non-range openStream, but the original unsorted file
       //    has been deleted by another range's openStream request.
       // 2. when the current request is a range openStream request.
-      if ((endIndex != Int.MaxValue) || (endIndex == Int.MaxValue && !fileInfo.addStream(
-          streamId))) {
+      if ((endIndex != Int.MaxValue) || (endIndex == Int.MaxValue
+        // this will add stream only if this fileinfo is disk file info
+          && !fileInfo.addStream(streamId))) {
         fileInfo = partitionsSorter.getSortedFileInfo(
           shuffleKey,
           fileName,
@@ -256,7 +257,7 @@ class FetchHandler(
           startIndex,
           endIndex)
       }
-      val meta = fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta]
+      val meta = fileInfo.getReduceFileMeta
       val streamHandler =
         if (readLocalShuffle && !fileInfo.isInstanceOf[MemoryFileInfo]) {
           chunkStreamManager.registerStream(
@@ -345,7 +346,7 @@ class FetchHandler(
     workerSource.recordAppActiveConnection(client, shuffleKey)
     workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     try {
-      val fileInfo = getRawFileInfo(shuffleKey, fileName, true)
+      val fileInfo = getRawFileInfo(shuffleKey, fileName)
       fileInfo.getFileMeta match {
         case _: ReduceFileMeta =>
           val pbStreamHandlerOpt =
@@ -470,7 +471,7 @@ class FetchHandler(
           streamState.endIndex)
         workerSource.recordAppActiveConnection(client, shuffleKey)
         val fileinfo = getRawFileInfo(shuffleKey, fileName)
-        fileinfo.closeStream(streamId, startIndex, endIndex)
+        fileinfo.closeStream(streamId)
 
       case StreamType.CreditStream =>
         val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)

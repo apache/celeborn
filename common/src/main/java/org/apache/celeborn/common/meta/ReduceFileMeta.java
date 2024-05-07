@@ -21,12 +21,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.roaringbitmap.RoaringBitmap;
-
 public class ReduceFileMeta implements FileMeta {
-  private final AtomicBoolean sorted = new AtomicBoolean(false);
+  // sort and evict will be treated as data modification
+  private final AtomicBoolean modified = new AtomicBoolean(false);
   private final List<Long> chunkOffsets;
-  private RoaringBitmap mapIds;
   private long chunkSize;
   private long nextBoundary;
 
@@ -59,7 +57,6 @@ public class ReduceFileMeta implements FileMeta {
   public void updateChunkOffset(long bytesFlushed, boolean force) {
     if (bytesFlushed >= nextBoundary || force) {
       addChunkOffset(bytesFlushed);
-      nextBoundary = bytesFlushed + chunkSize;
     }
   }
 
@@ -75,34 +72,13 @@ public class ReduceFileMeta implements FileMeta {
     }
   }
 
-  public void setSorted() {
-    synchronized (sorted) {
-      sorted.set(true);
+  public void setModified() {
+    synchronized (modified) {
+      modified.set(true);
     }
   }
 
-  public AtomicBoolean getSorted() {
-    return sorted;
-  }
-
-  public void setMapIds(RoaringBitmap mapIds) {
-    this.mapIds = mapIds;
-  }
-
-  public void removeMapIds(int startIndex, int endIndex) {
-    if (mapIds == null) {
-      return;
-    }
-    for (int i = startIndex; i < endIndex; i++) {
-      mapIds.remove(i);
-    }
-  }
-
-  public RoaringBitmap getMapIds() {
-    return mapIds;
-  }
-
-  public long getChunkSize() {
-    return chunkSize;
+  public AtomicBoolean getModified() {
+    return modified;
   }
 }

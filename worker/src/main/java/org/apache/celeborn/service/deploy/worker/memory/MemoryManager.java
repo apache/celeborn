@@ -46,7 +46,7 @@ import org.apache.celeborn.service.deploy.worker.storage.StorageManager;
 public class MemoryManager {
   private static final Logger logger = LoggerFactory.getLogger(MemoryManager.class);
   private static volatile MemoryManager _INSTANCE = null;
-  @VisibleForTesting public long maxDirectorMemory;
+  @VisibleForTesting public long maxDirectMemory;
   private final long pausePushDataThreshold;
   private final long pauseReplicateThreshold;
   private final double resumeRatio;
@@ -117,7 +117,7 @@ public class MemoryManager {
   private MemoryManager(CelebornConf conf, StorageManager storageManager) {
     double pausePushDataRatio = conf.workerDirectMemoryRatioToPauseReceive();
     double pauseReplicateRatio = conf.workerDirectMemoryRatioToPauseReplicate();
-    double resumeRatio = conf.workerDirectMemoryRatioToResume();
+    this.resumeRatio = conf.workerDirectMemoryRatioToResume();
     double maxSortMemRatio = conf.workerPartitionSorterDirectMemoryRatioThreshold();
     double readBufferRatio = conf.workerDirectMemoryRatioForReadBuffer();
     double memoryFileStorageRatio = conf.workerDirectMemoryRatioForMemoryFilesStorage();
@@ -127,15 +127,14 @@ public class MemoryManager {
     long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
     long readBufferTargetNotifyThreshold = conf.readBufferTargetNotifyThreshold();
     forceAppendPauseSpentTimeThreshold = conf.metricsWorkerForceAppendPauseSpentTimeThreshold();
-    this.resumeRatio = resumeRatio;
-    maxDirectorMemory =
+    maxDirectMemory =
         DynMethods.builder("maxDirectMemory")
             .impl("jdk.internal.misc.VM") // for Java 10 and above
             .impl("sun.misc.VM") // for Java 9 and previous
             .buildStatic()
             .<Long>invoke();
 
-    Preconditions.checkArgument(maxDirectorMemory > 0);
+    Preconditions.checkArgument(maxDirectMemory > 0);
     Preconditions.checkArgument(
         pauseReplicateRatio > pausePushDataRatio,
         String.format(
@@ -149,12 +148,12 @@ public class MemoryManager {
       Preconditions.checkArgument(resumeRatio > (readBufferRatio + memoryFileStorageRatio));
     }
 
-    maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
-    pausePushDataThreshold = (long) (maxDirectorMemory * pausePushDataRatio);
-    pauseReplicateThreshold = (long) (maxDirectorMemory * pauseReplicateRatio);
-    readBufferThreshold = (long) (maxDirectorMemory * readBufferRatio);
+    maxSortMemory = ((long) (maxDirectMemory * maxSortMemRatio));
+    pausePushDataThreshold = (long) (maxDirectMemory * pausePushDataRatio);
+    pauseReplicateThreshold = (long) (maxDirectMemory * pauseReplicateRatio);
+    readBufferThreshold = (long) (maxDirectMemory * readBufferRatio);
     readBufferTarget = (long) (readBufferThreshold * readBufferTargetRatio);
-    memoryFileStorageThreshold = (long) (maxDirectorMemory * memoryFileStorageRatio);
+    memoryFileStorageThreshold = (long) (maxDirectMemory * memoryFileStorageRatio);
 
     checkService.scheduleWithFixedDelay(
         () -> {
@@ -177,7 +176,7 @@ public class MemoryManager {
                     + "read buffer size: {}, "
                     + "memory file storage size : {}",
                 Utils.bytesToString(getNettyUsedDirectMemory()),
-                Utils.bytesToString(maxDirectorMemory),
+                Utils.bytesToString(maxDirectMemory),
                 Utils.bytesToString(diskBufferCounter.get()),
                 Utils.bytesToString(sortMemoryCounter.get()),
                 Utils.bytesToString(readBufferCounter.get()),
@@ -235,55 +234,31 @@ public class MemoryManager {
             try {
               if ((memoryFileStorageCounter.get() >= memoryFileStorageThreshold)
                   || currentServingState() != ServingState.NONE_PAUSED) {
-                List<PartitionDataWriter> committedWriters = new ArrayList<>();
-                List<PartitionDataWriter> unCommittedWriters = new ArrayList<>();
-                synchronized (storageManager.memoryFileInfos()) {
-                  for (PartitionDataWriter writer : storageManager.memoryWriters().values()) {
-                    if (writer.isClosed() && writer.getMemoryFileInfo().isFullyRead()) {
-                      committedWriters.add(writer);
-                    } else {
-                      unCommittedWriters.add(writer);
+                List<PartitionDataWriter> memoryWriters =
+                    new ArrayList<>(storageManager.memoryWriters().values());
+                if (memoryWriters.isEmpty()) {
+                  return;
+                }
+                logger.info("Start evicting {} memory file infos", memoryWriters.size());
+                // always evict the largest memory file info first
+                memoryWriters.sort(
+                    (o1, o2) ->
+                        o1.getMemoryFileInfo().getFileLength()
+                                > o2.getMemoryFileInfo().getFileLength()
+                            ? 1
+                            : 0);
+                try {
+                  for (PartitionDataWriter writer : memoryWriters) {
+                    // this branch means that there is no memory pressure
+                    if ((memoryFileStorageCounter.get() < memoryFileStorageThreshold)
+                        && currentServingState() == ServingState.NONE_PAUSED) {
+                      break;
                     }
+                    writer.evict();
                   }
-                  if (committedWriters.isEmpty() && unCommittedWriters.isEmpty()) {
-                    return;
-                  }
-                  logger.info(
-                      "Start evicting memory fileinfo committed {} uncommitted {}",
-                      committedWriters.size(),
-                      unCommittedWriters.size());
-                  committedWriters.sort(
-                      (o1, o2) ->
-                          o1.getMemoryFileInfo().getFileLength()
-                                  > o2.getMemoryFileInfo().getFileLength()
-                              ? 1
-                              : 0);
-                  unCommittedWriters.sort(
-                      (o1, o2) ->
-                          o1.getMemoryFileInfo().getFileLength()
-                                  > o2.getMemoryFileInfo().getFileLength()
-                              ? 1
-                              : 0);
-                  while ((memoryFileStorageCounter.get() >= memoryFileStorageThreshold)
-                      || currentServingState() != ServingState.NONE_PAUSED) {
-                    try {
-                      if (!committedWriters.isEmpty()) {
-                        PartitionDataWriter writer = committedWriters.remove(0);
-                        synchronized (writer.getMemoryFileInfo()) {
-                          writer.evict();
-                        }
-                      } else if (!unCommittedWriters.isEmpty()) {
-                        PartitionDataWriter writer = unCommittedWriters.remove(0);
-                        synchronized (writer.getMemoryFileInfo()) {
-                          writer.evict();
-                        }
-                      } else {
-                        break;
-                      }
-                    } catch (IOException e) {
-                      logger.warn("Partition data writer evict failed", e);
-                    }
-                  }
+                  memoryWriters.clear();
+                } catch (IOException e) {
+                  logger.warn("Partition data writer evict failed", e);
                 }
               }
             } catch (Exception e) {
@@ -302,7 +277,7 @@ public class MemoryManager {
             + "read buffer memory limit: {} target: {}, "
             + "memory shuffle storage limit: {}，"
             + "resume memory ratio: {},",
-        Utils.bytesToString(maxDirectorMemory),
+        Utils.bytesToString(maxDirectMemory),
         Utils.bytesToString(pausePushDataThreshold),
         Utils.bytesToString(pauseReplicateThreshold),
         Utils.bytesToString(readBufferThreshold),
@@ -538,7 +513,7 @@ public class MemoryManager {
   }
 
   public double workerMemoryUsageRatio() {
-    return getMemoryUsage() / (double) (maxDirectorMemory);
+    return getMemoryUsage() / (double) (maxDirectMemory);
   }
 
   public long getMemoryFileStorageCounter() {

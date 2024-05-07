@@ -53,7 +53,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
     val conf = new CelebornConf()
     try {
       val memoryManager = MemoryManager.initialize(conf)
-      val maxDirectorMemory = memoryManager.maxDirectorMemory
+      val maxDirectorMemory = memoryManager.maxDirectMemory
       val pushThreshold =
         (conf.workerDirectMemoryRatioToPauseReceive * maxDirectorMemory).longValue()
       val replicateThreshold =
@@ -90,7 +90,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
   test("[CELEBORN-882] Test MemoryManager check memory thread logic") {
     val conf = new CelebornConf()
     val memoryManager = MemoryManager.initialize(conf)
-    val maxDirectorMemory = memoryManager.maxDirectorMemory
+    val maxDirectorMemory = memoryManager.maxDirectMemory
     val pushThreshold =
       (conf.workerDirectMemoryRatioToPauseReceive * maxDirectorMemory).longValue()
     val replicateThreshold =

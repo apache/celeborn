@@ -1228,8 +1228,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                |diskFull:$diskFull,
                |partitionSplitMinimumSize:$partitionSplitMinimumSize,
                |splitThreshold:${fileWriter.getSplitThreshold},
-               |fileLength:${fileWriter.getDiskFileInfo.getFileLength},
-               |fileName:${fileWriter.getDiskFileInfo.getFilePath}
+               |fileLength:${diskFileInfo.getFileLength},
+               |fileName:${diskFileInfo.getFilePath}
                |""".stripMargin)
           return true
         }

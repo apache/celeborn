@@ -3000,7 +3000,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.directMemoryRatioForMemoryFileStorage")
       .categories("worker")
       .doc("Max ratio of direct memory to store shuffle data. " +
-        "Default value is zero means that this feature is disabled.")
+        "This feature is experimental and disabled by default.")
       .version("0.5.0")
       .doubleConf
       .createWithDefault(0)
@@ -3033,7 +3033,7 @@ object CelebornConf extends Logging {
   val WORKER_MEMORY_FILE_STORAGE_MAX_FILE_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.memoryFileStorage.maxFileSize")
       .categories("worker")
-      .doc("Max size for a memory storage file. It must be lesser than 2GB.")
+      .doc("Max size for a memory storage file. It must be less than 2GB.")
       .version("0.5.0")
       .bytesConf(ByteUnit.BYTE)
       .checkValue(v => v < Int.MaxValue, "A single memory storage file can not be larger than 2GB")

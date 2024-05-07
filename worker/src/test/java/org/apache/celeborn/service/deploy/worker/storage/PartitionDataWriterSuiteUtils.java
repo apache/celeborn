@@ -76,7 +76,16 @@ public class PartitionDataWriterSuiteUtils {
       StorageManager storageManager,
       CelebornConf celebornConf) {
     ReduceFileMeta reduceFileMeta = new ReduceFileMeta(celebornConf.shuffleChunkSize());
-    MemoryFileInfo memoryFileInfo = new MemoryFileInfo(userIdentifier, false, reduceFileMeta);
+    MemoryFileInfo memoryFileInfo =
+        new MemoryFileInfo(
+            userIdentifier,
+            false,
+            reduceFileMeta,
+            m -> {
+              //      storageManager.unregisterMemoryPartitionWriterAndFileInfo(m, shuffleKey,
+              // fileName);
+              //      storageManager.evictedFileCount().incrementAndGet();
+            });
     if (!reduceMeta) {
       memoryFileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
     }
@@ -97,7 +106,8 @@ public class PartitionDataWriterSuiteUtils {
       CelebornConf celebornConf)
       throws IOException {
     ReduceFileMeta reduceFileMeta = new ReduceFileMeta(celebornConf.shuffleChunkSize());
-    MemoryFileInfo memoryFileInfo = new MemoryFileInfo(userIdentifier, false, reduceFileMeta);
+    MemoryFileInfo memoryFileInfo =
+        new MemoryFileInfo(userIdentifier, false, reduceFileMeta, m -> {});
     if (!reduceMeta) {
       memoryFileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
     }

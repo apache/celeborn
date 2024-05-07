@@ -98,7 +98,7 @@ public class PartitionDataWriterContext {
     return partitionType;
   }
 
-  public boolean isCanUseMemory() {
+  public boolean canUseMemory() {
     return canUseMemory;
   }
 

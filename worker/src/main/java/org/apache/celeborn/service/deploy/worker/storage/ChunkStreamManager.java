@@ -91,12 +91,6 @@ public class ChunkStreamManager {
       this.endIndex = endIndex;
       this.memoryFileInfo = memoryFileInfo;
     }
-
-    public void tryDecrementReaderCount() {
-      if (memoryFileInfo != null) {
-        memoryFileInfo.decrementReaderCount();
-      }
-    }
   }
 
   public ChunkStreamManager() {

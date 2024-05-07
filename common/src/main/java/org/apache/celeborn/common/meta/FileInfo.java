@@ -20,8 +20,6 @@ package org.apache.celeborn.common.meta;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.roaringbitmap.RoaringBitmap;
-
 import org.apache.celeborn.common.identity.UserIdentifier;
 
 public abstract class FileInfo {
@@ -74,7 +72,7 @@ public abstract class FileInfo {
     this.partitionSplitEnabled = partitionSplitEnabled;
   }
 
-  private boolean isReduceFileMeta() {
+  boolean isReduceFileMeta() {
     return fileMeta instanceof ReduceFileMeta;
   }
 
@@ -82,9 +80,8 @@ public abstract class FileInfo {
     if (!isReduceFileMeta()) {
       throw new IllegalStateException("In addStream, filemeta cannot be MapFileMeta");
     }
-    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileMeta;
-    synchronized (reduceFileMeta.getSorted()) {
-      if (reduceFileMeta.getSorted().get()) {
+    synchronized (getReduceFileMeta().getModified()) {
+      if (getReduceFileMeta().getModified().get()) {
         return false;
       } else {
         streams.add(streamId);
@@ -93,12 +90,11 @@ public abstract class FileInfo {
     }
   }
 
-  public void closeStream(long streamId, int startIndex, int endIndex) {
+  public void closeStream(long streamId) {
     if (!isReduceFileMeta()) {
       throw new IllegalStateException("In closeStream, filemeta cannot be MapFileMeta");
     }
-    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileMeta;
-    synchronized (reduceFileMeta.getSorted()) {
+    synchronized (getReduceFileMeta().getModified()) {
       streams.remove(streamId);
     }
   }
@@ -107,22 +103,8 @@ public abstract class FileInfo {
     if (!isReduceFileMeta()) {
       throw new IllegalStateException("In isStreamsEmpty, filemeta cannot be MapFileMeta");
     }
-    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileMeta;
-    synchronized (reduceFileMeta.getSorted()) {
+    synchronized (getReduceFileMeta().getModified()) {
       return streams.isEmpty();
-    }
-  }
-
-  public boolean isFullyRead() {
-    if (!isReduceFileMeta()) {
-      throw new IllegalStateException("In isFullyRead, filemeta cannot be MapFileMeta");
-    }
-    ReduceFileMeta reduceFileMeta = ((ReduceFileMeta) fileMeta);
-    RoaringBitmap mapIds = reduceFileMeta.getMapIds();
-    if (mapIds == null) {
-      return isStreamsEmpty();
-    } else {
-      return mapIds.isEmpty();
     }
   }
 }
