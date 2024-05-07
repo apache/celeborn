@@ -4400,7 +4400,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.client.spark.shuffle.forceFallback.numPartitionsThreshold")
       .categories("client")
       .version("0.5.0")
-      .doc(s"Celeborn will only accept shuffle of partition number lower than this configuration value. " +
+      .doc("Celeborn will only accept shuffle of partition number lower than this configuration value. " +
         s"This configuration only takes effect when `${CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY.key}` " +
         s"is `${FallbackPolicy.AUTO.name}`.")
       .longConf
