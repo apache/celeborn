@@ -448,11 +448,9 @@ object Utils extends Logging {
 
   // Convert address (ip:port or host:port) to (ip:port, host:port) pair
   def addressToIpHostAddressPair(address: String): (String, String) = {
-    val hostPort = Utils.parseHostPort(address)
-    val internalIpHostAddressPair = Utils.getIpHostAddressPair(hostPort._1)
-    (
-      internalIpHostAddressPair._1 + ":" + hostPort._2,
-      internalIpHostAddressPair._2 + ":" + hostPort._2)
+    val (host, port) = Utils.parseHostPort(address)
+    val (_ip, _host) = Utils.getIpHostAddressPair(host)
+    (_ip + ":" + port, _host + ":" + port)
   }
 
   def checkHostPort(hostPort: String): Unit = {
