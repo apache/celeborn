@@ -4389,7 +4389,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.forceFallback.enabled")
       .categories("client")
       .version("0.3.0")
-      .doc(s"Always use spark built-in shuffle implementation. This configuration is deprecated, " +
+      .doc("Always use spark built-in shuffle implementation. This configuration is deprecated, " +
         s"consider configuring `${CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY.key}` instead.")
       .booleanConf
       .createWithDefault(false)
