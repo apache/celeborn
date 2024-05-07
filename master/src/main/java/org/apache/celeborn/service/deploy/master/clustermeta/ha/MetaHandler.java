@@ -264,11 +264,12 @@ public class MetaHandler {
 
         case WorkerEvent:
           List<ResourceProtos.WorkerAddress> workerAddresses =
-              request.getRemoveWorkersUnavailableInfoRequest().getUnavailableList();
+              request.getWorkerEventRequest().getWorkerAddressList();
           List<WorkerInfo> workerInfoList =
               workerAddresses.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
           metaSystem.updateWorkerEventMeta(
               request.getWorkerEventRequest().getWorkerEventType().getNumber(), workerInfoList);
+          break;
 
         case ApplicationMeta:
           appId = request.getApplicationMetaRequest().getAppId();

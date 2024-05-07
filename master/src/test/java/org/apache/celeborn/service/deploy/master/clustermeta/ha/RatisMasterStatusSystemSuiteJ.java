@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import scala.Tuple2;
 
+import com.google.common.collect.Lists;
 import org.junit.*;
 import org.mockito.Mockito;
 
@@ -37,6 +38,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.protocol.WorkerEventType;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -45,6 +47,7 @@ import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.util.Utils$;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
+import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 
 public class RatisMasterStatusSystemSuiteJ {
   protected static HARaftServer RATISSERVER1 = null;
@@ -1175,6 +1178,82 @@ public class RatisMasterStatusSystemSuiteJ {
     // Min size
     statusSystem.handleUpdatePartitionSize();
     Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.minPartitionSizeToEstimate());
+  }
+
+  @Test
+  public void testHandleWorkerEvent() throws InterruptedException {
+    AbstractMetaManager statusSystem = pickLeaderStatusSystem();
+    Assert.assertNotNull(statusSystem);
+
+    statusSystem.handleRegisterWorker(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        INTERNALPORT1,
+        NETWORK_LOCATION1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        INTERNALPORT2,
+        NETWORK_LOCATION2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        INTERNALPORT3,
+        NETWORK_LOCATION3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
+
+    WorkerInfo workerInfo1 =
+        WorkerInfo.fromUniqueId(
+            HOSTNAME1 + ":" + RPCPORT1 + ":" + PUSHPORT1 + ":" + FETCHPORT1 + ":" + REPLICATEPORT1);
+    WorkerInfo workerInfo2 =
+        WorkerInfo.fromUniqueId(
+            HOSTNAME2 + ":" + RPCPORT2 + ":" + PUSHPORT2 + ":" + FETCHPORT2 + ":" + REPLICATEPORT2);
+    statusSystem.handleWorkerEvent(
+        ResourceProtos.WorkerEventType.Decommission_VALUE,
+        Lists.newArrayList(workerInfo1, workerInfo2),
+        getNewReqeustId());
+
+    Thread.sleep(3000L);
+    Assert.assertEquals(2, STATUSSYSTEM1.workerEventInfos.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.workerEventInfos.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.workerEventInfos.size());
+
+    Assert.assertTrue(STATUSSYSTEM1.workerEventInfos.containsKey(workerInfo1));
+    Assert.assertTrue(STATUSSYSTEM1.workerEventInfos.containsKey(workerInfo2));
+
+    Assert.assertEquals(
+        WorkerEventType.Decommission,
+        STATUSSYSTEM1.workerEventInfos.get(workerInfo1).getEventType());
+
+    statusSystem.handleWorkerEvent(
+        ResourceProtos.WorkerEventType.None_VALUE,
+        Lists.newArrayList(workerInfo1),
+        getNewReqeustId());
+    Thread.sleep(3000L);
+    Assert.assertEquals(1, STATUSSYSTEM1.workerEventInfos.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.workerEventInfos.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.workerEventInfos.size());
+    Assert.assertTrue(STATUSSYSTEM1.workerEventInfos.containsKey(workerInfo2));
+    Assert.assertEquals(
+        WorkerEventType.Decommission,
+        STATUSSYSTEM1.workerEventInfos.get(workerInfo2).getEventType());
   }
 
   @AfterClass
