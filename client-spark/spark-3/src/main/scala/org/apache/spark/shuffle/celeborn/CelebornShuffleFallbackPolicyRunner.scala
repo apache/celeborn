@@ -51,7 +51,7 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
   }
 
   /**
-   * if shuffle partitions > celeborn.shuffle.forceFallback.numPartitionsThreshold, fallback to spark built-in
+   * if shuffle partitions > celeborn.shuffle.fallback.numPartitionsThreshold, fallback to spark built-in
    * shuffle implementation
    * @param numPartitions shuffle partitions
    * @return return true if shuffle partitions bigger than limit, otherwise false
