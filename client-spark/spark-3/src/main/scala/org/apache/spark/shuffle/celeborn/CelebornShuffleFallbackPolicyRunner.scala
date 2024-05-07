@@ -31,7 +31,8 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
       applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
         !checkQuota(lifecycleManager) || !checkWorkersAvailable(lifecycleManager)
     if (needFallback && FallbackPolicy.NEVER.equals(shuffleFallbackPolicy)) {
-      throw new CelebornIOException("Fallback to spark built-in shuffle implementation is prohibited.")
+      throw new CelebornIOException(
+        "Fallback to spark built-in shuffle implementation is prohibited.")
     }
     needFallback
   }
@@ -42,8 +43,9 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
    */
   def applyForceFallbackPolicy(): Boolean = {
     if (FallbackPolicy.ALWAYS.equals(shuffleFallbackPolicy)) {
-      logWarning(s"${CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY.key} is ${FallbackPolicy.ALWAYS.name}, " +
-        s"forcibly fallback to spark built-in shuffle implementation.")
+      logWarning(
+        s"${CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY.key} is ${FallbackPolicy.ALWAYS.name}, " +
+          s"forcibly fallback to spark built-in shuffle implementation.")
     }
     FallbackPolicy.ALWAYS.equals(shuffleFallbackPolicy)
   }
@@ -58,8 +60,9 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
     val confNumPartitions = conf.shuffleFallbackPartitionThreshold
     val needFallback = numPartitions >= confNumPartitions
     if (needFallback) {
-      logWarning(s"Shuffle partition number: $numPartitions exceeds threshold: $confNumPartitions, " +
-        "need to fallback to spark built-in shuffle implementation.")
+      logWarning(
+        s"Shuffle partition number: $numPartitions exceeds threshold: $confNumPartitions, " +
+          "need to fallback to spark built-in shuffle implementation.")
     }
     needFallback
   }
@@ -94,7 +97,8 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
 
     val resp = lifecycleManager.checkWorkersAvailable()
     if (!resp.getAvailable) {
-      logWarning(s"No celeborn workers available for current user ${lifecycleManager.getUserIdentifier}.")
+      logWarning(
+        s"No celeborn workers available for current user ${lifecycleManager.getUserIdentifier}.")
     }
     resp.getAvailable
   }
