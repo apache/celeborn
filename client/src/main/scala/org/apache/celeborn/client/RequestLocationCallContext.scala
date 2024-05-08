@@ -72,7 +72,7 @@ case class ApplyNewLocationCallContext(context: RpcCallContext) extends RequestL
     partitionLocationOpt match {
       case Some(partitionLocation) =>
         context.reply(RegisterShuffleResponse(status, Array(partitionLocation)))
-      case None => context.reply(RegisterShuffleResponse(status, Array.empty, true))
+      case None => context.reply(RegisterShuffleResponse(status, Array.empty))
     }
   }
 }

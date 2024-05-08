@@ -18,7 +18,7 @@
 package org.apache.celeborn.common.protocol.message
 
 import java.util
-import java.util.UUID
+import java.util.{Collections, UUID}
 
 import scala.collection.JavaConverters._
 
@@ -133,13 +133,11 @@ object ControlMessages extends Logging {
     def apply(
         shuffleId: Int,
         numMappers: Int,
-        numPartitions: Int,
-        packed: Boolean): PbRegisterShuffle =
+        numPartitions: Int): PbRegisterShuffle =
       PbRegisterShuffle.newBuilder()
         .setShuffleId(shuffleId)
         .setNumMappers(numMappers)
         .setNumPartitions(numPartitions)
-        .setPacked(packed)
         .build()
   }
 
@@ -162,17 +160,11 @@ object ControlMessages extends Logging {
   object RegisterShuffleResponse {
     def apply(
         status: StatusCode,
-        partitionLocations: Array[PartitionLocation],
-        packed: Boolean = true): PbRegisterShuffleResponse = {
+        partitionLocations: Array[PartitionLocation]): PbRegisterShuffleResponse = {
       val builder = PbRegisterShuffleResponse.newBuilder()
         .setStatus(status.getValue)
-      if (packed) {
-        builder.setPackedPartitionLocationsPair(
-          PbSerDeUtils.toPbPackedPartitionLocationsPair(partitionLocations.toList))
-      } else {
-        builder.addAllPartitionLocations(
-          partitionLocations.map(PbSerDeUtils.toPbPartitionLocation).toSeq.asJava)
-      }
+      builder.setPackedPartitionLocationsPair(
+        PbSerDeUtils.toPbPackedPartitionLocationsPair(partitionLocations.toList))
       builder.build()
     }
   }
@@ -282,7 +274,7 @@ object ControlMessages extends Logging {
 
   case class MapperEndResponse(status: StatusCode) extends MasterMessage
 
-  case class GetReducerFileGroup(shuffleId: Int, packed: Boolean = false) extends MasterMessage
+  case class GetReducerFileGroup(shuffleId: Int) extends MasterMessage
 
   // util.Set[String] -> util.Set[Path.toString]
   // Path can't be serialized
@@ -290,7 +282,7 @@ object ControlMessages extends Logging {
       status: StatusCode,
       fileGroup: util.Map[Integer, util.Set[PartitionLocation]],
       attempts: Array[Int],
-      partitionIds: util.Set[Integer] = new util.HashSet[Integer](),
+      partitionIds: util.Set[Integer] = Collections.emptySet[Integer](),
       packed: Boolean = false)
     extends MasterMessage
 
@@ -666,10 +658,9 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END_RESPONSE, payload)
 
-    case GetReducerFileGroup(shuffleId, packed) =>
+    case GetReducerFileGroup(shuffleId) =>
       val payload = PbGetReducerFileGroup.newBuilder()
         .setShuffleId(shuffleId)
-        .setPacked(packed)
         .build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP, payload)
 
@@ -1062,8 +1053,7 @@ object ControlMessages extends Logging {
       case GET_REDUCER_FILE_GROUP_VALUE =>
         val pbGetReducerFileGroup = PbGetReducerFileGroup.parseFrom(message.getPayload)
         GetReducerFileGroup(
-          pbGetReducerFileGroup.getShuffleId,
-          pbGetReducerFileGroup.getPacked)
+          pbGetReducerFileGroup.getShuffleId)
 
       case GET_REDUCER_FILE_GROUP_RESPONSE_VALUE =>
         val pbGetReducerFileGroupResponse = PbGetReducerFileGroupResponse

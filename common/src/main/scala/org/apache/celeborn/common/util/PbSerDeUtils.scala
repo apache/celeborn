@@ -546,7 +546,7 @@ object PbSerDeUtils {
         packedLocationPairsBuilder.addPeerIndexes(
           locationIndexes(location.getPeer.hashCode()))
       } else {
-        packedLocationPairsBuilder.addPeerIndexes(-1)
+        packedLocationPairsBuilder.addPeerIndexes(Integer.MAX_VALUE)
       }
     }
 
@@ -582,7 +582,7 @@ object PbSerDeUtils {
     index = 0
     while (index < locationCount) {
       val replicateIndex = pbPartitionLocationsPair.getPeerIndexes(index)
-      if (replicateIndex != -1) {
+      if (replicateIndex != Integer.MAX_VALUE) {
         locations.get(index).setPeer(locations.get(replicateIndex))
       }
       index = index + 1

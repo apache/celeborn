@@ -512,7 +512,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         numPartitions,
         () ->
             lifecycleManagerRef.askSync(
-                RegisterShuffle$.MODULE$.apply(shuffleId, numMappers, numPartitions, true),
+                RegisterShuffle$.MODULE$.apply(shuffleId, numMappers, numPartitions),
                 conf.clientRpcRegisterShuffleAskTimeout(),
                 ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
   }
@@ -1598,7 +1598,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           exceptionMsg = "Driver endpoint is null!";
           logger.warn(exceptionMsg);
         } else {
-          GetReducerFileGroup getReducerFileGroup = new GetReducerFileGroup(shuffleId, true);
+          GetReducerFileGroup getReducerFileGroup = new GetReducerFileGroup(shuffleId);
 
           GetReducerFileGroupResponse response =
               lifecycleManagerRef.askSync(

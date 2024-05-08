@@ -245,7 +245,6 @@ message PbRegisterShuffle {
   int32 shuffleId = 1;
   int32 numMappers = 2;
   int32 numPartitions = 3;
-  bool packed = 4;
 }
 
 message PbRegisterMapPartitionTask {
@@ -349,7 +348,6 @@ message PbMapperEndResponse {
 
 message PbGetReducerFileGroup {
   int32 shuffleId = 1;
-  bool packed = 2;
 }
 
 message PbGetReducerFileGroupResponse {

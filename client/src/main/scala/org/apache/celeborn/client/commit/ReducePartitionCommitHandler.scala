@@ -62,7 +62,7 @@ class ReducePartitionCommitHandler(
   with Logging {
 
   private val getReducerFileGroupRequest =
-    JavaUtils.newConcurrentHashMap[Int, util.Set[(RpcCallContext, Boolean)]]()
+    JavaUtils.newConcurrentHashMap[Int, util.Set[RpcCallContext]]()
   private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
@@ -111,7 +111,7 @@ class ReducePartitionCommitHandler(
     // In case of stage with no shuffle data, register shuffle will not be called,
     // so here we still need to check null.
     if (requests != null && !requests.isEmpty) {
-      requests.asScala.foreach(r => replyGetReducerFileGroup(r._1, shuffleId, r._2))
+      requests.asScala.foreach(replyGetReducerFileGroup(_, shuffleId))
     }
   }
 
@@ -255,7 +255,7 @@ class ReducePartitionCommitHandler(
 
   override def registerShuffle(shuffleId: Int, numMappers: Int): Unit = {
     super.registerShuffle(shuffleId, numMappers)
-    getReducerFileGroupRequest.put(shuffleId, new util.HashSet[(RpcCallContext, Boolean)]())
+    getReducerFileGroupRequest.put(shuffleId, new util.HashSet[RpcCallContext]())
     initMapperAttempts(shuffleId, numMappers)
   }
 
@@ -271,16 +271,14 @@ class ReducePartitionCommitHandler(
 
   private def replyGetReducerFileGroup(
       context: RpcCallContext,
-      shuffleId: Int,
-      packed: Boolean): Unit = {
+      shuffleId: Int): Unit = {
     if (isStageDataLost(shuffleId)) {
       context.reply(
         GetReducerFileGroupResponse(
           StatusCode.SHUFFLE_DATA_LOST,
           JavaUtils.newConcurrentHashMap(),
           Array.empty,
-          new util.HashSet[Integer](),
-          packed))
+          new util.HashSet[Integer]()))
     } else {
       // LocalNettyRpcCallContext is for the UTs
       if (context.isInstanceOf[LocalNettyRpcCallContext]) {
@@ -296,9 +294,7 @@ class ReducePartitionCommitHandler(
               val returnedMsg = GetReducerFileGroupResponse(
                 StatusCode.SUCCESS,
                 reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
-                getMapperAttempts(shuffleId),
-                new util.HashSet[Integer](),
-                packed)
+                getMapperAttempts(shuffleId))
               context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
             }
           })
@@ -309,18 +305,17 @@ class ReducePartitionCommitHandler(
 
   override def handleGetReducerFileGroup(
       context: RpcCallContext,
-      shuffleId: Int,
-      packed: Boolean): Unit = {
+      shuffleId: Int): Unit = {
     // Quick return for ended stage, avoid occupy sync lock.
     if (isStageEnd(shuffleId)) {
-      replyGetReducerFileGroup(context, shuffleId, packed)
+      replyGetReducerFileGroup(context, shuffleId)
     } else {
       getReducerFileGroupRequest.synchronized {
         // If setStageEnd() called after isStageEnd and before got lock, should reply here.
         if (isStageEnd(shuffleId)) {
-          replyGetReducerFileGroup(context, shuffleId, packed)
+          replyGetReducerFileGroup(context, shuffleId)
         } else {
-          getReducerFileGroupRequest.get(shuffleId).add((context, packed))
+          getReducerFileGroupRequest.get(shuffleId).add(context)
         }
       }
     }

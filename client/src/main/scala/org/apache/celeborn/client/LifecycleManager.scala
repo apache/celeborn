@@ -138,8 +138,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   case class RegisterCallContext(
       context: RpcCallContext,
-      partitionId: Int = -1,
-      packed: Boolean = true) {
+      partitionId: Int = -1) {
     def reply(response: PbRegisterShuffleResponse) = {
       context.reply(response)
     }
@@ -316,11 +315,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val shuffleId = pb.getShuffleId
       val numMappers = pb.getNumMappers
       val numPartitions = pb.getNumPartitions
-      val packed = pb.getPacked
       logDebug(s"Received RegisterShuffle request, " +
         s"$shuffleId, $numMappers, $numPartitions.")
       offerAndReserveSlots(
-        RegisterCallContext(context, packed = packed),
+        RegisterCallContext(context),
         shuffleId,
         numMappers,
         numPartitions)
@@ -404,9 +402,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           throw new UnsupportedOperationException(s"Not support $partitionType yet")
       }
 
-    case GetReducerFileGroup(shuffleId: Int, packed: Boolean) =>
+    case GetReducerFileGroup(shuffleId: Int) =>
       logDebug(s"Received GetShuffleFileGroup request for shuffleId $shuffleId.")
-      handleGetReducerFileGroup(context, shuffleId, packed)
+      handleGetReducerFileGroup(context, shuffleId)
 
     case pb: PbGetShuffleId =>
       val appShuffleId = pb.getAppShuffleId
@@ -512,8 +510,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
               if (rpcContext.isInstanceOf[LocalNettyRpcCallContext]) {
                 context.reply(RegisterShuffleResponse(
                   StatusCode.SUCCESS,
-                  getInitialLocs(shuffleId, p => p.getEpoch == 0),
-                  context.packed))
+                  getInitialLocs(shuffleId, p => p.getEpoch == 0)))
               } else {
                 val cachedMsg = registerShuffleResponseRpcCache.get(
                   shuffleId,
@@ -635,7 +632,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     res.status match {
       case StatusCode.REQUEST_FAILED =>
         logInfo(s"OfferSlots RPC request failed for $shuffleId!")
-        replyRegisterShuffle(RegisterShuffleResponse(StatusCode.REQUEST_FAILED, Array.empty, true))
+        replyRegisterShuffle(RegisterShuffleResponse(StatusCode.REQUEST_FAILED, Array.empty))
         return
       case StatusCode.SLOT_NOT_AVAILABLE =>
         logInfo(s"OfferSlots for $shuffleId failed!")
@@ -647,9 +644,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         logInfo(s"OfferSlots for $shuffleId Success!Slots Info: ${res.workerResource}")
       case StatusCode.WORKER_EXCLUDED =>
         logInfo(s"OfferSlots for $shuffleId failed due to all workers be excluded!")
-        replyRegisterShuffle(RegisterShuffleResponse(
-          StatusCode.WORKER_EXCLUDED,
-          Array.empty))
+        replyRegisterShuffle(
+          RegisterShuffleResponse(
+            StatusCode.WORKER_EXCLUDED,
+            Array.empty))
         return
       case _ => // won't happen
         throw new UnsupportedOperationException()
@@ -708,8 +706,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val allPrimaryPartitionLocations = slots.asScala.flatMap(_._2._1.asScala).toArray
       replyRegisterShuffle(RegisterShuffleResponse(
         StatusCode.SUCCESS,
-        allPrimaryPartitionLocations,
-        true))
+        allPrimaryPartitionLocations))
     }
   }
 
@@ -786,8 +783,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private def handleGetReducerFileGroup(
       context: RpcCallContext,
-      shuffleId: Int,
-      packed: Boolean): Unit = {
+      shuffleId: Int): Unit = {
     if (!registeredShuffle.contains(shuffleId)) {
       logWarning(s"[handleGetReducerFileGroup] shuffle $shuffleId not registered, maybe no shuffle data within this stage.")
       context.reply(GetReducerFileGroupResponse(
@@ -796,7 +792,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         Array.empty))
       return
     }
-    commitManager.handleGetReducerFileGroup(context, shuffleId, packed)
+    commitManager.handleGetReducerFileGroup(context, shuffleId)
   }
 
   private def handleGetShuffleIdForApp(
