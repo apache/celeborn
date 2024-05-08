@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker.http.api
 
-import javax.ws.rs.{GET, Path, POST, QueryParam}
+import javax.ws.rs.{FormParam, GET, Path, POST}
 import javax.ws.rs.core.MediaType
 
 import io.swagger.v3.oas.annotations.media.Content
@@ -27,6 +27,7 @@ import org.apache.celeborn.server.common.http.api.ApiRequestContext
 
 @Path("/")
 class ApiWorkerResource extends ApiRequestContext {
+
   @Path("/listPartitionLocationInfo")
   @ApiResponse(
     responseCode = "200",
@@ -70,9 +71,9 @@ class ApiWorkerResource extends ApiRequestContext {
     content = Array(new Content(
       mediaType = MediaType.TEXT_PLAIN)),
     description =
-      "Trigger this worker to exit. Legal types are 'DECOMMISSION', 'GRACEFUL' and 'IMMEDIATELY'.")
+      "Trigger this worker to exit. Legal types are 'Decommission', 'Graceful' and 'Immediately'.")
   @POST
-  def exit(@QueryParam("TYPE") exitType: String): String = {
+  def exit(@FormParam("type") exitType: String): String = {
     httpService.exit(normalizeParam(exitType))
   }
 }

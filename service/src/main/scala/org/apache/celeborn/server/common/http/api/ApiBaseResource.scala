@@ -53,9 +53,9 @@ private[api] class ApiBaseResource extends ApiRequestContext {
       "Meanwhile, either none or all of the parameter tenant and name are specified for TENANT_USER level.")
   @GET
   def listDynamicConfigs(
-      @QueryParam("LEVEL") level: String,
-      @QueryParam("TENANT") tenant: String,
-      @QueryParam("NAME") name: String): String = {
+      @QueryParam("level") level: String,
+      @QueryParam("tenant") tenant: String,
+      @QueryParam("name") name: String): String = {
     httpService.getDynamicConfigs(
       normalizeParam(level),
       normalizeParam(tenant),
@@ -68,7 +68,7 @@ private[api] class ApiBaseResource extends ApiRequestContext {
     content = Array(new Content(
       mediaType = MediaType.TEXT_PLAIN)),
     description =
-      "For MASTER: List worker information of the service. It will list all registered workers 's information.\n" +
+      "For MASTER: List worker information of the service. It will list all registered workers' information.\n" +
         "For WORKER: List the worker information of the worker.")
   @GET
   def workerInfo(): String = {
