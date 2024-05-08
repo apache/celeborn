@@ -55,6 +55,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.util.ThreadUtils;
+import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
 
@@ -72,6 +73,7 @@ public class HARaftServer {
     return CALL_ID_COUNTER.getAndIncrement() & Long.MAX_VALUE;
   }
 
+  private final MasterNode localNode;
   private final InetSocketAddress ratisAddr;
   private final String rpcEndpoint;
   private final RaftServer server;
@@ -89,7 +91,8 @@ public class HARaftServer {
   private long roleCheckIntervalMs;
   private final ReentrantReadWriteLock roleCheckLock = new ReentrantReadWriteLock();
   private Optional<RaftProtos.RaftPeerRole> cachedPeerRole = Optional.empty();
-  private Optional<String> cachedLeaderPeerRpcEndpoint = Optional.empty();
+  private Optional<LeaderPeerEndpoints> cachedLeaderPeerRpcEndpoints = Optional.empty();
+
   private final CelebornConf conf;
   private long workerTimeoutDeadline;
   private long appTimeoutDeadline;
@@ -99,7 +102,7 @@ public class HARaftServer {
    *
    * @param conf configuration
    * @param localRaftPeerId raft peer id of this Ratis server
-   * @param ratisAddr address of the ratis server
+   * @param localNode local node of this Ratis server
    * @param raftPeers peer nodes in the raft ring
    * @throws IOException
    */
@@ -107,13 +110,13 @@ public class HARaftServer {
       MetaHandler metaHandler,
       CelebornConf conf,
       RaftPeerId localRaftPeerId,
-      InetSocketAddress ratisAddr,
-      String rpcEndpoint,
+      MasterNode localNode,
       List<RaftPeer> raftPeers)
       throws IOException {
     this.metaHandler = metaHandler;
-    this.ratisAddr = ratisAddr;
-    this.rpcEndpoint = rpcEndpoint;
+    this.localNode = localNode;
+    this.ratisAddr = localNode.ratisAddr();
+    this.rpcEndpoint = localNode.rpcEndpoint();
     this.raftPeerId = localRaftPeerId;
     this.raftGroup = RaftGroup.valueOf(RAFT_GROUP_ID, raftPeers);
     this.masterStateMachine = getStateMachine();
@@ -192,8 +195,8 @@ public class HARaftServer {
           // Add other nodes belonging to the same service to the Ratis ring
           raftPeers.add(raftPeer);
         });
-    return new HARaftServer(
-        metaHandler, conf, localRaftPeerId, ratisAddr, localNode.rpcEndpoint(), raftPeers);
+
+    return new HARaftServer(metaHandler, conf, localRaftPeerId, localNode, raftPeers);
   }
 
   public ResourceResponse submitRequest(ResourceProtos.ResourceRequest request)
@@ -421,12 +424,12 @@ public class HARaftServer {
   /**
    * Get the suggested leader peer id.
    *
-   * @return RaftPeerId of the suggested leader node.
+   * @return RaftPeerId of the suggested leader node - Optional<LeaderPeerEndpoints>
    */
-  public Optional<String> getCachedLeaderPeerRpcEndpoint() {
+  public Optional<LeaderPeerEndpoints> getCachedLeaderPeerRpcEndpoint() {
     this.roleCheckLock.readLock().lock();
     try {
-      return cachedLeaderPeerRpcEndpoint;
+      return cachedLeaderPeerRpcEndpoints;
     } finally {
       this.roleCheckLock.readLock().unlock();
     }
@@ -440,18 +443,20 @@ public class HARaftServer {
       GroupInfoReply groupInfo = getGroupInfo();
       RaftProtos.RoleInfoProto roleInfoProto = groupInfo.getRoleInfoProto();
       RaftProtos.RaftPeerRole thisNodeRole = roleInfoProto.getRole();
-
+      Tuple2<String, String> leaderPeerRpcEndpoint = null;
       if (thisNodeRole.equals(RaftProtos.RaftPeerRole.LEADER)) {
-        setServerRole(thisNodeRole, getRpcEndpoint());
+        // Current Node always uses original rpcEndpoint/internalRpcEndpoint, as if something wrong
+        // they would never return to client.
+        setServerRole(thisNodeRole, Tuple2.apply(this.rpcEndpoint, this.rpcEndpoint));
       } else if (thisNodeRole.equals(RaftProtos.RaftPeerRole.FOLLOWER)) {
         ByteString leaderNodeId = roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getId();
         // There may be a chance, here we get leaderNodeId as null. For
         // example, in 3 node Ratis, if 2 nodes are down, there will
         // be no leader.
-        String leaderPeerRpcEndpoint = null;
         if (leaderNodeId != null && !leaderNodeId.isEmpty()) {
-          leaderPeerRpcEndpoint =
+          String clientAddress =
               roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getClientAddress();
+          leaderPeerRpcEndpoint = Utils.addressToIpHostAddressPair(clientAddress);
         }
 
         setServerRole(thisNodeRole, leaderPeerRpcEndpoint);
@@ -470,7 +475,8 @@ public class HARaftServer {
   }
 
   /** Set the current server role and the leader peer rpc endpoint. */
-  private void setServerRole(RaftProtos.RaftPeerRole currentRole, String leaderPeerRpcEndpoint) {
+  private void setServerRole(
+      RaftProtos.RaftPeerRole currentRole, Tuple2<String, String> leaderPeerRpcEndpoint) {
     this.roleCheckLock.writeLock().lock();
     try {
       boolean leaderChanged = false;
@@ -490,7 +496,12 @@ public class HARaftServer {
       }
 
       this.cachedPeerRole = Optional.ofNullable(currentRole);
-      this.cachedLeaderPeerRpcEndpoint = Optional.ofNullable(leaderPeerRpcEndpoint);
+      if (null != leaderPeerRpcEndpoint) {
+        this.cachedLeaderPeerRpcEndpoints =
+            Optional.of(new LeaderPeerEndpoints(leaderPeerRpcEndpoint));
+      } else {
+        this.cachedLeaderPeerRpcEndpoints = Optional.empty();
+      }
     } finally {
       this.roleCheckLock.writeLock().unlock();
     }
@@ -542,5 +553,14 @@ public class HARaftServer {
 
   public long getAppTimeoutDeadline() {
     return appTimeoutDeadline;
+  }
+
+  public static class LeaderPeerEndpoints {
+    // the rpcEndpoints Tuple2 (ip:port, host:port)
+    public final Tuple2<String, String> rpcEndpoints;
+
+    public LeaderPeerEndpoints(Tuple2<String, String> rpcEndpoints) {
+      this.rpcEndpoints = rpcEndpoints;
+    }
   }
 }

@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Optional;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.ratis.protocol.Message;
@@ -34,27 +35,30 @@ import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 public class HAHelper {
 
   public static boolean checkShouldProcess(
-      RpcCallContext context, AbstractMetaManager masterStatusSystem) {
+      RpcCallContext context, AbstractMetaManager masterStatusSystem, boolean bindPreferIp) {
     HARaftServer ratisServer = getRatisServer(masterStatusSystem);
     if (ratisServer != null) {
       if (ratisServer.isLeader()) {
         return true;
       }
-      sendFailure(context, ratisServer, null);
+      sendFailure(context, ratisServer, null, bindPreferIp);
       return false;
     }
     return true;
   }
 
   public static void sendFailure(
-      RpcCallContext context, HARaftServer ratisServer, Throwable cause) {
+      RpcCallContext context, HARaftServer ratisServer, Throwable cause, boolean bindPreferIp) {
     if (context != null) {
       if (ratisServer != null) {
-        if (ratisServer.getCachedLeaderPeerRpcEndpoint().isPresent()) {
+        Optional<HARaftServer.LeaderPeerEndpoints> leaderPeer =
+            ratisServer.getCachedLeaderPeerRpcEndpoint();
+        if (leaderPeer.isPresent()) {
           context.sendFailure(
               new MasterNotLeaderException(
                   ratisServer.getRpcEndpoint(),
-                  ratisServer.getCachedLeaderPeerRpcEndpoint().get(),
+                  leaderPeer.get().rpcEndpoints,
+                  bindPreferIp,
                   cause));
         } else {
           context.sendFailure(

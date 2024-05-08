@@ -39,6 +39,8 @@ case class MasterNode(
 
   def rpcEndpoint: String = rpcHost + ":" + rpcPort
 
+  def rpcIpEndpoint: String = rpcAddr.getAddress.getHostAddress + ":" + rpcPort
+
   lazy val ratisAddr = MasterNode.createSocketAddr(ratisHost, ratisPort)
 
   lazy val rpcAddr = MasterNode.createSocketAddr(rpcHost, rpcPort)

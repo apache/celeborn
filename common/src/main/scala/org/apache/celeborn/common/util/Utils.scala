@@ -427,6 +427,27 @@ object Utils extends Logging {
     }
   }
 
+  private def getIpHostAddressPair(host: String): (String, String) = {
+    try {
+      val inetAddress = InetAddress.getByName(host)
+      val hostAddress = inetAddress.getHostAddress
+      if (host.equals(hostAddress)) {
+        (hostAddress, inetAddress.getCanonicalHostName)
+      } else {
+        (hostAddress, host)
+      }
+    } catch {
+      case _: Throwable => (host, host) // return original input
+    }
+  }
+
+  // Convert address (ip:port or host:port) to (ip:port, host:port) pair
+  def addressToIpHostAddressPair(address: String): (String, String) = {
+    val (host, port) = Utils.parseHostPort(address)
+    val (_ip, _host) = Utils.getIpHostAddressPair(host)
+    (_ip + ":" + port, _host + ":" + port)
+  }
+
   def checkHostPort(hostPort: String): Unit = {
     if (hostPort != null && hostPort.split(":").length > 2) {
       assert(

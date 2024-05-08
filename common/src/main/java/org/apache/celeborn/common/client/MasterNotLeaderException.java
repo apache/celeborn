@@ -21,6 +21,8 @@ import java.io.IOException;
 
 import javax.annotation.Nullable;
 
+import scala.Tuple2;
+
 import org.apache.commons.lang3.StringUtils;
 
 public class MasterNotLeaderException extends IOException {
@@ -33,18 +35,26 @@ public class MasterNotLeaderException extends IOException {
 
   public MasterNotLeaderException(
       String currentPeer, String suggestedLeaderPeer, @Nullable Throwable cause) {
+    this(currentPeer, Tuple2.apply(suggestedLeaderPeer, suggestedLeaderPeer), false, cause);
+  }
+
+  public MasterNotLeaderException(
+      String currentPeer,
+      Tuple2<String, String> suggestedLeaderPeer,
+      boolean bindPreferIp,
+      @Nullable Throwable cause) {
     super(
         String.format(
             "Master:%s is not the leader.%s%s",
             currentPeer,
-            currentPeer.equals(suggestedLeaderPeer)
+            currentPeer.equals(suggestedLeaderPeer._1)
                 ? StringUtils.EMPTY
                 : String.format(" Suggested leader is Master:%s.", suggestedLeaderPeer),
             cause == null
                 ? StringUtils.EMPTY
                 : String.format(" Exception:%s.", cause.getMessage())),
         cause);
-    this.leaderPeer = suggestedLeaderPeer;
+    this.leaderPeer = bindPreferIp ? suggestedLeaderPeer._1 : suggestedLeaderPeer._2;
   }
 
   public String getSuggestedLeaderAddress() {

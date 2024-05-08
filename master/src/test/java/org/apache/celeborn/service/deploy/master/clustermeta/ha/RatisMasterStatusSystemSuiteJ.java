@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+import scala.Tuple2;
+
 import org.junit.*;
 import org.mockito.Mockito;
 
@@ -154,10 +156,35 @@ public class RatisMasterStatusSystemSuiteJ {
   }
 
   @Test
-  public void testLeaderAvaiable() {
+  public void testLeaderAvailable() {
     boolean hasLeader =
         RATISSERVER1.isLeader() || RATISSERVER2.isLeader() || RATISSERVER3.isLeader();
     Assert.assertTrue(hasLeader);
+
+    // Check if the rpc endpoint of the leader is as expected.
+
+    HARaftServer leader =
+        RATISSERVER1.isLeader()
+            ? RATISSERVER1
+            : (RATISSERVER2.isLeader() ? RATISSERVER2 : RATISSERVER3);
+    // one of them must be the follower given the three servers we have
+    HARaftServer follower = RATISSERVER1.isLeader() ? RATISSERVER2 : RATISSERVER1;
+
+    // This is expected to be false, but as a side effect, updates getCachedLeaderPeerRpcEndpoint
+    boolean isFollowerCurrentLeader = follower.isLeader();
+    Assert.assertFalse(isFollowerCurrentLeader);
+
+    Optional<HARaftServer.LeaderPeerEndpoints> cachedLeaderPeerRpcEndpoint =
+        follower.getCachedLeaderPeerRpcEndpoint();
+
+    Assert.assertTrue(cachedLeaderPeerRpcEndpoint.isPresent());
+
+    Tuple2<String, String> rpcEndpointsPair = cachedLeaderPeerRpcEndpoint.get().rpcEndpoints;
+
+    // rpc endpoint may use custom host name then this ut need check ever ip/host
+    Assert.assertTrue(
+        leader.getRpcEndpoint().equals(rpcEndpointsPair._1)
+            || leader.getRpcEndpoint().equals(rpcEndpointsPair._2));
   }
 
   private static final String HOSTNAME1 = "host1";
