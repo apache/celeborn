@@ -183,7 +183,7 @@ public class RatisMasterStatusSystemSuiteJ {
   }
 
   @Test
-  public void testLeaderAvaiable() {
+  public void testLeaderAvailable() {
     boolean hasLeader =
         RATISSERVER1.isLeader() || RATISSERVER2.isLeader() || RATISSERVER3.isLeader();
     Assert.assertTrue(hasLeader);
@@ -201,12 +201,22 @@ public class RatisMasterStatusSystemSuiteJ {
     boolean isFollowerCurrentLeader = follower.isLeader();
     Assert.assertFalse(isFollowerCurrentLeader);
 
-    Optional<Tuple2<String, String>> cachedLeaderPeerRpcEndpoint =
+    Optional<HARaftServer.LeaderPeerEndpoints> cachedLeaderPeerRpcEndpoint =
         follower.getCachedLeaderPeerRpcEndpoint();
 
     Assert.assertTrue(cachedLeaderPeerRpcEndpoint.isPresent());
-    Assert.assertEquals(leader.getRpcEndpoint(), cachedLeaderPeerRpcEndpoint.get()._1());
-    Assert.assertEquals(leader.getInternalRpcEndpoint(), cachedLeaderPeerRpcEndpoint.get()._2());
+
+    Tuple2<String, String> rpcEndpointsPair = cachedLeaderPeerRpcEndpoint.get().rpcEndpoints;
+    Tuple2<String, String> rpcInternalEndpointsPair =
+        cachedLeaderPeerRpcEndpoint.get().rpcInternalEndpoints;
+
+    // rpc endpoint may use custom host name then this ut need check ever ip/host
+    Assert.assertTrue(
+        leader.getRpcEndpoint().equals(rpcEndpointsPair._1)
+            || leader.getRpcEndpoint().equals(rpcEndpointsPair._2));
+    Assert.assertTrue(
+        leader.getInternalRpcEndpoint().equals(rpcInternalEndpointsPair._1)
+            || leader.getRpcEndpoint().equals(rpcInternalEndpointsPair._2));
   }
 
   private static final String HOSTNAME1 = "host1";

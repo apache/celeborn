@@ -21,6 +21,8 @@ import java.io.IOException;
 
 import javax.annotation.Nullable;
 
+import scala.Tuple2;
+
 import org.apache.commons.lang3.StringUtils;
 
 public class MasterNotLeaderException extends IOException {
@@ -34,19 +36,25 @@ public class MasterNotLeaderException extends IOException {
 
   public MasterNotLeaderException(
       String currentPeer, String suggestedLeaderPeer, @Nullable Throwable cause) {
-    this(currentPeer, suggestedLeaderPeer, suggestedLeaderPeer, cause);
+    this(
+        currentPeer,
+        Tuple2.apply(suggestedLeaderPeer, suggestedLeaderPeer),
+        Tuple2.apply(suggestedLeaderPeer, suggestedLeaderPeer),
+        false,
+        cause);
   }
 
   public MasterNotLeaderException(
       String currentPeer,
-      String suggestedLeaderPeer,
-      String suggestedInternalLeaderPeer,
+      Tuple2<String, String> suggestedLeaderPeer,
+      Tuple2<String, String> suggestedInternalLeaderPeer,
+      boolean bindPreferIp,
       @Nullable Throwable cause) {
     super(
         String.format(
             "Master:%s is not the leader.%s%s",
             currentPeer,
-            currentPeer.equals(suggestedLeaderPeer)
+            currentPeer.equals(suggestedLeaderPeer._1)
                 ? StringUtils.EMPTY
                 : String.format(
                     " Suggested leader is Master:%s (%s).",
@@ -55,8 +63,9 @@ public class MasterNotLeaderException extends IOException {
                 ? StringUtils.EMPTY
                 : String.format(" Exception:%s.", cause.getMessage())),
         cause);
-    this.leaderPeer = suggestedLeaderPeer;
-    this.internalLeaderPeer = suggestedInternalLeaderPeer;
+    this.leaderPeer = bindPreferIp ? suggestedLeaderPeer._1 : suggestedLeaderPeer._2;
+    this.internalLeaderPeer =
+        bindPreferIp ? suggestedInternalLeaderPeer._1 : suggestedInternalLeaderPeer._2;
   }
 
   public String getSuggestedLeaderAddress() {
