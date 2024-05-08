@@ -593,10 +593,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             partitionType match {
               case PartitionType.MAP =>
                 if (response.getStatus == StatusCode.SUCCESS.getValue) {
-                  val partitionLocations =
-                    response.getPartitionLocationsList.asScala.filter(
-                      _.getId == context.partitionId).map(r =>
-                      PbSerDeUtils.fromPbPartitionLocation(r)).toArray
+                  val partitionLocations = PbSerDeUtils.fromPbPackedPartitionLocationsPair(
+                    response.getPackedPartitionLocationsPair)
+                    ._1.asScala.filter(_.getId == context.partitionId).toArray
                   processMapTaskReply(
                     shuffleId,
                     context.context,
@@ -1566,7 +1565,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     } catch {
       case e: Exception =>
         logError(s"AskSync RegisterShuffle for $shuffleKey failed.", e)
-        RequestSlotsResponse(StatusCode.REQUEST_FAILED, new WorkerResource())
+        RequestSlotsResponse(StatusCode.REQUEST_FAILED, new WorkerResource(), message.packed)
     }
   }
 

@@ -282,8 +282,7 @@ object ControlMessages extends Logging {
       status: StatusCode,
       fileGroup: util.Map[Integer, util.Set[PartitionLocation]],
       attempts: Array[Int],
-      partitionIds: util.Set[Integer] = Collections.emptySet[Integer](),
-      packed: Boolean = false)
+      partitionIds: util.Set[Integer] = Collections.emptySet[Integer]())
     extends MasterMessage
 
   object WorkerExclude {
@@ -664,20 +663,15 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP, payload)
 
-    case GetReducerFileGroupResponse(status, fileGroup, attempts, partitionIds, packed) =>
+    case GetReducerFileGroupResponse(status, fileGroup, attempts, partitionIds) =>
       val builder = PbGetReducerFileGroupResponse
         .newBuilder()
         .setStatus(status.getValue)
       builder.putAllFileGroups(
         fileGroup.asScala.map { case (partitionId, fileGroup) =>
           val pbFileGroupBuilder = PbFileGroup.newBuilder()
-          if (packed) {
-            pbFileGroupBuilder.setPartitionLocationsPair(
-              PbSerDeUtils.toPbPackedPartitionLocationsPair(fileGroup.asScala.toList))
-          } else {
-            pbFileGroupBuilder.addAllLocations(fileGroup.asScala.map(PbSerDeUtils
-              .toPbPartitionLocation).toList.asJava)
-          }
+          pbFileGroupBuilder.setPartitionLocationsPair(
+            PbSerDeUtils.toPbPackedPartitionLocationsPair(fileGroup.asScala.toList))
           (partitionId, pbFileGroupBuilder.build())
         }.asJava)
       builder.addAllAttempts(attempts.map(Integer.valueOf).toIterable.asJava)
@@ -1062,13 +1056,8 @@ object ControlMessages extends Logging {
           case (partitionId, fileGroup) =>
             (
               partitionId,
-              if (fileGroup.getLocationsList.isEmpty) {
-                PbSerDeUtils.fromPbPackedPartitionLocationsPair(
-                  fileGroup.getPartitionLocationsPair)._1.asScala.toSet.asJava
-              } else {
-                fileGroup.getLocationsList.asScala.map(
-                  PbSerDeUtils.fromPbPartitionLocation).toSet.asJava
-              })
+              PbSerDeUtils.fromPbPackedPartitionLocationsPair(
+                fileGroup.getPartitionLocationsPair)._1.asScala.toSet.asJava)
         }.asJava
 
         val attempts = pbGetReducerFileGroupResponse.getAttemptsList.asScala.map(_.toInt).toArray
