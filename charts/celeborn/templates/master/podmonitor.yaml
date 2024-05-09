@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-{{ if .Values.podMonitor.enable }}
+{{- if .Values.podMonitor.enable }}
 {{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/PodMonitor" -}}
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
@@ -37,26 +37,5 @@ spec:
     matchLabels:
       {{- include "celeborn.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/role: master
----
-apiVersion: monitoring.coreos.com/v1
-kind: PodMonitor
-metadata:
-  name: {{ .Release.Name }}-worker-podmonitor
-  labels:
-    {{- include "celeborn.labels" . | nindent 4 }}
-spec:
-  podMetricsEndpoints:
-    - interval: {{ .Values.podMonitor.podMetricsEndpoint.interval }}
-      port: {{ .Values.podMonitor.podMetricsEndpoint.portName | quote }}
-      scheme: {{ .Values.podMonitor.podMetricsEndpoint.scheme }}
-      path: /metrics/prometheus
-  jobLabel: celeborn-worker-podmonitor
-  namespaceSelector:
-    matchNames:
-      - {{ .Release.Namespace }}
-  selector:
-    matchLabels:
-      {{- include "celeborn.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/role: worker
 {{- end }}
 {{- end }}
