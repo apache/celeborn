@@ -206,18 +206,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     String sortedFilePath = Utils.getSortedFilePath(fileInfo.getFilePath());
     String indexFilePath = Utils.getIndexFilePath(fileInfo.getFilePath());
+    boolean fileSorting = true;
     synchronized (sorting) {
       if (sorted.contains(fileId)) {
-        return resolve(
-            shuffleKey,
-            fileId,
-            userIdentifier,
-            sortedFilePath,
-            indexFilePath,
-            startMapIndex,
-            endMapIndex);
-      }
-      if (!sorting.contains(fileId)) {
+        fileSorting = false;
+      } else if (!sorting.contains(fileId)) {
         try {
           FileSorter fileSorter = new FileSorter(fileInfo, fileId, shuffleKey);
           sorting.add(fileId);
@@ -235,25 +228,29 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
     }
 
-    long sortStartTime = System.currentTimeMillis();
-    while (!sorted.contains(fileId)) {
-      if (sorting.contains(fileId)) {
-        try {
-          Thread.sleep(50);
-          if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
-            logger.error("Sorting file {} timeout after {}ms", fileId, sortTimeout);
+    if (fileSorting) {
+      long sortStartTime = System.currentTimeMillis();
+      while (!sorted.contains(fileId)) {
+        if (sorting.contains(fileId)) {
+          try {
+            Thread.sleep(50);
+            if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
+              logger.error("Sorting file {} timeout after {}ms", fileId, sortTimeout);
+              throw new IOException(
+                  "Sort file " + fileInfo.getFilePath() + " timeout after " + sortTimeout);
+            }
+          } catch (InterruptedException e) {
+            logger.error(
+                "Sorter scheduler thread is interrupted means worker is shutting down.", e);
             throw new IOException(
-                "Sort file " + fileInfo.getFilePath() + " timeout after " + sortTimeout);
+                "Sorter scheduler thread is interrupted means worker is shutting down.", e);
           }
-        } catch (InterruptedException e) {
-          logger.error("Sorter scheduler thread is interrupted means worker is shutting down.", e);
+        } else {
+          logger.debug(
+              "Sorting shuffle file for {} {} failed.", shuffleKey, fileInfo.getFilePath());
           throw new IOException(
-              "Sorter scheduler thread is interrupted means worker is shutting down.", e);
+              "Sorting shuffle file for " + shuffleKey + " " + fileInfo.getFilePath() + " failed.");
         }
-      } else {
-        logger.debug("Sorting shuffle file for {} {} failed.", shuffleKey, fileInfo.getFilePath());
-        throw new IOException(
-            "Sorting shuffle file for " + shuffleKey + " " + fileInfo.getFilePath() + " failed.");
       }
     }
 
