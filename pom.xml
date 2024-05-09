@@ -1188,6 +1188,18 @@
             </exclusion>
             <exclusion>
               <groupId>org.apache.hadoop</groupId>
+              <artifactId>hadoop-mapreduce-client-app</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hadoop</groupId>
+              <artifactId>hadoop-mapreduce-client-core</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hadoop</groupId>
+              <artifactId>hadoop-mapreduce-client-jobclient</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hadoop</groupId>
               <artifactId>hadoop-yarn-client</artifactId>
             </exclusion>
             <exclusion>
