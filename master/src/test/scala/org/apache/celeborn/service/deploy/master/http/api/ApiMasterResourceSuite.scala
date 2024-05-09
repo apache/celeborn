@@ -17,7 +17,8 @@
 
 package org.apache.celeborn.service.deploy.master.http.api
 
-import javax.ws.rs.core.MediaType
+import javax.ws.rs.client.Entity
+import javax.ws.rs.core.{Form, MediaType}
 
 import com.google.common.io.Files
 
@@ -90,20 +91,27 @@ class ApiMasterResourceSuite extends ApiBaseResourceSuite {
     assert(200 == response.getStatus)
   }
 
-  test("sendWorkerEvent") {
-    val response = webTarget.path("sendWorkerEvent")
-      .request(MediaType.TEXT_PLAIN)
-      .post(null)
-    assert(200 == response.getStatus)
-  }
-
   test("workerEventInfo") {
     val response = webTarget.path("workerEventInfo").request(MediaType.TEXT_PLAIN).get()
     assert(200 == response.getStatus)
   }
 
   test("exclude") {
-    val response = webTarget.path("exclude").request(MediaType.TEXT_PLAIN).post(null)
+    val form = new Form
+    form.param("add", "worker1-ip:9095:9096:9097:9098")
+    form.param("remove", "worker2-ip:9095:9096:9097:9098")
+    val response = webTarget.path("exclude").request(MediaType.TEXT_PLAIN)
+      .post(Entity.entity(form, MediaType.APPLICATION_FORM_URLENCODED_TYPE))
+    assert(200 == response.getStatus)
+  }
+
+  test("sendWorkerEvent") {
+    val form = new Form
+    form.param("type", "Decommission")
+    form.param("workers", "worker1-ip:9095:9096:9097:9098,worker2-ip:9095:9096:9097:9098")
+    val response =
+      webTarget.path("sendWorkerEvent").request(MediaType.TEXT_PLAIN)
+        .post(Entity.entity(form, MediaType.APPLICATION_FORM_URLENCODED_TYPE))
     assert(200 == response.getStatus)
   }
 }

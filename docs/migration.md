@@ -40,6 +40,10 @@ license: |
 
 - Since 0.5.0, Celeborn deprecate `celeborn.client.spark.shuffle.forceFallback.enabled`. Please use `celeborn.client.spark.shuffle.fallback.policy` instead.
 
+- Since 0.5.0, Celeborn master REST API `/exclude` uses POST method and the parameters `add` and `remove` use form parameters instead.
+
+- Since 0.5.0, Celeborn worker REST API `/exit` uses POST method and the parameter `type` uses form parameter instead.
+
 ## Upgrading from 0.4.0 to 0.4.1
 
 - Since 0.4.1, Celeborn master adds a limit to the estimated partition size used for computing worker slots. 
