@@ -634,18 +634,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         return
       case StatusCode.SLOT_NOT_AVAILABLE =>
         logInfo(s"OfferSlots for $shuffleId failed!")
-        replyRegisterShuffle(RegisterShuffleResponse(
-          StatusCode.SLOT_NOT_AVAILABLE,
-          Array.empty))
+        replyRegisterShuffle(RegisterShuffleResponse(StatusCode.SLOT_NOT_AVAILABLE, Array.empty))
         return
       case StatusCode.SUCCESS =>
         logInfo(s"OfferSlots for $shuffleId Success!Slots Info: ${res.workerResource}")
       case StatusCode.WORKER_EXCLUDED =>
         logInfo(s"OfferSlots for $shuffleId failed due to all workers be excluded!")
-        replyRegisterShuffle(
-          RegisterShuffleResponse(
-            StatusCode.WORKER_EXCLUDED,
-            Array.empty))
+        replyRegisterShuffle(RegisterShuffleResponse(StatusCode.WORKER_EXCLUDED, Array.empty))
         return
       case _ => // won't happen
         throw new UnsupportedOperationException()
@@ -678,9 +673,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     // If reserve slots failed, clear allocated resources, reply ReserveSlotFailed and return.
     if (!reserveSlotsSuccess) {
       logError(s"reserve buffer for $shuffleId failed, reply to all.")
-      replyRegisterShuffle(RegisterShuffleResponse(
-        StatusCode.RESERVE_SLOTS_FAILED,
-        Array.empty))
+      replyRegisterShuffle(RegisterShuffleResponse(StatusCode.RESERVE_SLOTS_FAILED, Array.empty))
     } else {
       if (log.isDebugEnabled()) {
         logDebug(s"ReserveSlots for $shuffleId success with details:$slots!")

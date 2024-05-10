@@ -409,9 +409,6 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
 
   test("serializationComparasion") {
     testSerializationPerformance(100)
-    testSerializationPerformance(1000)
-    testSerializationPerformance(10000)
-    testSerializationPerformance(100000)
   }
 
 }

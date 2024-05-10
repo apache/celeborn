@@ -301,9 +301,7 @@ class ReducePartitionCommitHandler(
     }
   }
 
-  override def handleGetReducerFileGroup(
-      context: RpcCallContext,
-      shuffleId: Int): Unit = {
+  override def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
     // Quick return for ended stage, avoid occupy sync lock.
     if (isStageEnd(shuffleId)) {
       replyGetReducerFileGroup(context, shuffleId)
