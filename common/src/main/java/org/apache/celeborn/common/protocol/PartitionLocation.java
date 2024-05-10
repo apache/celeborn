@@ -281,12 +281,13 @@ public class PartitionLocation implements Serializable {
         && host.equals(o.host)
         && rpcPort == o.rpcPort
         && pushPort == o.pushPort
-        && fetchPort == o.fetchPort;
+        && fetchPort == o.fetchPort
+        && mode.mode == o.mode.mode;
   }
 
   @Override
   public int hashCode() {
-    return (id + epoch + host + rpcPort + pushPort + fetchPort + mode.mode()).hashCode();
+    return (id + epoch + host + rpcPort + pushPort + fetchPort + mode.mode).hashCode();
   }
 
   @Override
