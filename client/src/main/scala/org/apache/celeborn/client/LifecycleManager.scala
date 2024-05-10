@@ -585,15 +585,16 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           case _ => Option.empty
         }
 
+        val locations = PbSerDeUtils.fromPbPackedPartitionLocationsPair(
+          response.getPackedPartitionLocationsPair)._1.asScala
+
         registeringShuffleRequest.asScala
           .get(shuffleId)
           .foreach(_.asScala.foreach(context => {
             partitionType match {
               case PartitionType.MAP =>
                 if (response.getStatus == StatusCode.SUCCESS.getValue) {
-                  val partitionLocations = PbSerDeUtils.fromPbPackedPartitionLocationsPair(
-                    response.getPackedPartitionLocationsPair)
-                    ._1.asScala.filter(_.getId == context.partitionId).toArray
+                  val partitionLocations = locations.filter(_.getId == context.partitionId).toArray
                   processMapTaskReply(
                     shuffleId,
                     context.context,
