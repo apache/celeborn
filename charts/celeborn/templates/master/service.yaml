@@ -22,13 +22,13 @@ metadata:
   labels:
     {{- include "celeborn.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.service.type }}
+  selector:
+    {{- include "celeborn.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/role: master
   ports:
   - port: {{ .Values.service.port }}
     targetPort: {{ .Values.service.port }}
     protocol: TCP
     name: celeborn-master
+  type: {{ .Values.service.type }}
   clusterIP: None
-  selector:
-    {{- include "celeborn.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/role: master

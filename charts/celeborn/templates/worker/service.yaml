@@ -22,8 +22,8 @@ metadata:
   labels:
     {{- include "celeborn.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.service.type }}
-  clusterIP: None
   selector:
     {{- include "celeborn.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/role: worker
+  type: {{ .Values.service.type }}
+  clusterIP: None

@@ -23,75 +23,55 @@ metadata:
     {{- include "celeborn.labels" . | nindent 4 }}
     app.kubernetes.io/role: master
 spec:
+  serviceName: {{ include "celeborn.masterServiceName" . }}
   selector:
     matchLabels:
       {{- include "celeborn.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/role: master
-  serviceName: {{ include "celeborn.masterServiceName" . }}
-  replicas: {{ .Values.masterReplicas }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       labels:
         {{- include "celeborn.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/role: master
         app.kubernetes.io/tag: {{ .Values.image.tag | quote }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
-      {{- with .Values.affinity.master }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- if or .Values.priorityClass.master.name .Values.priorityClass.master.create }}
-      priorityClassName: {{ include "celeborn.masterPriorityClassName" . }}
-      {{- end }}
-      {{- with .Values.securityContext }}
-      securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      hostNetwork: {{ .Values.hostNetwork | default false }}
-      dnsPolicy: {{ .Values.dnsPolicy | default "ClusterFirst" }}
       initContainers:
       {{- $dirs := .Values.volumes.master }}
       {{- if eq "hostPath" (index $dirs 0).type }}
       - name: chown-{{ $.Release.Name }}-master-volume
         image: alpine:3.18
-        imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
-        securityContext:
-          runAsUser: 0
+        {{- with .Values.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
         command:
         - chown
         - {{ .Values.securityContext.runAsUser | default 10006 }}:{{ .Values.securityContext.runAsGroup | default 10006 }}
         - {{ (index $dirs 0).mountPath }}
-        resources:
-          {{- toYaml .Values.resources.master | nindent 10 }}
         volumeMounts:
         - name: {{ $.Release.Name }}-master-vol-0
           mountPath: {{ (index $dirs 0).mountPath }}
+        {{- with .Values.resources.master }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        securityContext:
+          runAsUser: 0
       {{- end }}
       containers:
       - name: {{ .Chart.Name }}
         image: {{ include "celeborn.image" . }}
-        imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent"}}
+        {{- with .Values.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
         command:
-        - "/usr/bin/tini"
-        - "--"
-        - "/bin/sh"
-        - '-c'
+        - /usr/bin/tini
+        - --
+        - /bin/sh
+        - -c
         {{- $namespace := .Release.Namespace }}
         - "until {{ range until (.Values.masterReplicas |int) }}nslookup {{ include "celeborn.masterStatefulSetName" $ }}-{{ . }}.{{ include "celeborn.masterServiceName" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && {{ end }}true; do echo waiting for master; sleep 2; done && exec /opt/celeborn/sbin/start-master.sh"
         resources:
@@ -101,25 +81,32 @@ spec:
         - containerPort: {{ get .Values.celeborn "celeborn.master.http.port" | default 9098 }}
           name: metrics
           protocol: TCP
-        volumeMounts:
-        - mountPath: /opt/celeborn/conf
-          name: {{ include "celeborn.fullname" . }}-volume
-          readOnly: true
-        {{- range $index, $volume := .Values.volumes.master }}
-        - name: {{ $.Release.Name }}-master-vol-{{ $index }}
-          mountPath: {{ .mountPath }}
-        {{- end }}
         env:
         {{- range $key, $val := .Values.environments }}
         - name: {{ $key }}
           value: {{ $val | quote }}
         {{- end}}
-      terminationGracePeriodSeconds: 30
-      volumes:
-      - configMap:
-          name: {{ include "celeborn.configMapName" . }}
-        name: {{ include "celeborn.fullname" . }}-volume
+        volumeMounts:
+        - name: {{ include "celeborn.fullname" . }}-volume
+          mountPath: /opt/celeborn/conf
+          readOnly: true
         {{- range $index, $volume := .Values.volumes.master }}
+        - name: {{ $.Release.Name }}-master-vol-{{ $index }}
+          mountPath: {{ .mountPath }}
+        {{- end }}
+        {{- with .Values.resources.master }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: {{ include "celeborn.fullname" . }}-volume
+        configMap:
+          name: {{ include "celeborn.configMapName" . }}
+      {{- range $index, $volume := .Values.volumes.master }}
       - name: {{ $.Release.Name }}-master-vol-{{ $index }}
       {{- if eq "emptyDir" $volume.type }}
         emptyDir:
@@ -132,3 +119,30 @@ spec:
       {{ fail "For now Celeborn Helm only support emptyDir or hostPath volume types" }}
       {{- end }}
       {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity.master }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if or .Values.priorityClass.master.name .Values.priorityClass.master.create }}
+      priorityClassName: {{ include "celeborn.masterPriorityClassName" . }}
+      {{- end }}
+      {{- with .Values.dnsPolicy }}
+      dnsPolicy: {{ . }}
+      {{- end }}
+      {{- with .Values.hostNetwork }}
+      hostNetwork: {{ . }}
+      {{- end }}
+      {{- with .Values.securityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 30
+  replicas: {{ .Values.masterReplicas }}
