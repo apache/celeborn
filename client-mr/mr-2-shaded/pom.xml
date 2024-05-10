@@ -24,9 +24,9 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-client-mr-shaded_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-client-mr-2-shaded_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Shaded Client for MapReduce 3</name>
+  <name>Celeborn Shaded Client for MapReduce 2</name>
 
   <dependencies>
     <dependency>

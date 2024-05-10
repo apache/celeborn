@@ -54,6 +54,7 @@ jobs:
           - 'flink-1.18'
           - 'flink-1.19'
           - 'mr'
+          - 'mr-2'
     steps:
     - uses: actions/checkout@v2
     - name: Setup JDK 8
@@ -86,6 +87,7 @@ jobs:
           - 'flink-1.18'
           - 'flink-1.19'
           - 'mr'
+          - 'mr-2'
     steps:
     - uses: actions/checkout@v2
     - name: Setup JDK 8

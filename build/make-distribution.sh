@@ -197,14 +197,18 @@ function build_spark_client {
 }
 
 function build_flink_client {
-  FLINK_VERSION=$("$MVN" help:evaluate -Dexpression=flink.version $@ 2>/dev/null \
-      | grep -v "INFO" \
-      | grep -v "WARNING" \
-      | tail -n 1)
+  VERSION=$("$MVN" help:evaluate -Dexpression=project.version $@ 2>/dev/null \
+        | grep -v "INFO" \
+        | grep -v "WARNING" \
+        | tail -n 1)
   SCALA_VERSION=$("$MVN" help:evaluate -Dexpression=scala.binary.version $@ 2>/dev/null \
-      | grep -v "INFO" \
-      | grep -v "WARNING" \
-      | tail -n 1)
+        | grep -v "INFO" \
+        | grep -v "WARNING" \
+        | tail -n 1)
+  FLINK_VERSION=$("$MVN" help:evaluate -Dexpression=flink.version $@ 2>/dev/null \
+        | grep -v "INFO" \
+        | grep -v "WARNING" \
+        | tail -n 1)
   FLINK_BINARY_VERSION=${FLINK_VERSION%.*}
 
   # Store the command as an array because $MVN variable might have spaces in it.
@@ -218,27 +222,36 @@ function build_flink_client {
 
   "${BUILD_COMMAND[@]}"
 
-  ## flink spark client jars
+  ## Copy flink client jars
   mkdir -p "$DIST_DIR/flink"
   cp "$PROJECT_DIR"/client-flink/flink-$FLINK_BINARY_VERSION-shaded/target/celeborn-client-flink-${FLINK_BINARY_VERSION}-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/flink/"
 }
 
 function build_mr_client {
   VERSION=$("$MVN" help:evaluate -Dexpression=project.version $@ 2>/dev/null \
-        | grep -v "INFO" \
-        | grep -v "WARNING" \
-        | tail -n 1)
-  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl :celeborn-client-mr-shaded_${SCALA_VERSION} -am $@)
+      | grep -v "INFO" \
+      | grep -v "WARNING" \
+      | tail -n 1)
+  SCALA_VERSION=$("$MVN" help:evaluate -Dexpression=scala.binary.version $@ 2>/dev/null \
+      | grep -v "INFO" \
+      | grep -v "WARNING" \
+      | tail -n 1)
+  MR_PROFILE=$(echo "$1" | awk -F '-P' '{print $2}')
 
-    # Actually build the jar
-    echo -e "\nBuilding with..."
-    echo -e "\$ ${BUILD_COMMAND[@]}\n"
+  # Store the command as an array because $MVN variable might have spaces in it.
+  # Normal quoting tricks don't work.
+  # See: http://mywiki.wooledge.org/BashFAQ/050
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl :celeborn-client-$MR_PROFILE-shaded_$SCALA_VERSION -am $@)
 
-    "${BUILD_COMMAND[@]}"
+  # Actually build the jar
+  echo -e "\nBuilding with..."
+  echo -e "\$ ${BUILD_COMMAND[@]}\n"
 
-    ## flink spark client jars
-    mkdir -p "$DIST_DIR/mr"
-    cp "$PROJECT_DIR"/client-mr/mr-shaded/target/celeborn-client-mr-shaded_${SCALA_VERSION}-$VERSION.jar "$DIST_DIR/mr/"
+  "${BUILD_COMMAND[@]}"
+
+  ## Copy mr client jars
+  mkdir -p "$DIST_DIR/mr"
+  cp "$PROJECT_DIR"/client-mr/$MR_PROFILE-shaded/target/celeborn-client-$MR_PROFILE-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/mr/"
 }
 
 
@@ -313,6 +326,7 @@ if [ "$SBT_ENABLED" == "true" ]; then
     sbt_build_client -Pflink-1.18
     sbt_build_client -Pflink-1.19
     sbt_build_client -Pmr
+    sbt_build_client -Pmr-2
   else
     echo "build client with $@"
     ENGINE_COUNT=0
@@ -346,6 +360,7 @@ else
     build_flink_client -Pflink-1.18
     build_flink_client -Pflink-1.19
     build_mr_client -Pmr
+    build_mr_client -Pmr-2
   else
     ## build release package on demand
     build_service $@

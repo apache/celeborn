@@ -69,6 +69,7 @@
 
     <!-- use hadoop-3 as default  -->
     <hadoop.version>3.3.6</hadoop.version>
+    <mr.hadoop.version>3.3.6</mr.hadoop.version>
 
     <codahale.metrics.version>3.2.6</codahale.metrics.version>
     <commons-lang3.version>3.12.0</commons-lang3.version>
@@ -1604,6 +1605,17 @@
         <module>client-mr/mr-shaded</module>
         <module>tests/mr-it</module>
       </modules>
+    </profile>
+
+    <profile>
+      <id>mr-2</id>
+      <modules>
+        <module>client-mr/mr-2</module>
+        <module>client-mr/mr-2-shaded</module>
+      </modules>
+      <properties>
+        <mr.hadoop.version>2.10.2</mr.hadoop.version>
+      </properties>
     </profile>
 
     <profile>

@@ -198,6 +198,10 @@ case "$MODULE" in
     MVN_MODULES="client-mr/mr"
     SBT_PROJECT="celeborn-client-mr"
     ;;
+   "mr-2")
+    MVN_MODULES="client-mr/mr-2"
+    SBT_PROJECT="celeborn-client-mr-2"
+    ;;
   *)
     MODULE="server"
     MVN_MODULES="worker,master"

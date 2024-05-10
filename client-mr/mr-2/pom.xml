@@ -24,9 +24,9 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-client-mr_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-client-mr-2_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Client for MapReduce 3</name>
+  <name>Celeborn Client for MapReduce 2</name>
 
   <dependencies>
     <dependency>
@@ -41,12 +41,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-client-api</artifactId>
-      <version>${mr.hadoop.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-client-runtime</artifactId>
+      <artifactId>hadoop-client</artifactId>
       <version>${mr.hadoop.version}</version>
     </dependency>
     <dependency>

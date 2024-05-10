@@ -39,7 +39,6 @@ object Dependencies {
 
   // Dependent library versions
   val apLoaderVersion = "3.0-8"
-  val commonsCompressVersion = "1.4.1"
   val commonsCryptoVersion = "1.0.0"
   val commonsIoVersion = "2.13.0"
   val commonsLoggingVersion = "1.1.3"
@@ -82,7 +81,6 @@ object Dependencies {
   val protoVersion = "3.21.7"
 
   val apLoader = "me.bechberger" % "ap-loader-all" % apLoaderVersion
-  val commonsCompress = "org.apache.commons" % "commons-compress" % commonsCompressVersion
   val commonsCrypto = "org.apache.commons" % "commons-crypto" % commonsCryptoVersion excludeAll(
     ExclusionRule("net.java.dev.jna", "jna"))
   val commonsIo = "commons-io" % "commons-io" % commonsIoVersion
@@ -98,14 +96,6 @@ object Dependencies {
     ExclusionRule("com.google.j2objc", "j2objc-annotations"))
   val hadoopClientApi = "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion
   val hadoopClientRuntime = "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion
-  val hadoopMapreduceClientApp = "org.apache.hadoop" % "hadoop-mapreduce-client-app" % hadoopVersion excludeAll(
-    ExclusionRule("io.netty", "netty-transport-native-epoll"),
-    ExclusionRule("com.google.guava", "guava"),
-    ExclusionRule("com.fasterxml.jackson.core", "jackson-annotations"),
-    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"),
-    ExclusionRule("jline", "jline"),
-    ExclusionRule("log4j", "log4j"),
-    ExclusionRule("org.slf4j", "slf4j-log4j12"))
   val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion
   val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion
   val ioDropwizardMetricsJvm = "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion
@@ -380,7 +370,8 @@ object Utils {
   val MR_VERSION = profiles.filter(_.startsWith("mr")).headOption
 
   lazy val mrClientProjects = MR_VERSION match {
-    case Some("mr") => Some(MRClientProjects)
+    case Some("mr") => Some(MR3ClientProjects)
+    case Some("mr-2") => Some(MR2ClientProjects)
     case _ => None
   }
 
@@ -1082,20 +1073,32 @@ trait FlinkClientProjects {
 ////////////////////////////////////////////////////////
 //                   MR Client                        //
 ////////////////////////////////////////////////////////
-object MRClientProjects {
+object MR3ClientProjects extends MRClientProjects {
+
+  val mrProfile = "mr"
+  val mrHadoopVersion = "3.3.6"
+  val commonsCompressVersion = "1.4.1"
 
   def mrClient: Project = {
-    Project("celeborn-client-mr", file("client-mr/mr"))
+    Project(s"celeborn-client-$mrProfile", file(s"client-mr/$mrProfile"))
       .dependsOn(CelebornCommon.common, CelebornClient.client)
       .settings(
         commonSettings,
         libraryDependencies ++= Seq(
-          Dependencies.hadoopClientApi,
-          Dependencies.hadoopClientRuntime,
-          Dependencies.hadoopMapreduceClientApp
+          "org.apache.hadoop" % "hadoop-client-api" % mrHadoopVersion,
+          "org.apache.hadoop" % "hadoop-client-runtime" % mrHadoopVersion,
+          hadoopMapreduceClientApp excludeAll(
+            ExclusionRule("com.google.guava", "guava"),
+            ExclusionRule("io.netty", "netty-transport-native-epoll"),
+            ExclusionRule("log4j", "log4j"),
+            ExclusionRule("org.slf4j", "slf4j-log4j12"))
         ) ++ commonUnitTestDependencies,
-        dependencyOverrides += Dependencies.commonsCompress
+        dependencyOverrides += commonsCompress
       )
+  }
+
+  def modules: Seq[Project] = {
+    Seq(mrClient, mrIt, mrGroup, mrClientShade)
   }
 
   def mrIt: Project = {
@@ -1117,8 +1120,95 @@ object MRClientProjects {
       )
   }
 
+  // for test only, don't use this group for any other projects
+  lazy val mrGroup = (project withId "celeborn-mr-group").aggregate(mrClient, mrIt)
+
+  val copyDeps = TaskKey[Unit]("copyDeps", "Copies needed dependencies to the build directory.")
+  val destPath = (Compile / crossTarget) {
+    _ / "mapreduce_lib"
+  }
+
+  lazy val copyDepsSettings = Seq(
+    copyDeps := {
+      val dest = destPath.value
+      if (!dest.isDirectory() && !dest.mkdirs()) {
+        throw new java.io.IOException("Failed to create jars directory.")
+      }
+
+      (Compile / dependencyClasspath).value.map(_.data)
+        .filter { jar => jar.isFile() }
+        .foreach { jar =>
+          val destJar = new File(dest, jar.getName())
+          if (destJar.isFile()) {
+            destJar.delete()
+          }
+          Files.copy(jar.toPath(), destJar.toPath())
+        }
+    },
+    (Test / compile) := {
+      copyDeps.value
+      (Test / compile).value
+    }
+  )
+}
+
+object MR2ClientProjects extends MRClientProjects {
+
+  val mrProfile = "mr-2"
+  val mrHadoopVersion = "2.10.2"
+  val commonsCompressVersion = "1.21"
+
+  def mrClient: Project = {
+    Project(s"celeborn-client-$mrProfile", file(s"client-mr/$mrProfile"))
+      .dependsOn(CelebornCommon.common, CelebornClient.client)
+      .settings(
+        commonSettings,
+        libraryDependencies ++= Seq(
+          "org.apache.hadoop" % "hadoop-client" % mrHadoopVersion excludeAll(
+            ExclusionRule("com.jcraft", "jsch"),
+            ExclusionRule("com.google.errorprone", "error_prone_annotations"),
+            ExclusionRule("com.google.guava", "listenablefuture"),
+            ExclusionRule("com.google.j2objc", "j2objc-annotations"),
+            ExclusionRule("jline", "jline"),
+            ExclusionRule("net.java.dev.jets3t", "jets3t"),
+            ExclusionRule("org.checkerframework", "checker-qual"),
+            ExclusionRule("org.mortbay.jetty", "servlet-api")),
+          hadoopMapreduceClientApp excludeAll(
+            ExclusionRule("com.google.guava", "guava"),
+            ExclusionRule("com.jcraft", "jsch"),
+            ExclusionRule("jline", "jline"),
+            ExclusionRule("net.java.dev.jets3t", "jets3t"),
+            ExclusionRule("org.mortbay.jetty", "servlet-api")
+          )
+        ) ++ commonUnitTestDependencies,
+        dependencyOverrides ++= Seq(
+          commonsCompress,
+          "commons-codec" % "commons-codec" % "1.4",
+          "ch.qos.reload4j" % "reload4j" % "1.2.18.3"
+        )
+      )
+  }
+
+  def modules: Seq[Project] = {
+    Seq(mrClient, mrClientShade)
+  }
+}
+
+trait MRClientProjects {
+
+  val mrProfile: String
+  val mrHadoopVersion: String
+  val commonsCompressVersion: String
+
+  def mrClient: Project
+
+  def modules: Seq[Project]
+
+  lazy val hadoopMapreduceClientApp = "org.apache.hadoop" % "hadoop-mapreduce-client-app" % mrHadoopVersion
+  lazy val commonsCompress = "org.apache.commons" % "commons-compress" % commonsCompressVersion
+
   def mrClientShade: Project = {
-    Project("celeborn-client-mr-shaded", file("client-mr/mr-shaded"))
+    Project(s"celeborn-client-$mrProfile-shaded", file(s"client-mr/$mrProfile-shaded"))
       .dependsOn(mrClient)
       .disablePlugins(AddMetaInfLicenseFiles)
       .settings(
@@ -1168,7 +1258,7 @@ object MRClientProjects {
           // For netty-3.x.y.Final.jar
           case m if m.startsWith("META-INF/license/") => MergeStrategy.discard
           // the LicenseAndNoticeMergeStrategy always picks the license/notice file from the current project
-          case m @ ("META-INF/LICENSE" | "META-INF/NOTICE") => CustomMergeStrategy("LicenseAndNoticeMergeStrategy") { conflicts =>
+          case m@("META-INF/LICENSE" | "META-INF/NOTICE") => CustomMergeStrategy("LicenseAndNoticeMergeStrategy") { conflicts =>
             val entry = conflicts.head
             val projectLicenseFile = (Compile / resourceDirectory).value / entry.target
             val stream = () => new java.io.BufferedInputStream(new java.io.FileInputStream(projectLicenseFile))
@@ -1190,39 +1280,4 @@ object MRClientProjects {
         pomPostProcess := removeDependenciesTransformer
       )
   }
-
-  def modules: Seq[Project] = {
-    Seq(mrClient, mrIt, mrGroup, mrClientShade)
-  }
-
-  // for test only, don't use this group for any other projects
-  lazy val mrGroup = (project withId "celeborn-mr-group").aggregate(mrClient, mrIt)
-
-  val copyDeps = TaskKey[Unit]("copyDeps", "Copies needed dependencies to the build directory.")
-  val destPath = (Compile / crossTarget) {
-    _ / "mapreduce_lib"
-  }
-
-  lazy val copyDepsSettings = Seq(
-    copyDeps := {
-      val dest = destPath.value
-      if (!dest.isDirectory() && !dest.mkdirs()) {
-        throw new java.io.IOException("Failed to create jars directory.")
-      }
-
-      (Compile / dependencyClasspath).value.map(_.data)
-        .filter { jar => jar.isFile() }
-        .foreach { jar =>
-          val destJar = new File(dest, jar.getName())
-          if (destJar.isFile()) {
-            destJar.delete()
-          }
-          Files.copy(jar.toPath(), destJar.toPath())
-        }
-    },
-    (Test / compile) := {
-      copyDeps.value
-      (Test / compile).value
-    }
-  )
 }

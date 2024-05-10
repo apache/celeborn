@@ -121,6 +121,9 @@ upload_nexus_staging() {
 
   echo "Deploying celeborn-client-mr-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pmr "clean;celeborn-client-mr-shaded/publishSigned"
+
+  echo "Deploying celeborn-client-mr-2-shaded_2.12"
+  ${PROJECT_DIR}/build/sbt -Pmr-2 "clean;celeborn-client-mr-2-shaded/publishSigned"
 }
 
 finalize_svn() {
