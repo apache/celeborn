@@ -78,57 +78,57 @@ spec:
         - {{ .Values.securityContext.runAsUser | default 10006 }}:{{ .Values.securityContext.runAsGroup | default 10006 }}
         - {{ (index $dirs 0).mountPath }}
         resources:
-          {{- toYaml .Values.resources.master | nindent 12 }}
+          {{- toYaml .Values.resources.master | nindent 10 }}
         volumeMounts:
-          - name: {{ $.Release.Name }}-master-vol-0
-            mountPath: {{ (index $dirs 0).mountPath }}
+        - name: {{ $.Release.Name }}-master-vol-0
+          mountPath: {{ (index $dirs 0).mountPath }}
       {{- end }}
       containers:
       - name: {{ .Chart.Name }}
         image: {{ include "celeborn.image" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent"}}
         command:
-          - "/usr/bin/tini"
-          - "--"
-          - "/bin/sh"
-          - '-c'
-          {{- $namespace := .Release.Namespace }}
-          - "until {{ range until (.Values.masterReplicas |int) }}nslookup {{ include "celeborn.masterStatefulSetName" $ }}-{{ . }}.{{ include "celeborn.masterServiceName" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && {{ end }}true; do echo waiting for master; sleep 2; done && exec /opt/celeborn/sbin/start-master.sh"
+        - "/usr/bin/tini"
+        - "--"
+        - "/bin/sh"
+        - '-c'
+        {{- $namespace := .Release.Namespace }}
+        - "until {{ range until (.Values.masterReplicas |int) }}nslookup {{ include "celeborn.masterStatefulSetName" $ }}-{{ . }}.{{ include "celeborn.masterServiceName" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && {{ end }}true; do echo waiting for master; sleep 2; done && exec /opt/celeborn/sbin/start-master.sh"
         resources:
-          {{- toYaml .Values.resources.master | nindent 12 }}
+          {{- toYaml .Values.resources.master | nindent 10 }}
         ports:
-          - containerPort: {{ .Values.service.port }}
-          - containerPort: {{ get .Values.celeborn "celeborn.master.http.port" | default 9098 }}
-            name: metrics
-            protocol: TCP
+        - containerPort: {{ .Values.service.port }}
+        - containerPort: {{ get .Values.celeborn "celeborn.master.http.port" | default 9098 }}
+          name: metrics
+          protocol: TCP
         volumeMounts:
-          - mountPath: /opt/celeborn/conf
-            name: {{ include "celeborn.fullname" . }}-volume
-            readOnly: true
-          {{- range $index, $volume := .Values.volumes.master }}
-          - name: {{ $.Release.Name }}-master-vol-{{ $index }}
-            mountPath: {{ .mountPath }}
-          {{- end }}
-        env:
-          {{- range $key, $val := .Values.environments }}
-          - name: {{ $key }}
-            value: {{ $val | quote }}
-          {{- end}}
-      terminationGracePeriodSeconds: 30
-      volumes:
-        - configMap:
-            name: {{ include "celeborn.configMapName" . }}
+        - mountPath: /opt/celeborn/conf
           name: {{ include "celeborn.fullname" . }}-volume
+          readOnly: true
         {{- range $index, $volume := .Values.volumes.master }}
         - name: {{ $.Release.Name }}-master-vol-{{ $index }}
-        {{- if eq "emptyDir" $volume.type }}
-          emptyDir:
-            sizeLimit: {{ $volume.capacity }}
-        {{- else if eq "hostPath" $volume.type }}
-          hostPath:
-            path: {{ $volume.hostPath | default $volume.mountPath }}/master
-            type: DirectoryOrCreate
-        {{- else }}
-        {{ fail "For now Celeborn Helm only support emptyDir or hostPath volume types" }}
+          mountPath: {{ .mountPath }}
         {{- end }}
-        {{- end }}
+        env:
+        {{- range $key, $val := .Values.environments }}
+        - name: {{ $key }}
+          value: {{ $val | quote }}
+        {{- end}}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          name: {{ include "celeborn.configMapName" . }}
+        name: {{ include "celeborn.fullname" . }}-volume
+        {{- range $index, $volume := .Values.volumes.master }}
+      - name: {{ $.Release.Name }}-master-vol-{{ $index }}
+      {{- if eq "emptyDir" $volume.type }}
+        emptyDir:
+          sizeLimit: {{ $volume.capacity }}
+      {{- else if eq "hostPath" $volume.type }}
+        hostPath:
+          path: {{ $volume.hostPath | default $volume.mountPath }}/master
+          type: DirectoryOrCreate
+      {{- else }}
+      {{ fail "For now Celeborn Helm only support emptyDir or hostPath volume types" }}
+      {{- end }}
+      {{- end }}

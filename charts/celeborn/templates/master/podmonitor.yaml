@@ -25,14 +25,14 @@ metadata:
     {{- include "celeborn.labels" . | nindent 4 }}
 spec:
   podMetricsEndpoints:
-    - interval: {{ .Values.podMonitor.podMetricsEndpoint.interval }}
-      port: {{ .Values.podMonitor.podMetricsEndpoint.portName | quote }}
-      scheme: {{ .Values.podMonitor.podMetricsEndpoint.scheme }}
-      path: /metrics/prometheus
+  - interval: {{ .Values.podMonitor.podMetricsEndpoint.interval }}
+    port: {{ .Values.podMonitor.podMetricsEndpoint.portName | quote }}
+    scheme: {{ .Values.podMonitor.podMetricsEndpoint.scheme }}
+    path: /metrics/prometheus
   jobLabel: celeborn-master-podmonitor
   namespaceSelector:
     matchNames:
-      - {{ .Release.Namespace }}
+    - {{ .Release.Namespace }}
   selector:
     matchLabels:
       {{- include "celeborn.selectorLabels" . | nindent 6 }}

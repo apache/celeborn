@@ -24,10 +24,10 @@ metadata:
 spec:
   type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.port }}
-      protocol: TCP
-      name: celeborn-master
+  - port: {{ .Values.service.port }}
+    targetPort: {{ .Values.service.port }}
+    protocol: TCP
+    name: celeborn-master
   clusterIP: None
   selector:
     {{- include "celeborn.selectorLabels" . | nindent 4 }}
