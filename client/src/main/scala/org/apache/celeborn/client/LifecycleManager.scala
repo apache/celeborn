@@ -136,9 +136,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     locations.asScala.foreach(location => map.put(location.getId, location))
   }
 
-  case class RegisterCallContext(
-      context: RpcCallContext,
-      partitionId: Int = -1) {
+  case class RegisterCallContext(context: RpcCallContext, partitionId: Int = -1) {
     def reply(response: PbRegisterShuffleResponse) = {
       context.reply(response)
     }

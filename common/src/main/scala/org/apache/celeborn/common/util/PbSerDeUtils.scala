@@ -534,7 +534,7 @@ object PbSerDeUtils {
     packedLocationsBuilder.addAllWorkerIdsSet(workerIdList)
     packedLocationsBuilder.addAllMountPointsSet(mountPointsList)
 
-    val locationIndexes = allLocations.map(_.hashCode()).zipWithIndex.toMap
+    val locationIndexes = allLocations.zipWithIndex.toMap
 
     for (location <- allLocations) {
       toPackedPartitionLocation(
@@ -544,7 +544,7 @@ object PbSerDeUtils {
         location)
       if (location.getPeer != null) {
         packedLocationPairsBuilder.addPeerIndexes(
-          locationIndexes(location.getPeer.hashCode()))
+          locationIndexes(location.getPeer))
       } else {
         packedLocationPairsBuilder.addPeerIndexes(Integer.MAX_VALUE)
       }

@@ -286,7 +286,7 @@ public class PartitionLocation implements Serializable {
 
   @Override
   public int hashCode() {
-    return (id + epoch + host + rpcPort + pushPort + fetchPort).hashCode();
+    return (id + epoch + host + rpcPort + pushPort + fetchPort + mode.mode()).hashCode();
   }
 
   @Override

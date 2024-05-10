@@ -269,9 +269,7 @@ class ReducePartitionCommitHandler(
     }
   }
 
-  private def replyGetReducerFileGroup(
-      context: RpcCallContext,
-      shuffleId: Int): Unit = {
+  private def replyGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
     if (isStageDataLost(shuffleId)) {
       context.reply(
         GetReducerFileGroupResponse(
