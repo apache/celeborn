@@ -453,7 +453,7 @@ private[celeborn] class Master(
       // keep it for compatible reason
       context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
 
-    case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _) =>
+    case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       checkAuth(context, applicationId)
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
@@ -805,7 +805,8 @@ private[celeborn] class Master(
 
     if (numAvailableWorkers == 0) {
       logError(s"Offer slots for $shuffleKey failed due to all workers are excluded!")
-      context.reply(RequestSlotsResponse(StatusCode.WORKER_EXCLUDED, new WorkerResource()))
+      context.reply(
+        RequestSlotsResponse(StatusCode.WORKER_EXCLUDED, new WorkerResource(), requestSlots.packed))
     }
 
     val numWorkers = Math.min(
@@ -862,7 +863,10 @@ private[celeborn] class Master(
     // reply false if offer slots failed
     if (slots == null || slots.isEmpty) {
       logError(s"Offer slots for $numReducers reducers of $shuffleKey failed!")
-      context.reply(RequestSlotsResponse(StatusCode.SLOT_NOT_AVAILABLE, new WorkerResource()))
+      context.reply(RequestSlotsResponse(
+        StatusCode.SLOT_NOT_AVAILABLE,
+        new WorkerResource(),
+        requestSlots.packed))
       return
     }
 
@@ -893,7 +897,10 @@ private[celeborn] class Master(
     if (authEnabled) {
       pushApplicationMetaToWorkers(requestSlots, slots)
     }
-    context.reply(RequestSlotsResponse(StatusCode.SUCCESS, slots.asInstanceOf[WorkerResource]))
+    context.reply(RequestSlotsResponse(
+      StatusCode.SUCCESS,
+      slots.asInstanceOf[WorkerResource],
+      requestSlots.packed))
   }
 
   def pushApplicationMetaToWorkers(

@@ -173,6 +173,7 @@ message PbWorkerInfo {
 
 message PbFileGroup {
   repeated PbPartitionLocation locations = 1;
+  PbPackedPartitionLocationsPair partitionLocationsPair = 2;
 }
 
 message PbRegisterWorker {
@@ -257,6 +258,7 @@ message PbRegisterMapPartitionTask {
 message PbRegisterShuffleResponse {
   int32 status = 1;
   repeated PbPartitionLocation partitionLocations = 2;
+  PbPackedPartitionLocationsPair packedPartitionLocationsPair = 3;
 }
 
 message PbRequestSlots {
@@ -272,6 +274,7 @@ message PbRequestSlots {
   int32 maxWorkers = 10;
   int32 availableStorageTypes = 11;
   repeated PbWorkerInfo excludedWorkerSet = 12;
+  bool packed = 13;
 }
 
 message PbSlotInfo {
@@ -296,6 +299,7 @@ message PbReleaseSlotsResponse {
 message PbRequestSlotsResponse {
   int32 status = 1;
   map<string, PbWorkerResource> workerResource = 2;
+  map<string, PbPackedWorkerResource> packedWorkerResource = 3;
 }
 
 message PbRevivePartitionInfo {
@@ -451,6 +455,7 @@ message PbReserveSlots {
   int64 pushDataTimeout = 10;
   bool partitionSplitEnabled = 11;
   int32 availableStorageTypes = 12;
+  PbPackedPartitionLocationsPair partitionLocationsPair = 13;
 }
 
 message PbReserveSlotsResponse {
@@ -757,4 +762,30 @@ message PbApplicationMeta {
 
 message PbApplicationMetaRequest {
   string appId = 1;
+}
+
+message PbPackedPartitionLocations {
+  repeated int32 ids = 1;
+  repeated int32 epoches = 2;
+  repeated int32 workerIds = 3;
+  repeated string workerIdsSet = 4;
+  repeated bytes mapIdBitMap = 5;
+  repeated int32 types = 6;
+  repeated int32 mountPoints = 7;
+  repeated string mountPointsSet = 8;
+  repeated bool finalResult = 9 ;
+  repeated string filePaths = 10;
+  repeated int32 availableStorageTypes = 11;
+  repeated int32 modes = 12;
+}
+
+message PbPackedPartitionLocationsPair {
+  PbPackedPartitionLocations locations = 1;
+  repeated int32 peerIndexes = 2;
+  int32 inputLocationSize = 3;
+}
+
+message PbPackedWorkerResource {
+  PbPackedPartitionLocationsPair locationPairs = 1;
+  string networkLocation = 2;
 }

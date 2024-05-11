@@ -21,14 +21,17 @@ import java.io.File
 import java.util
 
 import scala.collection.JavaConverters._
+import scala.util.Random
+
+import org.apache.hadoop.shaded.org.apache.commons.lang3.RandomStringUtils
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, FileInfo, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
-import org.apache.celeborn.common.protocol.{PartitionLocation, StorageInfo}
-import org.apache.celeborn.common.protocol.PartitionLocation
+import org.apache.celeborn.common.protocol.{PartitionLocation, PbPackedWorkerResource, PbWorkerResource, StorageInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
+import org.apache.celeborn.common.util.PbSerDeUtils.{fromPbPackedPartitionLocationsPair, toPbPackedPartitionLocationsPair}
 
 class PbSerDeUtilsTest extends CelebornFunSuite {
 
@@ -290,4 +293,122 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
 
     assert(restoredApplicationMeta.equals(applicationMeta))
   }
+
+  test("testPackedPartitionLocationPairCase1") {
+    partitionLocation3.setPeer(partitionLocation2)
+    val pairPb = PbSerDeUtils.toPbPackedPartitionLocationsPair(
+      List(partitionLocation3, partitionLocation2))
+    val rePb = PbSerDeUtils.fromPbPackedPartitionLocationsPair(pairPb)
+
+    val loc1 = rePb._1.get(0)
+    val loc2 = rePb._2.get(0)
+
+    assert(partitionLocation3 == loc1)
+    assert(partitionLocation2 == loc2)
+  }
+
+  test("testPackedPartitionLocationPairCase2") {
+    val pairPb = PbSerDeUtils.toPbPackedPartitionLocationsPair(
+      List(partitionLocation3))
+    val rePb = PbSerDeUtils.fromPbPackedPartitionLocationsPair(pairPb)
+
+    val loc1 = rePb._1.get(0)
+
+    assert(partitionLocation3 == loc1)
+  }
+
+  private def testSerializationPerformance(scale: Int): Unit = {
+    val mountPoints = List(
+      "/mnt/disk1/celeborn/",
+      "/mnt/disk2/celeborn/",
+      "/mnt/disk3/celeborn/",
+      "/mnt/disk4/celeborn/",
+      "/mnt/disk5/celeborn/",
+      "/mnt/disk6/celeborn/",
+      "/mnt/disk7/celeborn/",
+      "/mnt/disk8/celeborn/")
+    val hosts = (0 to 50).map(f =>
+      (
+        s"host${f}",
+        Random.nextInt(65535),
+        Random.nextInt(65535),
+        Random.nextInt(65535),
+        Random.nextInt(65535))).toList
+    val (primaryLocations, replicaLocations) = (0 to scale).map(i => {
+      val host = hosts(Random.nextInt(50))
+      val mountPoint = mountPoints(Random.nextInt(8))
+      val primary = new PartitionLocation(
+        i,
+        0,
+        host._1,
+        host._2,
+        host._3,
+        host._4,
+        host._5,
+        PartitionLocation.Mode.PRIMARY,
+        null,
+        new StorageInfo(
+          StorageInfo.Type.HDD,
+          mountPoint,
+          false,
+          mountPoint + "/application/0/" + RandomStringUtils.randomNumeric(6),
+          StorageInfo.LOCAL_DISK_MASK),
+        null)
+
+      val rHost = hosts(Random.nextInt(50))
+      val rMountPoint = mountPoints(Random.nextInt(8))
+
+      val replicate = new PartitionLocation(
+        i,
+        0,
+        rHost._1,
+        rHost._2,
+        rHost._3,
+        rHost._4,
+        rHost._5,
+        PartitionLocation.Mode.REPLICA,
+        null,
+        new StorageInfo(
+          StorageInfo.Type.HDD,
+          rMountPoint,
+          false,
+          rMountPoint + "/application-xxxsdsada-1/0/" + RandomStringUtils.randomNumeric(6),
+          StorageInfo.LOCAL_DISK_MASK),
+        null)
+      primary.setPeer(replicate)
+      replicate.setPeer(primary)
+      (primary, replicate)
+    }).toList.unzip
+
+    val workerResourceSize = PbWorkerResource.newBuilder()
+      .addAllPrimaryPartitions(primaryLocations.map(PbSerDeUtils.toPbPartitionLocation).asJava)
+      .addAllReplicaPartitions(replicaLocations.map(PbSerDeUtils.toPbPartitionLocation).asJava)
+      .setNetworkLocation("location1")
+      .build().toByteArray.length
+
+    val pbPackedWorkerResource = PbPackedWorkerResource.newBuilder()
+      .setLocationPairs(toPbPackedPartitionLocationsPair(
+        primaryLocations ++ replicaLocations))
+      .setNetworkLocation("location1")
+      .build()
+    val packedWorkerResourceSize = pbPackedWorkerResource.toByteArray.length
+
+    val (locs1, locs2) = fromPbPackedPartitionLocationsPair(pbPackedWorkerResource.getLocationPairs)
+
+    assert(primaryLocations.size === locs1.size())
+    assert(replicaLocations.size === locs2.size())
+
+    assert(primaryLocations.zip(locs1.asScala).count(x => x._1 != x._2) == 0)
+    assert(replicaLocations.zip(locs2.asScala).count(x => x._1 != x._2) == 0)
+
+    assert(packedWorkerResourceSize < workerResourceSize)
+    log.info(s"Packed size : ${packedWorkerResourceSize} unpacked size :${workerResourceSize}")
+    log.info(
+      s"Reduced size : ${(workerResourceSize - packedWorkerResourceSize) / (workerResourceSize * 1.0f) * 100} %")
+  }
+
+  test("serializationComparasion") {
+    testSerializationPerformance(100)
+  }
+
 }

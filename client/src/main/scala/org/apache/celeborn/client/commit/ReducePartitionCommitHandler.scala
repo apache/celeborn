@@ -275,7 +275,8 @@ class ReducePartitionCommitHandler(
         GetReducerFileGroupResponse(
           StatusCode.SHUFFLE_DATA_LOST,
           JavaUtils.newConcurrentHashMap(),
-          Array.empty))
+          Array.empty,
+          new util.HashSet[Integer]()))
     } else {
       // LocalNettyRpcCallContext is for the UTs
       if (context.isInstanceOf[LocalNettyRpcCallContext]) {
