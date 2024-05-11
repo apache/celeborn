@@ -214,7 +214,6 @@ public class SparkShuffleManager implements ShuffleManager {
               "Unrecognized shuffle write mode!" + celebornConf.shuffleWriterMode());
         }
       } else {
-        sortShuffleIds.add(handle.shuffleId());
         return sortShuffleManager().getWriter(handle, mapId, context);
       }
     } catch (IOException e) {
