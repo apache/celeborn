@@ -18,7 +18,7 @@ limitations under the License.
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ .Release.Name }}-worker
+  name: {{ include "celeborn.workerStatefulSetName" . }}
   labels:
     {{- include "celeborn.labels" . | nindent 4 }}
     app.kubernetes.io/role: worker
@@ -57,7 +57,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if or .Values.priorityClass.worker.name .Values.priorityClass.worker.create }}
-      priorityClassName: {{ .Values.priorityClass.worker.name | default (printf "%s-worker-priority" (.Release.Name)) }}
+      priorityClassName: {{ include "celeborn.workerPriorityClassName" . }}
       {{- end }}
       {{- with .Values.securityContext }}
       securityContext:
@@ -89,7 +89,7 @@ spec:
       {{- end }}
       containers:
       - name: {{ .Chart.Name }}
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        image: {{ include "celeborn.image" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent"}}
         command:
           - "/usr/bin/tini"
@@ -97,7 +97,7 @@ spec:
           - "/bin/sh"
           - '-c'
           {{- $namespace := .Release.Namespace }}
-          - "until {{ range until (.Values.masterReplicas |int) }}nslookup {{ $.Release.Name }}-master-{{ . }}.{{ $.Release.Name }}-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && {{ end }}true; do echo waiting for master; sleep 2; done && exec /opt/celeborn/sbin/start-worker.sh"
+          - "until {{ range until (.Values.masterReplicas |int) }}nslookup {{ include "celeborn.masterStatefulSetName" $ }}-{{ . }}.{{ include "celeborn.masterServiceName" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && {{ end }}true; do echo waiting for master; sleep 2; done && exec /opt/celeborn/sbin/start-worker.sh"
         resources:
           {{- toYaml .Values.resources.worker | nindent 12 }}
         ports:
@@ -120,7 +120,7 @@ spec:
       terminationGracePeriodSeconds: 30
       volumes:
         - configMap:
-            name: {{ .Release.Name }}-conf
+            name: {{ include "celeborn.configMapName" . }}
           name: {{ include "celeborn.fullname" . }}-volume
         {{- range $index, $volume := .Values.volumes.worker }}
         - name: {{ $.Release.Name }}-worker-vol-{{ $index }}

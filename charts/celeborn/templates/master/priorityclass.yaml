@@ -19,7 +19,7 @@ limitations under the License.
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
-  name: {{ .Values.priorityClass.master.name | default (printf "%s-master-priority" (.Release.Name)) }}
+  name: {{ include "celeborn.masterPriorityClassName" . }}
   labels:
     {{- include "celeborn.labels" . | nindent 4 }}
 value: {{ .Values.priorityClass.master.value }}

@@ -20,7 +20,7 @@ limitations under the License.
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: {{ .Release.Name }}-worker-podmonitor
+  name: {{ include "celeborn.workerPodMonitorName" . }}
   labels:
     {{- include "celeborn.labels" . | nindent 4 }}
 spec:

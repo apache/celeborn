@@ -18,7 +18,7 @@ limitations under the License.
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ .Release.Name }}-master
+  name: {{ include "celeborn.masterStatefulSetName" . }}
   labels:
     {{- include "celeborn.labels" . | nindent 4 }}
     app.kubernetes.io/role: master
@@ -27,7 +27,7 @@ spec:
     matchLabels:
       {{- include "celeborn.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/role: master
-  serviceName: {{ .Release.Name }}-master-svc
+  serviceName: {{ include "celeborn.masterServiceName" . }}
   replicas: {{ .Values.masterReplicas }}
   template:
     metadata:
@@ -57,7 +57,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if or .Values.priorityClass.master.name .Values.priorityClass.master.create }}
-      priorityClassName: {{ .Values.priorityClass.master.name | default (printf "%s-master-priority" (.Release.Name)) }}
+      priorityClassName: {{ include "celeborn.masterPriorityClassName" . }}
       {{- end }}
       {{- with .Values.securityContext }}
       securityContext:
@@ -85,7 +85,7 @@ spec:
       {{- end }}
       containers:
       - name: {{ .Chart.Name }}
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        image: {{ include "celeborn.image" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent"}}
         command:
           - "/usr/bin/tini"
@@ -93,7 +93,7 @@ spec:
           - "/bin/sh"
           - '-c'
           {{- $namespace := .Release.Namespace }}
-          - "until {{ range until (.Values.masterReplicas |int) }}nslookup {{ $.Release.Name }}-master-{{ . }}.{{ $.Release.Name }}-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && {{ end }}true; do echo waiting for master; sleep 2; done && exec /opt/celeborn/sbin/start-master.sh"
+          - "until {{ range until (.Values.masterReplicas |int) }}nslookup {{ include "celeborn.masterStatefulSetName" $ }}-{{ . }}.{{ include "celeborn.masterServiceName" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && {{ end }}true; do echo waiting for master; sleep 2; done && exec /opt/celeborn/sbin/start-master.sh"
         resources:
           {{- toYaml .Values.resources.master | nindent 12 }}
         ports:
@@ -117,7 +117,7 @@ spec:
       terminationGracePeriodSeconds: 30
       volumes:
         - configMap:
-            name: {{ .Release.Name }}-conf
+            name: {{ include "celeborn.configMapName" . }}
           name: {{ include "celeborn.fullname" . }}-volume
         {{- range $index, $volume := .Values.volumes.master }}
         - name: {{ $.Release.Name }}-master-vol-{{ $index }}

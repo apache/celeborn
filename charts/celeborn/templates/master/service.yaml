@@ -18,7 +18,7 @@ limitations under the License.
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-master-svc
+  name: {{ include "celeborn.masterServiceName" . }}
   labels:
     {{- include "celeborn.labels" . | nindent 4 }}
 spec:
