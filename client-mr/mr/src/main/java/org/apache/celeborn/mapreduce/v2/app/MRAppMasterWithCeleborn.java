@@ -152,11 +152,13 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
               rmAppConf);
 
       // set this flag to avoid exit exception
-      Field field = MRAppMaster.class.getDeclaredField("mainStarted");
-      if (field != null) {
+      try {
+        Field field = MRAppMaster.class.getDeclaredField("mainStarted");
         field.setAccessible(true);
         field.setBoolean(null, true);
         field.setAccessible(false);
+      } catch (NoSuchFieldException e) {
+        // ignore it for compatibility
       }
 
       ShutdownHookManager.get()
