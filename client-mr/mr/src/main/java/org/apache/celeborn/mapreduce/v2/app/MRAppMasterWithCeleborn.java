@@ -18,6 +18,7 @@
 package org.apache.celeborn.mapreduce.v2.app;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -149,6 +150,13 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
               Integer.parseInt(nodeHttpPortString),
               appSubmitTime,
               rmAppConf);
+
+      // set this flag to avoid exit exception
+      Field field = MRAppMaster.class.getDeclaredField("mainStarted");
+      field.setAccessible(true);
+      field.setBoolean(null, true);
+      field.setAccessible(false);
+
       ShutdownHookManager.get()
           .addShutdownHook(
               () -> {
