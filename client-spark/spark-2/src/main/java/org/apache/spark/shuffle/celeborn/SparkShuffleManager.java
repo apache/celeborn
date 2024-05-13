@@ -137,7 +137,7 @@ public class SparkShuffleManager implements ShuffleManager {
 
   @Override
   public boolean unregisterShuffle(int appShuffleId) {
-    if (sortShuffleIds.contains(appShuffleId)) {
+    if (sortShuffleIds.remove(appShuffleId)) {
       return sortShuffleManager().unregisterShuffle(appShuffleId);
     }
     // For Spark driver side trigger unregister shuffle.
