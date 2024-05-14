@@ -72,6 +72,7 @@ object PbSerDeUtils {
       pbDiskInfo.getAvgFetchTime,
       pbDiskInfo.getUsedSlots)
       .setStatus(Utils.toDiskStatus(pbDiskInfo.getStatus))
+      .setTotalSpace(pbDiskInfo.getTotalSpace)
     diskInfo.setStorageType(StorageInfo.typesMap.get(pbDiskInfo.getStorageType))
     diskInfo
   }
@@ -85,6 +86,7 @@ object PbSerDeUtils {
       .setUsedSlots(diskInfo.activeSlots)
       .setStatus(diskInfo.status.getValue)
       .setStorageType(diskInfo.storageType.getValue)
+      .setTotalSpace(diskInfo.totalSpace)
       .build
 
   def fromPbFileInfo(pbFileInfo: PbFileInfo): DiskFileInfo =

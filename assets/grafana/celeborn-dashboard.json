@@ -254,6 +254,186 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
+          "description": "Celeborn total capacity(bytes).",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 0,
+            "y": 10
+          },
+          "id": 185,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "metrics_CelebornTotalBytes_Value",
+              "legendFormat": "${baseLegend}",
+              "refId": "A"
+            }
+          ],
+          "title": "metrics_CelebornTotalBytes_Value",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "description": "Celeborn total free capacity(bytes).",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 10
+          },
+          "id": 186,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "metrics_CelebornTotalFreeBytes_Value",
+              "legendFormat": "${baseLegend}",
+              "refId": "A"
+            }
+          ],
+          "title": "metrics_CelebornTotalFreeBytes_Value",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "description": "The count of running applications.",
           "fieldConfig": {
             "defaults": {
@@ -310,7 +490,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 10
+            "y": 19
           },
           "id": 95,
           "options": {
@@ -349,7 +529,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 19
+        "y": 1
       },
       "id": 119,
       "panels": [
@@ -1188,7 +1368,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 60
+        "y": 2
       },
       "id": 28,
       "panels": [
@@ -2200,7 +2380,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 109
+        "y": 3
       },
       "id": 134,
       "panels": [
@@ -3393,7 +3573,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 166
+        "y": 4
       },
       "id": 12,
       "panels": [
@@ -4222,7 +4402,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 207
+        "y": 5
       },
       "id": 10,
       "panels": [
@@ -4776,7 +4956,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 232
+        "y": 6
       },
       "id": 8,
       "panels": [
@@ -5798,7 +5978,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 281
+        "y": 7
       },
       "id": 50,
       "panels": [
@@ -6354,7 +6534,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 306
+        "y": 8
       },
       "id": 157,
       "panels": [
@@ -6647,7 +6827,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 323
+        "y": 9
       },
       "id": 137,
       "panels": [
@@ -8038,7 +8218,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 388
+        "y": 10
       },
       "id": 110,
       "panels": [
@@ -8234,7 +8414,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 397
+        "y": 11
       },
       "id": 123,
       "panels": [
@@ -8712,7 +8892,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 422
+        "y": 12
       },
       "id": 172,
       "panels": [
