@@ -19,41 +19,52 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# we provide a default celeborn image, you can also replace to your image
-# TODO rebuild celeborn official image
-image:
-  repository: aliyunemr/remote-shuffle-service
-  pullPolicy: Always
-  tag: 0.1.1-6badd20
+# -- String to override the default generated name
+nameOverride: ""
 
+# -- String to override the default generated fullname
+fullnameOverride: ""
+
+# Specifies the Celeborn image to use
+image:
+  # -- Image repository
+  repository: aliyunemr/remote-shuffle-service
+  # -- Image tag
+  tag: 0.1.1-6badd20
+  # -- Image pull policy
+  pullPolicy: Always
+
+# -- Image pull secrets for private image registry
 imagePullSecrets: []
 
-# master replicas should not less than 3
+# -- Specifies the number of Celeborn master replicas to deploy, master replicas should not less than 3
 masterReplicas: 3
-# worker replicas set on demand, should less than node number
+# -- Specifies the number of Celeborn worker replicas to deploy, should less than node number
 workerReplicas: 5
 
-hostNetwork: false
-dnsPolicy: ClusterFirst
+service:
+  # -- Specifies service type
+  type: ClusterIP
+  # -- Specifies service port
+  port: 9097
 
-securityContext:
-  runAsUser: 10006
-  runAsGroup: 10006
-  fsGroup: 10006
+cluster:
+  # -- Specifies Kubernetes cluster name
+  name: cluster
 
-# Current Celeborn support followings volume type:
-# - emptyDir
-# - hostPath
-# Note:
-# hostPath only works in hostPath type using to set `volumes hostPath path`
-# Celeborn Master will pick first volumes for store raft log
-# diskType only works in Celeborn Worker with hostPath type to manifest local disk type
+# Specifies Celeborn volumes.
+# Currently supported volume types are `emptyDir` and `hostPath`.
+# Note that `hostPath` only works in hostPath type using to set `volumes hostPath path`.
+# Celeborn Master will pick first volumes for store raft log.
+# `diskType` only works in Celeborn Worker with hostPath type to manifest local disk type.
 volumes:
+  # -- Specifies volumes for Celeborn master pods
   master:
     - mountPath: /mnt/celeborn_ratis
       hostPath: /mnt/celeborn_ratis
       type: hostPath
       capacity: 100Gi
+  # -- Specifies volumes for Celeborn worker pods
   worker:
     - mountPath: /mnt/disk1
       hostPath: /mnt/disk1
@@ -76,10 +87,11 @@ volumes:
       diskType: SSD
       capacity: 100Gi
 
-# celeborn configurations
+# -- Celeborn configurations
 celeborn:
   celeborn.master.ha.enabled: true
   celeborn.metrics.enabled: true
+  celeborn.metrics.prometheus.path: /metrics/prometheus
   celeborn.master.http.port: 9098
   celeborn.worker.http.port: 9096
   celeborn.worker.monitor.disk.enabled: false
@@ -95,6 +107,7 @@ celeborn:
   celeborn.application.heartbeat.timeout: 120s
   celeborn.worker.heartbeat.timeout: 120s
 
+# -- Celeborn environment variables
 environments:
   CELEBORN_MASTER_MEMORY: 2g
   CELEBORN_MASTER_JAVA_OPTS: "-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-master.out -Dio.netty.leakDetectionLevel=advanced"
@@ -104,59 +117,81 @@ environments:
   CELEBORN_NO_DAEMONIZE: 1
   TZ: "Asia/Shanghai"
 
-podMonitor:
-  enable: true
-  podMetricsEndpoint:
-    scheme: http
-    interval: 5s
-    portName: metrics
+# -- Specifies the DNS policy for Celeborn pods to use
+dnsPolicy: ClusterFirst
 
-service:
-  type: ClusterIP
-  port: 9097
+# -- Specifies whether to use the host's network namespace
+hostNetwork: false
 
-cluster:
-  name: cluster
+resources:
+  # -- Pod resources for Celeborn master pods
+  master: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  #master:
-  #  limits:
-  #    cpu: 100m
-  #    memory: 128Mi
-  #  requests:
-  #    cpu: 100m
-  #    memory: 128Mi
-  #worker:
-  #  limits:
-  #    cpu: 100m
-  #    memory: 128Mi
-  #  requests:
-  #    cpu: 100m
-  #    memory: 128Mi
+  # -- Pod resources for Celeborn worker pods
+  worker: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 
-# priorityClass used for Celeborn pods
+# -- Container security context
+securityContext:
+  # Specifies the user ID to run the entrypoint of the container process
+  runAsUser: 10006
+  # Specifies the group ID to run the entrypoint of the container process
+  runAsGroup: 10006
+  # Specifies the group ID to use when modifying ownership and permissions of the mounted volumes
+  fsGroup: 10006
+
 priorityClass:
+  # Priority class for Celeborn master pods
   master:
-    # Specifies whether a priorityClass should be created
+    # -- Specifies whether a new priority class for Celeborn master pods should be created
     create: false
-    # Specifies priorityClass name to be used (created if `create: true`)
-    name: ~
-    # half of system-cluster-critical by default
+    # -- Specifies the name of priority class for Celeborn master pods to be used (created if `create: true`), empty means `${Release.Name}-master-priority-class`
+    name: ""
+    # -- Specifies the integer value of this priority class, default is half of system-cluster-critical
     value: 1000000000
 
+  # Priority class for Celeborn worker pods
   worker:
+    # -- Specifies whether a new priority class for Celeborn worker pods should be created
     create: false
-    name: ~
-    # celeborn master minus 1000
+    # -- Specifies the name of priority class for Celeborn worker pods to be used (created if `create: true`), empty means `${Release.Name}-worker-priority-class`
+    name: ""
+    # -- Specifies the integer value of this priority class, default is Celeborn master value minus 1000
     value: 999999000
 
+# -- Pod annotations
 podAnnotations: {}
+# key1: value1
+# key2: value2
+
+# -- Pod node selector
+nodeSelector: {}
+# key1: value1
+# key2: value2
+
+# -- Pod tolerations
+tolerations: []
+# - key: key1
+#   operator: Equal
+#   value: value1
+#   effect: NoSchedule
+# - key: key2
+#   operator: Exists
+#   effect: NoSchedule
 
 affinity:
+  # -- Pod affinity for Celeborn master pods
   master:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -171,6 +206,7 @@ affinity:
                 values:
                   - master
           topologyKey: kubernetes.io/hostname
+  # -- Pod affinity for Celeborn worker pods
   worker:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -186,6 +222,14 @@ affinity:
                   - worker
           topologyKey: "kubernetes.io/hostname"
 
-tolerations: []
-
-nodeSelector: {}
+podMonitor:
+  # -- Specifies whether to enable creating pod monitors for Celeborn pods
+  enable: true
+  # -- Specifies pod metrics endpoint
+  podMetricsEndpoint:
+    # Specifies scheme
+    scheme: http
+    # Specifies scrape interval
+    interval: 5s
+    # Specifies port name
+    portName: metrics
