@@ -190,7 +190,7 @@ public class SparkShuffleManager implements ShuffleManager {
 
   @Override
   public boolean unregisterShuffle(int appShuffleId) {
-    if (sortShuffleIds.contains(appShuffleId)) {
+    if (sortShuffleIds.remove(appShuffleId)) {
       return sortShuffleManager().unregisterShuffle(appShuffleId);
     }
     // For Spark driver side trigger unregister shuffle.
@@ -293,7 +293,6 @@ public class SparkShuffleManager implements ShuffleManager {
               "Unrecognized shuffle write mode!" + celebornConf.shuffleWriterMode());
         }
       } else {
-        sortShuffleIds.add(handle.shuffleId());
         return sortShuffleManager().getWriter(handle, mapId, context, metrics);
       }
     } catch (IOException e) {
