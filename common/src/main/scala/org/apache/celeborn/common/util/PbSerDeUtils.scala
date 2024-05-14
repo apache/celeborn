@@ -411,7 +411,7 @@ object PbSerDeUtils {
       manuallyExcludedWorkers: java.util.Set[WorkerInfo],
       workerLostEvent: java.util.Set[WorkerInfo],
       appHeartbeatTime: java.util.Map[String, java.lang.Long],
-      workers: java.util.List[WorkerInfo],
+      workers: java.util.Set[WorkerInfo],
       partitionTotalWritten: java.lang.Long,
       partitionTotalFileCount: java.lang.Long,
       appDiskUsageMetricSnapshots: Array[AppDiskUsageSnapShot],
