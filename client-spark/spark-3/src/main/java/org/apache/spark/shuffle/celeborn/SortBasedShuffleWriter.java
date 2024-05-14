@@ -76,7 +76,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final SerializationStream serOutputStream;
 
   private final LongAdder[] mapStatusLengths;
-  private final long[] tmpRecords;
+  private long tmpRecordsWritten = 0;
 
   /**
    * Are we in the process of stopping? Because map tasks can call stop() with success = true and
@@ -132,7 +132,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     for (int i = 0; i < numPartitions; i++) {
       this.mapStatusLengths[i] = new LongAdder();
     }
-    tmpRecords = new long[numPartitions];
 
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
 
@@ -282,7 +281,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           }
         }
       }
-      tmpRecords[partitionId] += 1;
+      tmpRecordsWritten++;
     }
   }
 
@@ -331,7 +330,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           }
         }
       }
-      tmpRecords[partitionId] += 1;
+      tmpRecordsWritten++;
     }
   }
 
@@ -360,19 +359,11 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
     shuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
-
-    updateMapStatus();
+    writeMetrics.incRecordsWritten(tmpRecordsWritten);
 
     long waitStartTime = System.nanoTime();
     shuffleClient.mapperEnd(shuffleId, mapId, taskContext.attemptNumber(), numMappers);
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
-  }
-
-  private void updateMapStatus() {
-    for (int i = 0; i < tmpRecords.length; i++) {
-      writeMetrics.incRecordsWritten(tmpRecords[i]);
-      tmpRecords[i] = 0;
-    }
   }
 
   @Override

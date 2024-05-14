@@ -127,7 +127,7 @@ public class ColumnarHashBasedShuffleWriter<K, V, C> extends HashBasedShuffleWri
         }
         celebornBatchBuilders[partitionId].newBuilders();
       }
-      incRecordsWritten(partitionId);
+      tmpRecordsWritten++;
     }
   }
 
