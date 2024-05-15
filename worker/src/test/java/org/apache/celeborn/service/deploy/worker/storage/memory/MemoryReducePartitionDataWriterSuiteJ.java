@@ -124,7 +124,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
           }
 
           @Override
-          public FileInfo getRawFileInfo(String shuffleKey, String fileName, boolean read) {
+          public FileInfo getRawFileInfo(String shuffleKey, String fileName, long streamId) {
             return info;
           }
 

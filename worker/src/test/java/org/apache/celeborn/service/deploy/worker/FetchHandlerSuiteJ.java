@@ -320,7 +320,7 @@ public class FetchHandlerSuiteJ {
     FetchHandler fetchHandler = spy(fetchHandler0);
     Mockito.doReturn(fileInfo)
         .when(fetchHandler)
-        .getRawFileInfo(anyString(), anyString(), anyBoolean());
+        .getRawFileInfo(anyString(), anyString(), anyLong());
     return fetchHandler;
   }
 
