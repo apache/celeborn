@@ -128,7 +128,6 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
     Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFileResult =
         createFile(writerContext);
-    writerContext.setCanUseMemory(false);
 
     // Reduce partition data writers support memory storage now
     if (supportInMemory && createFileResult._1() != null) {
@@ -231,12 +230,13 @@ public abstract class PartitionDataWriter implements DeviceObserver {
             diskFileInfo.updateBytesFlushed(compressedSize + 16);
           }
         } else {
-          Preconditions.checkArgument(!isMemoryShuffleFile.get());
-          notifier.numPendingFlushes.incrementAndGet();
-          if (channel != null) {
-            task = new LocalFlushTask(flushBuffer, channel, notifier, true);
-          } else if (diskFileInfo.isHdfs()) {
-            task = new HdfsFlushTask(flushBuffer, diskFileInfo.getHdfsPath(), notifier, true);
+          if (!isMemoryShuffleFile.get()) {
+            notifier.numPendingFlushes.incrementAndGet();
+            if (channel != null) {
+              task = new LocalFlushTask(flushBuffer, channel, notifier, true);
+            } else if (diskFileInfo.isHdfs()) {
+              task = new HdfsFlushTask(flushBuffer, diskFileInfo.getHdfsPath(), notifier, true);
+            }
           }
         }
         if (task != null) {
@@ -333,8 +333,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   public Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFile(
       PartitionDataWriterContext writerContext) {
-    writerContext.setCanUseMemory(true);
-    return storageManager.createFile(writerContext);
+    return storageManager.createFile(writerContext, true);
   }
 
   public void evictInternal() throws IOException {
@@ -342,7 +341,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       return;
     }
     Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFileResult =
-        storageManager.createFile(writerContext);
+        storageManager.createFile(writerContext, false);
     if (createFileResult._4() != null) {
       this.diskFileInfo = createFileResult._3();
       this.flusher = createFileResult._2();

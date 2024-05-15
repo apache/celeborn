@@ -146,7 +146,8 @@ public class DiskReducePartitionDataWriterSuiteJ {
             return new StorageManager(CONF, source);
           }
 
-          public FileInfo getRawFileInfo(String shuffleKey, String fileName, boolean read) {
+          @Override
+          public FileInfo getRawFileInfo(String shuffleKey, String fileName, long streamId) {
             return info;
           }
 

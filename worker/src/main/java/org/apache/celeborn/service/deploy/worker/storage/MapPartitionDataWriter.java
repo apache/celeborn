@@ -65,7 +65,6 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
       PartitionDataWriterContext writerContext)
       throws IOException {
     super(storageManager, workerSource, conf, deviceMonitor, writerContext, false);
-    writerContext.setCanUseMemory(false);
 
     assert diskFileInfo != null;
     if (!diskFileInfo.isHdfs()) {
@@ -159,8 +158,7 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
   @Override
   public Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFile(
       PartitionDataWriterContext writerContext) {
-    writerContext.setCanUseMemory(false);
-    return storageManager.createFile(writerContext);
+    return storageManager.createFile(writerContext, false);
   }
 
   @Override

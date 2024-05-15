@@ -864,10 +864,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def createFile(
-      partitionDataWriterContext: PartitionDataWriterContext)
-      : (MemoryFileInfo, Flusher, DiskFileInfo, File) = {
+      partitionDataWriterContext: PartitionDataWriterContext,
+      useMemoryShuffle: Boolean): (MemoryFileInfo, Flusher, DiskFileInfo, File) = {
     val location = partitionDataWriterContext.getPartitionLocation
-    if (partitionDataWriterContext.canUseMemory
+    if (useMemoryShuffle
       && location.getStorageInfo.memoryAvailable()
       && MemoryManager.instance().memoryFileStorageAvailable()) {
       logDebug(s"Create memory file for ${partitionDataWriterContext.getShuffleKey}-${partitionDataWriterContext.getPartitionLocation.getFileName}")
