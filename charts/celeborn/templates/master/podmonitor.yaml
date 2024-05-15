@@ -28,7 +28,7 @@ spec:
   - interval: {{ .Values.podMonitor.podMetricsEndpoint.interval }}
     port: {{ .Values.podMonitor.podMetricsEndpoint.portName | quote }}
     scheme: {{ .Values.podMonitor.podMetricsEndpoint.scheme }}
-    path: /metrics/prometheus
+    path: {{ get .Values.celeborn "celeborn.metrics.prometheus.path" | default "/metrics/prometheus" }}
   jobLabel: celeborn-master-podmonitor
   namespaceSelector:
     matchNames:
