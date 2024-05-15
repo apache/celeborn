@@ -25,6 +25,7 @@ import org.apache.celeborn.common.protocol.FallbackPolicy
 
 class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
   private val shuffleFallbackPolicy = conf.shuffleFallbackPolicy
+  private val checkWorkerEnabled = conf.checkWorkerEnabled
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     val needFallback =
@@ -91,7 +92,7 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
    * @return if celeborn cluster has available workers.
    */
   def checkWorkersAvailable(lifecycleManager: LifecycleManager): Boolean = {
-    if (!conf.checkWorkerEnabled) {
+    if (!checkWorkerEnabled) {
       return true
     }
 
