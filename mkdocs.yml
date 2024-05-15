@@ -95,3 +95,4 @@ nav:
       - Integrating Celeborn: developers/integrate.md
       - SBT Build: developers/sbt.md
       - Gluten Support: developers/glutensupport.md
+      - Helm Charts: developers/helm-charts.md
