@@ -25,52 +25,57 @@ import org.apache.celeborn.common.protocol.FallbackPolicy
 
 class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
   private val shuffleFallbackPolicy = conf.shuffleFallbackPolicy
+  private val checkWorkerEnabled = conf.checkWorkerEnabled
+  private val quotaEnabled = conf.quotaEnabled
+  private val numPartitionsThreshold = conf.shuffleFallbackPartitionThreshold
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     val needFallback =
       applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
         !checkQuota(lifecycleManager) || !checkWorkersAvailable(lifecycleManager)
     if (needFallback && FallbackPolicy.NEVER.equals(shuffleFallbackPolicy)) {
-      throw new CelebornIOException("Fallback to Spark's default shuffle is prohibited.")
+      throw new CelebornIOException(
+        "Fallback to spark built-in shuffle implementation is prohibited.")
     }
     needFallback
   }
 
   /**
-   * if celeborn.client.spark.shuffle.fallback.policy is ALWAYS, fallback to external shuffle
-   * @return return if celeborn.client.spark.shuffle.fallback.policy is ALWAYS
+   * if celeborn.client.spark.shuffle.fallback.policy is ALWAYS, fallback to spark built-in shuffle implementation
+   * @return return true if celeborn.client.spark.shuffle.fallback.policy is ALWAYS, otherwise false
    */
   def applyForceFallbackPolicy(): Boolean = {
     if (FallbackPolicy.ALWAYS.equals(shuffleFallbackPolicy)) {
       logWarning(
-        s"${CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY.key} is ${FallbackPolicy.ALWAYS.name}, which will force fallback.")
+        s"${CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY.key} is ${FallbackPolicy.ALWAYS.name}, " +
+          s"forcibly fallback to spark built-in shuffle implementation.")
     }
     FallbackPolicy.ALWAYS.equals(shuffleFallbackPolicy)
   }
 
   /**
-   * if shuffle partitions > celeborn.shuffle.forceFallback.numPartitionsThreshold, fallback to external shuffle
+   * if shuffle partitions > celeborn.shuffle.fallback.numPartitionsThreshold, fallback to spark built-in
+   * shuffle implementation
    * @param numPartitions shuffle partitions
-   * @return return if shuffle partitions bigger than limit
+   * @return return true if shuffle partitions bigger than limit, otherwise false
    */
   def applyShufflePartitionsFallbackPolicy(numPartitions: Int): Boolean = {
-    val confNumPartitions = conf.shuffleForceFallbackPartitionThreshold
-    val needFallback = numPartitions >= confNumPartitions
+    val needFallback = numPartitions >= numPartitionsThreshold
     if (needFallback) {
-      logWarning(s"Shuffle num of partitions: $numPartitions" +
-        s" is bigger than the limit: $confNumPartitions," +
-        s" need fallback to spark shuffle")
+      logWarning(
+        s"Shuffle partition number: $numPartitions exceeds threshold: $numPartitionsThreshold, " +
+          "need to fallback to spark built-in shuffle implementation.")
     }
     needFallback
   }
 
   /**
-   * If celeborn cluster is exceed current user's quota, fallback to external shuffle
+   * If celeborn cluster is exceed current user's quota, fallback to spark built-in shuffle implementation
    *
    * @return if celeborn cluster have available space for current user
    */
   def checkQuota(lifecycleManager: LifecycleManager): Boolean = {
-    if (!conf.quotaEnabled) {
+    if (!quotaEnabled) {
       return true
     }
 
@@ -83,14 +88,19 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
   }
 
   /**
-   * If celeborn cluster has no available workers, fallback to external shuffle.
+   * If celeborn cluster has no available workers, fallback to spark built-in shuffle implementation
    *
    * @return if celeborn cluster has available workers.
    */
   def checkWorkersAvailable(lifecycleManager: LifecycleManager): Boolean = {
+    if (!checkWorkerEnabled) {
+      return true
+    }
+
     val resp = lifecycleManager.checkWorkersAvailable()
     if (!resp.getAvailable) {
-      logWarning(s"No workers available for current user ${lifecycleManager.getUserIdentifier}.")
+      logWarning(
+        s"No celeborn workers available for current user ${lifecycleManager.getUserIdentifier}.")
     }
     resp.getAvailable
   }
