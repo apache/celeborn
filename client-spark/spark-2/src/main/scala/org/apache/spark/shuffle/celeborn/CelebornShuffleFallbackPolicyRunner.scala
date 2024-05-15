@@ -26,6 +26,8 @@ import org.apache.celeborn.common.protocol.FallbackPolicy
 class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
   private val shuffleFallbackPolicy = conf.shuffleFallbackPolicy
   private val checkWorkerEnabled = conf.checkWorkerEnabled
+  private val quotaEnabled = conf.quotaEnabled
+  private val numPartitionsThreshold = conf.shuffleFallbackPartitionThreshold
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     val needFallback =
@@ -58,11 +60,10 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
    * @return return true if shuffle partitions bigger than limit, otherwise false
    */
   def applyShufflePartitionsFallbackPolicy(numPartitions: Int): Boolean = {
-    val confNumPartitions = conf.shuffleFallbackPartitionThreshold
-    val needFallback = numPartitions >= confNumPartitions
+    val needFallback = numPartitions >= numPartitionsThreshold
     if (needFallback) {
       logWarning(
-        s"Shuffle partition number: $numPartitions exceeds threshold: $confNumPartitions, " +
+        s"Shuffle partition number: $numPartitions exceeds threshold: $numPartitionsThreshold, " +
           "need to fallback to spark built-in shuffle implementation.")
     }
     needFallback
@@ -74,7 +75,7 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
    * @return if celeborn cluster have available space for current user
    */
   def checkQuota(lifecycleManager: LifecycleManager): Boolean = {
-    if (!conf.quotaEnabled) {
+    if (!quotaEnabled) {
       return true
     }
 
