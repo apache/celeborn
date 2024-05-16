@@ -447,6 +447,7 @@ public abstract class CelebornInputStream extends InputStream {
       switch (storageInfo.getType()) {
         case HDD:
         case SSD:
+        case MEMORY:
           if (enabledReadLocalShuffle
               && location.getWorker().host().equals(localHostAddress)
               && location.getStorageInfo().getType() != StorageInfo.Type.MEMORY) {
@@ -458,9 +459,6 @@ public abstract class CelebornInputStream extends InputStream {
             return createWorkerPartitionReader(
                 location, fetchChunkRetryCnt, fetchChunkMaxRetry, pbStreamHandler);
           }
-        case MEMORY:
-          return createWorkerPartitionReader(
-              location, fetchChunkRetryCnt, fetchChunkMaxRetry, pbStreamHandler);
         case HDFS:
           return new DfsPartitionReader(
               conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex, callback);

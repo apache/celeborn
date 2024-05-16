@@ -608,7 +608,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   @Override
   public String toString() {
-    return filename + "-partition-writer";
+    return shuffleKey + "-" + filename + " partition-writer";
   }
 
   public void flushOnMemoryPressure() throws IOException {

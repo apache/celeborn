@@ -531,10 +531,10 @@ private[deploy] class Controller(
           logInfo(
             s"CommitFiles for $shuffleKey success with " +
               s"${committedPrimaryIds.size()} committed primary partitions, " +
-              s"${emptyFilePrimaryIds.size()} empty primary partitions, " +
+              s"${emptyFilePrimaryIds.size()} empty primary partitions ${emptyFilePrimaryIds.asScala.mkString(",")}, " +
               s"${failedPrimaryIds.size()} failed primary partitions, " +
               s"${committedReplicaIds.size()} committed replica partitions, " +
-              s"${emptyFileReplicaIds.size()} empty replica partitions, " +
+              s"${emptyFileReplicaIds.size()} empty replica partitions ${emptyFileReplicaIds.asScala.mkString(",")} , " +
               s"${failedReplicaIds.size()} failed replica partitions.")
           CommitFilesResponse(
             StatusCode.SUCCESS,

@@ -47,7 +47,6 @@ class MemoryStorageReusedExchangeSuite extends AnyFunSuite
       .set("spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes", "100")
       .set("spark.sql.adaptive.advisoryPartitionSizeInBytes", "100")
       .set(s"spark.celeborn.storage.availableTypes", "HDD,MEMORY")
-    //    spark.sql("set spark.sql.adaptive.localShuffleReader.enabled=false")
     val spark = SparkSession.builder()
       .config(sparkConf)
       .getOrCreate()

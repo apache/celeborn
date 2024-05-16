@@ -457,7 +457,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     if (memoryShuffleMap != null) {
       val memoryFileInfo = memoryShuffleMap.get(fileName)
       if (memoryFileInfo != null) {
-        if (!memoryFileInfo.addStream(streamId)) {
+        if (memoryFileInfo.addStream(streamId)) {
           return memoryFileInfo
         }
       }
@@ -866,11 +866,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def createFile(
       partitionDataWriterContext: PartitionDataWriterContext,
       useMemoryShuffle: Boolean): (MemoryFileInfo, Flusher, DiskFileInfo, File) = {
+    logDebug(
+      s"create file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
     val location = partitionDataWriterContext.getPartitionLocation
     if (useMemoryShuffle
       && location.getStorageInfo.memoryAvailable()
       && MemoryManager.instance().memoryFileStorageAvailable()) {
-      logDebug(s"Create memory file for ${partitionDataWriterContext.getShuffleKey}-${partitionDataWriterContext.getPartitionLocation.getFileName}")
+      logDebug(s"Create memory file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
       (
         createMemoryFile(
           partitionDataWriterContext.getAppId,
@@ -883,7 +885,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         null,
         null)
     } else if (location.getStorageInfo.localDiskAvailable() || location.getStorageInfo.HDFSAvailable()) {
-      logDebug(s"create non-memory file for ${partitionDataWriterContext.getShuffleKey}-${partitionDataWriterContext.getPartitionLocation.getFileName}")
+      logDebug(s"create non-memory file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
       val createDiskFileResult = createDiskFile(
         location,
         partitionDataWriterContext.getAppId,
@@ -921,10 +923,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         fileMeta,
         new Consumer[MemoryFileInfo] {
           override def accept(m: MemoryFileInfo): Unit = {
+            logDebug(s"evict $shuffleKey $fileName ")
             unregisterMemoryPartitionWriterAndFileInfo(m, shuffleKey, fileName)
             evictedFileCount.incrementAndGet
           }
         })
+    logDebug(s"create memory file for ${shuffleKey} ${fileName} and put it int memoryFileInfos")
     memoryFileInfos.computeIfAbsent(shuffleKey, memoryFileInfoMapFunc).put(
       fileName,
       memoryFileInfo)
