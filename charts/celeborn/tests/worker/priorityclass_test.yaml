@@ -15,17 +15,38 @@
 # limitations under the License.
 #
 
-{{- if .Values.priorityClass.master.create }}
-apiVersion: scheduling.k8s.io/v1
-kind: PriorityClass
-metadata:
-  name: {{ .Values.priorityClass.master.name | default (printf "%s-master-priority" (.Release.Name)) }}
-  labels:
-    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
-    app.kubernetes.io/name: {{ .Chart.Name }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    {{- include "celeborn.labels" . | nindent 4 }}
-value: {{ .Values.priorityClass.master.value }}
-{{- end }}
+suite: Test Celeborn worker priority class
+
+templates:
+  - worker/priorityclass.yaml
+
+release:
+  name: celeborn
+
+tests:
+  - it: Should not create worker priority as default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should create worker priority class if `priorityClass.worker.create` is true
+    set:
+      priorityClass:
+        worker:
+          create: true
+    asserts:
+      - containsDocument:
+          apiVersion: scheduling.k8s.io/v1
+          kind: PriorityClass
+          name: celeborn-worker-priority-class
+
+  - it: Should use the specified priority class value
+    set:
+      priorityClass:
+        worker:
+          create: true
+          value: 1000
+    asserts:
+      - equal:
+          path: value
+          value: 1000

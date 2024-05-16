@@ -20,6 +20,8 @@ import java.nio.charset.StandardCharsets.UTF_8
 import java.util.Locale
 
 import scala.util.Properties
+import scala.xml._
+import scala.xml.transform._
 
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtprotoc.ProtocPlugin.autoImport._
@@ -53,9 +55,9 @@ object Dependencies {
   val jdkToolsVersion = "0.1"
   val metricsVersion = "3.2.6"
   val mockitoVersion = "4.11.0"
-  val nettyVersion = "4.1.107.Final"
+  val nettyVersion = "4.1.109.Final"
   val ratisVersion = "2.5.1"
-  val roaringBitmapVersion = "0.9.32"
+  val roaringBitmapVersion = "1.0.6"
   val rocksdbJniVersion = "8.11.3"
   val jacksonVersion = "2.15.3"
   val scalatestMockitoVersion = "1.17.14"
@@ -109,7 +111,7 @@ object Dependencies {
   val ioDropwizardMetricsJvm = "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion
   val ioNetty = "io.netty" % "netty-all" % nettyVersion excludeAll(
     ExclusionRule("io.netty", "netty-handler-ssl-ocsp"))
-  val leveldbJniAll = "org.fusesource.leveldbjni" % "leveldbjni-all" % leveldbJniVersion
+  val leveldbJniAll = "org.openlabtesting.leveldbjni" % "leveldbjni-all" % leveldbJniVersion
   val log4j12Api = "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version
   val log4jSlf4jImpl = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version
   val lz4Java = "org.lz4" % "lz4-java" % lz4JavaVersion
@@ -271,10 +273,12 @@ object CelebornCommonSettings {
       }.get
 
       Credentials(
-        "Sonatype Nexus Repository Manager",
+        // Credentials matching is done using both: realm and host keys, sbt/sbt#2366 allows using
+        // credential without a realm by providing an empty string for realm.
+        "" /* realm */,
         host,
         sys.env.getOrElse("ASF_USERNAME", ""),
-        sys.env.getOrElse("ASF_PASSWORD", "")),
+        sys.env.getOrElse("ASF_PASSWORD", ""))
     },
     publishTo := {
       if (isSnapshot.value) {
@@ -388,6 +392,21 @@ object Utils {
     val v = sparkClientProjects.map(_.sparkProjectScalaVersion).getOrElse(DEFAULT_SCALA_VERSION)
     require(ALL_SCALA_VERSIONS.contains(v), s"found not allow scala version: $v")
     v
+  }
+
+  /**
+   * The deps for shaded clients are already packaged in the jar,
+   * so we should not expose the shipped transitive deps.
+   */
+  def removeDependenciesTransformer: xml.Node => xml.Node = { node =>
+    new RuleTransformer(new RewriteRule {
+      override def transform(n: xml.Node): Seq[xml.Node] = n match {
+        case e: Elem if e.label == "dependencies" =>
+          Nil
+        case _ =>
+          n
+      }
+    }).transform(node).head
   }
 }
 
@@ -659,7 +678,7 @@ object Spark34 extends SparkClientProjects {
   val lz4JavaVersion = "1.8.0"
   val sparkProjectScalaVersion = "2.12.17"
 
-  val sparkVersion = "3.4.2"
+  val sparkVersion = "3.4.3"
   val zstdJniVersion = "1.5.2-5"
 
   override val includeColumnarShuffle: Boolean = true
@@ -773,9 +792,14 @@ trait SparkClientProjects {
   }
 
   def sparkClientShade: Project = {
-    val p = Project(sparkClientShadedProjectName, file(sparkClientShadedProjectPath))
+    var p = Project(sparkClientShadedProjectName, file(sparkClientShadedProjectPath))
       .dependsOn(sparkClient)
-      .disablePlugins(AddMetaInfLicenseFiles)
+
+    if (includeColumnarShuffle) {
+      p = p.dependsOn(sparkColumnarShuffle)
+    }
+
+    p = p.disablePlugins(AddMetaInfLicenseFiles)
       .settings (
         commonSettings,
         releaseSettings,
@@ -836,13 +860,10 @@ trait SparkClientProjects {
           case _ => MergeStrategy.first
         },
 
-        Compile / packageBin := assembly.value
+        Compile / packageBin := assembly.value,
+        pomPostProcess := removeDependenciesTransformer
       )
-    if (includeColumnarShuffle) {
-        p.dependsOn(sparkColumnarShuffle)
-    } else {
-        p
-    }
+    p
   }
 }
 
@@ -1052,7 +1073,8 @@ trait FlinkClientProjects {
           case _ => MergeStrategy.first
         },
 
-        Compile / packageBin := assembly.value
+        Compile / packageBin := assembly.value,
+        pomPostProcess := removeDependenciesTransformer
       )
   }
 }
@@ -1164,7 +1186,8 @@ object MRClientProjects {
           case _ => MergeStrategy.first
         },
 
-        Compile / packageBin := assembly.value
+        Compile / packageBin := assembly.value,
+        pomPostProcess := removeDependenciesTransformer
       )
   }
 

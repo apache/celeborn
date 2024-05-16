@@ -229,17 +229,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
       String sortedFilePath = Utils.getSortedFilePath(diskFileInfo.getFilePath());
       String indexFilePath = Utils.getIndexFilePath(diskFileInfo.getFilePath());
-      synchronized (sorting) {
+      boolean fileSorting = true;synchronized (sorting) {
         if (sorted.contains(fileId)) {
-          return resolve(
-              shuffleKey,
-              fileId,
-              userIdentifier,
-              sortedFilePath,
-              indexFilePath,
-              startMapIndex,
-              endMapIndex);
-        }
+          fileSorting = false;
+              } else
         if (!sorting.contains(fileId)) {
           try {
             FileSorter fileSorter = new FileSorter(diskFileInfo, fileId, shuffleKey);
@@ -259,7 +252,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
       }
 
-      long sortStartTime = System.currentTimeMillis();
+      if (fileSorting) {long sortStartTime = System.currentTimeMillis();
       while (!sorted.contains(fileId)) {
         if (sorting.contains(fileId)) {
           try {
@@ -285,7 +278,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                   + diskFileInfo.getFilePath()
                   + " failed.");
         }
-      }
+      }}
 
       return resolve(
           shuffleKey,

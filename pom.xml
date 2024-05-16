@@ -86,13 +86,13 @@
     <lz4-java.version>1.8.0</lz4-java.version>
     <mockito.version>4.11.0</mockito.version>
     <mockito-scalatest.version>1.17.14</mockito-scalatest.version>
-    <netty.version>4.1.107.Final</netty.version>
+    <netty.version>4.1.109.Final</netty.version>
     <bouncycastle.version>1.77</bouncycastle.version>
     <protobuf.version>3.21.7</protobuf.version>
     <ratis.version>2.5.1</ratis.version>
     <scalatest.version>3.2.16</scalatest.version>
     <slf4j.version>1.7.36</slf4j.version>
-    <roaringbitmap.version>0.9.32</roaringbitmap.version>
+    <roaringbitmap.version>1.0.6</roaringbitmap.version>
     <snakeyaml.version>2.2</snakeyaml.version>
     <zstd-jni.version>1.5.2-1</zstd-jni.version>
     <kubernetes-client.version>6.7.0</kubernetes-client.version>
@@ -394,7 +394,7 @@
         </exclusions>
       </dependency>
       <dependency>
-        <groupId>org.fusesource.leveldbjni</groupId>
+        <groupId>org.openlabtesting.leveldbjni</groupId>
         <artifactId>leveldbjni-all</artifactId>
         <version>${leveldb.version}</version>
       </dependency>
@@ -1188,6 +1188,18 @@
             </exclusion>
             <exclusion>
               <groupId>org.apache.hadoop</groupId>
+              <artifactId>hadoop-mapreduce-client-app</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hadoop</groupId>
+              <artifactId>hadoop-mapreduce-client-core</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hadoop</groupId>
+              <artifactId>hadoop-mapreduce-client-jobclient</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hadoop</groupId>
               <artifactId>hadoop-yarn-client</artifactId>
             </exclusion>
             <exclusion>
@@ -1197,6 +1209,10 @@
             <exclusion>
               <groupId>org.apache.hadoop</groupId>
               <artifactId>hadoop-yarn-server-common</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.fusesource.leveldbjni</groupId>
+              <artifactId>leveldbjni-all</artifactId>
             </exclusion>
           </exclusions>
         </dependency>
@@ -1306,7 +1322,7 @@
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.12.17</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
-        <spark.version>3.4.2</spark.version>
+        <spark.version>3.4.3</spark.version>
         <zstd-jni.version>1.5.2-5</zstd-jni.version>
       </properties>
     </profile>

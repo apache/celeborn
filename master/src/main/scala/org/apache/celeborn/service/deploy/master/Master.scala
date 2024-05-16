@@ -76,16 +76,22 @@ private[celeborn] class Master(
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
   metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
 
+  private val bindPreferIP: Boolean = conf.bindPreferIP
   private val authEnabled = conf.authEnabled
   private val secretRegistry = new MasterSecretRegistryImpl()
   private val sendApplicationMetaThreads = conf.masterSendApplicationMetaThreads
   // Send ApplicationMeta to workers
   private var sendApplicationMetaExecutor: ExecutorService = _
 
+  if (conf.logCelebornConfEnabled) {
+    logInfo(getConf)
+  }
+
   override val rpcEnv: RpcEnv =
     if (!authEnabled) {
       RpcEnv.create(
         RpcNameConstants.MASTER_SYS,
+        TransportModuleConstants.RPC_SERVICE_MODULE,
         masterArgs.host,
         masterArgs.host,
         masterArgs.port,
@@ -101,6 +107,7 @@ private[celeborn] class Master(
         s"Secure port enabled ${masterArgs.port} for secured RPC.")
       RpcEnv.create(
         RpcNameConstants.MASTER_SYS,
+        TransportModuleConstants.RPC_SERVICE_MODULE,
         masterArgs.host,
         masterArgs.host,
         masterArgs.port,
@@ -118,6 +125,7 @@ private[celeborn] class Master(
         s"Internal port enabled, using internal port ${masterArgs.internalPort} for internal RPC.")
       RpcEnv.create(
         RpcNameConstants.MASTER_INTERNAL_SYS,
+        TransportModuleConstants.RPC_SERVICE_MODULE,
         masterArgs.host,
         masterArgs.host,
         masterArgs.internalPort,
@@ -351,12 +359,12 @@ private[celeborn] class Master(
   }
 
   def executeWithLeaderChecker[T](context: RpcCallContext, f: => T): Unit =
-    if (HAHelper.checkShouldProcess(context, statusSystem)) {
+    if (HAHelper.checkShouldProcess(context, statusSystem, bindPreferIP)) {
       try {
         f
       } catch {
         case e: Exception =>
-          HAHelper.sendFailure(context, HAHelper.getRatisServer(statusSystem), e)
+          HAHelper.sendFailure(context, HAHelper.getRatisServer(statusSystem), e, bindPreferIP)
       }
     }
 
@@ -445,7 +453,7 @@ private[celeborn] class Master(
       // keep it for compatible reason
       context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
 
-    case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _) =>
+    case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       checkAuth(context, applicationId)
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
@@ -677,10 +685,7 @@ private[celeborn] class Master(
       workersToAdd: util.List[WorkerInfo],
       workersToRemove: util.List[WorkerInfo],
       requestId: String): Unit = {
-    statusSystem.handleWorkerExclude(
-      workersToAdd.asScala.filter(workersSnapShot.contains(_)).asJava,
-      workersToRemove.asScala.filter(workersSnapShot.contains(_)).asJava,
-      requestId)
+    statusSystem.handleWorkerExclude(workersToAdd, workersToRemove, requestId)
     if (context != null) {
       context.reply(WorkerExcludeResponse(true))
     }
@@ -800,7 +805,8 @@ private[celeborn] class Master(
 
     if (numAvailableWorkers == 0) {
       logError(s"Offer slots for $shuffleKey failed due to all workers are excluded!")
-      context.reply(RequestSlotsResponse(StatusCode.WORKER_EXCLUDED, new WorkerResource()))
+      context.reply(
+        RequestSlotsResponse(StatusCode.WORKER_EXCLUDED, new WorkerResource(), requestSlots.packed))
     }
 
     val numWorkers = Math.min(
@@ -857,7 +863,10 @@ private[celeborn] class Master(
     // reply false if offer slots failed
     if (slots == null || slots.isEmpty) {
       logError(s"Offer slots for $numReducers reducers of $shuffleKey failed!")
-      context.reply(RequestSlotsResponse(StatusCode.SLOT_NOT_AVAILABLE, new WorkerResource()))
+      context.reply(RequestSlotsResponse(
+        StatusCode.SLOT_NOT_AVAILABLE,
+        new WorkerResource(),
+        requestSlots.packed))
       return
     }
 
@@ -888,7 +897,10 @@ private[celeborn] class Master(
     if (authEnabled) {
       pushApplicationMetaToWorkers(requestSlots, slots)
     }
-    context.reply(RequestSlotsResponse(StatusCode.SUCCESS, slots.asInstanceOf[WorkerResource]))
+    context.reply(RequestSlotsResponse(
+      StatusCode.SUCCESS,
+      slots.asInstanceOf[WorkerResource],
+      requestSlots.packed))
   }
 
   def pushApplicationMetaToWorkers(

@@ -86,10 +86,16 @@ private[celeborn] class Worker(
   val workerStatusManager = new WorkerStatusManager(conf)
   private val authEnabled = conf.authEnabled
   private val secretRegistry = new WorkerSecretRegistryImpl(conf.workerApplicationRegistryCacheSize)
+
+  if (conf.logCelebornConfEnabled) {
+    logInfo(getConf)
+  }
+
   val rpcEnv: RpcEnv =
     if (!authEnabled) {
       RpcEnv.create(
         RpcNameConstants.WORKER_SYS,
+        TransportModuleConstants.RPC_SERVICE_MODULE,
         workerArgs.host,
         workerArgs.host,
         workerArgs.port,
@@ -105,6 +111,7 @@ private[celeborn] class Worker(
         s"Secure port enabled ${workerArgs.port} for secured RPC.")
       RpcEnv.create(
         RpcNameConstants.WORKER_SYS,
+        TransportModuleConstants.RPC_SERVICE_MODULE,
         workerArgs.host,
         workerArgs.host,
         workerArgs.port,
@@ -119,6 +126,7 @@ private[celeborn] class Worker(
     } else {
       RpcEnv.create(
         RpcNameConstants.WORKER_INTERNAL_SYS,
+        TransportModuleConstants.RPC_SERVICE_MODULE,
         workerArgs.host,
         workerArgs.host,
         workerArgs.internalPort,

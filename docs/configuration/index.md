@@ -93,6 +93,13 @@ end="<!--end-include-->"
 ### Network
 
 {!
+include-markdown "./network-module.md"
+start="<!--begin-include-->"
+end="<!--end-include-->"
+!}
+Some network configurations might apply in specific scenarios, for example `push` module for `io.maxRetries` and `io.retryWait` in flink client. Please see the full list below for details.
+
+{!
 include-markdown "./network.md"
 start="<!--begin-include-->"
 end="<!--end-include-->"

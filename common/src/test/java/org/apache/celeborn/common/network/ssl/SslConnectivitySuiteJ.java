@@ -42,6 +42,7 @@ import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.util.JavaUtils;
 
 /**
@@ -185,6 +186,23 @@ public class SslConnectivitySuiteJ {
         Function.identity());
   }
 
+  @Test
+  public void testNormalConnectivityWithAuthWorks() throws Exception {
+    final Function<CelebornConf, CelebornConf> updateConf =
+        conf -> {
+          conf.set("celeborn.auth.enabled", "true");
+          return conf;
+        };
+
+    testSuccessfulConnectivity(
+        false,
+        // does not matter what these are set to
+        true,
+        true,
+        updateConf,
+        updateConf);
+  }
+
   // Both server and client are on SSL, and should be able to successfully communicate
   // This is the SSL version of testNormalConnectivityWorks above.
   @Test
@@ -281,8 +299,6 @@ public class SslConnectivitySuiteJ {
           return conf;
         };
 
-    // checking nettyssl == false at both client and server does not make sense in this context
-    // it is the same cert for both :)
     testSuccessfulConnectivity(true, true, true, updateConf, updateConf);
     testSuccessfulConnectivity(true, true, false, updateConf, updateConf);
     testSuccessfulConnectivity(true, false, true, updateConf, updateConf);
@@ -296,13 +312,33 @@ public class SslConnectivitySuiteJ {
       Function<CelebornConf, CelebornConf> postProcessServerConf,
       Function<CelebornConf, CelebornConf> postProcessClientConf)
       throws Exception {
+
+    testSuccessfulConnectivity(
+        TEST_MODULE,
+        TEST_MODULE,
+        enableSsl,
+        primaryConfigForServer,
+        primaryConfigForClient,
+        postProcessServerConf,
+        postProcessClientConf);
+  }
+
+  private void testSuccessfulConnectivity(
+      String serverModule,
+      String clientModule,
+      boolean enableSsl,
+      boolean primaryConfigForServer,
+      boolean primaryConfigForClient,
+      Function<CelebornConf, CelebornConf> postProcessServerConf,
+      Function<CelebornConf, CelebornConf> postProcessClientConf)
+      throws Exception {
     try (TestTransportState state =
             new TestTransportState(
                 DEFAULT_HANDLER,
                 createTransportConf(
-                    TEST_MODULE, enableSsl, primaryConfigForServer, postProcessServerConf),
+                    serverModule, enableSsl, primaryConfigForServer, postProcessServerConf),
                 createTransportConf(
-                    TEST_MODULE, enableSsl, primaryConfigForClient, postProcessClientConf));
+                    clientModule, enableSsl, primaryConfigForClient, postProcessClientConf));
         TransportClient client = state.createClient()) {
 
       String msg = " hi ";
@@ -321,13 +357,32 @@ public class SslConnectivitySuiteJ {
       Function<CelebornConf, CelebornConf> postProcessServerConf,
       Function<CelebornConf, CelebornConf> postProcessClientConf)
       throws Exception {
+    testConnectivityFailure(
+        TEST_MODULE,
+        serverSsl,
+        clientSsl,
+        primaryConfigForServer,
+        primaryConfigForClient,
+        postProcessServerConf,
+        postProcessClientConf);
+  }
+
+  private void testConnectivityFailure(
+      String module,
+      boolean serverSsl,
+      boolean clientSsl,
+      boolean primaryConfigForServer,
+      boolean primaryConfigForClient,
+      Function<CelebornConf, CelebornConf> postProcessServerConf,
+      Function<CelebornConf, CelebornConf> postProcessClientConf)
+      throws Exception {
     try (TestTransportState state =
             new TestTransportState(
                 DEFAULT_HANDLER,
                 createTransportConf(
-                    TEST_MODULE, serverSsl, primaryConfigForServer, postProcessServerConf),
+                    module, serverSsl, primaryConfigForServer, postProcessServerConf),
                 createTransportConf(
-                    TEST_MODULE, clientSsl, primaryConfigForClient, postProcessClientConf));
+                    module, clientSsl, primaryConfigForClient, postProcessClientConf));
         TransportClient client = state.createClient()) {
 
       String msg = " hi ";
@@ -337,5 +392,43 @@ public class SslConnectivitySuiteJ {
     } catch (IOException ioEx) {
       // this is fine - expected to fail
     }
+  }
+
+  @Test
+  public void testAutoSslConnectivity() throws Exception {
+
+    // Mirror how user will configure - so configure module based on RPC_APP_MODULE
+    // while create the server transport config for lifecycle manager (to match driver),
+    // and client to app_client similar to executors
+
+    final Function<CelebornConf, CelebornConf> updateServerConf =
+        conf -> {
+          // return a new config
+          String module = TransportModuleConstants.RPC_APP_MODULE;
+          CelebornConf celebornConf = new CelebornConf();
+          celebornConf.set("celeborn.ssl." + module + ".enabled", "true");
+          celebornConf.set("celeborn.ssl." + module + ".protocol", "TLSv1.2");
+          celebornConf.set("celeborn.ssl." + module + ".autoSslEnabled", "true");
+          return celebornConf;
+        };
+
+    final Function<CelebornConf, CelebornConf> updateClientConf =
+        conf -> {
+          // return a new config
+          String module = TransportModuleConstants.RPC_APP_MODULE;
+          CelebornConf celebornConf = new CelebornConf();
+          celebornConf.set("celeborn.ssl." + module + ".enabled", "true");
+          celebornConf.set("celeborn.ssl." + module + ".protocol", "TLSv1.2");
+          return celebornConf;
+        };
+
+    testSuccessfulConnectivity(
+        TransportModuleConstants.RPC_LIFECYCLEMANAGER_MODULE,
+        TransportModuleConstants.RPC_APP_CLIENT_MODULE,
+        true,
+        true,
+        true,
+        updateServerConf,
+        updateClientConf);
   }
 }

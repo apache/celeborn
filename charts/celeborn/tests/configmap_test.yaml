@@ -15,22 +15,27 @@
 # limitations under the License.
 #
 
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Release.Name }}-worker-svc
-  labels:
-    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
-    app.kubernetes.io/name: {{ .Chart.Name }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    {{- include "celeborn.labels" . | nindent 4 }}
-spec:
-  type: {{ .Values.service.type }}
-  clusterIP: None
-  selector:
-    app.kubernetes.io/name: {{ .Chart.Name }}
-    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-    app.kubernetes.io/role: worker
-    {{- include "celeborn.selectorLabels" . | nindent 4 }}
+suite: Test Celeborn configmap
+
+templates:
+  - configmap.yaml
+
+release:
+  name: celeborn
+
+tests:
+  - it: Should create configmap
+    asserts:
+      - containsDocument:
+          apiVersion: v1
+          kind: ConfigMap
+          name: celeborn-conf
+
+  - it: Should have correct data fields
+    asserts:
+      - exists:
+          path: data["celeborn-defaults.conf"]
+      - exists:
+          path: data["celeborn-env.sh"]
+      - exists:
+          path: data["log4j2.xml"]

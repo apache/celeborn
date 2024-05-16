@@ -666,7 +666,9 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
   test("port conflict") {
     val anotherEnv = createRpcEnv(createCelebornConf(), "remote", env.address.port)
     try {
-      assert(anotherEnv.address.port != env.address.port)
+      assert(
+        anotherEnv.address.port != env.address.port,
+        s"new port = ${anotherEnv.address.port}, env port = ${env.address.port}")
     } finally {
       anotherEnv.shutdown()
       anotherEnv.awaitTermination()

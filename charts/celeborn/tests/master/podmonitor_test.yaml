@@ -1,0 +1,86 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+suite: Test Celeborn master pod monitor
+
+templates:
+  - master/podmonitor.yaml
+
+release:
+  name: celeborn
+
+tests:
+  - it: Should not create master pod monitor without api version `monitoring.coreos.com/v1/PodMonitor` even if `podMonitor.enable` is true
+    set:
+      podMonitor:
+        enable: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should create master pod monitor if `podMonitor.enable` is true and api version `monitoring.coreos.com/v1/PodMonitor` exists
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1/PodMonitor
+    set:
+      podMonitor:
+        enable: true
+    asserts:
+      - containsDocument:
+          apiVersion: monitoring.coreos.com/v1
+          kind: PodMonitor
+          name: celeborn-master-podmonitor
+
+  - it: Should use the specified pod metrics endpoints
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1/PodMonitor
+    set:
+      podMonitor:
+        enable: true
+        podMetricsEndpoint:
+          scheme: http
+          interval: 3s
+          portName: test-port
+    asserts:
+      - contains:
+          path: spec.podMetricsEndpoints
+          content:
+            interval: 3s
+            port: test-port
+            scheme: http
+            path: /metrics/prometheus
+          count: 1
+
+  - it: Should respect `celeborn.metrics.prometheus.path`
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1/PodMonitor
+    set:
+      celeborn:
+        celeborn.metrics.prometheus.path: custom-metrics-path
+      podMonitor:
+        enable: true
+    asserts:
+      - contains:
+          path: spec.podMetricsEndpoints
+          content:
+            interval: 5s
+            port: metrics
+            scheme: http
+            path: custom-metrics-path
+          count: 1

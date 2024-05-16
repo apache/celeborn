@@ -39,7 +39,8 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
       val name: String,
       val endpoint: RpcEndpoint,
       val ref: NettyRpcEndpointRef) {
-    val inbox = new Inbox(ref, endpoint)
+    val celebornConf = nettyEnv.celebornConf
+    val inbox = new Inbox(ref, endpoint, celebornConf)
   }
 
   private val endpoints: ConcurrentMap[String, EndpointData] =
@@ -157,7 +158,14 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
       endpointName: String,
       message: InboxMessage,
       callbackIfStopped: Exception => Unit): Unit = {
+    val data = synchronized {
+      endpoints.get(endpointName)
+    }
+    if (data != null) {
+      data.inbox.waitOnFull()
+    }
     val error = synchronized {
+      // double check
       val data = endpoints.get(endpointName)
       if (stopped) {
         Some(new RpcEnvStoppedException())

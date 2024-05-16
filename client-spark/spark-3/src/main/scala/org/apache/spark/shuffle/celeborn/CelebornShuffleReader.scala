@@ -117,6 +117,7 @@ class CelebornShuffleReader[K, C](
     val startTime = System.currentTimeMillis()
     val fetchTimeoutMs = conf.clientFetchTimeoutMs
     val localFetchEnabled = conf.enableReadLocalShuffleFile
+    val localHostAddress = Utils.localHostName(conf)
     val shuffleKey = Utils.makeShuffleKey(handle.appUniqueId, shuffleId)
     // startPartition is irrelevant
     val fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition)
@@ -148,7 +149,8 @@ class CelebornShuffleReader[K, C](
           pbOpenStreamListBuilder.addFileName(location.getFileName)
             .addStartIndex(startMapIndex)
             .addEndIndex(endMapIndex)
-          pbOpenStreamListBuilder.addReadLocalShuffle(localFetchEnabled)
+          pbOpenStreamListBuilder.addReadLocalShuffle(
+            localFetchEnabled && location.getHost.equals(localHostAddress))
         }
       }
     }

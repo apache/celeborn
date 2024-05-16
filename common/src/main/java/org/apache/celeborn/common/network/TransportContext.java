@@ -91,6 +91,15 @@ public class TransportContext implements Closeable {
     this.channelsLimiter = channelsLimiter;
     this.enableHeartbeat = enableHeartbeat;
     this.source = source;
+
+    if (null != this.sslFactory) {
+      logger.info(
+          "SSL factory created for module {}, has keys ? {}",
+          conf.getModuleName(),
+          this.sslFactory.hasKeyManagers());
+    } else {
+      logger.info("SSL not enabled for module = {}", conf.getModuleName());
+    }
   }
 
   public TransportContext(
@@ -209,10 +218,12 @@ public class TransportContext implements Closeable {
 
   private SSLFactory createSslFactory() {
     if (conf.sslEnabled()) {
+
       if (conf.sslEnabledAndKeysAreValid()) {
         return new SSLFactory.Builder()
             .requestedProtocol(conf.sslProtocol())
             .requestedCiphers(conf.sslRequestedCiphers())
+            .autoSslEnabled(conf.autoSslEnabled())
             .keyStore(conf.sslKeyStore(), conf.sslKeyStorePassword())
             .trustStore(
                 conf.sslTrustStore(),
@@ -222,14 +233,14 @@ public class TransportContext implements Closeable {
             .build();
       } else {
         logger.error(
-            "SSL encryption enabled but keys not found for "
+            "SSL encryption enabled but keyStore is not configured for "
                 + conf.getModuleName()
                 + "! Please ensure the configured keys are present.");
         throw new IllegalArgumentException(
             conf.getModuleName()
                 + " SSL encryption enabled for "
                 + conf.getModuleName()
-                + " but keys not found!");
+                + " but keyStore not configured !");
       }
     } else {
       return null;

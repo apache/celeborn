@@ -31,6 +31,7 @@ import org.junit.Assert.{assertEquals, assertNotEquals, assertNotNull}
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.protocol.TransportModuleConstants
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpointAddress, RpcEnv}
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
@@ -267,7 +268,14 @@ class WorkerInfoSuite extends CelebornFunSuite {
     val endpointAddress = new RpcEndpointAddress(new RpcAddress("localhost", 12345), "mockRpc")
     var rpcEnv: RpcEnv = null
     try {
-      rpcEnv = RpcEnv.create("mockEnv", "localhost", "localhost", 12345, conf, 64)
+      rpcEnv = RpcEnv.create(
+        "mockEnv",
+        TransportModuleConstants.RPC_SERVICE_MODULE,
+        "localhost",
+        "localhost",
+        12345,
+        conf,
+        64)
       val worker4 = new WorkerInfo(
         "h4",
         40001,

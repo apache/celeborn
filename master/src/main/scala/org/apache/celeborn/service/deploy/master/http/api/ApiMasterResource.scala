@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master.http.api
 
-import javax.ws.rs.{GET, Path, POST, QueryParam}
+import javax.ws.rs.{FormParam, GET, Path, POST}
 import javax.ws.rs.core.MediaType
 
 import io.swagger.v3.oas.annotations.media.Content
@@ -74,20 +74,6 @@ class ApiMasterResource extends ApiRequestContext {
   @GET
   def hostnames: String = httpService.getHostnameList
 
-  @Path("/sendWorkerEvent")
-  @ApiResponse(
-    responseCode = "200",
-    content = Array(new Content(
-      mediaType = MediaType.TEXT_PLAIN)),
-    description =
-      "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'")
-  @POST
-  def sendWorkerEvent(
-      @QueryParam("TYPE") eventType: String,
-      @QueryParam("WORKERS") workers: String): String = {
-    httpService.handleWorkerEvent(normalizeParam(eventType), normalizeParam(workers))
-  }
-
   @Path("/workerEventInfo")
   @ApiResponse(
     responseCode = "200",
@@ -102,11 +88,26 @@ class ApiMasterResource extends ApiRequestContext {
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.TEXT_PLAIN)),
-    description = "List all worker event infos of the master.")
+    description =
+      "Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove, which value is separated by commas.")
   @POST
-  def excludeWorkers(
-      @QueryParam("ADD") addWorkers: String,
-      @QueryParam("REMOVE") removeWorkers: String): String = {
+  def exclude(
+      @FormParam("add") addWorkers: String,
+      @FormParam("remove") removeWorkers: String): String = {
     httpService.exclude(normalizeParam(addWorkers), normalizeParam(removeWorkers))
+  }
+
+  @Path("/sendWorkerEvent")
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.TEXT_PLAIN)),
+    description =
+      "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission', and the parameter workers is separated by commas.")
+  @POST
+  def sendWorkerEvent(
+      @FormParam("type") eventType: String,
+      @FormParam("workers") workers: String): String = {
+    httpService.handleWorkerEvent(normalizeParam(eventType), normalizeParam(workers))
   }
 }

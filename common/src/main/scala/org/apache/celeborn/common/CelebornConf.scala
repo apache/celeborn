@@ -87,6 +87,90 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     this
   }
 
+  private def warnIfInternalTransportModule(module: String, key: String): Unit = {
+    if (INTERNAL_TRANSPORT_MODULES.contains(module)) {
+      log.warn(s"$key configured for internal transport module $module, " +
+        s"should be using ${INTERNAL_TRANSPORT_MODULES(module)} instead")
+    }
+  }
+
+  private def getTransportConfContainsImpl[T](module: String, entry: ConfigEntry[T]): Boolean = {
+    var currentModule = module
+
+    while (null != currentModule) {
+      val key = entry.key.replace("<module>", currentModule)
+      val opt = getOption(key)
+      if (opt.isDefined) {
+        warnIfInternalTransportModule(currentModule, key)
+        return true
+      }
+
+      currentModule = CelebornConf.TRANSPORT_MODULE_FALLBACKS.getOrElse(currentModule, null)
+    }
+
+    // Is there a fallback for the config entry itself ?
+    entry match {
+      case fallbackConfig: FallbackConfigEntry[T] =>
+        contains(fallbackConfig)
+      case _ =>
+        false
+    }
+  }
+
+  private def getTransportConfImpl[T](
+      module: String,
+      configEntry: ConfigEntry[T],
+      converter: String => T,
+      allowDefault: Boolean = true): Option[T] = {
+    var currentModule = module
+
+    while (null != currentModule) {
+      val key = configEntry.key.replace("<module>", currentModule)
+      val opt = getOption(key)
+      if (opt.isDefined) {
+        warnIfInternalTransportModule(currentModule, key)
+        return opt.map(converter)
+      }
+
+      currentModule = CelebornConf.TRANSPORT_MODULE_FALLBACKS.getOrElse(currentModule, null)
+    }
+
+    // Is there a fallback for the config entry itself ?
+    configEntry match {
+      case fallbackConfig: FallbackConfigEntry[T] =>
+        if (fallbackConfig.fallback.defaultValue.isDefined || contains(fallbackConfig)) {
+          // We do not expect fallback key to be a transport conf
+          assert(!fallbackConfig.fallback.key.contains("<module>"))
+          Some(get(fallbackConfig.fallback))
+        } else {
+          // We return None if fallback config is defined, but it does not have a default
+          None
+        }
+      case _ =>
+        if (allowDefault) {
+          Some(converter(configEntry.defaultValueString))
+        } else {
+          None
+        }
+    }
+  }
+
+  def setTransportConfIfMissing[T](
+      module: String,
+      configEntry: ConfigEntry[T],
+      value: String): Unit = {
+
+    if (getTransportConfContainsImpl(module, configEntry)) {
+      return
+    }
+
+    val key = configEntry.key.replace(
+      "<module>",
+      // if this is an internal module. map it to the exposed module - else use the same
+      INTERNAL_TRANSPORT_MODULES.getOrElse(module, module))
+    set(key, value)
+  }
+
   def set[T](entry: ConfigEntry[T], value: T): CelebornConf = {
     set(entry.key, entry.stringConverter(value))
     this
@@ -148,6 +232,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     entry.readFrom(reader)
   }
 
+  /** Get a transport config */
+  def getTransportConf(module: String, configEntry: ConfigEntry[String]): String = {
+    getTransportConfImpl(module, configEntry, Predef.identity).get
+  }
+
   /**
    * Get a time parameter as seconds; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then seconds are assumed.
@@ -186,6 +275,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     Utils.timeStringAsMs(get(key, defaultValue))
   }
 
+  /** Get time in ms for a transport config */
+  def getTransportConfTimeAsMs(module: String, configEntry: ConfigEntry[Long]): Long = {
+    getTransportConfImpl(module, configEntry, Utils.timeStringAsMs).get
+  }
+
   /**
    * Get a size parameter as bytes; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then bytes are assumed.
@@ -211,6 +305,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
    */
   def getSizeAsBytes(key: String, defaultValue: Long): Long = catchIllegalValue(key) {
     Utils.byteStringAsBytes(get(key, defaultValue + "B"))
+  }
+
+  /** Get a size parameter as bytes for a transport config */
+  def getTransportConfSizeAsBytes(module: String, configEntry: ConfigEntry[Long]): Long = {
+    getTransportConfImpl(module, configEntry, Utils.byteStringAsBytes).get
   }
 
   /**
@@ -301,6 +400,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getOption(key).map(_.toInt).getOrElse(defaultValue)
   }
 
+  /** Get a parameter as an integer for a transport config */
+  def getTransportConfInt(module: String, configEntry: ConfigEntry[Int]): Int = {
+    getTransportConfImpl(module, configEntry, Integer.parseInt).get
+  }
+
   /**
    * Get a parameter as a long, falling back to a default if not set
    * @throws NumberFormatException If the value cannot be interpreted as a long
@@ -325,6 +429,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getOption(key).map(_.toBoolean).getOrElse(defaultValue)
   }
 
+  /** Get a parameter as a long for a transport config */
+  def getTransportConfBoolean(module: String, configEntry: ConfigEntry[Boolean]): Boolean = {
+    getTransportConfImpl(module, configEntry, java.lang.Boolean.parseBoolean).get
+  }
+
   /** Does the configuration contain a given parameter? */
   def contains(key: String): Boolean = {
     settings.containsKey(key) ||
@@ -332,6 +441,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   private[celeborn] def contains(entry: ConfigEntry[_]): Boolean = contains(entry.key)
+
+  private[celeborn] def getTransportConfContains[E](
+      module: String,
+      configEntry: ConfigEntry[E]): Boolean = {
+    getTransportConfContainsImpl(module, configEntry)
+  }
 
   /** Copy this object */
   override def clone: CelebornConf = {
@@ -400,6 +515,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(get(RPC_LOOKUP_TIMEOUT).milli, RPC_LOOKUP_TIMEOUT.key)
   def rpcAskTimeout: RpcTimeout =
     new RpcTimeout(get(RPC_ASK_TIMEOUT).milli, RPC_ASK_TIMEOUT.key)
+  def rpcInMemoryBoundedInboxCapacity(): Int = {
+    get(RPC_INBOX_CAPACITY)
+  }
   def rpcDispatcherNumThreads(availableCores: Int): Int = {
     val num = get(RPC_DISPATCHER_THREADS)
     if (num != 0) num else availableCores
@@ -412,78 +530,63 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   def networkIoMode(module: String): String = {
-    val key = NETWORK_IO_MODE.key.replace("<module>", module)
-    get(key, NETWORK_IO_MODE.defaultValue.get)
+    getTransportConf(module, NETWORK_IO_MODE)
   }
 
   def networkIoPreferDirectBufs(module: String): Boolean = {
-    val key = NETWORK_IO_PREFER_DIRECT_BUFS.key.replace("<module>", module)
-    getBoolean(key, NETWORK_IO_PREFER_DIRECT_BUFS.defaultValue.get)
+    getTransportConfBoolean(module, NETWORK_IO_PREFER_DIRECT_BUFS)
   }
 
   def networkIoConnectTimeoutMs(module: String): Int = {
-    val key = NETWORK_IO_CONNECT_TIMEOUT.key.replace("<module>", module)
-    getTimeAsMs(key, s"${networkConnectTimeout.duration.toMillis}ms").toInt
+    getTransportConfTimeAsMs(module, NETWORK_IO_CONNECT_TIMEOUT).toInt
   }
 
   def networkIoConnectionTimeoutMs(module: String): Int = {
-    val key = NETWORK_IO_CONNECTION_TIMEOUT.key.replace("<module>", module)
-    getTimeAsMs(key, s"${networkTimeout.duration.toMillis}ms").toInt
+    getTransportConfTimeAsMs(module, NETWORK_IO_CONNECTION_TIMEOUT).toInt
   }
 
   def networkIoNumConnectionsPerPeer(module: String): Int = {
-    val key = NETWORK_IO_NUM_CONNECTIONS_PER_PEER.key.replace("<module>", module)
-    getInt(key, NETWORK_IO_NUM_CONNECTIONS_PER_PEER.defaultValue.get)
+    getTransportConfInt(module, NETWORK_IO_NUM_CONNECTIONS_PER_PEER)
   }
 
   def networkIoBacklog(module: String): Int = {
-    val key = NETWORK_IO_BACKLOG.key.replace("<module>", module)
-    getInt(key, NETWORK_IO_BACKLOG.defaultValue.get)
+    getTransportConfInt(module, NETWORK_IO_BACKLOG)
   }
 
   def networkIoServerThreads(module: String): Int = {
-    val key = NETWORK_IO_SERVER_THREADS.key.replace("<module>", module)
-    getInt(key, NETWORK_IO_SERVER_THREADS.defaultValue.get)
+    getTransportConfInt(module, NETWORK_IO_SERVER_THREADS)
   }
 
   def networkIoClientThreads(module: String): Int = {
-    val key = NETWORK_IO_CLIENT_THREADS.key.replace("<module>", module)
-    getInt(key, NETWORK_IO_CLIENT_THREADS.defaultValue.get)
+    getTransportConfInt(module, NETWORK_IO_CLIENT_THREADS)
   }
 
   def networkIoReceiveBuf(module: String): Int = {
-    val key = NETWORK_IO_RECEIVE_BUFFER.key.replace("<module>", module)
-    getSizeAsBytes(key, NETWORK_IO_RECEIVE_BUFFER.defaultValueString).toInt
+    getTransportConfSizeAsBytes(module, NETWORK_IO_RECEIVE_BUFFER).toInt
   }
 
   def networkIoSendBuf(module: String): Int = {
-    val key = NETWORK_IO_SEND_BUFFER.key.replace("<module>", module)
-    getSizeAsBytes(key, NETWORK_IO_SEND_BUFFER.defaultValueString).toInt
+    getTransportConfSizeAsBytes(module, NETWORK_IO_SEND_BUFFER).toInt
   }
 
   def networkIoMaxRetries(module: String): Int = {
-    val key = NETWORK_IO_MAX_RETRIES.key.replace("<module>", module)
-    getInt(key, NETWORK_IO_MAX_RETRIES.defaultValue.get)
+    getTransportConfInt(module, NETWORK_IO_MAX_RETRIES)
   }
 
   def networkIoRetryWaitMs(module: String): Int = {
-    val key = NETWORK_IO_RETRY_WAIT.key.replace("<module>", module)
-    getTimeAsMs(key, NETWORK_IO_RETRY_WAIT.defaultValueString).toInt
+    getTransportConfTimeAsMs(module, NETWORK_IO_RETRY_WAIT).toInt
   }
 
   def networkIoMemoryMapBytes(module: String): Int = {
-    val key = NETWORK_IO_STORAGE_MEMORY_MAP_THRESHOLD.key.replace("<module>", module)
-    getSizeAsBytes(key, NETWORK_IO_STORAGE_MEMORY_MAP_THRESHOLD.defaultValueString).toInt
+    getTransportConfSizeAsBytes(module, NETWORK_IO_STORAGE_MEMORY_MAP_THRESHOLD).toInt
   }
 
   def networkIoLazyFileDescriptor(module: String): Boolean = {
-    val key = NETWORK_IO_LAZY_FD.key.replace("<module>", module)
-    getBoolean(key, NETWORK_IO_LAZY_FD.defaultValue.get)
+    getTransportConfBoolean(module, NETWORK_IO_LAZY_FD)
   }
 
   def networkIoVerboseMetrics(module: String): Boolean = {
-    val key = NETWORK_VERBOSE_METRICS.key.replace("<module>", module)
-    getBoolean(key, NETWORK_VERBOSE_METRICS.defaultValue.get)
+    getTransportConfBoolean(module, NETWORK_VERBOSE_METRICS)
   }
 
   def networkShareMemoryAllocator: Boolean = get(NETWORK_MEMORY_ALLOCATOR_SHARE)
@@ -502,35 +605,29 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   def clientHeartbeatInterval(module: String): Long = {
-    val key = CHANNEL_HEARTBEAT_INTERVAL.key.replace("<module>", module)
-    getTimeAsMs(key, CHANNEL_HEARTBEAT_INTERVAL.defaultValueString)
+    getTransportConfTimeAsMs(module, CHANNEL_HEARTBEAT_INTERVAL)
   }
 
   def pushDataTimeoutCheckerThreads(module: String): Int = {
-    val key = PUSH_TIMEOUT_CHECK_THREADS.key.replace("<module>", module)
-    getInt(key, PUSH_TIMEOUT_CHECK_THREADS.defaultValue.get)
+    getTransportConfInt(module, PUSH_TIMEOUT_CHECK_THREADS)
   }
 
   def pushDataTimeoutCheckInterval(module: String): Long = {
-    val key = PUSH_TIMEOUT_CHECK_INTERVAL.key.replace("<module>", module)
-    getTimeAsMs(key, PUSH_TIMEOUT_CHECK_INTERVAL.defaultValueString)
+    getTransportConfTimeAsMs(module, PUSH_TIMEOUT_CHECK_INTERVAL)
   }
 
   def fetchDataTimeoutCheckerThreads(module: String): Int = {
-    val key = FETCH_TIMEOUT_CHECK_THREADS.key.replace("<module>", module)
-    getInt(key, FETCH_TIMEOUT_CHECK_THREADS.defaultValue.get)
+    getTransportConfInt(module, FETCH_TIMEOUT_CHECK_THREADS)
   }
 
   def fetchDataTimeoutCheckInterval(module: String): Long = {
-    val key = FETCH_TIMEOUT_CHECK_INTERVAL.key.replace("<module>", module)
-    getTimeAsMs(key, FETCH_TIMEOUT_CHECK_INTERVAL.defaultValueString)
+    getTransportConfTimeAsMs(module, FETCH_TIMEOUT_CHECK_INTERVAL)
   }
 
   def maxDefaultNettyThreads: Int = get(MAX_DEFAULT_NETTY_THREADS)
 
   def networkIoSaslTimoutMs(module: String): Int = {
-    val key = NETWORK_IO_SASL_TIMEOUT.key.replace("<module>", module)
-    getTimeAsMs(key, s"${networkTimeout.duration.toMillis}ms").toInt
+    getTransportConfTimeAsMs(module, NETWORK_IO_SASL_TIMEOUT).toInt
   }
 
   // //////////////////////////////////////////////////////
@@ -589,6 +686,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def masterHttpMaxWorkerThreads: Int = get(MASTER_HTTP_MAX_WORKER_THREADS)
 
   def masterHttpStopTimeout: Long = get(MASTER_HTTP_STOP_TIMEOUT)
+
+  def masterHttpIdleTimeout: Long = get(MASTER_HTTP_IDLE_TIMEOUT)
 
   def haEnabled: Boolean = get(HA_ENABLED)
 
@@ -682,6 +781,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerHttpPort: Int = get(WORKER_HTTP_PORT)
   def workerHttpMaxWorkerThreads: Int = get(WORKER_HTTP_MAX_WORKER_THREADS)
   def workerHttpStopTimeout: Long = get(WORKER_HTTP_STOP_TIMEOUT)
+  def workerHttpIdleTimeout: Long = get(WORKER_HTTP_IDLE_TIMEOUT)
   def workerRpcPort: Int = get(WORKER_RPC_PORT)
   def workerPushPort: Int = get(WORKER_PUSH_PORT)
   def workerFetchPort: Int = get(WORKER_FETCH_PORT)
@@ -809,20 +909,25 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       get(CLIENT_RESERVE_SLOTS_RPC_TIMEOUT).milli,
       CLIENT_RESERVE_SLOTS_RPC_TIMEOUT.key)
 
-  def clientRpcRegisterShuffleRpcAskTimeout: RpcTimeout =
+  def clientRpcRegisterShuffleAskTimeout: RpcTimeout =
     new RpcTimeout(
-      get(CLIENT_RPC_REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).milli,
-      CLIENT_RPC_REGISTER_SHUFFLE_RPC_ASK_TIMEOUT.key)
+      get(CLIENT_RPC_REGISTER_SHUFFLE_ASK_TIMEOUT).milli,
+      CLIENT_RPC_REGISTER_SHUFFLE_ASK_TIMEOUT.key)
 
-  def clientRpcRequestPartitionLocationRpcAskTimeout: RpcTimeout =
+  def clientRpcRequestPartitionLocationAskTimeout: RpcTimeout =
     new RpcTimeout(
-      get(CLIENT_RPC_REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT).milli,
-      CLIENT_RPC_REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT.key)
+      get(CLIENT_RPC_REQUEST_PARTITION_LOCATION_ASK_TIMEOUT).milli,
+      CLIENT_RPC_REQUEST_PARTITION_LOCATION_ASK_TIMEOUT.key)
 
-  def clientRpcGetReducerFileGroupRpcAskTimeout: RpcTimeout =
+  def clientRpcGetReducerFileGroupAskTimeout: RpcTimeout =
     new RpcTimeout(
-      get(CLIENT_RPC_GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).milli,
-      CLIENT_RPC_GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
+      get(CLIENT_RPC_GET_REDUCER_FILE_GROUP_ASK_TIMEOUT).milli,
+      CLIENT_RPC_GET_REDUCER_FILE_GROUP_ASK_TIMEOUT.key)
+
+  def clientRpcCommitFilesAskTimeout: RpcTimeout =
+    new RpcTimeout(
+      get(CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT).milli,
+      CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT.key)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Client Fetch                  //
@@ -898,8 +1003,16 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
   def shuffleForceFallbackEnabled: Boolean = get(SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED)
   def checkWorkerEnabled: Boolean = get(CHECK_WORKER_ENABLED)
-  def shuffleForceFallbackPartitionThreshold: Long =
-    get(SPARK_SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
+  def shuffleFallbackPolicy: FallbackPolicy = {
+    val fallbackPolicyGiven = FallbackPolicy.valueOf(get(SPARK_SHUFFLE_FALLBACK_POLICY))
+    if (shuffleForceFallbackEnabled && FallbackPolicy.AUTO.equals(fallbackPolicyGiven)) {
+      FallbackPolicy.ALWAYS
+    } else {
+      fallbackPolicyGiven
+    }
+  }
+
+  def shuffleFallbackPartitionThreshold: Long = get(SPARK_SHUFFLE_FALLBACK_PARTITION_THRESHOLD)
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
   def shuffleManagerPort: Int = get(CLIENT_SHUFFLE_MANAGER_PORT)
   def shuffleChunkSize: Long = get(SHUFFLE_CHUNK_SIZE)
@@ -908,6 +1021,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     PartitionSplitMode.valueOf(get(SHUFFLE_PARTITION_SPLIT_MODE))
   def shufflePartitionSplitThreshold: Long = get(SHUFFLE_PARTITION_SPLIT_THRESHOLD)
   def batchHandleChangePartitionEnabled: Boolean = get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED)
+  def batchHandleChangePartitionBuckets: Int =
+    get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_BUCKETS)
   def batchHandleChangePartitionNumThreads: Int = get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_THREADS)
   def batchHandleChangePartitionRequestInterval: Long =
     get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_INTERVAL)
@@ -1149,15 +1264,18 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                     TLS                             //
   // //////////////////////////////////////////////////////
   private def getSslConfig[V](config: ConfigEntry[V], module: String): V = {
-    // For ssl, we look at the module specific value - and then fallback to without the
-    // module for global defaults, before falling back on what is in code
-    val moduleKey = config.key.replace("<module>", module)
+    val valueOpt = getTransportConfImpl(module, config, config.valueConverter, allowDefault = false)
+
+    if (valueOpt.isDefined) {
+      return valueOpt.get
+    }
+
+    // Try without <module>, and if missing, use default
+
     // replace the module wildcard and check for global value
     val globalKey = config.key.replace(".<module>.", ".")
-
     val defaultValue = if (config.defaultValue.isDefined) config.defaultValueString else null
-
-    config.valueConverter(getOption(moduleKey).getOrElse(get(globalKey, defaultValue)))
+    config.valueConverter(get(globalKey, defaultValue))
   }
 
   private def asFileOrNull(fileName: Option[String]): File = {
@@ -1236,6 +1354,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getSslConfig(MAX_SSL_ENCRYPTED_BLOCK_SIZE, module).toInt
   }
 
+  def isAutoSslEnabled(module: String): Boolean = {
+    getSslConfig(AUTO_SSL_ENABLED, module)
+  }
+
   // //////////////////////////////////////////////////////
   //               Authentication                        //
   // //////////////////////////////////////////////////////
@@ -1283,9 +1405,31 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                     Rack Resolver                   //
   // //////////////////////////////////////////////////////
   def rackResolverRefreshInterval = get(RACKRESOLVER_REFRESH_INTERVAL)
+
+  def logCelebornConfEnabled = get(LOG_CELEBORN_CONF_ENABLED)
+
+  def secretRedactionPattern = get(SECRET_REDACTION_PATTERN)
 }
 
 object CelebornConf extends Logging {
+
+  val TRANSPORT_MODULE_FALLBACKS: Map[String, String] = Map(
+    TransportModuleConstants.RPC_SERVICE_MODULE -> TransportModuleConstants.RPC_MODULE,
+    TransportModuleConstants.RPC_APP_MODULE -> TransportModuleConstants.RPC_MODULE,
+
+    // Internally, RPC_APP_MODULE is split into RPC_LIFECYCLEMANAGER_MODULE and
+    // RPC_APP_CLIENT_MODULE, though this is not exposed to users.
+    TransportModuleConstants.RPC_LIFECYCLEMANAGER_MODULE -> TransportModuleConstants.RPC_APP_MODULE,
+    TransportModuleConstants.RPC_APP_CLIENT_MODULE -> TransportModuleConstants.RPC_APP_MODULE,
+
+    // only for testing
+    "test_child_module" -> "test_parent_module")
+
+  // The keys are modules are internal to Celeborn, and users are not expected to directly
+  // configure them. The values give the user exposed module.
+  val INTERNAL_TRANSPORT_MODULES: Map[String, String] = Map(
+    TransportModuleConstants.RPC_LIFECYCLEMANAGER_MODULE -> TransportModuleConstants.RPC_APP_MODULE,
+    TransportModuleConstants.RPC_APP_CLIENT_MODULE -> TransportModuleConstants.RPC_APP_MODULE)
 
   /**
    * Holds information about keys that have been deprecated and do not have a replacement.
@@ -1337,7 +1481,15 @@ object CelebornConf extends Logging {
       DeprecatedConfig(
         "celeborn.worker.storage.baseDir.number",
         "0.4.0",
-        "Please use celeborn.worker.storage.dirs"))
+        "Please use celeborn.worker.storage.dirs"),
+      DeprecatedConfig(
+        "celeborn.client.spark.shuffle.forceFallback.enabled",
+        "0.5.0",
+        "Please use celeborn.client.spark.shuffle.fallback.policy"),
+      DeprecatedConfig(
+        "celeborn.shuffle.forceFallback.enabled",
+        "0.5.0",
+        "Please use celeborn.client.spark.shuffle.fallback.policy"))
 
     Map(configs.map { cfg => (cfg.key -> cfg) }: _*)
   }
@@ -1587,6 +1739,17 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(0)
 
+  val RPC_INBOX_CAPACITY: ConfigEntry[Int] =
+    buildConf("celeborn.rpc.inbox.capacity")
+      .categories("network")
+      .doc("Specifies size of the in memory bounded capacity.")
+      .version("0.5.0")
+      .intConf
+      .checkValue(
+        v => v >= 0,
+        "the capacity of inbox must be no less than 0, 0 means no limitation")
+      .createWithDefault(0)
+
   val RPC_ROLE_DISPATHER_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.<role>.rpc.dispatcher.threads")
       .categories("network")
@@ -1606,8 +1769,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.preferDirectBufs")
       .categories("network")
       .doc("If true, we will prefer allocating off-heap byte buffers within Netty. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVICE_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
@@ -1623,8 +1788,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.connectTimeout")
       .categories("network")
       .doc("Socket connect timeout. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVICE_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1635,8 +1802,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.connectionTimeout")
       .categories("network")
       .doc("Connection active timeout. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVICE_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
@@ -1651,8 +1820,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.numConnectionsPerPeer")
       .categories("network")
       .doc("Number of concurrent connections between two nodes. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVICE_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1665,8 +1836,10 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc(
         "Requested maximum length of the queue of incoming connections. Default 0 for no backlog. " +
-          s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-          s"it works for master or worker. " +
+          s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+          s"works for shuffle client. " +
+          s"If setting <module> to `${TransportModuleConstants.RPC_SERVICE_MODULE}`, " +
+          s"works for master or worker. " +
           s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
           s"it works for worker receiving push data. " +
           s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1680,8 +1853,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.serverThreads")
       .categories("network")
       .doc("Number of threads used in the server thread pool. Default to 0, which is 2x#cores. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVICE_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
         s"it works for worker receiving push data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1695,8 +1870,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.clientThreads")
       .categories("network")
       .doc("Number of threads used in the client thread pool. Default to 0, which is 2x#cores. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVICE_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1710,8 +1887,10 @@ object CelebornConf extends Logging {
       .doc("Receive buffer size (SO_RCVBUF). Note: the optimal size for receive buffer and send buffer " +
         "should be latency * network_bandwidth. Assuming latency = 1ms, network_bandwidth = 10Gbps " +
         "buffer size should be ~ 1.25MB. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVICE_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
@@ -1728,8 +1907,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.sendBuffer")
       .categories("network")
       .doc("Send buffer size (SO_SNDBUF). " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVICE_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
@@ -1863,8 +2044,10 @@ object CelebornConf extends Logging {
       .categories("network")
       .version("0.3.0")
       .doc("The heartbeat interval between worker and client. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVICE_MODULE}`, " +
+        s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1998,6 +2181,14 @@ object CelebornConf extends Logging {
       .doc("Master http server stop timeout.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
+
+  val MASTER_HTTP_IDLE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.http.idleTimeout")
+      .categories("master")
+      .version("0.5.0")
+      .doc("Master http server idle timeout.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
 
   val HA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.master.ha.enabled")
@@ -2574,6 +2765,14 @@ object CelebornConf extends Logging {
       .doc("Worker http server stop timeout.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
+
+  val WORKER_HTTP_IDLE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.http.idleTimeout")
+      .categories("worker")
+      .version("0.5.0")
+      .doc("Worker http server idle timeout.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
 
   val WORKER_RPC_PORT: ConfigEntry[Int] =
     buildConf("celeborn.worker.rpc.port")
@@ -3875,6 +4074,14 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
+  val CLIENT_BATCH_HANDLE_CHANGE_PARTITION_BUCKETS: ConfigEntry[Int] =
+    buildConf("celeborn.client.shuffle.batchHandleChangePartition.partitionBuckets")
+      .categories("client")
+      .doc("Max number of change partition requests which can be concurrently processed ")
+      .version("0.5.0")
+      .intConf
+      .createWithDefault(256)
+
   val CLIENT_BATCH_HANDLE_CHANGE_PARTITION_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.batchHandleChangePartition.threads")
       .withAlternative("celeborn.shuffle.batchHandleChangePartition.threads")
@@ -4020,7 +4227,7 @@ object CelebornConf extends Logging {
       .doc("Timeout for LifecycleManager request reserve slots.")
       .fallbackConf(RPC_ASK_TIMEOUT)
 
-  val CLIENT_RPC_REGISTER_SHUFFLE_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+  val CLIENT_RPC_REGISTER_SHUFFLE_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.registerShuffle.askTimeout")
       .withAlternative("celeborn.rpc.registerShuffle.askTimeout")
       .categories("client")
@@ -4029,29 +4236,33 @@ object CelebornConf extends Logging {
         s"During this process, there are two times for retry opportunities for requesting slots, " +
         s"one request for establishing a connection with Worker and " +
         s"`${CLIENT_RESERVE_SLOTS_MAX_RETRIES.key}` times for retry opportunities for reserving slots. " +
-        s"User can customize this value according to your setting. " +
-        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
-      .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
+        s"User can customize this value according to your setting.")
+      .fallbackConf(RPC_ASK_TIMEOUT)
 
-  val CLIENT_RPC_REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+  val CLIENT_RPC_REQUEST_PARTITION_LOCATION_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.requestPartition.askTimeout")
       .categories("client")
       .version("0.2.0")
       .doc(s"Timeout for ask operations during requesting change partition location, such as reviving or splitting partition. " +
         s"During this process, there are `${CLIENT_RESERVE_SLOTS_MAX_RETRIES.key}` times for retry opportunities for reserving slots. " +
-        s"User can customize this value according to your setting. " +
-        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
-      .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
+        s"User can customize this value according to your setting.")
+      .fallbackConf(RPC_ASK_TIMEOUT)
 
-  val CLIENT_RPC_GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+  val CLIENT_RPC_GET_REDUCER_FILE_GROUP_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.getReducerFileGroup.askTimeout")
       .categories("client")
       .version("0.2.0")
       .doc(s"Timeout for ask operations during getting reducer file group information. " +
         s"During this process, there are `${CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files " +
-        s"and 1 times for releasing slots request. User can customize this value according to your setting. " +
-        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
-      .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
+        s"and 1 times for releasing slots request. User can customize this value according to your setting.")
+      .fallbackConf(RPC_ASK_TIMEOUT)
+
+  val CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.client.rpc.commitFiles.askTimeout")
+      .categories("client")
+      .version("0.4.1")
+      .doc("Timeout for CommitHandler commit files.")
+      .fallbackConf(RPC_ASK_TIMEOUT)
 
   val CLIENT_RPC_CACHE_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.client.rpc.cache.size")
@@ -4166,15 +4377,6 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.spark.shuffle.forceFallback.enabled")
-      .withAlternative("celeborn.shuffle.forceFallback.enabled")
-      .categories("client")
-      .version("0.3.0")
-      .doc("Whether force fallback shuffle to Spark's default.")
-      .booleanConf
-      .createWithDefault(false)
-
   val CHECK_WORKER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.shuffle.checkWorker.enabled")
       .categories("client")
@@ -4185,13 +4387,44 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val SPARK_SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD: ConfigEntry[Long] =
-    buildConf("celeborn.client.spark.shuffle.forceFallback.numPartitionsThreshold")
-      .withAlternative("celeborn.shuffle.forceFallback.numPartitionsThreshold")
+  val SPARK_SHUFFLE_FALLBACK_POLICY: ConfigEntry[String] =
+    buildConf("celeborn.client.spark.shuffle.fallback.policy")
+      .categories("client")
+      .version("0.5.0")
+      .doc("Celeborn supports the following kind of fallback policies. " +
+        s"1. ${FallbackPolicy.ALWAYS.name}: always use spark built-in shuffle implementation; " +
+        s"2. ${FallbackPolicy.AUTO.name}: prefer to use celeborn shuffle implementation, and fallback to use spark " +
+        "built-in shuffle implementation based on certain factors, e.g. availability of enough workers and quota, " +
+        "shuffle partition number; " +
+        s"3. ${FallbackPolicy.NEVER.name}: always use celeborn shuffle implementation, and fail fast when it it is " +
+        "concluded that fallback is required based on factors above.")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set(
+        FallbackPolicy.ALWAYS.name,
+        FallbackPolicy.AUTO.name,
+        FallbackPolicy.NEVER.name))
+      .createWithDefault(FallbackPolicy.AUTO.name)
+
+  val SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.shuffle.forceFallback.enabled")
+      .withAlternative("celeborn.shuffle.forceFallback.enabled")
       .categories("client")
       .version("0.3.0")
-      .doc(
-        "Celeborn will only accept shuffle of partition number lower than this configuration value.")
+      .doc("Always use spark built-in shuffle implementation. This configuration is deprecated, " +
+        s"consider configuring `${CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY.key}` instead.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val SPARK_SHUFFLE_FALLBACK_PARTITION_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.client.spark.shuffle.fallback.numPartitionsThreshold")
+      .withAlternative("celeborn.shuffle.forceFallback.numPartitionsThreshold")
+      .withAlternative("celeborn.client.spark.shuffle.forceFallback.numPartitionsThreshold")
+      .categories("client")
+      .version("0.5.0")
+      .doc("Celeborn will only accept shuffle of partition number lower than this configuration value. " +
+        s"This configuration only takes effect when `${CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY.key}` " +
+        s"is `${FallbackPolicy.AUTO.name}`.")
       .longConf
       .createWithDefault(Int.MaxValue)
 
@@ -4851,7 +5084,11 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ssl.<module>.protocol")
       .categories("network", "ssl")
       .version("0.5.0")
-      .doc("SSL protocol to use")
+      .doc("TLS protocol to use.<br/> The protocol must be supported by JVM.<br/> The reference " +
+        "list of protocols can be found in the \"Additional JSSE Standard Names\" section of " +
+        "the Java security guide. For Java 11, for example, the list can be found " +
+        "[here](https://docs.oracle.com/en/java/javase/11/docs/specs/" +
+        "security/standard-names.html#additional-jsse-standard-names)")
       .stringConf
       // TLSv1.3 requires specific java version, defaulting to v1.2
       .createWithDefault("TLSv1.2")
@@ -4860,11 +5097,13 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ssl.<module>.enabledAlgorithms")
       .categories("network", "ssl")
       .version("0.5.0")
-      .doc("A comma-separated list of ciphers. The specified ciphers must be supported by JVM. " +
-        "The reference list of protocols can be found in the \"JSSE Cipher Suite Names\" section " +
-        "of the Java security guide. The list for Java 17 can be found at " +
-        "https://docs.oracle.com/en/java/javase/17/docs/specs/security/standard-names.html#jsse-cipher-suite-names " +
-        ". Note: If not set, the default cipher suite for the JRE will be used.")
+      .doc("A comma-separated list of ciphers. The " +
+        "specified ciphers must be supported by JVM.<br/>The reference list of protocols " +
+        "can be found in the \"JSSE Cipher Suite Names\" section of the Java security guide. " +
+        "The list for Java 11, for example, can be found at " +
+        "[this page](https://docs.oracle.com/en/java/javase/11/docs/specs/security/" +
+        "standard-names.html#jsse-cipher-suite-names)<br/>Note: If not set, the default " +
+        "cipher suite for the JRE will be used")
       .stringConf
       .createOptional
 
@@ -4872,8 +5111,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ssl.<module>.keyStore")
       .categories("network", "ssl")
       .version("0.5.0")
-      .doc("Path to the key store file. The path can be absolute or relative to the directory in which the " +
-        "process is started.")
+      .doc("Path to the key store file.<br/> The path can be absolute or relative to the " +
+        "directory in which the process is started.")
       .stringConf
       .createOptional
 
@@ -4889,8 +5128,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ssl.<module>.trustStore")
       .categories("network", "ssl")
       .version("0.5.0")
-      .doc("Path to the trust store file. The path can be absolute or relative to the directory " +
-        "in which the process is started.")
+      .doc("Path to the trust store file.<br/> The path can be absolute or relative to the " +
+        "directory in which the process is started.")
       .stringConf
       .createOptional
 
@@ -4906,8 +5145,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ssl.<module>.trustStoreReloadingEnabled")
       .categories("network", "ssl")
       .version("0.5.0")
-      .doc("Whether the trust store should be reloaded periodically. This setting is mostly only " +
-        "useful for server components, not applications.")
+      .doc("Whether the trust store should be reloaded periodically.<br/> This setting is " +
+        "mostly only useful for Celeborn services (masters, workers), and not applications.")
       .booleanConf
       .createWithDefault(false)
 
@@ -4915,8 +5154,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ssl.<module>.trustStoreReloadIntervalMs")
       .categories("network", "ssl")
       .version("0.5.0")
-      .doc("The interval at which the trust store should be reloaded (in milliseconds). This " +
-        "setting is mostly only useful for server components, not applications.")
+      .doc("The interval at which the trust store should be reloaded (in milliseconds), when " +
+        "enabled. This setting is mostly only useful for server components, not applications.")
       .timeConf(TimeUnit.MILLISECONDS)
       // We treat this as an int, so validate
       .checkValue(
@@ -4936,5 +5175,37 @@ object CelebornConf extends Logging {
         p => p > 0 && p <= Int.MaxValue,
         s"Invalid maxEncryptedBlockSize, must be a position number upto ${Int.MaxValue}")
       .createWithDefaultString("64k")
+
+  val AUTO_SSL_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.ssl.<module>.autoSslEnabled")
+      .categories("network", "ssl")
+      .version("0.5.0")
+      .internal
+      .doc("Enable auto ssl for encrypted communication between lifecyclemanager and " +
+        "executors.<br/><br/> This is applicable only for " +
+        s"${TransportModuleConstants.RPC_APP_MODULE} module and ignored for " +
+        "others. Additionally if truststore or keystore are present, this config is " +
+        "ignored.<br/><br/>Lifecyclemanager generates a self-signed certificate, which is " +
+        "used for SSL. Given use of self-signed certificate, auto ssl only provides over the wire encryption")
+      .booleanConf
+      .createWithDefault(false)
+
+  val SECRET_REDACTION_PATTERN =
+    buildConf("celeborn.redaction.regex")
+      .categories("master", "worker")
+      .doc("Regex to decide which Celeborn configuration properties and environment variables in " +
+        "master and worker environments contain sensitive information. When this regex matches " +
+        "a property key or value, the value is redacted from the logging.")
+      .version("0.5.0")
+      .regexConf
+      .createWithDefault("(?i)secret|password|token|access[.]key".r)
+
+  val LOG_CELEBORN_CONF_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.logConf.enabled")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("When `true`, log the CelebornConf for debugging purposes.")
+      .booleanConf
+      .createWithDefault(false)
 
 }

@@ -26,7 +26,7 @@ import scala.collection.JavaConverters._
 import com.google.protobuf.InvalidProtocolBufferException
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationMeta, DiskFileInfo, DiskInfo, FileInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationMeta, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
@@ -490,4 +490,170 @@ object PbSerDeUtils {
       pbWorkerEventInfo.getWorkerEventType.getNumber,
       pbWorkerEventInfo.getEventStartTime())
   }
+
+  private def toPackedPartitionLocation(
+      pbPackedLocationsBuilder: PbPackedPartitionLocations.Builder,
+      workerIdIndex: Map[String, Int],
+      mountPointsIndex: Map[String, Int],
+      location: PartitionLocation): PbPackedPartitionLocations.Builder = {
+    pbPackedLocationsBuilder.addIds(location.getId)
+    pbPackedLocationsBuilder.addEpoches(location.getEpoch)
+    pbPackedLocationsBuilder.addWorkerIds(workerIdIndex(location.getWorker.toUniqueId()))
+    pbPackedLocationsBuilder.addMapIdBitMap(
+      Utils.roaringBitmapToByteString(location.getMapIdBitMap))
+    pbPackedLocationsBuilder.addTypes(location.getStorageInfo.getType.getValue)
+    pbPackedLocationsBuilder.addMountPoints(
+      mountPointsIndex(location.getStorageInfo.getMountPoint))
+    pbPackedLocationsBuilder.addFinalResult(location.getStorageInfo.isFinalResult)
+    if (location.getStorageInfo.getFilePath != null && location.getStorageInfo.getFilePath.nonEmpty) {
+      pbPackedLocationsBuilder.addFilePaths(location.getStorageInfo.getFilePath
+        .substring(location.getStorageInfo.getMountPoint.length))
+    } else {
+      pbPackedLocationsBuilder.addFilePaths("")
+    }
+    pbPackedLocationsBuilder.addAvailableStorageTypes(location.getStorageInfo.availableStorageTypes)
+    pbPackedLocationsBuilder.addModes(location.getMode.mode())
+  }
+
+  def toPbPackedPartitionLocationsPair(inputLocations: List[PartitionLocation])
+      : PbPackedPartitionLocationsPair = {
+    val packedLocationPairsBuilder = PbPackedPartitionLocationsPair.newBuilder()
+    val packedLocationsBuilder = PbPackedPartitionLocations.newBuilder()
+
+    val implicateLocations = inputLocations.map(_.getPeer).filterNot(_ == null)
+
+    val allLocations = (inputLocations ++ implicateLocations)
+    val workerIdList = new util.ArrayList[String](
+      allLocations.map(_.getWorker.toUniqueId()).toSet.asJava)
+    val workerIdIndex = workerIdList.asScala.zipWithIndex.toMap
+    val mountPointsList = new util.ArrayList[String](
+      allLocations.map(
+        _.getStorageInfo.getMountPoint).toSet.asJava)
+    val mountPointsIndex = mountPointsList.asScala.zipWithIndex.toMap
+
+    packedLocationsBuilder.addAllWorkerIdsSet(workerIdList)
+    packedLocationsBuilder.addAllMountPointsSet(mountPointsList)
+
+    val locationIndexes = allLocations.zipWithIndex.toMap
+
+    for (location <- allLocations) {
+      toPackedPartitionLocation(
+        packedLocationsBuilder,
+        workerIdIndex,
+        mountPointsIndex,
+        location)
+      if (location.getPeer != null) {
+        packedLocationPairsBuilder.addPeerIndexes(
+          locationIndexes(location.getPeer))
+      } else {
+        packedLocationPairsBuilder.addPeerIndexes(Integer.MAX_VALUE)
+      }
+    }
+
+    packedLocationPairsBuilder.setInputLocationSize(inputLocations.size)
+    packedLocationPairsBuilder.setLocations(packedLocationsBuilder.build()).build()
+  }
+
+  def fromPbPackedPartitionLocationsPair(pbPartitionLocationsPair: PbPackedPartitionLocationsPair)
+      : (util.List[PartitionLocation], util.List[PartitionLocation]) = {
+    val primaryLocations = new util.ArrayList[PartitionLocation]()
+    val replicateLocations = new util.ArrayList[PartitionLocation]()
+    val pbPackedPartitionLocations = pbPartitionLocationsPair.getLocations
+    val inputLocationSize = pbPartitionLocationsPair.getInputLocationSize
+    val idList = pbPackedPartitionLocations.getIdsList
+    val locationCount = idList.size()
+    var index = 0
+
+    val locations = new util.ArrayList[PartitionLocation]()
+    while (index < locationCount) {
+      val loc =
+        fromPackedPartitionLocations(pbPackedPartitionLocations, index)
+      if (index < inputLocationSize) {
+        if (loc.getMode == Mode.PRIMARY) {
+          primaryLocations.add(loc)
+        } else {
+          replicateLocations.add(loc)
+        }
+      }
+      locations.add(loc)
+      index = index + 1
+    }
+
+    index = 0
+    while (index < locationCount) {
+      val replicateIndex = pbPartitionLocationsPair.getPeerIndexes(index)
+      if (replicateIndex != Integer.MAX_VALUE) {
+        locations.get(index).setPeer(locations.get(replicateIndex))
+      }
+      index = index + 1
+    }
+
+    (primaryLocations, replicateLocations)
+  }
+
+  private def fromPackedPartitionLocations(
+      pbPackedPartitionLocations: PbPackedPartitionLocations,
+      index: Int): PartitionLocation = {
+    val workerIdParts = pbPackedPartitionLocations.getWorkerIdsSet(
+      pbPackedPartitionLocations.getWorkerIds(index)).split(":").map(_.trim)
+    var filePath = pbPackedPartitionLocations.getFilePaths(index)
+    if (filePath != "") {
+      filePath = pbPackedPartitionLocations.getMountPointsSet(
+        pbPackedPartitionLocations.getMountPoints(index)) +
+        pbPackedPartitionLocations.getFilePaths(index)
+    }
+
+    val mode =
+      if (pbPackedPartitionLocations.getModes(index) == Mode.PRIMARY.mode()) {
+        Mode.PRIMARY
+      } else {
+        Mode.REPLICA
+      }
+
+    new PartitionLocation(
+      pbPackedPartitionLocations.getIds(index),
+      pbPackedPartitionLocations.getEpoches(index),
+      workerIdParts(0),
+      workerIdParts(1).toInt,
+      workerIdParts(2).toInt,
+      workerIdParts(3).toInt,
+      workerIdParts(4).toInt,
+      mode,
+      null,
+      new StorageInfo(
+        StorageInfo.typesMap.get(pbPackedPartitionLocations.getTypes(index)),
+        pbPackedPartitionLocations.getMountPointsSet(
+          pbPackedPartitionLocations.getMountPoints(index)),
+        pbPackedPartitionLocations.getFinalResult(index),
+        filePath,
+        pbPackedPartitionLocations.getAvailableStorageTypes(index)),
+      Utils.byteStringToRoaringBitmap(pbPackedPartitionLocations.getMapIdBitMap(index)))
+  }
+
+  def fromPbPackedWorkerResource(pbWorkerResource: util.Map[String, PbPackedWorkerResource])
+      : WorkerResource = {
+    val slots = new WorkerResource()
+    pbWorkerResource.asScala.foreach { case (uniqueId, pbPackedWorkerResource) =>
+      val networkLocation = pbPackedWorkerResource.getNetworkLocation
+      val workerInfo = WorkerInfo.fromUniqueId(uniqueId)
+      workerInfo.networkLocation = networkLocation
+      val (primaryLocations, replicateLocations) =
+        fromPbPackedPartitionLocationsPair(pbPackedWorkerResource.getLocationPairs)
+      slots.put(workerInfo, (primaryLocations, replicateLocations))
+    }
+    slots
+  }
+
+  def toPbPackedWorkerResource(workerResource: WorkerResource)
+      : util.Map[String, PbPackedWorkerResource] = {
+    workerResource.asScala.map { case (workerInfo, (primaryLocations, replicaLocations)) =>
+      val pbWorkerResource = PbPackedWorkerResource.newBuilder()
+        .setLocationPairs(toPbPackedPartitionLocationsPair(
+          primaryLocations.asScala.toList ++ replicaLocations.asScala.toList))
+        .setNetworkLocation(workerInfo.networkLocation)
+        .build()
+      workerInfo.toUniqueId() -> pbWorkerResource
+    }.asJava
+  }
+
 }

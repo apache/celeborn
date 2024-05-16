@@ -585,12 +585,12 @@ private[deploy] class Controller(
           override def run(timeout: Timeout): Unit = {
             if (result.get() != null) {
               result.get().cancel(true)
-              logWarning(s"After waiting $shuffleCommitTimeout s, cancel all commit file jobs.")
+              logWarning(s"After waiting $shuffleCommitTimeout ms, cancel all commit file jobs.")
             }
           }
         },
         shuffleCommitTimeout,
-        TimeUnit.SECONDS)
+        TimeUnit.MILLISECONDS)
 
       result.set(future.handleAsync(
         new BiFunction[Void, Throwable, Unit] {
@@ -606,7 +606,7 @@ private[deploy] class Controller(
                   Thread.currentThread().interrupt()
                   throw ie
                 case _: TimeoutException =>
-                  logWarning(s"While handling commitFiles, timeout after $shuffleCommitTimeout s.")
+                  logWarning(s"While handling commitFiles, timeout after $shuffleCommitTimeout ms.")
                 case throwable: Throwable =>
                   logError("While handling commitFiles, exception occurs.", throwable)
               }

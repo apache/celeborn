@@ -18,7 +18,7 @@
 package org.apache.celeborn.common.protocol.message
 
 import java.util
-import java.util.UUID
+import java.util.{Collections, UUID}
 
 import scala.collection.JavaConverters._
 
@@ -160,12 +160,13 @@ object ControlMessages extends Logging {
   object RegisterShuffleResponse {
     def apply(
         status: StatusCode,
-        partitionLocations: Array[PartitionLocation]): PbRegisterShuffleResponse =
-      PbRegisterShuffleResponse.newBuilder()
+        partitionLocations: Array[PartitionLocation]): PbRegisterShuffleResponse = {
+      val builder = PbRegisterShuffleResponse.newBuilder()
         .setStatus(status.getValue)
-        .addAllPartitionLocations(
-          partitionLocations.map(PbSerDeUtils.toPbPartitionLocation).toSeq.asJava)
-        .build()
+      builder.setPackedPartitionLocationsPair(
+        PbSerDeUtils.toPbPackedPartitionLocationsPair(partitionLocations.toList))
+      builder.build()
+    }
   }
 
   case class RequestSlots(
@@ -179,6 +180,7 @@ object ControlMessages extends Logging {
       maxWorkers: Int,
       availableStorageTypes: Int,
       excludedWorkerSet: Set[WorkerInfo] = Set.empty,
+      packed: Boolean = false,
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
@@ -199,7 +201,8 @@ object ControlMessages extends Logging {
 
   case class RequestSlotsResponse(
       status: StatusCode,
-      workerResource: WorkerResource)
+      workerResource: WorkerResource,
+      packed: Boolean = false)
     extends MasterMessage
 
   object Revive {
@@ -279,7 +282,7 @@ object ControlMessages extends Logging {
       status: StatusCode,
       fileGroup: util.Map[Integer, util.Set[PartitionLocation]],
       attempts: Array[Int],
-      partitionIds: util.Set[Integer] = new util.HashSet[Integer]())
+      partitionIds: util.Set[Integer] = Collections.emptySet[Integer]())
     extends MasterMessage
 
   object WorkerExclude {
@@ -583,6 +586,7 @@ object ControlMessages extends Logging {
           maxWorkers,
           availableStorageTypes,
           excludedWorkerSet,
+          packed,
           requestId) =>
       val payload = PbRequestSlots.newBuilder()
         .setApplicationId(applicationId)
@@ -596,6 +600,7 @@ object ControlMessages extends Logging {
         .setAvailableStorageTypes(availableStorageTypes)
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
         .addAllExcludedWorkerSet(excludedWorkerSet.map(PbSerDeUtils.toPbWorkerInfo(_, true)).asJava)
+        .setPacked(packed)
         .build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS, payload)
 
@@ -616,12 +621,16 @@ object ControlMessages extends Logging {
         .setStatus(status.getValue).build().toByteArray
       new TransportMessage(MessageType.RELEASE_SLOTS_RESPONSE, payload)
 
-    case RequestSlotsResponse(status, workerResource) =>
+    case RequestSlotsResponse(status, workerResource, packed) =>
       val builder = PbRequestSlotsResponse.newBuilder()
         .setStatus(status.getValue)
       if (!workerResource.isEmpty) {
-        builder.putAllWorkerResource(
-          PbSerDeUtils.toPbWorkerResource(workerResource))
+        if (packed) {
+          builder.putAllPackedWorkerResource(PbSerDeUtils.toPbPackedWorkerResource(workerResource))
+        } else {
+          builder.putAllWorkerResource(
+            PbSerDeUtils.toPbWorkerResource(workerResource))
+        }
       }
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS_RESPONSE, payload)
@@ -660,10 +669,10 @@ object ControlMessages extends Logging {
         .setStatus(status.getValue)
       builder.putAllFileGroups(
         fileGroup.asScala.map { case (partitionId, fileGroup) =>
-          (
-            partitionId,
-            PbFileGroup.newBuilder().addAllLocations(fileGroup.asScala.map(PbSerDeUtils
-              .toPbPartitionLocation).toList.asJava).build())
+          val pbFileGroupBuilder = PbFileGroup.newBuilder()
+          pbFileGroupBuilder.setPartitionLocationsPair(
+            PbSerDeUtils.toPbPackedPartitionLocationsPair(fileGroup.asScala.toList))
+          (partitionId, pbFileGroupBuilder.build())
         }.asJava)
       builder.addAllAttempts(attempts.map(Integer.valueOf).toIterable.asJava)
       builder.addAllPartitionIds(partitionIds)
@@ -795,10 +804,8 @@ object ControlMessages extends Logging {
       val payload = PbReserveSlots.newBuilder()
         .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
-        .addAllPrimaryLocations(primaryLocations.asScala
-          .map(PbSerDeUtils.toPbPartitionLocation).toList.asJava)
-        .addAllReplicaLocations(replicaLocations.asScala
-          .map(PbSerDeUtils.toPbPartitionLocation).toList.asJava)
+        .setPartitionLocationsPair(PbSerDeUtils.toPbPackedPartitionLocationsPair(
+          primaryLocations.asScala.toList ++ replicaLocations.asScala.toList))
         .setSplitThreshold(splitThreshold)
         .setSplitMode(splitMode.getValue)
         .setPartitionType(partType.getValue)
@@ -1001,14 +1008,22 @@ object ControlMessages extends Logging {
           pbRequestSlots.getMaxWorkers,
           pbRequestSlots.getAvailableStorageTypes,
           excludedWorkerInfoSet,
+          pbRequestSlots.getPacked,
           pbRequestSlots.getRequestId)
 
       case REQUEST_SLOTS_RESPONSE_VALUE =>
         val pbRequestSlotsResponse = PbRequestSlotsResponse.parseFrom(message.getPayload)
+        val workerResource =
+          if (pbRequestSlotsResponse.getWorkerResourceMap.isEmpty) {
+            PbSerDeUtils.fromPbPackedWorkerResource(
+              pbRequestSlotsResponse.getPackedWorkerResourceMap)
+          } else {
+            PbSerDeUtils.fromPbWorkerResource(
+              pbRequestSlotsResponse.getWorkerResourceMap)
+          }
         RequestSlotsResponse(
           Utils.toStatusCode(pbRequestSlotsResponse.getStatus),
-          PbSerDeUtils.fromPbWorkerResource(
-            pbRequestSlotsResponse.getWorkerResourceMap))
+          workerResource)
 
       case CHANGE_LOCATION_VALUE =>
         PbRevive.parseFrom(message.getPayload)
@@ -1041,8 +1056,8 @@ object ControlMessages extends Logging {
           case (partitionId, fileGroup) =>
             (
               partitionId,
-              fileGroup.getLocationsList.asScala.map(
-                PbSerDeUtils.fromPbPartitionLocation).toSet.asJava)
+              PbSerDeUtils.fromPbPackedPartitionLocationsPair(
+                fileGroup.getPartitionLocationsPair)._1.asScala.toSet.asJava)
         }.asJava
 
         val attempts = pbGetReducerFileGroupResponse.getAttemptsList.asScala.map(_.toInt).toArray
@@ -1136,13 +1151,22 @@ object ControlMessages extends Logging {
       case RESERVE_SLOTS_VALUE =>
         val pbReserveSlots = PbReserveSlots.parseFrom(message.getPayload)
         val userIdentifier = PbSerDeUtils.fromPbUserIdentifier(pbReserveSlots.getUserIdentifier)
+        val (primaryLocations, replicateLocations) =
+          if (pbReserveSlots.getPrimaryLocationsList.isEmpty) {
+            PbSerDeUtils.fromPbPackedPartitionLocationsPair(
+              pbReserveSlots.getPartitionLocationsPair)
+          } else {
+            (
+              new util.ArrayList[PartitionLocation](pbReserveSlots.getPrimaryLocationsList.asScala
+                .map(PbSerDeUtils.fromPbPartitionLocation).toList.asJava),
+              new util.ArrayList[PartitionLocation](pbReserveSlots.getReplicaLocationsList.asScala
+                .map(PbSerDeUtils.fromPbPartitionLocation).toList.asJava))
+          }
         ReserveSlots(
           pbReserveSlots.getApplicationId,
           pbReserveSlots.getShuffleId,
-          new util.ArrayList[PartitionLocation](pbReserveSlots.getPrimaryLocationsList.asScala
-            .map(PbSerDeUtils.fromPbPartitionLocation).toList.asJava),
-          new util.ArrayList[PartitionLocation](pbReserveSlots.getReplicaLocationsList.asScala
-            .map(PbSerDeUtils.fromPbPartitionLocation).toList.asJava),
+          primaryLocations,
+          replicateLocations,
           pbReserveSlots.getSplitThreshold,
           Utils.toShuffleSplitMode(pbReserveSlots.getSplitMode),
           Utils.toPartitionType(pbReserveSlots.getPartitionType),

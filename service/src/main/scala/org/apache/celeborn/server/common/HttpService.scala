@@ -23,6 +23,7 @@ import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.http.HttpServer
 import org.apache.celeborn.server.common.http.api.ApiRootResource
 import org.apache.celeborn.server.common.service.config.ConfigLevel
@@ -35,8 +36,9 @@ abstract class HttpService extends Service with Logging {
     val sb = new StringBuilder
     sb.append("=========================== Configuration ============================\n")
     if (conf.getAll.nonEmpty) {
-      val maxKeyLength = conf.getAll.toMap.keys.map(_.length).max
-      conf.getAll.sortBy(_._1).foreach { case (key, value) =>
+      val redactedConf = Utils.redact(conf, conf.getAll)
+      val maxKeyLength = redactedConf.toMap.keys.map(_.length).max
+      redactedConf.sortBy(_._1).foreach { case (key, value) =>
         sb.append(config(key, value, maxKeyLength))
       }
     }
@@ -179,7 +181,8 @@ abstract class HttpService extends Service with Logging {
       httpHost(),
       httpPort(),
       httpMaxWorkerThreads(),
-      httpStopTimeout())
+      httpStopTimeout(),
+      httpIdleTimeout())
     httpServer.start()
     startInternal()
     // block until the HTTP server is started, otherwise, we may get
@@ -223,6 +226,15 @@ abstract class HttpService extends Service with Logging {
         conf.masterHttpStopTimeout
       case Service.WORKER =>
         conf.workerHttpStopTimeout
+    }
+  }
+
+  private def httpIdleTimeout(): Long = {
+    serviceName match {
+      case Service.MASTER =>
+        conf.masterHttpIdleTimeout
+      case Service.WORKER =>
+        conf.workerHttpIdleTimeout
     }
   }
 
