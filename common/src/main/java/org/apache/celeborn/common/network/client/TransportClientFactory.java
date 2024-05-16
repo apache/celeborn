@@ -179,7 +179,7 @@ public class TransportClientFactory implements Closeable {
       logger.warn(
           "DNS resolution {} for {} took {} ms", resolveMsg, resolvedAddress, hostResolveTimeMs);
     } else {
-      logger.trace(
+      logger.debug(
           "DNS resolution {} for {} took {} ms", resolveMsg, resolvedAddress, hostResolveTimeMs);
     }
 

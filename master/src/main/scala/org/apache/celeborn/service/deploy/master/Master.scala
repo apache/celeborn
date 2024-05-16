@@ -454,7 +454,7 @@ private[celeborn] class Master(
       context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
 
     case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _, _) =>
-      logTrace(s"Received RequestSlots request $requestSlots.")
+      logDebug(s"Received RequestSlots request $requestSlots.")
       checkAuth(context, applicationId)
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 

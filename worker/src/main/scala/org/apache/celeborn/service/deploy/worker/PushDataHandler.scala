@@ -1200,7 +1200,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       softSplit: AtomicBoolean,
       callback: RpcResponseCallback): Boolean = {
     val diskFull = checkDiskFull(fileWriter)
-    logTrace(
+    logDebug(
       s"""
          |CheckDiskFullAndSplit in
          |diskFull:$diskFull,
@@ -1217,7 +1217,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       } else {
         workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
-        logTrace(
+        logDebug(
           s"""
              |CheckDiskFullAndSplit hardSplit
              |diskFull:$diskFull,

@@ -372,7 +372,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val partitionId = pb.getPartitionId
       val epoch = pb.getEpoch
       val oldPartition = PbSerDeUtils.fromPbPartitionLocation(pb.getOldPartition)
-      logTrace(s"Received split request, " +
+      logDebug(s"Received split request, " +
         s"$shuffleId, $partitionId, $epoch, $oldPartition")
       changePartitionManager.handleRequestPartitionLocation(
         ChangeLocationsCallContext(context, 1),
@@ -382,7 +382,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         oldPartition)
 
     case MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId) =>
-      logTrace(s"Received MapperEnd TaskEnd request, " +
+      logDebug(s"Received MapperEnd TaskEnd request, " +
         s"${Utils.makeMapKey(shuffleId, mapId, attemptId)}")
       val partitionType = getPartitionType(shuffleId)
       partitionType match {

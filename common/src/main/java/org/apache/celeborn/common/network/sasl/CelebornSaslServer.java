@@ -126,7 +126,7 @@ public class CelebornSaslServer {
     public void handle(Callback[] callbacks) throws UnsupportedCallbackException, SaslException {
       for (Callback callback : callbacks) {
         if (callback instanceof NameCallback) {
-          logger.trace("SASL server callback: setting username");
+          logger.debug("SASL server callback: setting username");
           NameCallback nc = (NameCallback) callback;
           String encodedName = nc.getName() != null ? nc.getName() : nc.getDefaultName();
           if (encodedName == null) {
@@ -135,7 +135,7 @@ public class CelebornSaslServer {
           userName = decodeIdentifier(encodedName);
           client.setClientId(userName);
         } else if (callback instanceof PasswordCallback) {
-          logger.trace("SASL server callback: setting password");
+          logger.debug("SASL server callback: setting password");
           PasswordCallback pc = (PasswordCallback) callback;
           String secret = secretRegistry.getSecretKey(userName);
           if (secret == null) {
@@ -143,7 +143,7 @@ public class CelebornSaslServer {
           }
           pc.setPassword(encodePassword(secret));
         } else if (callback instanceof RealmCallback) {
-          logger.trace("SASL server callback: setting realm");
+          logger.debug("SASL server callback: setting realm");
           RealmCallback rc = (RealmCallback) callback;
           rc.setText(rc.getDefaultText());
         } else if (callback instanceof AuthorizeCallback) {

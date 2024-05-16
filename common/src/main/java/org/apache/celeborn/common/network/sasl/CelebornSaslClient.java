@@ -144,15 +144,15 @@ public class CelebornSaslClient {
 
       for (Callback callback : callbacks) {
         if (callback instanceof NameCallback) {
-          logger.trace("SASL client callback: setting username");
+          logger.debug("SASL client callback: setting username");
           NameCallback nc = (NameCallback) callback;
           nc.setName(encodeIdentifier(id));
         } else if (callback instanceof PasswordCallback) {
-          logger.trace("SASL client callback: setting password");
+          logger.debug("SASL client callback: setting password");
           PasswordCallback pc = (PasswordCallback) callback;
           pc.setPassword(encodePassword(password));
         } else if (callback instanceof RealmCallback) {
-          logger.trace("SASL client callback: setting realm");
+          logger.debug("SASL client callback: setting realm");
           RealmCallback rc = (RealmCallback) callback;
           rc.setText(rc.getDefaultText());
         } else if (callback instanceof RealmChoiceCallback) {

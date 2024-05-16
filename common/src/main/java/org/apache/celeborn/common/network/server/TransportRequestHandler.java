@@ -92,7 +92,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
 
   private void processRpcRequest(final RpcRequest req) {
     try {
-      logger.trace("Process rpc request {}", req.requestId);
+      logger.debug("Process rpc request {}", req.requestId);
       msgHandler.receive(
           reverseClient,
           req,
@@ -117,7 +117,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
 
   private void processOneWayMessage(OneWayMessage req) {
     try {
-      logger.trace("Process one way request");
+      logger.debug("Process one way request");
       msgHandler.receive(reverseClient, req);
     } catch (Exception e) {
       logger.error("Error while invoking handler#receive() for one-way message.", e);
@@ -128,7 +128,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
 
   private void processOtherMessages(RequestMessage req) {
     try {
-      logger.trace("delegating to handler to process other request");
+      logger.debug("delegating to handler to process other request");
       msgHandler.receive(reverseClient, req);
     } catch (Exception e) {
       logger.error("Error while invoking handler#receive() for other message.", e);
@@ -167,7 +167,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
         .addListener(
             future -> {
               if (future.isSuccess()) {
-                logger.trace("Sent result {} to client {}", result, remoteAddress);
+                logger.debug("Sent result {} to client {}", result, remoteAddress);
               } else {
                 logger.warn(
                     String.format(

@@ -44,7 +44,7 @@ public final class MessageDecoder extends MessageToMessageDecoder<ByteBuf> {
     Message.Type msgType = Message.Type.decode(in);
     Message decoded = Message.decode(msgType, in);
     assert decoded.type() == msgType;
-    logger.trace("Received message {}: {}", msgType, decoded);
+    logger.debug("Received message {}: {}", msgType, decoded);
     out.add(decoded);
   }
 }

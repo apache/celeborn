@@ -52,7 +52,7 @@ public abstract class AbstractAuthRpcHandler extends BaseMessageHandler {
   public final void receive(
       TransportClient client, RequestMessage message, RpcResponseCallback callback) {
     if (isAuthenticated) {
-      LOG.trace("Already authenticated. Delegating {}", client.getClientId());
+      LOG.debug("Already authenticated. Delegating {}", client.getClientId());
       delegate.receive(client, message, callback);
     } else {
       isAuthenticated = doAuthChallenge(client, message, callback);

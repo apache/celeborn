@@ -183,7 +183,7 @@ class ChangePartitionManager(
         })
 
       if (newEntry) {
-        logTrace(s"[handleRequestPartitionLocation] For $shuffleId, request for same partition" +
+        logDebug(s"[handleRequestPartitionLocation] For $shuffleId, request for same partition" +
           s"$partitionId-$oldEpoch exists, register context.")
       } else {
         getLatestPartition(shuffleId, partitionId, oldEpoch).foreach { latestLoc =>

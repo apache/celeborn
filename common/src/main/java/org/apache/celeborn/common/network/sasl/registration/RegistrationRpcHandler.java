@@ -114,7 +114,7 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
     // The message is delegated either if the client is already authenticated or if the connection
     // is authenticated.
     if (registrationState == RegistrationState.REGISTERED || saslHandler.isAuthenticated()) {
-      LOG.trace("Already authenticated. Delegating {}", client.getClientId());
+      LOG.debug("Already authenticated. Delegating {}", client.getClientId());
       delegate.receive(client, message, callback);
     } else {
       RpcRequest rpcRequest = (RpcRequest) message;
@@ -153,32 +153,32 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
         checkRequestAllowed(RegistrationState.NONE);
         respondToAuthInitialization(callback);
         registrationState = RegistrationState.INIT;
-        LOG.trace("Authentication initialization completed: rpcId {}", message.requestId);
+        LOG.debug("Authentication initialization completed: rpcId {}", message.requestId);
         break;
       case SASL_REQUEST_VALUE:
         PbSaslRequest saslRequest = pbMsg.getParsedPayload();
         if (saslRequest.getAuthType().equals(PbAuthType.CLIENT_AUTH)) {
-          LOG.trace("Received Sasl Message for client authentication");
+          LOG.debug("Received Sasl Message for client authentication");
           checkRequestAllowed(RegistrationState.INIT);
           authenticateClient(saslRequest, callback);
           if (saslServer.isComplete()) {
             LOG.debug("SASL authentication successful for channel {}", client);
             complete();
             registrationState = RegistrationState.AUTHENTICATED;
-            LOG.trace("Client authenticated: rpcId {}", message.requestId);
+            LOG.debug("Client authenticated: rpcId {}", message.requestId);
           }
         } else {
           // It is a SASL message to authenticate the connection. If the application hasn't
           // registered, then
           // saslHandler will throw an exception that the app hasn't registered.
-          LOG.trace("Delegating to sasl handler: rpcId {}", message.requestId);
+          LOG.debug("Delegating to sasl handler: rpcId {}", message.requestId);
           saslHandler.receive(client, message, callback);
         }
         break;
       case REGISTER_APPLICATION_REQUEST_VALUE:
         PbRegisterApplicationRequest registerApplicationRequest = pbMsg.getParsedPayload();
         checkRequestAllowed(RegistrationState.AUTHENTICATED);
-        LOG.trace("Application registration started {}", registerApplicationRequest.getId());
+        LOG.debug("Application registration started {}", registerApplicationRequest.getId());
         processRegisterApplicationRequest(registerApplicationRequest, callback);
         registrationState = RegistrationState.REGISTERED;
         client.setClientId(registerApplicationRequest.getId());
