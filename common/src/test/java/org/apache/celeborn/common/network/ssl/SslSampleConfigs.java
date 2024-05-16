@@ -131,12 +131,28 @@ public class SslSampleConfigs {
    * @param algorithm the signing algorithm, eg "SHA1withRSA"
    * @return the self-signed certificate
    */
-  @SuppressWarnings("deprecation")
   public static X509Certificate generateCertificate(
       String dn, KeyPair pair, int days, String algorithm) throws Exception {
     return generateCertificate(dn, pair, days, algorithm, false, null, null, null);
   }
 
+  /**
+   * Create a self-signed X.509 Certificate.
+   *
+   * @param dn the X.509 Distinguished Name, eg "CN=Test, L=London, C=GB"
+   * @param pair the KeyPair for the server
+   * @param days how many days from now the Certificate is valid for
+   * @param algorithm the signing algorithm, eg "SHA1withRSA"
+   * @param generateCaCert Is this request to generate a CA cert
+   * @param altNames Optional: Alternate names to be added to the cert - we add them as both
+   *     hostnames and ip's.
+   * @param caKeyPair Optional: the KeyPair of the CA, to be used to sign this certificate. caCert
+   *     should also be specified to use it
+   * @param caCert Optional: the CA cert, to be used to sign this certificate. caKeyPair should also
+   *     be specified to use it
+   * @return the signed certificate (signed using ca if provided, else self-signed)
+   */
+  @SuppressWarnings("deprecation")
   public static X509Certificate generateCertificate(
       String dn,
       KeyPair pair,
@@ -192,7 +208,7 @@ public class SslSampleConfigs {
     }
 
     ContentSigner signer =
-        new JcaContentSignerBuilder("SHA256withRSA").build(signingKeyPair.getPrivate());
+        new JcaContentSignerBuilder(algorithm).build(signingKeyPair.getPrivate());
     return new JcaX509CertificateConverter().getCertificate(certBuilder.build(signer));
   }
 

@@ -43,7 +43,7 @@ public class SSLRatisMasterStatusSystemSuiteJ extends RatisMasterStatusSystemSui
     CertificateData(CertificateData caData) throws Exception {
       this.file = File.createTempFile("file", ".jks");
       file.deleteOnExit();
-      
+
       this.keyPair = SslSampleConfigs.generateKeyPair("RSA");
 
       // for both ca and cert, we are simply using the same machien as CN
@@ -119,7 +119,7 @@ public class SSLRatisMasterStatusSystemSuiteJ extends RatisMasterStatusSystemSui
     assertTrue(isSslServer(RATISSERVER3.getRaftAddress(), RATISSERVER3.getRaftPort()));
   }
 
-  // Validate if the port
+  // Validate if the server listening at the port is using TLS or not.
   static boolean isSslServer(InetAddress address, int port) throws Exception {
     try (SSLSocket socket = createSslSocket(address, port)) {
       socket.setSoTimeout(5000);
