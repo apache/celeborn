@@ -412,7 +412,7 @@ public class HARaftServer {
     GrpcConfigKeys.TLS.setEnabled(properties, true);
     GrpcConfigKeys.TLS.setConf(params, new GrpcTlsConfig(keyManager, trustManager, true));
 
-    LOG.info("Ratis communication secured with SSL");
+    LOG.info("SSL enabled for ratis communication between masters");
 
     return params;
   }
