@@ -27,10 +27,7 @@ import java.nio.file.StandardCopyOption;
 import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Stream;
 
 import org.apache.commons.io.FileUtils;
@@ -186,16 +183,21 @@ public class SslSampleConfigs {
             issuerName, sn, from, to, new X500Name(dn), pair.getPublic());
 
     if (null != altNames) {
-      GeneralName[] arr =
+      Stream<GeneralName> dnsStream =
+          Arrays.stream(altNames).map(h -> new GeneralName(GeneralName.dNSName, h));
+      Stream<GeneralName> ipStream =
           Arrays.stream(altNames)
-              .flatMap(
-                  h ->
-                      Stream.of(
-                          // add as both IP and dns entry - can be both depending on local node
-                          // config !
-                          new GeneralName(GeneralName.dNSName, h),
-                          new GeneralName(GeneralName.iPAddress, h)))
-              .toArray(GeneralName[]::new);
+              .map(
+                  h -> {
+                    try {
+                      return new GeneralName(GeneralName.iPAddress, h);
+                    } catch (Exception ex) {
+                      return null;
+                    }
+                  })
+              .filter(Objects::nonNull);
+
+      GeneralName[] arr = Stream.concat(dnsStream, ipStream).toArray(GeneralName[]::new);
       GeneralNames names = new GeneralNames(arr);
 
       certBuilder.addExtension(Extension.subjectAlternativeName, false, names);
