@@ -83,7 +83,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private int[] sendOffsets;
 
   private final LongAdder[] mapStatusLengths;
-  private final long[] tmpRecords;
+  protected long tmpRecordsWritten = 0;
 
   private final SendBufferPool sendBufferPool;
 
@@ -128,7 +128,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     for (int i = 0; i < numPartitions; i++) {
       mapStatusLengths[i] = new LongAdder();
     }
-    tmpRecords = new long[numPartitions];
 
     PUSH_BUFFER_INIT_SIZE = conf.clientPushBufferInitialSize();
     PUSH_BUFFER_MAX_SIZE = conf.clientPushBufferMaxSize();
@@ -227,12 +226,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             rowSize);
         sendOffsets[partitionId] = offset + serializedRecordSize;
       }
-      incRecordsWritten(partitionId);
+      tmpRecordsWritten++;
     }
-  }
-
-  protected void incRecordsWritten(int partitionId) {
-    tmpRecords[partitionId] += 1;
   }
 
   private void write0(scala.collection.Iterator iterator) throws IOException, InterruptedException {
@@ -258,7 +253,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         System.arraycopy(serBuffer.getBuf(), 0, buffer, offset, serializedRecordSize);
         sendOffsets[partitionId] = offset + serializedRecordSize;
       }
-      incRecordsWritten(partitionId);
+      tmpRecordsWritten++;
     }
   }
 
@@ -305,7 +300,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
     if ((buffer.length - offset) < serializedRecordSize) {
       flushSendBuffer(partitionId, buffer, offset);
-      updateMapStatus();
+      updateRecordsWrittenMetrics();
       offset = 0;
     }
     return offset;
@@ -362,8 +357,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     closeWrite();
     shuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
     writeMetrics.incWriteTime(System.nanoTime() - pushMergedDataTime);
-
-    updateMapStatus();
+    updateRecordsWrittenMetrics();
 
     long waitStartTime = System.nanoTime();
     shuffleClient.mapperEnd(shuffleId, mapId, taskContext.attemptNumber(), numMappers);
@@ -375,13 +369,9 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             bmId, SparkUtils.unwrap(mapStatusLengths), taskContext.taskAttemptId());
   }
 
-  private void updateMapStatus() {
-    long recordsWritten = 0;
-    for (int i = 0; i < partitioner.numPartitions(); i++) {
-      recordsWritten += tmpRecords[i];
-      tmpRecords[i] = 0;
-    }
-    writeMetrics.incRecordsWritten(recordsWritten);
+  private void updateRecordsWrittenMetrics() {
+    writeMetrics.incRecordsWritten(tmpRecordsWritten);
+    tmpRecordsWritten = 0;
   }
 
   @Override
