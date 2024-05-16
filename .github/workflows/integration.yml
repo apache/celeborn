@@ -42,6 +42,32 @@ jobs:
           java-version: 8
           cache: maven
           check-latest: false
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+          check-latest: true
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.10.0
+      - name: Setup chart-testing
+        uses: helm/chart-testing-action@v2.6.1
+      - name: Run chart-testing (list-changed)
+        id: list-changed
+        run: |
+          changed=$(ct list-changed --target-branch ${{ github.event.repository.default_branch }})
+          if [[ -n "$changed" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run chart-testing (lint)
+        if: steps.list-changed.outputs.changed == 'true'
+        run: ct lint --target-branch ${{ github.event.repository.default_branch }} --check-version-increment=false --validate-maintainers=false
+      - name: Run unit tests
+        if: steps.list-changed.outputs.changed == 'true'
+        run: |
+          # The version of helm-unittest plugin should be synced with developer docs for helm charts
+          helm plugin install https://github.com/helm-unittest/helm-unittest.git --version=0.5.1
+          helm unittest charts/celeborn  --file "tests/**/*_test.yaml" --strict --debug
       - name: Build Celeborn Binary
         run:
           ./build/make-distribution.sh -Pspark-3.3 -Pgoogle-mirror
@@ -54,10 +80,6 @@ jobs:
           file: ./docker/Dockerfile
           load: true
           tags: apache/celeborn:latest
-      - name: Setup Helm
-        uses: azure/setup-helm@v3
-        with:
-          version: v3.10.0
       - name: Setup Minikube
         run: |
           # https://minikube.sigs.k8s.io/docs/start/
@@ -68,7 +90,7 @@ jobs:
         run: |
           # https://minikube.sigs.k8s.io/docs/handbook/pushing/#7-loading-directly-to-in-cluster-container-runtime
           minikube image load apache/celeborn:latest
-          helm install celeborn charts/celeborn -f ./tests/kubernetes-it/docker/helm/values.yaml
+          helm install celeborn charts/celeborn -f charts/celeborn/ci/values.yaml
       - name: Wait Celeborn Ready
         run: >-
           ./build/mvn clean install 
