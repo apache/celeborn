@@ -45,6 +45,21 @@ tests:
           kind: PodMonitor
           name: celeborn-worker-podmonitor
 
+  - it: Should use release name as custom label release_name's value
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1/PodMonitor
+    set:
+      podMonitor:
+        enable: true
+    asserts:
+      - contains:
+          path: spec.podMetricsEndpoints[0].relabelings
+          content:
+            targetLabel: release_name
+            replacement: celeborn
+          count: 1
+
   - it: Should use the specified pod metrics endpoints
     capabilities:
       apiVersions:
@@ -64,6 +79,9 @@ tests:
             port: test-port
             scheme: http
             path: /metrics/prometheus
+            relabelings:
+              - targetLabel: release_name
+                replacement: celeborn
           count: 1
 
   - it: Should respect `celeborn.metrics.prometheus.path`
@@ -83,4 +101,7 @@ tests:
             port: metrics
             scheme: http
             path: custom-metrics-path
+            relabelings:
+              - targetLabel: release_name
+                replacement: celeborn
           count: 1
