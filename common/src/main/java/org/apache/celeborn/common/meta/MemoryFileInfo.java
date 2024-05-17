@@ -115,24 +115,18 @@ public class MemoryFileInfo extends FileInfo {
     }
     synchronized (getReduceFileMeta().getModified()) {
       // if origin file info is null means that this is the original fileinfo
-      if (!isEvicted()) {
-        // do not sort
-        // if a memory file info is evicted, this memory file info should not be used anymore
+      if (isEvicted()) {
+        return false;
+      } else {
+        if (streamId != 0) {
+          if (originFileInfo != null) {
+            originFileInfo.streams.add(streamId);
+          } else {
+            streams.add(streamId);
+          }
+        }
         return true;
       }
-      if (getReduceFileMeta().getModified().get()) {
-        // sort
-        return false;
-      }
-      if (streamId != 0) {
-        if (originFileInfo != null) {
-          originFileInfo.streams.add(streamId);
-        } else {
-          streams.add(streamId);
-        }
-      }
-      // sort
-      return false;
     }
   }
 

@@ -254,6 +254,7 @@ public class MemoryManager {
                         && currentServingState() == ServingState.NONE_PAUSED) {
                       break;
                     }
+                    logger.debug("Evict writer {}", writer);
                     writer.evict();
                   }
                   memoryWriters.clear();

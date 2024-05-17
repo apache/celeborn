@@ -204,6 +204,13 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         FlushTask task = null;
         if (evict) {
           notifier.numPendingFlushes.incrementAndGet();
+          // duplicate buffer before its released
+          ByteBuf dupBuf = null;
+          if (memoryFileInfo.getSortedBuffer() != null) {
+            dupBuf = memoryFileInfo.getSortedBuffer().retainedDuplicate();
+          } else {
+            dupBuf = flushBuffer.retainedDuplicate();
+          }
           // flush task will release the buffer of memory shuffle file
           if (channel != null) {
             task = new LocalFlushTask(flushBuffer, channel, notifier, false);
@@ -213,13 +220,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           MemoryManager.instance().releaseMemoryFileStorage(numBytes);
           MemoryManager.instance().incrementDiskBuffer(numBytes);
           // read flush buffer to generate correct chunk offsets
-          ByteBuf dupBuf = null;
-          if (memoryFileInfo.getSortedBuffer() != null) {
-            dupBuf = memoryFileInfo.getSortedBuffer();
-          } else {
-            dupBuf = flushBuffer.duplicate();
-          }
-          // data header layout (mapId,attemptId,nextBatchId,length)
+          // data header layout (mapId, attemptId, nextBatchId, length)
           ByteBuffer headerBuf = ByteBuffer.allocate(16);
           while (dupBuf.isReadable()) {
             headerBuf.rewind();
@@ -229,6 +230,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
             dupBuf.skipBytes(compressedSize);
             diskFileInfo.updateBytesFlushed(compressedSize + 16);
           }
+          dupBuf.release();
         } else {
           if (!isMemoryShuffleFile.get()) {
             notifier.numPendingFlushes.incrementAndGet();
@@ -407,8 +409,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
       synchronized (flushLock) {
         if (!isMemoryShuffleFile.get()) {
-          if (flushBuffer.readableBytes() > 0) {
-            // memory shuffle file don't need final flush
+          // memory shuffle file doesn't need final flush
+          if (flushBuffer != null && flushBuffer.readableBytes() > 0) {
             flush(true, false);
           }
         }
