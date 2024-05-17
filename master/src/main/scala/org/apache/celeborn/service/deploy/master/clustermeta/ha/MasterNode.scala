@@ -30,7 +30,8 @@ case class MasterNode(
     ratisPort: Int,
     rpcHost: String,
     rpcPort: Int,
-    internalRpcPort: Int) {
+    internalRpcPort: Int,
+    sslEnabled: Boolean) {
 
   def isRatisHostUnresolved: Boolean = ratisAddr.isUnresolved
 
@@ -60,6 +61,7 @@ object MasterNode extends Logging {
     private var rpcHost: String = _
     private var rpcPort = 0
     private var internalRpcPort = 0
+    private var sslEnabled = false
 
     def setNodeId(nodeId: String): this.type = {
       this.nodeId = nodeId
@@ -97,8 +99,13 @@ object MasterNode extends Logging {
       this
     }
 
+    def setSslEnabled(sslEnabled: Boolean): this.type = {
+      this.sslEnabled = sslEnabled
+      this
+    }
+
     def build: MasterNode =
-      MasterNode(nodeId, ratisHost, ratisPort, rpcHost, rpcPort, internalRpcPort)
+      MasterNode(nodeId, ratisHost, ratisPort, rpcHost, rpcPort, internalRpcPort, sslEnabled)
   }
 
   private def createSocketAddr(host: String, port: Int): InetSocketAddress = {

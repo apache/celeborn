@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -27,14 +28,19 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.TrustManager;
+
 import scala.Tuple2;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.ratis.RaftConfigKeys;
 import org.apache.ratis.client.RaftClientConfigKeys;
+import org.apache.ratis.conf.Parameters;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.grpc.GrpcConfigKeys;
+import org.apache.ratis.grpc.GrpcTlsConfig;
 import org.apache.ratis.netty.NettyConfigKeys;
 import org.apache.ratis.proto.RaftProtos;
 import org.apache.ratis.protocol.*;
@@ -54,6 +60,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
+import org.apache.celeborn.common.network.ssl.SSLFactory;
+import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -123,13 +131,18 @@ public class HARaftServer {
     this.raftGroup = RaftGroup.valueOf(RAFT_GROUP_ID, raftPeers);
     this.masterStateMachine = getStateMachine();
     this.conf = conf;
-    RaftProperties serverProperties = newRaftProperties(conf);
+
+    final RpcType rpc = SupportedRpcType.valueOfIgnoreCase(conf.haMasterRatisRpcType());
+    RaftProperties serverProperties = newRaftProperties(conf, rpc);
+    Parameters sslParameters =
+        localNode.sslEnabled() ? configureSsl(conf, serverProperties, rpc) : null;
     setDeadlineTime(Integer.MAX_VALUE, Integer.MAX_VALUE); // for default
     this.server =
         RaftServer.newBuilder()
             .setServerId(this.raftPeerId)
             .setGroup(this.raftGroup)
             .setProperties(serverProperties)
+            .setParameters(sslParameters)
             .setStateMachine(masterStateMachine)
             .build();
 
@@ -270,11 +283,9 @@ public class HARaftServer {
     }
   }
 
-  private RaftProperties newRaftProperties(CelebornConf conf) {
+  private RaftProperties newRaftProperties(CelebornConf conf, RpcType rpc) {
     final RaftProperties properties = new RaftProperties();
     // Set RPC type
-    final String rpcType = conf.haMasterRatisRpcType();
-    final RpcType rpc = SupportedRpcType.valueOfIgnoreCase(rpcType);
     RaftConfigKeys.Rpc.setType(properties, rpc);
 
     // Set the ratis port number
@@ -373,6 +384,37 @@ public class HARaftServer {
     }
 
     return properties;
+  }
+
+  private Parameters configureSsl(CelebornConf conf, RaftProperties properties, RpcType rpc) {
+
+    if (rpc != SupportedRpcType.GRPC) {
+      LOG.error(
+          "SSL has been disabled for Raft communication between masters. "
+              + "This is only supported when ratis is configured with GRPC");
+      return null;
+    }
+
+    // This is used only for querying state after initialization - not actual SSL
+    // also why nThreads does not matter
+    SSLFactory factory =
+        SSLFactory.createSslFactory(
+            Utils.fromCelebornConf(conf, TransportModuleConstants.RPC_SERVICE_MODULE, 1));
+
+    assert (null != factory);
+    assert (factory.hasKeyManagers());
+    assert (!factory.getTrustManagers().isEmpty());
+
+    TrustManager trustManager = factory.getTrustManagers().get(0);
+    KeyManager keyManager = factory.getKeyManagers().get(0);
+
+    Parameters params = new Parameters();
+    GrpcConfigKeys.TLS.setEnabled(properties, true);
+    GrpcConfigKeys.TLS.setConf(params, new GrpcTlsConfig(keyManager, trustManager, true));
+
+    LOG.info("SSL enabled for ratis communication between masters");
+
+    return params;
   }
 
   private StateMachine getStateMachine() {
@@ -534,6 +576,11 @@ public class HARaftServer {
     GroupInfoRequest groupInfoRequest =
         new GroupInfoRequest(clientId, raftPeerId, RAFT_GROUP_ID, nextCallId());
     return server.getGroupInfo(groupInfoRequest);
+  }
+
+  // Exposed for testing
+  public InetAddress getRaftAddress() {
+    return this.ratisAddr.getAddress();
   }
 
   public int getRaftPort() {

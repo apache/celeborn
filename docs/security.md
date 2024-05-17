@@ -34,6 +34,8 @@ start="<!--begin-include-->"
 end="<!--end-include-->"
 !}
 
+When SSL is enabled for `rpc_service`, Raft communication between masters are secured **only when** `celeborn.master.ha.ratis.raft.rpc.type` is set to `grpc`.
+
 Note that `celeborn.ssl`, **without any module**, can be used to set SSL default values which applies to all modules.
 
 Also note that `data` module at application side, maps to `push` and `fetch` at worker - hence, for SSL configuration, worker configuration for `push` and `fetch` should be compatible with each other and with `data` at application side.

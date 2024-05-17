@@ -26,6 +26,7 @@ import scala.util.{Failure, Success, Try}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.protocol.TransportModuleConstants
 
 case class MasterClusterInfo(
     localNode: MasterNode,
@@ -37,6 +38,8 @@ object MasterClusterInfo extends Logging {
   def loadHAConfig(conf: CelebornConf): MasterClusterInfo = {
     val localNodeIdOpt = conf.haMasterNodeId
     val clusterNodeIds = conf.haMasterNodeIds
+    // If ssl is enabled, we enable it for ratis as well
+    val sslEnabled = conf.sslEnabled(TransportModuleConstants.RPC_SERVICE_MODULE)
 
     val masterNodes = clusterNodeIds.map { nodeId =>
       val ratisHost = conf.haMasterRatisHost(nodeId)
@@ -45,7 +48,7 @@ object MasterClusterInfo extends Logging {
       val rpcPort = conf.haMasterNodePort(nodeId)
       val internalPort =
         if (conf.internalPortEnabled) conf.haMasterNodeInternalPort(nodeId) else rpcPort
-      MasterNode(nodeId, ratisHost, ratisPort, rpcHost, rpcPort, internalPort)
+      MasterNode(nodeId, ratisHost, ratisPort, rpcHost, rpcPort, internalPort, sslEnabled)
     }
 
     val (localNodes, peerNodes) = localNodeIdOpt match {
