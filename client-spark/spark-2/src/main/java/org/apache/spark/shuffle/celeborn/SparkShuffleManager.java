@@ -18,11 +18,13 @@
 package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import scala.Int;
 
 import org.apache.spark.*;
+import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.rdd.DeterministicLevel;
 import org.apache.spark.shuffle.*;
@@ -214,6 +216,7 @@ public class SparkShuffleManager implements ShuffleManager {
               "Unrecognized shuffle write mode!" + celebornConf.shuffleWriterMode());
         }
       } else {
+        checkUserClassPathFirst(handle);
         return sortShuffleManager().getWriter(handle, mapId, context);
       }
     } catch (IOException e) {
@@ -237,6 +240,7 @@ public class SparkShuffleManager implements ShuffleManager {
           celebornConf,
           shuffleIdTracker);
     }
+    checkUserClassPathFirst(handle);
     return _sortShuffleManager.getReader(handle, startPartition, endPartition, context);
   }
 
@@ -250,6 +254,22 @@ public class SparkShuffleManager implements ShuffleManager {
           .invoke(conf.get("spark.master"));
     } else {
       return conf.getInt(SparkLauncher.EXECUTOR_CORES, 1);
+    }
+  }
+
+  private void checkUserClassPathFirst(ShuffleHandle handle) {
+    if ((Boolean) conf.get(package$.MODULE$.EXECUTOR_USER_CLASS_PATH_FIRST())
+        && !Objects.equals(
+            handle.getClass().getClassLoader(), CelebornShuffleHandle.class.getClassLoader())) {
+      String key = package$.MODULE$.EXECUTOR_USER_CLASS_PATH_FIRST().key();
+      Boolean defaultValue =
+          (Boolean) package$.MODULE$.EXECUTOR_USER_CLASS_PATH_FIRST().defaultValue().get();
+      logger.warn(
+          "Detected {} (default is {}) is enabled, "
+              + "it's highly recommended to disable it when use Celeborn as Remote Shuffle Service "
+              + "to avoid falling back to vanilla Spark SortShuffleManager for ShuffleManger defined in user jar.",
+          key,
+          defaultValue);
     }
   }
 
