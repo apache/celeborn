@@ -629,8 +629,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           for (ShuffleBlockInfo blockInfo : originShuffleBlocks) {
             long offset = blockInfo.offset;
             long length = blockInfo.length;
-            fileIndex += transferBlock(offset, length);
-
             // combine multiple `ShuffleBlockInfo` into a single `ShuffleBlockInfo` of size
             // less than `shuffleChunkSize`
             if (!sortedShuffleBlocks.isEmpty() &&
@@ -642,6 +640,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
               sortedBlock.length = length;
               sortedShuffleBlocks.add(sortedBlock);
             }
+            fileIndex += transferBlock(offset, length);
           }
           sortedBlockInfoMap.put(mapId, sortedShuffleBlocks);
         }
