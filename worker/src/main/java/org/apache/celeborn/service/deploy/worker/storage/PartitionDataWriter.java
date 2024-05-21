@@ -127,7 +127,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     this.metricsCollectCriticalEnabled = conf.metricsCollectCriticalEnabled();
 
     Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFileResult =
-        createFile(writerContext);
+        storageManager.createFile(writerContext, supportInMemory);
 
     // Reduce partition data writers support memory storage now
     if (supportInMemory && createFileResult._1() != null) {
@@ -195,22 +195,17 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   }
 
   @VisibleForTesting
-  public void flush(boolean finalFlush, boolean evict) throws IOException {
-    // flushBuffer == null here means writer already closed
+  public void flush(boolean finalFlush, boolean fromEvict) throws IOException {
+    // flushBuffer == null here means this writer is already closed
     if (flushBuffer != null) {
       int numBytes = flushBuffer.readableBytes();
       if (numBytes != 0) {
         notifier.checkException();
         FlushTask task = null;
-        if (evict) {
+        if (fromEvict) {
           notifier.numPendingFlushes.incrementAndGet();
           // duplicate buffer before its released
-          ByteBuf dupBuf = null;
-          if (memoryFileInfo.getSortedBuffer() != null) {
-            dupBuf = memoryFileInfo.getSortedBuffer().retainedDuplicate();
-          } else {
-            dupBuf = flushBuffer.retainedDuplicate();
-          }
+          ByteBuf dupBuf = flushBuffer.retainedDuplicate();
           // flush task will release the buffer of memory shuffle file
           if (channel != null) {
             task = new LocalFlushTask(flushBuffer, channel, notifier, false);
@@ -244,7 +239,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         if (task != null) {
           addTask(task);
           flushBuffer = null;
-          if (!evict) {
+          if (!fromEvict) {
             diskFileInfo.updateBytesFlushed(numBytes);
           }
           if (!finalFlush) {
@@ -331,11 +326,6 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     }
 
     numPendingWrites.decrementAndGet();
-  }
-
-  public Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFile(
-      PartitionDataWriterContext writerContext) {
-    return storageManager.createFile(writerContext, true);
   }
 
   public void evictInternal() throws IOException {

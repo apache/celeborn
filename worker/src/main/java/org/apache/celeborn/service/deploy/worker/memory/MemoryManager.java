@@ -89,7 +89,7 @@ public class MemoryManager {
   private CreditStreamManager creditStreamManager = null;
 
   private long memoryFileStorageThreshold;
-  private final AtomicLong memoryFileStorageCounter = new AtomicLong();
+  private final LongAdder memoryFileStorageCounter = new LongAdder();
   private final StorageManager storageManager;
 
   @VisibleForTesting
@@ -180,7 +180,7 @@ public class MemoryManager {
                 Utils.bytesToString(diskBufferCounter.get()),
                 Utils.bytesToString(sortMemoryCounter.get()),
                 Utils.bytesToString(readBufferCounter.get()),
-                Utils.bytesToString(memoryFileStorageCounter.get())),
+                Utils.bytesToString(memoryFileStorageCounter.sum())),
         reportInterval,
         reportInterval,
         TimeUnit.SECONDS);
@@ -232,8 +232,8 @@ public class MemoryManager {
       memoryFileStorageService.scheduleWithFixedDelay(
           () -> {
             try {
-              if ((memoryFileStorageCounter.get() >= memoryFileStorageThreshold)
-                  || currentServingState() != ServingState.NONE_PAUSED) {
+              if ((memoryFileStorageCounter.sum() >= 0.5 * memoryFileStorageThreshold)
+                  && currentServingState() != ServingState.NONE_PAUSED) {
                 List<PartitionDataWriter> memoryWriters = new ArrayList<>();
                 for (PartitionDataWriter writer : storageManager.memoryWriters().values()) {
                   if (!writer.isClosed()) {
@@ -256,8 +256,8 @@ public class MemoryManager {
                 try {
                   for (PartitionDataWriter writer : memoryWriters) {
                     // this branch means that there is no memory pressure
-                    if ((memoryFileStorageCounter.get() < memoryFileStorageThreshold)
-                        && currentServingState() == ServingState.NONE_PAUSED) {
+                    if ((memoryFileStorageCounter.get() >= 0.5 * memoryFileStorageThreshold)
+                        && currentServingState() != ServingState.NONE_PAUSED) {
                       break;
                     }
                     logger.debug("Evict writer {}", writer);
@@ -523,19 +523,19 @@ public class MemoryManager {
   }
 
   public long getMemoryFileStorageCounter() {
-    return memoryFileStorageCounter.get();
+    return memoryFileStorageCounter.sum();
   }
 
   public boolean memoryFileStorageAvailable() {
-    return memoryFileStorageCounter.get() < memoryFileStorageThreshold;
+    return memoryFileStorageCounter.sum() < memoryFileStorageThreshold;
   }
 
   public void increaseMemoryFileStorage(int bytes) {
-    memoryFileStorageCounter.addAndGet(bytes);
+    memoryFileStorageCounter.add(bytes);
   }
 
   public void releaseMemoryFileStorage(int bytes) {
-    memoryFileStorageCounter.addAndGet(-1 * bytes);
+    memoryFileStorageCounter.add(-1 * bytes);
   }
 
   public void close() {

@@ -89,7 +89,7 @@ abstract private[worker] class Flusher(
                 }
                 lastBeginFlushTime.set(index, -1)
               }
-              Utils.tryLogNonFatalError(returnBuffer(task))
+              Utils.tryLogNonFatalError(returnBuffer(task.buffer, task.keepBuffer))
               task.notifier.numPendingFlushes.decrementAndGet()
             }
           }
@@ -107,16 +107,12 @@ abstract private[worker] class Flusher(
     buffer
   }
 
-  def returnBuffer(task: FlushTask): Unit = {
-    val bufferSize = task.buffer.readableBytes()
+  def returnBuffer(buffer: CompositeByteBuf, keepBuffer: Boolean = false): Unit = {
+    val bufferSize = buffer.readableBytes()
     MemoryManager.instance().releaseDiskBuffer(bufferSize)
     Option(CongestionController.instance())
       .foreach(
         _.consumeBytes(bufferSize))
-    returnBuffer(task.buffer, task.keepBuffer)
-  }
-
-  def returnBuffer(buffer: CompositeByteBuf, keepBuffer: Boolean = false): Unit = {
     buffer.removeComponents(0, buffer.numComponents())
     buffer.clear()
     if (keepBuffer) {

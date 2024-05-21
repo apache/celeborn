@@ -17,15 +17,13 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
 
-import scala.Tuple4;
-
+import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
@@ -33,9 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.MapFileMeta;
-import org.apache.celeborn.common.meta.MemoryFileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.Utils;
@@ -66,7 +62,7 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
       throws IOException {
     super(storageManager, workerSource, conf, deviceMonitor, writerContext, false);
 
-    assert diskFileInfo != null;
+    Preconditions.checkState(diskFileInfo != null);
     if (!diskFileInfo.isHdfs()) {
       indexChannel = FileChannelUtils.createWritableFileChannel(diskFileInfo.getIndexPath());
     } else {
@@ -152,13 +148,6 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
             }
           }
         });
-  }
-
-  // Map partitions don't support memory storage yet, because flink has its own memory tier
-  @Override
-  public Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFile(
-      PartitionDataWriterContext writerContext) {
-    return storageManager.createFile(writerContext, false);
   }
 
   @Override
