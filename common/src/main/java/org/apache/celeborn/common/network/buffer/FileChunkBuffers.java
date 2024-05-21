@@ -22,7 +22,6 @@ import java.io.File;
 import scala.Tuple2;
 
 import org.apache.celeborn.common.meta.DiskFileInfo;
-import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.network.util.TransportConf;
 
 public class FileChunkBuffers extends ChunkBuffers {
@@ -30,7 +29,7 @@ public class FileChunkBuffers extends ChunkBuffers {
   private final TransportConf conf;
 
   public FileChunkBuffers(DiskFileInfo fileInfo, TransportConf conf) {
-    super((ReduceFileMeta) fileInfo.getFileMeta());
+    super(fileInfo.getReduceFileMeta());
     file = fileInfo.getFile();
     this.conf = conf;
   }
@@ -39,6 +38,6 @@ public class FileChunkBuffers extends ChunkBuffers {
   public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
     // offset of the beginning of the chunk in the file
     Tuple2<Long, Long> offsetLen = getChunkOffsetLength(chunkIndex, offset, len);
-    return new FileSegmentManagedBuffer(conf, file, offsetLen._1 + offset, offsetLen._2);
+    return new FileSegmentManagedBuffer(conf, file, offsetLen._1, offsetLen._2);
   }
 }

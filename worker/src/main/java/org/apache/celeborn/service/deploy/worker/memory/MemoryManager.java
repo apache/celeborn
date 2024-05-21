@@ -234,8 +234,14 @@ public class MemoryManager {
             try {
               if ((memoryFileStorageCounter.get() >= memoryFileStorageThreshold)
                   || currentServingState() != ServingState.NONE_PAUSED) {
-                List<PartitionDataWriter> memoryWriters =
-                    new ArrayList<>(storageManager.memoryWriters().values());
+                List<PartitionDataWriter> memoryWriters = new ArrayList<>();
+                for (PartitionDataWriter writer : storageManager.memoryWriters().values()) {
+                  if (!writer.isClosed()) {
+                    // do not evict committed files
+                    // let the clean operation remove these committed files
+                    memoryWriters.add(writer);
+                  }
+                }
                 if (memoryWriters.isEmpty()) {
                   return;
                 }
@@ -244,7 +250,7 @@ public class MemoryManager {
                 memoryWriters.sort(
                     (o1, o2) ->
                         o1.getMemoryFileInfo().getFileLength()
-                                > o2.getMemoryFileInfo().getFileLength()
+                                < o2.getMemoryFileInfo().getFileLength()
                             ? 1
                             : 0);
                 try {
@@ -257,13 +263,12 @@ public class MemoryManager {
                     logger.debug("Evict writer {}", writer);
                     writer.evict();
                   }
-                  memoryWriters.clear();
                 } catch (IOException e) {
                   logger.warn("Partition data writer evict failed", e);
                 }
               }
             } catch (Exception e) {
-              logger.error("Evict thread encount error", e);
+              logger.error("Evict thread encounter error", e);
             }
           },
           checkInterval,

@@ -130,10 +130,6 @@ public class StorageInfo implements Serializable {
   }
 
   public boolean memoryAvailable() {
-    return memoryAvailable(availableStorageTypes);
-  }
-
-  public static boolean memoryAvailable(int availableStorageTypes) {
     return availableStorageTypes == ALL_TYPES_AVAILABLE_MASK
         || (availableStorageTypes & MEMORY_MASK) > 0;
   }

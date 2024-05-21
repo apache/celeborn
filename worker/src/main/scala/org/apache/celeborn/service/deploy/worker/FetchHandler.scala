@@ -83,10 +83,9 @@ class FetchHandler(
 
   def getRawFileInfo(
       shuffleKey: String,
-      fileName: String,
-      streamId: Long = 0): FileInfo = {
+      fileName: String): FileInfo = {
     // find FileWriter responsible for the data
-    val fileInfo = storageManager.getFileInfo(shuffleKey, fileName, streamId)
+    val fileInfo = storageManager.getFileInfo(shuffleKey, fileName)
     if (fileInfo == null) {
       val errMsg = s"Could not find file $fileName for $shuffleKey."
       logWarning(errMsg)
@@ -241,14 +240,13 @@ class FetchHandler(
         s"$endIndex get file name $fileName from client channel " +
         s"${NettyUtils.getRemoteAddress(client.getChannel)}")
 
+      var fileInfo = getRawFileInfo(shuffleKey, fileName)
       val streamId = chunkStreamManager.nextStreamId()
-      var fileInfo = getRawFileInfo(shuffleKey, fileName, streamId)
       // we must get sorted fileInfo for the following cases.
       // 1. when the current request is a non-range openStream, but the original unsorted file
       //    has been deleted by another range's openStream request.
       // 2. when the current request is a range openStream request.
       if ((endIndex != Int.MaxValue) || (endIndex == Int.MaxValue
-        // this will add stream only if this fileinfo is disk file info
           && !fileInfo.addStream(streamId))) {
         fileInfo = partitionsSorter.getSortedFileInfo(
           shuffleKey,
@@ -263,9 +261,7 @@ class FetchHandler(
           chunkStreamManager.registerStream(
             streamId,
             shuffleKey,
-            fileName,
-            startIndex,
-            endIndex)
+            fileName)
           makeStreamHandler(
             streamId,
             meta.getNumChunks,
@@ -276,9 +272,7 @@ class FetchHandler(
             chunkStreamManager.registerStream(
               streamId,
               shuffleKey,
-              fileName,
-              startIndex,
-              endIndex)
+              fileName)
             makeStreamHandler(streamId, numChunks = 0)
           case _ =>
             val managedBuffer = fileInfo match {
@@ -300,8 +294,6 @@ class FetchHandler(
               managedBuffer,
               fileName,
               fetchTimeMetric,
-              startIndex,
-              endIndex,
               fileInfo)
             if (meta.getNumChunks == 0)
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
@@ -464,15 +456,9 @@ class FetchHandler(
     streamType match {
       case StreamType.ChunkStream =>
         val streamState = chunkStreamManager.getStreamState(streamId)
-        val (shuffleKey, fileName, startIndex, endIndex) = (
-          streamState.shuffleKey,
-          streamState.fileName,
-          streamState.startIndex,
-          streamState.endIndex)
+        val (shuffleKey, fileName) = (streamState.shuffleKey, streamState.fileName)
         workerSource.recordAppActiveConnection(client, shuffleKey)
-        val fileinfo = getRawFileInfo(shuffleKey, fileName)
-        fileinfo.closeStream(streamId)
-
+        getRawFileInfo(shuffleKey, fileName).closeStream(streamId)
       case StreamType.CreditStream =>
         val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)
         if (shuffleKey != null) {

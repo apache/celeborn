@@ -216,8 +216,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           memoryFileInfo.getUserIdentifier(),
           memoryFileInfo.isPartitionSplitEnabled(),
           reduceFileMeta,
-          targetBuffer,
-          (MemoryFileInfo) fileInfo);
+          targetBuffer);
     } else {
       DiskFileInfo diskFileInfo = ((DiskFileInfo) fileInfo);
       String fileId = shuffleKey + "-" + fileName;
@@ -295,8 +294,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   public static void sortMemoryShuffleFile(MemoryFileInfo memoryFileInfo) {
     ReduceFileMeta reduceFileMeta = ((ReduceFileMeta) memoryFileInfo.getFileMeta());
-    synchronized (reduceFileMeta.getModified()) {
-      if (!reduceFileMeta.getModified().get()) {
+    synchronized (reduceFileMeta.getSorted()) {
+      if (!reduceFileMeta.getSorted().get()) {
         CompositeByteBuf originBuffer = memoryFileInfo.getBuffer();
         Map<Integer, List<ShuffleBlockInfo>> blocksMap = new TreeMap<>();
         int originReaderIndex = originBuffer.readerIndex();

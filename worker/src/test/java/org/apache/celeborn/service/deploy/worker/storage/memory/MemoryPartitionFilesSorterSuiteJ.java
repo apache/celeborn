@@ -57,8 +57,7 @@ public class MemoryPartitionFilesSorterSuiteJ {
   public long[] prepare(int mapCount) {
     long[] partitionSize = new long[MAX_MAP_ID];
     byte[] batchHeader = new byte[16];
-    fileInfo =
-        new MemoryFileInfo(userIdentifier, true, new ReduceFileMeta(8 * 1024 * 1024), m -> {});
+    fileInfo = new MemoryFileInfo(userIdentifier, true, new ReduceFileMeta(8 * 1024 * 1024));
 
     AbstractSource source = Mockito.mock(AbstractSource.class);
     PooledByteBufAllocator allocator =
@@ -101,7 +100,7 @@ public class MemoryPartitionFilesSorterSuiteJ {
       partitionSize[mapId] = partitionSize[mapId] + batchHeader.length + mockedData.length;
     }
     long originFileLen = buffer.readableBytes();
-    ((ReduceFileMeta) fileInfo.getFileMeta()).addChunkOffset(originFileLen);
+    fileInfo.getReduceFileMeta().addChunkOffset(originFileLen);
     fileInfo.updateBytesFlushed((int) originFileLen);
 
     CelebornConf conf = new CelebornConf();

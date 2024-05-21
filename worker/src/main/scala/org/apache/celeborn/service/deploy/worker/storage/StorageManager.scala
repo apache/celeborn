@@ -451,15 +451,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   def getFileInfo(
       shuffleKey: String,
-      fileName: String,
-      streamId: Long = 0): FileInfo = {
+      fileName: String): FileInfo = {
     val memoryShuffleMap = memoryFileInfos.get(shuffleKey)
     if (memoryShuffleMap != null) {
       val memoryFileInfo = memoryShuffleMap.get(fileName)
       if (memoryFileInfo != null) {
-        if (memoryFileInfo.addStream(streamId)) {
-          return memoryFileInfo
-        }
+        return memoryFileInfo
       }
     }
 
@@ -920,14 +917,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       new MemoryFileInfo(
         userIdentifier,
         partitionSplitEnabled,
-        fileMeta,
-        new Consumer[MemoryFileInfo] {
-          override def accept(m: MemoryFileInfo): Unit = {
-            logDebug(s"evict $shuffleKey $fileName ")
-            unregisterMemoryPartitionWriterAndFileInfo(m, shuffleKey, fileName)
-            evictedFileCount.incrementAndGet
-          }
-        })
+        fileMeta)
     logDebug(s"create memory file for ${shuffleKey} ${fileName} and put it int memoryFileInfos")
     memoryFileInfos.computeIfAbsent(shuffleKey, memoryFileInfoMapFunc).put(
       fileName,

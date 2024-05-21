@@ -49,7 +49,7 @@ public abstract class ChunkBuffers {
     final long chunkLength = offsets[chunkIndex + 1] - chunkOffset;
     assert offset < chunkLength;
     long length = Math.min(chunkLength - offset, len);
-    return new Tuple2<>(chunkOffset, length);
+    return new Tuple2<>(chunkOffset + offset, length);
   }
 
   public abstract ManagedBuffer chunk(int chunkIndex, int offset, int len);

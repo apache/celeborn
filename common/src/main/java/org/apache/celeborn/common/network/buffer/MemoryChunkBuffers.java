@@ -36,6 +36,6 @@ public class MemoryChunkBuffers extends ChunkBuffers {
   public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
     Tuple2<Long, Long> offsetLen = getChunkOffsetLength(chunkIndex, offset, len);
     return new NettyManagedBuffer(
-        buffer.retainedSlice(offsetLen._1.intValue() + offset, offsetLen._2.intValue()));
+        buffer.retainedSlice(offsetLen._1.intValue(), offsetLen._2.intValue()));
   }
 }

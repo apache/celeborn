@@ -352,7 +352,13 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       initFileChannelsForDiskFile();
       flush(closed, true);
 
+      // these five lines are locked by the modified object
+      // these five lines can be treated as atomic operation
       memoryFileInfo.setEvicted();
+      logger.debug("evict {} {}", shuffleKey, filename);
+      storageManager.unregisterMemoryPartitionWriterAndFileInfo(
+          memoryFileInfo, shuffleKey, filename);
+      storageManager.evictedFileCount().incrementAndGet();
       memoryFileInfo = null;
     } else {
       exception = new CelebornIOException("PartitionDataWriter create disk-related file failed");
@@ -464,15 +470,10 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     // memory manager won't evict with writer thread concurrently
     synchronized (flushLock) {
       if (memoryFileInfo != null) {
-        synchronized (memoryFileInfo.getReduceFileMeta().getModified()) {
-          if (!memoryFileInfo.isStreamsEmpty()) {
-            return;
-          }
-          evictInternal();
-          if (isClosed()) {
-            waitOnNoPending(notifier.numPendingFlushes);
-            storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), diskFileInfo);
-          }
+        evictInternal();
+        if (isClosed()) {
+          waitOnNoPending(notifier.numPendingFlushes);
+          storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), diskFileInfo);
         }
       }
     }

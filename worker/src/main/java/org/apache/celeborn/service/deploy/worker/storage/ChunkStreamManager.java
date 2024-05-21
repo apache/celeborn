@@ -54,42 +54,15 @@ public class ChunkStreamManager {
     public final String shuffleKey;
     public final String fileName;
     public final TimeWindow fetchTimeMetric;
-    public final int startIndex;
-    public final int endIndex;
     // Used to keep track of the number of chunks being transferred and not finished yet.
     volatile long chunksBeingTransferred = 0L;
-    public MemoryFileInfo memoryFileInfo;
 
     StreamState(
-        String shuffleKey,
-        ChunkBuffers buffers,
-        String fileName,
-        TimeWindow fetchTimeMetric,
-        int startIndex,
-        int endIndex) {
+        String shuffleKey, ChunkBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
       this.buffers = buffers;
       this.shuffleKey = shuffleKey;
       this.fileName = fileName;
       this.fetchTimeMetric = fetchTimeMetric;
-      this.startIndex = startIndex;
-      this.endIndex = endIndex;
-    }
-
-    StreamState(
-        String shuffleKey,
-        ChunkBuffers buffers,
-        String fileName,
-        TimeWindow fetchTimeMetric,
-        int startIndex,
-        int endIndex,
-        MemoryFileInfo memoryFileInfo) {
-      this.buffers = buffers;
-      this.shuffleKey = shuffleKey;
-      this.fileName = fileName;
-      this.fetchTimeMetric = fetchTimeMetric;
-      this.startIndex = startIndex;
-      this.endIndex = endIndex;
-      this.memoryFileInfo = memoryFileInfo;
     }
   }
 
@@ -154,9 +127,8 @@ public class ChunkStreamManager {
    * <p>This stream could be reused again when other channel of the client is reconnected. If a
    * stream is not properly closed, it will eventually be cleaned up by `cleanupExpiredShuffleKey`.
    */
-  public long registerStream(
-      long streamId, String shuffleKey, String fileName, int startIndex, int endIndex) {
-    return registerStream(streamId, shuffleKey, null, fileName, null, startIndex, endIndex, null);
+  public long registerStream(long streamId, String shuffleKey, String fileName) {
+    return registerStream(streamId, shuffleKey, null, fileName, null, null);
   }
 
   /**
@@ -174,8 +146,7 @@ public class ChunkStreamManager {
   public long registerStream(
       String shuffleKey, ChunkBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
     long myStreamId = nextStreamId.getAndIncrement();
-    return registerStream(
-        myStreamId, shuffleKey, buffers, fileName, fetchTimeMetric, 0, Integer.MAX_VALUE, null);
+    return registerStream(myStreamId, shuffleKey, buffers, fileName, fetchTimeMetric, null);
   }
 
   public long registerStream(
@@ -184,23 +155,12 @@ public class ChunkStreamManager {
       ChunkBuffers buffers,
       String fileName,
       TimeWindow fetchTimeMetric,
-      int startIndex,
-      int endIndex,
       FileInfo fileInfo) {
     StreamState streamState = null;
     if (fileInfo != null && fileInfo instanceof MemoryFileInfo) {
-      streamState =
-          new StreamState(
-              shuffleKey,
-              buffers,
-              fileName,
-              fetchTimeMetric,
-              startIndex,
-              endIndex,
-              (MemoryFileInfo) fileInfo);
+      streamState = new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric);
     } else {
-      streamState =
-          new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric, startIndex, endIndex);
+      streamState = new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric);
     }
     streams.put(streamId, streamState);
     shuffleStreamIds.compute(

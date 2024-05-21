@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ReduceFileMeta implements FileMeta {
   // sort and evict will be treated as data modification
-  private final AtomicBoolean modified = new AtomicBoolean(false);
+  private final AtomicBoolean sorted = new AtomicBoolean(false);
   private final List<Long> chunkOffsets;
   private long chunkSize;
   private long nextBoundary;
@@ -38,6 +38,9 @@ public class ReduceFileMeta implements FileMeta {
   public ReduceFileMeta(List<Long> chunkOffsets, long chunkSize) {
     this.chunkOffsets = chunkOffsets;
     nextBoundary = chunkSize;
+    if (!chunkOffsets.isEmpty()) {
+      nextBoundary += chunkOffsets.get(chunkOffsets.size() - 1);
+    }
     this.chunkSize = chunkSize;
   }
 
@@ -52,7 +55,7 @@ public class ReduceFileMeta implements FileMeta {
   public synchronized void addChunkOffset(long offset) {
     nextBoundary = offset + chunkSize;
     // keep compatible with reduce partition data writer's force update chunk offset logic
-    if (!chunkOffsets.contains(offset)) {
+    if (chunkOffsets.isEmpty() || chunkOffsets.get(chunkOffsets.size() - 1) != offset) {
       chunkOffsets.add(offset);
     }
   }
@@ -76,12 +79,12 @@ public class ReduceFileMeta implements FileMeta {
   }
 
   public void setModified() {
-    synchronized (modified) {
-      modified.set(true);
+    synchronized (sorted) {
+      sorted.set(true);
     }
   }
 
-  public AtomicBoolean getModified() {
-    return modified;
+  public AtomicBoolean getSorted() {
+    return sorted;
   }
 }

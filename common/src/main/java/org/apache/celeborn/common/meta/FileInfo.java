@@ -30,11 +30,13 @@ public abstract class FileInfo {
   protected FileMeta fileMeta;
   protected final Set<Long> streams = ConcurrentHashMap.newKeySet();
   protected volatile long bytesFlushed;
+  private boolean isReduceFileMeta;
 
   public FileInfo(UserIdentifier userIdentifier, boolean partitionSplitEnabled, FileMeta fileMeta) {
     this.userIdentifier = userIdentifier;
     this.partitionSplitEnabled = partitionSplitEnabled;
     this.fileMeta = fileMeta;
+    this.isReduceFileMeta = fileMeta instanceof ReduceFileMeta;
   }
 
   public void replaceFileMeta(FileMeta meta) {
@@ -73,15 +75,15 @@ public abstract class FileInfo {
   }
 
   boolean isReduceFileMeta() {
-    return fileMeta instanceof ReduceFileMeta;
+    return isReduceFileMeta;
   }
 
   public boolean addStream(long streamId) {
     if (!isReduceFileMeta()) {
       throw new IllegalStateException("In addStream, filemeta cannot be MapFileMeta");
     }
-    synchronized (getReduceFileMeta().getModified()) {
-      if (getReduceFileMeta().getModified().get()) {
+    synchronized (getReduceFileMeta().getSorted()) {
+      if (getReduceFileMeta().getSorted().get()) {
         return false;
       } else {
         streams.add(streamId);
@@ -94,7 +96,7 @@ public abstract class FileInfo {
     if (!isReduceFileMeta()) {
       throw new IllegalStateException("In closeStream, filemeta cannot be MapFileMeta");
     }
-    synchronized (getReduceFileMeta().getModified()) {
+    synchronized (getReduceFileMeta().getSorted()) {
       streams.remove(streamId);
     }
   }
@@ -103,7 +105,7 @@ public abstract class FileInfo {
     if (!isReduceFileMeta()) {
       throw new IllegalStateException("In isStreamsEmpty, filemeta cannot be MapFileMeta");
     }
-    synchronized (getReduceFileMeta().getModified()) {
+    synchronized (getReduceFileMeta().getSorted()) {
       return streams.isEmpty();
     }
   }

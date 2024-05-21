@@ -19,7 +19,6 @@ package org.apache.celeborn.common.meta;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 
 import io.netty.buffer.CompositeByteBuf;
 import org.slf4j.Logger;
@@ -35,16 +34,10 @@ public class MemoryFileInfo extends FileInfo {
   private Map<Integer, List<ShuffleBlockInfo>> sortedIndexes;
   //  private AtomicInteger readerCount = new AtomicInteger(0);
   private AtomicBoolean evicted = new AtomicBoolean(false);
-  private Consumer<MemoryFileInfo> evictFunc;
-  private MemoryFileInfo originFileInfo;
 
   public MemoryFileInfo(
-      UserIdentifier userIdentifier,
-      boolean partitionSplitEnabled,
-      FileMeta fileMeta,
-      Consumer<MemoryFileInfo> evictFunc) {
+      UserIdentifier userIdentifier, boolean partitionSplitEnabled, FileMeta fileMeta) {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
-    this.evictFunc = evictFunc;
   }
 
   // This constructor is only used in partition sorter for temp new memory file
@@ -52,10 +45,8 @@ public class MemoryFileInfo extends FileInfo {
       UserIdentifier userIdentifier,
       boolean partitionSplitEnabled,
       FileMeta fileMeta,
-      CompositeByteBuf buffer,
-      MemoryFileInfo memoryFileInfo) {
+      CompositeByteBuf buffer) {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
-    this.originFileInfo = memoryFileInfo;
     this.buffer = buffer;
   }
 
@@ -102,55 +93,6 @@ public class MemoryFileInfo extends FileInfo {
   }
 
   public void setEvicted() {
-    synchronized (getReduceFileMeta().getModified()) {
-      evicted.set(true);
-      evictFunc.accept(this);
-    }
-  }
-
-  @Override
-  public boolean addStream(long streamId) {
-    if (!isReduceFileMeta()) {
-      throw new IllegalStateException("In addStream, filemeta cannot be MapFileMeta");
-    }
-    synchronized (getReduceFileMeta().getModified()) {
-      // if origin file info is null means that this is the original fileinfo
-      if (isEvicted()) {
-        return false;
-      } else {
-        if (streamId != 0) {
-          if (originFileInfo != null) {
-            originFileInfo.streams.add(streamId);
-          } else {
-            streams.add(streamId);
-          }
-        }
-        return true;
-      }
-    }
-  }
-
-  @Override
-  public boolean isStreamsEmpty() {
-    synchronized (getReduceFileMeta().getModified()) {
-      if (originFileInfo != null) {
-        return originFileInfo.isStreamsEmpty();
-      }
-      return streams.isEmpty();
-    }
-  }
-
-  @Override
-  public void closeStream(long streamId) {
-    if (!isReduceFileMeta()) {
-      throw new IllegalStateException("In closeStream, filemeta cannot be MapFileMeta");
-    }
-    synchronized (getReduceFileMeta().getModified()) {
-      if (originFileInfo != null) {
-        originFileInfo.streams.remove(streamId);
-      } else {
-        streams.remove(streamId);
-      }
-    }
+    evicted.set(true);
   }
 }

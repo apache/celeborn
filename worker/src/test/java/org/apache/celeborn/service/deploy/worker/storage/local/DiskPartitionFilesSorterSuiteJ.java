@@ -106,7 +106,7 @@ public class DiskPartitionFilesSorterSuiteJ {
       partitionSize[mapId] = partitionSize[mapId] + batchHeader.length + mockedData.length;
     }
     long originFileLen = channel.size();
-    ((ReduceFileMeta) fileInfo.getFileMeta()).getChunkOffsets().add(originFileLen);
+    fileInfo.getReduceFileMeta().getChunkOffsets().add(originFileLen);
     fileInfo.updateBytesFlushed(originFileLen);
     logger.info(shuffleFile.getAbsolutePath() + " filelen: " + Utils.bytesToString(originFileLen));
 

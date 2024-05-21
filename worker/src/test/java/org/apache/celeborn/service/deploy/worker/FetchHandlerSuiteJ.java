@@ -46,7 +46,6 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.FileInfo;
-import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -131,7 +130,7 @@ public class FetchHandlerSuiteJ {
     for (long offset = conf.shuffleChunkSize();
         offset <= originFileLen;
         offset += conf.shuffleChunkSize()) {
-      ((ReduceFileMeta) fileInfo.getFileMeta()).addChunkOffset(offset);
+      (fileInfo.getReduceFileMeta()).addChunkOffset(offset);
     }
     // update sorted fileInfo chunk offsets
     fileInfo.updateBytesFlushed(originFileLen);
@@ -318,9 +317,7 @@ public class FetchHandlerSuiteJ {
     Mockito.doReturn(partitionFilesSorter).when(worker).partitionsSorter();
     fetchHandler0.init(worker);
     FetchHandler fetchHandler = spy(fetchHandler0);
-    Mockito.doReturn(fileInfo)
-        .when(fetchHandler)
-        .getRawFileInfo(anyString(), anyString(), anyLong());
+    Mockito.doReturn(fileInfo).when(fetchHandler).getRawFileInfo(anyString(), anyString());
     return fetchHandler;
   }
 
