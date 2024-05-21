@@ -629,11 +629,19 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           for (ShuffleBlockInfo blockInfo : originShuffleBlocks) {
             long offset = blockInfo.offset;
             long length = blockInfo.length;
-            ShuffleBlockInfo sortedBlock = new ShuffleBlockInfo();
-            sortedBlock.offset = fileIndex;
-            sortedBlock.length = length;
-            sortedShuffleBlocks.add(sortedBlock);
             fileIndex += transferBlock(offset, length);
+
+            // combine multiple `ShuffleBlockInfo` into a single `ShuffleBlockInfo` of size
+            // less than `shuffleChunkSize`
+            if (!sortedShuffleBlocks.isEmpty() &&
+                sortedShuffleBlocks.get(sortedShuffleBlocks.size() - 1).length + length <= shuffleChunkSize) {
+              sortedShuffleBlocks.get(sortedShuffleBlocks.size() - 1).length += length;
+            } else {
+              ShuffleBlockInfo sortedBlock = new ShuffleBlockInfo();
+              sortedBlock.offset = fileIndex;
+              sortedBlock.length = length;
+              sortedShuffleBlocks.add(sortedBlock);
+            }
           }
           sortedBlockInfoMap.put(mapId, sortedShuffleBlocks);
         }
