@@ -256,7 +256,7 @@ public class MemoryManager {
                 try {
                   for (PartitionDataWriter writer : memoryWriters) {
                     // this branch means that there is no memory pressure
-                    if ((memoryFileStorageCounter.get() >= 0.5 * memoryFileStorageThreshold)
+                    if ((memoryFileStorageCounter.sum() >= 0.5 * memoryFileStorageThreshold)
                         && currentServingState() != ServingState.NONE_PAUSED) {
                       break;
                     }
