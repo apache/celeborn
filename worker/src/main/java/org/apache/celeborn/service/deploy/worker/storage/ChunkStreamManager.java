@@ -50,10 +50,10 @@ public class ChunkStreamManager {
 
   /** State of a single stream. */
   public static class StreamState {
-    final ChunkBuffers buffers;
-    final String shuffleKey;
-    final String fileName;
-    final TimeWindow fetchTimeMetric;
+    public final ChunkBuffers buffers;
+    public final String shuffleKey;
+    public final String fileName;
+    public final TimeWindow fetchTimeMetric;
     // Used to keep track of the number of chunks being transferred and not finished yet.
     volatile long chunksBeingTransferred = 0L;
 
