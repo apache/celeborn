@@ -342,9 +342,6 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       initFileChannelsForDiskFile();
       flush(closed, true);
 
-      // these five lines are locked by the modified object
-      // these five lines can be treated as atomic operation
-      memoryFileInfo.setEvicted();
       logger.debug("evict {} {}", shuffleKey, filename);
       storageManager.unregisterMemoryPartitionWriterAndFileInfo(
           memoryFileInfo, shuffleKey, filename);
