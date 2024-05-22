@@ -68,7 +68,7 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
           new LifecycleManager(applicationAttemptId.toString(), conf);
       String lmHost = lifecycleManager.getHost();
       int lmPort = lifecycleManager.getPort();
-      logger.info("RMAppMaster initialized with {} {} {}", lmHost, lmPort, applicationAttemptId);
+      logger.info("MRAppMaster initialized with {} {} {}", lmHost, lmPort, applicationAttemptId);
       JobConf lmConf = new JobConf();
       lmConf.clear();
       lmConf.set(HadoopUtils.MR_CELEBORN_LM_HOST, lmHost);
@@ -124,6 +124,7 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
   public static void main(String[] args) {
     JobConf rmAppConf = new JobConf(new YarnConfiguration());
     rmAppConf.addResource(new Path(MRJobConfig.JOB_CONF_FILE));
+    checkJobConf(rmAppConf);
     try {
       Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
       String containerIdStr = ensureGetSysEnv(ApplicationConstants.Environment.CONTAINER_ID.name());
@@ -180,6 +181,21 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
     } catch (Throwable t) {
       logger.error("Error starting MRAppMaster", t);
       ExitUtil.terminate(1, t);
+    }
+  }
+
+  public static void checkJobConf(JobConf conf) {
+    if (conf.getBoolean(MRJobConfig.MR_AM_JOB_RECOVERY_ENABLE, false)) {
+      logger.warn("MRAppMaster disables job recovery.");
+      // MapReduce does not set the flag which indicates whether to keep containers across
+      // application attempts in ApplicationSubmissionContext. Therefore, there is no container
+      // shared between attempts.
+      conf.setBoolean(MRJobConfig.MR_AM_JOB_RECOVERY_ENABLE, false);
+    }
+    if (conf.getFloat(MRJobConfig.COMPLETED_MAPS_FOR_REDUCE_SLOWSTART, 0.05f) != 1.0f) {
+      logger.warn("MRAppMaster disables job reduce slow start.");
+      // Make sure reduces are scheduled only after all map are completed.
+      conf.setFloat(MRJobConfig.COMPLETED_MAPS_FOR_REDUCE_SLOWSTART, 1.0f);
     }
   }
 }
