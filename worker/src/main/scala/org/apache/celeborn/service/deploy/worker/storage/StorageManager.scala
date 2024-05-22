@@ -315,7 +315,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   def saveAllMemoryStorageFileInfosToDB(): Unit = {
     for (writer <- memoryWriters.asScala) {
-      Utils.tryLogNonFatalError(writer._2.evict())
+      Utils.tryLogNonFatalError(writer._2.evict(false))
     }
   }
 

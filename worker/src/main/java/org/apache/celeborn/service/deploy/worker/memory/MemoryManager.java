@@ -234,34 +234,25 @@ public class MemoryManager {
             try {
               if ((memoryFileStorageCounter.sum() >= 0.5 * memoryFileStorageThreshold)
                   && currentServingState() != ServingState.NONE_PAUSED) {
-                List<PartitionDataWriter> memoryWriters = new ArrayList<>();
-                for (PartitionDataWriter writer : storageManager.memoryWriters().values()) {
-                  if (!writer.isClosed()) {
-                    // do not evict committed files
-                    // let the clean operation remove these committed files
-                    memoryWriters.add(writer);
-                  }
-                }
+                List<PartitionDataWriter> memoryWriters =
+                    new ArrayList<>(storageManager.memoryWriters().values());
                 if (memoryWriters.isEmpty()) {
                   return;
                 }
                 logger.info("Start evicting {} memory file infos", memoryWriters.size());
                 // always evict the largest memory file info first
                 memoryWriters.sort(
-                    (o1, o2) ->
-                        o1.getMemoryFileInfo().getFileLength()
-                                < o2.getMemoryFileInfo().getFileLength()
-                            ? 1
-                            : 0);
+                    Comparator.comparingLong(o -> o.getMemoryFileInfo().getFileLength()));
+                Collections.reverse(memoryWriters);
                 try {
                   for (PartitionDataWriter writer : memoryWriters) {
                     // this branch means that there is no memory pressure
-                    if ((memoryFileStorageCounter.sum() >= 0.5 * memoryFileStorageThreshold)
-                        && currentServingState() != ServingState.NONE_PAUSED) {
+                    if ((memoryFileStorageCounter.sum() < 0.5 * memoryFileStorageThreshold)
+                        || currentServingState() != ServingState.NONE_PAUSED) {
                       break;
                     }
                     logger.debug("Evict writer {}", writer);
-                    writer.evict();
+                    writer.evict(true);
                   }
                 } catch (IOException e) {
                   logger.warn("Partition data writer evict failed", e);
@@ -306,7 +297,7 @@ public class MemoryManager {
       return ServingState.PUSH_PAUSED;
     }
     // trigger resume
-    if (workerMemoryUsageRatio() < resumeRatio) {
+    if (memoryUsage / (double) (maxDirectMemory) < resumeRatio) {
       isPaused = false;
       return ServingState.NONE_PAUSED;
     }

@@ -314,7 +314,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
               "{} Evict, memory buffer is  {}",
               writerContext.getPartitionLocation().getFileName(),
               flushBufferReadableBytes);
-          evict();
+          evict(false);
         }
       }
 
@@ -452,10 +452,18 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     return msg;
   }
 
-  public void evict() throws IOException {
+  public void evict(boolean checkClose) throws IOException {
     // this lock is used to make sure that
     // memory manager won't evict with writer thread concurrently
     synchronized (flushLock) {
+      if (checkClose) {
+        // close and evict might be invoked concurrently
+        // do not evict committed files from memory manager
+        // evict memory file info if worker is shutdown gracefully
+        if (isClosed()) {
+          return;
+        }
+      }
       if (memoryFileInfo != null) {
         evictInternal();
         if (isClosed()) {
