@@ -41,6 +41,7 @@ public abstract class FileInfo {
 
   public void replaceFileMeta(FileMeta meta) {
     this.fileMeta = meta;
+    this.isReduceFileMeta = meta instanceof ReduceFileMeta;
   }
 
   public FileMeta getFileMeta() {
