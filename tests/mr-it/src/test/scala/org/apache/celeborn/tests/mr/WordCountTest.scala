@@ -109,7 +109,6 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
       try {
         val conf = new Configuration(yarnCluster.getConfig)
         // YARN config
-        conf.set("yarn.app.mapreduce.am.job.recovery.enable", "false")
         conf.set(
           "yarn.app.mapreduce.am.command-opts",
           "org.apache.celeborn.mapreduce.v2.app.MRAppMasterWithCeleborn")
@@ -118,7 +117,6 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
         conf.set("mapreduce.framework.name", "yarn")
         conf.set("mapreduce.job.user.classpath.first", "true")
 
-        conf.set("mapreduce.job.reduce.slowstart.completedmaps", "1")
         conf.set(
           "mapreduce.celeborn.master.endpoints",
           s"localhost:${master.conf.get(CelebornConf.MASTER_PORT)}")
@@ -196,7 +194,6 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     var exitCode = false
     val conf = new Configuration(yarnCluster.getConfig)
     // YARN config
-    conf.set("yarn.app.mapreduce.am.job.recovery.enable", "false")
     conf.set(
       "yarn.app.mapreduce.am.command-opts",
       "org.apache.celeborn.mapreduce.v2.app.MRAppMasterWithCeleborn")
@@ -205,7 +202,6 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     conf.set("mapreduce.framework.name", "yarn")
     conf.set("mapreduce.job.user.classpath.first", "true")
 
-    conf.set("mapreduce.job.reduce.slowstart.completedmaps", "1")
     conf.set(
       "mapreduce.celeborn.master.endpoints",
       s"errorhost:${master.conf.get(CelebornConf.MASTER_PORT)}")
