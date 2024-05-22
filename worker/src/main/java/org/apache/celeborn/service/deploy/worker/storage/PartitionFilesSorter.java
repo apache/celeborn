@@ -631,8 +631,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             long length = blockInfo.length;
             // combine multiple `ShuffleBlockInfo` into a single `ShuffleBlockInfo` of size
             // less than `shuffleChunkSize`
-            if (!sortedShuffleBlocks.isEmpty() &&
-                sortedShuffleBlocks.get(sortedShuffleBlocks.size() - 1).length + length <= shuffleChunkSize) {
+            if (!sortedShuffleBlocks.isEmpty()
+                && sortedShuffleBlocks.get(sortedShuffleBlocks.size() - 1).length + length
+                    <= shuffleChunkSize) {
               sortedShuffleBlocks.get(sortedShuffleBlocks.size() - 1).length += length;
             } else {
               ShuffleBlockInfo sortedBlock = new ShuffleBlockInfo();
