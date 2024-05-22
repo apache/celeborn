@@ -629,8 +629,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           for (ShuffleBlockInfo blockInfo : originShuffleBlocks) {
             long offset = blockInfo.offset;
             long length = blockInfo.length;
-            // combine multiple `ShuffleBlockInfo` into a single `ShuffleBlockInfo` of size
-            // less than `shuffleChunkSize`
+            // combine multiple small length `ShuffleBlockInfo` for same mapId such that
+            // size of compacted `ShuffleBlockInfo` does not exceed `shuffleChunkSize`
             if (!sortedShuffleBlocks.isEmpty()
                 && sortedShuffleBlocks.get(sortedShuffleBlocks.size() - 1).length + length
                     <= shuffleChunkSize) {
