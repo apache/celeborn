@@ -21,6 +21,8 @@ import java.util.List;
 
 import scala.Tuple2;
 
+import com.google.common.base.Preconditions;
+
 import org.apache.celeborn.common.meta.ReduceFileMeta;
 
 public abstract class ChunkBuffers {
@@ -47,7 +49,7 @@ public abstract class ChunkBuffers {
   public Tuple2<Long, Long> getChunkOffsetLength(int chunkIndex, int offset, int len) {
     final long chunkOffset = offsets[chunkIndex];
     final long chunkLength = offsets[chunkIndex + 1] - chunkOffset;
-    assert offset < chunkLength;
+    Preconditions.checkArgument(offset < chunkLength);
     long length = Math.min(chunkLength - offset, len);
     return new Tuple2<>(chunkOffset + offset, length);
   }

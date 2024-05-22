@@ -57,8 +57,8 @@ public abstract class FileInfo {
 
   public void updateBytesFlushed(long bytes) {
     bytesFlushed += bytes;
-    if (fileMeta instanceof ReduceFileMeta) {
-      ((ReduceFileMeta) fileMeta).updateChunkOffset(bytesFlushed, false);
+    if (isReduceFileMeta) {
+      getReduceFileMeta().updateChunkOffset(bytesFlushed, false);
     }
   }
 

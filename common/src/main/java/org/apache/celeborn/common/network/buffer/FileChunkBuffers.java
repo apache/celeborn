@@ -36,7 +36,6 @@ public class FileChunkBuffers extends ChunkBuffers {
 
   @Override
   public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
-    // offset of the beginning of the chunk in the file
     Tuple2<Long, Long> offsetLen = getChunkOffsetLength(chunkIndex, offset, len);
     return new FileSegmentManagedBuffer(conf, file, offsetLen._1, offsetLen._2);
   }

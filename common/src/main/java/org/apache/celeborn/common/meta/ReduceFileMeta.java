@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ReduceFileMeta implements FileMeta {
-  // sort and evict will be treated as data modification
   private final AtomicBoolean sorted = new AtomicBoolean(false);
   private final List<Long> chunkOffsets;
   private long chunkSize;
@@ -78,7 +77,7 @@ public class ReduceFileMeta implements FileMeta {
     }
   }
 
-  public void setModified() {
+  public void setSorted() {
     synchronized (sorted) {
       sorted.set(true);
     }

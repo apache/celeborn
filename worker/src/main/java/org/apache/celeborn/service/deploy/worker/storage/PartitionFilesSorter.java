@@ -348,7 +348,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
         memoryFileInfo.setSortedBuffer(sortedBuffer);
         memoryFileInfo.setSortedIndexes(sortedBlocks);
-        reduceFileMeta.setModified();
+        reduceFileMeta.setSorted();
       }
     }
   }
@@ -730,7 +730,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
         updateSortedShuffleFiles(shuffleKey, fileId, originFileLen);
-        ((ReduceFileMeta) originFileInfo.getFileMeta()).setModified();
+        originFileInfo.getReduceFileMeta().setSorted();
         cleaner.add(this);
         logger.debug("sort complete for {} {}", shuffleKey, originFilePath);
       } catch (Exception e) {

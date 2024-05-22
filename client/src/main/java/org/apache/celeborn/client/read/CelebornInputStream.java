@@ -453,8 +453,17 @@ public abstract class CelebornInputStream extends InputStream {
             return new LocalPartitionReader(
                 conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex, callback);
           } else {
-            return createWorkerPartitionReader(
-                location, fetchChunkRetryCnt, fetchChunkMaxRetry, pbStreamHandler);
+            return new WorkerPartitionReader(
+                conf,
+                shuffleKey,
+                location,
+                pbStreamHandler,
+                clientFactory,
+                startMapIndex,
+                endMapIndex,
+                fetchChunkRetryCnt,
+                fetchChunkMaxRetry,
+                callback);
           }
         case HDFS:
           return new DfsPartitionReader(
@@ -463,25 +472,6 @@ public abstract class CelebornInputStream extends InputStream {
           throw new CelebornIOException(
               String.format("Unknown storage info %s to read location %s", storageInfo, location));
       }
-    }
-
-    private WorkerPartitionReader createWorkerPartitionReader(
-        PartitionLocation location,
-        int fetchChunkRetryCnt,
-        int fetchChunkMaxRetry,
-        PbStreamHandler pbStreamHandler)
-        throws IOException, InterruptedException {
-      return new WorkerPartitionReader(
-          conf,
-          shuffleKey,
-          location,
-          pbStreamHandler,
-          clientFactory,
-          startMapIndex,
-          endMapIndex,
-          fetchChunkRetryCnt,
-          fetchChunkMaxRetry,
-          callback);
     }
 
     @Override

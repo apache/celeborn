@@ -27,7 +27,6 @@ import com.google.common.util.concurrent.Uninterruptibles
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic.{NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY, NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY}
 import org.apache.hadoop.net.{Node, TableMapping}
 import org.junit.Assert.assertEquals
-import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
