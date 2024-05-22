@@ -55,10 +55,6 @@ public class MemoryFileInfo extends FileInfo {
     this.buffer = buffer;
   }
 
-  public void setBufferSize(int bufferSize) {
-    this.bytesFlushed = bufferSize;
-  }
-
   public CompositeByteBuf getSortedBuffer() {
     return sortedBuffer;
   }

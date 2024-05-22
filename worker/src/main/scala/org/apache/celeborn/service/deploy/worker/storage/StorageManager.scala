@@ -23,7 +23,7 @@ import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
-import java.util.function.{BiConsumer, Consumer, IntUnaryOperator}
+import java.util.function.{BiConsumer, IntUnaryOperator}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._

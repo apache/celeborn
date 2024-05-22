@@ -53,7 +53,6 @@ public class ReduceFileMeta implements FileMeta {
 
   public synchronized void addChunkOffset(long offset) {
     nextBoundary = offset + chunkSize;
-    // keep compatible with reduce partition data writer's force update chunk offset logic
     if (chunkOffsets.isEmpty() || chunkOffsets.get(chunkOffsets.size() - 1) != offset) {
       chunkOffsets.add(offset);
     }

@@ -447,7 +447,7 @@ public abstract class CelebornInputStream extends InputStream {
         case MEMORY:
           if (enabledReadLocalShuffle
               && location.getHost().equals(localHostAddress)
-              && location.getStorageInfo().getType() != StorageInfo.Type.MEMORY) {
+              && storageInfo.getType() != StorageInfo.Type.MEMORY) {
             logger.debug("Read local shuffle file {}", localHostAddress);
             containLocalRead = true;
             return new LocalPartitionReader(

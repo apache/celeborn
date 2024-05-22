@@ -293,8 +293,7 @@ class FetchHandler(
               shuffleKey,
               managedBuffer,
               fileName,
-              fetchTimeMetric,
-              fileInfo)
+              fetchTimeMetric)
             if (meta.getNumChunks == 0)
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
                 s"[$startIndex-$endIndex] is empty. Received from client channel " +

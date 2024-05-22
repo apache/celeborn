@@ -51,8 +51,8 @@ public class ShuffleBlockInfoUtils {
       long currentChunkOffset = 0;
       long lastChunkOffset = 0;
       // This sorted chunk offsets are used for fetch handler.
-      // Sorted byte buf is a new composite byte buf filled with small buffers.
-      // It will not reuse the old buffer of memory file, so the offset is start from 0.
+      // Sorted byte buf is a new composite byte buf containing the required data.
+      // It will not reuse the old buffer of memory file, so the offset starts from 0.
       sortedChunkOffset.add(0l);
       for (int i = startMapIndex; i < maxMapIndex; i++) {
         List<ShuffleBlockInfo> blockInfos = indexMap.get(i);

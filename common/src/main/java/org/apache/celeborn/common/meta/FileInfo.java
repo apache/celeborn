@@ -75,12 +75,8 @@ public abstract class FileInfo {
     this.partitionSplitEnabled = partitionSplitEnabled;
   }
 
-  boolean isReduceFileMeta() {
-    return isReduceFileMeta;
-  }
-
   public boolean addStream(long streamId) {
-    if (!isReduceFileMeta()) {
+    if (!isReduceFileMeta) {
       throw new IllegalStateException("In addStream, filemeta cannot be MapFileMeta");
     }
     synchronized (getReduceFileMeta().getSorted()) {
@@ -94,7 +90,7 @@ public abstract class FileInfo {
   }
 
   public void closeStream(long streamId) {
-    if (!isReduceFileMeta()) {
+    if (!isReduceFileMeta) {
       throw new IllegalStateException("In closeStream, filemeta cannot be MapFileMeta");
     }
     synchronized (getReduceFileMeta().getSorted()) {
@@ -103,7 +99,7 @@ public abstract class FileInfo {
   }
 
   public boolean isStreamsEmpty() {
-    if (!isReduceFileMeta()) {
+    if (!isReduceFileMeta) {
       throw new IllegalStateException("In isStreamsEmpty, filemeta cannot be MapFileMeta");
     }
     synchronized (getReduceFileMeta().getSorted()) {

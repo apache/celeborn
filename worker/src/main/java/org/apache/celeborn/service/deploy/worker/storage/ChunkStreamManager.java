@@ -28,8 +28,6 @@ import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.meta.FileInfo;
-import org.apache.celeborn.common.meta.MemoryFileInfo;
 import org.apache.celeborn.common.meta.TimeWindow;
 import org.apache.celeborn.common.network.buffer.ChunkBuffers;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
@@ -128,7 +126,7 @@ public class ChunkStreamManager {
    * stream is not properly closed, it will eventually be cleaned up by `cleanupExpiredShuffleKey`.
    */
   public long registerStream(long streamId, String shuffleKey, String fileName) {
-    return registerStream(streamId, shuffleKey, null, fileName, null, null);
+    return registerStream(streamId, shuffleKey, null, fileName, null);
   }
 
   /**
@@ -146,7 +144,7 @@ public class ChunkStreamManager {
   public long registerStream(
       String shuffleKey, ChunkBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
     long myStreamId = nextStreamId.getAndIncrement();
-    return registerStream(myStreamId, shuffleKey, buffers, fileName, fetchTimeMetric, null);
+    return registerStream(myStreamId, shuffleKey, buffers, fileName, fetchTimeMetric);
   }
 
   public long registerStream(
@@ -154,14 +152,8 @@ public class ChunkStreamManager {
       String shuffleKey,
       ChunkBuffers buffers,
       String fileName,
-      TimeWindow fetchTimeMetric,
-      FileInfo fileInfo) {
-    StreamState streamState = null;
-    if (fileInfo != null && fileInfo instanceof MemoryFileInfo) {
-      streamState = new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric);
-    } else {
-      streamState = new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric);
-    }
+      TimeWindow fetchTimeMetric) {
+    StreamState streamState = new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric);
     streams.put(streamId, streamState);
     shuffleStreamIds.compute(
         shuffleKey,

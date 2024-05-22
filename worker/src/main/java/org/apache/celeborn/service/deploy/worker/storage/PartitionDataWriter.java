@@ -236,15 +236,14 @@ public abstract class PartitionDataWriter implements DeviceObserver {
             }
           }
         }
-        if (task != null) {
-          addTask(task);
-          flushBuffer = null;
-          if (!fromEvict) {
-            diskFileInfo.updateBytesFlushed(numBytes);
-          }
-          if (!finalFlush) {
-            takeBuffer();
-          }
+        Preconditions.checkArgument(task != null);
+        addTask(task);
+        flushBuffer = null;
+        if (!fromEvict) {
+          diskFileInfo.updateBytesFlushed(numBytes);
+        }
+        if (!finalFlush) {
+          takeBuffer();
         }
       }
     }
@@ -611,6 +610,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   public void flushOnMemoryPressure() throws IOException {
     synchronized (flushLock) {
+      // this won't happen if this writer is in memory
       flush(false, false);
     }
   }
