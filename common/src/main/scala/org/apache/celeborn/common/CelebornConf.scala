@@ -811,6 +811,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerPartitionSorterSortPartitionTimeout: Long = get(WORKER_PARTITION_SORTER_SORT_TIMEOUT)
   def workerPartitionSorterPrefetchEnabled: Boolean =
     get(WORKER_PARTITION_SORTER_PREFETCH_ENABLED)
+  def workerPartitionSorterShuffleBlockCompactionFactor: Double =
+    get(WORKER_SHUFFLE_BLOCK_COMPACTION_FACTOR)
   def workerPartitionSorterReservedMemoryPerPartition: Long =
     get(WORKER_PARTITION_SORTER_RESERVED_MEMORY_PER_PARTITION)
   def workerPartitionSorterThreads: Int =
@@ -2960,6 +2962,16 @@ object CelebornConf extends Logging {
       .version("0.5.0")
       .booleanConf
       .createWithDefault(true)
+
+  val WORKER_SHUFFLE_BLOCK_COMPACTION_FACTOR: ConfigEntry[Double] =
+    buildConf("celeborn.shuffle.sortPartition.block.compactionFactor")
+      .categories("worker")
+      .version("0.4.2")
+      .doc("Combine sorted shuffle blocks such that size of compacted shuffle block does not " +
+        s"exceed compactionFactor * ${SHUFFLE_CHUNK_SIZE.key}")
+      .doubleConf
+      .checkValue(v => v >= 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
+      .createWithDefault(0.25)
 
   val WORKER_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.flusher.buffer.size")

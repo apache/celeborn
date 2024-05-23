@@ -39,6 +39,7 @@ license: |
 | celeborn.master.internal.endpoints | &lt;localhost&gt;:8097 | false | Endpoints of master nodes just for celeborn workers to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:8097,clb2:8097,clb3:8097`. If the port is omitted, 8097 will be used. | 0.5.0 |  | 
 | celeborn.redaction.regex | (?i)secret|password|token|access[.]key | false | Regex to decide which Celeborn configuration properties and environment variables in master and worker environments contain sensitive information. When this regex matches a property key or value, the value is redacted from the logging. | 0.5.0 |  | 
 | celeborn.shuffle.chunk.size | 8m | false | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128M and the data will need 16 fetch chunk requests to fetch. | 0.2.0 |  | 
+| celeborn.shuffle.sortPartition.block.compactionFactor | 0.25 | false | Combine sorted shuffle blocks such that size of compacted shuffle block does not exceed compactionFactor * celeborn.shuffle.chunk.size | 0.4.2 |  | 
 | celeborn.storage.availableTypes | HDD | false | Enabled storages. Available options: MEMORY,HDD,SSD,HDFS. Note: HDD and SSD would be treated as identical. | 0.3.0 | celeborn.storage.activeTypes | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | false | HDFS base directory for Celeborn to store shuffle data. | 0.2.0 |  | 
 | celeborn.storage.hdfs.kerberos.keytab | &lt;undefined&gt; | false | Kerberos keytab file path for HDFS storage connection. | 0.3.2 |  | 
