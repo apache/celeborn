@@ -84,8 +84,8 @@ Here is an example of Grafana dashboard importing.
 |            diskBytesWritten            | master and worker |                                   The amount of disk files consumption by each user.                                   |
 |             hdfsFileCount              | master and worker |                                   The count of hdfs files consumption by each user.                                    |
 |            hdfsBytesWritten            | master and worker |                                   The amount of hdfs files consumption by each user.                                   |
-|        DeviceCelebornFreeBytes         | master and worker |                          This value means actual usable space of Celeborn for device monitor.                          |
-|        DeviceCelebornTotalBytes        | master and worker |                              This value means total space of Celeborn for device monitor.                              |
+|        DeviceCelebornFreeBytes         | master and worker |                              This value means actual usable space of Celeborn for device.                              |
+|        DeviceCelebornTotalBytes        | master and worker |                                  This value means total space of Celeborn for device.                                  |
 |              WorkerCount               |      master       |                                              The count of active workers.                                              |
 |            LostWorkerCount             |      master       |                                           The count of workers in lost list.                                           |
 |          ExcludedWorkerCount           |      master       |                                         The count of workers in excluded list.                                         |
