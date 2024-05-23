@@ -84,6 +84,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final AtomicLong sortedFilesSize = new AtomicLong();
   protected final long sortTimeout;
   protected final long shuffleChunkSize;
+  protected final double compactionFactor;
   protected final long reservedMemoryPerPartition;
   private boolean gracefulShutdown;
   private long partitionSorterShutdownAwaitTime;
@@ -100,6 +101,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
     this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
+    this.compactionFactor = conf.workerPartitionSorterShuffleBlockCompactionFactor();
     this.partitionSorterShutdownAwaitTime =
         conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
     this.indexCacheMaxWeight = conf.partitionSorterIndexCacheMaxWeight();
@@ -623,10 +625,23 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           for (ShuffleBlockInfo blockInfo : originShuffleBlocks) {
             long offset = blockInfo.offset;
             long length = blockInfo.length;
-            ShuffleBlockInfo sortedBlock = new ShuffleBlockInfo();
-            sortedBlock.offset = fileIndex;
-            sortedBlock.length = length;
-            sortedShuffleBlocks.add(sortedBlock);
+            // Combine multiple small `ShuffleBlockInfo` for same mapId such that size of compacted
+            // `ShuffleBlockInfo` does not exceed `compactionFactor` * `shuffleChunkSize`
+            boolean shuffleBlockCompacted = false;
+            if (!sortedShuffleBlocks.isEmpty()) {
+              ShuffleBlockInfo lastShuffleBlock =
+                  sortedShuffleBlocks.get(sortedShuffleBlocks.size() - 1);
+              if (lastShuffleBlock.length + length <= compactionFactor * shuffleChunkSize) {
+                lastShuffleBlock.length += length;
+                shuffleBlockCompacted = true;
+              }
+            }
+            if (!shuffleBlockCompacted) {
+              ShuffleBlockInfo sortedBlock = new ShuffleBlockInfo();
+              sortedBlock.offset = fileIndex;
+              sortedBlock.length = length;
+              sortedShuffleBlocks.add(sortedBlock);
+            }
             fileIndex += transferBlock(offset, length);
           }
           sortedBlockInfoMap.put(mapId, sortedShuffleBlocks);
