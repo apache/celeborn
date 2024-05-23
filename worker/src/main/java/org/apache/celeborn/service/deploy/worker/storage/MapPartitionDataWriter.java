@@ -23,6 +23,7 @@ import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
 
+import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
@@ -30,11 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.MapFileMeta;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
-import org.apache.celeborn.common.protocol.PartitionSplitMode;
-import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.Utils;
 
@@ -57,28 +55,14 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
 
   public MapPartitionDataWriter(
       StorageManager storageManager,
-      DiskFileInfo diskFileInfo,
-      Flusher flusher,
       AbstractSource workerSource,
       CelebornConf conf,
       DeviceMonitor deviceMonitor,
-      long splitThreshold,
-      PartitionSplitMode splitMode,
-      boolean rangeReadFilter,
-      String shuffleKey)
+      PartitionDataWriterContext writerContext)
       throws IOException {
-    super(
-        storageManager,
-        diskFileInfo,
-        flusher,
-        workerSource,
-        conf,
-        deviceMonitor,
-        splitThreshold,
-        splitMode,
-        PartitionType.MAP,
-        rangeReadFilter,
-        shuffleKey);
+    super(storageManager, workerSource, conf, deviceMonitor, writerContext, false);
+
+    Preconditions.checkState(diskFileInfo != null);
     if (!diskFileInfo.isHdfs()) {
       indexChannel = FileChannelUtils.createWritableFileChannel(diskFileInfo.getIndexPath());
     } else {
@@ -134,9 +118,7 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
   @Override
   public synchronized long close() throws IOException {
     return super.close(
-        () -> {
-          flushIndex();
-        },
+        this::flushIndex,
         () -> {
           if (diskFileInfo.isHdfs()) {
             if (StorageManager.hadoopFs().exists(diskFileInfo.getHdfsPeerWriterSuccessPath())) {

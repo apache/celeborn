@@ -38,8 +38,8 @@ public class StorageInfo implements Serializable {
     }
   }
 
-  public static Map<Integer, Type> typesMap = new HashMap<>();
-  public static Set<String> typeNames = new HashSet<>();
+  public static final Map<Integer, Type> typesMap = new HashMap<>();
+  public static final Set<String> typeNames = new HashSet<>();
 
   static {
     for (Type type : Type.values()) {
@@ -129,6 +129,11 @@ public class StorageInfo implements Serializable {
         + '}';
   }
 
+  public boolean memoryAvailable() {
+    return availableStorageTypes == ALL_TYPES_AVAILABLE_MASK
+        || (availableStorageTypes & MEMORY_MASK) > 0;
+  }
+
   public static boolean localDiskAvailable(int availableStorageTypes) {
     return availableStorageTypes == ALL_TYPES_AVAILABLE_MASK
         || (availableStorageTypes & LOCAL_DISK_MASK) > 0;
@@ -181,7 +186,7 @@ public class StorageInfo implements Serializable {
     return Objects.hash(type, mountPoint, finalResult, filePath, availableStorageTypes);
   }
 
-  public static final boolean validate(String typeStr) {
+  public static boolean validate(String typeStr) {
     return typeNames.contains(typeStr);
   }
 

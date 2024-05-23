@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker.storage;
+package org.apache.celeborn.service.deploy.worker.storage.local;
 
 import static org.junit.Assert.assertEquals;
 
@@ -24,12 +24,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
 import scala.Function0;
-import scala.Tuple4;
 import scala.collection.mutable.ListBuffer;
 
 import io.netty.buffer.Unpooled;
@@ -42,19 +40,21 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
+import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
+import org.apache.celeborn.service.deploy.worker.storage.*;
 
-public class MapPartitionDataWriterSuiteJ {
+public class DiskMapPartitionDataWriterSuiteJ {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MapPartitionDataWriterSuiteJ.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DiskMapPartitionDataWriterSuiteJ.class);
 
   private static final CelebornConf CONF = new CelebornConf();
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
@@ -100,7 +100,7 @@ public class MapPartitionDataWriterSuiteJ {
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_RESUME().key(), "0.5");
     conf.set(CelebornConf.WORKER_PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD().key(), "0.6");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER().key(), "0.1");
-    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE().key(), "0.1");
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE().key(), "0.1");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL().key(), "10");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_REPORT_INTERVAL().key(), "10");
     conf.set(CelebornConf.WORKER_READBUFFER_ALLOCATIONWAIT().key(), "10ms");
@@ -121,21 +121,24 @@ public class MapPartitionDataWriterSuiteJ {
 
   @Test
   public void testMultiThreadWrite() throws IOException {
-    Tuple4<StorageManager, Flusher, DiskFileInfo, File> context =
-        PartitionDataWriterSuiteUtils.prepareTestFileContext(
-            tempDir, userIdentifier, localFlusher, false);
+    PartitionLocation partitionLocation = Mockito.mock(PartitionLocation.class);
     MapPartitionDataWriter fileWriter =
         new MapPartitionDataWriter(
-            context._1(),
-            context._3(),
-            context._2(),
+            PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
+                tempDir, userIdentifier, localFlusher, false, CONF),
             source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            SPLIT_THRESHOLD,
-            splitMode,
-            false,
-            "app1-1");
+            new PartitionDataWriterContext(
+                SPLIT_THRESHOLD,
+                splitMode,
+                false,
+                partitionLocation,
+                "app1",
+                1,
+                userIdentifier,
+                PartitionType.MAP,
+                false));
     fileWriter.pushDataHandShake(2, 32 * 1024);
     fileWriter.regionStart(0, false);
     byte[] partData0 = generateData(0);
@@ -155,13 +158,6 @@ public class MapPartitionDataWriterSuiteJ {
 
     assertEquals(length.get(), bytesWritten);
     assertEquals(fileWriter.getFile().length(), bytesWritten);
-  }
-
-  private File getTemporaryFile() throws IOException {
-    String filename = UUID.randomUUID().toString();
-    File temporaryFile = new File(tempDir, filename);
-    temporaryFile.createNewFile();
-    return temporaryFile;
   }
 
   private byte[] generateData(int partitionId) {

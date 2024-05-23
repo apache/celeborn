@@ -24,14 +24,16 @@ import org.apache.hadoop.fs.Path
 
 abstract private[worker] class FlushTask(
     val buffer: CompositeByteBuf,
-    val notifier: FlushNotifier) {
+    val notifier: FlushNotifier,
+    val keepBuffer: Boolean) {
   def flush(): Unit
 }
 
 private[worker] class LocalFlushTask(
     buffer: CompositeByteBuf,
     fileChannel: FileChannel,
-    notifier: FlushNotifier) extends FlushTask(buffer, notifier) {
+    notifier: FlushNotifier,
+    keepBuffer: Boolean) extends FlushTask(buffer, notifier, keepBuffer) {
   override def flush(): Unit = {
     val buffers = buffer.nioBuffers()
     for (buffer <- buffers) {
@@ -45,7 +47,8 @@ private[worker] class LocalFlushTask(
 private[worker] class HdfsFlushTask(
     buffer: CompositeByteBuf,
     val path: Path,
-    notifier: FlushNotifier) extends FlushTask(buffer, notifier) {
+    notifier: FlushNotifier,
+    keepBuffer: Boolean) extends FlushTask(buffer, notifier, keepBuffer) {
   override def flush(): Unit = {
     val hdfsStream = StorageManager.hadoopFs.append(path, 256 * 1024)
     hdfsStream.write(ByteBufUtil.getBytes(buffer))

@@ -31,7 +31,7 @@ import org.roaringbitmap.RoaringBitmap
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{WorkerInfo, WorkerPartitionLocationInfo}
+import org.apache.celeborn.common.meta.{ReduceFileMeta, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -200,8 +200,8 @@ private[deploy] class Controller(
       logWarning(s"[handleReserveSlots] $msg, will destroy writers.")
       primaryLocs.asScala.foreach { partitionLocation =>
         val fileWriter = partitionLocation.asInstanceOf[WorkingPartition].getFileWriter
-        fileWriter.destroy(new IOException(s"Destroy FileWriter ${fileWriter} caused by " +
-          s"reserving slots failed for ${shuffleKey}."))
+        fileWriter.destroy(new IOException(s"Destroy FileWriter $fileWriter caused by " +
+          s"reserving slots failed for $shuffleKey."))
       }
       context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
@@ -240,13 +240,13 @@ private[deploy] class Controller(
       logWarning(s"[handleReserveSlots] $msg, destroy writers.")
       primaryLocs.asScala.foreach { partitionLocation =>
         val fileWriter = partitionLocation.asInstanceOf[WorkingPartition].getFileWriter
-        fileWriter.destroy(new IOException(s"Destroy FileWriter ${fileWriter} caused by " +
-          s"reserving slots failed for ${shuffleKey}."))
+        fileWriter.destroy(new IOException(s"Destroy FileWriter $fileWriter caused by " +
+          s"reserving slots failed for $shuffleKey."))
       }
       replicaLocs.asScala.foreach { partitionLocation =>
         val fileWriter = partitionLocation.asInstanceOf[WorkingPartition].getFileWriter
-        fileWriter.destroy(new IOException(s"Destroy FileWriter ${fileWriter} caused by " +
-          s"reserving slots failed for ${shuffleKey}."))
+        fileWriter.destroy(new IOException(s"Destroy FileWriter $fileWriter caused by " +
+          s"reserving slots failed for $shuffleKey."))
       }
       context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
@@ -346,14 +346,16 @@ private[deploy] class Controller(
   private def waitMapPartitionRegionFinished(
       fileWriter: PartitionDataWriter,
       waitTimeout: Long): Unit = {
-    if (fileWriter.isInstanceOf[MapPartitionDataWriter]) {
-      if (fileWriter.asInstanceOf[MapPartitionDataWriter].checkPartitionRegionFinished(
-          waitTimeout)) {
-        logDebug(s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
-      } else {
-        logWarning(
-          s"CommitFile failed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
-      }
+    fileWriter match {
+      case writer: MapPartitionDataWriter =>
+        if (writer.checkPartitionRegionFinished(
+            waitTimeout)) {
+          logDebug(s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+        } else {
+          logWarning(
+            s"CommitFile failed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+        }
+      case _ =>
     }
   }
 
@@ -424,11 +426,11 @@ private[deploy] class Controller(
 
     commitInfo.synchronized {
       if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
-        logInfo(s"${shuffleKey} CommitFinished, just return the response")
+        logInfo(s"$shuffleKey CommitFinished, just return the response")
         context.reply(commitInfo.response)
         return
       } else if (commitInfo.status == CommitInfo.COMMIT_INPROCESS) {
-        logInfo(s"${shuffleKey} CommitFiles inprogress, wait for finish")
+        logInfo(s"$shuffleKey CommitFiles inprogress, wait for finish")
         commitThreadPool.submit(new Runnable {
           override def run(): Unit = {
             waitForCommitFinish()
@@ -436,7 +438,7 @@ private[deploy] class Controller(
         })
         return
       } else {
-        logInfo(s"Start commitFiles for ${shuffleKey}")
+        logInfo(s"Start commitFiles for $shuffleKey")
         commitInfo.status = CommitInfo.COMMIT_INPROCESS
         workerSource.startTimer(WorkerSource.COMMIT_FILES_TIME, shuffleKey)
       }
@@ -529,10 +531,10 @@ private[deploy] class Controller(
           logInfo(
             s"CommitFiles for $shuffleKey success with " +
               s"${committedPrimaryIds.size()} committed primary partitions, " +
-              s"${emptyFilePrimaryIds.size()} empty primary partitions, " +
+              s"${emptyFilePrimaryIds.size()} empty primary partitions ${emptyFilePrimaryIds.asScala.mkString(",")}, " +
               s"${failedPrimaryIds.size()} failed primary partitions, " +
               s"${committedReplicaIds.size()} committed replica partitions, " +
-              s"${emptyFileReplicaIds.size()} empty replica partitions, " +
+              s"${emptyFileReplicaIds.size()} empty replica partitions ${emptyFileReplicaIds.asScala.mkString(",")} , " +
               s"${failedReplicaIds.size()} failed replica partitions.")
           CommitFilesResponse(
             StatusCode.SUCCESS,

@@ -24,11 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.meta.DiskFileInfo;
-import org.apache.celeborn.common.meta.ReduceFileMeta;
+import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
-import org.apache.celeborn.common.protocol.PartitionSplitMode;
-import org.apache.celeborn.common.protocol.PartitionType;
 
 /*
  * reduce partition file writer, it will create chunk index
@@ -36,49 +33,27 @@ import org.apache.celeborn.common.protocol.PartitionType;
 public final class ReducePartitionDataWriter extends PartitionDataWriter {
   private static final Logger logger = LoggerFactory.getLogger(ReducePartitionDataWriter.class);
 
-  private long nextBoundary;
-  private final long shuffleChunkSize;
-
   public ReducePartitionDataWriter(
       StorageManager storageManager,
-      DiskFileInfo diskFileInfo,
-      Flusher flusher,
       AbstractSource workerSource,
       CelebornConf conf,
       DeviceMonitor deviceMonitor,
-      long splitThreshold,
-      PartitionSplitMode splitMode,
-      boolean rangeReadFilter,
-      String shuffleKey)
+      PartitionDataWriterContext writerContext)
       throws IOException {
-    super(
-        storageManager,
-        diskFileInfo,
-        flusher,
-        workerSource,
-        conf,
-        deviceMonitor,
-        splitThreshold,
-        splitMode,
-        PartitionType.REDUCE,
-        rangeReadFilter,
-        shuffleKey);
-    this.shuffleChunkSize = conf.shuffleChunkSize();
-    this.nextBoundary = this.shuffleChunkSize;
+    super(storageManager, workerSource, conf, deviceMonitor, writerContext, true);
+  }
+
+  private void updateLastChunkOffset() {
+    FileInfo fileInfo = getCurrentFileInfo();
+    fileInfo.getReduceFileMeta().updateChunkOffset(fileInfo.getFileLength(), true);
   }
 
   @Override
-  protected void flush(boolean finalFlush) throws IOException {
-    super.flush(finalFlush);
-    maybeSetChunkOffsets(finalFlush);
-  }
-
-  private void maybeSetChunkOffsets(boolean forceSet) {
-    long bytesFlushed = diskFileInfo.getFileLength();
-    if (bytesFlushed >= nextBoundary || forceSet) {
-      ((ReduceFileMeta) diskFileInfo.getFileMeta()).addChunkOffset(bytesFlushed);
-      nextBoundary = bytesFlushed + shuffleChunkSize;
-    }
+  public void flush(boolean finalFlush, boolean fromEvict) throws IOException {
+    super.flush(finalFlush, fromEvict);
+    getCurrentFileInfo()
+        .getReduceFileMeta()
+        .updateChunkOffset(getCurrentFileInfo().getFileLength(), finalFlush);
   }
 
   private boolean isChunkOffsetValid() {
@@ -90,36 +65,57 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
     // but its size is smaller than the nextBoundary, then the
     // chunk offset will not be set after flushing. we should
     // set it during FileWriter close.
-    return ((ReduceFileMeta) diskFileInfo.getFileMeta()).getLastChunkOffset()
-        == diskFileInfo.getFileLength();
+    if (diskFileInfo != null) {
+      return (diskFileInfo.getReduceFileMeta()).getLastChunkOffset()
+          == diskFileInfo.getFileLength();
+    }
+    if (memoryFileInfo != null) {
+      return (memoryFileInfo.getReduceFileMeta()).getLastChunkOffset()
+          == memoryFileInfo.getFileLength();
+    }
+    // this should not happen
+    return false;
   }
 
   @Override
   public synchronized long close() throws IOException {
-    return super.close(
-        () -> {
-          if (!isChunkOffsetValid()) {
-            maybeSetChunkOffsets(true);
-          }
-        },
-        () -> {
-          if (diskFileInfo.isHdfs()) {
-            if (StorageManager.hadoopFs().exists(diskFileInfo.getHdfsPeerWriterSuccessPath())) {
-              StorageManager.hadoopFs().delete(diskFileInfo.getHdfsPath(), false);
-              deleted = true;
-            } else {
-              StorageManager.hadoopFs().create(diskFileInfo.getHdfsWriterSuccessPath()).close();
-              FSDataOutputStream indexOutputStream =
-                  StorageManager.hadoopFs().create(diskFileInfo.getHdfsIndexPath());
-              indexOutputStream.writeInt(
-                  ((ReduceFileMeta) diskFileInfo.getFileMeta()).getChunkOffsets().size());
-              for (Long offset : ((ReduceFileMeta) diskFileInfo.getFileMeta()).getChunkOffsets()) {
-                indexOutputStream.writeLong(offset);
+    long streamId =
+        super.close(
+            () -> {
+              if (!isChunkOffsetValid()) {
+                updateLastChunkOffset();
               }
-              indexOutputStream.close();
-            }
-          }
-        },
-        () -> {});
+            },
+            () -> {
+              if (diskFileInfo != null) {
+                if (diskFileInfo.isHdfs()) {
+                  if (StorageManager.hadoopFs()
+                      .exists(diskFileInfo.getHdfsPeerWriterSuccessPath())) {
+                    StorageManager.hadoopFs().delete(diskFileInfo.getHdfsPath(), false);
+                    deleted = true;
+                  } else {
+                    StorageManager.hadoopFs()
+                        .create(diskFileInfo.getHdfsWriterSuccessPath())
+                        .close();
+                    FSDataOutputStream indexOutputStream =
+                        StorageManager.hadoopFs().create(diskFileInfo.getHdfsIndexPath());
+                    indexOutputStream.writeInt(
+                        (diskFileInfo.getReduceFileMeta()).getChunkOffsets().size());
+                    for (Long offset : (diskFileInfo.getReduceFileMeta()).getChunkOffsets()) {
+                      indexOutputStream.writeLong(offset);
+                    }
+                    indexOutputStream.close();
+                  }
+                }
+              } else {
+                synchronized (flushLock) {
+                  // merge and free small components
+                  flushBuffer.consolidate();
+                  memoryFileInfo.setBuffer(flushBuffer);
+                }
+              }
+            },
+            () -> {});
+    return streamId;
   }
 }

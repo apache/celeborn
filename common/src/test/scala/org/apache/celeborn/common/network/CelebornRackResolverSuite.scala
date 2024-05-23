@@ -135,7 +135,6 @@ class CelebornRackResolverSuite extends AnyFunSuite {
          |$hostName2 /default/rack2
          |$hostName3 /default/rack1
          |""".stripMargin)
-
     Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS)
     assertEquals("/default/rack1", resolver.resolve(hostName3).getNetworkLocation)
     assertEquals(false, resolver.isOnSameRack(hostName1, hostName2))

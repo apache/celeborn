@@ -20,14 +20,14 @@ package org.apache.celeborn.common.meta;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.util.Utils;
@@ -36,11 +36,9 @@ import org.apache.celeborn.common.util.Utils;
  * This class will describe shuffle files located on local disks, HDFS and other remote storage.
  * */
 public class DiskFileInfo extends FileInfo {
-  private static Logger logger = LoggerFactory.getLogger(DiskFileInfo.class);
-  private final Set<Long> streams = ConcurrentHashMap.newKeySet();
-  private String filePath;
-  private StorageInfo.Type storageType;
-  private volatile long bytesFlushed;
+  private static final Logger logger = LoggerFactory.getLogger(DiskFileInfo.class);
+  private final String filePath;
+  private final StorageInfo.Type storageType;
 
   public DiskFileInfo(
       UserIdentifier userIdentifier,
@@ -66,11 +64,12 @@ public class DiskFileInfo extends FileInfo {
     this.bytesFlushed = bytesFlushed;
   }
 
-  public DiskFileInfo(File file, UserIdentifier userIdentifier) {
+  @VisibleForTesting
+  public DiskFileInfo(File file, UserIdentifier userIdentifier, CelebornConf conf) {
     this(
         userIdentifier,
         true,
-        new ReduceFileMeta(new ArrayList(Arrays.asList(0L))),
+        new ReduceFileMeta(new ArrayList<>(Arrays.asList(0L)), conf.shuffleChunkSize()),
         file.getAbsolutePath(),
         StorageInfo.Type.HDD);
   }
@@ -79,42 +78,6 @@ public class DiskFileInfo extends FileInfo {
     super(userIdentifier, true, fileMeta);
     this.filePath = filePath;
     this.storageType = StorageInfo.Type.HDD;
-  }
-
-  public boolean addStream(long streamId) {
-    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileMeta;
-    synchronized (reduceFileMeta.getSorted()) {
-      if (reduceFileMeta.getSorted().get()) {
-        return false;
-      } else {
-        streams.add(streamId);
-        return true;
-      }
-    }
-  }
-
-  public void closeStream(long streamId) {
-    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileMeta;
-    synchronized (reduceFileMeta.getSorted()) {
-      streams.remove(streamId);
-    }
-  }
-
-  public boolean isStreamsEmpty() {
-    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileMeta;
-    synchronized (reduceFileMeta.getSorted()) {
-      return streams.isEmpty();
-    }
-  }
-
-  @Override
-  public long getFileLength() {
-    return bytesFlushed;
-  }
-
-  public long updateBytesFlushed(long numBytes) {
-    bytesFlushed += numBytes;
-    return bytesFlushed;
   }
 
   public File getFile() {
@@ -183,10 +146,6 @@ public class DiskFileInfo extends FileInfo {
 
   public void setMountPoint(String mountPoint) {
     ((MapFileMeta) fileMeta).setMountPoint(mountPoint);
-  }
-
-  public long getBytesFlushed() {
-    return bytesFlushed;
   }
 
   public boolean isHdfs() {

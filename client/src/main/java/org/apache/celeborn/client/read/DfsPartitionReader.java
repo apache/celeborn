@@ -167,7 +167,8 @@ public class DfsPartitionReader implements PartitionReader {
                   startMapIndex,
                   endMapIndex,
                   shuffleChunkSize,
-                  ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuffer)));
+                  ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuffer),
+                  false));
     }
     return offsets;
   }

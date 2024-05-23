@@ -28,8 +28,8 @@ import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.meta.FileManagedBuffers;
 import org.apache.celeborn.common.meta.TimeWindow;
+import org.apache.celeborn.common.network.buffer.ChunkBuffers;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.util.JavaUtils;
 
@@ -47,20 +47,16 @@ public class ChunkStreamManager {
   protected final ConcurrentHashMap<String, Set<Long>> shuffleStreamIds;
 
   /** State of a single stream. */
-  protected static class StreamState {
-    final FileManagedBuffers buffers;
-    final String shuffleKey;
-    final String fileName;
-    final TimeWindow fetchTimeMetric;
-
+  public static class StreamState {
+    public final ChunkBuffers buffers;
+    public final String shuffleKey;
+    public final String fileName;
+    public final TimeWindow fetchTimeMetric;
     // Used to keep track of the number of chunks being transferred and not finished yet.
     volatile long chunksBeingTransferred = 0L;
 
     StreamState(
-        String shuffleKey,
-        FileManagedBuffers buffers,
-        String fileName,
-        TimeWindow fetchTimeMetric) {
+        String shuffleKey, ChunkBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
       this.buffers = buffers;
       this.shuffleKey = shuffleKey;
       this.fileName = fileName;
@@ -87,7 +83,7 @@ public class ChunkStreamManager {
           String.format("Requested chunk index beyond end %s", chunkIndex));
     }
 
-    FileManagedBuffers buffers = state.buffers;
+    ChunkBuffers buffers = state.buffers;
     return buffers.chunk(chunkIndex, offset, len);
   }
 
@@ -146,7 +142,7 @@ public class ChunkStreamManager {
    * stream is not properly closed, it will eventually be cleaned up by `cleanupExpiredShuffleKey`.
    */
   public long registerStream(
-      String shuffleKey, FileManagedBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
+      String shuffleKey, ChunkBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
     long myStreamId = nextStreamId.getAndIncrement();
     return registerStream(myStreamId, shuffleKey, buffers, fileName, fetchTimeMetric);
   }
@@ -154,10 +150,11 @@ public class ChunkStreamManager {
   public long registerStream(
       long streamId,
       String shuffleKey,
-      FileManagedBuffers buffers,
+      ChunkBuffers buffers,
       String fileName,
       TimeWindow fetchTimeMetric) {
-    streams.put(streamId, new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric));
+    StreamState streamState = new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric);
+    streams.put(streamId, streamState);
     shuffleStreamIds.compute(
         shuffleKey,
         (key, value) -> {
@@ -191,6 +188,10 @@ public class ChunkStreamManager {
         "Cleaned up expired shuffle keys. The count of shuffle keys and streams: {}, {}",
         shuffleStreamIds.size(),
         streams.size());
+  }
+
+  public StreamState getStreamState(long streamId) {
+    return streams.get(streamId);
   }
 
   public Tuple2<String, String> getShuffleKeyAndFileName(long streamId) {

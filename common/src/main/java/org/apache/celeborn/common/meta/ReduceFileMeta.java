@@ -22,12 +22,25 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ReduceFileMeta implements FileMeta {
-  private final List<Long> chunkOffsets;
   private final AtomicBoolean sorted = new AtomicBoolean(false);
+  private final List<Long> chunkOffsets;
+  private long chunkSize;
+  private long nextBoundary;
 
-  public ReduceFileMeta() {
+  public ReduceFileMeta(long chunkSize) {
     this.chunkOffsets = new ArrayList<>();
     chunkOffsets.add(0L);
+    this.chunkSize = chunkSize;
+    nextBoundary = chunkSize;
+  }
+
+  public ReduceFileMeta(List<Long> chunkOffsets, long chunkSize) {
+    this.chunkOffsets = chunkOffsets;
+    nextBoundary = chunkSize;
+    if (!chunkOffsets.isEmpty()) {
+      nextBoundary += chunkOffsets.get(chunkOffsets.size() - 1);
+    }
+    this.chunkSize = chunkSize;
   }
 
   public ReduceFileMeta(List<Long> chunkOffsets) {
@@ -39,7 +52,16 @@ public class ReduceFileMeta implements FileMeta {
   }
 
   public synchronized void addChunkOffset(long offset) {
-    chunkOffsets.add(offset);
+    nextBoundary = offset + chunkSize;
+    if (chunkOffsets.isEmpty() || chunkOffsets.get(chunkOffsets.size() - 1) != offset) {
+      chunkOffsets.add(offset);
+    }
+  }
+
+  public void updateChunkOffset(long bytesFlushed, boolean force) {
+    if (bytesFlushed >= nextBoundary || force) {
+      addChunkOffset(bytesFlushed);
+    }
   }
 
   public synchronized long getLastChunkOffset() {

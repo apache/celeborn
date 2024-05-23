@@ -18,7 +18,6 @@
 package org.apache.celeborn.service.deploy.worker;
 
 import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import java.io.File;
@@ -47,7 +46,6 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.FileInfo;
-import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -80,7 +78,7 @@ public class FetchHandlerSuiteJ {
 
   private static final Logger LOG = LoggerFactory.getLogger(FetchHandlerSuiteJ.class);
 
-  private static CelebornConf conf = new CelebornConf();
+  private static final CelebornConf conf = new CelebornConf();
 
   private static final Random random = new Random();
 
@@ -93,7 +91,7 @@ public class FetchHandlerSuiteJ {
     byte[] batchHeader = new byte[16];
     File shuffleFile = File.createTempFile("celeborn", UUID.randomUUID().toString());
 
-    FileInfo fileInfo = new DiskFileInfo(shuffleFile, userIdentifier);
+    DiskFileInfo fileInfo = new DiskFileInfo(shuffleFile, userIdentifier, conf);
     FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
     FileChannel channel = fileOutputStream.getChannel();
     Map<Integer, Integer> batchIds = new HashMap<>();
@@ -132,10 +130,10 @@ public class FetchHandlerSuiteJ {
     for (long offset = conf.shuffleChunkSize();
         offset <= originFileLen;
         offset += conf.shuffleChunkSize()) {
-      ((ReduceFileMeta) fileInfo.getFileMeta()).getChunkOffsets().add(offset);
+      (fileInfo.getReduceFileMeta()).addChunkOffset(offset);
     }
     // update sorted fileInfo chunk offsets
-    ((DiskFileInfo) fileInfo).updateBytesFlushed(originFileLen);
+    fileInfo.updateBytesFlushed(originFileLen);
     return fileInfo;
   }
 
@@ -319,7 +317,7 @@ public class FetchHandlerSuiteJ {
     Mockito.doReturn(partitionFilesSorter).when(worker).partitionsSorter();
     fetchHandler0.init(worker);
     FetchHandler fetchHandler = spy(fetchHandler0);
-    Mockito.doReturn(fileInfo).when(fetchHandler).getRawDiskFileInfo(anyString(), anyString());
+    Mockito.doReturn(fileInfo).when(fetchHandler).getRawFileInfo(anyString(), anyString());
     return fetchHandler;
   }
 
@@ -443,7 +441,7 @@ public class FetchHandlerSuiteJ {
   }
 
   private void checkOriginFileBeDeleted(FileInfo fileInfo) {
-    assertTrue(!((DiskFileInfo) fileInfo).getFilePath().endsWith(".sorted"));
+    assertFalse(((DiskFileInfo) fileInfo).getFilePath().endsWith(".sorted"));
     long startTs = System.currentTimeMillis();
     boolean deleted = false;
     long timeout = 5 * 1000; // 5s

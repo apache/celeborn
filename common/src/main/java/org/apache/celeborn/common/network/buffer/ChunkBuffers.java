@@ -15,25 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.meta;
+package org.apache.celeborn.common.network.buffer;
 
-import java.io.File;
 import java.util.List;
 
-import org.apache.celeborn.common.network.buffer.FileSegmentManagedBuffer;
-import org.apache.celeborn.common.network.buffer.ManagedBuffer;
-import org.apache.celeborn.common.network.util.TransportConf;
+import scala.Tuple2;
 
-public class FileManagedBuffers {
-  private final File file;
-  private final long[] offsets;
-  private final int numChunks;
+import com.google.common.base.Preconditions;
 
-  private final TransportConf conf;
+import org.apache.celeborn.common.meta.ReduceFileMeta;
 
-  public FileManagedBuffers(DiskFileInfo fileInfo, TransportConf conf) {
-    file = fileInfo.getFile();
-    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileInfo.getFileMeta();
+public abstract class ChunkBuffers {
+  protected long[] offsets;
+  protected int numChunks;
+
+  public int numChunks() {
+    return numChunks;
+  }
+
+  public ChunkBuffers(ReduceFileMeta reduceFileMeta) {
     numChunks = reduceFileMeta.getNumChunks();
     if (numChunks > 0) {
       offsets = new long[numChunks + 1];
@@ -44,19 +44,15 @@ public class FileManagedBuffers {
     } else {
       offsets = new long[] {0};
     }
-    this.conf = conf;
   }
 
-  public int numChunks() {
-    return numChunks;
-  }
-
-  public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
-    // offset of the beginning of the chunk in the file
+  public Tuple2<Long, Long> getChunkOffsetLength(int chunkIndex, int offset, int len) {
     final long chunkOffset = offsets[chunkIndex];
     final long chunkLength = offsets[chunkIndex + 1] - chunkOffset;
-    assert offset < chunkLength;
+    Preconditions.checkArgument(offset < chunkLength);
     long length = Math.min(chunkLength - offset, len);
-    return new FileSegmentManagedBuffer(conf, file, chunkOffset + offset, length);
+    return new Tuple2<>(chunkOffset + offset, length);
   }
+
+  public abstract ManagedBuffer chunk(int chunkIndex, int offset, int len);
 }
