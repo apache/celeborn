@@ -86,6 +86,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final AtomicLong sortedFilesSize = new AtomicLong();
   protected final long sortTimeout;
   protected final long shuffleChunkSize;
+  protected final double compactionFactor;
   protected final boolean prefetchEnabled;
   protected final long reservedMemoryPerPartition;
   private final boolean gracefulShutdown;
@@ -102,6 +103,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
     this.sortTimeout = conf.workerPartitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
+    this.compactionFactor = conf.workerPartitionSorterShuffleBlockCompactionFactor();
     this.prefetchEnabled = conf.workerPartitionSorterPrefetchEnabled();
     this.reservedMemoryPerPartition = conf.workerPartitionSorterReservedMemoryPerPartition();
     this.partitionSorterShutdownAwaitTime =
@@ -633,7 +635,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             // size of compacted `ShuffleBlockInfo` does not exceed `shuffleChunkSize`
             if (!sortedShuffleBlocks.isEmpty()
                 && sortedShuffleBlocks.get(sortedShuffleBlocks.size() - 1).length + length
-                    <= shuffleChunkSize) {
+                    <= compactionFactor * shuffleChunkSize) {
               sortedShuffleBlocks.get(sortedShuffleBlocks.size() - 1).length += length;
             } else {
               ShuffleBlockInfo sortedBlock = new ShuffleBlockInfo();
