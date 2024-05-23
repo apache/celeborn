@@ -2960,13 +2960,14 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val WORKER_SHUFFLE_BLOCK_COMPACTION_FACTOR : ConfigEntry[Double] =
+  val WORKER_SHUFFLE_BLOCK_COMPACTION_FACTOR: ConfigEntry[Double] =
     buildConf("celeborn.shuffle.sortPartition.compactionFactor")
       .categories("worker")
       .version("0.4.1")
       .doc("Combine sorted shuffle blocks such that size of compacted shuffle block does not " +
-        s"exceed ${WORKER_SHUFFLE_BLOCK_COMPACTION_FACTOR.key} * ${SHUFFLE_CHUNK_SIZE.key}")
+        s"exceed compactionFactor * ${SHUFFLE_CHUNK_SIZE.key}")
       .doubleConf
+      .checkValue(v => v >= 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
       .createWithDefault(0.25)
 
   val WORKER_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
