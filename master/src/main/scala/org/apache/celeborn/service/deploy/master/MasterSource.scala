@@ -53,4 +53,8 @@ object MasterSource {
   val ACTIVE_SHUFFLE_FILE_COUNT = "ActiveShuffleFileCount"
 
   val OFFER_SLOTS_TIME = "OfferSlotsTime"
+
+  // Capacity
+  val DEVICE_CELEBORN_FREE_CAPACITY = "DeviceCelebornFreeBytes"
+  val DEVICE_CELEBORN_TOTAL_CAPACITY = "DeviceCelebornTotalBytes"
 }

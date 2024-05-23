@@ -247,6 +247,15 @@ private[celeborn] class Master(
             }).sum()
       }).sum()
   }
+
+  masterSource.addGauge(MasterSource.DEVICE_CELEBORN_TOTAL_CAPACITY) { () =>
+    statusSystem.workers.asScala.map(_.totalSpace()).sum
+  }
+
+  masterSource.addGauge(MasterSource.DEVICE_CELEBORN_FREE_CAPACITY) { () =>
+    statusSystem.workers.asScala.map(_.totalActualUsableSpace()).sum
+  }
+
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
 
   private val threadsStarted: AtomicBoolean = new AtomicBoolean(false)

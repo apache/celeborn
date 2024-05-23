@@ -92,6 +92,8 @@ These metrics are exposed by Celeborn master.
 
   - namespace=master 
     - RegisteredShuffleCount
+    - DeviceCelebornFreeBytes
+    - DeviceCelebornTotalBytes
     - RunningApplicationCount
     - ActiveShuffleSize
         - The active shuffle size of workers.

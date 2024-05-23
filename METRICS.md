@@ -84,6 +84,8 @@ Here is an example of Grafana dashboard importing.
 |            diskBytesWritten            | master and worker |                                   The amount of disk files consumption by each user.                                   |
 |             hdfsFileCount              | master and worker |                                   The count of hdfs files consumption by each user.                                    |
 |            hdfsBytesWritten            | master and worker |                                   The amount of hdfs files consumption by each user.                                   |
+|        DeviceCelebornFreeBytes         | master and worker |                              This value means actual usable space of Celeborn for device.                              |
+|        DeviceCelebornTotalBytes        | master and worker |                                  This value means total space of Celeborn for device.                                  |
 |              WorkerCount               |      master       |                                              The count of active workers.                                              |
 |            LostWorkerCount             |      master       |                                           The count of workers in lost list.                                           |
 |          ExcludedWorkerCount           |      master       |                                         The count of workers in excluded list.                                         |
@@ -142,8 +144,6 @@ Here is an example of Grafana dashboard importing.
 |        ActiveMapPartitionCount         |      worker       |                            This value means count of active map partition reading streams.                             |
 |           DeviceOSFreeBytes            |      worker       |                             This value means actual usable space of OS for device monitor.                             |
 |           DeviceOSTotalBytes           |      worker       |                             This value means total usable space of OS for device monitor.                              |
-|        DeviceCelebornFreeBytes         |      worker       |                          This value means actual usable space of Celeborn for device monitor.                          |
-|        DeviceCelebornTotalBytes        |      worker       |                        This value means configured usable space of Celeborn for device monitor.                        |
 |         PotentialConsumeSpeed          |      worker       |                        This value means speed of potential consumption for congestion control.                         |
 |            UserProduceSpeed            |      worker       |                           This value means speed of user production for congestion control.                            |
 |           WorkerConsumeSpeed           |      worker       |                          This value means speed of worker consumption for congestion control.                          |
