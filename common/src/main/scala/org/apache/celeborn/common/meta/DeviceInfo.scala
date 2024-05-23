@@ -293,6 +293,7 @@ object DeviceInfo {
             conf)
           val (_, maxUsableSpace, threadCount, storageType) = dirs(0)
           diskInfo.configuredUsableSpace = maxUsableSpace
+          diskInfo.totalSpace = maxUsableSpace
           diskInfo.threadCount = threadCount
           diskInfo.storageType = storageType
           deviceInfo.addDiskInfo(diskInfo)

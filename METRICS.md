@@ -144,8 +144,6 @@ Here is an example of Grafana dashboard importing.
 |        ActiveMapPartitionCount         |      worker       |                            This value means count of active map partition reading streams.                             |
 |           DeviceOSFreeBytes            |      worker       |                             This value means actual usable space of OS for device monitor.                             |
 |           DeviceOSTotalBytes           |      worker       |                             This value means total usable space of OS for device monitor.                              |
-|        DeviceCelebornFreeBytes         |      worker       |                          This value means actual usable space of Celeborn for device monitor.                          |
-|        DeviceCelebornTotalBytes        |      worker       |                        This value means configured usable space of Celeborn for device monitor.                        |
 |         PotentialConsumeSpeed          |      worker       |                        This value means speed of potential consumption for congestion control.                         |
 |            UserProduceSpeed            |      worker       |                           This value means speed of user production for congestion control.                            |
 |           WorkerConsumeSpeed           |      worker       |                          This value means speed of worker consumption for congestion control.                          |
