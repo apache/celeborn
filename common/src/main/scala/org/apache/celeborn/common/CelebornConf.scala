@@ -2961,7 +2961,7 @@ object CelebornConf extends Logging {
       .createWithDefault(true)
 
   val WORKER_SHUFFLE_BLOCK_COMPACTION_FACTOR: ConfigEntry[Double] =
-    buildConf("celeborn.shuffle.sortPartition.compactionFactor")
+    buildConf("celeborn.shuffle.sortPartition.block.compactionFactor")
       .categories("worker")
       .version("0.4.1")
       .doc("Combine sorted shuffle blocks such that size of compacted shuffle block does not " +

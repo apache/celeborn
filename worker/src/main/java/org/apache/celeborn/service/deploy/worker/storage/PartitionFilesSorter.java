@@ -631,13 +631,18 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           for (ShuffleBlockInfo blockInfo : originShuffleBlocks) {
             long offset = blockInfo.offset;
             long length = blockInfo.length;
-            // combine multiple small length `ShuffleBlockInfo` for same mapId such that
-            // size of compacted `ShuffleBlockInfo` does not exceed `shuffleChunkSize`
-            if (!sortedShuffleBlocks.isEmpty()
-                && sortedShuffleBlocks.get(sortedShuffleBlocks.size() - 1).length + length
-                    <= compactionFactor * shuffleChunkSize) {
-              sortedShuffleBlocks.get(sortedShuffleBlocks.size() - 1).length += length;
-            } else {
+            // Combine multiple small `ShuffleBlockInfo` for same mapId such that size of compacted
+            // `ShuffleBlockInfo` does not exceed `compactionFactor` * `shuffleChunkSize`
+            boolean shuffleBlockCompacted = false;
+            if (!sortedShuffleBlocks.isEmpty()) {
+              ShuffleBlockInfo lastShuffleBlock =
+                  sortedShuffleBlocks.get(sortedShuffleBlocks.size() - 1);
+              if (lastShuffleBlock.length + length <= compactionFactor * shuffleChunkSize) {
+                lastShuffleBlock.length += length;
+                shuffleBlockCompacted = true;
+              }
+            }
+            if (!shuffleBlockCompacted) {
               ShuffleBlockInfo sortedBlock = new ShuffleBlockInfo();
               sortedBlock.offset = fileIndex;
               sortedBlock.length = length;
