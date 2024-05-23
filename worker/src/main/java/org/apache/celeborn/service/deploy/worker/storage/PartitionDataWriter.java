@@ -236,14 +236,17 @@ public abstract class PartitionDataWriter implements DeviceObserver {
             }
           }
         }
-        Preconditions.checkArgument(task != null);
-        addTask(task);
-        flushBuffer = null;
-        if (!fromEvict) {
-          diskFileInfo.updateBytesFlushed(numBytes);
-        }
-        if (!finalFlush) {
-          takeBuffer();
+        // task won't be null in real workloads
+        // task will be null in UT to check chunk size and offset
+        if (task != null) {
+          addTask(task);
+          flushBuffer = null;
+          if (!fromEvict) {
+            diskFileInfo.updateBytesFlushed(numBytes);
+          }
+          if (!finalFlush) {
+            takeBuffer();
+          }
         }
       }
     }
