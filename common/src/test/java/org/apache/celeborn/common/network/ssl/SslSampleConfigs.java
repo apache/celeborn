@@ -26,18 +26,33 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.security.*;
 import java.security.cert.Certificate;
-import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.security.auth.x500.X500Principal;
+import java.util.*;
+import java.util.stream.Stream;
 
 import org.apache.commons.io.FileUtils;
-import org.bouncycastle.x509.X509V1CertificateGenerator;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.BasicConstraints;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
+import org.bouncycastle.cert.X509v3CertificateBuilder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
+import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SslSampleConfigs {
+
+  private static final Logger LOG = LoggerFactory.getLogger(SslSampleConfigs.class);
+
+  static {
+    Security.addProvider(new BouncyCastleProvider());
+  }
 
   public static final String DEFAULT_KEY_STORE_PATH = getResourceAsAbsolutePath("/ssl/server.jks");
   public static final String SECOND_KEY_STORE_PATH =
@@ -113,34 +128,95 @@ public class SslSampleConfigs {
    * @param algorithm the signing algorithm, eg "SHA1withRSA"
    * @return the self-signed certificate
    */
+  public static X509Certificate generateCertificate(
+      String dn, KeyPair pair, int days, String algorithm) throws Exception {
+    return generateCertificate(dn, pair, days, algorithm, false, null, null, null);
+  }
+
+  /**
+   * Create a self-signed X.509 Certificate.
+   *
+   * @param dn the X.509 Distinguished Name, eg "CN=Test, L=London, C=GB"
+   * @param pair the KeyPair for the server
+   * @param days how many days from now the Certificate is valid for
+   * @param algorithm the signing algorithm, eg "SHA1withRSA"
+   * @param generateCaCert Is this request to generate a CA cert
+   * @param altNames Optional: Alternate names to be added to the cert - we add them as both
+   *     hostnames and ip's.
+   * @param caKeyPair Optional: the KeyPair of the CA, to be used to sign this certificate. caCert
+   *     should also be specified to use it
+   * @param caCert Optional: the CA cert, to be used to sign this certificate. caKeyPair should also
+   *     be specified to use it
+   * @return the signed certificate (signed using ca if provided, else self-signed)
+   */
   @SuppressWarnings("deprecation")
   public static X509Certificate generateCertificate(
-      String dn, KeyPair pair, int days, String algorithm)
-      throws CertificateEncodingException, InvalidKeyException, IllegalStateException,
-          NoSuchAlgorithmException, SignatureException {
+      String dn,
+      KeyPair pair,
+      int days,
+      String algorithm,
+      boolean generateCaCert,
+      String[] altNames,
+      KeyPair caKeyPair,
+      X509Certificate caCert)
+      throws Exception {
 
     Date from = new Date();
     Date to = new Date(from.getTime() + days * 86400000L);
     BigInteger sn = new BigInteger(64, new SecureRandom());
-    KeyPair keyPair = pair;
-    X509V1CertificateGenerator certGen = new X509V1CertificateGenerator();
-    X500Principal dnName = new X500Principal(dn);
+    X500Name subjectName = new X500Name(dn);
 
-    certGen.setSerialNumber(sn);
-    certGen.setIssuerDN(dnName);
-    certGen.setNotBefore(from);
-    certGen.setNotAfter(to);
-    certGen.setSubjectDN(dnName);
-    certGen.setPublicKey(keyPair.getPublic());
-    certGen.setSignatureAlgorithm(algorithm);
+    X500Name issuerName;
+    KeyPair signingKeyPair;
 
-    X509Certificate cert = certGen.generate(pair.getPrivate());
-    return cert;
+    if (caKeyPair != null && caCert != null) {
+      issuerName = new JcaX509CertificateHolder(caCert).getSubject();
+      signingKeyPair = caKeyPair;
+    } else {
+      issuerName = subjectName;
+      // self signed
+      signingKeyPair = pair;
+    }
+
+    X509v3CertificateBuilder certBuilder =
+        new JcaX509v3CertificateBuilder(
+            issuerName, sn, from, to, new X500Name(dn), pair.getPublic());
+
+    if (null != altNames) {
+      Stream<GeneralName> dnsStream =
+          Arrays.stream(altNames).map(h -> new GeneralName(GeneralName.dNSName, h));
+      Stream<GeneralName> ipStream =
+          Arrays.stream(altNames)
+              .map(
+                  h -> {
+                    try {
+                      return new GeneralName(GeneralName.iPAddress, h);
+                    } catch (Exception ex) {
+                      return null;
+                    }
+                  })
+              .filter(Objects::nonNull);
+
+      GeneralName[] arr = Stream.concat(dnsStream, ipStream).toArray(GeneralName[]::new);
+      GeneralNames names = new GeneralNames(arr);
+
+      certBuilder.addExtension(Extension.subjectAlternativeName, false, names);
+      LOG.info("Added subjectAlternativeName extension for hosts : " + Arrays.toString(altNames));
+    }
+
+    if (generateCaCert) {
+      certBuilder.addExtension(Extension.basicConstraints, true, new BasicConstraints(true));
+      LOG.info("Added CA cert extension");
+    }
+
+    ContentSigner signer =
+        new JcaContentSignerBuilder(algorithm).build(signingKeyPair.getPrivate());
+    return new JcaX509CertificateConverter().getCertificate(certBuilder.build(signer));
   }
 
   public static KeyPair generateKeyPair(String algorithm) throws NoSuchAlgorithmException {
     KeyPairGenerator keyGen = KeyPairGenerator.getInstance(algorithm);
-    keyGen.initialize(1024);
+    keyGen.initialize(4096);
     return keyGen.genKeyPair();
   }
 
@@ -178,7 +254,7 @@ public class SslSampleConfigs {
   }
 
   private static KeyStore createEmptyKeyStore() throws GeneralSecurityException, IOException {
-    KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+    KeyStore ks = KeyStore.getInstance("PKCS12");
     ks.load(null, null); // initialize
     return ks;
   }

@@ -796,6 +796,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         Math.min(diskInfo.configuredUsableSpace - totalUsage, fileSystemReportedUsableSpace)
       logDebug(s"updateDiskInfos  workingDirUsableSpace:$workingDirUsableSpace filemeta:$fileSystemReportedUsableSpace conf:${diskInfo.configuredUsableSpace} totalUsage:$totalUsage")
       diskInfo.setUsableSpace(workingDirUsableSpace)
+      diskInfo.setTotalSpace(totalUsage + workingDirUsableSpace)
       diskInfo.updateFlushTime()
       diskInfo.updateFetchTime()
     }

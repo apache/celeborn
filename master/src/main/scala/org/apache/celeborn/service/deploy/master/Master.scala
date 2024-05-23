@@ -180,14 +180,6 @@ private[celeborn] class Master(
   private val userResourceConsumptions =
     JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
 
-  // States
-  private def workersSnapShot: util.List[WorkerInfo] =
-    statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.workers))
-  private def lostWorkersSnapshot: ConcurrentHashMap[WorkerInfo, java.lang.Long] =
-    statusSystem.workers.synchronized(JavaUtils.newConcurrentHashMap(statusSystem.lostWorkers))
-  private def shutdownWorkerSnapshot: util.List[WorkerInfo] =
-    statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.shutdownWorkers))
-
   private def diskReserveSize = conf.workerDiskReserveSize
   private def diskReserveRatio = conf.workerDiskReserveRatio
 
@@ -255,6 +247,15 @@ private[celeborn] class Master(
             }).sum()
       }).sum()
   }
+
+  masterSource.addGauge(MasterSource.DEVICE_CELEBORN_TOTAL_CAPACITY) { () =>
+    statusSystem.workers.asScala.map(_.totalSpace()).sum
+  }
+
+  masterSource.addGauge(MasterSource.DEVICE_CELEBORN_FREE_CAPACITY) { () =>
+    statusSystem.workers.asScala.map(_.totalActualUsableSpace()).sum
+  }
+
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
 
   private val threadsStarted: AtomicBoolean = new AtomicBoolean(false)
@@ -565,7 +566,7 @@ private[celeborn] class Master(
       return
     }
 
-    workersSnapShot.asScala.foreach { worker =>
+    statusSystem.workers.asScala.foreach { worker =>
       if (worker.lastHeartbeat < currentTime - workerHeartbeatTimeoutMs
         && !statusSystem.workerLostEvents.contains(worker)) {
         logWarning(s"Worker ${worker.readableAddress()} timeout! Trigger WorkerLost event.")
@@ -588,7 +589,7 @@ private[celeborn] class Master(
       return
     }
 
-    val unavailableInfoTimeoutWorkers = lostWorkersSnapshot.asScala.filter {
+    val unavailableInfoTimeoutWorkers = statusSystem.lostWorkers.asScala.filter {
       case (_, lostTime) => currentTime - lostTime > workerUnavailableInfoExpireTimeoutMs
     }.keySet.toList.asJava
 
@@ -638,7 +639,7 @@ private[celeborn] class Master(
       workerStatus: WorkerStatus,
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
-    val registered = workersSnapShot.asScala.contains(targetWorker)
+    val registered = statusSystem.workers.asScala.contains(targetWorker)
     if (!registered) {
       logWarning(s"Received heartbeat from unknown worker " +
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
@@ -708,7 +709,7 @@ private[celeborn] class Master(
       -1,
       new util.HashMap[String, DiskInfo](),
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]())
-    val worker: WorkerInfo = workersSnapShot
+    val worker: WorkerInfo = statusSystem.workers
       .asScala
       .find(_ == targetWorker)
       .orNull
@@ -745,7 +746,7 @@ private[celeborn] class Master(
         internalPort,
         disks,
         userResourceConsumption)
-    if (workersSnapShot.contains(workerToRegister)) {
+    if (statusSystem.workers.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")
       // TODO: remove `WorkerRemove` because we have improve register logic to cover `WorkerRemove`
@@ -1015,14 +1016,14 @@ private[celeborn] class Master(
       System.currentTimeMillis(),
       requestId)
     // unknown workers will retain in needCheckedWorkerList
-    needCheckedWorkerList.removeAll(workersSnapShot)
+    needCheckedWorkerList.removeAll(statusSystem.workers)
     if (shouldResponse) {
       context.reply(HeartbeatFromApplicationResponse(
         StatusCode.SUCCESS,
         new util.ArrayList(
           (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).asJava),
         needCheckedWorkerList,
-        shutdownWorkerSnapshot))
+        new util.ArrayList[WorkerInfo](statusSystem.shutdownWorkers)))
     } else {
       context.reply(OneWayMessageResponse)
     }
@@ -1124,9 +1125,9 @@ private[celeborn] class Master(
 
   private def workersAvailable(
       tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
-    workersSnapShot.asScala.filter { w =>
+    statusSystem.workers.asScala.filter { w =>
       statusSystem.isWorkerAvailable(w) && !tmpExcludedWorkerList.contains(w)
-    }.asJava
+    }.toList.asJava
   }
 
   private def handleRequestForApplicationMeta(
@@ -1157,7 +1158,7 @@ private[celeborn] class Master(
   }
 
   private def getWorkers: String = {
-    workersSnapShot.asScala.mkString("\n")
+    statusSystem.workers.asScala.mkString("\n")
   }
 
   override def handleWorkerEvent(workerEventType: String, workers: String): String = {
@@ -1199,7 +1200,7 @@ private[celeborn] class Master(
   override def getLostWorkers: String = {
     val sb = new StringBuilder
     sb.append("======================= Lost Workers in Master ========================\n")
-    lostWorkersSnapshot.asScala.toSeq.sortBy(_._2).foreach { case (worker, time) =>
+    statusSystem.lostWorkers.asScala.toSeq.sortBy(_._2).foreach { case (worker, time) =>
       sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
     }
     sb.toString()
@@ -1208,7 +1209,7 @@ private[celeborn] class Master(
   override def getShutdownWorkers: String = {
     val sb = new StringBuilder
     sb.append("===================== Shutdown Workers in Master ======================\n")
-    shutdownWorkerSnapshot.asScala.foreach { worker =>
+    statusSystem.shutdownWorkers.asScala.foreach { worker =>
       sb.append(s"${worker.toUniqueId()}\n")
     }
     sb.toString()
@@ -1281,7 +1282,7 @@ private[celeborn] class Master(
         s"Failed to Exclude workers add ${workersToAdd.mkString(",")} and remove ${workersToRemove.mkString(",")}.\n")
     }
     val unknownExcludedWorkers =
-      (workersToAdd ++ workersToRemove).filter(!workersSnapShot.contains(_))
+      (workersToAdd ++ workersToRemove).filter(!statusSystem.workers.contains(_))
     if (unknownExcludedWorkers.nonEmpty) {
       sb.append(
         s"Unknown worker ${unknownExcludedWorkers.mkString(",")}. Workers in Master:\n$getWorkers.")

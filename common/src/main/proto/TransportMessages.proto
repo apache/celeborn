@@ -158,6 +158,7 @@ message PbDiskInfo {
   int32 status = 5;
   int64 avgFetchTime = 6;
   int32 storageType = 7;
+  int64 totalSpace = 8;
 }
 
 message PbWorkerInfo {

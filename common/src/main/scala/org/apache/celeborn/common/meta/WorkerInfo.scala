@@ -188,6 +188,14 @@ class WorkerInfo(
     diskInfos.asScala.map(_._2.availableSlots()).sum
   }
 
+  def totalSpace(): Long = this.synchronized {
+    diskInfos.asScala.map(_._2.totalSpace).sum
+  }
+
+  def totalActualUsableSpace(): Long = this.synchronized {
+    diskInfos.asScala.map(_._2.actualUsableSpace).sum
+  }
+
   def updateThenGetDiskInfos(
       newDiskInfos: java.util.Map[String, DiskInfo],
       estimatedPartitionSize: Option[Long] = None): util.Map[String, DiskInfo] = this.synchronized {
@@ -197,6 +205,7 @@ class WorkerInfo(
       val curDisk = diskInfos.get(mountPoint)
       if (curDisk != null) {
         curDisk.actualUsableSpace = newDisk.actualUsableSpace
+        curDisk.totalSpace = newDisk.totalSpace
         // Update master's diskinfo activeslots to worker's value
         curDisk.activeSlots = newDisk.activeSlots
         curDisk.avgFlushTime = newDisk.avgFlushTime

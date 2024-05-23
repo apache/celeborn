@@ -50,6 +50,9 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
   val device = new DeviceInfo("device-a")
   val diskInfo1 = new DiskInfo("/mnt/disk/0", 1000, 1000, 1000, 1000, files, device)
   val diskInfo2 = new DiskInfo("/mnt/disk/1", 2000, 2000, 2000, 2000, files, device)
+  diskInfo1.setTotalSpace(100000000)
+  diskInfo1.setTotalSpace(200000000)
+
   val diskInfos = new util.HashMap[String, DiskInfo]()
   diskInfos.put("disk1", diskInfo1)
   diskInfos.put("disk2", diskInfo2)
@@ -170,6 +173,8 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     assert(restoredDiskInfo.avgFlushTime.equals(diskInfo1.avgFlushTime))
     assert(restoredDiskInfo.avgFetchTime.equals(diskInfo1.avgFetchTime))
     assert(restoredDiskInfo.activeSlots.equals(diskInfo1.activeSlots))
+    assert(restoredDiskInfo.totalSpace.equals(diskInfo1.totalSpace))
+
     assert(restoredDiskInfo.dirs.equals(List.empty))
     assert(restoredDiskInfo.deviceInfo == null)
   }

@@ -72,6 +72,7 @@ object PbSerDeUtils {
       pbDiskInfo.getAvgFetchTime,
       pbDiskInfo.getUsedSlots)
       .setStatus(Utils.toDiskStatus(pbDiskInfo.getStatus))
+      .setTotalSpace(pbDiskInfo.getTotalSpace)
     diskInfo.setStorageType(StorageInfo.typesMap.get(pbDiskInfo.getStorageType))
     diskInfo
   }
@@ -85,6 +86,7 @@ object PbSerDeUtils {
       .setUsedSlots(diskInfo.activeSlots)
       .setStatus(diskInfo.status.getValue)
       .setStorageType(diskInfo.storageType.getValue)
+      .setTotalSpace(diskInfo.totalSpace)
       .build
 
   def fromPbFileInfo(pbFileInfo: PbFileInfo): DiskFileInfo =
@@ -411,7 +413,7 @@ object PbSerDeUtils {
       manuallyExcludedWorkers: java.util.Set[WorkerInfo],
       workerLostEvent: java.util.Set[WorkerInfo],
       appHeartbeatTime: java.util.Map[String, java.lang.Long],
-      workers: java.util.List[WorkerInfo],
+      workers: java.util.Set[WorkerInfo],
       partitionTotalWritten: java.lang.Long,
       partitionTotalFileCount: java.lang.Long,
       appDiskUsageMetricSnapshots: Array[AppDiskUsageSnapShot],

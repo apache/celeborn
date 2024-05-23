@@ -199,6 +199,10 @@ spark.sql.adaptive.skewJoin.enabled true
 spark.shuffle.sort.io.plugin.class org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO
 # Required Spark version >= 3.4.0, highly recommended to disable
 spark.dynamicAllocation.shuffleTracking.enabled false
+
+# Support ShuffleManager when defined in user jars
+# Required Spark version < 4.0.0 or without SPARK-45762, highly recommended to false for ShuffleManager in user-defined jar specified by --jars or spark.jars
+spark.executor.userClassPathFirst=false
 ```
 
 ## Deploy Flink client
@@ -239,3 +243,4 @@ Meanwhile, configure the following settings in YARN and MapReduce config.
 -Dmapreduce.job.map.output.collector.class=org.apache.hadoop.mapred.CelebornMapOutputCollector
 -Dmapreduce.job.reduce.shuffle.consumer.plugin.class=org.apache.hadoop.mapreduce.task.reduce.CelebornShuffleConsumer
 ```
+**Note**: `MRAppMasterWithCeleborn` disables `yarn.app.mapreduce.am.job.recovery.enable` and sets `mapreduce.job.reduce.slowstart.completedmaps` to 1 by default.

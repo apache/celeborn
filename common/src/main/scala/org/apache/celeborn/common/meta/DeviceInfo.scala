@@ -82,6 +82,7 @@ class DiskInfo(
   var status: DiskStatus = DiskStatus.HEALTHY
   var threadCount = 1
   var configuredUsableSpace = 0L
+  var totalSpace = 0L
   var storageType: StorageInfo.Type = StorageInfo.Type.SSD
   var maxSlots: Long = 0
   lazy val shuffleAllocations = new util.HashMap[String, Integer]()
@@ -98,6 +99,11 @@ class DiskInfo(
 
   def setUsableSpace(usableSpace: Long): this.type = this.synchronized {
     this.actualUsableSpace = usableSpace
+    this
+  }
+
+  def setTotalSpace(totalSpace: Long): this.type = this.synchronized {
+    this.totalSpace = totalSpace
     this
   }
 
@@ -175,6 +181,7 @@ class DiskInfo(
       s" shuffleAllocations: ${nonEmptyShuffles.toMap}," +
       s" mountPoint: $mountPoint," +
       s" usableSpace: ${Utils.bytesToString(actualUsableSpace)}," +
+      s" totalSpace: ${Utils.bytesToString(totalSpace)}," +
       s" avgFlushTime: ${Utils.nanoDurationToString(avgFlushTime)}," +
       s" avgFetchTime: ${Utils.nanoDurationToString(avgFetchTime)}," +
       s" activeSlots: $activeSlots," +
@@ -286,6 +293,7 @@ object DeviceInfo {
             conf)
           val (_, maxUsableSpace, threadCount, storageType) = dirs(0)
           diskInfo.configuredUsableSpace = maxUsableSpace
+          diskInfo.totalSpace = maxUsableSpace
           diskInfo.threadCount = threadCount
           diskInfo.storageType = storageType
           deviceInfo.addDiskInfo(diskInfo)

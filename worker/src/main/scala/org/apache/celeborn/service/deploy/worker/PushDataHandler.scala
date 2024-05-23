@@ -1093,6 +1093,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     }
 
     override def onFailure(e: Throwable): Unit = {
+      workerSource.stopTimer(workerSourceTime, s"$requestId")
       if (location != null) {
         logError(s"[handle$messageType.onFailure] partitionLocation: $location")
       }

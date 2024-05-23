@@ -30,6 +30,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -47,6 +48,7 @@ import io.netty.buffer.ByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.util.JavaUtils;
 
 /**
@@ -96,6 +98,18 @@ public class SSLFactory {
     this.jdkSslContext = createSSLContext(requestedProtocol, keyManagers, trustManagers);
   }
 
+  public List<KeyManager> getKeyManagers() {
+    return null != keyManagers
+        ? Collections.unmodifiableList(Arrays.asList(keyManagers))
+        : Collections.emptyList();
+  }
+
+  public List<TrustManager> getTrustManagers() {
+    return null != trustManagers
+        ? Collections.unmodifiableList(Arrays.asList(trustManagers))
+        : Collections.emptyList();
+  }
+
   /*
    * As b.trustStore is null, credulousTrustStoreManagers will be used - and so all
    * certs will be accepted - and hence self-signed cert from lifecycle manager will
@@ -119,7 +133,7 @@ public class SSLFactory {
   }
 
   public boolean hasKeyManagers() {
-    return null != keyManagers;
+    return null != keyManagers && keyManagers.length > 0;
   }
 
   public void destroy() {
@@ -327,7 +341,7 @@ public class SSLFactory {
     }
   }
 
-  private static TrustManager[] defaultTrustManagers(File trustStore, String trustStorePassword)
+  public static TrustManager[] defaultTrustManagers(File trustStore, String trustStorePassword)
       throws IOException, KeyStoreException, CertificateException, NoSuchAlgorithmException {
     try (InputStream input = Files.asByteSource(trustStore).openStream()) {
       KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
@@ -435,5 +449,36 @@ public class SSLFactory {
       }
     }
     return enabled;
+  }
+
+  public static SSLFactory createSslFactory(TransportConf conf) {
+    if (conf.sslEnabled()) {
+
+      if (conf.sslEnabledAndKeysAreValid()) {
+        return new SSLFactory.Builder()
+            .requestedProtocol(conf.sslProtocol())
+            .requestedCiphers(conf.sslRequestedCiphers())
+            .autoSslEnabled(conf.autoSslEnabled())
+            .keyStore(conf.sslKeyStore(), conf.sslKeyStorePassword())
+            .trustStore(
+                conf.sslTrustStore(),
+                conf.sslTrustStorePassword(),
+                conf.sslTrustStoreReloadingEnabled(),
+                conf.sslTrustStoreReloadIntervalMs())
+            .build();
+      } else {
+        logger.error(
+            "SSL encryption enabled but keyStore is not configured for "
+                + conf.getModuleName()
+                + "! Please ensure the configured keys are present.");
+        throw new IllegalArgumentException(
+            conf.getModuleName()
+                + " SSL encryption enabled for "
+                + conf.getModuleName()
+                + " but keyStore not configured !");
+      }
+    } else {
+      return null;
+    }
   }
 }

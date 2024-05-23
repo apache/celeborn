@@ -87,7 +87,7 @@ public class TransportContext implements Closeable {
     this.conf = conf;
     this.msgHandler = msgHandler;
     this.closeIdleConnections = closeIdleConnections;
-    this.sslFactory = createSslFactory();
+    this.sslFactory = SSLFactory.createSslFactory(conf);
     this.channelsLimiter = channelsLimiter;
     this.enableHeartbeat = enableHeartbeat;
     this.source = source;
@@ -213,37 +213,6 @@ public class TransportContext implements Closeable {
     } catch (RuntimeException e) {
       logger.error("Error while initializing Netty pipeline", e);
       throw e;
-    }
-  }
-
-  private SSLFactory createSslFactory() {
-    if (conf.sslEnabled()) {
-
-      if (conf.sslEnabledAndKeysAreValid()) {
-        return new SSLFactory.Builder()
-            .requestedProtocol(conf.sslProtocol())
-            .requestedCiphers(conf.sslRequestedCiphers())
-            .autoSslEnabled(conf.autoSslEnabled())
-            .keyStore(conf.sslKeyStore(), conf.sslKeyStorePassword())
-            .trustStore(
-                conf.sslTrustStore(),
-                conf.sslTrustStorePassword(),
-                conf.sslTrustStoreReloadingEnabled(),
-                conf.sslTrustStoreReloadIntervalMs())
-            .build();
-      } else {
-        logger.error(
-            "SSL encryption enabled but keyStore is not configured for "
-                + conf.getModuleName()
-                + "! Please ensure the configured keys are present.");
-        throw new IllegalArgumentException(
-            conf.getModuleName()
-                + " SSL encryption enabled for "
-                + conf.getModuleName()
-                + " but keyStore not configured !");
-      }
-    } else {
-      return null;
     }
   }
 
