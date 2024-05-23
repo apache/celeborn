@@ -331,12 +331,12 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_CelebornTotalBytes_Value",
+              "expr": "metrics_TotalCapacity_Value",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
-          "title": "metrics_CelebornTotalBytes_Value",
+          "title": "metrics_TotalCapacity_Value",
           "type": "timeseries"
         },
         {
@@ -421,12 +421,12 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_CelebornTotalFreeBytes_Value",
+              "expr": "metrics_TotalFreeCapacity_Value",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
-          "title": "metrics_CelebornTotalFreeBytes_Value",
+          "title": "metrics_TotalFreeCapacity_Value",
           "type": "timeseries"
         },
         {

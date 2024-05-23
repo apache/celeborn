@@ -54,7 +54,7 @@ object MasterSource {
 
   val OFFER_SLOTS_TIME = "OfferSlotsTime"
 
-  val CELEBORN_TOTAL_CAPACITY = "CelebornTotalBytes"
+  val TOTAL_CAPACITY = "TotalCapacity"
 
-  val CELEBORN_TOTAL_FREE_CAPACITY = "CelebornTotalFreeBytes"
+  val TOTAL_FREE_CAPACITY = "TotalFreeCapacity"
 }

@@ -256,11 +256,11 @@ private[celeborn] class Master(
       }).sum()
   }
 
-  masterSource.addGauge(MasterSource.CELEBORN_TOTAL_CAPACITY) { () =>
+  masterSource.addGauge(MasterSource.TOTAL_CAPACITY) { () =>
     statusSystem.workers.asScala.map(_.totalSpace()).sum
   }
 
-  masterSource.addGauge(MasterSource.CELEBORN_TOTAL_FREE_CAPACITY) { () =>
+  masterSource.addGauge(MasterSource.TOTAL_FREE_CAPACITY) { () =>
     statusSystem.workers.asScala.map(_.totalActualUsableSpace()).sum
   }
 

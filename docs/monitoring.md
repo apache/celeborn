@@ -92,6 +92,8 @@ These metrics are exposed by Celeborn master.
 
   - namespace=master 
     - RegisteredShuffleCount
+    - TotalCapacity
+    - TotalFreeCapacity
     - RunningApplicationCount
     - ActiveShuffleSize
         - The active shuffle size of workers.
