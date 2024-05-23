@@ -94,7 +94,7 @@ class LocalDeviceMonitor(
           usage.freeSpace
         }
         workerSource.addGauge(WorkerSource.DEVICE_CELEBORN_TOTAL_CAPACITY, deviceLabel) { () =>
-          diskInfos.map(_.configuredUsableSpace).sum
+          diskInfos.map(_.totalSpace).sum
         }
         workerSource.addGauge(WorkerSource.DEVICE_CELEBORN_FREE_CAPACITY, deviceLabel) { () =>
           diskInfos.map(_.actualUsableSpace).sum

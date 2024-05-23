@@ -254,7 +254,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "Celeborn total capacity(bytes).",
+          "description": "Celeborn total device capacity.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -331,12 +331,12 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_TotalCapacity_Value",
+              "expr": "metrics_DeviceCelebornTotalBytes_Value{role=\"Master\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
-          "title": "metrics_TotalCapacity_Value",
+          "title": "metrics_DeviceCelebornTotalBytes_Value",
           "type": "timeseries"
         },
         {
@@ -344,7 +344,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "Celeborn total free capacity(bytes).",
+          "description": "Celeborn total device free capacity.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -421,12 +421,12 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_TotalFreeCapacity_Value",
+              "expr": "metrics_DeviceCelebornFreeBytes_Value{role=\"Master\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
-          "title": "metrics_TotalFreeCapacity_Value",
+          "title": "metrics_DeviceCelebornFreeBytes_Value",
           "type": "timeseries"
         },
         {
