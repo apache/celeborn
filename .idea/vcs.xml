@@ -21,7 +21,7 @@
       <list>
         <IssueNavigationLink>
           <option name="issueRegexp" value="ISSUE-(\d+)"/>
-          <option name="linkRegexp" value="https://github.com/apache/incubator-celeborn/issues/$1"/>
+          <option name="linkRegexp" value="https://github.com/apache/celeborn/issues/$1"/>
         </IssueNavigationLink>
         <IssueNavigationLink>
           <option name="issueRegexp" value="CELEBORN\-\d+"/>
@@ -29,7 +29,7 @@
         </IssueNavigationLink>
         <IssueNavigationLink>
           <option name="issueRegexp" value="#(\d+)"/>
-          <option name="linkRegexp" value="https://github.com/apache/incubator-celeborn/pull/$1"/>
+          <option name="linkRegexp" value="https://github.com/apache/celeborn/pull/$1"/>
         </IssueNavigationLink>
       </list>
     </option>
