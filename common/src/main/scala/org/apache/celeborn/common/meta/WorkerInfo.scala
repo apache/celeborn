@@ -312,4 +312,14 @@ object WorkerInfo {
       Utils.parseColonSeparatedHostPorts(id, portsNum = 4)
     new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
   }
+
+  def toPrunedWorkerInfo(workerInfo: WorkerInfo): WorkerInfo = {
+    new WorkerInfo(
+      workerInfo.host,
+      workerInfo.rpcPort,
+      workerInfo.pushPort,
+      workerInfo.fetchPort,
+      workerInfo.replicatePort,
+      workerInfo.internalPort)
+  }
 }
