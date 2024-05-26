@@ -111,7 +111,14 @@ object Dependencies {
   val ioDropwizardMetricsJvm = "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion
   val ioNetty = "io.netty" % "netty-all" % nettyVersion excludeAll(
     ExclusionRule("io.netty", "netty-handler-ssl-ocsp"))
-  val leveldbJniAll = "org.openlabtesting.leveldbjni" % "leveldbjni-all" % leveldbJniVersion
+  val leveldbJniGroup = if (!System.getProperty("os.name").startsWith("Mac OS X")
+    && !System.getProperty("os.name").startsWith("Windows")
+    && System.getProperty("os.arch").equals("aarch64")) {
+    "org.openlabtesting.leveldbjni"
+  } else {
+    "org.fusesource.leveldbjni"
+  }
+  val leveldbJniAll = leveldbJniGroup % "leveldbjni-all" % leveldbJniVersion
   val log4j12Api = "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version
   val log4jSlf4jImpl = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version
   val lz4Java = "org.lz4" % "lz4-java" % lz4JavaVersion
