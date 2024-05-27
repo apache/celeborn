@@ -113,6 +113,8 @@ object Dependencies {
     ExclusionRule("io.netty", "netty-handler-ssl-ocsp"))
   val leveldbJniGroup = if (System.getProperty("os.name").startsWith("Linux")
     && System.getProperty("os.arch").equals("aarch64")) {
+    // use org.openlabtesting.leveldbjni on aarch64 platform except MacOS
+    // org.openlabtesting.leveldbjni requires glibc version 3.4.21
     "org.openlabtesting.leveldbjni"
   } else {
     "org.fusesource.leveldbjni"
