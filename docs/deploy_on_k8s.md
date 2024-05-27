@@ -38,6 +38,8 @@ You can find released version of Celeborn on [Downloading Page](https://celeborn
 Of course, you can build binary package from master branch or your own branch by using `./build/make-distribution.sh` in
 source code.
 
+> Notice: Celeborn supports automatic builds on linux aarch64 platform via `aarch64` profile. `aarch64` profile requires glibc version 3.4.21. There is potential problematic frame `C  [libc.so.6+0x8412a]` for other glibc version like 2.x etc.
+
 Anyway, you should unzip and into binary package.
 
 ### 2. Modify Celeborn Configurations

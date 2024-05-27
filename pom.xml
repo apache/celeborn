@@ -1711,6 +1711,7 @@
         </os>
       </activation>
       <properties>
+        <!-- org.openlabtesting.leveldbjni requires glibc version 3.4.21. -->
         <leveldbjni.group>org.openlabtesting.leveldbjni</leveldbjni.group>
       </properties>
     </profile>

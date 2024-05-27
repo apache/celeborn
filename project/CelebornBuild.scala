@@ -111,8 +111,7 @@ object Dependencies {
   val ioDropwizardMetricsJvm = "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion
   val ioNetty = "io.netty" % "netty-all" % nettyVersion excludeAll(
     ExclusionRule("io.netty", "netty-handler-ssl-ocsp"))
-  val leveldbJniGroup = if (!System.getProperty("os.name").startsWith("Mac OS X")
-    && !System.getProperty("os.name").startsWith("Windows")
+  val leveldbJniGroup = if (System.getProperty("os.name").startsWith("Linux")
     && System.getProperty("os.arch").equals("aarch64")) {
     "org.openlabtesting.leveldbjni"
   } else {
