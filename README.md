@@ -87,6 +87,7 @@ To compile for Spark 3.5 with Java21,  please use the following command
 ./build/make-distribution.sh --sbt-enabled -Pspark-3.5 -Pjdk-21
 ```
 
+> **_NOTE:_** Celeborn supports automatic builds on linux aarch64 platform via `aarch64` profile. `aarch64` profile requires glibc version 3.4.21. There is potential problematic frame `C  [libc.so.6+0x8412a]` for other glibc version like 2.x etc.
 
 ### Package Details
 Build procedure will create a compressed package.
