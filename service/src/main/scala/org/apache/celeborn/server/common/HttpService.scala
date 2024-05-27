@@ -139,7 +139,13 @@ abstract class HttpService extends Service with Logging {
 
   def getWorkerInfo: String
 
-  def getThreadDump: String
+  def getThreadDump: String = {
+    val sb = new StringBuilder
+    sb.append(
+      s"========================= ${serviceName.capitalize} ThreadDump ==========================\n")
+    sb.append(Utils.getThreadDump().mkString("\n")).append("\n")
+    sb.toString()
+  }
 
   def getShuffleList: String
 

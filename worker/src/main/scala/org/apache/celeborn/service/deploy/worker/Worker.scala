@@ -755,13 +755,6 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
-  override def getThreadDump: String = {
-    val sb = new StringBuilder
-    sb.append("========================= Worker ThreadDump ==========================\n")
-    sb.append(Utils.getThreadDump()).append("\n")
-    sb.toString()
-  }
-
   override def getApplicationList: String = {
     val sb = new StringBuilder
     sb.append("================= LifecycleManager Application List ======================\n")

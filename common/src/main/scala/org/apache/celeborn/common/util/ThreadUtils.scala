@@ -401,3 +401,22 @@ class ThreadExceptionHandler(executorService: String)
   override def uncaughtException(t: Thread, e: Throwable): Unit =
     logError(s"Uncaught exception in executor service $executorService, thread $t", e)
 }
+
+/**
+ * Note: code was initially copied from Apache Spark(v3.5.1).
+ */
+case class StackTrace(elems: Seq[String]) {
+  override def toString: String = elems.mkString
+}
+
+/**
+ * Note: code was initially copied from Apache Spark(v3.5.1).
+ */
+case class ThreadStackTrace(
+    val threadId: Long,
+    val threadName: String,
+    val threadState: Thread.State,
+    val stackTrace: StackTrace,
+    val blockedByThreadId: Option[Long],
+    val blockedByLock: String,
+    val holdingLocks: Seq[String])
