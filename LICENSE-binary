@@ -287,7 +287,7 @@ BSD 3-clause
 See licenses/LICENSE-protobuf.txt for details.
 com.google.protobuf:protobuf-java
 See licenses/LICENSE-leveldbjni.txt for details.
-org.openlabtesting.leveldbjni:leveldbjni-all
+org.fusesource.leveldbjni:leveldbjni-all
 
 
 Common Development and Distribution License (CDDL) 1.0

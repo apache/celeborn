@@ -49,7 +49,7 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.openlabtesting.leveldbjni</groupId>
+      <groupId>${leveldbjni.group}</groupId>
       <artifactId>leveldbjni-all</artifactId>
     </dependency>
     <dependency>

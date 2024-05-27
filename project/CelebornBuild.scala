@@ -69,7 +69,7 @@ object Dependencies {
   // Versions for proto
   val protocVersion = "3.21.7"
   val protoVersion = "3.21.7"
-  
+
   val commonsCompress = "org.apache.commons" % "commons-compress" % commonsCompressVersion
   val commonsCrypto = "org.apache.commons" % "commons-crypto" % commonsCryptoVersion excludeAll(
     ExclusionRule("net.java.dev.jna", "jna"))
@@ -100,7 +100,15 @@ object Dependencies {
   val ioNetty = "io.netty" % "netty-all" % nettyVersion excludeAll(
     ExclusionRule("io.netty", "netty-handler-ssl-ocsp"))
   val javaxServletApi = "javax.servlet" % "javax.servlet-api" % javaxServletVersion
-  val leveldbJniAll = "org.openlabtesting.leveldbjni" % "leveldbjni-all" % leveldbJniVersion
+  val leveldbJniGroup = if (System.getProperty("os.name").startsWith("Linux")
+    && System.getProperty("os.arch").equals("aarch64")) {
+    // use org.openlabtesting.leveldbjni on aarch64 platform except MacOS
+    // org.openlabtesting.leveldbjni requires glibc version 3.4.21
+    "org.openlabtesting.leveldbjni"
+  } else {
+    "org.fusesource.leveldbjni"
+  }
+  val leveldbJniAll = leveldbJniGroup % "leveldbjni-all" % leveldbJniVersion
   val log4j12Api = "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version
   val log4jSlf4jImpl = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version
   val lz4Java = "org.lz4" % "lz4-java" % lz4JavaVersion
@@ -154,7 +162,7 @@ object CelebornCommonSettings {
   scalaVersion := projectScalaVersion
 
   autoScalaLibrary := false
-  
+
   // crossScalaVersions must be set to Nil on the root project
   crossScalaVersions := Nil
 
@@ -165,7 +173,7 @@ object CelebornCommonSettings {
     fork := true,
     scalacOptions ++= Seq("-target:jvm-1.8"),
     javacOptions ++= Seq("-encoding", UTF_8.name(), "-source", "1.8", "-g"),
-  
+
     // -target cannot be passed as a parameter to javadoc. See https://github.com/sbt/sbt/issues/355
     Compile / compile / javacOptions ++= Seq("-target", "1.8"),
 
@@ -196,7 +204,7 @@ object CelebornCommonSettings {
       "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED",
       "-Dio.netty.tryReflectionSetAccessible=true"
     ),
-  
+
     testOptions += Tests.Argument("-oF"),
 
     Test / testOptions += Tests.Argument("-oDF"),
@@ -285,7 +293,7 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornWorker.worker,
       CelebornMaster.master) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules
   }
-  
+
   // ThisBuild / parallelExecution := false
 
   // scalaVersion := "2.11.12"
@@ -421,7 +429,7 @@ object CelebornCommon {
         Seq(file)
         // generate version task depends on PB generate to avoid concurrency generate source files
       }.dependsOn(Compile / PB.generate),
-  
+
       // a task to show current profiles
       printProfiles := {
         val message = profiles.mkString("", " ", "")
@@ -680,7 +688,7 @@ trait SparkClientProjects {
         ) ++ commonUnitTestDependencies
       )
   }
-  
+
   def sparkClient: Project = {
     Project(sparkClientProjectName, file(sparkClientProjectPath))
       .dependsOn(CelebornCommon.common, sparkCommon)
@@ -745,14 +753,14 @@ trait SparkClientProjects {
           val extension = artifact.value.extension
           s"${moduleName.value}_${scalaBinaryVersion.value}-${version.value}.$extension"
         },
-  
+
         (assembly / test) := { },
-  
+
         (assembly / logLevel) := Level.Info,
-  
+
         // Exclude `scala-library` from assembly.
         (assembly / assemblyPackageScala / assembleArtifact) := false,
-  
+
         (assembly / assemblyExcludedJars) := {
           val cp = (assembly / fullClasspath).value
           cp filter { v =>
@@ -766,7 +774,7 @@ trait SparkClientProjects {
               name.startsWith("RoaringBitmap-"))
           }
         },
-  
+
         (assembly / assemblyShadeRules) := Seq(
           ShadeRule.rename("com.google.protobuf.**" -> "org.apache.celeborn.shaded.com.google.protobuf.@1").inAll,
           ShadeRule.rename("com.google.common.**" -> "org.apache.celeborn.shaded.com.google.common.@1").inAll,
@@ -774,7 +782,7 @@ trait SparkClientProjects {
           ShadeRule.rename("org.apache.commons.**" -> "org.apache.celeborn.shaded.org.apache.commons.@1").inAll,
           ShadeRule.rename("org.roaringbitmap.**" -> "org.apache.celeborn.shaded.org.roaringbitmap.@1").inAll
         ),
-  
+
         (assembly / assemblyMergeStrategy) := {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
           // the LicenseAndNoticeMergeStrategy always picks the license/notice file from the current project
@@ -948,12 +956,12 @@ trait FlinkClientProjects {
             val artifactValue: Artifact = artifact.value
             flinkClientShadeJarName(revision, artifactValue, scalaBinaryVersion.value)
         },
-  
+
         (assembly / logLevel) := Level.Info,
-  
+
         // Exclude `scala-library` from assembly.
         (assembly / assemblyPackageScala / assembleArtifact) := false,
-  
+
         (assembly / assemblyExcludedJars) := {
           val cp = (assembly / fullClasspath).value
           cp filter { v =>
@@ -967,7 +975,7 @@ trait FlinkClientProjects {
                 name.startsWith("RoaringBitmap-"))
           }
         },
-  
+
         (assembly / assemblyShadeRules) := Seq(
           ShadeRule.rename("com.google.protobuf.**" -> "org.apache.celeborn.shaded.com.google.protobuf.@1").inAll,
           ShadeRule.rename("com.google.common.**" -> "org.apache.celeborn.shaded.com.google.common.@1").inAll,
@@ -975,7 +983,7 @@ trait FlinkClientProjects {
           ShadeRule.rename("org.apache.commons.**" -> "org.apache.celeborn.shaded.org.apache.commons.@1").inAll,
           ShadeRule.rename("org.roaringbitmap.**" -> "org.apache.celeborn.shaded.org.roaringbitmap.@1").inAll
         ),
-  
+
         (assembly / assemblyMergeStrategy) := {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
           // the LicenseAndNoticeMergeStrategy always picks the license/notice file from the current project

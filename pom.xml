@@ -99,6 +99,9 @@
     <jackson.version>2.15.3</jackson.version>
     <snappy.version>1.1.10.5</snappy.version>
 
+    <!-- org.fusesource.leveldbjni will be used except on arm64 platform. -->
+    <leveldbjni.group>org.fusesource.leveldbjni</leveldbjni.group>
+
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
 
     <maven.plugin.antrun.version>3.0.0</maven.plugin.antrun.version>
@@ -385,7 +388,7 @@
         </exclusions>
       </dependency>
       <dependency>
-        <groupId>org.openlabtesting.leveldbjni</groupId>
+        <groupId>${leveldbjni.group}</groupId>
         <artifactId>leveldbjni-all</artifactId>
         <version>${leveldb.version}</version>
       </dependency>
@@ -1475,6 +1478,21 @@
       <modules>
         <module>tests/kubernetes-it</module>
       </modules>
+    </profile>
+
+    <!-- use org.openlabtesting.leveldbjni on aarch64 platform except MacOS -->
+    <profile>
+      <id>aarch64</id>
+      <activation>
+        <os>
+          <family>linux</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <!-- org.openlabtesting.leveldbjni requires glibc version 3.4.21 -->
+        <leveldbjni.group>org.openlabtesting.leveldbjni</leveldbjni.group>
+      </properties>
     </profile>
   </profiles>
 </project>
