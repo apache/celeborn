@@ -174,7 +174,9 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   public ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
       throws CelebornIOException {
     ReduceFileGroups reduceFileGroups =
-        reduceFileGroupsMap.computeIfAbsent(shuffleId, (id) -> new ReduceFileGroups());
+        reduceFileGroupsMap.computeIfAbsent(
+                shuffleId, (id) -> Tuple2.apply(new ReduceFileGroups(), null))
+            ._1;
     if (reduceFileGroups.partitionIds != null
         && reduceFileGroups.partitionIds.contains(partitionId)) {
       logger.debug(
