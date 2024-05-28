@@ -259,6 +259,17 @@ object PbSerDeUtils {
     builder.build
   }
 
+  def toPbPrunedWorkerInfo(workerInfo: WorkerInfo): PbWorkerInfo = {
+    val builder = PbWorkerInfo.newBuilder
+      .setHost(workerInfo.host)
+      .setRpcPort(workerInfo.rpcPort)
+      .setFetchPort(workerInfo.fetchPort)
+      .setPushPort(workerInfo.pushPort)
+      .setReplicatePort(workerInfo.replicatePort)
+      .setInternalPort(workerInfo.internalPort)
+    builder.build
+  }
+
   def fromPbPartitionLocation(pbLoc: PbPartitionLocation): PartitionLocation = {
     var mode = Mode.PRIMARY
     if (pbLoc.getMode.equals(PbPartitionLocation.Mode.Replica)) {

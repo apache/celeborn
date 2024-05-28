@@ -733,7 +733,7 @@ object ControlMessages extends Logging {
         .setTotalWritten(totalWritten)
         .setFileCount(fileCount)
         .addAllNeedCheckedWorkerList(needCheckedWorkerList.asScala.map(
-          PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+          PbSerDeUtils.toPbPrunedWorkerInfo).toList.asJava)
         .setShouldResponse(shouldResponse)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION, payload)
@@ -746,11 +746,11 @@ object ControlMessages extends Logging {
       val payload = PbHeartbeatFromApplicationResponse.newBuilder()
         .setStatus(statusCode.getValue)
         .addAllExcludedWorkers(
-          excludedWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+          excludedWorkers.asScala.map(PbSerDeUtils.toPbPrunedWorkerInfo).toList.asJava)
         .addAllUnknownWorkers(
-          unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+          unknownWorkers.asScala.map(PbSerDeUtils.toPbPrunedWorkerInfo).toList.asJava)
         .addAllShuttingWorkers(
-          shuttingWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+          shuttingWorkers.asScala.map(PbSerDeUtils.toPbPrunedWorkerInfo).toList.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload)
 
