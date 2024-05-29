@@ -138,7 +138,7 @@ public class RocksDBProvider {
     private static final Logger LOG = LoggerFactory.getLogger(RocksDBLogger.class);
 
     RocksDBLogger(Options options) {
-      super(options);
+      super(options.infoLogLevel());
     }
 
     @Override
