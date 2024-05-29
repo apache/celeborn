@@ -172,20 +172,14 @@ class ChangePartitionManager(
 
     val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
     locksForShuffle(partitionId % locksForShuffle.length).synchronized {
-      var newEntry = false
-      val set = requests.computeIfAbsent(
-        partitionId,
-        new java.util.function.Function[Integer, util.Set[ChangePartitionRequest]] {
-          override def apply(t: Integer): util.Set[ChangePartitionRequest] = {
-            newEntry = true
-            new util.HashSet[ChangePartitionRequest]()
-          }
-        })
-
-      if (newEntry) {
+      if (requests.containsKey(partitionId)) {
+        requests.get(partitionId).add(changePartition)
         logTrace(s"[handleRequestPartitionLocation] For $shuffleId, request for same partition" +
           s"$partitionId-$oldEpoch exists, register context.")
+        return
       } else {
+        // If new slot for the partition has been allocated, reply and return.
+        // Else register and allocate for it.
         getLatestPartition(shuffleId, partitionId, oldEpoch).foreach { latestLoc =>
           context.reply(
             partitionId,
@@ -197,7 +191,9 @@ class ChangePartitionManager(
           return
         }
       }
+      val set = new util.HashSet[ChangePartitionRequest]()
       set.add(changePartition)
+      requests.put(partitionId, set)
     }
     if (!batchHandleChangePartitionEnabled) {
       handleRequestPartitions(shuffleId, Array(changePartition))
