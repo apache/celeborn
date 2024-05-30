@@ -1018,16 +1018,12 @@ private[celeborn] class Master(
     // unknown workers will retain in needCheckedWorkerList
     needCheckedWorkerList.removeAll(statusSystem.workers)
     if (shouldResponse) {
-      val excludedList =
-        (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala)
-          .map(WorkerInfo.toPrunedWorkerInfo).asJava
-      val shutdownList = statusSystem.shutdownWorkers.asScala
-        .map(WorkerInfo.toPrunedWorkerInfo).asJava
       context.reply(HeartbeatFromApplicationResponse(
         StatusCode.SUCCESS,
-        new util.ArrayList(excludedList),
+        new util.ArrayList(
+          (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).asJava),
         needCheckedWorkerList,
-        new util.ArrayList(shutdownList)))
+        new util.ArrayList[WorkerInfo](statusSystem.shutdownWorkers)))
     } else {
       context.reply(OneWayMessageResponse)
     }
