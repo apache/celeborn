@@ -50,6 +50,7 @@ import org.apache.ratis.rpc.RpcType;
 import org.apache.ratis.rpc.SupportedRpcType;
 import org.apache.ratis.server.RaftServer;
 import org.apache.ratis.server.RaftServerConfigKeys;
+import org.apache.ratis.server.storage.RaftStorage.StartupOption;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
 import org.apache.ratis.util.LifeCycle;
 import org.apache.ratis.util.SizeInBytes;
@@ -144,6 +145,8 @@ public class HARaftServer {
             .setProperties(serverProperties)
             .setParameters(sslParameters)
             .setStateMachine(masterStateMachine)
+            // RATIS-1677. Do not auto format RaftStorage in RECOVER.
+            .setOption(StartupOption.valueOf(conf.haMasterRatisStorageStartupOption()))
             .build();
 
     StringBuilder raftPeersStr = new StringBuilder();
@@ -306,8 +309,22 @@ public class HARaftServer {
 
     // Set RAFT segment pre-allocated size
     long raftSegmentPreallocatedSize = conf.haMasterRatisLogPreallocatedSize();
+    long raftSegmentWriteBufferSize = conf.haMasterRatisLogWriteBufferSize();
     int logAppenderQueueNumElements = conf.haMasterRatisLogAppenderQueueNumElements();
     long logAppenderQueueByteLimit = conf.haMasterRatisLogAppenderQueueBytesLimit();
+    // RATIS-589. Eliminate buffer copying in SegmentedRaftLogOutputStream.
+    // 4 bytes (serialized size) + logAppenderQueueByteLimit + 4 bytes (checksum)
+    if (raftSegmentWriteBufferSize < logAppenderQueueByteLimit + 8) {
+      throw new IllegalArgumentException(
+          CelebornConf.HA_MASTER_RATIS_LOG_WRITE_BUFFER_SIZE().key()
+              + " (= "
+              + raftSegmentWriteBufferSize
+              + ") is less than "
+              + CelebornConf.HA_MASTER_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT().key()
+              + " + 8 (= "
+              + (logAppenderQueueByteLimit + 8)
+              + ")");
+    }
     boolean shouldInstallSnapshot = conf.haMasterRatisLogInstallSnapshotEnabled();
     RaftServerConfigKeys.Log.Appender.setBufferElementLimit(
         properties, logAppenderQueueNumElements);
@@ -315,6 +332,8 @@ public class HARaftServer {
         properties, SizeInBytes.valueOf(logAppenderQueueByteLimit));
     RaftServerConfigKeys.Log.setPreallocatedSize(
         properties, SizeInBytes.valueOf(raftSegmentPreallocatedSize));
+    RaftServerConfigKeys.Log.setWriteBufferSize(
+        properties, SizeInBytes.valueOf(raftSegmentWriteBufferSize));
     RaftServerConfigKeys.Log.Appender.setInstallSnapshotEnabled(properties, shouldInstallSnapshot);
     int logPurgeGap = conf.haMasterRatisLogPurgeGap();
     RaftServerConfigKeys.Log.setPurgeGap(properties, logPurgeGap);

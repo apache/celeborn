@@ -56,7 +56,7 @@ object Dependencies {
   val metricsVersion = "3.2.6"
   val mockitoVersion = "4.11.0"
   val nettyVersion = "4.1.109.Final"
-  val ratisVersion = "2.5.1"
+  val ratisVersion = "3.0.1"
   val roaringBitmapVersion = "1.0.6"
   val rocksdbJniVersion = "8.11.3"
   val jacksonVersion = "2.15.3"
@@ -127,6 +127,7 @@ object Dependencies {
   val ratisClient = "org.apache.ratis" % "ratis-client" % ratisVersion
   val ratisCommon = "org.apache.ratis" % "ratis-common" % ratisVersion
   val ratisGrpc = "org.apache.ratis" % "ratis-grpc" % ratisVersion
+  val ratisMetricsDefault = "org.apache.ratis" % "ratis-metrics-default" % ratisVersion
   val ratisNetty = "org.apache.ratis" % "ratis-netty" % ratisVersion
   val ratisServer = "org.apache.ratis" % "ratis-server" % ratisVersion
   val ratisShell = "org.apache.ratis" % "ratis-shell" % ratisVersion excludeAll(
@@ -551,6 +552,7 @@ object CelebornMaster {
         Dependencies.ratisClient,
         Dependencies.ratisCommon,
         Dependencies.ratisGrpc,
+        Dependencies.ratisMetricsDefault,
         Dependencies.ratisNetty,
         Dependencies.ratisServer,
         Dependencies.ratisShell

@@ -25,5 +25,6 @@ license: |
 | celeborn.master.ha.node.&lt;id&gt;.port | 9097 | false | Port to bind of master node <id> in HA mode. | 0.3.0 | celeborn.ha.master.node.&lt;id&gt;.port | 
 | celeborn.master.ha.node.&lt;id&gt;.ratis.port | 9872 | false | Ratis port to bind of master node <id> in HA mode. | 0.3.0 | celeborn.ha.master.node.&lt;id&gt;.ratis.port | 
 | celeborn.master.ha.ratis.raft.rpc.type | netty | false | RPC type for Ratis, available options: netty, grpc. | 0.3.0 | celeborn.ha.master.ratis.raft.rpc.type | 
-| celeborn.master.ha.ratis.raft.server.storage.dir | /tmp/ratis | false |  | 0.3.0 | celeborn.ha.master.ratis.raft.server.storage.dir | 
+| celeborn.master.ha.ratis.raft.server.storage.dir | /tmp/ratis | false | Root storage directory to hold RaftServer data. | 0.3.0 | celeborn.ha.master.ratis.raft.server.storage.dir | 
+| celeborn.master.ha.ratis.raft.server.storage.startup.option | RECOVER | false | Startup option of RaftServer storage. Available options: RECOVER, FORMAT. | 0.5.0 |  | 
 <!--end-include-->
