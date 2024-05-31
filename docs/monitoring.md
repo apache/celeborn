@@ -103,6 +103,7 @@ These metrics are exposed by Celeborn master.
     - LostWorkerCount
     - ExcludedWorkerCount
     - ShutdownWorkerCount
+    - DecommissionWorkerCount
     - IsActiveMaster
     - PartitionSize
         - The size of estimated shuffle partition.
@@ -235,6 +236,7 @@ These metrics are exposed by Celeborn worker.
     - PotentialConsumeSpeed
     - UserProduceSpeed
     - WorkerConsumeSpeed
+    - isDecommissioningWorker
     - push_server_usedHeapMemory 
     - push_server_usedDirectMemory
     - push_server_numAllocations 

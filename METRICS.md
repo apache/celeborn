@@ -90,6 +90,7 @@ Here is an example of Grafana dashboard importing.
 |            LostWorkerCount             |      master       |                                           The count of workers in lost list.                                           |
 |          ExcludedWorkerCount           |      master       |                                         The count of workers in excluded list.                                         |
 |          ShutdownWorkerCount           |      master       |                                         The count of workers in shutdown list.                                         |
+|        DecommissionWorkerCount         |      master       |                                       The count of workers in decommission list.                                       |
 |             IsActiveMaster             |      master       |                                         Whether the current master is active.                                          |
 |             PartitionSize              |      master       |              The estimated partition size of last 20 flush window whose length is 15 seconds by defaults.              |
 |             OfferSlotsTime             |      master       |                                                The time of offer slots.                                                |
@@ -147,6 +148,7 @@ Here is an example of Grafana dashboard importing.
 |         PotentialConsumeSpeed          |      worker       |                        This value means speed of potential consumption for congestion control.                         |
 |            UserProduceSpeed            |      worker       |                           This value means speed of user production for congestion control.                            |
 |           WorkerConsumeSpeed           |      worker       |                          This value means speed of worker consumption for congestion control.                          |
+|        isDecommissioningWorker         |      worker       |                              Show if the worker is during the process of decommissioning.                              |
 |              jvm_gc_count              |        JVM        |                                        The GC count of each garbage collector.                                         |
 |              jvm_gc_time               |        JVM        |                                      The GC cost time of each garbage collector.                                       |
 |          jvm_memory_heap_init          |        JVM        |                                            The amount of heap init memory.                                             |

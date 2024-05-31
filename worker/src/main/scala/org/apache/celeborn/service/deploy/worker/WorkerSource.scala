@@ -213,5 +213,5 @@ object WorkerSource {
   val ACTIVE_SHUFFLE_FILE_COUNT = "ActiveShuffleFileCount"
 
   // decommission
-  val IS_DECOMMISSIONED_WORKER = "IsDecommissionedWorker"
+  val IS_DECOMMISSIONING_WORKER = "isDecommissioningWorker"
 }
