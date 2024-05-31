@@ -21,6 +21,9 @@ import java.io.IOException
 
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl, WithShuffleClientSuite}
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.network.protocol.TransportMessage
+import org.apache.celeborn.common.protocol.{MessageType, PartitionLocation, PbOpenStream}
+import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature {
@@ -32,13 +35,16 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val (master, _) = setupMiniClusterWithRandomPorts()
+    val (master, worker) = setupMiniClusterWithRandomPorts()
     celebornConf.set(
       CelebornConf.MASTER_ENDPOINTS.key,
       master.conf.get(CelebornConf.MASTER_ENDPOINTS.key))
     celebornConf.set(
       CelebornConf.MASTER_PORT.key,
       master.conf.get(CelebornConf.MASTER_PORT.key))
+    celebornConf.set(
+      CelebornConf.WORKER_FETCH_PORT.key,
+      worker.toList.head.workerInfo.fetchPort.toString)
   }
 
   test("test register when master not available") {
@@ -60,6 +66,32 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
     }
 
     lifecycleManager.stop()
+  }
+
+  test("[Celeborn-1445] Celeborn client open stream with unregister shuffle key") {
+    val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
+    val shuffleClient: ShuffleClientImpl = {
+      val client = new ShuffleClientImpl(APP, celebornConf, userIdentifier)
+      client.setupLifecycleManagerRef(lifecycleManager.self)
+      client
+    }
+
+    val client = shuffleClient.getDataClientFactory.createClient(
+      "localhost",
+      celebornConf.get(CelebornConf.WORKER_FETCH_PORT))
+    val msg = new TransportMessage(
+      MessageType.OPEN_STREAM,
+      PbOpenStream.newBuilder()
+        .setShuffleKey("999999")
+        .setFileName("unimportant")
+        .setStartIndex(0)
+        .setEndIndex(1)
+        .build()
+        .toByteArray);
+    val exception: IOException = intercept[IOException] {
+      client.sendRpcSync(msg.toByteBuffer, 1000 * 60 * 10)
+    }
+    assert(exception.getCause.getMessage.contains("PartitionUnRetryAbleException"))
   }
 
   override def afterAll(): Unit = {
