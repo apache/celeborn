@@ -317,6 +317,11 @@ class FetchHandler(
             client.getChannel)}, Exception: ${e.getMessage}"
         PbStreamHandlerOpt.newBuilder().setStatus(StatusCode.OPEN_STREAM_FAILED.getValue)
           .setErrorMsg(msg).build()
+      case npe: NullPointerException =>
+        val msg = s"Fail to find the shuffle key $shuffleKey from ${NettyUtils.getRemoteAddress(
+          client.getChannel)}, Exception: ${npe.getMessage}"
+        PbStreamHandlerOpt.newBuilder().setStatus(StatusCode.OPEN_STREAM_FAILED.getValue)
+          .setErrorMsg(msg).build()
     } finally {
       workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     }
@@ -379,6 +384,9 @@ class FetchHandler(
       case e: IOException =>
         workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
         handleRpcIOException(client, rpcRequestId, shuffleKey, fileName, e, callback)
+      case npe: NullPointerException =>
+        workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
+        handleRpcNullPointerException(client, rpcRequestId, shuffleKey, npe, callback)
     } finally {
       workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     }
@@ -433,15 +441,23 @@ class FetchHandler(
     logError(
       s"Read file: $fileName with shuffleKey: $shuffleKey error from ${NettyUtils.getRemoteAddress(client.getChannel)}",
       ioe)
-    handleRpcException(client, requestId, ioe, rpcCallback)
+    handleRpcException(ioe, rpcCallback)
   }
 
-  private def handleRpcException(
+  private def handleRpcNullPointerException(
       client: TransportClient,
       requestId: Long,
-      ioe: IOException,
-      rpcResponseCallback: RpcResponseCallback): Unit = {
-    rpcResponseCallback.onFailure(ExceptionUtils.wrapIOExceptionToUnRetryable(ioe))
+      shuffleKey: String,
+      npe: NullPointerException,
+      rpcCallback: RpcResponseCallback): Unit = {
+    logError(
+      s"Fail to find the shuffle key $shuffleKey from ${NettyUtils.getRemoteAddress(
+        client.getChannel)}, Exception: ${npe.getMessage}")
+    handleRpcException(npe, rpcCallback)
+  }
+
+  private def handleRpcException(e: Exception, rpcResponseCallback: RpcResponseCallback): Unit = {
+    rpcResponseCallback.onFailure(ExceptionUtils.wrapExceptionToUnRetryable(e))
   }
 
   def handleEndStreamFromClient(client: TransportClient, streamId: Long): Unit = {

@@ -36,8 +36,8 @@ public class ExceptionUtils {
     }
   }
 
-  public static Throwable wrapIOExceptionToUnRetryable(Throwable throwable) {
-    if (throwable instanceof IOException) {
+  public static Throwable wrapExceptionToUnRetryable(Throwable throwable) {
+    if (throwable instanceof IOException || throwable instanceof NullPointerException) {
       return new PartitionUnRetryAbleException(throwable.getMessage(), throwable);
     } else {
       return throwable;

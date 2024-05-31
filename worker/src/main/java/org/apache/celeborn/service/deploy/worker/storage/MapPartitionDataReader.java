@@ -419,7 +419,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
       // And do not close channel because multiple streams are using the very same channel.
       // wrapIOException to PartitionUnRetryAbleException, client may choose regenerate the data.
       this.associatedChannel.writeAndFlush(
-          new TransportableError(streamId, ExceptionUtils.wrapIOExceptionToUnRetryable(throwable)));
+          new TransportableError(streamId, ExceptionUtils.wrapExceptionToUnRetryable(throwable)));
     }
   }
 
