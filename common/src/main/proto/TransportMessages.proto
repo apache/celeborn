@@ -102,6 +102,7 @@ enum MessageType {
   APPLICATION_META_REQUEST = 79;
   BATCH_OPEN_STREAM = 80;
   BATCH_OPEN_STREAM_RESPONSE = 81;
+  REPORT_WORKER_DECOMMISSION = 82;
 }
 
 enum StreamType {
@@ -625,6 +626,7 @@ message PbSnapshotMetaInfo {
   repeated PbWorkerInfo manuallyExcludedWorkers = 14;
   map<string, PbWorkerEventInfo> workerEventInfos = 15;
   map<string, PbApplicationMeta> applicationMetas = 16;
+  repeated PbWorkerInfo decommissionWorkers = 17;
 }
 
 message PbOpenStream {
@@ -789,4 +791,9 @@ message PbPackedPartitionLocationsPair {
 message PbPackedWorkerResource {
   PbPackedPartitionLocationsPair locationPairs = 1;
   string networkLocation = 2;
+}
+
+message PbReportWorkerDecommission {
+  repeated PbWorkerInfo workers = 1;
+  string requestId = 2;
 }

@@ -366,6 +366,11 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void handleReportWorkerDecommission(List<WorkerInfo> workers, String requestId) {
+    updateMetaByReportWorkerDecommission(workers);
+  }
+
+  @Override
   public void handleUpdatePartitionSize() {
     try {
       ratisServer.submitRequest(

@@ -420,6 +420,7 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.ACTIVE_SLOTS_COUNT) { () =>
     workerInfo.usedSlots()
   }
+  workerSource.addGauge(WorkerSource.IS_DECOMMISSIONED_WORKER) { () => isDecommissioned }
 
   private def highWorkload: Boolean = {
     (memoryManager.currentServingState, conf.workerActiveConnectionMax) match {
@@ -886,10 +887,24 @@ private[celeborn] class Worker(
     }
   }
 
+  def sendWorkerDecommissionToMaster(): Unit = {
+    try {
+      masterClient.askSync(
+        ReportWorkerDecommission(List(workerInfo).asJava),
+        OneWayMessageResponse.getClass)
+    } catch {
+      case e: Throwable =>
+        logError(
+          s"Fail report to master, need wait registered shuffle expired: " +
+            s"\n${storageManager.shuffleKeySet().asScala.mkString("[", ", ", "]")}",
+          e)
+    }
+  }
+
   def decommissionWorker(): Unit = {
     logInfo("Worker start to decommission")
     workerStatusManager.transitionState(State.InDecommission)
-    sendWorkerUnavailableToMaster()
+    sendWorkerDecommissionToMaster()
     shutdown.set(true)
     val interval = conf.workerDecommissionCheckInterval
     val timeout = conf.workerDecommissionForceExitTimeout
@@ -970,6 +985,14 @@ private[celeborn] class Worker(
         secretRegistry))
     }
     serverBootstraps
+  }
+
+  def isDecommissioned: Int = {
+    if (shutdown.get() && workerStatusManager.exitEventType == WorkerEventType.Decommission) {
+      1
+    } else {
+      0
+    }
   }
 }
 
