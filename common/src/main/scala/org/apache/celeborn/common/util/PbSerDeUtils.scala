@@ -525,6 +525,14 @@ object PbSerDeUtils {
       pbPackedLocationsBuilder.addFilePaths("")
     }
     pbPackedLocationsBuilder.addAvailableStorageTypes(location.getStorageInfo.availableStorageTypes)
+    pbPackedLocationsBuilder.addFileSizes(location.getStorageInfo.getFileSize)
+    val chunkOffsets = PbChunkOffsets.newBuilder()
+    if (null != location.getStorageInfo.chunkOffsets && !location.getStorageInfo.chunkOffsets.isEmpty) {
+      chunkOffsets.addAllChunkOffset(location.getStorageInfo.chunkOffsets).build()
+      pbPackedLocationsBuilder.addChunksOffsets(chunkOffsets)
+    } else {
+      pbPackedLocationsBuilder.addChunksOffsets(chunkOffsets.build())
+    }
     pbPackedLocationsBuilder.addModes(location.getMode.mode())
   }
 
@@ -641,7 +649,9 @@ object PbSerDeUtils {
           pbPackedPartitionLocations.getMountPoints(index)),
         pbPackedPartitionLocations.getFinalResult(index),
         filePath,
-        pbPackedPartitionLocations.getAvailableStorageTypes(index)),
+        pbPackedPartitionLocations.getAvailableStorageTypes(index),
+        pbPackedPartitionLocations.getFileSizes(index),
+        pbPackedPartitionLocations.getChunksOffsets(index).getChunkOffsetList),
       Utils.byteStringToRoaringBitmap(pbPackedPartitionLocations.getMapIdBitMap(index)))
   }
 
