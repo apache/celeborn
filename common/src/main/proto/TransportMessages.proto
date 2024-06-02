@@ -863,6 +863,8 @@ message PbPackedPartitionLocations {
   repeated string filePaths = 10;
   repeated int32 availableStorageTypes = 11;
   repeated int32 modes = 12;
+  repeated int64 fileSizes = 13;
+  repeated PbChunkOffsets chunksOffsets = 14;
 }
 
 message PbPackedPartitionLocationsPair {
@@ -890,4 +892,8 @@ message PbReviseLostShuffles{
 message PbReviseLostShufflesResponse{
   bool success = 1;
   string message = 2;
+}
+
+message PbChunkOffsets {
+  repeated int64 chunkOffset = 1;
 }
