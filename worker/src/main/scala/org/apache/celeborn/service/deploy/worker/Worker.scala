@@ -325,6 +325,8 @@ private[celeborn] class Worker(
     ThreadUtils.newDaemonCachedThreadPool("worker-data-replicator", conf.workerReplicateThreads)
   val commitThreadPool: ThreadPoolExecutor =
     ThreadUtils.newDaemonCachedThreadPool("worker-files-committer", conf.workerCommitThreads)
+  val waitThreadPool: ThreadPoolExecutor =
+    ThreadUtils.newDaemonCachedThreadPool("worker-commit-waiter", conf.workerCommitFilesWaitThreads)
   val cleanThreadPool: ThreadPoolExecutor =
     ThreadUtils.newDaemonCachedThreadPool(
       "worker-expired-shuffle-cleaner",
@@ -563,11 +565,13 @@ private[celeborn] class Worker(
         forwardMessageScheduler.shutdown()
         replicateThreadPool.shutdown()
         commitThreadPool.shutdown()
+        waitThreadPool.shutdown();
         asyncReplyPool.shutdown()
       } else {
         forwardMessageScheduler.shutdownNow()
         replicateThreadPool.shutdownNow()
         commitThreadPool.shutdownNow()
+        waitThreadPool.shutdownNow();
         asyncReplyPool.shutdownNow()
       }
       workerSource.appActiveConnections.clear()

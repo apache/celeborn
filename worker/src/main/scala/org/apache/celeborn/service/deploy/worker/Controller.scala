@@ -57,6 +57,7 @@ private[deploy] class Controller(
   var partitionLocationInfo: WorkerPartitionLocationInfo = _
   var timer: HashedWheelTimer = _
   var commitThreadPool: ThreadPoolExecutor = _
+  var waitThreadPool: ThreadPoolExecutor = _
   var asyncReplyPool: ScheduledExecutorService = _
   val minPartitionSizeToEstimate = conf.minPartitionSizeToEstimate
   var shutdown: AtomicBoolean = _
@@ -72,6 +73,7 @@ private[deploy] class Controller(
     partitionLocationInfo = worker.partitionLocationInfo
     timer = worker.timer
     commitThreadPool = worker.commitThreadPool
+    waitThreadPool = worker.waitThreadPool
     asyncReplyPool = worker.asyncReplyPool
     shutdown = worker.shutdown
   }
@@ -431,7 +433,8 @@ private[deploy] class Controller(
         return
       } else if (commitInfo.status == CommitInfo.COMMIT_INPROCESS) {
         logInfo(s"$shuffleKey CommitFiles inprogress, wait for finish")
-        commitThreadPool.submit(new Runnable {
+        // should not use commitThreadPool in case of block by commit files.
+        waitThreadPool.submit(new Runnable {
           override def run(): Unit = {
             waitForCommitFinish()
           }
