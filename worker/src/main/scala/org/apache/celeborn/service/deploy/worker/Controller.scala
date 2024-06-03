@@ -338,11 +338,12 @@ private[deploy] class Controller(
                     logDebug(s"Location $uniqueId is deleted.")
                   } else {
                     val storageInfo = fileWriter.getStorageInfo
-                    val fileInfo = if (null != fileWriter.getDiskFileInfo) {
-                      fileWriter.getDiskFileInfo
-                    } else {
-                      fileWriter.getMemoryFileInfo
-                    }
+                    val fileInfo =
+                      if (null != fileWriter.getDiskFileInfo) {
+                        fileWriter.getDiskFileInfo
+                      } else {
+                        fileWriter.getMemoryFileInfo
+                      }
                     val fileMeta = fileInfo.getFileMeta
                     fileMeta match {
                       case meta: ReduceFileMeta =>
