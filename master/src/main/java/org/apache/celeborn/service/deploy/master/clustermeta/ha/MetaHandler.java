@@ -279,9 +279,9 @@ public class MetaHandler {
 
         case ReportWorkerDecommission:
           List<ResourceProtos.WorkerAddress> decommissionList =
-                  request.getReportWorkerDecommissionRequest().getWorkersList();
+              request.getReportWorkerDecommissionRequest().getWorkersList();
           List<WorkerInfo> decommissionWorkers =
-                  decommissionList.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
+              decommissionList.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
           metaSystem.updateMetaByReportWorkerDecommission(decommissionWorkers);
           break;
 
