@@ -988,7 +988,7 @@ private[celeborn] class Worker(
   }
 
   private def isDecommissioning: Int = {
-    if (shutdown.get() && workerStatusManager.exitEventType == WorkerEventType.Decommission) {
+    if (shutdown.get() && workerStatusManager.currentWorkerStatus.getState == State.InDecommission) {
       1
     } else {
       0
