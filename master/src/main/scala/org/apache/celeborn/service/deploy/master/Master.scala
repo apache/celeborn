@@ -1042,7 +1042,8 @@ private[celeborn] class Master(
         new util.ArrayList(
           (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).asJava),
         needCheckedWorkerList,
-        new util.ArrayList[WorkerInfo]((statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava)))
+        new util.ArrayList[WorkerInfo](
+          (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava)))
     } else {
       context.reply(OneWayMessageResponse)
     }
