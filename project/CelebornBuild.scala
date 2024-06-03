@@ -438,8 +438,6 @@ object CelebornCommon {
         Dependencies.hadoopClientApi,
         Dependencies.hadoopClientRuntime,
         Dependencies.jdkTools,
-        Dependencies.ratisClient,
-        Dependencies.ratisCommon,
         Dependencies.leveldbJniAll,
         Dependencies.roaringBitmap,
         Dependencies.scalaReflect,
@@ -569,11 +567,6 @@ object CelebornWorker {
     .dependsOn(CelebornMaster.master % "test->compile")
     .settings (
       commonSettings,
-      excludeDependencies ++= Seq(
-        // ratis-common/ratis-client are the transitive dependencies from celeborn-common
-        ExclusionRule("org.apache.ratis", "ratis-common"),
-        ExclusionRule("org.apache.ratis", "ratis-client")
-      ),
       libraryDependencies ++= Seq(
         Dependencies.apLoader,
         Dependencies.guava,
