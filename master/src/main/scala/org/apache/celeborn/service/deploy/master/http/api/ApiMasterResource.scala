@@ -65,6 +65,15 @@ class ApiMasterResource extends ApiRequestContext {
   @GET
   def shutdownWorkers: String = httpService.getShutdownWorkers
 
+  @Path("/decommissionWorkers")
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.TEXT_PLAIN)),
+    description = "List all decommission workers of the master.")
+  @GET
+  def decommissionWorkers: String = httpService.getShutdownWorkers
+
   @Path("/hostnames")
   @ApiResponse(
     responseCode = "200",

@@ -1235,6 +1235,15 @@ private[celeborn] class Master(
     sb.toString()
   }
 
+  override def getDecommissionWorkers: String = {
+    val sb = new StringBuilder
+    sb.append("===================== Decommission Workers in Master ======================\n")
+    statusSystem.decommissionWorkers.asScala.foreach { worker =>
+      sb.append(s"${worker.toUniqueId()}\n")
+    }
+    sb.toString()
+  }
+
   override def getExcludedWorkers: String = {
     val sb = new StringBuilder
     sb.append("===================== Excluded Workers in Master ======================\n")
