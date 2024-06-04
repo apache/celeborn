@@ -81,9 +81,9 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
   private void writeLifecycleManagerConfToTask(JobConf conf, JobConf lmConf)
       throws CelebornIOException {
     try {
-      FileSystem fs = FileSystem.get(conf);
       String jobDirStr = conf.get(MRJobConfig.MAPREDUCE_JOB_DIR);
       Path celebornConfPath = new Path(jobDirStr, HadoopUtils.MR_CELEBORN_CONF);
+      FileSystem fs = celebornConfPath.getFileSystem(conf);
 
       try (FSDataOutputStream out =
           FileSystem.create(
