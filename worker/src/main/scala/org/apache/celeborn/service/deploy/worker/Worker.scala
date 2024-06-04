@@ -873,20 +873,6 @@ private[celeborn] class Worker(
     workerStatusManager.transitionState(State.Exit)
   }
 
-  def sendWorkerUnavailableToMaster(): Unit = {
-    try {
-      masterClient.askSync(
-        ReportWorkerUnavailable(List(workerInfo).asJava),
-        OneWayMessageResponse.getClass)
-    } catch {
-      case e: Throwable =>
-        logError(
-          s"Fail report to master, need wait registered shuffle expired: " +
-            s"\n${storageManager.shuffleKeySet().asScala.mkString("[", ", ", "]")}",
-          e)
-    }
-  }
-
   def sendWorkerDecommissionToMaster(): Unit = {
     try {
       masterClient.askSync(
@@ -988,7 +974,8 @@ private[celeborn] class Worker(
   }
 
   private def isDecommissioning: Int = {
-    if (shutdown.get() && workerStatusManager.currentWorkerStatus.getState == State.InDecommission) {
+    if (shutdown.get() && (workerStatusManager.currentWorkerStatus.getState == State.InDecommission ||
+        workerStatusManager.currentWorkerStatus.getState == State.InDecommissionThenIdle)) {
       1
     } else {
       0

@@ -383,7 +383,6 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       LOG.error("Handle worker decommission failed!", e);
       throw e;
     }
-    updateMetaByReportWorkerDecommission(workers);
   }
 
   @Override
