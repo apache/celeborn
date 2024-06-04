@@ -180,9 +180,11 @@ Here is an example of Grafana dashboard importing.
 |        jvm_thread_blocked_count        |        JVM        |                                  The current number of threads having blocked state.                                   |
 |       jvm_thread_deadlock_count        |        JVM        |                                  The current number of threads having deadlock state.                                  |
 |          jvm_thread_new_count          |        JVM        |                                    The current number of threads having new state.                                     |
+|         jvm_thread_peak_count          |        JVM        |                                        The current number of peak live threads.                                        |
 |       jvm_thread_runnable_count        |        JVM        |                                  The current number of threads having runnable state.                                  |
 |      jvm_thread_terminated_count       |        JVM        |                                 The current number of threads having terminated state.                                 |
 |     jvm_thread_timed_waiting_count     |        JVM        |                               The current number of threads having timed_waiting state.                                |
+|     jvm_thread_total_started_count     |        JVM        |                                         The current number of started threads.                                         |
 |        jvm_thread_waiting_count        |        JVM        |                                  The current number of threads having waiting state.                                   |
 |         jvm_classloader_loaded         |        JVM        |                             The total number of classes loaded since the start of the JVM.                             |
 |        jvm_classloader_unloaded        |        JVM        |                            The total number of classes unloaded since the start of the JVM.                            |
