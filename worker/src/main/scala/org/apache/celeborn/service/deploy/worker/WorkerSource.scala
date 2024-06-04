@@ -98,7 +98,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   def recordAppActiveConnection(client: TransportClient, shuffleKey: String): Unit = {
     val applicationIds = appActiveConnections.get(client.getChannel.id().asLongText())
     val applicationId = Utils.splitShuffleKey(shuffleKey)._1
-    if (CollectionUtils.isNotEmpty(applicationIds) && !applicationIds.contains(applicationId)) {
+    if (applicationIds != null && !applicationIds.contains(applicationId)) {
       applicationIds.add(applicationId)
       addGauge(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId)) { () =>
         appActiveConnections.asScala.count { case (_, applicationIds) =>
