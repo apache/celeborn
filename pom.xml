@@ -70,7 +70,11 @@
     <!-- use hadoop-3 as default  -->
     <hadoop.version>3.3.6</hadoop.version>
 
-    <codahale.metrics.version>3.2.6</codahale.metrics.version>
+    <!--
+    If you change codahale.metrics.version, you also need to change
+    the link to metrics.dropwizard.io in docs/monitoring.md.
+    -->
+    <codahale.metrics.version>4.2.25</codahale.metrics.version>
     <commons-lang3.version>3.12.0</commons-lang3.version>
     <commons-io.version>2.13.0</commons-io.version>
     <commons-crypto.version>1.0.0</commons-crypto.version>
@@ -236,6 +240,12 @@
         <groupId>io.dropwizard.metrics</groupId>
         <artifactId>metrics-graphite</artifactId>
         <version>${codahale.metrics.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.rabbitmq</groupId>
+            <artifactId>amqp-client</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>io.dropwizard.metrics</groupId>
