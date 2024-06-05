@@ -72,7 +72,7 @@ class ApiMasterResource extends ApiRequestContext {
       mediaType = MediaType.TEXT_PLAIN)),
     description = "List all decommission workers of the master.")
   @GET
-  def decommissionWorkers: String = httpService.getShutdownWorkers
+  def decommissionWorkers: String = httpService.getDecommissionWorkers
 
   @Path("/hostnames")
   @ApiResponse(
