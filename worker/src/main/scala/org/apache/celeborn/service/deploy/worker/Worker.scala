@@ -422,7 +422,7 @@ private[celeborn] class Worker(
   }
   workerSource.addGauge(WorkerSource.IS_DECOMMISSIONING_WORKER) { () =>
     if (shutdown.get() && (workerStatusManager.currentWorkerStatus.getState == State.InDecommission ||
-      workerStatusManager.currentWorkerStatus.getState == State.InDecommissionThenIdle)) {
+        workerStatusManager.currentWorkerStatus.getState == State.InDecommissionThenIdle)) {
       1
     } else {
       0
@@ -791,8 +791,9 @@ private[celeborn] class Worker(
   override def isDecommissioning: String = {
     val sb = new StringBuilder
     sb.append("========================= Worker Decommission ==========================\n")
-    sb.append(shutdown.get() && (workerStatusManager.currentWorkerStatus.getState == State.InDecommission ||
-      workerStatusManager.currentWorkerStatus.getState == State.InDecommissionThenIdle))
+    sb.append(
+      shutdown.get() && (workerStatusManager.currentWorkerStatus.getState == State.InDecommission ||
+        workerStatusManager.currentWorkerStatus.getState == State.InDecommissionThenIdle))
       .append("\n")
     sb.toString()
   }
