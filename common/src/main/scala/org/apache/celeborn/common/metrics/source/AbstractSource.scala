@@ -166,6 +166,14 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     }
   }
 
+  def removeCounter(name: String, labels: Map[String, String]): Unit = {
+    val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
+    val namedCounter = namedCounters.get(metricNameWithLabel)
+    if (namedCounter != null) {
+      removeMetric(metricNameWithLabel, namedCounter)
+    }
+  }
+
   def removeGauge(name: String, labels: Map[String, String]): Unit = {
     val labelString = MetricLabels.labelString(labels ++ staticLabels)
 
@@ -174,7 +182,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       val namedGauge = iter.next()
       if (namedGauge.name.equals(name) && namedGauge.labelString.equals(labelString)) {
         iter.remove()
-        removeGaugeMetric(name, namedGauge)
+        removeMetric(name, namedGauge)
         return
       }
     }
@@ -188,14 +196,14 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       val namedGauge = iter.next()
       if (namedGauge.name.equals(name) && labels.toSet.subsetOf(namedGauge.labels.toSet)) {
         iter.remove()
-        removeGaugeMetric(name, namedGauge)
+        removeMetric(name, namedGauge)
         return
       }
     }
   }
 
-  def removeGaugeMetric(name: String, namedGauge: NamedGauge[_]): Unit = {
-    metricRegistry.remove(metricNameWithCustomizedLabelString(name, namedGauge.labelString))
+  def removeMetric(name: String, metric: MetricLabels): Unit = {
+    metricRegistry.remove(metricNameWithCustomizedLabelString(name, metric.labelString))
   }
 
   override def sample[T](metricsName: String, key: String)(f: => T): T = {
