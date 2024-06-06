@@ -28,7 +28,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.client.TransportClient
-import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, Utils}
 
 class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSystem.ROLE_WORKER) {
   override val sourceName = "worker"
@@ -91,28 +91,27 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   }
 
   def connectionInactive(client: TransportClient): Unit = {
-    appActiveConnections.remove(client.getChannel.id().asLongText())
+    val applicationIds = appActiveConnections.remove(client.getChannel.id().asLongText())
     incCounter(ACTIVE_CONNECTION_COUNT, -1)
+    applicationIds.asScala.foreach(applicationId =>
+      incCounter(ACTIVE_CONNECTION_COUNT, -1, Map(applicationLabel -> applicationId)))
   }
 
   def recordAppActiveConnection(client: TransportClient, shuffleKey: String): Unit = {
     val applicationIds = appActiveConnections.get(client.getChannel.id().asLongText())
     val applicationId = Utils.splitShuffleKey(shuffleKey)._1
     if (applicationIds != null && !applicationIds.contains(applicationId)) {
+      addCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId))
+      incCounter(ACTIVE_CONNECTION_COUNT, 1, Map(applicationLabel -> applicationId))
       applicationIds.add(applicationId)
-      addGauge(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId)) { () =>
-        appActiveConnections.asScala.count { case (_, applicationIds) =>
-          applicationIds.contains(applicationId)
-        }
-      }
     }
   }
 
   def removeAppActiveConnection(applicationId: String): Unit = {
+    removeCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId))
     appActiveConnections.asScala.foreach { case (_, applicationIds) =>
       if (applicationIds.contains(applicationId)) {
         applicationIds.remove(applicationId)
-        removeGauge(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId))
       }
     }
   }
