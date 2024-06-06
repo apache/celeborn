@@ -1278,4 +1278,65 @@ public class RatisMasterStatusSystemSuiteJ {
       }
     }
   }
+
+  @Test
+  public void testHandleReportWorkerDecommission() throws InterruptedException {
+    AbstractMetaManager statusSystem = pickLeaderStatusSystem();
+    Assert.assertNotNull(statusSystem);
+
+    statusSystem.handleRegisterWorker(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        INTERNALPORT1,
+        NETWORK_LOCATION1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        INTERNALPORT2,
+        NETWORK_LOCATION2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        INTERNALPORT3,
+        NETWORK_LOCATION3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
+
+    List<WorkerInfo> workers = new ArrayList<>();
+    workers.add(
+        new WorkerInfo(
+            HOSTNAME1,
+            RPCPORT1,
+            PUSHPORT1,
+            FETCHPORT1,
+            REPLICATEPORT1,
+            INTERNALPORT1,
+            disks1,
+            userResourceConsumption1));
+
+    statusSystem.handleReportWorkerDecommission(workers, getNewReqeustId());
+    Thread.sleep(3000L);
+    Assert.assertEquals(1, STATUSSYSTEM1.decommissionWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.decommissionWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.decommissionWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM1.excludedWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM2.excludedWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM3.excludedWorkers.size());
+  }
 }
