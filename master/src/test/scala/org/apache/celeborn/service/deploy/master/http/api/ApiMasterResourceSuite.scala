@@ -114,4 +114,9 @@ class ApiMasterResourceSuite extends ApiBaseResourceSuite {
         .post(Entity.entity(form, MediaType.APPLICATION_FORM_URLENCODED_TYPE))
     assert(200 == response.getStatus)
   }
+
+  test("decommissionWorkers") {
+    val response = webTarget.path("decommissionWorkers").request(MediaType.TEXT_PLAIN).get()
+    assert(200 == response.getStatus)
+  }
 }

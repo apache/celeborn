@@ -61,4 +61,9 @@ class ApiWorkerResourceSuite extends ApiBaseResourceSuite with MiniClusterFeatur
     val response = webTarget.path("isRegistered").request(MediaType.TEXT_PLAIN).get()
     assert(200 == response.getStatus)
   }
+
+  test("isDecommissioning") {
+    val response = webTarget.path("isDecommissioning").request(MediaType.TEXT_PLAIN).get()
+    assert(200 == response.getStatus)
+  }
 }
