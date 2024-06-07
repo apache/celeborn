@@ -236,7 +236,7 @@ These metrics are exposed by Celeborn worker.
     - PotentialConsumeSpeed
     - UserProduceSpeed
     - WorkerConsumeSpeed
-    - isDecommissioningWorker
+    - IsDecommissioningWorker
     - push_server_usedHeapMemory 
     - push_server_usedDirectMemory
     - push_server_numAllocations 

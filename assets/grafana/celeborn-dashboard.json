@@ -2429,13 +2429,13 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_isDecommissioningWorker_Value",
+              "expr": "metrics_IsDecommissioningWorker_Value",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_isDecommissioningWorker_Value",
+          "title": "metrics_IsDecommissioningWorker_Value",
           "type": "timeseries"
         },
         {

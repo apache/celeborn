@@ -148,7 +148,7 @@ Here is an example of Grafana dashboard importing.
 |         PotentialConsumeSpeed          |      worker       |                        This value means speed of potential consumption for congestion control.                         |
 |            UserProduceSpeed            |      worker       |                           This value means speed of user production for congestion control.                            |
 |           WorkerConsumeSpeed           |      worker       |                          This value means speed of worker consumption for congestion control.                          |
-|        isDecommissioningWorker         |      worker       |                              1 means worker decommissioning, 0 means not decommissioning.                              |
+|        IsDecommissioningWorker         |      worker       |                              1 means worker decommissioning, 0 means not decommissioning.                              |
 |              jvm_gc_count              |        JVM        |                                        The GC count of each garbage collector.                                         |
 |              jvm_gc_time               |        JVM        |                                      The GC cost time of each garbage collector.                                       |
 |          jvm_memory_heap_init          |        JVM        |                                            The amount of heap init memory.                                             |
