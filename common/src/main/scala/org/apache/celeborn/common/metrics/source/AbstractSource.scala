@@ -392,26 +392,26 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   override def getMetrics(): String = {
-    counters().foreach(c => recordCounter(c))
-    gauges().foreach(g => recordGauge(g))
-    histograms().foreach(h => {
-      recordHistogram(h)
-      h.asInstanceOf[CelebornHistogram].reservoir
-        .asInstanceOf[ResettableSlidingWindowReservoir].reset()
-    })
-    timers().foreach(t => {
-      recordTimer(t)
-      t.timer.asInstanceOf[CelebornTimer].reservoir
-        .asInstanceOf[ResettableSlidingWindowReservoir].reset()
-    })
-    val sb = new mutable.StringBuilder
     innerMetrics.synchronized {
+      counters().foreach(c => recordCounter(c))
+      gauges().foreach(g => recordGauge(g))
+      histograms().foreach(h => {
+        recordHistogram(h)
+        h.asInstanceOf[CelebornHistogram].reservoir
+          .asInstanceOf[ResettableSlidingWindowReservoir].reset()
+      })
+      timers().foreach(t => {
+        recordTimer(t)
+        t.timer.asInstanceOf[CelebornTimer].reservoir
+          .asInstanceOf[ResettableSlidingWindowReservoir].reset()
+      })
+      val sb = new mutable.StringBuilder
       while (!innerMetrics.isEmpty) {
         sb.append(innerMetrics.poll())
       }
       innerMetrics.clear()
+      sb.toString()
     }
-    sb.toString()
   }
 
   override def destroy(): Unit = {
