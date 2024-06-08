@@ -277,6 +277,14 @@ public class MetaHandler {
           metaSystem.updateApplicationMeta(new ApplicationMeta(appId, secret));
           break;
 
+        case ReportWorkerDecommission:
+          List<ResourceProtos.WorkerAddress> decommissionList =
+              request.getReportWorkerDecommissionRequest().getWorkersList();
+          List<WorkerInfo> decommissionWorkers =
+              decommissionList.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
+          metaSystem.updateMetaByReportWorkerDecommission(decommissionWorkers);
+          break;
+
         default:
           throw new IOException("Can not parse this command!" + request);
       }

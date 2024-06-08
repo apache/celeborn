@@ -421,7 +421,8 @@ object PbSerDeUtils {
       lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long],
       shutdownWorkers: java.util.Set[WorkerInfo],
       workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo],
-      applicationMetas: ConcurrentHashMap[String, ApplicationMeta]): PbSnapshotMetaInfo = {
+      applicationMetas: ConcurrentHashMap[String, ApplicationMeta],
+      decommissionWorkers: java.util.Set[WorkerInfo]): PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
       .addAllRegisteredShuffle(registeredShuffle)
@@ -446,6 +447,8 @@ object PbSerDeUtils {
         case (worker, workerEventInfo) =>
           (worker.toUniqueId(), PbSerDeUtils.toPbWorkerEventInfo(workerEventInfo))
       }.asJava)
+      .addAllDecommissionWorkers(decommissionWorkers.asScala.map(toPbWorkerInfo(_, true)).asJava)
+
     if (currentAppDiskUsageMetricsSnapshot != null) {
       builder.setCurrentAppDiskUsageMetricsSnapshot(
         toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))

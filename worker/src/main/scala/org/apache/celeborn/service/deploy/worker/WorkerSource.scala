@@ -210,4 +210,7 @@ object WorkerSource {
   // active shuffle
   val ACTIVE_SHUFFLE_SIZE = "ActiveShuffleSize"
   val ACTIVE_SHUFFLE_FILE_COUNT = "ActiveShuffleFileCount"
+
+  // decommission
+  val IS_DECOMMISSIONING_WORKER = "IsDecommissioningWorker"
 }

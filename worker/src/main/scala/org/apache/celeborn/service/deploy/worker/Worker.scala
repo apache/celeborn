@@ -422,6 +422,14 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.ACTIVE_SLOTS_COUNT) { () =>
     workerInfo.usedSlots()
   }
+  workerSource.addGauge(WorkerSource.IS_DECOMMISSIONING_WORKER) { () =>
+    if (shutdown.get() && (workerStatusManager.currentWorkerStatus.getState == State.InDecommission ||
+        workerStatusManager.currentWorkerStatus.getState == State.InDecommissionThenIdle)) {
+      1
+    } else {
+      0
+    }
+  }
 
   private def highWorkload: Boolean = {
     (memoryManager.currentServingState, conf.workerActiveConnectionMax) match {
@@ -784,6 +792,16 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
+  override def isDecommissioning: String = {
+    val sb = new StringBuilder
+    sb.append("========================= Worker Decommission ==========================\n")
+    sb.append(
+      shutdown.get() && (workerStatusManager.currentWorkerStatus.getState == State.InDecommission ||
+        workerStatusManager.currentWorkerStatus.getState == State.InDecommissionThenIdle))
+      .append("\n")
+    sb.toString()
+  }
+
   override def isRegistered: String = {
     val sb = new StringBuilder
     sb.append("========================= Worker Registered ==========================\n")
@@ -876,10 +894,10 @@ private[celeborn] class Worker(
     workerStatusManager.transitionState(State.Exit)
   }
 
-  def sendWorkerUnavailableToMaster(): Unit = {
+  def sendWorkerDecommissionToMaster(): Unit = {
     try {
       masterClient.askSync(
-        ReportWorkerUnavailable(List(workerInfo).asJava),
+        ReportWorkerDecommission(List(workerInfo).asJava),
         OneWayMessageResponse.getClass)
     } catch {
       case e: Throwable =>
@@ -893,7 +911,7 @@ private[celeborn] class Worker(
   def decommissionWorker(): Unit = {
     logInfo("Worker start to decommission")
     workerStatusManager.transitionState(State.InDecommission)
-    sendWorkerUnavailableToMaster()
+    sendWorkerDecommissionToMaster()
     shutdown.set(true)
     val interval = conf.workerDecommissionCheckInterval
     val timeout = conf.workerDecommissionForceExitTimeout

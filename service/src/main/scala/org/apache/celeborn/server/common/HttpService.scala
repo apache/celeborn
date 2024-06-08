@@ -159,6 +159,8 @@ abstract class HttpService extends Service with Logging {
 
   def getShutdownWorkers: String = throw new UnsupportedOperationException()
 
+  def getDecommissionWorkers: String = throw new UnsupportedOperationException()
+
   def getExcludedWorkers: String = throw new UnsupportedOperationException()
 
   def getHostnameList: String = throw new UnsupportedOperationException()
@@ -173,6 +175,8 @@ abstract class HttpService extends Service with Logging {
   def isShutdown: String = throw new UnsupportedOperationException()
 
   def isRegistered: String = throw new UnsupportedOperationException()
+
+  def isDecommissioning: String = throw new UnsupportedOperationException()
 
   def exit(exitType: String): String = throw new UnsupportedOperationException()
 

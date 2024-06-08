@@ -383,6 +383,10 @@ object ControlMessages extends Logging {
       unavailable: util.List[WorkerInfo],
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
+  case class ReportWorkerDecommission(
+      unavailable: util.List[WorkerInfo],
+      override var requestId: String = ZERO_UUID) extends MasterRequestMessage
+
   object CheckWorkersAvailable {
     def apply(): PbCheckWorkersAvailable = {
       PbCheckWorkersAvailable.newBuilder().build()
@@ -777,6 +781,14 @@ object ControlMessages extends Logging {
         .setRequestId(requestId).build().toByteArray
       new TransportMessage(MessageType.REPORT_WORKER_FAILURE, payload)
 
+    case ReportWorkerDecommission(workers, requestId) =>
+      val payload = PbReportWorkerDecommission.newBuilder()
+        .addAllWorkers(workers.asScala.map { workerInfo =>
+          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+        }.toList.asJava)
+        .setRequestId(requestId).build().toByteArray
+      new TransportMessage(MessageType.REPORT_WORKER_DECOMMISSION, payload)
+
     case pb: PbRemoveWorkersUnavailableInfo =>
       new TransportMessage(MessageType.REMOVE_WORKERS_UNAVAILABLE_INFO, pb.toByteArray)
 
@@ -1135,6 +1147,13 @@ object ControlMessages extends Logging {
           new util.ArrayList[WorkerInfo](pbReportWorkerUnavailable.getUnavailableList
             .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava),
           pbReportWorkerUnavailable.getRequestId)
+
+      case REPORT_WORKER_DECOMMISSION_VALUE =>
+        val pbReportWorkerDecommission = PbReportWorkerDecommission.parseFrom(message.getPayload)
+        ReportWorkerDecommission(
+          new util.ArrayList[WorkerInfo](pbReportWorkerDecommission.getWorkersList
+            .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava),
+          pbReportWorkerDecommission.getRequestId)
 
       case REMOVE_WORKERS_UNAVAILABLE_INFO_VALUE =>
         PbRemoveWorkersUnavailableInfo.parseFrom(message.getPayload)

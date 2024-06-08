@@ -39,6 +39,7 @@ enum Type {
   WorkerExclude = 24;
   WorkerEvent = 25;
   ApplicationMeta = 26;
+  ReportWorkerDecommission = 27;
 }
 
 enum WorkerEventType {
@@ -71,6 +72,7 @@ message ResourceRequest {
   optional WorkerExcludeRequest workerExcludeRequest = 21;
   optional WorkerEventRequest workerEventRequest = 22;
   optional ApplicationMetaRequest applicationMetaRequest = 23;
+  optional ReportWorkerDecommissionRequest reportWorkerDecommissionRequest = 24;
 }
 
 message DiskInfo {
@@ -178,6 +180,10 @@ message RegisterWorkerRequest {
 
 message ReportWorkerUnavailableRequest {
   repeated WorkerAddress unavailable = 1;
+}
+
+message ReportWorkerDecommissionRequest {
+  repeated WorkerAddress workers = 1;
 }
 
 message RemoveWorkersUnavailableInfoRequest {
