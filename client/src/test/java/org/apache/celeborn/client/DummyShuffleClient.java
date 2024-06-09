@@ -136,7 +136,8 @@ public class DummyShuffleClient extends ShuffleClient {
       ArrayList<PartitionLocation> locations,
       ArrayList<PbStreamHandler> streamHandlers,
       int[] mapAttempts,
-      MetricsCallback metricsCallback)
+      MetricsCallback metricsCallback,
+      boolean enablePrefetch)
       throws IOException {
     return null;
   }

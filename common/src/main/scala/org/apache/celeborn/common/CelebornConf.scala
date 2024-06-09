@@ -1255,6 +1255,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_RESULT_PARTITION_SUPPORT_FLOATING_BUFFER)
   def clientFlinkDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
   def clientShuffleMapPartitionSplitEnabled = get(CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED)
+  def clientChunkPrefetchEnabled = get(CLIENT_CHUNK_PREFETCH_ENABLED)
+  def clientInputStreamCreationWindow = get(CLIENT_INPUTSTREAM_CREATION_WINDOW)
 
   // //////////////////////////////////////////////////////
   //                    kerberos                         //
@@ -4863,6 +4865,23 @@ object CelebornConf extends Logging {
       .version("0.3.1")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_CHUNK_PREFETCH_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.chunk.prefetch.enabled")
+      .categories("client")
+      .doc("Whether to enable chunk prefetch when creating CelebornInputStream.")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_INPUTSTREAM_CREATION_WINDOW: ConfigEntry[Int] =
+    buildConf("celeborn.client.inputStream.creation.window")
+      .categories("client")
+      .doc(s"Window size that CelebornShuffleReader pre-creates CelebornInputStreams, for coalesced scenario" +
+        s"where multiple Partitions are read")
+      .version("0.6.0")
+      .intConf
+      .createWithDefault(16)
 
   val MAX_DEFAULT_NETTY_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.io.maxDefaultNettyThreads")

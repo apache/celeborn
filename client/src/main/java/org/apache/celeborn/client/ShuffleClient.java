@@ -204,42 +204,6 @@ public abstract class ShuffleClient {
   public abstract ShuffleClientImpl.ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
       throws CelebornIOException;
 
-  // Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
-  // is a self-incrementing variable hidden in the implementation when sending data.
-  /**
-   * @param shuffleId the unique shuffle id of the application
-   * @param partitionId the partition id to read from
-   * @param attemptNumber the attempt id of reduce task, can be safely set to any value
-   * @param startMapIndex the index of start map index of interested map range, set to 0 if you want
-   *     to read all partition data
-   * @param endMapIndex the index of end map index of interested map range, set to
-   *     `Integer.MAX_VALUE` if you want to read all partition data
-   * @param metricsCallback callback to report metrics
-   * @return
-   * @throws IOException
-   */
-  public CelebornInputStream readPartition(
-      int shuffleId,
-      int partitionId,
-      int attemptNumber,
-      int startMapIndex,
-      int endMapIndex,
-      MetricsCallback metricsCallback)
-      throws IOException {
-    return readPartition(
-        shuffleId,
-        shuffleId,
-        partitionId,
-        attemptNumber,
-        startMapIndex,
-        endMapIndex,
-        null,
-        null,
-        null,
-        null,
-        metricsCallback);
-  }
-
   public abstract CelebornInputStream readPartition(
       int shuffleId,
       int appShuffleId,
@@ -251,7 +215,8 @@ public abstract class ShuffleClient {
       ArrayList<PartitionLocation> locations,
       ArrayList<PbStreamHandler> streamHandlers,
       int[] mapAttempts,
-      MetricsCallback metricsCallback)
+      MetricsCallback metricsCallback,
+      boolean enablePrefetch)
       throws IOException;
 
   public abstract boolean cleanupShuffle(int shuffleId);
