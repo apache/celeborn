@@ -16,17 +16,10 @@
 #
 
 # An Example:
-celeborn.rpc.io.mode                             NIO
-celeborn.rpc.io.clientThreads                    8
-celeborn.rpc.io.serverThreads                    8
-celeborn.rpc.io.numConnectionsPerPeer            2
-
-celeborn.push.io.numConnectionsPerPeer           2
-celeborn.worker.push.io.threads                  8
+# celeborn.worker.storage.dirs                    /mnt/disk1:capacity=1T:disktype=HDD:flushthread=1,/mnt/disk2:capacity=1T:disktype=SSD:flushthread=16
 
 celeborn.metrics.enabled                         true
 
-celeborn.worker.storage.dirs                     /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4,/mnt/disk5
 celeborn.worker.http.port                        9096
 
 celeborn.master.endpoints                        clb-1:9097,clb-2:9097,clb-3:9097
@@ -43,5 +36,3 @@ celeborn.master.ha.node.3.host                   clb-3
 celeborn.master.ha.node.3.port                   9097
 celeborn.master.ha.node.3.ratis.port             9872
 celeborn.master.ha.ratis.raft.server.storage.dir                           /mnt/disk1/celeborn_ratis/
-celeborn.master.ha.ratis.raft.server.snapshot.auto.trigger.enabled         true
-celeborn.master.ha.ratis.raft.server.snapshot.auto.trigger.threshold       200000
