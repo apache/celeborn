@@ -51,3 +51,6 @@ Error Prone is a static analysis tool for Java that catches common programming m
 To add the Error Prone plugin in IntelliJ IDEA, start the IDE and find the Plugins dialog. Browse Repositories, choose Category: Build, and find the Error-prone plugin. Right-click and choose 'Download and install'. The IDE will restart after you’ve exited these dialogs.
 
 Allows to build projects using Error Prone Java compiler to catch common Java mistakes at compile-time. To use the compiler, go to 'File | Settings/Preferences | Build, Execution, Deployment | Compiler | Java Compiler' and select 'Javac with error-prone' in 'Use compiler' box.
+
+### Introduce And Bump Dependencies
+When introducing a new dependency or bumping version of a dependency, you need to keep the dependency consistent with its LICENSE in LICENSE-binary to avoid missing the LICENSE of the dependency.

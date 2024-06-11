@@ -253,6 +253,7 @@ io.swagger.core.v3:swagger-core
 io.swagger.core.v3:swagger-integration
 io.swagger.core.v3:swagger-jaxrs2
 io.swagger.core.v3:swagger-models
+me.bechberger:ap-loader-all
 org.apache.commons:commons-crypto
 org.apache.commons:commons-lang3
 org.apache.hadoop:hadoop-client-api
@@ -265,7 +266,7 @@ org.apache.logging.log4j:log4j-slf4j-impl
 org.apache.ratis:ratis-client
 org.apache.ratis:ratis-common
 org.apache.ratis:ratis-grpc
-org.apache.ratis:ratis-metrics
+org.apache.ratis:ratis-metrics-default
 org.apache.ratis:ratis-netty
 org.apache.ratis:ratis-proto
 org.apache.ratis:ratis-server
@@ -279,7 +280,16 @@ org.eclipse.jetty:jetty-server
 org.eclipse.jetty:jetty-servlet
 org.eclipse.jetty:jetty-util-ajax
 org.eclipse.jetty:jetty-util
+org.glassfish.jersey.containers:jersey-container-servlet-core
+org.glassfish.jersey.core:jersey-client
+org.glassfish.jersey.core:jersey-common
+org.glassfish.jersey.core:jersey-server
+org.glassfish.jersey.ext:jersey-entity-filtering
+org.glassfish.jersey.inject:jersey-hk2
+org.glassfish.jersey.media:jersey-media-json-jackson
+org.glassfish.jersey.media:jersey-media-multipart
 org.javassist:javassist
+org.mybatis:mybatis
 org.reflections:reflections
 org.roaringbitmap:RoaringBitmap
 org.roaringbitmap:shims
@@ -303,12 +313,6 @@ See licenses/LICENSE-protobuf.txt for details.
 com.google.protobuf:protobuf-java
 See licenses/LICENSE-leveldbjni.txt for details.
 org.fusesource.leveldbjni:leveldbjni-all
-
-
-Common Development and Distribution License (CDDL) 1.0
-------------
-See licenses/LICENSE-CDDL.txt for details.
-javax.servlet:javax.servlet-api
 
 
 MIT License
