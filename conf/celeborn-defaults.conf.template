@@ -16,14 +16,6 @@
 #
 
 # An Example:
-celeborn.rpc.io.mode                             NIO
-celeborn.rpc.io.clientThreads                    8
-celeborn.rpc.io.serverThreads                    8
-celeborn.rpc.io.numConnectionsPerPeer            2
-
-celeborn.push.io.numConnectionsPerPeer           2
-celeborn.worker.push.io.threads                  8
-
 celeborn.metrics.enabled                         true
 
 celeborn.worker.storage.dirs                     /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4,/mnt/disk5
