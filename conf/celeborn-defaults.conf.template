@@ -18,7 +18,7 @@
 # An Example:
 celeborn.metrics.enabled                         true
 
-celeborn.worker.storage.dirs                     /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4,/mnt/disk5
+#celeborn.worker.storage.dirs                    /mnt/disk1:capacity=1T:disktype=HDD:flushthread=1,/mnt/disk2:capacity=1T:disktype=SSD:flushthread=16
 celeborn.worker.http.port                        9096
 
 celeborn.master.endpoints                        clb-1:9097,clb-2:9097,clb-3:9097
