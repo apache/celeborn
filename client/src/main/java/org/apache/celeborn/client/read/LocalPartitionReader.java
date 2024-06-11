@@ -51,7 +51,7 @@ import org.apache.celeborn.common.util.ThreadUtils;
 public class LocalPartitionReader implements PartitionReader {
 
   private static final Logger logger = LoggerFactory.getLogger(LocalPartitionReader.class);
-  private static volatile ThreadPoolExecutor readLocalShufflePool;
+  private volatile ThreadPoolExecutor readLocalShufflePool;
   private final LinkedBlockingQueue<ByteBuf> results;
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private final int fetchMaxReqsInFlight;

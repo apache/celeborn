@@ -81,7 +81,8 @@ public class MemoryManager {
   private long readBufferThreshold;
   private long readBufferTarget;
   private ReadBufferDispatcher readBufferDispatcher;
-  private List<ReadBufferTargetChangeListener> readBufferTargetChangeListeners;
+  private final List<ReadBufferTargetChangeListener> readBufferTargetChangeListeners =
+      new ArrayList<>();
   private long lastNotifiedTarget = 0;
   private final ScheduledExecutorService readBufferTargetUpdateService =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor(
@@ -190,7 +191,6 @@ public class MemoryManager {
     if (readBufferThreshold > 0) {
       // if read buffer threshold is zero means that there will be no map data partitions
       readBufferDispatcher = new ReadBufferDispatcher(this, conf);
-      readBufferTargetChangeListeners = new ArrayList<>();
       readBufferTargetUpdateService.scheduleWithFixedDelay(
           () -> {
             try {

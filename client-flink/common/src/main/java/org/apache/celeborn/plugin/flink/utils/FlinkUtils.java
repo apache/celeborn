@@ -17,10 +17,10 @@
 
 package org.apache.celeborn.plugin.flink.utils;
 
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.collect.ImmutableSet;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -31,19 +31,16 @@ import org.apache.celeborn.common.CelebornConf;
 public class FlinkUtils {
   private static final JobID ZERO_JOB_ID = new JobID(0, 0);
   public static final Set<String> pluginConfNames =
-      new HashSet<String>() {
-        {
-          add("remote-shuffle.job.min.memory-per-partition");
-          add("remote-shuffle.job.min.memory-per-gate");
-          add("remote-shuffle.job.concurrent-readings-per-gate");
-          add("remote-shuffle.job.memory-per-partition");
-          add("remote-shuffle.job.memory-per-gate");
-          add("remote-shuffle.job.support-floating-buffer-per-input-gate");
-          add("remote-shuffle.job.enable-data-compression");
-          add("remote-shuffle.job.support-floating-buffer-per-output-gate");
-          add("remote-shuffle.job.compression.codec");
-        }
-      };
+      ImmutableSet.of(
+          "remote-shuffle.job.min.memory-per-partition",
+          "remote-shuffle.job.min.memory-per-gate",
+          "remote-shuffle.job.concurrent-readings-per-gate",
+          "remote-shuffle.job.memory-per-partition",
+          "remote-shuffle.job.memory-per-gate",
+          "remote-shuffle.job.support-floating-buffer-per-input-gate",
+          "remote-shuffle.job.enable-data-compression",
+          "remote-shuffle.job.support-floating-buffer-per-output-gate",
+          "remote-shuffle.job.compression.codec");
 
   public static CelebornConf toCelebornConf(Configuration configuration) {
     CelebornConf tmpCelebornConf = new CelebornConf();

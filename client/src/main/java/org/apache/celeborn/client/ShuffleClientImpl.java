@@ -113,7 +113,6 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected final Map<String, PushState> pushStates = JavaUtils.newConcurrentHashMap();
 
   private final boolean pushExcludeWorkerOnFailureEnabled;
-  private final boolean shuffleCompressionEnabled;
   private final Set<String> pushExcludedWorkers = ConcurrentHashMap.newKeySet();
   private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
       JavaUtils.newConcurrentHashMap();
@@ -126,13 +125,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final boolean authEnabled;
   private final TransportConf dataTransportConf;
 
-  private final ThreadLocal<Compressor> compressorThreadLocal =
-      new ThreadLocal<Compressor>() {
-        @Override
-        protected Compressor initialValue() {
-          return Compressor.getCompressor(conf);
-        }
-      };
+  private ThreadLocal<Compressor> compressorThreadLocal;
 
   private final ReviveManager reviveManager;
 
@@ -178,7 +171,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     testRetryRevive = conf.testRetryRevive();
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
     pushExcludeWorkerOnFailureEnabled = conf.clientPushExcludeWorkerOnFailureEnabled();
-    shuffleCompressionEnabled = !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
+    if (!CompressionCodec.NONE.equals(conf.shuffleCompressionCodec())) {
+      compressorThreadLocal = ThreadLocal.withInitial(() -> Compressor.getCompressor(conf));
+    }
     if (conf.clientPushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
@@ -747,6 +742,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         case PUSH_DATA_TIMEOUT_REPLICA:
           pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
           break;
+        default: // fall out
       }
     }
   }
@@ -938,7 +934,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     // increment batchId
     final int nextBatchId = pushState.nextBatchId();
 
-    if (shuffleCompressionEnabled) {
+    if (compressorThreadLocal != null) {
       // compress data
       final Compressor compressor = compressorThreadLocal.get();
       compressor.compress(data, offset, length);
@@ -1656,6 +1652,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                       "Request %s return %s for %s.",
                       getReducerFileGroup, response.status(), shuffleId);
               logger.warn(exceptionMsg);
+              break;
+            default: // fall out
           }
         }
       } catch (Exception e) {
@@ -1666,6 +1664,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
   }
 
+  @Override
   public ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
       throws CelebornIOException {
     Tuple2<ReduceFileGroups, String> fileGroupTuple =
@@ -1850,6 +1849,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @VisibleForTesting
+  @Override
   public TransportClientFactory getDataClientFactory() {
     return dataClientFactory;
   }

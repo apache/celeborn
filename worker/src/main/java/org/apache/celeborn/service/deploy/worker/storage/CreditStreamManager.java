@@ -253,7 +253,7 @@ public class CreditStreamManager {
     return activeMapPartitions.size();
   }
 
-  protected class StreamState {
+  protected static class StreamState {
     private Channel associatedChannel;
     private String shuffleKey;
     private int bufferSize;

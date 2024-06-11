@@ -117,7 +117,7 @@ public class SparkShuffleManager implements ShuffleManager {
 
     lifecycleManager.registerAppShuffleDeterminate(
         shuffleId,
-        dependency.rdd().getOutputDeterministicLevel() != DeterministicLevel.INDETERMINATE());
+        !DeterministicLevel.INDETERMINATE().equals(dependency.rdd().getOutputDeterministicLevel()));
 
     if (fallbackPolicyRunner.applyAllFallbackPolicy(
         lifecycleManager, dependency.partitioner().numPartitions())) {

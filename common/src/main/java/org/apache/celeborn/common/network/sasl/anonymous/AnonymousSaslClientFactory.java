@@ -19,6 +19,7 @@ package org.apache.celeborn.common.network.sasl.anonymous;
 
 import static org.apache.celeborn.common.network.sasl.SaslUtils.*;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import javax.security.auth.callback.CallbackHandler;
@@ -70,7 +71,7 @@ public class AnonymousSaslClientFactory implements SaslClientFactory {
     return new String[] {ANONYMOUS};
   }
 
-  class CelebornAnonymousSaslClient implements SaslClient {
+  static class CelebornAnonymousSaslClient implements SaslClient {
 
     private boolean isCompleted = false;
 
@@ -90,7 +91,7 @@ public class AnonymousSaslClientFactory implements SaslClientFactory {
         throw new IllegalStateException("Authentication has already completed.");
       }
       isCompleted = true;
-      return ANONYMOUS.getBytes();
+      return ANONYMOUS.getBytes(StandardCharsets.UTF_8);
     }
 
     @Override

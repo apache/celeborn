@@ -33,7 +33,7 @@ public class ShuffleTaskInfo {
   private ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, AtomicInteger>>
       shuffleIdMapAttemptIdIndex = JavaUtils.newConcurrentHashMap();
   // task shuffle id -> celeborn shuffle id
-  private ConcurrentHashMap<String, Integer> taskShuffleIdToShuffleId =
+  private final ConcurrentHashMap<String, Integer> taskShuffleIdToShuffleId =
       JavaUtils.newConcurrentHashMap();
   // celeborn shuffle id -> task shuffle id
   private ConcurrentHashMap<Integer, String> shuffleIdToTaskShuffleId =

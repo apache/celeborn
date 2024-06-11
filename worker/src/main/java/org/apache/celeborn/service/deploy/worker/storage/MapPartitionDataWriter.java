@@ -248,6 +248,7 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
     }
   }
 
+  @SuppressWarnings("ByteBufferBackingArray")
   private void flushIndex() throws IOException {
     if (indexBuffer != null) {
       logger.debug("flushIndex start:{}", diskFileInfo.getIndexPath());

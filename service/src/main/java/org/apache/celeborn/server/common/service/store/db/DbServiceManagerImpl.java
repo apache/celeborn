@@ -61,6 +61,7 @@ public class DbServiceManagerImpl implements IServiceManager {
     this.clusterId = createCluster(getClusterInfoFromEnv());
   }
 
+  @SuppressWarnings("JavaUtilDate")
   @Override
   public int createCluster(ClusterInfo clusterInfo) {
     ClusterInfo clusterInfoFromDB = getClusterInfo(clusterInfo.getName());
