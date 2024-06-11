@@ -574,7 +574,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         }
         if (workerGracefulShutdown) {
           committedFileInfos.remove(shuffleKey)
-          if (cleanDB) {
+          if (cleanDB && null != db) {
             db.delete(dbShuffleKey(shuffleKey))
           }
         }
