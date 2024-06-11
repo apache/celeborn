@@ -36,14 +36,17 @@ Off-heap memory requirement can be estimated as below:
 ```
 numDirs = `celeborn.worker.storage.dirs`             # the amount of directory will be used by Celeborn storage
 bufferSize = `celeborn.worker.flusher.buffer.size`   # the amount of memory will be used by a single flush buffer 
-off-heap-memory = bufferSize * estimatedTasks * 2 + network memory
+off-heap-memory = (disk buffer * disks) + network memory       # the disk buffer is a logical memory region that stores shuffle data received from network 
+                                                               # shuffle data will be flushed to disks through write tasks
+                                                               # the amount of disk buffer can be set to 1GB or larger for each disk according to the difference of your disk speed and network speed
 ```
 
-For example, if a Celeborn worker has 10 storage directories or disks and the buffer size is set to 256 KiB.
-The necessary off-heap memory is 10 GiB.
+For example, if a Celeborn worker give each disk 1GiB memory and the buffer size is set to 256 KB. 
+Celeborn worker can support up to 4096 concurrent write tasks for each disk.  
+If this worker has 10 disks, the offheap memory should be set to 12GB.
 
 Network memory will be consumed when netty reads from a TCP channel, there will need some extra
-memory. Empirically, Celeborn worker off-heap memory should be set to `(numDirs  * bufferSize * 1.2)`.
+memory. Empirically, Celeborn worker off-heap memory should be set to `((disk buffer * disks) * 1.2)`.
 
 ## All Configurations
 
