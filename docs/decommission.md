@@ -26,6 +26,8 @@ and decommissioning of unhealthy worker nodes without impacting the running jobs
 When starting decommissioning workers, corresponding worker won't receive new shuffle slot request and new data,
 after all existing shuffle partition expired. The worker will exit.
 User also can set `celeborn.worker.decommission.forceExitTimeout` to set the max wait time for decommission.
+User can know if current work is during decommission through Restful API [ip:port/isDecommissioning](../monitoring/#worker_1)
+or metrics [IsDecommissioningWorker](../monitoring/#worker).
 
 ### Worker setting
 
@@ -38,5 +40,5 @@ User also can set `celeborn.worker.decommission.forceExitTimeout` to set the max
 Can refer to [Restful API](../monitoring/#worker_1)
 
 ```text
-curl ip:port/exit?type=DECOMMISSION
+curl --request POST --url 'ip:port/exit' --data '{"type":"Decommission"}'
 ```
