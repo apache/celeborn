@@ -57,7 +57,7 @@ to meet varying workload demands.
 
 ## Initiate Decommissioning
 
-An admin sends a decommissioning request to the RESTful API endpoint:
+Administrators perform decommissioning operation via the RESTful API endpoint:
 
 ```text
 curl --request POST --url 'ip:port/exit' --data '{"type":"Decommission"}'
