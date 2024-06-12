@@ -51,6 +51,7 @@ to meet varying workload demands.
 
 
 ## Initiate Decommissioning
+
 An admin sends a decommissioning request to the RESTful API endpoint:
 
 ```text
