@@ -42,8 +42,7 @@ This decommissioning process is essential for maintaining cluster health and eff
 as it allows for the smooth removal of unhealthy nodes and enables dynamic resizing of the cluster
 to meet varying workload demands.
 
-
-## Worker settings
+## Decommission Configuration
 
 | Key                                               | Value |
 |---------------------------------------------------|-------| 
