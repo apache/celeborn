@@ -232,8 +232,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       reloadAndCleanFileInfos(this.db)
     } catch {
       case e: Exception =>
-        logError("Init level DB failed:", e)
-        this.db = null
+        throw new IllegalStateException(
+          "Failed to initialize db for recovery during graceful worker shutdown.",
+          e)
     }
     saveCommittedFileInfosExecutor =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor(
