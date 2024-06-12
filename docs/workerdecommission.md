@@ -55,7 +55,7 @@ to meet varying workload demands.
 | celeborn.worker.decommission.checkInterval        | 30s   |
 
 
-## Initiate Decommissioning
+## Perform Decommissioning
 
 Administrators perform decommissioning operation via the RESTful API endpoint:
 
