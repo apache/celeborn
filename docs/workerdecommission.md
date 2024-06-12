@@ -24,7 +24,7 @@ Decommissioning
 Celeborn provides support for decommissioning workers via a RESTful API, which enables administrators to
 efficiently manage cluster resizing and the removal of unhealthy worker nodes without disrupting ongoing jobs.
 
-### Decommission Process
+## Decommission Process
 
 Here's a detailed breakdown of how the decommissioning process works:
 
@@ -47,7 +47,7 @@ This decommissioning process is essential for maintaining cluster health and eff
 as it allows for the smooth removal of unhealthy nodes and enables dynamic resizing of the cluster
 to meet varying workload demands.
 
-### Decommission Configuration
+## Decommission Configuration
 
 | Key                                               | Value |
 |---------------------------------------------------|-------| 
@@ -55,7 +55,7 @@ to meet varying workload demands.
 | celeborn.worker.decommission.checkInterval        | 30s   |
 
 
-### Initiate Decommissioning
+## Initiate Decommissioning
 
 An admin sends a decommissioning request to the RESTful API endpoint:
 
@@ -65,7 +65,7 @@ curl --request POST --url 'ip:port/exit' --data '{"type":"Decommission"}'
 
 RESTful API can refer to [Restful API](../monitoring/#worker_1)
 
-### Monitor Worker Status
+## Monitor Worker Status
 
 Administrators can monitor the status of the workers to ensure they are gracefully exiting
 after all tasks are complete.
