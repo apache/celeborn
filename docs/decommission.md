@@ -21,6 +21,8 @@ license: |
 Celeborn provides support for decommissioning workers via a RESTful API, which enables administrators to
 efficiently manage cluster resizing and the removal of unhealthy worker nodes without disrupting ongoing jobs.
 
+## Decommission Process
+
 Here's a detailed breakdown of how the decommissioning process works:
 
 - Decommissioning Request: Administrators can send a decommission request through the RESTful API
