@@ -1,27 +1,30 @@
 ---
 license: |
-    Licensed to the Apache Software Foundation (ASF) under one or more
-    contributor license agreements. See the NOTICE file distributed with
-    this work for additional information regarding copyright ownership.
-    The ASF licenses this file to You under the Apache License, Version 2.0
-    (the "License"); you may not use this file except in compliance with
-    the License. You may obtain a copy of the License at
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements. See the NOTICE file distributed with
+  this work for additional information regarding copyright ownership.
+  The ASF licenses this file to You under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with
+  the License. You may obtain a copy of the License at
     
-          https://www.apache.org/licenses/LICENSE-2.0
+      https://www.apache.org/licenses/LICENSE-2.0
     
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
 ---
 
-# Decommission Worker
+Decommissioning
+===
+
+## Worker Decommission
 
 Celeborn provides support for decommissioning workers via a RESTful API, which enables administrators to
 efficiently manage cluster resizing and the removal of unhealthy worker nodes without disrupting ongoing jobs.
 
-## Decommission Process
+### Decommission Process
 
 Here's a detailed breakdown of how the decommissioning process works:
 
@@ -44,7 +47,7 @@ This decommissioning process is essential for maintaining cluster health and eff
 as it allows for the smooth removal of unhealthy nodes and enables dynamic resizing of the cluster
 to meet varying workload demands.
 
-## Decommission Configuration
+### Decommission Configuration
 
 | Key                                               | Value |
 |---------------------------------------------------|-------| 
@@ -52,7 +55,7 @@ to meet varying workload demands.
 | celeborn.worker.decommission.checkInterval        | 30s   |
 
 
-## Initiate Decommissioning
+### Initiate Decommissioning
 
 An admin sends a decommissioning request to the RESTful API endpoint:
 
@@ -62,7 +65,7 @@ curl --request POST --url 'ip:port/exit' --data '{"type":"Decommission"}'
 
 RESTful API can refer to [Restful API](../monitoring/#worker_1)
 
-## Monitor Worker Status
+### Monitor Worker Status
 
 Administrators can monitor the status of the workers to ensure they are gracefully exiting
 after all tasks are complete.

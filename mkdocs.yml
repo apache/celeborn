@@ -71,7 +71,7 @@ nav:
       - Security: security.md
       - Quota Management: quota_management.md
       - Upgrading: upgrading.md
-      - Decommission: decommission.md
+      - Decommissioning: workerdecommission.md
       - Ratis Shell: celeborn_ratis_shell.md
       - Cluster Planning: cluster_planning.md
   - Configuration: configuration/index.md
