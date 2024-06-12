@@ -60,7 +60,7 @@ curl --request POST --url 'ip:port/exit' --data '{"type":"Decommission"}'
 
 RESTful API can refer to [Restful API](../monitoring/#worker_1)
 
-### Monitor Worker Status
+## Monitor Worker Status
 
 Administrators can monitor the status of the workers to ensure they are gracefully exiting
 after all tasks are complete.
