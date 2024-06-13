@@ -416,8 +416,14 @@ object Utils extends Logging {
 
   def localHostName(conf: CelebornConf): String = customHostname.getOrElse {
     if (conf.bindPreferIP) {
+      val ipv6AddressPattern = """^\[.*]$""".r
       localIpAddress match {
-        case v6: Inet6Address => s"[${v6.getHostAddress}]"
+        case v6: Inet6Address =>
+          if (ipv6AddressPattern.pattern.pattern().matches(v6.getHostAddress)) {
+            s"[${v6.getHostAddress}]"
+          } else {
+            v6.getHostAddress
+          }
         case other => other.getHostAddress
       }
     } else {
