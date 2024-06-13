@@ -246,3 +246,6 @@ Remote Shuffle Service for Flink
 ./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/PartitionSortedBuffer.java
 ./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/SortBuffer.java
 ./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/TransferBufferPool.java
+
+Apache Ratis
+./master/src/main/java/org/apache/celeborn/service/deploy/master/clustermeta/ha/CelebornStateMachineStorage.java
