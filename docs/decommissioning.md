@@ -57,13 +57,20 @@ to meet varying workload demands.
 
 ## Perform Decommissioning
 
-Administrators perform decommissioning operation via the RESTful API endpoint:
+Administrators perform decommissioning operation in two apprroach:
 
-```shell
-curl --request POST --url 'ip:port/exit' --data '{"type":"Decommission"}'
-```
 
-Details of decommissioning interface can refer to [Restful API](../monitoring/#worker_1)
+1. Via the worker RESTful API endpoint:
+  ```shell
+  curl --request POST --url 'ip:port/exit' --data '{"type":"Decommission"}'
+  ```
+2. Via Celeborn Master(Leader) RESTful API endpoint:
+  ```shell
+  curl --request POST --url 'ip:port/sendWorkerEvent' --data '{"type":"Decommission", "workers":"ip_1,ip_2"}'
+  curl --request POST --url 'ip:port/sendWorkerEvent' --data '{"type":"DecommissionThenIdle", "workers":"ip_1,ip_2"}'
+  ```
+
+Details of decommissioning interface can refer to [Restful API](../monitoring/#rest-api)
 
 ## Decommission Monitoring
 
