@@ -45,7 +45,6 @@ import org.apache.ratis.statemachine.SnapshotInfo;
 import org.apache.ratis.statemachine.StateMachineStorage;
 import org.apache.ratis.statemachine.TransactionContext;
 import org.apache.ratis.statemachine.impl.BaseStateMachine;
-import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
 import org.apache.ratis.statemachine.impl.SingleFileSnapshotInfo;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
 import org.apache.ratis.util.ExitUtils;
@@ -61,22 +60,7 @@ import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.Reso
 public class StateMachine extends BaseStateMachine {
   private static final Logger LOG = LoggerFactory.getLogger(StateMachine.class);
 
-  private final SimpleStateMachineStorage storage =
-      new SimpleStateMachineStorage() {
-
-        File tmpDir = null;
-
-        @Override
-        public void init(RaftStorage storage) throws IOException {
-          super.init(storage);
-          tmpDir = storage.getStorageDir().getTmpDir();
-        }
-
-        @Override
-        public File getTmpDir() {
-          return tmpDir;
-        }
-      };
+  private final CelebornStateMachineStorage storage = new CelebornStateMachineStorage();
 
   private final HARaftServer masterRatisServer;
   private RaftGroupId raftGroupId;
@@ -114,6 +98,7 @@ public class StateMachine extends BaseStateMachine {
   public void reinitialize() throws IOException {
     LOG.info("Reinitializing state machine.");
     getLifeCycle().compareAndTransition(PAUSED, STARTING);
+    storage.loadLatestSnapshot();
     loadSnapshot(storage.getLatestSnapshot());
     getLifeCycle().compareAndTransition(STARTING, RUNNING);
   }
