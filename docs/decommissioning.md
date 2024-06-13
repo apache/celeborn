@@ -57,8 +57,7 @@ to meet varying workload demands.
 
 ## Perform Decommissioning
 
-Administrators perform decommissioning operation in two apprroach:
-
+Administrators perform decommissioning operation in two approaches:
 
 1. Via the worker RESTful API endpoint:
   ```shell
