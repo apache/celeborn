@@ -21,14 +21,14 @@ Decommissioning
 
 ## Worker Decommission
 
-Celeborn provides support for decommissioning workers via a RESTful API, which enables administrators to
+Celeborn provides support for decommissioning workers via a REST API, which enables administrators to
 efficiently manage cluster resizing and the removal of unhealthy worker nodes without disrupting ongoing jobs.
 
 ## Decommission Process
 
 Here's a detailed breakdown of how the decommissioning process works:
 
-- Decommissioning Request: Administrators can send a decommission request through the RESTful API
+- Decommissioning Request: Administrators can send a decommission request through the REST API
 to initiate the process for one or more worker nodes.
 
 - Handling New Requests: Once the decommissioning process starts, the affected worker nodes will no longer
@@ -59,27 +59,27 @@ to meet varying workload demands.
 
 Administrators perform decommissioning operation in two approaches:
 
-1. Via Celeborn Worker RESTful API endpoint:
+1. Via Celeborn Worker REST API endpoint:
   ```shell
   curl --request POST --url 'ip:port/exit' --data '{"type":"Decommission"}'
   ```
-2. Via Celeborn Master(Leader) RESTful API endpoint:
+2. Via Celeborn Master(Leader) REST API endpoint:
   ```shell
   curl --request POST --url 'ip:port/sendWorkerEvent' --data '{"type":"Decommission", "workers":"ip_1,ip_2"}'
   curl --request POST --url 'ip:port/sendWorkerEvent' --data '{"type":"DecommissionThenIdle", "workers":"ip_1,ip_2"}'
   ```
 
-Details of decommissioning interface can refer to [Restful API](../monitoring/#rest-api)
+Details of decommissioning interface can refer to [REST API](../monitoring/#rest-api)
 
 ## Decommission Monitoring
 
 Administrators can monitor the status of the workers to ensure they are gracefully exiting
 after all tasks are complete.
 
-Administrators can monitor the status of the workers under decommission through worker Restful API [ip:port/isDecommissioning](../monitoring/#worker_1)
+Administrators can monitor the status of the workers under decommission through worker REST API [ip:port/isDecommissioning](../monitoring/#worker_1)
 or worker metrics [IsDecommissioningWorker](../monitoring/#worker).
 Also, administrator can monitor count of workers decommissioned through master metrics [DecommissionWorkerCount](../monitoring/#master).
 
-By providing a RESTful API and metrics for decommissioning workers,
+By providing a REST API and metrics for decommissioning workers,
 Celeborn ensures that cluster administrators have a robust and flexible tool
 to manage cluster resources effectively, enhancing overall system stability and performance.
