@@ -420,9 +420,9 @@ object Utils extends Logging {
       localIpAddress match {
         case v6: Inet6Address =>
           if (ipv6AddressPattern.pattern.pattern().matches(v6.getHostAddress)) {
-            s"[${v6.getHostAddress}]"
-          } else {
             v6.getHostAddress
+          } else {
+            s"[${v6.getHostAddress}]"
           }
         case other => other.getHostAddress
       }
