@@ -239,8 +239,8 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
   }
 
   test("fromAndToPbWorkerInfo") {
-    val pbWorkerInfo = PbSerDeUtils.toPbWorkerInfo(workerInfo1, false)
-    val pbWorkerInfoWithEmptyResource = PbSerDeUtils.toPbWorkerInfo(workerInfo1, true)
+    val pbWorkerInfo = PbSerDeUtils.toPbWorkerInfo(workerInfo1, false, false)
+    val pbWorkerInfoWithEmptyResource = PbSerDeUtils.toPbWorkerInfo(workerInfo1, true, false)
     val restoredWorkerInfo = PbSerDeUtils.fromPbWorkerInfo(pbWorkerInfo)
     val restoredWorkerInfoWithEmptyResource =
       PbSerDeUtils.fromPbWorkerInfo(pbWorkerInfoWithEmptyResource)
