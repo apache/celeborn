@@ -59,13 +59,13 @@ to meet varying workload demands.
 
 Administrators perform decommissioning operation via the RESTful API endpoint:
 
-```text
+```shell
 curl --request POST --url 'ip:port/exit' --data '{"type":"Decommission"}'
 ```
 
-RESTful API can refer to [Restful API](../monitoring/#worker_1)
+Details of decommissioning interface can refer to [Restful API](../monitoring/#worker_1)
 
-## Monitor Worker Status
+## Decommission Monitoring
 
 Administrators can monitor the status of the workers to ensure they are gracefully exiting
 after all tasks are complete.
