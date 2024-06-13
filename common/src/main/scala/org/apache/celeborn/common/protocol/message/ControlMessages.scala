@@ -785,7 +785,7 @@ object ControlMessages extends Logging {
     case ReportWorkerDecommission(workers, requestId) =>
       val payload = PbReportWorkerDecommission.newBuilder()
         .addAllWorkers(workers.asScala.map { workerInfo =>
-          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+          PbSerDeUtils.toPbWorkerInfo(workerInfo, true, false)
         }.toList.asJava)
         .setRequestId(requestId).build().toByteArray
       new TransportMessage(MessageType.REPORT_WORKER_DECOMMISSION, payload)
