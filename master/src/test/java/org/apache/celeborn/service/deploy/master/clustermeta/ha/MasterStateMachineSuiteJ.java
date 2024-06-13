@@ -333,8 +333,6 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             .setHost(Utils.localHostName(conf1))
             .setRatisPort(9200)
             .setRpcPort(9201)
-            .setInternalRpcPort(9203)
-            .setSslEnabled(false)
             .setNodeId(UUID.randomUUID().toString())
             .build();
     MasterNode masterNode2 =
@@ -342,8 +340,6 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             .setHost(Utils.localHostName(conf2))
             .setRatisPort(9204)
             .setRpcPort(9205)
-            .setInternalRpcPort(9206)
-            .setSslEnabled(false)
             .setNodeId(UUID.randomUUID().toString())
             .build();
     MasterNode masterNode3 =
@@ -351,8 +347,6 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             .setHost(Utils.localHostName(conf3))
             .setRatisPort(9207)
             .setRpcPort(9208)
-            .setInternalRpcPort(9209)
-            .setSslEnabled(false)
             .setNodeId(UUID.randomUUID().toString())
             .build();
     HARaftServer raftServer1 =
@@ -421,8 +415,6 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
           2000 + i,
           3000 + i,
           4000 + i,
-          5000 + i,
-          "networkLocation1",
           disks1,
           userResourceConsumption1,
           getNewReqeustId());
@@ -456,8 +448,6 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
           2100 + i,
           3100 + i,
           4100 + i,
-          5100 + i,
-          "networkLocation1",
           disks1,
           userResourceConsumption1,
           getNewReqeustId());
@@ -498,8 +488,6 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
           2180 + i,
           3180 + i,
           4180 + i,
-          5180 + i,
-          "networkLocation1",
           disks1,
           userResourceConsumption1,
           getNewReqeustId());
