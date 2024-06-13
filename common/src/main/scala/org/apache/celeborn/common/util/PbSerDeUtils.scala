@@ -450,7 +450,8 @@ object PbSerDeUtils {
         case (worker, workerEventInfo) =>
           (worker.toUniqueId(), PbSerDeUtils.toPbWorkerEventInfo(workerEventInfo))
       }.asJava)
-      .addAllDecommissionWorkers(decommissionWorkers.asScala.map(toPbWorkerInfo(_, true)).asJava)
+      .addAllDecommissionWorkers(decommissionWorkers.asScala.map(
+        toPbWorkerInfo(_, true, false)).asJava)
 
     if (currentAppDiskUsageMetricsSnapshot != null) {
       builder.setCurrentAppDiskUsageMetricsSnapshot(
