@@ -23,7 +23,6 @@ import java.util.Optional;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.ratis.protocol.Message;
-import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
 
 import org.apache.celeborn.common.client.MasterNotLeaderException;
@@ -124,7 +123,8 @@ public class HAHelper {
    * @return the temporary snapshot file
    * @throws IOException if error occurred while creating the snapshot file
    */
-  public static File createTempSnapshotFile(SimpleStateMachineStorage storage) throws IOException {
+  public static File createTempSnapshotFile(CelebornStateMachineStorage storage)
+      throws IOException {
     File tempDir = storage.getTmpDir();
     if (!tempDir.isDirectory() && !tempDir.mkdir()) {
       throw new IOException(
