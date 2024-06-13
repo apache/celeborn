@@ -418,11 +418,11 @@ object Utils extends Logging {
     if (conf.bindPreferIP) {
       val ipv6AddressPattern = """^\[.*]$""".r
       localIpAddress match {
-        case v6: Inet6Address =>
-          if (ipv6AddressPattern.pattern.pattern().matches(v6.getHostAddress)) {
-            v6.getHostAddress
+        case ipv6: Inet6Address =>
+          if (ipv6AddressPattern.pattern.pattern().matches(ipv6.getHostAddress)) {
+            ipv6.getHostAddress
           } else {
-            s"[${v6.getHostAddress}]"
+            s"[${ipv6.getHostAddress}]"
           }
         case other => other.getHostAddress
       }
