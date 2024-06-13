@@ -59,7 +59,7 @@ to meet varying workload demands.
 
 Administrators perform decommissioning operation in two approaches:
 
-1. Via the worker RESTful API endpoint:
+1. Via Celeborn Worker RESTful API endpoint:
   ```shell
   curl --request POST --url 'ip:port/exit' --data '{"type":"Decommission"}'
   ```
