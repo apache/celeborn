@@ -1037,6 +1037,8 @@ private[celeborn] class Master(
     // unknown workers will retain in needCheckedWorkerList
     needCheckedWorkerList.removeAll(statusSystem.workers)
     if (shouldResponse) {
+      // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
+      // during serialization of HeartbeatFromApplicationResponse
       context.reply(HeartbeatFromApplicationResponse(
         StatusCode.SUCCESS,
         new util.ArrayList(

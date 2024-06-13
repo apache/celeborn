@@ -291,10 +291,10 @@ object ControlMessages extends Logging {
         workersToRemove: util.List[WorkerInfo],
         requestId: String): PbWorkerExclude = PbWorkerExclude.newBuilder()
       .addAllWorkersToAdd(workersToAdd.asScala.map { workerInfo =>
-        PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+        PbSerDeUtils.toPbWorkerInfo(workerInfo, true, false)
       }.toList.asJava)
       .addAllWorkersToRemove(workersToRemove.asScala.map { workerInfo =>
-        PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+        PbSerDeUtils.toPbWorkerInfo(workerInfo, true, false)
       }.toList.asJava)
       .setRequestId(requestId)
       .build()
@@ -407,7 +407,7 @@ object ControlMessages extends Logging {
       PbRemoveWorkersUnavailableInfo.newBuilder()
         .setRequestId(requestId)
         .addAllWorkerInfo(unavailable.asScala.map { workerInfo =>
-          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+          PbSerDeUtils.toPbWorkerInfo(workerInfo, true, false)
         }.toList.asJava)
         .build()
   }
@@ -421,7 +421,7 @@ object ControlMessages extends Logging {
         .setRequestId(requestId)
         .setWorkerEventType(WorkerEventType.valueOf(eventType))
         .addAllWorkers(workers.asScala.map { workerInfo =>
-          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+          PbSerDeUtils.toPbWorkerInfo(workerInfo, true, false)
         }.toList.asJava)
         .build()
   }
@@ -603,7 +603,8 @@ object ControlMessages extends Logging {
         .setRequestId(requestId)
         .setAvailableStorageTypes(availableStorageTypes)
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
-        .addAllExcludedWorkerSet(excludedWorkerSet.map(PbSerDeUtils.toPbWorkerInfo(_, true)).asJava)
+        .addAllExcludedWorkerSet(excludedWorkerSet.map(
+          PbSerDeUtils.toPbWorkerInfo(_, true, true)).asJava)
         .setPacked(packed)
         .build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS, payload)
@@ -737,7 +738,7 @@ object ControlMessages extends Logging {
         .setTotalWritten(totalWritten)
         .setFileCount(fileCount)
         .addAllNeedCheckedWorkerList(needCheckedWorkerList.asScala.map(
-          PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+          PbSerDeUtils.toPbWorkerInfo(_, true, true)).toList.asJava)
         .setShouldResponse(shouldResponse)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION, payload)
@@ -750,11 +751,11 @@ object ControlMessages extends Logging {
       val payload = PbHeartbeatFromApplicationResponse.newBuilder()
         .setStatus(statusCode.getValue)
         .addAllExcludedWorkers(
-          excludedWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+          excludedWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true, true)).toList.asJava)
         .addAllUnknownWorkers(
-          unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+          unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true, true)).toList.asJava)
         .addAllShuttingWorkers(
-          shuttingWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+          shuttingWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true, true)).toList.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload)
 
@@ -775,7 +776,7 @@ object ControlMessages extends Logging {
     case ReportWorkerUnavailable(failed, requestId) =>
       val payload = PbReportWorkerUnavailable.newBuilder()
         .addAllUnavailable(failed.asScala.map { workerInfo =>
-          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+          PbSerDeUtils.toPbWorkerInfo(workerInfo, true, false)
         }
           .toList.asJava)
         .setRequestId(requestId).build().toByteArray
