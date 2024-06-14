@@ -414,27 +414,17 @@ object Utils extends Logging {
     customHostname = Some(hostname)
   }
 
-  val ipv6AddressPattern = """^\[.*:.*\]$""".r
-
   def localHostName(conf: CelebornConf): String = customHostname.getOrElse {
     if (conf.bindPreferIP) {
       localIpAddress match {
-        case ipv6Address: Inet6Address => addBracketsIfNeeded(ipv6Address.getHostAddress)
+        case ipv6Address: Inet6Address =>
+          val ip = ipv6Address.getHostAddress
+          assert(!ip.startsWith("[") && !ip.endsWith("]"))
+          s"[$ip]"
         case other => other.getHostAddress
       }
     } else {
       localIpAddress.getCanonicalHostName
-    }
-  }
-
-  private[util] def addBracketsIfNeeded(addr: String): String = {
-    addr match {
-      // Already is in ipv6 pattern and enclosed []
-      case ipv6AddressPattern(_*) => addr
-      // It is a ipv6 address not enclosed in []
-      case ip if ip.contains(":") => s"[$ip]"
-      // It is a ipv4 address
-      case ip => ip
     }
   }
 

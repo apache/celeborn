@@ -191,14 +191,6 @@ class UtilsSuite extends CelebornFunSuite {
       Array[Object](ipV6Host, "1", "2", "3", "4")))
   }
 
-  test("test addBracketsIfNeeded") {
-    val ipV4Host = "192.168.0.1"
-    val ipV6Host = "2600:1f13:9f:2d00:4a70:cc69:737d:7cb0"
-    assert(Utils.addBracketsIfNeeded(ipV4Host) == ipV4Host)
-    assert(Utils.addBracketsIfNeeded(ipV6Host) == s"[$ipV6Host]")
-    assert(Utils.addBracketsIfNeeded(s"[$ipV6Host]") == s"[$ipV6Host]")
-  }
-
   def partitionLocation(partitionId: Int): util.HashSet[PartitionLocation] = {
     val partitionSet = new util.HashSet[PartitionLocation]
     for (i <- 0 until 3) {
