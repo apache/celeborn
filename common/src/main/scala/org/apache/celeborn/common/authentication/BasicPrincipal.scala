@@ -3,7 +3,7 @@ package org.apache.celeborn.common.authentication
 import java.security.Principal
 import java.util.Objects
 
-class BasicPrincipal(name: String) extends Principal {
+class BasicPrincipal(val name: String) extends Principal {
   Objects.requireNonNull(name, "Principal name cannot be null")
   override def getName: String = name
 
