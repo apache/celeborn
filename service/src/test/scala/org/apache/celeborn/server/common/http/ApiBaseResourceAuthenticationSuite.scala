@@ -35,10 +35,10 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
       Thread.currentThread().getContextClassLoader.getResource("metrics-api.properties").getFile)
     .set(CelebornConf.MASTER_HTTP_AUTH_SUPPORTED_SCHEMES, Seq("BASIC", "BEARER"))
     .set(
-      CelebornConf.MASTER_HTTP_AUTH_BASIC_PROVIDER_CLASS,
+      CelebornConf.MASTER_HTTP_AUTH_BASIC_PROVIDER,
       classOf[UserDefinePasswordAuthenticationProviderImpl].getName)
     .set(
-      CelebornConf.MASTER_HTTP_AUTH_BEARER_PROVIDER_CLASS,
+      CelebornConf.MASTER_HTTP_AUTH_BEARER_PROVIDER,
       classOf[UserDefineTokenAuthenticationProviderImpl].getName)
     .set(CelebornConf.WORKER_HTTP_AUTH_SUPPORTED_SCHEMES, Seq("BASIC", "BEARER"))
     .set(

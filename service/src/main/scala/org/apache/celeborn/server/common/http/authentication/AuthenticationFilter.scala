@@ -81,7 +81,7 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
       serviceName match {
         case Service.MASTER =>
           addAuthHandler(new BasicAuthenticationHandler(
-            conf.get(CelebornConf.MASTER_HTTP_AUTH_BASIC_PROVIDER_CLASS)))
+            conf.get(CelebornConf.MASTER_HTTP_AUTH_BASIC_PROVIDER)))
         case Service.WORKER =>
           addAuthHandler(new BasicAuthenticationHandler(
             conf.get(CelebornConf.WORKER_HTTP_AUTH_BASIC_PROVIDER_CLASS)))
@@ -91,7 +91,7 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
       serviceName match {
         case Service.MASTER =>
           addAuthHandler(new BearerAuthenticationHandler(
-            conf.get(CelebornConf.MASTER_HTTP_AUTH_BEARER_PROVIDER_CLASS)))
+            conf.get(CelebornConf.MASTER_HTTP_AUTH_BEARER_PROVIDER)))
         case Service.WORKER =>
           addAuthHandler(new BearerAuthenticationHandler(
             conf.get(CelebornConf.WORKER_HTTP_AUTH_BEARER_PROVIDER_CLASS)))

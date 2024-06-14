@@ -74,7 +74,7 @@ class BearerAuthenticationHandler(providerClass: String)
 
     HttpAuthenticationFactory
       .getTokenAuthenticationProvider(providerClass, conf)
-      .authenticate(new String(inputToken, StandardCharsets.UTF_8))
+      .authenticate(new String(inputToken, StandardCharsets.UTF_8)).getName
   }
 
   override def destroy(): Unit = {}
