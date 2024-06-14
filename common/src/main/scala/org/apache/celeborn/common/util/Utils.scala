@@ -415,7 +415,8 @@ object Utils extends Logging {
   }
 
   def localHostName(conf: CelebornConf): String = customHostname.getOrElse {
-    if (conf.bindPreferIP) addBracketsIfNeeded(localIpAddress.getHostAddress) else localIpAddress.getCanonicalHostName
+    if (conf.bindPreferIP) addBracketsIfNeeded(localIpAddress.getHostAddress)
+    else localIpAddress.getCanonicalHostName
   }
 
   private[util] def addBracketsIfNeeded(addr: String): String = {
