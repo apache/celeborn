@@ -17,14 +17,17 @@
 
 package org.apache.celeborn.common.authentication
 
+import java.security.Principal
+
 class AnonymousAuthenticationProviderImpl extends PasswdAuthenticationProvider
   with TokenAuthenticationProvider {
-  override def authenticate(user: String, password: String): Unit = {
+  override def authenticate(user: String, password: String): Principal = {
     // no-op authentication
+    new BasicPrincipal(user)
   }
 
-  override def authenticate(token: String): String = {
+  override def authenticate(token: String): Principal = {
     // no-op authentication
-    "anonymous"
+    new BasicPrincipal("anonymous")
   }
 }

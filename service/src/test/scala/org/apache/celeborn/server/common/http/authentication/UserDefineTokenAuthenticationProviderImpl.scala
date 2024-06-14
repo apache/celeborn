@@ -17,17 +17,18 @@
 
 package org.apache.celeborn.server.common.http.authentication
 
+import java.security.Principal
 import javax.security.sasl.AuthenticationException
 
-import org.apache.celeborn.common.authentication.TokenAuthenticationProvider
+import org.apache.celeborn.common.authentication.{BasicPrincipal, TokenAuthenticationProvider}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.authentication.UserDefineTokenAuthenticationProviderImpl.VALID_TOKEN
 
 class UserDefineTokenAuthenticationProviderImpl extends TokenAuthenticationProvider with Logging {
-  override def authenticate(token: String): String = {
+  override def authenticate(token: String): Principal = {
     if (token == VALID_TOKEN) {
       logInfo(s"Success log in of token: $token")
-      "user"
+      new BasicPrincipal("user")
     } else {
       throw new AuthenticationException("Token is not valid!")
     }

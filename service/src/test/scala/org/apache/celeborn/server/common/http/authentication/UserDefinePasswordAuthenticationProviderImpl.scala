@@ -17,17 +17,19 @@
 
 package org.apache.celeborn.server.common.http.authentication
 
+import java.security.Principal
 import javax.security.sasl.AuthenticationException
 
-import org.apache.celeborn.common.authentication.PasswdAuthenticationProvider
+import org.apache.celeborn.common.authentication.{BasicPrincipal, PasswdAuthenticationProvider}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.authentication.UserDefinePasswordAuthenticationProviderImpl.VALID_PASSWORD
 
 class UserDefinePasswordAuthenticationProviderImpl
   extends PasswdAuthenticationProvider with Logging {
-  override def authenticate(user: String, password: String): Unit = {
+  override def authenticate(user: String, password: String): Principal = {
     if (password == VALID_PASSWORD) {
       logInfo(s"Success log in of user: $user")
+      new BasicPrincipal(user)
     } else {
       throw new AuthenticationException("Username or password is not valid!")
     }

@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.authentication
 
-import javax.security.sasl.AuthenticationException
+import java.security.Principal
 
 trait PasswdAuthenticationProvider {
 
@@ -25,13 +25,13 @@ trait PasswdAuthenticationProvider {
    * The authenticate method is called by the celeborn authentication layer
    * to authenticate user & password for their requests.
    * If a user is to be granted, return nothing/throw nothing.
-   * When a user is to be disallowed, throw an appropriate [[AuthenticationException]].
+   * When a user is to be disallowed, throw an appropriate [[SecurityException]].
    *
    * @param user     The username received over the connection request
    * @param password The password received over the connection request
    *
-   * @throws AuthenticationException When a user is found to be invalid by the implementation
+   * @throws SecurityException When a user is found to be invalid by the implementation
    */
-  @throws[AuthenticationException]
-  def authenticate(user: String, password: String): Unit
+  @throws[SecurityException]
+  def authenticate(user: String, password: String): Principal
 }
