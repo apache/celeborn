@@ -42,10 +42,10 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
       classOf[UserDefineTokenAuthenticationProviderImpl].getName)
     .set(CelebornConf.WORKER_HTTP_AUTH_SUPPORTED_SCHEMES, Seq("BASIC", "BEARER"))
     .set(
-      CelebornConf.WORKER_HTTP_AUTH_BASIC_PROVIDER_CLASS,
+      CelebornConf.WORKER_HTTP_AUTH_BASIC_PROVIDER,
       classOf[UserDefinePasswordAuthenticationProviderImpl].getName)
     .set(
-      CelebornConf.WORKER_HTTP_AUTH_BEARER_PROVIDER_CLASS,
+      CelebornConf.WORKER_HTTP_AUTH_BEARER_PROVIDER,
       classOf[UserDefineTokenAuthenticationProviderImpl].getName)
 
   def basicAuthorizationHeader(user: String, password: String): String =

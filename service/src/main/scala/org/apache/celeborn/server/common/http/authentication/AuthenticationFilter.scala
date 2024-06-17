@@ -84,7 +84,7 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
             conf.get(CelebornConf.MASTER_HTTP_AUTH_BASIC_PROVIDER)))
         case Service.WORKER =>
           addAuthHandler(new BasicAuthenticationHandler(
-            conf.get(CelebornConf.WORKER_HTTP_AUTH_BASIC_PROVIDER_CLASS)))
+            conf.get(CelebornConf.WORKER_HTTP_AUTH_BASIC_PROVIDER)))
       }
     }
     if (authSchemes.contains(HttpAuthSchemes.BEARER)) {
@@ -94,7 +94,7 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
             conf.get(CelebornConf.MASTER_HTTP_AUTH_BEARER_PROVIDER)))
         case Service.WORKER =>
           addAuthHandler(new BearerAuthenticationHandler(
-            conf.get(CelebornConf.WORKER_HTTP_AUTH_BEARER_PROVIDER_CLASS)))
+            conf.get(CelebornConf.WORKER_HTTP_AUTH_BEARER_PROVIDER)))
       }
     }
   }

@@ -2203,7 +2203,7 @@ object CelebornConf extends Logging {
         " <li>BASIC: User-defined password authentication, the concreted implementation is" +
         " configurable via `celeborn.master.http.auth.basic.provider`.</li>" +
         " <li>BEARER: User-defined bearer token authentication, the concreted implementation is" +
-        " configurable via `celeborn.master.http.auth.bearer.provider`..</li>" +
+        " configurable via `celeborn.master.http.auth.bearer.provider`.</li>" +
         "</ul>")
       .stringConf
       .toSequence
@@ -2870,7 +2870,7 @@ object CelebornConf extends Logging {
         " <li>BASIC: User-defined password authentication, the concreted implementation is" +
         " configurable via `celeborn.master.http.auth.basic.provider`.</li>" +
         " <li>BEARER: User-defined bearer token authentication, the concreted implementation is" +
-        " configurable via `celeborn.master.http.auth.bearer.provider`..</li>" +
+        " configurable via `celeborn.master.http.auth.bearer.provider`.</li>" +
         "</ul>")
       .stringConf
       .toSequence
@@ -2907,8 +2907,8 @@ object CelebornConf extends Logging {
       .stringConf
       .createWithDefault("X-Real-IP")
 
-  val WORKER_HTTP_AUTH_BASIC_PROVIDER_CLASS: ConfigEntry[String] =
-    buildConf("celeborn.worker.http.auth.basic.provider.class")
+  val WORKER_HTTP_AUTH_BASIC_PROVIDER: ConfigEntry[String] =
+    buildConf("celeborn.worker.http.auth.basic.provider")
       .categories("worker")
       .version("0.6.0")
       .doc("User-defined password authentication implementation of " +
@@ -2916,8 +2916,8 @@ object CelebornConf extends Logging {
       .stringConf
       .createWithDefault(classOf[AnonymousAuthenticationProviderImpl].getName)
 
-  val WORKER_HTTP_AUTH_BEARER_PROVIDER_CLASS: ConfigEntry[String] =
-    buildConf("celeborn.worker.http.auth.bearer.provider.class")
+  val WORKER_HTTP_AUTH_BEARER_PROVIDER: ConfigEntry[String] =
+    buildConf("celeborn.worker.http.auth.bearer.provider")
       .categories("worker")
       .version("0.6.0")
       .doc("User-defined token authentication implementation of " +
