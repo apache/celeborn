@@ -207,7 +207,8 @@ cp $CELEBORN_HOME/mr/<Celeborn Client Jar> <yarn.application.classpath>
     </property>
 </configuration>
 ```
-**Note**: `MRAppMasterWithCeleborn` disables `yarn.app.mapreduce.am.job.recovery.enable` and sets `mapreduce.job.reduce.slowstart.completedmaps` to 1 by default.
+**Note**: `MRAppMasterWithCeleborn` supports setting `mapreduce.celeborn.master.endpoints` via environment variable `CELEBORN_MASTER_ENDPOINTS`.
+Meanwhile, `MRAppMasterWithCeleborn` disables `yarn.app.mapreduce.am.job.recovery.enable` and sets `mapreduce.job.reduce.slowstart.completedmaps` to 1 by default.
 
 Then deploy the example word count to the running cluster for verifying whether above configurations are correct.
 ```shell
