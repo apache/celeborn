@@ -2196,12 +2196,14 @@ object CelebornConf extends Logging {
   val MASTER_HTTP_AUTH_SUPPORTED_SCHEMES: ConfigEntry[Seq[String]] =
     buildConf("celeborn.master.http.auth.supportedSchemes")
       .categories("master")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("A comma-separated list of master http auth supported schemes." +
         "<ul>" +
         " <li>SPNEGO: Kerberos/GSSAPI authentication.</li>" +
-        " <li>BASIC: User-defined password authentication, anonymous by default.</li>" +
-        " <li>BEARER: User-defined bearer token authentication, anonymous by default.</li>" +
+        " <li>BASIC: User-defined password authentication, the concreted implementation is" +
+        " configurable via `celeborn.master.http.auth.basic.provider`.</li>" +
+        " <li>BEARER: User-defined bearer token authentication, the concreted implementation is" +
+        " configurable via `celeborn.master.http.auth.bearer.provider`..</li>" +
         "</ul>")
       .stringConf
       .toSequence
@@ -2210,7 +2212,7 @@ object CelebornConf extends Logging {
   val MASTER_HTTP_SPNEGO_KEYTAB: OptionalConfigEntry[String] =
     buildConf("celeborn.master.http.spnego.keytab")
       .categories("master")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("The keytab file for SPNego authentication.")
       .stringConf
       .createOptional
@@ -2218,7 +2220,7 @@ object CelebornConf extends Logging {
   val MASTER_HTTP_SPNEGO_PRINCIPAL: OptionalConfigEntry[String] =
     buildConf("celeborn.master.http.spnego.principal")
       .categories("master")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("SPNego service principal, typical value would look like HTTP/_HOST@EXAMPLE.COM." +
         " SPNego service principal would be used when celeborn http authentication is enabled." +
         " This needs to be set only if SPNEGO is to be used in authentication.")
@@ -2234,14 +2236,14 @@ object CelebornConf extends Logging {
         " offer the ability to record the real remote IP address in an HTTP header that will be" +
         " added to the request for other devices to use. Note that, because the header value can" +
         " be specified to any IP address, so it will not be used for authentication.")
-      .version("0.5.0")
+      .version("0.6.0")
       .stringConf
       .createWithDefault("X-Real-IP")
 
   val MASTER_HTTP_AUTH_BASIC_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.master.http.auth.basic.provider")
       .categories("master")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("User-defined password authentication implementation of " +
         "org.apache.celeborn.common.authentication.PasswdAuthenticationProvider")
       .stringConf
@@ -2250,7 +2252,7 @@ object CelebornConf extends Logging {
   val MASTER_HTTP_AUTH_BEARER_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.master.http.auth.bearer.provider")
       .categories("master")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("User-defined token authentication implementation of " +
         "org.apache.celeborn.common.authentication.TokenAuthenticationProvider")
       .stringConf
@@ -2861,7 +2863,7 @@ object CelebornConf extends Logging {
   val WORKER_HTTP_AUTH_SUPPORTED_SCHEMES: ConfigEntry[Seq[String]] =
     buildConf("celeborn.worker.http.auth.supportedSchemes")
       .categories("worker")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("A comma-separated list of worker http auth supported schemes." +
         "<ul>" +
         " <li>SPNEGO: Kerberos/GSSAPI authentication.</li>" +
@@ -2877,7 +2879,7 @@ object CelebornConf extends Logging {
   val WORKER_HTTP_SPNEGO_KEYTAB: OptionalConfigEntry[String] =
     buildConf("celeborn.worker.http.spnego.keytab")
       .categories("worker")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("The keytab file for SPNego authentication.")
       .stringConf
       .createOptional
@@ -2885,7 +2887,7 @@ object CelebornConf extends Logging {
   val WORKER_HTTP_SPNEGO_PRINCIPAL: OptionalConfigEntry[String] =
     buildConf("celeborn.worker.http.spnego.principal")
       .categories("worker")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("SPNego service principal, typical value would look like HTTP/_HOST@EXAMPLE.COM." +
         " SPNego service principal would be used when celeborn http authentication is enabled." +
         " This needs to be set only if SPNEGO is to be used in authentication.")
@@ -2901,14 +2903,14 @@ object CelebornConf extends Logging {
         " offer the ability to record the real remote IP address in an HTTP header that will be" +
         " added to the request for other devices to use. Note that, because the header value can" +
         " be specified to any IP address, so it will not be used for authentication.")
-      .version("0.5.0")
+      .version("0.6.0")
       .stringConf
       .createWithDefault("X-Real-IP")
 
   val WORKER_HTTP_AUTH_BASIC_PROVIDER_CLASS: ConfigEntry[String] =
     buildConf("celeborn.worker.http.auth.basic.provider.class")
       .categories("worker")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("User-defined password authentication implementation of " +
         "org.apache.celeborn.common.authentication.PasswdAuthenticationProvider")
       .stringConf
@@ -2917,7 +2919,7 @@ object CelebornConf extends Logging {
   val WORKER_HTTP_AUTH_BEARER_PROVIDER_CLASS: ConfigEntry[String] =
     buildConf("celeborn.worker.http.auth.bearer.provider.class")
       .categories("worker")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("User-defined token authentication implementation of " +
         "org.apache.celeborn.common.authentication.TokenAuthenticationProvider")
       .stringConf
