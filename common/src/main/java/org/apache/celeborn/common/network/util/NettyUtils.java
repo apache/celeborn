@@ -150,7 +150,8 @@ public class NettyUtils {
           allowCache && conf.getCelebornConf().networkMemoryAllocatorAllowCache());
     }
     PooledByteBufAllocator allocator =
-        createPooledByteBufAllocator(conf.preferDirectBufs(), allowCache, conf.clientThreads());
+        createPooledByteBufAllocator(
+            conf.preferDirectBufs(), allowCache, conf.getCelebornConf().networkAllocatorArenas());
     if (source != null) {
       String poolName = "default-netty-pool";
       Map<String, String> labels = new HashMap<>();
