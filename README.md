@@ -304,7 +304,7 @@ spark.dynamicAllocation.shuffleTracking.enabled false
 
 # Support ShuffleManager when defined in user jars
 # Required Spark version < 4.0.0 or without SPARK-45762, highly recommended to false for ShuffleManager in user-defined jar specified by --jars or spark.jars
-spark.executor.userClassPathFirst=false
+spark.executor.userClassPathFirst false
 ```
 
 ### Deploy Flink client
