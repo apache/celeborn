@@ -92,7 +92,10 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
       }
       FileStatus status = fs.getFileStatus(celebornConfPath);
       long currentTs = status.getModificationTime();
-      String uri = fs.getUri() + Path.SEPARATOR + celebornConfPath.toUri();
+      String uri =
+          celebornConfPath.toUri().isAbsolute()
+              ? celebornConfPath.toUri().toString()
+              : fs.getUri() + Path.SEPARATOR + celebornConfPath.toUri();
       String files = conf.get(MRJobConfig.CACHE_FILES);
       conf.set(MRJobConfig.CACHE_FILES, files == null ? uri : uri + "," + files);
       String ts = conf.get(MRJobConfig.CACHE_FILE_TIMESTAMPS);
