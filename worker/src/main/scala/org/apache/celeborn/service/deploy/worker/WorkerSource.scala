@@ -107,13 +107,11 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
     }
   }
 
-  def removeAppActiveConnection(applicationId: String): Unit = {
-    removeCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId))
-    appActiveConnections.asScala.foreach { case (_, applicationIds) =>
-      if (applicationIds.contains(applicationId)) {
-        applicationIds.remove(applicationId)
-      }
-    }
+  def removeAppActiveConnection(applicationIds: util.Set[String]): Unit = {
+    applicationIds.asScala.foreach(applicationId =>
+      removeCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId)))
+    appActiveConnections.values().asScala.foreach(connectionAppIds =>
+      applicationIds.asScala.foreach(applicationId => connectionAppIds.remove(applicationId)))
   }
 
   // start cleaner thread

@@ -696,6 +696,7 @@ private[celeborn] class Worker(
   @VisibleForTesting
   def cleanup(expiredShuffleKeys: JHashSet[String], threadPool: ThreadPoolExecutor): Unit =
     synchronized {
+      val expiredApplicationIds = new JHashSet[String]()
       expiredShuffleKeys.asScala.foreach { shuffleKey =>
         partitionLocationInfo.removeShuffle(shuffleKey)
         shufflePartitionType.remove(shuffleKey)
@@ -705,10 +706,7 @@ private[celeborn] class Worker(
         workerInfo.releaseSlots(shuffleKey)
         val applicationId = Utils.splitShuffleKey(shuffleKey)._1
         if (!workerInfo.getApplicationIdSet.contains(applicationId)) {
-          // When the running applications does not contain the application corresponding to expired shuffle key,
-          // resource consumption source should remove lose application gauges.
-          removeAppResourceConsumption(applicationId)
-          removeAppActiveConnection(applicationId)
+          expiredApplicationIds.add(applicationId)
           secretRegistry.unregister(applicationId)
         }
         logInfo(s"Cleaned up expired shuffle $shuffleKey")
@@ -716,36 +714,15 @@ private[celeborn] class Worker(
       partitionsSorter.cleanup(expiredShuffleKeys)
       fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
       threadPool.execute(new Runnable {
-        override def run(): Unit = storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+        override def run(): Unit = {
+          removeAppActiveConnection(expiredApplicationIds)
+          storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+        }
       })
     }
 
-  private def removeAppResourceConsumption(applicationId: String): Unit = {
-    removeResourceConsumptionGauge(
-      ResourceConsumptionSource.DISK_FILE_COUNT,
-      applicationId)
-    removeResourceConsumptionGauge(
-      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
-      applicationId)
-    removeResourceConsumptionGauge(
-      ResourceConsumptionSource.HDFS_FILE_COUNT,
-      applicationId)
-    removeResourceConsumptionGauge(
-      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
-      applicationId)
-  }
-
-  private def removeResourceConsumptionGauge(
-      resourceConsumptionName: String,
-      applicationId: String): Unit = {
-    resourceConsumptionSource.removeGauge(
-      resourceConsumptionName,
-      resourceConsumptionSource.applicationLabel,
-      applicationId)
-  }
-
-  private def removeAppActiveConnection(applicationId: String): Unit = {
-    workerSource.removeAppActiveConnection(applicationId)
+  private def removeAppActiveConnection(applicationIds: JHashSet[String]): Unit = {
+    workerSource.removeAppActiveConnection(applicationIds)
   }
 
   override def getWorkerInfo: String = {
