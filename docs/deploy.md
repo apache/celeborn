@@ -74,7 +74,6 @@ celeborn.master.endpoints clb-1:9097,clb-2:9097,clb-3:9097
 # used by master nodes to bootstrap, every node should know the topology of whole cluster, for each node,
 # `celeborn.master.ha.node.id` should be unique, and `celeborn.master.ha.node.<id>.host` is required.
 celeborn.master.ha.enabled true
-celeborn.master.ha.node.id 1
 celeborn.master.ha.node.1.host clb-1
 celeborn.master.ha.node.1.port 9097
 celeborn.master.ha.node.1.ratis.port 9872
