@@ -228,6 +228,9 @@ These metrics are exposed by Celeborn worker.
     - ActiveCreditStreamCount
         - Active stream count for map partition reading streams.
     - ActiveMapPartitionCount
+    - CleanTaskQueueSize
+    - CleanExpiredShuffleKeysTime
+        - The time for a worker to clean up shuffle data of expired shuffle keys.
     - DeviceOSFreeBytes
     - DeviceOSTotalBytes
     - DeviceCelebornFreeBytes

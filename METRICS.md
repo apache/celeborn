@@ -142,6 +142,8 @@ Here is an example of Grafana dashboard importing.
 |        ReadBufferAllocatedCount        |      worker       |                                    This value means count of allocated read buffer.                                    |
 |        ActiveCreditStreamCount         |      worker       |                       This value means active count of stream for map partition reading streams.                       |
 |        ActiveMapPartitionCount         |      worker       |                            This value means count of active map partition reading streams.                             |
+|           CleanTaskQueueSize           |      worker       |                          This value means count of task for cleaning up expired shuffle keys.                          |
+|      CleanExpiredShuffleKeysTime       |      worker       |                      CleanExpiredShuffleKeys means clean up shuffle data of expired shuffle keys.                      |
 |           DeviceOSFreeBytes            |      worker       |                             This value means actual usable space of OS for device monitor.                             |
 |           DeviceOSTotalBytes           |      worker       |                             This value means total usable space of OS for device monitor.                              |
 |         PotentialConsumeSpeed          |      worker       |                        This value means speed of potential consumption for congestion control.                         |

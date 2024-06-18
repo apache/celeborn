@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.worker
 import java.io.File
 import java.lang.{Long => JLong}
 import java.util
-import java.util.{HashMap => JHashMap, HashSet => JHashSet, Locale, Map => JMap}
+import java.util.{HashMap => JHashMap, HashSet => JHashSet, Locale, Map => JMap, UUID}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
@@ -716,7 +716,11 @@ private[celeborn] class Worker(
       threadPool.execute(new Runnable {
         override def run(): Unit = {
           removeAppActiveConnection(expiredApplicationIds)
-          storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+          workerSource.sample(
+            WorkerSource.CLEAN_EXPIRED_SHUFFLE_KEYS_TIME,
+            s"cleanExpiredShuffleKeys-${UUID.randomUUID()}") {
+            storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+          }
         }
       })
     }
