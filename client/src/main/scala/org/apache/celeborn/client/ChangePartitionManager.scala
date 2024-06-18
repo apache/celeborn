@@ -185,19 +185,11 @@ class ChangePartitionManager(
 
     val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
     locksForShuffle(partitionId % locksForShuffle.length).synchronized {
-      var newEntry = false
-      val set = requests.computeIfAbsent(
-        partitionId,
-        new java.util.function.Function[Integer, util.Set[ChangePartitionRequest]] {
-          override def apply(t: Integer): util.Set[ChangePartitionRequest] = {
-            newEntry = true
-            new util.HashSet[ChangePartitionRequest]()
-          }
-        })
-
-      if (newEntry) {
-        logTrace(s"[handleRequestPartitionLocation] For $shuffleId, request for same partition" +
-          s"$partitionId-$oldEpoch exists, register context.")
+      if (requests.containsKey(partitionId)) {
+        logDebug(s"[handleRequestPartitionLocation] For shuffle: $shuffleId, request for same " +
+          s"partition: $partitionId-$oldEpoch exists, register context.")
+        requests.get(partitionId).add(changePartition)
+        return
       } else {
         getLatestPartition(shuffleId, partitionId, oldEpoch).foreach { latestLoc =>
           context.reply(
@@ -205,12 +197,14 @@ class ChangePartitionManager(
             StatusCode.SUCCESS,
             Some(latestLoc),
             lifecycleManager.workerStatusTracker.workerAvailable(oldPartition))
-          logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
-            s" shuffleId: $shuffleId $latestLoc")
+          logDebug(s"[handleRequestPartitionLocation]: For shuffle: $shuffleId," +
+            s" old partition: $partitionId-$oldEpoch, new partition: $latestLoc found, return it")
           return
         }
+        val set = new util.HashSet[ChangePartitionRequest]()
+        set.add(changePartition)
+        requests.put(partitionId, set)
       }
-      set.add(changePartition)
     }
     if (!batchHandleChangePartitionEnabled) {
       handleRequestPartitions(shuffleId, Array(changePartition))
