@@ -93,7 +93,8 @@ public class TransportServer implements Closeable {
     EventLoopGroup workerGroup =
         NettyUtils.createEventLoop(ioMode, conf.serverThreads(), conf.getModuleName() + "-server");
 
-    PooledByteBufAllocator allocator = NettyUtils.getPooledByteBufAllocator(conf, source, true);
+    PooledByteBufAllocator allocator =
+        NettyUtils.getPooledByteBufAllocator(conf, source, true, conf.serverThreads());
 
     bootstrap =
         new ServerBootstrap()
