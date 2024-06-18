@@ -61,6 +61,7 @@ Usage: celeborn-ratis sh [generic options]
          [group [info] [list]]
          [peer [add] [remove] [setPriority]]
          [snapshot [create]]
+         [local [raftMetaConf]]
 ```
 
 ## generic options
@@ -155,4 +156,15 @@ It has the following subcommands:
 Trigger the specified server take snapshot.
 ```
 $ celeborn-ratis sh snapshot create -peers <P0_HOST:P0_PORT,P1_HOST:P1_PORT,P2_HOST:P2_PORT> -peerId <peerId0> [-groupid <RAFT_GROUP_ID>]
+```
+
+## local
+The `local` command is used to process local operation, which no need to connect to ratis server.
+It has the following subcommands:
+`raftMetaConf`
+
+### local raftMetaConf
+Generate a new raft-meta.conf file based on original raft-meta.conf and new peers, which is used to move a raft node to a new node.
+```
+$ celeborn-ratis sh local raftMetaConf -peers <P0_HOST:P0_PORT,P1_HOST:P1_PORT,P2_HOST:P2_PORT> -path <PARENT_PATH_OF_RAFT_META_CONF>
 ```
