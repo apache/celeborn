@@ -78,6 +78,8 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   addTimer(TAKE_BUFFER_TIME)
   addTimer(SORT_TIME)
 
+  addTimer(CLEAN_EXPIRED_SHUFFLE_KEYS_TIME)
+
   def getCounterCount(metricsName: String): Long = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, Map.empty)
     namedCounters.get(metricNameWithLabel).counter.getCount
@@ -211,4 +213,8 @@ object WorkerSource {
 
   // decommission
   val IS_DECOMMISSIONING_WORKER = "IsDecommissioningWorker"
+
+  // clean
+  val CLEAN_TASK_QUEUE_SIZE = "CleanTaskQueueSize"
+  val CLEAN_EXPIRED_SHUFFLE_KEYS_TIME = "CleanExpiredShuffleKeysTime"
 }
