@@ -2868,9 +2868,9 @@ object CelebornConf extends Logging {
         "<ul>" +
         " <li>SPNEGO: Kerberos/GSSAPI authentication.</li>" +
         " <li>BASIC: User-defined password authentication, the concreted implementation is" +
-        " configurable via `celeborn.master.http.auth.basic.provider`.</li>" +
+        " configurable via `celeborn.worker.http.auth.basic.provider`.</li>" +
         " <li>BEARER: User-defined bearer token authentication, the concreted implementation is" +
-        " configurable via `celeborn.master.http.auth.bearer.provider`.</li>" +
+        " configurable via `celeborn.worker.http.auth.bearer.provider`.</li>" +
         "</ul>")
       .stringConf
       .toSequence
