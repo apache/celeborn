@@ -420,6 +420,17 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.ACTIVE_SLOTS_COUNT) { () =>
     workerInfo.usedSlots()
   }
+  workerSource.addGauge(WorkerSource.IS_DECOMMISSIONING_WORKER) { () =>
+    if (shutdown.get() && (workerStatusManager.currentWorkerStatus.getState == State.InDecommission ||
+        workerStatusManager.currentWorkerStatus.getState == State.InDecommissionThenIdle)) {
+      1
+    } else {
+      0
+    }
+  }
+  workerSource.addGauge(WorkerSource.CLEAN_TASK_QUEUE_SIZE) { () =>
+    cleanTaskQueue.size()
+  }
 
   private def highWorkload: Boolean = {
     (memoryManager.currentServingState, conf.workerActiveConnectionMax) match {
