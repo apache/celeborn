@@ -100,7 +100,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   protected PooledByteBufAllocator pooledByteBufAllocator;
   private final PartitionDataWriterContext writerContext;
   private final long localFlusherBufferSize;
-  private final long hdfsFlusherBufferSize;
+  private final long dfsFlusherBufferSize;
   private Exception exception = null;
   private boolean metricsCollectCriticalEnabled;
   private long chunkSize;
@@ -127,7 +127,11 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     this.filename = writerContext.getPartitionLocation().getFileName();
     this.writerContext = writerContext;
     this.localFlusherBufferSize = conf.workerFlusherBufferSize();
-    this.hdfsFlusherBufferSize = conf.workerHdfsFlusherBufferSize();
+    if (conf.hasHDFSStorage()) {
+      this.dfsFlusherBufferSize = conf.workerHdfsFlusherBufferSize();
+    } else {
+      this.dfsFlusherBufferSize = conf.workerS3FlusherBufferSize();
+    }
     this.metricsCollectCriticalEnabled = conf.metricsCollectCriticalEnabled();
     this.chunkSize = conf.shuffleChunkSize();
 
@@ -166,16 +170,16 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   }
 
   public void initFileChannelsForDiskFile() throws IOException {
-    if (!this.diskFileInfo.isHdfs()) {
+    if (!this.diskFileInfo.isDFS()) {
       this.flusherBufferSize = localFlusherBufferSize;
       channel = FileChannelUtils.createWritableFileChannel(this.diskFileInfo.getFilePath());
     } else {
-      this.flusherBufferSize = hdfsFlusherBufferSize;
-      // We open the stream and close immediately because HDFS output stream will
+      this.flusherBufferSize = dfsFlusherBufferSize;
+      // We open the stream and close immediately because DFS output stream will
       // create a DataStreamer that is a thread.
-      // If we reuse HDFS output stream, we will exhaust the memory soon.
+      // If we reuse DFS output stream, we will exhaust the memory soon.
       try {
-        StorageManager.hadoopFs().create(this.diskFileInfo.getHdfsPath(), true).close();
+        StorageManager.hadoopFs().create(this.diskFileInfo.getDfsPath(), true).close();
       } catch (IOException e) {
         try {
           // If create file failed, wait 10 ms and retry
@@ -183,7 +187,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         } catch (InterruptedException ex) {
           throw new RuntimeException(ex);
         }
-        StorageManager.hadoopFs().create(this.diskFileInfo.getHdfsPath(), true).close();
+        StorageManager.hadoopFs().create(this.diskFileInfo.getDfsPath(), true).close();
       }
     }
   }
@@ -220,7 +224,9 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           if (channel != null) {
             task = new LocalFlushTask(flushBuffer, channel, notifier, false);
           } else if (diskFileInfo.isHdfs()) {
-            task = new HdfsFlushTask(flushBuffer, diskFileInfo.getHdfsPath(), notifier, false);
+            task = new HdfsFlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, false);
+          } else if (diskFileInfo.isS3()) {
+            task = new S3FlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, false);
           }
           MemoryManager.instance().releaseMemoryFileStorage(numBytes);
           MemoryManager.instance().incrementDiskBuffer(numBytes);
@@ -246,7 +252,9 @@ public abstract class PartitionDataWriter implements DeviceObserver {
             if (channel != null) {
               task = new LocalFlushTask(flushBuffer, channel, notifier, true);
             } else if (diskFileInfo.isHdfs()) {
-              task = new HdfsFlushTask(flushBuffer, diskFileInfo.getHdfsPath(), notifier, true);
+              task = new HdfsFlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, true);
+            } else if (diskFileInfo.isS3()) {
+              task = new S3FlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, true);
             }
           }
         }
@@ -270,7 +278,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     if (!isMemoryShuffleFile.get()) {
       return false;
     } else {
-      return !storageManager.localOrHdfsStorageAvailable()
+      return !storageManager.localOrDfsStorageAvailable()
           && (memoryFileInfo.getFileLength() > memoryFileStorageMaxFileSize
               || !MemoryManager.instance().memoryFileStorageAvailable());
     }
@@ -325,7 +333,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         }
       } else {
         if (flushBufferReadableBytes > memoryFileStorageMaxFileSize
-            && storageManager.localOrHdfsStorageAvailable()) {
+            && storageManager.localOrDfsStorageAvailable()) {
           logger.debug(
               "{} Evict, memory buffer is  {}",
               writerContext.getPartitionLocation().getFileName(),
@@ -376,9 +384,11 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   public StorageInfo getStorageInfo() {
     if (diskFileInfo != null) {
-      if (diskFileInfo.isHdfs()) {
+      if (diskFileInfo.isDFS()) {
         if (deleted) {
           return null;
+        } else if (diskFileInfo.isS3()) {
+          return new StorageInfo(StorageInfo.Type.OSS, true, diskFileInfo.getFilePath());
         } else {
           return new StorageInfo(StorageInfo.Type.HDFS, true, diskFileInfo.getFilePath());
         }
@@ -442,7 +452,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       finalClose.run();
 
       // unregister from DeviceMonitor
-      if (diskFileInfo != null && !diskFileInfo.isHdfs()) {
+      if (diskFileInfo != null && !diskFileInfo.isDFS()) {
         logger.debug("file info {} unregister from device monitor", diskFileInfo);
         deviceMonitor.unregisterFileWriter(this);
       }
@@ -516,7 +526,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         diskFileInfo.deleteAllFiles(StorageManager.hadoopFs());
 
         // unregister from DeviceMonitor
-        if (!diskFileInfo.isHdfs()) {
+        if (!diskFileInfo.isDFS()) {
           deviceMonitor.unregisterFileWriter(this);
         }
       }

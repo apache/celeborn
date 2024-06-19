@@ -29,6 +29,8 @@ failureaccess/1.0.2//failureaccess-1.0.2.jar
 guava/33.1.0-jre//guava-33.1.0-jre.jar
 hadoop-client-api/3.3.6//hadoop-client-api-3.3.6.jar
 hadoop-client-runtime/3.3.6//hadoop-client-runtime-3.3.6.jar
+hadoop-aws/3.3.6//hadoop-aws-3.3.6.jar
+aws-java-sdk-bundle/1.12.367//aws-java-sdk-bundle-1.12.367.jar
 hk2-api/2.6.1//hk2-api-2.6.1.jar
 hk2-locator/2.6.1//hk2-locator-2.6.1.jar
 hk2-utils/2.6.1//hk2-utils-2.6.1.jar

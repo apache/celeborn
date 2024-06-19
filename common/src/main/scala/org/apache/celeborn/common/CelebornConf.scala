@@ -26,6 +26,7 @@ import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.util.Try
 
+import org.apache.celeborn.common.CelebornConf.{MASTER_INTERNAL_ENDPOINTS, S3_ACCESS_KEY, S3_DIR, S3_EXPIRE_DIRS_TIMEOUT, S3_SECRET_KEY}
 import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
@@ -641,6 +642,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
   def hasHDFSStorage: Boolean =
     get(ACTIVE_STORAGE_TYPES).contains(StorageInfo.Type.HDFS.name()) && get(HDFS_DIR).isDefined
+  def hasS3Storage: Boolean =
+    get(ACTIVE_STORAGE_TYPES).contains(StorageInfo.Type.OSS.name()) && get(S3_DIR).isDefined
   def masterSlotAssignLoadAwareDiskGroupNum: Int = get(MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM)
   def masterSlotAssignLoadAwareDiskGroupGradient: Double =
     get(MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT)
@@ -886,6 +889,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
+  def s3ExpireDirsTimeoutMS: Long = get(S3_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def applicationUnregisterEnabled: Boolean = get(APPLICATION_UNREGISTER_ENABLED)
 
@@ -1091,7 +1095,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         (dir, maxCapacity, flushThread, diskType)
       }
     }.getOrElse {
-      if (!hasHDFSStorage) {
+      if (!hasHDFSStorage && !hasS3Storage) {
         val prefix = workerStorageBaseDirPrefix
         val number = workerStorageBaseDirNumber
         (1 to number).map { i =>
@@ -1105,6 +1109,49 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def partitionSplitMinimumSize: Long = get(WORKER_PARTITION_SPLIT_MIN_SIZE)
   def partitionSplitMaximumSize: Long = get(WORKER_PARTITION_SPLIT_MAX_SIZE)
+
+  def s3AccessKey: String = get(S3_ACCESS_KEY).map {
+    s3AccessKey =>
+      if (s3AccessKey.isEmpty) {
+        log.error(s"${S3_ACCESS_KEY.key} configuration is wrong $s3AccessKey. Disable S3 support.")
+        ""
+      } else {
+        s3AccessKey
+      }
+  }.getOrElse("")
+
+  def s3SecretKey: String = get(S3_SECRET_KEY).map {
+    s3SecretKey =>
+      if (s3SecretKey.isEmpty) {
+        log.error(s"${S3_SECRET_KEY.key} configuration is wrong $s3SecretKey. Disable S3 support.")
+        ""
+      } else {
+        s3SecretKey
+      }
+  }.getOrElse("")
+
+  def s3Endpoint: String = get(S3_ENDPOINT).map {
+    s3Endpoint =>
+      if (s3Endpoint.isEmpty) {
+        log.error(
+          s"${S3_ENDPOINT.key} configuration is wrong $s3Endpoint. Disable S3 support.")
+        ""
+      } else {
+        s3Endpoint
+      }
+  }.getOrElse("")
+
+  def s3Dir: String = {
+    get(S3_DIR).map {
+      s3Dir =>
+        if (!Utils.isS3Path(s3Dir)) {
+          log.error(s"${S3_DIR.key} configuration is wrong $hdfsDir. Disable HDFS support.")
+          ""
+        } else {
+          s3Dir
+        }
+    }.getOrElse("")
+  }
 
   def hdfsDir: String = {
     get(HDFS_DIR).map {
@@ -1175,10 +1222,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def workerFlusherBufferSize: Long = get(WORKER_FLUSHER_BUFFER_SIZE)
   def workerHdfsFlusherBufferSize: Long = get(WORKER_HDFS_FLUSHER_BUFFER_SIZE)
+  def workerS3FlusherBufferSize: Long = get(WORKER_S3_FLUSHER_BUFFER_SIZE)
   def workerWriterCloseTimeoutMs: Long = get(WORKER_WRITER_CLOSE_TIMEOUT)
   def workerHddFlusherThreads: Int = get(WORKER_FLUSHER_HDD_THREADS)
   def workerSsdFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)
   def workerHdfsFlusherThreads: Int = get(WORKER_FLUSHER_HDFS_THREADS)
+  def workerS3FlusherThreads: Int = get(WORKER_FLUSHER_S3_THREADS)
   def workerCreateWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
 
   // //////////////////////////////////////////////////////
@@ -2130,6 +2179,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1h")
 
+  val S3_EXPIRE_DIRS_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.s3.expireDirs.timeout")
+      .categories("master")
+      .version("0.3.0")
+      .doc("The timeout for a expire dirs to be deleted on S3.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1h")
+
   val WORKER_HEARTBEAT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.heartbeat.worker.timeout")
       .withAlternative("celeborn.worker.heartbeat.timeout")
@@ -2797,6 +2854,38 @@ object CelebornConf extends Logging {
       .stringConf
       .createOptional
 
+  val S3_DIR: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.s3.dir")
+      .categories("worker", "master", "client")
+      .version("0.3.0")
+      .doc("S3 base directory for Celeborn to store shuffle data.")
+      .stringConf
+      .createOptional
+
+  val S3_SECRET_KEY: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.s3.secret.key")
+      .categories("worker", "master", "client")
+      .version("0.3.0")
+      .doc("S3 secret key for Celeborn to store shuffle data.")
+      .stringConf
+      .createOptional
+
+  val S3_ACCESS_KEY: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.s3.access.key")
+      .categories("worker", "master", "client")
+      .version("0.3.0")
+      .doc("S3 access key for Celeborn to store shuffle data.")
+      .stringConf
+      .createOptional
+
+  val S3_ENDPOINT: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.s3.endpoint")
+      .categories("worker", "master", "client")
+      .version("0.3.0")
+      .doc("S3 endpoint for Celeborn to store shuffle data.")
+      .stringConf
+      .createOptional
+
   val WORKER_DISK_RESERVE_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.storage.disk.reserve.size")
       .withAlternative("celeborn.worker.disk.reserve.size")
@@ -3215,6 +3304,14 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("4m")
 
+  val WORKER_S3_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.worker.flusher.s3.buffer.size")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Size of buffer used by a S3 flusher.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("4m")
+
   val WORKER_WRITER_CLOSE_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.writer.close.timeout")
       .categories("worker")
@@ -3252,6 +3349,14 @@ object CelebornConf extends Logging {
       .categories("worker")
       .doc("Flusher's thread count used for write data to HDFS.")
       .version("0.2.0")
+      .intConf
+      .createWithDefault(8)
+
+  val WORKER_FLUSHER_S3_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.s3.threads")
+      .categories("worker")
+      .doc("Flusher's thread count used for write data to S3.")
+      .version("0.3.0")
       .intConf
       .createWithDefault(8)
 

@@ -56,7 +56,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   // mount point -> file writer
   val workingDirWriters =
     JavaUtils.newConcurrentHashMap[File, ConcurrentHashMap[String, PartitionDataWriter]]()
-  val hdfsWriters = JavaUtils.newConcurrentHashMap[String, PartitionDataWriter]()
+  val dfsWriters = JavaUtils.newConcurrentHashMap[String, PartitionDataWriter]()
   val memoryWriters = JavaUtils.newConcurrentHashMap[MemoryFileInfo, PartitionDataWriter]()
   // (shuffleKey->(filename->DiskFileInfo))
   private val diskFileInfos =
@@ -66,6 +66,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, MemoryFileInfo]]()
 
   val hasHDFSStorage = conf.hasHDFSStorage
+
+  val hasS3Storage = conf.hasS3Storage
 
   val storageExpireDirTimeout = conf.workerStorageExpireDirTimeout
   val storagePolicy = new StoragePolicy(conf, this, workerSource)
@@ -77,16 +79,18 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         (new File(workdir, conf.workerWorkingDir), maxSpace, flusherThread, storageType)
       }
 
-    if (workingDirInfos.size <= 0 && !hasHDFSStorage) {
+    if (workingDirInfos.size <= 0 && !hasHDFSStorage && !hasS3Storage) {
       throw new IOException("Empty working directory configuration!")
     }
 
     DeviceInfo.getDeviceAndDiskInfos(workingDirInfos, conf)
   }
   val mountPoints = new util.HashSet[String](diskInfos.keySet())
-  val hdfsDiskInfo =
+  val dfsDiskInfo =
     if (conf.hasHDFSStorage)
       Option(new DiskInfo("HDFS", Long.MaxValue, 999999, 999999, 0, StorageInfo.Type.HDFS))
+    else if (conf.hasS3Storage)
+      Option(new DiskInfo("OSS", Long.MaxValue, 999999, 999999, 0, StorageInfo.Type.OSS))
     else None
 
   def disksSnapshot(): List[DiskInfo] = {
@@ -149,34 +153,46 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   deviceMonitor.startCheck()
 
   val hdfsDir = conf.hdfsDir
+  val s3Dir = conf.s3Dir
   val hdfsPermission = new FsPermission("755")
-  val (hdfsFlusher, _totalHdfsFlusherThread) =
-    if (hasHDFSStorage) {
-      logInfo(s"Initialize HDFS support with path $hdfsDir")
+  val (dfsFlusher, _totalDfsFlusherThread) =
+    if (hasHDFSStorage || hasS3Storage) {
+      val dir = if (hasHDFSStorage) hdfsDir else s3Dir
       try {
         StorageManager.hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
       } catch {
         case e: Exception =>
-          logError("Celeborn initialize HDFS failed.", e)
+          logError("Celeborn initialize DFS failed.", e)
           throw e
       }
-      (
-        Some(new HdfsFlusher(
-          workerSource,
-          conf.workerHdfsFlusherThreads,
-          storageBufferAllocator,
-          conf.workerPushMaxComponents)),
-        conf.workerHdfsFlusherThreads)
+      if (hasHDFSStorage) {
+        (
+          Some(new HdfsFlusher(
+            workerSource,
+            conf.workerHdfsFlusherThreads,
+            storageBufferAllocator,
+            conf.workerPushMaxComponents)),
+          conf.workerHdfsFlusherThreads)
+      } else {
+        (
+          Some(new S3Flusher(
+            workerSource,
+            conf.workerS3FlusherThreads,
+            storageBufferAllocator,
+            conf.workerPushMaxComponents)),
+          conf.workerS3FlusherThreads)
+      }
     } else {
       (None, 0)
     }
 
-  def totalFlusherThread: Int = _totalLocalFlusherThread + _totalHdfsFlusherThread
+  def totalFlusherThread: Int = _totalLocalFlusherThread + _totalDfsFlusherThread
   val activeTypes = conf.availableStorageTypes
 
-  def localOrHdfsStorageAvailable(): Boolean = {
-    StorageInfo.HDFSAvailable(activeTypes) || StorageInfo.localDiskAvailable(
-      activeTypes) || hdfsDir.nonEmpty || !diskInfos.isEmpty
+  def localOrDfsStorageAvailable(): Boolean = {
+    StorageInfo.OSSAvailable(activeTypes) || StorageInfo.HDFSAvailable(
+      activeTypes) || StorageInfo.localDiskAvailable(
+      activeTypes) || hdfsDir.nonEmpty || !diskInfos.isEmpty || s3Dir.nonEmpty
   }
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
@@ -383,7 +399,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
       partitionSplitEnabled: Boolean): PartitionDataWriter = {
-    if (healthyWorkingDirs().size <= 0 && !hasHDFSStorage) {
+    if (healthyWorkingDirs().size <= 0 && !hasHDFSStorage && !hasS3Storage) {
       throw new IOException("No available working dirs!")
     }
     val partitionDataWriterContext = new PartitionDataWriterContext(
@@ -441,8 +457,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       writer: PartitionDataWriter,
       workingDir: File,
       fileInfo: DiskFileInfo): Unit = {
-    if (writer.getDiskFileInfo.isHdfs) {
-      hdfsWriters.put(fileInfo.getFilePath, writer)
+    if (writer.getDiskFileInfo.isDFS) {
+      dfsWriters.put(fileInfo.getFilePath, writer)
       return
     }
     deviceMonitor.registerFileWriter(writer)
@@ -506,16 +522,16 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   def cleanFileInternal(shuffleKey: String, fileInfo: FileInfo): Boolean = {
     if (fileInfo == null) return false
-    var isHdfsExpired = false
+    var isDfsExpired = false
     fileInfo match {
       case info: DiskFileInfo =>
-        if (info.isHdfs) {
-          isHdfsExpired = true
-          val hdfsFileWriter = hdfsWriters.get(info.getFilePath)
-          if (hdfsFileWriter != null) {
-            hdfsFileWriter.destroy(new IOException(
-              s"Destroy FileWriter $hdfsFileWriter caused by shuffle $shuffleKey expired."))
-            hdfsWriters.remove(info.getFilePath)
+        if (info.isDFS) {
+          isDfsExpired = true
+          val dfsFileWriter = dfsWriters.get(info.getFilePath)
+          if (dfsFileWriter != null) {
+            dfsFileWriter.destroy(new IOException(
+              s"Destroy FileWriter $dfsFileWriter caused by shuffle $shuffleKey expired."))
+            dfsWriters.remove(info.getFilePath)
           }
         } else {
           val workingDir =
@@ -537,7 +553,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       case _ =>
     }
 
-    isHdfsExpired
+    isDfsExpired
   }
 
   def cleanupExpiredShuffleKey(
@@ -547,12 +563,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
       if (diskFileInfos.containsKey(shuffleKey)) {
         val removedFileInfos = diskFileInfos.remove(shuffleKey)
-        var isHdfsExpired = false
+        var isDfsExpired = false
         if (removedFileInfos != null) {
           removedFileInfos.asScala.foreach {
             case (_, fileInfo) =>
               if (cleanFileInternal(shuffleKey, fileInfo)) {
-                isHdfsExpired = true
+                isDfsExpired = true
               }
           }
         }
@@ -565,13 +581,14 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
           }
         }
-        if (isHdfsExpired) {
+        if (isDfsExpired) {
           try {
+            val dir = if (hasHDFSStorage) hdfsDir else s3Dir
             StorageManager.hadoopFs.delete(
-              new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId"),
+              new Path(new Path(dir, conf.workerWorkingDir), s"$appId/$shuffleId"),
               true)
           } catch {
-            case e: Exception => logWarning("Clean expired HDFS shuffle failed.", e)
+            case e: Exception => logWarning("Clean expired DFS shuffle failed.", e)
           }
         }
         if (workerGracefulShutdown) {
@@ -671,12 +688,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           }
         }
 
-      val hdfsCleaned = hadoopFs match {
-        case hdfs: FileSystem =>
-          val hdfsWorkPath = new Path(hdfsDir, conf.workerWorkingDir)
-          // HDFS path not exist when first time initialize
-          if (hdfs.exists(hdfsWorkPath)) {
-            !hdfs.listFiles(hdfsWorkPath, false).hasNext
+      val dfsCleaned = hadoopFs match {
+        case dfs: FileSystem =>
+          val dfsDir = if (hasHDFSStorage) hdfsDir else s3Dir
+          val dfsWorkPath = new Path(dfsDir, conf.workerWorkingDir)
+          // DFS path not exist when first time initialize
+          if (dfs.exists(dfsWorkPath)) {
+            !dfs.listFiles(dfsWorkPath, false).hasNext
           } else {
             true
           }
@@ -684,7 +702,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           true
       }
 
-      if (localCleaned && hdfsCleaned) {
+      if (localCleaned && dfsCleaned) {
         return true
       }
       retryTimes += 1
@@ -758,7 +776,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         })
       }
     })
-    hdfsWriters.forEach(new BiConsumer[String, PartitionDataWriter] {
+    dfsWriters.forEach(new BiConsumer[String, PartitionDataWriter] {
       override def accept(t: String, u: PartitionDataWriter): Unit = {
         u.flushOnMemoryPressure()
       }
@@ -838,7 +856,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       fileInfos: List[DiskFileInfo],
       subResourceConsumptions: util.Map[String, ResourceConsumption] = null)
       : ResourceConsumption = {
-    val diskFileInfos = fileInfos.filter(!_.isHdfs)
+    val diskFileInfos = fileInfos.filter(!_.isDFS)
     val hdfsFileInfos = fileInfos.filter(_.isHdfs)
     ResourceConsumption(
       diskFileInfos.map(_.getFileLength).sum,
@@ -884,7 +902,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         null,
         null,
         null)
-    } else if (location.getStorageInfo.localDiskAvailable() || location.getStorageInfo.HDFSAvailable()) {
+    } else if (location.getStorageInfo.localDiskAvailable() || location.getStorageInfo.HDFSAvailable() || location.getStorageInfo.OSSAvailable()) {
       logDebug(s"create non-memory file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
       val createDiskFileResult = createDiskFile(
         location,
@@ -953,7 +971,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             s" working dirs. diskInfo $diskInfo")
           healthyWorkingDirs()
         }
-      if (dirs.isEmpty && hdfsFlusher.isEmpty) {
+      if (dirs.isEmpty && dfsFlusher.isEmpty) {
         throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
       }
 
@@ -971,7 +989,22 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
           fileName,
           hdfsFileInfo)
-        return (hdfsFlusher.get, hdfsFileInfo, null)
+        return (dfsFlusher.get, hdfsFileInfo, null)
+      } else if (dirs.isEmpty && location.getStorageInfo.OSSAvailable()) {
+        val shuffleDir =
+          new Path(new Path(s3Dir, conf.workerWorkingDir), s"$appId/$shuffleId")
+        FileSystem.mkdirs(StorageManager.hadoopFs, shuffleDir, hdfsPermission)
+        val s3FilePath = new Path(shuffleDir, fileName).toString
+        val s3FileInfo = new DiskFileInfo(
+          userIdentifier,
+          partitionSplitEnabled,
+          new ReduceFileMeta(conf.shuffleChunkSize),
+          s3FilePath,
+          StorageInfo.Type.OSS)
+        diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
+          fileName,
+          s3FileInfo)
+        return (dfsFlusher.get, s3FileInfo, null)
       } else if (dirs.nonEmpty && location.getStorageInfo.localDiskAvailable()) {
         val dir = dirs(getNextIndex % dirs.size)
         val mountPoint = DeviceInfo.getMountPoint(dir.getAbsolutePath, mountPoints)

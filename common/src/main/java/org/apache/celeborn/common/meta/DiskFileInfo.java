@@ -96,41 +96,41 @@ public class DiskFileInfo extends FileInfo {
     return Utils.getIndexFilePath(filePath);
   }
 
-  public Path getHdfsPath() {
+  public Path getDfsPath() {
     return new Path(filePath);
   }
 
-  public Path getHdfsIndexPath() {
+  public Path getDfsIndexPath() {
     return new Path(Utils.getIndexFilePath(filePath));
   }
 
-  public Path getHdfsSortedPath() {
+  public Path getDfsSortedPath() {
     return new Path(Utils.getSortedFilePath(filePath));
   }
 
-  public Path getHdfsWriterSuccessPath() {
+  public Path getDfsWriterSuccessPath() {
     return new Path(Utils.getWriteSuccessFilePath(filePath));
   }
 
-  public Path getHdfsPeerWriterSuccessPath() {
+  public Path getDfsPeerWriterSuccessPath() {
     return new Path(Utils.getWriteSuccessFilePath(Utils.getPeerPath(filePath)));
   }
 
-  public void deleteAllFiles(FileSystem hdfsFs) {
+  public void deleteAllFiles(FileSystem dfsFs) {
     if (isHdfs()) {
       try {
-        hdfsFs.delete(getHdfsPath(), false);
-        hdfsFs.delete(getHdfsWriterSuccessPath(), false);
-        hdfsFs.delete(getHdfsIndexPath(), false);
-        hdfsFs.delete(getHdfsSortedPath(), false);
+        dfsFs.delete(getDfsPath(), false);
+        dfsFs.delete(getDfsWriterSuccessPath(), false);
+        dfsFs.delete(getDfsIndexPath(), false);
+        dfsFs.delete(getDfsSortedPath(), false);
       } catch (Exception e) {
         // ignore delete exceptions because some other workers might be deleting the directory
         logger.debug(
-            "delete HDFS file {},{},{},{} failed {}",
-            getHdfsPath(),
-            getHdfsWriterSuccessPath(),
-            getHdfsIndexPath(),
-            getHdfsSortedPath(),
+            "delete DFS file {},{},{},{} failed {}",
+            getDfsPath(),
+            getDfsWriterSuccessPath(),
+            getDfsIndexPath(),
+            getDfsSortedPath(),
             e);
       }
     } else {
@@ -150,5 +150,13 @@ public class DiskFileInfo extends FileInfo {
 
   public boolean isHdfs() {
     return Utils.isHdfsPath(filePath);
+  }
+
+  public boolean isS3() {
+    return Utils.isS3Path(filePath);
+  }
+
+  public boolean isDFS() {
+    return Utils.isS3Path(filePath) || Utils.isHdfsPath(filePath);
   }
 }

@@ -164,7 +164,7 @@ private[celeborn] class Master(
   private var checkForWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForApplicationTimeOutTask: ScheduledFuture[_] = _
   private var checkForUnavailableWorkerTimeOutTask: ScheduledFuture[_] = _
-  private var checkForHDFSRemnantDirsTimeOutTask: ScheduledFuture[_] = _
+  private var checkForDFSRemnantDirsTimeOutTask: ScheduledFuture[_] = _
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
 
   // Config constants
@@ -172,8 +172,11 @@ private[celeborn] class Master(
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
   private val workerUnavailableInfoExpireTimeoutMs = conf.workerUnavailableInfoExpireTimeout
 
-  private val hdfsExpireDirsTimeoutMS = conf.hdfsExpireDirsTimeoutMS
+  private val dfsExpireDirsTimeoutMS =
+    if (conf.hasHDFSStorage) conf.hdfsExpireDirsTimeoutMS else conf.s3ExpireDirsTimeoutMS
+
   private val hasHDFSStorage = conf.hasHDFSStorage
+  private val hasS3Storage = conf.hasS3Storage
 
   private val quotaManager = new QuotaManager(conf, configService)
   private val masterResourceConsumptionInterval = conf.masterResourceConsumptionInterval
@@ -319,15 +322,15 @@ private[celeborn] class Master(
       workerUnavailableInfoExpireTimeoutMs / 2,
       TimeUnit.MILLISECONDS)
 
-    if (hasHDFSStorage) {
-      checkForHDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
+    if (hasHDFSStorage || hasS3Storage) {
+      checkForDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
         new Runnable {
           override def run(): Unit = Utils.tryLogNonFatalError {
-            self.send(CheckForHDFSExpiredDirsTimeout)
+            self.send(CheckForDFSExpiredDirsTimeout)
           }
         },
-        hdfsExpireDirsTimeoutMS,
-        hdfsExpireDirsTimeoutMS,
+        dfsExpireDirsTimeoutMS,
+        dfsExpireDirsTimeoutMS,
         TimeUnit.MILLISECONDS)
     }
 
@@ -347,8 +350,8 @@ private[celeborn] class Master(
     if (checkForApplicationTimeOutTask != null) {
       checkForApplicationTimeOutTask.cancel(true)
     }
-    if (checkForHDFSRemnantDirsTimeOutTask != null) {
-      checkForHDFSRemnantDirsTimeOutTask.cancel(true)
+    if (checkForDFSRemnantDirsTimeOutTask != null) {
+      checkForDFSRemnantDirsTimeOutTask.cancel(true)
     }
     forwardMessageThread.shutdownNow()
     rackResolver.stop()
@@ -380,8 +383,8 @@ private[celeborn] class Master(
       executeWithLeaderChecker(null, timeoutWorkerUnavailableInfos())
     case CheckForApplicationTimeOut =>
       executeWithLeaderChecker(null, timeoutDeadApplications())
-    case CheckForHDFSExpiredDirsTimeout =>
-      executeWithLeaderChecker(null, checkAndCleanExpiredAppDirsOnHDFS())
+    case CheckForDFSExpiredDirsTimeout =>
+      executeWithLeaderChecker(null, checkAndCleanExpiredAppDirsOnDFS())
     case pb: PbWorkerLost =>
       val host = pb.getHost
       val rpcPort = pb.getRpcPort
@@ -984,36 +987,37 @@ private[celeborn] class Master(
         workersAssignedToApp.remove(appId)
         statusSystem.handleAppLost(appId, requestId)
         logInfo(s"Removed application $appId")
-        if (hasHDFSStorage) {
-          checkAndCleanExpiredAppDirsOnHDFS(appId)
+        if (hasHDFSStorage || hasS3Storage) {
+          checkAndCleanExpiredAppDirsOnDFS(appId)
         }
         context.reply(ApplicationLostResponse(StatusCode.SUCCESS))
       }
     })
   }
 
-  private def checkAndCleanExpiredAppDirsOnHDFS(expiredDir: String = ""): Unit = {
+  private def checkAndCleanExpiredAppDirsOnDFS(expiredDir: String = ""): Unit = {
     if (hadoopFs == null) {
       try {
         hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
       } catch {
         case e: Exception =>
-          logError("Celeborn initialize HDFS failed.", e)
+          logError("Celeborn initialize DFS failed.", e)
           throw e
       }
     }
-    val hdfsWorkPath = new Path(conf.hdfsDir, conf.workerWorkingDir)
-    if (hadoopFs.exists(hdfsWorkPath)) {
+    val dfsDir = if (hasHDFSStorage) conf.hdfsDir else conf.s3Dir
+    val dfsWorkPath = new Path(dfsDir, conf.workerWorkingDir)
+    if (hadoopFs.exists(dfsWorkPath)) {
       if (expiredDir.nonEmpty) {
-        val dirToDelete = new Path(hdfsWorkPath, expiredDir)
+        val dirToDelete = new Path(dfsWorkPath, expiredDir)
         // delete specific app dir on application lost
-        CelebornHadoopUtils.deleteHDFSPathOrLogError(hadoopFs, dirToDelete, true)
+        CelebornHadoopUtils.deleteDFSPathOrLogError(hadoopFs, dirToDelete, true)
       } else {
-        val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
+        val iter = hadoopFs.listStatusIterator(dfsWorkPath)
         while (iter.hasNext && isMasterActive == 1) {
           val fileStatus = iter.next()
           if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
-            CelebornHadoopUtils.deleteHDFSPathOrLogError(hadoopFs, fileStatus.getPath, true)
+            CelebornHadoopUtils.deleteDFSPathOrLogError(hadoopFs, fileStatus.getPath, true)
           }
         }
       }

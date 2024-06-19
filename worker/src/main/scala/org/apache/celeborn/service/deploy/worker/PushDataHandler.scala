@@ -45,7 +45,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.{DiskUtils, ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
-import org.apache.celeborn.service.deploy.worker.storage.{HdfsFlusher, LocalFlusher, MapPartitionDataWriter, PartitionDataWriter, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{HdfsFlusher, LocalFlusher, MapPartitionDataWriter, PartitionDataWriter, S3Flusher, StorageManager}
 
 class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler with Logging {
 
@@ -1185,7 +1185,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   }
 
   private def checkDiskFull(fileWriter: PartitionDataWriter): Boolean = {
-    if (fileWriter.flusher == null || fileWriter.flusher.isInstanceOf[HdfsFlusher]) {
+    if (fileWriter.flusher == null || fileWriter.flusher.isInstanceOf[
+        HdfsFlusher] || fileWriter.flusher.isInstanceOf[S3Flusher]) {
       return false
     }
     val mountPoint = fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint

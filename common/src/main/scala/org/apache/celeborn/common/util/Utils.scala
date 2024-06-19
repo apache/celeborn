@@ -1120,11 +1120,16 @@ object Utils extends Logging {
   val INDEX_SUFFIX = ".index"
   val SUFFIX_HDFS_WRITE_SUCCESS = ".success"
   val COMPATIBLE_HDFS_REGEX = "^[a-zA-Z0-9]+://.*"
+  val S3_REGEX = "^s3[a]?://([a-z0-9][a-z0-9-]{1,61}[a-z0-9])(/.*)?$"
 
   val UNKNOWN_APP_SHUFFLE_ID = -1
 
   def isHdfsPath(path: String): Boolean = {
     path.matches(COMPATIBLE_HDFS_REGEX)
+  }
+
+  def isS3Path(path: String): Boolean = {
+    path.matches(S3_REGEX)
   }
 
   def getSortedFilePath(path: String): String = {

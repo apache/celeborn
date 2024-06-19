@@ -228,7 +228,7 @@ public class MemoryManager {
     this.storageManager = storageManager;
     if (memoryFileStorageThreshold > 0
         && storageManager != null
-        && storageManager.localOrHdfsStorageAvailable()) {
+        && storageManager.localOrDfsStorageAvailable()) {
       ScheduledExecutorService memoryFileStorageService =
           ThreadUtils.newDaemonSingleThreadScheduledExecutor("memory-file-storage-checker");
       memoryFileStorageService.scheduleWithFixedDelay(
