@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.server.common.http.authentication
 
-import java.nio.charset.Charset
+import java.nio.charset.StandardCharsets
 import java.util.Base64
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
@@ -74,7 +74,7 @@ class BasicAuthenticationHandler(providerClass: String) extends AuthenticationHa
     val authorization = getAuthorization(request)
     val inputToken = Option(authorization).map(a => Base64.getDecoder.decode(a.getBytes()))
       .getOrElse(Array.empty[Byte])
-    val creds = new String(inputToken, Charset.forName("UTF-8")).split(":")
+    val creds = new String(inputToken, StandardCharsets.UTF_8).split(":")
 
     if (allowAnonymous) {
       authUser = creds.take(1).headOption.filterNot(_.isEmpty).getOrElse("anonymous")

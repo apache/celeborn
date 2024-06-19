@@ -25,7 +25,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.authentication.{AnonymousAuthenticationProviderImpl, TokenAuthenticationProvider}
 import org.apache.celeborn.common.authentication.HttpAuthSchemes._
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.server.common.http.HttpAuthUtils.AUTHORIZATION_HEADER
+import org.apache.celeborn.server.common.http.HttpAuthUtils.{AUTHORIZATION_HEADER, WWW_AUTHENTICATE_HEADER}
 
 class BearerAuthenticationHandler(providerClass: String)
   extends AuthenticationHandler with Logging {
@@ -68,13 +68,21 @@ class BearerAuthenticationHandler(providerClass: String)
   override def authenticate(
       request: HttpServletRequest,
       response: HttpServletResponse): String = {
+    var principal: String = null
     val inputToken = Option(getAuthorization(request))
       .map(a => Base64.getDecoder.decode(a.getBytes()))
       .getOrElse(Array.empty[Byte])
 
-    HttpAuthenticationFactory
-      .getTokenAuthenticationProvider(providerClass, conf)
-      .authenticate(new String(inputToken, StandardCharsets.UTF_8)).getName
+    if (!allowAnonymous && inputToken.isEmpty) {
+      response.setHeader(WWW_AUTHENTICATE_HEADER, authScheme.toString)
+      response.setStatus(HttpServletResponse.SC_UNAUTHORIZED)
+    } else {
+      principal = HttpAuthenticationFactory
+        .getTokenAuthenticationProvider(providerClass, conf)
+        .authenticate(new String(inputToken, StandardCharsets.UTF_8)).getName
+      response.setStatus(HttpServletResponse.SC_OK)
+    }
+    principal
   }
 
   override def destroy(): Unit = {}

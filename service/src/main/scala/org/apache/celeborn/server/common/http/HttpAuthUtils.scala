@@ -22,10 +22,4 @@ object HttpAuthUtils {
   val WWW_AUTHENTICATE_HEADER = "WWW-Authenticate"
   // HTTP header used by the client endpoint during an authentication sequence.
   val AUTHORIZATION_HEADER = "Authorization"
-  // HTTP header prefix used by the SPNEGO client/server endpoints during an
-  // authentication sequence.
-  val NEGOTIATE = "Negotiate"
-  // HTTP header prefix used during the Basic authentication sequence.
-  val BASIC = "Basic"
-
 }
