@@ -418,7 +418,11 @@ public abstract class CelebornInputStream extends InputStream {
                   currentReader.getLocation(),
                   e);
               Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
+              int currentChunk = currentReader.getCurrentChunk();
               currentReader = createReaderWithRetry(currentReader.getLocation(), null);
+              // Current reader reads next chunk starting from returned chunk instead of starting
+              // from the beginning.
+              currentReader.setCurrentChunk(currentChunk);
             }
           }
         }

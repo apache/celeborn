@@ -201,6 +201,17 @@ public class WorkerPartitionReader implements PartitionReader {
     return location;
   }
 
+  @Override
+  public int getCurrentChunk() {
+    return returnedChunks;
+  }
+
+  @Override
+  public void setCurrentChunk(int currentChunk) {
+    chunkIndex = currentChunk;
+    returnedChunks = currentChunk;
+  }
+
   private void fetchChunks() throws IOException, InterruptedException {
     final int inFlight = chunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
