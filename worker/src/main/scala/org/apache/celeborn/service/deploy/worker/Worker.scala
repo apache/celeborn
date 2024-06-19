@@ -430,6 +430,9 @@ private[celeborn] class Worker(
       0
     }
   }
+  workerSource.addGauge(WorkerSource.CLEAN_TASK_QUEUE_SIZE) { () =>
+    cleanTaskQueue.size()
+  }
 
   private def highWorkload: Boolean = {
     (memoryManager.currentServingState, conf.workerActiveConnectionMax) match {
