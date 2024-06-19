@@ -281,7 +281,9 @@ object DeviceInfo {
           val deviceInfo = mountPointToDeviceInfo.get(mountPoint)
           val diskInfo = new DiskInfo(
             mountPoint,
-            dirs.map(_._1).toList,
+            dirs.map { workingDir =>
+              new File(workingDir._1.getCanonicalPath)
+            }.toList,
             deviceInfo,
             conf)
           val (_, maxUsableSpace, threadCount, storageType) = dirs(0)
