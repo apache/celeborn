@@ -102,6 +102,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   private final long hdfsFlusherBufferSize;
   private Exception exception = null;
   private boolean metricsCollectCriticalEnabled;
+  private long chunkSize;
 
   public PartitionDataWriter(
       StorageManager storageManager,
@@ -125,6 +126,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     this.localFlusherBufferSize = conf.workerFlusherBufferSize();
     this.hdfsFlusherBufferSize = conf.workerHdfsFlusherBufferSize();
     this.metricsCollectCriticalEnabled = conf.metricsCollectCriticalEnabled();
+    this.chunkSize = conf.shuffleChunkSize();
 
     Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFileResult =
         storageManager.createFile(writerContext, supportInMemory);
@@ -216,16 +218,20 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           MemoryManager.instance().incrementDiskBuffer(numBytes);
           // read flush buffer to generate correct chunk offsets
           // data header layout (mapId, attemptId, nextBatchId, length)
-          ByteBuffer headerBuf = ByteBuffer.allocate(16);
-          while (dupBuf.isReadable()) {
-            headerBuf.rewind();
-            dupBuf.readBytes(headerBuf);
-            byte[] batchHeader = headerBuf.array();
-            int compressedSize = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12);
-            dupBuf.skipBytes(compressedSize);
-            diskFileInfo.updateBytesFlushed(compressedSize + 16);
+          if (numBytes > chunkSize) {
+            ByteBuffer headerBuf = ByteBuffer.allocate(16);
+            while (dupBuf.isReadable()) {
+              headerBuf.rewind();
+              dupBuf.readBytes(headerBuf);
+              byte[] batchHeader = headerBuf.array();
+              int compressedSize = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12);
+              dupBuf.skipBytes(compressedSize);
+              diskFileInfo.updateBytesFlushed(compressedSize + 16);
+            }
+            dupBuf.release();
+          } else {
+            diskFileInfo.updateBytesFlushed(numBytes);
           }
-          dupBuf.release();
         } else {
           if (!isMemoryShuffleFile.get()) {
             notifier.numPendingFlushes.incrementAndGet();
