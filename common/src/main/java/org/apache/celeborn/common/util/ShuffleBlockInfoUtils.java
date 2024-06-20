@@ -128,11 +128,15 @@ public class ShuffleBlockInfoUtils {
       long shuffleChunkSize) {
     int offset = 0;
     int length = 0;
+    boolean firstBlock = true;
     for (int i = startMapIndex; i < endMapIndex; i++) {
       List<ShuffleBlockInfo> blockInfos = indexMap.get(i);
       if (blockInfos != null) {
         for (ShuffleBlockInfo blockInfo : blockInfos) {
-          offset = (int) blockInfo.offset;
+          if (firstBlock) {
+            offset = (int) blockInfo.offset;
+            firstBlock = false;
+          }
           length += (int) blockInfo.length;
           if (length - offset > shuffleChunkSize) {
             // Do not retain this buffer because this buffer
