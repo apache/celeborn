@@ -35,6 +35,8 @@ MODULE=""
 
 DEP_PR=""
 DEP=""
+BUILD_ALL="false"
+
 
 function mvn_build_classpath() {
   $MVN -P$MODULE clean install -DskipTests -am -pl $MVN_MODULES
