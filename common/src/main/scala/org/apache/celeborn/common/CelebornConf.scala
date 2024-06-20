@@ -26,7 +26,7 @@ import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.util.Try
 
-import org.apache.celeborn.common.CelebornConf.MASTER_INTERNAL_ENDPOINTS
+import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
@@ -2193,6 +2193,71 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
+  val MASTER_HTTP_AUTH_SUPPORTED_SCHEMES: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.master.http.auth.supportedSchemes")
+      .categories("master")
+      .version("0.6.0")
+      .doc("A comma-separated list of master http auth supported schemes." +
+        "<ul>" +
+        " <li>SPNEGO: Kerberos/GSSAPI authentication.</li>" +
+        " <li>BASIC: User-defined password authentication, the concreted implementation is" +
+        " configurable via `celeborn.master.http.auth.basic.provider`.</li>" +
+        " <li>BEARER: User-defined bearer token authentication, the concreted implementation is" +
+        " configurable via `celeborn.master.http.auth.bearer.provider`.</li>" +
+        "</ul>")
+      .stringConf
+      .toSequence
+      .createWithDefault(Nil)
+
+  val MASTER_HTTP_SPNEGO_KEYTAB: OptionalConfigEntry[String] =
+    buildConf("celeborn.master.http.spnego.keytab")
+      .categories("master")
+      .version("0.6.0")
+      .doc("The keytab file for SPNego authentication.")
+      .stringConf
+      .createOptional
+
+  val MASTER_HTTP_SPNEGO_PRINCIPAL: OptionalConfigEntry[String] =
+    buildConf("celeborn.master.http.spnego.principal")
+      .categories("master")
+      .version("0.6.0")
+      .doc("SPNego service principal, typical value would look like HTTP/_HOST@EXAMPLE.COM." +
+        " SPNego service principal would be used when celeborn http authentication is enabled." +
+        " This needs to be set only if SPNEGO is to be used in authentication.")
+      .stringConf
+      .createOptional
+
+  val MASTER_HTTP_PROXY_CLIENT_IP_HEADER: ConfigEntry[String] =
+    buildConf("celeborn.master.http.proxy.client.ip.header")
+      .categories("master")
+      .doc("The HTTP header to record the real client IP address. If your server is behind a load" +
+        " balancer or other proxy, the server will see this load balancer or proxy IP address as" +
+        " the client IP address, to get around this common issue, most load balancers or proxies" +
+        " offer the ability to record the real remote IP address in an HTTP header that will be" +
+        " added to the request for other devices to use. Note that, because the header value can" +
+        " be specified to any IP address, so it will not be used for authentication.")
+      .version("0.6.0")
+      .stringConf
+      .createWithDefault("X-Real-IP")
+
+  val MASTER_HTTP_AUTH_BASIC_PROVIDER: ConfigEntry[String] =
+    buildConf("celeborn.master.http.auth.basic.provider")
+      .categories("master")
+      .version("0.6.0")
+      .doc("User-defined password authentication implementation of " +
+        "org.apache.celeborn.common.authentication.PasswdAuthenticationProvider")
+      .stringConf
+      .createWithDefault(classOf[AnonymousAuthenticationProviderImpl].getName)
+
+  val MASTER_HTTP_AUTH_BEARER_PROVIDER: ConfigEntry[String] =
+    buildConf("celeborn.master.http.auth.bearer.provider")
+      .categories("master")
+      .version("0.6.0")
+      .doc("User-defined token authentication implementation of " +
+        "org.apache.celeborn.common.authentication.TokenAuthenticationProvider")
+      .stringConf
+      .createWithDefault(classOf[AnonymousAuthenticationProviderImpl].getName)
+
   val HA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.master.ha.enabled")
       .withAlternative("celeborn.ha.enabled")
@@ -2794,6 +2859,71 @@ object CelebornConf extends Logging {
       .doc("Worker http server idle timeout.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val WORKER_HTTP_AUTH_SUPPORTED_SCHEMES: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.worker.http.auth.supportedSchemes")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("A comma-separated list of worker http auth supported schemes." +
+        "<ul>" +
+        " <li>SPNEGO: Kerberos/GSSAPI authentication.</li>" +
+        " <li>BASIC: User-defined password authentication, the concreted implementation is" +
+        " configurable via `celeborn.worker.http.auth.basic.provider`.</li>" +
+        " <li>BEARER: User-defined bearer token authentication, the concreted implementation is" +
+        " configurable via `celeborn.worker.http.auth.bearer.provider`.</li>" +
+        "</ul>")
+      .stringConf
+      .toSequence
+      .createWithDefault(Nil)
+
+  val WORKER_HTTP_SPNEGO_KEYTAB: OptionalConfigEntry[String] =
+    buildConf("celeborn.worker.http.spnego.keytab")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("The keytab file for SPNego authentication.")
+      .stringConf
+      .createOptional
+
+  val WORKER_HTTP_SPNEGO_PRINCIPAL: OptionalConfigEntry[String] =
+    buildConf("celeborn.worker.http.spnego.principal")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("SPNego service principal, typical value would look like HTTP/_HOST@EXAMPLE.COM." +
+        " SPNego service principal would be used when celeborn http authentication is enabled." +
+        " This needs to be set only if SPNEGO is to be used in authentication.")
+      .stringConf
+      .createOptional
+
+  val WORKER_HTTP_PROXY_CLIENT_IP_HEADER: ConfigEntry[String] =
+    buildConf("celeborn.worker.http.proxy.client.ip.header")
+      .categories("worker")
+      .doc("The HTTP header to record the real client IP address. If your server is behind a load" +
+        " balancer or other proxy, the server will see this load balancer or proxy IP address as" +
+        " the client IP address, to get around this common issue, most load balancers or proxies" +
+        " offer the ability to record the real remote IP address in an HTTP header that will be" +
+        " added to the request for other devices to use. Note that, because the header value can" +
+        " be specified to any IP address, so it will not be used for authentication.")
+      .version("0.6.0")
+      .stringConf
+      .createWithDefault("X-Real-IP")
+
+  val WORKER_HTTP_AUTH_BASIC_PROVIDER: ConfigEntry[String] =
+    buildConf("celeborn.worker.http.auth.basic.provider")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("User-defined password authentication implementation of " +
+        "org.apache.celeborn.common.authentication.PasswdAuthenticationProvider")
+      .stringConf
+      .createWithDefault(classOf[AnonymousAuthenticationProviderImpl].getName)
+
+  val WORKER_HTTP_AUTH_BEARER_PROVIDER: ConfigEntry[String] =
+    buildConf("celeborn.worker.http.auth.bearer.provider")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("User-defined token authentication implementation of " +
+        "org.apache.celeborn.common.authentication.TokenAuthenticationProvider")
+      .stringConf
+      .createWithDefault(classOf[AnonymousAuthenticationProviderImpl].getName)
 
   val WORKER_RPC_PORT: ConfigEntry[Int] =
     buildConf("celeborn.worker.rpc.port")

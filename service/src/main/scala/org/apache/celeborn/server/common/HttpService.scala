@@ -18,14 +18,18 @@
 package org.apache.celeborn.server.common
 
 import java.util
+import javax.servlet.DispatcherType
 
 import scala.collection.JavaConverters._
+
+import org.eclipse.jetty.servlet.FilterHolder
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.http.HttpServer
 import org.apache.celeborn.server.common.http.api.ApiRootResource
+import org.apache.celeborn.server.common.http.authentication.{AuthenticationFilter, HttpAuthenticationFactory}
 import org.apache.celeborn.server.common.service.config.ConfigLevel
 
 abstract class HttpService extends Service with Logging {
@@ -253,11 +257,16 @@ abstract class HttpService extends Service with Logging {
   }
 
   protected def startInternal(): Unit = {
-    httpServer.addHandler(ApiRootResource.getServletHandler(this))
+    val contextHandler = ApiRootResource.getServletHandler(this)
+    val holder = new FilterHolder(new AuthenticationFilter(conf, serviceName))
+    contextHandler.addFilter(holder, "/*", util.EnumSet.allOf(classOf[DispatcherType]))
+    httpServer.addHandler(HttpAuthenticationFactory.wrapHandler(contextHandler))
+
     httpServer.addStaticHandler("META-INF/resources/webjars/swagger-ui/4.9.1/", "/swagger-static/")
     httpServer.addStaticHandler("org/apache/celeborn/swagger", "/swagger")
     httpServer.addRedirectHandler("/help", "/swagger")
     httpServer.addRedirectHandler("/docs", "/swagger")
+
     if (metricsSystem.running) {
       metricsSystem.getServletContextHandlers.foreach { handler =>
         httpServer.addHandler(handler)

@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker.http.api
 
+import javax.servlet.http.HttpServletResponse
 import javax.ws.rs.core.MediaType
 
 import org.apache.celeborn.server.common.HttpService
@@ -44,22 +45,22 @@ class ApiWorkerResourceSuite extends ApiBaseResourceSuite with MiniClusterFeatur
 
   test("listPartitionLocationInfo") {
     val response = webTarget.path("listPartitionLocationInfo").request(MediaType.TEXT_PLAIN).get()
-    assert(200 == response.getStatus)
+    assert(HttpServletResponse.SC_OK == response.getStatus)
   }
 
   test("unavailablePeers") {
     val response = webTarget.path("unavailablePeers").request(MediaType.TEXT_PLAIN).get()
-    assert(200 == response.getStatus)
+    assert(HttpServletResponse.SC_OK == response.getStatus)
   }
 
   test("isShutdown") {
     val response = webTarget.path("isShutdown").request(MediaType.TEXT_PLAIN).get()
-    assert(200 == response.getStatus)
+    assert(HttpServletResponse.SC_OK == response.getStatus)
   }
 
   test("isRegistered") {
     val response = webTarget.path("isRegistered").request(MediaType.TEXT_PLAIN).get()
-    assert(200 == response.getStatus)
+    assert(HttpServletResponse.SC_OK == response.getStatus)
   }
 
   test("isDecommissioning") {
