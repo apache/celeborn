@@ -174,7 +174,7 @@ private[celeborn] class Master(
 
   private val dfsExpireDirsTimeoutMS =
     if (conf.hasHDFSStorage) conf.hdfsExpireDirsTimeoutMS else conf.s3ExpireDirsTimeoutMS
-
+    
   private val hasHDFSStorage = conf.hasHDFSStorage
   private val hasS3Storage = conf.hasS3Storage
 

@@ -218,7 +218,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             || highWorkload)) {
       LOG.debug("Worker: {} num total slots is 0, add to excluded list", worker);
       excludedWorkers.add(worker);
-    } else if ((availableSlots.get() > 0 || conf.hasHDFSStorage() || conf.hasS3Storage())) {
+    } else if ((availableSlots.get() > 0 || conf.hasHDFSStorage() || conf.hasS3Storage()) && !highWorkload) {
       // only unblack if numSlots larger than 0
       excludedWorkers.remove(worker);
     }
