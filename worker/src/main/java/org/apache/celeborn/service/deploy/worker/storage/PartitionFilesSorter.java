@@ -213,7 +213,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
               .getStoragePooledByteBufAllocator()
               .compositeBuffer(Integer.MAX_VALUE);
       ShuffleBlockInfoUtils.sliceSortedBufferByMapRange(
-          startMapIndex, endMapIndex, indexesMap, memoryFileInfo.getSortedBuffer(), targetBuffer);
+          startMapIndex,
+          endMapIndex,
+          indexesMap,
+          memoryFileInfo.getSortedBuffer(),
+          targetBuffer,
+          shuffleChunkSize);
       return new MemoryFileInfo(
           memoryFileInfo.getUserIdentifier(),
           memoryFileInfo.isPartitionSplitEnabled(),
