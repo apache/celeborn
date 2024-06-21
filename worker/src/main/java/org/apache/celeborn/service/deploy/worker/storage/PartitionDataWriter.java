@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -50,7 +49,9 @@ import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
+import org.apache.celeborn.service.deploy.worker.congestcontrol.BufferStatusHub;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController;
+import org.apache.celeborn.service.deploy.worker.congestcontrol.UserBufferInfo;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
 /*
@@ -103,6 +104,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   private Exception exception = null;
   private boolean metricsCollectCriticalEnabled;
 
+  private UserBufferInfo userBufferInfo = null;
+
   public PartitionDataWriter(
       StorageManager storageManager,
       AbstractSource workerSource,
@@ -153,6 +156,10 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       this.mapIdBitMap = new RoaringBitmap();
     }
     takeBuffer();
+    CongestionController congestionController = CongestionController.instance();
+    if (!isMemoryShuffleFile.get() && congestionController != null) {
+      userBufferInfo = congestionController.getUserBuffer(getDiskFileInfo().getUserIdentifier());
+    }
   }
 
   public void initFileChannelsForDiskFile() throws IOException {
@@ -288,10 +295,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       MemoryManager.instance().increaseMemoryFileStorage(numBytes);
     } else {
       MemoryManager.instance().incrementDiskBuffer(numBytes);
-      Optional.ofNullable(CongestionController.instance())
-          .ifPresent(
-              congestionController ->
-                  congestionController.produceBytes(diskFileInfo.getUserIdentifier(), numBytes));
+      userBufferInfo.updateInfo(
+          System.currentTimeMillis(), new BufferStatusHub.BufferStatusNode(numBytes));
     }
 
     synchronized (flushLock) {
