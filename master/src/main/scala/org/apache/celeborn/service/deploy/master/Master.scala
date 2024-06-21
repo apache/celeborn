@@ -566,6 +566,10 @@ private[celeborn] class Master(
     case pb: PbApplicationMetaRequest =>
       // This request is from a worker
       executeWithLeaderChecker(context, handleRequestForApplicationMeta(context, pb))
+
+    case pb: PbMasterGroupRequest =>
+      logDebug(s"Received master group.")
+      handleMasterGroup(context)
   }
 
   private def timeoutDeadWorkers(): Unit = {
@@ -1212,6 +1216,20 @@ private[celeborn] class Master(
     sb.append("\n").toString()
   }
 
+  private def handleMasterGroup(
+      context: RpcCallContext): Unit = {
+    if (conf.haEnabled) {
+      val groupInfo = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getGroupInfo
+      val leaderInfo = getLeader(groupInfo.getRoleInfoProto)
+      context.reply(MasterGroupResponse(
+        groupInfo.getGroup.getGroupId.toString,
+        if (leaderInfo == null) null else leaderInfo.getAddress,
+        groupInfo.getCommitInfos.asScala.map(_.toString).toList.asJava))
+    } else {
+      context.reply(MasterGroupResponse())
+    }
+  }
+
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
     sb.append("====================== Workers Info in Master =========================\n")
@@ -1329,25 +1347,25 @@ private[celeborn] class Master(
     isActive
   }
 
+  private def getLeader(roleInfo: RaftProtos.RoleInfoProto): RaftProtos.RaftPeerProto = {
+    if (roleInfo == null) {
+      return null
+    }
+    if (roleInfo.getRole == RaftPeerRole.LEADER) {
+      return roleInfo.getSelf
+    }
+    val followerInfo = roleInfo.getFollowerInfo
+    if (followerInfo == null) {
+      return null
+    }
+    followerInfo.getLeaderInfo.getId
+  }
+
   private def getMasterGroupInfoInternal: String = {
     if (conf.haEnabled) {
       val sb = new StringBuilder
       val groupInfo = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getGroupInfo
       sb.append(s"group id: ${groupInfo.getGroup.getGroupId.getUuid}\n")
-
-      def getLeader(roleInfo: RaftProtos.RoleInfoProto): RaftProtos.RaftPeerProto = {
-        if (roleInfo == null) {
-          return null
-        }
-        if (roleInfo.getRole == RaftPeerRole.LEADER) {
-          return roleInfo.getSelf
-        }
-        val followerInfo = roleInfo.getFollowerInfo
-        if (followerInfo == null) {
-          return null
-        }
-        followerInfo.getLeaderInfo.getId
-      }
 
       val leader = getLeader(groupInfo.getRoleInfoProto)
       if (leader == null) {

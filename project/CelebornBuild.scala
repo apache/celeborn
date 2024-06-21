@@ -331,7 +331,8 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornClient.client,
       CelebornService.service,
       CelebornWorker.worker,
-      CelebornMaster.master) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules
+      CelebornMaster.master,
+      CelebornWeb.web) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules
   }
 
   // ThisBuild / parallelExecution := false
@@ -581,6 +582,22 @@ object CelebornWorker {
         Dependencies.scalatestMockito % "test",
         Dependencies.jerseyTestFrameworkCore % "test",
         Dependencies.jerseyTestFrameworkProviderJetty % "test"
+      ) ++ commonUnitTestDependencies
+    )
+}
+
+object CelebornWeb {
+  lazy val web = Project("celeborn-web", file("web"))
+    .dependsOn(CelebornService.service)
+    .dependsOn(CelebornCommon.common % "test->test;compile->compile")
+    .dependsOn(CelebornService.service % "test->test;compile->compile")
+    .dependsOn(CelebornMaster.master % "test->compile")
+    .settings(
+      commonSettings,
+      libraryDependencies ++= Seq(
+        Dependencies.ioNetty,
+        Dependencies.log4j12Api,
+        Dependencies.log4jSlf4jImpl,
       ) ++ commonUnitTestDependencies
     )
 }

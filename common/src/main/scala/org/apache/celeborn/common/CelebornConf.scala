@@ -848,6 +848,22 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerJvmQuakeExitCode: Int = get(WORKER_JVM_QUAKE_EXIT_CODE)
 
   // //////////////////////////////////////////////////////
+  //                      Web                            //
+  // //////////////////////////////////////////////////////
+
+  def webHost: String = get(WEB_HOST).replace("<localhost>", Utils.localHostName(this))
+  def webHttpHost: String =
+    get(WEB_HTTP_HOST).replace("<localhost>", Utils.localHostName(this))
+  def webPort: Int = get(WEB_PORT)
+  def webHttpPort: Int = get(WEB_HTTP_PORT)
+
+  def webHttpMaxWorkerThreads: Int = get(WEB_HTTP_MAX_WORKER_THREADS)
+
+  def webHttpStopTimeout: Long = get(WEB_HTTP_STOP_TIMEOUT)
+
+  def webHttpIdleTimeout: Long = get(WEB_HTTP_IDLE_TIMEOUT)
+
+  // //////////////////////////////////////////////////////
   //                 Metrics System                      //
   // //////////////////////////////////////////////////////
   def metricsConf: Option[String] = get(METRICS_CONF)
@@ -5363,10 +5379,68 @@ object CelebornConf extends Logging {
 
   val LOG_CELEBORN_CONF_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.logConf.enabled")
-      .categories("master", "worker")
+      .categories("master", "worker", "web")
       .version("0.5.0")
       .doc("When `true`, log the CelebornConf for debugging purposes.")
       .booleanConf
       .createWithDefault(false)
 
+  val WEB_HOST: ConfigEntry[String] =
+    buildConf("celeborn.web.host")
+      .categories("web")
+      .version("0.6.0")
+      .doc("Hostname for web to bind.")
+      .stringConf
+      .createWithDefaultString("<localhost>")
+
+  val WEB_HTTP_HOST: ConfigEntry[String] =
+    buildConf("celeborn.web.http.host")
+      .categories("web")
+      .version("0.6.0")
+      .doc("Web's http host.")
+      .stringConf
+      .createWithDefaultString("<localhost>")
+
+  val WEB_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.web.port")
+      .categories("web")
+      .version("0.6.0")
+      .doc("Port for web to bind.")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
+      .createWithDefault(9090)
+
+  val WEB_HTTP_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.web.http.port")
+      .categories("web")
+      .version("0.6.0")
+      .doc("Web's http port.")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
+      .createWithDefault(9091)
+
+  val WEB_HTTP_MAX_WORKER_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.web.http.maxWorkerThreads")
+      .categories("web")
+      .version("0.6.0")
+      .doc("Maximum number of threads in the web http worker thread pool.")
+      .intConf
+      .checkValue(_ > 0, "Must be positive.")
+      .createWithDefault(200)
+
+  val WEB_HTTP_STOP_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.web.http.stopTimeout")
+      .categories("web")
+      .version("0.6.0")
+      .doc("Web http server stop timeout.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
+
+  val WEB_HTTP_IDLE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.web.http.idleTimeout")
+      .categories("web")
+      .version("0.6.0")
+      .doc("Web http server idle timeout.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
 }

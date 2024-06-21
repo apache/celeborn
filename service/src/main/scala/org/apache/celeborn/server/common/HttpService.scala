@@ -141,8 +141,6 @@ abstract class HttpService extends Service with Logging {
   private def config(configKey: String, configVal: String, maxKeyLength: Int): String =
     s"${configKey.padTo(maxKeyLength + 10, " ").mkString}$configVal\n"
 
-  def getWorkerInfo: String
-
   def getThreadDump: String = {
     val sb = new StringBuilder
     sb.append(
@@ -151,11 +149,13 @@ abstract class HttpService extends Service with Logging {
     sb.toString()
   }
 
-  def getShuffleList: String
+  def getWorkerInfo: String = throw new UnsupportedOperationException()
 
-  def getApplicationList: String
+  def getShuffleList: String = throw new UnsupportedOperationException()
 
-  def listTopDiskUseApps: String
+  def getApplicationList: String = throw new UnsupportedOperationException()
+
+  def listTopDiskUseApps: String = throw new UnsupportedOperationException()
 
   def getMasterGroupInfo: String = throw new UnsupportedOperationException()
 
@@ -213,6 +213,8 @@ abstract class HttpService extends Service with Logging {
         conf.masterHttpHost
       case Service.WORKER =>
         conf.workerHttpHost
+      case Service.WEB =>
+        conf.webHttpHost
     }
   }
 
@@ -222,6 +224,8 @@ abstract class HttpService extends Service with Logging {
         conf.masterHttpPort
       case Service.WORKER =>
         conf.workerHttpPort
+      case Service.WEB =>
+        conf.webHttpPort
     }
   }
 
@@ -231,6 +235,8 @@ abstract class HttpService extends Service with Logging {
         conf.masterHttpMaxWorkerThreads
       case Service.WORKER =>
         conf.workerHttpMaxWorkerThreads
+      case Service.WEB =>
+        conf.webHttpMaxWorkerThreads
     }
   }
 
@@ -240,6 +246,8 @@ abstract class HttpService extends Service with Logging {
         conf.masterHttpStopTimeout
       case Service.WORKER =>
         conf.workerHttpStopTimeout
+      case Service.WEB =>
+        conf.webHttpStopTimeout
     }
   }
 
@@ -249,6 +257,8 @@ abstract class HttpService extends Service with Logging {
         conf.masterHttpIdleTimeout
       case Service.WORKER =>
         conf.workerHttpIdleTimeout
+      case Service.WEB =>
+        conf.webHttpIdleTimeout
     }
   }
 
@@ -258,9 +268,13 @@ abstract class HttpService extends Service with Logging {
 
   protected def startInternal(): Unit = {
     val contextHandler = ApiRootResource.getServletHandler(this)
-    val holder = new FilterHolder(new AuthenticationFilter(conf, serviceName))
-    contextHandler.addFilter(holder, "/*", util.EnumSet.allOf(classOf[DispatcherType]))
-    httpServer.addHandler(HttpAuthenticationFactory.wrapHandler(contextHandler))
+    if (Service.WEB.equals(serviceName)) {
+      httpServer.addHandler(ApiRootResource.getServletHandler(this))
+    } else {
+      val holder = new FilterHolder(new AuthenticationFilter(conf, serviceName))
+      contextHandler.addFilter(holder, "/*", util.EnumSet.allOf(classOf[DispatcherType]))
+      httpServer.addHandler(HttpAuthenticationFactory.wrapHandler(contextHandler))
+    }
 
     httpServer.addStaticHandler("META-INF/resources/webjars/swagger-ui/4.9.1/", "/swagger-static/")
     httpServer.addStaticHandler("org/apache/celeborn/swagger", "/swagger")
