@@ -30,6 +30,13 @@ public class ShuffleBlockInfoUtils {
   public static class ShuffleBlockInfo {
     public long offset;
     public long length;
+
+    public ShuffleBlockInfo() {}
+
+    public ShuffleBlockInfo(long offset, long length) {
+      this.offset = offset;
+      this.length = length;
+    }
   }
 
   public static List<Long> getChunkOffsetsFromShuffleBlockInfos(
@@ -128,21 +135,21 @@ public class ShuffleBlockInfoUtils {
       long shuffleChunkSize) {
     int offset = 0;
     int length = 0;
-    boolean firstBlock = true;
+    boolean blockBoundary = true;
     for (int i = startMapIndex; i < endMapIndex; i++) {
       List<ShuffleBlockInfo> blockInfos = indexMap.get(i);
       if (blockInfos != null) {
         for (ShuffleBlockInfo blockInfo : blockInfos) {
-          if (firstBlock) {
+          if (blockBoundary) {
             offset = (int) blockInfo.offset;
-            firstBlock = false;
+            blockBoundary = false;
           }
           length += (int) blockInfo.length;
           if (length - offset > shuffleChunkSize) {
             // Do not retain this buffer because this buffer
             // will be released when the fileinfo is released
             targetByteBuf.addComponent(sortedByteBuf.slice(offset, length));
-            offset = (int) blockInfo.offset;
+            blockBoundary = true;
             length = 0;
           }
         }
