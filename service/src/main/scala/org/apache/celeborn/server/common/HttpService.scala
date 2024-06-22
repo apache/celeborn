@@ -26,6 +26,7 @@ import org.eclipse.jetty.servlet.FilterHolder
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.http.HttpServer
 import org.apache.celeborn.server.common.http.api.ApiRootResource
@@ -169,7 +170,7 @@ abstract class HttpService extends Service with Logging {
 
   def getHostnameList: String = throw new UnsupportedOperationException()
 
-  def exclude(addWorkers: String, removeWorkers: String): String =
+  def exclude(addWorkers: Seq[WorkerInfo], removeWorkers: Seq[WorkerInfo]): (Boolean, String) =
     throw new UnsupportedOperationException()
 
   def listPartitionLocationInfo: String = throw new UnsupportedOperationException()
@@ -184,7 +185,7 @@ abstract class HttpService extends Service with Logging {
 
   def exit(exitType: String): String = throw new UnsupportedOperationException()
 
-  def handleWorkerEvent(workerEventType: String, workers: String): String =
+  def handleWorkerEvent(workerEventType: String, workers: Seq[WorkerInfo]): (Boolean, String) =
     throw new UnsupportedOperationException()
 
   def getWorkerEventInfo(): String = throw new UnsupportedOperationException()

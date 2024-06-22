@@ -175,6 +175,12 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
     stringBuilder.toString()
   }
 
+  def topSnapshots(): Seq[AppDiskUsageSnapShot] = {
+    snapShots.take(snapshotCount)
+      .filter(_ != null)
+      .filter(_.topNItems.exists(_ != null))
+  }
+
   def restoreFromSnapshot(array: Array[AppDiskUsageSnapShot]): Unit = {
     // Restored snapshots only contains values not null
     for (i <- 0 until snapshotCount) {

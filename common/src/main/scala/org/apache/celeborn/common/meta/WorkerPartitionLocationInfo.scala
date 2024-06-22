@@ -31,8 +31,8 @@ class WorkerPartitionLocationInfo extends Logging {
 
   // key: ShuffleKey, values: (uniqueId -> PartitionLocation))
   type PartitionInfo = ConcurrentHashMap[String, ConcurrentHashMap[String, PartitionLocation]]
-  private val primaryPartitionLocations = new PartitionInfo
-  private val replicaPartitionLocations = new PartitionInfo
+  private[celeborn] val primaryPartitionLocations = new PartitionInfo
+  private[celeborn] val replicaPartitionLocations = new PartitionInfo
 
   def shuffleKeySet: util.HashSet[String] = {
     val shuffleKeySet = new util.HashSet[String]()
