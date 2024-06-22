@@ -1263,11 +1263,12 @@ private[celeborn] class Master(
   override def exclude(addWorkers: String, removeWorkers: String): String = {
     val sb = new StringBuilder
     sb.append("============================ Add/Remove Excluded Workers  Manually =============================\n")
-    val workersToAdd = addWorkers.split(",").filter(_.nonEmpty)
-    val workersToRemove = removeWorkers.split(",").filter(_.nonEmpty)
+    val workersToAdd = addWorkers.split(",").filter(_.nonEmpty).map(WorkerInfo.fromUniqueId).toList
+    val workersToRemove =
+      removeWorkers.split(",").filter(_.nonEmpty).map(WorkerInfo.fromUniqueId).toList
     val workerExcludeResponse = self.askSync[PbWorkerExcludeResponse](WorkerExclude(
-      workersToAdd.map(WorkerInfo.fromUniqueId).toList.asJava,
-      workersToRemove.map(WorkerInfo.fromUniqueId).toList.asJava,
+      workersToAdd.asJava,
+      workersToRemove.asJava,
       MasterClient.genRequestId()))
     if (workerExcludeResponse.getSuccess) {
       sb.append(
