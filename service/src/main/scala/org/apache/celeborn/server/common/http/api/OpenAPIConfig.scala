@@ -23,6 +23,7 @@ class OpenAPIConfig extends ResourceConfig {
   packages(OpenAPIConfig.packages: _*)
   register(classOf[CelebornOpenApiResource])
   register(classOf[CelebornScalaObjectMapper])
+  register(classOf[RestExceptionMapper])
 }
 
 object OpenAPIConfig {
