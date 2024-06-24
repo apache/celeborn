@@ -41,7 +41,7 @@ abstract class ApiV1BaseResourceSuite extends HttpTestHelper {
     assert(response.readEntity(classOf[Seq[ConfigData]]).nonEmpty)
 
     response = webTarget.path("conf/dynamic").request(MediaType.APPLICATION_JSON).get()
-    assert(HttpServletResponse.SC_BAD_REQUEST == response.getStatus)
+    assert(HttpServletResponse.SC_SERVICE_UNAVAILABLE == response.getStatus)
     assert(response.readEntity(classOf[String]).contains("Dynamic configuration is disabled."))
   }
 

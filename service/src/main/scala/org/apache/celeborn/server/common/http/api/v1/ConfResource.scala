@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.server.common.http.api.v1
 
-import javax.ws.rs.{BadRequestException, Consumes, GET, Path, Produces, QueryParam}
+import javax.ws.rs.{Consumes, GET, Path, Produces, QueryParam, ServiceUnavailableException}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
@@ -71,7 +71,7 @@ private[api] class ConfResource extends ApiRequestContext {
       @QueryParam("tenant") tenant: String,
       @QueryParam("name") name: String): Seq[DynamicConfig] = {
     if (configService == null) {
-      throw new BadRequestException(
+      throw new ServiceUnavailableException(
         s"Dynamic configuration is disabled. Please check whether to config" +
           s" `${CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND.key}`.")
     } else {
