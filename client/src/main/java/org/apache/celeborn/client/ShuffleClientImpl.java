@@ -1652,7 +1652,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       ExceptionMaker exceptionMaker,
       MetricsCallback metricsCallback)
       throws IOException {
-    if (partitionId == Utils$.MODULE$.UNKNOWN_APP_SHUFFLE_ID()) {
+    if (shuffleId == Utils$.MODULE$.UNKNOWN_APP_SHUFFLE_ID()) {
       logger.warn("Shuffle data is empty for shuffle {}: UNKNOWN_APP_SHUFFLE_ID.", shuffleId);
       return CelebornInputStream.empty();
     }
