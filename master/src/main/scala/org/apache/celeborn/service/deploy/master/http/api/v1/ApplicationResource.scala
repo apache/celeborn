@@ -26,7 +26,6 @@ import io.swagger.v3.oas.annotations.media.{ArraySchema, Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 
-import org.apache.celeborn.common.meta.AppDiskUsageSnapShot
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.server.common.http.api.v1.dto.{AppDiskUsageData, AppDiskUsageSnapshotData, ApplicationHeartbeatData}
 import org.apache.celeborn.service.deploy.master.Master
