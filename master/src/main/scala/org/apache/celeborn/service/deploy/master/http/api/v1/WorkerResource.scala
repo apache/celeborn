@@ -64,13 +64,9 @@ class WorkerResource extends ApiRequestContext {
     description = "List all lost workers of the master.")
   @Path("/lost")
   @GET
-  def lostWorkers(@QueryParam("hostname") hostname: String = ""): Seq[WorkerTimestampData] = {
-    var workers = statusSystem.lostWorkers.asScala.toSeq.sortBy(_._2)
+  def lostWorkers(): Seq[WorkerTimestampData] = {
+    statusSystem.lostWorkers.asScala.toSeq.sortBy(_._2)
       .map(kv => new WorkerTimestampData(ApiUtils.workerData(kv._1), kv._2))
-    if (StringUtils.isNotEmpty(hostname)) {
-      workers = workers.filter(_.getWorker.getHost == hostname)
-    }
-    workers
   }
 
   @ApiResponse(
@@ -82,14 +78,9 @@ class WorkerResource extends ApiRequestContext {
     description = "List all excluded workers of the master.")
   @Path("/excluded")
   @GET
-  def excludedWorkers(@QueryParam("hostname") hostname: String = ""): Seq[WorkerData] = {
-    var workers =
-      (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala)
-        .map(ApiUtils.workerData).toSeq
-    if (StringUtils.isNotEmpty(hostname)) {
-      workers = workers.filter(_.getHost == hostname)
-    }
-    workers
+  def excludedWorkers(): Seq[WorkerData] = {
+    (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala)
+      .map(ApiUtils.workerData).toSeq
   }
 
   @ApiResponse(
@@ -101,12 +92,8 @@ class WorkerResource extends ApiRequestContext {
     description = "List all shutdown workers of the master.")
   @Path("/shutdown")
   @GET
-  def shutdownWorkers(@QueryParam("hostname") hostname: String = ""): Seq[WorkerData] = {
-    var workers = statusSystem.shutdownWorkers.asScala.map(ApiUtils.workerData).toSeq
-    if (StringUtils.isNotEmpty(hostname)) {
-      workers = workers.filter(_.getHost == hostname)
-    }
-    workers
+  def shutdownWorkers(): Seq[WorkerData] = {
+    statusSystem.shutdownWorkers.asScala.map(ApiUtils.workerData).toSeq
   }
 
   @ApiResponse(
@@ -118,12 +105,8 @@ class WorkerResource extends ApiRequestContext {
     description = "List all decommissioned workers of the master.")
   @Path("/decommissioned")
   @GET
-  def decommissionWorkers(@QueryParam("hostname") hostname: String = ""): Seq[WorkerData] = {
-    var workers = statusSystem.decommissionWorkers.asScala.map(ApiUtils.workerData).toSeq
-    if (StringUtils.isNotEmpty(hostname)) {
-      workers = workers.filter(_.getHost == hostname)
-    }
-    workers
+  def decommissionWorkers(): Seq[WorkerData] = {
+    statusSystem.decommissionWorkers.asScala.map(ApiUtils.workerData).toSeq
   }
 
   @ApiResponse(
@@ -151,16 +134,12 @@ class WorkerResource extends ApiRequestContext {
     description = "List all worker event infos of the master.")
   @Path("/events")
   @GET
-  def workerEvents(@QueryParam("hostname") hostname: String = ""): Seq[WorkerEventData] = {
-    var events = statusSystem.workerEventInfos.asScala.map { case (worker, event) =>
+  def workerEvents(): Seq[WorkerEventData] = {
+    statusSystem.workerEventInfos.asScala.map { case (worker, event) =>
       new WorkerEventData(
         ApiUtils.workerData(worker),
         new WorkerEventInfoData(event.getEventType.toString, event.getEventStartTime))
     }.toSeq
-    if (StringUtils.isNotEmpty(hostname)) {
-      events = events.filter(_.getWorker.getHost == hostname)
-    }
-    events
   }
 
   @ApiResponse(
