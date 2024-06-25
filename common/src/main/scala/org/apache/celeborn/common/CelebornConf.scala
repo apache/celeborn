@@ -1145,7 +1145,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(S3_DIR).map {
       s3Dir =>
         if (!Utils.isS3Path(s3Dir)) {
-          log.error(s"${S3_DIR.key} configuration is wrong $hdfsDir. Disable HDFS support.")
+          log.error(s"${S3_DIR.key} configuration is wrong $s3Dir. Disable S3 support.")
           ""
         } else {
           s3Dir
