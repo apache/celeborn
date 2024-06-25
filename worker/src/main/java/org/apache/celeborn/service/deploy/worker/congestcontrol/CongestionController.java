@@ -113,29 +113,6 @@ public class CongestionController {
     return _INSTANCE;
   }
 
-  private static class UserBufferInfo {
-    long timestamp;
-    final BufferStatusHub bufferStatusHub;
-
-    public UserBufferInfo(long timestamp, BufferStatusHub bufferStatusHub) {
-      this.timestamp = timestamp;
-      this.bufferStatusHub = bufferStatusHub;
-    }
-
-    synchronized void updateInfo(long timestamp, BufferStatusHub.BufferStatusNode node) {
-      this.timestamp = timestamp;
-      this.bufferStatusHub.add(timestamp, node);
-    }
-
-    public long getTimestamp() {
-      return timestamp;
-    }
-
-    public BufferStatusHub getBufferStatusHub() {
-      return bufferStatusHub;
-    }
-  }
-
   /**
    * 1. If the total pending bytes is over high watermark, will congest users who produce speed is
    * higher than the potential average consume speed.
@@ -166,24 +143,19 @@ public class CongestionController {
     return false;
   }
 
-  public void produceBytes(UserIdentifier userIdentifier, int numBytes) {
-    long currentTimeMillis = System.currentTimeMillis();
-    UserBufferInfo userBufferInfo =
-        userBufferStatuses.computeIfAbsent(
-            userIdentifier,
-            user -> {
-              logger.info("New user {} comes, initializing its rate status", user);
-              BufferStatusHub bufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
-              UserBufferInfo userInfo = new UserBufferInfo(currentTimeMillis, bufferStatusHub);
-              workerSource.addGauge(
-                  WorkerSource.USER_PRODUCE_SPEED(),
-                  userIdentifier.toJMap(),
-                  () -> getUserProduceSpeed(userInfo));
-              return userInfo;
-            });
-
-    BufferStatusHub.BufferStatusNode node = new BufferStatusHub.BufferStatusNode(numBytes);
-    userBufferInfo.updateInfo(currentTimeMillis, node);
+  public UserBufferInfo getUserBuffer(UserIdentifier userIdentifier) {
+    return userBufferStatuses.computeIfAbsent(
+        userIdentifier,
+        user -> {
+          logger.info("New user {} comes, initializing its rate status", user);
+          BufferStatusHub bufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
+          UserBufferInfo userInfo = new UserBufferInfo(System.currentTimeMillis(), bufferStatusHub);
+          workerSource.addGauge(
+              WorkerSource.USER_PRODUCE_SPEED(),
+              userIdentifier.toJMap(),
+              () -> getUserProduceSpeed(userInfo));
+          return userInfo;
+        });
   }
 
   public void consumeBytes(int numBytes) {
