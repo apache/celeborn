@@ -23,6 +23,9 @@ import scala.util.Properties
 import scala.xml._
 import scala.xml.transform._
 
+import net.aichler.jupiter.sbt.Import.JupiterKeys
+import org.openapitools.generator.sbt.plugin.OpenApiGeneratorPlugin
+import org.openapitools.generator.sbt.plugin.OpenApiGeneratorPlugin.autoImport._
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtprotoc.ProtocPlugin.autoImport._
 
@@ -327,6 +330,8 @@ object CelebornCommonSettings {
 object CelebornBuild extends sbt.internal.BuildDef {
   override def projectDefinitions(baseDirectory: File): Seq[Project] = {
     Seq(
+      CelebornOpenApi.client,
+      CelebornOpenApi.apiDocs,
       CelebornCommon.common,
       CelebornClient.client,
       CelebornService.service,
@@ -344,6 +349,8 @@ object CelebornBuild extends sbt.internal.BuildDef {
 
   // load user-defined Profiles
   // loadProfiles()
+
+  CelebornOpenApi.generate
 }
 
 object Utils {
@@ -1230,4 +1237,62 @@ object MRClientProjects {
       (Test / compile).value
     }
   )
+}
+
+object CelebornOpenApi {
+  val orgName = "org.apache.celeborn"
+  val artifactNamePrefix = "celeborn-rest"
+  val openApiToolsJacksonBindNullableVersion = "0.2.6"
+  import Dependencies.jacksonVersion
+
+  lazy val client = Project("celeborn-client-java", file("clients/java"))
+    .enablePlugins(OpenApiGeneratorPlugin)
+    .settings(
+      name := s"$artifactNamePrefix-client",
+      commonSettings,
+      libraryDependencies ++= Seq(
+        Dependencies.jacksonAnnotations,
+        Dependencies.jacksonCore,
+        Dependencies.jacksonDatabind,
+        // "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonVersion,
+        "org.openapitools" % "jackson-databind-nullable" % openApiToolsJacksonBindNullableVersion,
+        Dependencies.findbugsJsr305,
+        "jakarta.annotation" % "jakarta.annotation-api" % "1.3.5" % Provided
+      ),
+
+      // OpenAPI generation specs
+      openApiInputSpec := (file(".") / "api" / "all.yaml").toString,
+      openApiGeneratorName := "java",
+      openApiOutputDir := (file("clients") / "java").toString,
+      openApiApiPackage := s"$orgName.client.api",
+      openApiModelPackage := s"$orgName.client.model",
+      openApiAdditionalProperties := Map(
+        "library" -> "native",
+        "hideGenerationTimestamp" -> "true"),
+      openApiGenerateApiTests := SettingDisabled,
+      openApiGenerateModelTests := SettingDisabled,
+      openApiGenerateApiDocumentation := SettingDisabled,
+      openApiGenerateModelDocumentation := SettingDisabled,
+      // Define the simple generate command to generate full client codes
+      generate := {
+        val _ = openApiGenerate.value
+      }
+    )
+
+  lazy val apiDocs = Project("celeborn-client-api", file("api"))
+    .enablePlugins(OpenApiGeneratorPlugin)
+    .settings(
+      name := s"$artifactNamePrefix-docs",
+
+      // OpenAPI generation specs
+      openApiInputSpec := (file("api") / "all.yaml").toString,
+      openApiGeneratorName := "markdown",
+      openApiOutputDir := (file("api")).toString,
+      // Define the simple generate command to generate markdown docs
+      generate := {
+        val _ = openApiGenerate.value
+      }
+    )
+
+  val generate = taskKey[Unit]("generate code from APIs")
 }
