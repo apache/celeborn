@@ -22,7 +22,5 @@ addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.6")
 
 addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.2.1")
 
-addSbtPlugin("net.aichler" % "sbt-jupiter-interface" % "0.11.1")
-
 // Assert that the JVM is at least Java 11
-addSbtPlugin("org.openapitools" % "sbt-openapi-generator" % "7.6.0")
+addSbtPlugin("org.openapitools" % "sbt-openapi-generator" % "5.0.1")

@@ -23,7 +23,6 @@ import scala.util.Properties
 import scala.xml._
 import scala.xml.transform._
 
-import net.aichler.jupiter.sbt.Import.JupiterKeys
 import org.openapitools.generator.sbt.plugin.OpenApiGeneratorPlugin
 import org.openapitools.generator.sbt.plugin.OpenApiGeneratorPlugin.autoImport._
 import sbtassembly.AssemblyPlugin.autoImport._
