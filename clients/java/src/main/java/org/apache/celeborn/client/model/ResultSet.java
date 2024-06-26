@@ -15,46 +15,41 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.celeborn.client.model.ResultSetData;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
-
 
 /**
  * ResultSet
  */
-@JsonPropertyOrder({
-  ResultSet.JSON_PROPERTY_COLUMNS,
-  ResultSet.JSON_PROPERTY_DATA
-})
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ResultSet {
-  public static final String JSON_PROPERTY_COLUMNS = "columns";
+  public static final String SERIALIZED_NAME_COLUMNS = "columns";
+  @SerializedName(SERIALIZED_NAME_COLUMNS)
   private List<Object> columns = null;
 
-  public static final String JSON_PROPERTY_DATA = "data";
+  public static final String SERIALIZED_NAME_DATA = "data";
+  @SerializedName(SERIALIZED_NAME_DATA)
   private List<ResultSetData> data = null;
 
 
   public ResultSet columns(List<Object> columns) {
+    
     this.columns = columns;
     return this;
   }
 
   public ResultSet addColumnsItem(Object columnsItem) {
     if (this.columns == null) {
-      this.columns = new ArrayList<>();
+      this.columns = new ArrayList<Object>();
     }
     this.columns.add(columnsItem);
     return this;
@@ -66,8 +61,6 @@ public class ResultSet {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_COLUMNS)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public List<Object> getColumns() {
     return columns;
@@ -80,13 +73,14 @@ public class ResultSet {
 
 
   public ResultSet data(List<ResultSetData> data) {
+    
     this.data = data;
     return this;
   }
 
   public ResultSet addDataItem(ResultSetData dataItem) {
     if (this.data == null) {
-      this.data = new ArrayList<>();
+      this.data = new ArrayList<ResultSetData>();
     }
     this.data.add(dataItem);
     return this;
@@ -98,8 +92,6 @@ public class ResultSet {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_DATA)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public List<ResultSetData> getData() {
     return data;
@@ -111,9 +103,6 @@ public class ResultSet {
   }
 
 
-  /**
-   * Return true if this ResultSet object is equal to o.
-   */
   @Override
   public boolean equals(Object o) {
     if (this == o) {

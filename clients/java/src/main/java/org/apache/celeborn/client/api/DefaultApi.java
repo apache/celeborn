@@ -10,12 +10,22 @@
  * Do not edit the class manually.
  */
 
+
 package org.apache.celeborn.client.api;
 
+import org.apache.celeborn.client.ApiCallback;
 import org.apache.celeborn.client.ApiClient;
 import org.apache.celeborn.client.ApiException;
 import org.apache.celeborn.client.ApiResponse;
+import org.apache.celeborn.client.Configuration;
 import org.apache.celeborn.client.Pair;
+import org.apache.celeborn.client.ProgressRequestBody;
+import org.apache.celeborn.client.ProgressResponseBody;
+
+import com.google.gson.reflect.TypeToken;
+
+import java.io.IOException;
+
 
 import org.apache.celeborn.client.model.CloseSessionResponseBody;
 import org.apache.celeborn.client.model.ExecuteStatementRequestBody;
@@ -31,863 +41,1285 @@ import org.apache.celeborn.client.model.OperationStatusResponseBody;
 import org.apache.celeborn.client.model.SessionHandle;
 import java.util.UUID;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
-import java.util.function.Consumer;
-
+import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.StringJoiner;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class DefaultApi {
-  private final HttpClient memberVarHttpClient;
-  private final ObjectMapper memberVarObjectMapper;
-  private final String memberVarBaseUri;
-  private final Consumer<HttpRequest.Builder> memberVarInterceptor;
-  private final Duration memberVarReadTimeout;
-  private final Consumer<HttpResponse<InputStream>> memberVarResponseInterceptor;
+    private ApiClient localVarApiClient;
 
-  public DefaultApi() {
-    this(new ApiClient());
-  }
-
-  public DefaultApi(ApiClient apiClient) {
-    memberVarHttpClient = apiClient.getHttpClient();
-    memberVarObjectMapper = apiClient.getObjectMapper();
-    memberVarBaseUri = apiClient.getBaseUri();
-    memberVarInterceptor = apiClient.getRequestInterceptor();
-    memberVarReadTimeout = apiClient.getReadTimeout();
-    memberVarResponseInterceptor = apiClient.getResponseInterceptor();
-  }
-
-  /**
-   * 
-   * Cancel the operation.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @param operationHandle The OperationHandle that identifies a operation. (required)
-   * @return OperationStatusResponseBody
-   * @throws ApiException if fails to make API call
-   */
-  public OperationStatusResponseBody cancelOperation(SessionHandle sessionHandle, OperationHandle operationHandle) throws ApiException {
-    ApiResponse<OperationStatusResponseBody> localVarResponse = cancelOperationWithHttpInfo(sessionHandle, operationHandle);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * 
-   * Cancel the operation.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @param operationHandle The OperationHandle that identifies a operation. (required)
-   * @return ApiResponse&lt;OperationStatusResponseBody&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<OperationStatusResponseBody> cancelOperationWithHttpInfo(SessionHandle sessionHandle, OperationHandle operationHandle) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = cancelOperationRequestBuilder(sessionHandle, operationHandle);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      if (localVarResponse.statusCode()/ 100 != 2) {
-        throw new ApiException(localVarResponse.statusCode(),
-            "cancelOperation call received non-success response",
-            localVarResponse.headers(),
-            localVarResponse.body() == null ? null : new String(localVarResponse.body().readAllBytes()));
-      }
-      return new ApiResponse<OperationStatusResponseBody>(
-          localVarResponse.statusCode(),
-          localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<OperationStatusResponseBody>() {})
-        );
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder cancelOperationRequestBuilder(SessionHandle sessionHandle, OperationHandle operationHandle) throws ApiException {
-    // verify the required parameter 'sessionHandle' is set
-    if (sessionHandle == null) {
-      throw new ApiException(400, "Missing the required parameter 'sessionHandle' when calling cancelOperation");
-    }
-    // verify the required parameter 'operationHandle' is set
-    if (operationHandle == null) {
-      throw new ApiException(400, "Missing the required parameter 'operationHandle' when calling cancelOperation");
+    public DefaultApi() {
+        this(Configuration.getDefaultApiClient());
     }
 
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/sessions/{session_handle}/operations/{operation_handle}/cancel"
-        .replace("{session_handle}", ApiClient.urlEncode(sessionHandle.toString()))
-        .replace("{operation_handle}", ApiClient.urlEncode(operationHandle.toString()));
-
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.noBody());
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-  /**
-   * 
-   * Close the operation.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @param operationHandle The OperationHandle that identifies a operation. (required)
-   * @return OperationStatusResponseBody
-   * @throws ApiException if fails to make API call
-   */
-  public OperationStatusResponseBody closeOperation(UUID sessionHandle, UUID operationHandle) throws ApiException {
-    ApiResponse<OperationStatusResponseBody> localVarResponse = closeOperationWithHttpInfo(sessionHandle, operationHandle);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * 
-   * Close the operation.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @param operationHandle The OperationHandle that identifies a operation. (required)
-   * @return ApiResponse&lt;OperationStatusResponseBody&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<OperationStatusResponseBody> closeOperationWithHttpInfo(UUID sessionHandle, UUID operationHandle) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = closeOperationRequestBuilder(sessionHandle, operationHandle);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      if (localVarResponse.statusCode()/ 100 != 2) {
-        throw new ApiException(localVarResponse.statusCode(),
-            "closeOperation call received non-success response",
-            localVarResponse.headers(),
-            localVarResponse.body() == null ? null : new String(localVarResponse.body().readAllBytes()));
-      }
-      return new ApiResponse<OperationStatusResponseBody>(
-          localVarResponse.statusCode(),
-          localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<OperationStatusResponseBody>() {})
-        );
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder closeOperationRequestBuilder(UUID sessionHandle, UUID operationHandle) throws ApiException {
-    // verify the required parameter 'sessionHandle' is set
-    if (sessionHandle == null) {
-      throw new ApiException(400, "Missing the required parameter 'sessionHandle' when calling closeOperation");
-    }
-    // verify the required parameter 'operationHandle' is set
-    if (operationHandle == null) {
-      throw new ApiException(400, "Missing the required parameter 'operationHandle' when calling closeOperation");
+    public DefaultApi(ApiClient apiClient) {
+        this.localVarApiClient = apiClient;
     }
 
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/sessions/{session_handle}/operations/{operation_handle}/close"
-        .replace("{session_handle}", ApiClient.urlEncode(sessionHandle.toString()))
-        .replace("{operation_handle}", ApiClient.urlEncode(operationHandle.toString()));
-
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    localVarRequestBuilder.method("DELETE", HttpRequest.BodyPublishers.noBody());
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-  /**
-   * 
-   * Closes the specific session.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @return CloseSessionResponseBody
-   * @throws ApiException if fails to make API call
-   */
-  public CloseSessionResponseBody closeSession(UUID sessionHandle) throws ApiException {
-    ApiResponse<CloseSessionResponseBody> localVarResponse = closeSessionWithHttpInfo(sessionHandle);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * 
-   * Closes the specific session.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @return ApiResponse&lt;CloseSessionResponseBody&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<CloseSessionResponseBody> closeSessionWithHttpInfo(UUID sessionHandle) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = closeSessionRequestBuilder(sessionHandle);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      if (localVarResponse.statusCode()/ 100 != 2) {
-        throw new ApiException(localVarResponse.statusCode(),
-            "closeSession call received non-success response",
-            localVarResponse.headers(),
-            localVarResponse.body() == null ? null : new String(localVarResponse.body().readAllBytes()));
-      }
-      return new ApiResponse<CloseSessionResponseBody>(
-          localVarResponse.statusCode(),
-          localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<CloseSessionResponseBody>() {})
-        );
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder closeSessionRequestBuilder(UUID sessionHandle) throws ApiException {
-    // verify the required parameter 'sessionHandle' is set
-    if (sessionHandle == null) {
-      throw new ApiException(400, "Missing the required parameter 'sessionHandle' when calling closeSession");
+    public ApiClient getApiClient() {
+        return localVarApiClient;
     }
 
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/sessions/{session_handle}"
-        .replace("{session_handle}", ApiClient.urlEncode(sessionHandle.toString()));
-
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    localVarRequestBuilder.method("DELETE", HttpRequest.BodyPublishers.noBody());
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-  /**
-   * 
-   * Execute a statement.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @param executeStatementRequestBody  (optional)
-   * @return ExecuteStatementResponseBody
-   * @throws ApiException if fails to make API call
-   */
-  public ExecuteStatementResponseBody executeStatement(UUID sessionHandle, ExecuteStatementRequestBody executeStatementRequestBody) throws ApiException {
-    ApiResponse<ExecuteStatementResponseBody> localVarResponse = executeStatementWithHttpInfo(sessionHandle, executeStatementRequestBody);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * 
-   * Execute a statement.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @param executeStatementRequestBody  (optional)
-   * @return ApiResponse&lt;ExecuteStatementResponseBody&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<ExecuteStatementResponseBody> executeStatementWithHttpInfo(UUID sessionHandle, ExecuteStatementRequestBody executeStatementRequestBody) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = executeStatementRequestBuilder(sessionHandle, executeStatementRequestBody);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      if (localVarResponse.statusCode()/ 100 != 2) {
-        throw new ApiException(localVarResponse.statusCode(),
-            "executeStatement call received non-success response",
-            localVarResponse.headers(),
-            localVarResponse.body() == null ? null : new String(localVarResponse.body().readAllBytes()));
-      }
-      return new ApiResponse<ExecuteStatementResponseBody>(
-          localVarResponse.statusCode(),
-          localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ExecuteStatementResponseBody>() {})
-        );
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder executeStatementRequestBuilder(UUID sessionHandle, ExecuteStatementRequestBody executeStatementRequestBody) throws ApiException {
-    // verify the required parameter 'sessionHandle' is set
-    if (sessionHandle == null) {
-      throw new ApiException(400, "Missing the required parameter 'sessionHandle' when calling executeStatement");
+    public void setApiClient(ApiClient apiClient) {
+        this.localVarApiClient = apiClient;
     }
 
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+    /**
+     * Build call for cancelOperation
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call cancelOperationCall(SessionHandle sessionHandle, OperationHandle operationHandle, final ApiCallback _callback) throws ApiException {
+        Object localVarPostBody = null;
 
-    String localVarPath = "/sessions/{session_handle}/statements"
-        .replace("{session_handle}", ApiClient.urlEncode(sessionHandle.toString()));
+        // create path and map variables
+        String localVarPath = "/sessions/{session_handle}/operations/{operation_handle}/cancel"
+            .replaceAll("\\{" + "session_handle" + "\\}", localVarApiClient.escapeString(sessionHandle.toString()))
+            .replaceAll("\\{" + "operation_handle" + "\\}", localVarApiClient.escapeString(operationHandle.toString()));
 
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
 
-    localVarRequestBuilder.header("Content-Type", "application/json");
-    localVarRequestBuilder.header("Accept", "application/json");
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
 
-    try {
-      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(executeStatementRequestBody);
-      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-  /**
-   * 
-   * Fetch results of Operation.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @param operationHandle The OperationHandle that identifies a operation. (required)
-   * @param token The OperationHandle that identifies a operation. (required)
-   * @return FetchResultsResponseBody
-   * @throws ApiException if fails to make API call
-   */
-  public FetchResultsResponseBody fetchResults(UUID sessionHandle, UUID operationHandle, Long token) throws ApiException {
-    ApiResponse<FetchResultsResponseBody> localVarResponse = fetchResultsWithHttpInfo(sessionHandle, operationHandle, token);
-    return localVarResponse.getData();
-  }
+        final String[] localVarContentTypes = {
+            
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        localVarHeaderParams.put("Content-Type", localVarContentType);
 
-  /**
-   * 
-   * Fetch results of Operation.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @param operationHandle The OperationHandle that identifies a operation. (required)
-   * @param token The OperationHandle that identifies a operation. (required)
-   * @return ApiResponse&lt;FetchResultsResponseBody&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<FetchResultsResponseBody> fetchResultsWithHttpInfo(UUID sessionHandle, UUID operationHandle, Long token) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = fetchResultsRequestBuilder(sessionHandle, operationHandle, token);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      if (localVarResponse.statusCode()/ 100 != 2) {
-        throw new ApiException(localVarResponse.statusCode(),
-            "fetchResults call received non-success response",
-            localVarResponse.headers(),
-            localVarResponse.body() == null ? null : new String(localVarResponse.body().readAllBytes()));
-      }
-      return new ApiResponse<FetchResultsResponseBody>(
-          localVarResponse.statusCode(),
-          localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<FetchResultsResponseBody>() {})
-        );
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder fetchResultsRequestBuilder(UUID sessionHandle, UUID operationHandle, Long token) throws ApiException {
-    // verify the required parameter 'sessionHandle' is set
-    if (sessionHandle == null) {
-      throw new ApiException(400, "Missing the required parameter 'sessionHandle' when calling fetchResults");
-    }
-    // verify the required parameter 'operationHandle' is set
-    if (operationHandle == null) {
-      throw new ApiException(400, "Missing the required parameter 'operationHandle' when calling fetchResults");
-    }
-    // verify the required parameter 'token' is set
-    if (token == null) {
-      throw new ApiException(400, "Missing the required parameter 'token' when calling fetchResults");
+        String[] localVarAuthNames = new String[] { "basicAuth" };
+        return localVarApiClient.buildCall(localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
     }
 
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call cancelOperationValidateBeforeCall(SessionHandle sessionHandle, OperationHandle operationHandle, final ApiCallback _callback) throws ApiException {
+        
+        // verify the required parameter 'sessionHandle' is set
+        if (sessionHandle == null) {
+            throw new ApiException("Missing the required parameter 'sessionHandle' when calling cancelOperation(Async)");
+        }
+        
+        // verify the required parameter 'operationHandle' is set
+        if (operationHandle == null) {
+            throw new ApiException("Missing the required parameter 'operationHandle' when calling cancelOperation(Async)");
+        }
+        
 
-    String localVarPath = "/sessions/{session_handle}/operations/{operation_handle}/result/{token}"
-        .replace("{session_handle}", ApiClient.urlEncode(sessionHandle.toString()))
-        .replace("{operation_handle}", ApiClient.urlEncode(operationHandle.toString()))
-        .replace("{token}", ApiClient.urlEncode(token.toString()));
+        okhttp3.Call localVarCall = cancelOperationCall(sessionHandle, operationHandle, _callback);
+        return localVarCall;
 
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-  /**
-   * 
-   * Get the current available versions for the Rest Endpoint. The client can choose one of the return version as the protocol for later communicate.
-   * @return GetApiVersionResponseBody
-   * @throws ApiException if fails to make API call
-   */
-  public GetApiVersionResponseBody getApiVersion() throws ApiException {
-    ApiResponse<GetApiVersionResponseBody> localVarResponse = getApiVersionWithHttpInfo();
-    return localVarResponse.getData();
-  }
-
-  /**
-   * 
-   * Get the current available versions for the Rest Endpoint. The client can choose one of the return version as the protocol for later communicate.
-   * @return ApiResponse&lt;GetApiVersionResponseBody&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<GetApiVersionResponseBody> getApiVersionWithHttpInfo() throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = getApiVersionRequestBuilder();
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      if (localVarResponse.statusCode()/ 100 != 2) {
-        throw new ApiException(localVarResponse.statusCode(),
-            "getApiVersion call received non-success response",
-            localVarResponse.headers(),
-            localVarResponse.body() == null ? null : new String(localVarResponse.body().readAllBytes()));
-      }
-      return new ApiResponse<GetApiVersionResponseBody>(
-          localVarResponse.statusCode(),
-          localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<GetApiVersionResponseBody>() {})
-        );
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder getApiVersionRequestBuilder() throws ApiException {
-
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/api_versions";
-
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-  /**
-   * 
-   * Get meta data for this cluster.
-   * @return GetInfoResponseBody
-   * @throws ApiException if fails to make API call
-   */
-  public GetInfoResponseBody getInfo() throws ApiException {
-    ApiResponse<GetInfoResponseBody> localVarResponse = getInfoWithHttpInfo();
-    return localVarResponse.getData();
-  }
-
-  /**
-   * 
-   * Get meta data for this cluster.
-   * @return ApiResponse&lt;GetInfoResponseBody&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<GetInfoResponseBody> getInfoWithHttpInfo() throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = getInfoRequestBuilder();
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      if (localVarResponse.statusCode()/ 100 != 2) {
-        throw new ApiException(localVarResponse.statusCode(),
-            "getInfo call received non-success response",
-            localVarResponse.headers(),
-            localVarResponse.body() == null ? null : new String(localVarResponse.body().readAllBytes()));
-      }
-      return new ApiResponse<GetInfoResponseBody>(
-          localVarResponse.statusCode(),
-          localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<GetInfoResponseBody>() {})
-        );
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder getInfoRequestBuilder() throws ApiException {
-
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/info";
-
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-  /**
-   * 
-   * Get the status of operation.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @param operationHandle The OperationHandle that identifies a operation. (required)
-   * @return OperationStatusResponseBody
-   * @throws ApiException if fails to make API call
-   */
-  public OperationStatusResponseBody getOperationStatus(UUID sessionHandle, UUID operationHandle) throws ApiException {
-    ApiResponse<OperationStatusResponseBody> localVarResponse = getOperationStatusWithHttpInfo(sessionHandle, operationHandle);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * 
-   * Get the status of operation.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @param operationHandle The OperationHandle that identifies a operation. (required)
-   * @return ApiResponse&lt;OperationStatusResponseBody&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<OperationStatusResponseBody> getOperationStatusWithHttpInfo(UUID sessionHandle, UUID operationHandle) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = getOperationStatusRequestBuilder(sessionHandle, operationHandle);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      if (localVarResponse.statusCode()/ 100 != 2) {
-        throw new ApiException(localVarResponse.statusCode(),
-            "getOperationStatus call received non-success response",
-            localVarResponse.headers(),
-            localVarResponse.body() == null ? null : new String(localVarResponse.body().readAllBytes()));
-      }
-      return new ApiResponse<OperationStatusResponseBody>(
-          localVarResponse.statusCode(),
-          localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<OperationStatusResponseBody>() {})
-        );
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder getOperationStatusRequestBuilder(UUID sessionHandle, UUID operationHandle) throws ApiException {
-    // verify the required parameter 'sessionHandle' is set
-    if (sessionHandle == null) {
-      throw new ApiException(400, "Missing the required parameter 'sessionHandle' when calling getOperationStatus");
-    }
-    // verify the required parameter 'operationHandle' is set
-    if (operationHandle == null) {
-      throw new ApiException(400, "Missing the required parameter 'operationHandle' when calling getOperationStatus");
     }
 
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/sessions/{session_handle}/operations/{operation_handle}/status"
-        .replace("{session_handle}", ApiClient.urlEncode(sessionHandle.toString()))
-        .replace("{operation_handle}", ApiClient.urlEncode(operationHandle.toString()));
-
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-  /**
-   * 
-   * Get the session configuration.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @return GetSessionConfigResponseBody
-   * @throws ApiException if fails to make API call
-   */
-  public GetSessionConfigResponseBody getSessionConfig(UUID sessionHandle) throws ApiException {
-    ApiResponse<GetSessionConfigResponseBody> localVarResponse = getSessionConfigWithHttpInfo(sessionHandle);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * 
-   * Get the session configuration.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @return ApiResponse&lt;GetSessionConfigResponseBody&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<GetSessionConfigResponseBody> getSessionConfigWithHttpInfo(UUID sessionHandle) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = getSessionConfigRequestBuilder(sessionHandle);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      if (localVarResponse.statusCode()/ 100 != 2) {
-        throw new ApiException(localVarResponse.statusCode(),
-            "getSessionConfig call received non-success response",
-            localVarResponse.headers(),
-            localVarResponse.body() == null ? null : new String(localVarResponse.body().readAllBytes()));
-      }
-      return new ApiResponse<GetSessionConfigResponseBody>(
-          localVarResponse.statusCode(),
-          localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<GetSessionConfigResponseBody>() {})
-        );
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder getSessionConfigRequestBuilder(UUID sessionHandle) throws ApiException {
-    // verify the required parameter 'sessionHandle' is set
-    if (sessionHandle == null) {
-      throw new ApiException(400, "Missing the required parameter 'sessionHandle' when calling getSessionConfig");
+    /**
+     * 
+     * Cancel the operation.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @return OperationStatusResponseBody
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public OperationStatusResponseBody cancelOperation(SessionHandle sessionHandle, OperationHandle operationHandle) throws ApiException {
+        ApiResponse<OperationStatusResponseBody> localVarResp = cancelOperationWithHttpInfo(sessionHandle, operationHandle);
+        return localVarResp.getData();
     }
 
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/sessions/{session_handle}"
-        .replace("{session_handle}", ApiClient.urlEncode(sessionHandle.toString()));
-
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-  /**
-   * 
-   * Opens a new session with specific properties. Specific properties can be given for current session which will override the default properties of gateway.
-   * @param openSessionRequestBody  (optional)
-   * @return OpenSessionResponseBody
-   * @throws ApiException if fails to make API call
-   */
-  public OpenSessionResponseBody openSession(OpenSessionRequestBody openSessionRequestBody) throws ApiException {
-    ApiResponse<OpenSessionResponseBody> localVarResponse = openSessionWithHttpInfo(openSessionRequestBody);
-    return localVarResponse.getData();
-  }
-
-  /**
-   * 
-   * Opens a new session with specific properties. Specific properties can be given for current session which will override the default properties of gateway.
-   * @param openSessionRequestBody  (optional)
-   * @return ApiResponse&lt;OpenSessionResponseBody&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<OpenSessionResponseBody> openSessionWithHttpInfo(OpenSessionRequestBody openSessionRequestBody) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = openSessionRequestBuilder(openSessionRequestBody);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      if (localVarResponse.statusCode()/ 100 != 2) {
-        throw new ApiException(localVarResponse.statusCode(),
-            "openSession call received non-success response",
-            localVarResponse.headers(),
-            localVarResponse.body() == null ? null : new String(localVarResponse.body().readAllBytes()));
-      }
-      return new ApiResponse<OpenSessionResponseBody>(
-          localVarResponse.statusCode(),
-          localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<OpenSessionResponseBody>() {})
-        );
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder openSessionRequestBuilder(OpenSessionRequestBody openSessionRequestBody) throws ApiException {
-
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-    String localVarPath = "/sessions";
-
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    localVarRequestBuilder.header("Content-Type", "application/json");
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    try {
-      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(openSessionRequestBody);
-      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
-    }
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
-    }
-    return localVarRequestBuilder;
-  }
-  /**
-   * 
-   * Trigger heartbeat to tell the server that the client is active, and to keep the session alive as long as configured timeout value.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @throws ApiException if fails to make API call
-   */
-  public void triggerSession(SessionHandle sessionHandle) throws ApiException {
-    triggerSessionWithHttpInfo(sessionHandle);
-  }
-
-  /**
-   * 
-   * Trigger heartbeat to tell the server that the client is active, and to keep the session alive as long as configured timeout value.
-   * @param sessionHandle The SessionHandle that identifies a session. (required)
-   * @return ApiResponse&lt;Void&gt;
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResponse<Void> triggerSessionWithHttpInfo(SessionHandle sessionHandle) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = triggerSessionRequestBuilder(sessionHandle);
-    try {
-      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-          localVarRequestBuilder.build(),
-          HttpResponse.BodyHandlers.ofInputStream());
-      if (memberVarResponseInterceptor != null) {
-        memberVarResponseInterceptor.accept(localVarResponse);
-      }
-      if (localVarResponse.statusCode()/ 100 != 2) {
-        throw new ApiException(localVarResponse.statusCode(),
-            "triggerSession call received non-success response",
-            localVarResponse.headers(),
-            localVarResponse.body() == null ? null : new String(localVarResponse.body().readAllBytes()));
-      }
-      return new ApiResponse<Void>(
-          localVarResponse.statusCode(),
-          localVarResponse.headers().map(),
-          null
-        );
-    } catch (IOException e) {
-      throw new ApiException(e);
-    }
-    catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new ApiException(e);
-    }
-  }
-
-  private HttpRequest.Builder triggerSessionRequestBuilder(SessionHandle sessionHandle) throws ApiException {
-    // verify the required parameter 'sessionHandle' is set
-    if (sessionHandle == null) {
-      throw new ApiException(400, "Missing the required parameter 'sessionHandle' when calling triggerSession");
+    /**
+     * 
+     * Cancel the operation.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @return ApiResponse&lt;OperationStatusResponseBody&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<OperationStatusResponseBody> cancelOperationWithHttpInfo(SessionHandle sessionHandle, OperationHandle operationHandle) throws ApiException {
+        okhttp3.Call localVarCall = cancelOperationValidateBeforeCall(sessionHandle, operationHandle, null);
+        Type localVarReturnType = new TypeToken<OperationStatusResponseBody>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
     }
 
-    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+    /**
+     *  (asynchronously)
+     * Cancel the operation.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call cancelOperationAsync(SessionHandle sessionHandle, OperationHandle operationHandle, final ApiCallback<OperationStatusResponseBody> _callback) throws ApiException {
 
-    String localVarPath = "/sessions/{session_handle}/heartbeat"
-        .replace("{session_handle}", ApiClient.urlEncode(sessionHandle.toString()));
-
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-    localVarRequestBuilder.header("Accept", "application/json");
-
-    localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.noBody());
-    if (memberVarReadTimeout != null) {
-      localVarRequestBuilder.timeout(memberVarReadTimeout);
+        okhttp3.Call localVarCall = cancelOperationValidateBeforeCall(sessionHandle, operationHandle, _callback);
+        Type localVarReturnType = new TypeToken<OperationStatusResponseBody>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
     }
-    if (memberVarInterceptor != null) {
-      memberVarInterceptor.accept(localVarRequestBuilder);
+    /**
+     * Build call for closeOperation
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call closeOperationCall(UUID sessionHandle, UUID operationHandle, final ApiCallback _callback) throws ApiException {
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/sessions/{session_handle}/operations/{operation_handle}/close"
+            .replaceAll("\\{" + "session_handle" + "\\}", localVarApiClient.escapeString(sessionHandle.toString()))
+            .replaceAll("\\{" + "operation_handle" + "\\}", localVarApiClient.escapeString(operationHandle.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        localVarHeaderParams.put("Content-Type", localVarContentType);
+
+        String[] localVarAuthNames = new String[] { "basicAuth" };
+        return localVarApiClient.buildCall(localVarPath, "DELETE", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
     }
-    return localVarRequestBuilder;
-  }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call closeOperationValidateBeforeCall(UUID sessionHandle, UUID operationHandle, final ApiCallback _callback) throws ApiException {
+        
+        // verify the required parameter 'sessionHandle' is set
+        if (sessionHandle == null) {
+            throw new ApiException("Missing the required parameter 'sessionHandle' when calling closeOperation(Async)");
+        }
+        
+        // verify the required parameter 'operationHandle' is set
+        if (operationHandle == null) {
+            throw new ApiException("Missing the required parameter 'operationHandle' when calling closeOperation(Async)");
+        }
+        
+
+        okhttp3.Call localVarCall = closeOperationCall(sessionHandle, operationHandle, _callback);
+        return localVarCall;
+
+    }
+
+    /**
+     * 
+     * Close the operation.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @return OperationStatusResponseBody
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public OperationStatusResponseBody closeOperation(UUID sessionHandle, UUID operationHandle) throws ApiException {
+        ApiResponse<OperationStatusResponseBody> localVarResp = closeOperationWithHttpInfo(sessionHandle, operationHandle);
+        return localVarResp.getData();
+    }
+
+    /**
+     * 
+     * Close the operation.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @return ApiResponse&lt;OperationStatusResponseBody&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<OperationStatusResponseBody> closeOperationWithHttpInfo(UUID sessionHandle, UUID operationHandle) throws ApiException {
+        okhttp3.Call localVarCall = closeOperationValidateBeforeCall(sessionHandle, operationHandle, null);
+        Type localVarReturnType = new TypeToken<OperationStatusResponseBody>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     *  (asynchronously)
+     * Close the operation.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call closeOperationAsync(UUID sessionHandle, UUID operationHandle, final ApiCallback<OperationStatusResponseBody> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = closeOperationValidateBeforeCall(sessionHandle, operationHandle, _callback);
+        Type localVarReturnType = new TypeToken<OperationStatusResponseBody>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for closeSession
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call closeSessionCall(UUID sessionHandle, final ApiCallback _callback) throws ApiException {
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/sessions/{session_handle}"
+            .replaceAll("\\{" + "session_handle" + "\\}", localVarApiClient.escapeString(sessionHandle.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        localVarHeaderParams.put("Content-Type", localVarContentType);
+
+        String[] localVarAuthNames = new String[] { "basicAuth" };
+        return localVarApiClient.buildCall(localVarPath, "DELETE", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call closeSessionValidateBeforeCall(UUID sessionHandle, final ApiCallback _callback) throws ApiException {
+        
+        // verify the required parameter 'sessionHandle' is set
+        if (sessionHandle == null) {
+            throw new ApiException("Missing the required parameter 'sessionHandle' when calling closeSession(Async)");
+        }
+        
+
+        okhttp3.Call localVarCall = closeSessionCall(sessionHandle, _callback);
+        return localVarCall;
+
+    }
+
+    /**
+     * 
+     * Closes the specific session.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @return CloseSessionResponseBody
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public CloseSessionResponseBody closeSession(UUID sessionHandle) throws ApiException {
+        ApiResponse<CloseSessionResponseBody> localVarResp = closeSessionWithHttpInfo(sessionHandle);
+        return localVarResp.getData();
+    }
+
+    /**
+     * 
+     * Closes the specific session.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @return ApiResponse&lt;CloseSessionResponseBody&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<CloseSessionResponseBody> closeSessionWithHttpInfo(UUID sessionHandle) throws ApiException {
+        okhttp3.Call localVarCall = closeSessionValidateBeforeCall(sessionHandle, null);
+        Type localVarReturnType = new TypeToken<CloseSessionResponseBody>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     *  (asynchronously)
+     * Closes the specific session.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call closeSessionAsync(UUID sessionHandle, final ApiCallback<CloseSessionResponseBody> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = closeSessionValidateBeforeCall(sessionHandle, _callback);
+        Type localVarReturnType = new TypeToken<CloseSessionResponseBody>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for executeStatement
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param executeStatementRequestBody  (optional)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call executeStatementCall(UUID sessionHandle, ExecuteStatementRequestBody executeStatementRequestBody, final ApiCallback _callback) throws ApiException {
+        Object localVarPostBody = executeStatementRequestBody;
+
+        // create path and map variables
+        String localVarPath = "/sessions/{session_handle}/statements"
+            .replaceAll("\\{" + "session_handle" + "\\}", localVarApiClient.escapeString(sessionHandle.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        localVarHeaderParams.put("Content-Type", localVarContentType);
+
+        String[] localVarAuthNames = new String[] { "basicAuth" };
+        return localVarApiClient.buildCall(localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call executeStatementValidateBeforeCall(UUID sessionHandle, ExecuteStatementRequestBody executeStatementRequestBody, final ApiCallback _callback) throws ApiException {
+        
+        // verify the required parameter 'sessionHandle' is set
+        if (sessionHandle == null) {
+            throw new ApiException("Missing the required parameter 'sessionHandle' when calling executeStatement(Async)");
+        }
+        
+
+        okhttp3.Call localVarCall = executeStatementCall(sessionHandle, executeStatementRequestBody, _callback);
+        return localVarCall;
+
+    }
+
+    /**
+     * 
+     * Execute a statement.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param executeStatementRequestBody  (optional)
+     * @return ExecuteStatementResponseBody
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public ExecuteStatementResponseBody executeStatement(UUID sessionHandle, ExecuteStatementRequestBody executeStatementRequestBody) throws ApiException {
+        ApiResponse<ExecuteStatementResponseBody> localVarResp = executeStatementWithHttpInfo(sessionHandle, executeStatementRequestBody);
+        return localVarResp.getData();
+    }
+
+    /**
+     * 
+     * Execute a statement.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param executeStatementRequestBody  (optional)
+     * @return ApiResponse&lt;ExecuteStatementResponseBody&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<ExecuteStatementResponseBody> executeStatementWithHttpInfo(UUID sessionHandle, ExecuteStatementRequestBody executeStatementRequestBody) throws ApiException {
+        okhttp3.Call localVarCall = executeStatementValidateBeforeCall(sessionHandle, executeStatementRequestBody, null);
+        Type localVarReturnType = new TypeToken<ExecuteStatementResponseBody>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     *  (asynchronously)
+     * Execute a statement.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param executeStatementRequestBody  (optional)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call executeStatementAsync(UUID sessionHandle, ExecuteStatementRequestBody executeStatementRequestBody, final ApiCallback<ExecuteStatementResponseBody> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = executeStatementValidateBeforeCall(sessionHandle, executeStatementRequestBody, _callback);
+        Type localVarReturnType = new TypeToken<ExecuteStatementResponseBody>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for fetchResults
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @param token The OperationHandle that identifies a operation. (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call fetchResultsCall(UUID sessionHandle, UUID operationHandle, Long token, final ApiCallback _callback) throws ApiException {
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/sessions/{session_handle}/operations/{operation_handle}/result/{token}"
+            .replaceAll("\\{" + "session_handle" + "\\}", localVarApiClient.escapeString(sessionHandle.toString()))
+            .replaceAll("\\{" + "operation_handle" + "\\}", localVarApiClient.escapeString(operationHandle.toString()))
+            .replaceAll("\\{" + "token" + "\\}", localVarApiClient.escapeString(token.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        localVarHeaderParams.put("Content-Type", localVarContentType);
+
+        String[] localVarAuthNames = new String[] { "basicAuth" };
+        return localVarApiClient.buildCall(localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call fetchResultsValidateBeforeCall(UUID sessionHandle, UUID operationHandle, Long token, final ApiCallback _callback) throws ApiException {
+        
+        // verify the required parameter 'sessionHandle' is set
+        if (sessionHandle == null) {
+            throw new ApiException("Missing the required parameter 'sessionHandle' when calling fetchResults(Async)");
+        }
+        
+        // verify the required parameter 'operationHandle' is set
+        if (operationHandle == null) {
+            throw new ApiException("Missing the required parameter 'operationHandle' when calling fetchResults(Async)");
+        }
+        
+        // verify the required parameter 'token' is set
+        if (token == null) {
+            throw new ApiException("Missing the required parameter 'token' when calling fetchResults(Async)");
+        }
+        
+
+        okhttp3.Call localVarCall = fetchResultsCall(sessionHandle, operationHandle, token, _callback);
+        return localVarCall;
+
+    }
+
+    /**
+     * 
+     * Fetch results of Operation.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @param token The OperationHandle that identifies a operation. (required)
+     * @return FetchResultsResponseBody
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public FetchResultsResponseBody fetchResults(UUID sessionHandle, UUID operationHandle, Long token) throws ApiException {
+        ApiResponse<FetchResultsResponseBody> localVarResp = fetchResultsWithHttpInfo(sessionHandle, operationHandle, token);
+        return localVarResp.getData();
+    }
+
+    /**
+     * 
+     * Fetch results of Operation.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @param token The OperationHandle that identifies a operation. (required)
+     * @return ApiResponse&lt;FetchResultsResponseBody&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<FetchResultsResponseBody> fetchResultsWithHttpInfo(UUID sessionHandle, UUID operationHandle, Long token) throws ApiException {
+        okhttp3.Call localVarCall = fetchResultsValidateBeforeCall(sessionHandle, operationHandle, token, null);
+        Type localVarReturnType = new TypeToken<FetchResultsResponseBody>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     *  (asynchronously)
+     * Fetch results of Operation.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @param token The OperationHandle that identifies a operation. (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call fetchResultsAsync(UUID sessionHandle, UUID operationHandle, Long token, final ApiCallback<FetchResultsResponseBody> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = fetchResultsValidateBeforeCall(sessionHandle, operationHandle, token, _callback);
+        Type localVarReturnType = new TypeToken<FetchResultsResponseBody>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for getApiVersion
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getApiVersionCall(final ApiCallback _callback) throws ApiException {
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/api_versions";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        localVarHeaderParams.put("Content-Type", localVarContentType);
+
+        String[] localVarAuthNames = new String[] { "basicAuth" };
+        return localVarApiClient.buildCall(localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call getApiVersionValidateBeforeCall(final ApiCallback _callback) throws ApiException {
+        
+
+        okhttp3.Call localVarCall = getApiVersionCall(_callback);
+        return localVarCall;
+
+    }
+
+    /**
+     * 
+     * Get the current available versions for the Rest Endpoint. The client can choose one of the return version as the protocol for later communicate.
+     * @return GetApiVersionResponseBody
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public GetApiVersionResponseBody getApiVersion() throws ApiException {
+        ApiResponse<GetApiVersionResponseBody> localVarResp = getApiVersionWithHttpInfo();
+        return localVarResp.getData();
+    }
+
+    /**
+     * 
+     * Get the current available versions for the Rest Endpoint. The client can choose one of the return version as the protocol for later communicate.
+     * @return ApiResponse&lt;GetApiVersionResponseBody&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<GetApiVersionResponseBody> getApiVersionWithHttpInfo() throws ApiException {
+        okhttp3.Call localVarCall = getApiVersionValidateBeforeCall(null);
+        Type localVarReturnType = new TypeToken<GetApiVersionResponseBody>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     *  (asynchronously)
+     * Get the current available versions for the Rest Endpoint. The client can choose one of the return version as the protocol for later communicate.
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getApiVersionAsync(final ApiCallback<GetApiVersionResponseBody> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = getApiVersionValidateBeforeCall(_callback);
+        Type localVarReturnType = new TypeToken<GetApiVersionResponseBody>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for getInfo
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getInfoCall(final ApiCallback _callback) throws ApiException {
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/info";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        localVarHeaderParams.put("Content-Type", localVarContentType);
+
+        String[] localVarAuthNames = new String[] { "basicAuth" };
+        return localVarApiClient.buildCall(localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call getInfoValidateBeforeCall(final ApiCallback _callback) throws ApiException {
+        
+
+        okhttp3.Call localVarCall = getInfoCall(_callback);
+        return localVarCall;
+
+    }
+
+    /**
+     * 
+     * Get meta data for this cluster.
+     * @return GetInfoResponseBody
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public GetInfoResponseBody getInfo() throws ApiException {
+        ApiResponse<GetInfoResponseBody> localVarResp = getInfoWithHttpInfo();
+        return localVarResp.getData();
+    }
+
+    /**
+     * 
+     * Get meta data for this cluster.
+     * @return ApiResponse&lt;GetInfoResponseBody&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<GetInfoResponseBody> getInfoWithHttpInfo() throws ApiException {
+        okhttp3.Call localVarCall = getInfoValidateBeforeCall(null);
+        Type localVarReturnType = new TypeToken<GetInfoResponseBody>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     *  (asynchronously)
+     * Get meta data for this cluster.
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getInfoAsync(final ApiCallback<GetInfoResponseBody> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = getInfoValidateBeforeCall(_callback);
+        Type localVarReturnType = new TypeToken<GetInfoResponseBody>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for getOperationStatus
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getOperationStatusCall(UUID sessionHandle, UUID operationHandle, final ApiCallback _callback) throws ApiException {
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/sessions/{session_handle}/operations/{operation_handle}/status"
+            .replaceAll("\\{" + "session_handle" + "\\}", localVarApiClient.escapeString(sessionHandle.toString()))
+            .replaceAll("\\{" + "operation_handle" + "\\}", localVarApiClient.escapeString(operationHandle.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        localVarHeaderParams.put("Content-Type", localVarContentType);
+
+        String[] localVarAuthNames = new String[] { "basicAuth" };
+        return localVarApiClient.buildCall(localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call getOperationStatusValidateBeforeCall(UUID sessionHandle, UUID operationHandle, final ApiCallback _callback) throws ApiException {
+        
+        // verify the required parameter 'sessionHandle' is set
+        if (sessionHandle == null) {
+            throw new ApiException("Missing the required parameter 'sessionHandle' when calling getOperationStatus(Async)");
+        }
+        
+        // verify the required parameter 'operationHandle' is set
+        if (operationHandle == null) {
+            throw new ApiException("Missing the required parameter 'operationHandle' when calling getOperationStatus(Async)");
+        }
+        
+
+        okhttp3.Call localVarCall = getOperationStatusCall(sessionHandle, operationHandle, _callback);
+        return localVarCall;
+
+    }
+
+    /**
+     * 
+     * Get the status of operation.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @return OperationStatusResponseBody
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public OperationStatusResponseBody getOperationStatus(UUID sessionHandle, UUID operationHandle) throws ApiException {
+        ApiResponse<OperationStatusResponseBody> localVarResp = getOperationStatusWithHttpInfo(sessionHandle, operationHandle);
+        return localVarResp.getData();
+    }
+
+    /**
+     * 
+     * Get the status of operation.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @return ApiResponse&lt;OperationStatusResponseBody&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<OperationStatusResponseBody> getOperationStatusWithHttpInfo(UUID sessionHandle, UUID operationHandle) throws ApiException {
+        okhttp3.Call localVarCall = getOperationStatusValidateBeforeCall(sessionHandle, operationHandle, null);
+        Type localVarReturnType = new TypeToken<OperationStatusResponseBody>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     *  (asynchronously)
+     * Get the status of operation.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param operationHandle The OperationHandle that identifies a operation. (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getOperationStatusAsync(UUID sessionHandle, UUID operationHandle, final ApiCallback<OperationStatusResponseBody> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = getOperationStatusValidateBeforeCall(sessionHandle, operationHandle, _callback);
+        Type localVarReturnType = new TypeToken<OperationStatusResponseBody>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for getSessionConfig
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getSessionConfigCall(UUID sessionHandle, final ApiCallback _callback) throws ApiException {
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/sessions/{session_handle}"
+            .replaceAll("\\{" + "session_handle" + "\\}", localVarApiClient.escapeString(sessionHandle.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        localVarHeaderParams.put("Content-Type", localVarContentType);
+
+        String[] localVarAuthNames = new String[] { "basicAuth" };
+        return localVarApiClient.buildCall(localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call getSessionConfigValidateBeforeCall(UUID sessionHandle, final ApiCallback _callback) throws ApiException {
+        
+        // verify the required parameter 'sessionHandle' is set
+        if (sessionHandle == null) {
+            throw new ApiException("Missing the required parameter 'sessionHandle' when calling getSessionConfig(Async)");
+        }
+        
+
+        okhttp3.Call localVarCall = getSessionConfigCall(sessionHandle, _callback);
+        return localVarCall;
+
+    }
+
+    /**
+     * 
+     * Get the session configuration.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @return GetSessionConfigResponseBody
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public GetSessionConfigResponseBody getSessionConfig(UUID sessionHandle) throws ApiException {
+        ApiResponse<GetSessionConfigResponseBody> localVarResp = getSessionConfigWithHttpInfo(sessionHandle);
+        return localVarResp.getData();
+    }
+
+    /**
+     * 
+     * Get the session configuration.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @return ApiResponse&lt;GetSessionConfigResponseBody&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<GetSessionConfigResponseBody> getSessionConfigWithHttpInfo(UUID sessionHandle) throws ApiException {
+        okhttp3.Call localVarCall = getSessionConfigValidateBeforeCall(sessionHandle, null);
+        Type localVarReturnType = new TypeToken<GetSessionConfigResponseBody>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     *  (asynchronously)
+     * Get the session configuration.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getSessionConfigAsync(UUID sessionHandle, final ApiCallback<GetSessionConfigResponseBody> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = getSessionConfigValidateBeforeCall(sessionHandle, _callback);
+        Type localVarReturnType = new TypeToken<GetSessionConfigResponseBody>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for openSession
+     * @param openSessionRequestBody  (optional)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call openSessionCall(OpenSessionRequestBody openSessionRequestBody, final ApiCallback _callback) throws ApiException {
+        Object localVarPostBody = openSessionRequestBody;
+
+        // create path and map variables
+        String localVarPath = "/sessions";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        localVarHeaderParams.put("Content-Type", localVarContentType);
+
+        String[] localVarAuthNames = new String[] { "basicAuth" };
+        return localVarApiClient.buildCall(localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call openSessionValidateBeforeCall(OpenSessionRequestBody openSessionRequestBody, final ApiCallback _callback) throws ApiException {
+        
+
+        okhttp3.Call localVarCall = openSessionCall(openSessionRequestBody, _callback);
+        return localVarCall;
+
+    }
+
+    /**
+     * 
+     * Opens a new session with specific properties. Specific properties can be given for current session which will override the default properties of gateway.
+     * @param openSessionRequestBody  (optional)
+     * @return OpenSessionResponseBody
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public OpenSessionResponseBody openSession(OpenSessionRequestBody openSessionRequestBody) throws ApiException {
+        ApiResponse<OpenSessionResponseBody> localVarResp = openSessionWithHttpInfo(openSessionRequestBody);
+        return localVarResp.getData();
+    }
+
+    /**
+     * 
+     * Opens a new session with specific properties. Specific properties can be given for current session which will override the default properties of gateway.
+     * @param openSessionRequestBody  (optional)
+     * @return ApiResponse&lt;OpenSessionResponseBody&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<OpenSessionResponseBody> openSessionWithHttpInfo(OpenSessionRequestBody openSessionRequestBody) throws ApiException {
+        okhttp3.Call localVarCall = openSessionValidateBeforeCall(openSessionRequestBody, null);
+        Type localVarReturnType = new TypeToken<OpenSessionResponseBody>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     *  (asynchronously)
+     * Opens a new session with specific properties. Specific properties can be given for current session which will override the default properties of gateway.
+     * @param openSessionRequestBody  (optional)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call openSessionAsync(OpenSessionRequestBody openSessionRequestBody, final ApiCallback<OpenSessionResponseBody> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = openSessionValidateBeforeCall(openSessionRequestBody, _callback);
+        Type localVarReturnType = new TypeToken<OpenSessionResponseBody>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for triggerSession
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call triggerSessionCall(SessionHandle sessionHandle, final ApiCallback _callback) throws ApiException {
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/sessions/{session_handle}/heartbeat"
+            .replaceAll("\\{" + "session_handle" + "\\}", localVarApiClient.escapeString(sessionHandle.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        localVarHeaderParams.put("Content-Type", localVarContentType);
+
+        String[] localVarAuthNames = new String[] { "basicAuth" };
+        return localVarApiClient.buildCall(localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call triggerSessionValidateBeforeCall(SessionHandle sessionHandle, final ApiCallback _callback) throws ApiException {
+        
+        // verify the required parameter 'sessionHandle' is set
+        if (sessionHandle == null) {
+            throw new ApiException("Missing the required parameter 'sessionHandle' when calling triggerSession(Async)");
+        }
+        
+
+        okhttp3.Call localVarCall = triggerSessionCall(sessionHandle, _callback);
+        return localVarCall;
+
+    }
+
+    /**
+     * 
+     * Trigger heartbeat to tell the server that the client is active, and to keep the session alive as long as configured timeout value.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public void triggerSession(SessionHandle sessionHandle) throws ApiException {
+        triggerSessionWithHttpInfo(sessionHandle);
+    }
+
+    /**
+     * 
+     * Trigger heartbeat to tell the server that the client is active, and to keep the session alive as long as configured timeout value.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @return ApiResponse&lt;Void&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<Void> triggerSessionWithHttpInfo(SessionHandle sessionHandle) throws ApiException {
+        okhttp3.Call localVarCall = triggerSessionValidateBeforeCall(sessionHandle, null);
+        return localVarApiClient.execute(localVarCall);
+    }
+
+    /**
+     *  (asynchronously)
+     * Trigger heartbeat to tell the server that the client is active, and to keep the session alive as long as configured timeout value.
+     * @param sessionHandle The SessionHandle that identifies a session. (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table summary="Response Details" border="1">
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call triggerSessionAsync(SessionHandle sessionHandle, final ApiCallback<Void> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = triggerSessionValidateBeforeCall(sessionHandle, _callback);
+        localVarApiClient.executeAsync(localVarCall, _callback);
+        return localVarCall;
+    }
 }

@@ -13,12 +13,13 @@
 
 package org.apache.celeborn.client;
 
-import java.net.http.HttpHeaders;
+import java.util.Map;
+import java.util.List;
 
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ApiException extends Exception {
     private int code = 0;
-    private HttpHeaders responseHeaders = null;
+    private Map<String, List<String>> responseHeaders = null;
     private String responseBody = null;
 
     public ApiException() {}
@@ -31,22 +32,22 @@ public class ApiException extends Exception {
         super(message);
     }
 
-    public ApiException(String message, Throwable throwable, int code, HttpHeaders responseHeaders, String responseBody) {
+    public ApiException(String message, Throwable throwable, int code, Map<String, List<String>> responseHeaders, String responseBody) {
         super(message, throwable);
         this.code = code;
         this.responseHeaders = responseHeaders;
         this.responseBody = responseBody;
     }
 
-    public ApiException(String message, int code, HttpHeaders responseHeaders, String responseBody) {
+    public ApiException(String message, int code, Map<String, List<String>> responseHeaders, String responseBody) {
         this(message, (Throwable) null, code, responseHeaders, responseBody);
     }
 
-    public ApiException(String message, Throwable throwable, int code, HttpHeaders responseHeaders) {
+    public ApiException(String message, Throwable throwable, int code, Map<String, List<String>> responseHeaders) {
         this(message, throwable, code, responseHeaders, null);
     }
 
-    public ApiException(int code, HttpHeaders responseHeaders, String responseBody) {
+    public ApiException(int code, Map<String, List<String>> responseHeaders, String responseBody) {
         this((String) null, (Throwable) null, code, responseHeaders, responseBody);
     }
 
@@ -55,7 +56,7 @@ public class ApiException extends Exception {
         this.code = code;
     }
 
-    public ApiException(int code, String message, HttpHeaders responseHeaders, String responseBody) {
+    public ApiException(int code, String message, Map<String, List<String>> responseHeaders, String responseBody) {
         this(code, message);
         this.responseHeaders = responseHeaders;
         this.responseBody = responseBody;
@@ -73,9 +74,9 @@ public class ApiException extends Exception {
     /**
      * Get the HTTP response headers.
      *
-     * @return Headers as an HttpHeaders object
+     * @return A map of list of string
      */
-    public HttpHeaders getResponseHeaders() {
+    public Map<String, List<String>> getResponseHeaders() {
         return responseHeaders;
     }
 

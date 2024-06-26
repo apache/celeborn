@@ -15,32 +15,27 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
-
+import java.io.IOException;
 
 /**
  * OperationStatusResponseBody
  */
-@JsonPropertyOrder({
-  OperationStatusResponseBody.JSON_PROPERTY_STATUS
-})
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class OperationStatusResponseBody {
-  public static final String JSON_PROPERTY_STATUS = "status";
+  public static final String SERIALIZED_NAME_STATUS = "status";
+  @SerializedName(SERIALIZED_NAME_STATUS)
   private String status;
 
 
   public OperationStatusResponseBody status(String status) {
+    
     this.status = status;
     return this;
   }
@@ -51,8 +46,6 @@ public class OperationStatusResponseBody {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_STATUS)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public String getStatus() {
     return status;
@@ -64,9 +57,6 @@ public class OperationStatusResponseBody {
   }
 
 
-  /**
-   * Return true if this OperationStatusResponseBody object is equal to o.
-   */
   @Override
   public boolean equals(Object o) {
     if (this == o) {

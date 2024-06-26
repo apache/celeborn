@@ -15,47 +15,42 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.celeborn.client.model.ConstraintType;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
-
 
 /**
  * UniqueConstraint
  */
-@JsonPropertyOrder({
-  UniqueConstraint.JSON_PROPERTY_NAME,
-  UniqueConstraint.JSON_PROPERTY_ENFORCED,
-  UniqueConstraint.JSON_PROPERTY_COLUMNS,
-  UniqueConstraint.JSON_PROPERTY_TYPE
-})
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class UniqueConstraint {
-  public static final String JSON_PROPERTY_NAME = "name";
+  public static final String SERIALIZED_NAME_NAME = "name";
+  @SerializedName(SERIALIZED_NAME_NAME)
   private String name;
 
-  public static final String JSON_PROPERTY_ENFORCED = "enforced";
+  public static final String SERIALIZED_NAME_ENFORCED = "enforced";
+  @SerializedName(SERIALIZED_NAME_ENFORCED)
   private Boolean enforced;
 
-  public static final String JSON_PROPERTY_COLUMNS = "columns";
+  public static final String SERIALIZED_NAME_COLUMNS = "columns";
+  @SerializedName(SERIALIZED_NAME_COLUMNS)
   private List<String> columns = null;
 
-  public static final String JSON_PROPERTY_TYPE = "type";
+  public static final String SERIALIZED_NAME_TYPE = "type";
+  @SerializedName(SERIALIZED_NAME_TYPE)
   private ConstraintType type;
 
 
   public UniqueConstraint name(String name) {
+    
     this.name = name;
     return this;
   }
@@ -66,8 +61,6 @@ public class UniqueConstraint {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_NAME)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public String getName() {
     return name;
@@ -80,6 +73,7 @@ public class UniqueConstraint {
 
 
   public UniqueConstraint enforced(Boolean enforced) {
+    
     this.enforced = enforced;
     return this;
   }
@@ -90,8 +84,6 @@ public class UniqueConstraint {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_ENFORCED)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public Boolean getEnforced() {
     return enforced;
@@ -104,13 +96,14 @@ public class UniqueConstraint {
 
 
   public UniqueConstraint columns(List<String> columns) {
+    
     this.columns = columns;
     return this;
   }
 
   public UniqueConstraint addColumnsItem(String columnsItem) {
     if (this.columns == null) {
-      this.columns = new ArrayList<>();
+      this.columns = new ArrayList<String>();
     }
     this.columns.add(columnsItem);
     return this;
@@ -122,8 +115,6 @@ public class UniqueConstraint {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_COLUMNS)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public List<String> getColumns() {
     return columns;
@@ -136,6 +127,7 @@ public class UniqueConstraint {
 
 
   public UniqueConstraint type(ConstraintType type) {
+    
     this.type = type;
     return this;
   }
@@ -146,8 +138,6 @@ public class UniqueConstraint {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_TYPE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public ConstraintType getType() {
     return type;
@@ -159,9 +149,6 @@ public class UniqueConstraint {
   }
 
 
-  /**
-   * Return true if this UniqueConstraint object is equal to o.
-   */
   @Override
   public boolean equals(Object o) {
     if (this == o) {

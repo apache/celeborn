@@ -15,69 +15,64 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.celeborn.client.model.Column;
 import org.apache.celeborn.client.model.DataType;
 import org.apache.celeborn.client.model.UniqueConstraint;
 import org.apache.celeborn.client.model.WatermarkSpec;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
-
 
 /**
  * ResolvedSchema
  */
-@JsonPropertyOrder({
-  ResolvedSchema.JSON_PROPERTY_COLUMNS,
-  ResolvedSchema.JSON_PROPERTY_WATERMARK_SPECS,
-  ResolvedSchema.JSON_PROPERTY_PRIMARY_KEY,
-  ResolvedSchema.JSON_PROPERTY_PRIMARY_KEY_INDEXES,
-  ResolvedSchema.JSON_PROPERTY_COLUMN_COUNT,
-  ResolvedSchema.JSON_PROPERTY_COLUMN_DATA_TYPES,
-  ResolvedSchema.JSON_PROPERTY_COLUMN_NAMES
-})
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ResolvedSchema {
-  public static final String JSON_PROPERTY_COLUMNS = "columns";
+  public static final String SERIALIZED_NAME_COLUMNS = "columns";
+  @SerializedName(SERIALIZED_NAME_COLUMNS)
   private List<Column> columns = null;
 
-  public static final String JSON_PROPERTY_WATERMARK_SPECS = "watermarkSpecs";
+  public static final String SERIALIZED_NAME_WATERMARK_SPECS = "watermarkSpecs";
+  @SerializedName(SERIALIZED_NAME_WATERMARK_SPECS)
   private List<WatermarkSpec> watermarkSpecs = null;
 
-  public static final String JSON_PROPERTY_PRIMARY_KEY = "primaryKey";
+  public static final String SERIALIZED_NAME_PRIMARY_KEY = "primaryKey";
+  @SerializedName(SERIALIZED_NAME_PRIMARY_KEY)
   private UniqueConstraint primaryKey;
 
-  public static final String JSON_PROPERTY_PRIMARY_KEY_INDEXES = "primaryKeyIndexes";
+  public static final String SERIALIZED_NAME_PRIMARY_KEY_INDEXES = "primaryKeyIndexes";
+  @SerializedName(SERIALIZED_NAME_PRIMARY_KEY_INDEXES)
   private List<Integer> primaryKeyIndexes = null;
 
-  public static final String JSON_PROPERTY_COLUMN_COUNT = "columnCount";
+  public static final String SERIALIZED_NAME_COLUMN_COUNT = "columnCount";
+  @SerializedName(SERIALIZED_NAME_COLUMN_COUNT)
   private Integer columnCount;
 
-  public static final String JSON_PROPERTY_COLUMN_DATA_TYPES = "columnDataTypes";
+  public static final String SERIALIZED_NAME_COLUMN_DATA_TYPES = "columnDataTypes";
+  @SerializedName(SERIALIZED_NAME_COLUMN_DATA_TYPES)
   private List<DataType> columnDataTypes = null;
 
-  public static final String JSON_PROPERTY_COLUMN_NAMES = "columnNames";
+  public static final String SERIALIZED_NAME_COLUMN_NAMES = "columnNames";
+  @SerializedName(SERIALIZED_NAME_COLUMN_NAMES)
   private List<String> columnNames = null;
 
 
   public ResolvedSchema columns(List<Column> columns) {
+    
     this.columns = columns;
     return this;
   }
 
   public ResolvedSchema addColumnsItem(Column columnsItem) {
     if (this.columns == null) {
-      this.columns = new ArrayList<>();
+      this.columns = new ArrayList<Column>();
     }
     this.columns.add(columnsItem);
     return this;
@@ -89,8 +84,6 @@ public class ResolvedSchema {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_COLUMNS)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public List<Column> getColumns() {
     return columns;
@@ -103,13 +96,14 @@ public class ResolvedSchema {
 
 
   public ResolvedSchema watermarkSpecs(List<WatermarkSpec> watermarkSpecs) {
+    
     this.watermarkSpecs = watermarkSpecs;
     return this;
   }
 
   public ResolvedSchema addWatermarkSpecsItem(WatermarkSpec watermarkSpecsItem) {
     if (this.watermarkSpecs == null) {
-      this.watermarkSpecs = new ArrayList<>();
+      this.watermarkSpecs = new ArrayList<WatermarkSpec>();
     }
     this.watermarkSpecs.add(watermarkSpecsItem);
     return this;
@@ -121,8 +115,6 @@ public class ResolvedSchema {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_WATERMARK_SPECS)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public List<WatermarkSpec> getWatermarkSpecs() {
     return watermarkSpecs;
@@ -135,6 +127,7 @@ public class ResolvedSchema {
 
 
   public ResolvedSchema primaryKey(UniqueConstraint primaryKey) {
+    
     this.primaryKey = primaryKey;
     return this;
   }
@@ -145,8 +138,6 @@ public class ResolvedSchema {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_PRIMARY_KEY)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public UniqueConstraint getPrimaryKey() {
     return primaryKey;
@@ -159,13 +150,14 @@ public class ResolvedSchema {
 
 
   public ResolvedSchema primaryKeyIndexes(List<Integer> primaryKeyIndexes) {
+    
     this.primaryKeyIndexes = primaryKeyIndexes;
     return this;
   }
 
   public ResolvedSchema addPrimaryKeyIndexesItem(Integer primaryKeyIndexesItem) {
     if (this.primaryKeyIndexes == null) {
-      this.primaryKeyIndexes = new ArrayList<>();
+      this.primaryKeyIndexes = new ArrayList<Integer>();
     }
     this.primaryKeyIndexes.add(primaryKeyIndexesItem);
     return this;
@@ -177,8 +169,6 @@ public class ResolvedSchema {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_PRIMARY_KEY_INDEXES)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public List<Integer> getPrimaryKeyIndexes() {
     return primaryKeyIndexes;
@@ -191,6 +181,7 @@ public class ResolvedSchema {
 
 
   public ResolvedSchema columnCount(Integer columnCount) {
+    
     this.columnCount = columnCount;
     return this;
   }
@@ -201,8 +192,6 @@ public class ResolvedSchema {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_COLUMN_COUNT)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public Integer getColumnCount() {
     return columnCount;
@@ -215,13 +204,14 @@ public class ResolvedSchema {
 
 
   public ResolvedSchema columnDataTypes(List<DataType> columnDataTypes) {
+    
     this.columnDataTypes = columnDataTypes;
     return this;
   }
 
   public ResolvedSchema addColumnDataTypesItem(DataType columnDataTypesItem) {
     if (this.columnDataTypes == null) {
-      this.columnDataTypes = new ArrayList<>();
+      this.columnDataTypes = new ArrayList<DataType>();
     }
     this.columnDataTypes.add(columnDataTypesItem);
     return this;
@@ -233,8 +223,6 @@ public class ResolvedSchema {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_COLUMN_DATA_TYPES)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public List<DataType> getColumnDataTypes() {
     return columnDataTypes;
@@ -247,13 +235,14 @@ public class ResolvedSchema {
 
 
   public ResolvedSchema columnNames(List<String> columnNames) {
+    
     this.columnNames = columnNames;
     return this;
   }
 
   public ResolvedSchema addColumnNamesItem(String columnNamesItem) {
     if (this.columnNames == null) {
-      this.columnNames = new ArrayList<>();
+      this.columnNames = new ArrayList<String>();
     }
     this.columnNames.add(columnNamesItem);
     return this;
@@ -265,8 +254,6 @@ public class ResolvedSchema {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_COLUMN_NAMES)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public List<String> getColumnNames() {
     return columnNames;
@@ -278,9 +265,6 @@ public class ResolvedSchema {
   }
 
 
-  /**
-   * Return true if this ResolvedSchema object is equal to o.
-   */
   @Override
   public boolean equals(Object o) {
     if (this == o) {

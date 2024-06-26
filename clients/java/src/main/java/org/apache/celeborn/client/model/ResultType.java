@@ -15,18 +15,18 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
+import com.google.gson.annotations.SerializedName;
 
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
+import java.io.IOException;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 /**
  * Gets or Sets ResultType
  */
+@JsonAdapter(ResultType.Adapter.class)
 public enum ResultType {
   
   NOT_READY("NOT_READY"),
@@ -41,7 +41,6 @@ public enum ResultType {
     this.value = value;
   }
 
-  @JsonValue
   public String getValue() {
     return value;
   }
@@ -51,7 +50,6 @@ public enum ResultType {
     return String.valueOf(value);
   }
 
-  @JsonCreator
   public static ResultType fromValue(String value) {
     for (ResultType b : ResultType.values()) {
       if (b.value.equals(value)) {
@@ -59,6 +57,19 @@ public enum ResultType {
       }
     }
     throw new IllegalArgumentException("Unexpected value '" + value + "'");
+  }
+
+  public static class Adapter extends TypeAdapter<ResultType> {
+    @Override
+    public void write(final JsonWriter jsonWriter, final ResultType enumeration) throws IOException {
+      jsonWriter.value(enumeration.getValue());
+    }
+
+    @Override
+    public ResultType read(final JsonReader jsonReader) throws IOException {
+      String value = jsonReader.nextString();
+      return ResultType.fromValue(value);
+    }
   }
 }
 

@@ -15,33 +15,28 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.IOException;
 import java.util.UUID;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
-
 
 /**
  * OperationHandle
  */
-@JsonPropertyOrder({
-  OperationHandle.JSON_PROPERTY_IDENTIFIER
-})
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class OperationHandle {
-  public static final String JSON_PROPERTY_IDENTIFIER = "identifier";
+  public static final String SERIALIZED_NAME_IDENTIFIER = "identifier";
+  @SerializedName(SERIALIZED_NAME_IDENTIFIER)
   private UUID identifier;
 
 
   public OperationHandle identifier(UUID identifier) {
+    
     this.identifier = identifier;
     return this;
   }
@@ -52,8 +47,6 @@ public class OperationHandle {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_IDENTIFIER)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public UUID getIdentifier() {
     return identifier;
@@ -65,9 +58,6 @@ public class OperationHandle {
   }
 
 
-  /**
-   * Return true if this OperationHandle object is equal to o.
-   */
   @Override
   public boolean equals(Object o) {
     if (this == o) {

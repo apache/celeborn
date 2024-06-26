@@ -15,41 +15,36 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.IOException;
 import org.apache.celeborn.client.model.ResultSet;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
-
 
 /**
  * FetchResultsResponseBody
  */
-@JsonPropertyOrder({
-  FetchResultsResponseBody.JSON_PROPERTY_RESULTS,
-  FetchResultsResponseBody.JSON_PROPERTY_RESULT_TYPE,
-  FetchResultsResponseBody.JSON_PROPERTY_NEXT_RESULT_URI
-})
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class FetchResultsResponseBody {
-  public static final String JSON_PROPERTY_RESULTS = "results";
+  public static final String SERIALIZED_NAME_RESULTS = "results";
+  @SerializedName(SERIALIZED_NAME_RESULTS)
   private ResultSet results;
 
-  public static final String JSON_PROPERTY_RESULT_TYPE = "resultType";
+  public static final String SERIALIZED_NAME_RESULT_TYPE = "resultType";
+  @SerializedName(SERIALIZED_NAME_RESULT_TYPE)
   private String resultType;
 
-  public static final String JSON_PROPERTY_NEXT_RESULT_URI = "nextResultUri";
+  public static final String SERIALIZED_NAME_NEXT_RESULT_URI = "nextResultUri";
+  @SerializedName(SERIALIZED_NAME_NEXT_RESULT_URI)
   private String nextResultUri;
 
 
   public FetchResultsResponseBody results(ResultSet results) {
+    
     this.results = results;
     return this;
   }
@@ -60,8 +55,6 @@ public class FetchResultsResponseBody {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_RESULTS)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public ResultSet getResults() {
     return results;
@@ -74,6 +67,7 @@ public class FetchResultsResponseBody {
 
 
   public FetchResultsResponseBody resultType(String resultType) {
+    
     this.resultType = resultType;
     return this;
   }
@@ -84,8 +78,6 @@ public class FetchResultsResponseBody {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_RESULT_TYPE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public String getResultType() {
     return resultType;
@@ -98,6 +90,7 @@ public class FetchResultsResponseBody {
 
 
   public FetchResultsResponseBody nextResultUri(String nextResultUri) {
+    
     this.nextResultUri = nextResultUri;
     return this;
   }
@@ -108,8 +101,6 @@ public class FetchResultsResponseBody {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_NEXT_RESULT_URI)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public String getNextResultUri() {
     return nextResultUri;
@@ -121,9 +112,6 @@ public class FetchResultsResponseBody {
   }
 
 
-  /**
-   * Return true if this FetchResultsResponseBody object is equal to o.
-   */
   @Override
   public boolean equals(Object o) {
     if (this == o) {

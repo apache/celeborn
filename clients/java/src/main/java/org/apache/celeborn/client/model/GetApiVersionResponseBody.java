@@ -15,41 +15,36 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
-
 
 /**
  * GetApiVersionResponseBody
  */
-@JsonPropertyOrder({
-  GetApiVersionResponseBody.JSON_PROPERTY_VERSIONS
-})
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class GetApiVersionResponseBody {
-  public static final String JSON_PROPERTY_VERSIONS = "versions";
+  public static final String SERIALIZED_NAME_VERSIONS = "versions";
+  @SerializedName(SERIALIZED_NAME_VERSIONS)
   private List<String> versions = null;
 
 
   public GetApiVersionResponseBody versions(List<String> versions) {
+    
     this.versions = versions;
     return this;
   }
 
   public GetApiVersionResponseBody addVersionsItem(String versionsItem) {
     if (this.versions == null) {
-      this.versions = new ArrayList<>();
+      this.versions = new ArrayList<String>();
     }
     this.versions.add(versionsItem);
     return this;
@@ -61,8 +56,6 @@ public class GetApiVersionResponseBody {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_VERSIONS)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public List<String> getVersions() {
     return versions;
@@ -74,9 +67,6 @@ public class GetApiVersionResponseBody {
   }
 
 
-  /**
-   * Return true if this GetApiVersionResponseBody object is equal to o.
-   */
   @Override
   public boolean equals(Object o) {
     if (this == o) {

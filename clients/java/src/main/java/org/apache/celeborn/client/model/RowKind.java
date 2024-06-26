@@ -15,18 +15,18 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
+import com.google.gson.annotations.SerializedName;
 
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
+import java.io.IOException;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 /**
  * Gets or Sets RowKind
  */
+@JsonAdapter(RowKind.Adapter.class)
 public enum RowKind {
   
   INSERT("INSERT"),
@@ -43,7 +43,6 @@ public enum RowKind {
     this.value = value;
   }
 
-  @JsonValue
   public String getValue() {
     return value;
   }
@@ -53,7 +52,6 @@ public enum RowKind {
     return String.valueOf(value);
   }
 
-  @JsonCreator
   public static RowKind fromValue(String value) {
     for (RowKind b : RowKind.values()) {
       if (b.value.equals(value)) {
@@ -61,6 +59,19 @@ public enum RowKind {
       }
     }
     throw new IllegalArgumentException("Unexpected value '" + value + "'");
+  }
+
+  public static class Adapter extends TypeAdapter<RowKind> {
+    @Override
+    public void write(final JsonWriter jsonWriter, final RowKind enumeration) throws IOException {
+      jsonWriter.value(enumeration.getValue());
+    }
+
+    @Override
+    public RowKind read(final JsonReader jsonReader) throws IOException {
+      String value = jsonReader.nextString();
+      return RowKind.fromValue(value);
+    }
   }
 }
 

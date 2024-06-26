@@ -1265,9 +1265,7 @@ object CelebornOpenApi {
       openApiOutputDir := (file("clients") / "java").toString,
       openApiApiPackage := s"$orgName.client.api",
       openApiModelPackage := s"$orgName.client.model",
-      openApiAdditionalProperties := Map(
-        "library" -> "native",
-        "hideGenerationTimestamp" -> "true"),
+      openApiAdditionalProperties := Map("hideGenerationTimestamp" -> "true"),
       openApiGenerateApiTests := SettingDisabled,
       openApiGenerateModelTests := SettingDisabled,
       openApiGenerateApiDocumentation := SettingDisabled,

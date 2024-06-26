@@ -15,43 +15,38 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
-
 
 /**
  * ExecuteStatementRequestBody
  */
-@JsonPropertyOrder({
-  ExecuteStatementRequestBody.JSON_PROPERTY_STATEMENT,
-  ExecuteStatementRequestBody.JSON_PROPERTY_EXECUTION_TIMEOUT,
-  ExecuteStatementRequestBody.JSON_PROPERTY_EXECUTION_CONFIG
-})
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ExecuteStatementRequestBody {
-  public static final String JSON_PROPERTY_STATEMENT = "statement";
+  public static final String SERIALIZED_NAME_STATEMENT = "statement";
+  @SerializedName(SERIALIZED_NAME_STATEMENT)
   private String statement;
 
-  public static final String JSON_PROPERTY_EXECUTION_TIMEOUT = "executionTimeout";
+  public static final String SERIALIZED_NAME_EXECUTION_TIMEOUT = "executionTimeout";
+  @SerializedName(SERIALIZED_NAME_EXECUTION_TIMEOUT)
   private Long executionTimeout;
 
-  public static final String JSON_PROPERTY_EXECUTION_CONFIG = "executionConfig";
+  public static final String SERIALIZED_NAME_EXECUTION_CONFIG = "executionConfig";
+  @SerializedName(SERIALIZED_NAME_EXECUTION_CONFIG)
   private Map<String, String> executionConfig = null;
 
 
   public ExecuteStatementRequestBody statement(String statement) {
+    
     this.statement = statement;
     return this;
   }
@@ -62,8 +57,6 @@ public class ExecuteStatementRequestBody {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_STATEMENT)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public String getStatement() {
     return statement;
@@ -76,6 +69,7 @@ public class ExecuteStatementRequestBody {
 
 
   public ExecuteStatementRequestBody executionTimeout(Long executionTimeout) {
+    
     this.executionTimeout = executionTimeout;
     return this;
   }
@@ -86,8 +80,6 @@ public class ExecuteStatementRequestBody {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_EXECUTION_TIMEOUT)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public Long getExecutionTimeout() {
     return executionTimeout;
@@ -100,13 +92,14 @@ public class ExecuteStatementRequestBody {
 
 
   public ExecuteStatementRequestBody executionConfig(Map<String, String> executionConfig) {
+    
     this.executionConfig = executionConfig;
     return this;
   }
 
   public ExecuteStatementRequestBody putExecutionConfigItem(String key, String executionConfigItem) {
     if (this.executionConfig == null) {
-      this.executionConfig = new HashMap<>();
+      this.executionConfig = new HashMap<String, String>();
     }
     this.executionConfig.put(key, executionConfigItem);
     return this;
@@ -118,8 +111,6 @@ public class ExecuteStatementRequestBody {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_EXECUTION_CONFIG)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public Map<String, String> getExecutionConfig() {
     return executionConfig;
@@ -131,9 +122,6 @@ public class ExecuteStatementRequestBody {
   }
 
 
-  /**
-   * Return true if this ExecuteStatementRequestBody object is equal to o.
-   */
   @Override
   public boolean equals(Object o) {
     if (this == o) {

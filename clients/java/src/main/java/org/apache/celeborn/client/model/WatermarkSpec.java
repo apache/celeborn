@@ -15,37 +15,32 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.IOException;
 import org.apache.celeborn.client.model.ResolvedExpression;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
-
 
 /**
  * WatermarkSpec
  */
-@JsonPropertyOrder({
-  WatermarkSpec.JSON_PROPERTY_ROWTIME_ATTRIBUTE,
-  WatermarkSpec.JSON_PROPERTY_WATERMARK_EXPRESSION
-})
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class WatermarkSpec {
-  public static final String JSON_PROPERTY_ROWTIME_ATTRIBUTE = "rowtimeAttribute";
+  public static final String SERIALIZED_NAME_ROWTIME_ATTRIBUTE = "rowtimeAttribute";
+  @SerializedName(SERIALIZED_NAME_ROWTIME_ATTRIBUTE)
   private String rowtimeAttribute;
 
-  public static final String JSON_PROPERTY_WATERMARK_EXPRESSION = "watermarkExpression";
+  public static final String SERIALIZED_NAME_WATERMARK_EXPRESSION = "watermarkExpression";
+  @SerializedName(SERIALIZED_NAME_WATERMARK_EXPRESSION)
   private ResolvedExpression watermarkExpression;
 
 
   public WatermarkSpec rowtimeAttribute(String rowtimeAttribute) {
+    
     this.rowtimeAttribute = rowtimeAttribute;
     return this;
   }
@@ -56,8 +51,6 @@ public class WatermarkSpec {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_ROWTIME_ATTRIBUTE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public String getRowtimeAttribute() {
     return rowtimeAttribute;
@@ -70,6 +63,7 @@ public class WatermarkSpec {
 
 
   public WatermarkSpec watermarkExpression(ResolvedExpression watermarkExpression) {
+    
     this.watermarkExpression = watermarkExpression;
     return this;
   }
@@ -80,8 +74,6 @@ public class WatermarkSpec {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_WATERMARK_EXPRESSION)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public ResolvedExpression getWatermarkExpression() {
     return watermarkExpression;
@@ -93,9 +85,6 @@ public class WatermarkSpec {
   }
 
 
-  /**
-   * Return true if this WatermarkSpec object is equal to o.
-   */
   @Override
   public boolean equals(Object o) {
     if (this == o) {

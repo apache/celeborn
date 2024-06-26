@@ -15,43 +15,38 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.celeborn.client.model.LogicalTypeRoot;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
-
 
 /**
  * LogicalType
  */
-@JsonPropertyOrder({
-  LogicalType.JSON_PROPERTY_TYPE_ROOT,
-  LogicalType.JSON_PROPERTY_CHILDREN,
-  LogicalType.JSON_PROPERTY_NULLABLE
-})
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class LogicalType {
-  public static final String JSON_PROPERTY_TYPE_ROOT = "typeRoot";
+  public static final String SERIALIZED_NAME_TYPE_ROOT = "typeRoot";
+  @SerializedName(SERIALIZED_NAME_TYPE_ROOT)
   private LogicalTypeRoot typeRoot;
 
-  public static final String JSON_PROPERTY_CHILDREN = "children";
+  public static final String SERIALIZED_NAME_CHILDREN = "children";
+  @SerializedName(SERIALIZED_NAME_CHILDREN)
   private List<LogicalType> children = null;
 
-  public static final String JSON_PROPERTY_NULLABLE = "nullable";
+  public static final String SERIALIZED_NAME_NULLABLE = "nullable";
+  @SerializedName(SERIALIZED_NAME_NULLABLE)
   private Boolean nullable;
 
 
   public LogicalType typeRoot(LogicalTypeRoot typeRoot) {
+    
     this.typeRoot = typeRoot;
     return this;
   }
@@ -62,8 +57,6 @@ public class LogicalType {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_TYPE_ROOT)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public LogicalTypeRoot getTypeRoot() {
     return typeRoot;
@@ -76,13 +69,14 @@ public class LogicalType {
 
 
   public LogicalType children(List<LogicalType> children) {
+    
     this.children = children;
     return this;
   }
 
   public LogicalType addChildrenItem(LogicalType childrenItem) {
     if (this.children == null) {
-      this.children = new ArrayList<>();
+      this.children = new ArrayList<LogicalType>();
     }
     this.children.add(childrenItem);
     return this;
@@ -94,8 +88,6 @@ public class LogicalType {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_CHILDREN)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public List<LogicalType> getChildren() {
     return children;
@@ -108,6 +100,7 @@ public class LogicalType {
 
 
   public LogicalType nullable(Boolean nullable) {
+    
     this.nullable = nullable;
     return this;
   }
@@ -118,8 +111,6 @@ public class LogicalType {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_NULLABLE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public Boolean getNullable() {
     return nullable;
@@ -131,9 +122,6 @@ public class LogicalType {
   }
 
 
-  /**
-   * Return true if this LogicalType object is equal to o.
-   */
   @Override
   public boolean equals(Object o) {
     if (this == o) {

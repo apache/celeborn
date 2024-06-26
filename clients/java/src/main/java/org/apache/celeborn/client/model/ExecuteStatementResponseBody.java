@@ -15,32 +15,27 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
-
+import java.io.IOException;
 
 /**
  * ExecuteStatementResponseBody
  */
-@JsonPropertyOrder({
-  ExecuteStatementResponseBody.JSON_PROPERTY_OPERATION_HANDLE
-})
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ExecuteStatementResponseBody {
-  public static final String JSON_PROPERTY_OPERATION_HANDLE = "operationHandle";
+  public static final String SERIALIZED_NAME_OPERATION_HANDLE = "operationHandle";
+  @SerializedName(SERIALIZED_NAME_OPERATION_HANDLE)
   private String operationHandle;
 
 
   public ExecuteStatementResponseBody operationHandle(String operationHandle) {
+    
     this.operationHandle = operationHandle;
     return this;
   }
@@ -51,8 +46,6 @@ public class ExecuteStatementResponseBody {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_OPERATION_HANDLE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public String getOperationHandle() {
     return operationHandle;
@@ -64,9 +57,6 @@ public class ExecuteStatementResponseBody {
   }
 
 
-  /**
-   * Return true if this ExecuteStatementResponseBody object is equal to o.
-   */
   @Override
   public boolean equals(Object o) {
     if (this == o) {

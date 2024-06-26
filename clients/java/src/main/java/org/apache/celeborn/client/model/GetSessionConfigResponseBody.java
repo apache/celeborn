@@ -15,42 +15,37 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
-
 
 /**
  * GetSessionConfigResponseBody
  */
-@JsonPropertyOrder({
-  GetSessionConfigResponseBody.JSON_PROPERTY_PROPERTIES
-})
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class GetSessionConfigResponseBody {
-  public static final String JSON_PROPERTY_PROPERTIES = "properties";
+  public static final String SERIALIZED_NAME_PROPERTIES = "properties";
+  @SerializedName(SERIALIZED_NAME_PROPERTIES)
   private Map<String, String> properties = null;
 
 
   public GetSessionConfigResponseBody properties(Map<String, String> properties) {
+    
     this.properties = properties;
     return this;
   }
 
   public GetSessionConfigResponseBody putPropertiesItem(String key, String propertiesItem) {
     if (this.properties == null) {
-      this.properties = new HashMap<>();
+      this.properties = new HashMap<String, String>();
     }
     this.properties.put(key, propertiesItem);
     return this;
@@ -62,8 +57,6 @@ public class GetSessionConfigResponseBody {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_PROPERTIES)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public Map<String, String> getProperties() {
     return properties;
@@ -75,9 +68,6 @@ public class GetSessionConfigResponseBody {
   }
 
 
-  /**
-   * Return true if this GetSessionConfigResponseBody object is equal to o.
-   */
   @Override
   public boolean equals(Object o) {
     if (this == o) {

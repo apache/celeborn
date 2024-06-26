@@ -15,39 +15,34 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.celeborn.client.model.LogicalType;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
-
 
 /**
  * DataType
  */
-@JsonPropertyOrder({
-  DataType.JSON_PROPERTY_LOGICAL_TYPE,
-  DataType.JSON_PROPERTY_CHILDREN
-})
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class DataType {
-  public static final String JSON_PROPERTY_LOGICAL_TYPE = "logicalType";
+  public static final String SERIALIZED_NAME_LOGICAL_TYPE = "logicalType";
+  @SerializedName(SERIALIZED_NAME_LOGICAL_TYPE)
   private LogicalType logicalType;
 
-  public static final String JSON_PROPERTY_CHILDREN = "children";
+  public static final String SERIALIZED_NAME_CHILDREN = "children";
+  @SerializedName(SERIALIZED_NAME_CHILDREN)
   private List<DataType> children = null;
 
 
   public DataType logicalType(LogicalType logicalType) {
+    
     this.logicalType = logicalType;
     return this;
   }
@@ -58,8 +53,6 @@ public class DataType {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_LOGICAL_TYPE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public LogicalType getLogicalType() {
     return logicalType;
@@ -72,13 +65,14 @@ public class DataType {
 
 
   public DataType children(List<DataType> children) {
+    
     this.children = children;
     return this;
   }
 
   public DataType addChildrenItem(DataType childrenItem) {
     if (this.children == null) {
-      this.children = new ArrayList<>();
+      this.children = new ArrayList<DataType>();
     }
     this.children.add(childrenItem);
     return this;
@@ -90,8 +84,6 @@ public class DataType {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_CHILDREN)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public List<DataType> getChildren() {
     return children;
@@ -103,9 +95,6 @@ public class DataType {
   }
 
 
-  /**
-   * Return true if this DataType object is equal to o.
-   */
   @Override
   public boolean equals(Object o) {
     if (this == o) {

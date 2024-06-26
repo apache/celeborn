@@ -15,49 +15,44 @@ package org.apache.celeborn.client.model;
 
 import java.util.Objects;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.IOException;
 import org.apache.celeborn.client.model.DataType;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import org.apache.celeborn.client.JSON;
-
 
 /**
  * Column
  */
-@JsonPropertyOrder({
-  Column.JSON_PROPERTY_NAME,
-  Column.JSON_PROPERTY_DATA_TYPE,
-  Column.JSON_PROPERTY_COMMENT,
-  Column.JSON_PROPERTY_PHYSICAL,
-  Column.JSON_PROPERTY_PERSISTED
-})
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class Column {
-  public static final String JSON_PROPERTY_NAME = "name";
+  public static final String SERIALIZED_NAME_NAME = "name";
+  @SerializedName(SERIALIZED_NAME_NAME)
   private String name;
 
-  public static final String JSON_PROPERTY_DATA_TYPE = "dataType";
+  public static final String SERIALIZED_NAME_DATA_TYPE = "dataType";
+  @SerializedName(SERIALIZED_NAME_DATA_TYPE)
   private DataType dataType;
 
-  public static final String JSON_PROPERTY_COMMENT = "comment";
+  public static final String SERIALIZED_NAME_COMMENT = "comment";
+  @SerializedName(SERIALIZED_NAME_COMMENT)
   private String comment;
 
-  public static final String JSON_PROPERTY_PHYSICAL = "physical";
+  public static final String SERIALIZED_NAME_PHYSICAL = "physical";
+  @SerializedName(SERIALIZED_NAME_PHYSICAL)
   private Boolean physical;
 
-  public static final String JSON_PROPERTY_PERSISTED = "persisted";
+  public static final String SERIALIZED_NAME_PERSISTED = "persisted";
+  @SerializedName(SERIALIZED_NAME_PERSISTED)
   private Boolean persisted;
 
 
   public Column name(String name) {
+    
     this.name = name;
     return this;
   }
@@ -68,8 +63,6 @@ public class Column {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_NAME)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public String getName() {
     return name;
@@ -82,6 +75,7 @@ public class Column {
 
 
   public Column dataType(DataType dataType) {
+    
     this.dataType = dataType;
     return this;
   }
@@ -92,8 +86,6 @@ public class Column {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_DATA_TYPE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public DataType getDataType() {
     return dataType;
@@ -106,6 +98,7 @@ public class Column {
 
 
   public Column comment(String comment) {
+    
     this.comment = comment;
     return this;
   }
@@ -116,8 +109,6 @@ public class Column {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_COMMENT)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public String getComment() {
     return comment;
@@ -130,6 +121,7 @@ public class Column {
 
 
   public Column physical(Boolean physical) {
+    
     this.physical = physical;
     return this;
   }
@@ -140,8 +132,6 @@ public class Column {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_PHYSICAL)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public Boolean getPhysical() {
     return physical;
@@ -154,6 +144,7 @@ public class Column {
 
 
   public Column persisted(Boolean persisted) {
+    
     this.persisted = persisted;
     return this;
   }
@@ -164,8 +155,6 @@ public class Column {
   **/
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
-  @JsonProperty(JSON_PROPERTY_PERSISTED)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
   public Boolean getPersisted() {
     return persisted;
@@ -177,9 +166,6 @@ public class Column {
   }
 
 
-  /**
-   * Return true if this Column object is equal to o.
-   */
   @Override
   public boolean equals(Object o) {
     if (this == o) {
