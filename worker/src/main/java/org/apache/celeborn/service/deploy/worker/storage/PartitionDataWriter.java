@@ -138,6 +138,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     } else if (createFileResult._2() != null) {
       this.diskFileInfo = createFileResult._3();
       this.flusher = createFileResult._2();
+      this.flushWorkerIndex = this.flusher.getWorkerIndex();
       File workingDir = createFileResult._4();
       this.isMemoryShuffleFile.set(false);
       initFileChannelsForDiskFile();
@@ -339,6 +340,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     if (createFileResult._4() != null) {
       this.diskFileInfo = createFileResult._3();
       this.flusher = createFileResult._2();
+      this.flushWorkerIndex = this.flusher.getWorkerIndex();
 
       isMemoryShuffleFile.set(false);
       initFileChannelsForDiskFile();
