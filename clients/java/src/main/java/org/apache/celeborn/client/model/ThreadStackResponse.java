@@ -20,7 +20,10 @@ import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import org.apache.celeborn.client.model.ThreadStack;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -47,56 +50,41 @@ import java.util.Set;
 import org.apache.celeborn.client.JSON;
 
 /**
- * Config
+ * ThreadStackResponse
  */
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.6.0")
-public class Config {
-  public static final String SERIALIZED_NAME_NAME = "name";
-  @SerializedName(SERIALIZED_NAME_NAME)
-  private String name;
+public class ThreadStackResponse {
+  public static final String SERIALIZED_NAME_THREAD_STACKS = "threadStacks";
+  @SerializedName(SERIALIZED_NAME_THREAD_STACKS)
+  private List<ThreadStack> threadStacks = new ArrayList<>();
 
-  public static final String SERIALIZED_NAME_VALUE = "value";
-  @SerializedName(SERIALIZED_NAME_VALUE)
-  private String value;
-
-  public Config() {
+  public ThreadStackResponse() {
   }
 
-  public Config name(String name) {
-    this.name = name;
+  public ThreadStackResponse threadStacks(List<ThreadStack> threadStacks) {
+    this.threadStacks = threadStacks;
+    return this;
+  }
+
+  public ThreadStackResponse addThreadStacksItem(ThreadStack threadStacksItem) {
+    if (this.threadStacks == null) {
+      this.threadStacks = new ArrayList<>();
+    }
+    this.threadStacks.add(threadStacksItem);
     return this;
   }
 
    /**
-   * The name of the configuration.
-   * @return name
+   * Get threadStacks
+   * @return threadStacks
   **/
   @javax.annotation.Nonnull
-  public String getName() {
-    return name;
+  public List<ThreadStack> getThreadStacks() {
+    return threadStacks;
   }
 
-  public void setName(String name) {
-    this.name = name;
-  }
-
-
-  public Config value(String value) {
-    this.value = value;
-    return this;
-  }
-
-   /**
-   * The value of the configuration.
-   * @return value
-  **/
-  @javax.annotation.Nonnull
-  public String getValue() {
-    return value;
-  }
-
-  public void setValue(String value) {
-    this.value = value;
+  public void setThreadStacks(List<ThreadStack> threadStacks) {
+    this.threadStacks = threadStacks;
   }
 
 
@@ -109,22 +97,20 @@ public class Config {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    Config config = (Config) o;
-    return Objects.equals(this.name, config.name) &&
-        Objects.equals(this.value, config.value);
+    ThreadStackResponse threadStackResponse = (ThreadStackResponse) o;
+    return Objects.equals(this.threadStacks, threadStackResponse.threadStacks);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, value);
+    return Objects.hash(threadStacks);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class Config {\n");
-    sb.append("    name: ").append(toIndentedString(name)).append("\n");
-    sb.append("    value: ").append(toIndentedString(value)).append("\n");
+    sb.append("class ThreadStackResponse {\n");
+    sb.append("    threadStacks: ").append(toIndentedString(threadStacks)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -147,71 +133,73 @@ public class Config {
   static {
     // a set of all properties/fields (JSON key names)
     openapiFields = new HashSet<String>();
-    openapiFields.add("name");
-    openapiFields.add("value");
+    openapiFields.add("threadStacks");
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>();
-    openapiRequiredFields.add("name");
-    openapiRequiredFields.add("value");
+    openapiRequiredFields.add("threadStacks");
   }
 
  /**
   * Validates the JSON Element and throws an exception if issues found
   *
   * @param jsonElement JSON Element
-  * @throws IOException if the JSON Element is invalid with respect to Config
+  * @throws IOException if the JSON Element is invalid with respect to ThreadStackResponse
   */
   public static void validateJsonElement(JsonElement jsonElement) throws IOException {
       if (jsonElement == null) {
-        if (!Config.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
-          throw new IllegalArgumentException(String.format("The required field(s) %s in Config is not found in the empty JSON string", Config.openapiRequiredFields.toString()));
+        if (!ThreadStackResponse.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
+          throw new IllegalArgumentException(String.format("The required field(s) %s in ThreadStackResponse is not found in the empty JSON string", ThreadStackResponse.openapiRequiredFields.toString()));
         }
       }
 
       Set<Map.Entry<String, JsonElement>> entries = jsonElement.getAsJsonObject().entrySet();
       // check to see if the JSON string contains additional fields
       for (Map.Entry<String, JsonElement> entry : entries) {
-        if (!Config.openapiFields.contains(entry.getKey())) {
-          throw new IllegalArgumentException(String.format("The field `%s` in the JSON string is not defined in the `Config` properties. JSON: %s", entry.getKey(), jsonElement.toString()));
+        if (!ThreadStackResponse.openapiFields.contains(entry.getKey())) {
+          throw new IllegalArgumentException(String.format("The field `%s` in the JSON string is not defined in the `ThreadStackResponse` properties. JSON: %s", entry.getKey(), jsonElement.toString()));
         }
       }
 
       // check to make sure all required properties/fields are present in the JSON string
-      for (String requiredField : Config.openapiRequiredFields) {
+      for (String requiredField : ThreadStackResponse.openapiRequiredFields) {
         if (jsonElement.getAsJsonObject().get(requiredField) == null) {
           throw new IllegalArgumentException(String.format("The required field `%s` is not found in the JSON string: %s", requiredField, jsonElement.toString()));
         }
       }
         JsonObject jsonObj = jsonElement.getAsJsonObject();
-      if (!jsonObj.get("name").isJsonPrimitive()) {
-        throw new IllegalArgumentException(String.format("Expected the field `name` to be a primitive type in the JSON string but got `%s`", jsonObj.get("name").toString()));
+      // ensure the json data is an array
+      if (!jsonObj.get("threadStacks").isJsonArray()) {
+        throw new IllegalArgumentException(String.format("Expected the field `threadStacks` to be an array in the JSON string but got `%s`", jsonObj.get("threadStacks").toString()));
       }
-      if (!jsonObj.get("value").isJsonPrimitive()) {
-        throw new IllegalArgumentException(String.format("Expected the field `value` to be a primitive type in the JSON string but got `%s`", jsonObj.get("value").toString()));
-      }
+
+      JsonArray jsonArraythreadStacks = jsonObj.getAsJsonArray("threadStacks");
+      // validate the required field `threadStacks` (array)
+      for (int i = 0; i < jsonArraythreadStacks.size(); i++) {
+        ThreadStack.validateJsonElement(jsonArraythreadStacks.get(i));
+      };
   }
 
   public static class CustomTypeAdapterFactory implements TypeAdapterFactory {
     @SuppressWarnings("unchecked")
     @Override
     public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
-       if (!Config.class.isAssignableFrom(type.getRawType())) {
-         return null; // this class only serializes 'Config' and its subtypes
+       if (!ThreadStackResponse.class.isAssignableFrom(type.getRawType())) {
+         return null; // this class only serializes 'ThreadStackResponse' and its subtypes
        }
        final TypeAdapter<JsonElement> elementAdapter = gson.getAdapter(JsonElement.class);
-       final TypeAdapter<Config> thisAdapter
-                        = gson.getDelegateAdapter(this, TypeToken.get(Config.class));
+       final TypeAdapter<ThreadStackResponse> thisAdapter
+                        = gson.getDelegateAdapter(this, TypeToken.get(ThreadStackResponse.class));
 
-       return (TypeAdapter<T>) new TypeAdapter<Config>() {
+       return (TypeAdapter<T>) new TypeAdapter<ThreadStackResponse>() {
            @Override
-           public void write(JsonWriter out, Config value) throws IOException {
+           public void write(JsonWriter out, ThreadStackResponse value) throws IOException {
              JsonObject obj = thisAdapter.toJsonTree(value).getAsJsonObject();
              elementAdapter.write(out, obj);
            }
 
            @Override
-           public Config read(JsonReader in) throws IOException {
+           public ThreadStackResponse read(JsonReader in) throws IOException {
              JsonElement jsonElement = elementAdapter.read(in);
              validateJsonElement(jsonElement);
              return thisAdapter.fromJsonTree(jsonElement);
@@ -222,18 +210,18 @@ public class Config {
   }
 
  /**
-  * Create an instance of Config given an JSON string
+  * Create an instance of ThreadStackResponse given an JSON string
   *
   * @param jsonString JSON string
-  * @return An instance of Config
-  * @throws IOException if the JSON string is invalid with respect to Config
+  * @return An instance of ThreadStackResponse
+  * @throws IOException if the JSON string is invalid with respect to ThreadStackResponse
   */
-  public static Config fromJson(String jsonString) throws IOException {
-    return JSON.getGson().fromJson(jsonString, Config.class);
+  public static ThreadStackResponse fromJson(String jsonString) throws IOException {
+    return JSON.getGson().fromJson(jsonString, ThreadStackResponse.class);
   }
 
  /**
-  * Convert an instance of Config to an JSON string
+  * Convert an instance of ThreadStackResponse to an JSON string
   *
   * @return JSON string
   */

@@ -102,6 +102,9 @@ public class JSON {
         gsonBuilder.registerTypeAdapter(byte[].class, byteArrayAdapter);
         gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.ConfResponse.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.Config.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.DynamicConfig.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.ThreadStack.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.ThreadStackResponse.CustomTypeAdapterFactory());
         gson = gsonBuilder.create();
     }
 

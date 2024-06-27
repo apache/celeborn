@@ -1,4 +1,7 @@
-Apis/DefaultApi.md
+Apis/ConfApi.md
 Models/ConfResponse.md
 Models/Config.md
+Models/DynamicConfig.md
+Models/ThreadStack.md
+Models/ThreadStackResponse.md
 README.md

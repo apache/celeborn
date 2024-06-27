@@ -11,7 +11,7 @@ src/main/java/org/apache/celeborn/client/ProgressResponseBody.java
 src/main/java/org/apache/celeborn/client/ServerConfiguration.java
 src/main/java/org/apache/celeborn/client/ServerVariable.java
 src/main/java/org/apache/celeborn/client/StringUtil.java
-src/main/java/org/apache/celeborn/client/api/DefaultApi.java
+src/main/java/org/apache/celeborn/client/api/ConfApi.java
 src/main/java/org/apache/celeborn/client/auth/ApiKeyAuth.java
 src/main/java/org/apache/celeborn/client/auth/Authentication.java
 src/main/java/org/apache/celeborn/client/auth/HttpBasicAuth.java
@@ -19,3 +19,6 @@ src/main/java/org/apache/celeborn/client/auth/HttpBearerAuth.java
 src/main/java/org/apache/celeborn/client/model/AbstractOpenApiSchema.java
 src/main/java/org/apache/celeborn/client/model/ConfResponse.java
 src/main/java/org/apache/celeborn/client/model/Config.java
+src/main/java/org/apache/celeborn/client/model/DynamicConfig.java
+src/main/java/org/apache/celeborn/client/model/ThreadStack.java
+src/main/java/org/apache/celeborn/client/model/ThreadStackResponse.java

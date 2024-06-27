@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+---
 openapi: 3.0.0
 info:
   title: Celeborn Master REST API
@@ -73,7 +74,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DynamicConfig'
+                $ref: '#/components/schemas/DynamicConfigResponse'
 components:
   schemas:
     Config:
@@ -97,7 +98,7 @@ components:
           items:
             $ref: '#/components/schemas/Config'
 
-    DynamicConfig:
+    DynamicConfigResponse:
       type: object
       properties:
         level:
@@ -117,5 +118,425 @@ components:
           items:
             $ref: '#/components/schemas/Config'
 
+    ThreadStack:
+      type: object
+      properties:
+        threadId:
+          type: string
+          description: The id of the thread.
+        threadName:
+          type: string
+          description: The name of the thread.
+        threadState:
+          type: string
+          description: The state of the thread.
+        stackTrace:
+          type: array
+          default: []
+          description: The stacktrace of the thread.
+          items:
+            type: string
+        blockedByThreadId:
+            type: integer
+            description: The id of the thread that the current thread is blocked by.
+        blockedByLock:
+            type: string
+            description: The lock that the current thread is blocked by.
+        holdingLocks:
+            type: array
+            default: []
+            description: The locks that the current thread is holding.
+            items:
+                type: string
+      required:
+        - threadId
+        - threadName
+        - threadState
+        - stackTrace
+
+    ThreadStackResponse:
+      type: object
+      properties:
+        threadStacks:
+          type: array
+          default: []
+          description: The thread stacks.
+          items:
+            $ref: '#/components/schemas/ThreadStack'
+      required:
+        - threadStacks
+
+    ApplicationHeartbeat:
+      type: object
+      properties:
+        appId:
+          type: string
+          description: The id of the application.
+        lastHeartbeat:
+          type: integer
+          format: int64
+          description: The last heartbeat timestamp of the application.
+      required:
+        - appId
+        - lastHeartbeat
+
+    AppDiskUsage:
+      type: object
+      properties:
+        appId:
+          type: string
+          description: The id of the application.
+        diskUsage:
+          type: integer
+          format: int64
+          description: The disk usage of the application.
+      required:
+        - appId
+        - diskUsage
 
 
+    AppDiskUsageSnapshotResponse:
+      type: object
+      properties:
+        start:
+          type: integer
+          format: int64
+          description: The start timestamp of the snapshot.
+        end:
+          type: integer
+          format: int64
+          description: The end timestamp of the snapshot.
+        topNItems:
+          type: array
+          description: The top N items of the snapshot.
+          items:
+            $ref: '#/components/schemas/AppDiskUsage'
+
+    MasterLeader:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: The server id of the master leader.
+        address:
+          type: string
+          description: The address of the master leader.
+      required:
+        - id
+        - address
+
+    MasterCommitInfo:
+        type: object
+        properties:
+          commitIndex:
+            type: string
+            description: The commit index of the master.
+          id:
+            type: string
+            description: The id of the master.
+          address:
+            type: string
+            description: The address of the master.
+          clientAddress:
+            type: string
+            description: The client address of the master.
+          startUpRole:
+            type: string
+            description: The start up role of the master.
+        required:
+          - commitIndex
+          - id
+          - address
+          - clientAddress
+          - startUpRole
+
+    MasterInfoResponse:
+        type: object
+        properties:
+          groupId:
+            type: string
+            description: The group id of the master.
+          leader:
+            type: object
+            description: The leader of the master.
+            $ref: '#/components/schemas/MasterLeader'
+          masterCommitInfo:
+            type: array
+            default: []
+            description: The commit info of the master.
+            items:
+              $ref: '#/components/schemas/MasterCommitInfo'
+        required:
+          - groupId
+          - leader
+          - masterCommitInfo
+
+    WorkerInfo:
+      type: object
+      properties:
+        host:
+          type: string
+          description: The host of the worker.
+        rpcPort:
+          type: integer
+          format: int32
+          description: The rpc port of the worker.
+        pushPort:
+          type: integer
+          format: int32
+          description: The push port of the worker.
+        fetchPort:
+          type: integer
+          format: int32
+          description: The fetch port of the worker.
+        replicatePort:
+          type: integer
+          format: int32
+          description: The replicate port of the worker.
+        internalPort:
+          type: integer
+          format: int32
+          description: The internal port of the worker.
+        slotUsed:
+          type: integer
+          format: int32
+          description: The slot used of the worker.
+        lastHeartbeat:
+          type: integer
+          format: int64
+          description: The last heartbeat timestamp of the worker.
+        heartbeatElapsedSeconds:
+          type: integer
+          format: int64
+          description: The elapsed seconds since the last heartbeat of the worker.
+        diskInfos:
+          type: object
+          description: a map of disk name and disk info.
+          additionalProperties:
+            type: string
+        resourceConsumption:
+          type: object
+          description: a map of identifier and resource consumption.
+          additionalProperties:
+            type: string
+        workerRef:
+          type: string
+          description: The reference of the worker.
+        workerState:
+          type: string
+          description: The state of the worker.
+        workerStateStartTime:
+          type: integer
+          format: int64
+          description: The start time of the worker state.
+      required:
+        - host
+        - rpcPort
+        - pushPort
+        - fetchPort
+        - replicatePort
+        - internalPort
+
+    WorkersResponse:
+        type: object
+        properties:
+          workers:
+            type: array
+            default: []
+            description: The workers.
+            items:
+                $ref: '#/components/schemas/WorkerInfo'
+          lostWorkers:
+            type: array
+            default: []
+            description: The lost workers.
+            items:
+                $ref: '#/components/schemas/WorkerInfo'
+          excludedWorkers:
+            type: array
+            default: []
+            description: The excluded workers.
+            items:
+                $ref: '#/components/schemas/WorkerInfo'
+          manualExcludedWorkers:
+            type: array
+            default: [ ]
+            description: The manual excluded workers.
+            items:
+              $ref: '#/components/schemas/WorkerInfo'
+          shutdownWorkers:
+            type: array
+            default: []
+            description: The shutdown workers.
+            items:
+                $ref: '#/components/schemas/WorkerInfo'
+          decommissionWorkers:
+            type: array
+            default: []
+            description: The decommission workers.
+            items:
+                $ref: '#/components/schemas/WorkerInfo'
+        required:
+            - workers
+
+    WorkerEventInfo:
+      type: object
+      properties:
+        eventType:
+            type: string
+            description: The type of the event.
+        eventStartTime:
+            type: integer
+            format: int64
+            description: The start time of the event.
+
+    WorkerEvent:
+      type: object
+      properties:
+        worker:
+          type: object
+          $ref: '#/components/schemas/WorkerInfo'
+          description: The worker.
+        event:
+          type: object
+          $ref: '#/components/schemas/WorkerEventInfo'
+          description: The event.
+      required:
+        - worker
+        - event
+
+    PartitionLocationData:
+        type: object
+        properties:
+          idEpoch:
+            type: integer
+            format: int64
+            description: The id and epoch.
+          hostAndPorts:
+            type: string
+            description: The host and ports.
+          mode:
+            type: string
+            description: The mode of the partition location data.
+          peer:
+            type: string
+            description: The peer of the partition location data.
+          storage:
+            type: string
+            description: The storage of the partition location data.
+          mapIdBitMap:
+            type: string
+            description: The map id bitmap of the partition location data.
+        required:
+          - idEpoch
+          - hostAndPorts
+          - mode
+          - peer
+          - storage
+          - mapIdBitMap
+
+    WorkerId:
+        type: object
+        properties:
+          host:
+            type: string
+            description: The host of the worker.
+          rpcPort:
+            type: integer
+            format: int32
+            description: The rpc port of the worker.
+          pushPort:
+            type: integer
+            format: int32
+            description: The push port of the worker.
+          fetchPort:
+            type: integer
+            format: int32
+            description: The fetch port of the worker.
+          replicatePort:
+            type: integer
+            format: int32
+            description: The replicate port of the worker.
+        required:
+          - host
+          - rpcPort
+          - pushPort
+          - fetchPort
+          - replicatePort
+
+    ExcludeWorkerRequest:
+        type: object
+        properties:
+          add:
+            type: array
+            default: []
+            description: The workers to be added to the excluded workers.
+            items:
+              $ref: '#/components/schemas/WorkerId'
+          remove:
+            type: array
+            default: []
+            description: The workers to be removed from the excluded workers.
+            items:
+              $ref: '#/components/schemas/WorkerId'
+
+    ExcludeWorkerResponse:
+        type: object
+        properties:
+          success:
+            type: boolean
+            description: The result of the exclude worker request.
+          message:
+            type: string
+            description: The message of the exclude worker request.
+        required:
+          - success
+
+    SendWorkerEventRequest:
+        type: object
+        properties:
+          eventType:
+            type: string
+            description: The type of the event.
+          workers:
+            type: array
+            default: []
+            items:
+              $ref: '#/components/schemas/WorkerId'
+        required:
+          - eventType
+          - worker
+
+    SendWorkerEventResponse:
+        type: object
+        properties:
+          success:
+            type: boolean
+            description: The result of the worker event request.
+          message:
+            type: string
+            description: The message of the worker event request.
+        required:
+          - success
+
+    WorkerExitRequest:
+        type: object
+        properties:
+          type:
+            type: string
+            description: The type of the worker exit request.
+        required:
+          - type
+
+    WorkerExitResponse:
+        type: object
+        properties:
+          success:
+            type: boolean
+            description: The result of the worker exit request.
+          message:
+            type: string
+            description: The message of the worker exit request.
+        required:
+          - success
