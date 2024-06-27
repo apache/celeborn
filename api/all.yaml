@@ -75,6 +75,154 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DynamicConfigResponse'
+
+  /api/v1/thread_dump:
+    get:
+      operationId: getThreadDump
+      description: List the thread dump.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreadStackResponse'
+
+  /api/v1/shuffles:
+    get:
+      tags:
+        - Shuffle
+      operationId: getShuffles
+      description: List the shuffle information.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShuffleResponse'
+
+  /api/v1/masters:
+    get:
+      tags:
+        - Master
+      operationId: getMasterGroupInfo
+      description: List the master group information.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterInfoResponse'
+
+  /api/v1/workers:
+    get:
+      tags:
+        - Worker
+      operationId: getWorkers
+      description: List the worker information.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkersResponse'
+
+  /api/v1/workers/events:
+    get:
+        tags:
+            - Worker
+        operationId: getWorkerEvents
+        description: List the worker events.
+        responses:
+            "200":
+            description: The request was successful.
+            content:
+                application/json:
+                schema:
+                    $ref: '#/components/schemas/WorkerEvent'
+    post:
+        tags:
+            - Worker
+        operationId: sendWorkerEvent
+        description: Send worker event.
+        requestBody:
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/SendWorkerEventRequest'
+        responses:
+            "200":
+            description: The request was successful.
+            content:
+                application/json:
+                schema:
+                    $ref: '#/components/schemas/SendWorkerEventResponse'
+
+  /api/v1/workers/exclude:
+    post:
+        tags:
+            - Worker
+        operationId: excludeWorker
+        description: Exclude worker.
+        requestBody:
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/ExcludeWorkerRequest'
+        responses:
+            "200":
+            description: The request was successful.
+            content:
+                application/json:
+                schema:
+                    $ref: '#/components/schemas/ExcludeWorkerResponse'
+
+  /api/v1/applications:
+    get:
+      tags:
+        - Application
+      operationId: getApplications
+      description: List the application information.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationsInfoResponse'
+
+  /api/v1/applications/top_disk_usages:
+    get:
+      tags:
+        - Application
+      operationId: getApplicationsDiskUsage
+      description: List the application disk usage.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppDiskUsageSnapshotResponse'
+
+  /api/v1/applications/hostnames:
+    get:
+      tags:
+        - Application
+      operationId: getApplicationHostNames
+      description: List the hostnames of the applications.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationHostnameResponse'
+
+
 components:
   schemas:
     Config:
@@ -166,6 +314,16 @@ components:
       required:
         - threadStacks
 
+    ShuffleResponse:
+      type: object
+      properties:
+        shuffleIds:
+          type: array
+          default: []
+          description: The shuffle ids.
+          items:
+            type: string
+
     ApplicationHeartbeat:
       type: object
       properties:
@@ -179,6 +337,30 @@ components:
       required:
         - appId
         - lastHeartbeat
+
+    ApplicationsInfoResponse:
+      type: object
+      properties:
+        applications:
+          type: array
+          default: []
+          description: The applications.
+          items:
+            $ref: '#/components/schemas/ApplicationHeartbeat'
+      required:
+        - applications
+
+    ApplicationHostnameResponse:
+      type: object
+      properties:
+        hostnames:
+          type: array
+          default: []
+          description: The hostnames of the applications.
+          items:
+            type: string
+      required:
+        - hostnames
 
     AppDiskUsage:
       type: object
