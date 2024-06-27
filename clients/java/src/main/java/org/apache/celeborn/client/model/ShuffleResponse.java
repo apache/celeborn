@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.celeborn.client.model.ThreadStack;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -50,41 +49,41 @@ import java.util.Set;
 import org.apache.celeborn.client.JSON;
 
 /**
- * ThreadStackResponse
+ * ShuffleResponse
  */
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.6.0")
-public class ThreadStackResponse {
-  public static final String SERIALIZED_NAME_THREAD_STACKS = "threadStacks";
-  @SerializedName(SERIALIZED_NAME_THREAD_STACKS)
-  private List<ThreadStack> threadStacks = new ArrayList<>();
+public class ShuffleResponse {
+  public static final String SERIALIZED_NAME_SHUFFLE_IDS = "shuffleIds";
+  @SerializedName(SERIALIZED_NAME_SHUFFLE_IDS)
+  private List<String> shuffleIds = new ArrayList<>();
 
-  public ThreadStackResponse() {
+  public ShuffleResponse() {
   }
 
-  public ThreadStackResponse threadStacks(List<ThreadStack> threadStacks) {
-    this.threadStacks = threadStacks;
+  public ShuffleResponse shuffleIds(List<String> shuffleIds) {
+    this.shuffleIds = shuffleIds;
     return this;
   }
 
-  public ThreadStackResponse addThreadStacksItem(ThreadStack threadStacksItem) {
-    if (this.threadStacks == null) {
-      this.threadStacks = new ArrayList<>();
+  public ShuffleResponse addShuffleIdsItem(String shuffleIdsItem) {
+    if (this.shuffleIds == null) {
+      this.shuffleIds = new ArrayList<>();
     }
-    this.threadStacks.add(threadStacksItem);
+    this.shuffleIds.add(shuffleIdsItem);
     return this;
   }
 
    /**
-   * The thread stacks.
-   * @return threadStacks
+   * The shuffle ids.
+   * @return shuffleIds
   **/
-  @javax.annotation.Nonnull
-  public List<ThreadStack> getThreadStacks() {
-    return threadStacks;
+  @javax.annotation.Nullable
+  public List<String> getShuffleIds() {
+    return shuffleIds;
   }
 
-  public void setThreadStacks(List<ThreadStack> threadStacks) {
-    this.threadStacks = threadStacks;
+  public void setShuffleIds(List<String> shuffleIds) {
+    this.shuffleIds = shuffleIds;
   }
 
 
@@ -97,20 +96,20 @@ public class ThreadStackResponse {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    ThreadStackResponse threadStackResponse = (ThreadStackResponse) o;
-    return Objects.equals(this.threadStacks, threadStackResponse.threadStacks);
+    ShuffleResponse shuffleResponse = (ShuffleResponse) o;
+    return Objects.equals(this.shuffleIds, shuffleResponse.shuffleIds);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(threadStacks);
+    return Objects.hash(shuffleIds);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class ThreadStackResponse {\n");
-    sb.append("    threadStacks: ").append(toIndentedString(threadStacks)).append("\n");
+    sb.append("class ShuffleResponse {\n");
+    sb.append("    shuffleIds: ").append(toIndentedString(shuffleIds)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -133,73 +132,59 @@ public class ThreadStackResponse {
   static {
     // a set of all properties/fields (JSON key names)
     openapiFields = new HashSet<String>();
-    openapiFields.add("threadStacks");
+    openapiFields.add("shuffleIds");
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>();
-    openapiRequiredFields.add("threadStacks");
   }
 
  /**
   * Validates the JSON Element and throws an exception if issues found
   *
   * @param jsonElement JSON Element
-  * @throws IOException if the JSON Element is invalid with respect to ThreadStackResponse
+  * @throws IOException if the JSON Element is invalid with respect to ShuffleResponse
   */
   public static void validateJsonElement(JsonElement jsonElement) throws IOException {
       if (jsonElement == null) {
-        if (!ThreadStackResponse.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
-          throw new IllegalArgumentException(String.format("The required field(s) %s in ThreadStackResponse is not found in the empty JSON string", ThreadStackResponse.openapiRequiredFields.toString()));
+        if (!ShuffleResponse.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
+          throw new IllegalArgumentException(String.format("The required field(s) %s in ShuffleResponse is not found in the empty JSON string", ShuffleResponse.openapiRequiredFields.toString()));
         }
       }
 
       Set<Map.Entry<String, JsonElement>> entries = jsonElement.getAsJsonObject().entrySet();
       // check to see if the JSON string contains additional fields
       for (Map.Entry<String, JsonElement> entry : entries) {
-        if (!ThreadStackResponse.openapiFields.contains(entry.getKey())) {
-          throw new IllegalArgumentException(String.format("The field `%s` in the JSON string is not defined in the `ThreadStackResponse` properties. JSON: %s", entry.getKey(), jsonElement.toString()));
-        }
-      }
-
-      // check to make sure all required properties/fields are present in the JSON string
-      for (String requiredField : ThreadStackResponse.openapiRequiredFields) {
-        if (jsonElement.getAsJsonObject().get(requiredField) == null) {
-          throw new IllegalArgumentException(String.format("The required field `%s` is not found in the JSON string: %s", requiredField, jsonElement.toString()));
+        if (!ShuffleResponse.openapiFields.contains(entry.getKey())) {
+          throw new IllegalArgumentException(String.format("The field `%s` in the JSON string is not defined in the `ShuffleResponse` properties. JSON: %s", entry.getKey(), jsonElement.toString()));
         }
       }
         JsonObject jsonObj = jsonElement.getAsJsonObject();
-      // ensure the json data is an array
-      if (!jsonObj.get("threadStacks").isJsonArray()) {
-        throw new IllegalArgumentException(String.format("Expected the field `threadStacks` to be an array in the JSON string but got `%s`", jsonObj.get("threadStacks").toString()));
+      // ensure the optional json data is an array if present
+      if (jsonObj.get("shuffleIds") != null && !jsonObj.get("shuffleIds").isJsonNull() && !jsonObj.get("shuffleIds").isJsonArray()) {
+        throw new IllegalArgumentException(String.format("Expected the field `shuffleIds` to be an array in the JSON string but got `%s`", jsonObj.get("shuffleIds").toString()));
       }
-
-      JsonArray jsonArraythreadStacks = jsonObj.getAsJsonArray("threadStacks");
-      // validate the required field `threadStacks` (array)
-      for (int i = 0; i < jsonArraythreadStacks.size(); i++) {
-        ThreadStack.validateJsonElement(jsonArraythreadStacks.get(i));
-      };
   }
 
   public static class CustomTypeAdapterFactory implements TypeAdapterFactory {
     @SuppressWarnings("unchecked")
     @Override
     public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
-       if (!ThreadStackResponse.class.isAssignableFrom(type.getRawType())) {
-         return null; // this class only serializes 'ThreadStackResponse' and its subtypes
+       if (!ShuffleResponse.class.isAssignableFrom(type.getRawType())) {
+         return null; // this class only serializes 'ShuffleResponse' and its subtypes
        }
        final TypeAdapter<JsonElement> elementAdapter = gson.getAdapter(JsonElement.class);
-       final TypeAdapter<ThreadStackResponse> thisAdapter
-                        = gson.getDelegateAdapter(this, TypeToken.get(ThreadStackResponse.class));
+       final TypeAdapter<ShuffleResponse> thisAdapter
+                        = gson.getDelegateAdapter(this, TypeToken.get(ShuffleResponse.class));
 
-       return (TypeAdapter<T>) new TypeAdapter<ThreadStackResponse>() {
+       return (TypeAdapter<T>) new TypeAdapter<ShuffleResponse>() {
            @Override
-           public void write(JsonWriter out, ThreadStackResponse value) throws IOException {
+           public void write(JsonWriter out, ShuffleResponse value) throws IOException {
              JsonObject obj = thisAdapter.toJsonTree(value).getAsJsonObject();
              elementAdapter.write(out, obj);
            }
 
            @Override
-           public ThreadStackResponse read(JsonReader in) throws IOException {
+           public ShuffleResponse read(JsonReader in) throws IOException {
              JsonElement jsonElement = elementAdapter.read(in);
              validateJsonElement(jsonElement);
              return thisAdapter.fromJsonTree(jsonElement);
@@ -210,18 +195,18 @@ public class ThreadStackResponse {
   }
 
  /**
-  * Create an instance of ThreadStackResponse given an JSON string
+  * Create an instance of ShuffleResponse given an JSON string
   *
   * @param jsonString JSON string
-  * @return An instance of ThreadStackResponse
-  * @throws IOException if the JSON string is invalid with respect to ThreadStackResponse
+  * @return An instance of ShuffleResponse
+  * @throws IOException if the JSON string is invalid with respect to ShuffleResponse
   */
-  public static ThreadStackResponse fromJson(String jsonString) throws IOException {
-    return JSON.getGson().fromJson(jsonString, ThreadStackResponse.class);
+  public static ShuffleResponse fromJson(String jsonString) throws IOException {
+    return JSON.getGson().fromJson(jsonString, ShuffleResponse.class);
   }
 
  /**
-  * Convert an instance of ThreadStackResponse to an JSON string
+  * Convert an instance of ShuffleResponse to an JSON string
   *
   * @return JSON string
   */

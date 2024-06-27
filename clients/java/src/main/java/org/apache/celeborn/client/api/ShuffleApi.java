@@ -27,7 +27,7 @@ import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 
 
-import org.apache.celeborn.client.model.ThreadStackResponse;
+import org.apache.celeborn.client.model.ShuffleResponse;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -35,16 +35,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class DefaultApi {
+public class ShuffleApi {
     private ApiClient localVarApiClient;
     private int localHostIndex;
     private String localCustomBaseUrl;
 
-    public DefaultApi() {
+    public ShuffleApi() {
         this(Configuration.getDefaultApiClient());
     }
 
-    public DefaultApi(ApiClient apiClient) {
+    public ShuffleApi(ApiClient apiClient) {
         this.localVarApiClient = apiClient;
     }
 
@@ -73,7 +73,7 @@ public class DefaultApi {
     }
 
     /**
-     * Build call for getThreadDump
+     * Build call for getShuffles
      * @param _callback Callback for upload/download progress
      * @return Call to execute
      * @throws ApiException If fail to serialize the request body object
@@ -83,7 +83,7 @@ public class DefaultApi {
         <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call getThreadDumpCall(final ApiCallback _callback) throws ApiException {
+    public okhttp3.Call getShufflesCall(final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
         String[] localBasePaths = new String[] {  };
@@ -100,7 +100,7 @@ public class DefaultApi {
         Object localVarPostBody = null;
 
         // create path and map variables
-        String localVarPath = "/api/v1/thread_dump";
+        String localVarPath = "/api/v1/shuffles";
 
         List<Pair> localVarQueryParams = new ArrayList<Pair>();
         List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
@@ -128,15 +128,15 @@ public class DefaultApi {
     }
 
     @SuppressWarnings("rawtypes")
-    private okhttp3.Call getThreadDumpValidateBeforeCall(final ApiCallback _callback) throws ApiException {
-        return getThreadDumpCall(_callback);
+    private okhttp3.Call getShufflesValidateBeforeCall(final ApiCallback _callback) throws ApiException {
+        return getShufflesCall(_callback);
 
     }
 
     /**
      * 
-     * List the thread dump.
-     * @return ThreadStackResponse
+     * List the shuffle information.
+     * @return ShuffleResponse
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
      <table summary="Response Details" border="1">
@@ -144,15 +144,15 @@ public class DefaultApi {
         <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
      </table>
      */
-    public ThreadStackResponse getThreadDump() throws ApiException {
-        ApiResponse<ThreadStackResponse> localVarResp = getThreadDumpWithHttpInfo();
+    public ShuffleResponse getShuffles() throws ApiException {
+        ApiResponse<ShuffleResponse> localVarResp = getShufflesWithHttpInfo();
         return localVarResp.getData();
     }
 
     /**
      * 
-     * List the thread dump.
-     * @return ApiResponse&lt;ThreadStackResponse&gt;
+     * List the shuffle information.
+     * @return ApiResponse&lt;ShuffleResponse&gt;
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
      <table summary="Response Details" border="1">
@@ -160,15 +160,15 @@ public class DefaultApi {
         <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<ThreadStackResponse> getThreadDumpWithHttpInfo() throws ApiException {
-        okhttp3.Call localVarCall = getThreadDumpValidateBeforeCall(null);
-        Type localVarReturnType = new TypeToken<ThreadStackResponse>(){}.getType();
+    public ApiResponse<ShuffleResponse> getShufflesWithHttpInfo() throws ApiException {
+        okhttp3.Call localVarCall = getShufflesValidateBeforeCall(null);
+        Type localVarReturnType = new TypeToken<ShuffleResponse>(){}.getType();
         return localVarApiClient.execute(localVarCall, localVarReturnType);
     }
 
     /**
      *  (asynchronously)
-     * List the thread dump.
+     * List the shuffle information.
      * @param _callback The callback to be executed when the API call finishes
      * @return The request call
      * @throws ApiException If fail to process the API call, e.g. serializing the request body object
@@ -178,10 +178,10 @@ public class DefaultApi {
         <tr><td> 200 </td><td> The request was successful. </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call getThreadDumpAsync(final ApiCallback<ThreadStackResponse> _callback) throws ApiException {
+    public okhttp3.Call getShufflesAsync(final ApiCallback<ShuffleResponse> _callback) throws ApiException {
 
-        okhttp3.Call localVarCall = getThreadDumpValidateBeforeCall(_callback);
-        Type localVarReturnType = new TypeToken<ThreadStackResponse>(){}.getType();
+        okhttp3.Call localVarCall = getShufflesValidateBeforeCall(_callback);
+        Type localVarReturnType = new TypeToken<ShuffleResponse>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }

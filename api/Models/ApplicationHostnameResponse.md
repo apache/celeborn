@@ -1,9 +1,9 @@
-# ThreadStackResponse
+# ApplicationHostnameResponse
 ## Properties
 
 | Name | Type | Description | Notes |
 |------------ | ------------- | ------------- | -------------|
-| **threadStacks** | [**List**](ThreadStack.md) | The thread stacks. | [default to []] |
+| **hostnames** | **List** | The hostnames of the applications. | [default to []] |
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

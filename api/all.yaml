@@ -14,8 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
----
 openapi: 3.0.0
+servers:
+  - url: http://localhost:9098/
+    description: Localhost reference server
 info:
   title: Celeborn Master REST API
   contact:
@@ -38,6 +40,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConfResponse'
+
   /api/v1/conf/dynamic:
     get:
       tags:
@@ -137,11 +140,11 @@ paths:
         operationId: getWorkerEvents
         description: List the worker events.
         responses:
-            "200":
+          "200":
             description: The request was successful.
             content:
                 application/json:
-                schema:
+                  schema:
                     $ref: '#/components/schemas/WorkerEvent'
     post:
         tags:
@@ -154,11 +157,11 @@ paths:
                     schema:
                         $ref: '#/components/schemas/SendWorkerEventRequest'
         responses:
-            "200":
+          "200":
             description: The request was successful.
             content:
                 application/json:
-                schema:
+                  schema:
                     $ref: '#/components/schemas/SendWorkerEventResponse'
 
   /api/v1/workers/exclude:
@@ -170,15 +173,15 @@ paths:
         requestBody:
             content:
                 application/json:
-                    schema:
-                        $ref: '#/components/schemas/ExcludeWorkerRequest'
+                  schema:
+                    $ref: '#/components/schemas/ExcludeWorkerRequest'
         responses:
-            "200":
+          "200":
             description: The request was successful.
             content:
-                application/json:
+              application/json:
                 schema:
-                    $ref: '#/components/schemas/ExcludeWorkerResponse'
+                  $ref: '#/components/schemas/ExcludeWorkerResponse'
 
   /api/v1/applications:
     get:
@@ -440,8 +443,6 @@ components:
             type: string
             description: The group id of the master.
           leader:
-            type: object
-            description: The leader of the master.
             $ref: '#/components/schemas/MasterLeader'
           masterCommitInfo:
             type: array
@@ -577,11 +578,9 @@ components:
       type: object
       properties:
         worker:
-          type: object
           $ref: '#/components/schemas/WorkerInfo'
           description: The worker.
         event:
-          type: object
           $ref: '#/components/schemas/WorkerEventInfo'
           description: The event.
       required:
@@ -684,6 +683,7 @@ components:
           workers:
             type: array
             default: []
+            description: The workers to send the event.
             items:
               $ref: '#/components/schemas/WorkerId'
         required:

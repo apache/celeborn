@@ -20,10 +20,7 @@ import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import org.apache.celeborn.client.model.ThreadStack;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -50,41 +47,56 @@ import java.util.Set;
 import org.apache.celeborn.client.JSON;
 
 /**
- * ThreadStackResponse
+ * AppDiskUsage
  */
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.6.0")
-public class ThreadStackResponse {
-  public static final String SERIALIZED_NAME_THREAD_STACKS = "threadStacks";
-  @SerializedName(SERIALIZED_NAME_THREAD_STACKS)
-  private List<ThreadStack> threadStacks = new ArrayList<>();
+public class AppDiskUsage {
+  public static final String SERIALIZED_NAME_APP_ID = "appId";
+  @SerializedName(SERIALIZED_NAME_APP_ID)
+  private String appId;
 
-  public ThreadStackResponse() {
+  public static final String SERIALIZED_NAME_DISK_USAGE = "diskUsage";
+  @SerializedName(SERIALIZED_NAME_DISK_USAGE)
+  private Long diskUsage;
+
+  public AppDiskUsage() {
   }
 
-  public ThreadStackResponse threadStacks(List<ThreadStack> threadStacks) {
-    this.threadStacks = threadStacks;
-    return this;
-  }
-
-  public ThreadStackResponse addThreadStacksItem(ThreadStack threadStacksItem) {
-    if (this.threadStacks == null) {
-      this.threadStacks = new ArrayList<>();
-    }
-    this.threadStacks.add(threadStacksItem);
+  public AppDiskUsage appId(String appId) {
+    this.appId = appId;
     return this;
   }
 
    /**
-   * The thread stacks.
-   * @return threadStacks
+   * The id of the application.
+   * @return appId
   **/
   @javax.annotation.Nonnull
-  public List<ThreadStack> getThreadStacks() {
-    return threadStacks;
+  public String getAppId() {
+    return appId;
   }
 
-  public void setThreadStacks(List<ThreadStack> threadStacks) {
-    this.threadStacks = threadStacks;
+  public void setAppId(String appId) {
+    this.appId = appId;
+  }
+
+
+  public AppDiskUsage diskUsage(Long diskUsage) {
+    this.diskUsage = diskUsage;
+    return this;
+  }
+
+   /**
+   * The disk usage of the application.
+   * @return diskUsage
+  **/
+  @javax.annotation.Nonnull
+  public Long getDiskUsage() {
+    return diskUsage;
+  }
+
+  public void setDiskUsage(Long diskUsage) {
+    this.diskUsage = diskUsage;
   }
 
 
@@ -97,20 +109,22 @@ public class ThreadStackResponse {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    ThreadStackResponse threadStackResponse = (ThreadStackResponse) o;
-    return Objects.equals(this.threadStacks, threadStackResponse.threadStacks);
+    AppDiskUsage appDiskUsage = (AppDiskUsage) o;
+    return Objects.equals(this.appId, appDiskUsage.appId) &&
+        Objects.equals(this.diskUsage, appDiskUsage.diskUsage);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(threadStacks);
+    return Objects.hash(appId, diskUsage);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class ThreadStackResponse {\n");
-    sb.append("    threadStacks: ").append(toIndentedString(threadStacks)).append("\n");
+    sb.append("class AppDiskUsage {\n");
+    sb.append("    appId: ").append(toIndentedString(appId)).append("\n");
+    sb.append("    diskUsage: ").append(toIndentedString(diskUsage)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -133,73 +147,68 @@ public class ThreadStackResponse {
   static {
     // a set of all properties/fields (JSON key names)
     openapiFields = new HashSet<String>();
-    openapiFields.add("threadStacks");
+    openapiFields.add("appId");
+    openapiFields.add("diskUsage");
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>();
-    openapiRequiredFields.add("threadStacks");
+    openapiRequiredFields.add("appId");
+    openapiRequiredFields.add("diskUsage");
   }
 
  /**
   * Validates the JSON Element and throws an exception if issues found
   *
   * @param jsonElement JSON Element
-  * @throws IOException if the JSON Element is invalid with respect to ThreadStackResponse
+  * @throws IOException if the JSON Element is invalid with respect to AppDiskUsage
   */
   public static void validateJsonElement(JsonElement jsonElement) throws IOException {
       if (jsonElement == null) {
-        if (!ThreadStackResponse.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
-          throw new IllegalArgumentException(String.format("The required field(s) %s in ThreadStackResponse is not found in the empty JSON string", ThreadStackResponse.openapiRequiredFields.toString()));
+        if (!AppDiskUsage.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
+          throw new IllegalArgumentException(String.format("The required field(s) %s in AppDiskUsage is not found in the empty JSON string", AppDiskUsage.openapiRequiredFields.toString()));
         }
       }
 
       Set<Map.Entry<String, JsonElement>> entries = jsonElement.getAsJsonObject().entrySet();
       // check to see if the JSON string contains additional fields
       for (Map.Entry<String, JsonElement> entry : entries) {
-        if (!ThreadStackResponse.openapiFields.contains(entry.getKey())) {
-          throw new IllegalArgumentException(String.format("The field `%s` in the JSON string is not defined in the `ThreadStackResponse` properties. JSON: %s", entry.getKey(), jsonElement.toString()));
+        if (!AppDiskUsage.openapiFields.contains(entry.getKey())) {
+          throw new IllegalArgumentException(String.format("The field `%s` in the JSON string is not defined in the `AppDiskUsage` properties. JSON: %s", entry.getKey(), jsonElement.toString()));
         }
       }
 
       // check to make sure all required properties/fields are present in the JSON string
-      for (String requiredField : ThreadStackResponse.openapiRequiredFields) {
+      for (String requiredField : AppDiskUsage.openapiRequiredFields) {
         if (jsonElement.getAsJsonObject().get(requiredField) == null) {
           throw new IllegalArgumentException(String.format("The required field `%s` is not found in the JSON string: %s", requiredField, jsonElement.toString()));
         }
       }
         JsonObject jsonObj = jsonElement.getAsJsonObject();
-      // ensure the json data is an array
-      if (!jsonObj.get("threadStacks").isJsonArray()) {
-        throw new IllegalArgumentException(String.format("Expected the field `threadStacks` to be an array in the JSON string but got `%s`", jsonObj.get("threadStacks").toString()));
+      if (!jsonObj.get("appId").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format("Expected the field `appId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("appId").toString()));
       }
-
-      JsonArray jsonArraythreadStacks = jsonObj.getAsJsonArray("threadStacks");
-      // validate the required field `threadStacks` (array)
-      for (int i = 0; i < jsonArraythreadStacks.size(); i++) {
-        ThreadStack.validateJsonElement(jsonArraythreadStacks.get(i));
-      };
   }
 
   public static class CustomTypeAdapterFactory implements TypeAdapterFactory {
     @SuppressWarnings("unchecked")
     @Override
     public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
-       if (!ThreadStackResponse.class.isAssignableFrom(type.getRawType())) {
-         return null; // this class only serializes 'ThreadStackResponse' and its subtypes
+       if (!AppDiskUsage.class.isAssignableFrom(type.getRawType())) {
+         return null; // this class only serializes 'AppDiskUsage' and its subtypes
        }
        final TypeAdapter<JsonElement> elementAdapter = gson.getAdapter(JsonElement.class);
-       final TypeAdapter<ThreadStackResponse> thisAdapter
-                        = gson.getDelegateAdapter(this, TypeToken.get(ThreadStackResponse.class));
+       final TypeAdapter<AppDiskUsage> thisAdapter
+                        = gson.getDelegateAdapter(this, TypeToken.get(AppDiskUsage.class));
 
-       return (TypeAdapter<T>) new TypeAdapter<ThreadStackResponse>() {
+       return (TypeAdapter<T>) new TypeAdapter<AppDiskUsage>() {
            @Override
-           public void write(JsonWriter out, ThreadStackResponse value) throws IOException {
+           public void write(JsonWriter out, AppDiskUsage value) throws IOException {
              JsonObject obj = thisAdapter.toJsonTree(value).getAsJsonObject();
              elementAdapter.write(out, obj);
            }
 
            @Override
-           public ThreadStackResponse read(JsonReader in) throws IOException {
+           public AppDiskUsage read(JsonReader in) throws IOException {
              JsonElement jsonElement = elementAdapter.read(in);
              validateJsonElement(jsonElement);
              return thisAdapter.fromJsonTree(jsonElement);
@@ -210,18 +219,18 @@ public class ThreadStackResponse {
   }
 
  /**
-  * Create an instance of ThreadStackResponse given an JSON string
+  * Create an instance of AppDiskUsage given an JSON string
   *
   * @param jsonString JSON string
-  * @return An instance of ThreadStackResponse
-  * @throws IOException if the JSON string is invalid with respect to ThreadStackResponse
+  * @return An instance of AppDiskUsage
+  * @throws IOException if the JSON string is invalid with respect to AppDiskUsage
   */
-  public static ThreadStackResponse fromJson(String jsonString) throws IOException {
-    return JSON.getGson().fromJson(jsonString, ThreadStackResponse.class);
+  public static AppDiskUsage fromJson(String jsonString) throws IOException {
+    return JSON.getGson().fromJson(jsonString, AppDiskUsage.class);
   }
 
  /**
-  * Convert an instance of ThreadStackResponse to an JSON string
+  * Convert an instance of AppDiskUsage to an JSON string
   *
   * @return JSON string
   */

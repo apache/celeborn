@@ -100,11 +100,32 @@ public class JSON {
         gsonBuilder.registerTypeAdapter(OffsetDateTime.class, offsetDateTimeTypeAdapter);
         gsonBuilder.registerTypeAdapter(LocalDate.class, localDateTypeAdapter);
         gsonBuilder.registerTypeAdapter(byte[].class, byteArrayAdapter);
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.AppDiskUsage.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.AppDiskUsageSnapshotResponse.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.ApplicationHeartbeat.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.ApplicationHostnameResponse.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.ApplicationsInfoResponse.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.ConfResponse.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.Config.CustomTypeAdapterFactory());
-        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.DynamicConfig.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.DynamicConfigResponse.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.ExcludeWorkerRequest.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.ExcludeWorkerResponse.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.MasterCommitInfo.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.MasterInfoResponse.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.MasterLeader.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.PartitionLocationData.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.SendWorkerEventRequest.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.SendWorkerEventResponse.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.ShuffleResponse.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.ThreadStack.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.ThreadStackResponse.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.WorkerEvent.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.WorkerEventInfo.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.WorkerExitRequest.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.WorkerExitResponse.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.WorkerId.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.WorkerInfo.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new org.apache.celeborn.client.model.WorkersResponse.CustomTypeAdapterFactory());
         gson = gsonBuilder.create();
     }
 

@@ -20,10 +20,9 @@ import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import org.apache.celeborn.client.model.ThreadStack;
+import org.apache.celeborn.client.model.WorkerEventInfo;
+import org.apache.celeborn.client.model.WorkerInfo;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -50,41 +49,56 @@ import java.util.Set;
 import org.apache.celeborn.client.JSON;
 
 /**
- * ThreadStackResponse
+ * WorkerEvent
  */
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.6.0")
-public class ThreadStackResponse {
-  public static final String SERIALIZED_NAME_THREAD_STACKS = "threadStacks";
-  @SerializedName(SERIALIZED_NAME_THREAD_STACKS)
-  private List<ThreadStack> threadStacks = new ArrayList<>();
+public class WorkerEvent {
+  public static final String SERIALIZED_NAME_WORKER = "worker";
+  @SerializedName(SERIALIZED_NAME_WORKER)
+  private WorkerInfo worker;
 
-  public ThreadStackResponse() {
+  public static final String SERIALIZED_NAME_EVENT = "event";
+  @SerializedName(SERIALIZED_NAME_EVENT)
+  private WorkerEventInfo event;
+
+  public WorkerEvent() {
   }
 
-  public ThreadStackResponse threadStacks(List<ThreadStack> threadStacks) {
-    this.threadStacks = threadStacks;
-    return this;
-  }
-
-  public ThreadStackResponse addThreadStacksItem(ThreadStack threadStacksItem) {
-    if (this.threadStacks == null) {
-      this.threadStacks = new ArrayList<>();
-    }
-    this.threadStacks.add(threadStacksItem);
+  public WorkerEvent worker(WorkerInfo worker) {
+    this.worker = worker;
     return this;
   }
 
    /**
-   * The thread stacks.
-   * @return threadStacks
+   * Get worker
+   * @return worker
   **/
   @javax.annotation.Nonnull
-  public List<ThreadStack> getThreadStacks() {
-    return threadStacks;
+  public WorkerInfo getWorker() {
+    return worker;
   }
 
-  public void setThreadStacks(List<ThreadStack> threadStacks) {
-    this.threadStacks = threadStacks;
+  public void setWorker(WorkerInfo worker) {
+    this.worker = worker;
+  }
+
+
+  public WorkerEvent event(WorkerEventInfo event) {
+    this.event = event;
+    return this;
+  }
+
+   /**
+   * Get event
+   * @return event
+  **/
+  @javax.annotation.Nonnull
+  public WorkerEventInfo getEvent() {
+    return event;
+  }
+
+  public void setEvent(WorkerEventInfo event) {
+    this.event = event;
   }
 
 
@@ -97,20 +111,22 @@ public class ThreadStackResponse {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    ThreadStackResponse threadStackResponse = (ThreadStackResponse) o;
-    return Objects.equals(this.threadStacks, threadStackResponse.threadStacks);
+    WorkerEvent workerEvent = (WorkerEvent) o;
+    return Objects.equals(this.worker, workerEvent.worker) &&
+        Objects.equals(this.event, workerEvent.event);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(threadStacks);
+    return Objects.hash(worker, event);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class ThreadStackResponse {\n");
-    sb.append("    threadStacks: ").append(toIndentedString(threadStacks)).append("\n");
+    sb.append("class WorkerEvent {\n");
+    sb.append("    worker: ").append(toIndentedString(worker)).append("\n");
+    sb.append("    event: ").append(toIndentedString(event)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -133,73 +149,69 @@ public class ThreadStackResponse {
   static {
     // a set of all properties/fields (JSON key names)
     openapiFields = new HashSet<String>();
-    openapiFields.add("threadStacks");
+    openapiFields.add("worker");
+    openapiFields.add("event");
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>();
-    openapiRequiredFields.add("threadStacks");
+    openapiRequiredFields.add("worker");
+    openapiRequiredFields.add("event");
   }
 
  /**
   * Validates the JSON Element and throws an exception if issues found
   *
   * @param jsonElement JSON Element
-  * @throws IOException if the JSON Element is invalid with respect to ThreadStackResponse
+  * @throws IOException if the JSON Element is invalid with respect to WorkerEvent
   */
   public static void validateJsonElement(JsonElement jsonElement) throws IOException {
       if (jsonElement == null) {
-        if (!ThreadStackResponse.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
-          throw new IllegalArgumentException(String.format("The required field(s) %s in ThreadStackResponse is not found in the empty JSON string", ThreadStackResponse.openapiRequiredFields.toString()));
+        if (!WorkerEvent.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
+          throw new IllegalArgumentException(String.format("The required field(s) %s in WorkerEvent is not found in the empty JSON string", WorkerEvent.openapiRequiredFields.toString()));
         }
       }
 
       Set<Map.Entry<String, JsonElement>> entries = jsonElement.getAsJsonObject().entrySet();
       // check to see if the JSON string contains additional fields
       for (Map.Entry<String, JsonElement> entry : entries) {
-        if (!ThreadStackResponse.openapiFields.contains(entry.getKey())) {
-          throw new IllegalArgumentException(String.format("The field `%s` in the JSON string is not defined in the `ThreadStackResponse` properties. JSON: %s", entry.getKey(), jsonElement.toString()));
+        if (!WorkerEvent.openapiFields.contains(entry.getKey())) {
+          throw new IllegalArgumentException(String.format("The field `%s` in the JSON string is not defined in the `WorkerEvent` properties. JSON: %s", entry.getKey(), jsonElement.toString()));
         }
       }
 
       // check to make sure all required properties/fields are present in the JSON string
-      for (String requiredField : ThreadStackResponse.openapiRequiredFields) {
+      for (String requiredField : WorkerEvent.openapiRequiredFields) {
         if (jsonElement.getAsJsonObject().get(requiredField) == null) {
           throw new IllegalArgumentException(String.format("The required field `%s` is not found in the JSON string: %s", requiredField, jsonElement.toString()));
         }
       }
         JsonObject jsonObj = jsonElement.getAsJsonObject();
-      // ensure the json data is an array
-      if (!jsonObj.get("threadStacks").isJsonArray()) {
-        throw new IllegalArgumentException(String.format("Expected the field `threadStacks` to be an array in the JSON string but got `%s`", jsonObj.get("threadStacks").toString()));
-      }
-
-      JsonArray jsonArraythreadStacks = jsonObj.getAsJsonArray("threadStacks");
-      // validate the required field `threadStacks` (array)
-      for (int i = 0; i < jsonArraythreadStacks.size(); i++) {
-        ThreadStack.validateJsonElement(jsonArraythreadStacks.get(i));
-      };
+      // validate the required field `worker`
+      WorkerInfo.validateJsonElement(jsonObj.get("worker"));
+      // validate the required field `event`
+      WorkerEventInfo.validateJsonElement(jsonObj.get("event"));
   }
 
   public static class CustomTypeAdapterFactory implements TypeAdapterFactory {
     @SuppressWarnings("unchecked")
     @Override
     public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
-       if (!ThreadStackResponse.class.isAssignableFrom(type.getRawType())) {
-         return null; // this class only serializes 'ThreadStackResponse' and its subtypes
+       if (!WorkerEvent.class.isAssignableFrom(type.getRawType())) {
+         return null; // this class only serializes 'WorkerEvent' and its subtypes
        }
        final TypeAdapter<JsonElement> elementAdapter = gson.getAdapter(JsonElement.class);
-       final TypeAdapter<ThreadStackResponse> thisAdapter
-                        = gson.getDelegateAdapter(this, TypeToken.get(ThreadStackResponse.class));
+       final TypeAdapter<WorkerEvent> thisAdapter
+                        = gson.getDelegateAdapter(this, TypeToken.get(WorkerEvent.class));
 
-       return (TypeAdapter<T>) new TypeAdapter<ThreadStackResponse>() {
+       return (TypeAdapter<T>) new TypeAdapter<WorkerEvent>() {
            @Override
-           public void write(JsonWriter out, ThreadStackResponse value) throws IOException {
+           public void write(JsonWriter out, WorkerEvent value) throws IOException {
              JsonObject obj = thisAdapter.toJsonTree(value).getAsJsonObject();
              elementAdapter.write(out, obj);
            }
 
            @Override
-           public ThreadStackResponse read(JsonReader in) throws IOException {
+           public WorkerEvent read(JsonReader in) throws IOException {
              JsonElement jsonElement = elementAdapter.read(in);
              validateJsonElement(jsonElement);
              return thisAdapter.fromJsonTree(jsonElement);
@@ -210,18 +222,18 @@ public class ThreadStackResponse {
   }
 
  /**
-  * Create an instance of ThreadStackResponse given an JSON string
+  * Create an instance of WorkerEvent given an JSON string
   *
   * @param jsonString JSON string
-  * @return An instance of ThreadStackResponse
-  * @throws IOException if the JSON string is invalid with respect to ThreadStackResponse
+  * @return An instance of WorkerEvent
+  * @throws IOException if the JSON string is invalid with respect to WorkerEvent
   */
-  public static ThreadStackResponse fromJson(String jsonString) throws IOException {
-    return JSON.getGson().fromJson(jsonString, ThreadStackResponse.class);
+  public static WorkerEvent fromJson(String jsonString) throws IOException {
+    return JSON.getGson().fromJson(jsonString, WorkerEvent.class);
   }
 
  /**
-  * Convert an instance of ThreadStackResponse to an JSON string
+  * Convert an instance of WorkerEvent to an JSON string
   *
   * @return JSON string
   */

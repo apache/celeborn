@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.celeborn.client.model.ThreadStack;
+import org.apache.celeborn.client.model.ApplicationHeartbeat;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -50,41 +50,41 @@ import java.util.Set;
 import org.apache.celeborn.client.JSON;
 
 /**
- * ThreadStackResponse
+ * ApplicationsInfoResponse
  */
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.6.0")
-public class ThreadStackResponse {
-  public static final String SERIALIZED_NAME_THREAD_STACKS = "threadStacks";
-  @SerializedName(SERIALIZED_NAME_THREAD_STACKS)
-  private List<ThreadStack> threadStacks = new ArrayList<>();
+public class ApplicationsInfoResponse {
+  public static final String SERIALIZED_NAME_APPLICATIONS = "applications";
+  @SerializedName(SERIALIZED_NAME_APPLICATIONS)
+  private List<ApplicationHeartbeat> applications = new ArrayList<>();
 
-  public ThreadStackResponse() {
+  public ApplicationsInfoResponse() {
   }
 
-  public ThreadStackResponse threadStacks(List<ThreadStack> threadStacks) {
-    this.threadStacks = threadStacks;
+  public ApplicationsInfoResponse applications(List<ApplicationHeartbeat> applications) {
+    this.applications = applications;
     return this;
   }
 
-  public ThreadStackResponse addThreadStacksItem(ThreadStack threadStacksItem) {
-    if (this.threadStacks == null) {
-      this.threadStacks = new ArrayList<>();
+  public ApplicationsInfoResponse addApplicationsItem(ApplicationHeartbeat applicationsItem) {
+    if (this.applications == null) {
+      this.applications = new ArrayList<>();
     }
-    this.threadStacks.add(threadStacksItem);
+    this.applications.add(applicationsItem);
     return this;
   }
 
    /**
-   * The thread stacks.
-   * @return threadStacks
+   * The applications.
+   * @return applications
   **/
   @javax.annotation.Nonnull
-  public List<ThreadStack> getThreadStacks() {
-    return threadStacks;
+  public List<ApplicationHeartbeat> getApplications() {
+    return applications;
   }
 
-  public void setThreadStacks(List<ThreadStack> threadStacks) {
-    this.threadStacks = threadStacks;
+  public void setApplications(List<ApplicationHeartbeat> applications) {
+    this.applications = applications;
   }
 
 
@@ -97,20 +97,20 @@ public class ThreadStackResponse {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    ThreadStackResponse threadStackResponse = (ThreadStackResponse) o;
-    return Objects.equals(this.threadStacks, threadStackResponse.threadStacks);
+    ApplicationsInfoResponse applicationsInfoResponse = (ApplicationsInfoResponse) o;
+    return Objects.equals(this.applications, applicationsInfoResponse.applications);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(threadStacks);
+    return Objects.hash(applications);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class ThreadStackResponse {\n");
-    sb.append("    threadStacks: ").append(toIndentedString(threadStacks)).append("\n");
+    sb.append("class ApplicationsInfoResponse {\n");
+    sb.append("    applications: ").append(toIndentedString(applications)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -133,50 +133,50 @@ public class ThreadStackResponse {
   static {
     // a set of all properties/fields (JSON key names)
     openapiFields = new HashSet<String>();
-    openapiFields.add("threadStacks");
+    openapiFields.add("applications");
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>();
-    openapiRequiredFields.add("threadStacks");
+    openapiRequiredFields.add("applications");
   }
 
  /**
   * Validates the JSON Element and throws an exception if issues found
   *
   * @param jsonElement JSON Element
-  * @throws IOException if the JSON Element is invalid with respect to ThreadStackResponse
+  * @throws IOException if the JSON Element is invalid with respect to ApplicationsInfoResponse
   */
   public static void validateJsonElement(JsonElement jsonElement) throws IOException {
       if (jsonElement == null) {
-        if (!ThreadStackResponse.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
-          throw new IllegalArgumentException(String.format("The required field(s) %s in ThreadStackResponse is not found in the empty JSON string", ThreadStackResponse.openapiRequiredFields.toString()));
+        if (!ApplicationsInfoResponse.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
+          throw new IllegalArgumentException(String.format("The required field(s) %s in ApplicationsInfoResponse is not found in the empty JSON string", ApplicationsInfoResponse.openapiRequiredFields.toString()));
         }
       }
 
       Set<Map.Entry<String, JsonElement>> entries = jsonElement.getAsJsonObject().entrySet();
       // check to see if the JSON string contains additional fields
       for (Map.Entry<String, JsonElement> entry : entries) {
-        if (!ThreadStackResponse.openapiFields.contains(entry.getKey())) {
-          throw new IllegalArgumentException(String.format("The field `%s` in the JSON string is not defined in the `ThreadStackResponse` properties. JSON: %s", entry.getKey(), jsonElement.toString()));
+        if (!ApplicationsInfoResponse.openapiFields.contains(entry.getKey())) {
+          throw new IllegalArgumentException(String.format("The field `%s` in the JSON string is not defined in the `ApplicationsInfoResponse` properties. JSON: %s", entry.getKey(), jsonElement.toString()));
         }
       }
 
       // check to make sure all required properties/fields are present in the JSON string
-      for (String requiredField : ThreadStackResponse.openapiRequiredFields) {
+      for (String requiredField : ApplicationsInfoResponse.openapiRequiredFields) {
         if (jsonElement.getAsJsonObject().get(requiredField) == null) {
           throw new IllegalArgumentException(String.format("The required field `%s` is not found in the JSON string: %s", requiredField, jsonElement.toString()));
         }
       }
         JsonObject jsonObj = jsonElement.getAsJsonObject();
       // ensure the json data is an array
-      if (!jsonObj.get("threadStacks").isJsonArray()) {
-        throw new IllegalArgumentException(String.format("Expected the field `threadStacks` to be an array in the JSON string but got `%s`", jsonObj.get("threadStacks").toString()));
+      if (!jsonObj.get("applications").isJsonArray()) {
+        throw new IllegalArgumentException(String.format("Expected the field `applications` to be an array in the JSON string but got `%s`", jsonObj.get("applications").toString()));
       }
 
-      JsonArray jsonArraythreadStacks = jsonObj.getAsJsonArray("threadStacks");
-      // validate the required field `threadStacks` (array)
-      for (int i = 0; i < jsonArraythreadStacks.size(); i++) {
-        ThreadStack.validateJsonElement(jsonArraythreadStacks.get(i));
+      JsonArray jsonArrayapplications = jsonObj.getAsJsonArray("applications");
+      // validate the required field `applications` (array)
+      for (int i = 0; i < jsonArrayapplications.size(); i++) {
+        ApplicationHeartbeat.validateJsonElement(jsonArrayapplications.get(i));
       };
   }
 
@@ -184,22 +184,22 @@ public class ThreadStackResponse {
     @SuppressWarnings("unchecked")
     @Override
     public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
-       if (!ThreadStackResponse.class.isAssignableFrom(type.getRawType())) {
-         return null; // this class only serializes 'ThreadStackResponse' and its subtypes
+       if (!ApplicationsInfoResponse.class.isAssignableFrom(type.getRawType())) {
+         return null; // this class only serializes 'ApplicationsInfoResponse' and its subtypes
        }
        final TypeAdapter<JsonElement> elementAdapter = gson.getAdapter(JsonElement.class);
-       final TypeAdapter<ThreadStackResponse> thisAdapter
-                        = gson.getDelegateAdapter(this, TypeToken.get(ThreadStackResponse.class));
+       final TypeAdapter<ApplicationsInfoResponse> thisAdapter
+                        = gson.getDelegateAdapter(this, TypeToken.get(ApplicationsInfoResponse.class));
 
-       return (TypeAdapter<T>) new TypeAdapter<ThreadStackResponse>() {
+       return (TypeAdapter<T>) new TypeAdapter<ApplicationsInfoResponse>() {
            @Override
-           public void write(JsonWriter out, ThreadStackResponse value) throws IOException {
+           public void write(JsonWriter out, ApplicationsInfoResponse value) throws IOException {
              JsonObject obj = thisAdapter.toJsonTree(value).getAsJsonObject();
              elementAdapter.write(out, obj);
            }
 
            @Override
-           public ThreadStackResponse read(JsonReader in) throws IOException {
+           public ApplicationsInfoResponse read(JsonReader in) throws IOException {
              JsonElement jsonElement = elementAdapter.read(in);
              validateJsonElement(jsonElement);
              return thisAdapter.fromJsonTree(jsonElement);
@@ -210,18 +210,18 @@ public class ThreadStackResponse {
   }
 
  /**
-  * Create an instance of ThreadStackResponse given an JSON string
+  * Create an instance of ApplicationsInfoResponse given an JSON string
   *
   * @param jsonString JSON string
-  * @return An instance of ThreadStackResponse
-  * @throws IOException if the JSON string is invalid with respect to ThreadStackResponse
+  * @return An instance of ApplicationsInfoResponse
+  * @throws IOException if the JSON string is invalid with respect to ApplicationsInfoResponse
   */
-  public static ThreadStackResponse fromJson(String jsonString) throws IOException {
-    return JSON.getGson().fromJson(jsonString, ThreadStackResponse.class);
+  public static ApplicationsInfoResponse fromJson(String jsonString) throws IOException {
+    return JSON.getGson().fromJson(jsonString, ApplicationsInfoResponse.class);
   }
 
  /**
-  * Convert an instance of ThreadStackResponse to an JSON string
+  * Convert an instance of ApplicationsInfoResponse to an JSON string
   *
   * @return JSON string
   */

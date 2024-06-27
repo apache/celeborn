@@ -1,26 +1,26 @@
-# DefaultApi
+# MasterApi
 
 All URIs are relative to *http://localhost*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
-| [**getThreadDump**](DefaultApi.md#getThreadDump) | **GET** /api/v1/thread_dump |  |
+| [**getMasterGroupInfo**](MasterApi.md#getMasterGroupInfo) | **GET** /api/v1/masters |  |
 
 
-<a name="getThreadDump"></a>
-# **getThreadDump**
-> ThreadStackResponse getThreadDump()
+<a name="getMasterGroupInfo"></a>
+# **getMasterGroupInfo**
+> MasterInfoResponse getMasterGroupInfo()
 
 
 
-    List the thread dump.
+    List the master group information.
 
 ### Parameters
 This endpoint does not need any parameter.
 
 ### Return type
 
-[**ThreadStackResponse**](../Models/ThreadStackResponse.md)
+[**MasterInfoResponse**](../Models/MasterInfoResponse.md)
 
 ### Authorization
 

@@ -34,7 +34,7 @@ No authorization required
 
 <a name="getDynamicConf"></a>
 # **getDynamicConf**
-> DynamicConfig getDynamicConf(level, tenant, name)
+> DynamicConfigResponse getDynamicConf(level, tenant, name)
 
 
 
@@ -50,7 +50,7 @@ No authorization required
 
 ### Return type
 
-[**DynamicConfig**](../Models/DynamicConfig.md)
+[**DynamicConfigResponse**](../Models/DynamicConfigResponse.md)
 
 ### Authorization
 

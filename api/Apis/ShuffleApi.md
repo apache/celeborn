@@ -1,26 +1,26 @@
-# DefaultApi
+# ShuffleApi
 
 All URIs are relative to *http://localhost*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
-| [**getThreadDump**](DefaultApi.md#getThreadDump) | **GET** /api/v1/thread_dump |  |
+| [**getShuffles**](ShuffleApi.md#getShuffles) | **GET** /api/v1/shuffles |  |
 
 
-<a name="getThreadDump"></a>
-# **getThreadDump**
-> ThreadStackResponse getThreadDump()
+<a name="getShuffles"></a>
+# **getShuffles**
+> ShuffleResponse getShuffles()
 
 
 
-    List the thread dump.
+    List the shuffle information.
 
 ### Parameters
 This endpoint does not need any parameter.
 
 ### Return type
 
-[**ThreadStackResponse**](../Models/ThreadStackResponse.md)
+[**ShuffleResponse**](../Models/ShuffleResponse.md)
 
 ### Authorization
 
