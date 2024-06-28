@@ -304,20 +304,6 @@ components:
           items:
             type: string
 
-    ApplicationHeartbeat:
-      type: object
-      properties:
-        appId:
-          type: string
-          description: The id of the application.
-        lastHeartbeat:
-          type: integer
-          format: int64
-          description: The last heartbeat timestamp of the application.
-      required:
-        - appId
-        - lastHeartbeat
-
     ApplicationsResponse:
       type: object
       properties:
@@ -329,18 +315,6 @@ components:
             type: string
       required:
         - applications
-
-    ApplicationHostnameResponse:
-      type: object
-      properties:
-        hostnames:
-          type: array
-          default: [ ]
-          description: The hostnames of the applications.
-          items:
-            type: string
-      required:
-        - hostnames
 
     AppDiskUsage:
       type: object
@@ -369,81 +343,6 @@ components:
           description: The application disk usages.
           items:
             $ref: '#/components/schemas/AppDiskUsage'
-
-    AppDiskUsageSnapshotResponse:
-      type: object
-      properties:
-        start:
-          type: integer
-          format: int64
-          description: The start timestamp of the snapshots.
-        end:
-          type: integer
-          format: int64
-          description: The end timestamp of the snapshots.
-        topNItems:
-          type: array
-          description: The top N snapshots.
-          items:
-            $ref: '#/components/schemas/AppDiskUsage'
-
-    MasterLeader:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-          description: The id of the master leader raft peer.
-        address:
-          type: string
-          description: The raft RPC address of the master leader.
-      required:
-        - id
-        - address
-
-    MasterCommitInfo:
-      type: object
-      properties:
-        commitIndex:
-          type: string
-          description: The raft commit index of the master.
-        id:
-          type: string
-          description: The id of the raft peer.
-        address:
-          type: string
-          description: The raft RPC address of the peer for server-server communication.
-        clientAddress:
-          type: string
-          description: The raft RPC address of the peer for client operations.
-        startUpRole:
-          type: string
-          description: The raft start up role of the master.
-      required:
-        - commitIndex
-        - id
-        - address
-        - clientAddress
-        - startUpRole
-
-    MasterInfoResponse:
-      type: object
-      properties:
-        groupId:
-          type: string
-          description: The group id of the master raft server.
-        leader:
-          $ref: '#/components/schemas/MasterLeader'
-        masterCommitInfo:
-          type: array
-          default: [ ]
-          description: The raft commit info of the master.
-          items:
-            $ref: '#/components/schemas/MasterCommitInfo'
-      required:
-        - groupId
-        - leader
-        - masterCommitInfo
 
     WorkerInfoResponse:
       type: object
@@ -522,17 +421,6 @@ components:
         - isRegistered
         - isShutdown
         - isDecommissioning
-
-    WorkerEventInfo:
-      type: object
-      properties:
-        eventType:
-          type: string
-          description: The type of the event.
-        eventStartTime:
-          type: integer
-          format: int64
-          description: The start time of the event.
 
     UnAvailablePeerWorker:
       type: object
@@ -640,70 +528,6 @@ components:
         - pushPort
         - fetchPort
         - replicatePort
-
-    ExcludeWorkerRequest:
-      type: object
-      properties:
-        add:
-          type: array
-          default: [ ]
-          description: The workers to be added to the excluded workers.
-          items:
-            $ref: '#/components/schemas/WorkerId'
-        remove:
-          type: array
-          default: [ ]
-          description: The workers to be removed from the excluded workers.
-          items:
-            $ref: '#/components/schemas/WorkerId'
-
-    ExcludeWorkerResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          description: The result of the exclude worker request.
-        message:
-          type: string
-          description: The message of the exclude worker request.
-      required:
-        - success
-
-    SendWorkerEventRequest:
-      type: object
-      properties:
-        eventType:
-          type: string
-          default: None
-          description: The type of the event.
-          enum:
-            - Immediately
-            - Decommission
-            - DecommissionThenIdle
-            - Graceful
-            - Recommission
-            - None
-        workers:
-          type: array
-          default: [ ]
-          description: The workers to send the event.
-          items:
-            $ref: '#/components/schemas/WorkerId'
-      required:
-        - eventType
-        - worker
-
-    SendWorkerEventResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          description: The result of the worker event request.
-        message:
-          type: string
-          description: The message of the worker event request.
-      required:
-        - success
 
     WorkerExitRequest:
       type: object

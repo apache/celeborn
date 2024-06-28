@@ -727,24 +727,3 @@ components:
           description: The message of the worker event request.
       required:
         - success
-
-    WorkerExitRequest:
-      type: object
-      properties:
-        type:
-          type: string
-          description: The type of the worker exit request.
-      required:
-        - type
-
-    WorkerExitResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          description: The result of the worker exit request.
-        message:
-          type: string
-          description: The message of the worker exit request.
-      required:
-        - success
