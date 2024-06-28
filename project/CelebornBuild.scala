@@ -1260,7 +1260,7 @@ object CelebornOpenApi {
       ),
 
       // OpenAPI generation specs
-      openApiInputSpec := (file(".") / "api" / "all.yaml").toString,
+      openApiInputSpec := (file(".") / "api" / "master_rest_v1.yaml").toString,
       openApiGeneratorName := "java",
       openApiOutputDir := (file("clients") / "java").toString,
       openApiApiPackage := s"$orgName.client.api",
@@ -1282,7 +1282,7 @@ object CelebornOpenApi {
       name := s"$artifactNamePrefix-docs",
 
       // OpenAPI generation specs
-      openApiInputSpec := (file("api") / "all.yaml").toString,
+      openApiInputSpec := (file("api") / "master_rest_v1.yaml").toString,
       openApiGeneratorName := "markdown",
       openApiOutputDir := (file("api")).toString,
       // Define the simple generate command to generate markdown docs
