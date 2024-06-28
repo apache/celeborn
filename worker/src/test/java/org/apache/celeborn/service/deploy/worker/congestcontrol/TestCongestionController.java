@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
-import java.util.Map;
-
 import scala.collection.JavaConverters;
 
 import org.junit.After;
@@ -122,42 +120,16 @@ public class TestCongestionController {
     produceBytes(user, 800);
 
     Assert.assertTrue(
-        isGaugeExist(
+        source.gaugeExists(
             WorkerSource.USER_PRODUCE_SPEED(),
             JavaConverters.mapAsJavaMapConverter(user.toMap()).asJava()));
 
     Thread.sleep(userInactiveTimeMills * 2);
 
     Assert.assertFalse(
-        isGaugeExist(
+        source.gaugeExists(
             WorkerSource.USER_PRODUCE_SPEED(),
             JavaConverters.mapAsJavaMapConverter(user.toMap()).asJava()));
-  }
-
-  private boolean isGaugeExist(String name, Map<String, String> labels) {
-    return source.namedGauges().stream()
-            .filter(
-                gauge -> {
-                  if (gauge.name().equals(name)) {
-                    return labels.entrySet().stream()
-                        .noneMatch(
-                            entry -> {
-                              // Filter entry not exist in the gauge's labels
-                              if (gauge.labels().get(entry.getKey()).nonEmpty()) {
-                                return !gauge
-                                    .labels()
-                                    .get(entry.getKey())
-                                    .get()
-                                    .equals(entry.getValue());
-                              } else {
-                                return true;
-                              }
-                            });
-                  }
-                  return false;
-                })
-            .count()
-        == 1;
   }
 
   private void produceBytes(UserIdentifier userIdentifier, long numBytes) {
