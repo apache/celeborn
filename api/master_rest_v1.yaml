@@ -20,8 +20,6 @@ servers:
     description: Localhost reference server
 info:
   title: Celeborn Master REST API
-  contact:
-    email: user@celeborn.apache.org
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
@@ -224,7 +222,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApplicationHostnameResponse'
-
 
 components:
   schemas:
@@ -579,10 +576,8 @@ components:
       properties:
         worker:
           $ref: '#/components/schemas/WorkerInfo'
-          description: The worker.
         event:
           $ref: '#/components/schemas/WorkerEventInfo'
-          description: The event.
       required:
         - worker
         - event
