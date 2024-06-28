@@ -99,6 +99,11 @@ abstract private[worker] class Flusher(
     ThreadPoolSource.registerSource(s"$this", workers)
   }
 
+  def getWorkerIndex: Int = synchronized {
+    nextWorkerIndex = (nextWorkerIndex + 1) % threadCount
+    nextWorkerIndex
+  }
+
   def takeBuffer(): CompositeByteBuf = {
     var buffer = bufferQueue.poll()
     if (buffer == null) {
