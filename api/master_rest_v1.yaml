@@ -80,7 +80,7 @@ paths:
   /api/v1/thread_dump:
     get:
       operationId: getThreadDump
-      description: List the thread dump.
+      description: List the current thread dump.
       responses:
         "200":
           description: The request was successful.
@@ -94,7 +94,7 @@ paths:
       tags:
         - Shuffle
       operationId: getShuffles
-      description: List the shuffle information.
+      description: List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.
       responses:
         "200":
           description: The request was successful.
@@ -108,7 +108,7 @@ paths:
       tags:
         - Master
       operationId: getMasterGroupInfo
-      description: List the master group information.
+      description: List master group information of the service. It will list all master's LEADER, FOLLOWER information.
       responses:
         "200":
           description: The request was successful.
@@ -122,7 +122,9 @@ paths:
       tags:
         - Worker
       operationId: getWorkers
-      description: List the worker information.
+      description: |
+        List worker information of the service. It will list all registered workers,
+        lost workers, excluded workers, shutdown workers and decommission workers information.
       responses:
         "200":
           description: The request was successful.
@@ -131,43 +133,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/WorkersResponse'
 
-  /api/v1/workers/events:
-    get:
-      tags:
-        - Worker
-      operationId: getWorkerEvents
-      description: List the worker events.
-      responses:
-        "200":
-          description: The request was successful.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WorkerEvent'
-    post:
-      tags:
-        - Worker
-      operationId: sendWorkerEvent
-      description: Send worker event.
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SendWorkerEventRequest'
-      responses:
-        "200":
-          description: The request was successful.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SendWorkerEventResponse'
-
   /api/v1/workers/exclude:
     post:
       tags:
         - Worker
       operationId: excludeWorker
-      description: Exclude worker.
+      description: |
+        Excluded workers of the master add or remove the worker manually given worker id.
+        The parameter add or remove specifies the excluded workers to add or remove.
       requestBody:
         content:
           application/json:
@@ -181,12 +154,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExcludeWorkerResponse'
 
+  /api/v1/workers/events:
+    get:
+      tags:
+        - Worker
+      operationId: getWorkerEvents
+      description: List all worker event infos of the master.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerEvent'
+    post:
+      tags:
+        - Worker
+      operationId: sendWorkerEvent
+      description: |
+        For Master(Leader) can send worker event to manager workers.
+        Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendWorkerEventRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendWorkerEventResponse'
+
   /api/v1/applications:
     get:
       tags:
         - Application
       operationId: getApplications
-      description: List the application information.
+      description: List all running application's ids of the cluster.
       responses:
         "200":
           description: The request was successful.
@@ -200,7 +206,9 @@ paths:
       tags:
         - Application
       operationId: getApplicationsDiskUsage
-      description: List the application disk usage.
+      description: |
+        List the top disk usage application ids.
+        It will return the top disk usage application ids for the cluster.
       responses:
         "200":
           description: The request was successful.
@@ -214,7 +222,7 @@ paths:
       tags:
         - Application
       operationId: getApplicationHostNames
-      description: List the hostnames of the applications.
+      description: List all running application's LifecycleManager's hostnames of the cluster.
       responses:
         "200":
           description: The request was successful.
@@ -230,13 +238,14 @@ components:
       properties:
         name:
           type: string
-          description: The name of the configuration.
+          description: The config name.
         value:
           type: string
-          description: The value of the configuration.
+          description: The config value.
       required:
         - name
         - value
+
     ConfResponse:
       type: object
       properties:
@@ -320,7 +329,7 @@ components:
         shuffleIds:
           type: array
           default: [ ]
-          description: The shuffle ids.
+          description: The shuffle keys.
           items:
             type: string
 
@@ -344,7 +353,7 @@ components:
         applications:
           type: array
           default: [ ]
-          description: The applications.
+          description: The applications information.
           items:
             $ref: '#/components/schemas/ApplicationHeartbeat'
       required:
@@ -371,11 +380,14 @@ components:
         diskUsage:
           type: integer
           format: int64
-          description: The disk usage of the application.
+          description: The application disk usage.
+        diskUsageStr:
+          type: string
+          description: The application disk usage in string type.
       required:
         - appId
         - diskUsage
-
+        - diskUsageStr
 
     AppDiskUsageSnapshotResponse:
       type: object
@@ -383,14 +395,14 @@ components:
         start:
           type: integer
           format: int64
-          description: The start timestamp of the snapshot.
+          description: The start timestamp of the snapshots.
         end:
           type: integer
           format: int64
-          description: The end timestamp of the snapshot.
+          description: The end timestamp of the snapshots.
         topNItems:
           type: array
-          description: The top N items of the snapshot.
+          description: The top N snapshots.
           items:
             $ref: '#/components/schemas/AppDiskUsage'
 
@@ -400,10 +412,10 @@ components:
         id:
           type: integer
           format: int64
-          description: The server id of the master leader.
+          description: The id of the master leader raft peer.
         address:
           type: string
-          description: The address of the master leader.
+          description: The raft RPC address of the master leader.
       required:
         - id
         - address
@@ -413,19 +425,19 @@ components:
       properties:
         commitIndex:
           type: string
-          description: The commit index of the master.
+          description: The raft commit index of the master.
         id:
           type: string
-          description: The id of the master.
+          description: The id of the raft peer.
         address:
           type: string
-          description: The address of the master.
+          description: The raft RPC address of the peer for server-server communication.
         clientAddress:
           type: string
-          description: The client address of the master.
+          description: The raft RPC address of the peer for client operations.
         startUpRole:
           type: string
-          description: The start up role of the master.
+          description: The raft start up role of the master.
       required:
         - commitIndex
         - id
@@ -438,13 +450,13 @@ components:
       properties:
         groupId:
           type: string
-          description: The group id of the master.
+          description: The group id of the master raft server.
         leader:
           $ref: '#/components/schemas/MasterLeader'
         masterCommitInfo:
           type: array
           default: [ ]
-          description: The commit info of the master.
+          description: The raft commit info of the master.
           items:
             $ref: '#/components/schemas/MasterCommitInfo'
       required:
@@ -492,12 +504,12 @@ components:
           description: The elapsed seconds since the last heartbeat of the worker.
         diskInfos:
           type: object
-          description: a map of disk name and disk info.
+          description: A map of disk name and disk info.
           additionalProperties:
             type: string
         resourceConsumption:
           type: object
-          description: a map of identifier and resource consumption.
+          description: A map of identifier and resource consumption.
           additionalProperties:
             type: string
         workerRef:
@@ -524,7 +536,7 @@ components:
         workers:
           type: array
           default: [ ]
-          description: The workers.
+          description: The registered workers.
           items:
             $ref: '#/components/schemas/WorkerInfo'
         lostWorkers:
@@ -591,19 +603,28 @@ components:
           description: The id and epoch.
         hostAndPorts:
           type: string
-          description: The host and ports.
+          description: The host-rpcPort-pushPort-fetchPort-replicatePort.
         mode:
           type: string
-          description: The mode of the partition location data.
+          description: partition mode.
+          enum:
+            - PRIMARY
+            - REPLICA
         peer:
           type: string
-          description: The peer of the partition location data.
+          description: The peer address.
         storage:
           type: string
-          description: The storage of the partition location data.
+          description: The storage hint.
+          enum:
+            - MEMORY
+            - HDD
+            - SSD
+            - HDFS
+            - OSS
         mapIdBitMap:
           type: string
-          description: The map id bitmap of the partition location data.
+          description: The map id bitmap hint.
       required:
         - idEpoch
         - hostAndPorts
@@ -674,7 +695,15 @@ components:
       properties:
         eventType:
           type: string
+          default: None
           description: The type of the event.
+          enum:
+            - Immediately
+            - Decommission
+            - DecommissionThenIdle
+            - Graceful
+            - Recommission
+            - None
         workers:
           type: array
           default: [ ]
@@ -717,4 +746,3 @@ components:
           description: The message of the worker exit request.
       required:
         - success
-        - message
