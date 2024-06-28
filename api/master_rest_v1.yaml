@@ -207,7 +207,7 @@ paths:
     get:
       tags:
         - Application
-      operationId: getApplicationsDiskUsage
+      operationId: getApplicationsDiskUsageSnapshots
       description: |
         List the top disk usage application ids.
         It will return the top disk usage application ids for the cluster.
@@ -595,45 +595,6 @@ components:
       required:
         - worker
         - event
-
-    PartitionLocationData:
-      type: object
-      properties:
-        idEpoch:
-          type: integer
-          format: int64
-          description: The id and epoch.
-        hostAndPorts:
-          type: string
-          description: The host-rpcPort-pushPort-fetchPort-replicatePort.
-        mode:
-          type: string
-          description: partition mode.
-          enum:
-            - PRIMARY
-            - REPLICA
-        peer:
-          type: string
-          description: The peer address.
-        storage:
-          type: string
-          description: The storage hint.
-          enum:
-            - MEMORY
-            - HDD
-            - SSD
-            - HDFS
-            - OSS
-        mapIdBitMap:
-          type: string
-          description: The map id bitmap hint.
-      required:
-        - idEpoch
-        - hostAndPorts
-        - mode
-        - peer
-        - storage
-        - mapIdBitMap
 
     WorkerId:
       type: object
