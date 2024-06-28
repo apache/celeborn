@@ -16,10 +16,10 @@
 #
 openapi: 3.0.0
 servers:
-  - url: http://localhost:9098/
+  - url: http://localhost:9096/
     description: Localhost reference server
 info:
-  title: Celeborn Master REST API
+  title: Celeborn Worker REST API
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
@@ -94,7 +94,9 @@ paths:
       tags:
         - Shuffle
       operationId: getShuffles
-      description: List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.
+      description: |
+        List all the running shuffle keys of the worker.
+        It only return keys of shuffles running in that worker.
       responses:
         "200":
           description: The request was successful.
@@ -103,105 +105,86 @@ paths:
               schema:
                 $ref: '#/components/schemas/ShuffleResponse'
 
-  /api/v1/masters:
+  /api/v1/shuffles/partitions:
     get:
       tags:
-        - Master
-      operationId: getMasterGroupInfo
+        - Shuffle
+      operationId: getShufflePartitions
       description: |
-        List master group information of the service.
-        It will list all master's LEADER, FOLLOWER information.
+        List all the living shuffle PartitionLocation information in the worker.
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MasterInfoResponse'
+                $ref: '#/components/schemas/ShufflePartitionsResponse'
 
   /api/v1/workers:
     get:
       tags:
         - Worker
-      operationId: getWorkers
-      description: |
-        List worker information of the service. It will list all registered workers,
-        lost workers, excluded workers, shutdown workers and decommission workers information.
+      operationId: getWorkerInfo
+      description: List the worker information.
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WorkersResponse'
+                $ref: '#/components/schemas/WorkerInfoResponse'
 
-  /api/v1/workers/exclude:
-    post:
-      tags:
-        - Worker
-      operationId: excludeWorker
-      description: |
-        Excluded workers of the master add or remove the worker manually given worker id.
-        The parameter add or remove specifies the excluded workers to add or remove.
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ExcludeWorkerRequest'
-      responses:
-        "200":
-          description: The request was successful.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ExcludeWorkerResponse'
-
-  /api/v1/workers/events:
+  /api/v1/workers/unavailable_peers:
     get:
       tags:
         - Worker
-      operationId: getWorkerEvents
-      description: List all worker event infos of the master.
+      operationId: unavailablePeers
+      description: |
+        List the unavailable peers of the worker, this always means the worker connect to the peer failed.
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WorkerEvent'
+                $ref: '#/components/schemas/UnAvailablePeersResponse'
+
+  /api/v1/workers/exit:
     post:
       tags:
         - Worker
-      operationId: sendWorkerEvent
+      operationId: workerExit
       description: |
-        For Master(Leader) can send worker event to manager workers.
-        Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'.
+        Trigger this worker to exit.
+        Legal exit types are 'Decommission', 'Graceful' and 'Immediately'.
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SendWorkerEventRequest'
+              $ref: '#/components/schemas/WorkerExitRequest'
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SendWorkerEventResponse'
+                $ref: '#/components/schemas/WorkerExitResponse'
 
   /api/v1/applications:
     get:
       tags:
         - Application
-      operationId: getApplications
-      description: List all running application's ids of the cluster.
+      operationId: getApplicationList
+      description: |
+        List all running application's ids of the worker.
+        It only return application ids running in that worker.
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApplicationsInfoResponse'
+                $ref: '#/components/schemas/ApplicationsResponse'
 
   /api/v1/applications/top_disk_usages:
     get:
@@ -217,21 +200,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AppDiskUsageSnapshotResponse'
-
-  /api/v1/applications/hostnames:
-    get:
-      tags:
-        - Application
-      operationId: getApplicationHostNames
-      description: List all running application's LifecycleManager's hostnames of the cluster.
-      responses:
-        "200":
-          description: The request was successful.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApplicationHostnameResponse'
+                $ref: '#/components/schemas/AppDiskUsagesResponse'
 
 components:
   schemas:
@@ -349,7 +318,7 @@ components:
         - appId
         - lastHeartbeat
 
-    ApplicationsInfoResponse:
+    ApplicationsResponse:
       type: object
       properties:
         applications:
@@ -357,7 +326,7 @@ components:
           default: [ ]
           description: The applications information.
           items:
-            $ref: '#/components/schemas/ApplicationHeartbeat'
+            type: string
       required:
         - applications
 
@@ -390,6 +359,16 @@ components:
         - appId
         - diskUsage
         - diskUsageStr
+
+    AppDiskUsagesResponse:
+      type: object
+      properties:
+        appDiskUsages:
+          type: array
+          default: [ ]
+          description: The application disk usages.
+          items:
+            $ref: '#/components/schemas/AppDiskUsage'
 
     AppDiskUsageSnapshotResponse:
       type: object
@@ -466,7 +445,7 @@ components:
         - leader
         - masterCommitInfo
 
-    WorkerInfo:
+    WorkerInfoResponse:
       type: object
       properties:
         host:
@@ -524,6 +503,15 @@ components:
           type: integer
           format: int64
           description: The start time of the worker state.
+        isRegistered:
+          type: boolean
+          description: The registration status of the worker.
+        isShutdown:
+          type: boolean
+          description: The shutdown status of the worker.
+        isDecommissioning:
+          type: boolean
+          description: The decommission status of the worker.
       required:
         - host
         - rpcPort
@@ -531,48 +519,9 @@ components:
         - fetchPort
         - replicatePort
         - internalPort
-
-    WorkersResponse:
-      type: object
-      properties:
-        workers:
-          type: array
-          default: [ ]
-          description: The registered workers.
-          items:
-            $ref: '#/components/schemas/WorkerInfo'
-        lostWorkers:
-          type: array
-          default: [ ]
-          description: The lost workers.
-          items:
-            $ref: '#/components/schemas/WorkerInfo'
-        excludedWorkers:
-          type: array
-          default: [ ]
-          description: The excluded workers.
-          items:
-            $ref: '#/components/schemas/WorkerInfo'
-        manualExcludedWorkers:
-          type: array
-          default: [ ]
-          description: The manual excluded workers.
-          items:
-            $ref: '#/components/schemas/WorkerInfo'
-        shutdownWorkers:
-          type: array
-          default: [ ]
-          description: The shutdown workers.
-          items:
-            $ref: '#/components/schemas/WorkerInfo'
-        decommissionWorkers:
-          type: array
-          default: [ ]
-          description: The decommission workers.
-          items:
-            $ref: '#/components/schemas/WorkerInfo'
-      required:
-        - workers
+        - isRegistered
+        - isShutdown
+        - isDecommissioning
 
     WorkerEventInfo:
       type: object
@@ -585,16 +534,28 @@ components:
           format: int64
           description: The start time of the event.
 
-    WorkerEvent:
+    UnAvailablePeerWorker:
       type: object
       properties:
-        worker:
-          $ref: '#/components/schemas/WorkerInfo'
-        event:
-          $ref: '#/components/schemas/WorkerEventInfo'
+        peer:
+          $ref: '#/components/schemas/WorkerId'
+        unavailableTime:
+          type: integer
+          format: int64
+          description: The time when the peer is unavailable.
       required:
-        - worker
-        - event
+        - peer
+        - unavailableTime
+
+    UnAvailablePeersResponse:
+      type: object
+      properties:
+        unavailablePeers:
+          type: array
+          default: [ ]
+          description: The unavailable peers.
+          items:
+            $ref: '#/components/schemas/UnAvailablePeerWorker'
 
     PartitionLocationData:
       type: object
@@ -634,6 +595,22 @@ components:
         - peer
         - storage
         - mapIdBitMap
+
+    ShufflePartitionsResponse:
+      type: object
+      properties:
+        primaryPartitions:
+          type: array
+          default: [ ]
+          description: The primary partition location data.
+          items:
+            $ref: '#/components/schemas/PartitionLocationData'
+        replicaPartitions:
+          type: array
+          default: [ ]
+          description: The replica partition location data.
+          items:
+            $ref: '#/components/schemas/PartitionLocationData'
 
     WorkerId:
       type: object
@@ -734,6 +711,10 @@ components:
         type:
           type: string
           description: The type of the worker exit request.
+          enum:
+            - Decommission
+            - Graceful
+            - Immediately
       required:
         - type
 
