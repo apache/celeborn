@@ -290,4 +290,15 @@ public class DfsPartitionReader implements PartitionReader {
   public PartitionLocation getLocation() {
     return location;
   }
+
+  @Override
+  public int getCurrentChunk() {
+    return returnedChunks;
+  }
+
+  @Override
+  public void setCurrentChunk(int currentChunk) {
+    currentChunkIndex = currentChunk;
+    returnedChunks = currentChunk;
+  }
 }

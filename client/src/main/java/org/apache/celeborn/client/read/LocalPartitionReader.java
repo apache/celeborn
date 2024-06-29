@@ -260,4 +260,15 @@ public class LocalPartitionReader implements PartitionReader {
   public PartitionLocation getLocation() {
     return location;
   }
+
+  @Override
+  public int getCurrentChunk() {
+    return returnedChunks;
+  }
+
+  @Override
+  public void setCurrentChunk(int currentChunk) {
+    chunkIndex = currentChunk;
+    returnedChunks = currentChunk;
+  }
 }
