@@ -21,6 +21,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
+import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.util.Utils;
 
 public class PartitionDataWriterContext {
@@ -34,6 +35,7 @@ public class PartitionDataWriterContext {
   private final boolean partitionSplitEnabled;
   private final String shuffleKey;
   private final PartitionType partitionType;
+  private StorageInfo.Type storageType = null;
 
   public PartitionDataWriterContext(
       long splitThreshold,
@@ -95,5 +97,13 @@ public class PartitionDataWriterContext {
 
   public PartitionType getPartitionType() {
     return partitionType;
+  }
+
+  public StorageInfo.Type getStorageType() {
+    return storageType;
+  }
+
+  public void setStorageType(StorageInfo.Type storageType) {
+    this.storageType = storageType;
   }
 }

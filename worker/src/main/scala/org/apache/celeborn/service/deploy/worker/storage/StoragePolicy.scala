@@ -44,21 +44,18 @@ object StoragePolicy extends Logging {
   def getEvictedFile(
       celebornFile: CelebornFile,
       partitionDataWriterContext: PartitionDataWriterContext): CelebornFile = {
-    evictFileOrder.foreach(orders => {
-      orders.foreach(order => {
-        val current = order._1
-        val overrideOrder = order._2
-        if (StorageInfo.fromStrToType(current) == celebornFile.storageType) {
-          return createFile(partitionDataWriterContext, overrideOrder)
-        }
-      })
-    })
+    if (evictFileOrder.isDefined) {
+      if (evictFileOrder.get.contains(celebornFile.storageType.name())) {
+        val order = evictFileOrder.get.get(celebornFile.storageType.name())
+        return createFile(partitionDataWriterContext, order)
+      }
+    }
     null
   }
 
   def createFile(
       partitionDataWriterContext: PartitionDataWriterContext,
-      overrideOrder: List[String] = null): CelebornFile = {
+      overrideOrder: Option[List[String]] = null): CelebornFile = {
     logDebug(
       s"create file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
     val location = partitionDataWriterContext.getPartitionLocation
@@ -96,10 +93,11 @@ object StoragePolicy extends Logging {
 
     val tmpOrder =
       if (overrideOrder != null) {
-        Some(overrideOrder)
+        overrideOrder
       } else {
         createFileOrder
       }
+
     tmpOrder.foreach(lst => {
       for (storageStr <- lst) {
         val storageInfoType = StorageInfo.fromStrToType(storageStr)
