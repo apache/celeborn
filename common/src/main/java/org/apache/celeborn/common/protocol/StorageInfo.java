@@ -40,11 +40,13 @@ public class StorageInfo implements Serializable {
 
   public static final Map<Integer, Type> typesMap = new HashMap<>();
   public static final Set<String> typeNames = new HashSet<>();
+  public static final Map<String, Type> types = new HashMap<>();
 
   static {
     for (Type type : Type.values()) {
       typesMap.put(type.value, type);
       typeNames.add(type.name());
+      types.put(type.name(), type);
     }
   }
 
@@ -233,5 +235,9 @@ public class StorageInfo implements Serializable {
       }
     }
     return ava;
+  }
+
+  public static Type fromStrToType(String typeStr) {
+    return types.get(typeStr);
   }
 }

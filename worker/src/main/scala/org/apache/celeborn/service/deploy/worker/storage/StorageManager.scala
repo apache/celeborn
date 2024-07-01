@@ -873,7 +873,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       && MemoryManager.instance().memoryFileStorageAvailable()) {
       logDebug(s"Create memory file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
       (
-        createMemoryFile(
+        createMemoryFileInfo(
           partitionDataWriterContext.getAppId,
           partitionDataWriterContext.getShuffleId,
           location.getFileName,
@@ -899,7 +899,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
   }
 
-  def createMemoryFile(
+  def createMemoryFileInfo(
       appId: String,
       shuffleId: Int,
       fileName: String,

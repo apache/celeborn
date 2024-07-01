@@ -305,6 +305,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     def moduleKey(config: ConfigEntry[_]): String = {
       config.key.replace("<module>", module)
     }
+
     conf.set(moduleKey(NETWORK_IO_MODE), transportTestNetworkIoMode)
     conf.set(
       moduleKey(NETWORK_IO_PREFER_DIRECT_BUFS),
@@ -404,6 +405,52 @@ class CelebornConfSuite extends CelebornFunSuite {
     // now remove parent as well, it should go to fallback value
     conf.unset("celeborn.test_parent_module.io.connectTimeout")
     assert(conf.networkIoConnectTimeoutMs("test_child_module") == fallbackValue)
+  }
+
+  test("Test storage policy case 1") {
+    val conf = new CelebornConf()
+    conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "MEMORY,SSD")
+    val createFilePolicy1 = conf.workerStoragePolicyCreateFilePolicy
+    assert(List("MEMORY", "SSD") == createFilePolicy1.get)
+
+    conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "MEMORY,HDFS")
+    val createFilePolicy2 = conf.workerStoragePolicyCreateFilePolicy
+    assert(List("MEMORY", "HDFS") == createFilePolicy2.get)
+
+    conf.unset("celeborn.worker.storage.storagePolicy.createFilePolicy")
+    val createFilePolicy3 = conf.workerStoragePolicyCreateFilePolicy
+    assert(List("MEMORY", "HDD", "SSD", "HDFS", "OSS") == createFilePolicy3.get)
+
+    try {
+      conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "ABC")
+      val createFilePolicy4 = conf.workerStoragePolicyCreateFilePolicy
+    } catch {
+      case e: Exception =>
+        assert(e.isInstanceOf[IllegalArgumentException])
+    }
+  }
+
+  test("Test storage policy case 2") {
+    val conf = new CelebornConf()
+    conf.set("celeborn.worker.storage.storagePolicy.evictPolicy", "MEMORY,SSD")
+    val evictPolicy1 = conf.workerStoragePolicyEvictFilePolicy
+    assert(Map("MEMORY" -> List("SSD")) == evictPolicy1.get)
+
+    conf.set("celeborn.worker.storage.storagePolicy.evictPolicy", "MEMORY,SSD,HDFS|HDD,HDFS")
+    val evictPolicy2 = conf.workerStoragePolicyEvictFilePolicy
+    assert(Map("MEMORY" -> List("SSD", "HDFS"), "HDD" -> List("HDFS")) == evictPolicy2.get)
+
+    conf.unset("celeborn.worker.storage.storagePolicy.evictPolicy")
+    val evictPolicy3 = conf.workerStoragePolicyEvictFilePolicy
+    assert(Map("MEMORY" -> List("SSD", "HDD", "HDFS", "OSS")) == evictPolicy3.get)
+
+    try {
+      conf.set("celeborn.worker.storage.storagePolicy.evictPolicy", "ABC")
+      conf.workerStoragePolicyEvictFilePolicy
+    } catch {
+      case e: Exception =>
+        assert(e.isInstanceOf[IllegalArgumentException])
+    }
   }
 
 }

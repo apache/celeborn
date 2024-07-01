@@ -32,7 +32,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
 import org.apache.celeborn.common.network.util.ByteUnit
 import org.apache.celeborn.common.protocol._
-import org.apache.celeborn.common.protocol.StorageInfo.Type
+import org.apache.celeborn.common.protocol.StorageInfo.{typesMap, validate, Type}
 import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
 import org.apache.celeborn.common.rpc.RpcTimeout
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
@@ -1130,6 +1130,19 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def readBufferTargetUpdateInterval: Long = get(WORKER_READBUFFER_TARGET_UPDATE_INTERVAL)
   def readBufferTargetNotifyThreshold: Long = get(WORKER_READBUFFER_TARGET_NOTIFY_THRESHOLD)
   def readBuffersToTriggerReadMin: Int = get(WORKER_READBUFFERS_TOTRIGGERREAD_MIN)
+  def workerStoragePolicyCreateFilePolicy: Option[List[String]] =
+    get(WORKER_STORAGE_CREATE_FILE_POLICY).map {
+      policy => policy.split(",").map(_.trim).toList
+    }.orElse(Some(List("MEMORY", "HDD", "SSD", "HDFS", "OSS")))
+
+  def workerStoragePolicyEvictFilePolicy: Option[Map[String, List[String]]] =
+    get(WORKER_STORAGE_EVICT_POLICY).map {
+      policy =>
+        policy.split("\\|").map(group => {
+          val groupArr = group.split(",")
+          Map(groupArr.head -> groupArr.slice(1, groupArr.length).toList)
+        }).reduce(_ ++ _)
+    }.orElse(Some(Map("MEMORY" -> List("SSD", "HDD", "HDFS", "OSS"))))
 
   // //////////////////////////////////////////////////////
   //                   Decommission                      //
@@ -2813,6 +2826,30 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1000ms")
+
+  val WORKER_STORAGE_CREATE_FILE_POLICY: OptionalConfigEntry[String] =
+    buildConf("celeborn.worker.storage.storagePolicy.createFilePolicy")
+      .categories("worker")
+      .doc("This defined the order for create files if the storages are available. Available storages: MEMORY,SSD,HDD,HDFS")
+      .version("0.5.1")
+      .stringConf
+      .checkValue(
+        _.split(",").map(str => StorageInfo.typeNames.contains(str.trim.toUpperCase)).forall(p =>
+          p),
+        "Will use default create file order. Default order: MEMORY,SSD,HDD,HDFS")
+      .createOptional
+
+  val WORKER_STORAGE_EVICT_POLICY: OptionalConfigEntry[String] =
+    buildConf("celeborn.worker.storage.storagePolicy.evictPolicy")
+      .categories("worker")
+      .doc("This define the order of evict files if the storages are available. Available storages: MEMORY,SSD,HDD,HDFS. Definition: StorageTypes|StorageTypes|StorageTypes.")
+      .version("0.5.1")
+      .stringConf
+      .checkValue(
+        _.replace("|", ",").split(",").map(str =>
+          StorageInfo.typeNames.contains(str.trim.toUpperCase)).forall(p => p),
+        "Will use default evict order. Default order: MEMORY,SSD,HDD,HDFS,OSS")
+      .createOptional
 
   val WORKER_HTTP_HOST: ConfigEntry[String] =
     buildConf("celeborn.worker.http.host")
