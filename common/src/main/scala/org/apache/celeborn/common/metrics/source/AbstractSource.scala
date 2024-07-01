@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.metrics.source
 
-import java.util.{Map => JMap, Queue => JQueue}
+import java.util.{Map => JMap}
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, ScheduledExecutorService, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -69,7 +69,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   val applicationLabel = "applicationId"
 
-  protected val namedGauges: JQueue[NamedGauge[_]] = new ConcurrentLinkedQueue[NamedGauge[_]]()
+  protected val namedGauges: ConcurrentHashMap[String, NamedGauge[_]] =
+    JavaUtils.newConcurrentHashMap[String, NamedGauge[_]]()
 
   def addGauge[T](
       name: String,
@@ -77,7 +78,9 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       gauge: Gauge[T]): Unit = {
     // filter out non-number type gauges
     if (gauge.getValue.isInstanceOf[Number]) {
-      namedGauges.add(NamedGauge(name, gauge, labels ++ staticLabels))
+      namedGauges.putIfAbsent(
+        metricNameWithCustomizedLabels(name, labels),
+        NamedGauge(name, gauge, labels ++ staticLabels))
     } else {
       logWarning(
         s"Add gauge $name failed, the value type ${gauge.getValue.getClass} is not a number")
@@ -92,12 +95,10 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   def addGauge[T](name: String, labels: Map[String, String] = Map.empty)(f: () => T): Unit = {
-    val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
-    if (!metricRegistry.getGauges.containsKey(metricNameWithLabel)) {
-      val supplier: MetricRegistry.MetricSupplier[Gauge[_]] = new GaugeSupplier[T](f)
-      val gauge = metricRegistry.gauge(metricNameWithLabel, supplier)
-      addGauge(name, labels, gauge)
-    }
+    addGauge(
+      name,
+      labels,
+      metricRegistry.gauge(metricNameWithCustomizedLabels(name, labels), new GaugeSupplier[T](f)))
   }
 
   def addGauge[T](name: String, gauge: Gauge[T]): Unit = {
@@ -112,16 +113,16 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def addTimer(name: String, labels: Map[String, String]): Unit = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
-    if (!metricRegistry.getTimers.containsKey(metricNameWithLabel)) {
-      val timer = metricRegistry.timer(metricNameWithLabel, timerSupplier)
-      namedTimers.computeIfAbsent(
-        metricNameWithLabel,
-        (_: String) => {
-          val namedTimer = NamedTimer(name, timer, labels ++ staticLabels)
-          val values = JavaUtils.newConcurrentHashMap[String, Long]()
-          (namedTimer, values)
-        })
-    }
+    namedTimers.computeIfAbsent(
+      metricNameWithLabel,
+      (_: String) => {
+        val namedTimer = NamedTimer(
+          name,
+          metricRegistry.timer(metricNameWithLabel, timerSupplier),
+          labels ++ staticLabels)
+        val values = JavaUtils.newConcurrentHashMap[String, Long]()
+        (namedTimer, values)
+      })
   }
 
   protected val namedCounters: ConcurrentHashMap[String, NamedCounter] =
@@ -131,13 +132,9 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def addCounter(name: String, labels: Map[String, String]): Unit = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
-    if (!metricRegistry.getCounters.containsKey(
-        metricNameWithLabel)) {
-      val counter = metricRegistry.counter(metricNameWithLabel)
-      namedCounters.put(
-        metricNameWithLabel,
-        NamedCounter(name, counter, labels ++ staticLabels))
-    }
+    namedCounters.putIfAbsent(
+      metricNameWithLabel,
+      NamedCounter(name, metricRegistry.counter(metricNameWithLabel), labels ++ staticLabels))
   }
 
   def counters(): List[NamedCounter] = {
@@ -145,7 +142,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   def gauges(): List[NamedGauge[_]] = {
-    namedGauges.asScala.toList
+    namedGauges.values().asScala.toList
   }
 
   def histograms(): List[NamedHistogram] = {
@@ -154,6 +151,10 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def timers(): List[NamedTimer] = {
     namedTimers.values().asScala.toList.map(_._1)
+  }
+
+  def gaugeExists(name: String, labels: Map[String, String]): Boolean = {
+    namedGauges.containsKey(metricNameWithCustomizedLabels(name, labels))
   }
 
   def needSample(): Boolean = {
@@ -167,43 +168,17 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   def removeCounter(name: String, labels: Map[String, String]): Unit = {
-    val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
-    val namedCounter = namedCounters.get(metricNameWithLabel)
-    if (namedCounter != null) {
-      removeMetric(metricNameWithLabel, namedCounter)
-    }
+    namedCounters.remove(removeMetric(name, labels))
   }
 
   def removeGauge(name: String, labels: Map[String, String]): Unit = {
-    val labelString = MetricLabels.labelString(labels ++ staticLabels)
-
-    val iter = namedGauges.iterator()
-    while (iter.hasNext) {
-      val namedGauge = iter.next()
-      if (namedGauge.name.equals(name) && namedGauge.labelString.equals(labelString)) {
-        iter.remove()
-        removeMetric(name, namedGauge)
-        return
-      }
-    }
+    namedGauges.remove(removeMetric(name, labels))
   }
 
-  def removeGauge(name: String, labelKey: String, labelVal: String): Unit = {
-    val labels = Map(labelKey -> labelVal) ++ staticLabels
-
-    val iter = namedGauges.iterator()
-    while (iter.hasNext) {
-      val namedGauge = iter.next()
-      if (namedGauge.name.equals(name) && labels.toSet.subsetOf(namedGauge.labels.toSet)) {
-        iter.remove()
-        removeMetric(name, namedGauge)
-        return
-      }
-    }
-  }
-
-  def removeMetric(name: String, metric: MetricLabels): Unit = {
-    metricRegistry.remove(metricNameWithCustomizedLabelString(name, metric.labelString))
+  def removeMetric(name: String, labels: Map[String, String]): String = {
+    val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
+    metricRegistry.remove(metricNameWithLabel)
+    metricNameWithLabel
   }
 
   override def sample[T](metricsName: String, key: String)(f: => T): T = {
@@ -441,12 +416,6 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     } else {
       metricsName + MetricLabels.labelString(labels ++ staticLabels)
     }
-  }
-
-  protected def metricNameWithCustomizedLabelString(
-      metricsName: String,
-      labelString: String): String = {
-    metricsName + labelString
   }
 }
 
