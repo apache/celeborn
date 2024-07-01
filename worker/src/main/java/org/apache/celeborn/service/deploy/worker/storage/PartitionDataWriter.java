@@ -173,10 +173,10 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       this.flusherBufferSize = localFlusherBufferSize;
       channel = FileChannelUtils.createWritableFileChannel(this.diskFileInfo.getFilePath());
     } else {
-       if (diskFileInfo.isS3()){
-         this.flusherBufferSize = s3FlusherBufferSize;
+      if (diskFileInfo.isS3()) {
+        this.flusherBufferSize = s3FlusherBufferSize;
       } else {
-         this.flusherBufferSize = hdfsFlusherBufferSize;
+        this.flusherBufferSize = hdfsFlusherBufferSize;
       }
       // We open the stream and close immediately because DFS output stream will
       // create a DataStreamer that is a thread.

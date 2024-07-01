@@ -1020,9 +1020,9 @@ private[celeborn] class Master(
           throw e
       }
     }
-    if (hasHDFSStorage)  processDir(conf.hdfsDir, expiredDir)
-    if (hasS3Storage)  processDir(conf.s3Dir, expiredDir)
-    }
+    if (hasHDFSStorage) processDir(conf.hdfsDir, expiredDir)
+    if (hasS3Storage) processDir(conf.s3Dir, expiredDir)
+  }
 
   private def processDir(dfsDir: String, expiredDir: String): Unit = {
     val dfsWorkPath = new Path(dfsDir, conf.workerWorkingDir)
