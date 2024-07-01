@@ -268,7 +268,13 @@ class FetchHandler(
             meta.getChunkOffsets,
             fileInfo.asInstanceOf[DiskFileInfo].getFilePath)
         } else fileInfo match {
-          case info: DiskFileInfo if info.isDFS =>
+          case info: DiskFileInfo if info.isHdfs =>
+            chunkStreamManager.registerStream(
+              streamId,
+              shuffleKey,
+              fileName)
+            makeStreamHandler(streamId, numChunks = 0)
+          case info: DiskFileInfo if info.isS3 =>
             chunkStreamManager.registerStream(
               streamId,
               shuffleKey,

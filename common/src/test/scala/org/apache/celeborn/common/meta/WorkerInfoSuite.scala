@@ -71,7 +71,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
 
   test("multi-thread modify same WorkerInfo.") {
     val numSlots = 10000
-    val disks = new util.HashMap[String, DiskInfo]()
+    val disks = new util.HashMap[String, DiskInfoBase]()
     disks.put("disk1", new DiskInfo("disk1", Int.MaxValue, 1, 1, 0))
     disks.put("disk2", new DiskInfo("disk2", Int.MaxValue, 1, 1, 0))
     disks.put("disk3", new DiskInfo("disk3", Int.MaxValue, 1, 1, 0))
@@ -200,7 +200,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
       10003,
       1000,
       10004,
-      new util.HashMap[String, DiskInfo](),
+      new util.HashMap[String, DiskInfoBase](),
       null)
     val worker2 =
       new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, null, null)
@@ -242,10 +242,10 @@ class WorkerInfoSuite extends CelebornFunSuite {
       30003,
       3000,
       30004,
-      new util.HashMap[String, DiskInfo](),
+      new util.HashMap[String, DiskInfoBase](),
       null)
 
-    val disks = new util.HashMap[String, DiskInfo]()
+    val disks = new util.HashMap[String, DiskInfoBase]()
     val diskInfo1 = new DiskInfo("disk1", Int.MaxValue, 1, 1, 10)
     val diskInfo2 = new DiskInfo("disk2", Int.MaxValue, 2, 2, 20)
     val diskInfo3 = new DiskInfo("disk3", Int.MaxValue, 3, 3, 30)

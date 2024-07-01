@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.ApplicationMeta;
-import org.apache.celeborn.common.meta.DiskInfo;
+import org.apache.celeborn.common.meta.DiskInfoBase;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
@@ -97,7 +97,7 @@ public class MetaHandler {
       int pushPort;
       int fetchPort;
       int replicatePort;
-      Map<String, DiskInfo> diskInfos;
+      Map<String, DiskInfoBase> diskInfos;
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
       Map<String, Long> estimatedAppDiskUsage = new HashMap<>();
       WorkerStatus workerStatus;

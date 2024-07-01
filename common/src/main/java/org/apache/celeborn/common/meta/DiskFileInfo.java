@@ -117,7 +117,7 @@ public class DiskFileInfo extends FileInfo {
   }
 
   public void deleteAllFiles(FileSystem dfsFs) {
-    if (isHdfs()) {
+    if (isDFS()) {
       try {
         dfsFs.delete(getDfsPath(), false);
         dfsFs.delete(getDfsWriterSuccessPath(), false);

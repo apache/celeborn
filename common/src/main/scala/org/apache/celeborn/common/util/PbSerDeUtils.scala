@@ -26,8 +26,8 @@ import scala.collection.JavaConverters._
 import com.google.protobuf.InvalidProtocolBufferException
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationMeta, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
-import org.apache.celeborn.common.protocol._
+import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationMeta, DiskFileInfo, DiskInfo, DiskInfoBase, MapFileMeta, ReduceFileMeta, S3DiskInfo, WorkerEventInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.protocol.{StorageInfo, _}
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -64,20 +64,32 @@ object PbSerDeUtils {
       .setMinor(minor)
       .build.toByteArray
 
-  def fromPbDiskInfo(pbDiskInfo: PbDiskInfo): DiskInfo = {
-    val diskInfo = new DiskInfo(
-      pbDiskInfo.getMountPoint,
-      pbDiskInfo.getUsableSpace,
-      pbDiskInfo.getAvgFlushTime,
-      pbDiskInfo.getAvgFetchTime,
-      pbDiskInfo.getUsedSlots)
-      .setStatus(Utils.toDiskStatus(pbDiskInfo.getStatus))
-      .setTotalSpace(pbDiskInfo.getTotalSpace)
+  def fromPbDiskInfo(pbDiskInfo: PbDiskInfo): DiskInfoBase = {
+    var diskInfo =
+      if (pbDiskInfo.getStorageType == StorageInfo.Type.S3.getValue) {
+        new S3DiskInfo(
+          pbDiskInfo.getMountPoint,
+          pbDiskInfo.getUsableSpace,
+          pbDiskInfo.getAvgFlushTime,
+          pbDiskInfo.getAvgFetchTime,
+          pbDiskInfo.getUsedSlots)
+          .setStatus(Utils.toDiskStatus(pbDiskInfo.getStatus))
+          .setTotalSpace(pbDiskInfo.getTotalSpace)
+      } else {
+        new DiskInfo(
+          pbDiskInfo.getMountPoint,
+          pbDiskInfo.getUsableSpace,
+          pbDiskInfo.getAvgFlushTime,
+          pbDiskInfo.getAvgFetchTime,
+          pbDiskInfo.getUsedSlots)
+          .setStatus(Utils.toDiskStatus(pbDiskInfo.getStatus))
+          .setTotalSpace(pbDiskInfo.getTotalSpace)
+      }
     diskInfo.setStorageType(StorageInfo.typesMap.get(pbDiskInfo.getStorageType))
     diskInfo
   }
 
-  def toPbDiskInfo(diskInfo: DiskInfo): PbDiskInfo =
+  def toPbDiskInfo(diskInfo: DiskInfoBase): PbDiskInfo =
     PbDiskInfo.newBuilder
       .setMountPoint(diskInfo.mountPoint)
       .setUsableSpace(diskInfo.actualUsableSpace)
@@ -220,7 +232,7 @@ object PbSerDeUtils {
   }
 
   def fromPbWorkerInfo(pbWorkerInfo: PbWorkerInfo): WorkerInfo = {
-    val disks = JavaUtils.newConcurrentHashMap[String, DiskInfo]
+    val disks = JavaUtils.newConcurrentHashMap[String, DiskInfoBase]
     if (pbWorkerInfo.getDisksCount > 0) {
       pbWorkerInfo.getDisksList.asScala.foreach(pbDiskInfo =>
         disks.put(pbDiskInfo.getMountPoint, fromPbDiskInfo(pbDiskInfo)))

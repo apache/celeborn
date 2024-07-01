@@ -46,6 +46,10 @@ object CelebornHadoopUtils extends Logging {
             "prefix 'celeborn.hadoop.', e.g. 'celeborn.hadoop.dfs.replication=3'")
       }
     } else if (conf.s3Dir.nonEmpty) {
+      if (conf.s3AccessKey.isEmpty || conf.s3SecretKey.isEmpty || conf.s3Endpoint.isEmpty) {
+        throw new CelebornException(
+          "S3 storage is enabled but s3AccessKey, s3SecretKey, or s3Endpoint is not set")
+      }
       hadoopConf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
       hadoopConf.set(
         "fs.s3a.aws.credentials.provider",

@@ -263,6 +263,7 @@ org.apache.commons:commons-crypto
 org.apache.commons:commons-lang3
 org.apache.hadoop:hadoop-client-api
 org.apache.hadoop:hadoop-client-runtime
+org.apache.hadoop:hadoop-aws
 org.apache.ibatis:mybatis
 org.apache.logging.log4j:log4j-1.2-api
 org.apache.logging.log4j:log4j-api
@@ -307,6 +308,7 @@ org.slf4j:jcl-over-slf4j
 org.webjars:swagger-ui
 org.xerial.snappy:snappy-java
 org.yaml:snakeyaml
+com.amazonaws:aws-java-sdk-bundle
 
 ------------------------------------------------------------------------------------
 This product bundles various third-party components under other open source licenses.

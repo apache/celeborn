@@ -24,6 +24,8 @@ import java.util.stream.Collectors;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.identity.UserIdentifier$;
 import org.apache.celeborn.common.meta.DiskInfo;
+import org.apache.celeborn.common.meta.DiskInfoBase;
+import org.apache.celeborn.common.meta.S3DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.protocol.StorageInfo;
@@ -55,34 +57,47 @@ public class MetaUtil {
         .build();
   }
 
-  public static Map<String, DiskInfo> fromPbDiskInfos(
-      Map<String, ResourceProtos.DiskInfo> diskInfos) {
-    Map<String, DiskInfo> map = new HashMap<>();
+  public static Map<String, DiskInfoBase> fromPbDiskInfos(
+      Map<String, ResourceProtos.DiskInfoBase> diskInfos) {
+    Map<String, DiskInfoBase> map = new HashMap<>();
 
     diskInfos.forEach(
         (k, v) -> {
-          DiskInfo diskInfo =
-              new DiskInfo(
-                  v.getMountPoint(),
-                  v.getUsableSpace(),
-                  v.getAvgFlushTime(),
-                  v.getAvgFetchTime(),
-                  v.getUsedSlots(),
-                  StorageInfo.typesMap.get(v.getStorageType()));
-          diskInfo.setStatus(Utils.toDiskStatus(v.getStatus()));
-          map.put(k, diskInfo);
+          if (v.getStorageType() == StorageInfo.Type.S3.getValue()) {
+            map.put(
+                k,
+                new S3DiskInfo(
+                    v.getMountPoint(),
+                    v.getUsableSpace(),
+                    v.getAvgFlushTime(),
+                    v.getAvgFetchTime(),
+                    v.getUsedSlots(),
+                    StorageInfo.typesMap.get(v.getStorageType())));
+          } else {
+            DiskInfoBase diskInfo =
+                new DiskInfo(
+                    v.getMountPoint(),
+                    v.getUsableSpace(),
+                    v.getAvgFlushTime(),
+                    v.getAvgFetchTime(),
+                    v.getUsedSlots(),
+                    StorageInfo.typesMap.get(v.getStorageType()));
+            diskInfo.setStatus(Utils.toDiskStatus(v.getStatus()));
+            map.put(k, diskInfo);
+          }
         });
+
     return map;
   }
 
-  public static Map<String, ResourceProtos.DiskInfo> toPbDiskInfos(
-      Map<String, DiskInfo> diskInfos) {
-    Map<String, ResourceProtos.DiskInfo> map = new HashMap<>();
+  public static Map<String, ResourceProtos.DiskInfoBase> toPbDiskInfos(
+      Map<String, DiskInfoBase> diskInfos) {
+    Map<String, ResourceProtos.DiskInfoBase> map = new HashMap<>();
     diskInfos.forEach(
         (k, v) ->
             map.put(
                 k,
-                ResourceProtos.DiskInfo.newBuilder()
+                ResourceProtos.DiskInfoBase.newBuilder()
                     .setMountPoint(v.mountPoint())
                     .setUsableSpace(v.actualUsableSpace())
                     .setAvgFlushTime(v.avgFlushTime())

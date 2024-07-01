@@ -22,7 +22,7 @@ import java.util.Map;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.ApplicationMeta;
-import org.apache.celeborn.common.meta.DiskInfo;
+import org.apache.celeborn.common.meta.DiskInfoBase;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
@@ -58,7 +58,7 @@ public interface IMetadataHandler {
       int pushPort,
       int fetchPort,
       int replicatePort,
-      Map<String, DiskInfo> disks,
+      Map<String, DiskInfoBase> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       Map<String, Long> estimatedAppDiskUsage,
       long time,
@@ -74,7 +74,7 @@ public interface IMetadataHandler {
       int replicatePort,
       int internalPort,
       String networkLocation,
-      Map<String, DiskInfo> disks,
+      Map<String, DiskInfoBase> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId);
 

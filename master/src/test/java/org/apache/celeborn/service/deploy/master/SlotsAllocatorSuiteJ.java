@@ -30,6 +30,7 @@ import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.DiskInfo;
+import org.apache.celeborn.common.meta.DiskInfoBase;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
@@ -39,7 +40,7 @@ public class SlotsAllocatorSuiteJ {
     long assumedPartitionSize = 64 * 1024 * 1024;
 
     Random random = new Random();
-    Map<String, DiskInfo> disks1 = new HashMap<>();
+    Map<String, DiskInfoBase> disks1 = new HashMap<>();
     DiskInfo diskInfo1 =
         new DiskInfo(
             "/mnt/disk1",
@@ -70,7 +71,7 @@ public class SlotsAllocatorSuiteJ {
       disks1.put("/mnt/disk3", diskInfo3);
     }
 
-    Map<String, DiskInfo> disks2 = new HashMap<>();
+    Map<String, DiskInfoBase> disks2 = new HashMap<>();
     DiskInfo diskInfo4 =
         new DiskInfo(
             "/mnt/disk1",
@@ -101,7 +102,7 @@ public class SlotsAllocatorSuiteJ {
       disks2.put("/mnt/disk3", diskInfo6);
     }
 
-    Map<String, DiskInfo> disks3 = new HashMap<>();
+    Map<String, DiskInfoBase> disks3 = new HashMap<>();
     DiskInfo diskInfo7 =
         new DiskInfo(
             "/mnt/disk1",
@@ -409,7 +410,7 @@ public class SlotsAllocatorSuiteJ {
     //    hdfs3.maxSlots_$eq(Long.MAX_VALUE);
     workers.get(0).diskInfos().put("HDFS", hdfs1);
     workers.get(1).diskInfos().put("HDFS", hdfs2);
-    for (Map.Entry<String, DiskInfo> diskEntry : workers.get(2).diskInfos().entrySet()) {
+    for (Map.Entry<String, DiskInfoBase> diskEntry : workers.get(2).diskInfos().entrySet()) {
       diskEntry.getValue().maxSlots_$eq(100);
     }
     //    workers.get(2).diskInfos().put("HDFS", hdfs3);

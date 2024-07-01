@@ -256,10 +256,10 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
               indexChannel.write(indexBuffer);
             }
           } else if (diskFileInfo.isDFS()) {
-            FSDataOutputStream hdfsStream =
+            FSDataOutputStream dfsStream =
                 StorageManager.hadoopFs().append(diskFileInfo.getDfsIndexPath());
-            hdfsStream.write(indexBuffer.array());
-            hdfsStream.close();
+            dfsStream.write(indexBuffer.array());
+            dfsStream.close();
           }
         }
         indexBuffer.clear();

@@ -36,7 +36,7 @@ import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.{DiskInfoBase, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.CelebornRackResolver
@@ -164,7 +164,8 @@ private[celeborn] class Master(
   private var checkForWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForApplicationTimeOutTask: ScheduledFuture[_] = _
   private var checkForUnavailableWorkerTimeOutTask: ScheduledFuture[_] = _
-  private var checkForDFSRemnantDirsTimeOutTask: ScheduledFuture[_] = _
+  private var checkForHDFSRemnantDirsTimeOutTask: ScheduledFuture[_] = _
+  private var checkForS3RemnantDirsTimeOutTask: ScheduledFuture[_] = _
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
 
   // Config constants
@@ -172,9 +173,8 @@ private[celeborn] class Master(
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
   private val workerUnavailableInfoExpireTimeoutMs = conf.workerUnavailableInfoExpireTimeout
 
-  private val dfsExpireDirsTimeoutMS =
-    if (conf.hasHDFSStorage) conf.hdfsExpireDirsTimeoutMS else conf.s3ExpireDirsTimeoutMS
-
+  private val hdfsExpireDirsTimeoutMS = conf.hdfsExpireDirsTimeoutMS
+  private val s3ExpireDirsTimeoutMS = conf.s3ExpireDirsTimeoutMS
   private val hasHDFSStorage = conf.hasHDFSStorage
   private val hasS3Storage = conf.hasS3Storage
 
@@ -322,15 +322,27 @@ private[celeborn] class Master(
       workerUnavailableInfoExpireTimeoutMs / 2,
       TimeUnit.MILLISECONDS)
 
-    if (hasHDFSStorage || hasS3Storage) {
-      checkForDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
+    if (hasHDFSStorage) {
+      checkForHDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
         new Runnable {
           override def run(): Unit = Utils.tryLogNonFatalError {
             self.send(CheckForDFSExpiredDirsTimeout)
           }
         },
-        dfsExpireDirsTimeoutMS,
-        dfsExpireDirsTimeoutMS,
+        hdfsExpireDirsTimeoutMS,
+        hdfsExpireDirsTimeoutMS,
+        TimeUnit.MILLISECONDS)
+    }
+
+    if (hasS3Storage) {
+      checkForS3RemnantDirsTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
+        new Runnable {
+          override def run(): Unit = Utils.tryLogNonFatalError {
+            self.send(CheckForDFSExpiredDirsTimeout)
+          }
+        },
+        s3ExpireDirsTimeoutMS,
+        s3ExpireDirsTimeoutMS,
         TimeUnit.MILLISECONDS)
     }
 
@@ -350,8 +362,11 @@ private[celeborn] class Master(
     if (checkForApplicationTimeOutTask != null) {
       checkForApplicationTimeOutTask.cancel(true)
     }
-    if (checkForDFSRemnantDirsTimeOutTask != null) {
-      checkForDFSRemnantDirsTimeOutTask.cancel(true)
+    if (checkForHDFSRemnantDirsTimeOutTask != null) {
+      checkForHDFSRemnantDirsTimeOutTask.cancel(true)
+    }
+    if (checkForS3RemnantDirsTimeOutTask != null) {
+      checkForS3RemnantDirsTimeOutTask.cancel(true)
     }
     forwardMessageThread.shutdownNow()
     rackResolver.stop()
@@ -643,7 +658,7 @@ private[celeborn] class Master(
       pushPort: Int,
       fetchPort: Int,
       replicatePort: Int,
-      disks: Seq[DiskInfo],
+      disks: Seq[DiskInfoBase],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       activeShuffleKeys: util.Set[String],
       estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
@@ -719,7 +734,7 @@ private[celeborn] class Master(
       fetchPort,
       replicatePort,
       -1,
-      new util.HashMap[String, DiskInfo](),
+      new util.HashMap[String, DiskInfoBase](),
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]())
     val worker: WorkerInfo = statusSystem.workers
       .asScala
@@ -745,7 +760,7 @@ private[celeborn] class Master(
       replicatePort: Int,
       internalPort: Int,
       networkLocation: String,
-      disks: util.Map[String, DiskInfo],
+      disks: util.Map[String, DiskInfoBase],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       requestId: String): Unit = {
     val workerToRegister =
@@ -1005,7 +1020,11 @@ private[celeborn] class Master(
           throw e
       }
     }
-    val dfsDir = if (hasHDFSStorage) conf.hdfsDir else conf.s3Dir
+    if (hasHDFSStorage)  processDir(conf.hdfsDir, expiredDir)
+    if (hasS3Storage)  processDir(conf.s3Dir, expiredDir)
+    }
+
+  private def processDir(dfsDir: String, expiredDir: String): Unit = {
     val dfsWorkPath = new Path(dfsDir, conf.workerWorkingDir)
     if (hadoopFs.exists(dfsWorkPath)) {
       if (expiredDir.nonEmpty) {

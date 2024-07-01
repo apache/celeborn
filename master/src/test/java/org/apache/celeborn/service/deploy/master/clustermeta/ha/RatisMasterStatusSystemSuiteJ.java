@@ -36,6 +36,7 @@ import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
+import org.apache.celeborn.common.meta.DiskInfoBase;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.protocol.WorkerEventType;
@@ -225,7 +226,7 @@ public class RatisMasterStatusSystemSuiteJ {
   private static final int REPLICATEPORT1 = 1114;
   private static final int INTERNALPORT1 = 1115;
   private static final String NETWORK_LOCATION1 = "networkLocation1";
-  private static final Map<String, DiskInfo> disks1 = new HashMap<>();
+  private static final Map<String, DiskInfoBase> disks1 = new HashMap<>();
   private static final Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 =
       new HashMap<>();
 
@@ -236,7 +237,7 @@ public class RatisMasterStatusSystemSuiteJ {
   private static final int REPLICATEPORT2 = 2114;
   private static final int INTERNALPORT2 = 2115;
   private static final String NETWORK_LOCATION2 = "networkLocation2";
-  private static final Map<String, DiskInfo> disks2 = new HashMap<>();
+  private static final Map<String, DiskInfoBase> disks2 = new HashMap<>();
   private static final Map<UserIdentifier, ResourceConsumption> userResourceConsumption2 =
       new HashMap<>();
 
@@ -247,7 +248,7 @@ public class RatisMasterStatusSystemSuiteJ {
   private static final int REPLICATEPORT3 = 3114;
   private static final int INTERNALPORT3 = 3115;
   private static final String NETWORK_LOCATION3 = "networkLocation3";
-  private static final Map<String, DiskInfo> disks3 = new HashMap<>();
+  private static final Map<String, DiskInfoBase> disks3 = new HashMap<>();
   private static final Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 =
       new HashMap<>();
 

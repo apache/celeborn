@@ -36,7 +36,7 @@ import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
+import org.apache.celeborn.common.meta.{DiskInfoBase, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.{CelebornRackResolver, TransportContext}
@@ -277,7 +277,7 @@ private[celeborn] class Worker(
   storageManager.updateDiskInfos()
 
   // WorkerInfo's diskInfos is a reference to storageManager.diskInfos
-  val diskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
+  val diskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfoBase]()
   storageManager.disksSnapshot().foreach { diskInfo =>
     diskInfos.put(diskInfo.mountPoint, diskInfo)
   }
@@ -457,7 +457,7 @@ private[celeborn] class Worker(
     val diskInfos =
       workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
         disk.mountPoint -> disk
-      }.toMap.asJava).values().asScala.toSeq ++ storageManager.dfsDiskInfo
+      }.toMap.asJava).values().asScala.toSeq ++ storageManager.hdfsDiskInfo ++ storageManager.s3DiskInfo
     workerStatusManager.checkIfNeedTransitionStatus()
     val response = masterClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(

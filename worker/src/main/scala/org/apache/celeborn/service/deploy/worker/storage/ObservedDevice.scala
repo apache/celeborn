@@ -27,7 +27,7 @@ import scala.io.Source
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
+import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfoBase, DiskStatus}
 import org.apache.celeborn.common.metrics.source.AbstractSource
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
@@ -36,7 +36,7 @@ import org.apache.celeborn.common.util.JavaUtils
 class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSource: AbstractSource)
   extends Logging {
 
-  val diskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
+  val diskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfoBase]()
   deviceInfo.diskInfos.foreach { diskInfo => diskInfos.put(diskInfo.mountPoint, diskInfo) }
 
   val observers: JSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
