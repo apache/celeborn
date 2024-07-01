@@ -153,10 +153,6 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     namedTimers.values().asScala.toList.map(_._1)
   }
 
-  def gaugeExists(name: String, labels: JMap[String, String]): Boolean = {
-    gaugeExists(name, labels.asScala.toMap)
-  }
-
   def gaugeExists(name: String, labels: Map[String, String]): Boolean = {
     namedGauges.containsKey(metricNameWithCustomizedLabels(name, labels))
   }

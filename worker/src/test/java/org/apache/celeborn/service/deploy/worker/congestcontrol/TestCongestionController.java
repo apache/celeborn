@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
-import scala.collection.JavaConverters;
-
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -119,17 +117,11 @@ public class TestCongestionController {
     Assert.assertFalse(controller.isUserCongested(user));
     produceBytes(user, 800);
 
-    Assert.assertTrue(
-        source.gaugeExists(
-            WorkerSource.USER_PRODUCE_SPEED(),
-            JavaConverters.mapAsJavaMapConverter(user.toMap()).asJava()));
+    Assert.assertTrue(source.gaugeExists(WorkerSource.USER_PRODUCE_SPEED(), user.toMap()));
 
     Thread.sleep(userInactiveTimeMills * 2);
 
-    Assert.assertFalse(
-        source.gaugeExists(
-            WorkerSource.USER_PRODUCE_SPEED(),
-            JavaConverters.mapAsJavaMapConverter(user.toMap()).asJava()));
+    Assert.assertFalse(source.gaugeExists(WorkerSource.USER_PRODUCE_SPEED(), user.toMap()));
   }
 
   private void produceBytes(UserIdentifier userIdentifier, long numBytes) {
