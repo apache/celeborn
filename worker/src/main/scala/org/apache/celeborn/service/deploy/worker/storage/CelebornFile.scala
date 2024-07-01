@@ -17,14 +17,15 @@
 
 package org.apache.celeborn.service.deploy.worker.storage
 
+import java.io.File
+import java.nio.channels.FileChannel
+
 import io.netty.buffer.{ByteBuf, CompositeByteBuf}
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, MemoryFileInfo}
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.StorageInfo
-
-import java.io.File
-import java.nio.channels.FileChannel
 
 abstract class CelebornFile {
   var fileInfo: FileInfo = _
