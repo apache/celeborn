@@ -18,7 +18,7 @@
 package org.apache.celeborn.plugin.flink.network;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
@@ -29,8 +29,10 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.client.TransportClient;
+import org.apache.celeborn.common.network.client.TransportClientBootstrap;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.plugin.flink.utils.Utils;
 
 public class FlinkTransportClientFactory extends TransportClientFactory {
 
@@ -39,8 +41,9 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
   private ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers;
   private final int fetchMaxRetries;
 
-  public FlinkTransportClientFactory(TransportContext context, int fetchMaxRetries) {
-    super(context, Collections.emptyList());
+  public FlinkTransportClientFactory(
+      TransportContext context, int fetchMaxRetries, List<TransportClientBootstrap> bootstraps) {
+    super(context, bootstraps);
     bufferSuppliers = JavaUtils.newConcurrentHashMap();
     this.fetchMaxRetries = fetchMaxRetries;
     this.pooledAllocator = new UnpooledByteBufAllocator(true);
@@ -53,7 +56,7 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
     while (retryCount > 0) {
       try {
         return createClient(remoteHost, remotePort);
-      } catch (IOException e) {
+      } catch (Exception e) {
         retryCount--;
         logger.warn(
             "Retrying ({}/{}) times create client to {}:{}",
@@ -63,7 +66,13 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
             remotePort,
             e);
         if (retryCount == 0) {
-          throw e;
+          if (e instanceof InterruptedException) {
+            throw (InterruptedException) e;
+          } else if (e instanceof IOException) {
+            throw (IOException) e;
+          } else {
+            Utils.rethrowAsRuntimeException(e);
+          }
         }
       }
     }

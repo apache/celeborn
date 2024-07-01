@@ -30,18 +30,25 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.CelebornConf.{AUTH_ENABLED, INTERNAL_PORT_ENABLED}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.worker.Worker
 
-class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
+abstract class WordCountTestBase extends AnyFunSuite with Logging with MiniClusterFeature
   with BeforeAndAfterAll {
   var workers: collection.Set[Worker] = null
   var port = 0
 
+  protected def getMasterConf: Map[String, String]
+  protected def getWorkerConf: Map[String, String]
+  protected def getWorkerNum: Int = 3
+
+  protected def getClientConf: Map[String, String] = Map()
+
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
-    val (m, w) = setupMiniClusterWithRandomPorts()
+    val (m, w) = setupMiniClusterWithRandomPorts(getMasterConf, getWorkerConf, getWorkerNum)
     workers = w
     port = m.conf.get(CelebornConf.MASTER_PORT)
   }
@@ -51,7 +58,13 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     shutdownMiniCluster()
   }
 
-  test("celeborn flink integration test - word count") {
+  private def addClientConf(configuration: Configuration): Unit = {
+    for ((k, v) <- getClientConf) {
+      configuration.setString(k, v)
+    }
+  }
+
+  test(getClass.getName + ": celeborn flink integration test - word count") {
     // set up execution environment
     val configuration = new Configuration
     val parallelism = 8
@@ -69,6 +82,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     configuration.setString("restart-strategy.type", "fixed-delay")
     configuration.setString("restart-strategy.fixed-delay.attempts", "50")
     configuration.setString("restart-strategy.fixed-delay.delay", "5s")
+    addClientConf(configuration)
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)
     env.getConfig.setExecutionMode(ExecutionMode.BATCH)
     env.getConfig.setParallelism(parallelism)
@@ -92,4 +106,20 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
       })
     })
   }
+}
+
+class WordCountTest extends WordCountTestBase {
+  override protected def getMasterConf: Map[String, String] = Map()
+  override protected def getWorkerConf: Map[String, String] = Map()
+}
+
+class WordCountTestWithAuthentication extends WordCountTestBase {
+
+  private val authConfig = Map(
+    AUTH_ENABLED.key -> "true",
+    INTERNAL_PORT_ENABLED.key -> "true")
+
+  override protected def getMasterConf: Map[String, String] = authConfig
+  override protected def getWorkerConf: Map[String, String] = authConfig
+  override protected def getClientConf: Map[String, String] = Map(AUTH_ENABLED.key -> "true")
 }

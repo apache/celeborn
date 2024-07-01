@@ -502,7 +502,7 @@ object CelebornClient {
 
 object CelebornService {
   lazy val service = Project("celeborn-service", file("service"))
-    .dependsOn(CelebornCommon.common)
+    .dependsOn(CelebornCommon.common % "test->test;compile->compile")
     .settings (
       commonSettings,
       libraryDependencies ++= Seq(
