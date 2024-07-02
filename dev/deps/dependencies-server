@@ -34,6 +34,7 @@ hk2-locator/2.6.1//hk2-locator-2.6.1.jar
 hk2-utils/2.6.1//hk2-utils-2.6.1.jar
 jackson-annotations/2.15.3//jackson-annotations-2.15.3.jar
 jackson-core/2.15.3//jackson-core-2.15.3.jar
+jackson-databind-nullable/0.2.6//jackson-databind-nullable-0.2.6.jar
 jackson-databind/2.15.3//jackson-databind-2.15.3.jar
 jackson-dataformat-yaml/2.13.2//jackson-dataformat-yaml-2.13.2.jar
 jackson-datatype-jsr310/2.13.2//jackson-datatype-jsr310-2.13.2.jar

@@ -25,7 +25,7 @@ import org.apache.celeborn.server.common.HttpService
 
 private[celeborn] object ApiRootResource {
   def getServletHandler(rs: HttpService): ServletContextHandler = {
-    val openapiConf: ResourceConfig = new OpenAPIConfig
+    val openapiConf: ResourceConfig = new OpenAPIConfig(rs.serviceName)
     val holder = new ServletHolder(new ServletContainer(openapiConf))
     val handler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS)
     handler.setContextPath("/")

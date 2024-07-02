@@ -1,0 +1,129 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.celeborn.service.deploy.master.http.api.v1
+
+import javax.ws.rs.{BadRequestException, Consumes, GET, Path, POST, Produces}
+import javax.ws.rs.core.MediaType
+
+import scala.collection.JavaConverters._
+
+import io.swagger.v3.oas.annotations.media.{Content, Schema}
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.tags.Tag
+
+import org.apache.celeborn.server.common.http.api.ApiRequestContext
+import org.apache.celeborn.server.common.http.api.v1.ApiUtils
+import org.apache.celeborn.server.common.http.v1.model.{ExcludeWorkerRequest, HandleResponse, SendWorkerEventRequest, WorkerEventData, WorkerEventInfoData, WorkerEventsResponse, WorkersResponse, WorkerTimestampData}
+import org.apache.celeborn.service.deploy.master.Master
+
+@Tag(name = "Worker")
+@Produces(Array(MediaType.APPLICATION_JSON))
+@Consumes(Array(MediaType.APPLICATION_JSON))
+class WorkerResource extends ApiRequestContext {
+  private def statusSystem = httpService.asInstanceOf[Master].statusSystem
+
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[WorkersResponse]))),
+    description =
+      "List worker information of the service. It will list all registered workers' information.")
+  @GET
+  def workers: WorkersResponse = {
+    new WorkersResponse()
+      .workers(statusSystem.workers.asScala.map(ApiUtils.workerData).toSeq.asJava)
+      .lostWorkers(statusSystem.lostWorkers.asScala.toSeq.sortBy(_._2)
+        .map(kv =>
+          new WorkerTimestampData().worker(ApiUtils.workerData(kv._1)).timestamp(kv._2)).asJava)
+      .excludedWorkers(
+        (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala)
+          .map(ApiUtils.workerData).toSeq.asJava)
+      .shutdownWorkers(statusSystem.decommissionWorkers.asScala.map(
+        ApiUtils.workerData).toSeq.asJava)
+      .decommissioningWorkers(statusSystem.decommissionWorkers.asScala.map(
+        ApiUtils.workerData).toSeq.asJava)
+  }
+
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[HandleResponse]))),
+    description =
+      "Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove.")
+  @Path("/exclude")
+  @POST
+  def excludeWorker(request: ExcludeWorkerRequest): HandleResponse = {
+    val (success, msg) = httpService.exclude(
+      request.getAdd.asScala.map(ApiUtils.toWorkerInfo).toSeq,
+      request.getRemove.asScala.map(ApiUtils.toWorkerInfo).toSeq)
+    new HandleResponse().success(success).message(msg)
+  }
+
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(
+        implementation = classOf[WorkerEventsResponse]))),
+    description = "List all worker event infos of the master.")
+  @Path("/events")
+  @GET
+  def workerEvents(): WorkerEventsResponse = {
+    new WorkerEventsResponse().workerEvents(
+      statusSystem.workerEventInfos.asScala.map { case (worker, event) =>
+        new WorkerEventData()
+          .worker(
+            ApiUtils.workerData(worker)).event(
+            new WorkerEventInfoData()
+              .eventType(event.getEventType.toString)
+              .eventTime(event.getEventStartTime))
+      }.toSeq.asJava)
+  }
+
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[HandleResponse]))),
+    description =
+      "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'.")
+  @Path("/events")
+  @POST
+  def sendWorkerEvents(request: SendWorkerEventRequest): HandleResponse = {
+    if (request.getEventType == SendWorkerEventRequest.EventTypeEnum.NONE || request.getWorkers.isEmpty) {
+      throw new BadRequestException(
+        s"eventType(${request.getEventType}) and workers(${request.getWorkers}) are required")
+    }
+    val workers = request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq
+    val (filteredWorkers, unknownWorkers) = workers.partition(statusSystem.workers.contains)
+    if (filteredWorkers.isEmpty) {
+      throw new BadRequestException(
+        s"None of the workers are known: ${unknownWorkers.map(_.readableAddress).mkString(", ")}")
+    }
+    val (success, msg) = httpService.handleWorkerEvent(request.getEventType.toString, workers)
+    val finalMsg =
+      if (unknownWorkers.isEmpty) {
+        msg
+      } else {
+        s"${msg}\n(Unknown workers: ${unknownWorkers.map(_.readableAddress).mkString(", ")})"
+      }
+    new HandleResponse().success(success).message(finalMsg)
+  }
+}

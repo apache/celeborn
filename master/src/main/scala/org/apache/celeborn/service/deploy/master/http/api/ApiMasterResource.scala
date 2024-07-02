@@ -22,9 +22,13 @@ import javax.ws.rs.core.MediaType
 
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.tags.Tag
+import org.apache.commons.lang3.StringUtils
 
+import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 
+@Tag(name = "Deprecated")
 @Path("/")
 class ApiMasterResource extends ApiRequestContext {
 
@@ -103,7 +107,15 @@ class ApiMasterResource extends ApiRequestContext {
   def exclude(
       @FormParam("add") addWorkers: String,
       @FormParam("remove") removeWorkers: String): String = {
-    httpService.exclude(normalizeParam(addWorkers), normalizeParam(removeWorkers))
+    val sb = new StringBuilder
+    sb.append("============================ Add/Remove Excluded Workers  Manually =============================\n")
+    val workersToAdd =
+      normalizeParam(addWorkers).split(",").filter(_.nonEmpty).map(WorkerInfo.fromUniqueId).toList
+    val workersToRemove =
+      normalizeParam(removeWorkers).split(",").filter(_.nonEmpty).map(
+        WorkerInfo.fromUniqueId).toList
+    sb.append(httpService.exclude(workersToAdd, workersToRemove)._2)
+    sb.toString()
   }
 
   @Path("/sendWorkerEvent")
@@ -117,6 +129,14 @@ class ApiMasterResource extends ApiRequestContext {
   def sendWorkerEvent(
       @FormParam("type") eventType: String,
       @FormParam("workers") workers: String): String = {
-    httpService.handleWorkerEvent(normalizeParam(eventType), normalizeParam(workers))
+    val sb = new StringBuilder
+    if (StringUtils.isEmpty(eventType) || StringUtils.isEmpty(workers)) {
+      return sb.append(
+        s"handle eventType failed as eventType: $eventType or workers: $workers has empty value").toString()
+    }
+    sb.append("============================ Handle Worker Event =============================\n")
+    val workerList = workers.split(",").filter(_.nonEmpty).map(WorkerInfo.fromUniqueId)
+    sb.append(httpService.handleWorkerEvent(normalizeParam(eventType), workerList)._2)
+    sb.toString()
   }
 }

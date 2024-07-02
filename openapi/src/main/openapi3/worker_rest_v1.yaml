@@ -78,6 +78,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DynamicConfigResponse'
+        "503":
+          description: Dynamic configuration is disabled.
 
   /api/v1/thread_dump:
     get:
@@ -105,7 +107,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ShuffleResponse'
+                $ref: '#/components/schemas/ShufflesResponse'
 
   /api/v1/shuffles/partitions:
     get:
@@ -170,7 +172,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WorkerExitResponse'
+                $ref: '#/components/schemas/HandleResponse'
 
   /api/v1/applications:
     get:
@@ -206,7 +208,7 @@ paths:
 
 components:
   schemas:
-    Config:
+    ConfigData:
       type: object
       properties:
         name:
@@ -226,9 +228,9 @@ components:
           type: array
           default: [ ]
           items:
-            $ref: '#/components/schemas/Config'
+            $ref: '#/components/schemas/ConfigData'
 
-    DynamicConfigResponse:
+    DynamicConfig:
       type: object
       properties:
         level:
@@ -246,13 +248,23 @@ components:
           description: the config items.
           default: [ ]
           items:
-            $ref: '#/components/schemas/Config'
+            $ref: '#/components/schemas/ConfigData'
+
+    DynamicConfigResponse:
+      type: object
+      properties:
+        configs:
+          type: array
+          default: [ ]
+          items:
+            $ref: '#/components/schemas/DynamicConfig'
 
     ThreadStack:
       type: object
       properties:
         threadId:
-          type: string
+          type: integer
+          format: int64
           description: The id of the thread.
         threadName:
           type: string
@@ -268,6 +280,7 @@ components:
             type: string
         blockedByThreadId:
           type: integer
+          format: int64
           description: The id of the thread that the current thread is blocked by.
         blockedByLock:
           type: string
@@ -296,7 +309,7 @@ components:
       required:
         - threadStacks
 
-    ShuffleResponse:
+    ShufflesResponse:
       type: object
       properties:
         shuffleIds:
@@ -318,23 +331,23 @@ components:
       required:
         - applications
 
-    AppDiskUsage:
+    AppDiskUsageData:
       type: object
       properties:
         appId:
           type: string
           description: The id of the application.
-        diskUsage:
+        estimatedUsage:
           type: integer
           format: int64
           description: The application disk usage.
-        diskUsageStr:
+        estimatedUsageStr:
           type: string
           description: The application disk usage in string type.
       required:
         - appId
-        - diskUsage
-        - diskUsageStr
+        - estimatedUsage
+        - estimatedUsageStr
 
     AppDiskUsagesResponse:
       type: object
@@ -344,7 +357,7 @@ components:
           default: [ ]
           description: The application disk usages.
           items:
-            $ref: '#/components/schemas/AppDiskUsage'
+            $ref: '#/components/schemas/AppDiskUsageData'
 
     WorkerInfoResponse:
       type: object
@@ -374,9 +387,9 @@ components:
           description: The internal port of the worker.
         slotUsed:
           type: integer
-          format: int32
+          format: int64
           description: The slot used of the worker.
-        lastHeartbeat:
+        lastHeartbeatTimestamp:
           type: integer
           format: int64
           description: The last heartbeat timestamp of the worker.
@@ -424,35 +437,98 @@ components:
         - isShutdown
         - isDecommissioning
 
-    UnAvailablePeerWorker:
+    WorkerData:
       type: object
       properties:
-        peer:
-          $ref: '#/components/schemas/WorkerId'
-        unavailableTime:
+        host:
+          type: string
+          description: The host of the worker.
+        rpcPort:
+          type: integer
+          format: int32
+          description: The rpc port of the worker.
+        pushPort:
+          type: integer
+          format: int32
+          description: The push port of the worker.
+        fetchPort:
+          type: integer
+          format: int32
+          description: The fetch port of the worker.
+        replicatePort:
+          type: integer
+          format: int32
+          description: The replicate port of the worker.
+        internalPort:
+          type: integer
+          format: int32
+          description: The internal port of the worker.
+        slotUsed:
           type: integer
           format: int64
-          description: The time when the peer is unavailable.
+          description: The slot used of the worker.
+        lastHeartbeatTimestamp:
+          type: integer
+          format: int64
+          description: The last heartbeat timestamp of the worker.
+        heartbeatElapsedSeconds:
+          type: integer
+          format: int64
+          description: The elapsed seconds since the last heartbeat of the worker.
+        diskInfos:
+          type: object
+          description: A map of disk name and disk info.
+          additionalProperties:
+            type: string
+        resourceConsumption:
+          type: object
+          description: A map of identifier and resource consumption.
+          additionalProperties:
+            type: string
+        workerRef:
+          type: string
+          description: The reference of the worker.
+        workerState:
+          type: string
+          description: The state of the worker.
+        workerStateStartTime:
+          type: integer
+          format: int64
+          description: The start time of the worker state.
       required:
-        - peer
-        - unavailableTime
+        - host
+        - rpcPort
+        - pushPort
+        - fetchPort
+        - replicatePort
+
+    WorkerTimestampData:
+      type: object
+      properties:
+        worker:
+          $ref: '#/components/schemas/WorkerData'
+        timestamp:
+          type: integer
+          format: int64
+      required:
+        - worker
+        - timestamp
 
     UnAvailablePeersResponse:
       type: object
       properties:
-        unavailablePeers:
+        peers:
           type: array
           default: [ ]
           description: The unavailable peers.
           items:
-            $ref: '#/components/schemas/UnAvailablePeerWorker'
+            $ref: '#/components/schemas/WorkerTimestampData'
 
     PartitionLocationData:
       type: object
       properties:
         idEpoch:
-          type: integer
-          format: int64
+          type: string
           description: The id and epoch.
         hostAndPorts:
           type: string
@@ -486,21 +562,27 @@ components:
         - storage
         - mapIdBitMap
 
+    PartitionLocations:
+      type: object
+      default: {}
+      additionalProperties:
+        $ref: '#/components/schemas/PartitionLocationData'
+
+    ShufflePartitionLocations:
+      type: object
+      default: {}
+      additionalProperties:
+        $ref: '#/components/schemas/PartitionLocations'
+
     ShufflePartitionsResponse:
       type: object
       properties:
         primaryPartitions:
-          type: array
-          default: [ ]
-          description: The primary partition location data.
-          items:
-            $ref: '#/components/schemas/PartitionLocationData'
+          $ref: '#/components/schemas/ShufflePartitionLocations'
+          default: { }
         replicaPartitions:
-          type: array
-          default: [ ]
-          description: The replica partition location data.
-          items:
-            $ref: '#/components/schemas/PartitionLocationData'
+          $ref: '#/components/schemas/ShufflePartitionLocations'
+          default: { }
 
     WorkerId:
       type: object
@@ -536,23 +618,25 @@ components:
       properties:
         type:
           type: string
+          default: None
           description: The type of the worker exit request.
           enum:
             - Decommission
             - Graceful
             - Immediately
+            - None
       required:
         - type
 
-    WorkerExitResponse:
+    HandleResponse:
       type: object
       properties:
         success:
           type: boolean
-          description: The result of the worker exit request.
+          description: The result of the request.
         message:
           type: string
-          description: The message of the worker exit request.
+          description: The message of the request.
       required:
         - success
 

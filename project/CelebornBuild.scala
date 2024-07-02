@@ -73,6 +73,7 @@ object Dependencies {
   val jerseyVersion = "2.39.1"
   val jettyVersion = "9.4.52.v20230823"
   val jakartaServeletApiVersion = "4.0.4"
+  val openApiToolsJacksonBindNullableVersion = "0.2.6"
 
   // For SSL support
   val bouncycastleVersion = "1.77"
@@ -165,6 +166,7 @@ object Dependencies {
     ExclusionRule("org.javassist", "javassist"),
     ExclusionRule("jakarta.activation", "jakarta.activation-api"))
   val swaggerUi = "org.webjars" % "swagger-ui" % swaggerUiVersion
+  val openApiToolsJacksonBindNullable = "org.openapitools" % "jackson-databind-nullable" % openApiToolsJacksonBindNullableVersion
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html
@@ -524,6 +526,7 @@ object CelebornService {
         Dependencies.jettyServer,
         Dependencies.jettyServlet,
         Dependencies.jettyProxy,
+        Dependencies.openApiToolsJacksonBindNullable,
         Dependencies.log4jSlf4jImpl % "test",
         Dependencies.log4j12Api % "test",
         Dependencies.h2 % "test",

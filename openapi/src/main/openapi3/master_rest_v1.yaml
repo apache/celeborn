@@ -78,6 +78,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DynamicConfigResponse'
+        "503":
+          description: Dynamic configuration is disabled.
 
   /api/v1/thread_dump:
     get:
@@ -103,7 +105,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ShuffleResponse'
+                $ref: '#/components/schemas/ShufflesResponse'
 
   /api/v1/masters:
     get:
@@ -120,6 +122,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MasterInfoResponse'
+        "400":
+          description: HA is not enabled.
 
   /api/v1/workers:
     get:
@@ -156,7 +160,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ExcludeWorkerResponse'
+                $ref: '#/components/schemas/HandleResponse'
 
   /api/v1/workers/events:
     get:
@@ -170,7 +174,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WorkerEvent'
+                $ref: '#/components/schemas/WorkerEventData'
     post:
       tags:
         - Worker
@@ -189,7 +193,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SendWorkerEventResponse'
+                $ref: '#/components/schemas/HandleResponse'
 
   /api/v1/applications:
     get:
@@ -203,7 +207,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApplicationsInfoResponse'
+                $ref: '#/components/schemas/ApplicationsHeartbeatResponse'
 
   /api/v1/applications/top_disk_usages:
     get:
@@ -219,7 +223,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AppDiskUsageSnapshotResponse'
+                $ref: '#/components/schemas/AppDiskUsageSnapshotsResponse'
 
   /api/v1/applications/hostnames:
     get:
@@ -233,11 +237,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApplicationHostnameResponse'
+                $ref: '#/components/schemas/HostnamesResponse'
 
 components:
   schemas:
-    Config:
+    ConfigData:
       type: object
       properties:
         name:
@@ -257,9 +261,9 @@ components:
           type: array
           default: [ ]
           items:
-            $ref: '#/components/schemas/Config'
+            $ref: '#/components/schemas/ConfigData'
 
-    DynamicConfigResponse:
+    DynamicConfig:
       type: object
       properties:
         level:
@@ -277,13 +281,23 @@ components:
           description: the config items.
           default: [ ]
           items:
-            $ref: '#/components/schemas/Config'
+            $ref: '#/components/schemas/ConfigData'
+
+    DynamicConfigResponse:
+      type: object
+      properties:
+        configs:
+          type: array
+          default: [ ]
+          items:
+            $ref: '#/components/schemas/DynamicConfig'
 
     ThreadStack:
       type: object
       properties:
         threadId:
-          type: string
+          type: integer
+          format: int64
           description: The id of the thread.
         threadName:
           type: string
@@ -299,6 +313,7 @@ components:
             type: string
         blockedByThreadId:
           type: integer
+          format: int64
           description: The id of the thread that the current thread is blocked by.
         blockedByLock:
           type: string
@@ -327,7 +342,7 @@ components:
       required:
         - threadStacks
 
-    ShuffleResponse:
+    ShufflesResponse:
       type: object
       properties:
         shuffleIds:
@@ -337,21 +352,21 @@ components:
           items:
             type: string
 
-    ApplicationHeartbeat:
+    ApplicationHeartbeatData:
       type: object
       properties:
         appId:
           type: string
           description: The id of the application.
-        lastHeartbeat:
+        lastHeartbeatTimestamp:
           type: integer
           format: int64
           description: The last heartbeat timestamp of the application.
       required:
         - appId
-        - lastHeartbeat
+        - lastHeartbeatTimestamp
 
-    ApplicationsInfoResponse:
+    ApplicationsHeartbeatResponse:
       type: object
       properties:
         applications:
@@ -359,11 +374,11 @@ components:
           default: [ ]
           description: The applications information.
           items:
-            $ref: '#/components/schemas/ApplicationHeartbeat'
+            $ref: '#/components/schemas/ApplicationHeartbeatData'
       required:
         - applications
 
-    ApplicationHostnameResponse:
+    HostnamesResponse:
       type: object
       properties:
         hostnames:
@@ -375,47 +390,57 @@ components:
       required:
         - hostnames
 
-    AppDiskUsage:
+    AppDiskUsageData:
       type: object
       properties:
         appId:
           type: string
           description: The id of the application.
-        diskUsage:
+        estimatedUsage:
           type: integer
           format: int64
           description: The application disk usage.
-        diskUsageStr:
+        estimatedUsageStr:
           type: string
           description: The application disk usage in string type.
       required:
         - appId
-        - diskUsage
-        - diskUsageStr
+        - estimatedUsage
+        - estimatedUsageStr
 
-    AppDiskUsageSnapshotResponse:
+
+    AppDiskUsageSnapshotData:
       type: object
       properties:
         start:
           type: integer
           format: int64
-          description: The start timestamp of the snapshots.
+          description: The start timestamp of the snapshot.
         end:
           type: integer
           format: int64
-          description: The end timestamp of the snapshots.
+          description: The end timestamp of the snapshot.
         topNItems:
           type: array
-          description: The top N snapshots.
+          description: The top N app disk usages.
           items:
-            $ref: '#/components/schemas/AppDiskUsage'
+            $ref: '#/components/schemas/AppDiskUsageData'
+
+    AppDiskUsageSnapshotsResponse:
+      type: object
+      properties:
+        snapshots:
+          type: array
+          default: [ ]
+          description: The disk usage snapshots.
+          items:
+            $ref: '#/components/schemas/AppDiskUsageSnapshotData'
 
     MasterLeader:
       type: object
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
           description: The id of the master leader raft peer.
         address:
           type: string
@@ -424,11 +449,12 @@ components:
         - id
         - address
 
-    MasterCommitInfo:
+    MasterCommitData:
       type: object
       properties:
         commitIndex:
-          type: string
+          type: integer
+          format: int64
           description: The raft commit index of the master.
         id:
           type: string
@@ -462,11 +488,11 @@ components:
           default: [ ]
           description: The raft commit info of the master.
           items:
-            $ref: '#/components/schemas/MasterCommitInfo'
+            $ref: '#/components/schemas/MasterCommitData'
       required:
         - groupId
 
-    WorkerInfo:
+    WorkerData:
       type: object
       properties:
         host:
@@ -494,9 +520,9 @@ components:
           description: The internal port of the worker.
         slotUsed:
           type: integer
-          format: int32
+          format: int64
           description: The slot used of the worker.
-        lastHeartbeat:
+        lastHeartbeatTimestamp:
           type: integer
           format: int64
           description: The last heartbeat timestamp of the worker.
@@ -530,7 +556,18 @@ components:
         - pushPort
         - fetchPort
         - replicatePort
-        - internalPort
+
+    WorkerTimestampData:
+      type: object
+      properties:
+        worker:
+          $ref: '#/components/schemas/WorkerData'
+        timestamp:
+          type: integer
+          format: int64
+      required:
+        - worker
+        - timestamp
 
     WorkersResponse:
       type: object
@@ -540,61 +577,74 @@ components:
           default: [ ]
           description: The registered workers.
           items:
-            $ref: '#/components/schemas/WorkerInfo'
+            $ref: '#/components/schemas/WorkerData'
         lostWorkers:
           type: array
           default: [ ]
           description: The lost workers.
           items:
-            $ref: '#/components/schemas/WorkerInfo'
+            $ref: '#/components/schemas/WorkerTimestampData'
         excludedWorkers:
           type: array
           default: [ ]
           description: The excluded workers.
           items:
-            $ref: '#/components/schemas/WorkerInfo'
+            $ref: '#/components/schemas/WorkerData'
         manualExcludedWorkers:
           type: array
           default: [ ]
           description: The manual excluded workers.
           items:
-            $ref: '#/components/schemas/WorkerInfo'
+            $ref: '#/components/schemas/WorkerData'
         shutdownWorkers:
           type: array
           default: [ ]
           description: The shutdown workers.
           items:
-            $ref: '#/components/schemas/WorkerInfo'
-        decommissionWorkers:
+            $ref: '#/components/schemas/WorkerData'
+        decommissioningWorkers:
           type: array
           default: [ ]
-          description: The decommission workers.
+          description: The decommissioning workers.
           items:
-            $ref: '#/components/schemas/WorkerInfo'
+            $ref: '#/components/schemas/WorkerData'
       required:
         - workers
 
-    WorkerEventInfo:
+    WorkerEventInfoData:
       type: object
       properties:
         eventType:
           type: string
           description: The type of the event.
-        eventStartTime:
+        eventTime:
           type: integer
           format: int64
           description: The start time of the event.
+      required:
+        - eventType
+        - eventTime
 
-    WorkerEvent:
+    WorkerEventData:
       type: object
       properties:
         worker:
-          $ref: '#/components/schemas/WorkerInfo'
+          $ref: '#/components/schemas/WorkerData'
         event:
-          $ref: '#/components/schemas/WorkerEventInfo'
+          $ref: '#/components/schemas/WorkerEventInfoData'
       required:
         - worker
         - event
+
+    WorkerEventsResponse:
+      type: object
+      properties:
+        workerEvents:
+          type: array
+          default: [ ]
+          description: The worker events.
+          items:
+            $ref: '#/components/schemas/WorkerEventData'
 
     WorkerId:
       type: object
@@ -641,18 +691,6 @@ components:
           items:
             $ref: '#/components/schemas/WorkerId'
 
-    ExcludeWorkerResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          description: The result of the exclude worker request.
-        message:
-          type: string
-          description: The message of the exclude worker request.
-      required:
-        - success
-
     SendWorkerEventRequest:
       type: object
       properties:
@@ -677,15 +715,15 @@ components:
         - eventType
         - worker
 
-    SendWorkerEventResponse:
+    HandleResponse:
       type: object
       properties:
         success:
           type: boolean
-          description: The result of the worker event request.
+          description: The result of the request.
         message:
           type: string
-          description: The message of the worker event request.
+          description: The message of the request.
       required:
         - success
 
