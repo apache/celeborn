@@ -99,7 +99,7 @@ abstract private[worker] class Flusher(
       })
       workerSource.addGauge(FLUSH_WORKING_QUEUE_SIZE, Map("mountpoint" -> s"$mountPoint-$index")) {
         () =>
-          workingQueues.length
+          workingQueues(index).size()
       }
     }
     ThreadPoolSource.registerSource(s"$this", workers)
