@@ -33,6 +33,7 @@ import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSour
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.WorkerSource
+import org.apache.celeborn.service.deploy.worker.WorkerSource.FLUSH_WORKING_QUEUE_SIZE
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
@@ -41,7 +42,8 @@ abstract private[worker] class Flusher(
     val threadCount: Int,
     val allocator: PooledByteBufAllocator,
     val maxComponents: Int,
-    flushTimeMetric: TimeWindow) extends Logging {
+    flushTimeMetric: TimeWindow,
+    mountPoint: String) extends Logging {
   protected lazy val flusherId: Int = System.identityHashCode(this)
   protected val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
   protected val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf]()
@@ -95,6 +97,10 @@ abstract private[worker] class Flusher(
           }
         }
       })
+      workerSource.addGauge(FLUSH_WORKING_QUEUE_SIZE, Map("mountpoint" -> s"$mountPoint-$index")) {
+        () =>
+          workingQueues.length
+      }
     }
     ThreadPoolSource.registerSource(s"$this", workers)
   }
@@ -142,7 +148,8 @@ private[worker] class LocalFlusher(
     threadCount,
     allocator,
     maxComponents,
-    timeWindow)
+    timeWindow,
+    mountPoint)
   with DeviceObserver with Logging {
 
   deviceMonitor.registerFlusher(this)
@@ -177,7 +184,8 @@ final private[worker] class HdfsFlusher(
     hdfsFlusherThreads,
     allocator,
     maxComponents,
-    null) with Logging {
+    null,
+    "HDFS") with Logging {
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
