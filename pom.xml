@@ -31,6 +31,7 @@
   <name>Celeborn Project Parent POM</name>
 
   <modules>
+    <module>openapi</module>
     <module>common</module>
     <module>client</module>
     <module>service</module>
@@ -111,11 +112,12 @@
     <h2.version>2.2.224</h2.version>
 
     <!-- RESTful service dependencies -->
-    <swagger.version>2.2.1</swagger.version>
+    <swagger.version>2.2.22</swagger.version>
     <swagger-ui.version>4.9.1</swagger-ui.version>
     <jersey.version>2.39.1</jersey.version>
     <jetty.version>9.4.52.v20230823</jetty.version>
     <jakarta.servlet-api.version>4.0.4</jakarta.servlet-api.version>
+    <openapitools.jackson-databind-nullable.version>0.2.6</openapitools.jackson-databind-nullable.version>
 
     <!-- org.fusesource.leveldbjni will be used except on arm64 platform. -->
     <leveldbjni.group>org.fusesource.leveldbjni</leveldbjni.group>
@@ -138,6 +140,8 @@
     <maven.plugin.spotless.version>2.24.1</maven.plugin.spotless.version>
     <maven.plugin.surefire.version>3.0.0-M7</maven.plugin.surefire.version>
     <maven.plugin.silencer.version>1.7.13</maven.plugin.silencer.version>
+    <!-- This was the last version to support Java 8 -->
+    <openapi.generator.version>6.6.0</openapi.generator.version>
 
     <!-- Allow modules to enable / disable certain build plugins easily. -->
     <testJarPhase>prepare-package</testJarPhase>
@@ -484,6 +488,12 @@
       </dependency>
 
       <dependency>
+        <groupId>org.openapitools</groupId>
+        <artifactId>jackson-databind-nullable</artifactId>
+        <version>${openapitools.jackson-databind-nullable.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.glassfish.jersey.core</groupId>
         <artifactId>jersey-server</artifactId>
         <version>${jersey.version}</version>
@@ -493,6 +503,12 @@
             <artifactId>jakarta.xml.bind-api</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.glassfish.jersey.core</groupId>
+        <artifactId>jersey-client</artifactId>
+        <version>${jersey.version}</version>
       </dependency>
 
       <dependency>
@@ -634,6 +650,11 @@
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-core</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jsr310</artifactId>
         <version>${jackson.version}</version>
       </dependency>
       <dependency>
@@ -1111,6 +1132,11 @@
               </path>
             </annotationProcessorPaths>
           </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.openapitools</groupId>
+          <artifactId>openapi-generator-maven-plugin</artifactId>
+          <version>${openapi.generator.version}</version>
         </plugin>
       </plugins>
     </pluginManagement>
