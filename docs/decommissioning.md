@@ -61,12 +61,12 @@ Administrators perform decommissioning operation in two approaches:
 
 1. Via Celeborn Worker REST API endpoint:
   ```shell
-  curl --request POST --url 'ip:port/exit' --data '{"type":"Decommission"}'
+  curl -X POST -d "type=Decommission" http://ip:port/exit
   ```
 2. Via Celeborn Master(Leader) REST API endpoint:
   ```shell
-  curl --request POST --url 'ip:port/sendWorkerEvent' --data '{"type":"Decommission", "workers":"ip_1,ip_2"}'
-  curl --request POST --url 'ip:port/sendWorkerEvent' --data '{"type":"DecommissionThenIdle", "workers":"ip_1,ip_2"}'
+  curl -X POST -d "type=Decommission&workers=ip_1:rpcPort:pushPort:fetchPort:replicatePort,ip_2:rpcPort:pushPort:fetchPort:replicatePort" http://ip:port/sendWorkerEvent
+  curl -X POST -d "type=DecommissionThenIdle&workers=ip_1:rpcPort:pushPort:fetchPort:replicatePort,ip_2:rpcPort:pushPort:fetchPort:replicatePort" http://ip:port/sendWorkerEvent
   ```
 
 Details of decommissioning interface can refer to [REST API](../monitoring/#rest-api)
