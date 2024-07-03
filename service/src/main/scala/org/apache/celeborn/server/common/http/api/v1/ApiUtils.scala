@@ -103,28 +103,29 @@ object ApiUtils {
   }
 
   def partitionLocationData(partitionLocation: PartitionLocation): PartitionLocationData = {
-    new PartitionLocationData()
+    val locationData = new PartitionLocationData()
       .idEpoch(partitionLocation.getId + "-" + partitionLocation.getEpoch)
       .hostAndPorts(partitionLocation.hostAndPorts())
-      .mode(partitionLocation.getMode match {
-        case PartitionLocation.Mode.PRIMARY =>
-          ModeEnum.PRIMARY
-        case PartitionLocation.Mode.REPLICA =>
-          ModeEnum.REPLICA
-      })
-      .peer(Option(partitionLocation.getPeer).map(_.hostAndPorts()).orNull)
-      .storage(partitionLocation.getStorageInfo.getType match {
-        case StorageInfo.Type.MEMORY =>
-          StorageEnum.MEMORY
-        case StorageInfo.Type.HDD =>
-          StorageEnum.HDD
-        case StorageInfo.Type.SSD =>
-          StorageEnum.SSD
-        case StorageInfo.Type.HDFS =>
-          StorageEnum.HDFS
-        case StorageInfo.Type.OSS =>
-          StorageEnum.OSS
-      })
-      .mapIdBitMap(partitionLocation.getMapIdBitMap.toString)
+    partitionLocation.getMode match {
+      case PartitionLocation.Mode.PRIMARY =>
+        locationData.mode(ModeEnum.PRIMARY)
+      case PartitionLocation.Mode.REPLICA =>
+        locationData.mode(ModeEnum.REPLICA)
+    }
+    Option(partitionLocation.getPeer).map(_.hostAndPorts).foreach(locationData.peer)
+    partitionLocation.getStorageInfo.getType match {
+      case StorageInfo.Type.MEMORY =>
+        locationData.storage(StorageEnum.MEMORY)
+      case StorageInfo.Type.HDD =>
+        locationData.storage(StorageEnum.HDD)
+      case StorageInfo.Type.SSD =>
+        locationData.storage(StorageEnum.SSD)
+      case StorageInfo.Type.HDFS =>
+        locationData.storage(StorageEnum.HDFS)
+      case StorageInfo.Type.OSS =>
+        locationData.storage(StorageEnum.OSS)
+    }
+    Option(partitionLocation.getMapIdBitMap).map(_.toString).foreach(locationData.mapIdBitMap)
+    locationData
   }
 }
