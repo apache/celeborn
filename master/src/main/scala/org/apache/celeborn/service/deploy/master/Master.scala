@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
 
 import scala.collection.JavaConverters._
+import scala.collection.convert.ImplicitConversions.`map AsScala`
 import scala.util.Random
 
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -214,7 +215,7 @@ private[celeborn] class Master(
     TimeUnit.MILLISECONDS)
   private val slotsAssignPolicy = conf.masterSlotAssignPolicy
 
-  private var hadoopFs: FileSystem = _
+  private var hadoopFs: util.Map[StorageInfo.Type, FileSystem] = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
     statusSystem.registeredShuffle.size
   }
@@ -1026,19 +1027,20 @@ private[celeborn] class Master(
 
   private def processDir(dfsDir: String, expiredDir: String): Unit = {
     val dfsWorkPath = new Path(dfsDir, conf.workerWorkingDir)
-    if (hadoopFs.exists(dfsWorkPath)) {
+    hadoopFs.map(_._2).filter(_.exists(dfsWorkPath)).foreach { fs =>
       if (expiredDir.nonEmpty) {
         val dirToDelete = new Path(dfsWorkPath, expiredDir)
         // delete specific app dir on application lost
-        CelebornHadoopUtils.deleteDFSPathOrLogError(hadoopFs, dirToDelete, true)
+        CelebornHadoopUtils.deleteDFSPathOrLogError(fs, dirToDelete, true)
       } else {
-        val iter = hadoopFs.listStatusIterator(dfsWorkPath)
+        val iter = fs.listStatusIterator(dfsWorkPath)
         while (iter.hasNext && isMasterActive == 1) {
           val fileStatus = iter.next()
           if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
-            CelebornHadoopUtils.deleteDFSPathOrLogError(hadoopFs, fileStatus.getPath, true)
+            CelebornHadoopUtils.deleteDFSPathOrLogError(fs, fileStatus.getPath, true)
           }
         }
+
       }
     }
   }

@@ -613,7 +613,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         if (isDfsExpired) {
           try {
             val dir = if (hasHDFSStorage) hdfsDir else s3Dir
-            StorageManager.hadoopFs.delete(
+            StorageManager.hadoopFs.get(StorageInfo.Type.HDFS).delete(
               new Path(new Path(dir, conf.workerWorkingDir), s"$appId/$shuffleId"),
               true)
           } catch {
@@ -1012,7 +1012,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       if (dirs.isEmpty && location.getStorageInfo.HDFSAvailable()) {
         val shuffleDir =
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
-        FileSystem.mkdirs(StorageManager.hadoopFs, shuffleDir, hdfsPermission)
+        FileSystem.mkdirs(
+          StorageManager.hadoopFs.get(StorageInfo.Type.HDFS),
+          shuffleDir,
+          hdfsPermission)
         val hdfsFilePath = new Path(shuffleDir, fileName).toString
         val hdfsFileInfo = new DiskFileInfo(
           userIdentifier,
@@ -1027,7 +1030,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       } else if (dirs.isEmpty && location.getStorageInfo.S3Available()) {
         val shuffleDir =
           new Path(new Path(s3Dir, conf.workerWorkingDir), s"$appId/$shuffleId")
-        FileSystem.mkdirs(StorageManager.hadoopFs, shuffleDir, hdfsPermission)
+        FileSystem.mkdirs(
+          StorageManager.hadoopFs.get(StorageInfo.Type.S3),
+          shuffleDir,
+          hdfsPermission)
         val s3FilePath = new Path(shuffleDir, fileName).toString
         val s3FileInfo = new DiskFileInfo(
           userIdentifier,
@@ -1104,5 +1110,5 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 }
 
 object StorageManager {
-  var hadoopFs: FileSystem = _
+  var hadoopFs: util.Map[StorageInfo.Type, FileSystem] = _
 }

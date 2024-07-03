@@ -32,6 +32,7 @@ import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import org.apache.hadoop.fs.FileSystem;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -173,16 +174,20 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       this.flusherBufferSize = localFlusherBufferSize;
       channel = FileChannelUtils.createWritableFileChannel(this.diskFileInfo.getFilePath());
     } else {
+      FileSystem hadoopFs = null;
       if (diskFileInfo.isS3()) {
+        hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.S3);
         this.flusherBufferSize = s3FlusherBufferSize;
       } else {
+        hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.HDFS);
+
         this.flusherBufferSize = hdfsFlusherBufferSize;
       }
       // We open the stream and close immediately because DFS output stream will
       // create a DataStreamer that is a thread.
       // If we reuse DFS output stream, we will exhaust the memory soon.
       try {
-        StorageManager.hadoopFs().create(this.diskFileInfo.getDfsPath(), true).close();
+        hadoopFs.create(this.diskFileInfo.getDfsPath(), true).close();
       } catch (IOException e) {
         try {
           // If create file failed, wait 10 ms and retry
@@ -190,7 +195,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         } catch (InterruptedException ex) {
           throw new RuntimeException(ex);
         }
-        StorageManager.hadoopFs().create(this.diskFileInfo.getDfsPath(), true).close();
+        hadoopFs.create(this.diskFileInfo.getDfsPath(), true).close();
       }
     }
   }
@@ -526,8 +531,13 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     if (!destroyed) {
       destroyed = true;
       if (diskFileInfo != null) {
-        diskFileInfo.deleteAllFiles(StorageManager.hadoopFs());
-
+        FileSystem hadoopFs = null;
+        if (diskFileInfo.isS3()) {
+          hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.S3);
+        } else {
+          hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.HDFS);
+        }
+        diskFileInfo.deleteAllFiles(hadoopFs);
         // unregister from DeviceMonitor
         if (!diskFileInfo.isDFS()) {
           deviceMonitor.unregisterFileWriter(this);

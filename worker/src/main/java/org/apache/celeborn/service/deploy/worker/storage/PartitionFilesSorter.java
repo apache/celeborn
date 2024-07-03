@@ -45,6 +45,7 @@ import io.netty.buffer.CompositeByteBuf;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +54,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.*;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
+import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.*;
 import org.apache.celeborn.common.util.ShuffleBlockInfoUtils.ShuffleBlockInfo;
@@ -478,9 +480,16 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     FSDataOutputStream dfsIndexOutput = null;
     FileChannel indexFileChannel = null;
     if (isDfs) {
+      boolean isS3 = Utils.isS3Path(indexFilePath);
+      FileSystem hadoopFs = null;
+      if (isS3) {
+        hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.S3);
+      } else {
+        hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.HDFS);
+      }
       // If the index file exists, it will be overwritten.
       // So there is no need to check its existence.
-      dfsIndexOutput = StorageManager.hadoopFs().create(new Path(indexFilePath));
+      dfsIndexOutput = hadoopFs.create(new Path(indexFilePath));
     } else {
       indexFileChannel = FileChannelUtils.createWritableFileChannel(indexFilePath);
     }
@@ -590,15 +599,18 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                 FileChannel indexChannel = null;
                 FSDataInputStream dfsIndexStream = null;
                 boolean isDfs = Utils.isHdfsPath(indexFilePath) || Utils.isS3Path(indexFilePath);
+                boolean isS3 = Utils.isS3Path(indexFilePath);
                 int indexSize;
                 try {
                   if (isDfs) {
-                    dfsIndexStream = StorageManager.hadoopFs().open(new Path(indexFilePath));
-                    indexSize =
-                        (int)
-                            StorageManager.hadoopFs()
-                                .getFileStatus(new Path(indexFilePath))
-                                .getLen();
+                    FileSystem hadoopFs = null;
+                    if (isS3) {
+                      hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.S3);
+                    } else {
+                      hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.HDFS);
+                    }
+                    dfsIndexStream = hadoopFs.open(new Path(indexFilePath));
+                    indexSize = (int) hadoopFs.getFileStatus(new Path(indexFilePath)).getLen();
                   } else {
                     indexChannel = FileChannelUtils.openReadableFileChannel(indexFilePath);
                     File indexFile = new File(indexFilePath);
@@ -644,6 +656,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private final long originFileLen;
     private final String fileId;
     private final String shuffleKey;
+    private final boolean isHdfs;
+    private final boolean isS3;
+
     private final boolean isDfs;
     private final boolean isPrefetch;
     private final FileInfo originFileInfo;
@@ -657,7 +672,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       this.originFileInfo = fileInfo;
       this.originFilePath = fileInfo.getFilePath();
       this.sortedFilePath = Utils.getSortedFilePath(originFilePath);
-      this.isDfs = fileInfo.isDFS();
+      this.isHdfs = fileInfo.isHdfs();
+      this.isS3 = fileInfo.isS3();
+      this.isDfs = isHdfs || isS3;
       this.isPrefetch = !isDfs && prefetchEnabled;
       this.originFileLen = fileInfo.getFileLength();
       this.fileId = fileId;
@@ -673,11 +690,17 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           indexFile.delete();
         }
       } else {
-        if (StorageManager.hadoopFs().exists(fileInfo.getDfsSortedPath())) {
-          StorageManager.hadoopFs().delete(fileInfo.getDfsSortedPath(), false);
+        FileSystem hadoopFs = null;
+        if (isS3) {
+          hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.S3);
+        } else {
+          hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.HDFS);
         }
-        if (StorageManager.hadoopFs().exists(fileInfo.getDfsIndexPath())) {
-          StorageManager.hadoopFs().delete(fileInfo.getDfsIndexPath(), false);
+        if (hadoopFs.exists(fileInfo.getDfsSortedPath())) {
+          hadoopFs.delete(fileInfo.getDfsSortedPath(), false);
+        }
+        if (hadoopFs.exists(fileInfo.getDfsIndexPath())) {
+          hadoopFs.delete(fileInfo.getDfsIndexPath(), false);
         }
       }
     }
@@ -776,9 +799,14 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     private void initializeFiles() throws IOException {
       if (isDfs) {
-        dfsOriginInput = StorageManager.hadoopFs().open(new Path(originFilePath));
-        dfsSortedOutput =
-            StorageManager.hadoopFs().create(new Path(sortedFilePath), true, 256 * 1024);
+        FileSystem hadoopFs = null;
+        if (isS3) {
+          hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.S3);
+        } else {
+          hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.HDFS);
+        }
+        dfsOriginInput = hadoopFs.open(new Path(originFilePath));
+        dfsSortedOutput = hadoopFs.create(new Path(sortedFilePath), true, 256 * 1024);
       } else {
         originFileChannel = FileChannelUtils.openReadableFileChannel(originFilePath);
         sortedFileChannel = FileChannelUtils.createWritableFileChannel(sortedFilePath);
@@ -811,7 +839,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     public void deleteOriginFiles() throws IOException {
       boolean deleteSuccess;
       if (isDfs) {
-        deleteSuccess = StorageManager.hadoopFs().delete(new Path(originFilePath), false);
+        FileSystem hadoopFs = null;
+        if (isS3) {
+          hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.S3);
+        } else {
+          hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.HDFS);
+        }
+        deleteSuccess = hadoopFs.delete(new Path(originFilePath), false);
       } else {
         deleteSuccess = new File(originFilePath).delete();
       }

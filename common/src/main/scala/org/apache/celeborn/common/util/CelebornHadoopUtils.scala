@@ -20,6 +20,8 @@ package org.apache.celeborn.common.util
 import java.io.{File, IOException}
 import java.util.concurrent.atomic.AtomicBoolean
 
+import scala.collection.JavaConverters._
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.security.UserGroupInformation
@@ -27,6 +29,7 @@ import org.apache.hadoop.security.UserGroupInformation
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.protocol.StorageInfo
 
 object CelebornHadoopUtils extends Logging {
   private var logPrinted = new AtomicBoolean(false)
@@ -45,7 +48,9 @@ object CelebornHadoopUtils extends Logging {
             "It can be overridden again in Celeborn configuration with the additional " +
             "prefix 'celeborn.hadoop.', e.g. 'celeborn.hadoop.dfs.replication=3'")
       }
-    } else if (conf.s3Dir.nonEmpty) {
+    }
+
+    if (conf.s3Dir.nonEmpty) {
       if (conf.s3AccessKey.isEmpty || conf.s3SecretKey.isEmpty || conf.s3Endpoint.isEmpty) {
         throw new CelebornException(
           "S3 storage is enabled but s3AccessKey, s3SecretKey, or s3Endpoint is not set")
@@ -69,16 +74,19 @@ object CelebornHadoopUtils extends Logging {
     }
   }
 
-  def getHadoopFS(conf: CelebornConf): FileSystem = {
+  def getHadoopFS(conf: CelebornConf): java.util.Map[StorageInfo.Type, FileSystem] = {
     val hadoopConf = newConfiguration(conf)
     initKerberos(conf, hadoopConf)
-    val dfsDir =
-      if (conf.hasHDFSStorage) {
-        conf.hdfsDir
-      } else {
-        conf.s3Dir
-      }
-    new Path(dfsDir).getFileSystem(hadoopConf)
+    val hadoopFs = new java.util.HashMap[StorageInfo.Type, FileSystem]()
+    if (conf.hasHDFSStorage) {
+      val hdfsDir = new Path(conf.hdfsDir)
+      hadoopFs.put(StorageInfo.Type.HDFS, hdfsDir.getFileSystem(hadoopConf))
+    }
+    if (conf.hasS3Storage) {
+      val s3Dir = new Path(conf.s3Dir)
+      hadoopFs.put(StorageInfo.Type.S3, s3Dir.getFileSystem(hadoopConf))
+    }
+    hadoopFs
   }
 
   def deleteDFSPathOrLogError(hadoopFs: FileSystem, path: Path, recursive: Boolean): Unit = {

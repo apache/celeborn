@@ -48,8 +48,8 @@ object Dependencies {
   val commonsLang3Version = "3.13.0"
   val findbugsVersion = "1.3.9"
   val guavaVersion = "33.1.0-jre"
-  val hadoopVersion = "3.3.6"
-  val awsVersion = "1.12.367"
+  val hadoopVersion = "3.2.2"
+  val awsVersion = "1.12.532"
   val junitInterfaceVersion = "0.13.3"
   // don't forget update `junitInterfaceVersion` when we upgrade junit
   val junitVersion = "4.13.2"

@@ -20,12 +20,14 @@ package org.apache.celeborn.service.deploy.worker.storage;
 import java.io.IOException;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
+import org.apache.celeborn.common.protocol.StorageInfo;
 
 /*
  * reduce partition file writer, it will create chunk index
@@ -89,16 +91,19 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
             () -> {
               if (diskFileInfo != null) {
                 if (diskFileInfo.isDFS()) {
-                  if (StorageManager.hadoopFs()
-                      .exists(diskFileInfo.getDfsPeerWriterSuccessPath())) {
-                    StorageManager.hadoopFs().delete(diskFileInfo.getDfsPath(), false);
+                  FileSystem hadoopFs = null;
+                  if (diskFileInfo.isS3()) {
+                    hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.S3);
+                  } else {
+                    hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.HDFS);
+                  }
+                  if (hadoopFs.exists(diskFileInfo.getDfsPeerWriterSuccessPath())) {
+                    hadoopFs.delete(diskFileInfo.getDfsPath(), false);
                     deleted = true;
                   } else {
-                    StorageManager.hadoopFs()
-                        .create(diskFileInfo.getDfsWriterSuccessPath())
-                        .close();
+                    hadoopFs.create(diskFileInfo.getDfsWriterSuccessPath()).close();
                     FSDataOutputStream indexOutputStream =
-                        StorageManager.hadoopFs().create(diskFileInfo.getDfsIndexPath());
+                        hadoopFs.create(diskFileInfo.getDfsIndexPath());
                     indexOutputStream.writeInt(
                         (diskFileInfo.getReduceFileMeta()).getChunkOffsets().size());
                     for (Long offset : (diskFileInfo.getReduceFileMeta()).getChunkOffsets()) {

@@ -30,6 +30,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCounted;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +45,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
+import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.util.ShuffleBlockInfoUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
@@ -85,6 +87,13 @@ public class DfsPartitionReader implements PartitionReader {
 
     this.metricsCallback = metricsCallback;
     this.location = location;
+    FileSystem hadoopFs = null;
+    if (location.getStorageInfo() != null
+        && location.getStorageInfo().getType() == StorageInfo.Type.S3) {
+      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.S3);
+    } else {
+      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
+    }
 
     if (endMapIndex != Integer.MAX_VALUE) {
       long fetchTimeoutMs = conf.clientFetchTimeoutMs();
@@ -105,18 +114,17 @@ public class DfsPartitionReader implements PartitionReader {
         // Parse this message to ensure sort is done.
       } catch (IOException | InterruptedException e) {
         throw new IOException(
-            "read shuffle file from HDFS failed, filePath: "
+            "read shuffle file from DFS failed, filePath: "
                 + location.getStorageInfo().getFilePath(),
             e);
       }
+
       hdfsInputStream =
-          ShuffleClient.getHdfsFs(conf)
-              .open(new Path(Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
+          hadoopFs.open(new Path(Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
       chunkOffsets.addAll(
           getChunkOffsetsFromSortedIndex(conf, location, startMapIndex, endMapIndex));
     } else {
-      hdfsInputStream =
-          ShuffleClient.getHdfsFs(conf).open(new Path(location.getStorageInfo().getFilePath()));
+      hdfsInputStream = hadoopFs.open(new Path(location.getStorageInfo().getFilePath()));
       chunkOffsets.addAll(getChunkOffsetsFromUnsortedIndex(conf, location));
     }
     logger.debug(
@@ -137,9 +145,15 @@ public class DfsPartitionReader implements PartitionReader {
   private List<Long> getChunkOffsetsFromUnsortedIndex(CelebornConf conf, PartitionLocation location)
       throws IOException {
     List<Long> offsets;
+    FileSystem hadoopFs = null;
+    if (location.getStorageInfo() != null
+        && location.getStorageInfo().getType() == StorageInfo.Type.S3) {
+      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.S3);
+    } else {
+      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
+    }
     try (FSDataInputStream indexInputStream =
-        ShuffleClient.getHdfsFs(conf)
-            .open(new Path(Utils.getIndexFilePath(location.getStorageInfo().getFilePath())))) {
+        hadoopFs.open(new Path(Utils.getIndexFilePath(location.getStorageInfo().getFilePath())))) {
       offsets = new ArrayList<>();
       int offsetCount = indexInputStream.readInt();
       for (int i = 0; i < offsetCount; i++) {
@@ -154,10 +168,16 @@ public class DfsPartitionReader implements PartitionReader {
       throws IOException {
     String indexPath = Utils.getIndexFilePath(location.getStorageInfo().getFilePath());
     List<Long> offsets;
-    try (FSDataInputStream indexInputStream =
-        ShuffleClient.getHdfsFs(conf).open(new Path(indexPath))) {
+    FileSystem hadoopFs = null;
+    if (location.getStorageInfo() != null
+        && location.getStorageInfo().getType() == StorageInfo.Type.S3) {
+      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.S3);
+    } else {
+      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
+    }
+    try (FSDataInputStream indexInputStream = hadoopFs.open(new Path(indexPath))) {
       logger.debug("read sorted index {}", indexPath);
-      long indexSize = ShuffleClient.getHdfsFs(conf).getFileStatus(new Path(indexPath)).getLen();
+      long indexSize = hadoopFs.getFileStatus(new Path(indexPath)).getLen();
       // Index size won't be large, so it's safe to do the conversion.
       byte[] indexBuffer = new byte[(int) indexSize];
       indexInputStream.readFully(0L, indexBuffer);
@@ -204,12 +224,17 @@ public class DfsPartitionReader implements PartitionReader {
                       e);
                   try {
                     hdfsInputStream.close();
+                    FileSystem hadoopFs = null;
+                    if (location.getStorageInfo() != null
+                        && location.getStorageInfo().getType() == StorageInfo.Type.S3) {
+                      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.S3);
+                    } else {
+                      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
+                    }
                     hdfsInputStream =
-                        ShuffleClient.getHdfsFs(conf)
-                            .open(
-                                new Path(
-                                    Utils.getSortedFilePath(
-                                        location.getStorageInfo().getFilePath())));
+                        hadoopFs.open(
+                            new Path(
+                                Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
                     hdfsInputStream.readFully(offset, buffer);
                   } catch (IOException ex) {
                     logger.warn(
