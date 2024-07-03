@@ -31,6 +31,7 @@
 
   <properties>
     <project.service.baseDir>${project.basedir}/../service</project.service.baseDir>
+    <junit.jupiter.version>5.10.3</junit.jupiter.version>
   </properties>
 
   <dependencyManagement>
@@ -44,6 +45,13 @@
         <groupId>com.fasterxml.jackson.datatype</groupId>
         <artifactId>jackson-datatype-jsr310</artifactId>
         <version>${jackson.version}</version>
+      </dependency>
+      <!-- test dependencies -->
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-api</artifactId>
+        <version>${junit.jupiter.version}</version>
+        <scope>test</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -81,6 +89,11 @@
       <groupId>org.glassfish.jersey.media</groupId>
       <artifactId>jersey-media-multipart</artifactId>
     </dependency>
+    <!-- test dependencies -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+    </dependency>
   </dependencies>
 
   <build>
@@ -102,8 +115,8 @@
               <modelPackage>org.apache.celeborn.rest.v1.master.model</modelPackage>
               <invokerPackage>org.apache.celeborn.rest.v1.master.invoker</invokerPackage>
               <generatorName>java</generatorName>
-              <generateApiTests>false</generateApiTests>
-              <generateModelTests>false</generateModelTests>
+              <generateApiTests>true</generateApiTests>
+              <generateModelTests>true</generateModelTests>
               <groupId>${groupId}</groupId>
               <artifactId>${artifactId}</artifactId>
               <artifactVersion>${project.version}</artifactVersion>
@@ -143,8 +156,8 @@
               <modelPackage>org.apache.celeborn.rest.v1.worker.model</modelPackage>
               <invokerPackage>org.apache.celeborn.rest.v1.worker.invoker</invokerPackage>
               <generatorName>java</generatorName>
-              <generateApiTests>false</generateApiTests>
-              <generateModelTests>false</generateModelTests>
+              <generateApiTests>true</generateApiTests>
+              <generateModelTests>true</generateModelTests>
               <groupId>${groupId}</groupId>
               <artifactId>${artifactId}</artifactId>
               <artifactVersion>${project.version}</artifactVersion>
@@ -178,7 +191,7 @@
             <phase>generate-sources</phase>
             <configuration>
               <inputSpec>${project.basedir}/src/main/openapi3/master_rest_v1.yaml</inputSpec>
-              <output>${project.build.directory}/generated-sources/service/java</output>
+              <output>${project.build.directory}/generated-sources-temp/java</output>
               <modelPackage>org.apache.celeborn.server.common.http.v1.model</modelPackage>
               <generatorName>java</generatorName>
               <generateApiTests>false</generateApiTests>
@@ -209,7 +222,7 @@
             <phase>generate-sources</phase>
             <configuration>
               <inputSpec>${project.basedir}/src/main/openapi3/worker_rest_v1.yaml</inputSpec>
-              <output>${project.build.directory}/generated-sources/service/java</output>
+              <output>${project.build.directory}/generated-sources-temp/java</output>
               <modelPackage>org.apache.celeborn.server.common.http.v1.model</modelPackage>
               <generatorName>java</generatorName>
               <generateApiTests>false</generateApiTests>
@@ -266,7 +279,7 @@
               <outputDirectory>${project.service.baseDir}/src/main/java/org/apache/celeborn/server/common/http/v1</outputDirectory>
               <resources>
                 <resource>
-                  <directory>${project.build.directory}/generated-sources/service/java/src/main/java/org/apache/celeborn/server/common/http/v1</directory>
+                  <directory>${project.build.directory}/generated-sources-temp/java/src/main/java/org/apache/celeborn/server/common/http/v1</directory>
                   <includes>
                     <include>model/*.java</include>
                     <!-- referenced by model java files in unused imports -->
@@ -293,6 +306,18 @@
             <configuration>
               <sources>
                 <source>${project.build.directory}/generated-sources/java/src/main/java</source>
+              </sources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>add_test_sources</id>
+            <goals>
+              <goal>add-test-source</goal>
+            </goals>
+            <phase>generate-test-sources</phase>
+            <configuration>
+              <sources>
+                <source>${project.build.directory}/generated-sources/java/src/test/java</source>
               </sources>
             </configuration>
           </execution>
