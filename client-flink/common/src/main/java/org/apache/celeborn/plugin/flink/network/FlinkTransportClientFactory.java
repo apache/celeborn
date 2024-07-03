@@ -66,10 +66,8 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
             remotePort,
             e);
         if (retryCount == 0) {
-          if (e instanceof InterruptedException) {
-            throw (InterruptedException) e;
-          } else if (e instanceof IOException) {
-            throw (IOException) e;
+          if (e instanceof InterruptedException || e instanceof IOException) {
+            throw e;
           } else {
             Utils.rethrowAsRuntimeException(e);
           }

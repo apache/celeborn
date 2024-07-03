@@ -143,8 +143,12 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     this.driverTimestamp = driverTimestamp;
   }
 
-  private void initializeFlinkTransportClientFactory() {
+  private void initializeTransportClientFactory(boolean expectedInitialized) {
     if (null == flinkTransportClientFactory) {
+      if (expectedInitialized) {
+        logger.info(
+            "FlinkTransportClientFactory has not been initialized, initializing with default");
+      }
       flinkTransportClientFactory =
           new FlinkTransportClientFactory(
               context, conf.clientFetchMaxRetriesForEachReplica(), createBootstraps());
@@ -154,13 +158,13 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   @Override
   public void setupLifecycleManagerRef(String host, int port) {
     super.setupLifecycleManagerRef(host, port);
-    initializeFlinkTransportClientFactory();
+    initializeTransportClientFactory(false);
   }
 
   @Override
   public void setupLifecycleManagerRef(RpcEndpointRef endpointRef) {
     super.setupLifecycleManagerRef(endpointRef);
-    initializeFlinkTransportClientFactory();
+    initializeTransportClientFactory(false);
   }
 
   public CelebornBufferStream readBufferedPartition(
@@ -181,7 +185,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           shuffleKey,
           partitionId,
           partitionLocations);
-      initializeTransportClientFactoryIfRequired();
+
+      initializeTransportClientFactory(true);
       return CelebornBufferStream.create(
           this,
           flinkTransportClientFactory,
@@ -587,15 +592,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   @Override
   @VisibleForTesting
   public TransportClientFactory getDataClientFactory() {
-    initializeTransportClientFactoryIfRequired();
+    initializeTransportClientFactory(true);
     return flinkTransportClientFactory;
-  }
-
-  private void initializeTransportClientFactoryIfRequired() {
-    if (null == flinkTransportClientFactory) {
-      logger.info(
-          "FlinkTransportClientFactory has not been initialized, " + "initializing with default");
-      initializeFlinkTransportClientFactory();
-    }
   }
 }
