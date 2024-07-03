@@ -964,8 +964,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1060,8 +1059,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1154,8 +1152,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1249,8 +1246,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1345,8 +1341,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5204,7 +5199,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 66
+            "y": 7
           },
           "id": 19,
           "options": {
@@ -5300,7 +5295,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 66
+            "y": 7
           },
           "id": 190,
           "options": {
@@ -5396,7 +5391,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 74
+            "y": 15
           },
           "id": 191,
           "options": {
@@ -5491,7 +5486,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 74
+            "y": 15
           },
           "id": 188,
           "options": {
@@ -5584,7 +5579,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 82
+            "y": 23
           },
           "id": 20,
           "options": {
@@ -5674,7 +5669,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 82
+            "y": 23
           },
           "id": 187,
           "options": {
@@ -5766,7 +5761,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 90
+            "y": 31
           },
           "id": 165,
           "options": {
@@ -5858,7 +5853,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 90
+            "y": 31
           },
           "id": 166,
           "options": {
@@ -5950,7 +5945,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 98
+            "y": 39
           },
           "id": 167,
           "options": {
@@ -6042,7 +6037,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 98
+            "y": 39
           },
           "id": 168,
           "options": {
@@ -6134,7 +6129,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 106
+            "y": 47
           },
           "id": 169,
           "options": {
@@ -6226,7 +6221,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 106
+            "y": 47
           },
           "id": 170,
           "options": {
@@ -6317,7 +6312,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 114
+            "y": 55
           },
           "id": 108,
           "options": {
@@ -6409,7 +6404,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 114
+            "y": 55
           },
           "id": 104,
           "options": {
@@ -6500,7 +6495,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 122
+            "y": 63
           },
           "id": 106,
           "options": {
@@ -9875,6 +9870,6 @@
   "timezone": "",
   "title": "Celeborn",
   "uid": "U_qgru_7z",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
