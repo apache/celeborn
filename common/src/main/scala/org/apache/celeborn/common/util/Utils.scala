@@ -415,7 +415,19 @@ object Utils extends Logging {
   }
 
   def localHostName(conf: CelebornConf): String = customHostname.getOrElse {
-    if (conf.bindPreferIP) localIpAddress.getHostAddress else localIpAddress.getCanonicalHostName
+    if (conf.bindPreferIP) {
+      localIpAddress match {
+        case ipv6Address: Inet6Address =>
+          val ip = ipv6Address.getHostAddress
+          assert(
+            !ip.startsWith("[") && !ip.endsWith("]"),
+            s"Resolved IPv6 address should not be enclosed in [] but got $ip")
+          s"[$ip]"
+        case other => other.getHostAddress
+      }
+    } else {
+      localIpAddress.getCanonicalHostName
+    }
   }
 
   /**

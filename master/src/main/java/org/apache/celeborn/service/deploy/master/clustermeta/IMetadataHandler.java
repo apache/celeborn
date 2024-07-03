@@ -86,4 +86,6 @@ public interface IMetadataHandler {
   void handleUpdatePartitionSize();
 
   void handleApplicationMeta(ApplicationMeta applicationMeta);
+
+  void handleReportWorkerDecommission(List<WorkerInfo> workers, String requestId);
 }

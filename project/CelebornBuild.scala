@@ -43,7 +43,7 @@ object Dependencies {
   val commonsCryptoVersion = "1.0.0"
   val commonsIoVersion = "2.13.0"
   val commonsLoggingVersion = "1.1.3"
-  val commonsLang3Version = "3.12.0"
+  val commonsLang3Version = "3.13.0"
   val findbugsVersion = "1.3.9"
   val guavaVersion = "33.1.0-jre"
   val hadoopVersion = "3.3.6"
@@ -53,7 +53,7 @@ object Dependencies {
   val leveldbJniVersion = "1.8"
   val log4j2Version = "2.17.2"
   val jdkToolsVersion = "0.1"
-  val metricsVersion = "3.2.6"
+  val metricsVersion = "4.2.25"
   val mockitoVersion = "4.11.0"
   val nettyVersion = "4.1.109.Final"
   val ratisVersion = "3.0.1"
@@ -107,7 +107,8 @@ object Dependencies {
     ExclusionRule("log4j", "log4j"),
     ExclusionRule("org.slf4j", "slf4j-log4j12"))
   val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion
-  val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion
+  val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion excludeAll (
+    ExclusionRule("com.rabbitmq", "amqp-client"))
   val ioDropwizardMetricsJvm = "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion
   val ioNetty = "io.netty" % "netty-all" % nettyVersion excludeAll(
     ExclusionRule("io.netty", "netty-handler-ssl-ocsp"))

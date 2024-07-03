@@ -171,4 +171,9 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   public void handleApplicationMeta(ApplicationMeta applicationMeta) {
     updateApplicationMeta(applicationMeta);
   }
+
+  @Override
+  public void handleReportWorkerDecommission(List<WorkerInfo> workers, String requestId) {
+    updateMetaByReportWorkerDecommission(workers);
+  }
 }

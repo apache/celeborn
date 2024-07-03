@@ -43,10 +43,16 @@ license: |
 | celeborn.master.heartbeat.application.timeout | 300s | false | Application heartbeat timeout. | 0.3.0 | celeborn.application.heartbeat.timeout | 
 | celeborn.master.heartbeat.worker.timeout | 120s | false | Worker heartbeat timeout. | 0.3.0 | celeborn.worker.heartbeat.timeout | 
 | celeborn.master.host | &lt;localhost&gt; | false | Hostname for master to bind. | 0.2.0 |  | 
+| celeborn.master.http.auth.basic.provider | org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl | false | User-defined password authentication implementation of org.apache.celeborn.common.authentication.PasswdAuthenticationProvider | 0.6.0 |  | 
+| celeborn.master.http.auth.bearer.provider | org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl | false | User-defined token authentication implementation of org.apache.celeborn.common.authentication.TokenAuthenticationProvider | 0.6.0 |  | 
+| celeborn.master.http.auth.supportedSchemes |  | false | A comma-separated list of master http auth supported schemes.<ul> <li>SPNEGO: Kerberos/GSSAPI authentication.</li> <li>BASIC: User-defined password authentication, the concreted implementation is configurable via `celeborn.master.http.auth.basic.provider`.</li> <li>BEARER: User-defined bearer token authentication, the concreted implementation is configurable via `celeborn.master.http.auth.bearer.provider`.</li></ul> | 0.6.0 |  | 
 | celeborn.master.http.host | &lt;localhost&gt; | false | Master's http host. | 0.4.0 | celeborn.metrics.master.prometheus.host,celeborn.master.metrics.prometheus.host | 
 | celeborn.master.http.idleTimeout | 30s | false | Master http server idle timeout. | 0.5.0 |  | 
 | celeborn.master.http.maxWorkerThreads | 200 | false | Maximum number of threads in the master http worker thread pool. | 0.5.0 |  | 
 | celeborn.master.http.port | 9098 | false | Master's http port. | 0.4.0 | celeborn.metrics.master.prometheus.port,celeborn.master.metrics.prometheus.port | 
+| celeborn.master.http.proxy.client.ip.header | X-Real-IP | false | The HTTP header to record the real client IP address. If your server is behind a load balancer or other proxy, the server will see this load balancer or proxy IP address as the client IP address, to get around this common issue, most load balancers or proxies offer the ability to record the real remote IP address in an HTTP header that will be added to the request for other devices to use. Note that, because the header value can be specified to any IP address, so it will not be used for authentication. | 0.6.0 |  | 
+| celeborn.master.http.spnego.keytab | &lt;undefined&gt; | false | The keytab file for SPNego authentication. | 0.6.0 |  | 
+| celeborn.master.http.spnego.principal | &lt;undefined&gt; | false | SPNego service principal, typical value would look like HTTP/_HOST@EXAMPLE.COM. SPNego service principal would be used when celeborn http authentication is enabled. This needs to be set only if SPNEGO is to be used in authentication. | 0.6.0 |  | 
 | celeborn.master.http.stopTimeout | 5s | false | Master http server stop timeout. | 0.5.0 |  | 
 | celeborn.master.internal.port | 8097 | false | Internal port on the master where both workers and other master nodes connect. | 0.5.0 |  | 
 | celeborn.master.port | 9097 | false | Port for master to bind. | 0.2.0 |  | 

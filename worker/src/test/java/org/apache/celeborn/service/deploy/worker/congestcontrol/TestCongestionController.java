@@ -69,7 +69,7 @@ public class TestCongestionController {
 
     Assert.assertFalse(controller.isUserCongested(userIdentifier));
 
-    controller.produceBytes(userIdentifier, 1001);
+    produceBytes(userIdentifier, 1001);
     pendingBytes = 1001;
     controller.checkCongestion();
     Assert.assertTrue(controller.isUserCongested(userIdentifier));
@@ -91,8 +91,8 @@ public class TestCongestionController {
 
     // If pendingBytes exceed the high watermark, user1 produce speed > avg consume speed
     // While user2 produce speed < avg consume speed
-    controller.produceBytes(user1, 800);
-    controller.produceBytes(user2, 201);
+    produceBytes(user1, 800);
+    produceBytes(user2, 201);
     controller.consumeBytes(500);
     pendingBytes = 1001;
     controller.checkCongestion();
@@ -100,8 +100,8 @@ public class TestCongestionController {
     Assert.assertFalse(controller.isUserCongested(user2));
 
     // If both users higher than the avg consume speed, should congest them all.
-    controller.produceBytes(user1, 800);
-    controller.produceBytes(user2, 800);
+    produceBytes(user1, 800);
+    produceBytes(user2, 800);
     controller.consumeBytes(500);
     pendingBytes = 1600;
     controller.checkCongestion();
@@ -119,7 +119,7 @@ public class TestCongestionController {
   public void testUserMetrics() throws InterruptedException {
     UserIdentifier user = new UserIdentifier("test", "celeborn");
     Assert.assertFalse(controller.isUserCongested(user));
-    controller.produceBytes(user, 800);
+    produceBytes(user, 800);
 
     Assert.assertTrue(
         isGaugeExist(
@@ -158,5 +158,11 @@ public class TestCongestionController {
                 })
             .count()
         == 1;
+  }
+
+  private void produceBytes(UserIdentifier userIdentifier, long numBytes) {
+    controller
+        .getUserBuffer(userIdentifier)
+        .updateInfo(System.currentTimeMillis(), new BufferStatusHub.BufferStatusNode(numBytes));
   }
 }

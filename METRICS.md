@@ -90,6 +90,7 @@ Here is an example of Grafana dashboard importing.
 |            LostWorkerCount             |      master       |                                           The count of workers in lost list.                                           |
 |          ExcludedWorkerCount           |      master       |                                         The count of workers in excluded list.                                         |
 |          ShutdownWorkerCount           |      master       |                                         The count of workers in shutdown list.                                         |
+|        DecommissionWorkerCount         |      master       |                                       The count of workers in decommission list.                                       |
 |             IsActiveMaster             |      master       |                                         Whether the current master is active.                                          |
 |             PartitionSize              |      master       |              The estimated partition size of last 20 flush window whose length is 15 seconds by defaults.              |
 |             OfferSlotsTime             |      master       |                                                The time of offer slots.                                                |
@@ -142,11 +143,14 @@ Here is an example of Grafana dashboard importing.
 |        ReadBufferAllocatedCount        |      worker       |                                    This value means count of allocated read buffer.                                    |
 |        ActiveCreditStreamCount         |      worker       |                       This value means active count of stream for map partition reading streams.                       |
 |        ActiveMapPartitionCount         |      worker       |                            This value means count of active map partition reading streams.                             |
+|           CleanTaskQueueSize           |      worker       |                          This value means count of task for cleaning up expired shuffle keys.                          |
+|      CleanExpiredShuffleKeysTime       |      worker       |                      CleanExpiredShuffleKeys means clean up shuffle data of expired shuffle keys.                      |
 |           DeviceOSFreeBytes            |      worker       |                             This value means actual usable space of OS for device monitor.                             |
 |           DeviceOSTotalBytes           |      worker       |                             This value means total usable space of OS for device monitor.                              |
 |         PotentialConsumeSpeed          |      worker       |                        This value means speed of potential consumption for congestion control.                         |
 |            UserProduceSpeed            |      worker       |                           This value means speed of user production for congestion control.                            |
 |           WorkerConsumeSpeed           |      worker       |                          This value means speed of worker consumption for congestion control.                          |
+|        IsDecommissioningWorker         |      worker       |                              1 means worker decommissioning, 0 means not decommissioning.                              |
 |              jvm_gc_count              |        JVM        |                                        The GC count of each garbage collector.                                         |
 |              jvm_gc_time               |        JVM        |                                      The GC cost time of each garbage collector.                                       |
 |          jvm_memory_heap_init          |        JVM        |                                            The amount of heap init memory.                                             |
@@ -180,9 +184,11 @@ Here is an example of Grafana dashboard importing.
 |        jvm_thread_blocked_count        |        JVM        |                                  The current number of threads having blocked state.                                   |
 |       jvm_thread_deadlock_count        |        JVM        |                                  The current number of threads having deadlock state.                                  |
 |          jvm_thread_new_count          |        JVM        |                                    The current number of threads having new state.                                     |
+|         jvm_thread_peak_count          |        JVM        |                                        The current number of peak live threads.                                        |
 |       jvm_thread_runnable_count        |        JVM        |                                  The current number of threads having runnable state.                                  |
 |      jvm_thread_terminated_count       |        JVM        |                                 The current number of threads having terminated state.                                 |
 |     jvm_thread_timed_waiting_count     |        JVM        |                               The current number of threads having timed_waiting state.                                |
+|     jvm_thread_total_started_count     |        JVM        |                                         The current number of started threads.                                         |
 |        jvm_thread_waiting_count        |        JVM        |                                  The current number of threads having waiting state.                                   |
 |         jvm_classloader_loaded         |        JVM        |                             The total number of classes loaded since the start of the JVM.                             |
 |        jvm_classloader_unloaded        |        JVM        |                            The total number of classes unloaded since the start of the JVM.                            |

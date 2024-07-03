@@ -240,10 +240,8 @@ object PbSerDeUtils {
 
   def toPbWorkerInfo(
       workerInfo: WorkerInfo,
-      eliminateUserResourceConsumption: Boolean): PbWorkerInfo = {
-    val diskInfos = workerInfo.diskInfos.values
-    val pbDiskInfos = new util.ArrayList[PbDiskInfo]()
-    diskInfos.asScala.foreach(diskInfo => pbDiskInfos.add(PbSerDeUtils.toPbDiskInfo(diskInfo)))
+      eliminateUserResourceConsumption: Boolean,
+      eliminateDiskInfo: Boolean): PbWorkerInfo = {
     val builder = PbWorkerInfo.newBuilder
       .setHost(workerInfo.host)
       .setRpcPort(workerInfo.rpcPort)
@@ -251,10 +249,15 @@ object PbSerDeUtils {
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
       .setInternalPort(workerInfo.internalPort)
-      .addAllDisks(pbDiskInfos)
     if (!eliminateUserResourceConsumption) {
       builder.putAllUserResourceConsumption(
         PbSerDeUtils.toPbUserResourceConsumption(workerInfo.userResourceConsumption))
+    }
+    if (!eliminateDiskInfo) {
+      val diskInfos = workerInfo.diskInfos.values
+      val pbDiskInfos = new util.ArrayList[PbDiskInfo]()
+      diskInfos.asScala.foreach(diskInfo => pbDiskInfos.add(PbSerDeUtils.toPbDiskInfo(diskInfo)))
+      builder.addAllDisks(pbDiskInfos)
     }
     builder.build
   }
@@ -421,17 +424,18 @@ object PbSerDeUtils {
       lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long],
       shutdownWorkers: java.util.Set[WorkerInfo],
       workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo],
-      applicationMetas: ConcurrentHashMap[String, ApplicationMeta]): PbSnapshotMetaInfo = {
+      applicationMetas: ConcurrentHashMap[String, ApplicationMeta],
+      decommissionWorkers: java.util.Set[WorkerInfo]): PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
       .addAllRegisteredShuffle(registeredShuffle)
       .addAllHostnameSet(hostnameSet)
-      .addAllExcludedWorkers(excludedWorkers.asScala.map(toPbWorkerInfo(_, true)).asJava)
+      .addAllExcludedWorkers(excludedWorkers.asScala.map(toPbWorkerInfo(_, true, false)).asJava)
       .addAllManuallyExcludedWorkers(manuallyExcludedWorkers.asScala
-        .map(toPbWorkerInfo(_, true)).asJava)
-      .addAllWorkerLostEvents(workerLostEvent.asScala.map(toPbWorkerInfo(_, true)).asJava)
+        .map(toPbWorkerInfo(_, true, false)).asJava)
+      .addAllWorkerLostEvents(workerLostEvent.asScala.map(toPbWorkerInfo(_, true, false)).asJava)
       .putAllAppHeartbeatTime(appHeartbeatTime)
-      .addAllWorkers(workers.asScala.map(toPbWorkerInfo(_, true)).asJava)
+      .addAllWorkers(workers.asScala.map(toPbWorkerInfo(_, true, false)).asJava)
       .setPartitionTotalWritten(partitionTotalWritten)
       .setPartitionTotalFileCount(partitionTotalFileCount)
       // appDiskUsageMetricSnapshots can have null values,
@@ -441,11 +445,14 @@ object PbSerDeUtils {
       .putAllLostWorkers(lostWorkers.asScala.map {
         case (worker: WorkerInfo, time: java.lang.Long) => (worker.toUniqueId(), time)
       }.asJava)
-      .addAllShutdownWorkers(shutdownWorkers.asScala.map(toPbWorkerInfo(_, true)).asJava)
+      .addAllShutdownWorkers(shutdownWorkers.asScala.map(toPbWorkerInfo(_, true, false)).asJava)
       .putAllWorkerEventInfos(workerEventInfos.asScala.map {
         case (worker, workerEventInfo) =>
           (worker.toUniqueId(), PbSerDeUtils.toPbWorkerEventInfo(workerEventInfo))
       }.asJava)
+      .addAllDecommissionWorkers(decommissionWorkers.asScala.map(
+        toPbWorkerInfo(_, true, false)).asJava)
+
     if (currentAppDiskUsageMetricsSnapshot != null) {
       builder.setCurrentAppDiskUsageMetricsSnapshot(
         toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))

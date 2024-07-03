@@ -56,6 +56,15 @@ class ApiWorkerResource extends ApiRequestContext {
   @GET
   def isShutdown: String = httpService.isShutdown
 
+  @Path("/isDecommissioning")
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.TEXT_PLAIN)),
+    description = "Show if the worker is during the process of decommission.")
+  @GET
+  def isDecommissioning: String = httpService.isDecommissioning
+
   @Path("/isRegistered")
   @ApiResponse(
     responseCode = "200",

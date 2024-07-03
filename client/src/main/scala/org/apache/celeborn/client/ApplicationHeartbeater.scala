@@ -54,6 +54,8 @@ class ApplicationHeartbeater(
             val (tmpTotalWritten, tmpTotalFileCount) = shuffleMetrics()
             logInfo("Send app heartbeat with " +
               s"written: ${Utils.bytesToString(tmpTotalWritten)}, file count: $tmpTotalFileCount")
+            // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
+            // during serialization of HeartbeatFromApplication
             val appHeartbeat =
               HeartbeatFromApplication(
                 appId,

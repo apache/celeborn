@@ -258,6 +258,10 @@ private[celeborn] class Master(
 
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
 
+  masterSource.addGauge(MasterSource.DECOMMISSION_WORKER_COUNT) { () =>
+    statusSystem.decommissionWorkers.size()
+  }
+
   private val threadsStarted: AtomicBoolean = new AtomicBoolean(false)
   rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
   // Visible for testing
@@ -511,6 +515,11 @@ private[celeborn] class Master(
       executeWithLeaderChecker(
         context,
         handleReportNodeUnavailable(context, failedWorkers, requestId))
+
+    case ReportWorkerDecommission(workers: util.List[WorkerInfo], requestId: String) =>
+      executeWithLeaderChecker(
+        context,
+        handleWorkerDecommission(context, workers, requestId))
 
     case pb: PbWorkerExclude =>
       val workersToAdd = new util.ArrayList[WorkerInfo](pb.getWorkersToAddList
@@ -959,6 +968,16 @@ private[celeborn] class Master(
     context.reply(OneWayMessageResponse)
   }
 
+  private def handleWorkerDecommission(
+      context: RpcCallContext,
+      workers: util.List[WorkerInfo],
+      requestId: String): Unit = {
+    logInfo(s"Receive ReportWorkerDecommission $workers, current decommission workers" +
+      s"${statusSystem.excludedWorkers}")
+    statusSystem.handleReportWorkerDecommission(workers, requestId)
+    context.reply(OneWayMessageResponse)
+  }
+
   def handleApplicationLost(context: RpcCallContext, appId: String, requestId: String): Unit = {
     nonEagerHandler.submit(new Runnable {
       override def run(): Unit = {
@@ -1018,12 +1037,15 @@ private[celeborn] class Master(
     // unknown workers will retain in needCheckedWorkerList
     needCheckedWorkerList.removeAll(statusSystem.workers)
     if (shouldResponse) {
+      // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
+      // during serialization of HeartbeatFromApplicationResponse
       context.reply(HeartbeatFromApplicationResponse(
         StatusCode.SUCCESS,
         new util.ArrayList(
           (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).asJava),
         needCheckedWorkerList,
-        new util.ArrayList[WorkerInfo](statusSystem.shutdownWorkers)))
+        new util.ArrayList[WorkerInfo](
+          (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava)))
     } else {
       context.reply(OneWayMessageResponse)
     }
@@ -1215,6 +1237,15 @@ private[celeborn] class Master(
     sb.toString()
   }
 
+  override def getDecommissionWorkers: String = {
+    val sb = new StringBuilder
+    sb.append("===================== Decommission Workers in Master ======================\n")
+    statusSystem.decommissionWorkers.asScala.foreach { worker =>
+      sb.append(s"${worker.toUniqueId()}\n")
+    }
+    sb.toString()
+  }
+
   override def getExcludedWorkers: String = {
     val sb = new StringBuilder
     sb.append("===================== Excluded Workers in Master ======================\n")
@@ -1261,11 +1292,12 @@ private[celeborn] class Master(
   override def exclude(addWorkers: String, removeWorkers: String): String = {
     val sb = new StringBuilder
     sb.append("============================ Add/Remove Excluded Workers  Manually =============================\n")
-    val workersToAdd = addWorkers.split(",").filter(_.nonEmpty)
-    val workersToRemove = removeWorkers.split(",").filter(_.nonEmpty)
+    val workersToAdd = addWorkers.split(",").filter(_.nonEmpty).map(WorkerInfo.fromUniqueId).toList
+    val workersToRemove =
+      removeWorkers.split(",").filter(_.nonEmpty).map(WorkerInfo.fromUniqueId).toList
     val workerExcludeResponse = self.askSync[PbWorkerExcludeResponse](WorkerExclude(
-      workersToAdd.map(WorkerInfo.fromUniqueId).toList.asJava,
-      workersToRemove.map(WorkerInfo.fromUniqueId).toList.asJava,
+      workersToAdd.asJava,
+      workersToRemove.asJava,
       MasterClient.genRequestId()))
     if (workerExcludeResponse.getSuccess) {
       sb.append(

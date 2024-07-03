@@ -366,6 +366,26 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void handleReportWorkerDecommission(List<WorkerInfo> workers, String requestId) {
+    try {
+      List<ResourceProtos.WorkerAddress> addrs =
+          workers.stream().map(MetaUtil::infoToAddr).collect(Collectors.toList());
+      ratisServer.submitRequest(
+          ResourceRequest.newBuilder()
+              .setCmdType(Type.ReportWorkerDecommission)
+              .setRequestId(MasterClient.genRequestId())
+              .setReportWorkerDecommissionRequest(
+                  ResourceProtos.ReportWorkerDecommissionRequest.newBuilder()
+                      .addAllWorkers(addrs)
+                      .build())
+              .build());
+    } catch (CelebornRuntimeException e) {
+      LOG.error("Handle worker decommission failed!", e);
+      throw e;
+    }
+  }
+
+  @Override
   public void handleUpdatePartitionSize() {
     try {
       ratisServer.submitRequest(

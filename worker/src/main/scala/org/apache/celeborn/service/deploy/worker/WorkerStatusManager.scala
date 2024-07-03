@@ -140,7 +140,7 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
   private def decommissionWorkerThenIdle(): Unit = this.synchronized {
     shutdown.set(true)
     transitionState(State.InDecommissionThenIdle)
-    worker.sendWorkerUnavailableToMaster()
+    worker.sendWorkerDecommissionToMaster()
     checkIfNeedTransitionStatus()
   }
 

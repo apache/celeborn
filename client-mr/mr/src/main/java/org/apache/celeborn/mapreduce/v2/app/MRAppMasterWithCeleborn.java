@@ -50,6 +50,8 @@ import org.apache.celeborn.util.HadoopUtils;
 public class MRAppMasterWithCeleborn extends MRAppMaster {
   private static final Logger logger = LoggerFactory.getLogger(MRAppMasterWithCeleborn.class);
 
+  private static final String MASTER_ENDPOINTS_ENV = "CELEBORN_MASTER_ENDPOINTS";
+
   public MRAppMasterWithCeleborn(
       ApplicationAttemptId applicationAttemptId,
       ContainerId containerId,
@@ -81,9 +83,9 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
   private void writeLifecycleManagerConfToTask(JobConf conf, JobConf lmConf)
       throws CelebornIOException {
     try {
-      FileSystem fs = FileSystem.get(conf);
       String jobDirStr = conf.get(MRJobConfig.MAPREDUCE_JOB_DIR);
       Path celebornConfPath = new Path(jobDirStr, HadoopUtils.MR_CELEBORN_CONF);
+      FileSystem fs = celebornConfPath.getFileSystem(conf);
 
       try (FSDataOutputStream out =
           FileSystem.create(
@@ -92,7 +94,10 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
       }
       FileStatus status = fs.getFileStatus(celebornConfPath);
       long currentTs = status.getModificationTime();
-      String uri = fs.getUri() + Path.SEPARATOR + celebornConfPath.toUri();
+      String uri =
+          celebornConfPath.toUri().isAbsolute()
+              ? celebornConfPath.toUri().toString()
+              : fs.getUri() + Path.SEPARATOR + celebornConfPath.toUri();
       String files = conf.get(MRJobConfig.CACHE_FILES);
       conf.set(MRJobConfig.CACHE_FILES, files == null ? uri : uri + "," + files);
       String ts = conf.get(MRJobConfig.CACHE_FILE_TIMESTAMPS);
@@ -124,8 +129,8 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
   public static void main(String[] args) {
     JobConf rmAppConf = new JobConf(new YarnConfiguration());
     rmAppConf.addResource(new Path(MRJobConfig.JOB_CONF_FILE));
-    checkJobConf(rmAppConf);
     try {
+      checkJobConf(rmAppConf);
       Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
       String containerIdStr = ensureGetSysEnv(ApplicationConstants.Environment.CONTAINER_ID.name());
       String nodeHostString = ensureGetSysEnv(ApplicationConstants.Environment.NM_HOST.name());
@@ -184,7 +189,7 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
     }
   }
 
-  public static void checkJobConf(JobConf conf) {
+  public static void checkJobConf(JobConf conf) throws IOException {
     if (conf.getBoolean(MRJobConfig.MR_AM_JOB_RECOVERY_ENABLE, false)) {
       logger.warn("MRAppMaster disables job recovery.");
       // MapReduce does not set the flag which indicates whether to keep containers across
@@ -196,6 +201,15 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
       logger.warn("MRAppMaster disables job reduce slow start.");
       // Make sure reduces are scheduled only after all map are completed.
       conf.setFloat(MRJobConfig.COMPLETED_MAPS_FOR_REDUCE_SLOWSTART, 1.0f);
+    }
+    String masterEndpointsKey = HadoopUtils.MR_PREFIX + CelebornConf.MASTER_ENDPOINTS().key();
+    String masterEndpointsVal = conf.get(masterEndpointsKey);
+    if (masterEndpointsVal == null || masterEndpointsVal.isEmpty()) {
+      logger.info(
+          "MRAppMaster sets {} via environment variable {}.",
+          masterEndpointsKey,
+          MASTER_ENDPOINTS_ENV);
+      conf.set(masterEndpointsKey, ensureGetSysEnv(MASTER_ENDPOINTS_ENV));
     }
   }
 }

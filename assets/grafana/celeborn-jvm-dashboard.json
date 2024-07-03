@@ -1245,6 +1245,42 @@
           "legendFormat": "daemon_${baseLegend}",
           "range": true,
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "metrics_jvm_thread_peak_count_Value{instance=~\"${instance}\"}",
+          "hide": false,
+          "legendFormat": "peak_${baseLegend}",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "metrics_jvm_thread_total_started_count_Value{instance=~\"${instance}\"}",
+          "hide": false,
+          "legendFormat": "total_started_${baseLegend}",
+          "range": true,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "metrics_jvm_thread_deadlock_count_Value{instance=~\"${instance}\"}",
+          "hide": false,
+          "legendFormat": "deadlock_${baseLegend}",
+          "range": true,
+          "refId": "F"
         }
       ],
       "title": "Thread Counts",
@@ -1400,18 +1436,6 @@
           "legendFormat": "terminated_${baseLegend}",
           "range": true,
           "refId": "F"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "expr": "metrics_jvm_thread_deadlock_count_Value{instance=~\"${instance}\"}",
-          "hide": false,
-          "legendFormat": "deadlock_${baseLegend}",
-          "range": true,
-          "refId": "G"
         }
       ],
       "title": "Thread States",

@@ -143,14 +143,25 @@ public class NettyUtils {
 
   public static PooledByteBufAllocator getPooledByteBufAllocator(
       TransportConf conf, AbstractSource source, boolean allowCache) {
+    return getPooledByteBufAllocator(conf, source, allowCache, 0);
+  }
+
+  public static PooledByteBufAllocator getPooledByteBufAllocator(
+      TransportConf conf, AbstractSource source, boolean allowCache, int coreNum) {
     if (conf.getCelebornConf().networkShareMemoryAllocator()) {
       return getSharedPooledByteBufAllocator(
           conf.getCelebornConf(),
           source,
           allowCache && conf.getCelebornConf().networkMemoryAllocatorAllowCache());
     }
+    int arenas;
+    if (coreNum != 0) {
+      arenas = coreNum;
+    } else {
+      arenas = conf.getCelebornConf().networkAllocatorArenas();
+    }
     PooledByteBufAllocator allocator =
-        createPooledByteBufAllocator(conf.preferDirectBufs(), allowCache, conf.clientThreads());
+        createPooledByteBufAllocator(conf.preferDirectBufs(), allowCache, arenas);
     if (source != null) {
       String poolName = "default-netty-pool";
       Map<String, String> labels = new HashMap<>();

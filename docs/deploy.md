@@ -74,7 +74,6 @@ celeborn.master.endpoints clb-1:9097,clb-2:9097,clb-3:9097
 # used by master nodes to bootstrap, every node should know the topology of whole cluster, for each node,
 # `celeborn.master.ha.node.id` should be unique, and `celeborn.master.ha.node.<id>.host` is required.
 celeborn.master.ha.enabled true
-celeborn.master.ha.node.id 1
 celeborn.master.ha.node.1.host clb-1
 celeborn.master.ha.node.1.port 9097
 celeborn.master.ha.node.1.ratis.port 9872
@@ -202,7 +201,7 @@ spark.dynamicAllocation.shuffleTracking.enabled false
 
 # Support ShuffleManager when defined in user jars
 # Required Spark version < 4.0.0 or without SPARK-45762, highly recommended to false for ShuffleManager in user-defined jar specified by --jars or spark.jars
-spark.executor.userClassPathFirst=false
+spark.executor.userClassPathFirst false
 ```
 
 ## Deploy Flink client
@@ -243,4 +242,5 @@ Meanwhile, configure the following settings in YARN and MapReduce config.
 -Dmapreduce.job.map.output.collector.class=org.apache.hadoop.mapred.CelebornMapOutputCollector
 -Dmapreduce.job.reduce.shuffle.consumer.plugin.class=org.apache.hadoop.mapreduce.task.reduce.CelebornShuffleConsumer
 ```
-**Note**: `MRAppMasterWithCeleborn` disables `yarn.app.mapreduce.am.job.recovery.enable` and sets `mapreduce.job.reduce.slowstart.completedmaps` to 1 by default.
+**Note**: `MRAppMasterWithCeleborn` supports setting `mapreduce.celeborn.master.endpoints` via environment variable `CELEBORN_MASTER_ENDPOINTS`.
+Meanwhile, `MRAppMasterWithCeleborn` disables `yarn.app.mapreduce.am.job.recovery.enable` and sets `mapreduce.job.reduce.slowstart.completedmaps` to 1 by default.

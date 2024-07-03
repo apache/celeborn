@@ -1529,6 +1529,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       } else {
         Set.empty[WorkerInfo]
       }
+    // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
+    // during serialization of RequestSlots
     val req =
       RequestSlots(
         appUniqueId,

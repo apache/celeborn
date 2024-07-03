@@ -24,6 +24,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.celeborn.common.CelebornConf;
 
 public class HadoopUtils {
+  public static final String MR_PREFIX = "mapreduce.";
   public static final String MR_CELEBORN_CONF = "celeborn.xml";
   public static final String MR_CELEBORN_LM_HOST = "celeborn.lifecycleManager.host";
   public static final String MR_CELEBORN_LM_PORT = "celeborn.lifecycleManager.port";
@@ -34,8 +35,8 @@ public class HadoopUtils {
     for (Map.Entry<String, String> property : conf) {
       String proName = property.getKey();
       String proValue = property.getValue();
-      if (proName.startsWith("mapreduce.celeborn")) {
-        tmpCelebornConf.set(proName.substring("mapreduce.".length()), proValue);
+      if (proName.startsWith(MR_PREFIX + "celeborn")) {
+        tmpCelebornConf.set(proName.substring(MR_PREFIX.length()), proValue);
       }
     }
     return tmpCelebornConf;
