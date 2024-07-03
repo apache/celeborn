@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.meta.{WorkerInfo, WorkerStatus}
-import org.apache.celeborn.common.protocol.PartitionLocation
+import org.apache.celeborn.common.protocol.{PartitionLocation, StorageInfo}
 import org.apache.celeborn.common.protocol.PbWorkerStatus.State
 import org.apache.celeborn.server.common.http.v1.model._
 import org.apache.celeborn.server.common.http.v1.model.PartitionLocationData.{ModeEnum, StorageEnum}
@@ -106,9 +106,25 @@ object ApiUtils {
     new PartitionLocationData()
       .idEpoch(partitionLocation.getId + "-" + partitionLocation.getEpoch)
       .hostAndPorts(partitionLocation.hostAndPorts())
-      .mode(ModeEnum.fromValue(partitionLocation.getMode.toString))
+      .mode(partitionLocation.getMode match {
+        case PartitionLocation.Mode.PRIMARY =>
+          ModeEnum.PRIMARY
+        case PartitionLocation.Mode.REPLICA =>
+          ModeEnum.REPLICA
+      })
       .peer(Option(partitionLocation.getPeer).map(_.hostAndPorts()).orNull)
-      .storage(StorageEnum.fromValue(partitionLocation.getStorageInfo.toString))
+      .storage(partitionLocation.getStorageInfo.getType match {
+        case StorageInfo.Type.MEMORY =>
+          StorageEnum.MEMORY
+        case StorageInfo.Type.HDD =>
+          StorageEnum.HDD
+        case StorageInfo.Type.SSD =>
+          StorageEnum.SSD
+        case StorageInfo.Type.HDFS =>
+          StorageEnum.HDFS
+        case StorageInfo.Type.OSS =>
+          StorageEnum.OSS
+      })
       .mapIdBitMap(partitionLocation.getMapIdBitMap.toString)
   }
 }

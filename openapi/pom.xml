@@ -101,6 +101,9 @@
       <plugin>
         <groupId>org.openapitools</groupId>
         <artifactId>openapi-generator-maven-plugin</artifactId>
+        <!--
+        please keep the schema definitions consistent between master_rest_v1.yaml and worker_rest_v1.yaml
+        -->
         <executions>
           <execution>
             <id>generate-java-master-rest-v1</id>
