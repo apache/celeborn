@@ -143,12 +143,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     this.driverTimestamp = driverTimestamp;
   }
 
-  private void initializeTransportClientFactory(boolean expectedInitialized) {
+  private void initializeTransportClientFactory() {
     if (null == flinkTransportClientFactory) {
-      if (expectedInitialized) {
-        logger.info(
-            "FlinkTransportClientFactory has not been initialized, initializing with default");
-      }
       flinkTransportClientFactory =
           new FlinkTransportClientFactory(
               context, conf.clientFetchMaxRetriesForEachReplica(), createBootstraps());
@@ -158,13 +154,13 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   @Override
   public void setupLifecycleManagerRef(String host, int port) {
     super.setupLifecycleManagerRef(host, port);
-    initializeTransportClientFactory(false);
+    initializeTransportClientFactory();
   }
 
   @Override
   public void setupLifecycleManagerRef(RpcEndpointRef endpointRef) {
     super.setupLifecycleManagerRef(endpointRef);
-    initializeTransportClientFactory(false);
+    initializeTransportClientFactory();
   }
 
   public CelebornBufferStream readBufferedPartition(
@@ -186,7 +182,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           partitionId,
           partitionLocations);
 
-      initializeTransportClientFactory(true);
+      initializeTransportClientFactory();
       return CelebornBufferStream.create(
           this,
           flinkTransportClientFactory,
@@ -592,7 +588,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   @Override
   @VisibleForTesting
   public TransportClientFactory getDataClientFactory() {
-    initializeTransportClientFactory(true);
+    initializeTransportClientFactory();
     return flinkTransportClientFactory;
   }
 }
