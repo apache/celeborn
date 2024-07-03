@@ -2830,19 +2830,25 @@ object CelebornConf extends Logging {
   val WORKER_STORAGE_CREATE_FILE_POLICY: OptionalConfigEntry[String] =
     buildConf("celeborn.worker.storage.storagePolicy.createFilePolicy")
       .categories("worker")
-      .doc("This defined the order for create files if the storages are available. Available storages: MEMORY,SSD,HDD,HDFS")
+      .doc("This defined the order for creating files across available storages." +
+        " Available storages options are: MEMORY,SSD,HDD,HDFS,OSS")
       .version("0.5.1")
       .stringConf
       .checkValue(
         _.split(",").map(str => StorageInfo.typeNames.contains(str.trim.toUpperCase)).forall(p =>
           p),
-        "Will use default create file order. Default order: MEMORY,SSD,HDD,HDFS")
+        "Will use default create file order. Default order: MEMORY,SSD,HDD,HDFS,OSS")
       .createOptional
 
   val WORKER_STORAGE_EVICT_POLICY: OptionalConfigEntry[String] =
     buildConf("celeborn.worker.storage.storagePolicy.evictPolicy")
       .categories("worker")
-      .doc("This define the order of evict files if the storages are available. Available storages: MEMORY,SSD,HDD,HDFS. Definition: StorageTypes|StorageTypes|StorageTypes.")
+      .doc("This define the order of evict files if the storages are available." +
+        " Available storages: MEMORY,SSD,HDD,HDFS. " +
+        "Definition: StorageTypes|StorageTypes|StorageTypes. " +
+        "Example: MEMORY,SSD|SSD,HDFS." +
+        " The example means that a MEMORY shuffle file can be evicted to SSD " +
+        "and a SSD shuffle file can be evicted to HDFS.")
       .version("0.5.1")
       .stringConf
       .checkValue(

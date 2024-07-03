@@ -21,6 +21,7 @@ import io.netty.buffer.ByteBuf
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.source.AbstractSource
+import org.apache.celeborn.common.protocol.StorageInfo
 
 class CelebornFileProxy(
     partitionDataWriterContext: PartitionDataWriterContext,
@@ -31,7 +32,7 @@ class CelebornFileProxy(
   var flusher: Flusher = null
   var flushWorkerIndex = 0
 
-  currentFile = StoragePolicy.createFile(partitionDataWriterContext)
+  currentFile = storageManager.storagePolicy.createFile(partitionDataWriterContext)
 
   def write(buf: ByteBuf) = {
     this.synchronized {
@@ -42,7 +43,8 @@ class CelebornFileProxy(
   def evict(force: Boolean) = {
     if (currentFile.needEvict || force) {
       this.synchronized {
-        val nFile = StoragePolicy.getEvictedFile(currentFile, partitionDataWriterContext)
+        val nFile =
+          storageManager.storagePolicy.getEvictedFile(currentFile, partitionDataWriterContext)
         currentFile.evict(nFile)
         currentFile = nFile
       }
@@ -52,7 +54,6 @@ class CelebornFileProxy(
   def close(): Unit = {}
 
   def isMemoryShuffleFile: Boolean = {
-    currentFile.isInstanceOf[CelebornMemoryFile]
+    currentFile.storageType == StorageInfo.Type.MEMORY
   }
-
 }

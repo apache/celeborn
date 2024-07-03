@@ -170,7 +170,6 @@ private[celeborn] class Worker(
   }
 
   val storageManager = new StorageManager(conf, workerSource)
-  StoragePolicy.initlize(conf, storageManager, workerSource)
 
   val memoryManager: MemoryManager = MemoryManager.initialize(conf, storageManager)
   memoryManager.registerMemoryListener(storageManager)

@@ -68,6 +68,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val hasHDFSStorage = conf.hasHDFSStorage
 
   val storageExpireDirTimeout = conf.workerStorageExpireDirTimeout
+  val storagePolicy = new StoragePolicy(conf, this, workerSource)
 
   // (deviceName -> deviceInfo) and (mount point -> diskInfo)
   val (deviceInfos, diskInfos) = {
