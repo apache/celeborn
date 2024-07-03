@@ -171,13 +171,44 @@
             </configuration>
           </execution>
           <execution>
-            <id>generate-java-service-model-rest-v1</id>
+            <id>generate-java-service-master-model-rest-v1</id>
             <goals>
               <goal>generate</goal>
             </goals>
             <phase>generate-sources</phase>
             <configuration>
-              <inputSpec>${project.basedir}/src/main/openapi3/schemas_rest_v1.yaml</inputSpec>
+              <inputSpec>${project.basedir}/src/main/openapi3/master_rest_v1.yaml</inputSpec>
+              <output>${project.build.directory}/generated-sources/service/java</output>
+              <modelPackage>org.apache.celeborn.server.common.http.v1.model</modelPackage>
+              <generatorName>java</generatorName>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
+              <groupId>${groupId}</groupId>
+              <artifactId>${artifactId}</artifactId>
+              <artifactVersion>${project.version}</artifactVersion>
+              <addCompileSourceRoot>false</addCompileSourceRoot>
+              <skipValidateSpec>true</skipValidateSpec>
+              <configOptions>
+                <licenseName>Apache License 2.0</licenseName>
+                <groupId>${groupId}</groupId>
+                <artifactId>${artifactId}</artifactId>
+                <artifactVersion>${project.version}</artifactVersion>
+                <dateLibrary>java8</dateLibrary>
+                <useGzipFeature>true</useGzipFeature>
+                <library>jersey2</library>
+                <annotationLibrary>none</annotationLibrary>
+                <hideGenerationTimestamp>true</hideGenerationTimestamp>
+              </configOptions>
+            </configuration>
+          </execution>
+          <execution>
+            <id>generate-java-service-worker-model-rest-v1</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <phase>generate-sources</phase>
+            <configuration>
+              <inputSpec>${project.basedir}/src/main/openapi3/worker_rest_v1.yaml</inputSpec>
               <output>${project.build.directory}/generated-sources/service/java</output>
               <modelPackage>org.apache.celeborn.server.common.http.v1.model</modelPackage>
               <generatorName>java</generatorName>
@@ -202,6 +233,24 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-clean-plugin</artifactId>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>${project.service.baseDir}/src/main/java/org/apache/celeborn/server/common/http/v1</directory>
+              <includes>
+                <include>model/*.java</include>
+                <!-- referenced by model java files in unused imports -->
+                <include>ApiException.java</include>
+                <include>JSON.java</include>
+                <include>RFC3339DateFormat.java</include>
+              </includes>
+            </fileset>
+          </filesets>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

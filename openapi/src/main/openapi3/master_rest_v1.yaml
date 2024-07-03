@@ -21,7 +21,7 @@ servers:
 security:
   - basic: []
 info:
-  title: Celeborn Master REST API
+  title: Celeborn REST API
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
