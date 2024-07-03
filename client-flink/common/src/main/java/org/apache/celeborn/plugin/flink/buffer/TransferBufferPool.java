@@ -194,7 +194,7 @@ public class TransferBufferPool implements BufferRecycler {
         creditAssignments.add(new CreditAssignment(numCredits, creditListener));
       }
     }
-    return creditAssignments;
+    return Collections.unmodifiableList(creditAssignments);
   }
 
   private static class CreditAssignment {

@@ -60,7 +60,7 @@ import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 public class RemoteShuffleInputGateDelegation {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleInputGateDelegation.class);
   /** Lock to protect {@link #receivedBuffers} and {@link #cause} and {@link #closed}. */
-  private Object lock = new Object();
+  private final Object lock = new Object();
 
   /** Name of the corresponding computing task. */
   private String taskName;
@@ -96,7 +96,7 @@ public class RemoteShuffleInputGateDelegation {
   private long numUnconsumedSubpartitions;
 
   /** Received buffers from remote shuffle worker. It's consumed by upper computing task. */
-  private Queue<Pair<Buffer, InputChannelInfo>> receivedBuffers = new LinkedList<>();
+  private Queue<Pair<Buffer, InputChannelInfo>> receivedBuffers = new ArrayDeque<>();
 
   /** {@link Throwable} when reading failure. */
   private Throwable cause;
