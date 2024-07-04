@@ -126,7 +126,7 @@ public class MemoryManager {
     double readBufferTargetRatio = conf.readBufferTargetRatio();
     long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
     long readBufferTargetNotifyThreshold = conf.readBufferTargetNotifyThreshold();
-    boolean aggressiveMemoryFileEvict = conf.workerMemoryFileStorageAggresiveEvictPolicy();
+    boolean aggressiveMemoryFileEvict = conf.workerMemoryFileStorageAggressiveEvictPolicy();
     forceAppendPauseSpentTimeThreshold = conf.metricsWorkerForceAppendPauseSpentTimeThreshold();
     maxDirectMemory =
         DynMethods.builder("maxDirectMemory")
