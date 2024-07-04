@@ -65,6 +65,7 @@ public class MasterClient {
     this.isWorker = isWorker;
     this.masterEndpoints = resolveMasterEndpoints();
     Collections.shuffle(this.masterEndpoints);
+    LOG.info("masterEndpoints = {}", masterEndpoints);
     this.maxRetries = Math.max(masterEndpoints.size(), conf.masterClientMaxRetries());
     this.rpcTimeout = conf.masterClientRpcAskTimeout();
     this.rpcEndpointRef = new AtomicReference<>();
