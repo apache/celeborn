@@ -126,6 +126,7 @@ public class MemoryManager {
     double readBufferTargetRatio = conf.readBufferTargetRatio();
     long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
     long readBufferTargetNotifyThreshold = conf.readBufferTargetNotifyThreshold();
+    boolean aggressiveMemoryFileEvict = conf.workerMemoryFileStorageAggresiveEvictPolicy();
     forceAppendPauseSpentTimeThreshold = conf.metricsWorkerForceAppendPauseSpentTimeThreshold();
     maxDirectMemory =
         DynMethods.builder("maxDirectMemory")
@@ -232,8 +233,9 @@ public class MemoryManager {
       memoryFileStorageService.scheduleWithFixedDelay(
           () -> {
             try {
-              if ((memoryFileStorageCounter.sum() >= 0.5 * memoryFileStorageThreshold)
-                  && currentServingState() != ServingState.NONE_PAUSED) {
+              if ((aggressiveMemoryFileEvict && currentServingState() != ServingState.NONE_PAUSED)
+                  || ((memoryFileStorageCounter.sum() >= 0.5 * memoryFileStorageThreshold)
+                      && currentServingState() != ServingState.NONE_PAUSED)) {
                 List<PartitionDataWriter> memoryWriters =
                     new ArrayList<>(storageManager.memoryWriters().values());
                 if (memoryWriters.isEmpty()) {
@@ -247,9 +249,15 @@ public class MemoryManager {
                 try {
                   for (PartitionDataWriter writer : memoryWriters) {
                     // this branch means that there is no memory pressure
-                    if ((memoryFileStorageCounter.sum() < 0.5 * memoryFileStorageThreshold)
-                        || currentServingState() == ServingState.NONE_PAUSED) {
-                      break;
+                    if (aggressiveMemoryFileEvict) {
+                      if (currentServingState() == ServingState.NONE_PAUSED) {
+                        break;
+                      }
+                    } else {
+                      if ((memoryFileStorageCounter.sum() < 0.5 * memoryFileStorageThreshold)
+                          || currentServingState() == ServingState.NONE_PAUSED) {
+                        break;
+                      }
                     }
                     logger.debug("Evict writer {}", writer);
                     writer.evict(true);

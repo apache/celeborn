@@ -109,6 +109,7 @@ license: |
 | celeborn.worker.jvmQuake.exitCode | 502 | false | The exit code of system kill for the maximum GC 'deficit' during worker jvm quake. | 0.4.0 |  | 
 | celeborn.worker.jvmQuake.kill.threshold | 60s | false | The threshold of system kill for the maximum GC 'deficit' which can be accumulated before jvmquake takes action. | 0.4.0 |  | 
 | celeborn.worker.jvmQuake.runtimeWeight | 5.0 | false | The factor by which to multiply running JVM time, when weighing it against GCing time. 'Deficit' is accumulated as `gc_time - runtime * runtime_weight`, and is compared against threshold to determine whether to take action. | 0.4.0 |  | 
+| celeborn.worker.memoryFileStorage.aggressiveEvictPolicy | false | false | If this set to true, memory shuffle files will evicted when worker is in PAUSED state. If the worker's offheap memory is not ample, set this to true and decrease `celeborn.worker.directMemoryRatioForMemoryFileStorage` will be helpful. | 0.5.1 |  | 
 | celeborn.worker.memoryFileStorage.maxFileSize | 8MB | false | Max size for a memory storage file. It must be less than 2GB. | 0.5.0 |  | 
 | celeborn.worker.monitor.disk.check.interval | 30s | false | Intervals between device monitor to check disk. | 0.3.0 | celeborn.worker.monitor.disk.checkInterval | 
 | celeborn.worker.monitor.disk.check.timeout | 30s | false | Timeout time for worker check device status. | 0.3.0 | celeborn.worker.disk.check.timeout | 

@@ -1207,6 +1207,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE)
   def workerMemoryFileStorageMaxFileSize: Long =
     get(WORKER_MEMORY_FILE_STORAGE_MAX_FILE_SIZE)
+  def workerMemoryFileStorageAggresiveEvictPolicy: Boolean =
+    get(WORKER_MEMORY_FILE_STORAGE_AGGRESSIVE_EVICT_POLICY)
 
   // //////////////////////////////////////////////////////
   //                  Rate Limit controller              //
@@ -3406,6 +3408,17 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .checkValue(v => v < Int.MaxValue, "A single memory storage file can not be larger than 2GB")
       .createWithDefaultString("8MB")
+
+  val WORKER_MEMORY_FILE_STORAGE_AGGRESSIVE_EVICT_POLICY: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.memoryFileStorage.aggressiveEvictPolicy")
+      .categories("worker")
+      .doc(
+        "If this set to true, memory shuffle files will evicted when worker is in PAUSED state." +
+          " If the worker's offheap memory is not ample, set this to true " +
+          "and decrease `celeborn.worker.directMemoryRatioForMemoryFileStorage` will be helpful.")
+      .version("0.5.1")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_CONGESTION_CONTROL_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.congestionControl.enabled")
