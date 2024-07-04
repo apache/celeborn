@@ -17,11 +17,12 @@
 
 package org.apache.celeborn.common.network.ssl;
 
+import static org.apache.celeborn.common.network.TestHelper.getResourceAsAbsolutePath;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.security.*;
@@ -30,7 +31,6 @@ import java.security.cert.X509Certificate;
 import java.util.*;
 import java.util.stream.Stream;
 
-import org.apache.commons.io.FileUtils;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.Extension;
@@ -274,21 +274,6 @@ public class SslSampleConfigs {
           StandardCopyOption.ATOMIC_MOVE);
     } finally {
       out.close();
-    }
-  }
-
-  public static String getResourceAsAbsolutePath(String path) {
-    try {
-      File tempFile = File.createTempFile(new File(path).getName(), null);
-      tempFile.deleteOnExit();
-      URL url = SslSampleConfigs.class.getResource(path);
-      if (null == url) {
-        throw new IllegalArgumentException("Unable to find " + path);
-      }
-      FileUtils.copyInputStreamToFile(url.openStream(), tempFile);
-      return tempFile.getCanonicalPath();
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to resolve path " + path, e);
     }
   }
 }

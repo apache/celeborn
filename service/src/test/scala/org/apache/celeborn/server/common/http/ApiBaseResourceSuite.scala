@@ -20,12 +20,13 @@ package org.apache.celeborn.server.common.http
 import javax.ws.rs.core.MediaType
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.network.TestHelper
 
 abstract class ApiBaseResourceSuite extends HttpTestHelper {
   celebornConf.set(CelebornConf.METRICS_ENABLED.key, "true")
     .set(
       CelebornConf.METRICS_CONF.key,
-      Thread.currentThread().getContextClassLoader.getResource("metrics-api.properties").getFile)
+      TestHelper.getResourceAsAbsolutePath("/metrics-api.properties"))
 
   test("ping") {
     val response = webTarget.path("ping").request(MediaType.TEXT_PLAIN).get()

@@ -95,8 +95,10 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   def connectionInactive(client: TransportClient): Unit = {
     val applicationIds = appActiveConnections.remove(client.getChannel.id().asLongText())
     incCounter(ACTIVE_CONNECTION_COUNT, -1)
-    applicationIds.asScala.foreach(applicationId =>
-      incCounter(ACTIVE_CONNECTION_COUNT, -1, Map(applicationLabel -> applicationId)))
+    if (null != applicationIds) {
+      applicationIds.asScala.foreach(applicationId =>
+        incCounter(ACTIVE_CONNECTION_COUNT, -1, Map(applicationLabel -> applicationId)))
+    }
   }
 
   def recordAppActiveConnection(client: TransportClient, shuffleKey: String): Unit = {

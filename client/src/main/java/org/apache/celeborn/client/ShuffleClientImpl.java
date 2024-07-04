@@ -209,6 +209,27 @@ public class ShuffleClientImpl extends ShuffleClient {
     logger.info("Created ShuffleClientImpl, appUniqueId: {}", appUniqueId);
   }
 
+  protected List<TransportClientBootstrap> createBootstraps() {
+    if (authEnabled && null != lifecycleManagerRef) {
+      PbApplicationMetaRequest pbApplicationMetaRequest =
+          PbApplicationMetaRequest.newBuilder().setAppId(appUniqueId).build();
+      PbApplicationMeta pbApplicationMeta =
+          lifecycleManagerRef.askSync(
+              pbApplicationMetaRequest,
+              conf.clientRpcRegisterShuffleAskTimeout(),
+              ClassTag$.MODULE$.apply(PbApplicationMeta.class));
+      List<TransportClientBootstrap> bootstraps = Lists.newArrayList();
+      bootstraps.add(
+          new SaslClientBootstrap(
+              dataTransportConf,
+              appUniqueId,
+              new SaslCredentials(appUniqueId, pbApplicationMeta.getSecret())));
+      return Collections.unmodifiableList(bootstraps);
+    } else {
+      return Collections.emptyList();
+    }
+  }
+
   private void initDataClientFactoryIfNeeded() {
     if (dataClientFactory != null) {
       return;
@@ -220,20 +241,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       logger.info("Initializing data client factory for {}.", appUniqueId);
       dataClientFactory = transportContext.createClientFactory();
     } else if (lifecycleManagerRef != null) {
-      PbApplicationMetaRequest pbApplicationMetaRequest =
-          PbApplicationMetaRequest.newBuilder().setAppId(appUniqueId).build();
-      PbApplicationMeta pbApplicationMeta =
-          lifecycleManagerRef.askSync(
-              pbApplicationMetaRequest,
-              conf.clientRpcRegisterShuffleAskTimeout(),
-              ClassTag$.MODULE$.apply(PbApplicationMeta.class));
       logger.info("Initializing data client factory for secured {}.", appUniqueId);
-      List<TransportClientBootstrap> bootstraps = Lists.newArrayList();
-      bootstraps.add(
-          new SaslClientBootstrap(
-              dataTransportConf,
-              appUniqueId,
-              new SaslCredentials(appUniqueId, pbApplicationMeta.getSecret())));
+      List<TransportClientBootstrap> bootstraps = createBootstraps();
       dataClientFactory = transportContext.createClientFactory(bootstraps);
     }
   }
@@ -1755,6 +1764,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public void setupLifecycleManagerRef(String host, int port) {
+    logger.info("setupLifecycleManagerRef: host = {}, port = {}", host, port);
     lifecycleManagerRef =
         rpcEnv.setupEndpointRef(new RpcAddress(host, port), RpcNameConstants.LIFECYCLE_MANAGER_EP);
     initDataClientFactoryIfNeeded();
