@@ -25,6 +25,7 @@ import javax.ws.rs.core.MediaType
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.authentication.HttpAuthSchemes
 import org.apache.celeborn.common.network.TestHelper
+import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.http.HttpAuthUtils.AUTHORIZATION_HEADER
 import org.apache.celeborn.server.common.http.authentication.{UserDefinePasswordAuthenticationProviderImpl, UserDefineTokenAuthenticationProviderImpl}
 
@@ -116,5 +117,30 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
     response = webTarget.path("metrics/json").request(MediaType.APPLICATION_JSON).get()
     assert(200 == response.getStatus)
     assert(response.readEntity(classOf[String]).contains("\"name\" : \"jvm.memory.heap.max\""))
+  }
+
+  test("check admin privilege for mutative request") {
+    Seq("/any_api", "/api/v1/any_api").foreach { api =>
+      var response = webTarget.path(api)
+        .request(MediaType.TEXT_PLAIN)
+        .header(
+          AUTHORIZATION_HEADER,
+          basicAuthorizationHeader(
+            "no_admin",
+            UserDefinePasswordAuthenticationProviderImpl.VALID_PASSWORD))
+        .post(null)
+      assert(HttpServletResponse.SC_FORBIDDEN == response.getStatus)
+
+      response = webTarget.path(api)
+        .request(MediaType.TEXT_PLAIN)
+        .header(
+          AUTHORIZATION_HEADER,
+          basicAuthorizationHeader(
+            Utils.currentUser, // the current user is admin
+            UserDefinePasswordAuthenticationProviderImpl.VALID_PASSWORD))
+        .post(null)
+      // pass the admin privilege check, but the api is not found
+      assert(HttpServletResponse.SC_NOT_FOUND == response.getStatus)
+    }
   }
 }

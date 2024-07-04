@@ -2271,6 +2271,17 @@ object CelebornConf extends Logging {
       .stringConf
       .createWithDefault(classOf[AnonymousAuthenticationProviderImpl].getName)
 
+  val MASTER_HTTP_AUTH_ADMINISTERS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.master.http.auth.administers")
+      .categories("master")
+      .version("0.6.0")
+      .doc("A comma-separated list of users who have admin privileges," +
+        s" Note, when ${MASTER_HTTP_AUTH_SUPPORTED_SCHEMES.key} is not set," +
+        s" everyone is treated as administrator.")
+      .stringConf
+      .toSequence
+      .createWithDefault(Seq.empty)
+
   val HA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.master.ha.enabled")
       .withAlternative("celeborn.ha.enabled")
@@ -2967,6 +2978,17 @@ object CelebornConf extends Logging {
         "org.apache.celeborn.common.authentication.TokenAuthenticationProvider")
       .stringConf
       .createWithDefault(classOf[AnonymousAuthenticationProviderImpl].getName)
+
+  val WORKER_HTTP_AUTH_ADMINISTERS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.worker.http.auth.administers")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("A comma-separated list of users who have admin privileges," +
+        s" Note, when ${WORKER_HTTP_AUTH_SUPPORTED_SCHEMES.key} is not set," +
+        s" everyone is treated as administrator.")
+      .stringConf
+      .toSequence
+      .createWithDefault(Seq.empty)
 
   val WORKER_RPC_PORT: ConfigEntry[Int] =
     buildConf("celeborn.worker.rpc.port")

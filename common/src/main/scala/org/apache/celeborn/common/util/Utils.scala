@@ -40,6 +40,7 @@ import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
 import org.apache.commons.lang3.time.FastDateFormat
+import org.apache.hadoop.security.UserGroupInformation
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -1240,4 +1241,6 @@ object Utils extends Logging {
         (key, value)
     }.asInstanceOf[Seq[(K, V)]]
   }
+
+  def currentUser: String = UserGroupInformation.getCurrentUser.getShortUserName
 }
