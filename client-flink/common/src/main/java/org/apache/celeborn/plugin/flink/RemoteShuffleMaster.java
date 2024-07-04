@@ -232,7 +232,10 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
   public void close() throws Exception {
     try {
       jobShuffleIds.clear();
-      lifecycleManager.stop();
+      LifecycleManager manager = lifecycleManager;
+      if (null != manager) {
+        manager.stop();
+      }
     } catch (Exception e) {
       LOG.warn("Encounter exception when shutdown: {}", e.getMessage(), e);
     }

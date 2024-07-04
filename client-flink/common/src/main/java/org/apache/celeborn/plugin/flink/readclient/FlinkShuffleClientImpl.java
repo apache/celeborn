@@ -59,6 +59,7 @@ import org.apache.celeborn.common.protocol.ReviveRequest;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.protocol.message.StatusCode;
+import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
@@ -75,6 +76,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   private ConcurrentHashMap<String, TransportClient> currentClient =
       JavaUtils.newConcurrentHashMap();
   private long driverTimestamp;
+
+  private final TransportContext context;
 
   public static FlinkShuffleClientImpl get(
       String appUniqueId,
@@ -133,13 +136,31 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
         Utils.fromCelebornConf(conf, module, conf.getInt("celeborn." + module + ".io.threads", 8));
-    TransportContext context =
+    this.context =
         new TransportContext(
             dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());
-    this.flinkTransportClientFactory =
-        new FlinkTransportClientFactory(context, conf.clientFetchMaxRetriesForEachReplica());
     this.setupLifecycleManagerRef(driverHost, port);
     this.driverTimestamp = driverTimestamp;
+  }
+
+  private void initializeTransportClientFactory() {
+    if (null == flinkTransportClientFactory) {
+      flinkTransportClientFactory =
+          new FlinkTransportClientFactory(
+              context, conf.clientFetchMaxRetriesForEachReplica(), createBootstraps());
+    }
+  }
+
+  @Override
+  public void setupLifecycleManagerRef(String host, int port) {
+    super.setupLifecycleManagerRef(host, port);
+    initializeTransportClientFactory();
+  }
+
+  @Override
+  public void setupLifecycleManagerRef(RpcEndpointRef endpointRef) {
+    super.setupLifecycleManagerRef(endpointRef);
+    initializeTransportClientFactory();
   }
 
   public CelebornBufferStream readBufferedPartition(
@@ -160,6 +181,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           shuffleKey,
           partitionId,
           partitionLocations);
+
+      initializeTransportClientFactory();
       return CelebornBufferStream.create(
           this,
           flinkTransportClientFactory,
@@ -565,6 +588,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   @Override
   @VisibleForTesting
   public TransportClientFactory getDataClientFactory() {
+    initializeTransportClientFactory();
     return flinkTransportClientFactory;
   }
 }

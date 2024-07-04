@@ -24,6 +24,7 @@ import javax.ws.rs.core.MediaType
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.authentication.HttpAuthSchemes
+import org.apache.celeborn.common.network.TestHelper
 import org.apache.celeborn.server.common.http.HttpAuthUtils.AUTHORIZATION_HEADER
 import org.apache.celeborn.server.common.http.authentication.{UserDefinePasswordAuthenticationProviderImpl, UserDefineTokenAuthenticationProviderImpl}
 
@@ -32,7 +33,7 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
     .set(CelebornConf.METRICS_ENABLED.key, "true")
     .set(
       CelebornConf.METRICS_CONF.key,
-      Thread.currentThread().getContextClassLoader.getResource("metrics-api.properties").getFile)
+      TestHelper.getResourceAsAbsolutePath("/metrics-api.properties"))
     .set(CelebornConf.MASTER_HTTP_AUTH_SUPPORTED_SCHEMES, Seq("BASIC", "BEARER"))
     .set(
       CelebornConf.MASTER_HTTP_AUTH_BASIC_PROVIDER,

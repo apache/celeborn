@@ -55,16 +55,21 @@ trait MiniClusterFeature extends Logging {
     while (!created) {
       try {
         val randomPort = selectRandomPort(1024, 65535)
+        val randomInternalPort = selectRandomPort(1024, 65535)
         val finalMasterConf = Map(
           s"${CelebornConf.MASTER_HOST.key}" -> "localhost",
           s"${CelebornConf.PORT_MAX_RETRY.key}" -> "0",
           s"${CelebornConf.MASTER_PORT.key}" -> s"$randomPort",
-          s"${CelebornConf.MASTER_ENDPOINTS.key}" -> s"localhost:$randomPort") ++
+          s"${CelebornConf.MASTER_ENDPOINTS.key}" -> s"localhost:$randomPort",
+          s"${CelebornConf.MASTER_INTERNAL_PORT.key}" -> s"$randomInternalPort",
+          s"${CelebornConf.MASTER_INTERNAL_ENDPOINTS.key}" -> s"localhost:$randomInternalPort") ++
           masterConf
         val finalWorkerConf = Map(
-          s"${CelebornConf.MASTER_ENDPOINTS.key}" -> s"localhost:$randomPort") ++
+          s"${CelebornConf.MASTER_ENDPOINTS.key}" -> s"localhost:$randomPort",
+          s"${CelebornConf.MASTER_INTERNAL_ENDPOINTS.key}" -> s"localhost:$randomInternalPort") ++
           workerConf
-        logInfo(s"generated configuration $finalMasterConf")
+        logInfo(
+          s"generated configuration. Master conf = $finalMasterConf, worker conf = $finalWorkerConf")
         val (m, w) =
           setUpMiniCluster(masterConf = finalMasterConf, workerConf = finalWorkerConf, workerNum)
         master = m

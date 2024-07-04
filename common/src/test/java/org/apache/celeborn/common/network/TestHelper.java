@@ -17,9 +17,15 @@
 
 package org.apache.celeborn.common.network;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
 import java.util.Map;
 
+import org.apache.commons.io.FileUtils;
+
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
 
 /** A few helper utilities to reduce duplication within test code. */
 public class TestHelper {
@@ -29,5 +35,20 @@ public class TestHelper {
       conf.set(entry.getKey(), entry.getValue());
     }
     return conf;
+  }
+
+  public static String getResourceAsAbsolutePath(String path) {
+    try {
+      File tempFile = File.createTempFile(new File(path).getName(), null);
+      tempFile.deleteOnExit();
+      URL url = SslSampleConfigs.class.getResource(path);
+      if (null == url) {
+        throw new IllegalArgumentException("Unable to find " + path);
+      }
+      FileUtils.copyInputStreamToFile(url.openStream(), tempFile);
+      return tempFile.getCanonicalPath();
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to resolve path " + path, e);
+    }
   }
 }
