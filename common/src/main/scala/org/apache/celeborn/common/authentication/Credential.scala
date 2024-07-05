@@ -17,17 +17,10 @@
 
 package org.apache.celeborn.common.authentication
 
-import java.security.Principal
-
-class AnonymousAuthenticationProviderImpl extends PasswdAuthenticationProvider
-  with TokenAuthenticationProvider {
-  override def authenticate(user: String, password: String): Principal = {
-    // no-op authentication
-    new BasicPrincipal(user)
-  }
-
-  override def authenticate(credential: Credential): Principal = {
-    // no-op authentication
-    new BasicPrincipal("anonymous")
-  }
-}
+/**
+ * The credential object that is passed to the token authentication provider.
+ *
+ * @param token The token that is used for authentication
+ * @param props The properties that associated with the token
+ */
+case class Credential(token: String, props: Map[String, String] = Map.empty)

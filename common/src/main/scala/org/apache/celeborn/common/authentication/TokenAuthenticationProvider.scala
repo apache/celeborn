@@ -27,11 +27,15 @@ trait TokenAuthenticationProvider {
    * If the token is to be granted, return nothing/throw nothing.
    * When the token is to be disallowed, throw an appropriate [[SecurityException]].
    *
-   * @param token The token received over the connection request.
+   * @param credential The credential received over the connection request
    * @return The identifier associated with the token
    *
    * @throws SecurityException When the token is found to be invalid by the implementation
    */
   @throws[SecurityException]
-  def authenticate(token: String): Principal
+  def authenticate(credential: Credential): Principal
+}
+
+object TokenAuthenticationProvider {
+  val CLIENT_IP_PROPERTY = "CLIENT_IP"
 }
