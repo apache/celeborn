@@ -38,5 +38,5 @@ case class DefaultTokenCredential(
     override val extraInfo: Map[String, String] = Map.empty) extends TokenCredential
 
 object Credential {
-  val CLIENT_IP_PROPERTY = "clientIp"
+  val CLIENT_IP_KEY = "clientIp"
 }
