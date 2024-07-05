@@ -21,6 +21,6 @@ package org.apache.celeborn.common.authentication
  * The credential object that is passed to the token authentication provider.
  *
  * @param token The token that is used for authentication
- * @param props The properties that associated with the token
+ * @param extraInfo The extraInfo that associated with the token
  */
-case class TokenCredential(token: String, props: Map[String, String] = Map.empty)
+case class TokenCredential(token: String, extraInfo: Map[String, String] = Map.empty)

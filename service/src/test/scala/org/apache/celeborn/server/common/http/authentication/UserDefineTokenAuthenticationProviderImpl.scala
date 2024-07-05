@@ -26,7 +26,8 @@ import org.apache.celeborn.server.common.http.authentication.UserDefineTokenAuth
 
 class UserDefineTokenAuthenticationProviderImpl extends TokenAuthenticationProvider with Logging {
   override def authenticate(credential: TokenCredential): Principal = {
-    val clientIp = credential.props.getOrElse(TokenAuthenticationProvider.CLIENT_IP_PROPERTY, null)
+    val clientIp =
+      credential.extraInfo.getOrElse(TokenAuthenticationProvider.CLIENT_IP_PROPERTY, null)
     if (credential.token == VALID_TOKEN) {
       logInfo(s"Success log in of token: ${credential.token} with clientIp: $clientIp")
       new BasicPrincipal("user")
