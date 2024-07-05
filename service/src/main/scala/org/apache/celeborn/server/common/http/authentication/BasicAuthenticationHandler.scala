@@ -22,7 +22,7 @@ import java.util.Base64
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.authentication.{AnonymousAuthenticationProviderImpl, PasswdAuthenticationProvider}
+import org.apache.celeborn.common.authentication.{AnonymousAuthenticationProviderImpl, DefaultPasswordCredential, PasswdAuthenticationProvider}
 import org.apache.celeborn.common.authentication.HttpAuthSchemes._
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.HttpAuthUtils.{AUTHORIZATION_HEADER, WWW_AUTHENTICATE_HEADER}
@@ -86,7 +86,10 @@ class BasicAuthenticationHandler(providerClass: String) extends AuthenticationHa
         val Seq(user, password) = creds.toSeq.take(2)
         val passwdAuthenticationProvider = HttpAuthenticationFactory
           .getPasswordAuthenticationProvider(providerClass, conf)
-        authUser = passwdAuthenticationProvider.authenticate(user, password).getName
+        authUser = passwdAuthenticationProvider.authenticate(
+          DefaultPasswordCredential(
+            user,
+            password)).getName
         response.setStatus(HttpServletResponse.SC_OK)
       }
     }

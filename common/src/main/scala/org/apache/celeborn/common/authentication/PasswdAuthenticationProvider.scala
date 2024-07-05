@@ -23,15 +23,14 @@ trait PasswdAuthenticationProvider {
 
   /**
    * The authenticate method is called by the celeborn authentication layer
-   * to authenticate user & password for their requests.
-   * If a user is to be granted, return nothing/throw nothing.
-   * When a user is to be disallowed, throw an appropriate [[SecurityException]].
+   * to authenticate password credential for their requests.
+   * If a credential is to be granted, return nothing/throw nothing.
+   * When a credential is to be disallowed, throw an appropriate [[SecurityException]].
    *
-   * @param user     The username received over the connection request
-   * @param password The password received over the connection request
+   * @param credential The credential received over the connection request
    *
    * @throws SecurityException When a user is found to be invalid by the implementation
    */
   @throws[SecurityException]
-  def authenticate(user: String, password: String): Principal
+  def authenticate(credential: PasswordCredential): Principal
 }

@@ -17,6 +17,17 @@
 
 package org.apache.celeborn.common.authentication
 
+trait PasswordCredential {
+  def username: String
+  def password: String
+  def extraInfo: Map[String, String] = Map.empty
+}
+
+case class DefaultPasswordCredential(
+    username: String,
+    password: String,
+    override val extraInfo: Map[String, String] = Map.empty) extends PasswordCredential
+
 /**
  * The credential object that is passed to the token authentication provider.
  *

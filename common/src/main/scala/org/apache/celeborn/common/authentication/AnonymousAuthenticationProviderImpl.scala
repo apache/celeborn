@@ -21,9 +21,9 @@ import java.security.Principal
 
 class AnonymousAuthenticationProviderImpl extends PasswdAuthenticationProvider
   with TokenAuthenticationProvider {
-  override def authenticate(user: String, password: String): Principal = {
+  override def authenticate(credential: PasswordCredential): Principal = {
     // no-op authentication
-    new BasicPrincipal(user)
+    new BasicPrincipal(credential.username)
   }
 
   override def authenticate(credential: TokenCredential): Principal = {
