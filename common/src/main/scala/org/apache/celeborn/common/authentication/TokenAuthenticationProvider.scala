@@ -35,7 +35,3 @@ trait TokenAuthenticationProvider {
   @throws[SecurityException]
   def authenticate(credential: TokenCredential): Principal
 }
-
-object TokenAuthenticationProvider {
-  val CLIENT_IP_PROPERTY = "CLIENT_IP"
-}

@@ -25,6 +25,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.authentication.{AnonymousAuthenticationProviderImpl, DefaultPasswordCredential, PasswdAuthenticationProvider}
 import org.apache.celeborn.common.authentication.HttpAuthSchemes._
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.server.common.http.HttpAuthUtils
 import org.apache.celeborn.server.common.http.HttpAuthUtils.{AUTHORIZATION_HEADER, WWW_AUTHENTICATE_HEADER}
 
 class BasicAuthenticationHandler(providerClass: String) extends AuthenticationHandler with Logging {
@@ -89,7 +90,8 @@ class BasicAuthenticationHandler(providerClass: String) extends AuthenticationHa
         authUser = passwdAuthenticationProvider.authenticate(
           DefaultPasswordCredential(
             user,
-            password)).getName
+            password,
+            HttpAuthUtils.getAuthenticationExtraInfo)).getName
         response.setStatus(HttpServletResponse.SC_OK)
       }
     }

@@ -20,15 +20,17 @@ package org.apache.celeborn.server.common.http.authentication
 import java.security.Principal
 import javax.security.sasl.AuthenticationException
 
-import org.apache.celeborn.common.authentication.{BasicPrincipal, PasswdAuthenticationProvider, PasswordCredential}
+import org.apache.celeborn.common.authentication.{BasicPrincipal, CredentialUtils, PasswdAuthenticationProvider, PasswordCredential}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.authentication.UserDefinePasswordAuthenticationProviderImpl.VALID_PASSWORD
 
 class UserDefinePasswordAuthenticationProviderImpl
   extends PasswdAuthenticationProvider with Logging {
   override def authenticate(credential: PasswordCredential): Principal = {
+    val clientIp =
+      credential.extraInfo.getOrElse(CredentialUtils.CLIENT_IP_PROPERTY, null)
     if (credential.password == VALID_PASSWORD) {
-      logInfo(s"Success log in of user: ${credential.username}")
+      logInfo(s"Success log in of user: ${credential.username} with clientIp: $clientIp")
       new BasicPrincipal(credential.username)
     } else {
       throw new AuthenticationException("Username or password is not valid!")

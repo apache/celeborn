@@ -22,9 +22,10 @@ import java.util.Base64
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.authentication.{AnonymousAuthenticationProviderImpl, DefaultTokenCredential, TokenAuthenticationProvider}
+import org.apache.celeborn.common.authentication.{AnonymousAuthenticationProviderImpl, CredentialUtils, DefaultTokenCredential, TokenAuthenticationProvider}
 import org.apache.celeborn.common.authentication.HttpAuthSchemes._
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.server.common.http.HttpAuthUtils
 import org.apache.celeborn.server.common.http.HttpAuthUtils.{AUTHORIZATION_HEADER, WWW_AUTHENTICATE_HEADER}
 
 class BearerAuthenticationHandler(providerClass: String)
@@ -79,9 +80,7 @@ class BearerAuthenticationHandler(providerClass: String)
     } else {
       val credential = DefaultTokenCredential(
         new String(inputToken, StandardCharsets.UTF_8),
-        Map(TokenAuthenticationProvider.CLIENT_IP_PROPERTY -> Option(
-          AuthenticationFilter.HTTP_PROXY_HEADER_CLIENT_IP_ADDRESS.get()).getOrElse(
-          AuthenticationFilter.HTTP_CLIENT_IP_ADDRESS.get())))
+        HttpAuthUtils.getAuthenticationExtraInfo)
       principal = HttpAuthenticationFactory
         .getTokenAuthenticationProvider(providerClass, conf)
         .authenticate(credential).getName

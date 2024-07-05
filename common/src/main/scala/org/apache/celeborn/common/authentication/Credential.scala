@@ -36,3 +36,7 @@ trait TokenCredential {
 case class DefaultTokenCredential(
     token: String,
     override val extraInfo: Map[String, String] = Map.empty) extends TokenCredential
+
+object CredentialUtils {
+  val CLIENT_IP_PROPERTY = "clientIp"
+}

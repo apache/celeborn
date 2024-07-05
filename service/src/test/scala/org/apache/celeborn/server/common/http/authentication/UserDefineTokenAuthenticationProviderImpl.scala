@@ -20,14 +20,14 @@ package org.apache.celeborn.server.common.http.authentication
 import java.security.Principal
 import javax.security.sasl.AuthenticationException
 
-import org.apache.celeborn.common.authentication.{BasicPrincipal, TokenAuthenticationProvider, TokenCredential}
+import org.apache.celeborn.common.authentication.{BasicPrincipal, CredentialUtils, TokenAuthenticationProvider, TokenCredential}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.authentication.UserDefineTokenAuthenticationProviderImpl.VALID_TOKEN
 
 class UserDefineTokenAuthenticationProviderImpl extends TokenAuthenticationProvider with Logging {
   override def authenticate(credential: TokenCredential): Principal = {
     val clientIp =
-      credential.extraInfo.getOrElse(TokenAuthenticationProvider.CLIENT_IP_PROPERTY, null)
+      credential.extraInfo.getOrElse(CredentialUtils.CLIENT_IP_PROPERTY, null)
     if (credential.token == VALID_TOKEN) {
       logInfo(s"Success log in of token: ${credential.token} with clientIp: $clientIp")
       new BasicPrincipal("user")
