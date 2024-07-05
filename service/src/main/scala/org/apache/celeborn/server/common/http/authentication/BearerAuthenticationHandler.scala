@@ -22,7 +22,7 @@ import java.util.Base64
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.authentication.{AnonymousAuthenticationProviderImpl, CredentialUtils, DefaultTokenCredential, TokenAuthenticationProvider}
+import org.apache.celeborn.common.authentication.{AnonymousAuthenticationProviderImpl, Credential, DefaultTokenCredential, TokenAuthenticationProvider}
 import org.apache.celeborn.common.authentication.HttpAuthSchemes._
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.HttpAuthUtils

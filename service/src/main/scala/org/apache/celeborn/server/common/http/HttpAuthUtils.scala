@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.server.common.http
 
-import org.apache.celeborn.common.authentication.CredentialUtils
+import org.apache.celeborn.common.authentication.Credential
 import org.apache.celeborn.server.common.http.authentication.AuthenticationFilter
 
 object HttpAuthUtils {
@@ -27,7 +27,7 @@ object HttpAuthUtils {
   val AUTHORIZATION_HEADER = "Authorization"
 
   def getAuthenticationExtraInfo: Map[String, String] = {
-    Map(CredentialUtils.CLIENT_IP_PROPERTY ->
+    Map(Credential.CLIENT_IP_PROPERTY ->
       Option(
         AuthenticationFilter.HTTP_PROXY_HEADER_CLIENT_IP_ADDRESS.get()).getOrElse(
         AuthenticationFilter.HTTP_CLIENT_IP_ADDRESS.get()))
