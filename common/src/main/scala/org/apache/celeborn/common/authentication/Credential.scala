@@ -28,10 +28,11 @@ case class DefaultPasswordCredential(
     password: String,
     override val extraInfo: Map[String, String] = Map.empty) extends PasswordCredential
 
-/**
- * The credential object that is passed to the token authentication provider.
- *
- * @param token The token that is used for authentication
- * @param extraInfo The extraInfo that associated with the token
- */
-case class TokenCredential(token: String, extraInfo: Map[String, String] = Map.empty)
+trait TokenCredential {
+  def token: String
+  def extraInfo: Map[String, String] = Map.empty
+}
+
+case class DefaultTokenCredential(
+    token: String,
+    override val extraInfo: Map[String, String] = Map.empty) extends TokenCredential
