@@ -27,7 +27,7 @@ object HttpAuthUtils {
   val AUTHORIZATION_HEADER = "Authorization"
 
   def getCredentialExtraInfo: Map[String, String] = {
-    Map(Credential.CLIENT_IP_PROPERTY ->
+    Map(Credential.CLIENT_IP_KEY ->
       Option(
         AuthenticationFilter.HTTP_PROXY_HEADER_CLIENT_IP_ADDRESS.get()).getOrElse(
         AuthenticationFilter.HTTP_CLIENT_IP_ADDRESS.get()))
