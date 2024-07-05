@@ -26,7 +26,7 @@ class AnonymousAuthenticationProviderImpl extends PasswdAuthenticationProvider
     new BasicPrincipal(user)
   }
 
-  override def authenticate(credential: Credential): Principal = {
+  override def authenticate(credential: TokenCredential): Principal = {
     // no-op authentication
     new BasicPrincipal("anonymous")
   }

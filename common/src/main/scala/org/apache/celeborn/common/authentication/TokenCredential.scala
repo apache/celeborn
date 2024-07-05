@@ -23,4 +23,4 @@ package org.apache.celeborn.common.authentication
  * @param token The token that is used for authentication
  * @param props The properties that associated with the token
  */
-case class Credential(token: String, props: Map[String, String] = Map.empty)
+case class TokenCredential(token: String, props: Map[String, String] = Map.empty)
