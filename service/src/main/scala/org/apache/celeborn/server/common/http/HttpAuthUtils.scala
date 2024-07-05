@@ -26,7 +26,7 @@ object HttpAuthUtils {
   // HTTP header used by the client endpoint during an authentication sequence.
   val AUTHORIZATION_HEADER = "Authorization"
 
-  def getAuthenticationExtraInfo: Map[String, String] = {
+  def getCredentialExtraInfo: Map[String, String] = {
     Map(Credential.CLIENT_IP_PROPERTY ->
       Option(
         AuthenticationFilter.HTTP_PROXY_HEADER_CLIENT_IP_ADDRESS.get()).getOrElse(

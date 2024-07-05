@@ -91,7 +91,7 @@ class BasicAuthenticationHandler(providerClass: String) extends AuthenticationHa
           DefaultPasswordCredential(
             user,
             password,
-            HttpAuthUtils.getAuthenticationExtraInfo)).getName
+            HttpAuthUtils.getCredentialExtraInfo)).getName
         response.setStatus(HttpServletResponse.SC_OK)
       }
     }

@@ -80,7 +80,7 @@ class BearerAuthenticationHandler(providerClass: String)
     } else {
       val credential = DefaultTokenCredential(
         new String(inputToken, StandardCharsets.UTF_8),
-        HttpAuthUtils.getAuthenticationExtraInfo)
+        HttpAuthUtils.getCredentialExtraInfo)
       principal = HttpAuthenticationFactory
         .getTokenAuthenticationProvider(providerClass, conf)
         .authenticate(credential).getName
