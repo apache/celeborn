@@ -42,7 +42,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
 
   def createFile(
       partitionDataWriterContext: PartitionDataWriterContext,
-      overrideOrder: Option[List[String]] = null): CelebornFile = {
+      order: Option[List[String]] = createFileOrder): CelebornFile = {
     logDebug(
       s"create file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
     val location = partitionDataWriterContext.getPartitionLocation
@@ -84,14 +84,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
       }
     }
 
-    val tmpOrder =
-      if (overrideOrder != null) {
-        overrideOrder
-      } else {
-        createFileOrder
-      }
-
-    tmpOrder.foreach(lst => {
+    order.foreach(lst => {
       for (storageStr <- lst) {
         val storageInfoType = StorageInfo.fromStrToType(storageStr)
         val file = tryCreateFileByType(storageInfoType)
@@ -100,6 +93,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
         }
       }
     })
+
     throw new CelebornIOException(s"Create file failed for ${partitionDataWriterContext}")
   }
 }
