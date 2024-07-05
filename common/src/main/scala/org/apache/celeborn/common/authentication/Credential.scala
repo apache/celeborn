@@ -17,20 +17,26 @@
 
 package org.apache.celeborn.common.authentication
 
-import java.security.Principal
+trait PasswordCredential {
+  def username: String
+  def password: String
+  def extraInfo: Map[String, String] = Map.empty
+}
 
-trait PasswdAuthenticationProvider {
+case class DefaultPasswordCredential(
+    username: String,
+    password: String,
+    override val extraInfo: Map[String, String] = Map.empty) extends PasswordCredential
 
-  /**
-   * The authenticate method is called by the celeborn authentication layer
-   * to authenticate password credential for their requests.
-   * If a credential is to be granted, return nothing/throw nothing.
-   * When a credential is to be disallowed, throw an appropriate [[SecurityException]].
-   *
-   * @param credential The credential received over the connection request
-   *
-   * @throws SecurityException When a user is found to be invalid by the implementation
-   */
-  @throws[SecurityException]
-  def authenticate(credential: PasswordCredential): Principal
+trait TokenCredential {
+  def token: String
+  def extraInfo: Map[String, String] = Map.empty
+}
+
+case class DefaultTokenCredential(
+    token: String,
+    override val extraInfo: Map[String, String] = Map.empty) extends TokenCredential
+
+object Credential {
+  val CLIENT_IP_KEY = "clientIp"
 }
