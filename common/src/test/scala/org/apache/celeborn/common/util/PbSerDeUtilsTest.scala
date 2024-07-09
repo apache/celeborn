@@ -137,6 +137,17 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
         "filePath",
         StorageInfo.LOCAL_DISK_MASK),
       null)
+  val partitionLocationIPv6 =
+    // some random ipv6 address
+    new PartitionLocation(
+      2,
+      2,
+      "[2001:0db8:85a3:0000:0000:8a2e:0370:7334]",
+      30,
+      29,
+      28,
+      27,
+      PartitionLocation.Mode.PRIMARY)
 
   val workerResource = new WorkerResource()
   workerResource.put(
@@ -320,6 +331,16 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     val loc1 = rePb._1.get(0)
 
     assert(partitionLocation3 == loc1)
+  }
+
+  test("testPackedPartitionLocationPairIPv6") {
+    val pairPb = PbSerDeUtils.toPbPackedPartitionLocationsPair(
+      List(partitionLocationIPv6))
+    val rePb = PbSerDeUtils.fromPbPackedPartitionLocationsPair(pairPb)
+
+    val loc1 = rePb._1.get(0)
+
+    assert(partitionLocationIPv6 == loc1)
   }
 
   private def testSerializationPerformance(scale: Int): Unit = {
