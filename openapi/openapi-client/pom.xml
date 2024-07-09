@@ -29,10 +29,6 @@
   <packaging>jar</packaging>
   <name>Celeborn OpenApi Client</name>
 
-  <properties>
-    <junit.jupiter.version>5.10.3</junit.jupiter.version>
-  </properties>
-
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -44,13 +40,6 @@
         <groupId>com.fasterxml.jackson.datatype</groupId>
         <artifactId>jackson-datatype-jsr310</artifactId>
         <version>${jackson.version}</version>
-      </dependency>
-      <!-- test dependencies -->
-      <dependency>
-        <groupId>org.junit.jupiter</groupId>
-        <artifactId>junit-jupiter-api</artifactId>
-        <version>${junit.jupiter.version}</version>
-        <scope>test</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -96,11 +85,6 @@
       <groupId>org.glassfish.jersey.media</groupId>
       <artifactId>jersey-media-multipart</artifactId>
     </dependency>
-    <!-- test dependencies -->
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-    </dependency>
   </dependencies>
 
   <build>
@@ -125,8 +109,8 @@
               <modelPackage>org.apache.celeborn.rest.v1.master.model</modelPackage>
               <invokerPackage>org.apache.celeborn.rest.v1.master.invoker</invokerPackage>
               <generatorName>java</generatorName>
-              <generateApiTests>true</generateApiTests>
-              <generateModelTests>true</generateModelTests>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
               <groupId>${groupId}</groupId>
               <artifactId>${artifactId}</artifactId>
               <artifactVersion>${project.version}</artifactVersion>
@@ -166,8 +150,8 @@
               <modelPackage>org.apache.celeborn.rest.v1.worker.model</modelPackage>
               <invokerPackage>org.apache.celeborn.rest.v1.worker.invoker</invokerPackage>
               <generatorName>java</generatorName>
-              <generateApiTests>true</generateApiTests>
-              <generateModelTests>true</generateModelTests>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
               <groupId>${groupId}</groupId>
               <artifactId>${artifactId}</artifactId>
               <artifactVersion>${project.version}</artifactVersion>
@@ -208,18 +192,6 @@
             <configuration>
               <sources>
                 <source>${project.build.directory}/generated-sources/java/src/main/java</source>
-              </sources>
-            </configuration>
-          </execution>
-          <execution>
-            <id>add_test_sources</id>
-            <goals>
-              <goal>add-test-source</goal>
-            </goals>
-            <phase>generate-test-sources</phase>
-            <configuration>
-              <sources>
-                <source>${project.build.directory}/generated-sources/java/src/test/java</source>
               </sources>
             </configuration>
           </execution>

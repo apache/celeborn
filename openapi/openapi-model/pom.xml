@@ -93,6 +93,7 @@
               <artifactId>${artifactId}</artifactId>
               <artifactVersion>${project.version}</artifactVersion>
               <addCompileSourceRoot>false</addCompileSourceRoot>
+              <cleanupOutput>true</cleanupOutput>
               <skipValidateSpec>true</skipValidateSpec>
               <configOptions>
                 <licenseName>Apache License 2.0</licenseName>
