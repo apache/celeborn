@@ -593,11 +593,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       if (diskFileInfos.containsKey(shuffleKey)) {
         val removedFileInfos = diskFileInfos.remove(shuffleKey)
         var isDfsExpired = false
+        var isHdfs = false
         if (removedFileInfos != null) {
           removedFileInfos.asScala.foreach {
             case (_, fileInfo) =>
               if (cleanFileInternal(shuffleKey, fileInfo)) {
                 isDfsExpired = true
+                isHdfs = fileInfo.isHdfs
               }
           }
         }
@@ -612,8 +614,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         }
         if (isDfsExpired) {
           try {
-            val dir = if (hasHDFSStorage) hdfsDir else s3Dir
-            StorageManager.hadoopFs.get(StorageInfo.Type.HDFS).delete(
+            val dir = if (hasHDFSStorage && isHdfs) hdfsDir else s3Dir
+            val storageInfo = if (hasHDFSStorage && isHdfs) StorageInfo.Type.HDFS else StorageInfo.Type.S3
+            StorageManager.hadoopFs.get(storageInfo).delete(
               new Path(new Path(dir, conf.workerWorkingDir), s"$appId/$shuffleId"),
               true)
           } catch {
@@ -936,7 +939,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         null,
         null,
         null)
-    } else if (location.getStorageInfo.localDiskAvailable() || location.getStorageInfo.HDFSAvailable() || location.getStorageInfo.OSSAvailable()) {
+    } else if (location.getStorageInfo.localDiskAvailable() || location.getStorageInfo.HDFSAvailable() || location.getStorageInfo.S3Available()) {
       logDebug(s"create non-memory file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
       val createDiskFileResult = createDiskFile(
         location,
