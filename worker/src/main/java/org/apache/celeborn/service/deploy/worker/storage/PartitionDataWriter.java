@@ -668,4 +668,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   public MemoryFileInfo getMemoryFileInfo() {
     return memoryFileInfo;
   }
+
+  public UserBufferInfo getUserBufferInfo() {
+    return userBufferInfo;
+  }
 }

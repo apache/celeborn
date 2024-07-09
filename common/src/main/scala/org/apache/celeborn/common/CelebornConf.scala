@@ -1230,10 +1230,19 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // TODO related to `WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE`,
   // `WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE`and `WORKER_DIRECT_MEMORY_RATIO_RESUME`,
   // we'd better refine the logic among them
-  def workerCongestionControlLowWatermark: Option[Long] =
-    get(WORKER_CONGESTION_CONTROL_LOW_WATERMARK)
-  def workerCongestionControlHighWatermark: Option[Long] =
-    get(WORKER_CONGESTION_CONTROL_HIGH_WATERMARK)
+  def workerCongestionControlDiskBufferLowWatermark: Option[Long] =
+    get(WORKER_CONGESTION_CONTROL_DISK_BUFFER_LOW_WATERMARK)
+  def workerCongestionControlDiskBufferHighWatermark: Option[Long] =
+    get(WORKER_CONGESTION_CONTROL_DISK_BUFFER_HIGH_WATERMARK)
+  def workerCongestionControlUserProduceSpeedLowWatermark: Option[Long] =
+    get(WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_LOW_WATERMARK)
+  def workerCongestionControlUserProduceSpeedHighWatermark: Option[Long] =
+    get(WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_HIGH_WATERMARK)
+  def workerCongestionControlWorkerProduceSpeedLowWatermark: Option[Long] =
+    get(WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK)
+  def workerCongestionControlWorkerProduceSpeedHighWatermark: Option[Long] =
+    get(WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_HIGH_WATERMARK)
+
   def workerCongestionControlUserInactiveIntervalMs: Long =
     get(WORKER_CONGESTION_CONTROL_USER_INACTIVE_INTERVAL)
   def workerCongestionControlCheckIntervalMs: Long = get(WORKER_CONGESTION_CONTROL_CHECK_INTERVAL)
@@ -3466,8 +3475,9 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10s")
 
-  val WORKER_CONGESTION_CONTROL_LOW_WATERMARK: OptionalConfigEntry[Long] =
-    buildConf("celeborn.worker.congestionControl.low.watermark")
+  val WORKER_CONGESTION_CONTROL_DISK_BUFFER_LOW_WATERMARK: OptionalConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.diskBuffer.low.watermark")
+      .withAlternative("celeborn.worker.congestionControl.low.watermark")
       .categories("worker")
       .doc("Will stop congest users if the total pending bytes of disk buffer is lower than " +
         "this configuration")
@@ -3475,15 +3485,50 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createOptional
 
-  val WORKER_CONGESTION_CONTROL_HIGH_WATERMARK: OptionalConfigEntry[Long] =
-    buildConf("celeborn.worker.congestionControl.high.watermark")
+  val WORKER_CONGESTION_CONTROL_DISK_BUFFER_HIGH_WATERMARK: OptionalConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.diskBuffer.high.watermark")
+      .withAlternative("celeborn.worker.congestionControl.high.watermark")
       .categories("worker")
       .doc("If the total bytes in disk buffer exceeds this configure, will start to congest" +
         "users whose produce rate is higher than the potential average consume rate. " +
         "The congestion will stop if the produce rate is lower or equal to the " +
         "average consume rate, or the total pending bytes lower than " +
-        s"${WORKER_CONGESTION_CONTROL_LOW_WATERMARK.key}")
+        s"${WORKER_CONGESTION_CONTROL_DISK_BUFFER_LOW_WATERMARK.key}")
       .version("0.3.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
+
+  val WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_LOW_WATERMARK: OptionalConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.userProduceSpeed.low.watermark")
+      .categories("worker")
+      .doc("For those users that produce byte speeds less than this configuration, " +
+        "stop congestion for these users")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
+
+  val WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_HIGH_WATERMARK: OptionalConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.userProduceSpeed.high.watermark")
+      .categories("worker")
+      .doc("For those users that produce byte speeds greater than this configuration, " +
+        "start congestion for these users")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
+
+  val WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK: OptionalConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.workerProduceSpeed.low.watermark")
+      .categories("worker")
+      .doc("Stop congestion If worker total produce speed less than this configuration")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
+
+  val WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_HIGH_WATERMARK: OptionalConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.workerProduceSpeed.high.watermark")
+      .categories("worker")
+      .doc("Start congestion If worker total produce speed greater than this configuration")
+      .version("0.6.0")
       .bytesConf(ByteUnit.BYTE)
       .createOptional
 

@@ -40,7 +40,16 @@ public class TestCongestionController {
     // Make sampleTimeWindow a bit larger in case the tests run time exceed this window.
     controller =
         new CongestionController(
-            source, 10, 1000, 500, userInactiveTimeMills, checkIntervalTimeMills) {
+            source,
+            10,
+            1000,
+            500,
+            20000,
+            10000,
+            20000,
+            10000,
+            userInactiveTimeMills,
+            checkIntervalTimeMills) {
           @Override
           public long getTotalPendingBytes() {
             return pendingBytes;
@@ -63,17 +72,18 @@ public class TestCongestionController {
   public void testSingleUser() {
     UserIdentifier userIdentifier = new UserIdentifier("test", "celeborn");
 
-    Assert.assertFalse(controller.isUserCongested(userIdentifier));
+    UserBufferInfo userBufferInfo = controller.getUserBuffer(userIdentifier);
+    Assert.assertFalse(controller.isUserCongested(userIdentifier, userBufferInfo));
 
-    produceBytes(userIdentifier, 1001);
+    produceBytes(controller, userIdentifier, 1001);
     pendingBytes = 1001;
     controller.checkCongestion();
-    Assert.assertTrue(controller.isUserCongested(userIdentifier));
+    Assert.assertTrue(controller.isUserCongested(userIdentifier, userBufferInfo));
 
     controller.consumeBytes(1001);
     pendingBytes = 0;
     controller.checkCongestion();
-    Assert.assertFalse(controller.isUserCongested(userIdentifier));
+    Assert.assertFalse(controller.isUserCongested(userIdentifier, userBufferInfo));
   }
 
   @Test
@@ -81,41 +91,46 @@ public class TestCongestionController {
     UserIdentifier user1 = new UserIdentifier("test", "celeborn");
     UserIdentifier user2 = new UserIdentifier("test", "spark");
 
+    UserBufferInfo userBufferInfo1 = controller.getUserBuffer(user1);
+    UserBufferInfo userBufferInfo2 = controller.getUserBuffer(user2);
+
     // Both users should not be congested at first
-    Assert.assertFalse(controller.isUserCongested(user1));
-    Assert.assertFalse(controller.isUserCongested(user2));
+    Assert.assertFalse(controller.isUserCongested(user1, userBufferInfo1));
+    Assert.assertFalse(controller.isUserCongested(user2, userBufferInfo2));
 
     // If pendingBytes exceed the high watermark, user1 produce speed > avg consume speed
     // While user2 produce speed < avg consume speed
-    produceBytes(user1, 800);
-    produceBytes(user2, 201);
+    produceBytes(controller, user1, 800);
+    produceBytes(controller, user2, 201);
     controller.consumeBytes(500);
     pendingBytes = 1001;
     controller.checkCongestion();
-    Assert.assertTrue(controller.isUserCongested(user1));
-    Assert.assertFalse(controller.isUserCongested(user2));
+    Assert.assertTrue(controller.isUserCongested(user1, userBufferInfo1));
+    Assert.assertFalse(controller.isUserCongested(user2, userBufferInfo2));
 
     // If both users higher than the avg consume speed, should congest them all.
-    produceBytes(user1, 800);
-    produceBytes(user2, 800);
+    produceBytes(controller, user1, 800);
+    produceBytes(controller, user2, 800);
     controller.consumeBytes(500);
     pendingBytes = 1600;
     controller.checkCongestion();
-    Assert.assertTrue(controller.isUserCongested(user1));
-    Assert.assertTrue(controller.isUserCongested(user2));
+    Assert.assertTrue(controller.isUserCongested(user1, userBufferInfo1));
+    Assert.assertTrue(controller.isUserCongested(user2, userBufferInfo2));
 
     // If pending bytes lower than the low watermark, should don't congest all users.
     pendingBytes = 0;
     controller.checkCongestion();
-    Assert.assertFalse(controller.isUserCongested(user1));
-    Assert.assertFalse(controller.isUserCongested(user2));
+    Assert.assertFalse(controller.isUserCongested(user1, userBufferInfo1));
+    Assert.assertFalse(controller.isUserCongested(user2, userBufferInfo2));
   }
 
   @Test
   public void testUserMetrics() throws InterruptedException {
     UserIdentifier user = new UserIdentifier("test", "celeborn");
-    Assert.assertFalse(controller.isUserCongested(user));
-    produceBytes(user, 800);
+    UserBufferInfo userBufferInfo = controller.getUserBuffer(user);
+
+    Assert.assertFalse(controller.isUserCongested(user, userBufferInfo));
+    produceBytes(controller, user, 800);
 
     Assert.assertTrue(source.gaugeExists(WorkerSource.USER_PRODUCE_SPEED(), user.toMap()));
 
@@ -124,9 +139,73 @@ public class TestCongestionController {
     Assert.assertFalse(source.gaugeExists(WorkerSource.USER_PRODUCE_SPEED(), user.toMap()));
   }
 
-  private void produceBytes(UserIdentifier userIdentifier, long numBytes) {
+  public void produceBytes(
+      CongestionController controller, UserIdentifier userIdentifier, long numBytes) {
     controller
         .getUserBuffer(userIdentifier)
         .updateInfo(System.currentTimeMillis(), new BufferStatusHub.BufferStatusNode(numBytes));
+  }
+
+  @Test
+  public void testTrafficQuota() throws InterruptedException {
+    CongestionController controller1 =
+        new CongestionController(
+            source,
+            10,
+            1000,
+            500,
+            500,
+            400,
+            1200,
+            1000,
+            userInactiveTimeMills,
+            checkIntervalTimeMills) {
+          @Override
+          public long getTotalPendingBytes() {
+            return 0;
+          }
+
+          @Override
+          public void trimMemoryUsage() {
+            // No op
+          }
+        };
+
+    UserIdentifier user1 = new UserIdentifier("test1", "celeborn");
+    UserBufferInfo userBufferInfo1 = controller1.getUserBuffer(user1);
+    Assert.assertFalse(controller1.isUserCongested(user1, userBufferInfo1));
+    produceBytes(controller1, user1, 600);
+    controller1.consumeBytes(600);
+    Assert.assertTrue(controller1.isUserCongested(user1, userBufferInfo1));
+    Thread.sleep(1001);
+    produceBytes(controller1, user1, 400);
+    Assert.assertFalse(controller1.isUserCongested(user1, userBufferInfo1));
+
+    UserIdentifier user2 = new UserIdentifier("test2", "celeborn");
+    UserBufferInfo userBufferInfo2 = controller1.getUserBuffer(user2);
+    Assert.assertFalse(controller1.isUserCongested(user2, userBufferInfo2));
+    produceBytes(controller1, user2, 400);
+    Assert.assertFalse(controller1.isUserCongested(user2, userBufferInfo2));
+
+    UserIdentifier user3 = new UserIdentifier("test3", "celeborn");
+    UserBufferInfo userBufferInfo3 = controller1.getUserBuffer(user3);
+    Assert.assertFalse(controller1.isUserCongested(user3, userBufferInfo3));
+    produceBytes(controller1, user3, 400);
+    Assert.assertFalse(controller1.isUserCongested(user3, userBufferInfo3));
+
+    controller1.consumeBytes(2000);
+    controller1.checkCongestion();
+    Assert.assertTrue(controller1.isUserCongested(user1, userBufferInfo1));
+    Assert.assertFalse(controller1.isUserCongested(user2, userBufferInfo2));
+    Assert.assertFalse(controller1.isUserCongested(user3, userBufferInfo3));
+
+    Thread.sleep(1001);
+    produceBytes(controller1, user2, 50);
+    produceBytes(controller1, user3, 50);
+    controller1.consumeBytes(100);
+    controller1.checkCongestion();
+    Assert.assertFalse(controller1.isUserCongested(user1, userBufferInfo1));
+    Assert.assertFalse(controller1.isUserCongested(user2, userBufferInfo2));
+    Assert.assertFalse(controller1.isUserCongested(user3, userBufferInfo3));
   }
 }
