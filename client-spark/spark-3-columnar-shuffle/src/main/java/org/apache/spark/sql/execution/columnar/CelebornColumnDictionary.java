@@ -24,6 +24,8 @@ import org.apache.spark.sql.execution.vectorized.Dictionary;
 public class CelebornColumnDictionary implements Dictionary {
   private int[] intDictionary;
   private long[] longDictionary;
+  private float[] floatDictionary;
+  private double[] doubleDictionary;
   private String[] stringDictionary;
 
   public CelebornColumnDictionary(int[] dictionary) {
@@ -32,6 +34,14 @@ public class CelebornColumnDictionary implements Dictionary {
 
   public CelebornColumnDictionary(long[] dictionary) {
     this.longDictionary = dictionary;
+  }
+
+  public CelebornColumnDictionary(float[] dictionary) {
+    this.floatDictionary = dictionary;
+  }
+
+  public CelebornColumnDictionary(double[] dictionary) {
+    this.doubleDictionary = dictionary;
   }
 
   public CelebornColumnDictionary(String[] dictionary) {
@@ -50,12 +60,12 @@ public class CelebornColumnDictionary implements Dictionary {
 
   @Override
   public float decodeToFloat(int id) {
-    throw new UnsupportedOperationException("Dictionary encoding does not support float");
+    return floatDictionary[id];
   }
 
   @Override
   public double decodeToDouble(int id) {
-    throw new UnsupportedOperationException("Dictionary encoding does not support double");
+    return doubleDictionary[id];
   }
 
   @Override
