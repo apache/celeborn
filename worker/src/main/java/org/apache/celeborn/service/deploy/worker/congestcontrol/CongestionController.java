@@ -167,8 +167,17 @@ public class CongestionController {
     } else if (userCongestionFlags.containsKey(userIdentifier)) {
       if (userProduceSpeed < userProduceSpeedLowWatermark) {
         userCongestionFlags.remove(userIdentifier);
+        logger.debug(
+            "The user {} produceSpeed is lower than low watermark {}, exit congestion control.",
+            userIdentifier,
+            userProduceSpeedLowWatermark);
         return false;
       } else {
+        logger.debug(
+            "The user {} produceSpeed is {} >= low watermark {}, still need to congest it.",
+            userIdentifier,
+            userProduceSpeed,
+            userProduceSpeedLowWatermark);
         return true;
       }
     } else if (userProduceSpeed > userProduceSpeedHighWatermark) {
