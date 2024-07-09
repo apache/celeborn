@@ -17,13 +17,8 @@
 
 package org.apache.celeborn.service.deploy.worker.http.api.v1
 
-import javax.ws.rs.{Path, POST}
-import javax.ws.rs.core.MediaType
+import javax.ws.rs.Path
 
-import io.swagger.v3.oas.annotations.media.{Content, Schema}
-import io.swagger.v3.oas.annotations.responses.ApiResponse
-
-import org.apache.celeborn.rest.v1.model.{HandleResponse, WorkerExitRequest}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 
 @Path("/api/v1")
@@ -36,20 +31,4 @@ class ApiV1WorkerResource extends ApiRequestContext {
 
   @Path("workers")
   def workers: Class[WorkerResource] = classOf[WorkerResource]
-
-  @ApiResponse(
-    responseCode = "200",
-    content = Array(new Content(
-      mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(
-        implementation = classOf[HandleResponse]))),
-    description =
-      "Trigger this worker to exit. Legal exit types are 'Decommission', 'Graceful' and 'Immediately'.")
-  @POST
-  @Path("exit")
-  def exit(request: WorkerExitRequest): HandleResponse = {
-    new HandleResponse()
-      .success(true)
-      .message(httpService.exit(request.getType.toString))
-  }
 }

@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker.http.api.v1
 
-import javax.ws.rs.{Consumes, GET, Path, Produces}
+import javax.ws.rs.{Consumes, GET, Path, POST, Produces}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
@@ -26,7 +26,7 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 
-import org.apache.celeborn.rest.v1.model.{UnAvailablePeersResponse, WorkerInfoResponse, WorkerTimestampData}
+import org.apache.celeborn.rest.v1.model.{HandleResponse, UnAvailablePeersResponse, WorkerExitRequest, WorkerInfoResponse, WorkerTimestampData}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.server.common.http.api.v1.ApiUtils
 import org.apache.celeborn.service.deploy.worker.Worker
@@ -68,6 +68,21 @@ class WorkerResource extends ApiRequestContext {
         worker.unavailablePeers.asScala.map { case (worker, lastTimeout) =>
           new WorkerTimestampData().worker(ApiUtils.workerData(worker)).timestamp(lastTimeout)
         }.toSeq.asJava)
+  }
 
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(
+        implementation = classOf[HandleResponse]))),
+    description =
+      "Trigger this worker to exit. Legal exit types are 'Decommission', 'Graceful' and 'Immediately'.")
+  @POST
+  @Path("exit")
+  def exit(request: WorkerExitRequest): HandleResponse = {
+    new HandleResponse()
+      .success(true)
+      .message(httpService.exit(request.getType.toString))
   }
 }

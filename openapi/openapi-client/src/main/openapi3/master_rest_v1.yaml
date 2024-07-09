@@ -174,7 +174,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WorkerEventData'
+                $ref: '#/components/schemas/WorkerEventsResponse'
     post:
       tags:
         - Worker
