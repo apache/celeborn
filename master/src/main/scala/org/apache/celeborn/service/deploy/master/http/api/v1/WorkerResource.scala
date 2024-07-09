@@ -54,6 +54,8 @@ class WorkerResource extends ApiRequestContext {
       .excludedWorkers(
         (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala)
           .map(ApiUtils.workerData).toSeq.asJava)
+      .manualExcludedWorkers(statusSystem.manuallyExcludedWorkers.asScala.map(
+        ApiUtils.workerData).toSeq.asJava)
       .shutdownWorkers(statusSystem.decommissionWorkers.asScala.map(
         ApiUtils.workerData).toSeq.asJava)
       .decommissioningWorkers(statusSystem.decommissionWorkers.asScala.map(

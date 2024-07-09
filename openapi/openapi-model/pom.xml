@@ -27,7 +27,7 @@
 
   <artifactId>celeborn-openapi-model_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Open API</name>
+  <name>Celeborn OpenApi Model</name>
 
   <dependencies>
     <dependency>

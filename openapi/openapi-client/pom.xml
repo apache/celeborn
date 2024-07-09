@@ -27,7 +27,7 @@
 
   <artifactId>celeborn-openapi-client_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Open API</name>
+  <name>Celeborn OpenApi Client</name>
 
   <properties>
     <junit.jupiter.version>5.10.3</junit.jupiter.version>
