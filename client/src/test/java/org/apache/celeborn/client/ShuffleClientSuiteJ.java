@@ -36,6 +36,7 @@ import org.junit.Test;
 
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
@@ -167,7 +168,69 @@ public class ShuffleClientSuiteJ {
     }
   }
 
+  @Test
+  public void testRegisterShuffleFailed() throws IOException, InterruptedException {
+    setupEnv(CompressionCodec.NONE, StatusCode.SLOT_NOT_AVAILABLE);
+    try {
+      shuffleClient.pushData(
+          TEST_SHUFFLE_ID,
+          TEST_ATTEMPT_ID,
+          TEST_ATTEMPT_ID,
+          TEST_REDUCRE_ID,
+          TEST_BUF1,
+          0,
+          TEST_BUF1.length,
+          1,
+          1);
+      assert false;
+    } catch (CelebornIOException e) {
+      assert e.getMessage()
+          .contains("Register shuffle failed for shuffle 1, reason: SLOT_NOT_AVAILABLE");
+    }
+
+    setupEnv(CompressionCodec.NONE, StatusCode.RESERVE_SLOTS_FAILED);
+    try {
+      shuffleClient.pushData(
+          TEST_SHUFFLE_ID,
+          TEST_ATTEMPT_ID,
+          TEST_ATTEMPT_ID,
+          TEST_REDUCRE_ID,
+          TEST_BUF1,
+          0,
+          TEST_BUF1.length,
+          1,
+          1);
+      assert false;
+    } catch (CelebornIOException e) {
+      assert e.getMessage()
+          .contains("Register shuffle failed for shuffle 1, reason: RESERVE_SLOTS_FAILED");
+    }
+
+    setupEnv(CompressionCodec.NONE, StatusCode.REQUEST_FAILED);
+    try {
+      shuffleClient.pushData(
+          TEST_SHUFFLE_ID,
+          TEST_ATTEMPT_ID,
+          TEST_ATTEMPT_ID,
+          TEST_REDUCRE_ID,
+          TEST_BUF1,
+          0,
+          TEST_BUF1.length,
+          1,
+          1);
+      assert false;
+    } catch (CelebornIOException e) {
+      assert e.getMessage()
+          .contains("Register shuffle failed for shuffle 1, reason: REQUEST_FAILED");
+    }
+  }
+
   private CelebornConf setupEnv(CompressionCodec codec) throws IOException, InterruptedException {
+    return setupEnv(codec, StatusCode.SUCCESS);
+  }
+
+  private CelebornConf setupEnv(CompressionCodec codec, StatusCode statusCode)
+      throws IOException, InterruptedException {
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.SHUFFLE_COMPRESSION_CODEC().key(), codec.name());
     conf.set(CelebornConf.CLIENT_PUSH_RETRY_THREADS().key(), "1");
@@ -180,7 +243,7 @@ public class ShuffleClientSuiteJ {
         .thenAnswer(
             t ->
                 RegisterShuffleResponse$.MODULE$.apply(
-                    StatusCode.SUCCESS, new PartitionLocation[] {primaryLocation}));
+                    statusCode, new PartitionLocation[] {primaryLocation}));
 
     shuffleClient.setupLifecycleManagerRef(endpointRef);
 
