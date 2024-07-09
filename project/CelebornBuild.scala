@@ -76,7 +76,7 @@ object Dependencies {
   val jettyVersion = "9.4.52.v20230823"
   val jakartaServeletApiVersion = "4.0.4"
   val openApiToolsJacksonBindNullableVersion = "0.2.6"
-  val swagger1Version = "1.6.11"
+  val openApiToolsSwaggerVersion = "1.6.11"
 
   // For SSL support
   val bouncycastleVersion = "1.77"
@@ -170,8 +170,8 @@ object Dependencies {
     ExclusionRule("jakarta.activation", "jakarta.activation-api"))
   val swaggerUi = "org.webjars" % "swagger-ui" % swaggerUiVersion
   val openApiToolsJacksonBindNullable = "org.openapitools" % "jackson-databind-nullable" % openApiToolsJacksonBindNullableVersion
-  val swaggerAnnotations = "io.swagger" % "swagger-annotations" % swagger1Version
-  val swaggerModels = "io.swagger" % "swagger-models" % swagger1Version
+  val openApiToolsSwaggerAnnotations = "io.swagger" % "swagger-annotations" % openApiToolsSwaggerVersion
+  val openApiToolsSwaggerModels = "io.swagger" % "swagger-models" % openApiToolsSwaggerVersion
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html
@@ -1282,8 +1282,8 @@ object CelebornOpenApi {
     .settings(
       commonSettings,
       libraryDependencies ++= Seq(
-        Dependencies.swaggerAnnotations,
-        Dependencies.swaggerModels,
+        Dependencies.openApiToolsSwaggerAnnotations,
+        Dependencies.openApiToolsSwaggerModels,
         Dependencies.openApiToolsJacksonBindNullable,
         Dependencies.findbugsJsr305,
         Dependencies.jerseyMediaJsonJackson,
@@ -1292,7 +1292,7 @@ object CelebornOpenApi {
         Dependencies.jerseyMediaMultipart
       ),
       Compile / sourceGenerators += Def.task {
-        (file(openApiModelOutputDir)/ "/src/main/java/org/apache/celeborn/rest/v1/model").listFiles().toSeq
+        (file(openApiModelOutputDir) / "/src/main/java/org/apache/celeborn/rest/v1/model").listFiles().toSeq
       }.dependsOn(
         openapiInternalMasterModel / Compile / openApiGenerate,
         openapiInternalWorkerModel / Compile / openApiGenerate
