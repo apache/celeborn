@@ -20,9 +20,9 @@ package org.apache.celeborn.service.deploy.worker.http.api.v1
 import javax.servlet.http.HttpServletResponse
 import javax.ws.rs.core.MediaType
 
+import org.apache.celeborn.rest.v1.model.{AppDiskUsagesResponse, ApplicationsResponse, ShufflePartitionsResponse, ShufflesResponse, UnAvailablePeersResponse, WorkerInfoResponse}
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.api.v1.ApiV1BaseResourceSuite
-import org.apache.celeborn.server.common.http.v1.model.{AppDiskUsagesResponse, ApplicationsResponse, ShufflePartitionsResponse, ShufflesResponse, UnAvailablePeersResponse, WorkerInfoResponse}
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.worker.Worker
 

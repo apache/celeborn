@@ -26,9 +26,9 @@ import com.google.common.io.Files
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
+import org.apache.celeborn.rest.v1.model.{AppDiskUsageSnapshotsResponse, ApplicationsResponse, ExcludeWorkerRequest, HandleResponse, HostnamesResponse, SendWorkerEventRequest, ShufflesResponse, WorkerEventsResponse, WorkerId, WorkersResponse}
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.api.v1.ApiV1BaseResourceSuite
-import org.apache.celeborn.server.common.http.v1.model.{AppDiskUsageSnapshotsResponse, ApplicationsResponse, ExcludeWorkerRequest, HandleResponse, HostnamesResponse, SendWorkerEventRequest, ShufflesResponse, WorkerEventsResponse, WorkerId, WorkersResponse}
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 
 class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite {

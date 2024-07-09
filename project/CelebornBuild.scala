@@ -23,6 +23,8 @@ import scala.util.Properties
 import scala.xml._
 import scala.xml.transform._
 
+import org.openapitools.generator.sbt.plugin.OpenApiGeneratorPlugin
+import org.openapitools.generator.sbt.plugin.OpenApiGeneratorPlugin.autoImport._
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtprotoc.ProtocPlugin.autoImport._
 
@@ -74,6 +76,7 @@ object Dependencies {
   val jettyVersion = "9.4.52.v20230823"
   val jakartaServeletApiVersion = "4.0.4"
   val openApiToolsJacksonBindNullableVersion = "0.2.6"
+  val swagger1Version = "1.6.11"
 
   // For SSL support
   val bouncycastleVersion = "1.77"
@@ -167,6 +170,8 @@ object Dependencies {
     ExclusionRule("jakarta.activation", "jakarta.activation-api"))
   val swaggerUi = "org.webjars" % "swagger-ui" % swaggerUiVersion
   val openApiToolsJacksonBindNullable = "org.openapitools" % "jackson-databind-nullable" % openApiToolsJacksonBindNullableVersion
+  val swaggerAnnotations = "io.swagger" % "swagger-annotations" % swagger1Version
+  val swaggerModels = "io.swagger" % "swagger-models" % swagger1Version
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html
@@ -329,6 +334,9 @@ object CelebornCommonSettings {
 object CelebornBuild extends sbt.internal.BuildDef {
   override def projectDefinitions(baseDirectory: File): Seq[Project] = {
     Seq(
+      CelebornOpenApi.openapiInternalMasterModel,
+      CelebornOpenApi.openapiInternalWorkerModel,
+      CelebornOpenApi.openapiModel,
       CelebornCommon.common,
       CelebornClient.client,
       CelebornService.service,
@@ -505,6 +513,7 @@ object CelebornClient {
 object CelebornService {
   lazy val service = Project("celeborn-service", file("service"))
     .dependsOn(CelebornCommon.common % "test->test;compile->compile")
+    .dependsOn(CelebornOpenApi.openapiModel)
     .settings (
       commonSettings,
       libraryDependencies ++= Seq(
@@ -1233,4 +1242,60 @@ object MRClientProjects {
       (Test / compile).value
     }
   )
+}
+
+object CelebornOpenApi {
+  val openApiSpecDir = "openapi/openapi-client/src/main/openapi3"
+  val openApiModelOutputDir = "openapi/openapi-model/target/generated-sources/java"
+
+  lazy val openapiInternalMasterModel = Project("celeborn-openapi-master-model", file("openapi/openapi-model/target/master"))
+    .enablePlugins(OpenApiGeneratorPlugin)
+    .settings(
+      commonSettings,
+      openApiInputSpec := (file(openApiSpecDir) / "master_rest_v1.yaml").toString,
+      openApiGeneratorName := "java",
+      openApiOutputDir := openApiModelOutputDir,
+      openApiModelPackage := "org.apache.celeborn.rest.v1.model",
+      openApiGenerateApiTests := SettingDisabled,
+      openApiGenerateModelTests := SettingDisabled,
+      openApiAdditionalProperties := Map("library" -> "jersey2", "annotationLibrary" -> "swagger1"),
+      openApiGlobalProperties := Map("models" -> "", "supportingFiles" -> "false", "apis" -> "false"),
+    )
+
+  lazy val openapiInternalWorkerModel = Project("celeborn-openapi-worker-model", file("openapi/openapi-model/target/worker"))
+    .enablePlugins(OpenApiGeneratorPlugin)
+    .settings(
+      commonSettings,
+      openApiInputSpec := (file(openApiSpecDir) / "worker_rest_v1.yaml").toString,
+      openApiGeneratorName := "java",
+      openApiOutputDir := openApiModelOutputDir,
+      openApiModelPackage := "org.apache.celeborn.rest.v1.model",
+      openApiGenerateApiTests := SettingDisabled,
+      openApiGenerateModelTests := SettingDisabled,
+      openApiAdditionalProperties := Map("library" -> "jersey2", "annotationLibrary" -> "swagger1"),
+      openApiGlobalProperties := Map("models" -> "", "supportingFiles" -> "false", "apis" -> "false"),
+    )
+
+  lazy val openapiModel = Project("celeborn-openapi-model", file("openapi/openapi-model"))
+    .enablePlugins(OpenApiGeneratorPlugin)
+    .dependsOn(openapiInternalMasterModel, openapiInternalWorkerModel)
+    .settings(
+      commonSettings,
+      libraryDependencies ++= Seq(
+        Dependencies.swaggerAnnotations,
+        Dependencies.swaggerModels,
+        Dependencies.openApiToolsJacksonBindNullable,
+        Dependencies.findbugsJsr305,
+        Dependencies.jerseyMediaJsonJackson,
+        Dependencies.jacksonAnnotations,
+        Dependencies.jacksonDatabind,
+        Dependencies.jerseyMediaMultipart
+      ),
+      Compile / sourceGenerators += Def.task {
+        (file(openApiModelOutputDir)/ "/src/main/java/org/apache/celeborn/rest/v1/model").listFiles().toSeq
+      }.dependsOn(
+        openapiInternalMasterModel / Compile / openApiGenerate,
+        openapiInternalWorkerModel / Compile / openApiGenerate
+      )
+    )
 }

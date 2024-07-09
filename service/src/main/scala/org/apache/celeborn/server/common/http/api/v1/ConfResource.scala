@@ -29,9 +29,9 @@ import org.apache.commons.lang3.StringUtils
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.rest.v1.model.{ConfigData, ConfResponse, DynamicConfig, DynamicConfigResponse}
+import org.apache.celeborn.rest.v1.model.DynamicConfig.LevelEnum
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
-import org.apache.celeborn.server.common.http.v1.model.{ConfigData, ConfResponse, DynamicConfig, DynamicConfigResponse}
-import org.apache.celeborn.server.common.http.v1.model.DynamicConfig.LevelEnum
 import org.apache.celeborn.server.common.service.config.ConfigLevel
 
 @Tag(name = "Conf")

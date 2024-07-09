@@ -27,8 +27,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 
 import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.rest.v1.model.{AppDiskUsageData, AppDiskUsagesResponse, ApplicationsResponse}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
-import org.apache.celeborn.server.common.http.v1.model.{AppDiskUsageData, AppDiskUsagesResponse, ApplicationsResponse}
 import org.apache.celeborn.service.deploy.worker.Worker
 
 @Tag(name = "Application")

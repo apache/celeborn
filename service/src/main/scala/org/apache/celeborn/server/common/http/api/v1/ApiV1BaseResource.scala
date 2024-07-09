@@ -26,8 +26,8 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 
 import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.rest.v1.model.{ThreadStack, ThreadStackResponse}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
-import org.apache.celeborn.server.common.http.v1.model.{ThreadStack, ThreadStackResponse}
 
 @Path("/api/v1")
 class ApiV1BaseResource extends ApiRequestContext {

@@ -24,8 +24,8 @@ import scala.collection.JavaConverters._
 import org.apache.celeborn.common.meta.{WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.protocol.{PartitionLocation, StorageInfo}
 import org.apache.celeborn.common.protocol.PbWorkerStatus.State
-import org.apache.celeborn.server.common.http.v1.model._
-import org.apache.celeborn.server.common.http.v1.model.PartitionLocationData.{ModeEnum, StorageEnum}
+import org.apache.celeborn.rest.v1.model._
+import org.apache.celeborn.rest.v1.model.PartitionLocationData.{ModeEnum, StorageEnum}
 
 object ApiUtils {
   def workerData(workerInfo: WorkerInfo): WorkerData = {

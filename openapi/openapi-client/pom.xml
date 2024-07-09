@@ -22,17 +22,12 @@
     <groupId>org.apache.celeborn</groupId>
     <artifactId>celeborn-parent_${scala.binary.version}</artifactId>
     <version>${project.version}</version>
-    <relativePath>../pom.xml</relativePath>
+    <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-openapi_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-openapi-client_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
   <name>Celeborn Open API</name>
-
-  <properties>
-    <project.service.baseDir>${project.basedir}/../service</project.service.baseDir>
-    <junit.jupiter.version>5.10.3</junit.jupiter.version>
-  </properties>
 
   <dependencyManagement>
     <dependencies>
@@ -46,17 +41,18 @@
         <artifactId>jackson-datatype-jsr310</artifactId>
         <version>${jackson.version}</version>
       </dependency>
-      <!-- test dependencies -->
-      <dependency>
-        <groupId>org.junit.jupiter</groupId>
-        <artifactId>junit-jupiter-api</artifactId>
-        <version>${junit.jupiter.version}</version>
-        <scope>test</scope>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 
   <dependencies>
+    <dependency>
+      <groupId>io.swagger</groupId>
+      <artifactId>swagger-annotations</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.swagger</groupId>
+      <artifactId>swagger-models</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.openapitools</groupId>
       <artifactId>jackson-databind-nullable</artifactId>
@@ -89,11 +85,6 @@
       <groupId>org.glassfish.jersey.media</groupId>
       <artifactId>jersey-media-multipart</artifactId>
     </dependency>
-    <!-- test dependencies -->
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-    </dependency>
   </dependencies>
 
   <build>
@@ -118,8 +109,8 @@
               <modelPackage>org.apache.celeborn.rest.v1.master.model</modelPackage>
               <invokerPackage>org.apache.celeborn.rest.v1.master.invoker</invokerPackage>
               <generatorName>java</generatorName>
-              <generateApiTests>true</generateApiTests>
-              <generateModelTests>true</generateModelTests>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
               <groupId>${groupId}</groupId>
               <artifactId>${artifactId}</artifactId>
               <artifactVersion>${project.version}</artifactVersion>
@@ -142,7 +133,7 @@
                 use the following line to annotations with io.swagger.core.v3:swagger-annotations.
                 <annotationLibrary>swagger2</annotationLibrary>
                 -->
-                <annotationLibrary>none</annotationLibrary>
+                <annotationLibrary>swagger1</annotationLibrary>
               </configOptions>
             </configuration>
           </execution>
@@ -159,8 +150,8 @@
               <modelPackage>org.apache.celeborn.rest.v1.worker.model</modelPackage>
               <invokerPackage>org.apache.celeborn.rest.v1.worker.invoker</invokerPackage>
               <generatorName>java</generatorName>
-              <generateApiTests>true</generateApiTests>
-              <generateModelTests>true</generateModelTests>
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
               <groupId>${groupId}</groupId>
               <artifactId>${artifactId}</artifactId>
               <artifactVersion>${project.version}</artifactVersion>
@@ -182,116 +173,8 @@
                 use the following line to annotations with io.swagger.core.v3:swagger-annotations.
                 <annotationLibrary>swagger2</annotationLibrary>
                 -->
-                <annotationLibrary>none</annotationLibrary>
+                <annotationLibrary>swagger1</annotationLibrary>
               </configOptions>
-            </configuration>
-          </execution>
-          <execution>
-            <id>generate-java-service-master-model-rest-v1</id>
-            <goals>
-              <goal>generate</goal>
-            </goals>
-            <phase>generate-sources</phase>
-            <configuration>
-              <inputSpec>${project.basedir}/src/main/openapi3/master_rest_v1.yaml</inputSpec>
-              <output>${project.build.directory}/generated-sources-temp/java</output>
-              <modelPackage>org.apache.celeborn.server.common.http.v1.model</modelPackage>
-              <generatorName>java</generatorName>
-              <generateApiTests>false</generateApiTests>
-              <generateModelTests>false</generateModelTests>
-              <groupId>${groupId}</groupId>
-              <artifactId>${artifactId}</artifactId>
-              <artifactVersion>${project.version}</artifactVersion>
-              <addCompileSourceRoot>false</addCompileSourceRoot>
-              <skipValidateSpec>true</skipValidateSpec>
-              <configOptions>
-                <licenseName>Apache License 2.0</licenseName>
-                <groupId>${groupId}</groupId>
-                <artifactId>${artifactId}</artifactId>
-                <artifactVersion>${project.version}</artifactVersion>
-                <dateLibrary>java8</dateLibrary>
-                <useGzipFeature>true</useGzipFeature>
-                <library>jersey2</library>
-                <annotationLibrary>none</annotationLibrary>
-                <hideGenerationTimestamp>true</hideGenerationTimestamp>
-              </configOptions>
-            </configuration>
-          </execution>
-          <execution>
-            <id>generate-java-service-worker-model-rest-v1</id>
-            <goals>
-              <goal>generate</goal>
-            </goals>
-            <phase>generate-sources</phase>
-            <configuration>
-              <inputSpec>${project.basedir}/src/main/openapi3/worker_rest_v1.yaml</inputSpec>
-              <output>${project.build.directory}/generated-sources-temp/java</output>
-              <modelPackage>org.apache.celeborn.server.common.http.v1.model</modelPackage>
-              <generatorName>java</generatorName>
-              <generateApiTests>false</generateApiTests>
-              <generateModelTests>false</generateModelTests>
-              <groupId>${groupId}</groupId>
-              <artifactId>${artifactId}</artifactId>
-              <artifactVersion>${project.version}</artifactVersion>
-              <addCompileSourceRoot>false</addCompileSourceRoot>
-              <skipValidateSpec>true</skipValidateSpec>
-              <configOptions>
-                <licenseName>Apache License 2.0</licenseName>
-                <groupId>${groupId}</groupId>
-                <artifactId>${artifactId}</artifactId>
-                <artifactVersion>${project.version}</artifactVersion>
-                <dateLibrary>java8</dateLibrary>
-                <useGzipFeature>true</useGzipFeature>
-                <library>jersey2</library>
-                <annotationLibrary>none</annotationLibrary>
-                <hideGenerationTimestamp>true</hideGenerationTimestamp>
-              </configOptions>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-clean-plugin</artifactId>
-        <configuration>
-          <filesets>
-            <fileset>
-              <directory>${project.service.baseDir}/src/main/java/org/apache/celeborn/server/common/http/v1</directory>
-              <includes>
-                <include>model/*.java</include>
-                <!-- referenced by model java files in unused imports -->
-                <include>ApiException.java</include>
-                <include>JSON.java</include>
-                <include>RFC3339DateFormat.java</include>
-              </includes>
-            </fileset>
-          </filesets>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-resources-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>copy-resources</id>
-            <goals>
-              <goal>copy-resources</goal>
-            </goals>
-            <phase>generate-resources</phase>
-            <configuration>
-              <outputDirectory>${project.service.baseDir}/src/main/java/org/apache/celeborn/server/common/http/v1</outputDirectory>
-              <resources>
-                <resource>
-                  <directory>${project.build.directory}/generated-sources-temp/java/src/main/java/org/apache/celeborn/server/common/http/v1</directory>
-                  <includes>
-                    <include>model/*.java</include>
-                    <!-- referenced by model java files in unused imports -->
-                    <include>ApiException.java</include>
-                    <include>JSON.java</include>
-                    <include>RFC3339DateFormat.java</include>
-                  </includes>
-                </resource>
-              </resources>
             </configuration>
           </execution>
         </executions>
@@ -309,18 +192,6 @@
             <configuration>
               <sources>
                 <source>${project.build.directory}/generated-sources/java/src/main/java</source>
-              </sources>
-            </configuration>
-          </execution>
-          <execution>
-            <id>add_test_sources</id>
-            <goals>
-              <goal>add-test-source</goal>
-            </goals>
-            <phase>generate-test-sources</phase>
-            <configuration>
-              <sources>
-                <source>${project.build.directory}/generated-sources/java/src/test/java</source>
               </sources>
             </configuration>
           </execution>

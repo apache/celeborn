@@ -23,8 +23,8 @@ import javax.ws.rs.core.MediaType
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 
+import org.apache.celeborn.rest.v1.model.{HandleResponse, WorkerExitRequest}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
-import org.apache.celeborn.server.common.http.v1.model.{HandleResponse, WorkerExitRequest}
 
 @Path("/api/v1")
 class ApiV1WorkerResource extends ApiRequestContext {

@@ -21,8 +21,8 @@ import java.net.URI
 import javax.servlet.http.HttpServletResponse
 import javax.ws.rs.core.{MediaType, UriBuilder}
 
+import org.apache.celeborn.rest.v1.model.{ConfResponse, ThreadStackResponse}
 import org.apache.celeborn.server.common.http.HttpTestHelper
-import org.apache.celeborn.server.common.http.v1.model.{ConfResponse, ThreadStackResponse}
 
 abstract class ApiV1BaseResourceSuite extends HttpTestHelper {
   override protected lazy val baseUri: URI =
