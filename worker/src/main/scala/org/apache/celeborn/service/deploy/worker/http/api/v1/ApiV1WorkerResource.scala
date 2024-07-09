@@ -48,7 +48,8 @@ class ApiV1WorkerResource extends ApiRequestContext {
   @POST
   @Path("exit")
   def exit(request: WorkerExitRequest): HandleResponse = {
-    new HandleResponse().success(true)
+    new HandleResponse()
+      .success(true)
       .message(httpService.exit(request.getType.toString))
   }
 }

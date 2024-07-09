@@ -48,7 +48,8 @@ class ApplicationResource extends ApiRequestContext {
     new ApplicationsHeartbeatResponse()
       .applications(
         statusSystem.appHeartbeatTime.asScala.map { case (appId, heartbeat) =>
-          new ApplicationHeartbeatData().appId(appId)
+          new ApplicationHeartbeatData()
+            .appId(appId)
             .lastHeartbeatTimestamp(heartbeat)
         }.toSeq.asJava)
   }

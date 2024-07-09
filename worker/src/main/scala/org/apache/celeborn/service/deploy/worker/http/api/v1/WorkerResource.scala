@@ -63,10 +63,11 @@ class WorkerResource extends ApiRequestContext {
   @Path("/unavailable_peers")
   @GET
   def unavailablePeerWorkers(): UnAvailablePeersResponse = {
-    new UnAvailablePeersResponse().peers(
-      worker.unavailablePeers.asScala.map { case (worker, lastTimeout) =>
-        new WorkerTimestampData().worker(ApiUtils.workerData(worker)).timestamp(lastTimeout)
-      }.toSeq.asJava)
+    new UnAvailablePeersResponse()
+      .peers(
+        worker.unavailablePeers.asScala.map { case (worker, lastTimeout) =>
+          new WorkerTimestampData().worker(ApiUtils.workerData(worker)).timestamp(lastTimeout)
+        }.toSeq.asJava)
 
   }
 }
