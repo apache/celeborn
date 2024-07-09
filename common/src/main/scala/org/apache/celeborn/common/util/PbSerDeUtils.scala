@@ -603,8 +603,10 @@ object PbSerDeUtils {
   private def fromPackedPartitionLocations(
       pbPackedPartitionLocations: PbPackedPartitionLocations,
       index: Int): PartitionLocation = {
-    val workerIdParts = pbPackedPartitionLocations.getWorkerIdsSet(
-      pbPackedPartitionLocations.getWorkerIds(index)).split(":").map(_.trim)
+    val workerIdParts = Utils.parseColonSeparatedHostPorts(
+      pbPackedPartitionLocations.getWorkerIdsSet(
+        pbPackedPartitionLocations.getWorkerIds(index)),
+      4).map(_.trim)
     var filePath = pbPackedPartitionLocations.getFilePaths(index)
     if (filePath != "") {
       filePath = pbPackedPartitionLocations.getMountPointsSet(
