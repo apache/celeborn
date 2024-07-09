@@ -514,7 +514,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   private ConcurrentHashMap<Integer, PartitionLocation> registerShuffle(
-      int shuffleId, int numMappers, int numPartitions) {
+      int shuffleId, int numMappers, int numPartitions) throws CelebornIOException {
     return registerShuffleInternal(
         shuffleId,
         numMappers,
@@ -548,18 +548,29 @@ public class ShuffleClientImpl extends ShuffleClient {
                     conf.clientRpcRegisterShuffleAskTimeout(),
                     ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
 
-    if (partitionLocationMap == null) {
-      throw new CelebornIOException("Register shuffle failed for shuffle " + shuffleId);
-    }
-
     return partitionLocationMap.get(partitionId);
   }
 
   @Override
   public ConcurrentHashMap<Integer, PartitionLocation> getPartitionLocation(
-      int shuffleId, int numMappers, int numPartitions) {
-    return reducePartitionMap.computeIfAbsent(
-        shuffleId, (id) -> registerShuffle(shuffleId, numMappers, numPartitions));
+      int shuffleId, int numMappers, int numPartitions) throws CelebornIOException {
+    try {
+      return reducePartitionMap.computeIfAbsent(
+          shuffleId,
+          (id) -> {
+            try {
+              return registerShuffle(shuffleId, numMappers, numPartitions);
+            } catch (CelebornIOException e) {
+              throw new RuntimeException(e);
+            }
+          });
+    } catch (RuntimeException e) {
+      if (e.getCause() instanceof CelebornIOException) {
+        throw (CelebornIOException) e.getCause();
+      } else {
+        throw e;
+      }
+    }
   }
 
   @Override
@@ -606,8 +617,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       int shuffleId,
       int numMappers,
       int numPartitions,
-      Callable<PbRegisterShuffleResponse> callable) {
+      Callable<PbRegisterShuffleResponse> callable)
+      throws CelebornIOException {
     int numRetries = registerShuffleMaxRetries;
+    StatusCode lastFailedStatusCode = null;
     while (numRetries > 0) {
       try {
         PbRegisterShuffleResponse response = callable.call();
@@ -626,16 +639,19 @@ public class ShuffleClientImpl extends ShuffleClient {
           }
           return result;
         } else if (StatusCode.SLOT_NOT_AVAILABLE.equals(respStatus)) {
+          lastFailedStatusCode = respStatus;
           logger.error(
               "LifecycleManager request slots return {}, retry again, remain retry times {}.",
               StatusCode.SLOT_NOT_AVAILABLE,
               numRetries - 1);
         } else if (StatusCode.RESERVE_SLOTS_FAILED.equals(respStatus)) {
+          lastFailedStatusCode = respStatus;
           logger.error(
               "LifecycleManager request slots return {}, retry again, remain retry times {}.",
               StatusCode.RESERVE_SLOTS_FAILED,
               numRetries - 1);
         } else {
+          lastFailedStatusCode = respStatus;
           logger.error(
               "LifecycleManager request slots return {}, retry again, remain retry times {}.",
               StatusCode.REQUEST_FAILED,
@@ -648,7 +664,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             numMappers,
             numPartitions,
             e);
-        break;
+        throw new CelebornIOException("Register shuffle failed for shuffle " + shuffleId + ".", e);
       }
 
       try {
@@ -658,8 +674,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       }
       numRetries--;
     }
-
-    return null;
+    throw new CelebornIOException(
+        "Register shuffle failed for shuffle " + shuffleId + ", reason: " + lastFailedStatusCode);
   }
 
   protected void limitMaxInFlight(String mapKey, PushState pushState, String hostAndPushPort)
@@ -878,10 +894,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     // register shuffle if not registered
     final ConcurrentHashMap<Integer, PartitionLocation> map =
         getPartitionLocation(shuffleId, numMappers, numPartitions);
-
-    if (map == null) {
-      throw new CelebornIOException("Register shuffle failed for shuffle " + shuffleId + ".");
-    }
 
     // get location
     // If rerun or speculation task running after LifecycleManager call stageEnd,
