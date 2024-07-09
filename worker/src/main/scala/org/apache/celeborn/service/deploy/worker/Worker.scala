@@ -60,6 +60,7 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingSta
 import org.apache.celeborn.service.deploy.worker.monitor.JVMQuake
 import org.apache.celeborn.service.deploy.worker.profiler.JVMProfiler
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.StoragePolicy
 
 private[celeborn] class Worker(
     override val conf: CelebornConf,
