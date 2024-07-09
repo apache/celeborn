@@ -535,7 +535,6 @@ object CelebornService {
         Dependencies.jettyServer,
         Dependencies.jettyServlet,
         Dependencies.jettyProxy,
-        Dependencies.openApiToolsJacksonBindNullable,
         Dependencies.log4jSlf4jImpl % "test",
         Dependencies.log4j12Api % "test",
         Dependencies.h2 % "test",
