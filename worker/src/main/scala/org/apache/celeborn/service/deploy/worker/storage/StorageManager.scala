@@ -49,7 +49,6 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.service.deploy.worker.shuffledb.{DB, DBBackend, DBProvider}
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
-import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapPartitionFileWriter
 
 final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
@@ -434,30 +433,16 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType,
       partitionSplitEnabled)
 
+    partitionDataWriterContext.setSegmentGranularityVisible(isSegmentGranularityVisible)
+
     val writer =
       try {
-        partitionType match {
-          case PartitionType.MAP =>
-            if (isSegmentGranularityVisible) new SegmentMapPartitionFileWriter(
-              this,
-              workerSource,
-              conf,
-              deviceMonitor,
-              partitionDataWriterContext)
-            else new MapPartitionDataWriter(
-              this,
-              workerSource,
-              conf,
-              deviceMonitor,
-              partitionDataWriterContext)
-          case PartitionType.REDUCE => new ReducePartitionDataWriter(
-              this,
-              workerSource,
-              conf,
-              deviceMonitor,
-              partitionDataWriterContext)
-          case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
-        }
+        new PartitionDataWriter(
+          this,
+          conf,
+          deviceMonitor,
+          partitionDataWriterContext,
+          partitionType)
       } catch {
         case e: Exception =>
           logError("Create partition data writer failed", e)
@@ -821,7 +806,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
                     t)
               }
             } else {
-              logWarning(s"Skip flushOnMemoryPressure because ${writer.flusher} " +
+              logWarning(s"Skip flushOnMemoryPressure because ${writer.getFlusher} " +
                 s"has error: ${writer.getException.getMessage}")
             }
           }

@@ -17,37 +17,66 @@
 
 package org.apache.celeborn.service.deploy.worker.storage
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo}
 import org.apache.celeborn.common.metrics.source.AbstractSource
-import org.apache.celeborn.common.protocol.StorageInfo
+import org.apache.celeborn.common.protocol.{PartitionType, StorageInfo}
 
 class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: AbstractSource)
   extends Logging {
   var createFileOrder: Option[List[String]] = conf.workerStoragePolicyCreateFilePolicy
   var evictFileOrder: Option[Map[String, List[String]]] = conf.workerStoragePolicyEvictFilePolicy
 
-  def getEvictedFile(
-      celebornFile: CelebornFile,
-      partitionDataWriterContext: PartitionDataWriterContext): CelebornFile = {
+  def getEvictedFileWriter(
+      celebornFile: TierWriterBase,
+      partitionDataWriterContext: PartitionDataWriterContext,
+      partitionType: PartitionType,
+      numPendingWrites: AtomicInteger,
+      notifier: FlushNotifier): TierWriterBase = {
     evictFileOrder.foreach { order =>
       val orderList = order.get(celebornFile.storageType.name())
       if (orderList != null) {
-        return createFile(partitionDataWriterContext, orderList)
+        return createFileWriter(
+          partitionDataWriterContext,
+          partitionType,
+          numPendingWrites,
+          notifier,
+          orderList)
       }
     }
     null
   }
 
-  def createFile(
+  def createFileWriter(
       partitionDataWriterContext: PartitionDataWriterContext,
-      order: Option[List[String]] = createFileOrder): CelebornFile = {
+      partitionType: PartitionType,
+      numPendingWrites: AtomicInteger,
+      notifier: FlushNotifier,
+      order: Option[List[String]] = createFileOrder): TierWriterBase = {
     logDebug(
       s"create file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
     val location = partitionDataWriterContext.getPartitionLocation
 
-    def tryCreateFileByType(storageInfoType: StorageInfo.Type): CelebornFile = {
+    def getPartitionMetahandler(fileInfo: FileInfo, storageInfoType: StorageInfo.Type) = {
+      partitionType match {
+        case PartitionType.REDUCE | PartitionType.MAPGROUP =>
+          new ReducePartitionMetaHandler(partitionDataWriterContext.isRangeReadFilter, fileInfo)
+        case PartitionType.MAP =>
+          if (partitionDataWriterContext.isSegmentGranularityVisible) {
+            new SegmentMapPartitionMetaHandler(fileInfo.asInstanceOf[DiskFileInfo], notifier)
+          } else {
+            new MapPartitionMetaHandler(
+              fileInfo.asInstanceOf[DiskFileInfo],
+              notifier)
+          }
+      }
+    }
+
+    def tryCreateFileByType(storageInfoType: StorageInfo.Type): TierWriterBase = {
       try {
         storageInfoType match {
           case StorageInfo.Type.MEMORY =>
@@ -60,7 +89,20 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
               partitionDataWriterContext.getPartitionType,
               partitionDataWriterContext.isPartitionSplitEnabled)
             partitionDataWriterContext.setStorageType(storageInfoType)
-            new CelebornMemoryFile(conf, source, memoryFileInfo, storageInfoType)
+            storageManager.registerMemoryPartitionWriter(
+              partitionDataWriterContext.getPartitionDataWriter,
+              memoryFileInfo)
+            val metaHandler = getPartitionMetahandler(memoryFileInfo, storageInfoType)
+            new MemoryTierWriter(
+              conf,
+              metaHandler,
+              numPendingWrites,
+              notifier,
+              source,
+              memoryFileInfo,
+              storageInfoType,
+              partitionDataWriterContext,
+              storageManager)
           case StorageInfo.Type.HDD | StorageInfo.Type.SSD | StorageInfo.Type.HDFS | StorageInfo.Type.OSS | StorageInfo.Type.S3 =>
             logDebug(s"create non-memory file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
             val (flusher, diskFileInfo, workingDir) = storageManager.createDiskFile(
@@ -71,10 +113,35 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
               partitionDataWriterContext.getUserIdentifier,
               partitionDataWriterContext.getPartitionType,
               partitionDataWriterContext.isPartitionSplitEnabled)
+            val metaHandler = getPartitionMetahandler(diskFileInfo, storageInfoType)
             if (storageInfoType == StorageInfo.Type.HDD || storageInfoType == StorageInfo.Type.SSD) {
-              new CelebornDiskFile(flusher, diskFileInfo, workingDir, storageInfoType)
+              storageManager.registerDiskFilePartitionWriter(
+                partitionDataWriterContext.getPartitionDataWriter,
+                workingDir,
+                diskFileInfo)
+              new LocalTierWriter(
+                conf,
+                metaHandler,
+                numPendingWrites,
+                notifier,
+                flusher,
+                source,
+                diskFileInfo,
+                storageInfoType,
+                partitionDataWriterContext,
+                storageManager)
             } else {
-              new CelebornDFSFile(flusher, diskFileInfo, storageInfoType)
+              new DfsTierWriter(
+                conf,
+                metaHandler,
+                numPendingWrites,
+                notifier,
+                flusher,
+                source,
+                diskFileInfo,
+                storageInfoType,
+                partitionDataWriterContext,
+                storageManager)
             }
         }
       } catch {

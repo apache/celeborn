@@ -20,7 +20,8 @@ package org.apache.celeborn.common.protocol;
 public enum PartitionType {
   REDUCE(0),
   MAP(1),
-  MAPGROUP(2);
+  MAPGROUP(2),
+  MAP_SEGMENT(3);
 
   private final int value;
 

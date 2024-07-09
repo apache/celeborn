@@ -58,6 +58,10 @@ public class ReduceFileMeta implements FileMeta {
     }
   }
 
+  public synchronized void addChunkOffsets(List<Long> offsets) {
+    offsets.forEach(this::addChunkOffset);
+  }
+
   public void updateChunkOffset(long bytesFlushed, boolean force) {
     if (bytesFlushed >= nextBoundary || force) {
       addChunkOffset(bytesFlushed);

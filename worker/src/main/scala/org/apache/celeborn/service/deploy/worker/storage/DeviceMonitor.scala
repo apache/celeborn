@@ -171,12 +171,12 @@ class LocalDeviceMonitor(
   }
 
   override def registerFileWriter(fileWriter: PartitionDataWriter): Unit = {
-    val mountPoint = DeviceInfo.getMountPoint(fileWriter.getFile.getAbsolutePath, diskInfos)
+    val mountPoint = DeviceInfo.getMountPoint(fileWriter.getFilePath, diskInfos)
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo).addObserver(fileWriter)
   }
 
   override def unregisterFileWriter(fileWriter: PartitionDataWriter): Unit = {
-    val mountPoint = DeviceInfo.getMountPoint(fileWriter.getFile.getAbsolutePath, diskInfos)
+    val mountPoint = DeviceInfo.getMountPoint(fileWriter.getFilePath, diskInfos)
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo).removeObserver(fileWriter)
   }
 

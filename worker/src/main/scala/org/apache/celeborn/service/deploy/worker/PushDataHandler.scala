@@ -45,8 +45,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
-import org.apache.celeborn.service.deploy.worker.storage.{HdfsFlusher, LocalFlusher, MapPartitionDataWriter, PartitionDataWriter, S3Flusher, StorageManager}
-import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapPartitionFileWriter
+import org.apache.celeborn.service.deploy.worker.storage.{Flusher, HdfsFlusher, LocalFlusher, PartitionDataWriter, S3Flusher, StorageManager}
 
 class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler with Logging {
 
@@ -1243,41 +1242,30 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     try {
       messageType match {
         case Type.PUSH_DATA_HAND_SHAKE =>
-          val (numPartitions, bufferSize) =
+          val pbPushDataHandShake: PbPushDataHandShake =
             if (isLegacy)
-              (
-                msg.asInstanceOf[PushDataHandShake].numPartitions,
-                msg.asInstanceOf[PushDataHandShake].bufferSize)
+              PbPushDataHandShake.newBuilder()
+                .setNumPartitions(msg.asInstanceOf[PushDataHandShake].numPartitions)
+                .setBufferSize(msg.asInstanceOf[PushDataHandShake].bufferSize)
+                .build()
             else
-              (
-                pbMsg.asInstanceOf[PbPushDataHandShake].getNumPartitions,
-                pbMsg.asInstanceOf[PbPushDataHandShake].getBufferSize)
-          fileWriter.asInstanceOf[MapPartitionDataWriter].pushDataHandShake(
-            numPartitions,
-            bufferSize)
+              pbMsg.asInstanceOf[PbPushDataHandShake]
+          fileWriter.handleEvents(pbPushDataHandShake)
         case Type.REGION_START =>
-          val (currentRegionIndex, isBroadcast: Boolean) =
-            if (isLegacy)
-              (
-                msg.asInstanceOf[RegionStart].currentRegionIndex,
-                msg.asInstanceOf[RegionStart].isBroadcast)
-            else
-              (
-                pbMsg.asInstanceOf[PbRegionStart].getCurrentRegionIndex,
-                pbMsg.asInstanceOf[PbRegionStart].getIsBroadcast)
-          fileWriter.asInstanceOf[MapPartitionDataWriter].regionStart(
-            currentRegionIndex,
-            isBroadcast)
+          val pbRegionStart: PbRegionStart =
+            if (isLegacy) {
+              PbRegionStart.newBuilder()
+                .setCurrentRegionIndex(msg.asInstanceOf[RegionStart].currentRegionIndex)
+                .setIsBroadcast(msg.asInstanceOf[RegionStart].isBroadcast)
+                .build()
+            } else
+              pbMsg.asInstanceOf[PbRegionStart]
+          fileWriter.handleEvents(pbRegionStart)
         case Type.REGION_FINISH =>
-          fileWriter.asInstanceOf[MapPartitionDataWriter].regionFinish()
+          val pbRegionFinish: PbRegionFinish = PbRegionFinish.newBuilder().build()
+          fileWriter.handleEvents(pbRegionFinish)
         case Type.SEGMENT_START =>
-          val (subPartitionId, segmentId) =
-            (
-              pbMsg.asInstanceOf[PbSegmentStart].getSubPartitionId,
-              pbMsg.asInstanceOf[PbSegmentStart].getSegmentId)
-          fileWriter.asInstanceOf[SegmentMapPartitionFileWriter].segmentStart(
-            subPartitionId,
-            segmentId)
+          fileWriter.handleEvents(pbMsg)
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
       // for primary , send data to replica
@@ -1419,11 +1407,12 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   }
 
   private def checkDiskFull(fileWriter: PartitionDataWriter): Boolean = {
-    if (fileWriter.flusher == null || fileWriter.flusher.isInstanceOf[
-        HdfsFlusher] || fileWriter.flusher.isInstanceOf[S3Flusher]) {
+    val flusher = fileWriter.getFlusher;
+    if (flusher == null || flusher.isInstanceOf[
+        HdfsFlusher] || flusher.isInstanceOf[S3Flusher]) {
       return false
     }
-    val mountPoint = fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint
+    val mountPoint = flusher.asInstanceOf[LocalFlusher].mountPoint
     val diskInfo = workerInfo.diskInfos.get(mountPoint)
     val diskFull =
       diskInfo.status.equals(DiskStatus.HIGH_DISK_USAGE) || diskInfo.actualUsableSpace <= 0

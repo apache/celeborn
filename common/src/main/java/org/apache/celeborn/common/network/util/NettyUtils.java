@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.UnpooledByteBufAllocator;
@@ -109,7 +110,8 @@ public class NettyUtils {
    * @param numCores Number of heap/direct arenas, 0 means use number of cpu cores, it only take
    *     effect for PooledByteBufAllocator.
    */
-  private static ByteBufAllocator createByteBufAllocator(
+  @VisibleForTesting
+  public static ByteBufAllocator createByteBufAllocator(
       boolean pooled, boolean allowDirectBufs, boolean allowCache, int numCores) {
     if (pooled) {
       if (numCores == 0) {

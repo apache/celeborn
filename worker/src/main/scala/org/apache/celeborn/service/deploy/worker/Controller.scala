@@ -39,7 +39,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
-import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionDataWriter, PartitionDataWriter, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{PartitionDataWriter, SegmentMapPartitionMetaHandler, StorageManager}
 
 private[deploy] class Controller(
     override val rpcEnv: RpcEnv,
@@ -354,14 +354,15 @@ private[deploy] class Controller(
   private def waitMapPartitionRegionFinished(
       fileWriter: PartitionDataWriter,
       waitTimeout: Long): Unit = {
-    fileWriter match {
-      case writer: MapPartitionDataWriter =>
-        if (writer.checkPartitionRegionFinished(
+    fileWriter.getMetaHandler match {
+      case metahHandler: SegmentMapPartitionMetaHandler =>
+        if (metahHandler.checkPartitionRegionFinished(
             waitTimeout)) {
-          logDebug(s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+          logDebug(
+            s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFilePath}")
         } else {
           logWarning(
-            s"CommitFile failed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+            s"CommitFile failed to waitMapPartitionRegionFinished ${fileWriter.getFilePath}")
         }
       case _ =>
     }

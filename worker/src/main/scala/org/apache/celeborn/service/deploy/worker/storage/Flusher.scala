@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLongArray}
 import scala.util.Random
 
 import io.netty.buffer.{ByteBufAllocator, CompositeByteBuf, PooledByteBufAllocator}
+import io.netty.util.IllegalReferenceCountException
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, TimeWindow}
@@ -117,7 +118,12 @@ abstract private[worker] class Flusher(
     Option(CongestionController.instance())
       .foreach(
         _.consumeBytes(bufferSize))
-    buffer.removeComponents(0, buffer.numComponents())
+    try {
+      buffer.removeComponents(0, buffer.numComponents())
+    } catch {
+      case e: IllegalReferenceCountException =>
+        logError("illegal reference count")
+    }
     buffer.clear()
     if (keepBuffer) {
       bufferQueue.put(buffer)

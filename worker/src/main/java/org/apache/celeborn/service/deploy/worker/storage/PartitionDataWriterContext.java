@@ -36,6 +36,8 @@ public class PartitionDataWriterContext {
   private final String shuffleKey;
   private final PartitionType partitionType;
   private StorageInfo.Type storageType = null;
+  private PartitionDataWriter partitionDataWriter;
+  private boolean isSegmentGranularityVisible;
 
   public PartitionDataWriterContext(
       long splitThreshold,
@@ -105,5 +107,21 @@ public class PartitionDataWriterContext {
 
   public void setStorageType(StorageInfo.Type storageType) {
     this.storageType = storageType;
+  }
+
+  public PartitionDataWriter getPartitionDataWriter() {
+    return partitionDataWriter;
+  }
+
+  public void setPartitionDataWriter(PartitionDataWriter partitionDataWriter) {
+    this.partitionDataWriter = partitionDataWriter;
+  }
+
+  public boolean isSegmentGranularityVisible() {
+    return isSegmentGranularityVisible;
+  }
+
+  public void setSegmentGranularityVisible(boolean segmentGranularityVisible) {
+    isSegmentGranularityVisible = segmentGranularityVisible;
   }
 }

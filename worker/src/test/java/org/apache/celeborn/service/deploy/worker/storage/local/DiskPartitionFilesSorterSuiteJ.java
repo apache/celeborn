@@ -122,8 +122,7 @@ public class DiskPartitionFilesSorterSuiteJ {
     conf.set(CelebornConf.WORKER_READBUFFER_ALLOCATIONWAIT().key(), "10ms");
     MemoryManager.initialize(conf);
     partitionDataWriter = Mockito.mock(PartitionDataWriter.class);
-    when(partitionDataWriter.getFile()).thenAnswer(i -> shuffleFile);
-    when(partitionDataWriter.getDiskFileInfo()).thenAnswer(i -> fileInfo);
+    when(partitionDataWriter.getFilePath()).thenAnswer(i -> shuffleFile.getAbsolutePath());
     when(partitionDataWriter.getDiskFileInfo()).thenAnswer(i -> fileInfo);
     return partitionSize;
   }
