@@ -27,6 +27,7 @@ import org.apache.spark.*;
 import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.rdd.DeterministicLevel;
+import org.apache.spark.scheduler.DAGScheduler;
 import org.apache.spark.shuffle.*;
 import org.apache.spark.shuffle.sort.SortShuffleManager;
 import org.apache.spark.util.Utils;
@@ -66,6 +67,12 @@ public class SparkShuffleManager implements ShuffleManager {
   private ExecutorShuffleIdTracker shuffleIdTracker = new ExecutorShuffleIdTracker();
 
   public SparkShuffleManager(SparkConf conf, boolean isDriver) {
+    int maxStageAttempts =
+        conf.getInt(
+            "spark.stage.maxConsecutiveAttempts",
+            DAGScheduler.DEFAULT_MAX_CONSECUTIVE_STAGE_ATTEMPTS());
+    int maxTaskAttempts = (Integer) conf.get(package$.MODULE$.MAX_TASK_FAILURES());
+    SparkCommonUtils.validateMaxAttempts(maxStageAttempts, maxTaskAttempts);
     this.conf = conf;
     this.isDriver = isDriver;
     this.celebornConf = SparkUtils.fromSparkConf(conf);
