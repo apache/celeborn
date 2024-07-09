@@ -226,7 +226,6 @@ components:
       properties:
         configs:
           type: array
-          default: [ ]
           items:
             $ref: '#/components/schemas/ConfigData'
 
@@ -246,7 +245,6 @@ components:
         configs:
           type: array
           description: the config items.
-          default: [ ]
           items:
             $ref: '#/components/schemas/ConfigData'
 
@@ -255,7 +253,6 @@ components:
       properties:
         configs:
           type: array
-          default: [ ]
           items:
             $ref: '#/components/schemas/DynamicConfig'
 
@@ -274,7 +271,6 @@ components:
           description: The state of the thread.
         stackTrace:
           type: array
-          default: [ ]
           description: The stacktrace of the thread.
           items:
             type: string
@@ -287,7 +283,6 @@ components:
           description: The lock that the current thread is blocked by.
         holdingLocks:
           type: array
-          default: [ ]
           description: The locks that the current thread is holding.
           items:
             type: string
@@ -302,7 +297,6 @@ components:
       properties:
         threadStacks:
           type: array
-          default: [ ]
           description: The thread stacks.
           items:
             $ref: '#/components/schemas/ThreadStack'
@@ -314,7 +308,6 @@ components:
       properties:
         shuffleIds:
           type: array
-          default: [ ]
           description: The shuffle keys.
           items:
             type: string
@@ -324,7 +317,6 @@ components:
       properties:
         applications:
           type: array
-          default: [ ]
           description: The applications information.
           items:
             type: string
@@ -354,7 +346,6 @@ components:
       properties:
         appDiskUsages:
           type: array
-          default: [ ]
           description: The application disk usages.
           items:
             $ref: '#/components/schemas/AppDiskUsageData'
@@ -519,7 +510,6 @@ components:
       properties:
         peers:
           type: array
-          default: [ ]
           description: The unavailable peers.
           items:
             $ref: '#/components/schemas/WorkerTimestampData'

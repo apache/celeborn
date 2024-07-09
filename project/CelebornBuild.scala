@@ -555,7 +555,6 @@ object CelebornMaster {
     .dependsOn(CelebornCommon.common)
     .dependsOn(CelebornCommon.common % "test->test;compile->compile")
     .dependsOn(CelebornService.service % "test->test;compile->compile")
-    .dependsOn(CelebornOpenApi.openapiClient % Test)
     .settings (
       commonSettings,
       protoSettings,

@@ -259,7 +259,6 @@ components:
       properties:
         configs:
           type: array
-          default: [ ]
           items:
             $ref: '#/components/schemas/ConfigData'
 
@@ -279,7 +278,6 @@ components:
         configs:
           type: array
           description: the config items.
-          default: [ ]
           items:
             $ref: '#/components/schemas/ConfigData'
 
@@ -288,7 +286,6 @@ components:
       properties:
         configs:
           type: array
-          default: [ ]
           items:
             $ref: '#/components/schemas/DynamicConfig'
 
@@ -307,7 +304,6 @@ components:
           description: The state of the thread.
         stackTrace:
           type: array
-          default: [ ]
           description: The stacktrace of the thread.
           items:
             type: string
@@ -320,7 +316,6 @@ components:
           description: The lock that the current thread is blocked by.
         holdingLocks:
           type: array
-          default: [ ]
           description: The locks that the current thread is holding.
           items:
             type: string
@@ -335,7 +330,6 @@ components:
       properties:
         threadStacks:
           type: array
-          default: [ ]
           description: The thread stacks.
           items:
             $ref: '#/components/schemas/ThreadStack'
@@ -347,7 +341,6 @@ components:
       properties:
         shuffleIds:
           type: array
-          default: [ ]
           description: The shuffle keys.
           items:
             type: string
@@ -371,7 +364,6 @@ components:
       properties:
         applications:
           type: array
-          default: [ ]
           description: The applications information.
           items:
             $ref: '#/components/schemas/ApplicationHeartbeatData'
@@ -383,7 +375,6 @@ components:
       properties:
         hostnames:
           type: array
-          default: [ ]
           description: The hostnames of the applications.
           items:
             type: string
@@ -431,7 +422,6 @@ components:
       properties:
         snapshots:
           type: array
-          default: [ ]
           description: The disk usage snapshots.
           items:
             $ref: '#/components/schemas/AppDiskUsageSnapshotData'
@@ -485,7 +475,6 @@ components:
           $ref: '#/components/schemas/MasterLeader'
         masterCommitInfo:
           type: array
-          default: [ ]
           description: The raft commit info of the master.
           items:
             $ref: '#/components/schemas/MasterCommitData'
@@ -574,37 +563,31 @@ components:
       properties:
         workers:
           type: array
-          default: [ ]
           description: The registered workers.
           items:
             $ref: '#/components/schemas/WorkerData'
         lostWorkers:
           type: array
-          default: [ ]
           description: The lost workers.
           items:
             $ref: '#/components/schemas/WorkerTimestampData'
         excludedWorkers:
           type: array
-          default: [ ]
           description: The excluded workers.
           items:
             $ref: '#/components/schemas/WorkerData'
         manualExcludedWorkers:
           type: array
-          default: [ ]
           description: The manual excluded workers.
           items:
             $ref: '#/components/schemas/WorkerData'
         shutdownWorkers:
           type: array
-          default: [ ]
           description: The shutdown workers.
           items:
             $ref: '#/components/schemas/WorkerData'
         decommissioningWorkers:
           type: array
-          default: [ ]
           description: The decommissioning workers.
           items:
             $ref: '#/components/schemas/WorkerData'
@@ -641,7 +624,6 @@ components:
       properties:
         workerEvents:
           type: array
-          default: [ ]
           description: The worker events.
           items:
             $ref: '#/components/schemas/WorkerEventData'
@@ -680,13 +662,11 @@ components:
       properties:
         add:
           type: array
-          default: [ ]
           description: The workers to be added to the excluded workers.
           items:
             $ref: '#/components/schemas/WorkerId'
         remove:
           type: array
-          default: [ ]
           description: The workers to be removed from the excluded workers.
           items:
             $ref: '#/components/schemas/WorkerId'
@@ -707,7 +687,6 @@ components:
             - None
         workers:
           type: array
-          default: [ ]
           description: The workers to send the event.
           items:
             $ref: '#/components/schemas/WorkerId'

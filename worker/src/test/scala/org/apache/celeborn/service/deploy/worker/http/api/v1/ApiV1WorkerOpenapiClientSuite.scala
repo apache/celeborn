@@ -19,25 +19,28 @@ package org.apache.celeborn.service.deploy.worker.http.api.v1
 
 import javax.servlet.http.HttpServletResponse
 
+import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.rest.v1.worker._
 import org.apache.celeborn.rest.v1.worker.invoker.{ApiClient, ApiException}
-import org.apache.celeborn.server.common.HttpService
-import org.apache.celeborn.server.common.http.HttpTestHelper
 import org.apache.celeborn.service.deploy.MiniClusterFeature
+import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.worker.Worker
 
-class ApiV1WorkerOpenapiClientSuite extends HttpTestHelper with MiniClusterFeature {
-  private var worker: Worker = _
-  override protected def httpService: HttpService = worker
+abstract class ApiV1WorkerOpenapiClientSuite extends CelebornFunSuite with MiniClusterFeature {
+  private val celebornConf = new CelebornConf()
+  protected var master: Master = _
+  protected var worker: Worker = _
   private var apiClient: ApiClient = _
 
   override def beforeAll(): Unit = {
     logInfo("test initialized, setup celeborn mini cluster")
     val (m, w) =
       setupMiniClusterWithRandomPorts(workerConf = celebornConf.getAll.toMap, workerNum = 1)
+    master = m
     worker = w.head
     super.beforeAll()
-    apiClient = new ApiClient().setBasePath(s"http://${httpService.connectionUrl}")
+    apiClient = new ApiClient().setBasePath(s"http://${worker.connectionUrl}")
   }
 
   override def afterAll(): Unit = {
@@ -46,12 +49,12 @@ class ApiV1WorkerOpenapiClientSuite extends HttpTestHelper with MiniClusterFeatu
     shutdownMiniCluster()
   }
 
-  test("default api") {
+  test("worker: default api") {
     val api = new DefaultApi(apiClient)
     assert(!api.getThreadDump.getThreadStacks.isEmpty)
   }
 
-  test("conf api") {
+  test("worker: conf api") {
     val api = new ConfApi(apiClient)
     assert(!api.getConf.getConfigs.isEmpty)
     val e = intercept[ApiException](api.getDynamicConf("", "", ""))
@@ -59,20 +62,20 @@ class ApiV1WorkerOpenapiClientSuite extends HttpTestHelper with MiniClusterFeatu
     assert(e.getMessage.contains("Dynamic configuration is disabled"))
   }
 
-  test("application api") {
+  test("worker: application api") {
     val api = new ApplicationApi(apiClient)
     assert(api.getApplicationList.getApplications.isEmpty)
     assert(api.getApplicationsDiskUsage.getAppDiskUsages.isEmpty)
   }
 
-  test("shuffle api") {
+  test("worker: shuffle api") {
     val api = new ShuffleApi(apiClient)
     assert(api.getShuffles.getShuffleIds.isEmpty)
     assert(api.getShufflePartitions.getPrimaryPartitions.isEmpty)
     assert(api.getShufflePartitions.getReplicaPartitions.isEmpty)
   }
 
-  test("worker api") {
+  test("worker: worker api") {
     val api = new WorkerApi(apiClient)
     val workerInfo = api.getWorkerInfo
     assert(!workerInfo.getIsShutdown)
