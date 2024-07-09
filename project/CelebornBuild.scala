@@ -1247,18 +1247,22 @@ object CelebornOpenApi {
   val openApiSpecDir = "openapi/openapi-client/src/main/openapi3"
   val openApiModelOutputDir = "openapi/openapi-model/target/generated-sources/java"
 
+  val commonOpenApiSettings = Seq(
+    openApiGeneratorName := "java",
+    openApiOutputDir := openApiModelOutputDir,
+    openApiModelPackage := "org.apache.celeborn.rest.v1.model",
+    openApiGenerateApiTests := SettingDisabled,
+    openApiGenerateModelTests := SettingDisabled,
+    openApiAdditionalProperties := Map("library" -> "jersey2", "annotationLibrary" -> "swagger1"),
+    openApiGlobalProperties := Map("apis" -> "false", "models" -> "", "supportingFiles" -> "false")
+  )
+
   lazy val openapiInternalMasterModel = Project("celeborn-openapi-master-model", file("openapi/openapi-model/target/master"))
     .enablePlugins(OpenApiGeneratorPlugin)
     .settings(
       commonSettings,
       openApiInputSpec := (file(openApiSpecDir) / "master_rest_v1.yaml").toString,
-      openApiGeneratorName := "java",
-      openApiOutputDir := openApiModelOutputDir,
-      openApiModelPackage := "org.apache.celeborn.rest.v1.model",
-      openApiGenerateApiTests := SettingDisabled,
-      openApiGenerateModelTests := SettingDisabled,
-      openApiAdditionalProperties := Map("library" -> "jersey2", "annotationLibrary" -> "swagger1"),
-      openApiGlobalProperties := Map("models" -> "", "supportingFiles" -> "false", "apis" -> "false"),
+      commonOpenApiSettings
     )
 
   lazy val openapiInternalWorkerModel = Project("celeborn-openapi-worker-model", file("openapi/openapi-model/target/worker"))
@@ -1266,13 +1270,7 @@ object CelebornOpenApi {
     .settings(
       commonSettings,
       openApiInputSpec := (file(openApiSpecDir) / "worker_rest_v1.yaml").toString,
-      openApiGeneratorName := "java",
-      openApiOutputDir := openApiModelOutputDir,
-      openApiModelPackage := "org.apache.celeborn.rest.v1.model",
-      openApiGenerateApiTests := SettingDisabled,
-      openApiGenerateModelTests := SettingDisabled,
-      openApiAdditionalProperties := Map("library" -> "jersey2", "annotationLibrary" -> "swagger1"),
-      openApiGlobalProperties := Map("models" -> "", "supportingFiles" -> "false", "apis" -> "false"),
+      commonOpenApiSettings
     )
 
   lazy val openapiModel = Project("celeborn-openapi-model", file("openapi/openapi-model"))
