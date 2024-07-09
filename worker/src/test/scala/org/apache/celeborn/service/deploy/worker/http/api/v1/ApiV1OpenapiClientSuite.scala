@@ -22,7 +22,8 @@ import javax.servlet.http.HttpServletResponse
 
 import org.apache.celeborn.rest.v1.master._
 import org.apache.celeborn.rest.v1.master.invoker._
-import org.apache.celeborn.rest.v1.master.model.{ExcludeWorkerRequest, WorkerId}
+import org.apache.celeborn.rest.v1.master.model.{ExcludeWorkerRequest, SendWorkerEventRequest, WorkerId}
+import org.apache.celeborn.rest.v1.master.model.SendWorkerEventRequest.EventTypeEnum
 
 class ApiV1OpenapiClientSuite extends ApiV1WorkerOpenapiClientSuite {
   private var masterApiClient: ApiClient = _
@@ -75,13 +76,14 @@ class ApiV1OpenapiClientSuite extends ApiV1WorkerOpenapiClientSuite {
     assert(workersResponse.getDecommissioningWorkers.isEmpty)
 
     val workerData = workersResponse.getWorkers.get(0)
-    var handleResponse = api.excludeWorker(new ExcludeWorkerRequest().addAddItem(
-      new WorkerId()
-        .host(workerData.getHost)
-        .rpcPort(workerData.getRpcPort)
-        .pushPort(workerData.getPushPort)
-        .fetchPort(workerData.getFetchPort)
-        .replicatePort(workerData.getReplicatePort)).remove(Collections.emptyList()))
+    val workerId = new WorkerId()
+      .host(workerData.getHost)
+      .rpcPort(workerData.getRpcPort)
+      .pushPort(workerData.getPushPort)
+      .fetchPort(workerData.getFetchPort)
+      .replicatePort(workerData.getReplicatePort)
+    var handleResponse = api.excludeWorker(
+      new ExcludeWorkerRequest().addAddItem(workerId).remove(Collections.emptyList()))
     assert(handleResponse.getSuccess)
 
     workersResponse = api.getWorkers
@@ -89,13 +91,8 @@ class ApiV1OpenapiClientSuite extends ApiV1WorkerOpenapiClientSuite {
     assert(!workersResponse.getExcludedWorkers.isEmpty)
     assert(!workersResponse.getManualExcludedWorkers.isEmpty)
 
-    handleResponse = api.excludeWorker(new ExcludeWorkerRequest().addRemoveItem(
-      new WorkerId()
-        .host(workerData.getHost)
-        .rpcPort(workerData.getRpcPort)
-        .pushPort(workerData.getPushPort)
-        .fetchPort(workerData.getFetchPort)
-        .replicatePort(workerData.getReplicatePort)).add(Collections.emptyList()))
+    handleResponse = api.excludeWorker(
+      new ExcludeWorkerRequest().addRemoveItem(workerId).add(Collections.emptyList()))
     assert(handleResponse.getSuccess)
 
     workersResponse = api.getWorkers
@@ -104,5 +101,12 @@ class ApiV1OpenapiClientSuite extends ApiV1WorkerOpenapiClientSuite {
     assert(workersResponse.getManualExcludedWorkers.isEmpty)
 
     assert(api.getWorkerEvents.getWorkerEvents.isEmpty)
+
+    handleResponse = api.sendWorkerEvent(
+      new SendWorkerEventRequest().addWorkersItem(workerId).eventType(
+        EventTypeEnum.DECOMMISSIONTHENIDLE))
+    assert(handleResponse.getSuccess)
+
+    assert(!api.getWorkerEvents.getWorkerEvents.isEmpty)
   }
 }

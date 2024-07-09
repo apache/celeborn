@@ -31,7 +31,7 @@ abstract class ApiV1WorkerOpenapiClientSuite extends CelebornFunSuite with MiniC
   private val celebornConf = new CelebornConf()
   protected var master: Master = _
   protected var worker: Worker = _
-  private var apiClient: ApiClient = _
+  private var workerApiClient: ApiClient = _
 
   override def beforeAll(): Unit = {
     logInfo("test initialized, setup celeborn mini cluster")
@@ -40,7 +40,7 @@ abstract class ApiV1WorkerOpenapiClientSuite extends CelebornFunSuite with MiniC
     master = m
     worker = w.head
     super.beforeAll()
-    apiClient = new ApiClient().setBasePath(s"http://${worker.connectionUrl}")
+    workerApiClient = new ApiClient().setBasePath(s"http://${worker.connectionUrl}")
   }
 
   override def afterAll(): Unit = {
@@ -50,12 +50,12 @@ abstract class ApiV1WorkerOpenapiClientSuite extends CelebornFunSuite with MiniC
   }
 
   test("worker: default api") {
-    val api = new DefaultApi(apiClient)
+    val api = new DefaultApi(workerApiClient)
     assert(!api.getThreadDump.getThreadStacks.isEmpty)
   }
 
   test("worker: conf api") {
-    val api = new ConfApi(apiClient)
+    val api = new ConfApi(workerApiClient)
     assert(!api.getConf.getConfigs.isEmpty)
     val e = intercept[ApiException](api.getDynamicConf("", "", ""))
     assert(e.getCode == HttpServletResponse.SC_SERVICE_UNAVAILABLE)
@@ -63,24 +63,26 @@ abstract class ApiV1WorkerOpenapiClientSuite extends CelebornFunSuite with MiniC
   }
 
   test("worker: application api") {
-    val api = new ApplicationApi(apiClient)
+    val api = new ApplicationApi(workerApiClient)
     assert(api.getApplicationList.getApplications.isEmpty)
     assert(api.getApplicationsDiskUsage.getAppDiskUsages.isEmpty)
   }
 
   test("worker: shuffle api") {
-    val api = new ShuffleApi(apiClient)
+    val api = new ShuffleApi(workerApiClient)
     assert(api.getShuffles.getShuffleIds.isEmpty)
     assert(api.getShufflePartitions.getPrimaryPartitions.isEmpty)
     assert(api.getShufflePartitions.getReplicaPartitions.isEmpty)
   }
 
   test("worker: worker api") {
-    val api = new WorkerApi(apiClient)
+    val api = new WorkerApi(workerApiClient)
     val workerInfo = api.getWorkerInfo
     assert(!workerInfo.getIsShutdown)
     assert(workerInfo.getIsRegistered)
     assert(!workerInfo.getIsDecommissioning)
+
+    assert(api.unavailablePeers().getPeers.isEmpty)
 
     // assert(api.workerExit(new WorkerExitRequest()).getSuccess)
   }
