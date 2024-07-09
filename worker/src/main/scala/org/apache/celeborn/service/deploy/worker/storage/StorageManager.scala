@@ -615,7 +615,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         if (isDfsExpired) {
           try {
             val dir = if (hasHDFSStorage && isHdfs) hdfsDir else s3Dir
-            val storageInfo = if (hasHDFSStorage && isHdfs) StorageInfo.Type.HDFS else StorageInfo.Type.S3
+            val storageInfo =
+              if (hasHDFSStorage && isHdfs) StorageInfo.Type.HDFS else StorageInfo.Type.S3
             StorageManager.hadoopFs.get(storageInfo).delete(
               new Path(new Path(dir, conf.workerWorkingDir), s"$appId/$shuffleId"),
               true)
