@@ -426,6 +426,25 @@ object ControlMessages extends Logging {
         .build()
   }
 
+  object MasterGroupRequest {
+    def apply(): PbMasterGroupRequest = {
+      PbMasterGroupRequest.newBuilder().build()
+    }
+  }
+
+  object MasterGroupResponse {
+    def apply(
+        groupId: String = null,
+        masterLeader: String = null,
+        commits: util.List[String] = null): PbMasterGroupResponse = {
+      val masterGroupResponse = PbMasterGroupResponse.newBuilder()
+      if (groupId != null) {
+        masterGroupResponse.setGroupId(groupId).setMasterLeader(masterLeader).addAllCommits(commits)
+      }
+      masterGroupResponse.build()
+    }
+  }
+
   /**
    * ==========================================
    *         handled by worker
@@ -917,6 +936,12 @@ object ControlMessages extends Logging {
 
     case pb: PbApplicationMetaRequest =>
       new TransportMessage(MessageType.APPLICATION_META_REQUEST, pb.toByteArray)
+
+    case pb: PbMasterGroupRequest =>
+      new TransportMessage(MessageType.MASTER_GROUP_REQUEST, pb.toByteArray)
+
+    case pb: PbMasterGroupResponse =>
+      new TransportMessage(MessageType.MASTER_GROUP_RESPONSE, pb.toByteArray)
   }
 
   // TODO change return type to GeneratedMessageV3
@@ -1294,6 +1319,12 @@ object ControlMessages extends Logging {
 
       case APPLICATION_META_REQUEST_VALUE =>
         PbApplicationMetaRequest.parseFrom(message.getPayload)
+
+      case MASTER_GROUP_REQUEST_VALUE =>
+        PbMasterGroupRequest.parseFrom(message.getPayload)
+
+      case MASTER_GROUP_RESPONSE_VALUE =>
+        PbMasterGroupResponse.parseFrom(message.getPayload)
     }
   }
 }

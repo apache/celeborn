@@ -15,52 +15,37 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master
+package org.apache.celeborn.service.deploy.web
 
 import scala.annotation.tailrec
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.util.{IntParam, Utils}
-import org.apache.celeborn.service.deploy.master.clustermeta.ha.MasterClusterInfo
 
-class MasterArguments(args: Array[String], conf: CelebornConf) {
+class WebArguments(args: Array[String], conf: CelebornConf) {
 
   private var _host: Option[String] = None
   private var _port: Option[Int] = None
-  private var _internalPort: Option[Int] = None
+  private var _master: Option[String] = None
   private var _propertiesFile: Option[String] = None
-  private var _masterClusterInfo: Option[MasterClusterInfo] = None
 
   // 1st parse from cli args
   parse(args.toList)
 
-  // 2nd parse from environment variables
-  _host = _host.orElse(Utils.customHostname)
-
-  // 3rd read from configuration file
+  // 2nd read from configuration file
   _propertiesFile = Some(Utils.loadDefaultCelebornProperties(conf, _propertiesFile.orNull))
-  if (conf.haEnabled) {
-    val clusterInfo = MasterClusterInfo.loadHAConfig(conf)
-    val localNode = clusterInfo.localNode
-    _host = _host.orElse(Some(conf.haMasterNodeHost(localNode.nodeId)))
-    _port = _port.orElse(Some(conf.haMasterNodePort(localNode.nodeId)))
-    _internalPort = _internalPort.orElse {
-      if (conf.internalPortEnabled) Some(conf.haMasterNodeInternalPort(localNode.nodeId)) else None
-    }
-    _masterClusterInfo = Some(clusterInfo)
-  } else {
-    _host = _host.orElse(Some(conf.masterHost))
-    _port = _port.orElse(Some(conf.masterPort))
-    _internalPort = _internalPort.orElse(Some(conf.masterInternalPort))
-  }
+
+  // 3rd parse host from environment variables and configuration
+  _host = _host.orElse(Utils.customHostname.orElse(Some(conf.webHost)))
+
+  // 4th parse port from configuration
+  _port = _port.orElse(Some(conf.webPort))
 
   def host: String = _host.get
 
   def port: Int = _port.get
 
-  def internalPort: Int = _internalPort.get
-
-  def masterClusterInfo: Option[MasterClusterInfo] = _masterClusterInfo
+  def master: Option[String] = _master
 
   @tailrec
   private def parse(args: List[String]): Unit = args match {
@@ -73,16 +58,16 @@ class MasterArguments(args: Array[String], conf: CelebornConf) {
       _port = Some(value)
       parse(tail)
 
-    case ("--internal-port") :: IntParam(value) :: tail =>
-      _internalPort = Some(value)
-      parse(tail)
-
     case "--properties-file" :: value :: tail =>
       _propertiesFile = Some(value)
       parse(tail)
 
     case "--help" :: _ =>
       printUsageAndExit(0)
+
+    case value :: tail =>
+      _master = Some(value)
+      parse(tail)
 
     case Nil => // No-op
 
@@ -96,12 +81,12 @@ class MasterArguments(args: Array[String], conf: CelebornConf) {
   private def printUsageAndExit(exitCode: Int): Unit = {
     // scalastyle:off println
     System.err.println(
-      """Usage: Master [options]
+      """Usage: Web [options] <master>
         |
+        |<master> must be a URL of the form celeborn://hostname:port
         |Options:
         |  -h HOST, --host HOST   Hostname to listen on
-        |  -p PORT, --port PORT   Port to listen on (default: 9097)
-        |  --internal-port PORT   Internal port for internal communication (default: 8097)
+        |  -p PORT, --port PORT   Port to listen on (default: 9090)
         |  --properties-file FILE Path to a custom Celeborn properties file,
         |                         default is conf/celeborn-defaults.conf.
         |""".stripMargin)

@@ -75,6 +75,13 @@ start="<!--begin-include-->"
 end="<!--end-include-->"
 !}
 
+### Web
+
+{!
+include-markdown "./web.md"
+start="<!--begin-include-->"
+end="<!--end-include-->"
+!}
 
 ### Client
 

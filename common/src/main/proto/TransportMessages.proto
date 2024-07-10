@@ -103,6 +103,8 @@ enum MessageType {
   BATCH_OPEN_STREAM = 80;
   BATCH_OPEN_STREAM_RESPONSE = 81;
   REPORT_WORKER_DECOMMISSION = 82;
+  MASTER_GROUP_REQUEST = 83;
+  MASTER_GROUP_RESPONSE = 84;
 }
 
 enum StreamType {
@@ -796,4 +798,13 @@ message PbPackedWorkerResource {
 message PbReportWorkerDecommission {
   repeated PbWorkerInfo workers = 1;
   string requestId = 2;
+}
+
+message PbMasterGroupRequest {
+}
+
+message PbMasterGroupResponse {
+  string groupId = 1;
+  string masterLeader = 2;
+  repeated string commits = 3;
 }

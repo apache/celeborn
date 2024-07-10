@@ -15,34 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.server.common
+package org.apache.celeborn.service.deploy.web.http.api
 
-import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.server.common.service.config.{ConfigService, DynamicConfigServiceFactory}
+import javax.ws.rs.Path
 
-abstract class Service extends Logging {
-  def serviceName: String
+import org.apache.celeborn.server.common.http.api.ApiRequestContext
 
-  def conf: CelebornConf
+@Path("/")
+class ApiWebResource extends ApiRequestContext {
 
-  def metricsSystem: MetricsSystem
-
-  def configService: ConfigService = DynamicConfigServiceFactory.getConfigService(conf)
-
-  def initialize(): Unit = {
-    if (conf.metricsSystemEnable) {
-      logInfo(s"Metrics system enabled.")
-      metricsSystem.start()
-    }
-  }
-
-  def stop(exitKind: Int): Unit = {}
-}
-
-object Service {
-  val MASTER = "master"
-  val WORKER = "worker"
-  val WEB = "web"
+  @Path("cluster")
+  def cluster: Class[ClusterResource] = classOf[ClusterResource]
 }

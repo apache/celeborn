@@ -33,6 +33,12 @@ public class RpcNameConstants {
   public static String WORKER_EP = "WorkerEndpoint";
   public static String WORKER_INTERNAL_EP = "WorkerInternalEndpoint";
 
+  // For Web
+  public static String WEB_SYS = "Web";
+
+  // Web Endpoint Name
+  public static String WEB_EP = "WebEndpoint";
+
   // For LifecycleManager
   public static String LIFECYCLE_MANAGER_SYS = "LifecycleManager";
   public static String LIFECYCLE_MANAGER_MASTER_SYS = "LifecycleManagerMasterSys";

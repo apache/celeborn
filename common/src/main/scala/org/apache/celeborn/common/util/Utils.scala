@@ -406,7 +406,7 @@ object Utils extends Logging {
     }
   }
 
-  private var customHostname: Option[String] = sys.env.get("CELEBORN_LOCAL_HOSTNAME")
+  var customHostname: Option[String] = sys.env.get("CELEBORN_LOCAL_HOSTNAME")
 
   // for testing
   def setCustomHostname(hostname: String) {
