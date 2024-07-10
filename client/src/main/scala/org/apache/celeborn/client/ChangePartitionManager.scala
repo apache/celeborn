@@ -22,6 +22,7 @@ import java.util.{Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration.DurationInt
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
@@ -112,7 +113,7 @@ class ChangePartitionManager(
 
   def stop(): Unit = {
     batchHandleChangePartition.foreach(_.cancel(true))
-    batchHandleChangePartitionSchedulerThread.foreach(ThreadUtils.shutdown(_))
+    batchHandleChangePartitionSchedulerThread.foreach(ThreadUtils.shutdown(_, 800.millis))
   }
 
   private val rpcContextRegisterFunc =
