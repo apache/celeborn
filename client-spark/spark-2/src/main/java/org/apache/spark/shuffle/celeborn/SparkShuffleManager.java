@@ -23,10 +23,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import scala.Int;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.spark.*;
 import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
-import org.apache.spark.rdd.DeterministicLevel;
 import org.apache.spark.shuffle.*;
 import org.apache.spark.shuffle.sort.SortShuffleManager;
 import org.apache.spark.util.Utils;
@@ -100,6 +100,8 @@ public class SparkShuffleManager implements ShuffleManager {
                 (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();
             lifecycleManager.registerShuffleTrackerCallback(
                 shuffleId -> mapOutputTracker.unregisterAllMapOutput(shuffleId));
+            lifecycleManager.registerShuffleNumAvailableOutputsCallback(
+                mapOutputTracker::getNumAvailableOutputs);
           }
         }
       }
@@ -114,10 +116,6 @@ public class SparkShuffleManager implements ShuffleManager {
     // This method may be called many times.
     appUniqueId = SparkUtils.appUniqueId(dependency.rdd().context());
     initializeLifecycleManager(appUniqueId);
-
-    lifecycleManager.registerAppShuffleDeterminate(
-        shuffleId,
-        dependency.rdd().getOutputDeterministicLevel() != DeterministicLevel.INDETERMINATE());
 
     if (fallbackPolicyRunner.applyAllFallbackPolicy(
         lifecycleManager, dependency.partitioner().numPartitions())) {
@@ -276,5 +274,10 @@ public class SparkShuffleManager implements ShuffleManager {
   // for testing
   public LifecycleManager getLifecycleManager() {
     return this.lifecycleManager;
+  }
+
+  @VisibleForTesting
+  public void registerExecutorShuffleIdTracker(ExecutorShuffleIdTracker tracker) {
+    this.shuffleIdTracker = tracker;
   }
 }
