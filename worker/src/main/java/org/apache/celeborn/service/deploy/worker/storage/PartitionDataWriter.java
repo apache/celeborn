@@ -535,7 +535,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         if (diskFileInfo.isS3() && StorageManager.hadoopFs() != null) {
           hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.S3);
         }
-        if (diskFileInfo.isHdfs() && StorageManager.hadoopFs() != null){
+        if (diskFileInfo.isHdfs() && StorageManager.hadoopFs() != null) {
           hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.HDFS);
         }
         diskFileInfo.deleteAllFiles(hadoopFs);
