@@ -26,24 +26,24 @@ license: |
 - Since 0.6.0, Celeborn introduced a new API namespace: /api/v1, and the old APIs are deprecated. The old APIs will be removed in the future versions.
   - The mappings of the old APIs to the new APIs for Master: 
 
-    | Old API                   | New API                                  | Note                                             |
-    |---------------------------|------------------------------------------|--------------------------------------------------|
-    | GET /conf                 | GET /api/v1/conf                         |                                                  |
-    | GET /listDynamicConfigs   | GET /api/v1/conf/dynamic                 |                                                  |
-    | GET /threadDump           | GET /api/v1/conf/thread_dump             |                                                  |
-    | GET /applications         | GET /api/v1/applications                 |                                                  |
-    | GET /listTopDiskUsedApps  | GET /api/v1/applications/top_disk_usages |                                                  |
-    | GET /hostnames            | GET /api/v1/applications/hostnames       |                                                  |
-    | GET /shuffles             | GET /api/v1/shuffles                     |                                                  |
-    | GET /masterGroupInfo      | GET /api/v1/masters                      |                                                  |
-    | GET /workerInfo           | GET /api/v1/workers                      |                                                  |
-    | GET /lostWorkers          | GET /api/v1/workers                      | get the lostWorkers field in response            |
-    | GET /excludeWorkers       | GET /api/v1/workers                      | get the excludedWorkers field in response        |
-    | GET /shutdownWorkers      | GET /api/v1/workers                      | get the shutdownWorkers filed in response        |
-    | GET /decommissionWorkers  | GET /api/v1/workers                      | get the decommissioningWorkers filed in response |
-    | POST /exclude             | POST /api/v1/workers/exclude             |                                                  |
-    | GET /workerEventInfo      | GET /api/v1/workers/events               |                                                  |
-    | POST /sendWorkerEvent     | POST /api/v1/workers/events              |                                                  |
+    | Old API                  | New API                                  | Note                                             |
+    |--------------------------|------------------------------------------|--------------------------------------------------|
+    | GET /conf                | GET /api/v1/conf                         |                                                  |
+    | GET /listDynamicConfigs  | GET /api/v1/conf/dynamic                 |                                                  |
+    | GET /threadDump          | GET /api/v1/conf/thread_dump             |                                                  |
+    | GET /applications        | GET /api/v1/applications                 |                                                  |
+    | GET /listTopDiskUsedApps | GET /api/v1/applications/top_disk_usages |                                                  |
+    | GET /hostnames           | GET /api/v1/applications/hostnames       |                                                  |
+    | GET /shuffle             | GET /api/v1/shuffles                     |                                                  |
+    | GET /masterGroupInfo     | GET /api/v1/masters                      |                                                  |
+    | GET /workerInfo          | GET /api/v1/workers                      |                                                  |
+    | GET /lostWorkers         | GET /api/v1/workers                      | get the lostWorkers field in response            |
+    | GET /excludedWorkers     | GET /api/v1/workers                      | get the excludedWorkers field in response        |
+    | GET /shutdownWorkers     | GET /api/v1/workers                      | get the shutdownWorkers filed in response        |
+    | GET /decommissionWorkers | GET /api/v1/workers                      | get the decommissioningWorkers filed in response |
+    | POST /exclude            | POST /api/v1/workers/exclude             |                                                  |
+    | GET /workerEventInfo     | GET /api/v1/workers/events               |                                                  |
+    | POST /sendWorkerEvent    | POST /api/v1/workers/events              |                                                  |
 
 
   - The mappings of the old APIs to the new APIs for Worker:
@@ -55,7 +55,7 @@ license: |
     | GET /threadDump                | GET /api/v1/conf/thread_dump             |                                             |
     | GET /applications              | GET /api/v1/applications                 |                                             |
     | GET /listTopDiskUsedApps       | GET /api/v1/applications/top_disk_usages |                                             |
-    | GET /shuffles                  | GET /api/v1/shuffles                     |                                             |
+    | GET /shuffle                   | GET /api/v1/shuffles                     |                                             |
     | GET /listPartitionLocationInfo | GET /api/v1/shuffles/partitions          |                                             |
     | GET /workerInfo                | GET /api/v1/workers                      |                                             |
     | GET /isRegistered              | GET /api/v1/workers                      | get the isRegistered field in response      |
