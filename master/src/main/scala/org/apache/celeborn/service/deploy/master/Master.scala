@@ -24,7 +24,6 @@ import java.util.concurrent.{ConcurrentHashMap, ExecutorService, ScheduledFuture
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
 
-import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.util.Random
 
@@ -1027,7 +1026,7 @@ private[celeborn] class Master(
 
   private def processDir(dfsDir: String, expiredDir: String): Unit = {
     val dfsWorkPath = new Path(dfsDir, conf.workerWorkingDir)
-    hadoopFs.map(_._2).filter(_.exists(dfsWorkPath)).foreach { fs =>
+    hadoopFs.asScala.map(_._2).filter(_.exists(dfsWorkPath)).foreach { fs =>
       if (expiredDir.nonEmpty) {
         val dirToDelete = new Path(dfsWorkPath, expiredDir)
         // delete specific app dir on application lost
