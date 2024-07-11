@@ -21,6 +21,14 @@ license: |
 
 # Migration Guide
 
+## Upgrading from 0.5.0 to 0.5.1
+
+- Since 0.5.1, Celeborn master REST API `/exclude` request uses media type `application/x-www-form-urlencoded` instead of `text/plain`.
+
+- Since 0.5.1, Celeborn master REST API `/sendWorkerEvent` request uses POST method and the parameters `type` and `workers` use form parameters instead, and uses media type `application/x-www-form-urlencoded` instead of `text/plain`.
+
+- Since 0.5.1, Celeborn worker REST API `/exit` request uses media type `application/x-www-form-urlencoded` instead of `text/plain`.
+
 ## Upgrading from 0.4 to 0.5
 
 - Since 0.5.0, Celeborn master metrics `LostWorkers` is renamed as `LostWorkerCount`.
