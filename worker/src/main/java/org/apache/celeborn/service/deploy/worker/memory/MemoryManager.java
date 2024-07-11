@@ -126,8 +126,7 @@ public class MemoryManager {
     double readBufferTargetRatio = conf.readBufferTargetRatio();
     long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
     long readBufferTargetNotifyThreshold = conf.readBufferTargetNotifyThreshold();
-    boolean aggressiveMemoryFileEvictEnabled =
-        conf.workerMemoryFileStorageAggressiveEvictPolicyEnabled();
+    boolean aggressiveEvictModeEnabled = conf.workerMemoryFileStorageEictAggressiveModeEnabled();
     double evictRatio = conf.workerMemoryFileStorageEvictRatio();
     forceAppendPauseSpentTimeThreshold = conf.metricsWorkerForceAppendPauseSpentTimeThreshold();
     maxDirectMemory =
@@ -235,7 +234,7 @@ public class MemoryManager {
       memoryFileStorageService.scheduleWithFixedDelay(
           () -> {
             try {
-              if (shouldEvict(aggressiveMemoryFileEvictEnabled, evictRatio)) {
+              if (shouldEvict(aggressiveEvictModeEnabled, evictRatio)) {
                 List<PartitionDataWriter> memoryWriters =
                     new ArrayList<>(storageManager.memoryWriters().values());
                 if (memoryWriters.isEmpty()) {
@@ -249,7 +248,7 @@ public class MemoryManager {
                 try {
                   for (PartitionDataWriter writer : memoryWriters) {
                     // this branch means that there is no memory pressure
-                    if (!shouldEvict(aggressiveMemoryFileEvictEnabled, evictRatio)) {
+                    if (!shouldEvict(aggressiveEvictModeEnabled, evictRatio)) {
                       break;
                     }
                     logger.debug("Evict writer {}", writer);

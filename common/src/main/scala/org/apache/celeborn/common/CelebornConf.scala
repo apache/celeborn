@@ -1207,8 +1207,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE)
   def workerMemoryFileStorageMaxFileSize: Long =
     get(WORKER_MEMORY_FILE_STORAGE_MAX_FILE_SIZE)
-  def workerMemoryFileStorageAggressiveEvictPolicyEnabled: Boolean =
-    get(WORKER_MEMORY_FILE_STORAGE_AGGRESSIVE_EVICT_POLICY_ENABLED)
+  def workerMemoryFileStorageEictAggressiveModeEnabled: Boolean =
+    get(WORKER_MEMORY_FILE_STORAGE_EVICT_AGGRESSIVE_MODE_ENABLED)
   def workerMemoryFileStorageEvictRatio: Double =
     get(WORKER_MEMORY_FILE_STORAGE_EVICT_RATIO)
 
@@ -3411,8 +3411,8 @@ object CelebornConf extends Logging {
       .checkValue(v => v < Int.MaxValue, "A single memory storage file can not be larger than 2GB")
       .createWithDefaultString("8MB")
 
-  val WORKER_MEMORY_FILE_STORAGE_AGGRESSIVE_EVICT_POLICY_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.memoryFileStorage.aggressiveEvictPolicy.enabled")
+  val WORKER_MEMORY_FILE_STORAGE_EVICT_AGGRESSIVE_MODE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.memoryFileStorage.evict.aggressiveMode.enabled")
       .categories("worker")
       .doc(
         "If this set to true, memory shuffle files will be evicted when worker is in PAUSED state." +
