@@ -161,6 +161,16 @@
           <artifactId>hadoop-aws</artifactId>
           <version>${hadoop.version}</version>
         </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>aws-java-sdk-bundle</id>
+      <activation>
+        <property>
+          <name>aws-java-sdk-bundle</name>
+        </property>
+      </activation>
+      <dependencies>
         <dependency>
           <groupId>com.amazonaws</groupId>
           <artifactId>aws-java-sdk-bundle</artifactId>
