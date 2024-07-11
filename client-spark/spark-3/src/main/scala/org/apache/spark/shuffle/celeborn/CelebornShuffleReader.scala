@@ -280,7 +280,9 @@ class CelebornShuffleReader[K, C](
       } else {
         (partitionId, CelebornInputStream.empty())
       }
-    }).map { case (partitionId, inputStream) =>
+    }).filter {
+      case (_, inputStream) => inputStream != CelebornInputStream.empty()
+    }.map { case (partitionId, inputStream) =>
       (partitionId, serializerInstance.deserializeStream(inputStream).asKeyValueIterator)
     }.flatMap { case (partitionId, iter) =>
       try {
