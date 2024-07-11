@@ -1344,6 +1344,14 @@ object CelebornOpenApi {
         target.value / "none"
       },
 
+      (assembly / test) := { },
+
+      (assembly / assemblyJarName) := {
+        s"${moduleName.value}_${scalaBinaryVersion.value}-${version.value}.${artifact.value.extension}"
+      },
+
+      (assembly / logLevel) := Level.Info,
+
       (assembly / assemblyShadeRules) := Seq(
         ShadeRule.rename("io.swagger.**" -> "org.apache.celeborn.shaded.io.swagger.@1").inAll,
         ShadeRule.rename("org.openapitools.**" -> "org.apache.celeborn.shaded.org.openapitools.@1").inAll,
@@ -1355,13 +1363,6 @@ object CelebornOpenApi {
 
       (assembly / assemblyMergeStrategy) := {
         case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
-        // the LicenseAndNoticeMergeStrategy always picks the license/notice file from the current project
-        case m @ ("META-INF/LICENSE" | "META-INF/NOTICE") => CustomMergeStrategy("LicenseAndNoticeMergeStrategy") { conflicts =>
-          val entry = conflicts.head
-          val projectLicenseFile = (Compile / resourceDirectory).value / entry.target
-          val stream = () => new java.io.BufferedInputStream(new java.io.FileInputStream(projectLicenseFile))
-          Right(Vector(JarEntry(entry.target, stream)))
-        }
         case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
         case _ => MergeStrategy.first
       },
