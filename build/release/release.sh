@@ -123,7 +123,7 @@ upload_nexus_staging() {
   ${PROJECT_DIR}/build/sbt -Pmr "clean;celeborn-client-mr-shaded/publishSigned"
 
   echo "Deploying celeborn-openapi-client_2.12"
-  ${PROJECT_DIR}/build/mvn clean deploy -DskipTests -pl openapi/openapi-client -s "${PROJECT_DIR}/build/release/asf-settings.xml"
+  ${PROJECT_DIR}/build/sbt "clean;celeborn-openapi-client/publishSigned"
 }
 
 finalize_svn() {
