@@ -16,7 +16,6 @@
 #
 
 # default values of celeborn worker and master
-# other required values should be set externally (e.g. teletraan, devapp ENV)
 
 celeborn.metrics.enabled true
 
