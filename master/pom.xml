@@ -156,21 +156,21 @@
           <artifactId>hadoop-client-runtime</artifactId>
           <version>${hadoop.version}</version>
         </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>hadoop-aws</id>
+      <activation>
+        <property>
+          <name>hadoop-aws</name>
+        </property>
+      </activation>
+      <dependencies>
         <dependency>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-aws</artifactId>
           <version>${hadoop.version}</version>
         </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>aws-java-sdk-bundle</id>
-      <activation>
-        <property>
-          <name>aws-java-sdk-bundle</name>
-        </property>
-      </activation>
-      <dependencies>
         <dependency>
           <groupId>com.amazonaws</groupId>
           <artifactId>aws-java-sdk-bundle</artifactId>
@@ -190,16 +190,6 @@
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-client</artifactId>
           <version>${hadoop.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-aws</artifactId>
-          <version>${hadoop.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>com.amazonaws</groupId>
-          <artifactId>aws-java-sdk-bundle</artifactId>
-          <version>${aws.version}</version>
         </dependency>
       </dependencies>
     </profile>
