@@ -388,6 +388,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     val num = get(RPC_DISPATCHER_THREADS)
     if (num != 0) num else availableCores
   }
+  def rpcInboxType(): String = {
+    get(RPC_INBOX_TYPE)
+  }
+  def rpcInMemoryBoundedInboxCapacity(): Int = {
+    get(RPC_IN_MEMORY_BOUNDED_INBOX_CAPACITY)
+  }
   def rpcDispatcherNumThreads(availableCores: Int, role: String): Int = {
     val num = getInt(
       RPC_ROLE_DISPATHER_THREADS.key.replace("<role>", role),
@@ -543,6 +549,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def estimatedPartitionSizeForEstimationUpdateInterval: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
   def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
+  def workerResourceConsumptionInterval: Long = get(WORKER_RESOURCE_CONSUMPTION_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //               Address && HA && RATIS                //
@@ -682,12 +689,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     if (hasHDFSStorage) Math.max(128, get(WORKER_COMMIT_THREADS)) else get(WORKER_COMMIT_THREADS)
   def workerCleanThreads: Int = get(WORKER_CLEAN_THREADS)
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
-  def maxPartitionSizeToEstimate: Long =
-    get(ESTIMATED_PARTITION_SIZE_MAX_SIZE).getOrElse(partitionSplitMaximumSize * 2)
   def minPartitionSizeToEstimate: Long = get(ESTIMATED_PARTITION_SIZE_MIN_SIZE)
   def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
-  def workerPartitionSorterShuffleBlockCompactionFactor: Double =
-    get(WORKER_SHUFFLE_BLOCK_COMPACTION_FACTOR)
   def partitionSorterReservedMemoryPerPartition: Long =
     get(WORKER_PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY)
   def partitionSorterThreads: Int =
@@ -784,25 +787,20 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       get(CLIENT_RESERVE_SLOTS_RPC_TIMEOUT).milli,
       CLIENT_RESERVE_SLOTS_RPC_TIMEOUT.key)
 
-  def clientRpcRegisterShuffleAskTimeout: RpcTimeout =
+  def clientRpcRegisterShuffleRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
-      get(CLIENT_RPC_REGISTER_SHUFFLE_ASK_TIMEOUT).milli,
-      CLIENT_RPC_REGISTER_SHUFFLE_ASK_TIMEOUT.key)
+      get(CLIENT_RPC_REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).milli,
+      CLIENT_RPC_REGISTER_SHUFFLE_RPC_ASK_TIMEOUT.key)
 
-  def clientRpcRequestPartitionLocationAskTimeout: RpcTimeout =
+  def clientRpcRequestPartitionLocationRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
-      get(CLIENT_RPC_REQUEST_PARTITION_LOCATION_ASK_TIMEOUT).milli,
-      CLIENT_RPC_REQUEST_PARTITION_LOCATION_ASK_TIMEOUT.key)
+      get(CLIENT_RPC_REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT).milli,
+      CLIENT_RPC_REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT.key)
 
-  def clientRpcGetReducerFileGroupAskTimeout: RpcTimeout =
+  def clientRpcGetReducerFileGroupRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
-      get(CLIENT_RPC_GET_REDUCER_FILE_GROUP_ASK_TIMEOUT).milli,
-      CLIENT_RPC_GET_REDUCER_FILE_GROUP_ASK_TIMEOUT.key)
-
-  def clientRpcCommitFilesAskTimeout: RpcTimeout =
-    new RpcTimeout(
-      get(CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT).milli,
-      CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT.key)
+      get(CLIENT_RPC_GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).milli,
+      CLIENT_RPC_GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Client Fetch                  //
@@ -832,6 +830,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushReviveInterval: Long = get(CLIENT_PUSH_REVIVE_INTERVAL)
   def clientPushReviveBatchSize: Int = get(CLIENT_PUSH_REVIVE_BATCHSIZE)
   def clientPushSortMemoryThreshold: Long = get(CLIENT_PUSH_SORT_MEMORY_THRESHOLD)
+  def clientPushSortMemoryAdaptiveThreshold: Boolean =
+    get(CLIENT_PUSH_SORT_MEMORY_ADAPTIVE_THRESHOLD)
+  def clientPushSortSmallPushTolerateFactor: Double =
+    get(CLIENT_PUSH_SORT_SMALL_PUSH_TOLERATE_FACTOR)
   def clientPushSortRandomizePartitionIdEnabled: Boolean =
     get(CLIENT_PUSH_SORT_RANDOMIZE_PARTITION_ENABLED)
   def clientPushRetryThreads: Int = get(CLIENT_PUSH_RETRY_THREADS)
@@ -1312,7 +1314,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.network.bind.preferIpAddress")
       .categories("network")
       .version("0.3.0")
-      .doc("When `true`, prefer to use IP address, otherwise FQDN. This configuration only " +
+      .doc("When `ture`, prefer to use IP address, otherwise FQDN. This configuration only " +
         "takes effects when the bind hostname is not set explicitly, in such case, Celeborn " +
         "will find the first non-loopback address to bind.")
       .booleanConf
@@ -1364,7 +1366,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.network.memory.allocator.verbose.metric")
       .categories("network")
       .version("0.3.0")
-      .doc("Whether to enable verbose metric for pooled allocator.")
+      .doc("Weather to enable verbose metric for pooled allocator.")
       .booleanConf
       .createWithDefault(false)
 
@@ -1417,6 +1419,25 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .intConf
       .createWithDefault(0)
+
+  val RPC_INBOX_TYPE: ConfigEntry[String] =
+    buildConf("celeborn.rpc.inbox.type")
+      .categories("network")
+      .doc("Specifies the type of RPC endpoint Inbox.")
+      .version("0.4.0")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("IN_MEMORY", "IN_MEMORY_BOUNDED"))
+      .createWithDefault("IN_MEMORY_BOUNDED")
+
+  val RPC_IN_MEMORY_BOUNDED_INBOX_CAPACITY: ConfigEntry[Int] =
+    buildConf("celeborn.rpc.inbox.inmemorybounded.capacity")
+      .categories("network")
+      .doc("Specifies size of the in memory bounded capacity.")
+      .version("0.4.0")
+      .intConf
+      .checkValue(v => v > 0, "the capacity of in-memory bounded inbox must be larger than 0")
+      .createWithDefault(10000)
 
   val RPC_ROLE_DISPATHER_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.<role>.rpc.dispatcher.threads")
@@ -1699,12 +1720,7 @@ object CelebornConf extends Logging {
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for replicate client of worker replicating data to peer worker." +
-        "If you are using the \"celeborn.client.heartbeat.interval\", " +
-        "please use the new configs for each module according to your needs or " +
-        "replace it with \"celeborn.rpc.heartbeat.interval\", " +
-        "\"celeborn.data.heartbeat.interval\" and" +
-        "\"celeborn.replicate.heartbeat.interval\". ")
+        s"it works for replicate client of worker replicating data to peer worker.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
@@ -2149,18 +2165,10 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64mb")
 
-  val ESTIMATED_PARTITION_SIZE_MAX_SIZE: OptionalConfigEntry[Long] =
-    buildConf("celeborn.master.estimatedPartitionSize.maxSize")
-      .categories("master")
-      .doc("Max partition size for estimation. Default value should be celeborn.worker.shuffle.partitionSplit.max * 2.")
-      .version("0.4.1")
-      .bytesConf(ByteUnit.BYTE)
-      .createOptional
-
   val ESTIMATED_PARTITION_SIZE_MIN_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.master.estimatedPartitionSize.minSize")
       .withAlternative("celeborn.shuffle.minPartitionSizeToEstimate")
-      .categories("master", "worker")
+      .categories("worker")
       .doc(
         "Ignore partition size smaller than this configuration of partition size for estimation.")
       .version("0.3.0")
@@ -2190,6 +2198,14 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc("Time length for a window about compute user resource consumption.")
       .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
+  val WORKER_RESOURCE_CONSUMPTION_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.userResourceConsumption.update.interval")
+      .categories("worker")
+      .doc("Time length for a window about compute user resource consumption.")
+      .version("0.3.2")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
@@ -2538,16 +2554,6 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .checkValue(v => v < Int.MaxValue, "Reserved memory per partition must be less than 2GB.")
       .createWithDefaultString("1mb")
-
-  val WORKER_SHUFFLE_BLOCK_COMPACTION_FACTOR: ConfigEntry[Double] =
-    buildConf("celeborn.shuffle.sortPartition.block.compactionFactor")
-      .categories("worker")
-      .version("0.4.2")
-      .doc("Combine sorted shuffle blocks such that size of compacted shuffle block does not " +
-        s"exceed compactionFactor * ${SHUFFLE_CHUNK_SIZE.key}")
-      .doubleConf
-      .checkValue(v => v >= 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
-      .createWithDefault(0.25)
 
   val WORKER_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.flusher.buffer.size")
@@ -3779,7 +3785,7 @@ object CelebornConf extends Logging {
       .doc("Timeout for LifecycleManager request reserve slots.")
       .fallbackConf(RPC_ASK_TIMEOUT)
 
-  val CLIENT_RPC_REGISTER_SHUFFLE_ASK_TIMEOUT: ConfigEntry[Long] =
+  val CLIENT_RPC_REGISTER_SHUFFLE_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.registerShuffle.askTimeout")
       .withAlternative("celeborn.rpc.registerShuffle.askTimeout")
       .categories("client")
@@ -3788,33 +3794,29 @@ object CelebornConf extends Logging {
         s"During this process, there are two times for retry opportunities for requesting slots, " +
         s"one request for establishing a connection with Worker and " +
         s"`${CLIENT_RESERVE_SLOTS_MAX_RETRIES.key}` times for retry opportunities for reserving slots. " +
-        s"User can customize this value according to your setting.")
-      .fallbackConf(RPC_ASK_TIMEOUT)
+        s"User can customize this value according to your setting. " +
+        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
+      .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
 
-  val CLIENT_RPC_REQUEST_PARTITION_LOCATION_ASK_TIMEOUT: ConfigEntry[Long] =
+  val CLIENT_RPC_REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.requestPartition.askTimeout")
       .categories("client")
       .version("0.2.0")
       .doc(s"Timeout for ask operations during requesting change partition location, such as reviving or splitting partition. " +
         s"During this process, there are `${CLIENT_RESERVE_SLOTS_MAX_RETRIES.key}` times for retry opportunities for reserving slots. " +
-        s"User can customize this value according to your setting.")
-      .fallbackConf(RPC_ASK_TIMEOUT)
+        s"User can customize this value according to your setting. " +
+        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
+      .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
 
-  val CLIENT_RPC_GET_REDUCER_FILE_GROUP_ASK_TIMEOUT: ConfigEntry[Long] =
+  val CLIENT_RPC_GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.getReducerFileGroup.askTimeout")
       .categories("client")
       .version("0.2.0")
       .doc(s"Timeout for ask operations during getting reducer file group information. " +
         s"During this process, there are `${CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files " +
-        s"and 1 times for releasing slots request. User can customize this value according to your setting.")
-      .fallbackConf(RPC_ASK_TIMEOUT)
-
-  val CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.client.rpc.commitFiles.askTimeout")
-      .categories("client")
-      .version("0.4.1")
-      .doc("Timeout for CommitHandler commit files.")
-      .fallbackConf(RPC_ASK_TIMEOUT)
+        s"and 1 times for releasing slots request. User can customize this value according to your setting. " +
+        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
+      .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
 
   val CLIENT_RPC_CACHE_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.client.rpc.cache.size")
@@ -3934,6 +3936,30 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64m")
+
+  val CLIENT_PUSH_SORT_MEMORY_ADAPTIVE_THRESHOLD: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.push.sort.memory.adaptiveThreshold")
+      .categories("client")
+      .doc("adaptively adjust threshold for sort shuffle writer's memory threshold")
+      .version("0.3.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_PUSH_SORT_SMALL_PUSH_TOLERATE_FACTOR: ConfigEntry[Double] =
+    buildConf("celeborn.client.spark.push.sort.smallPushTolerateFactor")
+      .categories("client")
+      .doc("only be in effect when celeborn.client.spark.push.sort.memory.adaptiveThreshold is" +
+        " turned on. It controls when to enlarge the sort shuffle writer's memory threshold. With" +
+        " N bytes data in memory and V as the value of this config, if the number of pushes, C," +
+        " when using sort based shuffle writer C >= (1 + V) * C' where C' is the number of pushes" +
+        " if we were using hash based writer, we will enlarge the memory threshold by 2X.")
+      .version("0.3.0")
+      .doubleConf
+      .checkValue(
+        v => v >= 0.0,
+        "the value of" +
+          " celeborn.client.spark.push.sort.smallPushTolerateFactor must be no less than 0")
+      .createWithDefault(0.2)
 
   val TEST_ALTERNATIVE: OptionalConfigEntry[String] =
     buildConf("celeborn.test.alternative.key")
