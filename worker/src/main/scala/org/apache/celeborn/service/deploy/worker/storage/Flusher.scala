@@ -209,7 +209,7 @@ final private[worker] class S3Flusher(
     allocator,
     maxComponents,
     null,
-   "S3") with Logging {
+    "S3") with Logging {
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
