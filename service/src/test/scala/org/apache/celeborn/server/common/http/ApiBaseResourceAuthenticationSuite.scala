@@ -25,11 +25,11 @@ import javax.ws.rs.core.MediaType
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.authentication.HttpAuthSchemes
 import org.apache.celeborn.common.network.TestHelper
-import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.http.HttpAuthUtils.AUTHORIZATION_HEADER
 import org.apache.celeborn.server.common.http.authentication.{UserDefinePasswordAuthenticationProviderImpl, UserDefineTokenAuthenticationProviderImpl}
 
 abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
+  val administers = Seq("celeborn", "celeborn2")
   celebornConf
     .set(CelebornConf.METRICS_ENABLED.key, "true")
     .set(
@@ -49,6 +49,8 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
     .set(
       CelebornConf.WORKER_HTTP_AUTH_BEARER_PROVIDER,
       classOf[UserDefineTokenAuthenticationProviderImpl].getName)
+    .set(CelebornConf.MASTER_HTTP_AUTH_ADMINISTERS, administers)
+    .set(CelebornConf.WORKER_HTTP_AUTH_ADMINISTERS, administers)
 
   def basicAuthorizationHeader(user: String, password: String): String =
     HttpAuthSchemes.BASIC + " " + new String(
@@ -131,16 +133,18 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
         .post(null)
       assert(HttpServletResponse.SC_FORBIDDEN == response.getStatus)
 
-      response = webTarget.path(api)
-        .request(MediaType.TEXT_PLAIN)
-        .header(
-          AUTHORIZATION_HEADER,
-          basicAuthorizationHeader(
-            Utils.currentUser, // the current user is admin
-            UserDefinePasswordAuthenticationProviderImpl.VALID_PASSWORD))
-        .post(null)
-      // pass the admin privilege check, but the api is not found
-      assert(HttpServletResponse.SC_NOT_FOUND == response.getStatus)
+      administers.foreach { admin =>
+        response = webTarget.path(api)
+          .request(MediaType.TEXT_PLAIN)
+          .header(
+            AUTHORIZATION_HEADER,
+            basicAuthorizationHeader(
+              admin,
+              UserDefinePasswordAuthenticationProviderImpl.VALID_PASSWORD))
+          .post(null)
+        // pass the admin privilege check, but the api is not found
+        assert(HttpServletResponse.SC_NOT_FOUND == response.getStatus)
+      }
     }
   }
 }

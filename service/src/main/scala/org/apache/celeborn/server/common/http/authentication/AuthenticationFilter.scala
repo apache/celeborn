@@ -29,7 +29,6 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.authentication.HttpAuthSchemes
 import org.apache.celeborn.common.authentication.HttpAuthSchemes.{HttpAuthScheme, _}
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.Service
 import org.apache.celeborn.server.common.http.HttpAuthUtils.AUTHORIZATION_HEADER
 
@@ -68,9 +67,9 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
 
   private val administrators: Set[String] = serviceName match {
     case Service.MASTER =>
-      conf.get(CelebornConf.MASTER_HTTP_AUTH_ADMINISTERS).toSet + Utils.currentUser
+      conf.get(CelebornConf.MASTER_HTTP_AUTH_ADMINISTERS).toSet
     case Service.WORKER =>
-      conf.get(CelebornConf.WORKER_HTTP_AUTH_ADMINISTERS).toSet + Utils.currentUser
+      conf.get(CelebornConf.WORKER_HTTP_AUTH_ADMINISTERS).toSet
   }
 
   private def initAuthHandlers(): Unit = {
