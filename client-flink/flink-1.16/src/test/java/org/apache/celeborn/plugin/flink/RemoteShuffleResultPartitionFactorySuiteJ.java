@@ -19,7 +19,6 @@ package org.apache.celeborn.plugin.flink;
 
 import static org.mockito.Mockito.mock;
 
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.junit.Assert;
@@ -44,11 +43,8 @@ public class RemoteShuffleResultPartitionFactorySuiteJ {
               1);
       if (CompressionCodec.NONE.equals(compressionCodec)) {
         Assert.assertNull(partitionFactory.getBufferCompressor());
-      } else if (CompressionCodec.LZ4.equals(compressionCodec)) {
-        Assert.assertNotNull(partitionFactory.getBufferCompressor());
       } else {
-        Assert.assertThrows(
-            IllegalConfigurationException.class, partitionFactory::getBufferCompressor);
+        Assert.assertNotNull(partitionFactory.getBufferCompressor());
       }
     }
   }
