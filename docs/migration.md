@@ -21,6 +21,14 @@ license: |
 
 # Migration Guide
 
+## Upgrading from 0.5.0 to 0.5.1
+
+- Since 0.5.1, Celeborn master REST API `/exclude` uses media type `application/x-www-form-urlencoded` instead of `text/plain`.
+
+- Since 0.5.1, Celeborn master REST API `/sendWorkerEvent` uses POST method and the parameters `type` and `workers` use form parameters instead, and uses media type `application/x-www-form-urlencoded` instead of `text/plain`.
+
+- Since 0.5.1, Celeborn worker REST API `/exit` uses media type `application/x-www-form-urlencoded` instead of `text/plain`.
+
 ## Upgrading from 0.4 to 0.5
 
 - Since 0.5.0, Celeborn master metrics `LostWorkers` is renamed as `LostWorkerCount`.
@@ -40,11 +48,9 @@ license: |
 
 - Since 0.5.0, Celeborn deprecate `celeborn.client.spark.shuffle.forceFallback.enabled`. Please use `celeborn.client.spark.shuffle.fallback.policy` instead.
 
-- Since 0.5.0, Celeborn master REST API `/exclude` uses POST method and the parameters `add` and `remove` use form parameters instead, and use media type `application/x-www-form-urlencoded` instead of `text/plain`.
+- Since 0.5.0, Celeborn master REST API `/exclude` uses POST method and the parameters `add` and `remove` use form parameters instead.
 
-- Since 0.5.0, Celeborn master REST API `/sendWorkerEvent` uses POST method and the parameters `type` and `workers` use form parameters instead, and use media type `application/x-www-form-urlencoded` instead of `text/plain`.
-
-- Since 0.5.0, Celeborn worker REST API `/exit` uses POST method and the parameter `type` uses form parameter instead, and use media type `application/x-www-form-urlencoded` instead of `text/plain`.
+- Since 0.5.0, Celeborn worker REST API `/exit` uses POST method and the parameter `type` uses form parameter instead.
 
 ## Upgrading from 0.4.0 to 0.4.1
 
