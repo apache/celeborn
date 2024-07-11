@@ -23,8 +23,10 @@ license: |
 
 # Upgrading from 0.5 to 0.6
 - 
-- Since 0.6.0, Celeborn introduced a new API namespace: /api/v1, and the old APIs are deprecated. The old APIs will be removed in the future versions.
-  - The mappings of the old APIs to the new APIs for Master: 
+- Since 0.6.0, Celeborn has introduced a new API namespace: /api/v1, which uses the application/json media type for requests and responses.
+   The legacy APIs have been deprecated and will be removed in future releases.
+  
+  - The mappings of the old APIs to the new APIs for Master, see the master openapi spec (openapi/openapi-client/src/main/openapi3/master_rest_v1.yaml) in the repo for details.
 
     | Old API                  | New API                                  | Note                                             |
     |--------------------------|------------------------------------------|--------------------------------------------------|
@@ -46,7 +48,7 @@ license: |
     | POST /sendWorkerEvent    | POST /api/v1/workers/events              |                                                  |
 
 
-  - The mappings of the old APIs to the new APIs for Worker:
+  - The mappings of the old APIs to the new APIs for Worker, see the worker openapi spec (openapi/openapi-client/src/main/openapi3/worker_rest_v1.yaml) in the repo for details.
 
     | Old API                        | New API                                  | Note                                        |
     |--------------------------------|------------------------------------------|---------------------------------------------|
