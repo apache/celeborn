@@ -110,6 +110,9 @@ upload_nexus_staging() {
   echo "Deploying celeborn-client-flink-1.15-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pflink-1.15 "clean;celeborn-client-flink-1_15-shaded/publishSigned"
 
+  echo "Deploying celeborn-client-flink-1.16-shaded_2.12"
+  ${PROJECT_DIR}/build/sbt -Pflink-1.16 "clean;celeborn-client-flink-1_16-shaded/publishSigned"
+
   echo "Deploying celeborn-client-flink-1.17-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pflink-1.17 "clean;celeborn-client-flink-1_17-shaded/publishSigned"
 

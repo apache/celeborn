@@ -25,6 +25,7 @@ if [ "$1" == "--web" ]; then
 else
   ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.14
   ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.15
+  ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.16
   ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.17
   ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.18
   ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.19
