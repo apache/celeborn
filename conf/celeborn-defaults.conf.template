@@ -15,33 +15,15 @@
 # limitations under the License.
 #
 
-# An Example:
-celeborn.rpc.io.mode                             NIO
-celeborn.rpc.io.clientThreads                    8
-celeborn.rpc.io.serverThreads                    8
-celeborn.rpc.io.numConnectionsPerPeer            2
+# default values of celeborn worker and master
+# other required values should be set externally (e.g. teletraan, devapp ENV)
 
-celeborn.push.io.numConnectionsPerPeer           2
-celeborn.worker.push.io.threads                  8
+celeborn.metrics.enabled true
 
-celeborn.metrics.enabled                         true
-
-celeborn.worker.storage.dirs                     /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4,/mnt/disk5
-celeborn.worker.http.port                        9096
-
-celeborn.master.endpoints                        clb-1:9097,clb-2:9097,clb-3:9097
-celeborn.master.http.port                        9098
-
-celeborn.master.ha.enabled                       true
-celeborn.master.ha.node.1.host                   clb-1
-celeborn.master.ha.node.1.port                   9097
-celeborn.master.ha.node.1.ratis.port             9872
-celeborn.master.ha.node.2.host                   clb-2
-celeborn.master.ha.node.2.port                   9097
-celeborn.master.ha.node.2.ratis.port             9872
-celeborn.master.ha.node.3.host                   clb-3
-celeborn.master.ha.node.3.port                   9097
-celeborn.master.ha.node.3.ratis.port             9872
-celeborn.master.ha.ratis.raft.server.storage.dir                           /mnt/disk1/celeborn_ratis/
-celeborn.master.ha.ratis.raft.server.snapshot.auto.trigger.enabled         true
-celeborn.master.ha.ratis.raft.server.snapshot.auto.trigger.threshold       200000
+celeborn.worker.flusher.buffer.size 256k
+celeborn.worker.rpc.port 9099
+celeborn.worker.fetch.port 9100
+celeborn.worker.push.port 9101
+celeborn.worker.replicate.port 9102
+celeborn.worker.graceful.shutdown.enabled true
+celeborn.worker.graceful.shutdown.recoverPath /opt/celeborn/recover
