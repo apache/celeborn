@@ -386,6 +386,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.READ_BUFFER_DISPATCHER_REQUESTS_LENGTH) { () =>
     memoryManager.dispatchRequestsLength
   }
+  workerSource.addGauge(WorkerSource.READ_BUFFER_DISPATCHER_IDLE_BUFFER_LENGTH) { () =>
+    memoryManager.dispatchIdleBufferLength
+  }
   workerSource.addGauge(WorkerSource.READ_BUFFER_ALLOCATED_COUNT) { () =>
     memoryManager.getAllocatedReadBuffers
   }
