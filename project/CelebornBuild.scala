@@ -111,8 +111,6 @@ object Dependencies {
     ExclusionRule("jline", "jline"),
     ExclusionRule("log4j", "log4j"),
     ExclusionRule("org.slf4j", "slf4j-log4j12"))
-  val hadoopAws = "org.apache.hadoop" % "hadoop-aws" % hadoopVersion
-  val awsClient = "com.amazonaws" % "aws-java-sdk-bundle" % awsVersion
   val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion
   val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion excludeAll (
     ExclusionRule("com.rabbitmq", "amqp-client"))
@@ -462,8 +460,6 @@ object CelebornCommon {
         Dependencies.commonsLang3,
         Dependencies.hadoopClientApi,
         Dependencies.hadoopClientRuntime,
-        Dependencies.hadoopAws,
-        Dependencies.awsClient,
         Dependencies.jdkTools,
         Dependencies.leveldbJniAll,
         Dependencies.roaringBitmap,
