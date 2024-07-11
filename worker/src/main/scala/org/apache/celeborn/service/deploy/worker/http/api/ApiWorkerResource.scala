@@ -69,7 +69,7 @@ class ApiWorkerResource extends ApiRequestContext {
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
-      mediaType = MediaType.TEXT_PLAIN)),
+      mediaType = MediaType.APPLICATION_FORM_URLENCODED)),
     description =
       "Trigger this worker to exit. Legal types are 'Decommission', 'Graceful' and 'Immediately'.")
   @POST

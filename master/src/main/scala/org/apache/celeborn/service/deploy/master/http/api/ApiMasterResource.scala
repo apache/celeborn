@@ -87,7 +87,7 @@ class ApiMasterResource extends ApiRequestContext {
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
-      mediaType = MediaType.TEXT_PLAIN)),
+      mediaType = MediaType.APPLICATION_FORM_URLENCODED)),
     description =
       "Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove, which value is separated by commas.")
   @POST
@@ -101,7 +101,7 @@ class ApiMasterResource extends ApiRequestContext {
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
-      mediaType = MediaType.TEXT_PLAIN)),
+      mediaType = MediaType.APPLICATION_FORM_URLENCODED)),
     description =
       "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission', and the parameter workers is separated by commas.")
   @POST
