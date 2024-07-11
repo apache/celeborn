@@ -1342,7 +1342,32 @@ object CelebornOpenApi {
       Compile / doc := {
         // skip due to doc generation failure for openapi modules, see CELEBORN-1477
         target.value / "none"
-      }
+      },
+
+      (assembly / assemblyShadeRules) := Seq(
+        ShadeRule.rename("io.swagger.**" -> "org.apache.celeborn.shaded.io.swagger.@1").inAll,
+        ShadeRule.rename("org.openapitools.**" -> "org.apache.celeborn.shaded.org.openapitools.@1").inAll,
+        ShadeRule.rename("com.google.**" -> "org.apache.celeborn.shaded.com.google.@1").inAll,
+        ShadeRule.rename("javax.annotation.**" -> "org.apache.celeborn.shaded.javax.annotation.@1").inAll,
+        ShadeRule.rename("org.glassfish.jersey.**" -> "org.apache.celeborn.shaded.org.glassfish.jersey.@1").inAll,
+        ShadeRule.rename("com.fasterxml.jackson.**" -> "org.apache.celeborn.shaded.com.fasterxml.jackson.@1").inAll
+      ),
+
+      (assembly / assemblyMergeStrategy) := {
+        case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+        // the LicenseAndNoticeMergeStrategy always picks the license/notice file from the current project
+        case m @ ("META-INF/LICENSE" | "META-INF/NOTICE") => CustomMergeStrategy("LicenseAndNoticeMergeStrategy") { conflicts =>
+          val entry = conflicts.head
+          val projectLicenseFile = (Compile / resourceDirectory).value / entry.target
+          val stream = () => new java.io.BufferedInputStream(new java.io.FileInputStream(projectLicenseFile))
+          Right(Vector(JarEntry(entry.target, stream)))
+        }
+        case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
+        case _ => MergeStrategy.first
+      },
+
+      Compile / packageBin := assembly.value,
+      pomPostProcess := removeDependenciesTransformer
     )
 
   val commonOpenApiModelSettings = Seq(
