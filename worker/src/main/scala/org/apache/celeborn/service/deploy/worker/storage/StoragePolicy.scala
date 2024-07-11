@@ -61,7 +61,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
               partitionDataWriterContext.isPartitionSplitEnabled)
             partitionDataWriterContext.setStorageType(storageInfoType)
             new CelebornMemoryFile(conf, source, memoryFileInfo, storageInfoType)
-          case StorageInfo.Type.HDD | StorageInfo.Type.SSD | StorageInfo.Type.HDFS | StorageInfo.Type.OSS =>
+          case StorageInfo.Type.HDD | StorageInfo.Type.SSD | StorageInfo.Type.HDFS | StorageInfo.Type.OSS | StorageInfo.Type.S3 =>
             logDebug(s"create non-memory file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
             val (flusher, diskFileInfo, workingDir) = storageManager.createDiskFile(
               location,
