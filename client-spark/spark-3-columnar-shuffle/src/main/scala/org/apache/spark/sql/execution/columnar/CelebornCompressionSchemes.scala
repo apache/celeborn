@@ -260,7 +260,7 @@ case object CelebornDictionaryEncoding extends CelebornCompressionScheme {
   }
 
   override def supports(columnType: CelebornColumnType[_]): Boolean = columnType match {
-    case CELEBORN_INT | CELEBORN_LONG | CELEBORN_STRING => true
+    case CELEBORN_INT | CELEBORN_LONG | CELEBORN_FLOAT | CELEBORN_DOUBLE | CELEBORN_STRING => true
     case _ => false
   }
 
@@ -345,6 +345,8 @@ case object CelebornDictionaryEncoding extends CelebornCompressionScheme {
     private val dictionary: Array[Any] = new Array[Any](elementNum)
     private var intDictionary: Array[Int] = _
     private var longDictionary: Array[Long] = _
+    private var floatDictionary: Array[Float] = _
+    private var doubleDictionary: Array[Double] = _
     private var stringDictionary: Array[String] = _
 
     columnType.dataType match {
@@ -360,6 +362,20 @@ case object CelebornDictionaryEncoding extends CelebornCompressionScheme {
         for (i <- 0 until elementNum) {
           val v = columnType.extract(buffer).asInstanceOf[Long]
           longDictionary(i) = v
+          dictionary(i) = v
+        }
+      case _: FloatType =>
+        floatDictionary = new Array[Float](elementNum)
+        for (i <- 0 until elementNum) {
+          val v = columnType.extract(buffer).asInstanceOf[Float]
+          floatDictionary(i) = v
+          dictionary(i) = v
+        }
+      case _: DoubleType =>
+        doubleDictionary = new Array[Double](elementNum)
+        for (i <- 0 until elementNum) {
+          val v = columnType.extract(buffer).asInstanceOf[Double]
+          doubleDictionary(i) = v
           dictionary(i) = v
         }
       case _: StringType =>
@@ -384,50 +400,31 @@ case object CelebornDictionaryEncoding extends CelebornCompressionScheme {
       var nextNullIndex = if (nullCount > 0) ByteBufferHelper.getInt(nullsBuffer) else -1
       var pos = 0
       var seenNulls = 0
+      val dictionaryIds = columnVector.reserveDictionaryIds(capacity)
       columnType.dataType match {
         case _: IntegerType =>
-          val dictionaryIds = columnVector.reserveDictionaryIds(capacity)
           columnVector.setDictionary(new CelebornColumnDictionary(intDictionary))
-          while (pos < capacity) {
-            if (pos != nextNullIndex) {
-              dictionaryIds.putInt(pos, buffer.getShort())
-            } else {
-              seenNulls += 1
-              if (seenNulls < nullCount) nextNullIndex = ByteBufferHelper.getInt(nullsBuffer)
-              columnVector.putNull(pos)
-            }
-            pos += 1
-          }
         case _: LongType =>
-          val dictionaryIds = columnVector.reserveDictionaryIds(capacity)
           columnVector.setDictionary(new CelebornColumnDictionary(longDictionary))
-          while (pos < capacity) {
-            if (pos != nextNullIndex) {
-              dictionaryIds.putInt(pos, buffer.getShort())
-            } else {
-              seenNulls += 1
-              if (seenNulls < nullCount) {
-                nextNullIndex = ByteBufferHelper.getInt(nullsBuffer)
-              }
-              columnVector.putNull(pos)
-            }
-            pos += 1
-          }
+        case _: FloatType =>
+          columnVector.setDictionary(new CelebornColumnDictionary(floatDictionary))
+        case _: DoubleType =>
+          columnVector.setDictionary(new CelebornColumnDictionary(doubleDictionary))
         case _: StringType =>
-          val dictionaryIds = columnVector.reserveDictionaryIds(capacity)
           columnVector.setDictionary(new CelebornColumnDictionary(stringDictionary))
-          while (pos < capacity) {
-            if (pos != nextNullIndex) {
-              dictionaryIds.putInt(pos, buffer.getShort())
-            } else {
-              seenNulls += 1
-              if (seenNulls < nullCount) nextNullIndex = ByteBufferHelper.getInt(nullsBuffer)
-              columnVector.putNull(pos)
-            }
-            pos += 1
-          }
-
         case _ => throw new IllegalStateException("Not supported type in DictionaryEncoding.")
+      }
+      while (pos < capacity) {
+        if (pos != nextNullIndex) {
+          dictionaryIds.putInt(pos, buffer.getShort())
+        } else {
+          seenNulls += 1
+          if (seenNulls < nullCount) {
+            nextNullIndex = ByteBufferHelper.getInt(nullsBuffer)
+          }
+          columnVector.putNull(pos)
+        }
+        pos += 1
       }
     }
   }
