@@ -1313,6 +1313,7 @@ object CelebornOpenApi {
 
   lazy val openapiClient = Project("celeborn-openapi-client", file("openapi/openapi-client"))
     .enablePlugins(OpenApiGeneratorPlugin)
+    .disablePlugins(AddMetaInfLicenseFiles)
     .dependsOn(openapiInternalMasterClient, openapiInternalWorkerClient)
     .settings(
       commonSettings,
@@ -1351,6 +1352,26 @@ object CelebornOpenApi {
       },
 
       (assembly / logLevel) := Level.Info,
+
+      // Exclude `scala-library` from assembly.
+      (assembly / assemblyPackageScala / assembleArtifact) := false,
+
+      (assembly / assemblyExcludedJars) := {
+        val cp = (assembly / fullClasspath).value
+        cp filter { v =>
+          val name = v.data.getName
+          !(name.startsWith("celeborn-") ||
+              name.startsWith("swagger-annotations-") ||
+              name.startsWith("swagger-models-") ||
+              name.startsWith("jackson-databind-") ||
+              name.startsWith("jsr305-") ||
+              name.startsWith("jersey-client-") ||
+              name.startsWith("jersey-media-json-jackson-") ||
+              name.startsWith("jackson-annotations-") ||
+              name.startsWith("jackson-datatype-jsr310-") ||
+              name.startsWith("jersey-media-multipart-"))
+        }
+      },
 
       (assembly / assemblyShadeRules) := Seq(
         ShadeRule.rename("io.swagger.**" -> "org.apache.celeborn.shaded.io.swagger.@1").inAll,

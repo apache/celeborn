@@ -229,6 +229,7 @@
           <artifactSet>
             <includes>
               <include>io.swagger:swagger-annotations</include>
+              <include>io.swagger:swagger-models</include>
               <include>org.openapitools:jackson-databind-nullable</include>
               <include>com.google.code.findbugs:jsr305</include>
               <include>org.glassfish.jersey.core:jersey-client</include>
