@@ -24,6 +24,7 @@ import java.util.concurrent.{ConcurrentHashMap, ExecutorService, ScheduledFuture
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
 
+import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.util.Random
 
