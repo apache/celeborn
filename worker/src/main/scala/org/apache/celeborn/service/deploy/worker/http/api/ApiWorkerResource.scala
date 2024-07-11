@@ -22,9 +22,11 @@ import javax.ws.rs.core.MediaType
 
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.tags.Tag
 
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 
+@Tag(name = "Deprecated")
 @Path("/")
 class ApiWorkerResource extends ApiRequestContext {
 

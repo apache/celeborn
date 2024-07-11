@@ -298,6 +298,7 @@ org.glassfish.jersey.media:jersey-media-json-jackson
 org.glassfish.jersey.media:jersey-media-multipart
 org.javassist:javassist
 org.mybatis:mybatis
+org.openapitools:jackson-databind-nullable
 org.roaringbitmap:RoaringBitmap
 org.rocksdb:rocksdbjni
 org.scala-lang:scala-library

@@ -185,4 +185,10 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
       }
     }
   }
+
+  def topSnapshots(): Seq[AppDiskUsageSnapShot] = {
+    snapShots.take(snapshotCount)
+      .filter(_ != null)
+      .filter(_.topNItems.exists(_ != null))
+  }
 }

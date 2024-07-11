@@ -53,7 +53,7 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
     val ctx: OpenApiContext = new CelebornJaxrsOpenApiContextBuilder()
       .servletConfig(config)
       .application(app)
-      .resourcePackages(OpenAPIConfig.packages.toSet.asJava)
+      .resourcePackages(OpenAPIConfig.packages(httpService.serviceName).toSet.asJava)
       .configLocation(configLocation)
       .openApiConfiguration(openApiConfiguration)
       .ctxId(ctxId)

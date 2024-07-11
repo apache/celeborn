@@ -19,16 +19,21 @@ package org.apache.celeborn.server.common.http.api
 
 import org.glassfish.jersey.server.ResourceConfig
 
-class OpenAPIConfig extends ResourceConfig {
-  packages(OpenAPIConfig.packages: _*)
+import org.apache.celeborn.server.common.Service
+
+class OpenAPIConfig(serviceName: String) extends ResourceConfig {
+  packages(OpenAPIConfig.packages(serviceName): _*)
   register(classOf[CelebornOpenApiResource])
   register(classOf[CelebornScalaObjectMapper])
   register(classOf[RestExceptionMapper])
 }
 
 object OpenAPIConfig {
-  val packages = Seq(
-    "org.apache.celeborn.server.common.http.api",
-    "org.apache.celeborn.service.deploy.master.http.api",
-    "org.apache.celeborn.service.deploy.worker.http.api")
+  val packages = Map(
+    Service.MASTER -> Seq(
+      "org.apache.celeborn.server.common.http.api",
+      "org.apache.celeborn.service.deploy.master.http.api"),
+    Service.WORKER -> Seq(
+      "org.apache.celeborn.server.common.http.api",
+      "org.apache.celeborn.service.deploy.worker.http.api"))
 }

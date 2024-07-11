@@ -15,11 +15,23 @@
  * limitations under the License.
  */
 
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.1.1")
+package org.apache.celeborn.service.deploy.master.http.api.v1
 
-addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.6")
+import javax.ws.rs.Path
 
-addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.2.1")
+import org.apache.celeborn.server.common.http.api.ApiRequestContext
 
-// This was the last version to support Java 8
-addSbtPlugin("org.openapitools" % "sbt-openapi-generator" % "5.0.1")
+@Path("/api/v1")
+class ApiV1MasterResource extends ApiRequestContext {
+  @Path("shuffles")
+  def shuffles: Class[ShuffleResource] = classOf[ShuffleResource]
+
+  @Path("applications")
+  def applications: Class[ApplicationResource] = classOf[ApplicationResource]
+
+  @Path("masters")
+  def masters: Class[MasterResource] = classOf[MasterResource]
+
+  @Path("workers")
+  def workers: Class[WorkerResource] = classOf[WorkerResource]
+}

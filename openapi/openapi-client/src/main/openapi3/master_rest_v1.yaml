@@ -1,0 +1,712 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+openapi: 3.0.0
+servers:
+  - url: http://localhost:9098/
+    description: Localhost reference server
+security:
+  - basic: []
+info:
+  title: Celeborn REST API
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  version: 1.0.0
+paths:
+  /api/v1/conf:
+    get:
+      tags:
+        - Conf
+      operationId: getConf
+      description: List the conf setting.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfResponse'
+
+  /api/v1/conf/dynamic:
+    get:
+      tags:
+        - Conf
+      operationId: getDynamicConf
+      description: |
+        List the dynamic configs.
+        The parameter level specifies the config level of dynamic configs. 
+        The parameter tenant specifies the tenant id of TENANT or TENANT_USER level.
+        The parameter name specifies the user name of TENANT_USER level.
+        Meanwhile, either none or all of the parameter tenant and name are specified for TENANT_USER level.
+      parameters:
+        - name: level
+          in: query
+          description: the config level of dynamic configs.
+          required: false
+          schema:
+            type: string
+        - name: tenant
+          in: query
+          description: the tenant id of TENANT or TENANT_USER level.
+          required: false
+          schema:
+            type: string
+        - name: name
+          in: query
+          description: the user name of TENANT_USER level.
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DynamicConfigResponse'
+        "503":
+          description: Dynamic configuration is disabled.
+
+  /api/v1/thread_dump:
+    get:
+      operationId: getThreadDump
+      description: List the current thread dump.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreadStackResponse'
+
+  /api/v1/shuffles:
+    get:
+      tags:
+        - Shuffle
+      operationId: getShuffles
+      description: List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShufflesResponse'
+
+  /api/v1/masters:
+    get:
+      tags:
+        - Master
+      operationId: getMasterGroupInfo
+      description: |
+        List master group information of the service.
+        It will list all master's LEADER, FOLLOWER information.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterInfoResponse'
+        "400":
+          description: HA is not enabled.
+
+  /api/v1/workers:
+    get:
+      tags:
+        - Worker
+      operationId: getWorkers
+      description: |
+        List worker information of the service. It will list all registered workers,
+        lost workers, excluded workers, shutdown workers and decommission workers information.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkersResponse'
+
+  /api/v1/workers/exclude:
+    post:
+      tags:
+        - Worker
+      operationId: excludeWorker
+      description: |
+        Excluded workers of the master add or remove the worker manually given worker id.
+        The parameter add or remove specifies the excluded workers to add or remove.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExcludeWorkerRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
+  /api/v1/workers/events:
+    get:
+      tags:
+        - Worker
+      operationId: getWorkerEvents
+      description: List all worker event infos of the master.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerEventsResponse'
+    post:
+      tags:
+        - Worker
+      operationId: sendWorkerEvent
+      description: |
+        For Master(Leader) can send worker event to manager workers.
+        Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendWorkerEventRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
+  /api/v1/applications:
+    get:
+      tags:
+        - Application
+      operationId: getApplications
+      description: List all running application's ids of the cluster.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationsHeartbeatResponse'
+
+  /api/v1/applications/top_disk_usages:
+    get:
+      tags:
+        - Application
+      operationId: getApplicationsDiskUsageSnapshots
+      description: |
+        List the top disk usage application ids.
+        It will return the top disk usage application ids for the cluster.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppDiskUsageSnapshotsResponse'
+
+  /api/v1/applications/hostnames:
+    get:
+      tags:
+        - Application
+      operationId: getApplicationHostNames
+      description: List all running application's LifecycleManager's hostnames of the cluster.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostnamesResponse'
+
+components:
+  schemas:
+    ConfigData:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The config name.
+        value:
+          type: string
+          description: The config value.
+      required:
+        - name
+        - value
+
+    ConfResponse:
+      type: object
+      properties:
+        configs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigData'
+
+    DynamicConfig:
+      type: object
+      properties:
+        level:
+          type: string
+          description: the config level of dynamic configs.
+          enum:
+            - SYSTEM
+            - TENANT
+            - TENANT_USER
+        desc:
+          type: string
+          description: additional description of the dynamic config, such as tenantId and user identifier.
+        configs:
+          type: array
+          description: the config items.
+          items:
+            $ref: '#/components/schemas/ConfigData'
+
+    DynamicConfigResponse:
+      type: object
+      properties:
+        configs:
+          type: array
+          items:
+            $ref: '#/components/schemas/DynamicConfig'
+
+    ThreadStack:
+      type: object
+      properties:
+        threadId:
+          type: integer
+          format: int64
+          description: The id of the thread.
+        threadName:
+          type: string
+          description: The name of the thread.
+        threadState:
+          type: string
+          description: The state of the thread.
+        stackTrace:
+          type: array
+          description: The stacktrace of the thread.
+          items:
+            type: string
+        blockedByThreadId:
+          type: integer
+          format: int64
+          description: The id of the thread that the current thread is blocked by.
+        blockedByLock:
+          type: string
+          description: The lock that the current thread is blocked by.
+        holdingLocks:
+          type: array
+          description: The locks that the current thread is holding.
+          items:
+            type: string
+      required:
+        - threadId
+        - threadName
+        - threadState
+        - stackTrace
+
+    ThreadStackResponse:
+      type: object
+      properties:
+        threadStacks:
+          type: array
+          description: The thread stacks.
+          items:
+            $ref: '#/components/schemas/ThreadStack'
+      required:
+        - threadStacks
+
+    ShufflesResponse:
+      type: object
+      properties:
+        shuffleIds:
+          type: array
+          description: The shuffle keys.
+          items:
+            type: string
+
+    ApplicationHeartbeatData:
+      type: object
+      properties:
+        appId:
+          type: string
+          description: The id of the application.
+        lastHeartbeatTimestamp:
+          type: integer
+          format: int64
+          description: The last heartbeat timestamp of the application.
+      required:
+        - appId
+        - lastHeartbeatTimestamp
+
+    ApplicationsHeartbeatResponse:
+      type: object
+      properties:
+        applications:
+          type: array
+          description: The applications information.
+          items:
+            $ref: '#/components/schemas/ApplicationHeartbeatData'
+      required:
+        - applications
+
+    HostnamesResponse:
+      type: object
+      properties:
+        hostnames:
+          type: array
+          description: The hostnames of the applications.
+          items:
+            type: string
+      required:
+        - hostnames
+
+    AppDiskUsageData:
+      type: object
+      properties:
+        appId:
+          type: string
+          description: The id of the application.
+        estimatedUsage:
+          type: integer
+          format: int64
+          description: The application disk usage.
+        estimatedUsageStr:
+          type: string
+          description: The application disk usage in string type.
+      required:
+        - appId
+        - estimatedUsage
+        - estimatedUsageStr
+
+
+    AppDiskUsageSnapshotData:
+      type: object
+      properties:
+        start:
+          type: integer
+          format: int64
+          description: The start timestamp of the snapshot.
+        end:
+          type: integer
+          format: int64
+          description: The end timestamp of the snapshot.
+        topNItems:
+          type: array
+          description: The top N app disk usages.
+          items:
+            $ref: '#/components/schemas/AppDiskUsageData'
+
+    AppDiskUsageSnapshotsResponse:
+      type: object
+      properties:
+        snapshots:
+          type: array
+          description: The disk usage snapshots.
+          items:
+            $ref: '#/components/schemas/AppDiskUsageSnapshotData'
+
+    MasterLeader:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The id of the master leader raft peer.
+        address:
+          type: string
+          description: The raft RPC address of the master leader.
+      required:
+        - id
+        - address
+
+    MasterCommitData:
+      type: object
+      properties:
+        commitIndex:
+          type: integer
+          format: int64
+          description: The raft commit index of the master.
+        id:
+          type: string
+          description: The id of the raft peer.
+        address:
+          type: string
+          description: The raft RPC address of the peer for server-server communication.
+        clientAddress:
+          type: string
+          description: The raft RPC address of the peer for client operations.
+        startUpRole:
+          type: string
+          description: The raft start up role of the master.
+      required:
+        - commitIndex
+        - id
+        - address
+        - clientAddress
+        - startUpRole
+
+    MasterInfoResponse:
+      type: object
+      properties:
+        groupId:
+          type: string
+          description: The group id of the master raft server.
+        leader:
+          $ref: '#/components/schemas/MasterLeader'
+        masterCommitInfo:
+          type: array
+          description: The raft commit info of the master.
+          items:
+            $ref: '#/components/schemas/MasterCommitData'
+      required:
+        - groupId
+
+    WorkerData:
+      type: object
+      properties:
+        host:
+          type: string
+          description: The host of the worker.
+        rpcPort:
+          type: integer
+          format: int32
+          description: The rpc port of the worker.
+        pushPort:
+          type: integer
+          format: int32
+          description: The push port of the worker.
+        fetchPort:
+          type: integer
+          format: int32
+          description: The fetch port of the worker.
+        replicatePort:
+          type: integer
+          format: int32
+          description: The replicate port of the worker.
+        internalPort:
+          type: integer
+          format: int32
+          description: The internal port of the worker.
+        slotUsed:
+          type: integer
+          format: int64
+          description: The slot used of the worker.
+        lastHeartbeatTimestamp:
+          type: integer
+          format: int64
+          description: The last heartbeat timestamp of the worker.
+        heartbeatElapsedSeconds:
+          type: integer
+          format: int64
+          description: The elapsed seconds since the last heartbeat of the worker.
+        diskInfos:
+          type: object
+          description: A map of disk name and disk info.
+          additionalProperties:
+            type: string
+        resourceConsumption:
+          type: object
+          description: A map of identifier and resource consumption.
+          additionalProperties:
+            type: string
+        workerRef:
+          type: string
+          description: The reference of the worker.
+        workerState:
+          type: string
+          description: The state of the worker.
+        workerStateStartTime:
+          type: integer
+          format: int64
+          description: The start time of the worker state.
+      required:
+        - host
+        - rpcPort
+        - pushPort
+        - fetchPort
+        - replicatePort
+
+    WorkerTimestampData:
+      type: object
+      properties:
+        worker:
+          $ref: '#/components/schemas/WorkerData'
+        timestamp:
+          type: integer
+          format: int64
+      required:
+        - worker
+        - timestamp
+
+    WorkersResponse:
+      type: object
+      properties:
+        workers:
+          type: array
+          description: The registered workers.
+          items:
+            $ref: '#/components/schemas/WorkerData'
+        lostWorkers:
+          type: array
+          description: The lost workers.
+          items:
+            $ref: '#/components/schemas/WorkerTimestampData'
+        excludedWorkers:
+          type: array
+          description: The excluded workers.
+          items:
+            $ref: '#/components/schemas/WorkerData'
+        manualExcludedWorkers:
+          type: array
+          description: The manual excluded workers.
+          items:
+            $ref: '#/components/schemas/WorkerData'
+        shutdownWorkers:
+          type: array
+          description: The shutdown workers.
+          items:
+            $ref: '#/components/schemas/WorkerData'
+        decommissioningWorkers:
+          type: array
+          description: The decommissioning workers.
+          items:
+            $ref: '#/components/schemas/WorkerData'
+      required:
+        - workers
+
+    WorkerEventInfoData:
+      type: object
+      properties:
+        eventType:
+          type: string
+          description: The type of the event.
+        eventTime:
+          type: integer
+          format: int64
+          description: The start time of the event.
+      required:
+        - eventType
+        - eventTime
+
+    WorkerEventData:
+      type: object
+      properties:
+        worker:
+          $ref: '#/components/schemas/WorkerData'
+        event:
+          $ref: '#/components/schemas/WorkerEventInfoData'
+      required:
+        - worker
+        - event
+
+    WorkerEventsResponse:
+      type: object
+      properties:
+        workerEvents:
+          type: array
+          description: The worker events.
+          items:
+            $ref: '#/components/schemas/WorkerEventData'
+
+    WorkerId:
+      type: object
+      properties:
+        host:
+          type: string
+          description: The host of the worker.
+        rpcPort:
+          type: integer
+          format: int32
+          description: The rpc port of the worker.
+        pushPort:
+          type: integer
+          format: int32
+          description: The push port of the worker.
+        fetchPort:
+          type: integer
+          format: int32
+          description: The fetch port of the worker.
+        replicatePort:
+          type: integer
+          format: int32
+          description: The replicate port of the worker.
+      required:
+        - host
+        - rpcPort
+        - pushPort
+        - fetchPort
+        - replicatePort
+
+    ExcludeWorkerRequest:
+      type: object
+      properties:
+        add:
+          type: array
+          description: The workers to be added to the excluded workers.
+          items:
+            $ref: '#/components/schemas/WorkerId'
+        remove:
+          type: array
+          description: The workers to be removed from the excluded workers.
+          items:
+            $ref: '#/components/schemas/WorkerId'
+
+    SendWorkerEventRequest:
+      type: object
+      properties:
+        eventType:
+          type: string
+          default: None
+          description: The type of the event.
+          enum:
+            - Immediately
+            - Decommission
+            - DecommissionThenIdle
+            - Graceful
+            - Recommission
+            - None
+        workers:
+          type: array
+          description: The workers to send the event.
+          items:
+            $ref: '#/components/schemas/WorkerId'
+      required:
+        - eventType
+        - worker
+
+    HandleResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: The result of the request.
+        message:
+          type: string
+          description: The message of the request.
+      required:
+        - success
+
+  securitySchemes:
+    basic:
+      type: http
+      scheme: basic

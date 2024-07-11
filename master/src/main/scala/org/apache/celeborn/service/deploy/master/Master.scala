@@ -134,7 +134,7 @@ private[celeborn] class Master(
     }
 
   private val rackResolver = new CelebornRackResolver(conf)
-  private val statusSystem =
+  private[celeborn] val statusSystem =
     if (conf.haEnabled) {
       val sys = new HAMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
       val handler = new MetaHandler(sys)
@@ -1183,33 +1183,32 @@ private[celeborn] class Master(
     statusSystem.workers.asScala.mkString("\n")
   }
 
-  override def handleWorkerEvent(workerEventType: String, workers: String): String = {
-    val sb = new StringBuilder
-    if (workerEventType.isEmpty || workers.isEmpty) {
-      return sb.append(
-        s"handle eventType failed as eventType: $workerEventType or workers: $workers has empty value").toString()
-    }
-
-    sb.append("============================ Handle Worker Event =============================\n")
-    val workerArray = workers.split(",").filter(_.nonEmpty)
+  override def handleWorkerEvent(
+      workerEventType: String,
+      workers: Seq[WorkerInfo]): HandleResponse = {
+    val sb = new StringBuilder()
     try {
       val workerEventResponse = self.askSync[PbWorkerEventResponse](WorkerEventRequest(
-        workerArray.map(WorkerInfo.fromUniqueId).toList.asJava,
+        workers.asJava,
         workerEventType,
         MasterClient.genRequestId()))
       if (workerEventResponse.getSuccess) {
-        sb.append(s"handle $workerEventType for ${workerArray.mkString(",")} successfully")
+        sb.append(
+          s"handle $workerEventType for ${workers.map(_.readableAddress()).mkString(",")} successfully")
       } else {
-        sb.append(s"handle $workerEventType for ${workerArray.mkString(",")} failed")
+        sb.append(
+          s"handle $workerEventType for ${workers.map(_.readableAddress).mkString(",")} failed")
       }
+      workerEventResponse.getSuccess -> sb.toString()
     } catch {
       case e: Throwable =>
         val message =
-          s"handle $workerEventType for ${workerArray.mkString(",")} failed, message: ${e.getMessage}"
+          s"handle $workerEventType for ${workers.map(_.readableAddress()).mkString(
+            ",")} failed, message: ${e.getMessage}"
         logError(message, e)
         sb.append(message)
+        false -> sb.toString()
     }
-    sb.append("\n").toString()
   }
 
   override def getWorkerInfo: String = {
@@ -1289,30 +1288,30 @@ private[celeborn] class Master(
     sb.toString()
   }
 
-  override def exclude(addWorkers: String, removeWorkers: String): String = {
+  override def exclude(
+      addWorkers: Seq[WorkerInfo],
+      removeWorkers: Seq[WorkerInfo]): HandleResponse = {
     val sb = new StringBuilder
-    sb.append("============================ Add/Remove Excluded Workers  Manually =============================\n")
-    val workersToAdd = addWorkers.split(",").filter(_.nonEmpty).map(WorkerInfo.fromUniqueId).toList
-    val workersToRemove =
-      removeWorkers.split(",").filter(_.nonEmpty).map(WorkerInfo.fromUniqueId).toList
     val workerExcludeResponse = self.askSync[PbWorkerExcludeResponse](WorkerExclude(
-      workersToAdd.asJava,
-      workersToRemove.asJava,
+      addWorkers.asJava,
+      removeWorkers.asJava,
       MasterClient.genRequestId()))
     if (workerExcludeResponse.getSuccess) {
       sb.append(
-        s"Excluded workers add ${workersToAdd.mkString(",")} and remove ${workersToRemove.mkString(",")} successfully.\n")
+        s"Excluded workers add ${addWorkers.map(_.readableAddress).mkString(
+          ",")} and remove ${removeWorkers.map(_.readableAddress).mkString(",")} successfully.\n")
     } else {
       sb.append(
-        s"Failed to Exclude workers add ${workersToAdd.mkString(",")} and remove ${workersToRemove.mkString(",")}.\n")
+        s"Failed to Exclude workers add ${addWorkers.map(_.readableAddress).mkString(
+          ",")} and remove ${removeWorkers.map(_.readableAddress).mkString(",")}.\n")
     }
     val unknownExcludedWorkers =
-      (workersToAdd ++ workersToRemove).filter(!statusSystem.workers.contains(_))
+      (addWorkers ++ removeWorkers).filter(!statusSystem.workers.contains(_))
     if (unknownExcludedWorkers.nonEmpty) {
       sb.append(
-        s"Unknown worker ${unknownExcludedWorkers.mkString(",")}. Workers in Master:\n$getWorkers.")
+        s"Unknown workers ${unknownExcludedWorkers.map(_.readableAddress).mkString(",")}. Workers in Master:\n$getWorkers.")
     }
-    sb.toString()
+    workerExcludeResponse.getSuccess -> sb.toString()
   }
 
   private def isMasterActive: Int = {

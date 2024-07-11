@@ -1,0 +1,627 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+openapi: 3.0.0
+servers:
+  - url: http://localhost:9096/
+    description: Localhost reference server
+security:
+  - basic: []
+info:
+  title: Celeborn REST API
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  version: 1.0.0
+paths:
+  /api/v1/conf:
+    get:
+      tags:
+        - Conf
+      operationId: getConf
+      description: List the conf setting.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfResponse'
+
+  /api/v1/conf/dynamic:
+    get:
+      tags:
+        - Conf
+      operationId: getDynamicConf
+      description: |
+        List the dynamic configs.
+        The parameter level specifies the config level of dynamic configs. 
+        The parameter tenant specifies the tenant id of TENANT or TENANT_USER level.
+        The parameter name specifies the user name of TENANT_USER level.
+        Meanwhile, either none or all of the parameter tenant and name are specified for TENANT_USER level.
+      parameters:
+        - name: level
+          in: query
+          description: the config level of dynamic configs.
+          required: false
+          schema:
+            type: string
+        - name: tenant
+          in: query
+          description: the tenant id of TENANT or TENANT_USER level.
+          required: false
+          schema:
+            type: string
+        - name: name
+          in: query
+          description: the user name of TENANT_USER level.
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DynamicConfigResponse'
+        "503":
+          description: Dynamic configuration is disabled.
+
+  /api/v1/thread_dump:
+    get:
+      operationId: getThreadDump
+      description: List the current thread dump.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreadStackResponse'
+
+  /api/v1/shuffles:
+    get:
+      tags:
+        - Shuffle
+      operationId: getShuffles
+      description: |
+        List all the running shuffle keys of the worker.
+        It only return keys of shuffles running in that worker.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShufflesResponse'
+
+  /api/v1/shuffles/partitions:
+    get:
+      tags:
+        - Shuffle
+      operationId: getShufflePartitions
+      description: |
+        List all the living shuffle PartitionLocation information in the worker.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShufflePartitionsResponse'
+
+  /api/v1/workers:
+    get:
+      tags:
+        - Worker
+      operationId: getWorkerInfo
+      description: List the worker information.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerInfoResponse'
+
+  /api/v1/workers/unavailable_peers:
+    get:
+      tags:
+        - Worker
+      operationId: unavailablePeers
+      description: |
+        List the unavailable peers of the worker, this always means the worker connect to the peer failed.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnAvailablePeersResponse'
+
+  /api/v1/workers/exit:
+    post:
+      tags:
+        - Worker
+      operationId: workerExit
+      description: |
+        Trigger this worker to exit.
+        Legal exit types are 'Decommission', 'Graceful' and 'Immediately'.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerExitRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
+  /api/v1/applications:
+    get:
+      tags:
+        - Application
+      operationId: getApplicationList
+      description: |
+        List all running application's ids of the worker.
+        It only return application ids running in that worker.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationsResponse'
+
+  /api/v1/applications/top_disk_usages:
+    get:
+      tags:
+        - Application
+      operationId: getApplicationsDiskUsage
+      description: |
+        List the top disk usage application ids.
+        It will return the top disk usage application ids for the cluster.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppDiskUsagesResponse'
+
+components:
+  schemas:
+    ConfigData:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The config name.
+        value:
+          type: string
+          description: The config value.
+      required:
+        - name
+        - value
+
+    ConfResponse:
+      type: object
+      properties:
+        configs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigData'
+
+    DynamicConfig:
+      type: object
+      properties:
+        level:
+          type: string
+          description: the config level of dynamic configs.
+          enum:
+            - SYSTEM
+            - TENANT
+            - TENANT_USER
+        desc:
+          type: string
+          description: additional description of the dynamic config, such as tenantId and user identifier.
+        configs:
+          type: array
+          description: the config items.
+          items:
+            $ref: '#/components/schemas/ConfigData'
+
+    DynamicConfigResponse:
+      type: object
+      properties:
+        configs:
+          type: array
+          items:
+            $ref: '#/components/schemas/DynamicConfig'
+
+    ThreadStack:
+      type: object
+      properties:
+        threadId:
+          type: integer
+          format: int64
+          description: The id of the thread.
+        threadName:
+          type: string
+          description: The name of the thread.
+        threadState:
+          type: string
+          description: The state of the thread.
+        stackTrace:
+          type: array
+          description: The stacktrace of the thread.
+          items:
+            type: string
+        blockedByThreadId:
+          type: integer
+          format: int64
+          description: The id of the thread that the current thread is blocked by.
+        blockedByLock:
+          type: string
+          description: The lock that the current thread is blocked by.
+        holdingLocks:
+          type: array
+          description: The locks that the current thread is holding.
+          items:
+            type: string
+      required:
+        - threadId
+        - threadName
+        - threadState
+        - stackTrace
+
+    ThreadStackResponse:
+      type: object
+      properties:
+        threadStacks:
+          type: array
+          description: The thread stacks.
+          items:
+            $ref: '#/components/schemas/ThreadStack'
+      required:
+        - threadStacks
+
+    ShufflesResponse:
+      type: object
+      properties:
+        shuffleIds:
+          type: array
+          description: The shuffle keys.
+          items:
+            type: string
+
+    ApplicationsResponse:
+      type: object
+      properties:
+        applications:
+          type: array
+          description: The applications information.
+          items:
+            type: string
+      required:
+        - applications
+
+    AppDiskUsageData:
+      type: object
+      properties:
+        appId:
+          type: string
+          description: The id of the application.
+        estimatedUsage:
+          type: integer
+          format: int64
+          description: The application disk usage.
+        estimatedUsageStr:
+          type: string
+          description: The application disk usage in string type.
+      required:
+        - appId
+        - estimatedUsage
+        - estimatedUsageStr
+
+    AppDiskUsagesResponse:
+      type: object
+      properties:
+        appDiskUsages:
+          type: array
+          description: The application disk usages.
+          items:
+            $ref: '#/components/schemas/AppDiskUsageData'
+
+    WorkerInfoResponse:
+      type: object
+      properties:
+        host:
+          type: string
+          description: The host of the worker.
+        rpcPort:
+          type: integer
+          format: int32
+          description: The rpc port of the worker.
+        pushPort:
+          type: integer
+          format: int32
+          description: The push port of the worker.
+        fetchPort:
+          type: integer
+          format: int32
+          description: The fetch port of the worker.
+        replicatePort:
+          type: integer
+          format: int32
+          description: The replicate port of the worker.
+        internalPort:
+          type: integer
+          format: int32
+          description: The internal port of the worker.
+        slotUsed:
+          type: integer
+          format: int64
+          description: The slot used of the worker.
+        lastHeartbeatTimestamp:
+          type: integer
+          format: int64
+          description: The last heartbeat timestamp of the worker.
+        heartbeatElapsedSeconds:
+          type: integer
+          format: int64
+          description: The elapsed seconds since the last heartbeat of the worker.
+        diskInfos:
+          type: object
+          description: A map of disk name and disk info.
+          additionalProperties:
+            type: string
+        resourceConsumption:
+          type: object
+          description: A map of identifier and resource consumption.
+          additionalProperties:
+            type: string
+        workerRef:
+          type: string
+          description: The reference of the worker.
+        workerState:
+          type: string
+          description: The state of the worker.
+        workerStateStartTime:
+          type: integer
+          format: int64
+          description: The start time of the worker state.
+        isRegistered:
+          type: boolean
+          description: The registration status of the worker.
+        isShutdown:
+          type: boolean
+          description: The shutdown status of the worker.
+        isDecommissioning:
+          type: boolean
+          description: The decommission status of the worker.
+      required:
+        - host
+        - rpcPort
+        - pushPort
+        - fetchPort
+        - replicatePort
+        - internalPort
+        - isRegistered
+        - isShutdown
+        - isDecommissioning
+
+    WorkerData:
+      type: object
+      properties:
+        host:
+          type: string
+          description: The host of the worker.
+        rpcPort:
+          type: integer
+          format: int32
+          description: The rpc port of the worker.
+        pushPort:
+          type: integer
+          format: int32
+          description: The push port of the worker.
+        fetchPort:
+          type: integer
+          format: int32
+          description: The fetch port of the worker.
+        replicatePort:
+          type: integer
+          format: int32
+          description: The replicate port of the worker.
+        internalPort:
+          type: integer
+          format: int32
+          description: The internal port of the worker.
+        slotUsed:
+          type: integer
+          format: int64
+          description: The slot used of the worker.
+        lastHeartbeatTimestamp:
+          type: integer
+          format: int64
+          description: The last heartbeat timestamp of the worker.
+        heartbeatElapsedSeconds:
+          type: integer
+          format: int64
+          description: The elapsed seconds since the last heartbeat of the worker.
+        diskInfos:
+          type: object
+          description: A map of disk name and disk info.
+          additionalProperties:
+            type: string
+        resourceConsumption:
+          type: object
+          description: A map of identifier and resource consumption.
+          additionalProperties:
+            type: string
+        workerRef:
+          type: string
+          description: The reference of the worker.
+        workerState:
+          type: string
+          description: The state of the worker.
+        workerStateStartTime:
+          type: integer
+          format: int64
+          description: The start time of the worker state.
+      required:
+        - host
+        - rpcPort
+        - pushPort
+        - fetchPort
+        - replicatePort
+
+    WorkerTimestampData:
+      type: object
+      properties:
+        worker:
+          $ref: '#/components/schemas/WorkerData'
+        timestamp:
+          type: integer
+          format: int64
+      required:
+        - worker
+        - timestamp
+
+    UnAvailablePeersResponse:
+      type: object
+      properties:
+        peers:
+          type: array
+          description: The unavailable peers.
+          items:
+            $ref: '#/components/schemas/WorkerTimestampData'
+
+    PartitionLocationData:
+      type: object
+      properties:
+        idEpoch:
+          type: string
+          description: The id and epoch.
+        hostAndPorts:
+          type: string
+          description: The host-rpcPort-pushPort-fetchPort-replicatePort.
+        mode:
+          type: string
+          description: partition mode.
+          enum:
+            - PRIMARY
+            - REPLICA
+        peer:
+          type: string
+          description: The peer address.
+        storage:
+          type: string
+          description: The storage hint.
+          enum:
+            - MEMORY
+            - HDD
+            - SSD
+            - HDFS
+            - OSS
+        mapIdBitMap:
+          type: string
+          description: The map id bitmap hint.
+
+    PartitionLocations:
+      type: object
+      default: {}
+      additionalProperties:
+        $ref: '#/components/schemas/PartitionLocationData'
+
+    ShufflePartitionLocations:
+      type: object
+      default: {}
+      additionalProperties:
+        $ref: '#/components/schemas/PartitionLocations'
+
+    ShufflePartitionsResponse:
+      type: object
+      properties:
+        primaryPartitions:
+          $ref: '#/components/schemas/ShufflePartitionLocations'
+          default: { }
+        replicaPartitions:
+          $ref: '#/components/schemas/ShufflePartitionLocations'
+          default: { }
+
+    WorkerId:
+      type: object
+      properties:
+        host:
+          type: string
+          description: The host of the worker.
+        rpcPort:
+          type: integer
+          format: int32
+          description: The rpc port of the worker.
+        pushPort:
+          type: integer
+          format: int32
+          description: The push port of the worker.
+        fetchPort:
+          type: integer
+          format: int32
+          description: The fetch port of the worker.
+        replicatePort:
+          type: integer
+          format: int32
+          description: The replicate port of the worker.
+      required:
+        - host
+        - rpcPort
+        - pushPort
+        - fetchPort
+        - replicatePort
+
+    WorkerExitRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          default: None
+          description: The type of the worker exit request.
+          enum:
+            - Decommission
+            - Graceful
+            - Immediately
+            - None
+
+    HandleResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: The result of the request.
+        message:
+          type: string
+          description: The message of the request.
+      required:
+        - success
+
+  securitySchemes:
+    basic:
+      type: http
+      scheme: basic
