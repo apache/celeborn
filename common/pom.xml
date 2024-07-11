@@ -228,7 +228,7 @@
       <id>hadoop-aws</id>
       <activation>
         <property>
-          <name>hadoop-aws</name>
+          <name>hadoop-aws-deps</name>
         </property>
       </activation>
       <dependencies>
