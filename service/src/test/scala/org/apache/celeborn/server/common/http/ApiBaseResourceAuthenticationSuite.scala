@@ -29,6 +29,7 @@ import org.apache.celeborn.server.common.http.HttpAuthUtils.AUTHORIZATION_HEADER
 import org.apache.celeborn.server.common.http.authentication.{UserDefinePasswordAuthenticationProviderImpl, UserDefineTokenAuthenticationProviderImpl}
 
 abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
+  val administers = Seq("celeborn", "celeborn2")
   celebornConf
     .set(CelebornConf.METRICS_ENABLED.key, "true")
     .set(
@@ -48,6 +49,8 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
     .set(
       CelebornConf.WORKER_HTTP_AUTH_BEARER_PROVIDER,
       classOf[UserDefineTokenAuthenticationProviderImpl].getName)
+    .set(CelebornConf.MASTER_HTTP_AUTH_ADMINISTERS, administers)
+    .set(CelebornConf.WORKER_HTTP_AUTH_ADMINISTERS, administers)
 
   def basicAuthorizationHeader(user: String, password: String): String =
     HttpAuthSchemes.BASIC + " " + new String(
@@ -116,5 +119,32 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
     response = webTarget.path("metrics/json").request(MediaType.APPLICATION_JSON).get()
     assert(200 == response.getStatus)
     assert(response.readEntity(classOf[String]).contains("\"name\" : \"jvm.memory.heap.max\""))
+  }
+
+  test("check admin privilege for mutative request") {
+    Seq("/any_api", "/api/v1/any_api").foreach { api =>
+      var response = webTarget.path(api)
+        .request(MediaType.TEXT_PLAIN)
+        .header(
+          AUTHORIZATION_HEADER,
+          basicAuthorizationHeader(
+            "no_admin",
+            UserDefinePasswordAuthenticationProviderImpl.VALID_PASSWORD))
+        .post(null)
+      assert(HttpServletResponse.SC_FORBIDDEN == response.getStatus)
+
+      administers.foreach { admin =>
+        response = webTarget.path(api)
+          .request(MediaType.TEXT_PLAIN)
+          .header(
+            AUTHORIZATION_HEADER,
+            basicAuthorizationHeader(
+              admin,
+              UserDefinePasswordAuthenticationProviderImpl.VALID_PASSWORD))
+          .post(null)
+        // pass the admin privilege check, but the api is not found
+        assert(HttpServletResponse.SC_NOT_FOUND == response.getStatus)
+      }
+    }
   }
 }

@@ -21,6 +21,7 @@ import java.io.IOException
 import javax.security.sasl.AuthenticationException
 import javax.servlet.{Filter, FilterChain, FilterConfig, ServletException, ServletRequest, ServletResponse}
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
+import javax.ws.rs.HttpMethod
 
 import scala.collection.mutable
 
@@ -62,6 +63,13 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
   private val proxyClientIpHeader: String = serviceName match {
     case Service.MASTER => conf.get(CelebornConf.MASTER_HTTP_PROXY_CLIENT_IP_HEADER)
     case Service.WORKER => conf.get(CelebornConf.WORKER_HTTP_PROXY_CLIENT_IP_HEADER)
+  }
+
+  private val administrators: Set[String] = serviceName match {
+    case Service.MASTER =>
+      conf.get(CelebornConf.MASTER_HTTP_AUTH_ADMINISTERS).toSet
+    case Service.WORKER =>
+      conf.get(CelebornConf.WORKER_HTTP_AUTH_ADMINISTERS).toSet
   }
 
   private def initAuthHandlers(): Unit = {
@@ -160,8 +168,15 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
     }
   }
 
+  private def isMutativeRequest(httpRequest: HttpServletRequest): Boolean = {
+    HttpMethod.POST.equalsIgnoreCase(httpRequest.getMethod) ||
+    HttpMethod.PUT.equalsIgnoreCase(httpRequest.getMethod) ||
+    HttpMethod.DELETE.equalsIgnoreCase(httpRequest.getMethod) ||
+    HttpMethod.PATCH.equalsIgnoreCase(httpRequest.getMethod)
+  }
+
   /**
-   * Delegates call to the servlet filter chain. Sub-classes my override this
+   * Delegates call to the servlet filter chain. Sub-classes may override this
    * method to perform pre and post tasks.
    *
    * @param filterChain the filter chain object.
@@ -176,7 +191,14 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
       filterChain: FilterChain,
       request: HttpServletRequest,
       response: HttpServletResponse): Unit = {
-    filterChain.doFilter(request, response)
+    if (isMutativeRequest(request) && !administrators.contains(HTTP_CLIENT_IDENTIFIER.get())) {
+      response.setStatus(HttpServletResponse.SC_FORBIDDEN)
+      response.sendError(
+        HttpServletResponse.SC_FORBIDDEN,
+        s"${HTTP_CLIENT_IDENTIFIER.get()} does not have admin privilege to perform ${request.getMethod} action")
+    } else {
+      filterChain.doFilter(request, response)
+    }
   }
 
   override def destroy(): Unit = {
