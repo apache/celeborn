@@ -62,7 +62,7 @@ public class DfsPartitionReader implements PartitionReader {
   private volatile boolean closed = false;
   private ExecutorService fetchThread;
   private boolean fetchThreadStarted;
-  private FSDataInputStream hdfsInputStream;
+  private FSDataInputStream dfsInputStream;
   private int numChunks = 0;
   private int returnedChunks = 0;
   private int currentChunkIndex = 0;
@@ -119,12 +119,12 @@ public class DfsPartitionReader implements PartitionReader {
             e);
       }
 
-      hdfsInputStream =
+      dfsInputStream =
           hadoopFs.open(new Path(Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
       chunkOffsets.addAll(
           getChunkOffsetsFromSortedIndex(conf, location, startMapIndex, endMapIndex));
     } else {
-      hdfsInputStream = hadoopFs.open(new Path(location.getStorageInfo().getFilePath()));
+      dfsInputStream = hadoopFs.open(new Path(location.getStorageInfo().getFilePath()));
       chunkOffsets.addAll(getChunkOffsetsFromUnsortedIndex(conf, location));
     }
     logger.debug(
@@ -216,14 +216,14 @@ public class DfsPartitionReader implements PartitionReader {
                 logger.debug("read {} offset {} length {}", currentChunkIndex, offset, length);
                 byte[] buffer = new byte[(int) length];
                 try {
-                  hdfsInputStream.readFully(offset, buffer);
+                  dfsInputStream.readFully(offset, buffer);
                 } catch (IOException e) {
                   logger.warn(
-                      "read HDFS {} failed will retry, error detail {}",
+                      "read DFS {} failed will retry, error detail {}",
                       location.getStorageInfo().getFilePath(),
                       e);
                   try {
-                    hdfsInputStream.close();
+                    dfsInputStream.close();
                     FileSystem hadoopFs = null;
                     if (location.getStorageInfo() != null
                         && location.getStorageInfo().getType() == StorageInfo.Type.S3) {
@@ -231,14 +231,14 @@ public class DfsPartitionReader implements PartitionReader {
                     } else {
                       hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
                     }
-                    hdfsInputStream =
+                    dfsInputStream =
                         hadoopFs.open(
                             new Path(
                                 Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
-                    hdfsInputStream.readFully(offset, buffer);
+                    dfsInputStream.readFully(offset, buffer);
                   } catch (IOException ex) {
                     logger.warn(
-                        "retry read HDFS {} failed, error detail {} ",
+                        "retry read DFS {} failed, error detail {} ",
                         location.getStorageInfo().getFilePath(),
                         e);
                     exception.set(ex);
@@ -286,9 +286,9 @@ public class DfsPartitionReader implements PartitionReader {
       fetchThread.shutdownNow();
     }
     try {
-      hdfsInputStream.close();
+      dfsInputStream.close();
     } catch (IOException e) {
-      logger.warn("close HDFS input stream failed.", e);
+      logger.warn("close DFS input stream failed.", e);
     }
     if (results.size() > 0) {
       results.forEach(ReferenceCounted::release);
