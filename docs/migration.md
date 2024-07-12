@@ -24,7 +24,7 @@ license: |
 # Upgrading from 0.5 to 0.6
 - 
 - Since 0.6.0, Celeborn has introduced a new API namespace: /api/v1, which uses the application/json media type for requests and responses.
-   The `celeborn-opanapi-client` SDK is also available to help users interact with the new APIs.
+   The `celeborn-openapi-client` SDK is also available to help users interact with the new APIs.
    The legacy APIs have been deprecated and will be removed in future releases.
   
   - The mappings of the old APIs to the new APIs for Master, see the master openapi spec (openapi/openapi-client/src/main/openapi3/master_rest_v1.yaml) in the repo for details.
