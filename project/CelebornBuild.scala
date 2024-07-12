@@ -446,7 +446,7 @@ object Utils {
 
 object CelebornCommon {
 
-  lazy val hadoopAwsDependencies = if(profiles.filter(_.startsWith("hadoop-aws")).headOption){
+  lazy val hadoopAwsDependencies = if(profiles.filter(_.startsWith("hadoop-aws")).headOption.nonEmpty){
     Seq(Dependencies.hadoopAws, Dependencies.awsClient)
   } else {
     Seq.empty
