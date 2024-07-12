@@ -1286,11 +1286,9 @@
     </profile>
     <profile>
       <id>hadoop-aws</id>
-      <activation>
-        <property>
-          <name>hadoop-aws-deps</name>
-        </property>
-      </activation>
+      <properties>
+        <hadoop-aws-deps>true</hadoop-aws-deps>
+      </properties>
       <dependencies>
         <dependency>
           <groupId>org.apache.hadoop</groupId>
