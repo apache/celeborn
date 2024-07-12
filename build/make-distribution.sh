@@ -256,8 +256,9 @@ function sbt_build_service {
 
   echo "Celeborn $VERSION$GITREVSTRING" > "$DIST_DIR/RELEASE"
   echo "Build flags: $@" >> "$DIST_DIR/RELEASE"
+  PROFILE="$2"
 
-  BUILD_COMMAND=("$SBT" clean package)
+  BUILD_COMMAND=("$SBT" clean package $PROFILE)
 
   # Actually build the jar
   echo -e "\nBuilding with..."

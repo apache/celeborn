@@ -446,7 +446,7 @@ object Utils {
 
 object CelebornCommon {
 
-  lazy val hadoopAwsDependencies = if(profiles.filter(_.startsWith("hadoop-aws")).headOption.nonEmpty){
+  lazy val hadoopAwsDependencies = if(profiles.exists(_.startsWith("hadoop-aws"))){
     Seq(Dependencies.hadoopAws, Dependencies.awsClient)
   } else {
     Seq.empty
@@ -873,7 +873,8 @@ trait SparkClientProjects {
           ShadeRule.rename("com.google.protobuf.**" -> "org.apache.celeborn.shaded.com.google.protobuf.@1").inAll,
           ShadeRule.rename("com.google.common.**" -> "org.apache.celeborn.shaded.com.google.common.@1").inAll,
           ShadeRule.rename("io.netty.**" -> "org.apache.celeborn.shaded.io.netty.@1").inAll,
-          ShadeRule.rename("org.apache.commons.**" -> "org.apache.celeborn.shaded.org.apache.commons.@1").inAll,
+          ShadeRule.re
+          ("org.apache.commons.**" -> "org.apache.celeborn.shaded.org.apache.commons.@1").inAll,
           ShadeRule.rename("org.roaringbitmap.**" -> "org.apache.celeborn.shaded.org.roaringbitmap.@1").inAll
         ),
 
