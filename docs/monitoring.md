@@ -335,6 +335,72 @@ These metrics are exposed by Celeborn worker.
 The Netty DirectArenaMetrics named like `push/fetch/replicate_server_numXX` are not exposed by default, nor in Grafana dashboard.
 If there is a need, you can enable `celeborn.network.memory.allocator.verbose.metric` to expose these metrics.
 
+### Setup Prometheus dashboard
+
+1. Install Prometheus (https://prometheus.io/). We provide an example for Prometheus config file:
+
+```yaml
+# Prometheus example config
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "Celeborn"
+    metrics_path: /metrics/prometheus
+    scrape_interval: 15s
+    static_configs:
+      - targets: [ "master-ip:9098","worker1-ip:9096","worker2-ip:9096","worker3-ip:9096","worker4-ip:9096" ]
+```
+
+2. Install Grafana server (https://grafana.com/grafana/download).
+
+3. Import Celeborn dashboard into Grafana.
+
+You can find the Celeborn dashboard templates under the `assets/grafana` directory.
+`celeborn-dashboard.json` displays Celeborn internal metrics and `celeborn-jvm-dashboard.json` displays Celeborn JVM related metrics.
+
+Here is an example of Grafana dashboard importing.
+
+![g1](../assets/img/g1.png)
+
+![g2](../assets/img/g2.png)
+
+![g3](../assets/img/g3.png)
+
+<img alt="g4" height="90%" src="../assets/img/g4.png" width="90%"/>
+
+<img alt="g6" height="90%" src="../assets/img/g6.png" width="90%"/>
+
+<img alt="g5" height="90%" src="../assets/img/g5.png" width="90%"/>
+
+Here are some snapshots:
+
+![d1](../assets/img/dashboard1.png)
+
+![d2](../assets/img/dashboard_full.webp)
+
+#### Optional
+We recommend you to install node exporter (https://github.com/prometheus/node_exporter)
+on every host, and configure Prometheus to scrape information about the host.
+Grafana will need a dashboard (dashboard id:8919) to display host details.
+
+```yaml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "Celeborn"
+    metrics_path: /metrics/prometheus
+    scrape_interval: 15s
+    static_configs:
+      - targets: [ "master-ip:9098","worker1-ip:9096","worker2-ip:9096","worker3-ip:9096","worker4-ip:9096" ]
+  - job_name: "node"
+    static_configs:
+      - targets: [ "master-ip:9100","worker1-ip:9100","worker2-ip:9100","worker3-ip:9100","worker4-ip:9100" ]
+```
+
 ## REST API
 
 In addition to viewing the metrics, Celeborn also support REST API. This gives developers
