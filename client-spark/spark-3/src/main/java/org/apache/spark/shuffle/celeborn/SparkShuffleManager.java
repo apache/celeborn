@@ -235,6 +235,7 @@ public class SparkShuffleManager implements ShuffleManager {
       if (handle instanceof CelebornShuffleHandle) {
         @SuppressWarnings("unchecked")
         CelebornShuffleHandle<K, V, ?> h = ((CelebornShuffleHandle<K, V, ?>) handle);
+        BarrierHelper.addFailureListenerIfBarrierTask(shuffleClient, context, h);
         shuffleClient =
             ShuffleClient.get(
                 h.appUniqueId(),

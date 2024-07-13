@@ -182,6 +182,10 @@ public class DummyShuffleClient extends ShuffleClient {
     return true;
   }
 
+  public boolean reportBarrierTaskFailure(int stageId, int stageAttemptId, int shuffleId) {
+    return true;
+  }
+
   @Override
   public TransportClientFactory getDataClientFactory() {
     return null;

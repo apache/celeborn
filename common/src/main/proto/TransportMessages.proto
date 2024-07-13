@@ -103,6 +103,8 @@ enum MessageType {
   BATCH_OPEN_STREAM = 80;
   BATCH_OPEN_STREAM_RESPONSE = 81;
   REPORT_WORKER_DECOMMISSION = 82;
+  REPORT_BARRIER_STAGE_ATTEMPT_FAILURE = 83;
+  REPORT_BARRIER_STAGE_ATTEMPT_FAILURE_RESPONSE = 84;
 }
 
 enum StreamType {
@@ -380,6 +382,16 @@ message PbReportShuffleFetchFailure {
 }
 
 message PbReportShuffleFetchFailureResponse {
+  bool success = 1;
+}
+
+message PbReportBarrierStageAttemptFailure {
+  int32 shuffleId = 1;
+  int32 stageId = 2;
+  int32 stageAttemptId = 3;
+}
+
+message PbReportBarrierStageAttemptFailureResponse {
   bool success = 1;
 }
 

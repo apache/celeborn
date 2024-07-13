@@ -417,6 +417,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       logDebug(s"Received ReportShuffleFetchFailure request, appShuffleId $appShuffleId shuffleId $shuffleId")
       handleReportShuffleFetchFailure(context, appShuffleId, shuffleId)
 
+    case pb: PbReportBarrierStageAttemptFailure =>
+      val shuffleId = pb.getShuffleId
+      val stageId = pb.getStageId
+      val stageAttemptId = pb.getStageAttemptId
+      logDebug(s"Received ReportBarrierStageAttemptFailure request, shuffleId $shuffleId, " +
+        s"stage = $stageId, stage attempt = $stageAttemptId")
+      handleReportBarrierStageAttemptFailure(context, shuffleId)
+
     case pb: PbApplicationMetaRequest =>
       logDebug(s"Received request for meta info ${pb.getAppId}.")
       if (applicationMeta == null) {
@@ -885,20 +893,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       shuffleIds.find(e => e._2._1 == shuffleId) match {
         case Some((appShuffleIdentifier, (shuffleId, true))) =>
           logInfo(s"handle fetch failure for appShuffleId $appShuffleId shuffleId $shuffleId")
-          appShuffleTrackerCallback match {
-            case Some(callback) =>
-              try {
-                callback.accept(appShuffleId)
-              } catch {
-                case t: Throwable =>
-                  logError(t.toString)
-                  ret = false
-              }
-              shuffleIds.put(appShuffleIdentifier, (shuffleId, false))
-            case None =>
-              throw new UnsupportedOperationException(
-                "unexpected! appShuffleTrackerCallback is not registered")
-          }
+          ret = invokeAppShuffleTrackerCallback(appShuffleId)
+          shuffleIds.put(appShuffleIdentifier, (shuffleId, false))
         case Some((appShuffleIdentifier, (shuffleId, false))) =>
           logInfo(
             s"Ignoring fetch failure from appShuffleIdentifier $appShuffleIdentifier shuffleId $shuffleId, " +
@@ -911,6 +907,44 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val pbReportShuffleFetchFailureResponse =
       PbReportShuffleFetchFailureResponse.newBuilder().setSuccess(ret).build()
     context.reply(pbReportShuffleFetchFailureResponse)
+  }
+
+  private def invokeAppShuffleTrackerCallback(appShuffleId: Int): Boolean = {
+    appShuffleTrackerCallback match {
+      case Some(callback) =>
+        try {
+          callback.accept(appShuffleId)
+          true
+        } catch {
+          case t: Throwable =>
+            logError(t.toString)
+            false
+        }
+      case None =>
+        throw new UnsupportedOperationException(
+          "unexpected! appShuffleTrackerCallback is not registered")
+    }
+  }
+
+  private def handleReportBarrierStageAttemptFailure(
+      context: RpcCallContext,
+      shuffleId: Int): Unit = {
+
+    // remove mapping, since we have to entirely recompute for barrier stage
+    var ret = true
+    val shuffleIds = shuffleIdMapping.remove(shuffleId)
+    if (shuffleIds != null) {
+      shuffleIds.synchronized {
+        if (shuffleIds.nonEmpty) {
+          ret = invokeAppShuffleTrackerCallback(shuffleId)
+        }
+        shuffleIds.values.map(_._1).foreach(unregisterShuffle)
+      }
+    }
+
+    val pbReportBarrierStageAttemptFailureResponse =
+      PbReportBarrierStageAttemptFailureResponse.newBuilder().setSuccess(ret).build()
+    context.reply(pbReportBarrierStageAttemptFailureResponse)
   }
 
   private def handleStageEnd(shuffleId: Int): Unit = {

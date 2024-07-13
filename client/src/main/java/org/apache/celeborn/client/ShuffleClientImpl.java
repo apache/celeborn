@@ -613,6 +613,21 @@ public class ShuffleClientImpl extends ShuffleClient {
     return pbReportShuffleFetchFailureResponse.getSuccess();
   }
 
+  public boolean reportBarrierTaskFailure(int stageId, int stageAttemptId, int shuffleId) {
+    PbReportBarrierStageAttemptFailure pbReportBarrierStageAttemptFailure =
+        PbReportBarrierStageAttemptFailure.newBuilder()
+            .setShuffleId(shuffleId)
+            .setStageId(stageId)
+            .setStageAttemptId(stageId)
+            .build();
+    PbReportBarrierStageAttemptFailureResponse pbReportBarrierStageAttemptFailureResponse =
+        lifecycleManagerRef.askSync(
+            pbReportBarrierStageAttemptFailure,
+            conf.clientRpcRegisterShuffleAskTimeout(),
+            ClassTag$.MODULE$.apply(PbReportBarrierStageAttemptFailureResponse.class));
+    return pbReportBarrierStageAttemptFailureResponse.getSuccess();
+  }
+
   private ConcurrentHashMap<Integer, PartitionLocation> registerShuffleInternal(
       int shuffleId,
       int numMappers,
