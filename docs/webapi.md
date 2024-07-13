@@ -18,13 +18,12 @@ license: |
 
 ## REST API
 
-In addition to viewing the metrics, Celeborn also support REST API. This gives developers
-an easy way to create new visualizations and monitoring tools for Celeborn and
-also easy for users to get the running status of the service. The REST API is available for
-both master and worker. The endpoints are mounted at `host:port`. For example,
-for the master, they would typically be accessible
-at `http://<master-http-host>:<master-http-port><path>`, and
+Celeborn supports REST API and available for both master and worker. The endpoints are mounted at `host:port`.
+For example,
+for the master, they would typically be accessible at `http://<master-http-host>:<master-http-port><path>`, and
 for the worker, at `http://<worker-http-host>:<worker-http-port><path>`.
+
+And the swagger UI is available at `http://<http-host>:<http-port>/docs` (since 0.5.0) both for master and worker.
 
 The configuration of `<master-http-host>`, `<master-http-port>`, `<worker-http-host>`, `<worker-http--port>` as below:
 
@@ -35,9 +34,11 @@ The configuration of `<master-http-host>`, `<master-http-port>`, `<worker-http-h
 | celeborn.worker.http.host | 0.0.0.0 | Worker's http host. | 0.4.0 |
 | celeborn.worker.http.port | 9096    | Worker's http port. | 0.4.0 |
 
-### Available API providers
+### Deprecated REST APIs (Since 0.6.0)
 
-API path listed as below:
+Since 0.6.0, the REST APIs are deprecated and will be removed in the future.
+The new REST APIs are available at `/api/v1`.
+See the [migration guide](migration.md) for API mappings.
 
 #### Master
 
@@ -81,3 +82,13 @@ API path listed as below:
 | /unavailablePeers          | GET    |                                              | List the unavailable peers of the worker, this always means the worker connect to the peer failed.                                                                                                                                                                                                                                                           |
 | /workerInfo                | GET    |                                              | List the worker information of the worker.                                                                                                                                                                                                                                                                                                                   |
 | /exit                      | POST   | type=${EXIT_TYPE}                            | Trigger this worker to exit. Legal `type`s are 'Decommission', 'Graceful' and 'Immediately'.                                                                                                                                                                                                                                                                 |
+
+### `/api/v1` APIs (Since 0.6.0)
+
+#### Master
+
+See the [master openapi spec yaml](../openapi/openapi-client/src/main/openapi3/master_rest_v1.yaml).
+
+#### Worker
+
+See the [worker openapi spec yaml](../openapi/openapi-client/src/main/openapi3/worker_rest_v1.yaml).

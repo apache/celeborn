@@ -334,3 +334,9 @@ These metrics are exposed by Celeborn worker.
 
 The Netty DirectArenaMetrics named like `push/fetch/replicate_server_numXX` are not exposed by default, nor in Grafana dashboard.
 If there is a need, you can enable `celeborn.network.memory.allocator.verbose.metric` to expose these metrics.
+
+## REST API
+
+In addition to viewing the metrics, Celeborn also supports [REST API](webapi.md).
+This gives developers an easy way to create new visualizations and monitoring tools for Celeborn and
+also easy for users to get the running status of the service.
