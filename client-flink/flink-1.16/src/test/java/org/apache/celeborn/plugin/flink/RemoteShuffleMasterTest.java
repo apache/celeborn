@@ -175,8 +175,6 @@ public class RemoteShuffleMasterTest {
   public void testShuffleMemoryAnnouncing() {
     Map<IntermediateDataSetID, Integer> numberOfInputGateChannels = new HashMap<>();
     Map<IntermediateDataSetID, Integer> numbersOfResultSubpartitions = new HashMap<>();
-    Map<IntermediateDataSetID, Integer> subPartitionNums = new HashMap<>();
-    Map<IntermediateDataSetID, ResultPartitionType> inputPartitionTypes = new HashMap<>();
     Map<IntermediateDataSetID, ResultPartitionType> resultPartitionTypes = new HashMap<>();
     IntermediateDataSetID inputDataSetID0 = new IntermediateDataSetID();
     IntermediateDataSetID inputDataSetID1 = new IntermediateDataSetID();
@@ -192,11 +190,6 @@ public class RemoteShuffleMasterTest {
     numbersOfResultSubpartitions.put(outputDataSetID0, subPartitionNum1);
     numbersOfResultSubpartitions.put(outputDataSetID1, subPartitionNum2);
     numbersOfResultSubpartitions.put(outputDataSetID2, subPartitionNum3);
-    subPartitionNums.put(outputDataSetID0, subPartitionNum1);
-    subPartitionNums.put(outputDataSetID1, subPartitionNum2);
-    subPartitionNums.put(outputDataSetID2, subPartitionNum3);
-    inputPartitionTypes.put(inputDataSetID0, ResultPartitionType.BLOCKING);
-    inputPartitionTypes.put(inputDataSetID1, ResultPartitionType.BLOCKING);
     resultPartitionTypes.put(outputDataSetID0, ResultPartitionType.BLOCKING);
     resultPartitionTypes.put(outputDataSetID1, ResultPartitionType.BLOCKING);
     resultPartitionTypes.put(outputDataSetID2, ResultPartitionType.BLOCKING);

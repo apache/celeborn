@@ -137,7 +137,7 @@ public class RemoteShuffleResultPartitionSuiteJ {
 
   private List<SupplierWithException<BufferPool, IOException>> createBufferPoolFactory() {
     NetworkBufferPool networkBufferPool =
-        new NetworkBufferPool(256 * 8, 32 * 1024, Duration.ofMillis(1000));
+        new NetworkBufferPool(256 * 8, 32 * 1024, Duration.ofSeconds(1));
 
     int numBuffersPerPartition = 64 * 1024 / 32;
     int numForResultPartition = numBuffersPerPartition * 7 / 8;

@@ -36,7 +36,6 @@ public class RemoteShuffleInputGateFactory extends AbstractRemoteShuffleInputGat
     super(conf, networkBufferPool, networkBufferSize);
   }
 
-  // For testing.
   @Override
   protected RemoteShuffleInputGate createInputGate(
       String owningTaskName,
