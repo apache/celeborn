@@ -23,7 +23,7 @@ For example,
 for the master, they would typically be accessible at `http://<master-http-host>:<master-http-port><path>`, and
 for the worker, at `http://<worker-http-host>:<worker-http-port><path>`.
 
-And the swagger UI is available at `http://<http-host>:<http-port>/docs` (since 0.5.0) both for master and worker.
+And the swagger UI is available at `http://<http-host>:<http-port>/swagger` (since 0.5.0) both for master and worker.
 
 The configuration of `<master-http-host>`, `<master-http-port>`, `<worker-http-host>`, `<worker-http--port>` as below:
 
@@ -34,7 +34,7 @@ The configuration of `<master-http-host>`, `<master-http-port>`, `<worker-http-h
 | celeborn.worker.http.host | 0.0.0.0 | Worker's http host. | 0.4.0 |
 | celeborn.worker.http.port | 9096    | Worker's http port. | 0.4.0 |
 
-### Deprecated REST APIs (Since 0.6.0)
+### Deprecated REST APIs
 
 Since 0.6.0, the REST APIs are deprecated and will be removed in the future.
 The new REST APIs are available at `/api/v1`.
@@ -87,8 +87,12 @@ See the [migration guide](migration.md) for API mappings.
 
 #### Master
 
-See the [master openapi spec yaml](../openapi/openapi-client/src/main/openapi3/master_rest_v1.yaml).
+See the master openapi spec yaml in the repo `openapi/openapi-client/src/main/openapi3/master_rest_v1.yaml`.
 
 #### Worker
 
-See the [worker openapi spec yaml](../openapi/openapi-client/src/main/openapi3/worker_rest_v1.yaml).
+See the worker openapi spec yaml in the repo `openapi/openapi-client/src/main/openapi3/worker_rest_v1.yaml`.
+
+**Note:**
+
+You can locally preview the OpenAPI specification YAML file in IDE, or use the [Swagger Editor](https://editor.swagger.io/) online for visualization.

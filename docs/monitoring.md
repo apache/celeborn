@@ -90,31 +90,21 @@ reported in the list.
 #### Master
 These metrics are exposed by Celeborn master.
 
-  - namespace=master
+  - namespace=master 
     - RegisteredShuffleCount
-        - The count of registered shuffle.
     - DeviceCelebornFreeBytes
-        - The actual usable space of Celeborn for device.
     - DeviceCelebornTotalBytes
-        - The total space of Celeborn for device.
     - RunningApplicationCount
-        - The count of running applications.
     - ActiveShuffleSize
         - The active shuffle size of workers.
     - ActiveShuffleFileCount
         - The active shuffle file count of workers.
     - WorkerCount
-        - The count of active workers.
     - LostWorkerCount
-        - The count of workers in lost list.
     - ExcludedWorkerCount
-        - The count of workers in excluded list.
     - ShutdownWorkerCount
-        - The count of workers in shutdown list.
     - DecommissionWorkerCount
-        - The count of workers in decommission list.
     - IsActiveMaster
-        - Whether the current master is active.
     - PartitionSize
         - The size of estimated shuffle partition.
     - OfferSlotsTime
@@ -122,13 +112,11 @@ These metrics are exposed by Celeborn master.
 
   - namespace=CPU
     - JVMCPUTime
-        - The JVM costs cpu time.
 
   - namespace=system
     - LastMinuteSystemLoad
         - The average system load for the last minute.
     - AvailableProcessors
-        - The amount of system available processors.
 
   - namespace=JVM
     - This source provides information on JVM metrics using the
@@ -140,50 +128,32 @@ These metrics are exposed by Celeborn master.
         - This metrics data is generated for each user and they are identified using a metric tag.
         - This metrics also include subResourceConsumptions generated for each application of user and they are identified using `applicationId` tag.
     - diskFileCount
-        - The count of disk files consumption by each user.
     - diskBytesWritten
-        - The amount of disk files consumption by each user.
     - hdfsFileCount
-        - The count of hdfs files consumption by each user.
     - hdfsBytesWritten
-        - The amount of hdfs files consumption by each user.
 
   - namespace=ThreadPool
     - **notes:**
         - This metrics data is generated for each thread pool and they are identified using a metric tag by thread pool name.
     - active_thread_count
-        - The approximate number of threads that are actively executing tasks.
     - pending_task_count
-        - The pending task not executed in block queue.
     - pool_size
-        - The current number of threads in the pool.
     - core_pool_size
-        - The core number of threads.
     - maximum_pool_size
-        - The maximum allowed number of threads.
     - largest_pool_size
-        - The largest number of threads that have ever simultaneously been in the pool.
     - is_terminating
-        - If this executor is in the process of terminating after shutdown() or shutdownNow() but has not completely terminated.
     - is_terminated
-        - If this executor is in the process of terminated after shutdown() or shutdownNow() and has completely terminated.
     - is_shutdown
-        - If this executor is shutdown.
     - thread_count
-        - The thread count of current thread group.
     - thread_is_terminated_count
-        - The terminated thread count of current thread group.
     - thread_is_shutdown_count
-        - The shutdown thread count of current thread group.
 
 #### Worker
 These metrics are exposed by Celeborn worker.
 
   - namespace=worker
     - RegisteredShuffleCount
-        - The count of registered shuffle.
     - RunningApplicationCount
-        - The count of running applications.
     - ActiveShuffleSize
         - The active shuffle size of a worker including master replica and slave replica.
     - ActiveShuffleFileCount
@@ -195,53 +165,31 @@ These metrics are exposed by Celeborn worker.
     - ActiveChunkStreamCount
         - Active stream count for reduce partition reading streams.
     - OpenStreamSuccessCount
-        - The count of opening stream succeed in current worker.
     - OpenStreamFailCount
-        - The count of opening stream failed in current worker.
     - FetchChunkSuccessCount
-        - The count of fetching chunk succeed in current worker.
     - FetchChunkFailCount
-        - The count of fetching chunk failed in current worker.
     - PrimaryPushDataTime
         - The time for a worker to handle a pushData RPC sent from a celeborn client.
     - ReplicaPushDataTime
         - The time for a worker to handle a pushData RPC sent from a celeborn worker by replicating.
     - WriteDataHardSplitCount
-        - The count of writing PushData or PushMergedData to HARD_SPLIT partition in current worker.
     - WriteDataSuccessCount
-        - The count of writing PushData or PushMergedData succeed in current worker.
     - WriteDataFailCount
-        - The count of writing PushData or PushMergedData failed in current worker.
     - ReplicateDataFailCount
-        - The count of replicating PushData or PushMergedData failed in current worker.
     - ReplicateDataWriteFailCount
-        - The count of replicating PushData or PushMergedData failed caused by write failure in peer worker.
     - ReplicateDataCreateConnectionFailCount
-        - The count of replicating PushData or PushMergedData failed caused by creating connection failed in peer worker.
     - ReplicateDataConnectionExceptionCount
-        - The count of replicating PushData or PushMergedData failed caused by connection exception in peer worker.
     - ReplicateDataFailNonCriticalCauseCount
-        - The count of replicating PushData or PushMergedData failed caused by non-critical exception in peer worker.
     - ReplicateDataTimeoutCount
-        - The count of replicating PushData or PushMergedData failed caused by push timeout in peer worker.
     - PushDataHandshakeFailCount
-        - The count of PushDataHandshake failed in current worker.
     - RegionStartFailCount
-        - The count of RegionStart failed in current worker.
     - RegionFinishFailCount
-        - The count of RegionFinish failed in current worker.
     - PrimaryPushDataHandshakeTime
-        - PrimaryPushDataHandshake means handle PushData of primary partition location.
     - ReplicaPushDataHandshakeTime
-        - ReplicaPushDataHandshake means handle PushData of replica partition location.
     - PrimaryRegionStartTime
-        - PrimaryRegionStart means handle RegionStart of primary partition location.
     - ReplicaRegionStartTime
-        -  ReplicaRegionStart means handle RegionStart of replica partition location.
     - PrimaryRegionFinishTime
-        - PrimaryRegionFinish means handle RegionFinish of primary partition location.
     - ReplicaRegionFinishTime
-        - ReplicaRegionFinish means handle RegionFinish of replica partition location
     - PausePushDataTime
         - The time for a worker to stop receiving pushData from clients because of back pressure.
     - PausePushDataAndReplicateTime
@@ -257,13 +205,10 @@ These metrics are exposed by Celeborn worker.
     - CommitFilesTime
         - The time for a worker to flush buffers and close files related to specified shuffle.
     - SlotsAllocated
-        - Slots allocated in last hour.
     - ActiveSlotsCount
-        - The number of slots currently being used in a worker.
+        - The number of slots currently being used in a worker 
     - ReserveSlotsTime
-        - ReserveSlots means acquire a disk buffer and record partition location.
     - ActiveConnectionCount
-        - The count of active network connection.
     - NettyMemory
         - The total amount of off-heap memory used by celeborn worker.
     - SortTime
@@ -271,11 +216,8 @@ These metrics are exposed by Celeborn worker.
     - SortMemory
         - The memory used by sorting shuffle files.
     - SortingFiles
-        - The count of sorting shuffle files.
     - SortedFiles
-        - The count of sorted shuffle files.
     - SortedFileSize
-        - The count of sorted shuffle files 's total size.
     - DiskBuffer
         - The memory occupied by pushData and pushMergedData which should be written to disk.
     - BufferStreamReadBuffer
@@ -287,27 +229,17 @@ These metrics are exposed by Celeborn worker.
     - ActiveCreditStreamCount
         - Active stream count for map partition reading streams.
     - ActiveMapPartitionCount
-        - The count of active map partition reading streams.
     - CleanTaskQueueSize
-      - The count of task for cleaning up expired shuffle keys.
     - CleanExpiredShuffleKeysTime
         - The time for a worker to clean up shuffle data of expired shuffle keys.
     - DeviceOSFreeBytes
-        - The actual usable space of OS for device monitor.
     - DeviceOSTotalBytes
-        - The total usable space of OS for device monitor.
     - DeviceCelebornFreeBytes
-        - The actual usable space of Celeborn for device.
     - DeviceCelebornTotalBytes
-        - The total space of Celeborn for device.
     - PotentialConsumeSpeed
-        - The speed of potential consumption for congestion control.
     - UserProduceSpeed
-        - The speed of user production for congestion control.
     - WorkerConsumeSpeed
-        - The speed of worker consumption for congestion control.
     - IsDecommissioningWorker
-        - 1 means worker decommissioning, 0 means not decommissioning.
     - push_server_usedHeapMemory 
     - push_server_usedDirectMemory
     - push_server_numAllocations 
@@ -365,13 +297,11 @@ These metrics are exposed by Celeborn worker.
 
   - namespace=CPU
     - JVMCPUTime
-      - The JVM costs cpu time.
 
   - namespace=system
     - LastMinuteSystemLoad
         - Returns the system load average for the last minute.
     - AvailableProcessors
-        - The amount of system available processors.
 
   - namespace=JVM
     - This source provides information on JVM metrics using the
@@ -383,35 +313,22 @@ These metrics are exposed by Celeborn worker.
         - This metrics data is generated for each user and they are identified using a metric tag.
         - This metrics also include subResourceConsumptions generated for each application of user and they are identified using `applicationId` tag.
     - diskFileCount
-        - The count of disk files consumption by each user.
     - diskBytesWritten
-        - The amount of disk files consumption by each user.
     - hdfsFileCount
-        - The count of hdfs files consumption by each user.
     - hdfsBytesWritten
-        - The amount of hdfs files consumption by each user.
 
   - namespace=ThreadPool
     - **notes:**
         - This metrics data is generated for each thread pool and they are identified using a metric tag by thread pool name.
     - active_thread_count
-        - The approximate number of threads that are actively executing tasks.
     - pending_task_count
-        - The pending task not executed in block queue.
     - pool_size
-        - The current number of threads in the pool.
     - core_pool_size
-        - The core number of threads.
     - maximum_pool_size
-        - The maximum allowed number of threads.
     - largest_pool_size
-        - The largest number of threads that have ever simultaneously been in the pool.
     - is_terminating
-        - If this executor is in the process of terminating after shutdown() or shutdownNow() but has not completely terminated.
     - is_terminated
-        - If this executor is in the process of terminated after shutdown() or shutdownNow() and has completely terminated.
     - is_shutdown
-        - If this executor is shutdown.
 
 **Note:**
 
