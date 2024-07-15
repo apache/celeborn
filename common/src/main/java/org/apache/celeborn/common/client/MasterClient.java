@@ -228,6 +228,11 @@ public class MasterClient {
   private RpcEndpointRef getOrSetupRpcEndpointRef(AtomicInteger currentIndex) {
     RpcEndpointRef endpointRef = rpcEndpointRef.get();
 
+    // If endpoints are updated by MasterEndpointResolver, we should reset the currentIndex to 0.
+    // This also unset the value of updated, so we don't always reset currentIndex to 0.
+    if (masterEndpointResolver.isUpdated()) {
+      currentIndex.set(0);
+    }
     List<String> activeMasterEndpoints = masterEndpointResolver.getActiveMasterEndpoints();
 
     if (endpointRef == null) {
