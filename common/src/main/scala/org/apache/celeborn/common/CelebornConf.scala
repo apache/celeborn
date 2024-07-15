@@ -669,6 +669,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       }
     }
 
+  def masterEndpointResolver: String = get(MASTER_ENDPOINTS_RESOLVER)
+
   def masterClientRpcAskTimeout: RpcTimeout =
     new RpcTimeout(get(MASTER_CLIENT_RPC_ASK_TIMEOUT).milli, MASTER_CLIENT_RPC_ASK_TIMEOUT.key)
 
@@ -2093,6 +2095,14 @@ object CelebornConf extends Logging {
         endpoints => endpoints.map(_ => Try(Utils.parseHostPort(_))).forall(_.isSuccess),
         "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
       .createWithDefaultString(s"<localhost>:9097")
+
+  val MASTER_ENDPOINTS_RESOLVER: ConfigEntry[String] =
+    buildConf("celeborn.master.endpoints.resolver")
+      .categories("client", "worker")
+      .doc("WIP")
+      .version("0.6.0")
+      .stringConf
+      .createWithDefault("org.apache.celeborn.common.client.StaticMasterEndpointResolver")
 
   val MASTER_CLIENT_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.masterClient.rpc.askTimeout")

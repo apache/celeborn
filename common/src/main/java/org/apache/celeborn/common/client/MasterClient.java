@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nullable;
 
+import org.apache.celeborn.common.util.Utils;
 import scala.Tuple2;
 import scala.concurrent.Future;
 import scala.reflect.ClassTag$;
@@ -48,7 +49,7 @@ public class MasterClient {
   private static final Logger LOG = LoggerFactory.getLogger(MasterClient.class);
 
   private final RpcEnv rpcEnv;
-  private final List<String> masterEndpoints;
+  private final MasterEndpointResolver masterEndpointResolver;
   private final int maxRetries;
 
   private final RpcTimeout rpcTimeout;
@@ -57,16 +58,15 @@ public class MasterClient {
   private final ExecutorService oneWayMessageSender;
   private final CelebornConf conf;
   private final boolean isWorker;
-  private String masterEndpointName;
 
   public MasterClient(RpcEnv rpcEnv, CelebornConf conf, boolean isWorker) {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
     this.isWorker = isWorker;
-    this.masterEndpoints = resolveMasterEndpoints();
-    Collections.shuffle(this.masterEndpoints);
-    LOG.info("masterEndpoints = {}", masterEndpoints);
-    this.maxRetries = Math.max(masterEndpoints.size(), conf.masterClientMaxRetries());
+    this.masterEndpointResolver = Utils.instantiateMasterEndpointResolver(
+            this.conf.masterEndpointResolver(), conf, isWorker);
+
+    this.maxRetries = conf.masterClientMaxRetries();
     this.rpcTimeout = conf.masterClientRpcAskTimeout();
     this.rpcEndpointRef = new AtomicReference<>();
     this.oneWayMessageSender =
@@ -228,12 +228,15 @@ public class MasterClient {
    */
   private RpcEndpointRef getOrSetupRpcEndpointRef(AtomicInteger currentIndex) {
     RpcEndpointRef endpointRef = rpcEndpointRef.get();
+
+    List<String> activeMasterEndpoints = masterEndpointResolver.getActiveMasterEndpoints();
+
     if (endpointRef == null) {
       int index = currentIndex.get();
       do {
-        RpcEndpointRef tempEndpointRef = setupEndpointRef(masterEndpoints.get(index));
+        RpcEndpointRef tempEndpointRef = setupEndpointRef(activeMasterEndpoints.get(index));
         if (rpcEndpointRef.compareAndSet(null, tempEndpointRef)) {
-          index = (index + 1) % masterEndpoints.size();
+          index = (index + 1) % activeMasterEndpoints.size();
         }
         endpointRef = rpcEndpointRef.get();
       } while (endpointRef == null && index != currentIndex.get());
@@ -243,7 +246,7 @@ public class MasterClient {
       if (endpointRef == null) {
         throw new IllegalStateException(
             "After trying all the available Master Addresses("
-                + String.join(",", masterEndpoints)
+                + String.join(",", activeMasterEndpoints)
                 + "), an usable link still couldn't be created.");
       } else {
         LOG.info("connect to master {}.", endpointRef.address());
@@ -256,7 +259,8 @@ public class MasterClient {
     RpcEndpointRef endpointRef = null;
     try {
       endpointRef =
-          rpcEnv.setupEndpointRef(RpcAddress.fromHostAndPort(endpoint), masterEndpointName);
+          rpcEnv.setupEndpointRef(
+                  RpcAddress.fromHostAndPort(endpoint), masterEndpointResolver.getMasterEndpointName());
     } catch (Exception e) {
       // Catch all exceptions. Because we don't care whether this exception is IOException or
       // TimeoutException or other exceptions, so we just try to connect to host:port, if fail,
@@ -264,16 +268,5 @@ public class MasterClient {
       LOG.warn("Connect to {} failed.", endpoint, e);
     }
     return endpointRef;
-  }
-
-  private List<String> resolveMasterEndpoints() {
-    if (isWorker && conf.internalPortEnabled()) {
-      // For worker, we should use the internal endpoints if internal port is enabled.
-      masterEndpointName = RpcNameConstants.MASTER_INTERNAL_EP;
-      return Arrays.asList(conf.masterInternalEndpoints());
-    } else {
-      masterEndpointName = RpcNameConstants.MASTER_EP;
-      return Arrays.asList(conf.masterEndpoints());
-    }
   }
 }
