@@ -661,13 +661,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //               Address && HA && RATIS                //
   // //////////////////////////////////////////////////////
-  def masterEndpoints: Array[String] =
-    get(MASTER_ENDPOINTS).toArray.map { endpoint =>
-      Utils.parseHostPort(endpoint.replace("<localhost>", Utils.localHostName(this))) match {
-        case (host, 0) => s"$host:${HA_MASTER_NODE_PORT.defaultValue.get}"
-        case (host, port) => s"$host:$port"
-      }
-    }
+  def masterEndpoints: Array[String] = get(MASTER_ENDPOINTS).toArray
 
   def masterEndpointResolver: String = get(MASTER_ENDPOINTS_RESOLVER)
 
@@ -1406,13 +1400,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def internalPortEnabled: Boolean = get(INTERNAL_PORT_ENABLED)
 
-  def masterInternalEndpoints: Array[String] =
-    get(MASTER_INTERNAL_ENDPOINTS).toArray.map { endpoint =>
-      Utils.parseHostPort(endpoint.replace("<localhost>", Utils.localHostName(this))) match {
-        case (host, 0) => s"$host:${HA_MASTER_NODE_INTERNAL_PORT.defaultValue.get}"
-        case (host, port) => s"$host:$port"
-      }
-    }
+  def masterInternalEndpoints: Array[String] = get(MASTER_INTERNAL_ENDPOINTS).toArray
 
   def haMasterNodeInternalPort(nodeId: String): Int = {
     val key = HA_MASTER_NODE_INTERNAL_PORT.key.replace("<id>", nodeId)

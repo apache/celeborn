@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nullable;
 
-import org.apache.celeborn.common.util.Utils;
 import scala.Tuple2;
 import scala.concurrent.Future;
 import scala.reflect.ClassTag$;
@@ -38,12 +37,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.protocol.RpcNameConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages.OneWayMessageResponse$;
 import org.apache.celeborn.common.protocol.message.MasterRequestMessage;
 import org.apache.celeborn.common.protocol.message.Message;
 import org.apache.celeborn.common.rpc.*;
 import org.apache.celeborn.common.util.ThreadUtils;
+import org.apache.celeborn.common.util.Utils;
 
 public class MasterClient {
   private static final Logger LOG = LoggerFactory.getLogger(MasterClient.class);
@@ -63,8 +62,8 @@ public class MasterClient {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
     this.isWorker = isWorker;
-    this.masterEndpointResolver = Utils.instantiateMasterEndpointResolver(
-            this.conf.masterEndpointResolver(), conf, isWorker);
+    this.masterEndpointResolver =
+        Utils.instantiateMasterEndpointResolver(this.conf.masterEndpointResolver(), conf, isWorker);
 
     this.maxRetries = conf.masterClientMaxRetries();
     this.rpcTimeout = conf.masterClientRpcAskTimeout();
@@ -260,7 +259,7 @@ public class MasterClient {
     try {
       endpointRef =
           rpcEnv.setupEndpointRef(
-                  RpcAddress.fromHostAndPort(endpoint), masterEndpointResolver.getMasterEndpointName());
+              RpcAddress.fromHostAndPort(endpoint), masterEndpointResolver.getMasterEndpointName());
     } catch (Exception e) {
       // Catch all exceptions. Because we don't care whether this exception is IOException or
       // TimeoutException or other exceptions, so we just try to connect to host:port, if fail,
