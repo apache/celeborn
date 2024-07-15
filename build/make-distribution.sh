@@ -309,6 +309,7 @@ if [ "$SBT_ENABLED" == "true" ]; then
     sbt_build_client -Pspark-3.5
     sbt_build_client -Pflink-1.14
     sbt_build_client -Pflink-1.15
+    sbt_build_client -Pflink-1.16
     sbt_build_client -Pflink-1.17
     sbt_build_client -Pflink-1.18
     sbt_build_client -Pflink-1.19
@@ -342,6 +343,7 @@ else
     build_spark_client -Pspark-3.5
     build_flink_client -Pflink-1.14
     build_flink_client -Pflink-1.15
+    build_flink_client -Pflink-1.16
     build_flink_client -Pflink-1.17
     build_flink_client -Pflink-1.18
     build_flink_client -Pflink-1.19
