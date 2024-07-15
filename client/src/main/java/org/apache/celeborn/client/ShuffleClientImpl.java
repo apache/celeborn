@@ -1669,7 +1669,9 @@ public class ShuffleClientImpl extends ShuffleClient {
   public ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
       throws CelebornIOException {
     Tuple2<ReduceFileGroups, String> fileGroupTuple =
-            reduceFileGroupsMap.compute(shuffleId, (id, existsTuple) -> {
+        reduceFileGroupsMap.compute(
+            shuffleId,
+            (id, existsTuple) -> {
               if (existsTuple == null || existsTuple._1 == null) {
                 return loadFileGroupInternal(shuffleId);
               } else {
