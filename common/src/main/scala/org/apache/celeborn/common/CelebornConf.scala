@@ -1220,6 +1220,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE)
   def workerMemoryFileStorageMaxFileSize: Long =
     get(WORKER_MEMORY_FILE_STORAGE_MAX_FILE_SIZE)
+  def workerMemoryFileStorageEictAggressiveModeEnabled: Boolean =
+    get(WORKER_MEMORY_FILE_STORAGE_EVICT_AGGRESSIVE_MODE_ENABLED)
+  def workerMemoryFileStorageEvictRatio: Double =
+    get(WORKER_MEMORY_FILE_STORAGE_EVICT_RATIO)
 
   // //////////////////////////////////////////////////////
   //                  Rate Limit controller              //
@@ -3471,6 +3475,25 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .checkValue(v => v < Int.MaxValue, "A single memory storage file can not be larger than 2GB")
       .createWithDefaultString("8MB")
+
+  val WORKER_MEMORY_FILE_STORAGE_EVICT_AGGRESSIVE_MODE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.memoryFileStorage.evict.aggressiveMode.enabled")
+      .categories("worker")
+      .doc(
+        "If this set to true, memory shuffle files will be evicted when worker is in PAUSED state." +
+          " If the worker's offheap memory is not ample, set this to true " +
+          "and decrease `celeborn.worker.directMemoryRatioForMemoryFileStorage` will be helpful.")
+      .version("0.5.1")
+      .booleanConf
+      .createWithDefault(false)
+
+  val WORKER_MEMORY_FILE_STORAGE_EVICT_RATIO: ConfigEntry[Double] =
+    buildConf("celeborn.worker.memoryFileStorage.evict.ratio")
+      .categories("worker")
+      .doc("If memory shuffle storage usage rate is above this config, the memory storage shuffle files will evict to free memory.")
+      .version("0.5.1")
+      .doubleConf
+      .createWithDefault(0.5)
 
   val WORKER_CONGESTION_CONTROL_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.congestionControl.enabled")

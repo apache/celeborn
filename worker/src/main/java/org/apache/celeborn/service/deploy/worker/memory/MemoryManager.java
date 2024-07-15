@@ -126,6 +126,8 @@ public class MemoryManager {
     double readBufferTargetRatio = conf.readBufferTargetRatio();
     long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
     long readBufferTargetNotifyThreshold = conf.readBufferTargetNotifyThreshold();
+    boolean aggressiveEvictModeEnabled = conf.workerMemoryFileStorageEictAggressiveModeEnabled();
+    double evictRatio = conf.workerMemoryFileStorageEvictRatio();
     forceAppendPauseSpentTimeThreshold = conf.metricsWorkerForceAppendPauseSpentTimeThreshold();
     maxDirectMemory =
         DynMethods.builder("maxDirectMemory")
@@ -232,8 +234,7 @@ public class MemoryManager {
       memoryFileStorageService.scheduleWithFixedDelay(
           () -> {
             try {
-              if ((memoryFileStorageCounter.sum() >= 0.5 * memoryFileStorageThreshold)
-                  && currentServingState() != ServingState.NONE_PAUSED) {
+              if (shouldEvict(aggressiveEvictModeEnabled, evictRatio)) {
                 List<PartitionDataWriter> memoryWriters =
                     new ArrayList<>(storageManager.memoryWriters().values());
                 if (memoryWriters.isEmpty()) {
@@ -247,8 +248,7 @@ public class MemoryManager {
                 try {
                   for (PartitionDataWriter writer : memoryWriters) {
                     // this branch means that there is no memory pressure
-                    if ((memoryFileStorageCounter.sum() < 0.5 * memoryFileStorageThreshold)
-                        || currentServingState() == ServingState.NONE_PAUSED) {
+                    if (!shouldEvict(aggressiveEvictModeEnabled, evictRatio)) {
                       break;
                     }
                     logger.debug("Evict writer {}", writer);
@@ -281,6 +281,12 @@ public class MemoryManager {
         Utils.bytesToString(readBufferTarget),
         Utils.bytesToString(memoryFileStorageThreshold),
         resumeRatio);
+  }
+
+  public boolean shouldEvict(boolean aggressiveMemoryFileEvictEnabled, double evictRatio) {
+    return currentServingState() != ServingState.NONE_PAUSED
+        && (aggressiveMemoryFileEvictEnabled
+            || (memoryFileStorageCounter.sum() >= evictRatio * memoryFileStorageThreshold));
   }
 
   public ServingState currentServingState() {
