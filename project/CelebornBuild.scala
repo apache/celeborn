@@ -1316,6 +1316,7 @@ object CelebornOpenApi {
     .dependsOn(openapiInternalMasterClient, openapiInternalWorkerClient)
     .settings(
       commonSettings,
+      releaseSettings,
       libraryDependencies ++= Seq(
         Dependencies.openApiToolsSwaggerAnnotations,
         Dependencies.openApiToolsSwaggerModels,
@@ -1337,7 +1338,11 @@ object CelebornOpenApi {
         },
         openapiInternalMasterClient / Compile / openApiGenerate,
         openapiInternalWorkerClient / Compile / openApiGenerate
-      )
+      ),
+      Compile / doc := {
+        // skip due to doc generation failure for openapi modules, see CELEBORN-1477
+        target.value / "none"
+      }
     )
 
   val commonOpenApiModelSettings = Seq(
@@ -1391,6 +1396,10 @@ object CelebornOpenApi {
         },
         openapiInternalMasterModel / Compile / openApiGenerate,
         openapiInternalWorkerModel / Compile / openApiGenerate
-      )
+      ),
+      Compile / doc := {
+        // skip due to doc generation failure for openapi modules, see CELEBORN-1477
+        target.value / "none"
+      }
     )
 }
