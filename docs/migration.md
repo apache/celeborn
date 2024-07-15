@@ -23,13 +23,14 @@ license: |
 
 # Upgrading from 0.5 to 0.6
 - 
-- Since 0.6.0, Celeborn has introduced a new API namespace: /api/v1, which uses the application/json media type for requests and responses.
-   The `celeborn-openapi-client` SDK is also available to help users interact with the new APIs.
-   The legacy APIs have been deprecated and will be removed in future releases.
+- Since 0.6.0, Celeborn has introduced a new RESTful API namespace: /api/v1, which uses the application/json media type for requests and responses.
+   The `celeborn-openapi-client` SDK is also available to help users interact with the new RESTful APIs.
+   The legacy RESTful APIs have been deprecated and will be removed in future releases.
+   Access the full [RESTful API documentation](./webapi.md) for detailed information.
   
-  - The mappings of the old APIs to the new APIs for Master, see the master openapi spec (openapi/openapi-client/src/main/openapi3/master_rest_v1.yaml) in the repo for details.
+  - The mappings of the old RESTful APIs to the new RESTful APIs for Master.
 
-    | Old API                  | New API                                  | Note                                             |
+    | Old RESTful API          | New RESTful API                          | Note                                             |
     |--------------------------|------------------------------------------|--------------------------------------------------|
     | GET /conf                | GET /api/v1/conf                         |                                                  |
     | GET /listDynamicConfigs  | GET /api/v1/conf/dynamic                 |                                                  |
@@ -49,9 +50,9 @@ license: |
     | POST /sendWorkerEvent    | POST /api/v1/workers/events              |                                                  |
 
 
-  - The mappings of the old APIs to the new APIs for Worker, see the worker openapi spec (openapi/openapi-client/src/main/openapi3/worker_rest_v1.yaml) in the repo for details.
+  - The mappings of the old RESTful APIs to the new RESTful APIs for Worker.
 
-    | Old API                        | New API                                  | Note                                        |
+    | Old RESTful API                | New RESTful API                          | Note                                        |
     |--------------------------------|------------------------------------------|---------------------------------------------|
     | GET /conf                      | GET /api/v1/conf                         |                                             |
     | GET /listDynamicConfigs        | GET /api/v1/conf/dynamic                 |                                             |
