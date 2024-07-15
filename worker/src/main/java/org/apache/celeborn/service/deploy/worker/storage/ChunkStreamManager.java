@@ -96,17 +96,21 @@ public class ChunkStreamManager {
     }
   }
 
-  public synchronized void chunkBeingSent(long streamId) {
+  public void chunkBeingSent(long streamId) {
     StreamState streamState = streams.get(streamId);
     if (streamState != null) {
-      streamState.chunksBeingTransferred++;
+      synchronized (streamState) {
+        streamState.chunksBeingTransferred++;
+      }
     }
   }
 
-  public synchronized void chunkSent(long streamId) {
+  public void chunkSent(long streamId) {
     StreamState streamState = streams.get(streamId);
     if (streamState != null) {
-      streamState.chunksBeingTransferred--;
+      synchronized (streamState) {
+        streamState.chunksBeingTransferred--;
+      }
     }
   }
 
