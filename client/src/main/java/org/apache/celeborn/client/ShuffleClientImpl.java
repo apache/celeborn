@@ -1670,6 +1670,11 @@ public class ShuffleClientImpl extends ShuffleClient {
       throws CelebornIOException {
     Tuple2<ReduceFileGroups, String> fileGroupTuple =
         reduceFileGroupsMap.computeIfAbsent(shuffleId, (id) -> loadFileGroupInternal(shuffleId));
+    // when the cache is invalid, it should be fetched by oneself.
+    if (fileGroupTuple._2 != null) {
+      reduceFileGroupsMap.remove(shuffleId);
+      fileGroupTuple = loadFileGroupInternal(shuffleId);
+    }
     if (fileGroupTuple._1 == null) {
       throw new CelebornIOException(
           loadFileGroupException(shuffleId, partitionId, (fileGroupTuple._2)));
