@@ -344,6 +344,11 @@ public abstract class CelebornInputStream extends InputStream {
           if (isExcluded(location)) {
             throw new CelebornIOException("Fetch data from excluded worker! " + location);
           }
+          // should switch the location at a high level
+          if (fetchChunkRetryCnt == 0 && attemptNumber % 2 == 1 && location.hasPeer()) {
+            location = location.getPeer();
+            logger.info("Read peer {} for attempt {}.", location, attemptNumber);
+          }
           return createReader(location, pbStreamHandler, fetchChunkRetryCnt, fetchChunkMaxRetry);
         } catch (Exception e) {
           lastException = e;
@@ -432,13 +437,7 @@ public abstract class CelebornInputStream extends InputStream {
         int fetchChunkRetryCnt,
         int fetchChunkMaxRetry)
         throws IOException, InterruptedException {
-      if (!location.hasPeer()) {
-        logger.debug("Partition {} has only one partition replica.", location);
-      } else if (pbStreamHandler == null && attemptNumber % 2 == 1) {
-        location = location.getPeer();
-        logger.debug("Read peer {} for attempt {}.", location, attemptNumber);
-      }
-      logger.debug("Create reader for location {}", location);
+      logger.info("Create reader for location {}", location);
 
       StorageInfo storageInfo = location.getStorageInfo();
       switch (storageInfo.getType()) {
