@@ -16,18 +16,17 @@ class StaticMasterEndpointResolver(conf: CelebornConf, isWorker: Boolean)
       } else {
         HA_MASTER_NODE_PORT.defaultValue.get
       }
-    Random.shuffle(this.activeMasterEndpoints.get)
+
     this.activeMasterEndpoints = Some(endpoints.map { endpoint =>
       Utils.parseHostPort(endpoint.replace("<localhost>", Utils.localHostName(conf))) match {
         case (host, 0) => s"$host:$haMasterPort"
         case (host, port) => s"$host:$port"
       }
     }.toList)
-
     this.currentIndex = 0
 
-    Random.shuffle(this.activeMasterEndpoints)
-    logInfo(s"masterEndpoints = $activeMasterEndpoints")
+    Random.shuffle(this.activeMasterEndpoints.get)
+    logInfo(s"masterEndpoints = ${activeMasterEndpoints.get}")
   }
   override protected def update(endpoints: Array[String]): Unit = {}
 }
