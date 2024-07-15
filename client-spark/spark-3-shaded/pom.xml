@@ -20,7 +20,7 @@
   <parent>
     <groupId>org.apache.celeborn</groupId>
     <artifactId>celeborn-parent_${scala.binary.version}</artifactId>
-    <version>0.4.2</version>
+    <version>0.4.3-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
@@ -32,7 +32,7 @@
     <dependency>
       <groupId>org.apache.celeborn</groupId>
       <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
-      <version>0.4.2</version>
+      <version>0.4.3-SNAPSHOT</version>
     </dependency>
   </dependencies>
 
@@ -144,7 +144,7 @@
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-spark-3-columnar-shuffle_${scala.binary.version}</artifactId>
-          <version>0.4.2</version>
+          <version>0.4.3-SNAPSHOT</version>
         </dependency>
       </dependencies>
     </profile>
@@ -154,7 +154,7 @@
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-spark-3-columnar-shuffle_${scala.binary.version}</artifactId>
-          <version>0.4.2</version>
+          <version>0.4.3-SNAPSHOT</version>
         </dependency>
       </dependencies>
     </profile>
@@ -164,7 +164,7 @@
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-spark-3-columnar-shuffle_${scala.binary.version}</artifactId>
-          <version>0.4.2</version>
+          <version>0.4.3-SNAPSHOT</version>
         </dependency>
       </dependencies>
     </profile>
@@ -174,7 +174,7 @@
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-spark-3-columnar-shuffle_${scala.binary.version}</artifactId>
-          <version>0.4.2</version>
+          <version>0.4.3-SNAPSHOT</version>
         </dependency>
       </dependencies>
     </profile>
@@ -184,7 +184,7 @@
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-spark-3-columnar-shuffle_${scala.binary.version}</artifactId>
-          <version>0.4.2</version>
+          <version>0.4.3-SNAPSHOT</version>
         </dependency>
       </dependencies>
     </profile>
