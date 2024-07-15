@@ -36,7 +36,7 @@ The configuration of `<master-http-host>`, `<master-http-port>`, `<worker-http-h
 
 ### Deprecated REST APIs
 
-Since 0.6.0, the REST APIs are deprecated and will be removed in the future.
+Since 0.6.0, the legacy REST APIs are deprecated and will be removed in the future.
 The new REST APIs are available at `/api/v1`.
 See the [migration guide](migration.md) for API mappings.
 
