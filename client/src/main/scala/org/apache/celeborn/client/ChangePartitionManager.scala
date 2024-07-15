@@ -151,6 +151,19 @@ class ChangePartitionManager(
       oldPartition,
       cause)
 
+    // If new slot for the partition has been allocated, reply and return.
+    // Else register and allocate for it.
+    getLatestPartition(shuffleId, partitionId, oldEpoch).foreach { latestLoc =>
+      context.reply(
+        partitionId,
+        StatusCode.SUCCESS,
+        Some(latestLoc),
+        lifecycleManager.workerStatusTracker.workerAvailable(oldPartition))
+      logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
+        s" shuffleId: $shuffleId $latestLoc")
+      return
+    }
+
     requests.synchronized {
       if (requests.containsKey(partitionId)) {
         requests.get(partitionId).add(changePartition)
