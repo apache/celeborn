@@ -106,7 +106,7 @@ class UtilsSuite extends CelebornFunSuite {
 
   test("instantiateMasterEndpointResolver") {
     val celebornConf = new CelebornConf()
-    val masterEndpointResolver = Utils.instantiateMasterEndpointResolver(
+    val masterEndpointResolver = Utils.instantiateMasterEndpointResolver[MasterEndpointResolver](
       celebornConf.masterEndpointResolver,
       celebornConf,
       isWorker = true)
@@ -115,12 +115,12 @@ class UtilsSuite extends CelebornFunSuite {
     assert(masterEndpointResolver.isInstanceOf[StaticMasterEndpointResolver])
   }
 
-  test("instantiateMasterEndpointResolver") {
+  test("instantiateMasterEndpointResolver invalid resolver classname") {
     val celebornConf = new CelebornConf()
     val invalidClassName = "invalidClassName"
 
     val e = intercept[CelebornException] {
-      Utils.instantiateMasterEndpointResolver(
+      Utils.instantiateMasterEndpointResolver[MasterEndpointResolver](
         invalidClassName,
         celebornConf,
         isWorker = true)
