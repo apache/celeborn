@@ -221,6 +221,14 @@
               <pattern>com.fasterxml.jackson</pattern>
               <shadedPattern>${shading.prefix}.com.fasterxml.jackson</shadedPattern>
             </relocation>
+            <relocation>
+              <pattern>jakarta.validation</pattern>
+              <shadedPattern>${shading.prefix}.jakarta.validation</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>javax.validation</pattern>
+              <shadedPattern>${shading.prefix}.javax.validation</shadedPattern>
+            </relocation>
           </relocations>
           <artifactSet>
             <includes>

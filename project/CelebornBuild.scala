@@ -1379,7 +1379,9 @@ object CelebornOpenApi {
         ShadeRule.rename("com.google.**" -> "org.apache.celeborn.shaded.com.google.@1").inAll,
         ShadeRule.rename("javax.annotation.**" -> "org.apache.celeborn.shaded.javax.annotation.@1").inAll,
         ShadeRule.rename("org.glassfish.jersey.**" -> "org.apache.celeborn.shaded.org.glassfish.jersey.@1").inAll,
-        ShadeRule.rename("com.fasterxml.jackson.**" -> "org.apache.celeborn.shaded.com.fasterxml.jackson.@1").inAll
+        ShadeRule.rename("com.fasterxml.jackson.**" -> "org.apache.celeborn.shaded.com.fasterxml.jackson.@1").inAll,
+        ShadeRule.rename("jakarta.validation.**" -> "org.apache.celeborn.shaded.jakarta.validation.@1").inAll,
+        ShadeRule.rename("javax.validation.**" -> "org.apache.celeborn.shaded.javax.validation.@1").inAll
       ),
 
       (assembly / assemblyMergeStrategy) := {
