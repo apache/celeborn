@@ -292,6 +292,7 @@ private[celeborn] class Worker(
       internalPort,
       diskInfos,
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption])
+  val applicationUserIdentifiers = JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
 
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
@@ -660,6 +661,13 @@ private[celeborn] class Worker(
       workerInfo.updateThenGetUserResourceConsumption(resourceConsumptionSnapshot.asJava)
     resourceConsumptionSnapshot.foreach { case (userIdentifier, userResourceConsumption) =>
       gaugeResourceConsumption(userIdentifier)
+      val subResourceConsumptions = userResourceConsumption.subResourceConsumptions
+      if (CollectionUtils.isNotEmpty(subResourceConsumptions)) {
+        subResourceConsumptions.asScala.keys.foreach { applicationId =>
+          applicationUserIdentifiers.put(applicationId, userIdentifier)
+          gaugeResourceConsumption(userIdentifier, applicationId)
+        }
+      }
     }
     userResourceConsumptions
   }
@@ -731,6 +739,7 @@ private[celeborn] class Worker(
       fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
       threadPool.execute(new Runnable {
         override def run(): Unit = {
+          removeAppResourceConsumption(expiredApplicationIds)
           removeAppActiveConnection(expiredApplicationIds)
           workerSource.sample(
             WorkerSource.CLEAN_EXPIRED_SHUFFLE_KEYS_TIME,
@@ -740,6 +749,24 @@ private[celeborn] class Worker(
         }
       })
     }
+
+  private def removeAppResourceConsumption(applicationIds: JHashSet[String]): Unit = {
+    applicationIds.asScala.foreach { applicationId =>
+      val userIdentifier = applicationUserIdentifiers.get(applicationId)
+      if (userIdentifier != null) {
+        removeAppResourceConsumption(
+          userIdentifier.toMap + (resourceConsumptionSource.applicationLabel -> applicationId))
+        applicationUserIdentifiers.remove(applicationId)
+      }
+    }
+  }
+
+  private def removeAppResourceConsumption(resourceConsumptionLabel: Map[String, String]): Unit = {
+    workerSource.removeGauge(ResourceConsumptionSource.DISK_FILE_COUNT, resourceConsumptionLabel)
+    workerSource.removeGauge(ResourceConsumptionSource.DISK_BYTES_WRITTEN, resourceConsumptionLabel)
+    workerSource.removeGauge(ResourceConsumptionSource.HDFS_FILE_COUNT, resourceConsumptionLabel)
+    workerSource.removeGauge(ResourceConsumptionSource.HDFS_BYTES_WRITTEN, resourceConsumptionLabel)
+  }
 
   private def removeAppActiveConnection(applicationIds: JHashSet[String]): Unit = {
     workerSource.removeAppActiveConnection(applicationIds)
