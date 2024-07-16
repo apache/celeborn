@@ -446,6 +446,7 @@ object CelebornCommon {
     .settings (
       commonSettings,
       protoSettings,
+      releaseSettings,
       libraryDependencies ++= Seq(
         Dependencies.protobufJava,
         Dependencies.findbugsJsr305,
