@@ -150,16 +150,7 @@ public class TestCongestionController {
   public void testTrafficQuota() throws InterruptedException {
     CongestionController controller1 =
         new CongestionController(
-            source,
-            10,
-            1000,
-            500,
-            500,
-            400,
-            1200,
-            1000,
-            userInactiveTimeMills,
-            checkIntervalTimeMills) {
+            source, 10, 1000, 500, 500, 400, 1200, 1000, 120 * 1000, checkIntervalTimeMills) {
           @Override
           public long getTotalPendingBytes() {
             return 0;

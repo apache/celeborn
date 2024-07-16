@@ -52,6 +52,8 @@ public class CongestionController {
 
   private final BufferStatusHub consumedBufferStatusHub;
 
+  private final BufferStatusHub producedBufferStatusHub;
+
   private final ConcurrentHashMap<UserIdentifier, UserBufferInfo> userBufferStatuses;
 
   private final ScheduledExecutorService removeUserExecutorService;
@@ -85,6 +87,7 @@ public class CongestionController {
     this.workerProduceSpeedLowWatermark = workerProduceSpeedLowWatermark;
     this.userInactiveTimeMills = userInactiveTimeMills;
     this.consumedBufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
+    this.producedBufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
     this.userBufferStatuses = JavaUtils.newConcurrentHashMap();
     this.userCongestionFlags = JavaUtils.newConcurrentHashMap();
 
@@ -232,7 +235,7 @@ public class CongestionController {
       return 0;
     }
 
-    return consumedBufferStatusHub.avgBytesPerSec() / userBufferStatuses.size();
+    return producedBufferStatusHub.avgBytesPerSec() / userBufferStatuses.size();
   }
 
   /** Get the avg user produce speed, the unit is bytes/sec. */
@@ -268,7 +271,7 @@ public class CongestionController {
   protected void checkCongestion() {
     try {
       long pendingConsume = getTotalPendingBytes();
-      long workerProduceSpeed = consumedBufferStatusHub.avgBytesPerSec();
+      long workerProduceSpeed = producedBufferStatusHub.avgBytesPerSec();
       boolean diskBufferOverHighWatermark = pendingConsume > diskBufferHighWatermark;
       if (pendingConsume < diskBufferLowWatermark
           && workerProduceSpeed < workerProduceSpeedLowWatermark) {
@@ -297,6 +300,7 @@ public class CongestionController {
     this.checkService.shutdownNow();
     this.userBufferStatuses.clear();
     this.consumedBufferStatusHub.clear();
+    this.producedBufferStatusHub.clear();
   }
 
   public static synchronized void destroy() {
@@ -304,5 +308,9 @@ public class CongestionController {
       _INSTANCE.close();
       _INSTANCE = null;
     }
+  }
+
+  public BufferStatusHub getProducedBufferStatusHub() {
+    return producedBufferStatusHub;
   }
 }

@@ -107,6 +107,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   private UserBufferInfo userBufferInfo = null;
 
+  private BufferStatusHub workerBufferInfo = null;
+
   public PartitionDataWriter(
       StorageManager storageManager,
       AbstractSource workerSource,
@@ -162,6 +164,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     CongestionController congestionController = CongestionController.instance();
     if (!isMemoryShuffleFile.get() && congestionController != null) {
       userBufferInfo = congestionController.getUserBuffer(getDiskFileInfo().getUserIdentifier());
+      workerBufferInfo = congestionController.getProducedBufferStatusHub();
     }
   }
 
@@ -303,8 +306,11 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     } else {
       MemoryManager.instance().incrementDiskBuffer(numBytes);
       if (userBufferInfo != null) {
-        userBufferInfo.updateInfo(
-            System.currentTimeMillis(), new BufferStatusHub.BufferStatusNode(numBytes));
+        long timeNow = System.currentTimeMillis();
+        BufferStatusHub.BufferStatusNode bufferStatusNode =
+            new BufferStatusHub.BufferStatusNode(numBytes);
+        userBufferInfo.updateInfo(timeNow, bufferStatusNode);
+        workerBufferInfo.add(timeNow, bufferStatusNode);
       }
     }
 
