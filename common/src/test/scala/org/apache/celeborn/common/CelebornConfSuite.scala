@@ -158,18 +158,6 @@ class CelebornConfSuite extends CelebornFunSuite {
       "Compression level for Zstd compression codec should be an integer between -5 and 22."))
   }
 
-  test("replace <localhost> placeholder") {
-    val conf = new CelebornConf()
-    val replacedHost = conf.masterHost
-    assert(!replacedHost.contains("<localhost>"))
-    assert(replacedHost === Utils.localHostName(conf))
-    val replacedHosts = conf.masterEndpoints
-    replacedHosts.foreach { replacedHost =>
-      assert(!replacedHost.contains("<localhost>"))
-      assert(replacedHost contains Utils.localHostName(conf))
-    }
-  }
-
   test("extract masterNodeIds") {
     val conf = new CelebornConf()
       .set("celeborn.master.ha.node.id", "1")

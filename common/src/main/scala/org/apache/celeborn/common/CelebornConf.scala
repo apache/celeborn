@@ -2087,7 +2087,9 @@ object CelebornConf extends Logging {
   val MASTER_ENDPOINTS_RESOLVER: ConfigEntry[String] =
     buildConf("celeborn.master.endpoints.resolver")
       .categories("client", "worker")
-      .doc("WIP")
+      .doc("Resolver class that can be used for dynamically discovering and updating the master endpoints. " +
+        "This allows for a custom resolver implementation to be provided by the user. This is useful in " +
+        "environments where the master nodes might change due to scaling operations or infrastructure updates.")
       .version("0.6.0")
       .stringConf
       .createWithDefault("org.apache.celeborn.common.client.StaticMasterEndpointResolver")

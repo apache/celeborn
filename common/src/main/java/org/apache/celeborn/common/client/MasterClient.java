@@ -49,7 +49,7 @@ public class MasterClient {
 
   private final RpcEnv rpcEnv;
   private final MasterEndpointResolver masterEndpointResolver;
-  private final int maxRetries;
+  private int maxRetries;
 
   private final RpcTimeout rpcTimeout;
 
@@ -148,7 +148,7 @@ public class MasterClient {
     long sleepLimitTime = 2000; // 2s
     while (numTries < maxRetries && shouldRetry) {
       try {
-        endpointRef = getOrSetupRpcEndpointRef(currentMasterIdx);
+        endpointRef = getOrSetupRpcEndpointRef(currentMasterIdx, numTries);
         Future<T> future = endpointRef.ask(message, rpcTimeout, ClassTag$.MODULE$.apply(clz));
         return rpcTimeout.awaitResult(future);
       } catch (Throwable e) {
@@ -225,13 +225,15 @@ public class MasterClient {
    *     cannot be obtained.
    * @return non-empty RpcEndpointRef.
    */
-  private RpcEndpointRef getOrSetupRpcEndpointRef(AtomicInteger currentIndex) {
+  private RpcEndpointRef getOrSetupRpcEndpointRef(AtomicInteger currentIndex, int numTry) {
     RpcEndpointRef endpointRef = rpcEndpointRef.get();
 
     // If endpoints are updated by MasterEndpointResolver, we should reset the currentIndex to 0.
     // This also unset the value of updated, so we don't always reset currentIndex to 0.
     if (masterEndpointResolver.isUpdated()) {
       currentIndex.set(0);
+      maxRetries =
+          Math.max(maxRetries, numTry + masterEndpointResolver.getActiveMasterEndpoints().size());
     }
     List<String> activeMasterEndpoints = masterEndpointResolver.getActiveMasterEndpoints();
 
