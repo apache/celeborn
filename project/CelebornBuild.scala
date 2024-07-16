@@ -954,7 +954,7 @@ object Flink118 extends FlinkClientProjects {
 }
 
 object Flink119 extends FlinkClientProjects {
-  val flinkVersion = "1.19.0"
+  val flinkVersion = "1.19.1"
 
   // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath = "client-flink/flink-1.19"
@@ -984,7 +984,7 @@ trait FlinkClientProjects {
     .aggregate(flinkCommon, flinkClient, flinkIt)
 
   // get flink major version. e.g:
-  //   1.19.0 -> 1.19
+  //   1.19.1 -> 1.19
   //   1.18.1 -> 1.18
   //   1.17.2 -> 1.17
   //   1.15.4 -> 1.15
