@@ -1624,7 +1624,15 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
       throws CelebornIOException {
     Tuple2<ReduceFileGroups, String> fileGroupTuple =
-        reduceFileGroupsMap.computeIfAbsent(shuffleId, (id) -> loadFileGroupInternal(shuffleId));
+        reduceFileGroupsMap.compute(
+            shuffleId,
+            (id, existsTuple) -> {
+              if (existsTuple == null || existsTuple._1 == null) {
+                return loadFileGroupInternal(shuffleId);
+              } else {
+                return existsTuple;
+              }
+            });
     if (fileGroupTuple._1 == null) {
       throw new CelebornIOException(
           loadFileGroupException(shuffleId, partitionId, (fileGroupTuple._2)));
