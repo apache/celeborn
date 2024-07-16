@@ -29,10 +29,6 @@
   <packaging>jar</packaging>
   <name>Celeborn OpenApi Client</name>
 
-  <properties>
-    <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
-  </properties>
-
   <dependencyManagement>
     <dependencies>
       <dependency>
