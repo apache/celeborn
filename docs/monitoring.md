@@ -143,20 +143,20 @@ These metrics are exposed by Celeborn master.
     - **notes:**
         - This metrics data is generated for each thread pool and they are identified using a metric tag by thread pool name.
     
-    | Metric Name                  | Description                                                                                                            |
-    |------------------------------|------------------------------------------------------------------------------------------------------------------------|
-    | active_thread_count          | The approximate number of threads that are actively executing tasks.                                                   |
-    | pending_task_count           | The pending task not executed in block queue.                                                                          |
-    | pool_size                    | The current number of threads in the pool.                                                                             |
-    | core_pool_size               | The core number of threads.                                                                                            |
-    | maximum_pool_size            | The maximum allowed number of threads.                                                                                 |
-    | largest_pool_size            | The largest number of threads that have ever simultaneously been in the pool.                                          |
-    | is_terminating               | If this executor is in the process of terminating after shutdown() or shutdownNow() but has not completely terminated. |
-    | is_terminated                | If this executor is in the process of terminated after shutdown() or shutdownNow() and has completely terminated.      |
-    | is_shutdown                  | If this executor is shutdown.                                                                                          |
-    | thread_count                 | The thread count of current thread group.                                                                              |
-    | thread_is_terminated_count   | The terminated thread count of current thread group.                                                                   |
-    | thread_is_shutdown_count     | The shutdown thread count of current thread group.                                                                     |
+    | Metric Name                  | Description                                                                                                                 |
+    |------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+    | active_thread_count          | The approximate number of threads that are actively executing tasks.                                                        |
+    | pending_task_count           | The pending task not executed in block queue.                                                                               |
+    | pool_size                    | The current number of threads in the pool.                                                                                  |
+    | core_pool_size               | The core number of threads.                                                                                                 |
+    | maximum_pool_size            | The maximum allowed number of threads.                                                                                      |
+    | largest_pool_size            | The largest number of threads that have ever simultaneously been in the pool.                                               |
+    | is_terminating               | Whether this executor is in the process of terminating after shutdown() or shutdownNow() but has not completely terminated. |
+    | is_terminated                | Whether this executor is in the process of terminated after shutdown() or shutdownNow() and has completely terminated.      |
+    | is_shutdown                  | Whether this executor is shutdown.                                                                                          |
+    | thread_count                 | The thread count of current thread group.                                                                                   |
+    | thread_is_terminated_count   | The terminated thread count of current thread group.                                                                        |
+    | thread_is_shutdown_count     | The shutdown thread count of current thread group.                                                                          |
 
 #### Worker
 These metrics are exposed by Celeborn worker.
@@ -318,17 +318,17 @@ These metrics are exposed by Celeborn worker.
     - **notes:**
         - This metrics data is generated for each thread pool and they are identified using a metric tag by thread pool name.
     
-    | Metric Name            | Description                                                                                                            |
-    |------------------------|------------------------------------------------------------------------------------------------------------------------|
-    | active_thread_count    | The approximate number of threads that are actively executing tasks.                                                   |
-    | pending_task_count     | The pending task not executed in block queue.                                                                          |
-    | pool_size              | The current number of threads in the pool.                                                                             |
-    | core_pool_size         | The core number of threads.                                                                                            |
-    | maximum_pool_size      | The maximum allowed number of threads.                                                                                 |
-    | largest_pool_size      | The largest number of threads that have ever simultaneously been in the pool.                                          |
-    | is_terminating         | If this executor is in the process of terminating after shutdown() or shutdownNow() but has not completely terminated. |
-    | is_terminated          | If this executor is in the process of terminated after shutdown() or shutdownNow() and has completely terminated.      |
-    | is_shutdown            | If this executor is shutdown.                                                                                          |
+    | Metric Name            | Description                                                                                                                 |
+    |------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+    | active_thread_count    | The approximate number of threads that are actively executing tasks.                                                        |
+    | pending_task_count     | The pending task not executed in block queue.                                                                               |
+    | pool_size              | The current number of threads in the pool.                                                                                  |
+    | core_pool_size         | The core number of threads.                                                                                                 |
+    | maximum_pool_size      | The maximum allowed number of threads.                                                                                      |
+    | largest_pool_size      | The largest number of threads that have ever simultaneously been in the pool.                                               |
+    | is_terminating         | Whether this executor is in the process of terminating after shutdown() or shutdownNow() but has not completely terminated. |
+    | is_terminated          | Whether this executor is in the process of terminated after shutdown() or shutdownNow() and has completely terminated.      |
+    | is_shutdown            | Whether this executor is shutdown.                                                                                          |
 
 **Note:**
 
