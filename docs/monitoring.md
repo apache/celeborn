@@ -362,23 +362,23 @@ You can find the Celeborn dashboard templates under the `assets/grafana` directo
 
 Here is an example of Grafana dashboard importing.
 
-![g1](../assets/img/g1.png)
+![g1](assets/img/g1.png)
 
-![g2](../assets/img/g2.png)
+![g2](assets/img/g2.png)
 
-![g3](../assets/img/g3.png)
+![g3](assets/img/g3.png)
 
-<img alt="g4" height="90%" src="../assets/img/g4.png" width="90%"/>
+<img alt="g4" height="90%" src="assets/img/g4.png" width="90%"/>
 
-<img alt="g6" height="90%" src="../assets/img/g6.png" width="90%"/>
+<img alt="g6" height="90%" src="assets/img/g6.png" width="90%"/>
 
-<img alt="g5" height="90%" src="../assets/img/g5.png" width="90%"/>
+<img alt="g5" height="90%" src="assets/img/g5.png" width="90%"/>
 
 Here are some snapshots:
 
-![d1](../assets/img/dashboard1.png)
+![d1](assets/img/dashboard1.png)
 
-![d2](../assets/img/dashboard_full.webp)
+![d2](assets/img/dashboard_full.webp)
 
 #### Optional
 We recommend you to install node exporter (https://github.com/prometheus/node_exporter)
