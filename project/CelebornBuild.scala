@@ -1313,6 +1313,7 @@ object CelebornOpenApi {
 
   lazy val openapiClient = Project("celeborn-openapi-client", file("openapi/openapi-client"))
     .enablePlugins(OpenApiGeneratorPlugin)
+    .disablePlugins(AddMetaInfLicenseFiles)
     .dependsOn(openapiInternalMasterClient, openapiInternalWorkerClient)
     .settings(
       commonSettings,
@@ -1342,7 +1343,55 @@ object CelebornOpenApi {
       Compile / doc := {
         // skip due to doc generation failure for openapi modules, see CELEBORN-1477
         target.value / "none"
-      }
+      },
+
+      (assembly / test) := { },
+
+      (assembly / assemblyJarName) := {
+        s"${moduleName.value}_${scalaBinaryVersion.value}-${version.value}.${artifact.value.extension}"
+      },
+
+      (assembly / logLevel) := Level.Info,
+
+      // Exclude `scala-library` from assembly.
+      (assembly / assemblyPackageScala / assembleArtifact) := false,
+
+      (assembly / assemblyExcludedJars) := {
+        val cp = (assembly / fullClasspath).value
+        cp filter { v =>
+          val name = v.data.getName
+          !(name.startsWith("celeborn-") ||
+              name.startsWith("swagger-annotations-") ||
+              name.startsWith("swagger-models-") ||
+              name.startsWith("jackson-databind-") ||
+              name.startsWith("jsr305-") ||
+              name.startsWith("jersey-client-") ||
+              name.startsWith("jersey-media-json-jackson-") ||
+              name.startsWith("jackson-annotations-") ||
+              name.startsWith("jackson-datatype-jsr310-") ||
+              name.startsWith("jersey-media-multipart-"))
+        }
+      },
+
+      (assembly / assemblyShadeRules) := Seq(
+        ShadeRule.rename("io.swagger.**" -> "org.apache.celeborn.shaded.io.swagger.@1").inAll,
+        ShadeRule.rename("org.openapitools.**" -> "org.apache.celeborn.shaded.org.openapitools.@1").inAll,
+        ShadeRule.rename("com.google.**" -> "org.apache.celeborn.shaded.com.google.@1").inAll,
+        ShadeRule.rename("javax.annotation.**" -> "org.apache.celeborn.shaded.javax.annotation.@1").inAll,
+        ShadeRule.rename("org.glassfish.jersey.**" -> "org.apache.celeborn.shaded.org.glassfish.jersey.@1").inAll,
+        ShadeRule.rename("com.fasterxml.jackson.**" -> "org.apache.celeborn.shaded.com.fasterxml.jackson.@1").inAll,
+        ShadeRule.rename("jakarta.validation.**" -> "org.apache.celeborn.shaded.jakarta.validation.@1").inAll,
+        ShadeRule.rename("javax.validation.**" -> "org.apache.celeborn.shaded.javax.validation.@1").inAll
+      ),
+
+      (assembly / assemblyMergeStrategy) := {
+        case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+        case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
+        case _ => MergeStrategy.first
+      },
+
+      Compile / packageBin := assembly.value,
+      pomPostProcess := removeDependenciesTransformer
     )
 
   val commonOpenApiModelSettings = Seq(
