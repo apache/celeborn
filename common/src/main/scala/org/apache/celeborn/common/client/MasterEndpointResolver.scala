@@ -29,26 +29,24 @@ abstract class MasterEndpointResolver(
     private val conf: CelebornConf,
     private val isWorker: Boolean) extends Logging {
 
-  private var masterEndpointName: Option[String] = None
-
-  protected var activeMasterEndpoints: Option[List[String]] = None
+  private val masterEndpointName: String = {
+    if (isWorker && conf.internalPortEnabled) {
+      // For worker, we should use the internal endpoints if internal port is enabled.
+      resolve(conf.masterInternalEndpoints)
+      RpcNameConstants.MASTER_INTERNAL_EP
+    } else {
+      resolve(conf.masterEndpoints)
+      RpcNameConstants.MASTER_EP
+    }
+  }
 
   protected val updated = new AtomicBoolean(false)
-
-  if (isWorker && conf.internalPortEnabled) {
-    // For worker, we should use the internal endpoints if internal port is enabled.
-    this.masterEndpointName = Some(RpcNameConstants.MASTER_INTERNAL_EP)
-    resolve(conf.masterInternalEndpoints)
-  } else {
-    this.masterEndpointName = Some(RpcNameConstants.MASTER_EP)
-    resolve(conf.masterEndpoints)
-  }
 
   def getMasterEndpointName: String = masterEndpointName.get
 
   def getActiveMasterEndpoints: java.util.List[String] = activeMasterEndpoints.get.asJava
 
-  def isUpdated: Boolean = updated.compareAndSet(true, false)
+  def getUpdatedAndReset(): Boolean = updated.compareAndSet(true, false)
 
   protected def resolve(endpoints: Array[String]): Unit
 

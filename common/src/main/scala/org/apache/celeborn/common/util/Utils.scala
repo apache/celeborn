@@ -576,10 +576,9 @@ object Utils extends Logging {
       conf: CelebornConf,
       isWorker: Boolean): T = {
     try {
-      val cls = classForName(className)
-      cls.getConstructor(classOf[CelebornConf], java.lang.Boolean.TYPE)
+      DynConstructors.builder().impl(className, classOf[CelebornConf], java.lang.Boolean.TYPE)
+        .build[T]()
         .newInstance(conf, java.lang.Boolean.valueOf(isWorker))
-        .asInstanceOf[T]
     } catch {
       case e: Throwable =>
         throw new CelebornException(s"Failed to instantiate masterEndpointResolver $className", e)
