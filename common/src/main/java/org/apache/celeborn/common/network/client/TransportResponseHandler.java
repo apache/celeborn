@@ -63,13 +63,14 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   private final AtomicLong timeOfLastRequestNs;
 
   private final long pushTimeoutCheckerInterval;
-  private ScheduledExecutorService pushTimeoutChecker;
+  private static ScheduledExecutorService pushTimeoutChecker = null;
   private ScheduledFuture pushCheckerScheduleFuture;
 
   private final long fetchTimeoutCheckerInterval;
-  private ScheduledExecutorService fetchTimeoutChecker;
+  private static ScheduledExecutorService fetchTimeoutChecker = null;
   private ScheduledFuture fetchCheckerScheduleFuture;
 
+  @SuppressWarnings("StaticAssignmentInConstructor")
   public TransportResponseHandler(TransportConf conf, Channel channel) {
     this.conf = conf;
     this.channel = channel;

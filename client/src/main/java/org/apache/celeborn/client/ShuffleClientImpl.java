@@ -113,6 +113,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected final Map<String, PushState> pushStates = JavaUtils.newConcurrentHashMap();
 
   private final boolean pushExcludeWorkerOnFailureEnabled;
+  private final boolean shuffleCompressionEnabled;
   private final Set<String> pushExcludedWorkers = ConcurrentHashMap.newKeySet();
   private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
       JavaUtils.newConcurrentHashMap();
@@ -125,7 +126,14 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final boolean authEnabled;
   private final TransportConf dataTransportConf;
 
-  private ThreadLocal<Compressor> compressorThreadLocal;
+  @SuppressWarnings("ThreadLocalUsage")
+  private final ThreadLocal<Compressor> compressorThreadLocal =
+      new ThreadLocal<Compressor>() {
+        @Override
+        protected Compressor initialValue() {
+          return Compressor.getCompressor(conf);
+        }
+      };
 
   private final ReviveManager reviveManager;
 
@@ -171,9 +179,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     testRetryRevive = conf.testRetryRevive();
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
     pushExcludeWorkerOnFailureEnabled = conf.clientPushExcludeWorkerOnFailureEnabled();
-    if (!CompressionCodec.NONE.equals(conf.shuffleCompressionCodec())) {
-      compressorThreadLocal = ThreadLocal.withInitial(() -> Compressor.getCompressor(conf));
-    }
+    shuffleCompressionEnabled = !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
     if (conf.clientPushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
@@ -934,7 +940,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     // increment batchId
     final int nextBatchId = pushState.nextBatchId();
 
-    if (compressorThreadLocal != null) {
+    if (shuffleCompressionEnabled) {
       // compress data
       final Compressor compressor = compressorThreadLocal.get();
       compressor.compress(data, offset, length);

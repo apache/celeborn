@@ -96,7 +96,9 @@ public class SaslTestBase {
           TimeUnit.MILLISECONDS.sleep(10);
         }
       }
-      assertNull(error);
+      if (error != null) {
+        throw error;
+      }
     }
   }
 

@@ -191,6 +191,7 @@ public class ReloadingX509TrustManager implements X509TrustManager, Runnable {
     return trustManager;
   }
 
+  @SuppressWarnings("NonAtomicVolatileUpdate")
   @Override
   public void run() {
     boolean running = true;
@@ -200,22 +201,20 @@ public class ReloadingX509TrustManager implements X509TrustManager, Runnable {
       } catch (InterruptedException e) {
         running = false;
       }
-      synchronized (this) {
-        try {
-          if (running && needsReload()) {
-            try {
-              trustManagerRef.set(loadTrustManager());
-              this.reloadCount += 1;
-            } catch (Exception ex) {
-              logger.warn(
-                  "Could not load truststore (keep using existing one) : " + ex.toString(), ex);
-            }
+      try {
+        if (running && needsReload()) {
+          try {
+            trustManagerRef.set(loadTrustManager());
+            this.reloadCount += 1;
+          } catch (Exception ex) {
+            logger.warn(
+                "Could not load truststore (keep using existing one) : " + ex.toString(), ex);
           }
-        } catch (IOException ex) {
-          logger.warn("Could not check whether truststore needs reloading: " + ex.toString(), ex);
         }
-        needsReloadCheckCounts++;
+      } catch (IOException ex) {
+        logger.warn("Could not check whether truststore needs reloading: " + ex.toString(), ex);
       }
+      needsReloadCheckCounts++;
     }
   }
 
