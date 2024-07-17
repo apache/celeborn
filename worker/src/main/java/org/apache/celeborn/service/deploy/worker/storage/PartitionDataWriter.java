@@ -107,8 +107,9 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   private Exception exception = null;
   private boolean metricsCollectCriticalEnabled;
   private long chunkSize;
-
   private UserBufferInfo userBufferInfo = null;
+
+  private FileSystem hadoopFs;
 
   public PartitionDataWriter(
       StorageManager storageManager,
@@ -174,15 +175,10 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       this.flusherBufferSize = localFlusherBufferSize;
       channel = FileChannelUtils.createWritableFileChannel(this.diskFileInfo.getFilePath());
     } else {
-      FileSystem hadoopFs = null;
-      if (diskFileInfo.isS3()) {
-        hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.S3);
-        this.flusherBufferSize = s3FlusherBufferSize;
-      } else {
-        hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.HDFS);
-
-        this.flusherBufferSize = hdfsFlusherBufferSize;
-      }
+      StorageInfo.Type storageType =
+          diskFileInfo.isS3() ? StorageInfo.Type.S3 : StorageInfo.Type.HDFS;
+      this.hadoopFs = StorageManager.hadoopFs().get(storageType);
+      this.flusherBufferSize = diskFileInfo.isS3() ? s3FlusherBufferSize : hdfsFlusherBufferSize;
       // We open the stream and close immediately because DFS output stream will
       // create a DataStreamer that is a thread.
       // If we reuse DFS output stream, we will exhaust the memory soon.
@@ -531,13 +527,6 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     if (!destroyed) {
       destroyed = true;
       if (diskFileInfo != null) {
-        FileSystem hadoopFs = null;
-        if (diskFileInfo.isS3() && StorageManager.hadoopFs() != null) {
-          hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.S3);
-        }
-        if (diskFileInfo.isHdfs() && StorageManager.hadoopFs() != null) {
-          hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.HDFS);
-        }
         diskFileInfo.deleteAllFiles(hadoopFs);
         // unregister from DeviceMonitor
         if (!diskFileInfo.isDFS()) {

@@ -70,6 +70,7 @@ public class DfsPartitionReader implements PartitionReader {
   private TransportClient client;
   private PbStreamHandler streamHandler;
   private MetricsCallback metricsCallback;
+  private FileSystem hadoopFs;
 
   public DfsPartitionReader(
       CelebornConf conf,
@@ -87,12 +88,11 @@ public class DfsPartitionReader implements PartitionReader {
 
     this.metricsCallback = metricsCallback;
     this.location = location;
-    FileSystem hadoopFs = null;
     if (location.getStorageInfo() != null
         && location.getStorageInfo().getType() == StorageInfo.Type.S3) {
-      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.S3);
+      this.hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.S3);
     } else {
-      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
+      this.hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
     }
 
     if (endMapIndex != Integer.MAX_VALUE) {
@@ -145,13 +145,6 @@ public class DfsPartitionReader implements PartitionReader {
   private List<Long> getChunkOffsetsFromUnsortedIndex(CelebornConf conf, PartitionLocation location)
       throws IOException {
     List<Long> offsets;
-    FileSystem hadoopFs = null;
-    if (location.getStorageInfo() != null
-        && location.getStorageInfo().getType() == StorageInfo.Type.S3) {
-      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.S3);
-    } else {
-      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
-    }
     try (FSDataInputStream indexInputStream =
         hadoopFs.open(new Path(Utils.getIndexFilePath(location.getStorageInfo().getFilePath())))) {
       offsets = new ArrayList<>();
@@ -168,13 +161,6 @@ public class DfsPartitionReader implements PartitionReader {
       throws IOException {
     String indexPath = Utils.getIndexFilePath(location.getStorageInfo().getFilePath());
     List<Long> offsets;
-    FileSystem hadoopFs = null;
-    if (location.getStorageInfo() != null
-        && location.getStorageInfo().getType() == StorageInfo.Type.S3) {
-      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.S3);
-    } else {
-      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
-    }
     try (FSDataInputStream indexInputStream = hadoopFs.open(new Path(indexPath))) {
       logger.debug("read sorted index {}", indexPath);
       long indexSize = hadoopFs.getFileStatus(new Path(indexPath)).getLen();
@@ -224,13 +210,6 @@ public class DfsPartitionReader implements PartitionReader {
                       e);
                   try {
                     dfsInputStream.close();
-                    FileSystem hadoopFs = null;
-                    if (location.getStorageInfo() != null
-                        && location.getStorageInfo().getType() == StorageInfo.Type.S3) {
-                      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.S3);
-                    } else {
-                      hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
-                    }
                     dfsInputStream =
                         hadoopFs.open(
                             new Path(

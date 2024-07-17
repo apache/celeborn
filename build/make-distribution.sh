@@ -29,7 +29,6 @@ SBT="$PROJECT_DIR/build/sbt"
 SBT_ENABLED="false"
 HADOOP_AWS_ENABLED="false"
 
-
 function exit_with_usage {
   echo "make-distribution.sh - tool for making binary distributions of Celeborn"
   echo ""
@@ -264,10 +263,9 @@ function sbt_build_service {
   echo "Celeborn $VERSION$GITREVSTRING" > "$DIST_DIR/RELEASE"
   echo "Build flags: $@" >> "$DIST_DIR/RELEASE"
   if [[ "$HADOOP_AWS_ENABLED" == "true" ]]; then
-    PROFILE="-Phadoop-aws"
+    export SBT_MAVEN_PROFILES="hadoop-aws"
   fi
-
-  BUILD_COMMAND=("$SBT" clean package "$PROFILE")
+  BUILD_COMMAND=("$SBT" clean package)
 
   # Actually build the jar
   echo -e "\nBuilding with..."
