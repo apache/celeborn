@@ -52,6 +52,7 @@ import org.apache.celeborn.common.network.util.TransportConf
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.{ControlMessages, Message, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
+import org.apache.celeborn.reflect.DynConstructors
 
 object Utils extends Logging {
 

@@ -17,17 +17,23 @@
 
 package org.apache.celeborn.common.client
 
+import java.util
+
+import scala.collection.JavaConverters._
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.RpcNameConstants
 
 class DummyMasterEndpointResolver(conf: CelebornConf, isWorker: Boolean)
   extends MasterEndpointResolver(conf, isWorker) {
-  override protected def resolve(endpoints: Array[String]): Unit = {
-    activeMasterEndpoints = Some(endpoints.toList)
+
+  override def resolve(endpoints: Array[String]): Unit = {
+    this.activeMasterEndpoints = Some(endpoints.toList)
   }
-  override protected def update(endpoints: Array[String]): Unit = {
-    activeMasterEndpoints = Some(endpoints.toList)
+
+  override def update(endpoints: Array[String]): Unit = {
+    this.activeMasterEndpoints = Some(endpoints.toList)
     updated.set(true)
   }
 
@@ -43,17 +49,17 @@ class MasterEndpointResolverSuite extends CelebornFunSuite {
     conf.set(CelebornConf.MASTER_ENDPOINTS.key, "clb-1:1234")
     val resolver = new DummyMasterEndpointResolver(conf, false)
 
-    assert(resolver.getMasterEndpointName == RpcNameConstants.MASTER_EP)
-    assert(!resolver.isUpdated)
+    assert(resolver.masterEndpointName == RpcNameConstants.MASTER_EP)
+    assert(!resolver.getUpdatedAndReset())
     // isUpdated should be not be reset if isUpdated returns false
-    assert(!resolver.isUpdated)
+    assert(!resolver.getUpdatedAndReset())
     assert(resolver.getActiveMasterEndpoints.size == 1)
     assert(resolver.getActiveMasterEndpoints.get(0) == "clb-1:1234")
 
     resolver.updateTest(Array("clb-2:1234"))
-    assert(resolver.isUpdated)
+    assert(resolver.getUpdatedAndReset())
     // isUpdated should be reset after calling isUpdated once
-    assert(!resolver.isUpdated)
+    assert(!resolver.getUpdatedAndReset())
     assert(resolver.getActiveMasterEndpoints.size == 1)
     assert(resolver.getActiveMasterEndpoints.get(0) == "clb-2:1234")
   }
@@ -66,7 +72,7 @@ class MasterEndpointResolverSuite extends CelebornFunSuite {
 
     val resolver = new DummyMasterEndpointResolver(conf, false)
 
-    assert(resolver.getMasterEndpointName == RpcNameConstants.MASTER_EP)
+    assert(resolver.masterEndpointName == RpcNameConstants.MASTER_EP)
     assert(resolver.getActiveMasterEndpoints.size == 1)
     assert(resolver.getActiveMasterEndpoints.get(0) == "clb-1:1234")
   }
@@ -79,7 +85,7 @@ class MasterEndpointResolverSuite extends CelebornFunSuite {
 
     val resolver = new DummyMasterEndpointResolver(conf, true)
 
-    assert(resolver.getMasterEndpointName == RpcNameConstants.MASTER_INTERNAL_EP)
+    assert(resolver.masterEndpointName == RpcNameConstants.MASTER_INTERNAL_EP)
     assert(resolver.getActiveMasterEndpoints.size == 1)
     assert(resolver.getActiveMasterEndpoints.get(0) == "clb-internal-1:1234")
   }

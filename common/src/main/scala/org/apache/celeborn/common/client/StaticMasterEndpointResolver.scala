@@ -17,6 +17,9 @@
 
 package org.apache.celeborn.common.client
 
+import java.util
+
+import scala.collection.JavaConverters._
 import scala.util.Random
 
 import org.apache.celeborn.common.CelebornConf
@@ -26,9 +29,10 @@ import org.apache.celeborn.common.util.Utils
 
 class StaticMasterEndpointResolver(conf: CelebornConf, isWorker: Boolean)
   extends MasterEndpointResolver(conf, isWorker) {
-  override protected def resolve(endpoints: Array[String]): Unit = {
+
+  override def resolve(endpoints: Array[String]): Unit = {
     val haMasterPort =
-      if (getMasterEndpointName == RpcNameConstants.MASTER_INTERNAL_EP) {
+      if (masterEndpointName == RpcNameConstants.MASTER_INTERNAL_EP) {
         HA_MASTER_NODE_INTERNAL_PORT.defaultValue.get
       } else {
         HA_MASTER_NODE_PORT.defaultValue.get
@@ -44,5 +48,6 @@ class StaticMasterEndpointResolver(conf: CelebornConf, isWorker: Boolean)
     Random.shuffle(this.activeMasterEndpoints.get)
     logInfo(s"masterEndpoints = ${activeMasterEndpoints.get}")
   }
-  override protected def update(endpoints: Array[String]): Unit = {}
+
+  override def update(endpoints: Array[String]): Unit = {}
 }

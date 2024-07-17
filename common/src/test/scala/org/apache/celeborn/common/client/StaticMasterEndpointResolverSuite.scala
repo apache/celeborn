@@ -28,8 +28,8 @@ class StaticMasterEndpointResolverSuite extends CelebornFunSuite {
     val conf = new CelebornConf()
     val resolver = new StaticMasterEndpointResolver(conf, false)
 
-    assert(resolver.getMasterEndpointName == RpcNameConstants.MASTER_EP)
-    assert(!resolver.isUpdated)
+    assert(resolver.masterEndpointName == RpcNameConstants.MASTER_EP)
+    assert(!resolver.getUpdatedAndReset())
     assert(resolver.getActiveMasterEndpoints.size == 1)
     assert(resolver.getActiveMasterEndpoints.get(0) == s"${Utils.localHostName(conf)}:9097")
   }
@@ -44,8 +44,8 @@ class StaticMasterEndpointResolverSuite extends CelebornFunSuite {
 
     val resolver = new StaticMasterEndpointResolver(conf, false)
 
-    assert(resolver.getMasterEndpointName == RpcNameConstants.MASTER_EP)
-    assert(!resolver.isUpdated)
+    assert(resolver.masterEndpointName == RpcNameConstants.MASTER_EP)
+    assert(!resolver.getUpdatedAndReset())
     assert(resolver.getActiveMasterEndpoints.size == 3)
     assert(resolver.getActiveMasterEndpoints.contains("clb-1:1234"))
     assert(resolver.getActiveMasterEndpoints.contains(
@@ -63,8 +63,8 @@ class StaticMasterEndpointResolverSuite extends CelebornFunSuite {
 
     val resolver = new StaticMasterEndpointResolver(conf, true)
 
-    assert(resolver.getMasterEndpointName == RpcNameConstants.MASTER_INTERNAL_EP)
-    assert(!resolver.isUpdated)
+    assert(resolver.masterEndpointName == RpcNameConstants.MASTER_INTERNAL_EP)
+    assert(!resolver.getUpdatedAndReset())
     assert(resolver.getActiveMasterEndpoints.size == 3)
     assert(resolver.getActiveMasterEndpoints.contains("clb-internal-1:1234"))
     assert(resolver.getActiveMasterEndpoints.contains(

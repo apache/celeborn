@@ -225,17 +225,16 @@ public class MasterClient {
    *     cannot be obtained.
    * @return non-empty RpcEndpointRef.
    */
-  private RpcEndpointRef getOrSetupRpcEndpointRef(AtomicInteger currentIndex, int numTry) {
+  private RpcEndpointRef getOrSetupRpcEndpointRef(AtomicInteger currentIndex, int currentAttempt) {
     RpcEndpointRef endpointRef = rpcEndpointRef.get();
 
+    List<String> activeMasterEndpoints = masterEndpointResolver.getActiveMasterEndpoints();
     // If endpoints are updated by MasterEndpointResolver, we should reset the currentIndex to 0.
     // This also unset the value of updated, so we don't always reset currentIndex to 0.
-    if (masterEndpointResolver.isUpdated()) {
+    if (masterEndpointResolver.getUpdatedAndReset()) {
       currentIndex.set(0);
-      maxRetries =
-          Math.max(maxRetries, numTry + masterEndpointResolver.getActiveMasterEndpoints().size());
+      maxRetries = Math.max(maxRetries, currentAttempt + activeMasterEndpoints.size());
     }
-    List<String> activeMasterEndpoints = masterEndpointResolver.getActiveMasterEndpoints();
 
     if (endpointRef == null) {
       int index = currentIndex.get();
@@ -266,7 +265,7 @@ public class MasterClient {
     try {
       endpointRef =
           rpcEnv.setupEndpointRef(
-              RpcAddress.fromHostAndPort(endpoint), masterEndpointResolver.getMasterEndpointName());
+              RpcAddress.fromHostAndPort(endpoint), masterEndpointResolver.masterEndpointName());
     } catch (Exception e) {
       // Catch all exceptions. Because we don't care whether this exception is IOException or
       // TimeoutException or other exceptions, so we just try to connect to host:port, if fail,
