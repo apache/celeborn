@@ -245,13 +245,12 @@ class ChangePartitionManager(
       val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
       locations.map { location =>
         locksForShuffle(location.getId % locksForShuffle.length).synchronized {
-          val ret = requestsMap.remove(location.getId)
           if (batchHandleChangePartitionEnabled) {
             inBatchPartitions.get(shuffleId).remove(location.getId)
           }
           // Here one partition id can be remove more than once,
           // so need to filter null result before reply.
-          location -> Option(ret)
+          location -> Option(requestsMap.remove(location.getId))
         }
       }.foreach { case (newLocation, requests) =>
         requests.map(_.asScala.toList.foreach(req =>
@@ -268,11 +267,10 @@ class ChangePartitionManager(
       changePartitions.map { changePartition =>
         val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
         locksForShuffle(changePartition.partitionId % locksForShuffle.length).synchronized {
-          val r = requestsMap.remove(changePartition.partitionId)
           if (batchHandleChangePartitionEnabled) {
             inBatchPartitions.get(shuffleId).remove(changePartition.partitionId)
           }
-          Option(r)
+          Option(requestsMap.remove(changePartition.partitionId))
         }
       }.foreach { requests =>
         requests.map(_.asScala.toList.foreach(req =>
