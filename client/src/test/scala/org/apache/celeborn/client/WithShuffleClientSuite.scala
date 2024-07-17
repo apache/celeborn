@@ -163,8 +163,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
       null,
       null,
       null,
-      metricsCallback,
-      false)
+      metricsCallback)
     Assert.assertEquals(stream.read(), -1)
 
     // reduce normal null partition for CelebornInputStream
@@ -179,8 +178,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
       null,
       null,
       null,
-      metricsCallback,
-      false)
+      metricsCallback)
     Assert.assertEquals(stream.read(), -1)
   }
 

@@ -62,8 +62,7 @@ public abstract class CelebornInputStream extends InputStream {
       int shuffleId,
       int partitionId,
       ExceptionMaker exceptionMaker,
-      MetricsCallback metricsCallback,
-      boolean chunkPrefetchEnabled)
+      MetricsCallback metricsCallback)
       throws IOException {
     if (locations == null || locations.size() == 0) {
       return emptyInputStream;
@@ -84,8 +83,7 @@ public abstract class CelebornInputStream extends InputStream {
           shuffleId,
           partitionId,
           exceptionMaker,
-          metricsCallback,
-          chunkPrefetchEnabled);
+          metricsCallback);
     }
   }
 
@@ -189,8 +187,7 @@ public abstract class CelebornInputStream extends InputStream {
         int shuffleId,
         int partitionId,
         ExceptionMaker exceptionMaker,
-        MetricsCallback metricsCallback,
-        boolean chunkPrefetchEnabled)
+        MetricsCallback metricsCallback)
         throws IOException {
       this.conf = conf;
       this.clientFactory = clientFactory;
@@ -226,6 +223,7 @@ public abstract class CelebornInputStream extends InputStream {
       this.shuffleId = shuffleId;
       this.shuffleClient = shuffleClient;
 
+      boolean chunkPrefetchEnabled = conf.clientChunkPrefetchEnabled();
       moveToNextReader(chunkPrefetchEnabled);
       if (chunkPrefetchEnabled) {
         init();

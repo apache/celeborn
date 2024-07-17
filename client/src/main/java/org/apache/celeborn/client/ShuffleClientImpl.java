@@ -1677,8 +1677,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       ArrayList<PartitionLocation> locations,
       ArrayList<PbStreamHandler> streamHandlers,
       int[] mapAttempts,
-      MetricsCallback metricsCallback,
-      boolean enablePrefetch)
+      MetricsCallback metricsCallback)
       throws IOException {
     if (partitionId == Utils$.MODULE$.UNKNOWN_APP_SHUFFLE_ID()) {
       logger.warn("Shuffle data is empty for shuffle {}: UNKNOWN_APP_SHUFFLE_ID.", shuffleId);
@@ -1718,8 +1717,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           shuffleId,
           partitionId,
           exceptionMaker,
-          metricsCallback,
-          enablePrefetch);
+          metricsCallback);
     }
   }
 

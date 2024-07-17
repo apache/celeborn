@@ -237,8 +237,7 @@ public abstract class ShuffleClient {
         null,
         null,
         null,
-        metricsCallback,
-        false);
+        metricsCallback);
   }
 
   public abstract CelebornInputStream readPartition(
@@ -252,8 +251,7 @@ public abstract class ShuffleClient {
       ArrayList<PartitionLocation> locations,
       ArrayList<PbStreamHandler> streamHandlers,
       int[] mapAttempts,
-      MetricsCallback metricsCallback,
-      boolean enablePrefetch)
+      MetricsCallback metricsCallback)
       throws IOException;
 
   public abstract boolean cleanupShuffle(int shuffleId);

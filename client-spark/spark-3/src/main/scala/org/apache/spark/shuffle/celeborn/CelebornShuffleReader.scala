@@ -66,9 +66,6 @@ class CelebornShuffleReader[K, C](
   private val exceptionRef = new AtomicReference[IOException]
   private val throwsFetchFailure = handle.throwsFetchFailure
 
-  private val chunkPrefetchEnabled = conf.clientChunkPrefetchEnabled
-  private val inputStreamCreationWindow = conf.clientInputStreamCreationWindow
-
   override def read(): Iterator[Product2[K, C]] = {
 
     val serializerInstance = newSerializerInstance(dep)
@@ -219,8 +216,7 @@ class CelebornShuffleReader[K, C](
             locations,
             streamHandlers,
             fileGroups.mapAttempts,
-            metricsCallback,
-            chunkPrefetchEnabled)
+            metricsCallback)
           streams.put(partitionId, inputStream)
         } catch {
           case e: IOException =>
@@ -233,6 +229,7 @@ class CelebornShuffleReader[K, C](
       }
     }
 
+    val inputStreamCreationWindow = conf.clientInputStreamCreationWindow
     (startPartition until Math.min(
       startPartition + inputStreamCreationWindow,
       endPartition)).foreach(partitionId => {
