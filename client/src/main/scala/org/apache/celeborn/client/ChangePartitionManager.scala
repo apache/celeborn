@@ -90,17 +90,9 @@ class ChangePartitionManager(
                         val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
                         requests.asScala.map { case (partitionId, request) =>
                           locksForShuffle(partitionId % locksForShuffle.length).synchronized {
-                            if (!requestSet.contains(partitionId)) {
+                            if (!requestSet.contains(partitionId) && requests.containsKey(partitionId)) {
                               requestSet.add(partitionId)
-                              val finalReq = request.asScala.toArray.maxBy(_.epoch)
-                              if (getLatestPartition(
-                                  finalReq.shuffleId,
-                                  finalReq.partitionId,
-                                  finalReq.epoch).isDefined) {
-                                None
-                              } else {
-                                Some(finalReq)
-                              }
+                              Some(request.asScala.toArray.maxBy(_.epoch))
                             } else {
                               None
                             }
