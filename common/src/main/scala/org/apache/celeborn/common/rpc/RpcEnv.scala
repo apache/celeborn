@@ -50,12 +50,13 @@ object RpcEnv {
       conf: CelebornConf,
       numUsableCores: Int,
       securityContext: Option[RpcSecurityContext] = None): RpcEnv = {
+    val resolvedBindAddress = if (conf.bindWildcardAddress) null else bindAddress
     val config =
       RpcEnvConfig(
         conf,
         name,
         transportModule,
-        bindAddress,
+        resolvedBindAddress,
         advertiseAddress,
         port,
         numUsableCores,

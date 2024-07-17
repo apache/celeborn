@@ -390,8 +390,13 @@ private[celeborn] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
       new JavaSerializer(celebornConf).newInstance().asInstanceOf[JavaSerializerInstance]
     val nettyEnv = new NettyRpcEnv(config, javaSerializerInstance)
     val startNettyRpcEnv: Int => (NettyRpcEnv, Int) = { actualPort =>
-      logInfo(s"Starting RPC Server [${config.name}] on ${config.bindAddress}:$actualPort " +
-        s"with advisor endpoint ${config.advertiseAddress}:$actualPort")
+      if (celebornConf.bindWildcardAddress) {
+        logInfo(s"Starting RPC Server [${config.name}] on wildcard address with port" +
+          s" $actualPort, and advisor endpoint ${config.advertiseAddress}:$actualPort")
+      } else {
+        logInfo(s"Starting RPC Server [${config.name}] on ${config.bindAddress}:$actualPort " +
+          s"with advisor endpoint ${config.advertiseAddress}:$actualPort")
+      }
       nettyEnv.startServer(config.bindAddress, actualPort)
       (nettyEnv, nettyEnv.address.port)
     }

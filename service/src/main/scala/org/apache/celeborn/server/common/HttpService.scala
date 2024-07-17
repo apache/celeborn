@@ -210,11 +210,15 @@ abstract class HttpService extends Service with Logging {
   }
 
   private def httpHost(): String = {
-    serviceName match {
-      case Service.MASTER =>
-        conf.masterHttpHost
-      case Service.WORKER =>
-        conf.workerHttpHost
+    if (conf.bindWildcardAddress) {
+      null
+    } else {
+      serviceName match {
+        case Service.MASTER =>
+          conf.masterHttpHost
+        case Service.WORKER =>
+          conf.workerHttpHost
+      }
     }
   }
 
