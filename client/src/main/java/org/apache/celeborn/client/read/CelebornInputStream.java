@@ -223,7 +223,12 @@ public abstract class CelebornInputStream extends InputStream {
       this.shuffleId = shuffleId;
       this.shuffleClient = shuffleClient;
 
-      moveToNextReader(false);
+      boolean chunkPrefetchEnabled = conf.clientChunkPrefetchEnabled();
+      moveToNextReader(chunkPrefetchEnabled);
+      if (chunkPrefetchEnabled) {
+        init();
+        firstChunk = false;
+      }
     }
 
     private boolean skipLocation(int startMapIndex, int endMapIndex, PartitionLocation location) {
