@@ -19,12 +19,12 @@ package org.apache.spark.shuffle.celeborn;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
-import org.apache.spark.shuffle.ShuffleHandle;
-import org.apache.spark.shuffle.ShuffleReader;
+import org.apache.spark.shuffle.*;
 
 public class TestCelebornShuffleManager extends SparkShuffleManager {
 
   private static ShuffleManagerHook shuffleReaderGetHook = null;
+  private static ShuffleManagerHook shuffleWriterGetHook = null;
 
   public TestCelebornShuffleManager(SparkConf conf) {
     super(conf, true);
@@ -34,6 +34,10 @@ public class TestCelebornShuffleManager extends SparkShuffleManager {
     shuffleReaderGetHook = hook;
   }
 
+  public static void registerWriterGetHook(ShuffleManagerHook hook) {
+    shuffleWriterGetHook = hook;
+  }
+
   @Override
   public <K, C> ShuffleReader<K, C> getReader(
       ShuffleHandle handle, int startPartition, int endPartition, TaskContext context) {
@@ -41,5 +45,14 @@ public class TestCelebornShuffleManager extends SparkShuffleManager {
       shuffleReaderGetHook.exec(handle, startPartition, endPartition, context);
     }
     return super.getReader(handle, startPartition, endPartition, context);
+  }
+
+  @Override
+  public <K, V> ShuffleWriter<K, V> getWriter(
+      ShuffleHandle handle, long mapId, TaskContext context, ShuffleWriteMetricsReporter metrics) {
+    if (shuffleWriterGetHook != null) {
+      shuffleWriterGetHook.exec(handle, mapId, context);
+    }
+    return super.getWriter(handle, mapId, context, metrics);
   }
 }
