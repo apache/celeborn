@@ -76,7 +76,7 @@ object PbSerDeUtils {
     diskInfo.setStorageType(StorageInfo.typesMap.get(pbDiskInfo.getStorageType))
     diskInfo
   }
-  
+
   def toPbDiskInfo(diskInfo: DiskInfo): PbDiskInfo =
     PbDiskInfo.newBuilder
       .setMountPoint(diskInfo.mountPoint)
