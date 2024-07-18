@@ -55,6 +55,8 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
   private FileChannel indexChannel;
   private volatile boolean isRegionFinished = true;
 
+  private FileSystem hadoopFs;
+
   public MapPartitionDataWriter(
       StorageManager storageManager,
       AbstractSource workerSource,
@@ -68,12 +70,9 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
     if (!diskFileInfo.isDFS()) {
       indexChannel = FileChannelUtils.createWritableFileChannel(diskFileInfo.getIndexPath());
     } else {
-      FileSystem hadoopFs = null;
-      if (diskFileInfo.isS3()) {
-        hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.S3);
-      } else {
-        hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.HDFS);
-      }
+      StorageInfo.Type storageType =
+          diskFileInfo.isS3() ? StorageInfo.Type.S3 : StorageInfo.Type.HDFS;
+      this.hadoopFs = StorageManager.hadoopFs().get(storageType);
       try {
         hadoopFs.create(diskFileInfo.getDfsIndexPath(), true).close();
       } catch (IOException e) {
@@ -129,12 +128,6 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
         this::flushIndex,
         () -> {
           if (diskFileInfo.isDFS()) {
-            FileSystem hadoopFs = null;
-            if (diskFileInfo.isS3()) {
-              hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.S3);
-            } else {
-              hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.HDFS);
-            }
             if (hadoopFs.exists(diskFileInfo.getDfsPeerWriterSuccessPath())) {
               hadoopFs.delete(diskFileInfo.getDfsPath(), false);
               deleted = true;
@@ -148,12 +141,6 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
             indexChannel.close();
           }
           if (diskFileInfo.isDFS()) {
-            FileSystem hadoopFs = null;
-            if (diskFileInfo.isS3()) {
-              hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.S3);
-            } else {
-              hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.HDFS);
-            }
             if (hadoopFs.exists(
                 new Path(
                     Utils.getWriteSuccessFilePath(
@@ -275,12 +262,6 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
               indexChannel.write(indexBuffer);
             }
           } else if (diskFileInfo.isDFS()) {
-            FileSystem hadoopFs = null;
-            if (diskFileInfo.isS3()) {
-              hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.S3);
-            } else {
-              hadoopFs = StorageManager.hadoopFs().get(StorageInfo.Type.HDFS);
-            }
             FSDataOutputStream dfsStream = hadoopFs.append(diskFileInfo.getDfsIndexPath());
             dfsStream.write(indexBuffer.array());
             dfsStream.close();

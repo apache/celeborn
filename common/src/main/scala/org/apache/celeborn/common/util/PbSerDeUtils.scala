@@ -65,30 +65,18 @@ object PbSerDeUtils {
       .build.toByteArray
 
   def fromPbDiskInfo(pbDiskInfo: PbDiskInfo): DiskInfo = {
-    var diskInfo =
-      if (pbDiskInfo.getStorageType == StorageInfo.Type.S3.getValue) {
-        new DiskInfo(
-          pbDiskInfo.getMountPoint,
-          pbDiskInfo.getUsableSpace,
-          pbDiskInfo.getAvgFlushTime,
-          pbDiskInfo.getAvgFetchTime,
-          pbDiskInfo.getUsedSlots)
-          .setStatus(Utils.toDiskStatus(pbDiskInfo.getStatus))
-          .setTotalSpace(pbDiskInfo.getTotalSpace)
-      } else {
-        new DiskInfo(
-          pbDiskInfo.getMountPoint,
-          pbDiskInfo.getUsableSpace,
-          pbDiskInfo.getAvgFlushTime,
-          pbDiskInfo.getAvgFetchTime,
-          pbDiskInfo.getUsedSlots)
-          .setStatus(Utils.toDiskStatus(pbDiskInfo.getStatus))
-          .setTotalSpace(pbDiskInfo.getTotalSpace)
-      }
+    val diskInfo = new DiskInfo(
+      pbDiskInfo.getMountPoint,
+      pbDiskInfo.getUsableSpace,
+      pbDiskInfo.getAvgFlushTime,
+      pbDiskInfo.getAvgFetchTime,
+      pbDiskInfo.getUsedSlots)
+      .setStatus(Utils.toDiskStatus(pbDiskInfo.getStatus))
+      .setTotalSpace(pbDiskInfo.getTotalSpace)
     diskInfo.setStorageType(StorageInfo.typesMap.get(pbDiskInfo.getStorageType))
     diskInfo
   }
-
+  
   def toPbDiskInfo(diskInfo: DiskInfo): PbDiskInfo =
     PbDiskInfo.newBuilder
       .setMountPoint(diskInfo.mountPoint)
