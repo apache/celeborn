@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.server.common.http.api.v1
 
-import javax.ws.rs.{GET, Path}
+import javax.ws.rs.{GET, Path, Produces}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
@@ -42,6 +42,7 @@ class ApiV1BaseResource extends ApiRequestContext {
       schema = new Schema(
         implementation = classOf[ThreadStackResponse]))),
     description = "List the current thread dump.")
+  @Produces(Array(MediaType.APPLICATION_JSON))
   @GET
   def threadDump(): ThreadStackResponse = {
     new ThreadStackResponse()
