@@ -39,14 +39,14 @@ class WorkerInfo(
     val fetchPort: Int,
     val replicatePort: Int,
     val internalPort: Int,
-    _diskInfos: util.Map[String, DiskInfoBase],
+    _diskInfos: util.Map[String, DiskInfo],
     _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) extends Serializable
   with Logging {
   var networkLocation = NetworkTopology.DEFAULT_RACK
   var lastHeartbeat: Long = 0
   var workerStatus = WorkerStatus.normalWorkerStatus()
   val diskInfos =
-    if (_diskInfos != null) JavaUtils.newConcurrentHashMap[String, DiskInfoBase](_diskInfos)
+    if (_diskInfos != null) JavaUtils.newConcurrentHashMap[String, DiskInfo](_diskInfos)
     else null
   val userResourceConsumption =
     if (_userResourceConsumption != null)
@@ -67,7 +67,7 @@ class WorkerInfo(
       fetchPort,
       replicatePort,
       -1,
-      new util.HashMap[String, DiskInfoBase](),
+      new util.HashMap[String, DiskInfo](),
       new util.HashMap[UserIdentifier, ResourceConsumption]())
   }
 
@@ -85,7 +85,7 @@ class WorkerInfo(
       fetchPort,
       replicatePort,
       internalPort,
-      new util.HashMap[String, DiskInfoBase](),
+      new util.HashMap[String, DiskInfo](),
       new util.HashMap[UserIdentifier, ResourceConsumption]())
   }
 
@@ -198,8 +198,8 @@ class WorkerInfo(
   }
 
   def updateThenGetDiskInfos(
-      newDiskInfos: java.util.Map[String, DiskInfoBase],
-      estimatedPartitionSize: Option[Long] = None): util.Map[String, DiskInfoBase] =
+      newDiskInfos: java.util.Map[String, DiskInfo],
+      estimatedPartitionSize: Option[Long] = None): util.Map[String, DiskInfo] =
     this.synchronized {
       import scala.collection.JavaConverters._
       for (newDisk <- newDiskInfos.values().asScala) {
@@ -232,7 +232,7 @@ class WorkerInfo(
           diskInfos.remove(nonExistsMountPoint)
         }
       }
-      JavaUtils.newConcurrentHashMap[String, DiskInfoBase](diskInfos)
+      JavaUtils.newConcurrentHashMap[String, DiskInfo](diskInfos)
     }
 
   def updateThenGetUserResourceConsumption(resourceConsumptions: util.Map[

@@ -26,8 +26,8 @@ import scala.collection.JavaConverters._
 import com.google.protobuf.InvalidProtocolBufferException
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationMeta, DiskFileInfo, DiskInfo, DiskInfoBase, MapFileMeta, ReduceFileMeta, S3DiskInfo, WorkerEventInfo, WorkerInfo, WorkerStatus}
-import org.apache.celeborn.common.protocol.{StorageInfo, _}
+import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationMeta, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -64,10 +64,10 @@ object PbSerDeUtils {
       .setMinor(minor)
       .build.toByteArray
 
-  def fromPbDiskInfo(pbDiskInfo: PbDiskInfo): DiskInfoBase = {
+  def fromPbDiskInfo(pbDiskInfo: PbDiskInfo): DiskInfo = {
     var diskInfo =
       if (pbDiskInfo.getStorageType == StorageInfo.Type.S3.getValue) {
-        new S3DiskInfo(
+        new DiskInfo(
           pbDiskInfo.getMountPoint,
           pbDiskInfo.getUsableSpace,
           pbDiskInfo.getAvgFlushTime,
@@ -89,7 +89,7 @@ object PbSerDeUtils {
     diskInfo
   }
 
-  def toPbDiskInfo(diskInfo: DiskInfoBase): PbDiskInfo =
+  def toPbDiskInfo(diskInfo: DiskInfo): PbDiskInfo =
     PbDiskInfo.newBuilder
       .setMountPoint(diskInfo.mountPoint)
       .setUsableSpace(diskInfo.actualUsableSpace)
@@ -232,7 +232,7 @@ object PbSerDeUtils {
   }
 
   def fromPbWorkerInfo(pbWorkerInfo: PbWorkerInfo): WorkerInfo = {
-    val disks = JavaUtils.newConcurrentHashMap[String, DiskInfoBase]
+    val disks = JavaUtils.newConcurrentHashMap[String, DiskInfo]
     if (pbWorkerInfo.getDisksCount > 0) {
       pbWorkerInfo.getDisksList.asScala.foreach(pbDiskInfo =>
         disks.put(pbDiskInfo.getMountPoint, fromPbDiskInfo(pbDiskInfo)))

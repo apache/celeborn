@@ -27,7 +27,7 @@ import org.apache.hadoop.shaded.org.apache.commons.lang3.RandomStringUtils
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, DiskInfoBase, FileInfo, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.{ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, FileInfo, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PbPackedWorkerResource, PbWorkerResource, StorageInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -53,7 +53,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
   diskInfo1.setTotalSpace(100000000)
   diskInfo1.setTotalSpace(200000000)
 
-  val diskInfos = new util.HashMap[String, DiskInfoBase]()
+  val diskInfos = new util.HashMap[String, DiskInfo]()
   diskInfos.put("disk1", diskInfo1)
   diskInfos.put("disk2", diskInfo2)
 

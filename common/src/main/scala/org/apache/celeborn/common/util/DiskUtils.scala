@@ -19,7 +19,7 @@ package org.apache.celeborn.common.util
 
 import java.nio.file.{Files, Paths}
 
-import org.apache.celeborn.common.meta.{DiskInfo, DiskInfoBase}
+import org.apache.celeborn.common.meta.DiskInfo
 
 /**
  * Disk utilities provide detail of disk info including disk statistics etc.
@@ -36,7 +36,7 @@ object DiskUtils {
    * @return the minimum usable space.
    */
   def getMinimumUsableSize(
-      diskInfo: DiskInfoBase,
+      diskInfo: DiskInfo,
       diskReserveSize: Long,
       diskReserveRatio: Option[Double]): Long = {
     var minimumUsableSize = diskReserveSize

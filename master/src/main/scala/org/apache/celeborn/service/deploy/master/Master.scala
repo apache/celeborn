@@ -36,7 +36,7 @@ import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskInfoBase, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.CelebornRackResolver
@@ -173,8 +173,7 @@ private[celeborn] class Master(
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
   private val workerUnavailableInfoExpireTimeoutMs = conf.workerUnavailableInfoExpireTimeout
 
-  private val hdfsExpireDirsTimeoutMS = conf.hdfsExpireDirsTimeoutMS
-  private val s3ExpireDirsTimeoutMS = conf.s3ExpireDirsTimeoutMS
+  private val dfsExpireDirsTimeoutMS = conf.dfsExpireDirsTimeoutMS
   private val hasHDFSStorage = conf.hasHDFSStorage
   private val hasS3Storage = conf.hasS3Storage
 
@@ -322,27 +321,15 @@ private[celeborn] class Master(
       workerUnavailableInfoExpireTimeoutMs / 2,
       TimeUnit.MILLISECONDS)
 
-    if (hasHDFSStorage) {
-      checkForHDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
-        new Runnable {
-          override def run(): Unit = Utils.tryLogNonFatalError {
-            self.send(CheckForDFSExpiredDirsTimeout)
-          }
-        },
-        hdfsExpireDirsTimeoutMS,
-        hdfsExpireDirsTimeoutMS,
-        TimeUnit.MILLISECONDS)
-    }
-
-    if (hasS3Storage) {
+    if (hasHDFSStorage || hasS3Storage) {
       checkForS3RemnantDirsTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
         new Runnable {
           override def run(): Unit = Utils.tryLogNonFatalError {
             self.send(CheckForDFSExpiredDirsTimeout)
           }
         },
-        s3ExpireDirsTimeoutMS,
-        s3ExpireDirsTimeoutMS,
+        dfsExpireDirsTimeoutMS,
+        dfsExpireDirsTimeoutMS,
         TimeUnit.MILLISECONDS)
     }
 
@@ -658,7 +645,7 @@ private[celeborn] class Master(
       pushPort: Int,
       fetchPort: Int,
       replicatePort: Int,
-      disks: Seq[DiskInfoBase],
+      disks: Seq[DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       activeShuffleKeys: util.Set[String],
       estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
@@ -734,7 +721,7 @@ private[celeborn] class Master(
       fetchPort,
       replicatePort,
       -1,
-      new util.HashMap[String, DiskInfoBase](),
+      new util.HashMap[String, DiskInfo](),
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]())
     val worker: WorkerInfo = statusSystem.workers
       .asScala
@@ -760,7 +747,7 @@ private[celeborn] class Master(
       replicatePort: Int,
       internalPort: Int,
       networkLocation: String,
-      disks: util.Map[String, DiskInfoBase],
+      disks: util.Map[String, DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       requestId: String): Unit = {
     val workerToRegister =

@@ -29,7 +29,7 @@ import org.apache.commons.io.FileUtils
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfoBase, DiskStatus}
+import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.util.{DiskUtils, ThreadUtils, Utils}
 import org.apache.celeborn.common.util.Utils._
@@ -52,7 +52,7 @@ class LocalDeviceMonitor(
     conf: CelebornConf,
     observer: DeviceObserver,
     deviceInfos: util.Map[String, DeviceInfo],
-    diskInfos: util.Map[String, DiskInfoBase],
+    diskInfos: util.Map[String, DiskInfo],
     workerSource: AbstractSource) extends DeviceMonitor with Logging {
 
   // (deviceName -> ObservedDevice)
@@ -84,7 +84,7 @@ class LocalDeviceMonitor(
       .values
       .toList
       .groupBy(_.deviceInfo)
-      .foreach { case (deviceInfo: DeviceInfo, diskInfos: List[DiskInfoBase]) =>
+      .foreach { case (deviceInfo: DeviceInfo, diskInfos: List[DiskInfo]) =>
         val deviceLabel = Map("device" -> deviceInfo.name)
         def usage: DeviceMonitor.DiskUsageInfo = DeviceMonitor.getDiskUsageInfos(diskInfos.head)
         workerSource.addGauge(WorkerSource.DEVICE_OS_TOTAL_CAPACITY, deviceLabel) { () =>
@@ -204,7 +204,7 @@ object DeviceMonitor extends Logging {
       conf: CelebornConf,
       deviceObserver: DeviceObserver,
       deviceInfos: util.Map[String, DeviceInfo],
-      diskInfos: util.Map[String, DiskInfoBase],
+      diskInfos: util.Map[String, DiskInfo],
       workerSource: AbstractSource): DeviceMonitor = {
     try {
       if (conf.workerDiskMonitorEnabled) {
@@ -227,7 +227,7 @@ object DeviceMonitor extends Logging {
   case class DiskUsageInfo(totalSpace: Long, freeSpace: Long, usedSpace: Long, usedPercent: Int)
 
   // unit is byte
-  def getDiskUsageInfos(diskInfo: DiskInfoBase): DiskUsageInfo = {
+  def getDiskUsageInfos(diskInfo: DiskInfo): DiskUsageInfo = {
     val dirFile = Files.getFileStore(Paths.get(diskInfo.mountPoint))
     val totalSpace = dirFile.getTotalSpace
     val freeSpace = dirFile.getUsableSpace
@@ -243,7 +243,7 @@ object DeviceMonitor extends Logging {
    * @param diskInfo diskInfo
    * @return true if high disk usage
    */
-  def highDiskUsage(conf: CelebornConf, diskInfo: DiskInfoBase): Boolean = {
+  def highDiskUsage(conf: CelebornConf, diskInfo: DiskInfo): Boolean = {
     tryWithTimeoutAndCallback({
       val usage = getDiskUsageInfos(diskInfo)
       // assume no single device capacity exceeds 1EB in this era

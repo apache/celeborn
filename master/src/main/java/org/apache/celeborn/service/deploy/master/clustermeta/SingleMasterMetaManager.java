@@ -27,7 +27,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.AppDiskUsageMetric;
 import org.apache.celeborn.common.meta.ApplicationMeta;
-import org.apache.celeborn.common.meta.DiskInfoBase;
+import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.network.CelebornRackResolver;
@@ -107,7 +107,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int pushPort,
       int fetchPort,
       int replicatePort,
-      Map<String, DiskInfoBase> disks,
+      Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       Map<String, Long> estimatedAppDiskUsage,
       long time,
@@ -137,7 +137,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int replicatePort,
       int internalPort,
       String networkLocation,
-      Map<String, DiskInfoBase> disks,
+      Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId) {
     updateRegisterWorkerMeta(

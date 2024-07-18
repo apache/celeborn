@@ -30,7 +30,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.WORKER_DISK_MONITOR_CHECK_INTERVAL
-import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskInfoBase, DiskStatus}
+import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.worker.WorkerSource
@@ -140,10 +140,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
 
   var (deviceInfos, diskInfos): (
       java.util.Map[String, DeviceInfo],
-      java.util.Map[String, DiskInfoBase]) = (null, null)
+      java.util.Map[String, DiskInfo]) = (null, null)
   var (deviceInfos2, diskInfos2): (
       java.util.Map[String, DeviceInfo],
-      java.util.Map[String, DiskInfoBase]) = (null, null)
+      java.util.Map[String, DiskInfo]) = (null, null)
 
   withObjectMocked[org.apache.celeborn.common.util.Utils.type] {
     when(Utils.runCommand(dfCmd)) thenReturn dfOut

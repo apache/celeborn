@@ -33,20 +33,14 @@ import org.apache.celeborn.common.util.{JavaUtils, Utils}
 import org.apache.celeborn.common.util.Utils.runCommand
 
 class DiskInfo(
-    mountPoint: String,
-    actualUsableSpace: Long,
-    avgFlushTime: Long, // in nano seconds
-    avgFetchTime: Long, // in nano seconds
-    activeSlots: Long,
-    dirs: List[File],
-    deviceInfo: DeviceInfo) extends DiskInfoBase(
-    mountPoint,
-    actualUsableSpace,
-    avgFlushTime,
-    avgFetchTime,
-    activeSlots,
-    dirs,
-    deviceInfo) {
+    val mountPoint: String,
+    var actualUsableSpace: Long,
+    var avgFlushTime: Long, // in nano seconds
+    var avgFetchTime: Long, // in nano seconds
+    var activeSlots: Long,
+    val dirs: List[File],
+    val deviceInfo: DeviceInfo) extends Serializable with Logging {
+
   def this(
       mountPoint: String,
       usableSpace: Long,
@@ -83,67 +77,127 @@ class DiskInfo(
         conf.workerDiskTimeSlidingWindowMinFetchCount)
   }
 
-}
+  var flushTimeMetrics: TimeWindow = _
+  var fetchTimeMetrics: TimeWindow = _
+  var status: DiskStatus = DiskStatus.HEALTHY
+  var threadCount = 1
+  var configuredUsableSpace = 0L
+  var totalSpace = 0L
+  var storageType: StorageInfo.Type = StorageInfo.Type.SSD
+  var maxSlots: Long = 0
+  lazy val shuffleAllocations = new util.HashMap[String, Integer]()
+  lazy val applicationAllocations = new util.HashMap[String, Integer]()
 
-class S3DiskInfo(
-    mountPoint: String,
-    actualUsableSpace: Long,
-    avgFlushTime: Long, // in nano seconds
-    avgFetchTime: Long, // in nano seconds
-    activeSlots: Long,
-    dirs: List[File],
-    deviceInfo: DeviceInfo) extends DiskInfoBase(
-    mountPoint,
-    actualUsableSpace,
-    avgFlushTime,
-    avgFetchTime,
-    activeSlots,
-    dirs,
-    deviceInfo) {
-  def this(
-      mountPoint: String,
-      usableSpace: Long,
-      avgFlushTime: Long,
-      avgFetchTime: Long,
-      activeSlots: Long) = {
-    this(mountPoint, usableSpace, avgFlushTime, avgFetchTime, activeSlots, List.empty, null)
-  }
-
-  def this(
-      mountPoint: String,
-      usableSpace: Long,
-      avgFlushTime: Long,
-      avgFetchTime: Long,
-      activeSlots: Long,
-      storageType: StorageInfo.Type) = {
-    this(mountPoint, usableSpace, avgFlushTime, avgFetchTime, activeSlots, List.empty, null)
+  def setStorageType(storageType: StorageInfo.Type) = {
     this.storageType = storageType
   }
 
-  def this(
-      mountPoint: String,
-      dirs: List[File],
-      deviceInfo: DeviceInfo,
-      conf: CelebornConf) = {
-    this(mountPoint, 0, 0, 0, 0, dirs, deviceInfo)
-    flushTimeMetrics =
-      new TimeWindow(
-        conf.workerDiskTimeSlidingWindowSize,
-        conf.workerDiskTimeSlidingWindowMinFlushCount)
-    fetchTimeMetrics =
-      new TimeWindow(
-        conf.workerDiskTimeSlidingWindowSize,
-        conf.workerDiskTimeSlidingWindowMinFetchCount)
+  def setStatus(status: DiskStatus): this.type = this.synchronized {
+    this.status = status
+    this
   }
 
+  def setUsableSpace(usableSpace: Long): this.type = this.synchronized {
+    this.actualUsableSpace = usableSpace
+    this
+  }
+
+  def setTotalSpace(totalSpace: Long): this.type = this.synchronized {
+    this.totalSpace = totalSpace
+    this
+  }
+
+  def updateFlushTime(): Unit = {
+    avgFlushTime = flushTimeMetrics.getAverage()
+  }
+
+  def updateFetchTime(): Unit = {
+    avgFetchTime = fetchTimeMetrics.getAverage()
+  }
+
+  /**
+   * Returns the available slots of the disk calculated by maxSlots minus activeSlots.
+   * Returns zero for the negative slots calculated.
+   *
+   * <b>Note:</b>`maxSlots` is calculated by actualUsableSpace divided estimatedPartitionSize.
+   * Meanwhile, `activeSlots` include slots reserved.
+   *
+   * @return the available slots of the disk.
+   */
+  def availableSlots(): Long = this.synchronized {
+    math.max(maxSlots - activeSlots, 0L)
+  }
+
+  def allocateSlots(shuffleKey: String, slots: Int): Unit = this.synchronized {
+    val applicationId = Utils.splitShuffleKey(shuffleKey)._1
+    val shuffleAllocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
+    val applicationAllocated = applicationAllocations.getOrDefault(applicationId, 0)
+    shuffleAllocations.put(shuffleKey, shuffleAllocated + slots)
+    applicationAllocations.put(applicationId, applicationAllocated + slots)
+    activeSlots = activeSlots + slots
+  }
+
+  def releaseSlots(shuffleKey: String, slots: Int): Unit = this.synchronized {
+    val applicationId = Utils.splitShuffleKey(shuffleKey)._1
+    val shuffleAllocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
+    val applicationAllocated = applicationAllocations.getOrDefault(applicationId, 0)
+    if (shuffleAllocated < slots) {
+      logError(s"allocated $shuffleAllocated is less than to release $slots !")
+    } else {
+      shuffleAllocations.put(shuffleKey, shuffleAllocated - slots)
+      applicationAllocations.put(applicationId, applicationAllocated - slots)
+    }
+    activeSlots -= Math.min(shuffleAllocated, slots)
+  }
+
+  def releaseSlots(shuffleKey: String): Unit = this.synchronized {
+    val allocated = shuffleAllocations.remove(shuffleKey)
+    if (allocated != null) {
+      val applicationId = Utils.splitShuffleKey(shuffleKey)._1
+      var applicationAllocated = applicationAllocations.getOrDefault(applicationId, 0)
+      applicationAllocated = applicationAllocated - allocated
+      if (applicationAllocated <= 0) {
+        applicationAllocations.remove(applicationId)
+      } else {
+        applicationAllocations.put(applicationId, applicationAllocated)
+      }
+      activeSlots = activeSlots - allocated
+    }
+  }
+
+  def getShuffleKeySet(): util.HashSet[String] = this.synchronized {
+    new util.HashSet(shuffleAllocations.keySet())
+  }
+
+  def getApplicationIdSet(): util.HashSet[String] = this.synchronized {
+    new util.HashSet(applicationAllocations.keySet())
+  }
+
+  override def toString: String = this.synchronized {
+    val (emptyShuffles, nonEmptyShuffles) = shuffleAllocations.asScala.partition(_._2 == 0)
+    s"DiskInfo(maxSlots: $maxSlots," +
+      s" committed shuffles ${emptyShuffles.size}," +
+      s" running applications ${applicationAllocations.size}," +
+      s" shuffleAllocations: ${nonEmptyShuffles.toMap}," +
+      s" mountPoint: $mountPoint," +
+      s" usableSpace: ${Utils.bytesToString(actualUsableSpace)}," +
+      s" totalSpace: ${Utils.bytesToString(totalSpace)}," +
+      s" avgFlushTime: ${Utils.nanoDurationToString(avgFlushTime)}," +
+      s" avgFetchTime: ${Utils.nanoDurationToString(avgFetchTime)}," +
+      s" activeSlots: $activeSlots," +
+      s" storageType: ${storageType})" +
+      s" status: $status" +
+      s" dirs ${dirs.mkString("\t")}"
+
+  }
 }
 
 class DeviceInfo(val name: String) extends Serializable {
-  var diskInfos: ListBuffer[DiskInfoBase] = new ListBuffer[DiskInfoBase]()
+  var diskInfos: ListBuffer[DiskInfo] = new ListBuffer[DiskInfo]()
   // if deviceStatAvailable is false means that there is no device info found.
   var deviceStatAvailable = true
 
-  def addDiskInfo(diskInfo: DiskInfoBase): Unit = {
+  def addDiskInfo(diskInfo: DiskInfo): Unit = {
     diskInfos.append(diskInfo)
   }
 
@@ -171,7 +225,7 @@ object DeviceInfo {
    */
   def getDeviceAndDiskInfos(
       workingDirs: Seq[(File, Long, Int, StorageInfo.Type)],
-      conf: CelebornConf): (util.Map[String, DeviceInfo], util.Map[String, DiskInfoBase]) = {
+      conf: CelebornConf): (util.Map[String, DeviceInfo], util.Map[String, DiskInfo]) = {
     val deviceNameToDeviceInfo = new util.HashMap[String, DeviceInfo]()
     val mountPointToDeviceInfo = new util.HashMap[String, DeviceInfo]()
 
@@ -224,7 +278,7 @@ object DeviceInfo {
     }
 
     val retDeviceInfos = JavaUtils.newConcurrentHashMap[String, DeviceInfo]()
-    val retDiskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfoBase]()
+    val retDiskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
 
     workingDirs.groupBy { case (dir, _, _, _) =>
       getMountPoint(dir.getCanonicalPath, mountPointToDeviceInfo.keySet())
@@ -281,7 +335,7 @@ object DeviceInfo {
     curMount
   }
 
-  def getMountPoint(absPath: String, diskInfos: util.Map[String, DiskInfoBase]): String = {
+  def getMountPoint(absPath: String, diskInfos: util.Map[String, DiskInfo]): String = {
     getMountPoint(absPath, diskInfos.keySet())
   }
 }

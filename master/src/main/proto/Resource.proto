@@ -75,7 +75,7 @@ message ResourceRequest {
   optional ReportWorkerDecommissionRequest reportWorkerDecommissionRequest = 24;
 }
 
-message DiskInfoBase {
+message DiskInfo {
   required string mountPoint = 1;
   required int64 usableSpace = 2;
   required int64 avgFlushTime = 3;
@@ -143,7 +143,7 @@ message WorkerHeartbeatRequest {
   required int32 pushPort = 3;
   required int32 fetchPort = 4;
   required int32 replicatePort = 5;
-  map<string, DiskInfoBase> disks = 6;
+  map<string, DiskInfo> disks = 6;
   required int64 time = 7;
   map<string, ResourceConsumption> userResourceConsumption = 8;
   map<string, int64> estimatedAppDiskUsage = 9;
@@ -172,7 +172,7 @@ message RegisterWorkerRequest {
   required int32 pushPort = 3;
   required int32 fetchPort = 4;
   required int32 replicatePort = 5;
-  map<string, DiskInfoBase> disks = 6;
+  map<string, DiskInfo> disks = 6;
   map<string, ResourceConsumption> userResourceConsumption = 7;
   required int32 internalPort = 8;
   optional string networkLocation = 9;

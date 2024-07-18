@@ -38,7 +38,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, DiskInfoBase, DiskStatus, FileInfo, MapFileMeta, MemoryFileInfo, ReduceFileMeta, S3DiskInfo, TimeWindow}
+import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, DiskStatus, FileInfo, MapFileMeta, MemoryFileInfo, ReduceFileMeta, TimeWindow}
 import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
@@ -94,12 +94,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   val s3DiskInfo =
     if (conf.hasS3Storage)
-      Option(new S3DiskInfo("S3", Long.MaxValue, 999999, 999999, 0, StorageInfo.Type.S3))
+      Option(new DiskInfo("S3", Long.MaxValue, 999999, 999999, 0, StorageInfo.Type.S3))
     else None
 
-  def disksSnapshot(): List[DiskInfoBase] = {
+  def disksSnapshot(): List[DiskInfo] = {
     diskInfos.synchronized {
-      val disks = new util.ArrayList[DiskInfoBase](diskInfos.values())
+      val disks = new util.ArrayList[DiskInfo](diskInfos.values())
       disks.asScala.toList
     }
   }
@@ -120,7 +120,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     cleaners
   }
 
-  val tmpDiskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfoBase]()
+  val tmpDiskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
   disksSnapshot().foreach { diskInfo =>
     tmpDiskInfos.put(diskInfo.mountPoint, diskInfo)
   }

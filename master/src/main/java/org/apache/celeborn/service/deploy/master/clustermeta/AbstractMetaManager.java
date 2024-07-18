@@ -44,7 +44,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.AppDiskUsageMetric;
 import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
 import org.apache.celeborn.common.meta.ApplicationMeta;
-import org.apache.celeborn.common.meta.DiskInfoBase;
+import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.WorkerEventInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
@@ -175,7 +175,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int pushPort,
       int fetchPort,
       int replicatePort,
-      Map<String, DiskInfoBase> disks,
+      Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       Map<String, Long> estimatedAppDiskUsage,
       long time,
@@ -233,7 +233,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int replicatePort,
       int internalPort,
       String networkLocation,
-      Map<String, DiskInfoBase> disks,
+      Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption) {
     WorkerInfo workerInfo =
         new WorkerInfo(

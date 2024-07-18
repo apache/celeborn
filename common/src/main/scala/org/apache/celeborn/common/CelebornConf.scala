@@ -26,7 +26,7 @@ import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.util.Try
 
-import org.apache.celeborn.common.CelebornConf.{MASTER_INTERNAL_ENDPOINTS, S3_ACCESS_KEY, S3_DIR, S3_EXPIRE_DIRS_TIMEOUT, S3_SECRET_KEY}
+import org.apache.celeborn.common.CelebornConf.{MASTER_INTERNAL_ENDPOINTS, S3_ACCESS_KEY, S3_DIR, S3_SECRET_KEY}
 import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
@@ -889,7 +889,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
-  def s3ExpireDirsTimeoutMS: Long = get(S3_EXPIRE_DIRS_TIMEOUT)
+  def dfsExpireDirsTimeoutMS: Long = get(DFS_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def applicationUnregisterEnabled: Boolean = get(APPLICATION_UNREGISTER_ENABLED)
 
@@ -2154,11 +2154,11 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1h")
 
-  val S3_EXPIRE_DIRS_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.master.s3.expireDirs.timeout")
+  val DFS_EXPIRE_DIRS_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.dfs.expireDirs.timeout")
       .categories("master")
-      .version("0.5.0")
-      .doc("The timeout for a expire dirs to be deleted on S3.")
+      .version("0.6.0")
+      .doc("The timeout for a expire dirs to be deleted on S3 or HDFS.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1h")
 
@@ -2832,7 +2832,7 @@ object CelebornConf extends Logging {
   val S3_DIR: OptionalConfigEntry[String] =
     buildConf("celeborn.storage.s3.dir")
       .categories("worker", "master", "client")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("S3 base directory for Celeborn to store shuffle data.")
       .stringConf
       .createOptional
@@ -2840,7 +2840,7 @@ object CelebornConf extends Logging {
   val S3_SECRET_KEY: OptionalConfigEntry[String] =
     buildConf("celeborn.storage.s3.secret.key")
       .categories("worker", "master", "client")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("S3 secret key for Celeborn to store shuffle data.")
       .stringConf
       .createOptional
@@ -2848,7 +2848,7 @@ object CelebornConf extends Logging {
   val S3_ACCESS_KEY: OptionalConfigEntry[String] =
     buildConf("celeborn.storage.s3.access.key")
       .categories("worker", "master", "client")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("S3 access key for Celeborn to store shuffle data.")
       .stringConf
       .createOptional
@@ -2856,7 +2856,7 @@ object CelebornConf extends Logging {
   val S3_ENDPOINT: OptionalConfigEntry[String] =
     buildConf("celeborn.storage.s3.endpoint")
       .categories("worker", "master", "client")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("S3 endpoint for Celeborn to store shuffle data.")
       .stringConf
       .createOptional
@@ -3282,7 +3282,7 @@ object CelebornConf extends Logging {
   val WORKER_S3_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.flusher.s3.buffer.size")
       .categories("worker")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("Size of buffer used by a S3 flusher.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("4m")
@@ -3331,7 +3331,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.flusher.s3.threads")
       .categories("worker")
       .doc("Flusher's thread count used for write data to S3.")
-      .version("0.5.0")
+      .version("0.6.0")
       .intConf
       .createWithDefault(8)
 

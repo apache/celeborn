@@ -31,7 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.meta.DiskInfo;
-import org.apache.celeborn.common.meta.DiskInfoBase;
 import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
@@ -40,10 +39,10 @@ import org.apache.celeborn.common.util.DiskUtils;
 
 public class SlotsAllocator {
   static class UsableDiskInfo {
-    DiskInfoBase diskInfo;
+    DiskInfo diskInfo;
     long usableSlots;
 
-    UsableDiskInfo(DiskInfoBase diskInfo, long usableSlots) {
+    UsableDiskInfo(DiskInfo diskInfo, long usableSlots) {
       this.diskInfo = diskInfo;
       this.usableSlots = usableSlots;
     }
@@ -71,7 +70,7 @@ public class SlotsAllocator {
     for (WorkerInfo worker : workers) {
       List<UsableDiskInfo> usableDisks =
           slotsRestrictions.computeIfAbsent(worker, v -> new ArrayList<>());
-      for (Map.Entry<String, DiskInfoBase> diskInfoEntry : worker.diskInfos().entrySet()) {
+      for (Map.Entry<String, DiskInfo> diskInfoEntry : worker.diskInfos().entrySet()) {
         if (diskInfoEntry.getValue().status().equals(DiskStatus.HEALTHY)) {
           if (StorageInfo.localDiskAvailable(availableStorageTypes)
               && diskInfoEntry.getValue().storageType() != StorageInfo.Type.HDFS
@@ -135,8 +134,8 @@ public class SlotsAllocator {
           workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes);
     }
 
-    List<DiskInfoBase> usableDisks = new ArrayList<>();
-    Map<DiskInfoBase, WorkerInfo> diskToWorkerMap = new HashMap<>();
+    List<DiskInfo> usableDisks = new ArrayList<>();
+    Map<DiskInfo, WorkerInfo> diskToWorkerMap = new HashMap<>();
 
     workers.forEach(
         i ->
@@ -163,8 +162,7 @@ public class SlotsAllocator {
             || (shouldReplicate
                 && (usableDisks.size() == 1
                     || usableDisks.stream().map(diskToWorkerMap::get).distinct().count() <= 1));
-    boolean noAvailableSlots =
-        usableDisks.stream().mapToLong(DiskInfoBase::availableSlots).sum() <= 0;
+    boolean noAvailableSlots = usableDisks.stream().mapToLong(DiskInfo::availableSlots).sum() <= 0;
 
     if (noUsableDisks || noAvailableSlots) {
       logger.warn(
@@ -208,7 +206,7 @@ public class SlotsAllocator {
         diskIndex = (diskIndex + 1) % usableDiskInfos.size();
       }
       usableDiskInfos.get(diskIndex).usableSlots--;
-      DiskInfoBase selectedDiskInfo = usableDiskInfos.get(diskIndex).diskInfo;
+      DiskInfo selectedDiskInfo = usableDiskInfos.get(diskIndex).diskInfo;
       if (selectedDiskInfo.storageType() == StorageInfo.Type.HDFS) {
         storageInfo = new StorageInfo("", StorageInfo.Type.HDFS, availableStorageTypes);
       } else if (selectedDiskInfo.storageType() == StorageInfo.Type.S3) {
@@ -486,12 +484,12 @@ public class SlotsAllocator {
     initialized = true;
   }
 
-  private static List<List<DiskInfoBase>> placeDisksToGroups(
-      List<DiskInfoBase> usableDisks,
+  private static List<List<DiskInfo>> placeDisksToGroups(
+      List<DiskInfo> usableDisks,
       int diskGroupCount,
       double flushTimeWeight,
       double fetchTimeWeight) {
-    List<List<DiskInfoBase>> diskGroups = new ArrayList<>();
+    List<List<DiskInfo>> diskGroups = new ArrayList<>();
     usableDisks.sort(
         (o1, o2) -> {
           double delta =
@@ -503,7 +501,7 @@ public class SlotsAllocator {
     int startIndex = 0;
     int groupSizeSize = (int) Math.ceil(usableDisks.size() / (double) diskGroupCount);
     for (int i = 0; i < diskGroupCount; i++) {
-      List<DiskInfoBase> diskList = new ArrayList<>();
+      List<DiskInfo> diskList = new ArrayList<>();
       if (startIndex >= usableDisks.size()) {
         continue;
       }
@@ -524,15 +522,13 @@ public class SlotsAllocator {
    * /docs/developers/slotsallocation.md
    */
   private static Map<WorkerInfo, List<UsableDiskInfo>> getSlotsRestrictionsByLoadAwareAlgorithm(
-      List<List<DiskInfoBase>> groups,
-      Map<DiskInfoBase, WorkerInfo> diskWorkerMap,
-      int partitionCnt) {
+      List<List<DiskInfo>> groups, Map<DiskInfo, WorkerInfo> diskWorkerMap, int partitionCnt) {
     int groupSize = groups.size();
     long[] groupAllocations = new long[groupSize];
     Map<WorkerInfo, List<UsableDiskInfo>> restrictions = new HashMap<>();
     long[] groupAvailableSlots = new long[groupSize];
     for (int i = 0; i < groupSize; i++) {
-      for (DiskInfoBase disk : groups.get(i)) {
+      for (DiskInfo disk : groups.get(i)) {
         groupAvailableSlots[i] += disk.availableSlots();
       }
     }
@@ -571,7 +567,7 @@ public class SlotsAllocator {
     for (int i = 0; i < groups.size(); i++) {
       int disksInsideGroup = groups.get(i).size();
       long groupRequired = groupAllocations[i] + groupLeft;
-      for (DiskInfoBase disk : groups.get(i)) {
+      for (DiskInfo disk : groups.get(i)) {
         if (groupRequired <= 0) {
           break;
         }
@@ -595,7 +591,7 @@ public class SlotsAllocator {
       StringBuilder sb = new StringBuilder();
       for (int i = 0; i < groups.size(); i++) {
         sb.append("| group ").append(i).append(" ");
-        for (DiskInfoBase diskInfo : groups.get(i)) {
+        for (DiskInfo diskInfo : groups.get(i)) {
           WorkerInfo workerInfo = diskWorkerMap.get(diskInfo);
           String workerHost = workerInfo.host();
           long allocation = 0;

@@ -26,7 +26,7 @@ import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskInfoBase, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.MessageType._
@@ -88,7 +88,7 @@ object ControlMessages extends Logging {
         replicatePort: Int,
         internalPort: Int,
         networkLocation: String,
-        disks: Map[String, DiskInfoBase],
+        disks: Map[String, DiskInfo],
         userResourceConsumption: Map[UserIdentifier, ResourceConsumption],
         requestId: String): PbRegisterWorker = {
       val pbDisks = disks.values.map(PbSerDeUtils.toPbDiskInfo).asJava
@@ -115,7 +115,7 @@ object ControlMessages extends Logging {
       pushPort: Int,
       fetchPort: Int,
       replicatePort: Int,
-      disks: Seq[DiskInfoBase],
+      disks: Seq[DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       activeShuffleKeys: util.Set[String],
       estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
