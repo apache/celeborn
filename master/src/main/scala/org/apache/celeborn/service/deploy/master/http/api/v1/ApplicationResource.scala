@@ -73,7 +73,7 @@ class ApplicationResource extends ApiRequestContext {
             .end(
               snapshot.endSnapShotTime)
             .topNItems(
-              snapshot.topNItems.map { usage =>
+              snapshot.topNItems.filter(_ != null).map { usage =>
                 new AppDiskUsageData()
                   .appId(usage.appId)
                   .estimatedUsage(usage.estimatedUsage)
