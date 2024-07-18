@@ -109,7 +109,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   private long chunkSize;
   private UserBufferInfo userBufferInfo = null;
 
-  private FileSystem hadoopFs;
+  protected FileSystem hadoopFs;
 
   public PartitionDataWriter(
       StorageManager storageManager,
