@@ -42,8 +42,8 @@ class ApiV1BaseResource extends ApiRequestContext {
       schema = new Schema(
         implementation = classOf[ThreadStackResponse]))),
     description = "List the current thread dump.")
-  @Produces(Array(MediaType.APPLICATION_JSON))
   @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
   def threadDump(): ThreadStackResponse = {
     new ThreadStackResponse()
       .threadStacks(Utils.getThreadDump().map { threadStack =>

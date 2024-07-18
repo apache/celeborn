@@ -61,8 +61,8 @@ class ApplicationResource extends ApiRequestContext {
       schema = new Schema(implementation = classOf[AppDiskUsageSnapshotsResponse]))),
     description =
       "List the top disk usage application ids. It will return the top disk usage application ids for the cluster.")
-  @Path("/top_disk_usages")
   @GET
+  @Path("/top_disk_usages")
   def topDiskUsedApplications(): AppDiskUsageSnapshotsResponse = {
     new AppDiskUsageSnapshotsResponse()
       .snapshots(
@@ -89,8 +89,8 @@ class ApplicationResource extends ApiRequestContext {
       schema = new Schema(implementation = classOf[HostnamesResponse]))),
     description =
       "List all running application's LifecycleManager's hostnames of the cluster.")
-  @Path("/hostnames")
   @GET
+  @Path("/hostnames")
   def hostnames(): HostnamesResponse = {
     new HostnamesResponse().hostnames(statusSystem.hostnameSet.asScala.toSeq.asJava)
   }

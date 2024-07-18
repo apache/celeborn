@@ -58,8 +58,8 @@ class ApplicationResource extends ApiRequestContext {
       schema = new Schema(implementation = classOf[AppDiskUsagesResponse]))),
     description =
       "List the top disk usage application ids. It will return the top disk usage application ids for the cluster.")
-  @Path("/top_disk_usages")
   @GET
+  @Path("/top_disk_usages")
   def topDiskUsedApplications(): AppDiskUsagesResponse = {
     new AppDiskUsagesResponse()
       .appDiskUsages(

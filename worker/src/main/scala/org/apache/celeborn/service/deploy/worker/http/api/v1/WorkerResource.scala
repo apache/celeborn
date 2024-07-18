@@ -60,8 +60,8 @@ class WorkerResource extends ApiRequestContext {
       schema = new Schema(implementation = classOf[UnAvailablePeersResponse]))),
     description =
       "List the unavailable peers of the worker, this always means the worker connect to the peer failed.")
-  @Path("/unavailable_peers")
   @GET
+  @Path("/unavailable_peers")
   def unavailablePeerWorkers(): UnAvailablePeersResponse = {
     new UnAvailablePeersResponse()
       .peers(
