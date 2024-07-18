@@ -1025,6 +1025,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     PartitionSplitMode.valueOf(get(SHUFFLE_PARTITION_SPLIT_MODE))
   def shufflePartitionSplitThreshold: Long = get(SHUFFLE_PARTITION_SPLIT_THRESHOLD)
   def batchHandleChangePartitionEnabled: Boolean = get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED)
+  def batchHandleChangePartitionBuckets: Int =
+    get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_BUCKETS)
   def batchHandleChangePartitionNumThreads: Int = get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_THREADS)
   def batchHandleChangePartitionRequestInterval: Long =
     get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_INTERVAL)
@@ -4126,6 +4128,14 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .booleanConf
       .createWithDefault(true)
+
+  val CLIENT_BATCH_HANDLE_CHANGE_PARTITION_BUCKETS: ConfigEntry[Int] =
+    buildConf("celeborn.client.shuffle.batchHandleChangePartition.partitionBuckets")
+      .categories("client")
+      .doc("Max number of change partition requests which can be concurrently processed ")
+      .version("0.5.0")
+      .intConf
+      .createWithDefault(256)
 
   val CLIENT_BATCH_HANDLE_CHANGE_PARTITION_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.batchHandleChangePartition.threads")
