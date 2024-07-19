@@ -198,6 +198,10 @@ case "$MODULE" in
     MVN_MODULES="client-flink/flink-1.19"
     SBT_PROJECT="celeborn-client-flink-1_19"
     ;;
+  "flink-1.20")
+    MVN_MODULES="client-flink/flink-1.20"
+    SBT_PROJECT="celeborn-client-flink-1_20"
+    ;;
   "mr")
     MVN_MODULES="client-mr/mr"
     SBT_PROJECT="celeborn-client-mr"

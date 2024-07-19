@@ -21,7 +21,6 @@ package org.apache.celeborn.plugin.flink;
 import java.io.IOException;
 
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
-import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
@@ -90,10 +89,13 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
 
     SupplierWithException<BufferPool, IOException> bufferPoolFactory =
         createBufferPoolFactory(networkBufferPool, numBuffersPerGate, supportFloatingBuffers);
-    BufferDecompressor bufferDecompressor =
-        new BufferDecompressor(networkBufferSize, celebornConf.shuffleCompressionCodec().name());
 
-    return createInputGate(owningTaskName, gateIndex, igdd, bufferPoolFactory, bufferDecompressor);
+    return createInputGate(
+        owningTaskName,
+        gateIndex,
+        igdd,
+        bufferPoolFactory,
+        celebornConf.shuffleCompressionCodec().name());
   }
 
   protected abstract IndexedInputGate createInputGate(
@@ -101,7 +103,7 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
       int gateIndex,
       InputGateDeploymentDescriptor igdd,
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
-      BufferDecompressor bufferDecompressor);
+      String compressionCodec);
 
   private SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
       BufferPoolFactory bufferPoolFactory, int numBuffers, boolean supportFloatingBuffers) {

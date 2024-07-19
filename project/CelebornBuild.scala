@@ -407,6 +407,7 @@ object Utils {
     case Some("flink-1.17") => Some(Flink117)
     case Some("flink-1.18") => Some(Flink118)
     case Some("flink-1.19") => Some(Flink119)
+    case Some("flink-1.20") => Some(Flink120)
     case _ => None
   }
 
@@ -984,6 +985,16 @@ object Flink119 extends FlinkClientProjects {
   val flinkClientShadedProjectName: String = "celeborn-client-flink-1_19-shaded"
 }
 
+object Flink120 extends FlinkClientProjects {
+  val flinkVersion = "1.20.0"
+
+  // note that SBT does not allow using the period symbol (.) in project names.
+  val flinkClientProjectPath = "client-flink/flink-1.20"
+  val flinkClientProjectName = "celeborn-client-flink-1_20"
+  val flinkClientShadedProjectPath: String = "client-flink/flink-1.20-shaded"
+  val flinkClientShadedProjectName: String = "celeborn-client-flink-1_20-shaded"
+}
+
 trait FlinkClientProjects {
 
   val flinkVersion: String
@@ -1005,6 +1016,7 @@ trait FlinkClientProjects {
     .aggregate(flinkCommon, flinkClient, flinkIt)
 
   // get flink major version. e.g:
+  //   1.20.0 -> 1.20
   //   1.19.1 -> 1.19
   //   1.18.1 -> 1.18
   //   1.17.2 -> 1.17
