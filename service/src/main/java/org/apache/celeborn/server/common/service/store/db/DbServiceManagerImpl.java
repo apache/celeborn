@@ -18,8 +18,8 @@
 package org.apache.celeborn.server.common.service.store.db;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -61,15 +61,14 @@ public class DbServiceManagerImpl implements IServiceManager {
     this.clusterId = createCluster(getClusterInfoFromEnv());
   }
 
-  @SuppressWarnings("JavaUtilDate")
   @Override
   public int createCluster(ClusterInfo clusterInfo) {
     ClusterInfo clusterInfoFromDB = getClusterInfo(clusterInfo.getName());
     if (clusterInfoFromDB == null) {
       try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) {
         ClusterInfoMapper mapper = sqlSession.getMapper(ClusterInfoMapper.class);
-        clusterInfo.setGmtCreate(new Date());
-        clusterInfo.setGmtModify(new Date());
+        clusterInfo.setGmtCreate(Instant.now());
+        clusterInfo.setGmtModify(Instant.now());
         mapper.insert(clusterInfo);
         LOG.info("Create cluster {} successfully.", JsonUtils.toJson(clusterInfo));
       } catch (Exception e) {
