@@ -51,7 +51,7 @@ public class TestCelebornShuffleManager extends SparkShuffleManager {
   public <K, V> ShuffleWriter<K, V> getWriter(
       ShuffleHandle handle, int mapId, TaskContext context) {
     if (shuffleWriterGetHook != null) {
-      shuffleWriterGetHook.exec(handle, mapId, context);
+      shuffleWriterGetHook.exec(handle, (long) mapId, context);
     }
     return super.getWriter(handle, mapId, context);
   }
