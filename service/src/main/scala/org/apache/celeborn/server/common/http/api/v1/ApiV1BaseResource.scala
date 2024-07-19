@@ -52,7 +52,8 @@ class ApiV1BaseResource extends ApiRequestContext {
           .threadName(threadStack.threadName)
           .threadState(threadStack.threadState.toString)
           .stackTrace(threadStack.stackTrace.elems.asJava)
-          .blockedByThreadId(threadStack.blockedByThreadId.getOrElse(null.asInstanceOf[Long]): Long)
+          .blockedByThreadId(
+            threadStack.blockedByThreadId.getOrElse(null).asInstanceOf[java.lang.Long])
           .blockedByLock(threadStack.blockedByLock)
           .holdingLocks(threadStack.holdingLocks.asJava)
       }.asJava)
