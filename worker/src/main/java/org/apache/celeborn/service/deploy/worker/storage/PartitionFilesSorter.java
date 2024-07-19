@@ -651,7 +651,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private final String shuffleKey;
     private final boolean isHdfs;
     private final boolean isS3;
-
     private final boolean isDfs;
     private final boolean isPrefetch;
     private final FileInfo originFileInfo;
