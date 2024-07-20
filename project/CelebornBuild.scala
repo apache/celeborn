@@ -144,6 +144,10 @@ object Dependencies {
   val jacksonAnnotations = "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion
   val jacksonModule = "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
   val jacksonDataTypeJsr310 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonVersion
+  val jacksonDataFormatYam = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % jacksonVersion
+  val jacksonJaxrsBase = "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-base" % jacksonVersion
+  val jacksonJaxrsJsonProvider = "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider" % jacksonVersion
+  val jacksonModuleJaxbAnnotations = "com.fasterxml.jackson.module" % "jackson-module-jaxb-annotations" % jacksonVersion
   val scalaReflect = "org.scala-lang" % "scala-reflect" % projectScalaVersion
   val slf4jApi = "org.slf4j" % "slf4j-api" % slf4jVersion
   val slf4jJulToSlf4j = "org.slf4j" % "jul-to-slf4j" % slf4jVersion
@@ -395,6 +399,7 @@ object Utils {
   lazy val flinkClientProjects = FLINK_VERSION match {
     case Some("flink-1.14") => Some(Flink114)
     case Some("flink-1.15") => Some(Flink115)
+    case Some("flink-1.16") => Some(Flink116)
     case Some("flink-1.17") => Some(Flink117)
     case Some("flink-1.18") => Some(Flink118)
     case Some("flink-1.19") => Some(Flink119)
@@ -918,6 +923,16 @@ object Flink115 extends FlinkClientProjects {
   val flinkClientShadedProjectName: String = "celeborn-client-flink-1_15-shaded"
 }
 
+object Flink116 extends FlinkClientProjects {
+  val flinkVersion = "1.16.3"
+
+  // note that SBT does not allow using the period symbol (.) in project names.
+  val flinkClientProjectPath = "client-flink/flink-1.16"
+  val flinkClientProjectName = "celeborn-client-flink-1_16"
+  val flinkClientShadedProjectPath: String = "client-flink/flink-1.16-shaded"
+  val flinkClientShadedProjectName: String = "celeborn-client-flink-1_16-shaded"
+}
+
 object Flink117 extends FlinkClientProjects {
   val flinkVersion = "1.17.2"
 
@@ -939,7 +954,7 @@ object Flink118 extends FlinkClientProjects {
 }
 
 object Flink119 extends FlinkClientProjects {
-  val flinkVersion = "1.19.0"
+  val flinkVersion = "1.19.1"
 
   // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath = "client-flink/flink-1.19"
@@ -969,7 +984,7 @@ trait FlinkClientProjects {
     .aggregate(flinkCommon, flinkClient, flinkIt)
 
   // get flink major version. e.g:
-  //   1.19.0 -> 1.19
+  //   1.19.1 -> 1.19
   //   1.18.1 -> 1.18
   //   1.17.2 -> 1.17
   //   1.15.4 -> 1.15
@@ -1298,9 +1313,11 @@ object CelebornOpenApi {
 
   lazy val openapiClient = Project("celeborn-openapi-client", file("openapi/openapi-client"))
     .enablePlugins(OpenApiGeneratorPlugin)
+    .disablePlugins(AddMetaInfLicenseFiles)
     .dependsOn(openapiInternalMasterClient, openapiInternalWorkerClient)
     .settings(
       commonSettings,
+      releaseSettings,
       libraryDependencies ++= Seq(
         Dependencies.openApiToolsSwaggerAnnotations,
         Dependencies.openApiToolsSwaggerModels,
@@ -1322,7 +1339,59 @@ object CelebornOpenApi {
         },
         openapiInternalMasterClient / Compile / openApiGenerate,
         openapiInternalWorkerClient / Compile / openApiGenerate
-      )
+      ),
+      Compile / doc := {
+        // skip due to doc generation failure for openapi modules, see CELEBORN-1477
+        target.value / "none"
+      },
+
+      (assembly / test) := { },
+
+      (assembly / assemblyJarName) := {
+        s"${moduleName.value}_${scalaBinaryVersion.value}-${version.value}.${artifact.value.extension}"
+      },
+
+      (assembly / logLevel) := Level.Info,
+
+      // Exclude `scala-library` from assembly.
+      (assembly / assemblyPackageScala / assembleArtifact) := false,
+
+      (assembly / assemblyExcludedJars) := {
+        val cp = (assembly / fullClasspath).value
+        cp filter { v =>
+          val name = v.data.getName
+          !(name.startsWith("celeborn-") ||
+              name.startsWith("swagger-annotations-") ||
+              name.startsWith("swagger-models-") ||
+              name.startsWith("jackson-databind-") ||
+              name.startsWith("jsr305-") ||
+              name.startsWith("jersey-client-") ||
+              name.startsWith("jersey-media-json-jackson-") ||
+              name.startsWith("jackson-annotations-") ||
+              name.startsWith("jackson-datatype-jsr310-") ||
+              name.startsWith("jersey-media-multipart-"))
+        }
+      },
+
+      (assembly / assemblyShadeRules) := Seq(
+        ShadeRule.rename("io.swagger.**" -> "org.apache.celeborn.shaded.io.swagger.@1").inAll,
+        ShadeRule.rename("org.openapitools.**" -> "org.apache.celeborn.shaded.org.openapitools.@1").inAll,
+        ShadeRule.rename("com.google.**" -> "org.apache.celeborn.shaded.com.google.@1").inAll,
+        ShadeRule.rename("javax.annotation.**" -> "org.apache.celeborn.shaded.javax.annotation.@1").inAll,
+        ShadeRule.rename("org.glassfish.jersey.**" -> "org.apache.celeborn.shaded.org.glassfish.jersey.@1").inAll,
+        ShadeRule.rename("com.fasterxml.jackson.**" -> "org.apache.celeborn.shaded.com.fasterxml.jackson.@1").inAll,
+        ShadeRule.rename("jakarta.validation.**" -> "org.apache.celeborn.shaded.jakarta.validation.@1").inAll,
+        ShadeRule.rename("javax.validation.**" -> "org.apache.celeborn.shaded.javax.validation.@1").inAll
+      ),
+
+      (assembly / assemblyMergeStrategy) := {
+        case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+        case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
+        case _ => MergeStrategy.first
+      },
+
+      Compile / packageBin := assembly.value,
+      pomPostProcess := removeDependenciesTransformer
     )
 
   val commonOpenApiModelSettings = Seq(
@@ -1376,6 +1445,10 @@ object CelebornOpenApi {
         },
         openapiInternalMasterModel / Compile / openApiGenerate,
         openapiInternalWorkerModel / Compile / openApiGenerate
-      )
+      ),
+      Compile / doc := {
+        // skip due to doc generation failure for openapi modules, see CELEBORN-1477
+        target.value / "none"
+      }
     )
 }

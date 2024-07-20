@@ -22,18 +22,26 @@ import java.io.IOException;
 import org.apache.celeborn.common.CelebornConf;
 
 public class DynamicConfigServiceFactory {
+  private static volatile ConfigService _INSTANCE;
 
   public static ConfigService getConfigService(CelebornConf celebornConf) throws IOException {
     if (celebornConf.dynamicConfigStoreBackend().isEmpty()) {
       return null;
-    } else {
-      String configStoreBackend = celebornConf.dynamicConfigStoreBackend().get();
-      // celeborn.dynamicConfig.store.backend checks value with FS, DB.
-      if ("FS".equals(configStoreBackend)) {
-        return new FsConfigServiceImpl(celebornConf);
-      } else {
-        return new DbConfigServiceImpl(celebornConf);
+    }
+
+    if (_INSTANCE == null) {
+      synchronized (DynamicConfigServiceFactory.class) {
+        if (_INSTANCE == null) {
+          String configStoreBackend = celebornConf.dynamicConfigStoreBackend().get();
+          if ("FS".equals(configStoreBackend)) {
+            _INSTANCE = new FsConfigServiceImpl(celebornConf);
+          } else {
+            _INSTANCE = new DbConfigServiceImpl(celebornConf);
+          }
+        }
       }
     }
+
+    return _INSTANCE;
   }
 }

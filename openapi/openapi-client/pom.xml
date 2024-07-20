@@ -36,11 +36,6 @@
         <artifactId>jersey-client</artifactId>
         <version>${jersey.version}</version>
       </dependency>
-      <dependency>
-        <groupId>com.fasterxml.jackson.datatype</groupId>
-        <artifactId>jackson-datatype-jsr310</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -196,6 +191,78 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <configuration>
+          <relocations>
+            <relocation>
+              <pattern>io.swagger</pattern>
+              <shadedPattern>${shading.prefix}.io.swagger</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>org.openapitools</pattern>
+              <shadedPattern>${shading.prefix}.org.openapitools</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>com.google</pattern>
+              <shadedPattern>${shading.prefix}.com.google</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>javax.annotation</pattern>
+              <shadedPattern>${shading.prefix}.javax.annotation</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>org.glassfish.jersey</pattern>
+              <shadedPattern>${shading.prefix}.org.glassfish.jersey</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>com.fasterxml.jackson</pattern>
+              <shadedPattern>${shading.prefix}.com.fasterxml.jackson</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>jakarta.validation</pattern>
+              <shadedPattern>${shading.prefix}.jakarta.validation</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>javax.validation</pattern>
+              <shadedPattern>${shading.prefix}.javax.validation</shadedPattern>
+            </relocation>
+          </relocations>
+          <artifactSet>
+            <includes>
+              <include>io.swagger:swagger-annotations</include>
+              <include>io.swagger:swagger-models</include>
+              <include>org.openapitools:jackson-databind-nullable</include>
+              <include>com.google.code.findbugs:jsr305</include>
+              <include>org.glassfish.jersey.core:jersey-client</include>
+              <include>org.glassfish.jersey.media:jersey-media-json-jackson</include>
+              <include>com.fasterxml.jackson.core:jackson-annotations</include>
+              <include>com.fasterxml.jackson.core:jackson-databind</include>
+              <include>com.fasterxml.jackson.datatype:jackson-datatype-jsr310</include>
+              <include>org.glassfish.jersey.media:jersey-media-multipart</include>
+            </includes>
+          </artifactSet>
+          <filters>
+            <filter>
+              <artifact>*:*</artifact>
+              <excludes>
+                <exclude>META-INF/*.SF</exclude>
+                <exclude>META-INF/*.DSA</exclude>
+                <exclude>META-INF/*.RSA</exclude>
+                <exclude>**/log4j.properties</exclude>
+                <exclude>META-INF/LICENSE.txt</exclude>
+                <exclude>META-INF/NOTICE.txt</exclude>
+                <exclude>LICENSE.txt</exclude>
+                <exclude>NOTICE.txt</exclude>
+              </excludes>
+            </filter>
+          </filters>
+          <transformers>
+            <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"></transformer>
+          </transformers>
+        </configuration>
       </plugin>
     </plugins>
   </build>

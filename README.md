@@ -7,7 +7,7 @@ management service for intermediate data including shuffle data, spilled data, r
 
 ## Internals
 ### Architecture
-![Celeborn architecture](assets/img/celeborn.jpg)
+![Celeborn architecture](docs/assets/img/celeborn.jpg)
 Celeborn has three primary components: Master, Worker, and Client.
 Master manages all resources and syncs shared states based on Raft.
 Worker processes read-write requests and merges data for each reducer.
@@ -19,7 +19,7 @@ LifecycleManager maintains metadata of each shuffle and runs within the Spark dr
 3. High availability and high fault tolerance.
 
 ### Shuffle Process
-![Celeborn shuffle](assets/img/shuffle-procedure.jpg)
+![Celeborn shuffle](docs/assets/img/shuffle-procedure.jpg)
 1. Mappers lazily ask LifecycleManager to registerShuffle.
 2. LifecycleManager requests slots from Master.
 3. Workers reserve slots and create corresponding files.
@@ -33,7 +33,7 @@ LifecycleManager maintains metadata of each shuffle and runs within the Spark dr
 11. Reducers read shuffle data.
 
 ### Load Balance
-![Load Balance](assets/img/celeborn_load_balance.jpg)
+![Load Balance](docs/assets/img/celeborn_load_balance.jpg)
 
 We introduce slots to achieve load balance. We will equally distribute partitions on every Celeborn worker by tracking slot usage.
 The Slot is a logical concept in Celeborn Worker that represents how many partitions can be allocated to each Celeborn Worker.
@@ -46,7 +46,7 @@ Celeborn worker's slot count decreases when a partition is allocated and increme
 
 Build Celeborn via `make-distribution.sh`:
 ```shell
-./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pspark-3.4/-Pflink-1.14/-Pflink-1.15/-Pflink-1.17/-Pflink-1.18/-Pflink-1.19/-Pmr
+./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pspark-3.4/-Pflink-1.14/-Pflink-1.15/-Pflink-1.16/-Pflink-1.17/-Pflink-1.18/-Pflink-1.19/-Pmr
 ```
 
 Package `apache-celeborn-${project.version}-bin.tgz` will be generated.

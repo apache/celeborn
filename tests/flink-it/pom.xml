@@ -75,7 +75,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>${flink.streamig.artifact}</artifactId>
+      <artifactId>${flink.streaming.artifact}</artifactId>
       <version>${flink.version}</version>
       <scope>test</scope>
     </dependency>

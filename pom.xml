@@ -669,6 +669,16 @@
         <version>${jackson.version}</version>
       </dependency>
       <dependency>
+        <groupId>com.fasterxml.jackson.dataformat</groupId>
+        <artifactId>jackson-dataformat-yaml</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jsr310</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
         <groupId>org.xerial.snappy</groupId>
         <artifactId>snappy-java</artifactId>
         <version>${snappy.version}</version>
@@ -1565,7 +1575,7 @@
         <flink.version>1.14.6</flink.version>
         <scala.binary.version>2.12</scala.binary.version>
         <celeborn.flink.plugin.artifact>celeborn-client-flink-1.14_${scala.binary.version}</celeborn.flink.plugin.artifact>
-        <flink.streamig.artifact>flink-streaming-java_${scala.binary.version}</flink.streamig.artifact>
+        <flink.streaming.artifact>flink-streaming-java_${scala.binary.version}</flink.streaming.artifact>
         <flink.clients.artifact>flink-clients_${scala.binary.version}</flink.clients.artifact>
         <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
         <flink.runtime.web.artifact>flink-runtime-web_${scala.binary.version}</flink.runtime.web.artifact>
@@ -1585,7 +1595,27 @@
         <flink.binary.version>1.15</flink.binary.version>
         <scala.binary.version>2.12</scala.binary.version>
         <celeborn.flink.plugin.artifact>celeborn-client-flink-1.15_${scala.binary.version}</celeborn.flink.plugin.artifact>
-        <flink.streamig.artifact>flink-streaming-java</flink.streamig.artifact>
+        <flink.streaming.artifact>flink-streaming-java</flink.streaming.artifact>
+        <flink.clients.artifact>flink-clients</flink.clients.artifact>
+        <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
+        <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>flink-1.16</id>
+      <modules>
+        <module>client-flink/common</module>
+        <module>client-flink/flink-1.16</module>
+        <module>client-flink/flink-1.16-shaded</module>
+        <module>tests/flink-it</module>
+      </modules>
+      <properties>
+        <flink.version>1.16.3</flink.version>
+        <flink.binary.version>1.16</flink.binary.version>
+        <scala.binary.version>2.12</scala.binary.version>
+        <celeborn.flink.plugin.artifact>celeborn-client-flink-1.16_${scala.binary.version}</celeborn.flink.plugin.artifact>
+        <flink.streaming.artifact>flink-streaming-java</flink.streaming.artifact>
         <flink.clients.artifact>flink-clients</flink.clients.artifact>
         <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
         <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
@@ -1605,7 +1635,7 @@
         <flink.binary.version>1.17</flink.binary.version>
         <scala.binary.version>2.12</scala.binary.version>
         <celeborn.flink.plugin.artifact>celeborn-client-flink-1.17_${scala.binary.version}</celeborn.flink.plugin.artifact>
-        <flink.streamig.artifact>flink-streaming-java</flink.streamig.artifact>
+        <flink.streaming.artifact>flink-streaming-java</flink.streaming.artifact>
         <flink.clients.artifact>flink-clients</flink.clients.artifact>
         <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
         <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
@@ -1625,7 +1655,7 @@
         <flink.binary.version>1.18</flink.binary.version>
         <scala.binary.version>2.12</scala.binary.version>
         <celeborn.flink.plugin.artifact>celeborn-client-flink-1.18_${scala.binary.version}</celeborn.flink.plugin.artifact>
-        <flink.streamig.artifact>flink-streaming-java</flink.streamig.artifact>
+        <flink.streaming.artifact>flink-streaming-java</flink.streaming.artifact>
         <flink.clients.artifact>flink-clients</flink.clients.artifact>
         <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
         <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
@@ -1641,11 +1671,11 @@
         <module>tests/flink-it</module>
       </modules>
       <properties>
-        <flink.version>1.19.0</flink.version>
+        <flink.version>1.19.1</flink.version>
         <flink.binary.version>1.19</flink.binary.version>
         <scala.binary.version>2.12</scala.binary.version>
         <celeborn.flink.plugin.artifact>celeborn-client-flink-1.19_${scala.binary.version}</celeborn.flink.plugin.artifact>
-        <flink.streamig.artifact>flink-streaming-java</flink.streamig.artifact>
+        <flink.streaming.artifact>flink-streaming-java</flink.streaming.artifact>
         <flink.clients.artifact>flink-clients</flink.clients.artifact>
         <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
         <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>

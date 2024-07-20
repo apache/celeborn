@@ -188,7 +188,9 @@ class CelebornShuffleReader[K, C](
     val end = System.currentTimeMillis()
     logInfo(s"BatchOpenStream for $partCnt cost ${end - startTime}ms")
 
-    def createInputStream(partitionId: Int): CelebornInputStream = {
+    val streams = new ConcurrentHashMap[Integer, CelebornInputStream]()
+
+    def createInputStream(partitionId: Int): Unit = {
       val locations =
         if (fileGroups.partitionGroups.containsKey(partitionId)) {
           new util.ArrayList(fileGroups.partitionGroups.get(partitionId))
@@ -203,7 +205,7 @@ class CelebornShuffleReader[K, C](
         } else null
       if (exceptionRef.get() == null) {
         try {
-          shuffleClient.readPartition(
+          val inputStream = shuffleClient.readPartition(
             shuffleId,
             handle.shuffleId,
             partitionId,
@@ -215,45 +217,70 @@ class CelebornShuffleReader[K, C](
             streamHandlers,
             fileGroups.mapAttempts,
             metricsCallback)
+          streams.put(partitionId, inputStream)
         } catch {
           case e: IOException =>
             logError(s"Exception caught when readPartition $partitionId!", e)
             exceptionRef.compareAndSet(null, e)
-            null
           case e: Throwable =>
             logError(s"Non IOException caught when readPartition $partitionId!", e)
             exceptionRef.compareAndSet(null, new CelebornIOException(e))
-            null
         }
-      } else null
+      }
     }
+
+    val inputStreamCreationWindow = conf.clientInputStreamCreationWindow
+    (startPartition until Math.min(
+      startPartition + inputStreamCreationWindow,
+      endPartition)).foreach(partitionId => {
+      streamCreatorPool.submit(new Runnable {
+        override def run(): Unit = {
+          createInputStream(partitionId)
+        }
+      })
+    })
 
     val recordIter = (startPartition until endPartition).iterator.map(partitionId => {
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
-        val inputStream: CelebornInputStream = createInputStream(partitionId)
-        if (exceptionRef.get() != null) {
-          exceptionRef.get() match {
-            case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
-              if (throwsFetchFailure &&
-                shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
-                throw new FetchFailedException(
-                  null,
-                  handle.shuffleId,
-                  -1,
-                  -1,
-                  partitionId,
-                  SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + shuffleId,
-                  ce)
-              } else
-                throw ce
-            case e => throw e
+        var inputStream: CelebornInputStream = streams.get(partitionId)
+        while (inputStream == null) {
+          if (exceptionRef.get() != null) {
+            exceptionRef.get() match {
+              case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
+                if (throwsFetchFailure &&
+                  shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
+                  throw new FetchFailedException(
+                    null,
+                    handle.shuffleId,
+                    -1,
+                    -1,
+                    partitionId,
+                    SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + shuffleId,
+                    ce)
+                } else
+                  throw ce
+              case e => throw e
+            }
           }
+          logInfo("inputStream is null, sleeping...")
+          Thread.sleep(50)
+          inputStream = streams.get(partitionId)
         }
         metricsCallback.incReadTime(
           TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
         // ensure inputStream is closed when task completes
         context.addTaskCompletionListener[Unit](_ => inputStream.close())
+
+        // Advance the input creation window
+        if (partitionId + inputStreamCreationWindow < endPartition) {
+          streamCreatorPool.submit(new Runnable {
+            override def run(): Unit = {
+              createInputStream(partitionId + inputStreamCreationWindow)
+            }
+          })
+        }
+
         (partitionId, inputStream)
       } else {
         (partitionId, CelebornInputStream.empty())

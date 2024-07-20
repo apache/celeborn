@@ -61,15 +61,15 @@ Administrators perform decommissioning operation in two approaches:
 
 1. Via Celeborn Worker REST API endpoint:
   ```shell
-  curl -X POST -d "type=Decommission" http://ip:port/exit
+  curl -X POST -H "Content-Type: application/json" -d '{"type":"Decommission"}' http://ip:port/api/v1/workers/exit
   ```
 2. Via Celeborn Master(Leader) REST API endpoint:
   ```shell
-  curl -X POST -d "type=Decommission&workers=ip_1:rpcPort:pushPort:fetchPort:replicatePort,ip_2:rpcPort:pushPort:fetchPort:replicatePort" http://ip:port/sendWorkerEvent
-  curl -X POST -d "type=DecommissionThenIdle&workers=ip_1:rpcPort:pushPort:fetchPort:replicatePort,ip_2:rpcPort:pushPort:fetchPort:replicatePort" http://ip:port/sendWorkerEvent
+  curl -X POST -H "Content-Type: application/json" -d '{"eventType":"Decommission","workers":[{"host":"192.168.15.140","rpcPort":"37359","pushPort":"38303","fetchPort":"37569","replicatePort":"37093"},{"host":"192.168.15.141","rpcPort":"37359","pushPort":"38303","fetchPort":"37569","replicatePort":"37093"}]}' http://ip:port/api/v1/workers/events
+  curl -X POST -H "Content-Type: application/json" -d '{"eventType":"DecommissionThenIdle","workers":[{"host":"192.168.15.140","rpcPort":"37359","pushPort":"38303","fetchPort":"37569","replicatePort":"37093"},{"host":"192.168.15.141","rpcPort":"37359","pushPort":"38303","fetchPort":"37569","replicatePort":"37093"}]}' http://ip:port/api/v1/workers/events
   ```
 
-Details of decommissioning interface can refer to [REST API](../monitoring/#rest-api)
+Details of decommissioning interface can refer to [REST API](../webapi/#rest-api)
 
 ## Decommission Monitoring
 

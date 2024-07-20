@@ -21,6 +21,53 @@ license: |
 
 # Migration Guide
 
+# Upgrading from 0.5 to 0.6
+- 
+- Since 0.6.0, Celeborn has introduced a new RESTful API namespace: /api/v1, which uses the application/json media type for requests and responses.
+   The `celeborn-openapi-client` SDK is also available to help users interact with the new RESTful APIs.
+   The legacy RESTful APIs have been deprecated and will be removed in future releases.
+   Access the full [RESTful API documentation](./webapi.md) for detailed information.
+  
+  - The mappings of the old RESTful APIs to the new RESTful APIs for Master.
+
+    | Old RESTful API          | New RESTful API                          | Note                                             |
+    |--------------------------|------------------------------------------|--------------------------------------------------|
+    | GET /conf                | GET /api/v1/conf                         |                                                  |
+    | GET /listDynamicConfigs  | GET /api/v1/conf/dynamic                 |                                                  |
+    | GET /threadDump          | GET /api/v1/conf/thread_dump             |                                                  |
+    | GET /applications        | GET /api/v1/applications                 |                                                  |
+    | GET /listTopDiskUsedApps | GET /api/v1/applications/top_disk_usages |                                                  |
+    | GET /hostnames           | GET /api/v1/applications/hostnames       |                                                  |
+    | GET /shuffle             | GET /api/v1/shuffles                     |                                                  |
+    | GET /masterGroupInfo     | GET /api/v1/masters                      |                                                  |
+    | GET /workerInfo          | GET /api/v1/workers                      |                                                  |
+    | GET /lostWorkers         | GET /api/v1/workers                      | get the lostWorkers field in response            |
+    | GET /excludedWorkers     | GET /api/v1/workers                      | get the excludedWorkers field in response        |
+    | GET /shutdownWorkers     | GET /api/v1/workers                      | get the shutdownWorkers filed in response        |
+    | GET /decommissionWorkers | GET /api/v1/workers                      | get the decommissioningWorkers filed in response |
+    | POST /exclude            | POST /api/v1/workers/exclude             |                                                  |
+    | GET /workerEventInfo     | GET /api/v1/workers/events               |                                                  |
+    | POST /sendWorkerEvent    | POST /api/v1/workers/events              |                                                  |
+
+
+  - The mappings of the old RESTful APIs to the new RESTful APIs for Worker.
+
+    | Old RESTful API                | New RESTful API                          | Note                                        |
+    |--------------------------------|------------------------------------------|---------------------------------------------|
+    | GET /conf                      | GET /api/v1/conf                         |                                             |
+    | GET /listDynamicConfigs        | GET /api/v1/conf/dynamic                 |                                             |
+    | GET /threadDump                | GET /api/v1/conf/thread_dump             |                                             |
+    | GET /applications              | GET /api/v1/applications                 |                                             |
+    | GET /listTopDiskUsedApps       | GET /api/v1/applications/top_disk_usages |                                             |
+    | GET /shuffle                   | GET /api/v1/shuffles                     |                                             |
+    | GET /listPartitionLocationInfo | GET /api/v1/shuffles/partitions          |                                             |
+    | GET /workerInfo                | GET /api/v1/workers                      |                                             |
+    | GET /isRegistered              | GET /api/v1/workers                      | get the isRegistered field in response      |
+    | GET /isDecommissioning         | GET /api/v1/workers                      | get the isDecommissioning field in response |
+    | GET /isShutdown                | GET /api/v1/workers                      | get the isShutdown field in response        |
+    | GET /unavailablePeers          | GET /api/v1/workers/unavailable_peers    |                                             |
+    | POST /exit                     | POST /api/v1/workers/exit                |                                             |
+
 ## Upgrading from 0.5.0 to 0.5.1
 
 - Since 0.5.1, Celeborn master REST API `/exclude` request uses media type `application/x-www-form-urlencoded` instead of `text/plain`.

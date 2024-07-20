@@ -1026,6 +1026,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     PartitionSplitMode.valueOf(get(SHUFFLE_PARTITION_SPLIT_MODE))
   def shufflePartitionSplitThreshold: Long = get(SHUFFLE_PARTITION_SPLIT_THRESHOLD)
   def batchHandleChangePartitionEnabled: Boolean = get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED)
+  def batchHandleChangePartitionBuckets: Int =
+    get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_BUCKETS)
   def batchHandleChangePartitionNumThreads: Int = get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_THREADS)
   def batchHandleChangePartitionRequestInterval: Long =
     get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_INTERVAL)
@@ -1220,6 +1222,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE)
   def workerMemoryFileStorageMaxFileSize: Long =
     get(WORKER_MEMORY_FILE_STORAGE_MAX_FILE_SIZE)
+  def workerMemoryFileStorageEictAggressiveModeEnabled: Boolean =
+    get(WORKER_MEMORY_FILE_STORAGE_EVICT_AGGRESSIVE_MODE_ENABLED)
+  def workerMemoryFileStorageEvictRatio: Double =
+    get(WORKER_MEMORY_FILE_STORAGE_EVICT_RATIO)
 
   // //////////////////////////////////////////////////////
   //                  Rate Limit controller              //
@@ -1269,6 +1275,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_RESULT_PARTITION_SUPPORT_FLOATING_BUFFER)
   def clientFlinkDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
   def clientShuffleMapPartitionSplitEnabled = get(CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED)
+  def clientChunkPrefetchEnabled = get(CLIENT_CHUNK_PREFETCH_ENABLED)
+  def clientInputStreamCreationWindow = get(CLIENT_INPUTSTREAM_CREATION_WINDOW)
 
   // //////////////////////////////////////////////////////
   //                    kerberos                         //
@@ -3472,6 +3480,25 @@ object CelebornConf extends Logging {
       .checkValue(v => v < Int.MaxValue, "A single memory storage file can not be larger than 2GB")
       .createWithDefaultString("8MB")
 
+  val WORKER_MEMORY_FILE_STORAGE_EVICT_AGGRESSIVE_MODE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.memoryFileStorage.evict.aggressiveMode.enabled")
+      .categories("worker")
+      .doc(
+        "If this set to true, memory shuffle files will be evicted when worker is in PAUSED state." +
+          " If the worker's offheap memory is not ample, set this to true " +
+          "and decrease `celeborn.worker.directMemoryRatioForMemoryFileStorage` will be helpful.")
+      .version("0.5.1")
+      .booleanConf
+      .createWithDefault(false)
+
+  val WORKER_MEMORY_FILE_STORAGE_EVICT_RATIO: ConfigEntry[Double] =
+    buildConf("celeborn.worker.memoryFileStorage.evict.ratio")
+      .categories("worker")
+      .doc("If memory shuffle storage usage rate is above this config, the memory storage shuffle files will evict to free memory.")
+      .version("0.5.1")
+      .doubleConf
+      .createWithDefault(0.5)
+
   val WORKER_CONGESTION_CONTROL_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.congestionControl.enabled")
       .categories("worker")
@@ -4308,6 +4335,14 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
+  val CLIENT_BATCH_HANDLE_CHANGE_PARTITION_BUCKETS: ConfigEntry[Int] =
+    buildConf("celeborn.client.shuffle.batchHandleChangePartition.partitionBuckets")
+      .categories("client")
+      .doc("Max number of change partition requests which can be concurrently processed ")
+      .version("0.5.0")
+      .intConf
+      .createWithDefault(256)
+
   val CLIENT_BATCH_HANDLE_CHANGE_PARTITION_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.batchHandleChangePartition.threads")
       .withAlternative("celeborn.shuffle.batchHandleChangePartition.threads")
@@ -5067,6 +5102,23 @@ object CelebornConf extends Logging {
       .version("0.3.1")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_CHUNK_PREFETCH_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.chunk.prefetch.enabled")
+      .categories("client")
+      .doc("Whether to enable chunk prefetch when creating CelebornInputStream.")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_INPUTSTREAM_CREATION_WINDOW: ConfigEntry[Int] =
+    buildConf("celeborn.client.inputStream.creation.window")
+      .categories("client")
+      .doc(s"Window size that CelebornShuffleReader pre-creates CelebornInputStreams, for coalesced scenario" +
+        s"where multiple Partitions are read")
+      .version("0.6.0")
+      .intConf
+      .createWithDefault(16)
 
   val MAX_DEFAULT_NETTY_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.io.maxDefaultNettyThreads")
