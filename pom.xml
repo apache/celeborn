@@ -25,7 +25,7 @@
 
   <groupId>org.apache.celeborn</groupId>
   <artifactId>celeborn-parent_${scala.binary.version}</artifactId>
-  <version>0.4.2</version>
+  <version>${project.version}</version>
   <packaging>pom</packaging>
 
   <name>Celeborn Project Parent POM</name>
