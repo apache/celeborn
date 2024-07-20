@@ -20,7 +20,7 @@
   <parent>
     <groupId>org.apache.celeborn</groupId>
     <artifactId>celeborn-parent_${scala.binary.version}</artifactId>
-    <version>0.4.3-SNAPSHOT</version>
+    <version>0.4.2</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
@@ -32,33 +32,33 @@
     <dependency>
       <groupId>org.apache.celeborn</groupId>
       <artifactId>celeborn-common_${scala.binary.version}</artifactId>
-      <version>0.4.3-SNAPSHOT</version>
+      <version>0.4.2</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
       <artifactId>celeborn-client_${scala.binary.version}</artifactId>
-      <version>0.4.3-SNAPSHOT</version>
+      <version>0.4.2</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
       <artifactId>celeborn-master_${scala.binary.version}</artifactId>
-      <version>0.4.3-SNAPSHOT</version>
+      <version>0.4.2</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
       <artifactId>celeborn-worker_${scala.binary.version}</artifactId>
-      <version>0.4.3-SNAPSHOT</version>
+      <version>0.4.2</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
       <artifactId>celeborn-worker_${scala.binary.version}</artifactId>
-      <version>0.4.3-SNAPSHOT</version>
+      <version>0.4.2</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
@@ -90,13 +90,13 @@
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-client-spark-2_${scala.binary.version}</artifactId>
-          <version>0.4.3-SNAPSHOT</version>
+          <version>0.4.2</version>
           <scope>test</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-client-spark-2_${scala.binary.version}</artifactId>
-          <version>0.4.3-SNAPSHOT</version>
+          <version>0.4.2</version>
           <type>test-jar</type>
           <scope>test</scope>
         </dependency>
@@ -108,13 +108,13 @@
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
-          <version>0.4.3-SNAPSHOT</version>
+          <version>0.4.2</version>
           <scope>test</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
-          <version>0.4.3-SNAPSHOT</version>
+          <version>0.4.2</version>
           <type>test-jar</type>
           <scope>test</scope>
         </dependency>
@@ -126,13 +126,13 @@
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
-          <version>0.4.3-SNAPSHOT</version>
+          <version>0.4.2</version>
           <scope>test</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
-          <version>0.4.3-SNAPSHOT</version>
+          <version>0.4.2</version>
           <type>test-jar</type>
           <scope>test</scope>
         </dependency>
@@ -144,13 +144,13 @@
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
-          <version>0.4.3-SNAPSHOT</version>
+          <version>0.4.2</version>
           <scope>test</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
-          <version>0.4.3-SNAPSHOT</version>
+          <version>0.4.2</version>
           <type>test-jar</type>
           <scope>test</scope>
         </dependency>
@@ -162,13 +162,13 @@
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
-          <version>0.4.3-SNAPSHOT</version>
+          <version>0.4.2</version>
           <scope>test</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
-          <version>0.4.3-SNAPSHOT</version>
+          <version>0.4.2</version>
           <type>test-jar</type>
           <scope>test</scope>
         </dependency>
@@ -180,13 +180,13 @@
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
-          <version>0.4.3-SNAPSHOT</version>
+          <version>0.4.2</version>
           <scope>test</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
-          <version>0.4.3-SNAPSHOT</version>
+          <version>0.4.2</version>
           <type>test-jar</type>
           <scope>test</scope>
         </dependency>
@@ -198,7 +198,7 @@
         <dependency>
           <groupId>org.apache.celeborn</groupId>
           <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
-          <version>0.4.3-SNAPSHOT</version>
+          <version>0.4.2</version>
           <scope>test</scope>
         </dependency>
         <dependency>
