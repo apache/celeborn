@@ -103,7 +103,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
     }
   }
 
-  /*
   test("celeborn spark integration test - Fetch Failure") {
     if (Spark3OrNewer) {
       val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
@@ -306,7 +305,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
       sparkSession.stop()
     }
   }
-   */
 
   test(s"celeborn spark integration test - resubmit an unordered barrier stage with throwsFetchFailure enabled") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
@@ -394,10 +392,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         }
         iter
       }
-      // val awaitPermission = null.asInstanceOf[scala.concurrent.CanAwait]
-      implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
-      val future = Future { rdd2.collect() }
-      val result = Await.result(future, 60.seconds)
+      val result = rdd2.collect()
       result.foreach {
         elem =>
           assert(elem._1.size == elem._2.size)
