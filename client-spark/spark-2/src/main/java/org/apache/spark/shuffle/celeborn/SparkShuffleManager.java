@@ -191,7 +191,9 @@ public class SparkShuffleManager implements ShuffleManager {
                 celebornConf,
                 h.userIdentifier(),
                 h.extension());
-        BarrierHelper.addFailureListenerIfBarrierTask(client, context, h);
+        if (h.throwsFetchFailure()) {
+          BarrierHelper.addFailureListenerIfBarrierTask(client, context, h);
+        }
         int shuffleId = SparkUtils.celebornShuffleId(client, h, context, true);
         shuffleIdTracker.track(h.shuffleId(), shuffleId);
 
