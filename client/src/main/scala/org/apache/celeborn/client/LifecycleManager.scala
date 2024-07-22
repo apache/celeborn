@@ -953,11 +953,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           throw new UnsupportedOperationException(
             s"unexpected! unknown appShuffleId $appShuffleId for appShuffleIdentifier = $appShuffleIdentifier")
       }
-
-      val pbReportBarrierStageAttemptFailureResponse =
-        PbReportBarrierStageAttemptFailureResponse.newBuilder().setSuccess(ret).build()
-      context.reply(pbReportBarrierStageAttemptFailureResponse)
     }
+    val pbReportBarrierStageAttemptFailureResponse =
+      PbReportBarrierStageAttemptFailureResponse.newBuilder().setSuccess(ret).build()
+    context.reply(pbReportBarrierStageAttemptFailureResponse)
   }
 
   private def invokeAppShuffleTrackerCallback(appShuffleId: Int): Boolean = {
@@ -1054,7 +1053,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     logInfo(s"Unregister appShuffleId $appShuffleId starts...")
     appShuffleDeterminateMap.remove(appShuffleId)
     if (hasMapping) {
-      // appShuffleId could be either for 'regular' stage or barrier stage
       val shuffleIds = shuffleIdMapping.remove(appShuffleId)
       if (shuffleIds != null) {
         shuffleIds.synchronized(
