@@ -279,4 +279,21 @@ public class SparkUtils {
     throw new UnsupportedOperationException(
         "unexpected! neither methods unregisterAllMapAndMergeOutput/unregisterAllMapOutput are found in MapOutputTrackerMaster");
   }
+
+  // Adds a task failure listener which notifies lifecyclemanager when any
+  // task fails for a barrier stage
+  public static void addFailureListenerIfBarrierTask(
+      ShuffleClient shuffleClient, TaskContext taskContext, ShuffleHandle handle) {
+
+    if (!(taskContext instanceof BarrierTaskContext)) return;
+    int appShuffleId = handle.shuffleId();
+    String appShuffleIdentifier = SparkUtils.getAppShuffleIdentifier(appShuffleId, taskContext);
+
+    BarrierTaskContext barrierContext = (BarrierTaskContext) taskContext;
+    barrierContext.addTaskFailureListener(
+        (context, error) -> {
+          // whatever is the reason for failure, we notify lifecycle manager about the failure
+          shuffleClient.reportBarrierTaskFailure(appShuffleId, appShuffleIdentifier);
+        });
+  }
 }
