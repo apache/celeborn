@@ -370,6 +370,7 @@ message PbGetShuffleId {
   int32 appShuffleId = 1;
   string appShuffleIdentifier = 2;
   bool isShuffleWriter = 3;
+  bool isBarrierStage = 4;
 }
 
 message PbGetShuffleIdResponse {
@@ -386,9 +387,8 @@ message PbReportShuffleFetchFailureResponse {
 }
 
 message PbReportBarrierStageAttemptFailure {
-  int32 shuffleId = 1;
-  int32 stageId = 2;
-  int32 stageAttemptId = 3;
+  int32 appShuffleId = 1;
+  string appShuffleIdentifier = 2;
 }
 
 message PbReportBarrierStageAttemptFailureResponse {

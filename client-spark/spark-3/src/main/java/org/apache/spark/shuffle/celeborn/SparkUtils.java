@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.LongAdder;
 
 import scala.Tuple2;
 
+import org.apache.spark.BarrierTaskContext;
 import org.apache.spark.MapOutputTrackerMaster;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
@@ -107,7 +108,11 @@ public class SparkUtils {
       Boolean isWriter) {
     if (handle.throwsFetchFailure()) {
       String appShuffleIdentifier = getAppShuffleIdentifier(handle.shuffleId(), context);
-      return client.getShuffleId(handle.shuffleId(), appShuffleIdentifier, isWriter);
+      return client.getShuffleId(
+          handle.shuffleId(),
+          appShuffleIdentifier,
+          isWriter,
+          context instanceof BarrierTaskContext);
     } else {
       return handle.shuffleId();
     }

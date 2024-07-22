@@ -20,26 +20,23 @@ package org.apache.spark.shuffle.celeborn;
 import org.apache.spark.BarrierTaskContext;
 import org.apache.spark.TaskContext;
 import org.apache.spark.shuffle.ShuffleHandle;
-import org.apache.spark.util.TaskFailureListener;
 
 import org.apache.celeborn.client.ShuffleClient;
 
 public class BarrierHelper {
 
   public static void addFailureListenerIfBarrierTask(
-      ShuffleClient shuffleClient, TaskContext context, ShuffleHandle handle) {
+      ShuffleClient shuffleClient, TaskContext taskContext, ShuffleHandle handle) {
 
-    if (!(context instanceof BarrierTaskContext)) return;
-    BarrierTaskContext barrierContext = (BarrierTaskContext) context;
+    if (!(taskContext instanceof BarrierTaskContext)) return;
+    int appShuffleId = handle.shuffleId();
+    String appShuffleIdentifier = SparkUtils.getAppShuffleIdentifier(appShuffleId, taskContext);
 
+    BarrierTaskContext barrierContext = (BarrierTaskContext) taskContext;
     barrierContext.addTaskFailureListener(
-        new TaskFailureListener() {
-          @Override
-          public void onTaskFailure(TaskContext context, Throwable error) {
-            // whatever is the reason for failure, we notify lifecycle manager about the failure
-            shuffleClient.reportBarrierTaskFailure(
-                context.stageId(), context.stageAttemptNumber(), handle.shuffleId());
-          }
+        (context, error) -> {
+          // whatever is the reason for failure, we notify lifecycle manager about the failure
+          shuffleClient.reportBarrierTaskFailure(appShuffleId, appShuffleIdentifier);
         });
   }
 }

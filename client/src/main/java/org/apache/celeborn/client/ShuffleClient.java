@@ -266,7 +266,8 @@ public abstract class ShuffleClient {
 
   public abstract PushState getPushState(String mapKey);
 
-  public abstract int getShuffleId(int appShuffleId, String appShuffleIdentifier, boolean isWriter);
+  public abstract int getShuffleId(
+      int appShuffleId, String appShuffleIdentifier, boolean isWriter, boolean isBarrierStage);
 
   /**
    * report shuffle data fetch failure to LifecycleManager for special handling, eg, shuffle status
@@ -279,7 +280,7 @@ public abstract class ShuffleClient {
    * Report barrier task failure. When any barrier task fails, all shuffle output for that stage
    * attempt is to be discarded, and spark will recompute the entire stage
    */
-  public abstract boolean reportBarrierTaskFailure(int stageId, int stageAttemptId, int shuffleId);
+  public abstract boolean reportBarrierTaskFailure(int appShuffleId, String appShuffleIdentifier);
 
   public abstract TransportClientFactory getDataClientFactory();
 }

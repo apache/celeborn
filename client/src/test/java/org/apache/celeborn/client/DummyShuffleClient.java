@@ -173,7 +173,8 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
-  public int getShuffleId(int appShuffleId, String appShuffleIdentifier, boolean isWriter) {
+  public int getShuffleId(
+      int appShuffleId, String appShuffleIdentifier, boolean isWriter, boolean isBarrierStage) {
     return appShuffleId;
   }
 
@@ -182,7 +183,7 @@ public class DummyShuffleClient extends ShuffleClient {
     return true;
   }
 
-  public boolean reportBarrierTaskFailure(int stageId, int stageAttemptId, int shuffleId) {
+  public boolean reportBarrierTaskFailure(int appShuffleId, String appShuffleIdentifier) {
     return true;
   }
 

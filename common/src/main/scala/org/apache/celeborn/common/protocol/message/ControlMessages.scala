@@ -534,7 +534,9 @@ object ControlMessages extends Logging {
       new TransportMessage(MessageType.REPORT_BARRIER_STAGE_ATTEMPT_FAILURE, pb.toByteArray)
 
     case pb: PbReportBarrierStageAttemptFailureResponse =>
-      new TransportMessage(MessageType.REPORT_BARRIER_STAGE_ATTEMPT_FAILURE_RESPONSE, pb.toByteArray)
+      new TransportMessage(
+        MessageType.REPORT_BARRIER_STAGE_ATTEMPT_FAILURE_RESPONSE,
+        pb.toByteArray)
 
     case HeartbeatFromWorker(
           host,

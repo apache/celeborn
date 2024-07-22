@@ -17,14 +17,22 @@
 
 package org.apache.celeborn.tests.spark
 
-import java.io.File
+import java.io.{File, IOException}
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
-import org.apache.spark.{BarrierTaskContext, SparkConf, SparkContextHelper, TaskContext}
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
+import scala.concurrent.duration.Duration
+
+import org.apache.spark.{BarrierTaskContext, ShuffleDependency, SparkConf, SparkContextHelper, TaskContext}
+import org.apache.spark.celeborn.ExceptionMakerHelper
+import org.apache.spark.rdd.RDD
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
+import org.scalatest.concurrent.Eventually._
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
@@ -298,9 +306,9 @@ class CelebornFetchFailureSuite extends AnyFunSuite
       sparkSession.stop()
     }
   }
-  */
+   */
 
-  test("celeborn spark integration test - resubmit an unordered barrier stage") {
+  test(s"celeborn spark integration test - resubmit an unordered barrier stage with throwsFetchFailure enabled") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
     val sparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
@@ -314,30 +322,98 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
       .getOrCreate()
 
-    val sc = sparkSession.sparkContext
-    val rdd1 = sc
-      .parallelize(0 until 10000, 2)
-      .map(v => (v, v))
-      .groupByKey()
-      .barrier()
-      .mapPartitions {
-        it =>
-          val context = BarrierTaskContext.get()
-          if (context.stageAttemptNumber() == 0 && context.partitionId() == 0) {
-            Thread.sleep(3000)
-            throw new RuntimeException("failed")
-          } else {}
-          if (context.stageAttemptNumber() > 0) {
-            it.toBuffer.reverseIterator
-          } else {
-            it
-          }
+    val startTime = System.nanoTime()
+    try {
+      val sc = sparkSession.sparkContext
+      val rdd1 = sc
+        .parallelize(0 until 10000, 2)
+        .map(v => (v, v))
+        .groupByKey()
+        .barrier()
+        .mapPartitions {
+          it =>
+            val context = BarrierTaskContext.get()
+            if (context.stageAttemptNumber() == 0 && context.partitionId() == 0) {
+              Thread.sleep(3000)
+              throw new RuntimeException("failed")
+            } else {}
+            if (context.stageAttemptNumber() > 0) {
+              it.toBuffer.reverseIterator
+            } else {
+              it
+            }
+        }
+      val rdd2 = rdd1.map(v => (v._2, v._1)).groupByKey()
+      val result = rdd2.collect()
+      result.foreach {
+        elem =>
+          assert(elem._1.size == elem._2.size)
       }
-    val rdd2 = rdd1.map(v => (v._2, v._1)).groupByKey()
-    val result = rdd2.collect()
-    result.foreach {
-      elem =>
-        assert(elem._1.size == elem._2.size)
+      println("Test took " + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime) + " ms")
+    } finally {
+      sparkSession.stop()
     }
+  }
+
+  test(s"celeborn spark integration test - fetch failure in child of an unordered barrier stage with throwsFetchFailure enabled") {
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+    val sparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .config("spark.sql.shuffle.partitions", 2)
+      .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+      .config("spark.celeborn.shuffle.enabled", "true")
+      .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+      .config("spark.celeborn.client.push.buffer.max.size", 0)
+      .config(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+      .getOrCreate()
+
+    val startTime = System.nanoTime()
+    try {
+      val sc = sparkSession.sparkContext
+      val inputGroupedRdd = sc
+        .parallelize(0 until 10000, 2)
+        .map(v => (v, v))
+        .groupByKey()
+      val rdd1 = inputGroupedRdd
+        .barrier()
+        .mapPartitions(it => it)
+      val groupedRdd = rdd1.map(v => (v._2, v._1)).groupByKey()
+      val appShuffleId = findAppShuffleId(groupedRdd)
+      println(s"shuffle id's ... groupedRdd = $appShuffleId, inputGroupedRdd = ${findAppShuffleId(inputGroupedRdd)}")
+      assert(findAppShuffleId(groupedRdd) != findAppShuffleId(inputGroupedRdd))
+      val rdd2 = groupedRdd.mapPartitions { iter =>
+        val context = TaskContext.get()
+        if (context.stageAttemptNumber() == 0 && context.partitionId() == 0) {
+          throw ExceptionMakerHelper.SHUFFLE_FETCH_FAILURE_EXCEPTION_MAKER.makeFetchFailureException(
+            appShuffleId,
+            -1,
+            context.partitionId(),
+            new IOException("forced"))
+        }
+        iter
+      }
+      // val awaitPermission = null.asInstanceOf[scala.concurrent.CanAwait]
+      implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+      val future = Future { rdd2.collect() }
+      val result = Await.result(future, 60.seconds)
+      result.foreach {
+        elem =>
+          assert(elem._1.size == elem._2.size)
+      }
+      println("Test took " + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime) + " ms")
+    } finally {
+      sparkSession.stop()
+    }
+  }
+
+  private def findAppShuffleId(rdd: RDD[_]): Int = {
+    val deps = rdd.dependencies
+    if (deps.size != 1 && !deps.head.isInstanceOf[ShuffleDependency[_, _, _]]) {
+      throw new IllegalArgumentException("Expected an RDD with shuffle dependency: " + rdd)
+    }
+
+    deps.head.asInstanceOf[ShuffleDependency[_, _, _]].shuffleId
   }
 }
