@@ -21,6 +21,8 @@ import java.net.URI
 import javax.servlet.http.HttpServletResponse
 import javax.ws.rs.core.{MediaType, UriBuilder}
 
+import scala.collection.JavaConverters._
+
 import org.apache.celeborn.rest.v1.model.{ConfResponse, ThreadStackResponse}
 import org.apache.celeborn.server.common.http.HttpTestHelper
 
@@ -41,6 +43,8 @@ abstract class ApiV1BaseResourceSuite extends HttpTestHelper {
   test("thread_dump") {
     val response = webTarget.path("thread_dump").request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
-    assert(!response.readEntity(classOf[ThreadStackResponse]).getThreadStacks.isEmpty)
+    val threadStacks = response.readEntity(classOf[ThreadStackResponse]).getThreadStacks.asScala
+    assert(threadStacks.nonEmpty)
+    assert(threadStacks.exists(_.getBlockedByThreadId == null))
   }
 }

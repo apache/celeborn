@@ -69,8 +69,8 @@ class WorkerResource extends ApiRequestContext {
       schema = new Schema(implementation = classOf[HandleResponse]))),
     description =
       "Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove.")
-  @Path("/exclude")
   @POST
+  @Path("/exclude")
   def excludeWorker(request: ExcludeWorkerRequest): HandleResponse = {
     val (success, msg) = httpService.exclude(
       request.getAdd.asScala.map(ApiUtils.toWorkerInfo).toSeq,
@@ -85,8 +85,8 @@ class WorkerResource extends ApiRequestContext {
       schema = new Schema(
         implementation = classOf[WorkerEventsResponse]))),
     description = "List all worker event infos of the master.")
-  @Path("/events")
   @GET
+  @Path("/events")
   def workerEvents(): WorkerEventsResponse = {
     new WorkerEventsResponse().workerEvents(
       statusSystem.workerEventInfos.asScala.map { case (worker, event) =>
@@ -106,8 +106,8 @@ class WorkerResource extends ApiRequestContext {
       schema = new Schema(implementation = classOf[HandleResponse]))),
     description =
       "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'.")
-  @Path("/events")
   @POST
+  @Path("/events")
   def sendWorkerEvents(request: SendWorkerEventRequest): HandleResponse = {
     if (request.getEventType == SendWorkerEventRequest.EventTypeEnum.NONE || request.getWorkers.isEmpty) {
       throw new BadRequestException(

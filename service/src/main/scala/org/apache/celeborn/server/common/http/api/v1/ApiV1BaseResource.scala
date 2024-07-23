@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.server.common.http.api.v1
 
-import javax.ws.rs.{GET, Path}
+import javax.ws.rs.{GET, Path, Produces}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
@@ -43,6 +43,7 @@ class ApiV1BaseResource extends ApiRequestContext {
         implementation = classOf[ThreadStackResponse]))),
     description = "List the current thread dump.")
   @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
   def threadDump(): ThreadStackResponse = {
     new ThreadStackResponse()
       .threadStacks(Utils.getThreadDump().map { threadStack =>
@@ -51,7 +52,8 @@ class ApiV1BaseResource extends ApiRequestContext {
           .threadName(threadStack.threadName)
           .threadState(threadStack.threadState.toString)
           .stackTrace(threadStack.stackTrace.elems.asJava)
-          .blockedByThreadId(threadStack.blockedByThreadId.getOrElse(null.asInstanceOf[Long]): Long)
+          .blockedByThreadId(
+            threadStack.blockedByThreadId.getOrElse(null).asInstanceOf[java.lang.Long])
           .blockedByLock(threadStack.blockedByLock)
           .holdingLocks(threadStack.holdingLocks.asJava)
       }.asJava)
