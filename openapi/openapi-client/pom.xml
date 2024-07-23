@@ -57,8 +57,28 @@
       <artifactId>jsr305</artifactId>
     </dependency>
     <dependency>
+      <groupId>jakarta.annotation</groupId>
+      <artifactId>jakarta.annotation-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.ws.rs</groupId>
+      <artifactId>jakarta.ws.rs-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish.hk2.external</groupId>
+      <artifactId>jakarta.inject</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.glassfish.jersey.core</groupId>
       <artifactId>jersey-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish.jersey.core</groupId>
+      <artifactId>jersey-common</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish.jersey.ext</groupId>
+      <artifactId>jersey-entity-filtering</artifactId>
     </dependency>
     <dependency>
       <groupId>org.glassfish.jersey.media</groupId>
@@ -67,6 +87,10 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
@@ -79,6 +103,10 @@
     <dependency>
       <groupId>org.glassfish.jersey.media</groupId>
       <artifactId>jersey-media-multipart</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.jvnet.mimepull</groupId>
+      <artifactId>mimepull</artifactId>
     </dependency>
   </dependencies>
 
@@ -190,6 +218,26 @@
               </sources>
             </configuration>
           </execution>
+          <!--
+          This is to ensure references to shaded classes can be resolved in IDEs such as Intellij.
+          For reference: https://youtrack.jetbrains.com/issue/IDEA-126596
+          -->
+          <execution>
+            <id>compile</id>
+            <goals>
+              <goal>attach-artifact</goal>
+            </goals>
+            <phase>package</phase>
+            <configuration>
+              <artifacts>
+                <artifact>
+                  <file>${basedir}/target/${project.artifactId}-${project.version}.jar</file>
+                  <type>jar</type>
+                  <classifier>optional</classifier>
+                </artifact>
+              </artifacts>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
       <plugin>
@@ -226,8 +274,36 @@
               <shadedPattern>${shading.prefix}.jakarta.validation</shadedPattern>
             </relocation>
             <relocation>
+              <pattern>javax.inject</pattern>
+              <shadedPattern>${shading.prefix}.javax.inject</shadedPattern>
+            </relocation>
+            <relocation>
               <pattern>javax.validation</pattern>
               <shadedPattern>${shading.prefix}.javax.validation</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>javax.ws.rs</pattern>
+              <shadedPattern>${shading.prefix}.javax.ws.rs</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>org.jvnet.mimepull</pattern>
+              <shadedPattern>${shading.prefix}.org.jvnet.mimepull</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>META-INF/versions/11/com/fasterxml/jackson</pattern>
+              <shadedPattern>META-INF/versions/11/org/apache/celeborn/shaded/com/fasterxml/jackson</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>META-INF/versions/17/com/fasterxml/jackson</pattern>
+              <shadedPattern>META-INF/versions/17/org/apache/celeborn/shaded/com/fasterxml/jackson</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>META-INF/versions/19/com/fasterxml/jackson</pattern>
+              <shadedPattern>META-INF/versions/19/org/apache/celeborn/shaded/com/fasterxml/jackson</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>META-INF/versions/11/org/glassfish/jersey</pattern>
+              <shadedPattern>META-INF/versions/11/org/apache/celeborn/shaded/org/glassfish/jersey</shadedPattern>
             </relocation>
           </relocations>
           <artifactSet>
@@ -237,11 +313,18 @@
               <include>org.openapitools:jackson-databind-nullable</include>
               <include>com.google.code.findbugs:jsr305</include>
               <include>org.glassfish.jersey.core:jersey-client</include>
+              <include>org.glassfish.jersey.core:jersey-common</include>
+              <include>org.glassfish.jersey.ext:jersey-entity-filtering</include>
               <include>org.glassfish.jersey.media:jersey-media-json-jackson</include>
               <include>com.fasterxml.jackson.core:jackson-annotations</include>
+              <include>com.fasterxml.jackson.core:jackson-core</include>
               <include>com.fasterxml.jackson.core:jackson-databind</include>
               <include>com.fasterxml.jackson.datatype:jackson-datatype-jsr310</include>
+              <include>jakarta.annotation:jakarta.annotation-api</include>
+              <include>jakarta.ws.rs:jakarta.ws.rs-api</include>
+              <include>org.glassfish.hk2.external:jakarta.inject</include>
               <include>org.glassfish.jersey.media:jersey-media-multipart</include>
+              <include>org.jvnet.mimepull:mimepull</include>
             </includes>
           </artifactSet>
           <filters>
@@ -252,8 +335,12 @@
                 <exclude>META-INF/*.DSA</exclude>
                 <exclude>META-INF/*.RSA</exclude>
                 <exclude>**/log4j.properties</exclude>
-                <exclude>META-INF/LICENSE.txt</exclude>
-                <exclude>META-INF/NOTICE.txt</exclude>
+                <exclude>META-INF/DEPENDENCIES</exclude>
+                <exclude>META-INF/*LICENSE*</exclude>
+                <exclude>META-INF/MANIFEST.MF</exclude>
+                <exclude>META-INF/native-image/**</exclude>
+                <exclude>META-INF/*NOTICE*</exclude>
+                <exclude>META-INF/**/module-info.class</exclude>
                 <exclude>LICENSE.txt</exclude>
                 <exclude>NOTICE.txt</exclude>
               </excludes>

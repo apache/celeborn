@@ -75,6 +75,10 @@ object Dependencies {
   val jerseyVersion = "2.39.1"
   val jettyVersion = "9.4.52.v20230823"
   val jakartaServeletApiVersion = "4.0.4"
+  val jakartaAnnotationApiVersion = "1.3.5"
+  val jakartaInjectVersion = "2.6.1"
+  val jakartaWsRsVersion = "2.1.6"
+  val mimepullVersion = "1.9.15"
   val openApiToolsJacksonBindNullableVersion = "0.2.6"
   val openApiToolsSwaggerVersion = "1.6.11"
 
@@ -162,11 +166,17 @@ object Dependencies {
   val jettyServlet = "org.eclipse.jetty" % "jetty-servlet" % jettyVersion excludeAll(
     ExclusionRule("javax.servlet", "javax.servlet-api"))
   val jettyProxy = "org.eclipse.jetty" % "jetty-proxy" % jettyVersion
+  val jakartaAnnotationApi = "jakarta.annotation" % "jakarta.annotation-api" % jakartaAnnotationApiVersion
+  val jakartaWsRsApi = "jakarta.ws.rs" % "jakarta.ws.rs-api" % jakartaWsRsVersion
   val jakartaServletApi = "jakarta.servlet" % "jakarta.servlet-api" % jakartaServeletApiVersion
+  val jakartaInject = "org.glassfish.hk2.external" % "jakarta.inject" % jakartaInjectVersion
   val jerseyServer = "org.glassfish.jersey.core" % "jersey-server" % jerseyVersion excludeAll(
     ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"))
   val jerseyClient = "org.glassfish.jersey.core" % "jersey-client" % jerseyVersion
+  val jerseyCommon = "org.glassfish.jersey.core" % "jersey-common" % jerseyVersion excludeAll(
+    ExclusionRule("com.sun.activation", "jakarta.activation"))
   val jerseyContainerServletCore = "org.glassfish.jersey.containers" % "jersey-container-servlet-core" % jerseyVersion
+  val jerseyEntifyFiltering = "org.glassfish.jersey.ext" % "jersey-entity-filtering" % jerseyVersion
   val jerseyHk2 = "org.glassfish.jersey.inject" % "jersey-hk2" % jerseyVersion
   val jerseyMediaJsonJackson = "org.glassfish.jersey.media" % "jersey-media-json-jackson" % jerseyVersion
   val jerseyMediaMultipart = "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyVersion
@@ -177,6 +187,7 @@ object Dependencies {
   val swaggerUi = "org.webjars" % "swagger-ui" % swaggerUiVersion
   val openApiToolsJacksonBindNullable = "org.openapitools" % "jackson-databind-nullable" % openApiToolsJacksonBindNullableVersion excludeAll(
     ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
+  val mipepull = "org.jvnet.mimepull" % "mimepull" % mimepullVersion
   val openApiToolsSwaggerAnnotations = "io.swagger" % "swagger-annotations" % openApiToolsSwaggerVersion
   val openApiToolsSwaggerModels = "io.swagger" % "swagger-models" % openApiToolsSwaggerVersion
 
@@ -1324,12 +1335,19 @@ object CelebornOpenApi {
         Dependencies.openApiToolsSwaggerModels,
         Dependencies.openApiToolsJacksonBindNullable,
         Dependencies.findbugsJsr305,
+        Dependencies.jakartaAnnotationApi,
+        Dependencies.jakartaWsRsApi,
+        Dependencies.jakartaInject,
         Dependencies.jerseyClient,
+        Dependencies.jerseyCommon,
+        Dependencies.jerseyEntifyFiltering,
         Dependencies.jerseyMediaJsonJackson,
         Dependencies.jacksonAnnotations,
+        Dependencies.jacksonCore,
         Dependencies.jacksonDatabind,
         Dependencies.jacksonDataTypeJsr310,
-        Dependencies.jerseyMediaMultipart
+        Dependencies.jerseyMediaMultipart,
+        Dependencies.mipepull,
       ),
       Compile / sourceGenerators += Def.task {
         traverseJavaSourceFiles(openApiClientOutputDir)
@@ -1367,10 +1385,17 @@ object CelebornOpenApi {
               name.startsWith("jackson-databind-") ||
               name.startsWith("jsr305-") ||
               name.startsWith("jersey-client-") ||
+              name.startsWith("jersey-common-") ||
+              name.startsWith("jersey-entity-filtering-") ||
               name.startsWith("jersey-media-json-jackson-") ||
               name.startsWith("jackson-annotations-") ||
+              name.startsWith("jackson-core-") ||
               name.startsWith("jackson-datatype-jsr310-") ||
-              name.startsWith("jersey-media-multipart-"))
+              name.startsWith("jakarta.annotation-api-") ||
+              name.startsWith("jakarta.ws.rs-api-") ||
+              name.startsWith("jakarta.inject-") ||
+              name.startsWith("jersey-media-multipart-")) ||
+              name.startsWith("mimepull-")
         }
       },
 
@@ -1382,11 +1407,18 @@ object CelebornOpenApi {
         ShadeRule.rename("org.glassfish.jersey.**" -> "org.apache.celeborn.shaded.org.glassfish.jersey.@1").inAll,
         ShadeRule.rename("com.fasterxml.jackson.**" -> "org.apache.celeborn.shaded.com.fasterxml.jackson.@1").inAll,
         ShadeRule.rename("jakarta.validation.**" -> "org.apache.celeborn.shaded.jakarta.validation.@1").inAll,
-        ShadeRule.rename("javax.validation.**" -> "org.apache.celeborn.shaded.javax.validation.@1").inAll
+        ShadeRule.rename("javax.inject.**" -> "org.apache.celeborn.shaded.javax.inject.@1").inAll,
+        ShadeRule.rename("javax.validation.**" -> "org.apache.celeborn.shaded.javax.validation.@1").inAll,
+        ShadeRule.rename("javax.ws.rs.**" -> "org.apache.celeborn.shaded.javax.ws.rs.@1").inAll,
+        ShadeRule.rename("org.jvnet.mimepull.**" -> "org.apache.celeborn.shaded.org.jvnet.mimepull.@1").inAll
       ),
 
       (assembly / assemblyMergeStrategy) := {
+        case m if m.toLowerCase(Locale.ROOT).endsWith("license") => MergeStrategy.discard
         case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+        case m if m.toLowerCase(Locale.ROOT).endsWith("module-info.class") => MergeStrategy.discard
+        case m if m.toLowerCase(Locale.ROOT).startsWith("meta-inf/native-image") => MergeStrategy.discard
+        case m if m.toLowerCase(Locale.ROOT).endsWith("notice") => MergeStrategy.discard
         case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
         case _ => MergeStrategy.first
       },

@@ -117,7 +117,11 @@
     <swagger-ui.version>4.9.1</swagger-ui.version>
     <jersey.version>2.39.1</jersey.version>
     <jetty.version>9.4.52.v20230823</jetty.version>
+    <jakarta.annotation-api.version>1.3.5</jakarta.annotation-api.version>
+    <jakarta.inject.version>2.6.1</jakarta.inject.version>
     <jakarta.servlet-api.version>4.0.4</jakarta.servlet-api.version>
+    <jakarta.ws.rs.version>2.1.6</jakarta.ws.rs.version>
+    <mimepull.version>1.9.15</mimepull.version>
     <!-- openapi-generator dependencies -->
     <openapitools.jackson-databind-nullable.version>0.2.6</openapitools.jackson-databind-nullable.version>
     <openapitools.swagger.version>1.6.11</openapitools.swagger.version>
@@ -492,6 +496,24 @@
       </dependency>
 
       <dependency>
+        <groupId>jakarta.annotation</groupId>
+        <artifactId>jakarta.annotation-api</artifactId>
+        <version>${jakarta.annotation-api.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>jakarta.ws.rs</groupId>
+        <artifactId>jakarta.ws.rs-api</artifactId>
+        <version>${jakarta.ws.rs.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.jvnet.mimepull</groupId>
+        <artifactId>mimepull</artifactId>
+        <version>${mimepull.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.openapitools</groupId>
         <artifactId>jackson-databind-nullable</artifactId>
         <version>${openapitools.jackson-databind-nullable.version}</version>
@@ -516,6 +538,12 @@
       </dependency>
 
       <dependency>
+        <groupId>org.glassfish.hk2.external</groupId>
+        <artifactId>jakarta.inject</artifactId>
+        <version>${jakarta.inject.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.glassfish.jersey.core</groupId>
         <artifactId>jersey-server</artifactId>
         <version>${jersey.version}</version>
@@ -528,8 +556,26 @@
       </dependency>
 
       <dependency>
+        <groupId>org.glassfish.jersey.core</groupId>
+        <artifactId>jersey-common</artifactId>
+        <version>${jersey.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.sun.activation</groupId>
+            <artifactId>jakarta.activation</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
         <groupId>org.glassfish.jersey.containers</groupId>
         <artifactId>jersey-container-servlet-core</artifactId>
+        <version>${jersey.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.glassfish.jersey.ext</groupId>
+        <artifactId>jersey-entity-filtering</artifactId>
         <version>${jersey.version}</version>
       </dependency>
 
