@@ -27,46 +27,32 @@
 
   <artifactId>celeborn-openapi-client_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn OpenApi Client</name>
+  <name>Celeborn OpenAPI Client</name>
 
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>org.glassfish.jersey.core</groupId>
-        <artifactId>jersey-client</artifactId>
-        <version>${jersey.version}</version>
+        <groupId>com.fasterxml.jackson.jaxrs</groupId>
+        <artifactId>jackson-jaxrs-json-provider</artifactId>
+        <version>${jackson.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>jakarta.activation</groupId>
+            <artifactId>jakarta.activation-api</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
     </dependencies>
   </dependencyManagement>
 
   <dependencies>
     <dependency>
-      <groupId>io.swagger</groupId>
-      <artifactId>swagger-annotations</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.swagger</groupId>
-      <artifactId>swagger-models</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.openapitools</groupId>
-      <artifactId>jackson-databind-nullable</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.google.code.findbugs</groupId>
-      <artifactId>jsr305</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.glassfish.jersey.core</groupId>
-      <artifactId>jersey-client</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.glassfish.jersey.media</groupId>
-      <artifactId>jersey-media-json-jackson</artifactId>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-annotations</artifactId>
+      <artifactId>jackson-core</artifactId>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
@@ -77,145 +63,53 @@
       <artifactId>jackson-datatype-jsr310</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.glassfish.jersey.media</groupId>
-      <artifactId>jersey-media-multipart</artifactId>
+      <groupId>com.fasterxml.jackson.jaxrs</groupId>
+      <artifactId>jackson-jaxrs-json-provider</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.code.findbugs</groupId>
+      <artifactId>jsr305</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.annotation</groupId>
+      <artifactId>jakarta.annotation-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents.client5</groupId>
+      <artifactId>httpclient5</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents.core5</groupId>
+      <artifactId>httpcore5</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents.core5</groupId>
+      <artifactId>httpcore5-h2</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.openapitools</groupId>
+      <artifactId>jackson-databind-nullable</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
     </dependency>
   </dependencies>
 
   <build>
     <plugins>
       <plugin>
-        <groupId>org.openapitools</groupId>
-        <artifactId>openapi-generator-maven-plugin</artifactId>
-        <!--
-        please keep the schema definitions consistent between master_rest_v1.yaml and worker_rest_v1.yaml
-        -->
-        <executions>
-          <execution>
-            <id>generate-java-master-rest-v1</id>
-            <goals>
-              <goal>generate</goal>
-            </goals>
-            <phase>generate-sources</phase>
-            <configuration>
-              <inputSpec>${project.basedir}/src/main/openapi3/master_rest_v1.yaml</inputSpec>
-              <output>${project.build.directory}/generated-sources/java</output>
-              <apiPackage>org.apache.celeborn.rest.v1.master</apiPackage>
-              <modelPackage>org.apache.celeborn.rest.v1.master.model</modelPackage>
-              <invokerPackage>org.apache.celeborn.rest.v1.master.invoker</invokerPackage>
-              <generatorName>java</generatorName>
-              <generateApiTests>false</generateApiTests>
-              <generateModelTests>false</generateModelTests>
-              <groupId>${groupId}</groupId>
-              <artifactId>${artifactId}</artifactId>
-              <artifactVersion>${project.version}</artifactVersion>
-              <addCompileSourceRoot>false</addCompileSourceRoot>
-              <cleanupOutput>true</cleanupOutput>
-              <configOptions>
-                <licenseName>Apache License 2.0</licenseName>
-                <groupId>${groupId}</groupId>
-                <artifactId>${artifactId}</artifactId>
-                <artifactVersion>${project.version}</artifactVersion>
-                <dateLibrary>java8</dateLibrary>
-                <useGzipFeature>true</useGzipFeature>
-                <!--
-                When using jdk11+, use the following line to generate native java code.
-                <library>native</library>
-                -->
-                <library>jersey2</library>
-                <!--
-                When upgrading openapi-generator to 7.x+, which does not support JDK8,
-                use the following line to annotations with io.swagger.core.v3:swagger-annotations.
-                <annotationLibrary>swagger2</annotationLibrary>
-                -->
-                <annotationLibrary>swagger1</annotationLibrary>
-              </configOptions>
-            </configuration>
-          </execution>
-          <execution>
-            <id>generate-java-worker-rest-v1</id>
-            <goals>
-              <goal>generate</goal>
-            </goals>
-            <phase>generate-sources</phase>
-            <configuration>
-              <inputSpec>${project.basedir}/src/main/openapi3/worker_rest_v1.yaml</inputSpec>
-              <output>${project.build.directory}/generated-sources/java</output>
-              <apiPackage>org.apache.celeborn.rest.v1.worker</apiPackage>
-              <modelPackage>org.apache.celeborn.rest.v1.worker.model</modelPackage>
-              <invokerPackage>org.apache.celeborn.rest.v1.worker.invoker</invokerPackage>
-              <generatorName>java</generatorName>
-              <generateApiTests>false</generateApiTests>
-              <generateModelTests>false</generateModelTests>
-              <groupId>${groupId}</groupId>
-              <artifactId>${artifactId}</artifactId>
-              <artifactVersion>${project.version}</artifactVersion>
-              <addCompileSourceRoot>false</addCompileSourceRoot>
-              <configOptions>
-                <licenseName>Apache License 2.0</licenseName>
-                <groupId>${groupId}</groupId>
-                <artifactId>${artifactId}</artifactId>
-                <artifactVersion>${project.version}</artifactVersion>
-                <dateLibrary>java8</dateLibrary>
-                <useGzipFeature>true</useGzipFeature>
-                <!--
-                When using jdk11+, use the following line to generate native java code.
-                <library>native</library>
-                -->
-                <library>jersey2</library>
-                <!--
-                When upgrading openapi-generator to 7.x+, which does not support JDK8,
-                use the following line to annotations with io.swagger.core.v3:swagger-annotations.
-                <annotationLibrary>swagger2</annotationLibrary>
-                -->
-                <annotationLibrary>swagger1</annotationLibrary>
-              </configOptions>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>add-source</id>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-            <phase>generate-sources</phase>
-            <configuration>
-              <sources>
-                <source>${project.build.directory}/generated-sources/java/src/main/java</source>
-              </sources>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <configuration>
           <relocations>
             <relocation>
-              <pattern>io.swagger</pattern>
-              <shadedPattern>${shading.prefix}.io.swagger</shadedPattern>
-            </relocation>
-            <relocation>
               <pattern>org.openapitools</pattern>
               <shadedPattern>${shading.prefix}.org.openapitools</shadedPattern>
             </relocation>
             <relocation>
-              <pattern>com.google</pattern>
-              <shadedPattern>${shading.prefix}.com.google</shadedPattern>
-            </relocation>
-            <relocation>
               <pattern>javax.annotation</pattern>
               <shadedPattern>${shading.prefix}.javax.annotation</shadedPattern>
-            </relocation>
-            <relocation>
-              <pattern>org.glassfish.jersey</pattern>
-              <shadedPattern>${shading.prefix}.org.glassfish.jersey</shadedPattern>
             </relocation>
             <relocation>
               <pattern>com.fasterxml.jackson</pattern>
@@ -229,19 +123,44 @@
               <pattern>javax.validation</pattern>
               <shadedPattern>${shading.prefix}.javax.validation</shadedPattern>
             </relocation>
+            <relocation>
+              <pattern>javax.ws.rs.ext</pattern>
+              <shadedPattern>${shading.prefix}.javax.ws.rs.ext</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>org.apache.hc</pattern>
+              <shadedPattern>${shading.prefix}.org.apache.hc</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>org.slf4j</pattern>
+              <shadedPattern>${shading.prefix}.org.slf4j</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>META-INF/versions/11/com/fasterxml/jackson</pattern>
+              <shadedPattern>META-INF/versions/11/org/apache/celeborn/shaded/com/fasterxml/jackson</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>META-INF/versions/17/com/fasterxml/jackson</pattern>
+              <shadedPattern>META-INF/versions/17/org/apache/celeborn/shaded/com/fasterxml/jackson</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>META-INF/versions/19/com/fasterxml/jackson</pattern>
+              <shadedPattern>META-INF/versions/19/org/apache/celeborn/shaded/com/fasterxml/jackson</shadedPattern>
+            </relocation>
           </relocations>
           <artifactSet>
             <includes>
-              <include>io.swagger:swagger-annotations</include>
-              <include>io.swagger:swagger-models</include>
-              <include>org.openapitools:jackson-databind-nullable</include>
-              <include>com.google.code.findbugs:jsr305</include>
-              <include>org.glassfish.jersey.core:jersey-client</include>
-              <include>org.glassfish.jersey.media:jersey-media-json-jackson</include>
               <include>com.fasterxml.jackson.core:jackson-annotations</include>
               <include>com.fasterxml.jackson.core:jackson-databind</include>
               <include>com.fasterxml.jackson.datatype:jackson-datatype-jsr310</include>
-              <include>org.glassfish.jersey.media:jersey-media-multipart</include>
+              <include>org.apache.httpcomponents.client5:httpclient5</include>
+              <include>org.apache.httpcomponents.core5:httpcore5</include>
+              <include>org.apache.httpcomponents.core5:httpcore5-h2</include>
+              <include>com.fasterxml.jackson.core:jackson-core</include>
+              <include>com.google.code.findbugs:jsr305</include>
+              <include>jakarta.annotation:jakarta.annotation-api</include>
+              <include>org.openapitools:jackson-databind-nullable</include>
+              <include>org.slf4j:slf4j-api</include>
             </includes>
           </artifactSet>
           <filters>
@@ -252,10 +171,14 @@
                 <exclude>META-INF/*.DSA</exclude>
                 <exclude>META-INF/*.RSA</exclude>
                 <exclude>**/log4j.properties</exclude>
-                <exclude>META-INF/LICENSE.txt</exclude>
-                <exclude>META-INF/NOTICE.txt</exclude>
+                <exclude>META-INF/DEPENDENCIES</exclude>
+                <exclude>META-INF/*LICENSE*</exclude>
+                <exclude>META-INF/MANIFEST.MF</exclude>
+                <exclude>META-INF/*NOTICE*</exclude>
+                <exclude>META-INF/**/module-info.class</exclude>
                 <exclude>LICENSE.txt</exclude>
                 <exclude>NOTICE.txt</exclude>
+                <exclude>mozilla/*.txt</exclude>
               </excludes>
             </filter>
           </filters>
@@ -264,6 +187,140 @@
           </transformers>
         </configuration>
       </plugin>
+      <!--
+      This is to ensure references to shaded classes can be resolved in IDEs such as Intellij.
+      For reference: https://youtrack.jetbrains.com/issue/IDEA-126596
+      -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>compile</id>
+            <goals>
+              <goal>attach-artifact</goal>
+            </goals>
+            <phase>package</phase>
+            <configuration>
+              <artifacts>
+                <artifact>
+                  <file>${basedir}/target/${project.artifactId}-${project.version}.jar</file>
+                  <type>jar</type>
+                  <classifier>optional</classifier>
+                </artifact>
+              </artifacts>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>openapi-generate</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.openapitools</groupId>
+            <artifactId>openapi-generator-maven-plugin</artifactId>
+            <!--
+            please keep the schema definitions consistent between master_rest_v1.yaml and worker_rest_v1.yaml
+            -->
+            <executions>
+              <execution>
+                <id>generate-java-master-rest-v1</id>
+                <goals>
+                  <goal>generate</goal>
+                </goals>
+                <phase>generate-sources</phase>
+                <configuration>
+                  <inputSpec>${project.basedir}/src/main/openapi3/master_rest_v1.yaml</inputSpec>
+                  <output>${project.build.directory}/generated-sources/java</output>
+                  <apiPackage>org.apache.celeborn.rest.v1.master</apiPackage>
+                  <modelPackage>org.apache.celeborn.rest.v1.model</modelPackage>
+                  <invokerPackage>org.apache.celeborn.rest.v1.master.invoker</invokerPackage>
+                  <generatorName>java</generatorName>
+                  <generateApiTests>false</generateApiTests>
+                  <generateModelTests>false</generateModelTests>
+                  <groupId>${groupId}</groupId>
+                  <artifactId>${artifactId}</artifactId>
+                  <artifactVersion>${project.version}</artifactVersion>
+                  <addCompileSourceRoot>false</addCompileSourceRoot>
+                  <cleanupOutput>true</cleanupOutput>
+                  <configOptions>
+                    <licenseName>Apache License 2.0</licenseName>
+                    <groupId>${groupId}</groupId>
+                    <artifactId>${artifactId}</artifactId>
+                    <artifactVersion>${project.version}</artifactVersion>
+                    <dateLibrary>java8</dateLibrary>
+                    <useGzipFeature>true</useGzipFeature>
+                    <library>apache-httpclient</library>
+                    <hideGenerationTimestamp>true</hideGenerationTimestamp>
+                    <supportUrlQuery>false</supportUrlQuery>
+                    <annotationLibrary>none</annotationLibrary>
+                  </configOptions>
+                </configuration>
+              </execution>
+              <execution>
+                <id>generate-java-worker-rest-v1</id>
+                <goals>
+                  <goal>generate</goal>
+                </goals>
+                <phase>generate-sources</phase>
+                <configuration>
+                  <inputSpec>${project.basedir}/src/main/openapi3/worker_rest_v1.yaml</inputSpec>
+                  <output>${project.build.directory}/generated-sources/java</output>
+                  <apiPackage>org.apache.celeborn.rest.v1.worker</apiPackage>
+                  <modelPackage>org.apache.celeborn.rest.v1.model</modelPackage>
+                  <invokerPackage>org.apache.celeborn.rest.v1.worker.invoker</invokerPackage>
+                  <generatorName>java</generatorName>
+                  <generateApiTests>false</generateApiTests>
+                  <generateModelTests>false</generateModelTests>
+                  <groupId>${groupId}</groupId>
+                  <artifactId>${artifactId}</artifactId>
+                  <artifactVersion>${project.version}</artifactVersion>
+                  <addCompileSourceRoot>false</addCompileSourceRoot>
+                  <configOptions>
+                    <licenseName>Apache License 2.0</licenseName>
+                    <groupId>${groupId}</groupId>
+                    <artifactId>${artifactId}</artifactId>
+                    <artifactVersion>${project.version}</artifactVersion>
+                    <dateLibrary>java8</dateLibrary>
+                    <useGzipFeature>true</useGzipFeature>
+                    <library>apache-httpclient</library>
+                    <hideGenerationTimestamp>true</hideGenerationTimestamp>
+                    <supportUrlQuery>false</supportUrlQuery>
+                    <annotationLibrary>none</annotationLibrary>
+                  </configOptions>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-resources-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>copy-resources</id>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
+                <phase>generate-resources</phase>
+                <configuration>
+                  <outputDirectory>${project.basedir}/src/main/java</outputDirectory>
+                  <overwrite>true</overwrite>
+                  <resources>
+                    <resource>
+                      <directory>${project.basedir}/target/generated-sources/java/src/main/java</directory>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
