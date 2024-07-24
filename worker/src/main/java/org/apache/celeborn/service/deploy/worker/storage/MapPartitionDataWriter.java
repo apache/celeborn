@@ -26,7 +26,6 @@ import java.util.Arrays;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,8 +53,6 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
   private long regionStartingOffset;
   private FileChannel indexChannel;
   private volatile boolean isRegionFinished = true;
-
-  private FileSystem hadoopFs;
 
   public MapPartitionDataWriter(
       StorageManager storageManager,

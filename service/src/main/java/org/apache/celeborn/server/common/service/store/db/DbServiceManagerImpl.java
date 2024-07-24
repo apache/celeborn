@@ -67,8 +67,9 @@ public class DbServiceManagerImpl implements IServiceManager {
     if (clusterInfoFromDB == null) {
       try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) {
         ClusterInfoMapper mapper = sqlSession.getMapper(ClusterInfoMapper.class);
-        clusterInfo.setGmtCreate(Instant.now());
-        clusterInfo.setGmtModify(Instant.now());
+        Instant now = Instant.now();
+        clusterInfo.setGmtCreate(now);
+        clusterInfo.setGmtModify(now);
         mapper.insert(clusterInfo);
         LOG.info("Create cluster {} successfully.", JsonUtils.toJson(clusterInfo));
       } catch (Exception e) {

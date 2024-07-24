@@ -19,6 +19,10 @@ package org.apache.celeborn.server.common.service.config;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
 
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -28,13 +32,17 @@ import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.server.common.service.config.DynamicConfig.ConfigType;
+import org.apache.celeborn.server.common.service.model.ClusterInfo;
+import org.apache.celeborn.server.common.service.store.IServiceManager;
 import org.apache.celeborn.server.common.service.store.db.DBSessionFactory;
 
 public class ConfigServiceSuiteJ {
   private ConfigService configService;
+  private static final ThreadLocal<DateFormat> DATE_FORMAT =
+      ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"));
 
   @Test
-  public void testDbConfig() throws IOException {
+  public void testDbConfig() throws IOException, ParseException {
     CelebornConf celebornConf = new CelebornConf();
     celebornConf.set(
         CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_JDBC_URL(),
@@ -61,6 +69,10 @@ public class ConfigServiceSuiteJ {
 
     configService.refreshCache();
     verifyConfigChanged(configService);
+    verifyServiceManager(
+        ((DbConfigServiceImpl) configService).getServiceManager(),
+        celebornConf,
+        DATE_FORMAT.get().parse("2023-08-26 22:08:30").toInstant());
   }
 
   @Test
@@ -287,5 +299,12 @@ public class ConfigServiceSuiteJ {
             Long.TYPE,
             ConfigType.BYTES);
     Assert.assertEquals(value.longValue(), 1073741824);
+  }
+
+  public void verifyServiceManager(
+      IServiceManager serviceManager, CelebornConf celebornConf, Instant gmtTime) {
+    ClusterInfo clusterInfo = serviceManager.getClusterInfo(celebornConf.clusterName());
+    Assert.assertEquals(gmtTime, clusterInfo.getGmtCreate());
+    Assert.assertEquals(gmtTime, clusterInfo.getGmtModify());
   }
 }
