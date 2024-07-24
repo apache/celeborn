@@ -19,6 +19,7 @@ package org.apache.celeborn.client;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -34,6 +35,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
+import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.util.CelebornHadoopUtils;
 import org.apache.celeborn.common.util.ExceptionMaker;
@@ -47,7 +49,7 @@ public abstract class ShuffleClient {
   private static Logger logger = LoggerFactory.getLogger(ShuffleClient.class);
   private static volatile ShuffleClient _instance;
   private static volatile boolean initialized = false;
-  private static volatile FileSystem hdfsFs;
+  private static volatile Map<StorageInfo.Type, FileSystem> hadoopFs;
   private static LongAdder totalReadCounter = new LongAdder();
   private static LongAdder localShuffleReadCounter = new LongAdder();
 
@@ -55,7 +57,7 @@ public abstract class ShuffleClient {
   public static void reset() {
     _instance = null;
     initialized = false;
-    hdfsFs = null;
+    hadoopFs = null;
   }
 
   protected ShuffleClient() {}
@@ -101,19 +103,19 @@ public abstract class ShuffleClient {
     return _instance;
   }
 
-  public static FileSystem getHdfsFs(CelebornConf conf) {
-    if (null == hdfsFs) {
+  public static Map<StorageInfo.Type, FileSystem> getHadoopFs(CelebornConf conf) {
+    if (null == hadoopFs) {
       synchronized (ShuffleClient.class) {
-        if (null == hdfsFs) {
+        if (null == hadoopFs) {
           try {
-            hdfsFs = CelebornHadoopUtils.getHadoopFS(conf);
+            hadoopFs = CelebornHadoopUtils.getHadoopFS(conf);
           } catch (Exception e) {
-            logger.error("Celeborn initialize HDFS failed.", e);
+            logger.error("Celeborn initialize DFS failed.", e);
           }
         }
       }
     }
-    return hdfsFs;
+    return hadoopFs;
   }
 
   public static void incrementLocalReadCounter() {

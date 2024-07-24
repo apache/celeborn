@@ -20,6 +20,8 @@ package org.apache.celeborn.common.util
 import java.io.{File, IOException}
 import java.util.concurrent.atomic.AtomicBoolean
 
+import scala.collection.JavaConverters._
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.security.UserGroupInformation
@@ -27,6 +29,7 @@ import org.apache.hadoop.security.UserGroupInformation
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.protocol.StorageInfo
 
 object CelebornHadoopUtils extends Logging {
   private var logPrinted = new AtomicBoolean(false)
@@ -46,6 +49,20 @@ object CelebornHadoopUtils extends Logging {
             "prefix 'celeborn.hadoop.', e.g. 'celeborn.hadoop.dfs.replication=3'")
       }
     }
+
+    if (conf.s3Dir.nonEmpty) {
+      if (conf.s3AccessKey.isEmpty || conf.s3SecretKey.isEmpty || conf.s3Endpoint.isEmpty) {
+        throw new CelebornException(
+          "S3 storage is enabled but s3AccessKey, s3SecretKey, or s3Endpoint is not set")
+      }
+      hadoopConf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+      hadoopConf.set(
+        "fs.s3a.aws.credentials.provider",
+        "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
+      hadoopConf.set("fs.s3a.access.key", conf.s3AccessKey)
+      hadoopConf.set("fs.s3a.secret.key", conf.s3SecretKey)
+      hadoopConf.set("fs.s3a.endpoint", conf.s3Endpoint)
+    }
     appendSparkHadoopConfigs(conf, hadoopConf)
     hadoopConf
   }
@@ -57,22 +74,31 @@ object CelebornHadoopUtils extends Logging {
     }
   }
 
-  def getHadoopFS(conf: CelebornConf): FileSystem = {
+  def getHadoopFS(conf: CelebornConf): java.util.Map[StorageInfo.Type, FileSystem] = {
     val hadoopConf = newConfiguration(conf)
     initKerberos(conf, hadoopConf)
-    new Path(conf.hdfsDir).getFileSystem(hadoopConf)
+    val hadoopFs = new java.util.HashMap[StorageInfo.Type, FileSystem]()
+    if (conf.hasHDFSStorage) {
+      val hdfsDir = new Path(conf.hdfsDir)
+      hadoopFs.put(StorageInfo.Type.HDFS, hdfsDir.getFileSystem(hadoopConf))
+    }
+    if (conf.hasS3Storage) {
+      val s3Dir = new Path(conf.s3Dir)
+      hadoopFs.put(StorageInfo.Type.S3, s3Dir.getFileSystem(hadoopConf))
+    }
+    hadoopFs
   }
 
-  def deleteHDFSPathOrLogError(hadoopFs: FileSystem, path: Path, recursive: Boolean): Unit = {
+  def deleteDFSPathOrLogError(hadoopFs: FileSystem, path: Path, recursive: Boolean): Unit = {
     try {
       val startTime = System.currentTimeMillis()
       hadoopFs.delete(path, recursive)
       logInfo(
-        s"Delete HDFS ${path}(recursive=$recursive) costs " +
+        s"Delete DFS ${path}(recursive=$recursive) costs " +
           Utils.msDurationToString(System.currentTimeMillis() - startTime))
     } catch {
       case e: IOException =>
-        logError(s"Failed to delete HDFS ${path}(recursive=$recursive) due to: ", e)
+        logError(s"Failed to delete DFS ${path}(recursive=$recursive) due to: ", e)
     }
   }
 

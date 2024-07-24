@@ -71,7 +71,6 @@
 
     <!-- use hadoop-3 as default  -->
     <hadoop.version>3.3.6</hadoop.version>
-
     <!--
     If you change codahale.metrics.version, you also need to change
     the link to metrics.dropwizard.io in docs/monitoring.md.
@@ -1280,6 +1279,25 @@
               <artifactId>leveldbjni-all</artifactId>
             </exclusion>
           </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>hadoop-aws</id>
+      <properties>
+        <hadoop-aws-deps>true</hadoop-aws-deps>
+        <aws.version>1.12.367</aws.version>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-aws</artifactId>
+          <version>${hadoop.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-bundle</artifactId>
+          <version>${aws.version}</version>
         </dependency>
       </dependencies>
     </profile>

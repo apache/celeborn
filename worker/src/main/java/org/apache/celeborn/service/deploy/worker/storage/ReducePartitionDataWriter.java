@@ -88,17 +88,14 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
             },
             () -> {
               if (diskFileInfo != null) {
-                if (diskFileInfo.isHdfs()) {
-                  if (StorageManager.hadoopFs()
-                      .exists(diskFileInfo.getHdfsPeerWriterSuccessPath())) {
-                    StorageManager.hadoopFs().delete(diskFileInfo.getHdfsPath(), false);
+                if (diskFileInfo.isDFS()) {
+                  if (hadoopFs.exists(diskFileInfo.getDfsPeerWriterSuccessPath())) {
+                    hadoopFs.delete(diskFileInfo.getDfsPath(), false);
                     deleted = true;
                   } else {
-                    StorageManager.hadoopFs()
-                        .create(diskFileInfo.getHdfsWriterSuccessPath())
-                        .close();
+                    hadoopFs.create(diskFileInfo.getDfsWriterSuccessPath()).close();
                     FSDataOutputStream indexOutputStream =
-                        StorageManager.hadoopFs().create(diskFileInfo.getHdfsIndexPath());
+                        hadoopFs.create(diskFileInfo.getDfsIndexPath());
                     indexOutputStream.writeInt(
                         (diskFileInfo.getReduceFileMeta()).getChunkOffsets().size());
                     for (Long offset : (diskFileInfo.getReduceFileMeta()).getChunkOffsets()) {

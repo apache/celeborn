@@ -26,7 +26,9 @@ public class StorageInfo implements Serializable {
     HDD(1),
     SSD(2),
     HDFS(3),
-    OSS(4);
+    OSS(4),
+    S3(5);
+
     private final int value;
 
     Type(int value) {
@@ -54,6 +56,7 @@ public class StorageInfo implements Serializable {
   public static final int LOCAL_DISK_MASK = 0b10;
   public static final int HDFS_MASK = 0b100;
   public static final int OSS_MASK = 0b1000;
+  public static final int S3_MASK = 0b10000;
   public static final int ALL_TYPES_AVAILABLE_MASK = 0;
 
   // Default storage Type is MEMORY.
@@ -162,13 +165,26 @@ public class StorageInfo implements Serializable {
     return StorageInfo.HDFSOnly(availableStorageTypes);
   }
 
+  public static boolean S3Only(int availableStorageTypes) {
+    return availableStorageTypes == S3_MASK;
+  }
+
   public static boolean OSSAvailable(int availableStorageTypes) {
     return availableStorageTypes == ALL_TYPES_AVAILABLE_MASK
         || (availableStorageTypes & OSS_MASK) > 0;
   }
 
+  public static boolean S3Available(int availableStorageTypes) {
+    return availableStorageTypes == ALL_TYPES_AVAILABLE_MASK
+        || (availableStorageTypes & S3_MASK) > 0;
+  }
+
   public boolean OSSAvailable() {
     return StorageInfo.OSSAvailable(availableStorageTypes);
+  }
+
+  public boolean S3Available() {
+    return StorageInfo.S3Available(availableStorageTypes);
   }
 
   @Override
@@ -231,6 +247,9 @@ public class StorageInfo implements Serializable {
           break;
         case OSS:
           ava = ava | OSS_MASK;
+          break;
+        case S3:
+          ava = ava | S3_MASK;
           break;
       }
     }

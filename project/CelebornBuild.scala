@@ -49,6 +49,7 @@ object Dependencies {
   val findbugsVersion = "1.3.9"
   val guavaVersion = "33.1.0-jre"
   val hadoopVersion = "3.3.6"
+  val awsVersion = "1.12.367"
   val junitInterfaceVersion = "0.13.3"
   // don't forget update `junitInterfaceVersion` when we upgrade junit
   val junitVersion = "4.13.2"
@@ -110,6 +111,8 @@ object Dependencies {
     ExclusionRule("jline", "jline"),
     ExclusionRule("log4j", "log4j"),
     ExclusionRule("org.slf4j", "slf4j-log4j12"))
+  val hadoopAws = "org.apache.hadoop" % "hadoop-aws" % hadoopVersion
+  val awsClient = "com.amazonaws" % "aws-java-sdk-bundle" % awsVersion
   val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion
   val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion excludeAll (
     ExclusionRule("com.rabbitmq", "amqp-client"))
@@ -442,6 +445,13 @@ object Utils {
 }
 
 object CelebornCommon {
+
+  lazy val hadoopAwsDependencies = if(profiles.exists(_.startsWith("hadoop-aws"))){
+    Seq(Dependencies.hadoopAws, Dependencies.awsClient)
+  } else {
+    Seq.empty
+  }
+
   lazy val common = Project("celeborn-common", file("common"))
     .settings (
       commonSettings,
@@ -478,7 +488,7 @@ object CelebornCommon {
         // SSL support
         Dependencies.bouncycastleBcprovJdk18on,
         Dependencies.bouncycastleBcpkixJdk18on
-      ) ++ commonUnitTestDependencies,
+      ) ++ commonUnitTestDependencies ++ hadoopAwsDependencies,
 
       Compile / sourceGenerators += Def.task {
         val file = (Compile / sourceManaged).value / "org" / "apache" / "celeborn" / "package.scala"
