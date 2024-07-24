@@ -33,6 +33,7 @@
   <modules>
     <module>openapi/openapi-client</module>
     <module>openapi/openapi-model</module>
+    <module>spi</module>
     <module>common</module>
     <module>client</module>
     <module>service</module>
