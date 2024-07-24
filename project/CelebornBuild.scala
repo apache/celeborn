@@ -446,7 +446,11 @@ object Utils {
 }
 
 object CelebornSpi {
-  lazy val spi = Project("celeborn-spi", file("spi")).settings(releaseSettings)
+  lazy val spi = Project("celeborn-spi", file("spi")).
+    settings(
+      commonSettings,
+      releaseSettings
+    )
 }
 
 object CelebornCommon {

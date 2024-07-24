@@ -20,9 +20,10 @@ package org.apache.celeborn.server.common.http.authentication
 import java.security.Principal
 import javax.security.sasl.AuthenticationException
 
-import org.apache.celeborn.common.authentication.{BasicPrincipal, Credential, TokenCredential}
+import org.apache.celeborn.common.authentication.BasicPrincipal
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.authentication.UserDefineTokenAuthenticationProviderImpl.VALID_TOKEN
+import org.apache.celeborn.spi.authentication.{Credential, TokenAuthenticationProvider, TokenCredential}
 
 class UserDefineTokenAuthenticationProviderImpl extends TokenAuthenticationProvider with Logging {
   override def authenticate(credential: TokenCredential): Principal = {
