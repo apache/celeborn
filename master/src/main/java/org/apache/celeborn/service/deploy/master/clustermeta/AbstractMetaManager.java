@@ -468,6 +468,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     } else {
       estimatedPartitionSize = initialEstimatedPartitionSize;
     }
+
+    // Do not trigger update is estimated partition size value is unchanged
+    if (estimatedPartitionSize == oldEstimatedPartitionSize) {
+      return;
+    }
+
     LOG.warn(
         "Celeborn cluster estimated partition size changed from {} to {}",
         Utils.bytesToString(oldEstimatedPartitionSize),
