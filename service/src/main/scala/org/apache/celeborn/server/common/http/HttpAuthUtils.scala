@@ -17,8 +17,8 @@
 
 package org.apache.celeborn.server.common.http
 
-import org.apache.celeborn.common.authentication.Credential
 import org.apache.celeborn.server.common.http.authentication.AuthenticationFilter
+import org.apache.celeborn.spi.authentication.Credential
 
 object HttpAuthUtils {
   // HTTP header used by the server endpoint during an authentication sequence.

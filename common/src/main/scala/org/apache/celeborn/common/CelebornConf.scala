@@ -2298,7 +2298,7 @@ object CelebornConf extends Logging {
       .categories("master")
       .version("0.6.0")
       .doc("User-defined password authentication implementation of " +
-        "org.apache.celeborn.common.authentication.PasswdAuthenticationProvider")
+        "org.apache.celeborn.spi.authentication.PasswdAuthenticationProvider")
       .stringConf
       .createWithDefault(classOf[AnonymousAuthenticationProviderImpl].getName)
 
@@ -2307,7 +2307,7 @@ object CelebornConf extends Logging {
       .categories("master")
       .version("0.6.0")
       .doc("User-defined token authentication implementation of " +
-        "org.apache.celeborn.common.authentication.TokenAuthenticationProvider")
+        "org.apache.celeborn.spi.authentication.TokenAuthenticationProvider")
       .stringConf
       .createWithDefault(classOf[AnonymousAuthenticationProviderImpl].getName)
 

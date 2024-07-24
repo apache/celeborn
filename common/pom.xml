@@ -31,6 +31,11 @@
 
   <dependencies>
     <dependency>
+      <groupId>org.apache.celeborn</groupId>
+      <artifactId>celeborn-spi_${scala.binary.version}</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-core</artifactId>
     </dependency>

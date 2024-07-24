@@ -22,11 +22,12 @@ import java.util.Base64
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.authentication.{AnonymousAuthenticationProviderImpl, DefaultPasswordCredential, PasswdAuthenticationProvider}
+import org.apache.celeborn.common.authentication.{AnonymousAuthenticationProviderImpl, DefaultPasswordCredential}
 import org.apache.celeborn.common.authentication.HttpAuthSchemes._
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.HttpAuthUtils
 import org.apache.celeborn.server.common.http.HttpAuthUtils.{AUTHORIZATION_HEADER, WWW_AUTHENTICATE_HEADER}
+import org.apache.celeborn.spi.authentication.PasswdAuthenticationProvider
 
 class BasicAuthenticationHandler(providerClass: String) extends AuthenticationHandler with Logging {
 

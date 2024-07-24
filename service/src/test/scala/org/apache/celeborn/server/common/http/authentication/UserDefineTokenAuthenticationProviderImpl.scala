@@ -20,7 +20,7 @@ package org.apache.celeborn.server.common.http.authentication
 import java.security.Principal
 import javax.security.sasl.AuthenticationException
 
-import org.apache.celeborn.common.authentication.{BasicPrincipal, Credential, TokenAuthenticationProvider, TokenCredential}
+import org.apache.celeborn.common.authentication.{BasicPrincipal, Credential, TokenCredential}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.authentication.UserDefineTokenAuthenticationProviderImpl.VALID_TOKEN
 

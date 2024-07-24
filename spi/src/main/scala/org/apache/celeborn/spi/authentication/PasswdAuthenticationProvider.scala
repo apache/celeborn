@@ -20,6 +20,7 @@ package org.apache.celeborn.spi.authentication
 import java.security.Principal
 
 trait PasswdAuthenticationProvider {
+
   /**
    * The authenticate method is called by the celeborn authentication layer
    * to authenticate password credential for their requests.
