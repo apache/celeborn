@@ -36,26 +36,47 @@ class AppDiskUsageMetricSuite extends AnyFunSuite
   val WORKER2 = new WorkerInfo("host2", 211, 212, 213, 214)
   val WORKER3 = new WorkerInfo("host3", 311, 312, 313, 314)
 
+  def verifySnapShotOutput(snapShot: AppDiskUsageSnapShot, capacity: Int, appCount: Int): Unit = {
+    val topNItemsEstimatedUsage = snapShot.topNItems
+      .filter(usage => usage != null)
+      .map(_.estimatedUsage)
+
+    assert(snapShot.topItemCount == capacity)
+    assert(topNItemsEstimatedUsage.length == appCount)
+    assert(topNItemsEstimatedUsage sameElements topNItemsEstimatedUsage.sorted.reverse)
+  }
+
   test("test snapshot ordering") {
+    val snapShot = new AppDiskUsageSnapShot(50)
+    val rand = new Random()
+    for (i <- 1 to 5) {
+      snapShot.updateAppDiskUsage(s"app-${i}", rand.nextInt(100000000) + 1)
+    }
+
+    verifySnapShotOutput(snapShot, 50, 5)
+  }
+
+  test("test snapshot ordering with capacity") {
     val snapShot = new AppDiskUsageSnapShot(50)
     val rand = new Random()
     for (i <- 1 to 60) {
       snapShot.updateAppDiskUsage(s"app-${i}", rand.nextInt(100000000) + 1)
     }
-    println(snapShot.toString)
+
+    verifySnapShotOutput(snapShot, 50, 50)
   }
 
   test("test snapshot ordering with duplicate entries") {
     val snapShot = new AppDiskUsageSnapShot(50)
     val rand = new Random()
-    for (i <- 1 to 60) {
+    for (i <- 1 to 10) {
       snapShot.updateAppDiskUsage(s"app-${i}", rand.nextInt(100000000) + 1)
     }
-    for (i <- 1 to 15) {
+    for (i <- 1 to 10) {
       snapShot.updateAppDiskUsage(s"app-${i}", rand.nextInt(100000000) + 1000000000)
     }
 
-    println(snapShot.toString)
+    verifySnapShotOutput(snapShot, 50, 10)
   }
 
   test("test app usage snapshot") {
