@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -34,6 +35,7 @@ import javax.net.ssl.TrustManager;
 import scala.Tuple2;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.net.InetAddresses;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.ratis.RaftConfigKeys;
 import org.apache.ratis.client.RaftClientConfigKeys;
@@ -172,6 +174,22 @@ public class HARaftServer {
         TimeUnit.MILLISECONDS);
   }
 
+  // copy of org.apache.ratis.util.NetUtils.address2String https://github.com/apache/ratis/pull/1125
+  private static String address2String(InetSocketAddress address) {
+    if (address == null) {
+      return null;
+    }
+    String hostName = address.getHostName();
+    final StringBuilder b = new StringBuilder(hostName);
+    // Surround with '[', ']' only if it is a IPv6 ip - not for a IPv6 host
+    if (address.getAddress() instanceof Inet6Address
+        && InetAddresses.isInetAddress(hostName)
+        && InetAddresses.forString(hostName).getAddress().length == 16) {
+      b.insert(0, '[').append(']');
+    }
+    return b.append(':').append(address.getPort()).toString();
+  }
+
   public static HARaftServer newMasterRatisServer(
       MetaHandler metaHandler, CelebornConf conf, MasterNode localNode, List<MasterNode> peerNodes)
       throws IOException {
@@ -182,7 +200,7 @@ public class HARaftServer {
     RaftPeer localRaftPeer =
         RaftPeer.newBuilder()
             .setId(localRaftPeerId)
-            .setAddress(ratisAddr)
+            .setAddress(address2String(ratisAddr))
             .setClientAddress(localNode.rpcEndpoint())
             // We use admin address to host the internal rpc address
             .setAdminAddress(localNode.internalRpcEndpoint())
@@ -209,7 +227,7 @@ public class HARaftServer {
             raftPeer =
                 RaftPeer.newBuilder()
                     .setId(raftPeerId)
-                    .setAddress(peerRatisAddr)
+                    .setAddress(address2String(peerRatisAddr))
                     .setClientAddress(peer.rpcEndpoint())
                     // We use admin address to host the internal rpc address
                     .setAdminAddress(peer.internalRpcEndpoint())
