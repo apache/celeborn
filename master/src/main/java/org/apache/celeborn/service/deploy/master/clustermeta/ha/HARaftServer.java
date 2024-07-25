@@ -174,7 +174,7 @@ public class HARaftServer {
         TimeUnit.MILLISECONDS);
   }
 
-  // copy of org.apache.ratis.util.NetUtils.address2String https://github.com/apache/ratis/pull/1125
+  // copy of org.apache.ratis.util.NetUtils.address2String
   private static String address2String(InetSocketAddress address) {
     if (address == null) {
       return null;
@@ -200,6 +200,8 @@ public class HARaftServer {
     RaftPeer localRaftPeer =
         RaftPeer.newBuilder()
             .setId(localRaftPeerId)
+            // TODO(CELEBORN-1525): Once Ratis 3.2.0 is released and we move to it, we
+            // should remove address2String and change this to .setAddress(ratisAddr)
             .setAddress(address2String(ratisAddr))
             .setClientAddress(localNode.rpcEndpoint())
             // We use admin address to host the internal rpc address
