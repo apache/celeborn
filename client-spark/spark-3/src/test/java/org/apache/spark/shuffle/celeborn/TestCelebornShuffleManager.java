@@ -17,6 +17,9 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
 import org.apache.spark.shuffle.ShuffleHandle;
@@ -33,6 +36,24 @@ public class TestCelebornShuffleManager extends SparkShuffleManager {
 
   public static void registerReaderGetHook(ShuffleManagerHook hook) {
     shuffleReaderGetHook = hook;
+  }
+
+  private static ExecutorShuffleIdTracker executorShuffleIdTracker = null;
+  private static AtomicBoolean initShuffleIdTracker = new AtomicBoolean(false);
+
+  public static void staticRegisterExecutorShuffleIdTracker(ExecutorShuffleIdTracker tracker) {
+    executorShuffleIdTracker = tracker;
+    initShuffleIdTracker.set(false);
+  }
+
+  @Override
+  public <K, V, C> ShuffleHandle registerShuffle(
+      int shuffleId, ShuffleDependency<K, V, C> dependency) {
+    if (executorShuffleIdTracker != null && !initShuffleIdTracker.get()) {
+      super.registerExecutorShuffleIdTracker(executorShuffleIdTracker);
+      initShuffleIdTracker.set(true);
+    }
+    return super.registerShuffle(shuffleId, dependency);
   }
 
   @Override

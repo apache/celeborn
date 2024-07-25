@@ -20,11 +20,15 @@ package org.apache.celeborn.tests.spark
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
-import org.apache.spark.{SparkConf, SparkContextHelper, TaskContext}
+import scala.concurrent.duration.DurationInt
+
+import org.apache.spark.{BarrierTaskContext, ShuffleDependency, SparkConf, SparkContextHelper, TaskContext, TaskKilledException}
+import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskStart}
 import org.apache.spark.shuffle.ShuffleHandle
-import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
+import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ExecutorShuffleIdTracker, ShuffleManagerHook, SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
+import org.scalatest.concurrent.Eventually
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
@@ -34,7 +38,8 @@ import org.apache.celeborn.service.deploy.worker.Worker
 
 class CelebornFetchFailureSuite extends AnyFunSuite
   with SparkTestBase
-  with BeforeAndAfterEach {
+  with BeforeAndAfterEach
+  with Eventually {
 
   override def beforeEach(): Unit = {
     ShuffleClient.reset()
@@ -296,5 +301,76 @@ class CelebornFetchFailureSuite extends AnyFunSuite
 
       sparkSession.stop()
     }
+  }
+
+  test(
+    "celeborn spark integration test - resubmit a barrier stage and do not reuse the shuffle id") {
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+    val sparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .config("spark.sql.shuffle.partitions", 2)
+      .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+      .config("spark.celeborn.shuffle.enabled", "true")
+      .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+      .config(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+      .getOrCreate()
+
+    val tracker = new ExecutorShuffleIdTracker {
+      override def unregisterAppShuffleId(shuffleClient: ShuffleClient, appShuffleId: Int): Unit = {
+        // do not clean up shuffle ids for this test
+      }
+    }
+    TestCelebornShuffleManager.staticRegisterExecutorShuffleIdTracker(tracker)
+
+    val sc = sparkSession.sparkContext
+    val listener = new SparkListener {
+      override def onTaskStart(taskStart: SparkListenerTaskStart): Unit = {
+        val stageId = taskStart.stageId
+        val stageAttemptId = taskStart.stageAttemptId
+        val partitionId = taskStart.taskInfo.index
+        if (stageId == 1 && stageAttemptId == 0 && partitionId == 0) {
+          new Thread {
+            override def run: Unit = {
+              eventually(timeout(10.seconds)) {
+                sc.killTaskAttempt(taskStart.taskInfo.taskId, interruptThread = true)
+              }
+            }
+          }.start()
+        }
+      }
+    }
+    sc.addSparkListener(listener)
+    // stage 1 is a barrier stage
+    val rdd1 =
+      sc.parallelize(0 until 10000, 2).map(v => (v, v)).groupByKey().barrier().mapPartitions {
+        it =>
+          val context = BarrierTaskContext.get()
+          try {
+            Thread.sleep(5000)
+            context.barrier()
+          } catch {
+            case _: TaskKilledException =>
+              throw new RuntimeException("failed")
+            case e: Throwable =>
+              throw e
+          }
+          it
+      }
+    val rdd2 = rdd1.map(v => (v._2, v._1)).groupByKey()
+    rdd2.count()
+    var hasShuffleDependency = false
+    rdd2.dependencies.foreach {
+      case dependency: ShuffleDependency[_, _, _] =>
+        val appShuffleId = dependency.shuffleId
+        // shuffle id is not expected to be reused, so size is 2
+        hasShuffleDependency = true
+        assert(tracker.getShuffleIdSet(appShuffleId).size() == 2)
+      case _ =>
+      // do nothing
+    }
+    assert(hasShuffleDependency, "no shuffle dependency")
+    sparkSession.stop()
   }
 }

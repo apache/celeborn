@@ -20,6 +20,8 @@ package org.apache.spark.shuffle.celeborn;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.util.JavaUtils;
 
@@ -43,5 +45,10 @@ public class ExecutorShuffleIdTracker {
         shuffleIds.forEach(shuffleClient::cleanupShuffle);
       }
     }
+  }
+
+  @VisibleForTesting
+  public HashSet<Integer> getShuffleIdSet(int appShuffleId) {
+    return shuffleIdMap.get(appShuffleId);
   }
 }
