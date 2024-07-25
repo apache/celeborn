@@ -26,6 +26,7 @@ public interface PasswdAuthenticationProvider {
    * When a credential is to be disallowed, throw an appropriate [[SecurityException]].
    *
    * @param credential The credential received over the connection request
+   * @return The identifier associated with the credential
    * @throws SecurityException When a user is found to be invalid by the implementation
    */
   Principal authenticate(PasswordCredential credential);

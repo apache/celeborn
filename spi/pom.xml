@@ -25,7 +25,7 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-spi_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-spi</artifactId>
   <packaging>jar</packaging>
   <name>Celeborn SPI</name>
 </project>

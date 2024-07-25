@@ -446,10 +446,12 @@ object Utils {
 }
 
 object CelebornSpi {
-  lazy val spi = Project("celeborn-spi", file("spi")).
-    settings(
+  lazy val spi = Project("celeborn-spi", file("spi"))
+    .settings(
       commonSettings,
-      releaseSettings
+      releaseSettings,
+      crossPaths := false,
+      Compile / doc / javacOptions := Seq("-encoding", UTF_8.name(), "-source", "1.8")
     )
 }
 
