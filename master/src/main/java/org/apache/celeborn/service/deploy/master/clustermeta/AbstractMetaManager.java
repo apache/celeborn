@@ -327,7 +327,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
       registeredShuffle.forEach(
           shuffleKey -> {
-            String appId = shuffleKey.split("-")[0];
+            String appId = Utils.splitShuffleKey(shuffleKey)._1;
             if (!appHeartbeatTime.containsKey(appId)) {
               appHeartbeatTime.put(appId, System.currentTimeMillis());
             }
