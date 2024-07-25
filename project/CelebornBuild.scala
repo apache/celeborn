@@ -350,6 +350,7 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornOpenApi.openapiInternalMasterModel,
       CelebornOpenApi.openapiInternalWorkerModel,
       CelebornOpenApi.openapiModel,
+      CelebornSpi.spi,
       CelebornCommon.common,
       CelebornClient.client,
       CelebornService.service,
@@ -444,6 +445,16 @@ object Utils {
   }
 }
 
+object CelebornSpi {
+  lazy val spi = Project("celeborn-spi", file("spi"))
+    .settings(
+      commonSettings,
+      releaseSettings,
+      crossPaths := false,
+      Compile / doc / javacOptions := Seq("-encoding", UTF_8.name(), "-source", "1.8")
+    )
+}
+
 object CelebornCommon {
 
   lazy val hadoopAwsDependencies = if(profiles.exists(_.startsWith("hadoop-aws"))){
@@ -453,10 +464,10 @@ object CelebornCommon {
   }
 
   lazy val common = Project("celeborn-common", file("common"))
+    .dependsOn(CelebornSpi.spi)
     .settings (
       commonSettings,
       protoSettings,
-      releaseSettings,
       libraryDependencies ++= Seq(
         Dependencies.protobufJava,
         Dependencies.findbugsJsr305,

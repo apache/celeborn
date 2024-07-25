@@ -15,19 +15,8 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.authentication
+package org.apache.celeborn.spi.authentication;
 
-import java.util.{Collections, Map => JMap}
-
-import org.apache.celeborn.spi.authentication.{PasswordCredential, TokenCredential}
-
-case class DefaultPasswordCredential(
-    username: String,
-    password: String,
-    override val extraInfo: JMap[String, String] = Collections.emptyMap())
-  extends PasswordCredential
-
-case class DefaultTokenCredential(
-    token: String,
-    override val extraInfo: JMap[String, String] = Collections.emptyMap())
-  extends TokenCredential
+public class Credential {
+  public static String CLIENT_IP_KEY = "clientIp";
+}

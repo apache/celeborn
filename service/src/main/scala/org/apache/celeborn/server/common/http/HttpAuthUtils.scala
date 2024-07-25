@@ -17,8 +17,12 @@
 
 package org.apache.celeborn.server.common.http
 
-import org.apache.celeborn.common.authentication.Credential
+import java.util.{Map => JMap}
+
+import scala.collection.JavaConverters._
+
 import org.apache.celeborn.server.common.http.authentication.AuthenticationFilter
+import org.apache.celeborn.spi.authentication.Credential
 
 object HttpAuthUtils {
   // HTTP header used by the server endpoint during an authentication sequence.
@@ -26,10 +30,10 @@ object HttpAuthUtils {
   // HTTP header used by the client endpoint during an authentication sequence.
   val AUTHORIZATION_HEADER = "Authorization"
 
-  def getCredentialExtraInfo: Map[String, String] = {
+  def getCredentialExtraInfo: JMap[String, String] = {
     Map(Credential.CLIENT_IP_KEY ->
       Option(
         AuthenticationFilter.HTTP_PROXY_HEADER_CLIENT_IP_ADDRESS.get()).getOrElse(
-        AuthenticationFilter.HTTP_CLIENT_IP_ADDRESS.get()))
+        AuthenticationFilter.HTTP_CLIENT_IP_ADDRESS.get())).asJava
   }
 }

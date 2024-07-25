@@ -15,19 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.authentication
+package org.apache.celeborn.spi.authentication;
 
-import java.util.{Collections, Map => JMap}
+import java.security.Principal;
 
-import org.apache.celeborn.spi.authentication.{PasswordCredential, TokenCredential}
-
-case class DefaultPasswordCredential(
-    username: String,
-    password: String,
-    override val extraInfo: JMap[String, String] = Collections.emptyMap())
-  extends PasswordCredential
-
-case class DefaultTokenCredential(
-    token: String,
-    override val extraInfo: JMap[String, String] = Collections.emptyMap())
-  extends TokenCredential
+public interface PasswdAuthenticationProvider {
+  /**
+   * The authenticate method is called by the celeborn authentication layer to authenticate password
+   * credential for their requests. If a credential is to be granted, return nothing/throw nothing.
+   * When a credential is to be disallowed, throw an appropriate [[SecurityException]].
+   *
+   * @param credential The credential received over the connection request
+   * @return The identifier associated with the credential
+   * @throws SecurityException When a user is found to be invalid by the implementation
+   */
+  Principal authenticate(PasswordCredential credential);
+}

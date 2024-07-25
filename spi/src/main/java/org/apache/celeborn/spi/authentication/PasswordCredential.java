@@ -15,22 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.authentication
+package org.apache.celeborn.spi.authentication;
 
-import java.security.Principal
+import java.util.Map;
 
-trait PasswdAuthenticationProvider {
+public interface PasswordCredential {
+  String username();
 
-  /**
-   * The authenticate method is called by the celeborn authentication layer
-   * to authenticate password credential for their requests.
-   * If a credential is to be granted, return nothing/throw nothing.
-   * When a credential is to be disallowed, throw an appropriate [[SecurityException]].
-   *
-   * @param credential The credential received over the connection request
-   *
-   * @throws SecurityException When a user is found to be invalid by the implementation
-   */
-  @throws[SecurityException]
-  def authenticate(credential: PasswordCredential): Principal
+  String password();
+
+  Map<String, String> extraInfo();
 }

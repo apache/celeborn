@@ -19,6 +19,8 @@ package org.apache.celeborn.common.authentication
 
 import java.security.Principal
 
+import org.apache.celeborn.spi.authentication.{PasswdAuthenticationProvider, PasswordCredential, TokenAuthenticationProvider, TokenCredential}
+
 class AnonymousAuthenticationProviderImpl extends PasswdAuthenticationProvider
   with TokenAuthenticationProvider {
   override def authenticate(credential: PasswordCredential): Principal = {
