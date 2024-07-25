@@ -28,8 +28,7 @@ import org.apache.celeborn.spi.authentication.{Credential, PasswdAuthenticationP
 class UserDefinePasswordAuthenticationProviderImpl
   extends PasswdAuthenticationProvider with Logging {
   override def authenticate(credential: PasswordCredential): Principal = {
-    val clientIp =
-      credential.extraInfo.getOrElse(Credential.CLIENT_IP_KEY, null)
+    val clientIp = credential.extraInfo.get(Credential.CLIENT_IP_KEY)
     if (credential.password == VALID_PASSWORD) {
       logInfo(s"Success log in of user: ${credential.username} with clientIp: $clientIp")
       new BasicPrincipal(credential.username)

@@ -15,23 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.spi.authentication
+package org.apache.celeborn.spi.authentication;
 
-import java.security.Principal
+import java.util.Map;
 
-trait TokenAuthenticationProvider {
+public interface TokenCredential {
+  String token();
 
-  /**
-   * The authenticate method is called by the celeborn authentication layer
-   * to authenticate credential for their requests.
-   * If the credential is to be granted, return nothing/throw nothing.
-   * When the credential is to be disallowed, throw an appropriate [[SecurityException]].
-   *
-   * @param credential The credential received over the connection request
-   * @return The identifier associated with the token
-   *
-   * @throws SecurityException When the credential is found to be invalid by the implementation
-   */
-  @throws[SecurityException]
-  def authenticate(credential: TokenCredential): Principal
+  Map<String, String> extraInfo();
 }
