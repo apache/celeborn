@@ -190,6 +190,7 @@ public class MemoryManager {
     if (readBufferThreshold > 0) {
       // if read buffer threshold is zero means that there will be no map data partitions
       readBufferDispatcher = new ReadBufferDispatcher(this, conf);
+      registerMemoryListener(readBufferDispatcher);
       readBufferTargetChangeListeners = new ArrayList<>();
       readBufferTargetUpdateService.scheduleWithFixedDelay(
           () -> {
@@ -478,6 +479,10 @@ public class MemoryManager {
     return readBufferDispatcher.requestsLength();
   }
 
+  public int dispatchIdleBufferLength() {
+    return readBufferDispatcher.idleBuffersLength();
+  }
+
   public long getPausePushDataTime() {
     return pausePushDataTime;
   }
@@ -555,11 +560,11 @@ public class MemoryManager {
   }
 
   public interface MemoryPressureListener {
-    void onPause(String moduleName);
+    default void onPause(String moduleName) {};
 
-    void onResume(String moduleName);
+    default void onResume(String moduleName) {};
 
-    void onTrim();
+    default void onTrim() {};
   }
 
   public interface ReadBufferTargetChangeListener {
