@@ -582,7 +582,7 @@ object Utils extends Logging {
         .newInstance(conf, java.lang.Boolean.valueOf(isWorker))
     } catch {
       case e: Throwable =>
-        throw new CelebornException(s"Failed to instantiate masterEndpointResolver $className", e)
+        throw new CelebornException(s"Failed to instantiate masterEndpointResolver $className.", e)
     }
   }
 

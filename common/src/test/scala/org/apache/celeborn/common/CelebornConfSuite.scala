@@ -441,4 +441,23 @@ class CelebornConfSuite extends CelebornFunSuite {
     }
   }
 
+  test("CELEBORN-1511: Test master endpoint resolver") {
+    val conf = new CelebornConf()
+
+    val validResolverClass = "org.apache.celeborn.common.client.StaticMasterEndpointResolver"
+    val invalidResolverClass = "org.apache.celeborn.UnknownClass"
+
+    conf.set(MASTER_ENDPOINTS_RESOLVER.key, validResolverClass)
+    assert(conf.masterEndpointResolver == validResolverClass)
+
+    try {
+      conf.set(MASTER_ENDPOINTS_RESOLVER.key, invalidResolverClass)
+      val _ = conf.masterEndpointResolver
+    } catch {
+      case e: Exception =>
+        assert(e.isInstanceOf[IllegalArgumentException])
+        assert(e.getMessage.contains("Resolver class was not found in the classpath."))
+    }
+  }
+
 }
