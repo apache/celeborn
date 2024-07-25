@@ -163,6 +163,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
     updateWorkerEventMeta(workerEventTypeValue, workerInfoList);
   }
 
+  @Override
   public void handleUpdatePartitionSize() {
     updatePartitionSize();
   }

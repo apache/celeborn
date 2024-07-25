@@ -27,6 +27,7 @@ import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.service.deploy.worker.storage.local.DiskReducePartitionDataWriterSuiteJ;
 
 public class SSLReducePartitionDataWriterSuiteJ extends DiskReducePartitionDataWriterSuiteJ {
+  @Override
   protected TransportConf createModuleTransportConf(String module) {
     CelebornConf conf =
         TestHelper.updateCelebornConfWithMap(

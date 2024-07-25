@@ -182,16 +182,14 @@ public class TransferBufferPool implements BufferRecycler {
   private List<CreditAssignment> dispatchReservedCredits() {
     assert Thread.holdsLock(lock);
 
-    if (numAvailableBuffers < MIN_CREDITS_TO_NOTIFY || listeners.size() <= 0) {
-      return Collections.emptyList();
-    }
-
     List<CreditAssignment> creditAssignments = new ArrayList<>();
-    while (numAvailableBuffers > 0 && listeners.size() > 0) {
-      CreditListener creditListener = listeners.poll();
-      int numCredits = assignCredits(creditListener);
-      if (numCredits > 0) {
-        creditAssignments.add(new CreditAssignment(numCredits, creditListener));
+    if (numAvailableBuffers >= MIN_CREDITS_TO_NOTIFY && !listeners.isEmpty()) {
+      while (numAvailableBuffers > 0 && !listeners.isEmpty()) {
+        CreditListener creditListener = listeners.poll();
+        int numCredits = assignCredits(creditListener);
+        if (numCredits > 0) {
+          creditAssignments.add(new CreditAssignment(numCredits, creditListener));
+        }
       }
     }
     return creditAssignments;

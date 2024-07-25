@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -54,5 +55,10 @@ public class DbConfigServiceImpl extends BaseConfigServiceImpl implements Config
                 Collectors.toMap(
                     tenantConfig -> Pair.of(tenantConfig.getTenantId(), tenantConfig.getName()),
                     Function.identity())));
+  }
+
+  @VisibleForTesting
+  public IServiceManager getServiceManager() {
+    return iServiceManager;
   }
 }

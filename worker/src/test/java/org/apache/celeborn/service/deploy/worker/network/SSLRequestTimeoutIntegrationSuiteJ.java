@@ -29,6 +29,7 @@ import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
 
 public class SSLRequestTimeoutIntegrationSuiteJ extends RequestTimeoutIntegrationSuiteJ {
   @Before
+  @Override
   public void setUp() {
     // set up SSL for TEST_MODULE
     doSetup(
@@ -37,6 +38,7 @@ public class SSLRequestTimeoutIntegrationSuiteJ extends RequestTimeoutIntegratio
   }
 
   @After
+  @Override
   public void tearDown() {
     super.tearDown();
   }

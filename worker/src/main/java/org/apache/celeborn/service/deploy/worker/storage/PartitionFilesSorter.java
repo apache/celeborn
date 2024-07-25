@@ -322,7 +322,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           int compressedSize = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12);
           ShuffleBlockInfo shuffleBlockInfo = new ShuffleBlockInfo();
           shuffleBlockInfo.offset = index;
-          shuffleBlockInfo.length = 16 + compressedSize;
+          shuffleBlockInfo.length = 16L + compressedSize;
           List<ShuffleBlockInfo> singleMapIdShuffleBlockList =
               blocksMap.computeIfAbsent(mapId, v -> new ArrayList<>());
           singleMapIdShuffleBlockList.add(shuffleBlockInfo);

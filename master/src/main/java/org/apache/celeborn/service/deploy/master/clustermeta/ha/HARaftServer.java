@@ -493,7 +493,7 @@ public class HARaftServer {
   /**
    * Get the suggested leader peer id.
    *
-   * @return RaftPeerId of the suggested leader node - Optional<LeaderPeerEndpoints>
+   * @return RaftPeerId of the suggested leader node - {@code Optional<LeaderPeerEndpoints>}
    */
   public Optional<LeaderPeerEndpoints> getCachedLeaderPeerRpcEndpoint() {
     this.roleCheckLock.readLock().lock();

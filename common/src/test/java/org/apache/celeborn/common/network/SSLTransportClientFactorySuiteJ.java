@@ -29,6 +29,7 @@ import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
 public class SSLTransportClientFactorySuiteJ extends TransportClientFactorySuiteJ {
 
   @Before
+  @Override
   public void setUp() {
     // set up SSL for TEST_MODULE
     doSetup(
@@ -37,6 +38,7 @@ public class SSLTransportClientFactorySuiteJ extends TransportClientFactorySuite
   }
 
   @After
+  @Override
   public void tearDown() {
     super.tearDown();
   }

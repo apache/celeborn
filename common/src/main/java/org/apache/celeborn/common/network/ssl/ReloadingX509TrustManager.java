@@ -191,6 +191,7 @@ public class ReloadingX509TrustManager implements X509TrustManager, Runnable {
     return trustManager;
   }
 
+  @SuppressWarnings("NonAtomicVolatileUpdate")
   @Override
   public void run() {
     boolean running = true;

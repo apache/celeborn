@@ -64,7 +64,7 @@ public class AnonymousSaslServerFactory implements SaslServerFactory {
     return new String[] {ANONYMOUS};
   }
 
-  class CelebornAnonymousSaslServer implements SaslServer {
+  static class CelebornAnonymousSaslServer implements SaslServer {
     private boolean isCompleted = false;
 
     @Override

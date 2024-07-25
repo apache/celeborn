@@ -18,6 +18,8 @@
 package org.apache.celeborn.client;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -170,59 +172,31 @@ public class ShuffleClientSuiteJ {
 
   @Test
   public void testRegisterShuffleFailed() throws IOException, InterruptedException {
-    setupEnv(CompressionCodec.NONE, StatusCode.SLOT_NOT_AVAILABLE);
-    try {
-      shuffleClient.pushData(
-          TEST_SHUFFLE_ID,
-          TEST_ATTEMPT_ID,
-          TEST_ATTEMPT_ID,
-          TEST_REDUCRE_ID,
-          TEST_BUF1,
-          0,
-          TEST_BUF1.length,
-          1,
-          1);
-      assert false;
-    } catch (CelebornIOException e) {
-      assert e.getMessage()
-          .contains("Register shuffle failed for shuffle 1, reason: SLOT_NOT_AVAILABLE");
-    }
+    verifyRegisterShuffleFailure(StatusCode.SLOT_NOT_AVAILABLE);
+    verifyRegisterShuffleFailure(StatusCode.RESERVE_SLOTS_FAILED);
+    verifyRegisterShuffleFailure(StatusCode.REQUEST_FAILED);
+  }
 
-    setupEnv(CompressionCodec.NONE, StatusCode.RESERVE_SLOTS_FAILED);
-    try {
-      shuffleClient.pushData(
-          TEST_SHUFFLE_ID,
-          TEST_ATTEMPT_ID,
-          TEST_ATTEMPT_ID,
-          TEST_REDUCRE_ID,
-          TEST_BUF1,
-          0,
-          TEST_BUF1.length,
-          1,
-          1);
-      assert false;
-    } catch (CelebornIOException e) {
-      assert e.getMessage()
-          .contains("Register shuffle failed for shuffle 1, reason: RESERVE_SLOTS_FAILED");
-    }
-
-    setupEnv(CompressionCodec.NONE, StatusCode.REQUEST_FAILED);
-    try {
-      shuffleClient.pushData(
-          TEST_SHUFFLE_ID,
-          TEST_ATTEMPT_ID,
-          TEST_ATTEMPT_ID,
-          TEST_REDUCRE_ID,
-          TEST_BUF1,
-          0,
-          TEST_BUF1.length,
-          1,
-          1);
-      assert false;
-    } catch (CelebornIOException e) {
-      assert e.getMessage()
-          .contains("Register shuffle failed for shuffle 1, reason: REQUEST_FAILED");
-    }
+  private void verifyRegisterShuffleFailure(StatusCode statusCode)
+      throws IOException, InterruptedException {
+    setupEnv(CompressionCodec.NONE, statusCode);
+    CelebornIOException e =
+        assertThrows(
+            CelebornIOException.class,
+            () ->
+                shuffleClient.pushData(
+                    TEST_SHUFFLE_ID,
+                    TEST_ATTEMPT_ID,
+                    TEST_ATTEMPT_ID,
+                    TEST_REDUCRE_ID,
+                    TEST_BUF1,
+                    0,
+                    TEST_BUF1.length,
+                    1,
+                    1));
+    assertTrue(
+        e.getMessage()
+            .contains("Register shuffle failed for shuffle 1, reason: " + statusCode.name()));
   }
 
   private CelebornConf setupEnv(CompressionCodec codec) throws IOException, InterruptedException {

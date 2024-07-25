@@ -51,7 +51,7 @@ public class WorkerSecretRegistryImpl implements SecretRegistry {
     CacheLoader<String, String> cacheLoader =
         new CacheLoader<String, String>() {
           @Override
-          public String load(String appId) {
+          public String load(String appId) throws Exception {
             LOG.debug("Missing the secret for {}; fetching it from the master", appId);
             PbApplicationMetaRequest pbApplicationMetaRequest =
                 PbApplicationMetaRequest.newBuilder().setAppId(appId).build();
@@ -65,12 +65,10 @@ public class WorkerSecretRegistryImpl implements SecretRegistry {
               return pbApplicationMeta.getSecret();
             } catch (Throwable e) {
               // We catch Throwable here because masterClient.askSync declares it in its definition.
-              // If the secret is null, the authentication will fail so just logging the exception
-              // here.
               LOG.error(
                   "Failed to fetch the application meta info for {} from the master", appId, e);
+              throw new Exception(e);
             }
-            return null;
           }
         };
     secretCache = CacheBuilder.newBuilder().maximumSize(maxCacheSize).build(cacheLoader);
