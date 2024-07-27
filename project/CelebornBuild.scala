@@ -1332,6 +1332,7 @@ object CelebornOpenApi {
   lazy val openapiGenerate = Project("celeborn-openapi-generate", file("openapi/openapi-client/target/generate"))
     .dependsOn(openapiInternalMasterGenerate, openapiInternalWorkerGenerate)
     .settings(
+      commonSettings,
       Compile / sourceGenerators += Def.task {
         streams.value.log.info("Cleaning up openapi generate output directory: " + openApiClientOutputDir)
         IO.delete(file(openApiClientOutputDir))
