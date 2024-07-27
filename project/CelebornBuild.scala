@@ -23,6 +23,8 @@ import scala.util.Properties
 import scala.xml._
 import scala.xml.transform._
 
+import org.openapitools.generator.sbt.plugin.OpenApiGeneratorPlugin
+import org.openapitools.generator.sbt.plugin.OpenApiGeneratorPlugin.autoImport._
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtprotoc.ProtocPlugin.autoImport._
 
@@ -345,6 +347,9 @@ object CelebornCommonSettings {
 object CelebornBuild extends sbt.internal.BuildDef {
   override def projectDefinitions(baseDirectory: File): Seq[Project] = {
     Seq(
+      CelebornOpenApi.openapiInternalMasterGenerate,
+      CelebornOpenApi.openapiInternalWorkerGenerate,
+      CelebornOpenApi.openapiGenerate,
       CelebornOpenApi.openapiClient,
       CelebornSpi.spi,
       CelebornCommon.common,
@@ -1284,10 +1289,71 @@ object MRClientProjects {
 }
 
 object CelebornOpenApi {
+  val openApiSpecDir = "openapi/openapi-client/src/main/openapi3"
+  val openApiInternalOutputDir = "openapi/openapi-client/target/generated-sources/java"
+  val openApiClientOutputDir = "openapi/openapi-client/src/main/java"
+
+  val commonOpenApiGenerateSettings = Seq(
+    openApiGeneratorName := "java",
+    openApiOutputDir := openApiInternalOutputDir,
+    openApiGenerateApiTests := SettingDisabled,
+    openApiGenerateModelTests := SettingDisabled,
+    openApiModelPackage := "org.apache.celeborn.rest.v1.model",
+    openApiAdditionalProperties := Map(
+      "dateLibrary" -> "java8",
+      "useGzipFeature" -> "true",
+      "library" -> "apache-httpclient",
+      "hideGenerationTimestamp" -> "true",
+      "supportUrlQuery" -> "false",
+      "annotationLibrary" -> "none"
+    )
+  )
+
+  lazy val openapiInternalMasterGenerate = Project("celeborn-openapi-master-generate", file("openapi/openapi-client/target/master"))
+    .enablePlugins(OpenApiGeneratorPlugin)
+    .settings(
+      commonSettings,
+      openApiInputSpec := (file(openApiSpecDir) / "master_rest_v1.yaml").toString,
+      openApiApiPackage := "org.apache.celeborn.rest.v1.master",
+      openApiInvokerPackage := "org.apache.celeborn.rest.v1.master.invoker",
+      commonOpenApiGenerateSettings
+    )
+
+  lazy val openapiInternalWorkerGenerate = Project("celeborn-openapi-worker-generate", file("openapi/openapi-client/target/worker"))
+    .enablePlugins(OpenApiGeneratorPlugin)
+    .settings(
+      commonSettings,
+      openApiInputSpec := (file(openApiSpecDir) / "worker_rest_v1.yaml").toString,
+      openApiApiPackage := "org.apache.celeborn.rest.v1.worker",
+      openApiInvokerPackage := "org.apache.celeborn.rest.v1.worker.invoker",
+      commonOpenApiGenerateSettings
+    )
+
+  lazy val openapiGenerate = Project("celeborn-openapi-generate", file("openapi/openapi-client/target/generate"))
+    .dependsOn(openapiInternalMasterGenerate, openapiInternalWorkerGenerate)
+    .settings(
+      Compile / sourceGenerators += Def.task {
+        streams.value.log.info("Cleaning up openapi generate output directory: " + openApiClientOutputDir)
+        IO.delete(file(openApiClientOutputDir))
+        val srcDir = file(openApiInternalOutputDir) / "src" / "main" / "java"
+        val dstDir = file(openApiClientOutputDir)
+        streams.value.log.info(s"Copying openapi generated sources from $srcDir to $dstDir")
+        IO.copyDirectory(srcDir, dstDir)
+
+        Seq.empty[File]
+      }.dependsOn(
+        Def.task {
+          streams.value.log.info("Cleaning up openapi generate internal output directory: " + openApiInternalOutputDir)
+          IO.delete(file(openApiInternalOutputDir))
+        },
+        openapiInternalMasterGenerate / Compile / openApiGenerate,
+        openapiInternalWorkerGenerate / Compile / openApiGenerate
+      )
+    )
+
   lazy val openapiClient = Project("celeborn-openapi-client", file("openapi/openapi-client"))
     .settings (
       commonSettings,
-      protoSettings,
       releaseSettings,
       libraryDependencies ++= Seq(
         Dependencies.jacksonAnnotations,

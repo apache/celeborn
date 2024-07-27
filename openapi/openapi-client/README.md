@@ -7,4 +7,8 @@ To update the OpenAPI specification
   ```sh
   build/mvn -pl openapi/openapi-client clean package -Popenapi-generate
   ```
+  or
+  ```sh
+  build/sbt "clean;celeborn-openapi-generate/package"
+  ```   
   This will regenerate the OpenAPI data models + APIs in the celeborn-openapi-client SDK.
