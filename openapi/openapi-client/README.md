@@ -5,7 +5,7 @@ To update the OpenAPI specification
 - Install JDK11+ by whatever mechanism is appropriate for your system, and set that version to be the default Java version (e.g., by setting env variable JAVA_HOME)
 - run the following:
   ```sh
-  build/mvn -pl openapi/openapi-client clean package -Popenapi-generate
+  build/mvn -pl openapi/openapi-client clean package -Pgenerate
   ```
   or
   ```sh
