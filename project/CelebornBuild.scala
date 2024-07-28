@@ -347,10 +347,9 @@ object CelebornCommonSettings {
 object CelebornBuild extends sbt.internal.BuildDef {
   override def projectDefinitions(baseDirectory: File): Seq[Project] = {
     Seq(
-      CelebornOpenApi.openapiInternalMasterGenerate,
-      CelebornOpenApi.openapiInternalWorkerGenerate,
-      CelebornOpenApi.openapiGenerate,
-      CelebornOpenApi.openapiClient,
+      CelebornOpenApi.openApiClientMasterGenerate,
+      CelebornOpenApi.openApiClientWorkerGenerate,
+      CelebornOpenApi.openApiClient,
       CelebornSpi.spi,
       CelebornCommon.common,
       CelebornClient.client,
@@ -369,8 +368,6 @@ object CelebornBuild extends sbt.internal.BuildDef {
 
   // load user-defined Profiles
   // loadProfiles()
-
-  CelebornOpenApi.generate
 }
 
 object Utils {
@@ -549,7 +546,7 @@ object CelebornClient {
 object CelebornService {
   lazy val service = Project("celeborn-service", file("service"))
     .dependsOn(CelebornCommon.common % "test->test;compile->compile")
-    .dependsOn(CelebornOpenApi.openapiClient)
+    .dependsOn(CelebornOpenApi.openApiClient)
     .settings (
       commonSettings,
       libraryDependencies ++= Seq(
@@ -613,7 +610,7 @@ object CelebornWorker {
     .dependsOn(CelebornService.service % "test->test;compile->compile")
     .dependsOn(CelebornClient.client % "test->compile")
     .dependsOn(CelebornMaster.master % "test->compile")
-    .dependsOn(CelebornOpenApi.openapiClient % Test)
+    .dependsOn(CelebornOpenApi.openApiClient % Test)
     .settings (
       commonSettings,
       libraryDependencies ++= Seq(
@@ -1298,7 +1295,7 @@ object CelebornOpenApi {
 
   val generate = TaskKey[Unit]("generate", "generate openapi client code")
 
-  val commonOpenApiGenerateSettings = Seq(
+  val commonOpenApiClientGenerateSettings = Seq(
     openApiGeneratorName := "java",
     openApiGenerateApiTests := SettingDisabled,
     openApiGenerateModelTests := SettingDisabled,
@@ -1313,7 +1310,7 @@ object CelebornOpenApi {
     )
   )
 
-  lazy val openapiInternalMasterGenerate = Project("celeborn-openapi-master-generate", file("openapi/openapi-client/target/master"))
+  lazy val openApiClientMasterGenerate = Project("celeborn-openapi-client-master-generate", file("openapi/openapi-client/target/master"))
     .enablePlugins(OpenApiGeneratorPlugin)
     .settings(
       commonSettings,
@@ -1321,10 +1318,10 @@ object CelebornOpenApi {
       openApiOutputDir := openApiMasterInternalOutputDir,
       openApiApiPackage := "org.apache.celeborn.rest.v1.master",
       openApiInvokerPackage := "org.apache.celeborn.rest.v1.master.invoker",
-      commonOpenApiGenerateSettings
+      commonOpenApiClientGenerateSettings
     )
 
-  lazy val openapiInternalWorkerGenerate = Project("celeborn-openapi-worker-generate", file("openapi/openapi-client/target/worker"))
+  lazy val openApiClientWorkerGenerate = Project("celeborn-openapi-client-worker-generate", file("openapi/openapi-client/target/worker"))
     .enablePlugins(OpenApiGeneratorPlugin)
     .settings(
       commonSettings,
@@ -1332,31 +1329,10 @@ object CelebornOpenApi {
       openApiOutputDir := openApiWorkerInternalOutputDir,
       openApiApiPackage := "org.apache.celeborn.rest.v1.worker",
       openApiInvokerPackage := "org.apache.celeborn.rest.v1.worker.invoker",
-      commonOpenApiGenerateSettings
+      commonOpenApiClientGenerateSettings
     )
 
-  lazy val openapiGenerate = Project("celeborn-openapi-generate", file("openapi/openapi-client/target/generate"))
-    .settings(
-      commonSettings,
-      generate := {
-        (openapiInternalMasterGenerate / Compile / openApiGenerate).value
-        (openapiInternalWorkerGenerate / Compile / openApiGenerate).value
-
-        streams.value.log.info("Cleaning up openapi generate output directory: " + openApiClientOutputDir)
-        val dstDir = file(openApiClientOutputDir)
-        IO.delete(dstDir)
-
-        val masterSrcDir = file(openApiMasterInternalOutputDir) / "src" / "main" / "java"
-        streams.value.log.info(s"Copying openapi generated master sources from $masterSrcDir to $dstDir")
-        IO.copyDirectory(masterSrcDir, dstDir)
-
-        val workerSrcDir = file(openApiWorkerInternalOutputDir) / "src" / "main" / "java"
-        streams.value.log.info(s"Copying openapi generated worker sources from $workerSrcDir to $dstDir")
-        IO.copyDirectory(workerSrcDir, dstDir)
-      }
-    )
-
-  lazy val openapiClient = Project("celeborn-openapi-client", file("openapi/openapi-client"))
+  lazy val openApiClient = Project("celeborn-openapi-client", file("openapi/openapi-client"))
     .settings (
       commonSettings,
       releaseSettings,
@@ -1374,6 +1350,23 @@ object CelebornOpenApi {
         Dependencies.openApiToolsJacksonBindNullable,
         Dependencies.slf4jApi
       ),
+
+      generate := {
+        (openApiClientMasterGenerate / Compile / openApiGenerate).value
+        (openApiClientWorkerGenerate / Compile / openApiGenerate).value
+
+        streams.value.log.info("Cleaning up openapi generate output directory: " + openApiClientOutputDir)
+        val dstDir = file(openApiClientOutputDir)
+        IO.delete(dstDir)
+
+        val masterSrcDir = file(openApiMasterInternalOutputDir) / "src" / "main" / "java"
+        streams.value.log.info(s"Copying openapi generated master sources from $masterSrcDir to $dstDir")
+        IO.copyDirectory(masterSrcDir, dstDir)
+
+        val workerSrcDir = file(openApiWorkerInternalOutputDir) / "src" / "main" / "java"
+        streams.value.log.info(s"Copying openapi generated worker sources from $workerSrcDir to $dstDir")
+        IO.copyDirectory(workerSrcDir, dstDir)
+      },
 
       (assembly / test) := { },
       (assembly / assemblyJarName) := {
