@@ -9,6 +9,6 @@ To update the OpenAPI specification
   ```
   or
   ```sh
-  build/sbt "clean;celeborn-openapi-generate/package"
+  build/sbt generate
   ```   
   This will regenerate the OpenAPI data models + APIs in the celeborn-openapi-client SDK.
