@@ -21,18 +21,13 @@ import java.io.{File, IOException}
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
-import scala.concurrent.duration.Duration
-
-import org.apache.spark.{BarrierTaskContext, ShuffleDependency, SparkConf, SparkContextHelper, TaskContext}
+import org.apache.spark.{BarrierTaskContext, ShuffleDependency, SparkConf, SparkContextHelper, SparkException, TaskContext}
 import org.apache.spark.celeborn.ExceptionMakerHelper
 import org.apache.spark.rdd.RDD
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.concurrent.Eventually._
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
@@ -307,7 +302,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
   }
 
   test(s"celeborn spark integration test - resubmit an unordered barrier stage with throwsFetchFailure enabled") {
-    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
     val sparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .config("spark.sql.shuffle.partitions", 2)
@@ -354,7 +349,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
   }
 
   test(s"celeborn spark integration test - fetch failure in child of an unordered barrier stage with throwsFetchFailure enabled") {
-    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
     val sparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .config("spark.sql.shuffle.partitions", 2)
@@ -403,6 +398,64 @@ class CelebornFetchFailureSuite extends AnyFunSuite
     }
   }
 
+  test(s"celeborn spark integration test - resubmit a failed barrier stage across jobs") {
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
+    val sparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .config("spark.sql.shuffle.partitions", 2)
+      .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+      .config("spark.celeborn.shuffle.enabled", "true")
+      .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+      .config("spark.celeborn.client.push.buffer.max.size", 0)
+      .config("spark.stage.maxConsecutiveAttempts", "1")
+      .config("spark.stage.maxAttempts", "1")
+      .config(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+      .getOrCreate()
+
+    // trigger failure
+    CelebornFetchFailureSuite.triggerFailure.set(true)
+
+    val startTime = System.nanoTime()
+    try {
+      val sc = sparkSession.sparkContext
+      val rdd1 = sc
+        .parallelize(0 until 10000, 2)
+        .map(v => (v, v))
+        .groupByKey()
+        .barrier()
+        .mapPartitions {
+          it =>
+            val context = BarrierTaskContext.get()
+            if (context.partitionId() == 0 && CelebornFetchFailureSuite.triggerFailure.get()) {
+              Thread.sleep(3000)
+              throw new RuntimeException("failed")
+            } else {}
+            if (CelebornFetchFailureSuite.triggerFailure.get()) {
+              it
+            } else {
+              it.toBuffer.reverseIterator
+            }
+        }
+      val rdd2 = rdd1.map(v => (v._2, v._1)).groupByKey()
+      assertThrows[SparkException] {
+        rdd2.collect()
+      }
+
+      // Now, allow it to succeed
+      CelebornFetchFailureSuite.triggerFailure.set(false)
+      val result = rdd2.collect()
+      result.foreach {
+        elem =>
+          assert(elem._1.size == elem._2.size)
+      }
+      println("Test took " + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime) + " ms")
+    } finally {
+      sparkSession.stop()
+    }
+  }
+
   private def findAppShuffleId(rdd: RDD[_]): Int = {
     val deps = rdd.dependencies
     if (deps.size != 1 && !deps.head.isInstanceOf[ShuffleDependency[_, _, _]]) {
@@ -411,4 +464,8 @@ class CelebornFetchFailureSuite extends AnyFunSuite
 
     deps.head.asInstanceOf[ShuffleDependency[_, _, _]].shuffleId
   }
+}
+
+object CelebornFetchFailureSuite {
+  private val triggerFailure = new AtomicBoolean(false)
 }
