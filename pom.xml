@@ -1135,7 +1135,7 @@
             <compilerArgs>
               <arg>-XDcompilePolicy=simple</arg>
               <arg>-Xplugin:ErrorProne \
-                -XepExcludedPaths:.*/target/generated-sources/protobuf/.* \
+                -XepExcludedPaths:.*/target/generated-sources/.* \
                 -Xep:BadImport:OFF \
                 -Xep:EmptyBlockTag:OFF \
                 -Xep:EmptyCatch:OFF \
@@ -1497,7 +1497,7 @@
               <compilerArgs>
                 <arg>-XDcompilePolicy=simple</arg>
                 <arg>-Xplugin:ErrorProne \
-                  -XepExcludedPaths:.*/target/generated-sources/protobuf/.* \
+                  -XepExcludedPaths:.*/target/generated-sources/.* \
                   -Xep:BadImport:OFF \
                   -Xep:EmptyBlockTag:OFF \
                   -Xep:EmptyCatch:OFF \
@@ -1557,7 +1557,7 @@
               <compilerArgs>
                 <arg>-XDcompilePolicy=simple</arg>
                 <arg>-Xplugin:ErrorProne \
-                  -XepExcludedPaths:.*/target/generated-sources/protobuf/.* \
+                  -XepExcludedPaths:.*/target/generated-sources/.* \
                   -Xep:BadImport:OFF \
                   -Xep:EmptyBlockTag:OFF \
                   -Xep:EmptyCatch:OFF \
