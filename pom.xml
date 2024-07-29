@@ -1136,6 +1136,27 @@
               <arg>-XDcompilePolicy=simple</arg>
               <arg>-Xplugin:ErrorProne \
                 -XepExcludedPaths:.*/target/generated-sources/protobuf/.* \
+                -Xep:AssertThrowsMultipleStatements:ERROR \
+                -Xep:ByteBufferBackingArray:ERROR \
+                -Xep:CacheLoaderNull:ERROR \
+                -Xep:CanonicalDuration:ERROR \
+                -Xep:ClassCanBeStatic:ERROR \
+                -Xep:DefaultCharset:ERROR \
+                -Xep:InconsistentCapitalization:ERROR \
+                -Xep:IntLongMath:ERROR \
+                -Xep:InvalidParam:ERROR \
+                -Xep:JavaUtilDateChecker:ERROR \
+                -Xep:MissingCasesInEnumSwitch:ERROR \
+                -Xep:MissingOverride:ERROR \
+                -Xep:NonAtomicVolatileUpdate:ERROR \
+                -Xep:StaticAssignmentInConstructor:ERROR \
+                -Xep:SynchronizeOnNonFinalField:ERROR \
+                -Xep:ThreadLocalUsage:ERROR \
+                -Xep:UnescapedEntity:ERROR \
+                -Xep:UnnecessaryAssignment:ERROR \
+                -Xep:UnusedMethod:ERROR \
+                -Xep:UnusedNestedClass:ERROR \
+                -Xep:UseCorrectAssertInTests:ERROR \
                 -Xep:BadImport:OFF \
                 -Xep:EmptyBlockTag:OFF \
                 -Xep:EmptyCatch:OFF \
@@ -1498,6 +1519,27 @@
                 <arg>-XDcompilePolicy=simple</arg>
                 <arg>-Xplugin:ErrorProne \
                   -XepExcludedPaths:.*/target/generated-sources/protobuf/.* \
+                  -Xep:AssertThrowsMultipleStatements:ERROR \
+                  -Xep:ByteBufferBackingArray:ERROR \
+                  -Xep:CacheLoaderNull:ERROR \
+                  -Xep:CanonicalDuration:ERROR \
+                  -Xep:ClassCanBeStatic:ERROR \
+                  -Xep:DefaultCharset:ERROR \
+                  -Xep:InconsistentCapitalization:ERROR \
+                  -Xep:IntLongMath:ERROR \
+                  -Xep:InvalidParam:ERROR \
+                  -Xep:JavaUtilDateChecker:ERROR \
+                  -Xep:MissingCasesInEnumSwitch:ERROR \
+                  -Xep:MissingOverride:ERROR \
+                  -Xep:NonAtomicVolatileUpdate:ERROR \
+                  -Xep:StaticAssignmentInConstructor:ERROR \
+                  -Xep:SynchronizeOnNonFinalField:ERROR \
+                  -Xep:ThreadLocalUsage:ERROR \
+                  -Xep:UnescapedEntity:ERROR \
+                  -Xep:UnnecessaryAssignment:ERROR \
+                  -Xep:UnusedMethod:ERROR \
+                  -Xep:UnusedNestedClass:ERROR \
+                  -Xep:UseCorrectAssertInTests:ERROR \
                   -Xep:BadImport:OFF \
                   -Xep:EmptyBlockTag:OFF \
                   -Xep:EmptyCatch:OFF \
@@ -1558,6 +1600,27 @@
                 <arg>-XDcompilePolicy=simple</arg>
                 <arg>-Xplugin:ErrorProne \
                   -XepExcludedPaths:.*/target/generated-sources/protobuf/.* \
+                  -Xep:AssertThrowsMultipleStatements:ERROR \
+                  -Xep:ByteBufferBackingArray:ERROR \
+                  -Xep:CacheLoaderNull:ERROR \
+                  -Xep:CanonicalDuration:ERROR \
+                  -Xep:ClassCanBeStatic:ERROR \
+                  -Xep:DefaultCharset:ERROR \
+                  -Xep:InconsistentCapitalization:ERROR \
+                  -Xep:IntLongMath:ERROR \
+                  -Xep:InvalidParam:ERROR \
+                  -Xep:JavaUtilDateChecker:ERROR \
+                  -Xep:MissingCasesInEnumSwitch:ERROR \
+                  -Xep:MissingOverride:ERROR \
+                  -Xep:NonAtomicVolatileUpdate:ERROR \
+                  -Xep:StaticAssignmentInConstructor:ERROR \
+                  -Xep:SynchronizeOnNonFinalField:ERROR \
+                  -Xep:ThreadLocalUsage:ERROR \
+                  -Xep:UnescapedEntity:ERROR \
+                  -Xep:UnnecessaryAssignment:ERROR \
+                  -Xep:UnusedMethod:ERROR \
+                  -Xep:UnusedNestedClass:ERROR \
+                  -Xep:UseCorrectAssertInTests:ERROR \
                   -Xep:BadImport:OFF \
                   -Xep:EmptyBlockTag:OFF \
                   -Xep:EmptyCatch:OFF \
