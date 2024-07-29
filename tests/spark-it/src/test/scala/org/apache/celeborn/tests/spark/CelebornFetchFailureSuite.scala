@@ -315,7 +315,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
       .getOrCreate()
 
-    val startTime = System.nanoTime()
     try {
       val sc = sparkSession.sparkContext
       val rdd1 = sc
@@ -329,7 +328,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
             if (context.stageAttemptNumber() == 0 && context.partitionId() == 0) {
               Thread.sleep(3000)
               throw new RuntimeException("failed")
-            } else {}
+            }
             if (context.stageAttemptNumber() > 0) {
               it.toBuffer.reverseIterator
             } else {
@@ -342,7 +341,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         elem =>
           assert(elem._1.size == elem._2.size)
       }
-      println("Test took " + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime) + " ms")
     } finally {
       sparkSession.stop()
     }
@@ -362,7 +360,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
       .getOrCreate()
 
-    val startTime = System.nanoTime()
     try {
       val sc = sparkSession.sparkContext
       val inputGroupedRdd = sc
@@ -374,7 +371,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         .mapPartitions(it => it)
       val groupedRdd = rdd1.map(v => (v._2, v._1)).groupByKey()
       val appShuffleId = findAppShuffleId(groupedRdd)
-      println(s"shuffle id's ... groupedRdd = $appShuffleId, inputGroupedRdd = ${findAppShuffleId(inputGroupedRdd)}")
       assert(findAppShuffleId(groupedRdd) != findAppShuffleId(inputGroupedRdd))
       val rdd2 = groupedRdd.mapPartitions { iter =>
         val context = TaskContext.get()
@@ -392,7 +388,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         elem =>
           assert(elem._1.size == elem._2.size)
       }
-      println("Test took " + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime) + " ms")
     } finally {
       sparkSession.stop()
     }
@@ -417,7 +412,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
     // trigger failure
     CelebornFetchFailureSuite.triggerFailure.set(true)
 
-    val startTime = System.nanoTime()
     try {
       val sc = sparkSession.sparkContext
       val rdd1 = sc
@@ -431,7 +425,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
             if (context.partitionId() == 0 && CelebornFetchFailureSuite.triggerFailure.get()) {
               Thread.sleep(3000)
               throw new RuntimeException("failed")
-            } else {}
+            }
             if (CelebornFetchFailureSuite.triggerFailure.get()) {
               it
             } else {
@@ -450,7 +444,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         elem =>
           assert(elem._1.size == elem._2.size)
       }
-      println("Test took " + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime) + " ms")
     } finally {
       sparkSession.stop()
     }
