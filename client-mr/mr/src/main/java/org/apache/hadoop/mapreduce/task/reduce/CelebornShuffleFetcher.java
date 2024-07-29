@@ -78,13 +78,17 @@ public class CelebornShuffleFetcher<K, V> {
         // If merge is on, block
         merger.waitForResource();
         // Do shuffle
-        metrics.threadBusy();
+        if (metrics != null) {
+          metrics.threadBusy();
+        }
         // read blocks
         fetchToLocalAndMerge();
       } catch (Exception e) {
         logger.error("Celeborn shuffle fetcher fetch data failed.", e);
       } finally {
-        metrics.threadFree();
+        if (metrics != null) {
+          metrics.threadFree();
+        }
       }
     }
   }
@@ -134,7 +138,9 @@ public class CelebornShuffleFetcher<K, V> {
       reporter.progress();
     } else {
       celebornInputStream.close();
-      metrics.inputBytes(inputShuffleSize);
+      if (metrics != null) {
+        metrics.inputBytes(inputShuffleSize);
+      }
       logger.info("reduce task {} read {} bytes", reduceId, inputShuffleSize);
       stopped = true;
     }
