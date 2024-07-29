@@ -102,7 +102,7 @@ public class CelebornShuffleConsumer<K, V>
   private ShuffleClientMetrics createMetrics(
       org.apache.hadoop.mapreduce.TaskAttemptID taskAttemptID, JobConf jobConf)
       throws NoSuchMethodException {
-    // for hadoop 3.1+
+    // for hadoop 3.1+ see MAPREDUCE-6861
     try {
       return DynMethods.builder("create")
           .impl(
@@ -115,7 +115,7 @@ public class CelebornShuffleConsumer<K, V>
       // ignore this exception because the createMetrics might use hadoop2
     }
 
-    // for hadoop 3.1
+    // for hadoop 3.1 see MAPREDUCE-6526
     try {
       return DynMethods.builder("create")
           .impl(ShuffleClientMetrics.class)
