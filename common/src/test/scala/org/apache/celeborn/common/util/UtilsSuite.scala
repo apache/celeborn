@@ -125,7 +125,7 @@ class UtilsSuite extends CelebornFunSuite {
         celebornConf,
         isWorker = true)
     }
-    assert(s"Failed to instantiate masterEndpointResolver $invalidClassName" === e.getMessage)
+    assert(s"Failed to instantiate masterEndpointResolver $invalidClassName." === e.getMessage)
   }
 
   test("splitPartitionLocationUniqueId") {
