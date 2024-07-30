@@ -84,7 +84,7 @@ celeborn:
 
   # ============================================================================
   # Network
-  # ============================================================================ 
+  # ============================================================================
   celeborn.rpc.io.serverThreads: 64
   celeborn.rpc.io.numConnectionsPerPeer: 2
   celeborn.rpc.io.clientThreads: 64
@@ -92,7 +92,7 @@ celeborn:
 
   # ============================================================================
   # Metrics
-  # ============================================================================ 
+  # ============================================================================
   celeborn.metrics.enabled: true
   celeborn.metrics.prometheus.path: /metrics/prometheus
 
@@ -200,7 +200,7 @@ master:
   - name: CELEBORN_WORKER_OFFHEAP_MEMORY
     value: 12g
   - name: CELEBORN_WORKER_JAVA_OPTS
-    value: |- 
+    value: |-
       -XX:-PrintGC
       -XX:+PrintGCDetails
       -XX:+PrintGCTimeStamps
@@ -246,7 +246,7 @@ master:
 worker:
   # -- Specifies the number of Celeborn worker replicas to deploy, should less than node number
   replicas: 5
-  
+
   # -- Labels for Celeborn worker pods
   labels: {}
     # key1: value1
@@ -256,7 +256,7 @@ worker:
   annotations: {}
     # key1: value1
     # key2: value2
-  
+
   # -- Specifies volume claim templates for Celeborn worker pods
   volumeClaimTemplates:
   - metadata:
@@ -389,7 +389,7 @@ worker:
   - name: CELEBORN_WORKER_OFFHEAP_MEMORY
     value: 12g
   - name: CELEBORN_WORKER_JAVA_OPTS
-    value: |- 
+    value: |-
       -XX:-PrintGC
       -XX:+PrintGCDetails
       -XX:+PrintGCTimeStamps
