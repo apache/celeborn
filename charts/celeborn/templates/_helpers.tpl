@@ -89,5 +89,5 @@ Create the name of configmap to use
 Create the name of the celeborn image to use
 */}}
 {{- define "celeborn.image" -}}
-{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
 {{- end }}
