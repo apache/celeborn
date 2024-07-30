@@ -610,7 +610,6 @@ object CelebornWorker {
     .dependsOn(CelebornService.service % "test->test;compile->compile")
     .dependsOn(CelebornClient.client % "test->compile")
     .dependsOn(CelebornMaster.master % "test->compile")
-    .dependsOn(CelebornOpenApi.openApiClient % Test)
     .settings (
       commonSettings,
       libraryDependencies ++= Seq(
