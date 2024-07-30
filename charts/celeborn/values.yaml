@@ -43,6 +43,17 @@ master:
   # -- Number of Celeborn master replicas to deploy, should not less than 3
   replicas: 3
 
+  # Currently supported volume types are `emptyDir` and `hostPath`.
+  # Note that `hostPath` only works in hostPath type using to set `volumes hostPath path`.
+  # Celeborn Master will pick first volumes for store raft log.
+  # `diskType` only works in Celeborn Worker with hostPath type to manifest local disk type.
+  # -- Specifies volumes for Celeborn master pods
+  volumes:
+  - mountPath: /mnt/celeborn_ratis
+    hostPath: /mnt/celeborn_ratis
+    type: hostPath
+    capacity: 100Gi
+
   # Priority class for Celeborn master pods
   priorityClass:
     # -- Specifies whether to create a new priority class for Celeborn master pods
@@ -65,6 +76,32 @@ master:
 worker:
   # -- Specifies the number of Celeborn worker replicas to deploy, should less than node number
   replicas: 5
+
+  # Currently supported volume types are `emptyDir` and `hostPath`.
+  # Note that `hostPath` only works in hostPath type using to set `volumes hostPath path`.
+  # `diskType` only works in Celeborn Worker with hostPath type to manifest local disk type.
+  # -- Specifies volumes for Celeborn worker pods
+  volumes:
+  - mountPath: /mnt/disk1
+    hostPath: /mnt/disk1
+    type: hostPath
+    diskType: SSD
+    capacity: 100Gi
+  - mountPath: /mnt/disk2
+    hostPath: /mnt/disk2
+    type: hostPath
+    diskType: SSD
+    capacity: 100Gi
+  - mountPath: /mnt/disk3
+    hostPath: /mnt/disk3
+    type: hostPath
+    diskType: SSD
+    capacity: 100Gi
+  - mountPath: /mnt/disk4
+    hostPath: /mnt/disk4
+    type: hostPath
+    diskType: SSD
+    capacity: 100Gi
 
   # Priority class for Celeborn worker pods
   priorityClass:
@@ -94,41 +131,6 @@ service:
 cluster:
   # -- Specifies Kubernetes cluster name
   name: cluster
-
-# Specifies Celeborn volumes.
-# Currently supported volume types are `emptyDir` and `hostPath`.
-# Note that `hostPath` only works in hostPath type using to set `volumes hostPath path`.
-# Celeborn Master will pick first volumes for store raft log.
-# `diskType` only works in Celeborn Worker with hostPath type to manifest local disk type.
-volumes:
-  # -- Specifies volumes for Celeborn master pods
-  master:
-    - mountPath: /mnt/celeborn_ratis
-      hostPath: /mnt/celeborn_ratis
-      type: hostPath
-      capacity: 100Gi
-  # -- Specifies volumes for Celeborn worker pods
-  worker:
-    - mountPath: /mnt/disk1
-      hostPath: /mnt/disk1
-      type: hostPath
-      diskType: SSD
-      capacity: 100Gi
-    - mountPath: /mnt/disk2
-      hostPath: /mnt/disk2
-      type: hostPath
-      diskType: SSD
-      capacity: 100Gi
-    - mountPath: /mnt/disk3
-      hostPath: /mnt/disk3
-      type: hostPath
-      diskType: SSD
-      capacity: 100Gi
-    - mountPath: /mnt/disk4
-      hostPath: /mnt/disk4
-      type: hostPath
-      diskType: SSD
-      capacity: 100Gi
 
 # -- Celeborn configurations
 celeborn:

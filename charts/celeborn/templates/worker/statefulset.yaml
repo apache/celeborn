@@ -37,7 +37,7 @@ spec:
       {{- end }}
     spec:
       initContainers:
-      {{- $dirs := .Values.volumes.worker }}
+      {{- $dirs := .Values.worker.volumes }}
       {{- if eq "hostPath" (index $dirs 0).type }}
       - name: chown-{{ $.Release.Name }}-worker-volume
         image: alpine:3.18
@@ -95,7 +95,7 @@ spec:
         - mountPath: /opt/celeborn/conf
           name: {{ include "celeborn.fullname" . }}-volume
           readOnly: true
-        {{- range $index, $volume := .Values.volumes.worker }}
+        {{- range $index, $volume := .Values.worker.volumes }}
         - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
           mountPath: {{ .mountPath }}
         {{- end }}
@@ -111,7 +111,7 @@ spec:
       - name: {{ include "celeborn.fullname" . }}-volume
         configMap:
           name: {{ include "celeborn.configMapName" . }}
-      {{- range $index, $volume := .Values.volumes.worker }}
+      {{- range $index, $volume := .Values.worker.volumes }}
       - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
       {{- if eq "emptyDir" $volume.type }}
         emptyDir:

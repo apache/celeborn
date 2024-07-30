@@ -28,10 +28,10 @@ data:
     {{- range until (.Values.master.replicas |int) }}
     celeborn.master.ha.node.{{ . }}.host={{ $.Release.Name }}-master-{{ . }}.{{ $.Release.Name }}-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local
     {{- end }}
-    {{- $dirs := .Values.volumes.master }}
+    {{- $dirs := .Values.master.volumes }}
     celeborn.master.ha.ratis.raft.server.storage.dir={{ (index $dirs 0).mountPath }}
     {{- $path := "" }}
-    {{- range $worker := .Values.volumes.worker }}
+    {{- range $worker := .Values.worker.volumes }}
     {{- $info := (cat $worker.mountPath ":disktype=" (get $worker "diskType" | default "HDD") ":capacity=" (get $worker "capacity" | default "1PB") | nospace) }}
     {{- if eq $path "" }}
     {{- $path = $info }}
