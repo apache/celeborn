@@ -43,9 +43,27 @@ master:
   # -- Number of Celeborn master replicas to deploy, should not less than 3
   replicas: 3
 
+  # -- Resources for Celeborn master pods
+  resources: {}
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+
 worker:
   # -- Specifies the number of Celeborn worker replicas to deploy, should less than node number
   replicas: 5
+
+  # -- Resources for Celeborn worker pods
+  resources: {}
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
 
 service:
   # -- Specifies service type
@@ -127,25 +145,6 @@ dnsPolicy: ClusterFirst
 
 # -- Specifies whether to use the host's network namespace
 hostNetwork: false
-
-resources:
-  # -- Pod resources for Celeborn master pods
-  master: {}
-    # limits:
-    #   cpu: 100m
-    #   memory: 128Mi
-    # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
-
-  # -- Pod resources for Celeborn worker pods
-  worker: {}
-    # limits:
-    #   cpu: 100m
-    #   memory: 128Mi
-    # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
 
 # -- Container security context
 securityContext:

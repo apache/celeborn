@@ -55,7 +55,7 @@ spec:
         - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
           mountPath: {{ $dir.mountPath }}
         {{- end}}
-        {{- with .Values.resources.worker }}
+        {{- with .Values.worker.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
@@ -82,8 +82,6 @@ spec:
             echo "waiting for master";
             sleep 2;
           done && exec /opt/celeborn/sbin/start-worker.sh
-        resources:
-          {{- toYaml .Values.resources.worker | nindent 10 }}
         ports:
         - containerPort: {{ get .Values.celeborn "celeborn.worker.http.port" | default 9096 }}
           name: metrics
@@ -101,7 +99,7 @@ spec:
         - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
           mountPath: {{ .mountPath }}
         {{- end }}
-        {{- with .Values.resources.worker }}
+        {{- with .Values.worker.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
