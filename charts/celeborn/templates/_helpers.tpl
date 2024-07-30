@@ -86,72 +86,8 @@ Create the name of configmap to use
 {{- end -}}
 
 {{/*
-Create the name of the master service to use
-*/}}
-{{- define "celeborn.masterServiceName" -}}
-{{ include "celeborn.fullname" . }}-master-svc
-{{- end }}
-
-{{/*
-Create the name of the worker service to use
-*/}}
-{{- define "celeborn.workerServiceName" -}}
-{{ include "celeborn.fullname" . }}-worker-svc
-{{- end }}
-
-{{/*
-Create the name of the master priority class to use
-*/}}
-{{- define "celeborn.masterPriorityClassName" -}}
-{{- if .Values.priorityClass.master.name -}}
-{{ .Values.priorityClass.master.name }}
-{{- else -}}
-{{ include "celeborn.fullname" . }}-master-priority-class
-{{- end }}
-{{- end }}
-
-{{/*
-Create the name of the worker priority class to use
-*/}}
-{{- define "celeborn.workerPriorityClassName" -}}
-{{- if .Values.priorityClass.worker.name -}}
-{{ .Values.priorityClass.worker.name }}
-{{- else -}}
-{{ include "celeborn.fullname" . }}-worker-priority-class
-{{- end }}
-{{- end }}
-
-{{/*
 Create the name of the celeborn image to use
 */}}
 {{- define "celeborn.image" -}}
 {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
-{{- end }}
-
-{{/*
-Create the name of the master statefulset to use
-*/}}
-{{- define "celeborn.masterStatefulSetName" -}}
-{{ include "celeborn.fullname" . }}-master
-{{- end }}
-
-{{/*
-Create the name of the worker statefulset to use
-*/}}
-{{- define "celeborn.workerStatefulSetName" -}}
-{{ include "celeborn.fullname" . }}-worker
-{{- end }}
-
-{{/*
-Create the name of the master podmonitor to use
-*/}}
-{{- define "celeborn.masterPodMonitorName" -}}
-{{ include "celeborn.fullname" . }}-master-podmonitor
-{{- end }}
-
-{{/*
-Create the name of the worker podmonitor to use
-*/}}
-{{- define "celeborn.workerPodMonitorName" -}}
-{{ include "celeborn.fullname" . }}-worker-podmonitor
 {{- end }}

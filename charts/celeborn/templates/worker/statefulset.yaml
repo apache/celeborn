@@ -18,21 +18,18 @@ limitations under the License.
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "celeborn.workerStatefulSetName" . }}
+  name: {{ include "celeborn.worker.statefulSetName" . }}
   labels:
-    {{- include "celeborn.labels" . | nindent 4 }}
-    app.kubernetes.io/role: worker
+    {{- include "celeborn.worker.labels" . | nindent 4 }}
 spec:
-  serviceName: {{ include "celeborn.workerServiceName" . }}
+  serviceName: {{ include "celeborn.worker.serviceName" . }}
   selector:
     matchLabels:
-      {{- include "celeborn.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/role: worker
+      {{- include "celeborn.worker.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "celeborn.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/role: worker
+        {{- include "celeborn.worker.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/tag: {{ .Values.image.tag | quote }}
       {{- with .Values.podAnnotations }}
       annotations:
@@ -79,7 +76,7 @@ spec:
         {{- $namespace := .Release.Namespace }}
         - >
           until {{ range until (.Values.masterReplicas | int) }}
-          nslookup {{ include "celeborn.masterStatefulSetName" $ }}-{{ . }}.{{ include "celeborn.masterServiceName" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && 
+          nslookup {{ include "celeborn.master.statefulSetName" $ }}-{{ . }}.{{ include "celeborn.master.serviceName" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && 
           {{- end }}
           true; do
             echo "waiting for master";
@@ -142,7 +139,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if or .Values.priorityClass.worker.name .Values.priorityClass.worker.create }}
-      priorityClassName: {{ include "celeborn.workerPriorityClassName" . }}
+      priorityClassName: {{ include "celeborn.worker.priorityClassName" . }}
       {{- end }}
       {{- with .Values.dnsPolicy }}
       dnsPolicy: {{ . }}
