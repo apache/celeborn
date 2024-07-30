@@ -43,6 +43,16 @@ master:
   # -- Number of Celeborn master replicas to deploy, should not less than 3
   replicas: 3
 
+  # Priority class for Celeborn master pods
+  priorityClass:
+    # -- Specifies whether to create a new priority class for Celeborn master pods
+    create: false
+    # -- Specifies the name of priority class for Celeborn master pods to be used (created if `create: true`).
+    # Empty means `${Release.Name}-master-priority-class`.
+    name: ""
+    # -- Specifies the integer value of this priority class, default is half of system-cluster-critical
+    value: 1000000000
+
   # -- Resources for Celeborn master pods
   resources: {}
     # requests:
@@ -55,6 +65,16 @@ master:
 worker:
   # -- Specifies the number of Celeborn worker replicas to deploy, should less than node number
   replicas: 5
+
+  # Priority class for Celeborn worker pods
+  priorityClass:
+    # -- Specifies whether to create a new priority class for Celeborn worker pods
+    create: false
+    # -- Specifies the name of priority class for Celeborn worker pods to be used (created if `create: true`)
+    # Empty means `${Release.Name}-worker-priority-class`.
+    name: ""
+    # -- Specifies the integer value of this priority class, default is Celeborn master value minus 1000
+    value: 999999000
 
   # -- Resources for Celeborn worker pods
   resources: {}
@@ -154,25 +174,6 @@ securityContext:
   runAsGroup: 10006
   # Specifies the group ID to use when modifying ownership and permissions of the mounted volumes
   fsGroup: 10006
-
-priorityClass:
-  # Priority class for Celeborn master pods
-  master:
-    # -- Specifies whether a new priority class for Celeborn master pods should be created
-    create: false
-    # -- Specifies the name of priority class for Celeborn master pods to be used (created if `create: true`), empty means `${Release.Name}-master-priority-class`
-    name: ""
-    # -- Specifies the integer value of this priority class, default is half of system-cluster-critical
-    value: 1000000000
-
-  # Priority class for Celeborn worker pods
-  worker:
-    # -- Specifies whether a new priority class for Celeborn worker pods should be created
-    create: false
-    # -- Specifies the name of priority class for Celeborn worker pods to be used (created if `create: true`), empty means `${Release.Name}-worker-priority-class`
-    name: ""
-    # -- Specifies the integer value of this priority class, default is Celeborn master value minus 1000
-    value: 999999000
 
 # -- Pod annotations
 podAnnotations: {}

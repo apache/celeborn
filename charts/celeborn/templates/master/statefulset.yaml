@@ -133,7 +133,7 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if or .Values.priorityClass.master.name .Values.priorityClass.master.create }}
+      {{- if or .Values.master.priorityClass.name .Values.master.priorityClass.create }}
       priorityClassName: {{ include "celeborn.master.priorityClassName" . }}
       {{- end }}
       {{- with .Values.dnsPolicy }}
