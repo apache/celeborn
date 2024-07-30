@@ -39,10 +39,13 @@ image:
   pullSecrets: []
   # - name: secret-name
 
-# -- Specifies the number of Celeborn master replicas to deploy, master replicas should not less than 3
-masterReplicas: 3
-# -- Specifies the number of Celeborn worker replicas to deploy, should less than node number
-workerReplicas: 5
+master:
+  # -- Number of Celeborn master replicas to deploy, should not less than 3
+  replicas: 3
+
+worker:
+  # -- Specifies the number of Celeborn worker replicas to deploy, should less than node number
+  replicas: 5
 
 service:
   # -- Specifies service type

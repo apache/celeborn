@@ -24,8 +24,8 @@ metadata:
 data:
   celeborn-defaults.conf: |-
     {{- $namespace := .Release.Namespace }}
-    celeborn.master.endpoints={{ range until (.Values.masterReplicas |int) }}{{ $.Release.Name }}-master-{{ . }}.{{ $.Release.Name }}-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local,{{ end }}
-    {{- range until (.Values.masterReplicas |int) }}
+    celeborn.master.endpoints={{ range until (.Values.master.replicas |int) }}{{ $.Release.Name }}-master-{{ . }}.{{ $.Release.Name }}-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local,{{ end }}
+    {{- range until (.Values.master.replicas |int) }}
     celeborn.master.ha.node.{{ . }}.host={{ $.Release.Name }}-master-{{ . }}.{{ $.Release.Name }}-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local
     {{- end }}
     {{- $dirs := .Values.volumes.master }}
