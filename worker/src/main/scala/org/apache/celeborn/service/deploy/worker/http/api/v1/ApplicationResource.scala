@@ -48,7 +48,7 @@ class ApplicationResource extends ApiRequestContext {
   @GET
   def applications(): ApplicationsResponse = {
     new ApplicationsResponse()
-      .applications(worker.workerInfo.getApplicationIdSet.asScala.toSeq.asJava)
+      .applications(worker.workerInfo.getApplicationIdSet.asScala.toSeq.sorted.asJava)
   }
 
   @ApiResponse(

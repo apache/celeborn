@@ -44,6 +44,6 @@ class ShuffleResource extends ApiRequestContext {
       "List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.")
   @GET
   def shuffles: ShufflesResponse = {
-    new ShufflesResponse().shuffleIds(statusSystem.registeredShuffle.asScala.toSeq.asJava)
+    new ShufflesResponse().shuffleIds(statusSystem.registeredShuffle.asScala.toSeq.sorted.asJava)
   }
 }
