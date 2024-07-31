@@ -44,4 +44,6 @@ public class TransportModuleConstants {
   @Deprecated public static final String RPC_MODULE = "rpc";
 
   public static final String DATA_MODULE = "data";
+
+  public static final String WILDCARD_BIND_ADDRESS = null;
 }

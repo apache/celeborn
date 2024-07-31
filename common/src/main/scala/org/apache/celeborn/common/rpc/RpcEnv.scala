@@ -24,6 +24,7 @@ import scala.concurrent.Future
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.TransportModuleConstants
 import org.apache.celeborn.common.rpc.netty.NettyRpcEnvFactory
+import org.apache.celeborn.common.util.Utils
 
 /**
  * A RpcEnv implementation must have a [[RpcEnvFactory]] implementation with an empty constructor
@@ -50,14 +51,17 @@ object RpcEnv {
       conf: CelebornConf,
       numUsableCores: Int,
       securityContext: Option[RpcSecurityContext] = None): RpcEnv = {
-    val resolvedBindAddress = if (conf.bindWildcardAddress) null else bindAddress
+    val resolvedBindAddress =
+      if (conf.bindWildcardAddress) TransportModuleConstants.WILDCARD_BIND_ADDRESS else bindAddress
+    val resolvedAdvertiseAddress =
+      if (conf.advertisePreferIP) Utils.localHostNameForAdvertiseAddress(conf) else advertiseAddress
     val config =
       RpcEnvConfig(
         conf,
         name,
         transportModule,
         resolvedBindAddress,
-        advertiseAddress,
+        resolvedAdvertiseAddress,
         port,
         numUsableCores,
         securityContext)

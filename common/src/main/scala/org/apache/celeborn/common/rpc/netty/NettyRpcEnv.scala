@@ -392,10 +392,10 @@ private[celeborn] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
     val startNettyRpcEnv: Int => (NettyRpcEnv, Int) = { actualPort =>
       if (celebornConf.bindWildcardAddress) {
         logInfo(s"Starting RPC Server [${config.name}] on wildcard address with port" +
-          s" $actualPort, and advisor endpoint ${config.advertiseAddress}:$actualPort")
+          s" $actualPort, and advertised endpoint ${config.advertiseAddress}:$actualPort")
       } else {
         logInfo(s"Starting RPC Server [${config.name}] on ${config.bindAddress}:$actualPort " +
-          s"with advisor endpoint ${config.advertiseAddress}:$actualPort")
+          s"with advertised endpoint ${config.advertiseAddress}:$actualPort")
       }
       nettyEnv.startServer(config.bindAddress, actualPort)
       (nettyEnv, nettyEnv.address.port)
