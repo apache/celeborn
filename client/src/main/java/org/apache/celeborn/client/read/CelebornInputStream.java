@@ -391,8 +391,6 @@ public abstract class CelebornInputStream extends InputStream {
           }
           // read one chunk first, then throw CelebornIOException to let spark rerun stage
           if (conf.testRandomPushForStageRerun() && 0 == shuffleId) {
-            logger.info("Force throwing exception for shuffleid " + shuffleId +
-                " .. alreadyReadChunk = " + alreadyReadChunk);
             if (!alreadyReadChunk) {
               alreadyReadChunk = true;
             } else {
