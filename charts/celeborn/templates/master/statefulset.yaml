@@ -125,12 +125,12 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
+      {{- with .Values.master.affinity }}
+      affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.affinity.master }}
-      affinity:
+      {{- with .Values.tolerations }}
+      tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if or .Values.master.priorityClass.name .Values.master.priorityClass.create }}

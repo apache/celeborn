@@ -128,12 +128,12 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
+      {{- with .Values.worker.affinity }}
+      affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.affinity.worker }}
-      affinity:
+      {{- with .Values.tolerations }}
+      tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if or .Values.worker.priorityClass.name .Values.worker.priorityClass.create }}
