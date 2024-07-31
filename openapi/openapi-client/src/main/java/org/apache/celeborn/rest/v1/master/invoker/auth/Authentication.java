@@ -15,10 +15,21 @@
  * limitations under the License.
  */
 
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.1.1")
 
-addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.6")
+package org.apache.celeborn.rest.v1.master.invoker.auth;
 
-addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.2.1")
+import org.apache.celeborn.rest.v1.master.invoker.Pair;
 
-addSbtPlugin("org.openapitools" % "sbt-openapi-generator" % "7.7.0")
+import java.util.Map;
+import java.util.List;
+
+public interface Authentication {
+    /**
+     * Apply authentication settings to header and query params.
+     *
+     * @param queryParams List of query parameters
+     * @param headerParams Map of header parameters
+     * @param cookieParams Map of cookie parameters
+     */
+    void applyToParams(List<Pair> queryParams, Map<String, String> headerParams, Map<String, String> cookieParams);
+}
