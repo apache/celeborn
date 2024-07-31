@@ -80,6 +80,16 @@ master:
             - master
         topologyKey: kubernetes.io/hostname
 
+  # -- Node selector for Celeborn master pods
+  tolerations: []
+  # - key: key1
+  #   operator: Equal
+  #   value: value1
+  #   effect: NoSchedule
+  # - key: key2
+  #   operator: Exists
+  #   effect: NoSchedule
+
   # Priority class for Celeborn master pods
   priorityClass:
     # -- Specifies whether to create a new priority class for Celeborn master pods
@@ -155,6 +165,16 @@ worker:
             - worker
         topologyKey: kubernetes.io/hostname
 
+  # -- Node selector for Celeborn worker pods
+  tolerations: []
+  # - key: key1
+  #   operator: Equal
+  #   value: value1
+  #   effect: NoSchedule
+  # - key: key2
+  #   operator: Exists
+  #   effect: NoSchedule
+
   # Priority class for Celeborn worker pods
   priorityClass:
     # -- Specifies whether to create a new priority class for Celeborn worker pods
@@ -228,16 +248,6 @@ securityContext:
   runAsGroup: 10006
   # Specifies the group ID to use when modifying ownership and permissions of the mounted volumes
   fsGroup: 10006
-
-# -- Pod tolerations
-tolerations: []
-# - key: key1
-#   operator: Equal
-#   value: value1
-#   effect: NoSchedule
-# - key: key2
-#   operator: Exists
-#   effect: NoSchedule
 
 podMonitor:
   # -- Specifies whether to enable creating pod monitors for Celeborn pods
