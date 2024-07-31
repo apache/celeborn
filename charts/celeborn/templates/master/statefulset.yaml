@@ -106,6 +106,10 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
+        {{- with .Values.master.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
       {{- with .Values.image.pullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

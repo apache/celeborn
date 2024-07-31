@@ -213,6 +213,13 @@ master:
     #   cpu: 100m
     #   memory: 128Mi
 
+  # -- Security context for Celeborn master containers
+  securityContext:
+    # Specifies the UID to run the entrypoint of the container process
+    runAsUser: 10006
+    # Specifies the GID to run the entrypoint of the container process
+    runAsGroup: 10006
+
   service:
     # -- Specifies service type for Celeborn master service
     type: ClusterIP
@@ -363,7 +370,14 @@ worker:
     # limits:
     #   cpu: 100m
     #   memory: 128Mi
-  
+
+  # -- Security context for Celeborn worker containers
+  securityContext:
+    # Specifies the UID to run the entrypoint of the container process
+    runAsUser: 10006
+    # Specifies the GID to run the entrypoint of the container process
+    runAsGroup: 10006
+
   service:
     # -- Specifies service type for Celeborn worker service
     type: ClusterIP
