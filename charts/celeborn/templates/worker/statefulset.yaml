@@ -76,7 +76,7 @@ spec:
         {{- $namespace := .Release.Namespace }}
         - >
           until {{ range until (.Values.master.replicas | int) }}
-          nslookup {{ include "celeborn.master.statefulSetName" $ }}-{{ . }}.{{ include "celeborn.master.serviceName" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && 
+          nslookup {{ include "celeborn.master.statefulSetName" $ }}-{{ . }}.{{ include "celeborn.master.serviceName" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.domain }} && 
           {{- end }}
           true; do
             echo "waiting for master";

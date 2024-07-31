@@ -371,5 +371,5 @@ worker:
       portName: metrics
 
 cluster:
-  # -- Specifies Kubernetes cluster name
-  name: cluster
+  # -- Specifies Kubernetes cluster domain
+  domain: cluster.local

@@ -24,12 +24,21 @@ metadata:
 data:
   celeborn-defaults.conf: |-
     {{- $namespace := .Release.Namespace }}
-    celeborn.master.endpoints={{ range until (.Values.master.replicas |int) }}{{ $.Release.Name }}-master-{{ . }}.{{ $.Release.Name }}-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local,{{ end }}
-    {{- range until (.Values.master.replicas |int) }}
-    celeborn.master.ha.node.{{ . }}.host={{ $.Release.Name }}-master-{{ . }}.{{ $.Release.Name }}-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local
+
+    {{- $endpoints := list }}
+    {{- range until (.Values.master.replicas | int) }}
+    {{- $endpoint := (printf "%s-%d.%s.%s.svc.%s" (include "celeborn.master.statefulSetName" $) . (include "celeborn.master.serviceName" $) $.Release.Namespace $.Values.cluster.domain) }}
+    {{- $endpoints = append $endpoints $endpoint }}
     {{- end }}
+    celeborn.master.endpoints={{ $endpoints | join "," }}
+
+    {{- range until (.Values.master.replicas | int) }}
+    celeborn.master.ha.node.{{ . }}.host={{ printf "%s-%d.%s.%s.svc.%s" (include "celeborn.master.statefulSetName" $) . (include "celeborn.master.serviceName" $) $.Release.Namespace $.Values.cluster.domain }}
+    {{- end }}
+
     {{- $dirs := .Values.master.volumes }}
     celeborn.master.ha.ratis.raft.server.storage.dir={{ (index $dirs 0).mountPath }}
+  
     {{- $path := "" }}
     {{- range $worker := .Values.worker.volumes }}
     {{- $info := (cat $worker.mountPath ":disktype=" (get $worker "diskType" | default "HDD") ":capacity=" (get $worker "capacity" | default "1PB") | nospace) }}
@@ -40,6 +49,7 @@ data:
     {{- end }}
     {{- end }}
     celeborn.worker.storage.dirs={{ $path }}
+
     {{- range $key, $val := .Values.celeborn }}
     {{ $key }}={{ $val }}
     {{- end }}
