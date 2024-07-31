@@ -114,7 +114,24 @@ master:
     runAsGroup: 10006
     # Specifies the GID to use when modifying ownership and permissions of the mounted volumes
     fsGroup: 10006
-    
+
+  # -- Specifies environment variables for Celeborn master containers
+  env:
+  - name: CELEBORN_MASTER_MEMORY
+    value: 2g
+  - name: CELEBORN_MASTER_JAVA_OPTS
+    value: >
+      -XX:-PrintGC
+      -XX:+PrintGCDetails
+      -XX:+PrintGCTimeStamps
+      -XX:+PrintGCDateStamps
+      -Xloggc:gc-master.out
+      -Dio.netty.leakDetectionLevel=advanced
+  - name: CELEBORN_NO_DAEMONIZE
+    value: "1"
+  - name: TZ
+    value: Asia/Shanghai
+
   # -- Resources for Celeborn master pods
   resources: {}
     # requests:
@@ -215,6 +232,25 @@ worker:
     # Specifies the GID to use when modifying ownership and permissions of the mounted volumes
     fsGroup: 10006
 
+  # -- Specifies environment variables for Celeborn worker containers
+  env:
+  - name: CELEBORN_WORKER_MEMORY
+    value: 2g
+  - name: CELEBORN_WORKER_OFFHEAP_MEMORY
+    value: 12g
+  - name: CELEBORN_WORKER_JAVA_OPTS
+    value: >
+      -XX:-PrintGC
+      -XX:+PrintGCDetails
+      -XX:+PrintGCTimeStamps
+      -XX:+PrintGCDateStamps
+      -Xloggc:gc-worker.out
+      -Dio.netty.leakDetectionLevel=advanced
+  - name: CELEBORN_NO_DAEMONIZE
+    value: "1"
+  - name: TZ
+    value: Asia/Shanghai
+
   # -- Resources for Celeborn worker pods
   resources: {}
     # requests:
@@ -253,16 +289,6 @@ celeborn:
   celeborn.push.stageEnd.timeout: 120s
   celeborn.application.heartbeat.timeout: 120s
   celeborn.worker.heartbeat.timeout: 120s
-
-# -- Celeborn environment variables
-environments:
-  CELEBORN_MASTER_MEMORY: 2g
-  CELEBORN_MASTER_JAVA_OPTS: "-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-master.out -Dio.netty.leakDetectionLevel=advanced"
-  CELEBORN_WORKER_MEMORY: 2g
-  CELEBORN_WORKER_OFFHEAP_MEMORY: 12g
-  CELEBORN_WORKER_JAVA_OPTS: "-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-worker.out -Dio.netty.leakDetectionLevel=advanced"
-  CELEBORN_NO_DAEMONIZE: 1
-  TZ: "Asia/Shanghai"
 
 podMonitor:
   # -- Specifies whether to enable creating pod monitors for Celeborn pods
