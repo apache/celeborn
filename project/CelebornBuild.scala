@@ -1305,7 +1305,8 @@ object CelebornOpenApi {
       "library" -> "apache-httpclient",
       "hideGenerationTimestamp" -> "true",
       "supportUrlQuery" -> "false",
-      "annotationLibrary" -> "none"
+      "annotationLibrary" -> "none",
+      "templateDir" -> s"$openApiSpecDir/templates",
     )
   )
 

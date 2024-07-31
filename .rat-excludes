@@ -37,4 +37,5 @@ build/scala-*/**
 build/sbt-config/**
 **/benchmarks/**
 **/node_modules/**
-**/src/main/java/org/apache/celeborn/rest/v1/**/*.java
+**/src/main/java/org/apache/celeborn/rest/v1/**/ServerConfiguration.java
+**/src/main/java/org/apache/celeborn/rest/v1/**/ServerVariable.java

@@ -247,6 +247,7 @@
                   <artifactId>${artifactId}</artifactId>
                   <artifactVersion>${project.version}</artifactVersion>
                   <addCompileSourceRoot>false</addCompileSourceRoot>
+                  <templateDirectory>${project.basedir}/src/main/openapi3/templates</templateDirectory>
                   <cleanupOutput>true</cleanupOutput>
                   <configOptions>
                     <licenseName>Apache License 2.0</licenseName>
@@ -281,6 +282,7 @@
                   <artifactId>${artifactId}</artifactId>
                   <artifactVersion>${project.version}</artifactVersion>
                   <addCompileSourceRoot>false</addCompileSourceRoot>
+                  <templateDirectory>${project.basedir}/src/main/openapi3/templates</templateDirectory>
                   <configOptions>
                     <licenseName>Apache License 2.0</licenseName>
                     <groupId>${groupId}</groupId>
