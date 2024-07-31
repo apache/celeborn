@@ -31,6 +31,9 @@ spec:
       labels:
         {{- include "celeborn.master.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/tag: {{ .Values.image.tag | quote }}
+      {{- with .Values.master.labels }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .Values.master.annotations }}
       annotations:
         {{- toYaml . | nindent 8 }}

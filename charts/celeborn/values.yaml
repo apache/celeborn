@@ -101,6 +101,11 @@ master:
   # -- Number of Celeborn master replicas to deploy, should not less than 3
   replicas: 3
 
+  # -- Labels for Celeborn master pods
+  labels: {}
+    # key1: value1
+    # key2: value2
+
   # -- Annotations for Celeborn master pods
   annotations: {}
     # key1: value1
@@ -229,6 +234,11 @@ master:
 worker:
   # -- Specifies the number of Celeborn worker replicas to deploy, should less than node number
   replicas: 5
+
+  # -- Labels for Celeborn worker pods
+  labels: {}
+    # key1: value1
+    # key2: value2
 
   # -- Annotations for Celeborn worker pods
   annotations: {}
