@@ -43,6 +43,11 @@ master:
   # -- Number of Celeborn master replicas to deploy, should not less than 3
   replicas: 3
 
+  # -- Annotations for Celeborn master pods
+  annotations: {}
+    # key1: value1
+    # key2: value2
+
   # Currently supported volume types are `emptyDir` and `hostPath`.
   # Note that `hostPath` only works in hostPath type using to set `volumes hostPath path`.
   # Celeborn Master will pick first volumes for store raft log.
@@ -76,6 +81,11 @@ master:
 worker:
   # -- Specifies the number of Celeborn worker replicas to deploy, should less than node number
   replicas: 5
+
+  # -- Annotations for Celeborn worker pods
+  annotations: {}
+    # key1: value1
+    # key2: value2
 
   # Currently supported volume types are `emptyDir` and `hostPath`.
   # Note that `hostPath` only works in hostPath type using to set `volumes hostPath path`.
@@ -176,11 +186,6 @@ securityContext:
   runAsGroup: 10006
   # Specifies the group ID to use when modifying ownership and permissions of the mounted volumes
   fsGroup: 10006
-
-# -- Pod annotations
-podAnnotations: {}
-# key1: value1
-# key2: value2
 
 # -- Pod node selector
 nodeSelector: {}
