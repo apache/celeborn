@@ -39,6 +39,64 @@ image:
   pullSecrets: []
   # - name: secret-name
 
+# -- Celeborn configurations.
+# Ref: [Configuration - Apache Celeborn](https://celeborn.apache.org/docs/latest/configuration)
+celeborn:
+  # ============================================================================
+  # Mater
+  # ============================================================================
+  celeborn.master.http.port: 9098
+  celeborn.master.heartbeat.application.timeout: 300s
+  celeborn.master.heartbeat.worker.timeout: 120s
+
+  # ============================================================================
+  # Mater HA
+  # ============================================================================
+  celeborn.master.ha.enabled: true
+
+  # If not specified, and `celeborn.master.ha.enabled` is set to `true`,
+  # then it will be configured automatically as `master.volumeMounts[0].mountPath`.
+  # celeborn.master.ha.ratis.raft.server.storage.dir: /tmp/ratis
+
+  # Note that, `celeborn.master.ha.node.<id>.host` should be configured automatically by Helm.
+  # celeborn.master.ha.node.<id>.host: ""
+
+  # ============================================================================
+  # Worker
+  # ============================================================================
+
+  # Note that, `celeborn.master.endpoints` should be configured automatically by Helm.
+  # celeborn.master.endpoints: <localhost>:9097
+
+  celeborn.shuffle.chunk.size: 8m
+  celeborn.worker.flusher.buffer.size: 256K
+  celeborn.worker.http.port: 9096
+  celeborn.worker.fetch.io.threads: 32
+  celeborn.worker.monitor.disk.enabled: false
+  celeborn.worker.push.io.threads: 32
+
+  # If not specified, `celeborn.worker.storage.dirs` will be configured automatically by Helm according to `master.worker.volumeMounts`.
+  # celeborn.worker.storage.dirs: ""
+
+  # ============================================================================
+  # Client
+  # ============================================================================
+  celeborn.client.push.stageEnd.timeout: 120s
+
+  # ============================================================================
+  # Network
+  # ============================================================================
+  celeborn.rpc.io.serverThreads: 64
+  celeborn.rpc.io.numConnectionsPerPeer: 2
+  celeborn.rpc.io.clientThreads: 64
+  celeborn.rpc.dispatcher.numThreads: 4
+
+  # ============================================================================
+  # Metrics
+  # ============================================================================
+  celeborn.metrics.enabled: true
+  celeborn.metrics.prometheus.path: /metrics/prometheus
+
 master:
   # -- Number of Celeborn master replicas to deploy, should not less than 3
   replicas: 3
@@ -315,23 +373,3 @@ worker:
 cluster:
   # -- Specifies Kubernetes cluster name
   name: cluster
-
-# -- Celeborn configurations
-celeborn:
-  celeborn.master.ha.enabled: true
-  celeborn.metrics.enabled: true
-  celeborn.metrics.prometheus.path: /metrics/prometheus
-  celeborn.master.http.port: 9098
-  celeborn.worker.http.port: 9096
-  celeborn.worker.monitor.disk.enabled: false
-  celeborn.shuffle.chunk.size: 8m
-  celeborn.rpc.io.serverThreads: 64
-  celeborn.rpc.io.numConnectionsPerPeer: 2
-  celeborn.rpc.io.clientThreads: 64
-  celeborn.rpc.dispatcher.numThreads: 4
-  celeborn.worker.flusher.buffer.size: 256K
-  celeborn.worker.fetch.io.threads: 32
-  celeborn.worker.push.io.threads: 32
-  celeborn.push.stageEnd.timeout: 120s
-  celeborn.application.heartbeat.timeout: 120s
-  celeborn.worker.heartbeat.timeout: 120s
