@@ -294,16 +294,13 @@ private[celeborn] class Master(
         sendApplicationMetaThreads,
         "send-application-meta")
     }
-    checkForWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
-      new Runnable {
-        override def run(): Unit = Utils.tryLogNonFatalError {
-          self.send(ControlMessages.pbCheckForWorkerTimeout)
-        }
-      },
-      0,
-      workerHeartbeatTimeoutMs,
-      TimeUnit.MILLISECONDS)
 
+    checkForWorkerTimeOutTask = scheduleCheckTask(workerHeartbeatTimeoutMs, pbCheckForWorkerTimeout)
+    checkForApplicationTimeOutTask =
+      scheduleCheckTask(appHeartbeatTimeoutMs / 2, CheckForApplicationTimeOut)
+    checkForUnavailableWorkerTimeOutTask = scheduleCheckTask(
+      workerUnavailableInfoExpireTimeoutMs / 2,
+      CheckForWorkerUnavailableInfoTimeout)
     checkForApplicationTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
@@ -327,17 +324,22 @@ private[celeborn] class Master(
     }
 
     if (hasHDFSStorage || hasS3Storage) {
-      checkForS3RemnantDirsTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
-        new Runnable {
-          override def run(): Unit = Utils.tryLogNonFatalError {
-            self.send(CheckForDFSExpiredDirsTimeout)
-          }
-        },
-        dfsExpireDirsTimeoutMS,
-        dfsExpireDirsTimeoutMS,
-        TimeUnit.MILLISECONDS)
+      checkForHDFSRemnantDirsTimeOutTask =
+        scheduleCheckTask(dfsExpireDirsTimeoutMS, CheckForDFSExpiredDirsTimeout)
     }
 
+  }
+
+  def scheduleCheckTask(timeoutMS: Long, message: Message): ScheduledFuture[_] = {
+    forwardMessageThread.scheduleWithFixedDelay(
+      new Runnable {
+        override def run(): Unit = Utils.tryLogNonFatalError {
+          self.send(message)
+        }
+      },
+      timeoutMS,
+      timeoutMS,
+      TimeUnit.MILLISECONDS)
   }
 
   override def onStop(): Unit = {
