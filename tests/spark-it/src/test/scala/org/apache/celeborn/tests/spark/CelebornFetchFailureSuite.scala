@@ -102,7 +102,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
     }
   }
 
-  /*
   test("celeborn spark integration test - Fetch Failure") {
     if (Spark3OrNewer) {
       val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
@@ -453,7 +452,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
       sparkSession.stop()
     }
   }
-   */
 
   test("celeborn spark integration test - Fetch Failure - Deterministic Stage") {
     if (Spark3OrNewer) {
