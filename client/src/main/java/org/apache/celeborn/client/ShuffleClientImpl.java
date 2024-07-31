@@ -615,17 +615,19 @@ public class ShuffleClientImpl extends ShuffleClient {
     return pbReportShuffleFetchFailureResponse.getSuccess();
   }
 
-  public boolean reportBarrierTaskFailure(int appShuffleId, String appShuffleIdentifier) {
-    PbReportBarrierStageAttemptFailure pbReportBarrierStageAttemptFailure =
-        PbReportBarrierStageAttemptFailure.newBuilder()
+  public boolean reportTaskFailure(
+      int appShuffleId, String appShuffleIdentifier, boolean barrierStage) {
+    PbReportStageAttemptFailure pbReportBarrierStageAttemptFailure =
+        PbReportStageAttemptFailure.newBuilder()
             .setAppShuffleId(appShuffleId)
             .setAppShuffleIdentifier(appShuffleIdentifier)
+            .setIsBarrierStage(barrierStage)
             .build();
-    PbReportBarrierStageAttemptFailureResponse pbReportBarrierStageAttemptFailureResponse =
+    PbReportStageAttemptFailureResponse pbReportBarrierStageAttemptFailureResponse =
         lifecycleManagerRef.askSync(
             pbReportBarrierStageAttemptFailure,
             conf.clientRpcRegisterShuffleAskTimeout(),
-            ClassTag$.MODULE$.apply(PbReportBarrierStageAttemptFailureResponse.class));
+            ClassTag$.MODULE$.apply(PbReportStageAttemptFailureResponse.class));
     return pbReportBarrierStageAttemptFailureResponse.getSuccess();
   }
 

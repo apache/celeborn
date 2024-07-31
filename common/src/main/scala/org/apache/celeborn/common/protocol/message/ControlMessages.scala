@@ -530,12 +530,12 @@ object ControlMessages extends Logging {
     case pb: PbReportShuffleFetchFailureResponse =>
       new TransportMessage(MessageType.REPORT_SHUFFLE_FETCH_FAILURE_RESPONSE, pb.toByteArray)
 
-    case pb: PbReportBarrierStageAttemptFailure =>
-      new TransportMessage(MessageType.REPORT_BARRIER_STAGE_ATTEMPT_FAILURE, pb.toByteArray)
+    case pb: PbReportStageAttemptFailure =>
+      new TransportMessage(MessageType.REPORT_STAGE_ATTEMPT_FAILURE, pb.toByteArray)
 
-    case pb: PbReportBarrierStageAttemptFailureResponse =>
+    case pb: PbReportStageAttemptFailureResponse =>
       new TransportMessage(
-        MessageType.REPORT_BARRIER_STAGE_ATTEMPT_FAILURE_RESPONSE,
+        MessageType.REPORT_STAGE_ATTEMPT_FAILURE_RESPONSE,
         pb.toByteArray)
 
     case HeartbeatFromWorker(
@@ -1303,11 +1303,11 @@ object ControlMessages extends Logging {
       case APPLICATION_META_REQUEST_VALUE =>
         PbApplicationMetaRequest.parseFrom(message.getPayload)
 
-      case REPORT_BARRIER_STAGE_ATTEMPT_FAILURE_VALUE =>
-        PbReportBarrierStageAttemptFailure.parseFrom(message.getPayload)
+      case REPORT_STAGE_ATTEMPT_FAILURE_VALUE =>
+        PbReportStageAttemptFailure.parseFrom(message.getPayload)
 
-      case REPORT_BARRIER_STAGE_ATTEMPT_FAILURE_RESPONSE_VALUE =>
-        PbReportBarrierStageAttemptFailureResponse.parseFrom(message.getPayload)
+      case REPORT_STAGE_ATTEMPT_FAILURE_RESPONSE_VALUE =>
+        PbReportStageAttemptFailureResponse.parseFrom(message.getPayload)
     }
   }
 }
