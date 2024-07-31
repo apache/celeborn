@@ -156,6 +156,18 @@ master:
     # -- Specifies service port for Celeborn master service
     port: 9097
 
+  podMonitor:
+    # -- Specifies whether to create pod monitor for Celeborn master pods
+    enable: true
+    # -- Specifies pod metrics endpoint for Celeborn master pods
+    podMetricsEndpoint:
+      # Specifies scheme
+      scheme: http
+      # Specifies scrape interval
+      interval: 5s
+      # Specifies port name
+      portName: metrics
+
 worker:
   # -- Specifies the number of Celeborn worker replicas to deploy, should less than node number
   replicas: 5
@@ -288,6 +300,18 @@ worker:
     # -- Specifies service type for Celeborn worker service
     type: ClusterIP
 
+  podMonitor:
+    # -- Specifies whether to create pod monitor for Celeborn worker pods
+    enable: true
+    # -- Specifies pod metrics endpoint for Celeborn worker pods
+    podMetricsEndpoint:
+      # Specifies scheme
+      scheme: http
+      # Specifies scrape interval
+      interval: 5s
+      # Specifies port name
+      portName: metrics
+
 cluster:
   # -- Specifies Kubernetes cluster name
   name: cluster
@@ -311,15 +335,3 @@ celeborn:
   celeborn.push.stageEnd.timeout: 120s
   celeborn.application.heartbeat.timeout: 120s
   celeborn.worker.heartbeat.timeout: 120s
-
-podMonitor:
-  # -- Specifies whether to enable creating pod monitors for Celeborn pods
-  enable: true
-  # -- Specifies pod metrics endpoint
-  podMetricsEndpoint:
-    # Specifies scheme
-    scheme: http
-    # Specifies scrape interval
-    interval: 5s
-    # Specifies port name
-    portName: metrics

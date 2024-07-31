@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */ -}}
 
-{{- if .Values.podMonitor.enable }}
+{{- if .Values.worker.podMonitor.enable }}
 {{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/PodMonitor" -}}
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
@@ -25,9 +25,9 @@ metadata:
     {{- include "celeborn.worker.labels" . | nindent 4 }}
 spec:
   podMetricsEndpoints:
-  - interval: {{ .Values.podMonitor.podMetricsEndpoint.interval }}
-    port: {{ .Values.podMonitor.podMetricsEndpoint.portName | quote }}
-    scheme: {{ .Values.podMonitor.podMetricsEndpoint.scheme }}
+  - interval: {{ .Values.worker.podMonitor.podMetricsEndpoint.interval }}
+    port: {{ .Values.worker.podMonitor.podMetricsEndpoint.portName | quote }}
+    scheme: {{ .Values.worker.podMonitor.podMetricsEndpoint.scheme }}
     path: {{ get .Values.celeborn "celeborn.metrics.prometheus.path" | default "/metrics/prometheus" }}
   jobLabel: celeborn-worker-podmonitor
   namespaceSelector:
