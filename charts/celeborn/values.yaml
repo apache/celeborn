@@ -103,6 +103,9 @@ master:
   # -- Specifies the DNS policy for Celeborn master pods
   dnsPolicy: ClusterFirst
 
+  # -- Specifies whether to use the host's network namespace for Celeborn master pods
+  hostNetwork: false
+
   # -- Resources for Celeborn master pods
   resources: {}
     # requests:
@@ -191,6 +194,9 @@ worker:
   # -- Specifies the DNS policy for Celeborn worker pods
   dnsPolicy: ClusterFirst
 
+  # -- Specifies whether to use the host's network namespace for Celeborn worker pods
+  hostNetwork: false
+
   # -- Resources for Celeborn worker pods
   resources: {}
     # requests:
@@ -239,9 +245,6 @@ environments:
   CELEBORN_WORKER_JAVA_OPTS: "-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-worker.out -Dio.netty.leakDetectionLevel=advanced"
   CELEBORN_NO_DAEMONIZE: 1
   TZ: "Asia/Shanghai"
-
-# -- Specifies whether to use the host's network namespace
-hostNetwork: false
 
 # -- Container security context
 securityContext:
