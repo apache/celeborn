@@ -22,6 +22,7 @@ templates:
 
 release:
   name: celeborn
+  namespace: celeborn
 
 tests:
   - it: Should not create master pod monitor without api version `monitoring.coreos.com/v1/PodMonitor` even if `podMonitor.enable` is true
@@ -50,12 +51,13 @@ tests:
       apiVersions:
         - monitoring.coreos.com/v1/PodMonitor
     set:
-      podMonitor:
-        enable: true
-        podMetricsEndpoint:
-          scheme: http
-          interval: 3s
-          portName: test-port
+      master:
+        podMonitor:
+          enable: true
+          podMetricsEndpoint:
+            scheme: http
+            interval: 3s
+            portName: test-port
     asserts:
       - contains:
           path: spec.podMetricsEndpoints
@@ -73,8 +75,9 @@ tests:
     set:
       celeborn:
         celeborn.metrics.prometheus.path: custom-metrics-path
-      podMonitor:
-        enable: true
+      master:
+        podMonitor:
+          enable: true
     asserts:
       - contains:
           path: spec.podMetricsEndpoints

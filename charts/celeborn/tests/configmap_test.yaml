@@ -22,6 +22,7 @@ templates:
 
 release:
   name: celeborn
+  namespace: celeborn
 
 tests:
   - it: Should create configmap
@@ -35,7 +36,5 @@ tests:
     asserts:
       - exists:
           path: data["celeborn-defaults.conf"]
-      - exists:
-          path: data["celeborn-env.sh"]
       - exists:
           path: data["log4j2.xml"]
