@@ -79,7 +79,7 @@ spec:
             sleep 2;
           done && exec /opt/celeborn/sbin/start-master.sh
         ports:
-        - containerPort: {{ .Values.service.port }}
+        - containerPort: {{ .Values.master.service.port }}
         - containerPort: {{ get .Values.celeborn "celeborn.master.http.port" | default 9098 }}
           name: metrics
           protocol: TCP

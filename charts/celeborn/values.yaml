@@ -150,6 +150,12 @@ master:
     #   cpu: 100m
     #   memory: 128Mi
 
+  service:
+    # -- Specifies service type for Celeborn master service
+    type: ClusterIP
+    # -- Specifies service port for Celeborn master service
+    port: 9097
+
 worker:
   # -- Specifies the number of Celeborn worker replicas to deploy, should less than node number
   replicas: 5
@@ -277,12 +283,10 @@ worker:
     # limits:
     #   cpu: 100m
     #   memory: 128Mi
-
-service:
-  # -- Specifies service type
-  type: ClusterIP
-  # -- Specifies service port
-  port: 9097
+  
+  service:
+    # -- Specifies service type for Celeborn worker service
+    type: ClusterIP
 
 cluster:
   # -- Specifies Kubernetes cluster name

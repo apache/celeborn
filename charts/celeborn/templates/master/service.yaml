@@ -25,9 +25,9 @@ spec:
   selector:
     {{- include "celeborn.master.selectorLabels" . | nindent 4 }}
   ports:
-  - port: {{ .Values.service.port }}
-    targetPort: {{ .Values.service.port }}
+  - port: {{ .Values.master.service.port }}
+    targetPort: {{ .Values.master.service.port }}
     protocol: TCP
     name: celeborn-master
-  type: {{ .Values.service.type }}
+  type: {{ .Values.master.service.type }}
   clusterIP: None
