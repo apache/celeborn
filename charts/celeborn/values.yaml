@@ -132,6 +132,15 @@ master:
   - name: TZ
     value: Asia/Shanghai
 
+  # -- Specifies environment variable sources for Celeborn master containers
+  envFrom: []
+  # - configMapRef:
+  #     name: celeborn-configmap
+  #     optional: false
+  # - secretRef:
+  #     name: celeborn-secret
+  #     optional: false
+
   # -- Resources for Celeborn master pods
   resources: {}
     # requests:
@@ -250,6 +259,15 @@ worker:
     value: "1"
   - name: TZ
     value: Asia/Shanghai
+
+  # -- Specifies environment variable sources for Celeborn worker containers
+  envFrom: []
+  # - configMapRef:
+  #     name: celeborn-configmap
+  #     optional: false
+  # - secretRef:
+  #     name: celeborn-secret
+  #     optional: false
 
   # -- Resources for Celeborn worker pods
   resources: {}
