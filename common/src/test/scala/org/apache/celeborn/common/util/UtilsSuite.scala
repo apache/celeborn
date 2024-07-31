@@ -151,6 +151,18 @@ class UtilsSuite extends CelebornFunSuite {
     assert(false == Utils.isHdfsPath(localPath))
   }
 
+  test("validate s3 compatible fs path") {
+    val hdfsPath = "hdfs://xxx:9000/xxxx/xx-xx/x-x-x"
+    val simpleS3Path = "s3a://xxxx/xx-xx/x-x-x"
+    val sortedS3Path = "s3a://xxx/xxxx/xx-xx/x-x-x.sorted"
+    val indexS3Path = "s3a://xxx/xxxx/xx-xx/x-x-x.index"
+    assert(false == Utils.isS3Path(hdfsPath))
+    assert(false == Utils.isHdfsPath(simpleS3Path))
+    assert(true == Utils.isS3Path(simpleS3Path))
+    assert(true == Utils.isS3Path(sortedS3Path))
+    assert(true == Utils.isS3Path(indexS3Path))
+  }
+
   test("GetReducerFileGroupResponse class convert with pb") {
     val fileGroup = new util.HashMap[Integer, util.Set[PartitionLocation]]
     fileGroup.put(0, partitionLocation(0))

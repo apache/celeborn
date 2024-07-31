@@ -26,7 +26,6 @@ import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.util.Try
 
-import org.apache.celeborn.common.CelebornConf.{MASTER_INTERNAL_ENDPOINTS, S3_ACCESS_KEY, S3_DIR, S3_SECRET_KEY}
 import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
