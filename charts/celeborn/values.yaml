@@ -106,6 +106,15 @@ master:
   # -- Specifies whether to use the host's network namespace for Celeborn master pods
   hostNetwork: false
 
+  # -- Specifies security context for Celeborn master pods
+  podSecurityContext:
+    # Specifies the UID to run the entrypoint of the container process
+    runAsUser: 10006
+    # Specifies the GID to run the entrypoint of the container process
+    runAsGroup: 10006
+    # Specifies the GID to use when modifying ownership and permissions of the mounted volumes
+    fsGroup: 10006
+    
   # -- Resources for Celeborn master pods
   resources: {}
     # requests:
@@ -197,6 +206,15 @@ worker:
   # -- Specifies whether to use the host's network namespace for Celeborn worker pods
   hostNetwork: false
 
+  # -- Specifies security context for Celeborn worker pods
+  podSecurityContext:
+    # Specifies the UID to run the entrypoint of the container process
+    runAsUser: 10006
+    # Specifies the GID to run the entrypoint of the container process
+    runAsGroup: 10006
+    # Specifies the GID to use when modifying ownership and permissions of the mounted volumes
+    fsGroup: 10006
+
   # -- Resources for Celeborn worker pods
   resources: {}
     # requests:
@@ -245,15 +263,6 @@ environments:
   CELEBORN_WORKER_JAVA_OPTS: "-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-worker.out -Dio.netty.leakDetectionLevel=advanced"
   CELEBORN_NO_DAEMONIZE: 1
   TZ: "Asia/Shanghai"
-
-# -- Container security context
-securityContext:
-  # Specifies the user ID to run the entrypoint of the container process
-  runAsUser: 10006
-  # Specifies the group ID to run the entrypoint of the container process
-  runAsGroup: 10006
-  # Specifies the group ID to use when modifying ownership and permissions of the mounted volumes
-  fsGroup: 10006
 
 podMonitor:
   # -- Specifies whether to enable creating pod monitors for Celeborn pods
