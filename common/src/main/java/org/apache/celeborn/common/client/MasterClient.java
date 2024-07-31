@@ -49,7 +49,7 @@ public class MasterClient {
 
   private final RpcEnv rpcEnv;
   private final MasterEndpointResolver masterEndpointResolver;
-  private int maxRetries;
+  private final int maxRetries;
 
   private final RpcTimeout rpcTimeout;
 
