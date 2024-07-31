@@ -136,7 +136,7 @@ spec:
       {{- if or .Values.master.priorityClass.name .Values.master.priorityClass.create }}
       priorityClassName: {{ include "celeborn.master.priorityClassName" . }}
       {{- end }}
-      {{- with .Values.dnsPolicy }}
+      {{- with .Values.master.dnsPolicy }}
       dnsPolicy: {{ . }}
       {{- end }}
       {{- with .Values.hostNetwork }}

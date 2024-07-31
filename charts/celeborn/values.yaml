@@ -100,6 +100,9 @@ master:
     # -- Specifies the integer value of this priority class, default is half of system-cluster-critical
     value: 1000000000
 
+  # -- Specifies the DNS policy for Celeborn master pods
+  dnsPolicy: ClusterFirst
+
   # -- Resources for Celeborn master pods
   resources: {}
     # requests:
@@ -185,6 +188,9 @@ worker:
     # -- Specifies the integer value of this priority class, default is Celeborn master value minus 1000
     value: 999999000
 
+  # -- Specifies the DNS policy for Celeborn worker pods
+  dnsPolicy: ClusterFirst
+
   # -- Resources for Celeborn worker pods
   resources: {}
     # requests:
@@ -233,9 +239,6 @@ environments:
   CELEBORN_WORKER_JAVA_OPTS: "-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-worker.out -Dio.netty.leakDetectionLevel=advanced"
   CELEBORN_NO_DAEMONIZE: 1
   TZ: "Asia/Shanghai"
-
-# -- Specifies the DNS policy for Celeborn pods to use
-dnsPolicy: ClusterFirst
 
 # -- Specifies whether to use the host's network namespace
 hostNetwork: false
