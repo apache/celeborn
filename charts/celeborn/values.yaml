@@ -59,6 +59,11 @@ master:
     type: hostPath
     capacity: 100Gi
 
+  # -- Node selector for Celeborn master pods
+  nodeSelector: {}
+    # key1: value1
+    # key2: value2
+
   # Priority class for Celeborn master pods
   priorityClass:
     # -- Specifies whether to create a new priority class for Celeborn master pods
@@ -112,6 +117,11 @@ worker:
     type: hostPath
     diskType: SSD
     capacity: 100Gi
+
+  # -- Node selector for Celeborn worker pods
+  nodeSelector: {}
+    # key1: value1
+    # key2: value2
 
   # Priority class for Celeborn worker pods
   priorityClass:
@@ -186,11 +196,6 @@ securityContext:
   runAsGroup: 10006
   # Specifies the group ID to use when modifying ownership and permissions of the mounted volumes
   fsGroup: 10006
-
-# -- Pod node selector
-nodeSelector: {}
-# key1: value1
-# key2: value2
 
 # -- Pod tolerations
 tolerations: []

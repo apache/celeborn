@@ -121,7 +121,7 @@ spec:
       {{ fail "For now Celeborn Helm only support emptyDir or hostPath volume types" }}
       {{- end }}
       {{- end }}
-      {{- with .Values.nodeSelector }}
+      {{- with .Values.master.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
