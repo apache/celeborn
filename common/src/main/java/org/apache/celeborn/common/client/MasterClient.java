@@ -233,7 +233,6 @@ public class MasterClient {
     // This also unset the value of updated, so we don't always reset currentIndex to 0.
     if (masterEndpointResolver.getUpdatedAndReset()) {
       currentIndex.set(0);
-      maxRetries = Math.max(maxRetries, currentAttempt + activeMasterEndpoints.size());
     }
 
     if (endpointRef == null) {
