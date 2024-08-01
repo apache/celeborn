@@ -330,7 +330,7 @@ private[celeborn] class Master(
 
   }
 
-  def scheduleCheckTask(timeoutMS: Long, message: Message): ScheduledFuture[_] = {
+  def scheduleCheckTask[T](timeoutMS: Long, message: T): ScheduledFuture[_] = {
     forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
