@@ -256,7 +256,7 @@ public class WorkerApi extends BaseApi {
 
   /**
    * 
-   * Remove the unavailable workers info from the master.
+   * Remove the workers unavailable info from the master.
    * @param removeWorkersUnavailableInfoRequest  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
@@ -268,7 +268,7 @@ public class WorkerApi extends BaseApi {
 
   /**
    * 
-   * Remove the unavailable workers info from the master.
+   * Remove the workers unavailable info from the master.
    * @param removeWorkersUnavailableInfoRequest  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse

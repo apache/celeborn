@@ -167,7 +167,7 @@ paths:
       tags:
         - Worker
       operationId: removeWorkersUnavailableInfo
-      description: Remove the unavailable workers info from the master.
+      description: Remove the workers unavailable info from the master.
       requestBody:
         content:
           application/json:

@@ -84,7 +84,7 @@ class WorkerResource extends ApiRequestContext {
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Remove the unavailable workers info from the master.")
+    description = "Remove the workers unavailable info from the master.")
   @POST
   @Path("/remove_unavailable")
   def removeWorkersUnavailableInfo(request: RemoveWorkersUnavailableInfoRequest): HandleResponse = {
