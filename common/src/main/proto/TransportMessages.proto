@@ -509,6 +509,10 @@ message PbRemoveWorkersUnavailableInfo {
   string requestId = 2;
 }
 
+message PbRemoveWorkersUnavailableInfoResponse {
+  bool success = 1;
+}
+
 message PbWorkerExclude {
   repeated PbWorkerInfo workersToAdd = 1;
   repeated PbWorkerInfo workersToRemove = 2;

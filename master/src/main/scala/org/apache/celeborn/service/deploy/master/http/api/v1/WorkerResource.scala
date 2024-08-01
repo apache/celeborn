@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import javax.ws.rs.{BadRequestException, Consumes, GET, Path, POST, Produces}
+import javax.ws.rs.{BadRequestException, Consumes, DELETE, GET, Path, POST, Produces}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
@@ -26,7 +26,7 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 
-import org.apache.celeborn.rest.v1.model.{ExcludeWorkerRequest, HandleResponse, SendWorkerEventRequest, WorkerEventData, WorkerEventInfoData, WorkerEventsResponse, WorkersResponse, WorkerTimestampData}
+import org.apache.celeborn.rest.v1.model.{ExcludeWorkerRequest, HandleResponse, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, WorkerEventData, WorkerEventInfoData, WorkerEventsResponse, WorkersResponse, WorkerTimestampData}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.server.common.http.api.v1.ApiUtils
 import org.apache.celeborn.service.deploy.master.Master
@@ -35,7 +35,8 @@ import org.apache.celeborn.service.deploy.master.Master
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class WorkerResource extends ApiRequestContext {
-  private def statusSystem = httpService.asInstanceOf[Master].statusSystem
+  private def master: Master = httpService.asInstanceOf[Master]
+  private def statusSystem = master.statusSystem
 
   @ApiResponse(
     responseCode = "200",
@@ -75,6 +76,20 @@ class WorkerResource extends ApiRequestContext {
     val (success, msg) = httpService.exclude(
       request.getAdd.asScala.map(ApiUtils.toWorkerInfo).toSeq,
       request.getRemove.asScala.map(ApiUtils.toWorkerInfo).toSeq)
+    new HandleResponse().success(success).message(msg)
+  }
+
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[HandleResponse]))),
+    description = "Remove the unavailable workers info from the master.")
+  @DELETE
+  @Path("/unavailable")
+  def removeWorkersUnavailableInfo(request: RemoveWorkersUnavailableInfoRequest): HandleResponse = {
+    val (success, msg) = master.removeWorkersUnavailableInfo(
+      request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq)
     new HandleResponse().success(success).message(msg)
   }
 

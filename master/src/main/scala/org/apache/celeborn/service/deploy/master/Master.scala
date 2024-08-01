@@ -398,12 +398,6 @@ private[celeborn] class Master(
       executeWithLeaderChecker(
         null,
         handleWorkerLost(null, host, rpcPort, pushPort, fetchPort, replicatePort, requestId))
-    case pb: PbRemoveWorkersUnavailableInfo =>
-      val unavailableWorkers = new util.ArrayList[WorkerInfo](pb.getWorkerInfoList
-        .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
-      executeWithLeaderChecker(
-        null,
-        handleRemoveWorkersUnavailableInfos(unavailableWorkers, pb.getRequestId))
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
@@ -571,6 +565,13 @@ private[celeborn] class Master(
     case pb: PbApplicationMetaRequest =>
       // This request is from a worker
       executeWithLeaderChecker(context, handleRequestForApplicationMeta(context, pb))
+
+    case pb: PbRemoveWorkersUnavailableInfo =>
+      val unavailableWorkers = new util.ArrayList[WorkerInfo](pb.getWorkerInfoList
+        .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
+      executeWithLeaderChecker(
+        context,
+        handleRemoveWorkersUnavailableInfos(context, unavailableWorkers, pb.getRequestId))
   }
 
   private def timeoutDeadWorkers(): Unit = {
@@ -1063,9 +1064,13 @@ private[celeborn] class Master(
   }
 
   private def handleRemoveWorkersUnavailableInfos(
+      context: RpcCallContext,
       unavailableWorkers: util.List[WorkerInfo],
       requestId: String): Unit = {
     statusSystem.handleRemoveWorkersUnavailableInfo(unavailableWorkers, requestId)
+    if (context != null) {
+      context.reply(RemoveWorkersUnavailableInfoResponse(true))
+    }
   }
 
   private def handleResourceConsumption(userIdentifier: UserIdentifier): ResourceConsumption = {
@@ -1323,6 +1328,19 @@ private[celeborn] class Master(
         s"Unknown workers ${unknownExcludedWorkers.map(_.readableAddress).mkString(",")}. Workers in Master:\n$getWorkers.")
     }
     workerExcludeResponse.getSuccess -> sb.toString()
+  }
+
+  def removeWorkersUnavailableInfo(unavailableWorkers: Seq[WorkerInfo]): HandleResponse = {
+    val removeWorkersUnavailableInfoResponse =
+      self.askSync[PbRemoveWorkersUnavailableInfoResponse](RemoveWorkersUnavailableInfo(
+        unavailableWorkers.asJava,
+        MasterClient.genRequestId()))
+    if (removeWorkersUnavailableInfoResponse.getSuccess) {
+      true -> s"Remove unavailable info for workers ${unavailableWorkers.map(_.readableAddress).mkString(",")} successfully."
+    } else {
+      false -> s"Failed to remove unavailable info for workers ${unavailableWorkers.map(
+        _.readableAddress).mkString(",")}."
+    }
   }
 
   private def isMasterActive: Int = {
