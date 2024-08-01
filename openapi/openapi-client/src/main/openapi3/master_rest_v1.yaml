@@ -162,8 +162,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/HandleResponse'
 
-  /api/v1/workers/unavailable:
-    delete:
+  /api/v1/workers/remove_unavailable:
+    post:
       tags:
         - Worker
       operationId: removeWorkersUnavailableInfo

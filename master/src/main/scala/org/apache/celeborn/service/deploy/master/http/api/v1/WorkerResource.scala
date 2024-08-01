@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import javax.ws.rs.{BadRequestException, Consumes, DELETE, GET, Path, POST, Produces}
+import javax.ws.rs.{BadRequestException, Consumes, GET, Path, POST, Produces}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
@@ -85,8 +85,8 @@ class WorkerResource extends ApiRequestContext {
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[HandleResponse]))),
     description = "Remove the unavailable workers info from the master.")
-  @DELETE
-  @Path("/unavailable")
+  @POST
+  @Path("/remove_unavailable")
   def removeWorkersUnavailableInfo(request: RemoveWorkersUnavailableInfoRequest): HandleResponse = {
     val (success, msg) = master.removeWorkersUnavailableInfo(
       request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq)

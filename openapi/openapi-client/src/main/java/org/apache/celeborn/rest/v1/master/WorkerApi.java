@@ -278,7 +278,7 @@ public class WorkerApi extends BaseApi {
     Object localVarPostBody = removeWorkersUnavailableInfoRequest;
     
     // create path and map variables
-    String localVarPath = "/api/v1/workers/unavailable";
+    String localVarPath = "/api/v1/workers/remove_unavailable";
 
     StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
     String localVarQueryParameterBaseName;
@@ -308,7 +308,7 @@ public class WorkerApi extends BaseApi {
     TypeReference<HandleResponse> localVarReturnType = new TypeReference<HandleResponse>() {};
     return apiClient.invokeAPI(
         localVarPath,
-        "DELETE",
+        "POST",
         localVarQueryParams,
         localVarCollectionQueryParams,
         localVarQueryStringJoiner.toString(),
