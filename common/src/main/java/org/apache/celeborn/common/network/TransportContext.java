@@ -130,12 +130,12 @@ public class TransportContext implements Closeable {
 
   /** Create a server which will attempt to bind to a specific host and port. */
   public TransportServer createServer(String host, int port) {
-    return new TransportServer(this, host, port, source, msgHandler, Collections.emptyList());
+    return new TransportServer(this, host, port, Collections.emptyList());
   }
 
   public TransportServer createServer(
       String host, int port, List<TransportServerBootstrap> bootstraps) {
-    return new TransportServer(this, host, port, source, msgHandler, bootstraps);
+    return new TransportServer(this, host, port, bootstraps);
   }
 
   public TransportServer createServer(List<TransportServerBootstrap> bootstraps) {
@@ -239,6 +239,10 @@ public class TransportContext implements Closeable {
 
   public BaseMessageHandler getMsgHandler() {
     return msgHandler;
+  }
+
+  public AbstractSource getSource() {
+    return source;
   }
 
   @Override

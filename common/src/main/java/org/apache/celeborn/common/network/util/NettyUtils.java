@@ -132,7 +132,7 @@ public class NettyUtils {
       if (source != null) {
         new NettyMemoryMetrics(
             _sharedPooledByteBufAllocator[index],
-            "shared-pool",
+            "shared-pool-" + index,
             conf.networkAllocatorVerboseMetric(),
             source,
             Collections.emptyMap());
