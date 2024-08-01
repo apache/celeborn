@@ -25,7 +25,6 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
 import scala.collection.JavaConverters._
-import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
@@ -60,7 +59,6 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingSta
 import org.apache.celeborn.service.deploy.worker.monitor.JVMQuake
 import org.apache.celeborn.service.deploy.worker.profiler.JVMProfiler
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
-import org.apache.celeborn.service.deploy.worker.storage.StoragePolicy
 
 private[celeborn] class Worker(
     override val conf: CelebornConf,
@@ -101,7 +99,9 @@ private[celeborn] class Worker(
         workerArgs.host,
         workerArgs.port,
         conf,
-        Math.min(64, Math.max(4, Runtime.getRuntime.availableProcessors())))
+        Math.min(64, Math.max(4, Runtime.getRuntime.availableProcessors())),
+        None,
+        Some(workerSource))
     } else {
       val externalSecurityContext = new RpcSecurityContextBuilder()
         .withServerSaslContext(
@@ -118,7 +118,8 @@ private[celeborn] class Worker(
         workerArgs.port,
         conf,
         Math.max(64, Runtime.getRuntime.availableProcessors()),
-        Some(externalSecurityContext))
+        Some(externalSecurityContext),
+        Some(workerSource))
     }
 
   private[worker] var internalRpcEnvInUse =
@@ -132,7 +133,9 @@ private[celeborn] class Worker(
         workerArgs.host,
         workerArgs.internalPort,
         conf,
-        Math.min(64, Math.max(4, Runtime.getRuntime.availableProcessors())))
+        Math.min(64, Math.max(4, Runtime.getRuntime.availableProcessors())),
+        None,
+        Some(workerSource))
     }
 
   private val host = rpcEnv.address.host
