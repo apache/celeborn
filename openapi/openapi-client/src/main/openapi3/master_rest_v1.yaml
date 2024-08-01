@@ -162,6 +162,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/HandleResponse'
 
+    /api/v1/workers/unavailable:
+      delete:
+        tags:
+          - Worker
+        operationId: removeUnavailableWorkers
+        description: Remove the unavailable workers from the master.
+        requestBody:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemoveUnavailableWorkersRequest'
+        responses:
+          "200":
+            description: The request was successful.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/HandleResponse'
+
   /api/v1/workers/events:
     get:
       tags:
@@ -668,6 +687,14 @@ components:
         remove:
           type: array
           description: The workers to be removed from the excluded workers.
+          items:
+            $ref: '#/components/schemas/WorkerId'
+
+    RemoveUnavailableWorkersRequest:
+      type: object
+      properties:
+        workers:
+          type: array
           items:
             $ref: '#/components/schemas/WorkerId'
 
