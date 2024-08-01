@@ -666,7 +666,7 @@ public abstract class CelebornInputStream extends InputStream {
         return hasData;
       } catch (IOException e) {
         logger.error(
-            "Failed to read data from chunk. AppShuffleId {}, shuffleId {}, partitionId {}, location {}",
+            "Failed to fill buffer from chunk. AppShuffleId {}, shuffleId {}, partitionId {}, location {}",
             appShuffleId,
             shuffleId,
             partitionId,
