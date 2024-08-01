@@ -87,10 +87,10 @@ public class TransportMessage implements Serializable {
         return (T) PbReportShuffleFetchFailure.parseFrom(payload);
       case REPORT_SHUFFLE_FETCH_FAILURE_RESPONSE_VALUE:
         return (T) PbReportShuffleFetchFailureResponse.parseFrom(payload);
-      case REPORT_STAGE_ATTEMPT_FAILURE_VALUE:
-        return (T) PbReportStageAttemptFailure.parseFrom(payload);
-      case REPORT_STAGE_ATTEMPT_FAILURE_RESPONSE_VALUE:
-        return (T) PbReportStageAttemptFailureResponse.parseFrom(payload);
+      case REPORT_BARRIER_STAGE_ATTEMPT_FAILURE_VALUE:
+        return (T) PbReportBarrierStageAttemptFailure.parseFrom(payload);
+      case REPORT_BARRIER_STAGE_ATTEMPT_FAILURE_RESPONSE_VALUE:
+        return (T) PbReportBarrierStageAttemptFailureResponse.parseFrom(payload);
       case SASL_REQUEST_VALUE:
         return (T) PbSaslRequest.parseFrom(payload);
       case AUTHENTICATION_INITIATION_REQUEST_VALUE:

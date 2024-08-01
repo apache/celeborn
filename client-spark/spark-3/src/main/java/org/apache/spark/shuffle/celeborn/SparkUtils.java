@@ -282,17 +282,18 @@ public class SparkUtils {
 
   // Adds a task failure listener which notifies lifecyclemanager when any
   // task fails for a barrier stage
-  public static void addFailureListenerForTask(
+  public static void addFailureListenerIfBarrierTask(
       ShuffleClient shuffleClient, TaskContext taskContext, CelebornShuffleHandle<?, ?, ?> handle) {
 
+    if (!(taskContext instanceof BarrierTaskContext)) return;
     int appShuffleId = handle.shuffleId();
     String appShuffleIdentifier = SparkUtils.getAppShuffleIdentifier(appShuffleId, taskContext);
 
-    taskContext.addTaskFailureListener(
+    BarrierTaskContext barrierContext = (BarrierTaskContext) taskContext;
+    barrierContext.addTaskFailureListener(
         (context, error) -> {
           // whatever is the reason for failure, we notify lifecycle manager about the failure
-          shuffleClient.reportTaskFailure(
-              appShuffleId, appShuffleIdentifier, taskContext instanceof BarrierTaskContext);
+          shuffleClient.reportBarrierTaskFailure(appShuffleId, appShuffleIdentifier);
         });
   }
 }

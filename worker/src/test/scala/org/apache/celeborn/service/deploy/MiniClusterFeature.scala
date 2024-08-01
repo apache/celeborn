@@ -128,7 +128,6 @@ trait MiniClusterFeature extends Logging {
     conf.set(CelebornConf.WORKER_HTTP_PORT.key, s"${selectRandomPort(1024, 65535)}")
     conf.set("celeborn.fetch.io.threads", "4")
     conf.set("celeborn.push.io.threads", "4")
-    conf.set("celeborn.shuffle.chunk.size", "100k")
     if (map != null) {
       map.foreach(m => conf.set(m._1, m._2))
     }
