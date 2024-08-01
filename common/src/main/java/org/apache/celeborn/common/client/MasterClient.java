@@ -148,7 +148,7 @@ public class MasterClient {
     long sleepLimitTime = 2000; // 2s
     while (numTries < maxRetries && shouldRetry) {
       try {
-        endpointRef = getOrSetupRpcEndpointRef(currentMasterIdx, numTries);
+        endpointRef = getOrSetupRpcEndpointRef(currentMasterIdx);
         Future<T> future = endpointRef.ask(message, rpcTimeout, ClassTag$.MODULE$.apply(clz));
         return rpcTimeout.awaitResult(future);
       } catch (Throwable e) {
@@ -225,7 +225,7 @@ public class MasterClient {
    *     cannot be obtained.
    * @return non-empty RpcEndpointRef.
    */
-  private RpcEndpointRef getOrSetupRpcEndpointRef(AtomicInteger currentIndex, int currentAttempt) {
+  private RpcEndpointRef getOrSetupRpcEndpointRef(AtomicInteger currentIndex) {
     RpcEndpointRef endpointRef = rpcEndpointRef.get();
 
     List<String> activeMasterEndpoints = masterEndpointResolver.getActiveMasterEndpoints();
