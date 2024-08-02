@@ -25,6 +25,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.util.Try
+import scala.util.matching.Regex
 
 import org.apache.celeborn.common.CelebornConf.{MASTER_INTERNAL_ENDPOINTS, S3_ACCESS_KEY, S3_DIR, S3_SECRET_KEY}
 import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
@@ -803,6 +804,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerCheckFileCleanMaxRetries: Int = get(WORKER_CHECK_FILE_CLEAN_MAX_RETRIES)
   def workerCheckFileCleanTimeout: Long = get(WORKER_CHECK_FILE_CLEAN_TIMEOUT)
   def workerHeartbeatTimeout: Long = get(WORKER_HEARTBEAT_TIMEOUT)
+  def workerHostPattern: Option[Regex] = get(WORKER_HOST_PATTERN)
   def workerUnavailableInfoExpireTimeout: Long = get(WORKER_UNAVAILABLE_INFO_EXPIRE_TIMEOUT)
 
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
@@ -2174,6 +2176,14 @@ object CelebornConf extends Logging {
       .doc("Worker heartbeat timeout.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
+
+  val WORKER_HOST_PATTERN: OptionalConfigEntry[Regex] =
+    buildConf("celeborn.master.workerHost.pattern")
+      .categories("master")
+      .version("0.6.0")
+      .doc("Pattern of worker host that allowed to register with the master.")
+      .regexConf
+      .createOptional
 
   val WORKER_UNAVAILABLE_INFO_EXPIRE_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.workerUnavailableInfo.expireTimeout")

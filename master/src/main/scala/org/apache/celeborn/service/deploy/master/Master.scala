@@ -27,6 +27,7 @@ import java.util.function.ToLongFunction
 import scala.collection.JavaConverters._
 import scala.util.Random
 
+import com.google.common.annotations.VisibleForTesting
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.ratis.proto.RaftProtos
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole
@@ -172,6 +173,7 @@ private[celeborn] class Master(
   private val workerHeartbeatTimeoutMs = conf.workerHeartbeatTimeout
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
   private val workerUnavailableInfoExpireTimeoutMs = conf.workerUnavailableInfoExpireTimeout
+  private val workerHostPattern = conf.workerHostPattern
 
   private val dfsExpireDirsTimeoutMS = conf.dfsExpireDirsTimeoutMS
   private val hasHDFSStorage = conf.hasHDFSStorage
@@ -760,6 +762,15 @@ private[celeborn] class Master(
         internalPort,
         disks,
         userResourceConsumption)
+
+    if (!workerHostMatchPattern(host)) {
+      val msg =
+        s"Worker ${workerToRegister.readableAddress} is not allowed to register due to host does not match workerHostPattern:${workerHostPattern.orNull}."
+      logError(msg)
+      context.reply(RegisterWorkerResponse(false, msg))
+      return
+    }
+
     if (statusSystem.workers.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")
@@ -808,6 +819,14 @@ private[celeborn] class Master(
         requestId)
       logInfo(s"Registered worker $workerToRegister.")
       context.reply(RegisterWorkerResponse(true, ""))
+    }
+  }
+
+  @VisibleForTesting
+  def workerHostMatchPattern(workerHost: String): Boolean = {
+    workerHostPattern match {
+      case Some(pattern) => pattern.pattern.matcher(workerHost).matches()
+      case None => true
     }
   }
 
