@@ -155,7 +155,8 @@ class WorkerInfo(
 
   def readableAddress(): String = {
     s"Host:$host:RpcPort:$rpcPort:PushPort:$pushPort:" +
-      s"FetchPort:$fetchPort:ReplicatePort:$replicatePort:$internalPort"
+      s"FetchPort:$fetchPort:ReplicatePort:$replicatePort" +
+      (if (internalPort > 0) s":InternalPort:$internalPort" else "")
   }
 
   def toUniqueId(): String = {
