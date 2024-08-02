@@ -174,9 +174,14 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       } else {
         write0(records);
       }
-      close();
     } catch (InterruptedException e) {
       TaskInterruptedHelper.throwTaskKillException();
+    } finally {
+      try {
+        close();
+      } catch (InterruptedException e) {
+        TaskInterruptedHelper.throwTaskKillException();
+      }
     }
   }
 

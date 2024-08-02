@@ -172,8 +172,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     return peakMemoryUsedBytes;
   }
 
-  @Override
-  public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
+  void doWrite(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
     if (canUseFastWrite()) {
       fastWrite0(records);
     } else if (dep.mapSideCombine()) {
@@ -185,7 +184,15 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     } else {
       write0(records);
     }
-    close();
+  }
+
+  @Override
+  public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
+    try {
+      doWrite(records);
+    } finally {
+      close();
+    }
   }
 
   @VisibleForTesting

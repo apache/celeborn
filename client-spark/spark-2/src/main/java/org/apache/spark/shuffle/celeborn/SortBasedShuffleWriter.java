@@ -143,18 +143,21 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   @Override
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
-    if (canUseFastWrite()) {
-      fastWrite0(records);
-    } else if (dep.mapSideCombine()) {
-      if (dep.aggregator().isEmpty()) {
-        throw new UnsupportedOperationException(
-            "When using map side combine, an aggregator must be specified.");
+    try {
+      if (canUseFastWrite()) {
+        fastWrite0(records);
+      } else if (dep.mapSideCombine()) {
+        if (dep.aggregator().isEmpty()) {
+          throw new UnsupportedOperationException(
+              "When using map side combine, an aggregator must be specified.");
+        }
+        write0(dep.aggregator().get().combineValuesByKey(records, taskContext));
+      } else {
+        write0(records);
       }
-      write0(dep.aggregator().get().combineValuesByKey(records, taskContext));
-    } else {
-      write0(records);
+    } finally {
+      close();
     }
-    close();
   }
 
   @VisibleForTesting
