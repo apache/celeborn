@@ -155,8 +155,9 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       } else {
         write0(records);
       }
-    } finally {
       close();
+    } catch (Exception e) {
+      abort();
     }
   }
 
@@ -289,6 +290,12 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             numPartitions);
     mapStatusLengths[partitionId].add(bytesWritten);
     writeMetrics.incBytesWritten(bytesWritten);
+  }
+
+  private void abort() throws IOException {
+    if (pusher != null) {
+      pusher.close();
+    }
   }
 
   private void close() throws IOException {

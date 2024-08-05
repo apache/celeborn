@@ -174,14 +174,12 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       } else {
         write0(records);
       }
+      close();
     } catch (InterruptedException e) {
+      abort();
       TaskInterruptedHelper.throwTaskKillException();
-    } finally {
-      try {
-        close();
-      } catch (InterruptedException e) {
-        TaskInterruptedHelper.throwTaskKillException();
-      }
+    } catch (Exception e) {
+      abort();
     }
   }
 
@@ -317,6 +315,15 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     logger.debug("Flush buffer for partition {}, size {}.", partitionId, size);
     dataPusher.addTask(partitionId, buffer, size);
     writeMetrics.incWriteTime(System.nanoTime() - start);
+  }
+
+  private void abort() throws IOException {
+    try {
+      dataPusher.waitOnTermination();
+    } catch (InterruptedException e) {
+      TaskInterruptedHelper.throwTaskKillException();
+    }
+    sendBufferPool.returnPushTaskQueue(dataPusher.getIdleQueue());
   }
 
   private void close() throws IOException, InterruptedException {
