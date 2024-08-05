@@ -87,7 +87,7 @@ class BasicAuthenticationHandler(providerClass: String) extends AuthenticationHa
       } else {
         val Seq(user, password) = creds.toSeq.take(2)
         val passwdAuthenticationProvider = HttpAuthenticationFactory
-          .getPasswordAuthenticationProvider(providerClass, conf)
+          .getPasswordAuthenticationProvider(providerClass)
         authUser = passwdAuthenticationProvider.authenticate(
           DefaultPasswordCredential(
             user,

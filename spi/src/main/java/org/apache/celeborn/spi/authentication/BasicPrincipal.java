@@ -15,26 +15,39 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.authentication
+package org.apache.celeborn.spi.authentication;
 
-import java.security.Principal
-import java.util.Objects
+import java.security.Principal;
+import java.util.Objects;
 
-class BasicPrincipal(val name: String) extends Principal {
-  Objects.requireNonNull(name, "Principal name cannot be null")
-  override def getName: String = name
+public class BasicPrincipal implements Principal {
+  private final String name;
 
-  override def toString: String = name
+  public BasicPrincipal(String name) {
+    this.name = name;
+    Objects.requireNonNull(name, "Principal name cannot be null");
+  }
 
-  override def hashCode(): Int = Objects.hash(name)
+  @Override
+  public String getName() {
+    return name;
+  }
 
-  override def equals(o: Any): Boolean = {
-    if (this == o) {
-      true
-    } else if (o == null || getClass != o.getClass) {
-      false
-    } else {
-      Objects.equals(name, o.asInstanceOf[BasicPrincipal].name)
-    }
+  @Override
+  public String toString() {
+    return name;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    BasicPrincipal that = (BasicPrincipal) o;
+    return name.equals(that.name);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(name);
   }
 }
