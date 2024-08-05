@@ -28,8 +28,9 @@ import io.swagger.v3.jaxrs2.integration.JaxrsOpenApiContextBuilder
 import io.swagger.v3.jaxrs2.integration.resources.BaseOpenApiResource
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.integration.api.OpenApiContext
-import io.swagger.v3.oas.models.OpenAPI
+import io.swagger.v3.oas.models.{Components, OpenAPI}
 import io.swagger.v3.oas.models.info.{Info, License}
+import io.swagger.v3.oas.models.security.{SecurityRequirement, SecurityScheme}
 import io.swagger.v3.oas.models.servers.Server
 import org.apache.commons.lang3.StringUtils
 
@@ -91,6 +92,21 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
           new License().name("Apache License 2.0")
             .url("https://www.apache.org/licenses/LICENSE-2.0.txt")))
       .servers(List(new Server().url(apiUrl)).asJava)
+      .components(Option(openApi.getComponents).getOrElse(new Components())
+        .addSecuritySchemes(
+          "BasicAuth",
+          new SecurityScheme()
+            .`type`(SecurityScheme.Type.HTTP)
+            .scheme("Basic"))
+        .addSecuritySchemes(
+          "BearerAuth",
+          new SecurityScheme()
+            .`type`(SecurityScheme.Type.HTTP)
+            .scheme("Bearer")
+            .bearerFormat("JWT")))
+      .addSecurityItem(new SecurityRequirement()
+        .addList("BasicAuth")
+        .addList("BearerAuth"))
   }
 }
 
