@@ -357,10 +357,10 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void abort() throws IOException {
     try {
       dataPusher.waitOnTermination();
+      sendBufferPool.returnPushTaskQueue(dataPusher.getIdleQueue());
     } catch (InterruptedException e) {
       TaskInterruptedHelper.throwTaskKillException();
     }
-    sendBufferPool.returnPushTaskQueue(dataPusher.getIdleQueue());
   }
 
   private void close() throws IOException, InterruptedException {
