@@ -226,11 +226,15 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   @Override
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
+    boolean needAbort = true;
     try {
       doWrite(records);
       close();
-    } catch (Exception e) {
-      abort();
+      needAbort = false;
+    } finally {
+      if (needAbort) {
+        abort();
+      }
     }
   }
 
