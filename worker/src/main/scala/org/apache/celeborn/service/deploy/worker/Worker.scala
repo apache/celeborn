@@ -450,7 +450,7 @@ private[celeborn] class Worker(
     val estimatedAppDiskUsage = new JHashMap[String, JLong]()
     activeShuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     activeShuffleKeys.addAll(storageManager.shuffleKeySet())
-    storageManager.topAppDiskUsage.asScala.foreach { case (shuffleId, usage) =>
+    storageManager.topAppDiskUsage(true).asScala.foreach { case (shuffleId, usage) =>
       estimatedAppDiskUsage.put(shuffleId, usage)
     }
     storageManager.updateDiskInfos()
@@ -797,7 +797,7 @@ private[celeborn] class Worker(
   override def listTopDiskUseApps: String = {
     val sb = new StringBuilder
     sb.append("================== Top Disk Usage Applications =======================\n")
-    storageManager.topAppDiskUsage.asScala.foreach { case (appId, usage) =>
+    storageManager.topAppDiskUsage().asScala.foreach { case (appId, usage) =>
       sb.append(s"Application $appId used ${Utils.bytesToString(usage)}\n")
     }
     sb.toString()

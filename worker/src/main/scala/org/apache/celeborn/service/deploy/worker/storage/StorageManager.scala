@@ -73,6 +73,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val storageExpireDirTimeout = conf.workerStorageExpireDirTimeout
   val storagePolicy = new StoragePolicy(conf, this, workerSource)
 
+  val topDiskUsageCount = conf.metricsAppTopDiskUsageCount
+
   // (deviceName -> deviceInfo) and (mount point -> diskInfo)
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
@@ -525,7 +527,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     hashSet
   }
 
-  def topAppDiskUsage: util.Map[String, Long] = {
+  def topAppDiskUsage(estimated: Boolean = false): util.Map[String, Long] = {
+    val topCount = if (estimated) topDiskUsageCount * 2 else topDiskUsageCount
     diskFileInfos.asScala.map { keyedWriters =>
       {
         keyedWriters._1 -> keyedWriters._2.values().asScala.map(_.getFileLength).sum
@@ -534,7 +537,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       Utils.splitShuffleKey(shuffleKey)._1 -> usage
     }.groupBy(_._1).map { case (key, values) =>
       key -> values.map(_._2).sum
-    }.toSeq.sortBy(_._2).reverse.take(conf.metricsAppTopDiskUsageCount * 2).toMap.asJava
+    }.toSeq.sortBy(_._2).reverse.take(topCount).toMap.asJava
   }
 
   def cleanFile(shuffleKey: String, fileName: String): Unit = {
