@@ -121,7 +121,7 @@ public class EncryptedMessageWithHeaderSuiteJ {
 
       // Validate we read data correctly
       assertEquals(bodyResult.readableBytes(), chunkSize);
-      assert (bodyResult.readableBytes() < (randomData.length - readIndex));
+      assertTrue(bodyResult.readableBytes() < (randomData.length - readIndex));
       while (bodyResult.readableBytes() > 0) {
         assertEquals(bodyResult.readByte(), randomData[readIndex++]);
       }

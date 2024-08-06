@@ -23,9 +23,9 @@ import org.eclipse.jetty.server.{Handler, Request}
 import org.eclipse.jetty.server.handler.HandlerWrapper
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.authentication.{PasswdAuthenticationProvider, TokenAuthenticationProvider}
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.reflect.DynConstructors
+import org.apache.celeborn.spi.authentication.{PasswdAuthenticationProvider, TokenAuthenticationProvider}
 
 object HttpAuthenticationFactory {
   def wrapHandler(handler: Handler): HandlerWrapper = {

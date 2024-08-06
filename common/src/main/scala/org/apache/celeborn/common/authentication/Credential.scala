@@ -17,26 +17,17 @@
 
 package org.apache.celeborn.common.authentication
 
-trait PasswordCredential {
-  def username: String
-  def password: String
-  def extraInfo: Map[String, String] = Map.empty
-}
+import java.util.{Collections, Map => JMap}
+
+import org.apache.celeborn.spi.authentication.{PasswordCredential, TokenCredential}
 
 case class DefaultPasswordCredential(
     username: String,
     password: String,
-    override val extraInfo: Map[String, String] = Map.empty) extends PasswordCredential
-
-trait TokenCredential {
-  def token: String
-  def extraInfo: Map[String, String] = Map.empty
-}
+    override val extraInfo: JMap[String, String] = Collections.emptyMap())
+  extends PasswordCredential
 
 case class DefaultTokenCredential(
     token: String,
-    override val extraInfo: Map[String, String] = Map.empty) extends TokenCredential
-
-object Credential {
-  val CLIENT_IP_KEY = "clientIp"
-}
+    override val extraInfo: JMap[String, String] = Collections.emptyMap())
+  extends TokenCredential

@@ -58,13 +58,11 @@ public class TransportServer implements Closeable {
       TransportContext context,
       String hostToBind,
       int portToBind,
-      AbstractSource source,
-      BaseMessageHandler appMessageHandler,
       List<TransportServerBootstrap> bootstraps) {
     this.context = context;
     this.conf = context.getConf();
-    this.source = source;
-    this.appMessageHandler = Preconditions.checkNotNull(appMessageHandler);
+    this.source = context.getSource();
+    this.appMessageHandler = Preconditions.checkNotNull(context.getMsgHandler());
     this.bootstraps = Lists.newArrayList(Preconditions.checkNotNull(bootstraps));
 
     boolean shouldClose = true;

@@ -59,13 +59,13 @@ class MasterResource extends ApiRequestContext {
       }.orNull
       val masterLeader = Option(leader).map { _ =>
         new MasterLeader()
-          .id(leader.getId.toString)
+          .id(leader.getId.toStringUtf8)
           .address(leader.getAddress)
       }.orNull
       val masterCommitDataList = groupInfo.getCommitInfos.asScala.map { commitInfo =>
         new MasterCommitData()
           .commitIndex(commitInfo.getCommitIndex)
-          .id(commitInfo.getServer.getId.toString)
+          .id(commitInfo.getServer.getId.toStringUtf8)
           .address(commitInfo.getServer.getAddress)
           .clientAddress(commitInfo.getServer.getClientAddress)
           .startUpRole(commitInfo.getServer.getStartupRole.toString)

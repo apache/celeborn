@@ -55,7 +55,7 @@ public class CelebornBufferStream {
   private FlinkShuffleClientImpl mapShuffleClient;
   private boolean isClosed;
   private boolean isOpenSuccess;
-  private Object lock = new Object();
+  private final Object lock = new Object();
   private Supplier<ByteBuf> bufferSupplier;
   private int initialCredit;
   private Consumer<RequestMessage> messageConsumer;

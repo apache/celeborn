@@ -110,7 +110,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
     storageManager = Mockito.mock(StorageManager.class);
     AtomicLong evictCount = new AtomicLong();
     Mockito.when(storageManager.evictedFileCount()).thenAnswer(a -> evictCount);
-    Mockito.when(storageManager.localOrHdfsStorageAvailable()).thenAnswer(a -> true);
+    Mockito.when(storageManager.localOrDfsStorageAvailable()).thenAnswer(a -> true);
     Mockito.when(storageManager.storageBufferAllocator()).thenAnswer(a -> allocator);
     MemoryManager.initialize(conf, storageManager);
   }

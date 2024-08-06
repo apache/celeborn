@@ -112,7 +112,8 @@ public class TransportClientFactory implements Closeable {
     this.workerGroup =
         NettyUtils.createEventLoop(ioMode, conf.clientThreads(), conf.getModuleName() + "-client");
     this.pooledAllocator =
-        NettyUtils.getPooledByteBufAllocator(conf, null, false, conf.clientThreads());
+        NettyUtils.getPooledByteBufAllocator(
+            conf, context.getSource(), false, conf.clientThreads());
   }
 
   /**

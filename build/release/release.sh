@@ -127,6 +127,9 @@ upload_nexus_staging() {
 
   echo "Deploying celeborn-openapi-client_2.12"
   ${PROJECT_DIR}/build/sbt "clean;celeborn-openapi-client/publishSigned"
+
+  echo "Deploying celeborn-spi"
+  ${PROJECT_DIR}/build/sbt "clean;celeborn-spi/publishSigned"
 }
 
 finalize_svn() {

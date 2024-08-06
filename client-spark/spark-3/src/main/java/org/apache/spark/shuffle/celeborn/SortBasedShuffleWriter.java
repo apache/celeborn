@@ -226,8 +226,11 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   @Override
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
-    doWrite(records);
-    close();
+    try {
+      doWrite(records);
+    } finally {
+      close();
+    }
   }
 
   @VisibleForTesting

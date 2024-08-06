@@ -61,7 +61,12 @@ class NettyRpcEnv(
 
   // Visible for tests
   private[netty] val transportContext =
-    new TransportContext(transportConf, new NettyRpcHandler(dispatcher, this))
+    new TransportContext(
+      transportConf,
+      new NettyRpcHandler(dispatcher, this),
+      false,
+      false,
+      config.source.orNull)
 
   private def createClientBootstraps(): java.util.List[TransportClientBootstrap] = {
     val bootstrapOpt = securityContext.flatMap(_.clientSaslContext.map { clientSaslContext =>

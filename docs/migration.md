@@ -34,7 +34,7 @@ license: |
     |--------------------------|------------------------------------------|--------------------------------------------------|
     | GET /conf                | GET /api/v1/conf                         |                                                  |
     | GET /listDynamicConfigs  | GET /api/v1/conf/dynamic                 |                                                  |
-    | GET /threadDump          | GET /api/v1/conf/thread_dump             |                                                  |
+    | GET /threadDump          | GET /api/v1/thread_dump                  |                                                  |
     | GET /applications        | GET /api/v1/applications                 |                                                  |
     | GET /listTopDiskUsedApps | GET /api/v1/applications/top_disk_usages |                                                  |
     | GET /hostnames           | GET /api/v1/applications/hostnames       |                                                  |
@@ -56,7 +56,7 @@ license: |
     |--------------------------------|------------------------------------------|---------------------------------------------|
     | GET /conf                      | GET /api/v1/conf                         |                                             |
     | GET /listDynamicConfigs        | GET /api/v1/conf/dynamic                 |                                             |
-    | GET /threadDump                | GET /api/v1/conf/thread_dump             |                                             |
+    | GET /threadDump                | GET /api/v1/thread_dump                  |                                             |
     | GET /applications              | GET /api/v1/applications                 |                                             |
     | GET /listTopDiskUsedApps       | GET /api/v1/applications/top_disk_usages |                                             |
     | GET /shuffle                   | GET /api/v1/shuffles                     |                                             |

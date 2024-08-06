@@ -101,15 +101,7 @@ public class ReloadingX509TrustManagerSuiteJ {
 
     assertThrows(
         IOException.class,
-        () -> {
-          ReloadingX509TrustManager tm =
-              new ReloadingX509TrustManager(KeyStore.getDefaultType(), trustStore, "password", 10);
-          try {
-            tm.init();
-          } finally {
-            tm.destroy();
-          }
-        });
+        () -> new ReloadingX509TrustManager(KeyStore.getDefaultType(), trustStore, "password", 10));
   }
 
   /**
@@ -127,17 +119,8 @@ public class ReloadingX509TrustManagerSuiteJ {
 
     assertThrows(
         IOException.class,
-        () -> {
-          ReloadingX509TrustManager tm =
-              new ReloadingX509TrustManager(
-                  KeyStore.getDefaultType(), corruptStore, "password", 10);
-          try {
-            tm.init();
-          } finally {
-            tm.destroy();
-            corruptStore.delete();
-          }
-        });
+        () ->
+            new ReloadingX509TrustManager(KeyStore.getDefaultType(), corruptStore, "password", 10));
   }
 
   /**

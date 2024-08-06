@@ -22,6 +22,7 @@ import java.io.File
 import scala.concurrent.Future
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.TransportModuleConstants
 import org.apache.celeborn.common.rpc.netty.NettyRpcEnvFactory
 import org.apache.celeborn.common.util.Utils
@@ -50,7 +51,8 @@ object RpcEnv {
       port: Int,
       conf: CelebornConf,
       numUsableCores: Int,
-      securityContext: Option[RpcSecurityContext] = None): RpcEnv = {
+      securityContext: Option[RpcSecurityContext] = None,
+      source: Option[AbstractSource] = None): RpcEnv = {
     val resolvedBindAddress =
       if (conf.bindWildcardAddress) TransportModuleConstants.WILDCARD_BIND_ADDRESS else bindAddress
     val config =
@@ -62,7 +64,8 @@ object RpcEnv {
         Utils.localHostNameForAdvertiseAddress(conf),
         port,
         numUsableCores,
-        securityContext)
+        securityContext,
+        source)
     new NettyRpcEnvFactory().create(config)
   }
 }
@@ -195,7 +198,8 @@ private[celeborn] case class RpcEnvConfig(
     advertiseAddress: String,
     port: Int,
     numUsableCores: Int,
-    securityContext: Option[RpcSecurityContext]) {
+    securityContext: Option[RpcSecurityContext],
+    source: Option[AbstractSource]) {
   assert(RpcEnvConfig.VALID_TRANSPORT_MODULES.contains(transportModule))
 }
 

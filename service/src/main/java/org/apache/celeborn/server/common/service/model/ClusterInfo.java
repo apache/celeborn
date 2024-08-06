@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.server.common.service.model;
 
-import java.util.Date;
+import java.time.Instant;
 
 public class ClusterInfo {
 
@@ -25,8 +25,8 @@ public class ClusterInfo {
   private String name;
   private String namespace;
   private String endpoint;
-  private Date gmtCreate;
-  private Date gmtModify;
+  private Instant gmtCreate;
+  private Instant gmtModify;
 
   public Integer getId() {
     return id;
@@ -60,19 +60,19 @@ public class ClusterInfo {
     this.endpoint = endpoint;
   }
 
-  public Date getGmtCreate() {
+  public Instant getGmtCreate() {
     return gmtCreate;
   }
 
-  public void setGmtCreate(Date gmtCreate) {
+  public void setGmtCreate(Instant gmtCreate) {
     this.gmtCreate = gmtCreate;
   }
 
-  public Date getGmtModify() {
+  public Instant getGmtModify() {
     return gmtModify;
   }
 
-  public void setGmtModify(Date gmtModify) {
+  public void setGmtModify(Instant gmtModify) {
     this.gmtModify = gmtModify;
   }
 }

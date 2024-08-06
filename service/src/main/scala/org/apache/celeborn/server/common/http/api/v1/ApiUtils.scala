@@ -124,6 +124,8 @@ object ApiUtils {
         locationData.storage(StorageEnum.HDFS)
       case StorageInfo.Type.OSS =>
         locationData.storage(StorageEnum.OSS)
+      case StorageInfo.Type.S3 =>
+        locationData.storage(StorageEnum.S3)
     }
     Option(partitionLocation.getMapIdBitMap).map(_.toString).foreach(locationData.mapIdBitMap)
     locationData

@@ -203,10 +203,7 @@ public class BufferPackSuiteJ {
     packer.process(buffers.get(0), 0);
     try {
       packer.drain();
-    } catch (RuntimeException e) {
-      e.printStackTrace();
-    } catch (Exception e) {
-      throw e;
+    } catch (RuntimeException ignored) {
     }
 
     // this should never throw any exception

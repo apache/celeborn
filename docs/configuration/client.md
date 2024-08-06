@@ -21,6 +21,7 @@ license: |
 | --- | ------- | --------- | ----------- | ----- | ---------- |
 | celeborn.client.application.heartbeatInterval | 10s | false | Interval for client to send heartbeat message to master. | 0.3.0 | celeborn.application.heartbeatInterval | 
 | celeborn.client.application.unregister.enabled | true | false | When true, Celeborn client will inform celeborn master the application is already shutdown during client exit, this allows the cluster to release resources immediately, resulting in resource savings. | 0.3.2 |  | 
+| celeborn.client.chunk.prefetch.enabled | false | false | Whether to enable chunk prefetch when creating CelebornInputStream. | 0.6.0 |  | 
 | celeborn.client.closeIdleConnections | true | false | Whether client will close idle connections. | 0.3.0 |  | 
 | celeborn.client.commitFiles.ignoreExcludedWorker | false | false | When true, LifecycleManager will skip workers which are in the excluded list. | 0.3.0 |  | 
 | celeborn.client.eagerlyCreateInputStream.threads | 32 | false | Threads count for streamCreatorPool in CelebornShuffleReader. | 0.3.1 |  | 
@@ -39,6 +40,7 @@ license: |
 | celeborn.client.flink.inputGate.supportFloatingBuffer | true | false | Whether to support floating buffer in Flink input gates. | 0.3.0 | remote-shuffle.job.support-floating-buffer-per-input-gate | 
 | celeborn.client.flink.resultPartition.memory | 64m | false | Memory reserved for a result partition. | 0.3.0 | remote-shuffle.job.memory-per-partition | 
 | celeborn.client.flink.resultPartition.supportFloatingBuffer | true | false | Whether to support floating buffer for result partitions. | 0.3.0 | remote-shuffle.job.support-floating-buffer-per-output-gate | 
+| celeborn.client.inputStream.creation.window | 16 | false | Window size that CelebornShuffleReader pre-creates CelebornInputStreams, for coalesced scenariowhere multiple Partitions are read | 0.6.0 |  | 
 | celeborn.client.mr.pushData.max | 32m | false | Max size for a push data sent from mr client. | 0.4.0 |  | 
 | celeborn.client.push.buffer.initial.size | 8k | false |  | 0.3.0 | celeborn.push.buffer.initial.size | 
 | celeborn.client.push.buffer.max.size | 64k | false | Max size of reducer partition buffer memory for shuffle hash writer. The pushed data will be buffered in memory before sending to Celeborn worker. For performance consideration keep this buffer size higher than 32K. Example: If reducer amount is 2000, buffer size is 64K, then each task will consume up to `64KiB * 2000 = 125MiB` heap memory. | 0.3.0 | celeborn.push.buffer.max.size | 
@@ -82,6 +84,7 @@ license: |
 | celeborn.client.rpc.reserveSlots.askTimeout | &lt;value of celeborn.rpc.askTimeout&gt; | false | Timeout for LifecycleManager request reserve slots. | 0.3.0 |  | 
 | celeborn.client.rpc.shared.threads | 16 | false | Number of shared rpc threads in LifecycleManager. | 0.3.2 |  | 
 | celeborn.client.shuffle.batchHandleChangePartition.interval | 100ms | false | Interval for LifecycleManager to schedule handling change partition requests in batch. | 0.3.0 | celeborn.shuffle.batchHandleChangePartition.interval | 
+| celeborn.client.shuffle.batchHandleChangePartition.partitionBuckets | 256 | false | Max number of change partition requests which can be concurrently processed  | 0.5.0 |  | 
 | celeborn.client.shuffle.batchHandleChangePartition.threads | 8 | false | Threads number for LifecycleManager to handle change partition request in batch. | 0.3.0 | celeborn.shuffle.batchHandleChangePartition.threads | 
 | celeborn.client.shuffle.batchHandleCommitPartition.interval | 5s | false | Interval for LifecycleManager to schedule handling commit partition requests in batch. | 0.3.0 | celeborn.shuffle.batchHandleCommitPartition.interval | 
 | celeborn.client.shuffle.batchHandleCommitPartition.threads | 8 | false | Threads number for LifecycleManager to handle commit partition request in batch. | 0.3.0 | celeborn.shuffle.batchHandleCommitPartition.threads | 
@@ -119,4 +122,8 @@ license: |
 | celeborn.quota.identity.user-specific.userName | default | false | User name if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.DefaultIdentityProvider. | 0.3.0 |  | 
 | celeborn.storage.availableTypes | HDD | false | Enabled storages. Available options: MEMORY,HDD,SSD,HDFS. Note: HDD and SSD would be treated as identical. | 0.3.0 | celeborn.storage.activeTypes | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | false | HDFS base directory for Celeborn to store shuffle data. | 0.2.0 |  | 
+| celeborn.storage.s3.access.key | &lt;undefined&gt; | false | S3 access key for Celeborn to store shuffle data. | 0.6.0 |  | 
+| celeborn.storage.s3.dir | &lt;undefined&gt; | false | S3 base directory for Celeborn to store shuffle data. | 0.6.0 |  | 
+| celeborn.storage.s3.endpoint | &lt;undefined&gt; | false | S3 endpoint for Celeborn to store shuffle data. | 0.6.0 |  | 
+| celeborn.storage.s3.secret.key | &lt;undefined&gt; | false | S3 secret key for Celeborn to store shuffle data. | 0.6.0 |  | 
 <!--end-include-->

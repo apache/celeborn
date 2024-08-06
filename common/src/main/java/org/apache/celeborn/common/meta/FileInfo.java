@@ -56,7 +56,7 @@ public abstract class FileInfo {
     return bytesFlushed;
   }
 
-  public void updateBytesFlushed(long bytes) {
+  public synchronized void updateBytesFlushed(long bytes) {
     bytesFlushed += bytes;
     if (isReduceFileMeta) {
       getReduceFileMeta().updateChunkOffset(bytesFlushed, false);

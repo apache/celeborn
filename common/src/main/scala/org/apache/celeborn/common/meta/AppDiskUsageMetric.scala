@@ -30,7 +30,7 @@ import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
 case class AppDiskUsage(var appId: String, var estimatedUsage: Long) {
   override def toString: String =
-    s"Application $appId used approximate ${Utils.bytesToString(estimatedUsage)} "
+    s"Application $appId used approximate ${Utils.bytesToString(estimatedUsage)}"
 }
 
 class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging with Serializable {
@@ -107,7 +107,7 @@ class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging with Serializa
     s"Snapshot " +
       s"start ${LocalDateTime.ofInstant(Instant.ofEpochMilli(startSnapShotTime), zoneId)} " +
       s"end ${LocalDateTime.ofInstant(Instant.ofEpochMilli(endSnapShotTime), zoneId)}" +
-      s" ${topNItems.filter(_ != null).mkString(",")}"
+      s" ${topNItems.filter(_ != null).mkString(", ")}"
   }
 }
 
@@ -143,13 +143,8 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
           currentSnapShot.get().commit()
         }
         currentSnapShot.set(getNewSnapShot())
-        val summaryStr = Some(summary()).map(str =>
-          if (str != null && str.nonEmpty) {
-            "\n" + str
-          } else {
-            str
-          }).getOrElse("")
-        logInfo(s"App Disk Usage Top$usageCount Report $summaryStr")
+        val summaryStr = Some(summary()).getOrElse("")
+        logInfo(s"App Disk Usage Top$usageCount Report: $summaryStr")
       }
     },
     60,
@@ -168,8 +163,8 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
     val stringBuilder = new StringBuilder()
     for (i <- 0 until snapshotCount) {
       if (snapShots(i) != null && snapShots(i).topNItems.exists(_ != null)) {
+        stringBuilder.append("\n")
         stringBuilder.append(snapShots(i))
-        stringBuilder.append("    \n")
       }
     }
     stringBuilder.toString()

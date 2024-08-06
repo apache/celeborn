@@ -21,5 +21,4 @@ addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.6")
 
 addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.2.1")
 
-// This was the last version to support Java 8
-addSbtPlugin("org.openapitools" % "sbt-openapi-generator" % "5.0.1")
+addSbtPlugin("org.openapitools" % "sbt-openapi-generator" % "7.7.0")

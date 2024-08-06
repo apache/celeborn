@@ -58,8 +58,8 @@ class ShuffleResource extends ApiRequestContext {
       schema = new Schema(
         implementation = classOf[ShufflePartitionsResponse]))),
     description = "List all the living shuffle PartitionLocation information in the worker.")
-  @Path("/partitions")
   @GET
+  @Path("/partitions")
   def partitions(): ShufflePartitionsResponse = {
     new ShufflePartitionsResponse()
       .primaryPartitions(

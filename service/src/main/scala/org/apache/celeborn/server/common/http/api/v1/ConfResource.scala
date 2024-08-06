@@ -65,8 +65,8 @@ private[api] class ConfResource extends ApiRequestContext {
       "The parameter tenant specifies the tenant id of TENANT or TENANT_USER level. " +
       "The parameter name specifies the user name of TENANT_USER level. " +
       "Meanwhile, either none or all of the parameter tenant and name are specified for TENANT_USER level.")
-  @Path("/dynamic")
   @GET
+  @Path("/dynamic")
   def dynamicConf(
       @QueryParam("level") level: String,
       @QueryParam("tenant") tenant: String,

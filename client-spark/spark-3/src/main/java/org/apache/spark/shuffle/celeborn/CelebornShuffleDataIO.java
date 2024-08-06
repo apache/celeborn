@@ -62,6 +62,7 @@ class CelebornShuffleDriverComponents extends LocalDiskShuffleDriverComponents {
   }
 
   // Omitting @Override annotation to avoid compile error before Spark 3.5.0
+  @SuppressWarnings("MissingOverride")
   public boolean supportsReliableStorage() {
     return supportsReliableStorage;
   }

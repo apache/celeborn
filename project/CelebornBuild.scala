@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-import java.nio.file.{Files, Path}
+import java.nio.file.Files
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.Locale
 
@@ -49,6 +49,7 @@ object Dependencies {
   val findbugsVersion = "1.3.9"
   val guavaVersion = "33.1.0-jre"
   val hadoopVersion = "3.3.6"
+  val awsVersion = "1.12.367"
   val junitInterfaceVersion = "0.13.3"
   // don't forget update `junitInterfaceVersion` when we upgrade junit
   val junitVersion = "4.13.2"
@@ -76,7 +77,9 @@ object Dependencies {
   val jettyVersion = "9.4.52.v20230823"
   val jakartaServeletApiVersion = "4.0.4"
   val openApiToolsJacksonBindNullableVersion = "0.2.6"
-  val openApiToolsSwaggerVersion = "1.6.11"
+  val httpClient5Version = "5.3.1"
+  val httpCore5Version = "5.2.4"
+  val javaxAnnotationApiVersion = "1.3.2"
 
   // For SSL support
   val bouncycastleVersion = "1.77"
@@ -110,6 +113,8 @@ object Dependencies {
     ExclusionRule("jline", "jline"),
     ExclusionRule("log4j", "log4j"),
     ExclusionRule("org.slf4j", "slf4j-log4j12"))
+  val hadoopAws = "org.apache.hadoop" % "hadoop-aws" % hadoopVersion
+  val awsClient = "com.amazonaws" % "aws-java-sdk-bundle" % awsVersion
   val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion
   val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion excludeAll (
     ExclusionRule("com.rabbitmq", "amqp-client"))
@@ -165,7 +170,6 @@ object Dependencies {
   val jakartaServletApi = "jakarta.servlet" % "jakarta.servlet-api" % jakartaServeletApiVersion
   val jerseyServer = "org.glassfish.jersey.core" % "jersey-server" % jerseyVersion excludeAll(
     ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"))
-  val jerseyClient = "org.glassfish.jersey.core" % "jersey-client" % jerseyVersion
   val jerseyContainerServletCore = "org.glassfish.jersey.containers" % "jersey-container-servlet-core" % jerseyVersion
   val jerseyHk2 = "org.glassfish.jersey.inject" % "jersey-hk2" % jerseyVersion
   val jerseyMediaJsonJackson = "org.glassfish.jersey.media" % "jersey-media-json-jackson" % jerseyVersion
@@ -177,8 +181,10 @@ object Dependencies {
   val swaggerUi = "org.webjars" % "swagger-ui" % swaggerUiVersion
   val openApiToolsJacksonBindNullable = "org.openapitools" % "jackson-databind-nullable" % openApiToolsJacksonBindNullableVersion excludeAll(
     ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
-  val openApiToolsSwaggerAnnotations = "io.swagger" % "swagger-annotations" % openApiToolsSwaggerVersion
-  val openApiToolsSwaggerModels = "io.swagger" % "swagger-models" % openApiToolsSwaggerVersion
+  val httpClient5 = "org.apache.httpcomponents.client5" % "httpclient5" % httpClient5Version
+  val httpCore5 = "org.apache.httpcomponents.core5" % "httpcore5" % httpCore5Version
+  val httpCore5H2 = "org.apache.httpcomponents.core5" % "httpcore5-h2" % httpCore5Version
+  val javaxAnnotationApi = "javax.annotation" % "javax.annotation-api" % javaxAnnotationApiVersion
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html
@@ -341,12 +347,10 @@ object CelebornCommonSettings {
 object CelebornBuild extends sbt.internal.BuildDef {
   override def projectDefinitions(baseDirectory: File): Seq[Project] = {
     Seq(
-      CelebornOpenApi.openapiInternalMasterClient,
-      CelebornOpenApi.openapiInternalWorkerClient,
-      CelebornOpenApi.openapiClient,
-      CelebornOpenApi.openapiInternalMasterModel,
-      CelebornOpenApi.openapiInternalWorkerModel,
-      CelebornOpenApi.openapiModel,
+      CelebornOpenApi.openApiClientMasterGenerate,
+      CelebornOpenApi.openApiClientWorkerGenerate,
+      CelebornOpenApi.openApiClient,
+      CelebornSpi.spi,
       CelebornCommon.common,
       CelebornClient.client,
       CelebornService.service,
@@ -441,8 +445,26 @@ object Utils {
   }
 }
 
+object CelebornSpi {
+  lazy val spi = Project("celeborn-spi", file("spi"))
+    .settings(
+      commonSettings,
+      releaseSettings,
+      crossPaths := false,
+      Compile / doc / javacOptions := Seq("-encoding", UTF_8.name(), "-source", "1.8")
+    )
+}
+
 object CelebornCommon {
+
+  lazy val hadoopAwsDependencies = if(profiles.exists(_.startsWith("hadoop-aws"))){
+    Seq(Dependencies.hadoopAws, Dependencies.awsClient)
+  } else {
+    Seq.empty
+  }
+
   lazy val common = Project("celeborn-common", file("common"))
+    .dependsOn(CelebornSpi.spi)
     .settings (
       commonSettings,
       protoSettings,
@@ -477,7 +499,7 @@ object CelebornCommon {
         // SSL support
         Dependencies.bouncycastleBcprovJdk18on,
         Dependencies.bouncycastleBcpkixJdk18on
-      ) ++ commonUnitTestDependencies,
+      ) ++ commonUnitTestDependencies ++ hadoopAwsDependencies,
 
       Compile / sourceGenerators += Def.task {
         val file = (Compile / sourceManaged).value / "org" / "apache" / "celeborn" / "package.scala"
@@ -524,7 +546,7 @@ object CelebornClient {
 object CelebornService {
   lazy val service = Project("celeborn-service", file("service"))
     .dependsOn(CelebornCommon.common % "test->test;compile->compile")
-    .dependsOn(CelebornOpenApi.openapiModel)
+    .dependsOn(CelebornOpenApi.openApiClient)
     .settings (
       commonSettings,
       libraryDependencies ++= Seq(
@@ -588,7 +610,6 @@ object CelebornWorker {
     .dependsOn(CelebornService.service % "test->test;compile->compile")
     .dependsOn(CelebornClient.client % "test->compile")
     .dependsOn(CelebornMaster.master % "test->compile")
-    .dependsOn(CelebornOpenApi.openapiClient % Test)
     .settings (
       commonSettings,
       libraryDependencies ++= Seq(
@@ -1267,188 +1288,135 @@ object MRClientProjects {
 
 object CelebornOpenApi {
   val openApiSpecDir = "openapi/openapi-client/src/main/openapi3"
-  val openApiClientOutputDir = "openapi/openapi-client/target/generated-sources/java"
-  val openApiModelOutputDir = "openapi/openapi-model/target/generated-sources/java"
+  val openApiMasterInternalOutputDir = "openapi/openapi-client/target/master/generated-sources/java"
+  val openApiWorkerInternalOutputDir = "openapi/openapi-client/target/worker/generated-sources/java"
+  val openApiClientOutputDir = "openapi/openapi-client/src/main/java"
 
-  def traverseJavaSourceFiles(outputDir: String): Seq[File] = {
-    Files.walk((file(outputDir) / "/src/main/java").toPath, Int.MaxValue)
-      .toArray.map(_.asInstanceOf[Path].toFile)
-      .toSeq.filter(_.isFile)
-  }
+  val generate = TaskKey[Unit]("generate", "generate openapi client code")
 
-  val commonOpenApiClientSettings = Seq(
+  val commonOpenApiClientGenerateSettings = Seq(
     openApiGeneratorName := "java",
-    openApiOutputDir := openApiClientOutputDir,
     openApiGenerateApiTests := SettingDisabled,
     openApiGenerateModelTests := SettingDisabled,
+    openApiModelPackage := "org.apache.celeborn.rest.v1.model",
     openApiAdditionalProperties := Map(
       "dateLibrary" -> "java8",
       "useGzipFeature" -> "true",
-      "library" -> "jersey2",
-      "annotationLibrary" -> "swagger1"
+      "library" -> "apache-httpclient",
+      "hideGenerationTimestamp" -> "true",
+      "supportUrlQuery" -> "false",
+      "annotationLibrary" -> "none",
+      "templateDir" -> s"$openApiSpecDir/templates",
     )
   )
 
-  lazy val openapiInternalMasterClient = Project("celeborn-openapi-master-client", file("openapi/openapi-client/target/master"))
+  lazy val openApiClientMasterGenerate = Project("celeborn-openapi-client-master-generate", file("openapi/openapi-client/target/master"))
     .enablePlugins(OpenApiGeneratorPlugin)
     .settings(
       commonSettings,
       openApiInputSpec := (file(openApiSpecDir) / "master_rest_v1.yaml").toString,
+      openApiOutputDir := openApiMasterInternalOutputDir,
       openApiApiPackage := "org.apache.celeborn.rest.v1.master",
-      openApiModelPackage := "org.apache.celeborn.rest.v1.master.model",
       openApiInvokerPackage := "org.apache.celeborn.rest.v1.master.invoker",
-      commonOpenApiClientSettings
+      commonOpenApiClientGenerateSettings
     )
 
-  lazy val openapiInternalWorkerClient = Project("celeborn-openapi-worker-client", file("openapi/openapi-client/target/worker"))
+  lazy val openApiClientWorkerGenerate = Project("celeborn-openapi-client-worker-generate", file("openapi/openapi-client/target/worker"))
     .enablePlugins(OpenApiGeneratorPlugin)
     .settings(
       commonSettings,
       openApiInputSpec := (file(openApiSpecDir) / "worker_rest_v1.yaml").toString,
+      openApiOutputDir := openApiWorkerInternalOutputDir,
       openApiApiPackage := "org.apache.celeborn.rest.v1.worker",
-      openApiModelPackage := "org.apache.celeborn.rest.v1.worker.model",
       openApiInvokerPackage := "org.apache.celeborn.rest.v1.worker.invoker",
-      commonOpenApiClientSettings
+      commonOpenApiClientGenerateSettings
     )
 
-  lazy val openapiClient = Project("celeborn-openapi-client", file("openapi/openapi-client"))
-    .enablePlugins(OpenApiGeneratorPlugin)
-    .disablePlugins(AddMetaInfLicenseFiles)
-    .dependsOn(openapiInternalMasterClient, openapiInternalWorkerClient)
-    .settings(
+  lazy val openApiClient = Project("celeborn-openapi-client", file("openapi/openapi-client"))
+    .settings (
       commonSettings,
       releaseSettings,
       libraryDependencies ++= Seq(
-        Dependencies.openApiToolsSwaggerAnnotations,
-        Dependencies.openApiToolsSwaggerModels,
-        Dependencies.openApiToolsJacksonBindNullable,
-        Dependencies.findbugsJsr305,
-        Dependencies.jerseyClient,
-        Dependencies.jerseyMediaJsonJackson,
         Dependencies.jacksonAnnotations,
+        Dependencies.jacksonCore,
         Dependencies.jacksonDatabind,
         Dependencies.jacksonDataTypeJsr310,
-        Dependencies.jerseyMediaMultipart
+        Dependencies.jacksonJaxrsJsonProvider,
+        Dependencies.findbugsJsr305,
+        Dependencies.javaxAnnotationApi,
+        Dependencies.httpClient5,
+        Dependencies.httpCore5,
+        Dependencies.httpCore5H2,
+        Dependencies.openApiToolsJacksonBindNullable,
+        Dependencies.slf4jApi
       ),
-      Compile / sourceGenerators += Def.task {
-        traverseJavaSourceFiles(openApiClientOutputDir)
-      }.dependsOn(
-        Def.task {
-          println("Cleaning up openapi client output directory: " + openApiClientOutputDir)
-          file(openApiClientOutputDir).delete()
-        },
-        openapiInternalMasterClient / Compile / openApiGenerate,
-        openapiInternalWorkerClient / Compile / openApiGenerate
-      ),
-      Compile / doc := {
-        // skip due to doc generation failure for openapi modules, see CELEBORN-1477
-        target.value / "none"
+
+      generate := {
+        (openApiClientMasterGenerate / Compile / openApiGenerate).value
+        (openApiClientWorkerGenerate / Compile / openApiGenerate).value
+
+        streams.value.log.info("Cleaning up openapi generate output directory: " + openApiClientOutputDir)
+        val dstDir = file(openApiClientOutputDir)
+        IO.delete(dstDir)
+
+        val masterSrcDir = file(openApiMasterInternalOutputDir) / "src" / "main" / "java"
+        streams.value.log.info(s"Copying openapi generated master sources from $masterSrcDir to $dstDir")
+        IO.copyDirectory(masterSrcDir, dstDir)
+
+        val workerSrcDir = file(openApiWorkerInternalOutputDir) / "src" / "main" / "java"
+        streams.value.log.info(s"Copying openapi generated worker sources from $workerSrcDir to $dstDir")
+        IO.copyDirectory(workerSrcDir, dstDir)
       },
 
       (assembly / test) := { },
-
       (assembly / assemblyJarName) := {
         s"${moduleName.value}_${scalaBinaryVersion.value}-${version.value}.${artifact.value.extension}"
       },
-
       (assembly / logLevel) := Level.Info,
-
       // Exclude `scala-library` from assembly.
       (assembly / assemblyPackageScala / assembleArtifact) := false,
-
       (assembly / assemblyExcludedJars) := {
         val cp = (assembly / fullClasspath).value
         cp filter { v =>
           val name = v.data.getName
           !(name.startsWith("celeborn-") ||
-              name.startsWith("swagger-annotations-") ||
-              name.startsWith("swagger-models-") ||
-              name.startsWith("jackson-databind-") ||
-              name.startsWith("jsr305-") ||
-              name.startsWith("jersey-client-") ||
-              name.startsWith("jersey-media-json-jackson-") ||
-              name.startsWith("jackson-annotations-") ||
-              name.startsWith("jackson-datatype-jsr310-") ||
-              name.startsWith("jersey-media-multipart-"))
+            name.startsWith("jackson-annotations-") ||
+            name.startsWith("jackson-core-") ||
+            name.startsWith("jackson-databind-") ||
+            name.startsWith("jackson-datatype-jsr310-") ||
+            name.startsWith("jackson-jaxrs-json-provider-") ||
+            name.startsWith("jsr305-") ||
+            name.startsWith("jakarta.annotation-api-") ||
+            name.startsWith("httpclient5-") ||
+            name.startsWith("httpcore5-") ||
+            name.startsWith("httpcore5-h2-") ||
+            name.startsWith("jackson-databind-nullable-") ||
+            name.startsWith("slf4j-api-"))
         }
       },
 
       (assembly / assemblyShadeRules) := Seq(
-        ShadeRule.rename("io.swagger.**" -> "org.apache.celeborn.shaded.io.swagger.@1").inAll,
         ShadeRule.rename("org.openapitools.**" -> "org.apache.celeborn.shaded.org.openapitools.@1").inAll,
-        ShadeRule.rename("com.google.**" -> "org.apache.celeborn.shaded.com.google.@1").inAll,
         ShadeRule.rename("javax.annotation.**" -> "org.apache.celeborn.shaded.javax.annotation.@1").inAll,
-        ShadeRule.rename("org.glassfish.jersey.**" -> "org.apache.celeborn.shaded.org.glassfish.jersey.@1").inAll,
         ShadeRule.rename("com.fasterxml.jackson.**" -> "org.apache.celeborn.shaded.com.fasterxml.jackson.@1").inAll,
         ShadeRule.rename("jakarta.validation.**" -> "org.apache.celeborn.shaded.jakarta.validation.@1").inAll,
-        ShadeRule.rename("javax.validation.**" -> "org.apache.celeborn.shaded.javax.validation.@1").inAll
-      ),
+        ShadeRule.rename("javax.validation.**" -> "org.apache.celeborn.shaded.javax.validation.@1").inAll,
+        ShadeRule.rename("javax.ws.rs.ext.**" -> "org.apache.celeborn.shaded.javax.ws.rs.ext.@1").inAll,
+        ShadeRule.rename("org.apache.hc.**" -> "org.apache.celeborn.shaded.org.apache.hc.@1").inAll,
+        ShadeRule.rename("org.slf4j.**" -> "org.apache.celeborn.shaded.org.slf4j.@1").inAll
+    ),
 
-      (assembly / assemblyMergeStrategy) := {
-        case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
-        case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
-        case _ => MergeStrategy.first
-      },
-
-      Compile / packageBin := assembly.value,
-      pomPostProcess := removeDependenciesTransformer
-    )
-
-  val commonOpenApiModelSettings = Seq(
-    openApiGeneratorName := "java",
-    openApiOutputDir := openApiModelOutputDir,
-    openApiModelPackage := "org.apache.celeborn.rest.v1.model",
-    openApiGenerateApiTests := SettingDisabled,
-    openApiGenerateModelTests := SettingDisabled,
-    openApiAdditionalProperties := Map("library" -> "jersey2", "annotationLibrary" -> "swagger1"),
-    openApiGlobalProperties := Map("apis" -> "false", "models" -> "", "supportingFiles" -> "false")
+    (assembly / assemblyMergeStrategy) := {
+      case m if m.toLowerCase(Locale.ROOT).endsWith("license") => MergeStrategy.discard
+      case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+      case m if m.toLowerCase(Locale.ROOT).endsWith("meta-inf/dependencies") => MergeStrategy.discard
+      case m if m.toLowerCase(Locale.ROOT).endsWith("module-info.class") => MergeStrategy.discard
+      case m if m.toLowerCase(Locale.ROOT).endsWith("mozilla/public-suffix-list.txt") => MergeStrategy.discard
+      case m if m.toLowerCase(Locale.ROOT).endsWith("notice") => MergeStrategy.discard
+      case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
+      case _ => MergeStrategy.first
+    },
+    Compile / packageBin := assembly.value,
+    pomPostProcess := removeDependenciesTransformer
   )
-
-  lazy val openapiInternalMasterModel = Project("celeborn-openapi-master-model", file("openapi/openapi-model/target/master"))
-    .enablePlugins(OpenApiGeneratorPlugin)
-    .settings(
-      commonSettings,
-      openApiInputSpec := (file(openApiSpecDir) / "master_rest_v1.yaml").toString,
-      commonOpenApiModelSettings
-    )
-
-  lazy val openapiInternalWorkerModel = Project("celeborn-openapi-worker-model", file("openapi/openapi-model/target/worker"))
-    .enablePlugins(OpenApiGeneratorPlugin)
-    .settings(
-      commonSettings,
-      openApiInputSpec := (file(openApiSpecDir) / "worker_rest_v1.yaml").toString,
-      commonOpenApiModelSettings
-    )
-
-  lazy val openapiModel = Project("celeborn-openapi-model", file("openapi/openapi-model"))
-    .enablePlugins(OpenApiGeneratorPlugin)
-    .dependsOn(openapiInternalMasterModel, openapiInternalWorkerModel)
-    .settings(
-      commonSettings,
-      libraryDependencies ++= Seq(
-        Dependencies.openApiToolsSwaggerAnnotations,
-        Dependencies.openApiToolsSwaggerModels,
-        Dependencies.openApiToolsJacksonBindNullable,
-        Dependencies.findbugsJsr305,
-        Dependencies.jerseyMediaJsonJackson,
-        Dependencies.jacksonAnnotations,
-        Dependencies.jacksonDatabind,
-        Dependencies.jacksonDataTypeJsr310,
-        Dependencies.jerseyMediaMultipart
-      ),
-      Compile / sourceGenerators += Def.task {
-        traverseJavaSourceFiles(openApiModelOutputDir)
-      }.dependsOn(
-        Def.task {
-          println("Cleaning up openapi model output directory: " + openApiModelOutputDir)
-          file(openApiModelOutputDir).delete()
-        },
-        openapiInternalMasterModel / Compile / openApiGenerate,
-        openapiInternalWorkerModel / Compile / openApiGenerate
-      ),
-      Compile / doc := {
-        // skip due to doc generation failure for openapi modules, see CELEBORN-1477
-        target.value / "none"
-      }
-    )
 }

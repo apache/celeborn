@@ -223,7 +223,12 @@ public abstract class CelebornInputStream extends InputStream {
       this.shuffleId = shuffleId;
       this.shuffleClient = shuffleClient;
 
-      moveToNextReader(false);
+      boolean chunkPrefetchEnabled = conf.clientChunkPrefetchEnabled();
+      moveToNextReader(chunkPrefetchEnabled);
+      if (chunkPrefetchEnabled) {
+        init();
+        firstChunk = false;
+      }
     }
 
     private boolean skipLocation(int startMapIndex, int endMapIndex, PartitionLocation location) {
@@ -660,6 +665,13 @@ public abstract class CelebornInputStream extends InputStream {
 
         return hasData;
       } catch (IOException e) {
+        logger.error(
+            "Failed to fill buffer from chunk. AppShuffleId {}, shuffleId {}, partitionId {}, location {}",
+            appShuffleId,
+            shuffleId,
+            partitionId,
+            currentReader.getLocation(),
+            e);
         IOException ioe = e;
         if (exceptionMaker != null) {
           if (shuffleClient.reportShuffleFetchFailure(appShuffleId, shuffleId)) {
@@ -675,6 +687,15 @@ public abstract class CelebornInputStream extends InputStream {
           }
         }
         throw ioe;
+      } catch (Exception e) {
+        logger.error(
+            "Failed to read data from chunk. AppShuffleId {}, shuffleId {}, partitionId {}, location {}",
+            appShuffleId,
+            shuffleId,
+            partitionId,
+            currentReader.getLocation(),
+            e);
+        throw e;
       }
     }
 

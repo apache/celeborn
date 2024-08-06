@@ -60,7 +60,7 @@ import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 public class RemoteShuffleInputGateDelegation {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleInputGateDelegation.class);
   /** Lock to protect {@link #receivedBuffers} and {@link #cause} and {@link #closed}. */
-  private Object lock = new Object();
+  private final Object lock = new Object();
 
   /** Name of the corresponding computing task. */
   private String taskName;

@@ -69,6 +69,7 @@ public class LocalPartitionReader implements PartitionReader {
   private TransportClient client;
   private MetricsCallback metricsCallback;
 
+  @SuppressWarnings("StaticAssignmentInConstructor")
   public LocalPartitionReader(
       CelebornConf conf,
       String shuffleKey,

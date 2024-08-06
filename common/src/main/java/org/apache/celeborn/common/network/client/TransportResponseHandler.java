@@ -70,6 +70,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   private static ScheduledExecutorService fetchTimeoutChecker = null;
   private ScheduledFuture fetchCheckerScheduleFuture;
 
+  @SuppressWarnings("StaticAssignmentInConstructor")
   public TransportResponseHandler(TransportConf conf, Channel channel) {
     this.conf = conf;
     this.channel = channel;

@@ -50,6 +50,7 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
       "localhost",
       port,
       0,
+      None,
       None)
     new NettyRpcEnvFactory().create(config)
   }
@@ -73,6 +74,7 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
       "example.com",
       0,
       0,
+      None,
       None)
     val env = new NettyRpcEnvFactory().create(config)
     try {
@@ -122,6 +124,7 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
       "localhost",
       0,
       numUsableCores,
+      None,
       None)
     val anotherEnv = new NettyRpcEnvFactory().create(config)
     anotherEnv.setupEndpoint(

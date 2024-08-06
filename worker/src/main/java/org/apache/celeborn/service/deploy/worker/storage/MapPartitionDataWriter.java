@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.MapFileMeta;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
+import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.Utils;
 
@@ -63,11 +64,14 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
     super(storageManager, workerSource, conf, deviceMonitor, writerContext, false);
 
     Preconditions.checkState(diskFileInfo != null);
-    if (!diskFileInfo.isHdfs()) {
+    if (!diskFileInfo.isDFS()) {
       indexChannel = FileChannelUtils.createWritableFileChannel(diskFileInfo.getIndexPath());
     } else {
+      StorageInfo.Type storageType =
+          diskFileInfo.isS3() ? StorageInfo.Type.S3 : StorageInfo.Type.HDFS;
+      this.hadoopFs = StorageManager.hadoopFs().get(storageType);
       try {
-        StorageManager.hadoopFs().create(diskFileInfo.getHdfsIndexPath(), true).close();
+        hadoopFs.create(diskFileInfo.getDfsIndexPath(), true).close();
       } catch (IOException e) {
         try {
           // If create file failed, wait 10 ms and retry
@@ -75,7 +79,7 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
         } catch (InterruptedException ex) {
           throw new RuntimeException(ex);
         }
-        StorageManager.hadoopFs().create(diskFileInfo.getHdfsIndexPath(), true).close();
+        hadoopFs.create(diskFileInfo.getDfsIndexPath(), true).close();
       }
     }
   }
@@ -120,12 +124,12 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
     return super.close(
         this::flushIndex,
         () -> {
-          if (diskFileInfo.isHdfs()) {
-            if (StorageManager.hadoopFs().exists(diskFileInfo.getHdfsPeerWriterSuccessPath())) {
-              StorageManager.hadoopFs().delete(diskFileInfo.getHdfsPath(), false);
+          if (diskFileInfo.isDFS()) {
+            if (hadoopFs.exists(diskFileInfo.getDfsPeerWriterSuccessPath())) {
+              hadoopFs.delete(diskFileInfo.getDfsPath(), false);
               deleted = true;
             } else {
-              StorageManager.hadoopFs().create(diskFileInfo.getHdfsWriterSuccessPath()).close();
+              hadoopFs.create(diskFileInfo.getDfsWriterSuccessPath()).close();
             }
           }
         },
@@ -133,16 +137,15 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
           if (indexChannel != null) {
             indexChannel.close();
           }
-          if (diskFileInfo.isHdfs()) {
-            if (StorageManager.hadoopFs()
-                .exists(
-                    new Path(
-                        Utils.getWriteSuccessFilePath(
-                            Utils.getPeerPath(diskFileInfo.getIndexPath()))))) {
-              StorageManager.hadoopFs().delete(diskFileInfo.getHdfsIndexPath(), false);
+          if (diskFileInfo.isDFS()) {
+            if (hadoopFs.exists(
+                new Path(
+                    Utils.getWriteSuccessFilePath(
+                        Utils.getPeerPath(diskFileInfo.getIndexPath()))))) {
+              hadoopFs.delete(diskFileInfo.getDfsIndexPath(), false);
               deleted = true;
             } else {
-              StorageManager.hadoopFs()
+              hadoopFs
                   .create(new Path(Utils.getWriteSuccessFilePath(diskFileInfo.getIndexPath())))
                   .close();
             }
@@ -242,6 +245,7 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
     }
   }
 
+  @SuppressWarnings("ByteBufferBackingArray")
   private void flushIndex() throws IOException {
     if (indexBuffer != null) {
       logger.debug("flushIndex start:{}", diskFileInfo.getIndexPath());
@@ -255,11 +259,10 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
             while (indexBuffer.hasRemaining()) {
               indexChannel.write(indexBuffer);
             }
-          } else if (diskFileInfo.isHdfs()) {
-            FSDataOutputStream hdfsStream =
-                StorageManager.hadoopFs().append(diskFileInfo.getHdfsIndexPath());
-            hdfsStream.write(indexBuffer.array());
-            hdfsStream.close();
+          } else if (diskFileInfo.isDFS()) {
+            FSDataOutputStream dfsStream = hadoopFs.append(diskFileInfo.getDfsIndexPath());
+            dfsStream.write(indexBuffer.array());
+            dfsStream.close();
           }
         }
         indexBuffer.clear();

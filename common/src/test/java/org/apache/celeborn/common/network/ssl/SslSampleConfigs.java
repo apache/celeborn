@@ -149,7 +149,7 @@ public class SslSampleConfigs {
    *     be specified to use it
    * @return the signed certificate (signed using ca if provided, else self-signed)
    */
-  @SuppressWarnings("deprecation")
+  @SuppressWarnings("JavaUtilDate")
   public static X509Certificate generateCertificate(
       String dn,
       KeyPair pair,

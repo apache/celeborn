@@ -332,7 +332,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     }
   }
 
-  private boolean readBuffer(ByteBuf buffer) throws IOException {
+  private synchronized boolean readBuffer(ByteBuf buffer) throws IOException {
     try {
       dataFileChannel.position(dataConsumingOffset);
 

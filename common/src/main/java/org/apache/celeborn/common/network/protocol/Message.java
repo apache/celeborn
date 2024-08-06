@@ -55,6 +55,7 @@ public abstract class Message implements Encodable {
     return false;
   }
 
+  @SuppressWarnings("NonOverridingEquals")
   protected boolean equals(Message other) {
     return Objects.equals(body, other.body);
   }

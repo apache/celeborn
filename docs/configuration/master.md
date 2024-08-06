@@ -34,6 +34,7 @@ license: |
 | celeborn.dynamicConfig.store.fs.path | &lt;undefined&gt; | false | The path of dynamic config file for fs store backend. The file format should be yaml. The default path is `${CELEBORN_CONF_DIR}/dynamicConfig.yaml`. | 0.5.0 |  | 
 | celeborn.internal.port.enabled | false | false | Whether to create a internal port on Masters/Workers for inter-Masters/Workers communication. This is beneficial when SASL authentication is enforced for all interactions between clients and Celeborn Services, but the services can exchange messages without being subject to SASL authentication. | 0.5.0 |  | 
 | celeborn.logConf.enabled | false | false | When `true`, log the CelebornConf for debugging purposes. | 0.5.0 |  | 
+| celeborn.master.dfs.expireDirs.timeout | 1h | false | The timeout for a expire dirs to be deleted on S3 or HDFS. | 0.6.0 |  | 
 | celeborn.master.estimatedPartitionSize.initialSize | 64mb | false | Initial partition size for estimation, it will change according to runtime stats. | 0.3.0 | celeborn.shuffle.initialEstimatedPartitionSize | 
 | celeborn.master.estimatedPartitionSize.maxSize | &lt;undefined&gt; | false | Max partition size for estimation. Default value should be celeborn.worker.shuffle.partitionSplit.max * 2. | 0.4.1 |  | 
 | celeborn.master.estimatedPartitionSize.minSize | 8mb | false | Ignore partition size smaller than this configuration of partition size for estimation. | 0.3.0 | celeborn.shuffle.minPartitionSizeToEstimate | 
@@ -44,8 +45,8 @@ license: |
 | celeborn.master.heartbeat.worker.timeout | 120s | false | Worker heartbeat timeout. | 0.3.0 | celeborn.worker.heartbeat.timeout | 
 | celeborn.master.host | &lt;localhost&gt; | false | Hostname for master to bind. | 0.2.0 |  | 
 | celeborn.master.http.auth.administers |  | false | A comma-separated list of users who have admin privileges, Note, when celeborn.master.http.auth.supportedSchemes is not set, everyone is treated as administrator. | 0.6.0 |  | 
-| celeborn.master.http.auth.basic.provider | org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl | false | User-defined password authentication implementation of org.apache.celeborn.common.authentication.PasswdAuthenticationProvider | 0.6.0 |  | 
-| celeborn.master.http.auth.bearer.provider | org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl | false | User-defined token authentication implementation of org.apache.celeborn.common.authentication.TokenAuthenticationProvider | 0.6.0 |  | 
+| celeborn.master.http.auth.basic.provider | org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl | false | User-defined password authentication implementation of org.apache.celeborn.spi.authentication.PasswdAuthenticationProvider | 0.6.0 |  | 
+| celeborn.master.http.auth.bearer.provider | org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl | false | User-defined token authentication implementation of org.apache.celeborn.spi.authentication.TokenAuthenticationProvider | 0.6.0 |  | 
 | celeborn.master.http.auth.supportedSchemes |  | false | A comma-separated list of master http auth supported schemes.<ul> <li>SPNEGO: Kerberos/GSSAPI authentication.</li> <li>BASIC: User-defined password authentication, the concreted implementation is configurable via `celeborn.master.http.auth.basic.provider`.</li> <li>BEARER: User-defined bearer token authentication, the concreted implementation is configurable via `celeborn.master.http.auth.bearer.provider`.</li></ul> | 0.6.0 |  | 
 | celeborn.master.http.host | &lt;localhost&gt; | false | Master's http host. | 0.4.0 | celeborn.metrics.master.prometheus.host,celeborn.master.metrics.prometheus.host | 
 | celeborn.master.http.idleTimeout | 30s | false | Master http server idle timeout. | 0.5.0 |  | 
@@ -74,4 +75,8 @@ license: |
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | false | HDFS base directory for Celeborn to store shuffle data. | 0.2.0 |  | 
 | celeborn.storage.hdfs.kerberos.keytab | &lt;undefined&gt; | false | Kerberos keytab file path for HDFS storage connection. | 0.3.2 |  | 
 | celeborn.storage.hdfs.kerberos.principal | &lt;undefined&gt; | false | Kerberos principal for HDFS storage connection. | 0.3.2 |  | 
+| celeborn.storage.s3.access.key | &lt;undefined&gt; | false | S3 access key for Celeborn to store shuffle data. | 0.6.0 |  | 
+| celeborn.storage.s3.dir | &lt;undefined&gt; | false | S3 base directory for Celeborn to store shuffle data. | 0.6.0 |  | 
+| celeborn.storage.s3.endpoint | &lt;undefined&gt; | false | S3 endpoint for Celeborn to store shuffle data. | 0.6.0 |  | 
+| celeborn.storage.s3.secret.key | &lt;undefined&gt; | false | S3 secret key for Celeborn to store shuffle data. | 0.6.0 |  | 
 <!--end-include-->

@@ -151,30 +151,6 @@ public class RpcIntegrationSuiteJ {
     return res;
   }
 
-  private static class RpcStreamCallback implements RpcResponseCallback {
-    final String streamId;
-    final RpcResult res;
-    final Semaphore sem;
-
-    RpcStreamCallback(String streamId, RpcResult res, Semaphore sem) {
-      this.streamId = streamId;
-      this.res = res;
-      this.sem = sem;
-    }
-
-    @Override
-    public void onSuccess(ByteBuffer message) {
-      res.successMessages.add(streamId);
-      sem.release();
-    }
-
-    @Override
-    public void onFailure(Throwable e) {
-      res.errorMessages.add(e.getMessage());
-      sem.release();
-    }
-  }
-
   @Test
   public void singleRPC() throws Exception {
     RpcResult res = sendRPC("hello/Aaron");
@@ -250,36 +226,6 @@ public class RpcIntegrationSuiteJ {
         r.getRight().isEmpty());
 
     assertTrue(r.getLeft().isEmpty());
-  }
-
-  private void assertErrorAndClosed(RpcResult result, String expectedError) {
-    assertTrue("unexpected success: " + result.successMessages, result.successMessages.isEmpty());
-    Set<String> errors = result.errorMessages;
-    assertEquals("Expected 2 errors, got " + errors.size() + "errors: " + errors, 2, errors.size());
-
-    // We expect 1 additional error due to closed connection and here are possible keywords in the
-    // error message.
-    Set<String> possibleClosedErrors =
-        Sets.newHashSet(
-            "closed",
-            "Connection reset",
-            "java.nio.channels.ClosedChannelException",
-            "java.io.IOException: Broken pipe");
-    Set<String> containsAndClosed = Sets.newHashSet(expectedError);
-    containsAndClosed.addAll(possibleClosedErrors);
-
-    Pair<Set<String>, Set<String>> r = checkErrorsContain(errors, containsAndClosed);
-
-    assertTrue("Got a non-empty set " + r.getLeft(), r.getLeft().isEmpty());
-
-    Set<String> errorsNotFound = r.getRight();
-    assertEquals(
-        "The size of " + errorsNotFound + " was not " + (possibleClosedErrors.size() - 1),
-        possibleClosedErrors.size() - 1,
-        errorsNotFound.size());
-    for (String err : errorsNotFound) {
-      assertTrue("Found a wrong error " + err, containsAndClosed.contains(err));
-    }
   }
 
   private Pair<Set<String>, Set<String>> checkErrorsContain(
