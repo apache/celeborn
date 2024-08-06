@@ -53,15 +53,13 @@ object RpcEnv {
       securityContext: Option[RpcSecurityContext] = None): RpcEnv = {
     val resolvedBindAddress =
       if (conf.bindWildcardAddress) TransportModuleConstants.WILDCARD_BIND_ADDRESS else bindAddress
-    val resolvedAdvertiseAddress =
-      if (conf.advertisePreferIP) Utils.localHostNameForAdvertiseAddress(conf) else advertiseAddress
     val config =
       RpcEnvConfig(
         conf,
         name,
         transportModule,
         resolvedBindAddress,
-        resolvedAdvertiseAddress,
+        Utils.localHostNameForAdvertiseAddress(conf),
         port,
         numUsableCores,
         securityContext)
