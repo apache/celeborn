@@ -17,9 +17,9 @@
 
 package org.apache.celeborn.server.common.http.authentication
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
+
+import org.apache.commons.lang3.StringUtils
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.authentication.{AnonymousAuthenticationProviderImpl, DefaultTokenCredential}
@@ -71,17 +71,13 @@ class BearerAuthenticationHandler(providerClass: String)
       request: HttpServletRequest,
       response: HttpServletResponse): String = {
     var principal: String = null
-    val inputToken = Option(getAuthorization(request))
-      .map(a => Base64.getDecoder.decode(a.getBytes()))
-      .getOrElse(Array.empty[Byte])
+    val inputToken = getAuthorization(request)
 
-    if (!allowAnonymous && inputToken.isEmpty) {
+    if (!allowAnonymous && StringUtils.isBlank(inputToken)) {
       response.setHeader(WWW_AUTHENTICATE_HEADER, authScheme.toString)
       response.setStatus(HttpServletResponse.SC_UNAUTHORIZED)
     } else {
-      val credential = DefaultTokenCredential(
-        new String(inputToken, StandardCharsets.UTF_8),
-        HttpAuthUtils.getCredentialExtraInfo)
+      val credential = DefaultTokenCredential(inputToken, HttpAuthUtils.getCredentialExtraInfo)
       principal = HttpAuthenticationFactory
         .getTokenAuthenticationProvider(providerClass, conf)
         .authenticate(credential).getName

@@ -57,10 +57,7 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
       Base64.getEncoder.encode(s"$user:$password".getBytes()),
       StandardCharsets.UTF_8)
 
-  def bearerAuthorizationHeader(token: String): String =
-    HttpAuthSchemes.BEARER + " " + new String(
-      Base64.getEncoder.encode(token.getBytes()),
-      StandardCharsets.UTF_8)
+  def bearerAuthorizationHeader(token: String): String = HttpAuthSchemes.BEARER + " " + token
 
   Seq("conf", "listDynamicConfigs", "workerInfo", "shuffle", "applications").foreach { api =>
     test(s"API $api authentication") {
