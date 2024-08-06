@@ -173,7 +173,8 @@ private[celeborn] class Master(
   private val workerHeartbeatTimeoutMs = conf.workerHeartbeatTimeout
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
   private val workerUnavailableInfoExpireTimeoutMs = conf.workerUnavailableInfoExpireTimeout
-  private val workerHostPattern = conf.workerHostPattern
+  private val allowWorkerHostPattern = conf.allowWorkerHostPattern
+  private val denyWorkerHostPattern = conf.denyWorkerHostPattern
 
   private val dfsExpireDirsTimeoutMS = conf.dfsExpireDirsTimeoutMS
   private val hasHDFSStorage = conf.hasHDFSStorage
@@ -763,9 +764,11 @@ private[celeborn] class Master(
         disks,
         userResourceConsumption)
 
-    if (!workerHostMatchPattern(host)) {
+    if (!workerHostAllowToRegister(host)) {
       val msg =
-        s"Worker ${workerToRegister.readableAddress} is not allowed to register due to host does not match workerHostPattern:${workerHostPattern.orNull}."
+        s"Worker ${workerToRegister.readableAddress} is not allowed to register due to host" +
+          s" does not match the allow worker host pattern: ${allowWorkerHostPattern.orNull} " +
+          s" or match the deny worker host pattern: ${denyWorkerHostPattern.orNull}."
       logError(msg)
       context.reply(RegisterWorkerResponse(false, msg))
       return
@@ -823,10 +826,20 @@ private[celeborn] class Master(
   }
 
   @VisibleForTesting
-  def workerHostMatchPattern(workerHost: String): Boolean = {
-    workerHostPattern match {
-      case Some(pattern) => pattern.pattern.matcher(workerHost).matches()
+  def workerHostAllowToRegister(workerHost: String): Boolean = {
+
+    val allow = allowWorkerHostPattern match {
+      case Some(allowPattern) => allowPattern.pattern.matcher(workerHost).matches()
       case None => true
+    }
+
+    if (allow) {
+      denyWorkerHostPattern match {
+        case Some(denyPattern) => !denyPattern.pattern.matcher(workerHost).matches()
+        case None => true
+      }
+    } else {
+      false
     }
   }
 

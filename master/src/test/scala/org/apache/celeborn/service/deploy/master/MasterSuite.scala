@@ -108,22 +108,26 @@ class MasterSuite extends AnyFunSuite
     conf.set(CelebornConf.METRICS_ENABLED.key, "true")
     conf.set(CelebornConf.MASTER_HTTP_HOST.key, "127.0.0.1")
     conf.set(CelebornConf.MASTER_HTTP_PORT.key, randomHttpPort.toString)
-    conf.set(CelebornConf.WORKER_HOST_PATTERN.key, ".*\\.k8s\\.io$")
+    conf.set(CelebornConf.ALLOW_WORKER_HOST_PATTERN.key, ".*\\.k8s\\.io$")
+    conf.set(CelebornConf.DENY_WORKER_HOST_PATTERN.key, "^deny\\.k8s\\.io$")
 
     val args = Array("-h", "localhost", "-p", randomMasterPort.toString)
 
     val masterArgs = new MasterArguments(args, conf)
     var master = new Master(conf, masterArgs)
 
-    assert(master.workerHostMatchPattern("test.k8s.io"))
-    assert(!master.workerHostMatchPattern("test.k8s.io.com"))
-    assert(!master.workerHostMatchPattern("test.example.com"))
+    assert(master.workerHostAllowToRegister("test.k8s.io"))
+    assert(!master.workerHostAllowToRegister("test.k8s.io.com"))
+    assert(!master.workerHostAllowToRegister("test.example.com"))
+    assert(!master.workerHostAllowToRegister("deny.k8s.io"))
 
-    conf.unset(CelebornConf.WORKER_HOST_PATTERN)
+    conf.unset(CelebornConf.ALLOW_WORKER_HOST_PATTERN)
+    conf.unset(CelebornConf.DENY_WORKER_HOST_PATTERN)
     master = new Master(conf, masterArgs)
 
-    assert(master.workerHostMatchPattern("test.k8s.io"))
-    assert(master.workerHostMatchPattern("test.k8s.io.com"))
-    assert(master.workerHostMatchPattern("test.example.com"))
+    assert(master.workerHostAllowToRegister("test.k8s.io"))
+    assert(master.workerHostAllowToRegister("test.k8s.io.com"))
+    assert(master.workerHostAllowToRegister("test.example.com"))
+    assert(master.workerHostAllowToRegister("deny.k8s.io"))
   }
 }

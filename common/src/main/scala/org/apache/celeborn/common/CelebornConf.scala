@@ -804,8 +804,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerCheckFileCleanMaxRetries: Int = get(WORKER_CHECK_FILE_CLEAN_MAX_RETRIES)
   def workerCheckFileCleanTimeout: Long = get(WORKER_CHECK_FILE_CLEAN_TIMEOUT)
   def workerHeartbeatTimeout: Long = get(WORKER_HEARTBEAT_TIMEOUT)
-  def workerHostPattern: Option[Regex] = get(WORKER_HOST_PATTERN)
   def workerUnavailableInfoExpireTimeout: Long = get(WORKER_UNAVAILABLE_INFO_EXPIRE_TIMEOUT)
+  def allowWorkerHostPattern: Option[Regex] = get(ALLOW_WORKER_HOST_PATTERN)
+  def denyWorkerHostPattern: Option[Regex] = get(DENY_WORKER_HOST_PATTERN)
 
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
   def workerCommitThreads: Int =
@@ -2177,11 +2178,19 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
 
-  val WORKER_HOST_PATTERN: OptionalConfigEntry[Regex] =
-    buildConf("celeborn.master.workerHost.pattern")
+  val ALLOW_WORKER_HOST_PATTERN: OptionalConfigEntry[Regex] =
+    buildConf("celeborn.master.allowWorkerHostPattern")
       .categories("master")
       .version("0.6.0")
       .doc("Pattern of worker host that allowed to register with the master.")
+      .regexConf
+      .createOptional
+
+  val DENY_WORKER_HOST_PATTERN: OptionalConfigEntry[Regex] =
+    buildConf("celeborn.master.denyWorkerHostPattern")
+      .categories("master")
+      .version("0.6.0")
+      .doc("Pattern of worker host that denied to register with the master.")
       .regexConf
       .createOptional
 
