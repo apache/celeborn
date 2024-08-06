@@ -83,7 +83,7 @@ class BearerAuthenticationHandler(providerClass: String)
         new String(inputToken, StandardCharsets.UTF_8),
         HttpAuthUtils.getCredentialExtraInfo)
       principal = HttpAuthenticationFactory
-        .getTokenAuthenticationProvider(providerClass)
+        .getTokenAuthenticationProvider(providerClass, conf)
         .authenticate(credential).getName
       response.setStatus(HttpServletResponse.SC_OK)
     }

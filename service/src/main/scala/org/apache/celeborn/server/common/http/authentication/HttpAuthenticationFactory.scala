@@ -22,6 +22,7 @@ import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 import org.eclipse.jetty.server.{Handler, Request}
 import org.eclipse.jetty.server.handler.HandlerWrapper
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.reflect.DynConstructors
 import org.apache.celeborn.spi.authentication.{PasswdAuthenticationProvider, TokenAuthenticationProvider}
@@ -59,20 +60,28 @@ object HttpAuthenticationFactory {
     }
   }
 
-  def getPasswordAuthenticationProvider(providerClass: String): PasswdAuthenticationProvider = {
-    createAuthenticationProvider(providerClass, classOf[PasswdAuthenticationProvider])
+  def getPasswordAuthenticationProvider(
+      providerClass: String,
+      conf: CelebornConf): PasswdAuthenticationProvider = {
+    createAuthenticationProvider(providerClass, classOf[PasswdAuthenticationProvider], conf)
   }
 
-  def getTokenAuthenticationProvider(providerClass: String): TokenAuthenticationProvider = {
-    createAuthenticationProvider(providerClass, classOf[TokenAuthenticationProvider])
+  def getTokenAuthenticationProvider(
+      providerClass: String,
+      conf: CelebornConf): TokenAuthenticationProvider = {
+    createAuthenticationProvider(providerClass, classOf[TokenAuthenticationProvider], conf)
   }
 
-  private def createAuthenticationProvider[T](className: String, expected: Class[T]): T = {
+  private def createAuthenticationProvider[T](
+      className: String,
+      expected: Class[T],
+      conf: CelebornConf): T = {
     try {
       DynConstructors.builder(expected)
+        .impl(className, classOf[CelebornConf])
         .impl(className)
         .buildChecked[T]()
-        .newInstance()
+        .newInstance(conf)
     } catch {
       case e: Exception =>
         throw new CelebornException(
