@@ -2182,7 +2182,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.allowWorkerHostPattern")
       .categories("master")
       .version("0.6.0")
-      .doc("Pattern of worker host that allowed to register with the master.")
+      .doc("Pattern of worker host that allowed to register with the master." +
+        " If not set, all workers are allowed to register.")
       .regexConf
       .createOptional
 
@@ -2190,7 +2191,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.denyWorkerHostPattern")
       .categories("master")
       .version("0.6.0")
-      .doc("Pattern of worker host that denied to register with the master.")
+      .doc("Pattern of worker host that denied to register with the master." +
+        " If not set, no workers are denied to register.")
       .regexConf
       .createOptional
 

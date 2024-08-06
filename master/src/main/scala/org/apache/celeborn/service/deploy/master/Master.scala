@@ -764,7 +764,7 @@ private[celeborn] class Master(
         disks,
         userResourceConsumption)
 
-    if (!workerHostAllowToRegister(host)) {
+    if (!workerHostAllowedToRegister(host)) {
       val msg =
         s"Worker ${workerToRegister.readableAddress} is not allowed to register due to host" +
           s" does not match the allow worker host pattern: ${allowWorkerHostPattern.orNull} " +
@@ -826,20 +826,18 @@ private[celeborn] class Master(
   }
 
   @VisibleForTesting
-  def workerHostAllowToRegister(workerHost: String): Boolean = {
+  def workerHostAllowedToRegister(workerHost: String): Boolean = {
 
     val allow = allowWorkerHostPattern match {
       case Some(allowPattern) => allowPattern.pattern.matcher(workerHost).matches()
       case None => true
     }
 
-    if (allow) {
-      denyWorkerHostPattern match {
-        case Some(denyPattern) => !denyPattern.pattern.matcher(workerHost).matches()
-        case None => true
-      }
-    } else {
-      false
+    if (!allow) return false
+
+    denyWorkerHostPattern match {
+      case Some(denyPattern) => !denyPattern.pattern.matcher(workerHost).matches()
+      case None => true
     }
   }
 
