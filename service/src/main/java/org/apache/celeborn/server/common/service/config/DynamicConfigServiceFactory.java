@@ -28,10 +28,13 @@ public class DynamicConfigServiceFactory {
   private static volatile ConfigService _INSTANCE;
 
   // short names for dynamic config store backends
-  private static final HashMap<String, String> dynamicConfigStoreBackendShortNames = new HashMap<>() {{
-      put("FS", FsConfigServiceImpl.class.getName());
-      put("DB", DbConfigServiceImpl.class.getName());
-  }};
+  private static final HashMap<String, String> dynamicConfigStoreBackendShortNames =
+      new HashMap<>() {
+        {
+          put("FS", FsConfigServiceImpl.class.getName());
+          put("DB", DbConfigServiceImpl.class.getName());
+        }
+      };
 
   public static ConfigService getConfigService(CelebornConf celebornConf) throws IOException {
     if (celebornConf.dynamicConfigStoreBackend().isEmpty()) {
