@@ -52,7 +52,7 @@ Users can also implement their own identity provider by inheriting the `org.apac
 ## QuotaManager
 
 `QuotaManager` supports to check whether quota is available and manage quota configurations for `Master`.
-`QuotaManager` uses the [dynamic config service](developers/configuration#dynamic-configuration) to store quota settings.
+`QuotaManager` uses the [dynamic config service](https://celeborn.apache.org/docs/latest/developers/configuration/#dynamic-configuration) to store quota settings.
 For example, there are some quota configurations as follows:
 
 The quota for user `tenant_01.Jerry` is
@@ -79,7 +79,7 @@ The quota for `system default` is
 ### FileSystem Store Backend
 
 This backend reads [quota](#quota-indicators) settings from a user-specified dynamic config file.
-For more information on using the database store backend, refer to [filesystem config service](developers/configuration#filesystem-config-service).
+For more information on using the database store backend, refer to [filesystem config service](https://celeborn.apache.org/docs/latest/developers/configuration#filesystem-config-service).
 Here's an example quota setting YAML file of above quota examples:
 
 ```yaml
@@ -105,7 +105,7 @@ Here's an example quota setting YAML file of above quota examples:
 ### Database Store Backend
 
 This backend reads [quota](#quota-indicators) settings from a user-specified database.
-For more information on using the database store backend, refer to [database config service](developers/configuration#database-config-service).
+For more information on using the database store backend, refer to [database config service](https://celeborn.apache.org/docs/latest/developers/configuration#database-config-service).
 Here's an example quota setting sql of above quota examples:
 ```sql
 # SYSTEM level configuration
