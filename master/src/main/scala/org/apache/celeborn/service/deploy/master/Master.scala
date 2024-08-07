@@ -305,15 +305,17 @@ private[celeborn] class Master(
       appHeartbeatTimeoutMs / 2,
       TimeUnit.MILLISECONDS)
 
-    checkForUnavailableWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
-      new Runnable {
-        override def run(): Unit = Utils.tryLogNonFatalError {
-          self.send(CheckForWorkerUnavailableInfoTimeout)
-        }
-      },
-      0,
-      workerUnavailableInfoExpireTimeoutMs / 2,
-      TimeUnit.MILLISECONDS)
+    if (workerUnavailableInfoExpireTimeoutMs > 0) {
+      checkForUnavailableWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
+        new Runnable {
+          override def run(): Unit = Utils.tryLogNonFatalError {
+            self.send(CheckForWorkerUnavailableInfoTimeout)
+          }
+        },
+        0,
+        workerUnavailableInfoExpireTimeoutMs / 2,
+        TimeUnit.MILLISECONDS)
+    }
 
     if (hasHDFSStorage) {
       checkForHDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
