@@ -20,10 +20,9 @@ package org.apache.celeborn.server.common.http.authentication
 import java.security.Principal
 import javax.security.sasl.AuthenticationException
 
-import org.apache.celeborn.common.authentication.BasicPrincipal
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.authentication.UserDefinePasswordAuthenticationProviderImpl.VALID_PASSWORD
-import org.apache.celeborn.spi.authentication.{Credential, PasswdAuthenticationProvider, PasswordCredential}
+import org.apache.celeborn.spi.authentication.{BasicPrincipal, Credential, PasswdAuthenticationProvider, PasswordCredential}
 
 class UserDefinePasswordAuthenticationProviderImpl
   extends PasswdAuthenticationProvider with Logging {
