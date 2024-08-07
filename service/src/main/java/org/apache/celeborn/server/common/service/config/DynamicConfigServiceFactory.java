@@ -18,8 +18,8 @@
 package org.apache.celeborn.server.common.service.config;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.Utils;
@@ -28,10 +28,10 @@ public class DynamicConfigServiceFactory {
   private static volatile ConfigService _INSTANCE;
 
   // short names for dynamic config store backends
-  private static final Map<String, String> dynamicConfigStoreBackendShortNames =
-      Map.of(
-          "FS", FsConfigServiceImpl.class.getName(),
-          "DB", DbConfigServiceImpl.class.getName());
+  private static final HashMap<String, String> dynamicConfigStoreBackendShortNames = new HashMap<>() {{
+      put("FS", FsConfigServiceImpl.class.getName());
+      put("DB", DbConfigServiceImpl.class.getName());
+  }};
 
   public static ConfigService getConfigService(CelebornConf celebornConf) throws IOException {
     if (celebornConf.dynamicConfigStoreBackend().isEmpty()) {
