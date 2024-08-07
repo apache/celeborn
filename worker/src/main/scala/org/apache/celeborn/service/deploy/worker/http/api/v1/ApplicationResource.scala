@@ -63,7 +63,7 @@ class ApplicationResource extends ApiRequestContext {
   def topDiskUsedApplications(): AppDiskUsagesResponse = {
     new AppDiskUsagesResponse()
       .appDiskUsages(
-        storageManager.topAppDiskUsage.asScala.map { case (appId, diskUsage) =>
+        storageManager.topAppDiskUsage().asScala.map { case (appId, diskUsage) =>
           new AppDiskUsageData()
             .appId(appId)
             .estimatedUsage(diskUsage)
