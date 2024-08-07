@@ -814,7 +814,8 @@ private[celeborn] class Master(
         disks,
         userResourceConsumption,
         requestId)
-      logInfo(s"Registered worker $workerToRegister.")
+      logInfo(
+        s"Registered worker: ${workerToRegister.workerInfoToString(conf.humanFriendlyLogEnabled)}.")
       context.reply(RegisterWorkerResponse(true, ""))
     }
   }

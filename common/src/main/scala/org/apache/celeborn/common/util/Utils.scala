@@ -1305,4 +1305,13 @@ object Utils extends Logging {
         (key, value)
     }.asInstanceOf[Seq[(K, V)]]
   }
+
+  // Get formatting tokens for mkString based on humanFriendly flag
+  def getFormattingTokens(humanFriendly: Boolean): (String, String, String) = {
+    if (humanFriendly) {
+      ("\n  ", "\n  ", "")
+    } else {
+      ("{", ", ", "}")
+    }
+  }
 }

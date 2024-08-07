@@ -870,7 +870,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       diskInfo.updateFlushTime()
       diskInfo.updateFetchTime()
     }
-    logInfo(s"Updated diskInfos:\n${disksSnapshot().mkString("\n")}")
+
+    val (prefix, delimiter, suffix) = Utils.getFormattingTokens(conf.humanFriendlyLogEnabled)
+    logInfo(s"Updated diskInfos: ${disksSnapshot().mkString(prefix, delimiter, suffix)}")
   }
 
   def getFileSystemReportedSpace(mountPoint: String): (Long, Long) = {
