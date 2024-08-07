@@ -586,6 +586,17 @@ object Utils extends Logging {
     }
   }
 
+  def instantiateDynamicConfigStoreBackend[T](className: String, conf: CelebornConf): T = {
+    try {
+      DynConstructors.builder().impl(className, classOf[CelebornConf])
+        .build[T]()
+        .newInstance(conf)
+    } catch {
+      case e: Throwable =>
+        throw new CelebornException(s"Failed to instantiate dynamic config store backend $className.", e)
+    }
+  }
+
   def getCodeSourceLocation(clazz: Class[_]): String = {
     new File(clazz.getProtectionDomain.getCodeSource.getLocation.toURI).getPath
   }

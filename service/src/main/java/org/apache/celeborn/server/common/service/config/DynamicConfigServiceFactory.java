@@ -18,11 +18,19 @@
 package org.apache.celeborn.server.common.service.config;
 
 import java.io.IOException;
+import java.util.Locale;
+import java.util.Map;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.util.Utils;
 
 public class DynamicConfigServiceFactory {
   private static volatile ConfigService _INSTANCE;
+
+  // short names for dynamic config store backends
+  private static final Map<String, String> dynamicConfigStoreBackendShortNames = Map.of(
+          "FS", FsConfigServiceImpl.class.getName(),
+          "DB", DbConfigServiceImpl.class.getName());
 
   public static ConfigService getConfigService(CelebornConf celebornConf) throws IOException {
     if (celebornConf.dynamicConfigStoreBackend().isEmpty()) {
@@ -32,12 +40,11 @@ public class DynamicConfigServiceFactory {
     if (_INSTANCE == null) {
       synchronized (DynamicConfigServiceFactory.class) {
         if (_INSTANCE == null) {
-          String configStoreBackend = celebornConf.dynamicConfigStoreBackend().get();
-          if ("FS".equals(configStoreBackend)) {
-            _INSTANCE = new FsConfigServiceImpl(celebornConf);
-          } else {
-            _INSTANCE = new DbConfigServiceImpl(celebornConf);
-          }
+          String configStoreBackendName = celebornConf.dynamicConfigStoreBackend().get();
+          String configStoreBackendClass = dynamicConfigStoreBackendShortNames
+                  .getOrDefault(configStoreBackendName.toUpperCase(Locale.ROOT), configStoreBackendName);
+
+          _INSTANCE = Utils.instantiateDynamicConfigStoreBackend(configStoreBackendClass, celebornConf);
         }
       }
     }
