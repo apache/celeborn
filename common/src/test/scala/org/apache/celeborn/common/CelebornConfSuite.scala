@@ -158,18 +158,6 @@ class CelebornConfSuite extends CelebornFunSuite {
       "Compression level for Zstd compression codec should be an integer between -5 and 22."))
   }
 
-  test("replace <localhost> placeholder") {
-    val conf = new CelebornConf()
-    val replacedHost = conf.masterHost
-    assert(!replacedHost.contains("<localhost>"))
-    assert(replacedHost === Utils.localHostName(conf))
-    val replacedHosts = conf.masterEndpoints
-    replacedHosts.foreach { replacedHost =>
-      assert(!replacedHost.contains("<localhost>"))
-      assert(replacedHost contains Utils.localHostName(conf))
-    }
-  }
-
   test("extract masterNodeIds") {
     val conf = new CelebornConf()
       .set("celeborn.master.ha.node.id", "1")
@@ -450,6 +438,25 @@ class CelebornConfSuite extends CelebornFunSuite {
     } catch {
       case e: Exception =>
         assert(e.isInstanceOf[IllegalArgumentException])
+    }
+  }
+
+  test("CELEBORN-1511: Test master endpoint resolver") {
+    val conf = new CelebornConf()
+
+    val validResolverClass = "org.apache.celeborn.common.client.StaticMasterEndpointResolver"
+    val invalidResolverClass = "org.apache.celeborn.UnknownClass"
+
+    conf.set(MASTER_ENDPOINTS_RESOLVER.key, validResolverClass)
+    assert(conf.masterEndpointResolver == validResolverClass)
+
+    try {
+      conf.set(MASTER_ENDPOINTS_RESOLVER.key, invalidResolverClass)
+      val _ = conf.masterEndpointResolver
+    } catch {
+      case e: Exception =>
+        assert(e.isInstanceOf[IllegalArgumentException])
+        assert(e.getMessage.contains("Resolver class was not found in the classpath."))
     }
   }
 
