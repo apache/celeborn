@@ -2184,7 +2184,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.workerUnavailableInfo.expireTimeout")
       .categories("master")
       .version("0.3.1")
-      .doc("Worker unavailable info would be cleared when the retention period is expired")
+      .doc("Worker unavailable info would be cleared when the retention period is expired." +
+        " Set -1 to disable the expiration.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1800s")
 
