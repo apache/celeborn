@@ -1447,6 +1447,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def logCelebornConfEnabled = get(LOG_CELEBORN_CONF_ENABLED)
 
   def secretRedactionPattern = get(SECRET_REDACTION_PATTERN)
+
+  def humanFriendlyLogEnabled = get(HUMAN_FRIENDLY_LOG_ENABLED)
 }
 
 object CelebornConf extends Logging {
@@ -5572,4 +5574,11 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
+  val HUMAN_FRIENDLY_LOG_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.humanFriendlyLog.enabled")
+      .categories("master", "worker")
+      .version("0.6.0")
+      .doc("When `true`, enable human friendly configuration.")
+      .booleanConf
+      .createWithDefault(true)
 }
