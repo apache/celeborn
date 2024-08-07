@@ -29,7 +29,7 @@ public class DynamicConfigServiceFactory {
 
   // short names for dynamic config store backends
   private static final HashMap<String, String> dynamicConfigStoreBackendShortNames =
-      new HashMap<>() {
+      new HashMap<String, String>() {
         {
           put("FS", FsConfigServiceImpl.class.getName());
           put("DB", DbConfigServiceImpl.class.getName());
