@@ -527,8 +527,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     hashSet
   }
 
-  def topAppDiskUsage(estimated: Boolean = false): util.Map[String, Long] = {
-    val topCount = if (estimated) topDiskUsageCount * 2 else topDiskUsageCount
+  def topAppDiskUsage(reportToMaster: Boolean = false): util.Map[String, Long] = {
+    val topCount = if (reportToMaster) topDiskUsageCount * 2 else topDiskUsageCount
     diskFileInfos.asScala.map { keyedWriters =>
       {
         keyedWriters._1 -> keyedWriters._2.values().asScala.map(_.getFileLength).sum
