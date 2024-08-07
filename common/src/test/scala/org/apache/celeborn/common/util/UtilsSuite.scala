@@ -21,6 +21,8 @@ import java.util
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.client.{MasterEndpointResolver, StaticMasterEndpointResolver}
+import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.protocol.{PartitionLocation, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -100,6 +102,30 @@ class UtilsSuite extends CelebornFunSuite {
   test("classIsLoadable") {
     assert(Utils.classIsLoadable("java.lang.String"))
     assert(false == Utils.classIsLoadable("a.b.c.d.e.f"))
+  }
+
+  test("instantiateMasterEndpointResolver") {
+    val celebornConf = new CelebornConf()
+    val masterEndpointResolver = Utils.instantiateMasterEndpointResolver[MasterEndpointResolver](
+      celebornConf.masterEndpointResolver,
+      celebornConf,
+      isWorker = true)
+
+    assert(masterEndpointResolver.isInstanceOf[MasterEndpointResolver])
+    assert(masterEndpointResolver.isInstanceOf[StaticMasterEndpointResolver])
+  }
+
+  test("instantiateMasterEndpointResolver invalid resolver classname") {
+    val celebornConf = new CelebornConf()
+    val invalidClassName = "invalidClassName"
+
+    val e = intercept[CelebornException] {
+      Utils.instantiateMasterEndpointResolver[MasterEndpointResolver](
+        invalidClassName,
+        celebornConf,
+        isWorker = true)
+    }
+    assert(s"Failed to instantiate masterEndpointResolver $invalidClassName." === e.getMessage)
   }
 
   test("splitPartitionLocationUniqueId") {

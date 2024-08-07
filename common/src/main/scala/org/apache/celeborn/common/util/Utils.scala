@@ -52,6 +52,7 @@ import org.apache.celeborn.common.network.util.TransportConf
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.{ControlMessages, Message, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
+import org.apache.celeborn.reflect.DynConstructors
 
 object Utils extends Logging {
 
@@ -569,6 +570,20 @@ object Utils extends Logging {
     // scalastyle:off classforname
     Class.forName(className, true, getContextOrClassLoader)
     // scalastyle:on classforname
+  }
+
+  def instantiateMasterEndpointResolver[T](
+      className: String,
+      conf: CelebornConf,
+      isWorker: Boolean): T = {
+    try {
+      DynConstructors.builder().impl(className, classOf[CelebornConf], java.lang.Boolean.TYPE)
+        .build[T]()
+        .newInstance(conf, java.lang.Boolean.valueOf(isWorker))
+    } catch {
+      case e: Throwable =>
+        throw new CelebornException(s"Failed to instantiate masterEndpointResolver $className.", e)
+    }
   }
 
   def getCodeSourceLocation(clazz: Class[_]): String = {

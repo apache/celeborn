@@ -661,13 +661,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //               Address && HA && RATIS                //
   // //////////////////////////////////////////////////////
-  def masterEndpoints: Array[String] =
-    get(MASTER_ENDPOINTS).toArray.map { endpoint =>
-      Utils.parseHostPort(endpoint.replace("<localhost>", Utils.localHostName(this))) match {
-        case (host, 0) => s"$host:${HA_MASTER_NODE_PORT.defaultValue.get}"
-        case (host, port) => s"$host:$port"
-      }
-    }
+  def masterEndpoints: Array[String] = get(MASTER_ENDPOINTS).toArray
+
+  def masterEndpointResolver: String = get(MASTER_ENDPOINTS_RESOLVER)
 
   def masterClientRpcAskTimeout: RpcTimeout =
     new RpcTimeout(get(MASTER_CLIENT_RPC_ASK_TIMEOUT).milli, MASTER_CLIENT_RPC_ASK_TIMEOUT.key)
@@ -1394,13 +1390,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def internalPortEnabled: Boolean = get(INTERNAL_PORT_ENABLED)
 
-  def masterInternalEndpoints: Array[String] =
-    get(MASTER_INTERNAL_ENDPOINTS).toArray.map { endpoint =>
-      Utils.parseHostPort(endpoint.replace("<localhost>", Utils.localHostName(this))) match {
-        case (host, 0) => s"$host:${HA_MASTER_NODE_INTERNAL_PORT.defaultValue.get}"
-        case (host, port) => s"$host:$port"
-      }
-    }
+  def masterInternalEndpoints: Array[String] = get(MASTER_INTERNAL_ENDPOINTS).toArray
 
   def haMasterNodeInternalPort(nodeId: String): Int = {
     val key = HA_MASTER_NODE_INTERNAL_PORT.key.replace("<id>", nodeId)
@@ -2070,18 +2060,33 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
+  val MASTER_ENDPOINTS_RESOLVER: ConfigEntry[String] =
+    buildConf("celeborn.master.endpoints.resolver")
+      .categories("client", "worker")
+      .doc("Resolver class that can be used for discovering and updating the master endpoints. This allows " +
+        "users to provide a custom master endpoint resolver implementation. This is useful in environments " +
+        "where the master nodes might change due to scaling operations or infrastructure updates. Clients " +
+        "need to ensure that provided resolver class should be present in the classpath.")
+      .version("0.6.0")
+      .stringConf
+      .checkValue(
+        resolver => Utils.classIsLoadable(resolver),
+        "Resolver class was not found in the classpath. Please check the class name " +
+          "and ensure that it is present in classpath")
+      .createWithDefault("org.apache.celeborn.common.client.StaticMasterEndpointResolver")
+
   val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.master.endpoints")
       .categories("client", "worker")
-      .doc("Endpoints of master nodes for celeborn client to connect, allowed pattern " +
-        "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. " +
-        "If the port is omitted, 9097 will be used.")
+      .doc("Endpoints of master nodes for celeborn clients to connect. Client uses resolver provided by" +
+        s"${MASTER_ENDPOINTS_RESOLVER.key} to resolve the master endpoints. By default Celeborn uses " +
+        "`org.apache.celeborn.common.client.StaticMasterEndpointResolver` which take static master endpoints " +
+        "as input. Allowed pattern: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. " +
+        "If the port is omitted, 9097 will be used. If the master endpoints are not static then users can pass " +
+        s"custom resolver implementation to discover master endpoints actively using ${MASTER_ENDPOINTS_RESOLVER.key}.")
       .version("0.2.0")
       .stringConf
       .toSequence
-      .checkValue(
-        endpoints => endpoints.map(_ => Try(Utils.parseHostPort(_))).forall(_.isSuccess),
-        "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
       .createWithDefaultString(s"<localhost>:9097")
 
   val MASTER_CLIENT_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
