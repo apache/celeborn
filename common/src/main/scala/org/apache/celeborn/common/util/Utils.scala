@@ -593,7 +593,9 @@ object Utils extends Logging {
         .newInstance(conf)
     } catch {
       case e: Throwable =>
-        throw new CelebornException(s"Failed to instantiate dynamic config store backend $className.", e)
+        throw new CelebornException(
+          s"Failed to instantiate dynamic config store backend $className.",
+          e)
     }
   }
 

@@ -28,7 +28,8 @@ public class DynamicConfigServiceFactory {
   private static volatile ConfigService _INSTANCE;
 
   // short names for dynamic config store backends
-  private static final Map<String, String> dynamicConfigStoreBackendShortNames = Map.of(
+  private static final Map<String, String> dynamicConfigStoreBackendShortNames =
+      Map.of(
           "FS", FsConfigServiceImpl.class.getName(),
           "DB", DbConfigServiceImpl.class.getName());
 
@@ -41,10 +42,12 @@ public class DynamicConfigServiceFactory {
       synchronized (DynamicConfigServiceFactory.class) {
         if (_INSTANCE == null) {
           String configStoreBackendName = celebornConf.dynamicConfigStoreBackend().get();
-          String configStoreBackendClass = dynamicConfigStoreBackendShortNames
-                  .getOrDefault(configStoreBackendName.toUpperCase(Locale.ROOT), configStoreBackendName);
+          String configStoreBackendClass =
+              dynamicConfigStoreBackendShortNames.getOrDefault(
+                  configStoreBackendName.toUpperCase(Locale.ROOT), configStoreBackendName);
 
-          _INSTANCE = Utils.instantiateDynamicConfigStoreBackend(configStoreBackendClass, celebornConf);
+          _INSTANCE =
+              Utils.instantiateDynamicConfigStoreBackend(configStoreBackendClass, celebornConf);
         }
       }
     }
