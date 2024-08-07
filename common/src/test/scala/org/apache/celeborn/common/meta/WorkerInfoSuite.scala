@@ -234,7 +234,6 @@ class WorkerInfoSuite extends CelebornFunSuite {
     val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004)
     val worker2 =
       new WorkerInfo("h2", 20001, 20002, 20003, 2000, 20004, null, null)
-    worker2.networkLocation_$eq("/1")
 
     val worker3 = new WorkerInfo(
       "h3",
@@ -308,7 +307,6 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |Disks: empty
            |UserResourceConsumption: empty
            |WorkerRef: null
-           |NetworkLocation: /default-rack
            |""".stripMargin
 
       val exp2 =
@@ -324,7 +322,6 @@ class WorkerInfoSuite extends CelebornFunSuite {
           |Disks: empty
           |UserResourceConsumption: empty
           |WorkerRef: null
-          |NetworkLocation: /1
           |""".stripMargin
       val exp3 =
         s"""
@@ -339,7 +336,6 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |Disks: empty
            |UserResourceConsumption: empty
            |WorkerRef: null
-           |NetworkLocation: /default-rack
            |""".stripMargin
       val exp4 =
         s"""
@@ -358,7 +354,6 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |UserResourceConsumption: $placeholder
            |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1, subResourceConsumptions: (application_1697697127390_2171854 -> ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1, subResourceConsumptions: empty)))
            |WorkerRef: null
-           |NetworkLocation: /default-rack
            |""".stripMargin
 
       assertEquals(
