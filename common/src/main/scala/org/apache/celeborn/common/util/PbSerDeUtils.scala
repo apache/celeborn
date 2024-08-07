@@ -227,7 +227,7 @@ object PbSerDeUtils {
     }
     val userResourceConsumption =
       PbSerDeUtils.fromPbUserResourceConsumption(pbWorkerInfo.getUserResourceConsumptionMap)
-    new WorkerInfo(
+    val workerInfo = new WorkerInfo(
       pbWorkerInfo.getHost,
       pbWorkerInfo.getRpcPort,
       pbWorkerInfo.getPushPort,
@@ -236,6 +236,8 @@ object PbSerDeUtils {
       pbWorkerInfo.getInternalPort,
       disks,
       userResourceConsumption)
+    workerInfo.networkLocation_$eq(pbWorkerInfo.getNetworkLocation)
+    workerInfo
   }
 
   def toPbWorkerInfo(
@@ -249,6 +251,7 @@ object PbSerDeUtils {
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
       .setInternalPort(workerInfo.internalPort)
+      .setNetworkLocation(workerInfo.networkLocation)
     if (!eliminateUserResourceConsumption) {
       builder.putAllUserResourceConsumption(
         PbSerDeUtils.toPbUserResourceConsumption(workerInfo.userResourceConsumption))
