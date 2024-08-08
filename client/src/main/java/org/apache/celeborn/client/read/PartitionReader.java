@@ -31,4 +31,8 @@ public interface PartitionReader {
   void close();
 
   PartitionLocation getLocation();
+
+  int getCurrentChunk();
+
+  void setCurrentChunk(int currentChunk);
 }
