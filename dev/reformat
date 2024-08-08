@@ -32,4 +32,5 @@ else
   ${PROJECT_DIR}/build/mvn spotless:apply -Pspark-2.4
   ${PROJECT_DIR}/build/mvn spotless:apply -Pspark-3.3
   ${PROJECT_DIR}/build/mvn spotless:apply -Pmr
+  ${PROJECT_DIR}/build/mvn spotless:apply -Ptez
 fi
