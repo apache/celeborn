@@ -52,7 +52,7 @@ Users can also implement their own identity provider by inheriting the `org.apac
 ## QuotaManager
 
 `QuotaManager` supports to check whether quota is available and manage quota configurations for `Master`.
-`QuotaManager` uses the [dynamic config service](../developers/configuration/#dynamic-configuration) to store quota settings.
+`QuotaManager` uses the [dynamic config service](../developers/configuration#dynamic-configuration) to store quota settings.
 For example, there are some quota configurations as follows:
 
 The quota for user `tenant_01.Jerry` is
