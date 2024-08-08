@@ -31,5 +31,7 @@ public interface ShuffleManagerHook {
       int endMapIndex,
       int startPartition,
       int endPartition,
-      TaskContext context) {};
+      TaskContext context) {}
+
+  default void exec(ShuffleHandle handle, long mapId, TaskContext context) {}
 }
