@@ -22,6 +22,7 @@ templates:
 
 release:
   name: celeborn
+  namespace: celeborn
 
 tests:
   - it: Should create master service
@@ -39,9 +40,10 @@ tests:
 
   - it: Should create master service with the specified service type and port
     set:
-      service:
-        type: NodePort
-        port: 9097
+      master:
+        service:
+          type: NodePort
+          port: 9097
     asserts:
       - equal:
           path: spec.type

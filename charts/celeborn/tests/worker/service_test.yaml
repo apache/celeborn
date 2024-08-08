@@ -22,6 +22,7 @@ templates:
 
 release:
   name: celeborn
+  namespace: celeborn
 
 tests:
   - it: Should create worker service
@@ -39,8 +40,9 @@ tests:
 
   - it: Should create worker service with the specified service type
     set:
-      service:
-        type: NodePort
+      worker:
+        service:
+          type: NodePort
     asserts:
       - equal:
           path: spec.type
