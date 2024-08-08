@@ -97,4 +97,44 @@ class MasterSuite extends AnyFunSuite
     master.rpcEnv.shutdown()
     master.internalRpcEnvInUse.shutdown()
   }
+
+  test("test master worker host allow and deny pattern") {
+    val conf = new CelebornConf()
+    val randomMasterPort = Utils.selectRandomPort(1024, 65535)
+    val randomHttpPort = randomMasterPort + 1
+    conf.set(CelebornConf.HA_ENABLED.key, "false")
+    conf.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR.key, getTmpDir())
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, getTmpDir())
+    conf.set(CelebornConf.METRICS_ENABLED.key, "true")
+    conf.set(CelebornConf.MASTER_HTTP_HOST.key, "127.0.0.1")
+    conf.set(CelebornConf.MASTER_HTTP_PORT.key, randomHttpPort.toString)
+    conf.set(CelebornConf.ALLOW_WORKER_HOST_PATTERN.key, ".*\\.k8s\\.io$")
+    conf.set(CelebornConf.DENY_WORKER_HOST_PATTERN.key, "^deny\\.k8s\\.io$")
+
+    val args = Array("-h", "localhost", "-p", randomMasterPort.toString)
+
+    val masterArgs = new MasterArguments(args, conf)
+    var master = new Master(conf, masterArgs)
+    assert(master.workerHostAllowedToRegister("test.k8s.io"))
+    assert(!master.workerHostAllowedToRegister("test.k8s.io.com"))
+    assert(!master.workerHostAllowedToRegister("test.example.com"))
+    assert(!master.workerHostAllowedToRegister("deny.k8s.io"))
+    master.rpcEnv.shutdown()
+
+    conf.unset(CelebornConf.ALLOW_WORKER_HOST_PATTERN)
+    master = new Master(conf, masterArgs)
+    assert(master.workerHostAllowedToRegister("test.k8s.io"))
+    assert(master.workerHostAllowedToRegister("test.k8s.io.com"))
+    assert(master.workerHostAllowedToRegister("test.example.com"))
+    assert(!master.workerHostAllowedToRegister("deny.k8s.io"))
+    master.rpcEnv.shutdown()
+
+    conf.unset(CelebornConf.DENY_WORKER_HOST_PATTERN)
+    master = new Master(conf, masterArgs)
+    assert(master.workerHostAllowedToRegister("test.k8s.io"))
+    assert(master.workerHostAllowedToRegister("test.k8s.io.com"))
+    assert(master.workerHostAllowedToRegister("test.example.com"))
+    assert(master.workerHostAllowedToRegister("deny.k8s.io"))
+    master.rpcEnv.shutdown()
+  }
 }

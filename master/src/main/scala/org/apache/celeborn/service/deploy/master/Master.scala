@@ -27,6 +27,7 @@ import java.util.function.ToLongFunction
 import scala.collection.JavaConverters._
 import scala.util.Random
 
+import com.google.common.annotations.VisibleForTesting
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.ratis.proto.RaftProtos
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole
@@ -172,6 +173,8 @@ private[celeborn] class Master(
   private val workerHeartbeatTimeoutMs = conf.workerHeartbeatTimeout
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
   private val workerUnavailableInfoExpireTimeoutMs = conf.workerUnavailableInfoExpireTimeout
+  private val allowWorkerHostPattern = conf.allowWorkerHostPattern
+  private val denyWorkerHostPattern = conf.denyWorkerHostPattern
 
   private val dfsExpireDirsTimeoutMS = conf.dfsExpireDirsTimeoutMS
   private val hasHDFSStorage = conf.hasHDFSStorage
@@ -762,6 +765,17 @@ private[celeborn] class Master(
         internalPort,
         disks,
         userResourceConsumption)
+
+    if (!workerHostAllowedToRegister(host)) {
+      val msg =
+        s"Worker ${workerToRegister.readableAddress} is not allowed to register due to host" +
+          s" does not match the allow worker host pattern: ${allowWorkerHostPattern.orNull} " +
+          s" or match the deny worker host pattern: ${denyWorkerHostPattern.orNull}."
+      logError(msg)
+      context.reply(RegisterWorkerResponse(false, msg))
+      return
+    }
+
     if (statusSystem.workers.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")
@@ -810,6 +824,22 @@ private[celeborn] class Master(
         requestId)
       logInfo(s"Registered worker $workerToRegister.")
       context.reply(RegisterWorkerResponse(true, ""))
+    }
+  }
+
+  @VisibleForTesting
+  def workerHostAllowedToRegister(workerHost: String): Boolean = {
+
+    val allow = allowWorkerHostPattern match {
+      case Some(allowPattern) => allowPattern.pattern.matcher(workerHost).matches()
+      case None => true
+    }
+
+    if (!allow) return false
+
+    denyWorkerHostPattern match {
+      case Some(denyPattern) => !denyPattern.pattern.matcher(workerHost).matches()
+      case None => true
     }
   }
 
