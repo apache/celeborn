@@ -51,7 +51,7 @@ class ApplicationResource extends ApiRequestContext {
           new ApplicationHeartbeatData()
             .appId(appId)
             .lastHeartbeatTimestamp(heartbeat)
-        }.toSeq.asJava)
+        }.toSeq.sortBy(_.getAppId).asJava)
   }
 
   @ApiResponse(
@@ -92,6 +92,6 @@ class ApplicationResource extends ApiRequestContext {
   @GET
   @Path("/hostnames")
   def hostnames(): HostnamesResponse = {
-    new HostnamesResponse().hostnames(statusSystem.hostnameSet.asScala.toSeq.asJava)
+    new HostnamesResponse().hostnames(statusSystem.hostnameSet.asScala.toSeq.sorted.asJava)
   }
 }

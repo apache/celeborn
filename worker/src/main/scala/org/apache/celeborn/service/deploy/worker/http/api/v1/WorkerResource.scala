@@ -67,7 +67,7 @@ class WorkerResource extends ApiRequestContext {
       .peers(
         worker.unavailablePeers.asScala.map { case (worker, lastTimeout) =>
           new WorkerTimestampData().worker(ApiUtils.workerData(worker)).timestamp(lastTimeout)
-        }.toSeq.asJava)
+        }.toSeq.sortBy(_.getTimestamp).asJava)
   }
 
   @ApiResponse(

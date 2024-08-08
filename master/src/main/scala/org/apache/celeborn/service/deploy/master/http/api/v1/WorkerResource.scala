@@ -47,19 +47,19 @@ class WorkerResource extends ApiRequestContext {
   @GET
   def workers: WorkersResponse = {
     new WorkersResponse()
-      .workers(statusSystem.workers.asScala.map(ApiUtils.workerData).toSeq.asJava)
+      .workers(statusSystem.workers.asScala.map(ApiUtils.workerData).toSeq.sortBy(_.getHost).asJava)
       .lostWorkers(statusSystem.lostWorkers.asScala.toSeq.sortBy(_._2)
-        .map(kv =>
-          new WorkerTimestampData().worker(ApiUtils.workerData(kv._1)).timestamp(kv._2)).asJava)
+        .map(kv => new WorkerTimestampData().worker(ApiUtils.workerData(kv._1)).timestamp(kv._2))
+        .sortBy(_.getTimestamp).asJava)
       .excludedWorkers(
         (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala)
-          .map(ApiUtils.workerData).toSeq.asJava)
+          .map(ApiUtils.workerData).toSeq.sortBy(_.getHost).asJava)
       .manualExcludedWorkers(statusSystem.manuallyExcludedWorkers.asScala.map(
-        ApiUtils.workerData).toSeq.asJava)
+        ApiUtils.workerData).toSeq.sortBy(_.getHost).asJava)
       .shutdownWorkers(statusSystem.shutdownWorkers.asScala.map(
-        ApiUtils.workerData).toSeq.asJava)
+        ApiUtils.workerData).toSeq.sortBy(_.getHost).asJava)
       .decommissioningWorkers(statusSystem.decommissionWorkers.asScala.map(
-        ApiUtils.workerData).toSeq.asJava)
+        ApiUtils.workerData).toSeq.sortBy(_.getHost).asJava)
   }
 
   @ApiResponse(
@@ -96,7 +96,7 @@ class WorkerResource extends ApiRequestContext {
             new WorkerEventInfoData()
               .eventType(event.getEventType.toString)
               .eventTime(event.getEventStartTime))
-      }.toSeq.asJava)
+      }.toSeq.sortBy(_.getEvent.getEventTime).asJava)
   }
 
   @ApiResponse(

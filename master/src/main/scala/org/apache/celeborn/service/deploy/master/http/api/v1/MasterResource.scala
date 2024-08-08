@@ -73,7 +73,7 @@ class MasterResource extends ApiRequestContext {
       new MasterInfoResponse()
         .groupId(groupInfo.getGroup.getGroupId.getUuid.toString)
         .leader(masterLeader)
-        .masterCommitInfo(masterCommitDataList.toSeq.asJava)
+        .masterCommitInfo(masterCommitDataList.toSeq.sortBy(_.getId).asJava)
     } else {
       throw new BadRequestException("HA is not enabled")
     }

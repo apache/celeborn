@@ -47,8 +47,7 @@ class ShuffleResource extends ApiRequestContext {
   @GET
   def shuffles(): ShufflesResponse = {
     new ShufflesResponse()
-      .shuffleIds(worker.storageManager.shuffleKeySet().asScala.toSeq.asJava)
-
+      .shuffleIds(worker.storageManager.shuffleKeySet().asScala.toSeq.sorted.asJava)
   }
 
   @ApiResponse(
