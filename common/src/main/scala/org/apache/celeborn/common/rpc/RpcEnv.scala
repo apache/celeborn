@@ -25,6 +25,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.TransportModuleConstants
 import org.apache.celeborn.common.rpc.netty.NettyRpcEnvFactory
+import org.apache.celeborn.common.util.Utils
 
 /**
  * A RpcEnv implementation must have a [[RpcEnvFactory]] implementation with an empty constructor
@@ -52,13 +53,15 @@ object RpcEnv {
       numUsableCores: Int,
       securityContext: Option[RpcSecurityContext] = None,
       source: Option[AbstractSource] = None): RpcEnv = {
+    val resolvedBindAddress =
+      if (conf.bindWildcardAddress) TransportModuleConstants.WILDCARD_BIND_ADDRESS else bindAddress
     val config =
       RpcEnvConfig(
         conf,
         name,
         transportModule,
-        bindAddress,
-        advertiseAddress,
+        resolvedBindAddress,
+        Utils.localHostNameForAdvertiseAddress(conf),
         port,
         numUsableCores,
         securityContext,
