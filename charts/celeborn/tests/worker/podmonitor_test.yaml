@@ -22,6 +22,7 @@ templates:
 
 release:
   name: celeborn
+  namespace: celeborn
 
 tests:
   - it: Should not create worker pod monitor without api version `monitoring.coreos.com/v1/PodMonitor` even if `podMonitor.enable` is true

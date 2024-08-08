@@ -18,47 +18,45 @@ limitations under the License.
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "celeborn.workerStatefulSetName" . }}
+  name: {{ include "celeborn.worker.statefulSetName" . }}
   labels:
-    {{- include "celeborn.labels" . | nindent 4 }}
-    app.kubernetes.io/role: worker
+    {{- include "celeborn.worker.labels" . | nindent 4 }}
 spec:
-  serviceName: {{ include "celeborn.workerServiceName" . }}
+  serviceName: {{ include "celeborn.worker.serviceName" . }}
   selector:
     matchLabels:
-      {{- include "celeborn.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/role: worker
+      {{- include "celeborn.worker.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "celeborn.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/role: worker
+        {{- include "celeborn.worker.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/tag: {{ .Values.image.tag | quote }}
-      {{- with .Values.podAnnotations }}
+      {{- with .Values.worker.labels }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.worker.annotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
+      {{- if .Values.worker.volumeMounts }}
       initContainers:
-      {{- $dirs := .Values.volumes.worker }}
-      {{- if eq "hostPath" (index $dirs 0).type }}
-      - name: chown-{{ $.Release.Name }}-worker-volume
-        image: alpine:3.18
+      - name: chown-celeborn-worker-volume
+        image: {{ include "celeborn.image" . }}
         {{- with .Values.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end }}
         command:
         - chown
-        - {{ .Values.securityContext.runAsUser | default 10006 }}:{{ .Values.securityContext.runAsGroup | default 10006 }}
-        {{- range $dir := $dirs }}
-        - {{ $dir.mountPath }}
+        - {{ .Values.worker.securityContext.runAsUser | default 10006 }}:{{ .Values.worker.securityContext.runAsGroup | default 10006 }}
+        {{- range $volumeMount := .Values.worker.volumeMounts }}
+        - {{ $volumeMount.mountPath }}
         {{- end}}
+        {{- with .Values.worker.volumeMounts }}
         volumeMounts:
-        {{- range $index, $dir := $dirs }}
-        - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
-          mountPath: {{ $dir.mountPath }}
-        {{- end}}
-        {{- with .Values.resources.worker }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.worker.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
@@ -66,7 +64,7 @@ spec:
           runAsUser: 0
       {{- end }}
       containers:
-      - name: {{ .Chart.Name }}
+      - name: celeborn-worker
         image: {{ include "celeborn.image" . }}
         {{- with .Values.image.pullPolicy }}
         imagePullPolicy: {{ . }}
@@ -78,37 +76,41 @@ spec:
         - -c
         {{- $namespace := .Release.Namespace }}
         - >
-          until {{ range until (.Values.masterReplicas | int) }}
-          nslookup {{ include "celeborn.masterStatefulSetName" $ }}-{{ . }}.{{ include "celeborn.masterServiceName" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && 
+          until {{ range until (.Values.master.replicas | int) }}
+          nslookup {{ include "celeborn.master.statefulSetName" $ }}-{{ . }}.{{ include "celeborn.master.serviceName" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && 
           {{- end }}
           true; do
             echo "waiting for master";
             sleep 2;
           done && exec /opt/celeborn/sbin/start-worker.sh
-        resources:
-          {{- toYaml .Values.resources.worker | nindent 10 }}
         ports:
         - containerPort: {{ get .Values.celeborn "celeborn.worker.http.port" | default 9096 }}
           name: metrics
           protocol: TCP
+        {{- with .Values.worker.env }}
         env:
-        {{- range $key, $val := .Values.environments }}
-        - name: {{ $key }}
-          value: {{ $val | quote }}
-        {{- end}}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.worker.envFrom }}
+        envFrom:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         volumeMounts:
         - mountPath: /opt/celeborn/conf
           name: {{ include "celeborn.fullname" . }}-volume
           readOnly: true
-        {{- range $index, $volume := .Values.volumes.worker }}
-        - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
-          mountPath: {{ .mountPath }}
+        {{- with .Values.worker.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
-        {{- with .Values.resources.worker }}
+        {{- with .Values.worker.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-      {{- with .Values.imagePullSecrets }}
+        {{- with .Values.worker.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- with .Values.image.pullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -116,43 +118,39 @@ spec:
       - name: {{ include "celeborn.fullname" . }}-volume
         configMap:
           name: {{ include "celeborn.configMapName" . }}
-      {{- range $index, $volume := .Values.volumes.worker }}
-      - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
-      {{- if eq "emptyDir" $volume.type }}
-        emptyDir:
-          sizeLimit: {{ $volume.capacity }}
-      {{- else if eq "hostPath" $volume.type }}
-        hostPath:
-          path: {{ $volume.hostPath | default $volume.mountPath }}/worker
-          type: DirectoryOrCreate
-      {{- else }}
-      {{ fail "Currently, Celeborn chart only supports 'emptyDir' and 'hostPath' volume types" }}
-      {{- end }}
-      {{- end }}
-      {{- with .Values.nodeSelector }}
+      {{- with .Values.worker.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity.worker }}
+      {{- with .Values.worker.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if or .Values.priorityClass.worker.name .Values.priorityClass.worker.create }}
-      priorityClassName: {{ include "celeborn.workerPriorityClassName" . }}
+      {{- with .Values.worker.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.dnsPolicy }}
+      {{- if or .Values.worker.priorityClass.name .Values.worker.priorityClass.create }}
+      priorityClassName: {{ include "celeborn.worker.priorityClassName" . }}
+      {{- end }}
+      terminationGracePeriodSeconds: 30
+      {{- with .Values.worker.dnsPolicy }}
       dnsPolicy: {{ . }}
       {{- end }}
-      {{- with .Values.hostNetwork }}
+      {{- with .Values.worker.hostNetwork }}
       hostNetwork: {{ . }}
       {{- end }}
-      {{- with .Values.securityContext }}
+      {{- with .Values.worker.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      terminationGracePeriodSeconds: 30
-  replicas: {{ .Values.workerReplicas }}
+  {{- with .Values.worker.replicas }}
+  replicas: {{ . }}
+  {{- end }}
+  {{- with .Values.worker.volumeClaimTemplates }}
+  volumeClaimTemplates:
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain

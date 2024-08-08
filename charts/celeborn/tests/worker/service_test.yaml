@@ -22,6 +22,7 @@ templates:
 
 release:
   name: celeborn
+  namespace: celeborn
 
 tests:
   - it: Should create worker service
