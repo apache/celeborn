@@ -22,7 +22,7 @@ import javax.servlet.http.HttpServletResponse
 
 import org.apache.celeborn.rest.v1.master._
 import org.apache.celeborn.rest.v1.master.invoker._
-import org.apache.celeborn.rest.v1.model.{ExcludeWorkerRequest, SendWorkerEventRequest, WorkerId}
+import org.apache.celeborn.rest.v1.model.{ExcludeWorkerRequest, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, WorkerId}
 import org.apache.celeborn.rest.v1.model.SendWorkerEventRequest.EventTypeEnum
 
 class ApiV1OpenapiClientSuite extends ApiV1WorkerOpenapiClientSuite {
@@ -93,6 +93,10 @@ class ApiV1OpenapiClientSuite extends ApiV1WorkerOpenapiClientSuite {
 
     handleResponse = api.excludeWorker(
       new ExcludeWorkerRequest().addRemoveItem(workerId).add(Collections.emptyList()))
+    assert(handleResponse.getSuccess)
+
+    handleResponse = api.removeWorkersUnavailableInfo(
+      new RemoveWorkersUnavailableInfoRequest().addWorkersItem(workerId));
     assert(handleResponse.getSuccess)
 
     workersResponse = api.getWorkers

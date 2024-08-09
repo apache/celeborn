@@ -27,6 +27,7 @@ import org.apache.celeborn.rest.v1.master.invoker.Pair;
 
 import org.apache.celeborn.rest.v1.model.ExcludeWorkerRequest;
 import org.apache.celeborn.rest.v1.model.HandleResponse;
+import org.apache.celeborn.rest.v1.model.RemoveWorkersUnavailableInfoRequest;
 import org.apache.celeborn.rest.v1.model.SendWorkerEventRequest;
 import org.apache.celeborn.rest.v1.model.WorkerEventsResponse;
 import org.apache.celeborn.rest.v1.model.WorkersResponse;
@@ -239,6 +240,75 @@ public class WorkerApi extends BaseApi {
     return apiClient.invokeAPI(
         localVarPath,
         "GET",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
+  }
+
+  /**
+   * 
+   * Remove the workers unavailable info from the master.
+   * @param removeWorkersUnavailableInfoRequest  (optional)
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse removeWorkersUnavailableInfo(RemoveWorkersUnavailableInfoRequest removeWorkersUnavailableInfoRequest) throws ApiException {
+    return this.removeWorkersUnavailableInfo(removeWorkersUnavailableInfoRequest, Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * Remove the workers unavailable info from the master.
+   * @param removeWorkersUnavailableInfoRequest  (optional)
+   * @param additionalHeaders additionalHeaders for this call
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse removeWorkersUnavailableInfo(RemoveWorkersUnavailableInfoRequest removeWorkersUnavailableInfoRequest, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = removeWorkersUnavailableInfoRequest;
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/workers/remove_unavailable";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/json"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      "application/json"
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<HandleResponse> localVarReturnType = new TypeReference<HandleResponse>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "POST",
         localVarQueryParams,
         localVarCollectionQueryParams,
         localVarQueryStringJoiner.toString(),
