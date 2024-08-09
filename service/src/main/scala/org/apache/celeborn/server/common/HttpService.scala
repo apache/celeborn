@@ -272,6 +272,7 @@ abstract class HttpService extends Service with Logging {
     httpServer.addStaticHandler("org/apache/celeborn/swagger", "/swagger")
     httpServer.addRedirectHandler("/help", "/swagger")
     httpServer.addRedirectHandler("/docs", "/swagger")
+    httpServer.addRedirectHandler("/", "/swagger")
 
     if (metricsSystem.running) {
       metricsSystem.getServletContextHandlers.foreach { handler =>
