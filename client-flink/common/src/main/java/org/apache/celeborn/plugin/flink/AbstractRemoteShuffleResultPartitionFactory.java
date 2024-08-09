@@ -36,7 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.protocol.CompressionCodec;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /** Factory class to create {@link RemoteShuffleResultPartition}. */
@@ -179,9 +178,5 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
   }
 
   @VisibleForTesting
-  BufferCompressor getBufferCompressor() {
-    return CompressionCodec.NONE.name().equals(compressionCodec)
-        ? null
-        : new BufferCompressor(networkBufferSize, compressionCodec);
-  }
+  protected abstract BufferCompressor getBufferCompressor();
 }

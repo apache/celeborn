@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.protocol.CompressionCodec;
 
 /** Factory class to create {@link RemoteShuffleResultPartition}. */
 public class RemoteShuffleResultPartitionFactory
@@ -75,5 +76,11 @@ public class RemoteShuffleResultPartitionFactory
             bufferPoolFactories.get(1),
             celebornConf,
             numMappers));
+  }
+
+  protected BufferCompressor getBufferCompressor() {
+    return CompressionCodec.NONE.name().equals(compressionCodec)
+        ? null
+        : new BufferCompressor(networkBufferSize, compressionCodec);
   }
 }

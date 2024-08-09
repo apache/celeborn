@@ -42,7 +42,9 @@ public class RemoteShuffleInputGateFactory extends AbstractRemoteShuffleInputGat
       int gateIndex,
       InputGateDeploymentDescriptor igdd,
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
-      BufferDecompressor bufferDecompressor) {
+      String compressionCodec) {
+    BufferDecompressor bufferDecompressor =
+        new BufferDecompressor(networkBufferSize, compressionCodec);
     return new RemoteShuffleInputGate(
         this.celebornConf,
         owningTaskName,
