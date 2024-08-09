@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.LongAdder;
 
 import scala.Tuple2;
 
+import org.apache.spark.BarrierTaskContext;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.TaskContext;
@@ -130,7 +131,11 @@ public class SparkUtils {
       Boolean isWriter) {
     if (handle.throwsFetchFailure()) {
       String appShuffleIdentifier = getAppShuffleIdentifier(handle.shuffleId(), context);
-      return client.getShuffleId(handle.shuffleId(), appShuffleIdentifier, isWriter);
+      return client.getShuffleId(
+          handle.shuffleId(),
+          appShuffleIdentifier,
+          isWriter,
+          context instanceof BarrierTaskContext);
     } else {
       return handle.shuffleId();
     }
@@ -156,5 +161,22 @@ public class SparkUtils {
         }
       }
     }
+  }
+
+  // Adds a task failure listener which notifies lifecyclemanager when any
+  // task fails for a barrier stage
+  public static void addFailureListenerIfBarrierTask(
+      ShuffleClient shuffleClient, TaskContext taskContext, CelebornShuffleHandle<?, ?, ?> handle) {
+
+    if (!(taskContext instanceof BarrierTaskContext)) return;
+    int appShuffleId = handle.shuffleId();
+    String appShuffleIdentifier = SparkUtils.getAppShuffleIdentifier(appShuffleId, taskContext);
+
+    BarrierTaskContext barrierContext = (BarrierTaskContext) taskContext;
+    barrierContext.addTaskFailureListener(
+        (context, error) -> {
+          // whatever is the reason for failure, we notify lifecycle manager about the failure
+          shuffleClient.reportBarrierTaskFailure(appShuffleId, appShuffleIdentifier);
+        });
   }
 }

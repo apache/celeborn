@@ -173,12 +173,17 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
-  public int getShuffleId(int appShuffleId, String appShuffleIdentifier, boolean isWriter) {
+  public int getShuffleId(
+      int appShuffleId, String appShuffleIdentifier, boolean isWriter, boolean isBarrierStage) {
     return appShuffleId;
   }
 
   @Override
   public boolean reportShuffleFetchFailure(int appShuffleId, int shuffleId) {
+    return true;
+  }
+
+  public boolean reportBarrierTaskFailure(int appShuffleId, String appShuffleIdentifier) {
     return true;
   }
 
