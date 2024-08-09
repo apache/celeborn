@@ -143,6 +143,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   @Override
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
+    boolean needAbort = true;
     try {
       if (canUseFastWrite()) {
         fastWrite0(records);
@@ -155,8 +156,12 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       } else {
         write0(records);
       }
-    } finally {
       close();
+      needAbort = false;
+    } finally {
+      if (needAbort) {
+        abort();
+      }
     }
   }
 
@@ -289,6 +294,12 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             numPartitions);
     mapStatusLengths[partitionId].add(bytesWritten);
     writeMetrics.incBytesWritten(bytesWritten);
+  }
+
+  private void abort() throws IOException {
+    if (pusher != null) {
+      pusher.close();
+    }
   }
 
   private void close() throws IOException {
