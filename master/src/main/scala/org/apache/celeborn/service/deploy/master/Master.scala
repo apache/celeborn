@@ -606,13 +606,11 @@ private[celeborn] class Master(
 
     val unavailableInfoTimeoutWorkers = statusSystem.lostWorkers.asScala.filter {
       case (_, lostTime) => currentTime - lostTime > workerUnavailableInfoExpireTimeoutMs
-    }.keySet.toList.asJava
+    }.keySet.toSeq
 
     if (!unavailableInfoTimeoutWorkers.isEmpty) {
-      logDebug(s"Remove unavailable info for workers: $unavailableInfoTimeoutWorkers")
-      self.send(RemoveWorkersUnavailableInfo(
-        unavailableInfoTimeoutWorkers,
-        MasterClient.genRequestId()))
+      val handleResponse = removeWorkersUnavailableInfo(unavailableInfoTimeoutWorkers)
+      logDebug(s"Remove unavailable info for workers response: $handleResponse")
     }
   }
 
