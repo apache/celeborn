@@ -203,6 +203,7 @@
 ------------------------------------------------------------------------------------
 This project bundles the following dependencies under the Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt):
 
+com.amazonaws:aws-java-sdk-bundle
 com.fasterxml.jackson.core:jackson-annotations
 com.fasterxml.jackson.core:jackson-core
 com.fasterxml.jackson.core:jackson-databind
@@ -261,9 +262,9 @@ io.swagger.core.v3:swagger-models
 me.bechberger:ap-loader-all
 org.apache.commons:commons-crypto
 org.apache.commons:commons-lang3
+org.apache.hadoop:hadoop-aws
 org.apache.hadoop:hadoop-client-api
 org.apache.hadoop:hadoop-client-runtime
-org.apache.hadoop:hadoop-aws
 org.apache.ibatis:mybatis
 org.apache.logging.log4j:log4j-1.2-api
 org.apache.logging.log4j:log4j-api
@@ -308,7 +309,6 @@ org.slf4j:jcl-over-slf4j
 org.webjars:swagger-ui
 org.xerial.snappy:snappy-java
 org.yaml:snakeyaml
-com.amazonaws:aws-java-sdk-bundle
 
 ------------------------------------------------------------------------------------
 This product bundles various third-party components under other open source licenses.

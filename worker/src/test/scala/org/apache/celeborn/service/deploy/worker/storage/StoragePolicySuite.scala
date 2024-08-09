@@ -58,7 +58,7 @@ class StoragePolicySuite extends CelebornFunSuite {
 
   test("test create file order case1") {
     val conf = new CelebornConf()
-    conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "MEMORY,SSD,HDD,HDFS,OSS")
+    conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "MEMORY,SSD,HDD,HDFS,OSS,S3")
     val storagePolicy = new StoragePolicy(conf, mockedStorageManager, mockedSource)
     val file = storagePolicy.createFile(mockedPartitionWriterContext)
     assert(file.isInstanceOf[CelebornMemoryFile])
@@ -66,7 +66,7 @@ class StoragePolicySuite extends CelebornFunSuite {
 
   test("test create file order case2") {
     val conf = new CelebornConf()
-    conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "SSD,HDD,HDFS,OSS")
+    conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "SSD,HDD,HDFS,OSS,S3")
     val storagePolicy = new StoragePolicy(conf, mockedStorageManager, mockedSource)
     val file = storagePolicy.createFile(mockedPartitionWriterContext)
     assert(file.isInstanceOf[CelebornDiskFile])

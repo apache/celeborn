@@ -470,6 +470,7 @@ public abstract class CelebornInputStream extends InputStream {
                 fetchChunkMaxRetry,
                 callback);
           }
+        case S3:
         case HDFS:
           return new DfsPartitionReader(
               conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex, callback);
