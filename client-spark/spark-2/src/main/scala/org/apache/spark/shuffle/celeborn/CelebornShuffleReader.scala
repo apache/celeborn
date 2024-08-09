@@ -96,7 +96,7 @@ class CelebornShuffleReader[K, C](
               val inputStream = shuffleClient.readPartition(
                 shuffleId,
                 partitionId,
-                context.attemptNumber(),
+                SparkUtils.getMapAttemptNumber(context),
                 startMapIndex,
                 endMapIndex,
                 metricsCallback)

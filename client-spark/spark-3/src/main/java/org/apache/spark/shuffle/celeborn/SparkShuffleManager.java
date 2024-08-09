@@ -25,6 +25,7 @@ import org.apache.spark.*;
 import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.rdd.DeterministicLevel;
+import org.apache.spark.scheduler.DAGScheduler;
 import org.apache.spark.shuffle.*;
 import org.apache.spark.shuffle.sort.SortShuffleManager;
 import org.apache.spark.sql.internal.SQLConf;
@@ -106,6 +107,26 @@ public class SparkShuffleManager implements ShuffleManager {
               + "to avoid performance degradation.",
           key,
           defaultValue);
+    }
+    int maxStageAttempts =
+        conf.getInt(
+            "spark.stage.maxConsecutiveAttempts",
+            DAGScheduler.DEFAULT_MAX_CONSECUTIVE_STAGE_ATTEMPTS());
+    int maxTaskAttempts = (Integer) conf.get(package$.MODULE$.TASK_MAX_FAILURES());
+    if (maxStageAttempts >= (1 << 15) || maxTaskAttempts >= (1 << 16)) {
+      // The map attemptId is a non-negative number constructed from
+      // both stageAttemptNumber and taskAttemptNumber.
+      // The high 16 bits of the map attemptId are used for the stageAttemptNumber,
+      // and the low 16 bits are used for the taskAttemptNumber.
+      // So spark.stage.maxConsecutiveAttempts should be less than 32768 (1 << 15)
+      // and spark.task.maxFailures should be less than 65536 (1 << 16).
+      throw new IllegalArgumentException(
+          "The spark.stage.maxConsecutiveAttempts should be less than 32768 (currently "
+              + maxStageAttempts
+              + ")"
+              + "and spark.task.maxFailures should be less than 65536 (currently "
+              + maxTaskAttempts
+              + ").");
     }
     this.conf = conf;
     this.isDriver = isDriver;

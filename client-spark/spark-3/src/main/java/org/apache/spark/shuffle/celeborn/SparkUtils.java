@@ -113,6 +113,11 @@ public class SparkUtils {
     }
   }
 
+  public static int getMapAttemptNumber(TaskContext context) {
+    assert (context.stageAttemptNumber() < (1 << 15) && context.attemptNumber() < (1 << 16));
+    return (context.stageAttemptNumber() << 16) | context.attemptNumber();
+  }
+
   // Create an instance of the class with the given name, possibly initializing it with our conf
   // Copied from SparkEnv
   public static <T> T instantiateClass(String className, SparkConf conf, Boolean isDriver) {

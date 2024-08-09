@@ -20,7 +20,7 @@ package org.apache.celeborn.tests.spark
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
-import org.apache.spark.{SparkConf, SparkContextHelper, TaskContext}
+import org.apache.spark.{BarrierTaskContext, SparkConf, SparkContextHelper, TaskContext}
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
 import org.apache.spark.sql.SparkSession
@@ -295,6 +295,47 @@ class CelebornFetchFailureSuite extends AnyFunSuite
       df1.union(df2).union(df3).count()
 
       sparkSession.stop()
+    }
+  }
+
+  test("celeborn spark integration test - resubmit an unordered barrier stage") {
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+    val sparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .config("spark.sql.shuffle.partitions", 2)
+      .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+      .config("spark.celeborn.shuffle.enabled", "true")
+      .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+      .config("spark.celeborn.client.push.buffer.max.size", 0)
+      .config(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+      .getOrCreate()
+
+    val sc = sparkSession.sparkContext
+    val rdd1 = sc
+      .parallelize(0 until 10000, 2)
+      .map(v => (v, v))
+      .groupByKey()
+      .barrier()
+      .mapPartitions {
+        it =>
+          val context = BarrierTaskContext.get()
+          if (context.stageAttemptNumber() == 0 && context.partitionId() == 0) {
+            Thread.sleep(3000)
+            throw new RuntimeException("failed")
+          } else {}
+          if (context.stageAttemptNumber() > 0) {
+            it.toBuffer.reverseIterator
+          } else {
+            it
+          }
+      }
+    val rdd2 = rdd1.map(v => (v._2, v._1)).groupByKey()
+    val result = rdd2.collect()
+    result.foreach {
+      elem =>
+        assert(elem._1.size == elem._2.size)
     }
   }
 }

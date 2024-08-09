@@ -20,6 +20,7 @@ package org.apache.spark.shuffle.celeborn
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.internal.SQLConf
 import org.junit
+import org.junit.Assert
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
 
@@ -65,6 +66,35 @@ class SparkShuffleManagerSuite extends Logging {
       .groupByKey(16).count()
     // scalastyle:on println
     sc.stop()
+  }
+
+  @junit.Test
+  def testWrongSparkConf_MaxAttemptLimit(): Unit = {
+    val conf = new SparkConf().setIfMissing("spark.master", "local")
+      .setIfMissing(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
+      .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", "localhost:9097")
+      .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "false")
+      .set("spark.shuffle.service.enabled", "false")
+      .set(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, "true")
+
+    // default conf, will success
+    new SparkShuffleManager(conf, true)
+
+    conf
+      .set("spark.stage.maxConsecutiveAttempts", "32768")
+      .set("spark.task.maxFailures", "10")
+    try {
+      new SparkShuffleManager(conf, true)
+      Assert.fail()
+    } catch {
+      case e: IllegalArgumentException =>
+        Assert.assertTrue(
+          e.getMessage.contains("The spark.stage.maxConsecutiveAttempts should be less than 32768"))
+      case _: Throwable =>
+        Assert.fail()
+    }
   }
 
 }
