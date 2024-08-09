@@ -155,3 +155,78 @@ Create the name of the worker podmonitor to use
 {{- define "celeborn.workerPodMonitorName" -}}
 {{ include "celeborn.fullname" . }}-worker-podmonitor
 {{- end }}
+
+{{/*
+Create master annotations if metrics enables
+*/}}
+{{- define "celeborn.masterMetricsAnnotation" -}}
+{{- $metricsEnabled := true -}}
+{{- $metricsPath := "/metrics/prometheus" -}}
+{{- $masterPort := 9098 -}}
+{{- range $key, $val := .Values.celeborn }}
+{{- if eq $key "celeborn.metrics.enabled" }}
+{{- $metricsEnabled = $val -}}
+{{- end }}
+{{- if eq $key "celeborn.metrics.prometheus.path" }}
+{{- $metricsPath = $val -}}
+{{- end }}
+{{- if eq $key "celeborn.master.http.port" }}
+{{- $masterPort = $val -}}
+{{- end }}
+{{- end }}
+{{- if eq (toString $metricsEnabled) "true" -}}
+prometheus.io/path: {{ $metricsPath }}
+prometheus.io/port: '{{ $masterPort }}'
+prometheus.io/scheme: 'http'
+prometheus.io/scrape: 'true'
+{{- end }}
+{{- end }}
+
+{{/*
+Create worker annotations if metrics enables
+*/}}
+{{- define "celeborn.workerMetricsAnnotation" -}}
+{{- $metricsEnabled := true -}}
+{{- $metricsPath := "/metrics/prometheus" -}}
+{{- $workerPort := 9096 -}}
+{{- range $key, $val := .Values.celeborn }}
+{{- if eq $key "celeborn.metrics.enabled" }}
+{{- $metricsEnabled = $val -}}
+{{- end }}
+{{- if eq $key "celeborn.metrics.prometheus.path" }}
+{{- $metricsPath = $val -}}
+{{- end }}
+{{- if eq $key "celeborn.worker.http.port" }}
+{{- $workerPort = $val -}}
+{{- end }}
+{{- end }}
+{{- if eq (toString $metricsEnabled) "true" -}}
+prometheus.io/path: {{ $metricsPath }}
+prometheus.io/port: '{{ $workerPort }}'
+prometheus.io/scheme: 'http'
+prometheus.io/scrape: 'true'
+{{- end }}
+{{- end }}
+
+{{/*
+Create worker Service http port params if metrics enables
+*/}}
+{{- define "celeborn.workerServicePort" -}}
+{{- $metricsEnabled := true -}}
+{{- $workerPort := 9096 -}}
+{{- range $key, $val := .Values.celeborn }}
+{{- if eq $key "celeborn.metrics.enabled" }}
+{{- $metricsEnabled = $val -}}
+{{- end }}
+{{- if eq $key "celeborn.worker.http.port" }}
+{{- $workerPort = $val -}}
+{{- end }}
+{{- end }}
+{{- if eq (toString $metricsEnabled) "true" -}}
+ports:
+  - port: {{ $workerPort }}
+    targetPort: {{ $workerPort }}
+    protocol: TCP
+    name: celeborn-worker-http
+{{- end }}
+{{- end }}

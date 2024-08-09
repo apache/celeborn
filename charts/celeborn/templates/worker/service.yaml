@@ -21,9 +21,12 @@ metadata:
   name: {{ include "celeborn.workerServiceName" . }}
   labels:
     {{- include "celeborn.labels" . | nindent 4 }}
+  annotations:
+    {{- include "celeborn.workerMetricsAnnotation" . | nindent 4 }}
 spec:
   selector:
     {{- include "celeborn.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/role: worker
   type: {{ .Values.service.type }}
   clusterIP: None
+  {{- include "celeborn.workerServicePort" . | nindent 2 }}

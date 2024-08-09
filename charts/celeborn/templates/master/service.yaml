@@ -21,6 +21,8 @@ metadata:
   name: {{ include "celeborn.masterServiceName" . }}
   labels:
     {{- include "celeborn.labels" . | nindent 4 }}
+  annotations:
+    {{- include "celeborn.masterMetricsAnnotation" . | nindent 4 }}
 spec:
   selector:
     {{- include "celeborn.selectorLabels" . | nindent 4 }}
