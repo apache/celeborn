@@ -60,7 +60,7 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
       .ctxId(ctxId)
       .buildContext(true)
 
-    val openApi = setCelebornOpenAPIDefinition(ctx.read())
+    val openApi = setCelebornOpenAPIDefinition(ctx.read(), uriInfo.getBaseUri.toString)
 
     if (StringUtils.isNotBlank(tpe) && tpe.trim().equalsIgnoreCase("yaml")) {
       Response.status(Response.Status.OK)
@@ -81,11 +81,9 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
     }
   }
 
-  private def setCelebornOpenAPIDefinition(openApi: OpenAPI): OpenAPI = {
+  private def setCelebornOpenAPIDefinition(openApi: OpenAPI, requestBaseUrl: String): OpenAPI = {
     // TODO: to improve when https is enabled.
-    val apiUrls = List(httpService.externalConnectionUrl, httpService.connectionUrl)
-      .distinct
-      .map(url => s"http://$url/")
+    val apiUrls = List(requestBaseUrl, s"http://${httpService.connectionUrl}/").distinct
     openApi.info(
       new Info().title(
         s"Apache Celeborn REST API Documentation")

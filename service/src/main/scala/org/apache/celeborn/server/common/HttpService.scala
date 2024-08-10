@@ -258,10 +258,6 @@ abstract class HttpService extends Service with Logging {
     httpServer.getServerUri
   }
 
-  def externalConnectionUrl: String = {
-    Utils.localHostName(conf) + ":" + httpServer.connector.getLocalPort
-  }
-
   protected def startInternal(): Unit = {
     val contextHandler = ApiRootResource.getServletHandler(this)
     val holder = new FilterHolder(new AuthenticationFilter(conf, serviceName))
@@ -272,7 +268,6 @@ abstract class HttpService extends Service with Logging {
     httpServer.addStaticHandler("org/apache/celeborn/swagger", "/swagger")
     httpServer.addRedirectHandler("/help", "/swagger")
     httpServer.addRedirectHandler("/docs", "/swagger")
-    httpServer.addRedirectHandler("/", "/swagger")
 
     if (metricsSystem.running) {
       metricsSystem.getServletContextHandlers.foreach { handler =>
