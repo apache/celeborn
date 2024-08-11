@@ -54,7 +54,7 @@ jobs:
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,mr
       - name: Upload rat report
         if: failure()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: rat-report
           path: "**/target/rat*.txt"

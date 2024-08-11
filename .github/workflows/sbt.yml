@@ -54,7 +54,7 @@ jobs:
         build/sbt ++${{ matrix.scala }} "clean; test"
     - name: Upload test log
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
           name: service-java-${{ matrix.java }}-scala-${{ matrix.scala }}-unit-test-log
           path: |
@@ -85,7 +85,7 @@ jobs:
           build/sbt -Pspark-${{ matrix.spark }} ++${{ matrix.scala }} "clean; celeborn-spark-group/test"
       - name: Upload test log
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: spark-${{ matrix.spark }}-unit-test-log
             path: |
@@ -188,7 +188,7 @@ jobs:
         build/sbt -Dspark.shuffle.plugin.class=${{ matrix.shuffle-plugin-class }} -Pspark-${{ matrix.spark }} ++${{ matrix.scala }} "clean; celeborn-spark-group/test"
     - name: Upload test log
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
           name: spark-${{ matrix.spark }}-scala-${{ matrix.scala }}-unit-test-log
           path: |
@@ -223,7 +223,7 @@ jobs:
           build/sbt -Pflink-${{ matrix.flink }} "clean; celeborn-flink-group/test"
       - name: Upload test log
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: flink-${{ matrix.flink }}-unit-test-log
             path: |
@@ -250,7 +250,7 @@ jobs:
           build/sbt -Pmr "clean; celeborn-mr-group/test"
       - name: Upload test log
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: mr-unit-test-log
           path: |

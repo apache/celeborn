@@ -36,7 +36,7 @@ jobs:
       run: build/mvn -Pgoogle-mirror test
     - name: Upload test log
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: service-unit-test-log
         path: |
@@ -73,7 +73,7 @@ jobs:
           build/mvn $PROFILES -pl $TEST_MODULES test
       - name: Upload test log
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: spark-${{ matrix.spark }}-unit-test-log
           path: |
@@ -136,7 +136,7 @@ jobs:
         build/mvn $PROFILES -pl $TEST_MODULES -Dspark.shuffle.sort.io.plugin.class=${{ matrix.shuffle-plugin-class }} test
     - name: Upload test log
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: spark-${{ matrix.spark }}-unit-test-log
         path: |
@@ -175,7 +175,7 @@ jobs:
           build/mvn $PROFILES -pl $TEST_MODULES test
       - name: Upload test log
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: flink-${{ matrix.flink }}-unit-test-log
           path: |
@@ -206,7 +206,7 @@ jobs:
           build/mvn $PROFILES -pl $TEST_MODULES test
       - name: Upload test log
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: mr-unit-test-log
           path: |
