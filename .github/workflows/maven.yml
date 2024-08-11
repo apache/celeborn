@@ -24,7 +24,7 @@ jobs:
           - 11
           - 17
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Setup JDK ${{ matrix.java }}
       uses: actions/setup-java@v2
       with:
@@ -55,7 +55,7 @@ jobs:
         spark:
           - '2.4'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup JDK ${{ matrix.java }}
         uses: actions/setup-java@v2
         with:
@@ -118,7 +118,7 @@ jobs:
           - shuffle-plugin-class: 'org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO'
             spark: '3.4'
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Setup JDK ${{ matrix.java }}
       uses: actions/setup-java@v2
       with:
@@ -159,7 +159,7 @@ jobs:
           - '1.19'
           - '1.20'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup JDK ${{ matrix.java }}
         uses: actions/setup-java@v2
         with:
@@ -190,7 +190,7 @@ jobs:
           - 8
           - 11
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup JDK ${{ matrix.java }}
         uses: actions/setup-java@v2
         with:

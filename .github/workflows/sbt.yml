@@ -42,7 +42,7 @@ jobs:
           - '2.12.15'
           - '2.13.5'
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Setup JDK ${{ matrix.java }}
       uses: actions/setup-java@v2
       with:
@@ -73,7 +73,7 @@ jobs:
           - '2.11.12'
           - '2.12.10'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup JDK ${{ matrix.java }}
         uses: actions/setup-java@v2
         with:
@@ -176,7 +176,7 @@ jobs:
             scala-binary: '2.13'
             scala: '2.13.5'
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Setup JDK ${{ matrix.java }}
       uses: actions/setup-java@v2
       with:
@@ -211,7 +211,7 @@ jobs:
           - '1.19'
           - '1.20'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup JDK ${{ matrix.java }}
         uses: actions/setup-java@v2
         with:
@@ -238,7 +238,7 @@ jobs:
           - 8
           - 11
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup JDK ${{ matrix.java }}
         uses: actions/setup-java@v2
         with:
