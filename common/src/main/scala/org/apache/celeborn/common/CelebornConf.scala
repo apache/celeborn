@@ -1766,7 +1766,7 @@ object CelebornConf extends Logging {
       .categories("network")
       .version("0.2.0")
       .doc("Timeout for RPC ask operations. " +
-        "It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes`")
+        "It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.availableTypes`")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
@@ -2627,7 +2627,7 @@ object CelebornConf extends Logging {
       .categories("master")
       .version("0.3.0")
       .doc("Policy for master to assign slots, Celeborn supports two types of policy: roundrobin and loadaware. " +
-        "Loadaware policy will be ignored when `HDFS` is enabled in `celeborn.storage.activeTypes`")
+        "Loadaware policy will be ignored when `HDFS` is enabled in `celeborn.storage.availableTypes`")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set(
@@ -3167,7 +3167,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.replicate.fastFail.duration")
       .categories("worker")
       .doc("If a replicate request not replied during the duration, worker will mark the replicate data request as failed." +
-        "It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes`.")
+        "It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.availableTypes`.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
@@ -3197,7 +3197,7 @@ object CelebornConf extends Logging {
       .categories("worker")
       .version("0.3.0")
       .doc("Thread number of worker to commit shuffle data files asynchronously. " +
-        "It's recommended to set at least `128` when `HDFS` is enabled in `celeborn.storage.activeTypes`.")
+        "It's recommended to set at least `128` when `HDFS` is enabled in `celeborn.storage.availableTypes`.")
       .intConf
       .createWithDefault(32)
 
@@ -3222,7 +3222,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.worker.shuffle.commit.timeout")
       .categories("worker")
       .doc("Timeout for a Celeborn worker to commit files of a shuffle. " +
-        "It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes`.")
+        "It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.availableTypes`.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
@@ -3241,7 +3241,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.worker.partitionSorter.threads")
       .categories("worker")
       .doc("PartitionSorter's thread counts. " +
-        "It's recommended to set at least `64` when `HDFS` is enabled in `celeborn.storage.activeTypes`.")
+        "It's recommended to set at least `64` when `HDFS` is enabled in `celeborn.storage.availableTypes`.")
       .version("0.3.0")
       .intConf
       .createOptional
@@ -4010,7 +4010,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .doc("When true, Celeborn worker will replicate shuffle data to another Celeborn worker " +
         "asynchronously to ensure the pushed shuffle data won't be lost after the node failure. " +
-        "It's recommended to set `false` when `HDFS` is enabled in `celeborn.storage.activeTypes`.")
+        "It's recommended to set `false` when `HDFS` is enabled in `celeborn.storage.availableTypes`.")
       .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
