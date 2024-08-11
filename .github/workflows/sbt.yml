@@ -44,7 +44,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Setup JDK ${{ matrix.java }}
-      uses: actions/setup-java@v2
+      uses: actions/setup-java@v4
       with:
         distribution: zulu
         java-version: ${{ matrix.java }}
@@ -75,7 +75,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup JDK ${{ matrix.java }}
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v4
         with:
           distribution: zulu
           java-version: ${{ matrix.java }}
@@ -178,7 +178,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Setup JDK ${{ matrix.java }}
-      uses: actions/setup-java@v2
+      uses: actions/setup-java@v4
       with:
         distribution: zulu
         java-version: ${{ matrix.java }}
@@ -213,7 +213,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup JDK ${{ matrix.java }}
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v4
         with:
           distribution: zulu
           java-version: ${{ matrix.java }}
@@ -240,7 +240,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup JDK ${{ matrix.java }}
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v4
         with:
           distribution: zulu
           java-version: ${{ matrix.java }}
