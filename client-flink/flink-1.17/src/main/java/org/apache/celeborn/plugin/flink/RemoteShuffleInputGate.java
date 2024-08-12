@@ -35,6 +35,7 @@ import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -43,7 +44,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
@@ -215,6 +215,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
               inputGateDelegation.getGateIndex(),
               new IntermediateDataSetID(),
               ResultPartitionType.BLOCKING,
+              new IndexRange(0, 0),
               1,
               (a, b, c) -> {},
               () -> null,
@@ -225,7 +226,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
               null),
           channelIndex,
           new ResultPartitionID(),
-          new ResultSubpartitionIndexSet(0, 0),
+          0,
           new ConnectionID(
               new TaskManagerLocation(ResourceID.generate(), InetAddress.getLoopbackAddress(), 1),
               0),

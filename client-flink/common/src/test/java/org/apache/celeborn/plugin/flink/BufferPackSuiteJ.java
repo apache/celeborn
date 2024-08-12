@@ -18,20 +18,16 @@
 package org.apache.celeborn.plugin.flink;
 
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.DATA_BUFFER;
-import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.END_OF_SEGMENT;
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.EVENT_BUFFER;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.runtime.io.network.api.EndOfSegmentEvent;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
@@ -242,41 +238,6 @@ public class BufferPackSuiteJ {
         DATA_BUFFER,
         EVENT_BUFFER);
     verifyBuffers(unpacked, 0, 1, 2, 3, 4, 5, 6, 7);
-    unpacked.forEach(Buffer::recycleBuffer);
-  }
-
-  @Test
-  public void testPackEndOfSegmentEvent() throws Exception {
-    MemorySegment memorySegment =
-        MemorySegmentFactory.wrap(
-            EventSerializer.toSerializedEvent(EndOfSegmentEvent.INSTANCE).array());
-    Buffer buffer = bufferPool.requestBuffer();
-    MemorySegment target = buffer.getMemorySegment();
-    memorySegment.copyTo(0, target, 0, memorySegment.size());
-    List<Buffer> buffers = Collections.singletonList(buffer);
-    setCompressed(buffers, false);
-    setDataType(buffers, END_OF_SEGMENT);
-
-    List<Pair<ByteBuf, Integer>> output = new ArrayList<>();
-    BufferPacker.BiConsumerWithException<ByteBuf, BufferHeader, InterruptedException>
-        ripeBufferHandler = (ripe, header) -> output.add(Pair.of(ripe, header.getSubPartitionId()));
-    BufferPacker packer = new BufferPacker(ripeBufferHandler);
-    fillBuffers(buffers, 0);
-
-    packer.process(buffers.get(0), 2);
-    packer.drain();
-    assertEquals(1, output.size());
-
-    List<Buffer> unpacked = new ArrayList<>();
-    System.out.println(output.get(0).getLeft());
-    output.forEach(
-        pair -> {
-          assertEquals(Integer.valueOf(2), pair.getRight());
-          unpacked.addAll(BufferPacker.unpack(pair.getLeft()));
-        });
-    checkIfCompressed(unpacked, false);
-    checkDataType(unpacked, END_OF_SEGMENT);
-    verifyBuffers(unpacked, 0);
     unpacked.forEach(Buffer::recycleBuffer);
   }
 

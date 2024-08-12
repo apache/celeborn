@@ -19,13 +19,10 @@ package org.apache.celeborn.plugin.flink;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.time.Duration;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -45,7 +42,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.shuffle.JobShuffleContext;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
-import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
 import org.apache.flink.runtime.shuffle.TaskInputsOutputsDescriptor;
@@ -288,15 +284,6 @@ public class RemoteShuffleMasterSuiteJ {
           Collection<ResultPartitionID> collection) {
         return CompletableFuture.completedFuture(null);
       }
-
-      @Override
-      public CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
-          Duration duration, Set<ResultPartitionID> set) {
-        return CompletableFuture.completedFuture(Collections.emptySet());
-      }
-
-      @Override
-      public void notifyPartitionRecoveryStarted() {}
     };
   }
 
