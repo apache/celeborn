@@ -175,6 +175,9 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       needAbort = false;
     } catch (InterruptedException e) {
       TaskInterruptedHelper.throwTaskKillException();
+    } catch (IOException e) {
+      needAbort = false;
+      throw e;
     } finally {
       if (needAbort) {
         abort();
