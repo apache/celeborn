@@ -580,7 +580,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public int getShuffleId(int appShuffleId, String appShuffleIdentifier, boolean isWriter) {
+  public int getShuffleId(
+      int appShuffleId, String appShuffleIdentifier, boolean isWriter, boolean isBarrierStage) {
     return shuffleIdCache.computeIfAbsent(
         appShuffleIdentifier,
         (id) -> {
@@ -589,6 +590,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   .setAppShuffleId(appShuffleId)
                   .setAppShuffleIdentifier(appShuffleIdentifier)
                   .setIsShuffleWriter(isWriter)
+                  .setIsBarrierStage(isBarrierStage)
                   .build();
           PbGetShuffleIdResponse pbGetShuffleIdResponse =
               lifecycleManagerRef.askSync(
@@ -612,6 +614,20 @@ public class ShuffleClientImpl extends ShuffleClient {
             conf.clientRpcRegisterShuffleAskTimeout(),
             ClassTag$.MODULE$.apply(PbReportShuffleFetchFailureResponse.class));
     return pbReportShuffleFetchFailureResponse.getSuccess();
+  }
+
+  public boolean reportBarrierTaskFailure(int appShuffleId, String appShuffleIdentifier) {
+    PbReportBarrierStageAttemptFailure pbReportBarrierStageAttemptFailure =
+        PbReportBarrierStageAttemptFailure.newBuilder()
+            .setAppShuffleId(appShuffleId)
+            .setAppShuffleIdentifier(appShuffleIdentifier)
+            .build();
+    PbReportBarrierStageAttemptFailureResponse pbReportBarrierStageAttemptFailureResponse =
+        lifecycleManagerRef.askSync(
+            pbReportBarrierStageAttemptFailure,
+            conf.clientRpcRegisterShuffleAskTimeout(),
+            ClassTag$.MODULE$.apply(PbReportBarrierStageAttemptFailureResponse.class));
+    return pbReportBarrierStageAttemptFailureResponse.getSuccess();
   }
 
   private ConcurrentHashMap<Integer, PartitionLocation> registerShuffleInternal(

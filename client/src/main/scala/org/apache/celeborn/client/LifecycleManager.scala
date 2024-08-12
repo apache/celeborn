@@ -408,14 +408,28 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val appShuffleId = pb.getAppShuffleId
       val appShuffleIdentifier = pb.getAppShuffleIdentifier
       val isWriter = pb.getIsShuffleWriter
-      logDebug(s"Received GetShuffleId request, appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier isWriter $isWriter.")
-      handleGetShuffleIdForApp(context, appShuffleId, appShuffleIdentifier, isWriter)
+      val isBarrierStage = pb.getIsBarrierStage
+      logDebug(s"Received GetShuffleId request, appShuffleId $appShuffleId " +
+        s"appShuffleIdentifier $appShuffleIdentifier isWriter $isWriter isBarrier $isBarrierStage.")
+      handleGetShuffleIdForApp(
+        context,
+        appShuffleId,
+        appShuffleIdentifier,
+        isWriter,
+        isBarrierStage)
 
     case pb: PbReportShuffleFetchFailure =>
       val appShuffleId = pb.getAppShuffleId
       val shuffleId = pb.getShuffleId
       logDebug(s"Received ReportShuffleFetchFailure request, appShuffleId $appShuffleId shuffleId $shuffleId")
       handleReportShuffleFetchFailure(context, appShuffleId, shuffleId)
+
+    case pb: PbReportBarrierStageAttemptFailure =>
+      val appShuffleId = pb.getAppShuffleId
+      val appShuffleIdentifier = pb.getAppShuffleIdentifier
+      logDebug(s"Received ReportBarrierStageAttemptFailure request, appShuffleId $appShuffleId, " +
+        s"appShuffleIdentifier $appShuffleIdentifier")
+      handleReportBarrierStageAttemptFailure(context, appShuffleId, appShuffleIdentifier)
 
     case pb: PbApplicationMetaRequest =>
       logDebug(s"Received request for meta info ${pb.getAppId}.")
@@ -790,7 +804,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       context: RpcCallContext,
       appShuffleId: Int,
       appShuffleIdentifier: String,
-      isWriter: Boolean): Unit = {
+      isWriter: Boolean,
+      isBarrierStage: Boolean): Unit = {
     val shuffleIds =
       if (isWriter) {
         shuffleIdMapping.computeIfAbsent(
@@ -831,7 +846,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           case None =>
             Option(appShuffleDeterminateMap.get(appShuffleId)).map { determinate =>
               val candidateShuffle =
-                if (determinate)
+                // For barrier stages, all tasks are re-executed when it is re-run : similar to indeterminate stage.
+                // So if a barrier stage is getting reexecuted, previous stage/attempt needs to
+                // be cleaned up as it is entirely unusuable
+                if (determinate && !isBarrierStage)
                   shuffleIds.values.toSeq.reverse.find(e => e._2 == true)
                 else
                   None
@@ -842,6 +860,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                   logInfo(s"reuse existing shuffleId $id for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
                   id
                 } else {
+                  if (isBarrierStage) {
+                    // unregister previous shuffle(s) which are still valid
+                    val mapUpdates = shuffleIds.filter(_._2._2).map { kv =>
+                      unregisterShuffle(kv._2._1)
+                      kv._1 -> (kv._2._1, false)
+                    }
+                    shuffleIds ++= mapUpdates
+                  }
                   val newShuffleId = shuffleIdGenerator.getAndIncrement()
                   logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
                   shuffleIds.put(appShuffleIdentifier, (newShuffleId, true))
@@ -855,7 +881,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 s"unexpected! unknown appShuffleId $appShuffleId when checking shuffle deterministic level"))
         }
       } else {
-        shuffleIds.values.map(v => v._1).toSeq.reverse.find(isAllMaptaskEnd) match {
+        shuffleIds.values.filter(v => v._2).map(v => v._1).toSeq.reverse.find(
+          isAllMaptaskEnd) match {
           case Some(shuffleId) =>
             val pbGetShuffleIdResponse = {
               logDebug(
@@ -885,20 +912,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       shuffleIds.find(e => e._2._1 == shuffleId) match {
         case Some((appShuffleIdentifier, (shuffleId, true))) =>
           logInfo(s"handle fetch failure for appShuffleId $appShuffleId shuffleId $shuffleId")
-          appShuffleTrackerCallback match {
-            case Some(callback) =>
-              try {
-                callback.accept(appShuffleId)
-              } catch {
-                case t: Throwable =>
-                  logError(t.toString)
-                  ret = false
-              }
-              shuffleIds.put(appShuffleIdentifier, (shuffleId, false))
-            case None =>
-              throw new UnsupportedOperationException(
-                "unexpected! appShuffleTrackerCallback is not registered")
-          }
+          ret = invokeAppShuffleTrackerCallback(appShuffleId)
+          shuffleIds.put(appShuffleIdentifier, (shuffleId, false))
         case Some((appShuffleIdentifier, (shuffleId, false))) =>
           logInfo(
             s"Ignoring fetch failure from appShuffleIdentifier $appShuffleIdentifier shuffleId $shuffleId, " +
@@ -911,6 +926,54 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val pbReportShuffleFetchFailureResponse =
       PbReportShuffleFetchFailureResponse.newBuilder().setSuccess(ret).build()
     context.reply(pbReportShuffleFetchFailureResponse)
+  }
+
+  private def handleReportBarrierStageAttemptFailure(
+      context: RpcCallContext,
+      appShuffleId: Int,
+      appShuffleIdentifier: String): Unit = {
+
+    val shuffleIds = shuffleIdMapping.get(appShuffleId)
+    if (shuffleIds == null) {
+      throw new UnsupportedOperationException(s"unexpected! unknown appShuffleId $appShuffleId")
+    }
+    var ret = true
+    shuffleIds.synchronized {
+      shuffleIds.get(appShuffleIdentifier) match {
+        case Some((shuffleId, true)) =>
+          ret = invokeAppShuffleTrackerCallback(appShuffleId)
+          unregisterShuffle(shuffleId)
+          shuffleIds.put(appShuffleIdentifier, (shuffleId, false))
+        case Some((shuffleId, false)) =>
+          // older entry, already handled
+          logInfo(
+            s"Ignoring failure from barrier task for appShuffleIdentifier $appShuffleIdentifier " +
+              s"shuffleId $shuffleId for appShuffleId $appShuffleId, already handled")
+        case None =>
+          throw new UnsupportedOperationException(
+            s"unexpected! unknown appShuffleId $appShuffleId for appShuffleIdentifier = $appShuffleIdentifier")
+      }
+    }
+    val pbReportBarrierStageAttemptFailureResponse =
+      PbReportBarrierStageAttemptFailureResponse.newBuilder().setSuccess(ret).build()
+    context.reply(pbReportBarrierStageAttemptFailureResponse)
+  }
+
+  private def invokeAppShuffleTrackerCallback(appShuffleId: Int): Boolean = {
+    appShuffleTrackerCallback match {
+      case Some(callback) =>
+        try {
+          callback.accept(appShuffleId)
+          true
+        } catch {
+          case t: Throwable =>
+            logError(t.toString)
+            false
+        }
+      case None =>
+        throw new UnsupportedOperationException(
+          "unexpected! appShuffleTrackerCallback is not registered")
+    }
   }
 
   private def handleStageEnd(shuffleId: Int): Unit = {
