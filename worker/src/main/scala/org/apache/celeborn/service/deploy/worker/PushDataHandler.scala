@@ -1267,8 +1267,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         var index = 0
         var fileWriter: FileWriter = null
         while (index < fileWriters.length) {
+          fileWriter = fileWriters(index)
           if (!writePromise.isCompleted) {
-            fileWriter = fileWriters(index)
             val offset = body.readerIndex() + batchOffsets(index)
             val length =
               if (index == fileWriters.length - 1) {
