@@ -18,7 +18,6 @@
 package org.apache.celeborn.tests.spark
 
 import java.io.{File, IOException}
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 import org.apache.spark.{BarrierTaskContext, ShuffleDependency, SparkConf, SparkContextHelper, SparkException, TaskContext}
@@ -105,7 +104,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
         .config("spark.sql.shuffle.partitions", 2)
         .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
-        .config("spark.celeborn.shuffle.enabled", "true")
         .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
         .config(
           "spark.shuffle.manager",
@@ -147,7 +145,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
         .config("spark.sql.shuffle.partitions", 2)
         .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
-        .config("spark.celeborn.shuffle.enabled", "true")
         .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "false")
         .getOrCreate()
 
@@ -180,7 +177,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
         .config("spark.sql.shuffle.partitions", 2)
         .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
-        .config("spark.celeborn.shuffle.enabled", "true")
         .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
         .config(
           "spark.shuffle.manager",
@@ -212,7 +208,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
         .config("spark.sql.shuffle.partitions", 2)
         .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
-        .config("spark.celeborn.shuffle.enabled", "true")
         .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
         .config(
           "spark.shuffle.manager",
@@ -253,7 +248,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
         .config("spark.sql.shuffle.partitions", 2)
         .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
-        .config("spark.celeborn.shuffle.enabled", "true")
         .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
         .config(
           "spark.shuffle.manager",
@@ -285,7 +279,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
         .config("spark.sql.shuffle.partitions", 2)
         .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
-        .config("spark.celeborn.shuffle.enabled", "true")
         .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
         .getOrCreate()
 
@@ -307,7 +300,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .config("spark.sql.shuffle.partitions", 2)
       .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
-      .config("spark.celeborn.shuffle.enabled", "true")
       .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
       .config("spark.celeborn.client.push.buffer.max.size", 0)
       .config(
@@ -352,7 +344,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .config("spark.sql.shuffle.partitions", 2)
       .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
-      .config("spark.celeborn.shuffle.enabled", "true")
       .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
       .config("spark.celeborn.client.push.buffer.max.size", 0)
       .config(
@@ -399,7 +390,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .config("spark.sql.shuffle.partitions", 2)
       .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
-      .config("spark.celeborn.shuffle.enabled", "true")
       .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
       .config("spark.celeborn.client.push.buffer.max.size", 0)
       .config("spark.stage.maxConsecutiveAttempts", "1")
