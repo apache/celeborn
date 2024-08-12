@@ -69,7 +69,7 @@ class SparkShuffleManagerSuite extends Logging {
   }
 
   @junit.Test
-  def testWrongSparkConf_MaxAttemptLimit(): Unit = {
+  def testWrongSparkConfMaxAttemptLimit(): Unit = {
     val conf = new SparkConf().setIfMissing("spark.master", "local")
       .setIfMissing(
         "spark.shuffle.manager",
