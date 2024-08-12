@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 
 import org.apache.spark.{Aggregator, InterruptibleIterator, ShuffleDependency, TaskContext}
+import org.apache.spark.celeborn.ExceptionMakerHelper
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.shuffle.{FetchFailedException, ShuffleReader, ShuffleReadMetricsReporter}
@@ -94,23 +95,6 @@ class CelebornShuffleReader[K, C](
             conf.readStreamCreatorPoolThreads,
             60)
         }
-      }
-    }
-
-    val exceptionMaker = new ExceptionMaker() {
-      override def makeFetchFailureException(
-          appShuffleId: Int,
-          shuffleId: Int,
-          partitionId: Int,
-          e: Exception): Exception = {
-        new FetchFailedException(
-          null,
-          appShuffleId,
-          -1,
-          -1,
-          partitionId,
-          SparkUtils.FETCH_FAILURE_ERROR_MSG + appShuffleId + "/" + shuffleId,
-          e)
       }
     }
 
@@ -212,7 +196,8 @@ class CelebornShuffleReader[K, C](
             context.attemptNumber(),
             startMapIndex,
             endMapIndex,
-            if (throwsFetchFailure) exceptionMaker else null,
+            if (throwsFetchFailure) ExceptionMakerHelper.SHUFFLE_FETCH_FAILURE_EXCEPTION_MAKER
+            else null,
             locations,
             streamHandlers,
             fileGroups.mapAttempts,
