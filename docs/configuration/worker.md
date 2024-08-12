@@ -21,7 +21,7 @@ license: |
 | --- | ------- | --------- | ----------- | ----- | ---------- |
 | celeborn.cluster.name | default | false | Celeborn cluster name. | 0.5.0 |  | 
 | celeborn.dynamicConfig.refresh.interval | 120s | false | Interval for refreshing the corresponding dynamic config periodically. | 0.4.0 |  | 
-| celeborn.dynamicConfig.store.backend | &lt;undefined&gt; | false | Store backend for dynamic config service. Available options: FS, DB. If not provided, it means that dynamic configuration is disabled. | 0.4.0 |  | 
+| celeborn.dynamicConfig.store.backend | &lt;undefined&gt; | false | Store backend for dynamic config service. The backend can be specified in two ways: - Using short names: Default available options are FS, DB. - Using the fully qualified class name of the backend implementation.If not provided, it means that dynamic configuration is disabled. | 0.4.0 |  | 
 | celeborn.dynamicConfig.store.db.fetch.pageSize | 1000 | false | The page size for db store to query configurations. | 0.5.0 |  | 
 | celeborn.dynamicConfig.store.db.hikari.connectionTimeout | 30s | false | The connection timeout that a client will wait for a connection from the pool for db store backend. | 0.5.0 |  | 
 | celeborn.dynamicConfig.store.db.hikari.driverClassName |  | false | The jdbc driver class name of db store backend. | 0.5.0 |  | 
