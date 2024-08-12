@@ -286,21 +286,27 @@ public class SlotsAllocatorSuiteJ {
     }
   }
 
-  private void checkSlotsOnHDFS(
+  private void checkSlotsOnDFS(
       List<WorkerInfo> workers,
       List<Integer> partitionIds,
       boolean shouldReplicate,
       boolean expectSuccess,
-      boolean roundrobin) {
-    String shuffleKey = "appId-1";
+      boolean roundRobin,
+      boolean enableS3) {
     CelebornConf conf = new CelebornConf();
-    conf.set("celeborn.active.storage.levels", "HDFS");
+    if (enableS3) {
+      conf.set("celeborn.active.storage.levels", "S3");
+    } else {
+      conf.set("celeborn.active.storage.levels", "HDFS");
+    }
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots;
-    if (roundrobin) {
+    if (roundRobin) {
+      int availableStorageTypes = enableS3 ? StorageInfo.S3_MASK : StorageInfo.HDFS_MASK;
       slots =
           SlotsAllocator.offerSlotsRoundRobin(
-              workers, partitionIds, shouldReplicate, false, StorageInfo.HDFS_MASK);
+              workers, partitionIds, shouldReplicate, false, availableStorageTypes);
     } else {
+      int availableStorageTypes = enableS3 ? StorageInfo.S3_MASK : StorageInfo.HDFS_MASK;
       slots =
           SlotsAllocator.offerSlotsLoadAware(
               workers,
@@ -313,14 +319,11 @@ public class SlotsAllocatorSuiteJ {
               0.1,
               0,
               1,
-              StorageInfo.LOCAL_DISK_MASK | StorageInfo.HDFS_MASK);
+              StorageInfo.LOCAL_DISK_MASK | availableStorageTypes);
     }
     int allocatedPartitionCount = 0;
-    Map<WorkerInfo, Map<String, Integer>> slotsDistribution =
-        SlotsAllocator.slotsToDiskAllocations(slots);
     for (Map.Entry<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
         workerToPartitions : slots.entrySet()) {
-      WorkerInfo workerInfo = workerToPartitions.getKey();
       List<PartitionLocation> primaryLocs = workerToPartitions.getValue()._1;
       List<PartitionLocation> replicaLocs = workerToPartitions.getValue()._2();
       allocatedPartitionCount += primaryLocs.size();
@@ -339,7 +342,7 @@ public class SlotsAllocatorSuiteJ {
       partitionIds.add(i);
     }
     final boolean shouldReplicate = true;
-    checkSlotsOnHDFS(workers, partitionIds, shouldReplicate, true, true);
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, true, false);
   }
 
   @Test
@@ -365,7 +368,7 @@ public class SlotsAllocatorSuiteJ {
       partitionIds.add(i);
     }
     final boolean shouldReplicate = true;
-    checkSlotsOnHDFS(workers, partitionIds, shouldReplicate, true, true);
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, true, false);
   }
 
   @Test
@@ -390,7 +393,7 @@ public class SlotsAllocatorSuiteJ {
       partitionIds.add(i);
     }
     final boolean shouldReplicate = true;
-    checkSlotsOnHDFS(workers, partitionIds, shouldReplicate, true, false);
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, false, false);
   }
 
   @Test
@@ -418,7 +421,7 @@ public class SlotsAllocatorSuiteJ {
       partitionIds.add(i);
     }
     final boolean shouldReplicate = true;
-    checkSlotsOnHDFS(workers, partitionIds, shouldReplicate, true, false);
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, false, false);
   }
 
   @Test
@@ -431,5 +434,36 @@ public class SlotsAllocatorSuiteJ {
     final boolean shouldReplicate = false;
 
     check(workers, partitionIds, shouldReplicate, true);
+  }
+
+  @Test
+  public void testS3Only() {
+    final List<WorkerInfo> workers = prepareWorkers(false);
+    final List<Integer> partitionIds = new ArrayList<>();
+    for (int i = 0; i < 3000; i++) {
+      partitionIds.add(i);
+    }
+    final boolean shouldReplicate = true;
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, true, true);
+  }
+
+  @Test
+  public void testLocalDisksAndS3() {
+    final List<WorkerInfo> workers = prepareWorkers(true);
+    DiskInfo s3DiskInfo1 =
+        new DiskInfo("S3", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE, StorageInfo.Type.S3);
+    DiskInfo s3DiskInfo2 =
+        new DiskInfo("S3", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE, StorageInfo.Type.S3);
+    s3DiskInfo1.maxSlots_$eq(Long.MAX_VALUE);
+    s3DiskInfo2.maxSlots_$eq(Long.MAX_VALUE);
+    workers.get(0).diskInfos().put("S3", s3DiskInfo1);
+    workers.get(1).diskInfos().put("S3", s3DiskInfo2);
+    final List<Integer> partitionIds = new ArrayList<>();
+    for (int i = 0; i < 3000; i++) {
+      partitionIds.add(i);
+    }
+    final boolean shouldReplicate = true;
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, true, true);
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, false, true);
   }
 }
