@@ -46,8 +46,9 @@ If tenant-user-level configuration is missing, it will fall back to the tenant-l
 ## Config Service
 The config service provides a configuration management service with a local cache for both static and dynamic configurations. Moreover, `ConfigService` is 
 a pluggable service interface whose implementation can vary based on different storage backends. The storage backend for `ConfigService` is specified by the 
-configuration key `celeborn.dynamicConfig.store.backend`, and it currently supports both filesystem (`FS`) and database (`DB`) as storage backends. If no 
-storage backend is specified, this indicates that the config service is disabled.
+configuration key `celeborn.dynamicConfig.store.backend`, and it currently supports filesystem (`FS`) and database (`DB`) as storage backends by default.
+Additionally, users can provide their own implementation by extending the `ConfigService` interface and using the fully qualified class name of the implementation
+as storage backend. If no storage backend is specified, this indicates that the config service is disabled.
 
 ### FileSystem Config Service
 The filesystem config service enables the use of dynamic configuration files, the location of which is set by the configuration key `celeborn.dynamicConfig.store.fs.path`. 

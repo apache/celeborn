@@ -5253,12 +5253,12 @@ object CelebornConf extends Logging {
   val DYNAMIC_CONFIG_STORE_BACKEND: OptionalConfigEntry[String] =
     buildConf("celeborn.dynamicConfig.store.backend")
       .categories("master", "worker")
-      .doc("Store backend for dynamic config service. Available options: FS, DB. " +
+      .doc("Store backend for dynamic config service. The backend can be specified in two ways:" +
+        " - Using short names: Default available options are FS, DB." +
+        " - Using the fully qualified class name of the backend implementation." +
         "If not provided, it means that dynamic configuration is disabled.")
       .version("0.4.0")
       .stringConf
-      .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(Set("FS", "DB"))
       .createOptional
 
   val DYNAMIC_CONFIG_REFRESH_INTERVAL: ConfigEntry[Long] =
