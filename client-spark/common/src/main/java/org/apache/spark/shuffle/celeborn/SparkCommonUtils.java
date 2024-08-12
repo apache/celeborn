@@ -27,6 +27,8 @@ public class SparkCommonUtils {
         conf.getInt(
             "spark.stage.maxConsecutiveAttempts",
             DAGScheduler.DEFAULT_MAX_CONSECUTIVE_STAGE_ATTEMPTS());
+    // In Spark 2, the parameter is referred to as MAX_TASK_FAILURES, while in Spark 3, it has been
+    // changed to TASK_MAX_FAILURES. The default value for both is consistently set to 4.
     int maxTaskAttempts = conf.getInt("spark.task.maxFailures", 4);
     if (maxStageAttempts >= (1 << 15) || maxTaskAttempts >= (1 << 16)) {
       // The map attemptId is a non-negative number constructed from
