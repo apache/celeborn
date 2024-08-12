@@ -119,7 +119,8 @@ public class DummyShuffleClient extends ShuffleClient {
   public void cleanup(int shuffleId, int mapId, int attemptId) {}
 
   @Override
-  public ShuffleClientImpl.ReduceFileGroups updateFileGroup(int shuffleId, int partitionId) throws CelebornIOException {
+  public ShuffleClientImpl.ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
+      throws CelebornIOException {
     return null;
   }
 

@@ -203,8 +203,8 @@ public abstract class ShuffleClient {
   // Cleanup states of the map task
   public abstract void cleanup(int shuffleId, int mapId, int attemptId);
 
-  public abstract ShuffleClientImpl.ReduceFileGroups updateFileGroup(
-      int shuffleId, int partitionId) throws CelebornIOException;
+  public abstract ShuffleClientImpl.ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
+      throws CelebornIOException;
 
   // Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
   // is a self-incrementing variable hidden in the implementation when sending data.

@@ -1695,7 +1695,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
-          throws CelebornIOException {
+      throws CelebornIOException {
     return updateFileGroup(shuffleId, partitionId, false);
   }
 
