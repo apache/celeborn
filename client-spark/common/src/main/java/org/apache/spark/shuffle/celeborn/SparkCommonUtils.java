@@ -17,11 +17,17 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
+import org.apache.spark.scheduler.DAGScheduler;
 
 public class SparkCommonUtils {
-  public static void validateMaxAttempts(int maxStageAttempts, int maxTaskAttempts)
-      throws IllegalArgumentException {
+  public static void validateAttemptConfig(SparkConf conf) throws IllegalArgumentException {
+    int maxStageAttempts =
+        conf.getInt(
+            "spark.stage.maxConsecutiveAttempts",
+            DAGScheduler.DEFAULT_MAX_CONSECUTIVE_STAGE_ATTEMPTS());
+    int maxTaskAttempts = conf.getInt("spark.task.maxFailures", 4);
     if (maxStageAttempts >= (1 << 15) || maxTaskAttempts >= (1 << 16)) {
       // The map attemptId is a non-negative number constructed from
       // both stageAttemptNumber and taskAttemptNumber.
