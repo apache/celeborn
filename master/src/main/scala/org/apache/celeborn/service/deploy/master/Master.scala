@@ -298,29 +298,11 @@ private[celeborn] class Master(
     checkForWorkerTimeOutTask = scheduleCheckTask(workerHeartbeatTimeoutMs, pbCheckForWorkerTimeout)
     checkForApplicationTimeOutTask =
       scheduleCheckTask(appHeartbeatTimeoutMs / 2, CheckForApplicationTimeOut)
-    checkForUnavailableWorkerTimeOutTask = scheduleCheckTask(
-      workerUnavailableInfoExpireTimeoutMs / 2,
-      CheckForWorkerUnavailableInfoTimeout)
-    checkForApplicationTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
-      new Runnable {
-        override def run(): Unit = Utils.tryLogNonFatalError {
-          self.send(CheckForApplicationTimeOut)
-        }
-      },
-      0,
-      appHeartbeatTimeoutMs / 2,
-      TimeUnit.MILLISECONDS)
 
     if (workerUnavailableInfoExpireTimeoutMs > 0) {
-      checkForUnavailableWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
-        new Runnable {
-          override def run(): Unit = Utils.tryLogNonFatalError {
-            self.send(CheckForWorkerUnavailableInfoTimeout)
-          }
-        },
-        0,
+      scheduleCheckTask(
         workerUnavailableInfoExpireTimeoutMs / 2,
-        TimeUnit.MILLISECONDS)
+        CheckForWorkerUnavailableInfoTimeout)
     }
 
     if (hasHDFSStorage || hasS3Storage) {
