@@ -266,24 +266,24 @@ public class CelebornDagAppMaster extends DAGAppMaster {
 
       Logger.info(
           "Creating CelebornDAGAppMaster for "
-              + "applicationId="
-              + applicationAttemptId.getApplicationId()
-              + ", attemptNum="
-              + applicationAttemptId.getAttemptId()
-              + ", AMContainerId="
-              + containerId
-              + ", jvmPid="
-              + pid
-              + ", userFromEnv="
-              + jobUserName
-              + ", cliSessionOption="
-              + sessionModeCliOption
-              + ", pwd="
-              + System.getenv(ApplicationConstants.Environment.PWD.name())
-              + ", localDirs="
-              + System.getenv(ApplicationConstants.Environment.LOCAL_DIRS.name())
-              + ", logDirs="
-              + System.getenv(ApplicationConstants.Environment.LOG_DIRS.name()));
+              + "applicationId={}"
+              + ", attemptNum={}"
+              + ", AMContainerId={}"
+              + ", jvmPid={}"
+              + ", userFromEnv={}"
+              + ", cliSessionOption={}"
+              + ", pwd={}"
+              + ", localDirs={}"
+              + ", logDirs={}",
+          applicationAttemptId.getApplicationId(),
+          applicationAttemptId.getAttemptId(),
+          containerId,
+          pid,
+          jobUserName,
+          sessionModeCliOption,
+          System.getenv(ApplicationConstants.Environment.PWD.name()),
+          System.getenv(ApplicationConstants.Environment.LOCAL_DIRS.name()),
+          System.getenv(ApplicationConstants.Environment.LOG_DIRS.name()));
 
       // disable tez slow start
       Configuration conf = new Configuration(new YarnConfiguration());
