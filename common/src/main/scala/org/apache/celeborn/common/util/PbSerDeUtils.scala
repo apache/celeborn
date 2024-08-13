@@ -36,10 +36,12 @@ import org.apache.celeborn.common.util.{CollectionUtils => localCollectionUtils}
 object PbSerDeUtils {
 
   private var masterPersistWorkerNetworkLocation: Option[Boolean] = None
+
   def setMasterPersistWorkerNetworkLocation(value: Boolean): Unit = {
     masterPersistWorkerNetworkLocation match {
       case None => masterPersistWorkerNetworkLocation = Some(value)
       case Some(_) =>
+        // this should never happen, but being defensive
         throw new IllegalStateException(s"masterPersistWorkerNetworkLocation has already been set once to" +
           s" ${masterPersistWorkerNetworkLocation.get}")
     }
