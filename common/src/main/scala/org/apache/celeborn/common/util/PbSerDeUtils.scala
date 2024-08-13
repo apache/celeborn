@@ -35,6 +35,17 @@ import org.apache.celeborn.common.util.{CollectionUtils => localCollectionUtils}
 
 object PbSerDeUtils {
 
+  private var masterPersistWorkerNetworkLocation: Option[Boolean] = None
+  def setMasterPersistWorkerNetworkLocation(value: Boolean): Unit = {
+    masterPersistWorkerNetworkLocation match {
+      case None => masterPersistWorkerNetworkLocation = Some(value)
+      case Some(_) =>
+        throw new IllegalStateException(s"masterPersistWorkerNetworkLocation has already been set once to" +
+          s" ${masterPersistWorkerNetworkLocation.get}")
+    }
+  }
+
+
   @throws[InvalidProtocolBufferException]
   def fromPbSortedShuffleFileSet(data: Array[Byte]): util.Set[String] = {
     val pbSortedShuffleFileSet = PbSortedShuffleFileSet.parseFrom(data)
@@ -236,7 +247,9 @@ object PbSerDeUtils {
       pbWorkerInfo.getInternalPort,
       disks,
       userResourceConsumption)
-    workerInfo.networkLocation_$eq(pbWorkerInfo.getNetworkLocation)
+    if (masterPersistWorkerNetworkLocation.getOrElse(false)) {
+      workerInfo.networkLocation_$eq(pbWorkerInfo.getNetworkLocation)
+    }
     workerInfo
   }
 
@@ -251,7 +264,10 @@ object PbSerDeUtils {
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
       .setInternalPort(workerInfo.internalPort)
-      .setNetworkLocation(workerInfo.networkLocation)
+    if (masterPersistWorkerNetworkLocation.getOrElse(false)) {
+      builder.setNetworkLocation(workerInfo.networkLocation)
+    }
+
     if (!eliminateUserResourceConsumption) {
       builder.putAllUserResourceConsumption(
         PbSerDeUtils.toPbUserResourceConsumption(workerInfo.userResourceConsumption))

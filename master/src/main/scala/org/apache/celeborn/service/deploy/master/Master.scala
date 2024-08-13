@@ -82,6 +82,8 @@ private[celeborn] class Master(
   private val sendApplicationMetaThreads = conf.masterSendApplicationMetaThreads
   // Send ApplicationMeta to workers
   private var sendApplicationMetaExecutor: ExecutorService = _
+  private val masterPersistWorkerNetworkLocation = conf.masterPersistWorkerNetworkLocation
+  PbSerDeUtils.setMasterPersistWorkerNetworkLocation(masterPersistWorkerNetworkLocation)
 
   if (conf.logCelebornConfEnabled) {
     logInfo(getConf)

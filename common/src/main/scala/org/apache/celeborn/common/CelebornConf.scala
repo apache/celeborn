@@ -770,6 +770,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisSnapshotAutoTriggerThreshold: Long =
     get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD)
   def haMasterRatisSnapshotRetentionFileNum: Int = get(HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM)
+
+  def masterPersistWorkerNetworkLocation: Boolean = get(MASTER_PERSIST_WORKER_NETWORK_LOCATION)
   def haRatisCustomConfigs: JMap[String, String] = {
     settings.asScala.filter(_._1.startsWith("celeborn.ratis")).toMap.asJava
   }
@@ -2600,6 +2602,13 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .intConf
       .createWithDefault(3)
+
+  val MASTER_PERSIST_WORKER_NETWORK_LOCATION: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.persist.workerNetworkLocation")
+      .categories("master")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefault(false)
 
   val MASTER_SLOT_ASSIGN_POLICY: ConfigEntry[String] =
     buildConf("celeborn.master.slot.assign.policy")
