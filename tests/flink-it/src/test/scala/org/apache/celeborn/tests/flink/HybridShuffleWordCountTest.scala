@@ -72,7 +72,8 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
   private def assumeFlinkVersion(): Unit = {
     // Flink Hybrid Shuffle mode was introduced in 1.16.
     val flinkVersion = sys.env.getOrElse("FLINK_VERSION", "")
-    assume(flinkVersion.nonEmpty && !flinkVersion.startsWith("1.14") && !flinkVersion.startsWith("1.15"))
+    assume(
+      flinkVersion.nonEmpty && !flinkVersion.startsWith("1.14") && !flinkVersion.startsWith("1.15"))
   }
 
   private def testLocalEnv(): Unit = {
