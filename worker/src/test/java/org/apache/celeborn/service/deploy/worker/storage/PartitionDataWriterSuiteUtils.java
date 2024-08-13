@@ -19,13 +19,13 @@ package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import scala.Function0;
 import scala.Tuple4;
 
-import org.apache.hadoop.shaded.com.google.common.io.Files;
 import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -102,7 +102,7 @@ public class PartitionDataWriterSuiteUtils {
       memoryFileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
     }
 
-    File tempDir = Files.createTempDir();
+    File tempDir = Files.createTempDirectory(null).toFile();
     tempDir.deleteOnExit();
     File file = getTemporaryFile(tempDir);
     DiskFileInfo fileInfo = new DiskFileInfo(file, userIdentifier, celebornConf);
