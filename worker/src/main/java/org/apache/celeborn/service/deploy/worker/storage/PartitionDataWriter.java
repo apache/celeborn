@@ -418,8 +418,6 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   public void setHasWriteFinished() {}
 
-  public void setHasSegments() {}
-
   protected synchronized long close(
       RunnableWithIOException tryClose,
       RunnableWithIOException streamClose,

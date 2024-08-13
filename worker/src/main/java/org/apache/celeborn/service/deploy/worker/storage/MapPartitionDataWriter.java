@@ -158,14 +158,6 @@ public class MapPartitionDataWriter extends PartitionDataWriter {
         });
   }
 
-  protected synchronized long close(
-      RunnableWithIOException tryClose,
-      RunnableWithIOException streamClose,
-      RunnableWithIOException finalClose)
-      throws IOException {
-    return super.close(tryClose, streamClose, finalClose);
-  }
-
   @Override
   public synchronized void destroy(IOException ioException) {
     destroyIndex();

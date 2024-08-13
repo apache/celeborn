@@ -186,11 +186,6 @@ public class SegmentMapPartitionFileWriter extends MapPartitionDataWriter {
   }
 
   @Override
-  public void setHasSegments() {
-    getFileMeta().setHasSegments(true);
-  }
-
-  @Override
   public synchronized long close() throws IOException {
     long fileLength = super.close();
     logger.debug("Close {} for stream id {}", this, getFile());
