@@ -21,9 +21,9 @@ import java.io.File
 
 import scala.collection.JavaConverters._
 
-import org.apache.flink.api.common.{BatchShuffleMode, RuntimeExecutionMode}
+import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
-import org.apache.flink.configuration.{BatchExecutionOptions, Configuration, ExecutionOptions, NettyShuffleEnvironmentOptions, RestOptions}
+import org.apache.flink.configuration.{Configuration, ExecutionOptions, RestOptions}
 import org.apache.flink.runtime.jobgraph.JobType
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator
@@ -79,9 +79,9 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
       "org.apache.celeborn.plugin.flink.tiered.CelebornTierFactory")
     configuration.setString("celeborn.master.endpoints", "localhost:9097")
     configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
-    configuration.set(
-      ExecutionOptions.BATCH_SHUFFLE_MODE,
-      BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL)
+    configuration.setString(
+      "execution.batch-shuffle-mode",
+      "ALL_EXCHANGES_HYBRID_FULL")
     configuration.setString("taskmanager.memory.network.min", "1024m")
     configuration.setString(RestOptions.BIND_PORT, "8081-8089")
     configuration.setString(
@@ -114,9 +114,9 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
       "org.apache.celeborn.plugin.flink.tiered.CelebornTierFactory")
     configuration.setString("celeborn.master.endpoints", "localhost:9097")
     configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
-    configuration.set(
-      ExecutionOptions.BATCH_SHUFFLE_MODE,
-      BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL)
+    configuration.setString(
+      "execution.batch-shuffle-mode",
+      "ALL_EXCHANGES_HYBRID_FULL")
     configuration.setString("taskmanager.memory.network.min", "256m")
     configuration.setString(RestOptions.BIND_PORT, "8081-8089")
     configuration.setString(
@@ -144,10 +144,8 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
   }
 
   def getEnvironment(configuration: Configuration): StreamExecutionEnvironment = {
-    configuration.setBoolean(
-      NettyShuffleEnvironmentOptions.NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE.key(),
-      true)
-    configuration.setBoolean(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED, true)
+    configuration.setBoolean("taskmanager.network.hybrid-shuffle.enable-new-mode", true)
+    configuration.setBoolean("execution.batch.adaptive.auto-parallelism.enabled", true)
     val env = StreamExecutionEnvironment.getExecutionEnvironment(configuration)
     env.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, 0L))
     env
