@@ -861,6 +861,7 @@
             </systemProperties>
             <environmentVariables>
               <CELEBORN_LOCAL_HOSTNAME>localhost</CELEBORN_LOCAL_HOSTNAME>
+              <FLINK_VERSION>${flink.version}</FLINK_VERSION>
             </environmentVariables>
             <forkCount>1</forkCount>
             <reuseForks>false</reuseForks>
@@ -899,6 +900,7 @@
             </systemProperties>
             <environmentVariables>
               <CELEBORN_LOCAL_HOSTNAME>localhost</CELEBORN_LOCAL_HOSTNAME>
+              <FLINK_VERSION>${flink.version}</FLINK_VERSION>
             </environmentVariables>
           </configuration>
           <executions>

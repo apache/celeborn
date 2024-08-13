@@ -59,12 +59,20 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
   }
 
   test("Celeborn Flink Hybrid Shuffle Integration test(Local) - word count") {
+    assumeFlinkVersion()
     testLocalEnv()
   }
 
   test(
     "Celeborn Flink Hybrid Shuffle Integration test(Flink mini cluster) single tier - word count") {
+    assumeFlinkVersion()
     testInMiniCluster()
+  }
+
+  private def assumeFlinkVersion(): Unit = {
+    // Flink Hybrid Shuffle mode was introduced in 1.16.
+    val flinkVersion = sys.env.getOrElse("FLINK_VERSION", "")
+    assume(flinkVersion.nonEmpty && !flinkVersion.startsWith("1.14") && !flinkVersion.startsWith("1.15"))
   }
 
   private def testLocalEnv(): Unit = {
@@ -83,7 +91,6 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
       "execution.batch-shuffle-mode",
       "ALL_EXCHANGES_HYBRID_FULL")
     configuration.setString("taskmanager.memory.network.min", "1024m")
-    configuration.setString(RestOptions.BIND_PORT, "8081-8089")
     configuration.setString(
       "execution.batch.adaptive.auto-parallelism.min-parallelism",
       "" + parallelism)
@@ -118,7 +125,6 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
       "execution.batch-shuffle-mode",
       "ALL_EXCHANGES_HYBRID_FULL")
     configuration.setString("taskmanager.memory.network.min", "256m")
-    configuration.setString(RestOptions.BIND_PORT, "8081-8089")
     configuration.setString(
       "execution.batch.adaptive.auto-parallelism.min-parallelism",
       "" + parallelism)
