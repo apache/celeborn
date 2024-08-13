@@ -251,17 +251,19 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
   }
 
   test("fromAndToPbWorkerInfo") {
-    PbSerDeUtils.setMasterPersistWorkerNetworkLocation(true)
-    val pbWorkerInfo = PbSerDeUtils.toPbWorkerInfo(workerInfo1, false, false)
-    val pbWorkerInfoWithEmptyResource = PbSerDeUtils.toPbWorkerInfo(workerInfo1, true, false)
-    val restoredWorkerInfo = PbSerDeUtils.fromPbWorkerInfo(pbWorkerInfo)
-    val restoredWorkerInfoWithEmptyResource =
-      PbSerDeUtils.fromPbWorkerInfo(pbWorkerInfoWithEmptyResource)
+    Seq(false, true).foreach { b =>
+      PbSerDeUtils.setMasterPersistWorkerNetworkLocation(b)
+      val pbWorkerInfo = PbSerDeUtils.toPbWorkerInfo(workerInfo1, false, false)
+      val pbWorkerInfoWithEmptyResource = PbSerDeUtils.toPbWorkerInfo(workerInfo1, true, false)
+      val restoredWorkerInfo = PbSerDeUtils.fromPbWorkerInfo(pbWorkerInfo)
+      val restoredWorkerInfoWithEmptyResource =
+        PbSerDeUtils.fromPbWorkerInfo(pbWorkerInfoWithEmptyResource)
 
-    assert(restoredWorkerInfo.equals(workerInfo1))
-    assert(restoredWorkerInfoWithEmptyResource.userResourceConsumption.equals(new util.HashMap[
-      UserIdentifier,
-      ResourceConsumption]()))
+      assert(restoredWorkerInfo.equals(workerInfo1))
+      assert(restoredWorkerInfoWithEmptyResource.userResourceConsumption.equals(new util.HashMap[
+        UserIdentifier,
+        ResourceConsumption]()))
+    }
   }
 
   test("fromAndToPbPartitionLocation") {

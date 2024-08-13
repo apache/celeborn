@@ -35,17 +35,10 @@ import org.apache.celeborn.common.util.{CollectionUtils => localCollectionUtils}
 
 object PbSerDeUtils {
 
-  private var masterPersistWorkerNetworkLocation: Option[Boolean] = None
+  private var masterPersistWorkerNetworkLocation: Boolean = false
 
-  def setMasterPersistWorkerNetworkLocation(value: Boolean): Unit = {
-    masterPersistWorkerNetworkLocation match {
-      case None => masterPersistWorkerNetworkLocation = Some(value)
-      case Some(_) =>
-        // this should never happen, but being defensive
-        throw new IllegalStateException(
-          s"masterPersistWorkerNetworkLocation has already been set once to" +
-            s" ${masterPersistWorkerNetworkLocation.get}")
-    }
+  def setMasterPersistWorkerNetworkLocation(masterPersistWorkerNetworkLocation: Boolean) = {
+    this.masterPersistWorkerNetworkLocation = masterPersistWorkerNetworkLocation
   }
 
   @throws[InvalidProtocolBufferException]
@@ -249,7 +242,7 @@ object PbSerDeUtils {
       pbWorkerInfo.getInternalPort,
       disks,
       userResourceConsumption)
-    if (masterPersistWorkerNetworkLocation.getOrElse(false)) {
+    if (masterPersistWorkerNetworkLocation) {
       workerInfo.networkLocation_$eq(pbWorkerInfo.getNetworkLocation)
     }
     workerInfo
@@ -266,7 +259,7 @@ object PbSerDeUtils {
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
       .setInternalPort(workerInfo.internalPort)
-    if (masterPersistWorkerNetworkLocation.getOrElse(false)) {
+    if (masterPersistWorkerNetworkLocation) {
       builder.setNetworkLocation(workerInfo.networkLocation)
     }
 
