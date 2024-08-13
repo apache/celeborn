@@ -42,11 +42,11 @@ object PbSerDeUtils {
       case None => masterPersistWorkerNetworkLocation = Some(value)
       case Some(_) =>
         // this should never happen, but being defensive
-        throw new IllegalStateException(s"masterPersistWorkerNetworkLocation has already been set once to" +
-          s" ${masterPersistWorkerNetworkLocation.get}")
+        throw new IllegalStateException(
+          s"masterPersistWorkerNetworkLocation has already been set once to" +
+            s" ${masterPersistWorkerNetworkLocation.get}")
     }
   }
-
 
   @throws[InvalidProtocolBufferException]
   def fromPbSortedShuffleFileSet(data: Array[Byte]): util.Set[String] = {
