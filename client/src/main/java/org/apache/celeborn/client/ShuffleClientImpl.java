@@ -1796,6 +1796,10 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (null != lifecycleManagerRef) {
       lifecycleManagerRef = null;
     }
+    try {
+      compressorThreadLocal.get().close();
+    } catch (IOException ignored) {
+    }
 
     shuffleIdCache.clear();
     pushExcludedWorkers.clear();

@@ -17,10 +17,13 @@
 
 package org.apache.celeborn.client.compress;
 
+import java.io.Closeable;
+import java.io.IOException;
+
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.CompressionCodec;
 
-public interface Compressor {
+public interface Compressor extends Closeable {
 
   void initCompressBuffer(int maxDestLength);
 
@@ -29,6 +32,9 @@ public interface Compressor {
   int getCompressedTotalSize();
 
   byte[] getCompressedBuffer();
+
+  @Override
+  default void close() throws IOException {}
 
   default void writeIntLE(int i, byte[] buf, int off) {
     buf[off++] = (byte) i;

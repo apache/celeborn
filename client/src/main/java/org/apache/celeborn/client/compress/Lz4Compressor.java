@@ -17,10 +17,12 @@
 
 package org.apache.celeborn.client.compress;
 
+import java.io.IOException;
 import java.util.zip.Checksum;
 
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
+import net.jpountz.xxhash.StreamingXXHash32;
 import net.jpountz.xxhash.XXHashFactory;
 
 public class Lz4Compressor extends Lz4Trait implements Compressor {
@@ -28,10 +30,12 @@ public class Lz4Compressor extends Lz4Trait implements Compressor {
   private final Checksum checksum;
   private byte[] compressedBuffer;
   private int compressedTotalSize;
+  private final StreamingXXHash32 streamingXXHash32;
 
   public Lz4Compressor(int blockSize) {
     this.compressor = LZ4Factory.fastestInstance().fastCompressor();
-    checksum = XXHashFactory.fastestInstance().newStreamingHash32(DEFAULT_SEED).asChecksum();
+    streamingXXHash32 = XXHashFactory.fastestInstance().newStreamingHash32(DEFAULT_SEED);
+    checksum = streamingXXHash32.asChecksum();
     initCompressBuffer(blockSize);
   }
 
@@ -78,5 +82,10 @@ public class Lz4Compressor extends Lz4Trait implements Compressor {
   @Override
   public byte[] getCompressedBuffer() {
     return compressedBuffer;
+  }
+
+  @Override
+  public void close() throws IOException {
+    this.streamingXXHash32.close();
   }
 }
