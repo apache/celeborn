@@ -26,7 +26,7 @@
 
   <artifactId>celeborn-client-tez-shaded_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Shaded Client for MapReduce</name>
+  <name>Celeborn Shaded Client for Tez</name>
 
   <dependencies>
     <dependency>
