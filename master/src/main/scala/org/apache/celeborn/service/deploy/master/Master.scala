@@ -294,50 +294,34 @@ private[celeborn] class Master(
         sendApplicationMetaThreads,
         "send-application-meta")
     }
-    checkForWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
-      new Runnable {
-        override def run(): Unit = Utils.tryLogNonFatalError {
-          self.send(ControlMessages.pbCheckForWorkerTimeout)
-        }
-      },
-      0,
-      workerHeartbeatTimeoutMs,
-      TimeUnit.MILLISECONDS)
 
-    checkForApplicationTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
-      new Runnable {
-        override def run(): Unit = Utils.tryLogNonFatalError {
-          self.send(CheckForApplicationTimeOut)
-        }
-      },
-      0,
-      appHeartbeatTimeoutMs / 2,
-      TimeUnit.MILLISECONDS)
+    checkForWorkerTimeOutTask = scheduleCheckTask(workerHeartbeatTimeoutMs, pbCheckForWorkerTimeout)
+    checkForApplicationTimeOutTask =
+      scheduleCheckTask(appHeartbeatTimeoutMs / 2, CheckForApplicationTimeOut)
 
     if (workerUnavailableInfoExpireTimeoutMs > 0) {
-      checkForUnavailableWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
-        new Runnable {
-          override def run(): Unit = Utils.tryLogNonFatalError {
-            self.send(CheckForWorkerUnavailableInfoTimeout)
-          }
-        },
-        0,
+      scheduleCheckTask(
         workerUnavailableInfoExpireTimeoutMs / 2,
-        TimeUnit.MILLISECONDS)
+        CheckForWorkerUnavailableInfoTimeout)
     }
 
     if (hasHDFSStorage || hasS3Storage) {
-      checkForS3RemnantDirsTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
-        new Runnable {
-          override def run(): Unit = Utils.tryLogNonFatalError {
-            self.send(CheckForDFSExpiredDirsTimeout)
-          }
-        },
-        dfsExpireDirsTimeoutMS,
-        dfsExpireDirsTimeoutMS,
-        TimeUnit.MILLISECONDS)
+      checkForHDFSRemnantDirsTimeOutTask =
+        scheduleCheckTask(dfsExpireDirsTimeoutMS, CheckForDFSExpiredDirsTimeout)
     }
 
+  }
+
+  def scheduleCheckTask[T](timeoutMS: Long, message: T): ScheduledFuture[_] = {
+    forwardMessageThread.scheduleWithFixedDelay(
+      new Runnable {
+        override def run(): Unit = Utils.tryLogNonFatalError {
+          self.send(message)
+        }
+      },
+      timeoutMS,
+      timeoutMS,
+      TimeUnit.MILLISECONDS)
   }
 
   override def onStop(): Unit = {
