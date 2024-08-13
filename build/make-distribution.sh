@@ -63,11 +63,6 @@ while (( "$#" )); do
       echo "Error: $1 is not supported"
       exit_with_usage
       ;;
-    -P*)
-      if [[ "$1" == *"hadoop-aws"* ]]; then
-        HADOOP_AWS_ENABLED="true"
-      fi
-      ;;
     -*)
       break
       ;;
@@ -247,6 +242,23 @@ function build_mr_client {
     cp "$PROJECT_DIR"/client-mr/mr-shaded/target/celeborn-client-mr-shaded_${SCALA_VERSION}-$VERSION.jar "$DIST_DIR/mr/"
 }
 
+function build_tez_client {
+  VERSION=$("$MVN" help:evaluate -Dexpression=project.version $@ 2>/dev/null \
+        | grep -v "INFO" \
+        | grep -v "WARNING" \
+        | tail -n 1)
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl :celeborn-client-tez-shaded_${SCALA_VERSION} -am $@)
+
+    # Actually build the jar
+    echo -e "\nBuilding with..."
+    echo -e "\$ ${BUILD_COMMAND[@]}\n"
+
+    "${BUILD_COMMAND[@]}"
+
+    ## flink spark client jars
+    mkdir -p "$DIST_DIR/tez"
+    cp "$PROJECT_DIR"/client-tez/tez-shaded/target/celeborn-client-tez-shaded_${SCALA_VERSION}-$VERSION.jar "$DIST_DIR/tez/"
+}
 
 #########################
 #     sbt functions     #
@@ -322,10 +334,11 @@ if [ "$SBT_ENABLED" == "true" ]; then
     sbt_build_client -Pflink-1.18
     sbt_build_client -Pflink-1.19
     sbt_build_client -Pmr
+    sbt_build_client -Ptez
   else
     echo "build client with $@"
     ENGINE_COUNT=0
-    ENGINES=("spark" "flink" "mr")
+    ENGINES=("spark" "flink" "mr" "tez")
     for single_engine in ${ENGINES[@]}
     do
       echo $single_engine
@@ -356,12 +369,13 @@ else
     build_flink_client -Pflink-1.18
     build_flink_client -Pflink-1.19
     build_mr_client -Pmr
+    build_tez_client -Ptez
   else
     ## build release package on demand
     build_service $@
     echo "build client with $@"
     ENGINE_COUNT=0
-    ENGINES=("spark" "flink" "mr")
+    ENGINES=("spark" "flink" "mr" "tez")
     for single_engine in ${ENGINES[@]}
     do
       echo $single_engine
@@ -384,6 +398,9 @@ else
     elif [[  $@ == *"mr"* ]]; then
       echo "build mr clients"
       build_mr_client $@
+    elif [[  $@ == *"tez"* ]]; then
+      echo "build tez clients"
+      build_tez_client $@
     fi
   fi
 fi
