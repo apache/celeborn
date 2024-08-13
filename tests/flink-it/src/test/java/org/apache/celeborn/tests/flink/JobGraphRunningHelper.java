@@ -21,7 +21,9 @@ package org.apache.celeborn.tests.flink;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -39,9 +41,16 @@ public class JobGraphRunningHelper {
       throws Exception {
     configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
 
+    // use random ports
+    if (!configuration.containsKey("jobmanager.rpc.port")) {
+      configuration.setString("jobmanager.rpc.port", "0");
+    }
+    if (!configuration.containsKey("rest.bind-port")) {
+      configuration.setString("rest.bind-port", "0");
+    }
+
     final MiniClusterConfiguration miniClusterConfiguration =
         new MiniClusterConfiguration.Builder()
-            .withRandomPorts()
             .setConfiguration(configuration)
             .setNumTaskManagers(numTaskManagers)
             .setNumSlotsPerTaskManager(numSlotsPerTaskManager)
