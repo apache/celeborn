@@ -237,7 +237,9 @@ class MapPartitionCommitHandler(
       partitionLocations: Array[PartitionLocation]): Unit = {
     super.registerShuffle(shuffleId, numMappers, hasSegments, partitionLocations)
     pendingGetLocationContexts.synchronized {
-      pendingGetLocationContexts.computeIfAbsent(shuffleId, (k: Int) => new util.HashSet[RpcCallContext])
+      pendingGetLocationContexts.computeIfAbsent(
+        shuffleId,
+        (k: Int) => new util.HashSet[RpcCallContext])
       shuffleNumMappers.put(shuffleId, numMappers)
       shuffleHasSegments.put(shuffleId, hasSegments)
       processPendingGetLocationContexts(shuffleId, partitionLocations)
