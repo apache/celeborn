@@ -40,7 +40,9 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 // Can Remove this if celeborn don't support scala211 in future
-import org.apache.celeborn.common.util.{JavaUtils, Utils}
+import org.apache.celeborn.common.util.FunctionConverter._
+import org.apache.celeborn.common.util.JavaUtils
+import org.apache.celeborn.common.util.Utils
 
 /**
  * This commit handler is for MapPartition ShuffleType, which means that a Map Partition contains all data produced
