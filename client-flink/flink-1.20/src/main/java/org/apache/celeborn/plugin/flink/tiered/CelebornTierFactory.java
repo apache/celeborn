@@ -34,6 +34,7 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFact
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMasterAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
+import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
@@ -42,9 +43,14 @@ public class CelebornTierFactory implements TierFactory {
 
   private CelebornConf conf;
 
+  private int bufferSizeBytes = -1;
+
+  private static int NUM_BYTES_PER_SEGMENT = 8 * 1024 * 1024;
+
   @Override
   public void setup(Configuration configuration) {
     conf = FlinkUtils.toCelebornConf(configuration);
+    this.bufferSizeBytes = ConfigurationParserUtils.getPageSize(configuration);
   }
 
   @Override
@@ -82,14 +88,13 @@ public class CelebornTierFactory implements TierFactory {
       ScheduledExecutorService ioExecutor,
       List<TierShuffleDescriptor> shuffleDescriptors,
       int maxRequestedBuffers) {
-    int numBytesPerSegment = 8 * 1024 * 1024;
-    int bufferSizeBytes = 32 * 1024;
+
     return new CelebornTierProducerAgent(
         conf,
         partitionId,
         numPartitions,
         numSubpartitions,
-        numBytesPerSegment,
+        NUM_BYTES_PER_SEGMENT,
         bufferSizeBytes,
         storageMemoryManager,
         resourceRegistry,
@@ -101,7 +106,8 @@ public class CelebornTierFactory implements TierFactory {
       List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
       List<TierShuffleDescriptor> shuffleDescriptors,
       TieredStorageNettyService nettyService) {
-    return new CelebornTierConsumerAgent(conf, tieredStorageConsumerSpecs, shuffleDescriptors);
+    return new CelebornTierConsumerAgent(
+        conf, tieredStorageConsumerSpecs, shuffleDescriptors, bufferSizeBytes);
   }
 
   public static String getCelebornTierName() {

@@ -435,7 +435,8 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
           lifecycleManagerPort,
           lifecycleManagerTimestamp,
           celebornConf,
-          null);
+          null,
+          bufferSizeBytes);
     } catch (DriverChangedException e) {
       // would generate a new attempt to retry output gate
       throw new RuntimeException(e.getMessage());

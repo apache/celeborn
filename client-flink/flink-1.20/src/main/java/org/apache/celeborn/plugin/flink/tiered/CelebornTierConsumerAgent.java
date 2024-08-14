@@ -122,10 +122,13 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
 
   private TieredStorageMemoryManager memoryManager;
 
+  private final int bufferSizeBytes;
+
   public CelebornTierConsumerAgent(
       CelebornConf conf,
       List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
-      List<TierShuffleDescriptor> shuffleDescriptors) {
+      List<TierShuffleDescriptor> shuffleDescriptors,
+      int bufferSizeBytes) {
     checkArgument(shuffleDescriptors.size() > 0, "Wrong shuffle descriptors size.");
     checkArgument(
         tieredStorageConsumerSpecs.size() == shuffleDescriptors.size(),
@@ -139,6 +142,7 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
     this.receivedBuffers = new HashMap<>();
     this.subPartitionsNeedNotifyAvailable = new HashSet<>();
     this.transferBufferPool = new TransferBufferPool(Collections.emptySet());
+    this.bufferSizeBytes = bufferSizeBytes;
     for (TierShuffleDescriptor shuffleDescriptor : shuffleDescriptors) {
       if (!(shuffleDescriptor instanceof RemoteShuffleDescriptor)) {
         continue;
@@ -357,7 +361,8 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
               shuffleResource.getLifecycleManagerPort(),
               shuffleResource.getLifecycleManagerTimestamp(),
               conf,
-              new UserIdentifier("default", "default"));
+              new UserIdentifier("default", "default"),
+              bufferSizeBytes);
     } catch (DriverChangedException e) {
       // If jobmanager failover the whole job will restart, then partition writer will refresh
       // FlinkShuffleClientImpl instance.

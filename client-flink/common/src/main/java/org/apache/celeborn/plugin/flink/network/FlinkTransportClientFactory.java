@@ -40,13 +40,18 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
 
   private ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers;
   private final int fetchMaxRetries;
+  private final int bufferSizeBytes;
 
   public FlinkTransportClientFactory(
-      TransportContext context, int fetchMaxRetries, List<TransportClientBootstrap> bootstraps) {
+      TransportContext context,
+      int fetchMaxRetries,
+      List<TransportClientBootstrap> bootstraps,
+      int bufferSizeBytes) {
     super(context, bootstraps);
     bufferSuppliers = JavaUtils.newConcurrentHashMap();
     this.fetchMaxRetries = fetchMaxRetries;
     this.pooledAllocator = new UnpooledByteBufAllocator(true);
+    this.bufferSizeBytes = bufferSizeBytes;
   }
 
   public TransportClient createClientWithRetry(String remoteHost, int remotePort)
@@ -82,7 +87,10 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
   public TransportClient createClient(String remoteHost, int remotePort)
       throws IOException, InterruptedException {
     return createClient(
-        remoteHost, remotePort, -1, new TransportFrameDecoderWithBufferSupplier(bufferSuppliers));
+        remoteHost,
+        remotePort,
+        -1,
+        new TransportFrameDecoderWithBufferSupplier(bufferSuppliers, bufferSizeBytes));
   }
 
   public void registerSupplier(long streamId, Supplier<ByteBuf> supplier) {

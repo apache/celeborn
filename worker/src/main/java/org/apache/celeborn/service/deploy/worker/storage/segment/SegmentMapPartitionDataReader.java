@@ -89,8 +89,6 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
 
   private boolean canBeRead = true;
 
-  private boolean hasWriteFinished = false;
-
   public SegmentMapPartitionDataReader(
       int startPartitionIndex,
       int endPartitionIndex,
@@ -126,7 +124,6 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
       boolean hasWriteFinished,
       long indexSize)
       throws IOException {
-    this.hasWriteFinished = hasWriteFinished;
     if (this.dataFileChannel == null) {
       this.dataFileChannel = dataFileChannel;
     }

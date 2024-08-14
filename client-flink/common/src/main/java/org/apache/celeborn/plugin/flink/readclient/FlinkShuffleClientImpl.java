@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.celeborn.plugin.flink.network.TransportFrameDecoderWithBufferSupplier;
 import scala.Tuple2;
 import scala.reflect.ClassTag$;
 
@@ -80,6 +81,9 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
 
   private final TransportContext context;
 
+  /** The buffer size bytes in flink, default value is 32KB. */
+  private final int bufferSizeBytes;
+
   public static FlinkShuffleClientImpl get(
       String appUniqueId,
       String driverHost,
@@ -88,18 +92,49 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       CelebornConf conf,
       UserIdentifier userIdentifier)
       throws DriverChangedException {
+    return get(
+        appUniqueId,
+        driverHost,
+        port,
+        driverTimestamp,
+        conf,
+        userIdentifier,
+        TransportFrameDecoderWithBufferSupplier.DISABLE_LARGE_BUFFER_SPLIT_SIZE);
+  }
+
+  public static FlinkShuffleClientImpl get(
+      String appUniqueId,
+      String driverHost,
+      int port,
+      long driverTimestamp,
+      CelebornConf conf,
+      UserIdentifier userIdentifier,
+      int bufferSizeBytes)
+      throws DriverChangedException {
     if (null == _instance || !initialized || _instance.driverTimestamp < driverTimestamp) {
       synchronized (FlinkShuffleClientImpl.class) {
         if (null == _instance) {
           _instance =
               new FlinkShuffleClientImpl(
-                  appUniqueId, driverHost, port, driverTimestamp, conf, userIdentifier);
+                  appUniqueId,
+                  driverHost,
+                  port,
+                  driverTimestamp,
+                  conf,
+                  userIdentifier,
+                  bufferSizeBytes);
           initialized = true;
         } else if (!initialized || _instance.driverTimestamp < driverTimestamp) {
           _instance.shutdown();
           _instance =
               new FlinkShuffleClientImpl(
-                  appUniqueId, driverHost, port, driverTimestamp, conf, userIdentifier);
+                  appUniqueId,
+                  driverHost,
+                  port,
+                  driverTimestamp,
+                  conf,
+                  userIdentifier,
+                  bufferSizeBytes);
           initialized = true;
         }
       }
@@ -132,8 +167,10 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       int port,
       long driverTimestamp,
       CelebornConf conf,
-      UserIdentifier userIdentifier) {
+      UserIdentifier userIdentifier,
+      int bufferSizeBytes) {
     super(appUniqueId, conf, userIdentifier);
+    this.bufferSizeBytes = bufferSizeBytes;
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
         Utils.fromCelebornConf(conf, module, conf.getInt("celeborn." + module + ".io.threads", 8));
@@ -148,7 +185,10 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     if (null == flinkTransportClientFactory) {
       flinkTransportClientFactory =
           new FlinkTransportClientFactory(
-              context, conf.clientFetchMaxRetriesForEachReplica(), createBootstraps());
+              context,
+              conf.clientFetchMaxRetriesForEachReplica(),
+              createBootstraps(),
+              bufferSizeBytes);
     }
   }
 

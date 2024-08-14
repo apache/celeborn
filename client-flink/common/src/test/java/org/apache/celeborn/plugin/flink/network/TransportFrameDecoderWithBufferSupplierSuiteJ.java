@@ -61,7 +61,7 @@ public class TransportFrameDecoderWithBufferSupplierSuiteJ {
         });
 
     TransportFrameDecoderWithBufferSupplier decoder =
-        new TransportFrameDecoderWithBufferSupplier(supplier);
+        new TransportFrameDecoderWithBufferSupplier(supplier, 32 * 1024);
     ChannelHandlerContext context = Mockito.mock(ChannelHandlerContext.class);
 
     RpcRequest announcement = createBacklogAnnouncement(0, 0);
@@ -125,7 +125,7 @@ public class TransportFrameDecoderWithBufferSupplierSuiteJ {
         });
 
     TransportFrameDecoderWithBufferSupplier decoder =
-        new TransportFrameDecoderWithBufferSupplier(supplier);
+        new TransportFrameDecoderWithBufferSupplier(supplier, 32 * 1024);
     ChannelHandlerContext context = Mockito.mock(ChannelHandlerContext.class);
 
     RpcRequest announcement = createBacklogAnnouncement(0, 0);
