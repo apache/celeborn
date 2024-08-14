@@ -37,8 +37,8 @@ import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.rpc.{RpcCallContext, RpcEndpointRef}
-import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.rpc.RpcCallContext
+import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
@@ -199,8 +199,18 @@ abstract class CommitHandler(
       partitionId: Int,
       recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean)
 
-  def registerShuffle(shuffleId: Int, numMappers: Int): Unit = {
+  def registerShuffle(
+      shuffleId: Int,
+      numMappers: Int,
+      hasSegments: Boolean,
+      partitionLocations: Array[PartitionLocation]): Unit = {
     reducerFileGroupsMap.put(shuffleId, JavaUtils.newConcurrentHashMap())
+  }
+
+  def addPartitionLocations(shuffleId: Int, toArray: Array[PartitionLocation]): Unit = {}
+
+  def hasSegments(shuffleId: Int): Boolean = {
+    false
   }
 
   def doParallelCommitFiles(
@@ -463,7 +473,8 @@ abstract class CommitHandler(
       primaryPartitionUniqueIds: util.Iterator[String],
       replicaPartitionUniqueIds: util.Iterator[String],
       primaryPartMap: ConcurrentHashMap[String, PartitionLocation],
-      replicaPartMap: ConcurrentHashMap[String, PartitionLocation]): Unit = {
+      replicaPartMap: ConcurrentHashMap[String, PartitionLocation],
+      hasSegments: Boolean): Unit = {
     val committedPartitions = new util.HashMap[String, PartitionLocation]
     primaryPartitionUniqueIds.asScala.foreach { id =>
       val partitionLocation = primaryPartMap.get(id)
@@ -488,11 +499,13 @@ abstract class CommitHandler(
       }
     }
 
-    committedPartitions.values().asScala.foreach { partition =>
-      val partitionLocations = reducerFileGroupsMap.get(shuffleId).computeIfAbsent(
-        partition.getId,
-        (k: Integer) => new util.HashSet[PartitionLocation]())
-      partitionLocations.add(partition)
+    if (!hasSegments) {
+      committedPartitions.values().asScala.foreach { partition =>
+        val partitionLocations = reducerFileGroupsMap.get(shuffleId).computeIfAbsent(
+          partition.getId,
+          (k: Integer) => new util.HashSet[PartitionLocation]())
+        partitionLocations.add(partition)
+      }
     }
   }
 

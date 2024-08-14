@@ -55,6 +55,7 @@ class ChangePartitionManager(
   // shuffleId -> set of partition id
   private val inBatchPartitions =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap.KeySetView[Int, java.lang.Boolean]]()
+  private val shuffleHasSegments = JavaUtils.newConcurrentHashMap[Int, Boolean]()
 
   private val batchHandleChangePartitionEnabled = conf.batchHandleChangePartitionEnabled
   private val batchHandleChangePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
@@ -103,7 +104,8 @@ class ChangePartitionManager(
                       if (distinctPartitions.nonEmpty) {
                         handleRequestPartitions(
                           shuffleId,
-                          distinctPartitions)
+                          distinctPartitions,
+                          shuffleHasSegments.get(shuffleId))
                       }
                     }
                   }
@@ -153,7 +155,8 @@ class ChangePartitionManager(
       partitionId: Int,
       oldEpoch: Int,
       oldPartition: PartitionLocation,
-      cause: Option[StatusCode] = None): Unit = {
+      cause: Option[StatusCode] = None,
+      hasSegments: Boolean): Unit = {
 
     val changePartition = ChangePartitionRequest(
       context,
@@ -165,6 +168,7 @@ class ChangePartitionManager(
     // check if there exists request for the partition, if do just register
     val requests = changePartitionRequests.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
     inBatchPartitions.computeIfAbsent(shuffleId, inBatchShuffleIdRegisterFunc)
+    shuffleHasSegments.put(shuffleId, hasSegments)
 
     lifecycleManager.commitManager.registerCommitPartitionRequest(
       shuffleId,
@@ -195,7 +199,7 @@ class ChangePartitionManager(
       }
     }
     if (!batchHandleChangePartitionEnabled) {
-      handleRequestPartitions(shuffleId, Array(changePartition))
+      handleRequestPartitions(shuffleId, Array(changePartition), hasSegments)
     }
   }
 
@@ -215,7 +219,8 @@ class ChangePartitionManager(
 
   def handleRequestPartitions(
       shuffleId: Int,
-      changePartitions: Array[ChangePartitionRequest]): Unit = {
+      changePartitions: Array[ChangePartitionRequest],
+      hasSegments: Boolean): Unit = {
     val requestsMap = changePartitionRequests.get(shuffleId)
 
     val changes = changePartitions.map { change =>
@@ -296,7 +301,9 @@ class ChangePartitionManager(
     if (!lifecycleManager.reserveSlotsWithRetry(
         shuffleId,
         new util.HashSet(candidates.toSet.asJava),
-        newlyAllocatedLocations)) {
+        newlyAllocatedLocations,
+        updateEpoch = false,
+        hasSegments)) {
       logError(s"[Update partition] failed for $shuffleId.")
       replyFailure(StatusCode.RESERVE_SLOTS_FAILED)
       return
@@ -324,6 +331,10 @@ class ChangePartitionManager(
               s"shuffle $shuffleId, succeed partitions: " +
               s"$changes.")
           }
+
+          lifecycleManager.commitManager.getCommitHandler(shuffleId).addPartitionLocations(
+            shuffleId,
+            locations.toArray)
           locations
       }
     replySuccess(newPrimaryLocations.toArray)
@@ -346,6 +357,7 @@ class ChangePartitionManager(
   def removeExpiredShuffle(shuffleId: Int): Unit = {
     changePartitionRequests.remove(shuffleId)
     inBatchPartitions.remove(shuffleId)
+    shuffleHasSegments.remove(shuffleId)
     locks.remove(shuffleId)
   }
 }
