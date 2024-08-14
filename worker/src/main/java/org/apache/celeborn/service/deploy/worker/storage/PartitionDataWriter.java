@@ -213,7 +213,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   }
 
   @VisibleForTesting
-  public void flush(boolean finalFlush, boolean fromEvict) throws IOException {
+  public void flush(boolean forceFlush, boolean finalFlush, boolean fromEvict) throws IOException {
     // flushBuffer == null here means this writer is already closed
     if (flushBuffer != null) {
       int numBytes = flushBuffer.readableBytes();
@@ -226,7 +226,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           ByteBuf dupBuf = flushBuffer.retainedDuplicate();
           // flush task will release the buffer of memory shuffle file
           if (channel != null) {
-            task = new LocalFlushTask(flushBuffer, channel, notifier, false);
+            task = new LocalFlushTask(flushBuffer, channel, notifier, false, forceFlush);
           } else if (diskFileInfo.isHdfs()) {
             task = new HdfsFlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, false);
           } else if (diskFileInfo.isS3()) {
@@ -254,7 +254,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           if (!isMemoryShuffleFile.get()) {
             notifier.numPendingFlushes.incrementAndGet();
             if (channel != null) {
-              task = new LocalFlushTask(flushBuffer, channel, notifier, true);
+              task = new LocalFlushTask(flushBuffer, channel, notifier, true, forceFlush);
             } else if (diskFileInfo.isHdfs()) {
               task = new HdfsFlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, true);
             } else if (diskFileInfo.isS3()) {
@@ -333,7 +333,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       if (!isMemoryShuffleFile.get()) {
         if (flushBufferReadableBytes != 0
             && flushBufferReadableBytes + numBytes >= flusherBufferSize) {
-          flush(false, false);
+          flush(false, false, false);
         }
       } else {
         if (flushBufferReadableBytes > memoryFileStorageMaxFileSize
@@ -369,7 +369,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
       isMemoryShuffleFile.set(false);
       initFileChannelsForDiskFile();
-      flush(closed, true);
+      flush(closed, closed, true);
 
       logger.debug("evict {} {}", shuffleKey, filename);
       storageManager.unregisterMemoryPartitionWriterAndFileInfo(
@@ -416,6 +416,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     return closed;
   }
 
+  public void setHasWriteFinished() {}
+
   protected synchronized long close(
       RunnableWithIOException tryClose,
       RunnableWithIOException streamClose,
@@ -435,7 +437,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         if (!isMemoryShuffleFile.get()) {
           // memory shuffle file doesn't need final flush
           if (flushBuffer != null && flushBuffer.readableBytes() > 0) {
-            flush(true, false);
+            flush(true, true, false);
           }
         }
       }
@@ -642,7 +644,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   public void flushOnMemoryPressure() throws IOException {
     synchronized (flushLock) {
       // this won't happen if this writer is in memory
-      flush(false, false);
+      flush(false, false, false);
     }
   }
 

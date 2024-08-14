@@ -91,7 +91,9 @@ abstract private[worker] class Flusher(
                 }
                 lastBeginFlushTime.set(index, -1)
               }
-              Utils.tryLogNonFatalError(returnBuffer(task.buffer, task.keepBuffer))
+              if (task.buffer != null) {
+                Utils.tryLogNonFatalError(returnBuffer(task.buffer, task.keepBuffer))
+              }
               task.notifier.numPendingFlushes.decrementAndGet()
             }
           }

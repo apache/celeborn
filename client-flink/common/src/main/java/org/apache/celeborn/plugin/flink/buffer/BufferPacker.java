@@ -26,6 +26,8 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
+import org.apache.flink.shaded.netty4.io.netty.buffer.CompositeByteBuf;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,14 +43,15 @@ public class BufferPacker {
     void accept(T var1, U var2) throws E;
   }
 
-  private final BiConsumerWithException<ByteBuf, Integer, InterruptedException> ripeBufferHandler;
+  private final BiConsumerWithException<ByteBuf, BufferHeader, InterruptedException>
+      ripeBufferHandler;
 
   private Buffer cachedBuffer;
 
   private int currentSubIdx = -1;
 
   public BufferPacker(
-      BiConsumerWithException<ByteBuf, Integer, InterruptedException> ripeBufferHandler) {
+      BiConsumerWithException<ByteBuf, BufferHeader, InterruptedException> ripeBufferHandler) {
     this.ripeBufferHandler = ripeBufferHandler;
   }
 
@@ -71,7 +74,8 @@ public class BufferPacker {
       int targetSubIdx = currentSubIdx;
       currentSubIdx = subIdx;
       logBufferPack(false, dumpedBuffer.getDataType(), dumpedBuffer.readableBytes());
-      handleRipeBuffer(dumpedBuffer, targetSubIdx);
+      handleRipeBuffer(
+          dumpedBuffer, targetSubIdx, dumpedBuffer.getDataType(), dumpedBuffer.isCompressed());
     } else {
       /**
        * this is an optimization. if cachedBuffer can contain other buffer, then other buffer can
@@ -95,7 +99,8 @@ public class BufferPacker {
         cachedBuffer = buffer;
         logBufferPack(false, dumpedBuffer.getDataType(), dumpedBuffer.readableBytes());
 
-        handleRipeBuffer(dumpedBuffer, currentSubIdx);
+        handleRipeBuffer(
+            dumpedBuffer, currentSubIdx, dumpedBuffer.getDataType(), dumpedBuffer.isCompressed());
       }
     }
   }
@@ -109,18 +114,34 @@ public class BufferPacker {
         length);
   }
 
-  public void drain() throws InterruptedException {
+  public void drain() {
     if (cachedBuffer != null) {
       logBufferPack(true, cachedBuffer.getDataType(), cachedBuffer.readableBytes());
-      handleRipeBuffer(cachedBuffer, currentSubIdx);
+      try {
+        handleRipeBuffer(
+            cachedBuffer, currentSubIdx, cachedBuffer.getDataType(), cachedBuffer.isCompressed());
+      } catch (InterruptedException e) {
+        throw new FlinkRuntimeException(e);
+      }
     }
     cachedBuffer = null;
     currentSubIdx = -1;
   }
 
-  private void handleRipeBuffer(Buffer buffer, int subIdx) throws InterruptedException {
+  private void handleRipeBuffer(
+      Buffer buffer, int subIdx, Buffer.DataType dataType, boolean isCompressed)
+      throws InterruptedException {
+    if (buffer == null || buffer.readableBytes() == 0) {
+      return;
+    }
     buffer.setCompressed(false);
-    ripeBufferHandler.accept(buffer.asByteBuf(), subIdx);
+    BufferHeader bufferHeader = new BufferHeader(dataType, isCompressed, buffer.getSize());
+    bufferHeader.setSubPartitionId(subIdx);
+    ripeBufferHandler.accept(buffer.asByteBuf(), bufferHeader);
+  }
+
+  public boolean isEmpty() {
+    return cachedBuffer == null || cachedBuffer.readableBytes() == 0;
   }
 
   public void close() {
@@ -134,6 +155,24 @@ public class BufferPacker {
   public static Queue<Buffer> unpack(ByteBuf byteBuf) {
     Queue<Buffer> buffers = new ArrayDeque<>();
     try {
+      if (byteBuf instanceof CompositeByteBuf) {
+        CompositeByteBuf compositeByteBuf = (CompositeByteBuf) byteBuf;
+        ByteBuf headerBuffer = compositeByteBuf.component(0).unwrap();
+        ByteBuf dataBuffer = compositeByteBuf.component(1).unwrap();
+        dataBuffer.retain();
+        Utils.checkState(dataBuffer instanceof Buffer, "Illegal buffer type.");
+        BufferHeader bufferHeader = BufferUtils.getBufferHeaderFromByteBuf(headerBuffer, 0);
+        Buffer slice = ((Buffer) dataBuffer).readOnlySlice(0, bufferHeader.getSize());
+        buffers.add(
+            new UnpackSlicedBuffer(
+                slice,
+                bufferHeader.getDataType(),
+                bufferHeader.isCompressed(),
+                bufferHeader.getSize()));
+
+        return buffers;
+      }
+
       Utils.checkState(byteBuf instanceof Buffer, "Illegal buffer type.");
 
       Buffer buffer = (Buffer) byteBuf;

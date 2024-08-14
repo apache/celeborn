@@ -49,8 +49,8 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
   }
 
   @Override
-  public void flush(boolean finalFlush, boolean fromEvict) throws IOException {
-    super.flush(finalFlush, fromEvict);
+  public void flush(boolean forceFlush, boolean finalFlush, boolean fromEvict) throws IOException {
+    super.flush(forceFlush, finalFlush, fromEvict);
     getCurrentFileInfo()
         .getReduceFileMeta()
         .updateChunkOffset(getCurrentFileInfo().getFileLength(), finalFlush);
