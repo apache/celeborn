@@ -28,6 +28,7 @@ import java.util.PriorityQueue;
 import java.util.Set;
 
 import org.apache.tez.runtime.api.ProgressFailedException;
+import org.apache.tez.runtime.library.common.shuffle.orderedgrouped.CelebornTezReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
@@ -61,7 +62,8 @@ public class CelebornOrderedGroupedMergedKVInput extends MergedLogicalInput {
    */
   @Override
   public KeyValuesReader getReader() throws Exception {
-    return new OrderedGroupedMergedKeyValuesReader(getInputs(), getContext());
+//    return new OrderedGroupedMergedKeyValuesReader(getInputs(), getContext());
+    CelebornTezReader
   }
 
   @Override
