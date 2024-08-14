@@ -173,6 +173,7 @@ message PbWorkerInfo {
   repeated PbDiskInfo disks = 6;
   map<string, PbResourceConsumption> userResourceConsumption = 7;
   int32 internalPort = 8;
+  string networkLocation = 9;
 }
 
 message PbFileGroup {

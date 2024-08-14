@@ -35,6 +35,12 @@ import org.apache.celeborn.common.util.{CollectionUtils => localCollectionUtils}
 
 object PbSerDeUtils {
 
+  private var masterPersistWorkerNetworkLocation: Boolean = false
+
+  def setMasterPersistWorkerNetworkLocation(masterPersistWorkerNetworkLocation: Boolean) = {
+    this.masterPersistWorkerNetworkLocation = masterPersistWorkerNetworkLocation
+  }
+
   @throws[InvalidProtocolBufferException]
   def fromPbSortedShuffleFileSet(data: Array[Byte]): util.Set[String] = {
     val pbSortedShuffleFileSet = PbSortedShuffleFileSet.parseFrom(data)
@@ -227,7 +233,7 @@ object PbSerDeUtils {
     }
     val userResourceConsumption =
       PbSerDeUtils.fromPbUserResourceConsumption(pbWorkerInfo.getUserResourceConsumptionMap)
-    new WorkerInfo(
+    val workerInfo = new WorkerInfo(
       pbWorkerInfo.getHost,
       pbWorkerInfo.getRpcPort,
       pbWorkerInfo.getPushPort,
@@ -236,6 +242,10 @@ object PbSerDeUtils {
       pbWorkerInfo.getInternalPort,
       disks,
       userResourceConsumption)
+    if (masterPersistWorkerNetworkLocation) {
+      workerInfo.networkLocation_$eq(pbWorkerInfo.getNetworkLocation)
+    }
+    workerInfo
   }
 
   def toPbWorkerInfo(
@@ -249,6 +259,10 @@ object PbSerDeUtils {
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
       .setInternalPort(workerInfo.internalPort)
+    if (masterPersistWorkerNetworkLocation) {
+      builder.setNetworkLocation(workerInfo.networkLocation)
+    }
+
     if (!eliminateUserResourceConsumption) {
       builder.putAllUserResourceConsumption(
         PbSerDeUtils.toPbUserResourceConsumption(workerInfo.userResourceConsumption))
