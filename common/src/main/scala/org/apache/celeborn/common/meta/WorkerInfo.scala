@@ -280,6 +280,7 @@ class WorkerInfo(
        |UserResourceConsumption: $userResourceConsumptionString
        |WorkerRef: $endpoint
        |WorkerStatus: $workerStatus
+       |NetworkLocation: $networkLocation
        |""".stripMargin
   }
 
