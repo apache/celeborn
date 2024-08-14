@@ -24,7 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.apache.celeborn.plugin.flink.network.TransportFrameDecoderWithBufferSupplier;
 import scala.Tuple2;
 import scala.reflect.ClassTag$;
 
@@ -68,6 +67,7 @@ import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushState;
 import org.apache.celeborn.plugin.flink.network.FlinkTransportClientFactory;
 import org.apache.celeborn.plugin.flink.network.ReadClientHandler;
+import org.apache.celeborn.plugin.flink.network.TransportFrameDecoderWithBufferSupplier;
 
 public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   public static final Logger logger = LoggerFactory.getLogger(FlinkShuffleClientImpl.class);

@@ -52,9 +52,12 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
   private boolean isReadingLargeBuffer = false;
   private ByteBuf largeBufferHeaderBuffer;
   public static int DISABLE_LARGE_BUFFER_SPLIT_SIZE = -1;
-  /** The flink buffer size bytes. If the received buffer size large than this value, means that
-   * we need to divide the received buffer into multiple smaller buffers, each small than {@link #bufferSizeBytes}.
-   * And when this value set to {@link #DISABLE_LARGE_BUFFER_SPLIT_SIZE}, indicates that large buffer splitting will not be checked. */
+  /**
+   * The flink buffer size bytes. If the received buffer size large than this value, means that we
+   * need to divide the received buffer into multiple smaller buffers, each small than {@link
+   * #bufferSizeBytes}. And when this value set to {@link #DISABLE_LARGE_BUFFER_SPLIT_SIZE},
+   * indicates that large buffer splitting will not be checked.
+   */
   private final int bufferSizeBytes;
 
   private final ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers;
