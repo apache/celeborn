@@ -1752,7 +1752,7 @@
         <module>tests/mr-it</module>
       </modules>
       <properties>
-        <tez.version>0.9.1</tez.version>
+        <tez.version>0.10.2</tez.version>
       </properties>
       <dependencyManagement>
         <dependencies>

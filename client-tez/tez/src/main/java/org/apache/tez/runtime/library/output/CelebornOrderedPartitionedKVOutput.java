@@ -166,6 +166,8 @@ public class CelebornOrderedPartitionedKVOutput extends AbstractLogicalOutput {
   @Override
   public synchronized KeyValuesWriter getWriter() throws IOException {
 
+    return null;
+
   }
 
   @Override
