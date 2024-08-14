@@ -19,9 +19,15 @@ package org.apache.celeborn.plugin.flink.readclient;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import javax.annotation.Nullable;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -36,6 +42,7 @@ import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
+import org.apache.celeborn.common.protocol.PbNotifyRequiredSegment;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbReadAddCredit;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
@@ -59,6 +66,7 @@ public class CelebornBufferStream {
   private Supplier<ByteBuf> bufferSupplier;
   private int initialCredit;
   private Consumer<RequestMessage> messageConsumer;
+  private Set<Long> allStreamIds = new HashSet<>();
 
   public CelebornBufferStream() {}
 
@@ -80,11 +88,13 @@ public class CelebornBufferStream {
   public void open(
       Supplier<ByteBuf> bufferSupplier,
       int initialCredit,
-      Consumer<RequestMessage> messageConsumer) {
+      Consumer<RequestMessage> messageConsumer,
+      @Nullable CompletableFuture<Boolean> openReaderFuture)
+      throws IOException, InterruptedException {
     this.bufferSupplier = bufferSupplier;
     this.initialCredit = initialCredit;
     this.messageConsumer = messageConsumer;
-    moveToNextPartitionIfPossible(0);
+    moveToNextPartitionIfPossible(0, openReaderFuture, (streamId, subPartitionId) -> {});
   }
 
   public void addCredit(PbReadAddCredit pbReadAddCredit) {
@@ -108,8 +118,29 @@ public class CelebornBufferStream {
         });
   }
 
+  public void updatePartitionLocations(PartitionLocation[] locations) {
+    this.locations = locations;
+  }
+
+  public void addCreditWithoutResponse(PbReadAddCredit pbReadAddCredit) {
+    this.client.sendRpc(
+        new TransportMessage(MessageType.READ_ADD_CREDIT, pbReadAddCredit.toByteArray())
+            .toByteBuffer());
+  }
+
+  public void notifyRequiredSegment(PbNotifyRequiredSegment pbNotifyRequiredSegment) {
+    this.client.sendRpc(
+        new TransportMessage(
+                MessageType.NOTIFY_REQUIRED_SEGMENT, pbNotifyRequiredSegment.toByteArray())
+            .toByteBuffer());
+  }
+
   public static CelebornBufferStream empty() {
     return EMPTY_CELEBORN_BUFFER_STREAM;
+  }
+
+  public static boolean isEmptyStream(CelebornBufferStream stream) {
+    return stream == null || stream == EMPTY_CELEBORN_BUFFER_STREAM;
   }
 
   public long getStreamId() {
@@ -159,12 +190,30 @@ public class CelebornBufferStream {
 
   public void close() {
     synchronized (lock) {
-      cleanStream(streamId);
+      if (isOpenSuccess) {
+        cleanStream(streamId);
+      }
       isClosed = true;
     }
   }
 
-  public void moveToNextPartitionIfPossible(long endedStreamId) {
+  public void closeAllStream() {
+    synchronized (lock) {
+      for (long streamId : allStreamIds) {
+        closeStream(streamId);
+        mapShuffleClient.getReadClientHandler().removeHandler(streamId);
+        clientFactory.unregisterSupplier(streamId);
+      }
+
+      isOpenSuccess = false;
+      isClosed = true;
+    }
+  }
+
+  public void moveToNextPartitionIfPossible(
+      long endedStreamId,
+      @Nullable CompletableFuture<Boolean> openReaderFuture,
+      BiConsumer<Long, Integer> requiredSegmentIdConsumer) {
     logger.debug(
         "MoveToNextPartitionIfPossible in this:{},  endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
         this,
@@ -172,13 +221,15 @@ public class CelebornBufferStream {
         currentLocationIndex.get(),
         streamId,
         locations.length);
+    isOpenSuccess = false;
     if (currentLocationIndex.get() > 0) {
       logger.debug("Get end streamId {}", endedStreamId);
       cleanStream(endedStreamId);
     }
+
     if (currentLocationIndex.get() < locations.length) {
       try {
-        openStreamInternal();
+        openStreamInternal(openReaderFuture, requiredSegmentIdConsumer);
         logger.debug(
             "MoveToNextPartitionIfPossible after openStream this:{},  endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
             this,
@@ -188,12 +239,22 @@ public class CelebornBufferStream {
             locations.length);
       } catch (Exception e) {
         logger.warn("Failed to open stream and report to flink framework. ", e);
+        if (openReaderFuture != null) {
+          openReaderFuture.complete(false);
+        }
         messageConsumer.accept(new TransportableError(0L, e));
+      }
+    } else {
+      if (openReaderFuture != null) {
+        openReaderFuture.complete(false);
       }
     }
   }
 
-  private void openStreamInternal() throws IOException, InterruptedException {
+  private void openStreamInternal(
+      @Nullable CompletableFuture<Boolean> openReaderFuture,
+      BiConsumer<Long, Integer> requiredSegmentIdConsumer)
+      throws IOException, InterruptedException {
     this.client =
         clientFactory.createClientWithRetry(
             locations[currentLocationIndex.get()].getHost(),
@@ -208,6 +269,7 @@ public class CelebornBufferStream {
                 .setStartIndex(subIndexStart)
                 .setEndIndex(subIndexEnd)
                 .setInitialCredit(initialCredit)
+                .setRequireSubpartitionId(true)
                 .build()
                 .toByteArray());
     client.sendRpc(
@@ -220,6 +282,7 @@ public class CelebornBufferStream {
               PbStreamHandler pbStreamHandler =
                   TransportMessage.fromByteBuffer(response).getParsedPayload();
               CelebornBufferStream.this.streamId = pbStreamHandler.getStreamId();
+              allStreamIds.add(pbStreamHandler.getStreamId());
               synchronized (lock) {
                 if (!isClosed) {
                   clientFactory.registerSupplier(
@@ -228,6 +291,14 @@ public class CelebornBufferStream {
                       .getReadClientHandler()
                       .registerHandler(streamId, messageConsumer, client);
                   isOpenSuccess = true;
+                  if (openReaderFuture != null) {
+                    openReaderFuture.complete(true);
+                    for (int subPartitionId = subIndexStart;
+                        subPartitionId <= subIndexEnd;
+                        subPartitionId++) {
+                      requiredSegmentIdConsumer.accept(streamId, subPartitionId);
+                    }
+                  }
                   logger.debug(
                       "open stream success from remote:{}, stream id:{}, fileName: {}",
                       client.getSocketAddress(),
@@ -240,6 +311,9 @@ public class CelebornBufferStream {
                       streamId,
                       fileName);
                   closeStream(streamId);
+                  if (openReaderFuture != null) {
+                    openReaderFuture.complete(false);
+                  }
                 }
               }
             } catch (Exception e) {
@@ -248,6 +322,9 @@ public class CelebornBufferStream {
                   fileName,
                   shuffleKey,
                   NettyUtils.getRemoteAddress(client.getChannel()));
+              if (openReaderFuture != null) {
+                openReaderFuture.complete(false);
+              }
               messageConsumer.accept(new TransportableError(streamId, e));
             }
           }
@@ -259,6 +336,9 @@ public class CelebornBufferStream {
                 fileName,
                 shuffleKey,
                 NettyUtils.getRemoteAddress(client.getChannel()));
+            if (openReaderFuture != null) {
+              openReaderFuture.complete(false);
+            }
             messageConsumer.accept(new TransportableError(streamId, e));
           }
         });
@@ -266,5 +346,9 @@ public class CelebornBufferStream {
 
   public TransportClient getClient() {
     return client;
+  }
+
+  public boolean isOpened() {
+    return isOpenSuccess;
   }
 }

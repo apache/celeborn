@@ -95,6 +95,19 @@ public class BufferQueue {
     memoryManager.recycleReadBuffer(buffer);
   }
 
+  public void recycleExtraBuffersToGlobalPool() {
+    synchronized (buffers) {
+      while (numBuffersOccupied.get() > localBuffersTarget) {
+        ByteBuf buffer = buffers.poll();
+        if (buffer != null) {
+          recycleToGlobalPool(buffer);
+        } else {
+          break;
+        }
+      }
+    }
+  }
+
   public void recycleToLocalPool(ByteBuf buffer) {
     buffer.clear();
     buffers.add(buffer);
@@ -148,9 +161,16 @@ public class BufferQueue {
     this.localBuffersTarget = localBuffersTarget;
   }
 
-  public void tryApplyNewBuffers(
+  public boolean tryApplyNewBuffers(
       int readerSize, int bufferSize, ReadBufferListener readBufferListener) {
-    if (readerSize != 0) {
+    // In flink hybrid shuffle, the downstream task may start and register stream early.
+    // In this case, the fileInfo.bufferSize of MapDataPartition is not initialized (default 0), it
+    // will update after when upstream task send "push data handshake".
+    // And when the fileInfo.bufferSize equal to 0, the `applyNewBuffers` method will result in
+    // netty create `EmptyByteBuf` instance and offer to this MapDataPartition.bufferQueue, cause
+    // `read buffer` method failed
+    // So we need to filter bufferSize > 0 here.
+    if (readerSize != 0 && bufferSize > 0) {
       synchronized (this) {
         int occupiedSnapshot = numBuffersOccupied.get();
         int pendingSnapShot = pendingRequestBuffers.get();
@@ -166,7 +186,9 @@ public class BufferQueue {
               new ReadBufferRequest(newBuffersCount, bufferSize, readBufferListener));
         }
       }
+      return true;
     }
+    return false;
   }
 
   public boolean bufferAvailable() {

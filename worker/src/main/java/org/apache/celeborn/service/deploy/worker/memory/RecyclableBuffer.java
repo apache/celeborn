@@ -23,10 +23,13 @@ public class RecyclableBuffer {
 
   public final ByteBuf byteBuf;
 
+  public final int subPartitionId;
+
   public final BufferRecycler bufferRecycler;
 
-  public RecyclableBuffer(ByteBuf byteBuf, BufferRecycler bufferRecycler) {
+  public RecyclableBuffer(ByteBuf byteBuf, int subPartitionId, BufferRecycler bufferRecycler) {
     this.byteBuf = byteBuf;
+    this.subPartitionId = subPartitionId;
     this.bufferRecycler = bufferRecycler;
   }
 

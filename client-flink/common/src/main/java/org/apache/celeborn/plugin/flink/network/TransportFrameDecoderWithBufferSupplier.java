@@ -23,6 +23,7 @@ import java.util.function.Supplier;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.CompositeByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.util.FrameDecoder;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
+import org.apache.celeborn.plugin.flink.protocol.SubPartitionReadData;
+import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 
 public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandlerAdapter
     implements FrameDecoder {
@@ -44,17 +47,31 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
   private final ByteBuf msgBuf = Unpooled.buffer(8);
   private Message curMsg = null;
   private int remainingSize = -1;
+  int totalReadBytes = 0;
+  private int largeBufferHeaderRemainingBytes = -1;
+  private boolean isReadingLargeBuffer = false;
+  private ByteBuf largeBufferHeaderBuffer;
+  public static int DISABLE_LARGE_BUFFER_SPLIT_SIZE = -1;
+  /**
+   * The flink buffer size bytes. If the received buffer size large than this value, means that we
+   * need to divide the received buffer into multiple smaller buffers, each small than {@link
+   * #bufferSizeBytes}. And when this value set to {@link #DISABLE_LARGE_BUFFER_SPLIT_SIZE},
+   * indicates that large buffer splitting will not be checked.
+   */
+  private final int bufferSizeBytes;
 
   private final ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers;
 
   public TransportFrameDecoderWithBufferSupplier(
-      ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers) {
+      ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers, int bufferSizeBytes) {
     this.bufferSuppliers = bufferSuppliers;
+    this.bufferSizeBytes = bufferSizeBytes;
   }
 
-  private void copyByteBuf(io.netty.buffer.ByteBuf source, ByteBuf target, int targetSize) {
+  private int copyByteBuf(io.netty.buffer.ByteBuf source, ByteBuf target, int targetSize) {
     int bytes = Math.min(source.readableBytes(), targetSize - target.readableBytes());
     target.writeBytes(source.readSlice(bytes).nioBuffer());
+    return bytes;
   }
 
   private void decodeHeader(io.netty.buffer.ByteBuf buf, ChannelHandlerContext ctx) {
@@ -69,6 +86,12 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
       // type byte is read
       headerBuf.readByte();
       bodySize = headerBuf.readInt();
+      if (bufferSizeBytes != DISABLE_LARGE_BUFFER_SPLIT_SIZE && bodySize > bufferSizeBytes) {
+        isReadingLargeBuffer = true;
+        largeBufferHeaderBuffer =
+            Unpooled.buffer(BufferUtils.HEADER_LENGTH, BufferUtils.HEADER_LENGTH);
+        largeBufferHeaderRemainingBytes = BufferUtils.HEADER_LENGTH;
+      }
       decodeMsg(buf, ctx);
     }
   }
@@ -123,8 +146,15 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
       return buf;
     }
 
-    ReadData readData = (ReadData) curMsg;
-    long streamId = readData.getStreamId();
+    long streamId;
+    if (curMsg instanceof ReadData) {
+      ReadData readData = (ReadData) curMsg;
+      streamId = readData.getStreamId();
+    } else {
+      SubPartitionReadData readData = (SubPartitionReadData) curMsg;
+      streamId = readData.getStreamId();
+    }
+
     if (externalBuf == null) {
       Supplier<ByteBuf> supplier = bufferSuppliers.get(streamId);
       if (supplier == null) {
@@ -138,9 +168,29 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
       }
     }
 
-    copyByteBuf(buf, externalBuf, bodySize);
-    if (externalBuf.readableBytes() == bodySize) {
-      ((ReadData) curMsg).setFlinkBuffer(externalBuf);
+    if (largeBufferHeaderRemainingBytes > 0) {
+      int headerReadBytes = copyByteBuf(buf, largeBufferHeaderBuffer, BufferUtils.HEADER_LENGTH);
+      largeBufferHeaderRemainingBytes -= headerReadBytes;
+      totalReadBytes += headerReadBytes;
+    } else {
+      totalReadBytes += copyByteBuf(buf, externalBuf, getTargetBufferReadSize());
+    }
+
+    if (totalReadBytes == bodySize) {
+      ByteBuf resultByteBuf;
+      if (largeBufferHeaderBuffer == null) {
+        resultByteBuf = externalBuf;
+      } else {
+        CompositeByteBuf compositeByteBuf = Unpooled.compositeBuffer();
+        compositeByteBuf.addComponent(true, largeBufferHeaderBuffer);
+        compositeByteBuf.addComponent(true, externalBuf);
+        resultByteBuf = compositeByteBuf;
+      }
+      if (curMsg instanceof ReadData) {
+        ((ReadData) curMsg).setFlinkBuffer(resultByteBuf);
+      } else {
+        ((SubPartitionReadData) curMsg).setFlinkBuffer(resultByteBuf);
+      }
       ctx.fireChannelRead(curMsg);
       clear();
     }
@@ -192,13 +242,24 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
     }
   }
 
+  private int getTargetBufferReadSize() {
+    if (isReadingLargeBuffer) {
+      return bodySize - BufferUtils.HEADER_LENGTH;
+    }
+    return bodySize;
+  }
+
   private void clear() {
+    totalReadBytes = 0;
     externalBuf = null;
     curMsg = null;
     curType = Message.Type.UNKNOWN_TYPE;
     headerBuf.clear();
     bodyBuf = null;
     bodySize = -1;
+    largeBufferHeaderRemainingBytes = -1;
+    largeBufferHeaderBuffer = null;
+    isReadingLargeBuffer = false;
     remainingSize = -1;
   }
 

@@ -21,6 +21,7 @@ import static org.apache.celeborn.common.util.JavaUtils.timeOutOrMeetCondition;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -78,27 +79,28 @@ public class CreditStreamManagerSuiteJ {
     DiskFileInfo diskFileInfo =
         new DiskFileInfo(
             createTemporaryFileWithIndexFile(), new UserIdentifier("default", "default"), conf);
-    MapFileMeta mapFileMeta = new MapFileMeta(1024, 10);
+    MapFileMeta mapFileMeta =
+        new MapFileMeta(1024, 10, false, Collections.emptyMap(), Collections.emptyList());
     diskFileInfo.replaceFileMeta(mapFileMeta);
     Consumer<Long> streamIdConsumer = streamId -> Assert.assertTrue(streamId > 0);
 
     String shuffleKey = "application_1694674023293_0003-0";
     long registerStream1 =
         creditStreamManager.registerStream(
-            streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo);
+            streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo, false);
     Assert.assertTrue(registerStream1 > 0);
     Assert.assertEquals(1, creditStreamManager.getStreamsCount());
 
     long registerStream2 =
         creditStreamManager.registerStream(
-            streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo);
+            streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo, false);
     Assert.assertNotEquals(registerStream1, registerStream2);
     Assert.assertEquals(2, creditStreamManager.getStreamsCount());
 
     creditStreamManager.registerStream(
-        streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo);
+        streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo, false);
     creditStreamManager.registerStream(
-        streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo);
+        streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo, false);
 
     MapPartitionData mapPartitionData1 =
         creditStreamManager.getStreams().get(registerStream1).getMapDataPartition();

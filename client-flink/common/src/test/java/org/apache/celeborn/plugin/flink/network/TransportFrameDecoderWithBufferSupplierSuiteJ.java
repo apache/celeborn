@@ -37,6 +37,7 @@ import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.ReadData;
 import org.apache.celeborn.common.network.protocol.RpcRequest;
+import org.apache.celeborn.common.network.protocol.SubPartitionReadData;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbBacklogAnnouncement;
@@ -60,7 +61,7 @@ public class TransportFrameDecoderWithBufferSupplierSuiteJ {
         });
 
     TransportFrameDecoderWithBufferSupplier decoder =
-        new TransportFrameDecoderWithBufferSupplier(supplier);
+        new TransportFrameDecoderWithBufferSupplier(supplier, 32 * 1024);
     ChannelHandlerContext context = Mockito.mock(ChannelHandlerContext.class);
 
     RpcRequest announcement = createBacklogAnnouncement(0, 0);
@@ -69,6 +70,70 @@ public class TransportFrameDecoderWithBufferSupplierSuiteJ {
     RpcRequest announcement1 = createBacklogAnnouncement(0, 0);
     ReadData unUsedReadData1 = new ReadData(1, generateData(1024));
     ReadData readData1 = new ReadData(2, generateData(8));
+
+    ByteBuf buffer = Unpooled.buffer(5000);
+    encodeMessage(announcement, buffer);
+    encodeMessage(unUsedReadData, buffer);
+    encodeMessage(readData, buffer);
+    encodeMessage(announcement1, buffer);
+    encodeMessage(unUsedReadData1, buffer);
+    encodeMessage(readData1, buffer);
+
+    // simulate
+    buffer.retain();
+    decoder.channelRead(context, buffer);
+    Assert.assertEquals(buffers.get(0).nioBuffer(), readData.body().nioByteBuffer());
+    Assert.assertEquals(buffers.get(1).nioBuffer(), readData1.body().nioByteBuffer());
+
+    // simulate 1 - split the unUsedReadData buffer
+    buffer.retain();
+    buffer.resetReaderIndex();
+    decoder.channelRead(context, buffer.retainedSlice(0, 555));
+    ByteBuf byteBuf = buffer.retainedSlice(0, buffer.readableBytes());
+    byteBuf.readerIndex(555);
+    decoder.channelRead(context, byteBuf);
+
+    Assert.assertEquals(buffers.get(2).nioBuffer(), readData.body().nioByteBuffer());
+    Assert.assertEquals(buffers.get(3).nioBuffer(), readData1.body().nioByteBuffer());
+
+    // simulate 2 - split the readData buffer
+    buffer.retain();
+    buffer.resetReaderIndex();
+    decoder.channelRead(context, buffer.retainedSlice(0, 1500));
+    byteBuf = buffer.retainedSlice(0, buffer.readableBytes());
+    byteBuf.readerIndex(1500);
+    decoder.channelRead(context, byteBuf);
+
+    Assert.assertEquals(buffers.get(4).nioBuffer(), readData.body().nioByteBuffer());
+    Assert.assertEquals(buffers.get(5).nioBuffer(), readData1.body().nioByteBuffer());
+    Assert.assertEquals(buffers.size(), 6);
+  }
+
+  @Test
+  public void testSubPartitionReadDataDropUnusedBytes() throws IOException {
+    ConcurrentHashMap<Long, Supplier<org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf>>
+        supplier = JavaUtils.newConcurrentHashMap();
+    List<org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf> buffers = new ArrayList<>();
+
+    supplier.put(
+        2L,
+        () -> {
+          org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf buffer =
+              org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled.buffer(32000);
+          buffers.add(buffer);
+          return buffer;
+        });
+
+    TransportFrameDecoderWithBufferSupplier decoder =
+        new TransportFrameDecoderWithBufferSupplier(supplier, 32 * 1024);
+    ChannelHandlerContext context = Mockito.mock(ChannelHandlerContext.class);
+
+    RpcRequest announcement = createBacklogAnnouncement(0, 0);
+    SubPartitionReadData unUsedReadData = new SubPartitionReadData(1, 0, generateData(1024));
+    SubPartitionReadData readData = new SubPartitionReadData(2, 0, generateData(1024));
+    RpcRequest announcement1 = createBacklogAnnouncement(0, 0);
+    SubPartitionReadData unUsedReadData1 = new SubPartitionReadData(1, 0, generateData(1024));
+    SubPartitionReadData readData1 = new SubPartitionReadData(2, 0, generateData(8));
 
     ByteBuf buffer = Unpooled.buffer(5000);
     encodeMessage(announcement, buffer);
