@@ -55,6 +55,7 @@ import org.apache.celeborn.common.protocol.PbPartitionLocation.Mode;
 import org.apache.celeborn.common.protocol.PbPushDataHandShake;
 import org.apache.celeborn.common.protocol.PbRegionFinish;
 import org.apache.celeborn.common.protocol.PbRegionStart;
+import org.apache.celeborn.common.protocol.PbSegmentStart;
 import org.apache.celeborn.common.protocol.ReviveRequest;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
@@ -66,6 +67,7 @@ import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushState;
 import org.apache.celeborn.plugin.flink.network.FlinkTransportClientFactory;
 import org.apache.celeborn.plugin.flink.network.ReadClientHandler;
+import org.apache.celeborn.plugin.flink.network.TransportFrameDecoderWithBufferSupplier;
 
 public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   public static final Logger logger = LoggerFactory.getLogger(FlinkShuffleClientImpl.class);
@@ -79,6 +81,9 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
 
   private final TransportContext context;
 
+  /** The buffer size bytes in flink, default value is 32KB. */
+  private final int bufferSizeBytes;
+
   public static FlinkShuffleClientImpl get(
       String appUniqueId,
       String driverHost,
@@ -87,18 +92,49 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       CelebornConf conf,
       UserIdentifier userIdentifier)
       throws DriverChangedException {
+    return get(
+        appUniqueId,
+        driverHost,
+        port,
+        driverTimestamp,
+        conf,
+        userIdentifier,
+        TransportFrameDecoderWithBufferSupplier.DISABLE_LARGE_BUFFER_SPLIT_SIZE);
+  }
+
+  public static FlinkShuffleClientImpl get(
+      String appUniqueId,
+      String driverHost,
+      int port,
+      long driverTimestamp,
+      CelebornConf conf,
+      UserIdentifier userIdentifier,
+      int bufferSizeBytes)
+      throws DriverChangedException {
     if (null == _instance || !initialized || _instance.driverTimestamp < driverTimestamp) {
       synchronized (FlinkShuffleClientImpl.class) {
         if (null == _instance) {
           _instance =
               new FlinkShuffleClientImpl(
-                  appUniqueId, driverHost, port, driverTimestamp, conf, userIdentifier);
+                  appUniqueId,
+                  driverHost,
+                  port,
+                  driverTimestamp,
+                  conf,
+                  userIdentifier,
+                  bufferSizeBytes);
           initialized = true;
         } else if (!initialized || _instance.driverTimestamp < driverTimestamp) {
           _instance.shutdown();
           _instance =
               new FlinkShuffleClientImpl(
-                  appUniqueId, driverHost, port, driverTimestamp, conf, userIdentifier);
+                  appUniqueId,
+                  driverHost,
+                  port,
+                  driverTimestamp,
+                  conf,
+                  userIdentifier,
+                  bufferSizeBytes);
           initialized = true;
         }
       }
@@ -131,8 +167,10 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       int port,
       long driverTimestamp,
       CelebornConf conf,
-      UserIdentifier userIdentifier) {
+      UserIdentifier userIdentifier,
+      int bufferSizeBytes) {
     super(appUniqueId, conf, userIdentifier);
+    this.bufferSizeBytes = bufferSizeBytes;
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
         Utils.fromCelebornConf(conf, module, conf.getInt("celeborn." + module + ".io.threads", 8));
@@ -147,7 +185,10 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     if (null == flinkTransportClientFactory) {
       flinkTransportClientFactory =
           new FlinkTransportClientFactory(
-              context, conf.clientFetchMaxRetriesForEachReplica(), createBootstraps());
+              context,
+              conf.clientFetchMaxRetriesForEachReplica(),
+              createBootstraps(),
+              bufferSizeBytes);
     }
   }
 
@@ -164,17 +205,19 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   }
 
   public CelebornBufferStream readBufferedPartition(
-      int shuffleId, int partitionId, int subPartitionIndexStart, int subPartitionIndexEnd)
+      int shuffleId,
+      int partitionId,
+      int subPartitionIndexStart,
+      int subPartitionIndexEnd,
+      boolean hasSegments)
       throws IOException {
     String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
-    ReduceFileGroups fileGroups = updateFileGroup(shuffleId, partitionId);
-    if (fileGroups.partitionGroups.size() == 0
-        || !fileGroups.partitionGroups.containsKey(partitionId)) {
+    PartitionLocation[] partitionLocations =
+        updateFileGroupAndGetLocations(shuffleId, partitionId, hasSegments);
+    if (partitionLocations == null || partitionLocations.length == 0) {
       logger.error("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
       throw new PartitionUnRetryAbleException(partitionId + " may be lost.");
     } else {
-      PartitionLocation[] partitionLocations =
-          fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]);
       Arrays.sort(partitionLocations, Comparator.comparingInt(PartitionLocation::getEpoch));
       logger.debug(
           "readBufferedPartition shuffleKey:{} partitionid:{} partitionLocation:{}",
@@ -193,8 +236,41 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     }
   }
 
+  public void removeFileGroup(int shuffleId) {
+    reduceFileGroupsMap.remove(shuffleId);
+  }
+
+  public PartitionLocation[] updateFileGroupAndGetLocations(
+      int shuffleId, int partitionId, boolean hasSegments) throws IOException {
+    ReduceFileGroups fileGroups = updateFileGroup(shuffleId, partitionId, hasSegments);
+    if (fileGroups == null
+        || fileGroups.partitionGroups.size() == 0
+        || !fileGroups.partitionGroups.containsKey(partitionId)) {
+      // To use the CelebornBufferStream when no data is written, we also return an empty stream
+      // and when calling RPC, e.g., notify segment id, then we can ignore the RPC according to
+      // whether the shuffleId is empty or not.
+      logger.warn(
+          "Shuffle data is empty for shuffle {} partitionId {} hasSegments {}.",
+          shuffleId,
+          partitionId,
+          hasSegments);
+      return new PartitionLocation[0];
+    } else {
+      PartitionLocation[] partitionLocations =
+          fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]);
+      Arrays.sort(partitionLocations, Comparator.comparingInt(PartitionLocation::getEpoch));
+      logger.debug(
+          "readBufferedPartition shuffleId:{} partitionid:{} partitionLocation:{}, loc num: {}",
+          shuffleId,
+          partitionId,
+          partitionLocations,
+          partitionLocations.length);
+      return partitionLocations;
+    }
+  }
+
   @Override
-  public ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
+  public ReduceFileGroups updateFileGroup(int shuffleId, int partitionId, boolean hasSegments)
       throws CelebornIOException {
     ReduceFileGroups reduceFileGroups =
         reduceFileGroupsMap.computeIfAbsent(
@@ -213,7 +289,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
               Utils.makeReducerKey(shuffleId, partitionId));
         } else {
           // refresh file groups
-          Tuple2<ReduceFileGroups, String> fileGroups = loadFileGroupInternal(shuffleId);
+          Tuple2<ReduceFileGroups, String> fileGroups =
+              loadFileGroupInternal(shuffleId, hasSegments);
           ReduceFileGroups newGroups = fileGroups._1;
           if (newGroups == null) {
             throw new CelebornIOException(
@@ -406,7 +483,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     return retrySendMessage(
         () -> {
           String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
-          logger.info(
+          logger.debug(
               "RegionStart for shuffle {} regionId {} attemptId {} locationId {}.",
               shuffleId,
               currentRegionIdx,
@@ -492,7 +569,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     retrySendMessage(
         () -> {
           final String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
-          logger.info(
+          logger.debug(
               "RegionFinish for shuffle {} map {} attemptId {} locationId {}.",
               shuffleId,
               mapId,
@@ -508,6 +585,45 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                           .setShuffleKey(shuffleKey)
                           .setPartitionUniqueId(location.getUniqueId())
                           .setAttemptId(attemptId)
+                          .build()
+                          .toByteArray())
+                  .toByteBuffer(),
+              conf.pushDataTimeoutMs());
+          return null;
+        });
+  }
+
+  public void segmentStart(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int subPartitionId,
+      int segmentId,
+      PartitionLocation location)
+      throws IOException {
+    final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+    final PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
+    retrySendMessage(
+        () -> {
+          final String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
+          logger.debug(
+              "SegmentStart for shuffle {} map {} attemptId {} locationId {}.",
+              shuffleId,
+              mapId,
+              attemptId,
+              location.getUniqueId());
+          logger.debug("SegmentStart for location {}.", location);
+          TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
+          client.sendRpcSync(
+              new TransportMessage(
+                      MessageType.SEGMENT_START,
+                      PbSegmentStart.newBuilder()
+                          .setMode(Mode.forNumber(PRIMARY_MODE))
+                          .setShuffleKey(shuffleKey)
+                          .setPartitionUniqueId(location.getUniqueId())
+                          .setAttemptId(attemptId)
+                          .setSubPartitionId(subPartitionId)
+                          .setSegmentId(segmentId)
                           .build()
                           .toByteArray())
                   .toByteBuffer(),
