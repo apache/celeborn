@@ -92,6 +92,10 @@ class DiskInfo(
     this.storageType = storageType
   }
 
+  def setConfiguredUsableSpace(configuredUsableSpace : Long): Unit = {
+    this.configuredUsableSpace = configuredUsableSpace
+  }
+
   def setStatus(status: DiskStatus): this.type = this.synchronized {
     this.status = status
     this

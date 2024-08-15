@@ -24,16 +24,13 @@ import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import java.util.function.{BiConsumer, IntUnaryOperator}
-
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-
 import com.google.common.annotations.VisibleForTesting
 import io.netty.buffer.PooledByteBufAllocator
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
@@ -69,6 +66,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val hasHDFSStorage = conf.hasHDFSStorage
 
   val hasS3Storage = conf.hasS3Storage
+
+  val diskReserveSize = conf.workerDiskReserveSize
 
   val storageExpireDirTimeout = conf.workerStorageExpireDirTimeout
   val storagePolicy = new StoragePolicy(conf, this, workerSource)
@@ -840,28 +839,34 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def updateDiskInfos(): Unit = this.synchronized {
-    disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { diskInfo =>
-      val totalUsage = diskInfo.dirs.map { dir =>
-        val writers = workingDirWriters.get(dir)
-        if (writers != null) {
-          writers.synchronized {
-            writers.values.asScala.map(_.getDiskFileInfo.getFileLength).sum
-          }
-        } else {
-          0
+        disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { diskInfo =>
+          val totalUsage = diskInfo.dirs.map { dir =>
+            val writers = workingDirWriters.get(dir)
+            if (writers != null) {
+              writers.synchronized {
+                writers.values.asScala.map(_.getDiskFileInfo.getFileLength).sum
+              }
+            } else {
+              0
+            }
+          }.sum
+          val fileSystemReportedUsableSpace = getFileSystemReportedUsableSpace(diskInfo.mountPoint)
+          val workingDirUsableSpace =
+            Math.min(diskInfo.configuredUsableSpace - totalUsage, fileSystemReportedUsableSpace)
+          val usableSpace = workingDirUsableSpace - diskReserveSize
+          logDebug(s"updateDiskInfos  workingDirUsableSpace:$workingDirUsableSpace" +
+            s"fileMeta:$fileSystemReportedUsableSpace conf:${diskInfo.configuredUsableSpace}" +
+            s"totalUsage:$totalUsage usableSpace: ${usableSpace}")
+          diskInfo.setUsableSpace(usableSpace)
+          diskInfo.setTotalSpace(totalUsage + workingDirUsableSpace)
+          diskInfo.updateFlushTime()
+          diskInfo.updateFetchTime()
         }
-      }.sum
-      val fileSystemReportedUsableSpace = Files.getFileStore(
-        Paths.get(diskInfo.mountPoint)).getUsableSpace
-      val workingDirUsableSpace =
-        Math.min(diskInfo.configuredUsableSpace - totalUsage, fileSystemReportedUsableSpace)
-      logDebug(s"updateDiskInfos  workingDirUsableSpace:$workingDirUsableSpace filemeta:$fileSystemReportedUsableSpace conf:${diskInfo.configuredUsableSpace} totalUsage:$totalUsage")
-      diskInfo.setUsableSpace(workingDirUsableSpace)
-      diskInfo.setTotalSpace(totalUsage + workingDirUsableSpace)
-      diskInfo.updateFlushTime()
-      diskInfo.updateFetchTime()
-    }
-    logInfo(s"Updated diskInfos:\n${disksSnapshot().mkString("\n")}")
+        logInfo(s"Updated diskInfos:\n${disksSnapshot().mkString("\n")}")
+  }
+
+  def getFileSystemReportedUsableSpace(mountPoint : String): Long = {
+    Files.getFileStore(Paths.get(mountPoint)).getUsableSpace
   }
 
   def userResourceConsumptionSnapshot(): Map[UserIdentifier, ResourceConsumption] = {
