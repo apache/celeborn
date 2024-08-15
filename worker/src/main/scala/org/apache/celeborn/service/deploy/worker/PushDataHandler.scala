@@ -26,13 +26,12 @@ import scala.concurrent.{Await, Promise}
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
-import com.google.common.base.Throwables
 import com.google.protobuf.GeneratedMessageV3
 import io.netty.buffer.ByteBuf
 
 import org.apache.celeborn.common.exception.{AlreadyClosedException, CelebornIOException}
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskFileInfo, DiskStatus, WorkerInfo, WorkerPartitionLocationInfo}
+import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.source.Source
 import org.apache.celeborn.common.network.buffer.{NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient, TransportClientFactory}

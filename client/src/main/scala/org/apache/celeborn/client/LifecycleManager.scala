@@ -237,8 +237,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   override def onStop(): Unit = {
-    import scala.concurrent.duration._
-
     checkForShuffleRemoval.cancel(true)
     ThreadUtils.shutdown(forwardMessageThread)
 

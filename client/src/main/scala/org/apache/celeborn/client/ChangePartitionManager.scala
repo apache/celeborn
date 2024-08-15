@@ -29,7 +29,7 @@ import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
 case class ChangePartitionRequest(
     context: RequestLocationCallContext,

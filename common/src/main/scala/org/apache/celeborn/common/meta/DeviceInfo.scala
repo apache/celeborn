@@ -19,7 +19,6 @@ package org.apache.celeborn.common.meta
 
 import java.io.File
 import java.util
-import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer

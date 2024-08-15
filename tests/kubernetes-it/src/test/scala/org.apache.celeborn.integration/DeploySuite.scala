@@ -24,7 +24,6 @@ import org.scalatest.concurrent.Waiters.{interval, timeout}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 import org.apache.celeborn.CelebornFunSuite
-import org.apache.celeborn.client.WithShuffleClientSuite
 
 // TODO need add shuffle client test
 class DeploySuite extends CelebornFunSuite with WithMiniKube {
