@@ -258,7 +258,7 @@ function sbt_build_service {
   echo "Build flags: $@" >> "$DIST_DIR/RELEASE"
 
   if [[ $@ == *"hadoop-aws"* ]]; then
-    export SBT_MAVEN_PROFILES="hadoop-aws"
+     SBT_MAVEN_PROFILES="hadoop-aws"
   fi
   BUILD_COMMAND=("$SBT" clean package)
 
