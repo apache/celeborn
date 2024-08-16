@@ -347,10 +347,27 @@ public class RatisMasterStatusSystemSuiteJ {
         getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(STATUSSYSTEM1.workers.size(), 3);
     Assert.assertEquals(3, STATUSSYSTEM1.workers.size());
     Assert.assertEquals(3, STATUSSYSTEM2.workers.size());
     Assert.assertEquals(3, STATUSSYSTEM3.workers.size());
+
+    assertWorkers(STATUSSYSTEM1.workers);
+    assertWorkers(STATUSSYSTEM2.workers);
+    assertWorkers(STATUSSYSTEM3.workers);
+  }
+
+  private void assertWorkers(Set<WorkerInfo> workerInfos) {
+    for (WorkerInfo workerInfo : workerInfos) {
+      assertWorker(workerInfo);
+    }
+  }
+
+  private void assertWorker(WorkerInfo workerInfo) {
+    Map<String, DiskInfo> diskInfos = workerInfo.diskInfos();
+    Assert.assertEquals(96 * 1024 * 1024 * 1024L, diskInfos.get("disk1").totalSpace());
+    Assert.assertEquals(96 * 1024 * 1024 * 1024L, diskInfos.get("disk2").totalSpace());
+    Assert.assertEquals(96 * 1024 * 1024 * 1024L, diskInfos.get("disk3").totalSpace());
+    Assert.assertEquals(96 * 1024 * 1024 * 1024L, diskInfos.get("disk4").totalSpace());
   }
 
   @Test
@@ -994,22 +1011,58 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM3.workerLostEvents.clear();
 
     disks1.clear();
-    disks1.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
-    disks1.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
-    disks1.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
-    disks1.put("disk4", new DiskInfo("disk4", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
+    disks1.put(
+        "disk1",
+        new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 100, 0)
+            .setTotalSpace(96 * 1024 * 1024 * 1024L));
+    disks1.put(
+        "disk2",
+        new DiskInfo("disk2", 64 * 1024 * 1024 * 1024L, 100, 100, 0)
+            .setTotalSpace(96 * 1024 * 1024 * 1024L));
+    disks1.put(
+        "disk3",
+        new DiskInfo("disk3", 64 * 1024 * 1024 * 1024L, 100, 100, 0)
+            .setTotalSpace(96 * 1024 * 1024 * 1024L));
+    disks1.put(
+        "disk4",
+        new DiskInfo("disk4", 64 * 1024 * 1024 * 1024L, 100, 100, 0)
+            .setTotalSpace(96 * 1024 * 1024 * 1024L));
 
     disks2.clear();
-    disks2.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
-    disks2.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
-    disks2.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
-    disks2.put("disk4", new DiskInfo("disk4", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
+    disks2.put(
+        "disk1",
+        new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 100, 0)
+            .setTotalSpace(96 * 1024 * 1024 * 1024L));
+    disks2.put(
+        "disk2",
+        new DiskInfo("disk2", 64 * 1024 * 1024 * 1024L, 100, 100, 0)
+            .setTotalSpace(96 * 1024 * 1024 * 1024L));
+    disks2.put(
+        "disk3",
+        new DiskInfo("disk3", 64 * 1024 * 1024 * 1024L, 100, 100, 0)
+            .setTotalSpace(96 * 1024 * 1024 * 1024L));
+    disks2.put(
+        "disk4",
+        new DiskInfo("disk4", 64 * 1024 * 1024 * 1024L, 100, 100, 0)
+            .setTotalSpace(96 * 1024 * 1024 * 1024L));
 
     disks3.clear();
-    disks3.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
-    disks3.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
-    disks3.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
-    disks3.put("disk4", new DiskInfo("disk4", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
+    disks3.put(
+        "disk1",
+        new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 100, 0)
+            .setTotalSpace(96 * 1024 * 1024 * 1024L));
+    disks3.put(
+        "disk2",
+        new DiskInfo("disk2", 64 * 1024 * 1024 * 1024L, 100, 100, 0)
+            .setTotalSpace(96 * 1024 * 1024 * 1024L));
+    disks3.put(
+        "disk3",
+        new DiskInfo("disk3", 64 * 1024 * 1024 * 1024L, 100, 100, 0)
+            .setTotalSpace(96 * 1024 * 1024 * 1024L));
+    disks3.put(
+        "disk4",
+        new DiskInfo("disk4", 64 * 1024 * 1024 * 1024L, 100, 100, 0)
+            .setTotalSpace(96 * 1024 * 1024 * 1024L));
   }
 
   @Test
