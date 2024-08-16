@@ -667,6 +667,34 @@ public abstract class CelebornInputStream extends InputStream {
         }
 
         return hasData;
+      } catch (LZ4Exception | ZstdException | IOException e) {
+        logger.error(
+            "Failed to fill buffer from chunk. AppShuffleId {}, shuffleId {}, partitionId {}, location {}",
+            appShuffleId,
+            shuffleId,
+            partitionId,
+            currentReader.getLocation(),
+            e);
+        IOException ioe;
+        if (e instanceof IOException) {
+          ioe = (IOException) e;
+        } else {
+          ioe = new IOException(e);
+        }
+        if (exceptionMaker != null) {
+          if (shuffleClient.reportShuffleFetchFailure(appShuffleId, shuffleId)) {
+            /*
+             * [[ExceptionMaker.makeException]], for spark applications with celeborn.client.spark.fetch.throwsFetchFailure enabled will result in creating
+             * a FetchFailedException; and that will make the TaskContext as failed with shuffle fetch issues - see SPARK-19276 for more.
+             * Given this, Celeborn can wrap the FetchFailedException with our CelebornIOException
+             */
+            ioe =
+                new CelebornIOException(
+                    exceptionMaker.makeFetchFailureException(
+                        appShuffleId, shuffleId, partitionId, e));
+          }
+        }
+        throw ioe;
       } catch (Exception e) {
         logger.error(
             "Failed to fill buffer from chunk. AppShuffleId {}, shuffleId {}, partitionId {}, location {}",
@@ -675,30 +703,7 @@ public abstract class CelebornInputStream extends InputStream {
             partitionId,
             currentReader.getLocation(),
             e);
-
-        Exception ex = e;
-        if (e instanceof LZ4Exception || e instanceof ZstdException) {
-          ex = new IOException(e);
-        }
-        if (ex instanceof IOException) {
-          IOException ioe = (IOException) ex;
-          if (exceptionMaker != null) {
-            if (shuffleClient.reportShuffleFetchFailure(appShuffleId, shuffleId)) {
-              /*
-               * [[ExceptionMaker.makeException]], for spark applications with celeborn.client.spark.fetch.throwsFetchFailure enabled will result in creating
-               * a FetchFailedException; and that will make the TaskContext as failed with shuffle fetch issues - see SPARK-19276 for more.
-               * Given this, Celeborn can wrap the FetchFailedException with our CelebornIOException
-               */
-              ioe =
-                  new CelebornIOException(
-                      exceptionMaker.makeFetchFailureException(
-                          appShuffleId, shuffleId, partitionId, e));
-            }
-          }
-          throw ioe;
-        } else {
-          throw e;
-        }
+        throw e;
       }
     }
 
