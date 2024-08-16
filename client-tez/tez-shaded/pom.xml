@@ -56,16 +56,8 @@
               <shadedPattern>${shading.prefix}.io.netty</shadedPattern>
             </relocation>
             <relocation>
-              <pattern>org.apache.commons</pattern>
-              <shadedPattern>${shading.prefix}.org.apache.commons</shadedPattern>
-            </relocation>
-            <relocation>
               <pattern>org.scala-lang</pattern>
               <shadedPattern>${shading.prefix}.org.scala-lang</shadedPattern>
-            </relocation>
-            <relocation>
-              <pattern>org.lz4</pattern>
-              <shadedPattern>${shading.prefix}.org.lz4</shadedPattern>
             </relocation>
             <relocation>
               <pattern>org.roaringbitmap</pattern>

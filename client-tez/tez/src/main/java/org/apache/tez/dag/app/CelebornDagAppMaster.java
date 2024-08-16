@@ -57,6 +57,24 @@ import org.apache.tez.runtime.library.input.CelebornOrderedGroupedKVInput;
 import org.apache.tez.runtime.library.input.OrderedGroupedKVInput;
 import org.apache.tez.runtime.library.output.CelebornOrderedPartitionedKVOutput;
 import org.apache.tez.runtime.library.output.OrderedPartitionedKVOutput;
+import org.apache.tez.runtime.library.input.CelebornConcatenatedMergedKeyValueInput;
+import org.apache.tez.runtime.library.input.CelebornConcatenatedMergedKeyValuesInput;
+import org.apache.tez.runtime.library.input.CelebornOrderedGroupedInputLegacy;
+import org.apache.tez.runtime.library.input.CelebornOrderedGroupedKVInput;
+import org.apache.tez.runtime.library.input.CelebornOrderedGroupedMergedKVInput;
+import org.apache.tez.runtime.library.input.CelebornUnorderedKVInput;
+import org.apache.tez.runtime.library.input.ConcatenatedMergedKeyValueInput;
+import org.apache.tez.runtime.library.input.ConcatenatedMergedKeyValuesInput;
+import org.apache.tez.runtime.library.input.OrderedGroupedInputLegacy;
+import org.apache.tez.runtime.library.input.OrderedGroupedKVInput;
+import org.apache.tez.runtime.library.input.OrderedGroupedMergedKVInput;
+import org.apache.tez.runtime.library.input.UnorderedKVInput;
+import org.apache.tez.runtime.library.output.CelebornOrderedPartitionedKVOutput;
+import org.apache.tez.runtime.library.output.CelebornUnorderedKVOutput;
+import org.apache.tez.runtime.library.output.CelebornUnorderedPartitionedKVOutput;
+import org.apache.tez.runtime.library.output.OrderedPartitionedKVOutput;
+import org.apache.tez.runtime.library.output.UnorderedKVOutput;
+import org.apache.tez.runtime.library.output.UnorderedPartitionedKVOutput;
 import org.apache.tez.state.OnStateChangedCallback;
 import org.apache.tez.state.StateMachineTez;
 import org.slf4j.Logger;
@@ -221,13 +239,24 @@ public class CelebornDagAppMaster extends DAGAppMaster {
 
   private static String getNewOutputClassName(
       EdgeProperty.DataMovementType movementType, String oldClassName) {
-    // TODO: Implement real logic here
-    if (oldClassName.equals(OrderedPartitionedKVOutput.class.getName())) {
+    if (CelebornOrderedPartitionedKVOutput.class.getName().equals(oldClassName)) {
       Logger.info(
           "Output class name will transient from {} to {}",
           oldClassName,
           CelebornOrderedPartitionedKVOutput.class.getName());
       return CelebornOrderedPartitionedKVOutput.class.getName();
+    } else if (CelebornUnorderedPartitionedKVOutput.class.getName().equals(oldClassName)) {
+      Logger.info(
+              "Output class name will transient from {} to {}",
+              oldClassName,
+              CelebornUnorderedPartitionedKVOutput.class.getName());
+      return CelebornUnorderedPartitionedKVOutput.class.getName();
+    } else if (CelebornUnorderedKVOutput.class.getName().equals(oldClassName)) {
+      Logger.info(
+          "Output class name will transient from {} to {}",
+          oldClassName,
+          CelebornUnorderedKVOutput.class.getName());
+      return CelebornUnorderedKVOutput.class.getName();
     } else {
       Logger.info("Unexpected kv output class name {}.", oldClassName);
       return oldClassName;
@@ -242,6 +271,36 @@ public class CelebornDagAppMaster extends DAGAppMaster {
           oldClassName,
           CelebornOrderedGroupedKVInput.class.getName());
       return CelebornOrderedGroupedKVInput.class.getName();
+    } else if (oldClassName.equals(OrderedGroupedMergedKVInput.class.getName())) {
+      Logger.info(
+          "Input class name will transient from {} to {}",
+          oldClassName,
+          CelebornOrderedGroupedMergedKVInput.class.getName());
+      return CelebornOrderedGroupedMergedKVInput.class.getName();
+    } else if (oldClassName.equals(OrderedGroupedInputLegacy.class.getName())) {
+      Logger.info(
+          "Input class name will transient from {} to {}",
+          oldClassName,
+          CelebornOrderedGroupedInputLegacy.class.getName());
+      return CelebornOrderedGroupedInputLegacy.class.getName();
+    } else if (oldClassName.equals(UnorderedKVInput.class.getName())) {
+      Logger.info(
+          "Input class name will transient from {} to {}",
+          oldClassName,
+          CelebornUnorderedKVInput.class.getName());
+      return CelebornUnorderedKVInput.class.getName();
+    } else if (oldClassName.equals(ConcatenatedMergedKeyValueInput.class.getName())) {
+      Logger.info(
+          "Input class name will transient from {} to {}",
+          oldClassName,
+          CelebornConcatenatedMergedKeyValueInput.class.getName());
+      return CelebornConcatenatedMergedKeyValueInput.class.getName();
+    } else if (oldClassName.equals(ConcatenatedMergedKeyValuesInput.class.getName())) {
+      Logger.info(
+          "Input class name will transient from {} to {}",
+          oldClassName,
+          CelebornConcatenatedMergedKeyValuesInput.class.getName());
+      return CelebornConcatenatedMergedKeyValuesInput.class.getName();
     } else {
       Logger.info("Unexpected kv input class name {}.", oldClassName);
       return oldClassName;
@@ -309,32 +368,34 @@ public class CelebornDagAppMaster extends DAGAppMaster {
           System.getenv(ApplicationConstants.Environment.LOCAL_DIRS.name()),
           System.getenv(ApplicationConstants.Environment.LOG_DIRS.name()));
 
-      // disable tez slow start
       Configuration conf = new Configuration(new YarnConfiguration());
+
+      DAGProtos.ConfigurationProto confProto =
+              TezUtilsInternal.readUserSpecifiedTezConfiguration(
+                      System.getenv(ApplicationConstants.Environment.PWD.name()));
+      TezUtilsInternal.addUserSpecifiedTezConfiguration(conf, confProto.getConfKeyValuesList());
+
+      DAGProtos.AMPluginDescriptorProto amPluginDescriptorProto = null;
+      if (confProto.hasAmPluginDescriptor()) {
+        amPluginDescriptorProto = confProto.getAmPluginDescriptor();
+      }
+
+      // disable tez slow start
       conf.setFloat(ShuffleVertexManager.TEZ_SHUFFLE_VERTEX_MANAGER_MIN_SRC_FRACTION, 1.0f);
       conf.setFloat(ShuffleVertexManager.TEZ_SHUFFLE_VERTEX_MANAGER_MAX_SRC_FRACTION, 1.0f);
       // disable reschedule task on unhealthy nodes because shuffle data are stored in Celeborn
       conf.setBoolean(TEZ_AM_NODE_UNHEALTHY_RESCHEDULE_TASKS, false);
 
-      DAGProtos.ConfigurationProto confProto =
-          TezUtilsInternal.readUserSpecifiedTezConfiguration(
-              System.getenv(ApplicationConstants.Environment.PWD.name()));
-      TezUtilsInternal.addUserSpecifiedTezConfiguration(conf, confProto.getConfKeyValuesList());
       // support set celeborn master endpoints from env
       String masterEndpointsKey =
           CelebornTezUtils.TEZ_PREFIX + CelebornConf.MASTER_ENDPOINTS().key();
       String masterEndpointsVal = conf.get(masterEndpointsKey);
       if (masterEndpointsVal == null || masterEndpointsVal.isEmpty()) {
         Logger.info(
-            "MRAppMaster sets {} via environment variable {}.",
-            masterEndpointsKey,
-            MASTER_ENDPOINTS_ENV);
+                "MRAppMaster sets {} via environment variable {}.",
+                masterEndpointsKey,
+                MASTER_ENDPOINTS_ENV);
         conf.set(masterEndpointsKey, CelebornTezUtils.ensureGetSysEnv(MASTER_ENDPOINTS_ENV));
-      }
-
-      DAGProtos.AMPluginDescriptorProto amPluginDescriptorProto = null;
-      if (confProto.hasAmPluginDescriptor()) {
-        amPluginDescriptorProto = confProto.getAmPluginDescriptor();
       }
 
       UserGroupInformation.setConfiguration(conf);
