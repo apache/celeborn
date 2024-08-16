@@ -21,16 +21,18 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 
-public class TezUtils {
+public class CelebornTezUtils {
   public static final String TEZ_PREFIX = "tez.";
   public static final String TEZ_CELEBORN_LM_HOST = "celeborn.lifecycleManager.host";
   public static final String TEZ_CELEBORN_LM_PORT = "celeborn.lifecycleManager.port";
+  public static final String TEZ_CELEBORN_USER = "celeborn.lifecycleManager.user";
   public static final String TEZ_CELEBORN_APPLICATION_ID = "celeborn.applicationId";
   public static final String TEZ_SHUFFLE_ID = "celeborn.tez.shuffle.id";
 
@@ -54,6 +56,14 @@ public class TezUtils {
     } catch (Exception e) {
       throw new CelebornRuntimeException(e.getMessage(), e);
     }
+  }
+
+  public static String uniqueIdentifierToAttemptId(String uniqueIdentifier) {
+    if (uniqueIdentifier == null) {
+      throw new CelebornRuntimeException("uniqueIdentifier should not be null");
+    }
+    String[] ids = uniqueIdentifier.split("_");
+    return StringUtils.join(ids, "_", 0, 7);
   }
 
   public static String ensureGetSysEnv(String envName) throws IOException {

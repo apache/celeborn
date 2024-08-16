@@ -1,14 +1,11 @@
 package org.apache.celeborn.client;
 
 import java.io.IOException;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.function.Consumer;
 
 import org.apache.tez.runtime.library.api.IOInterruptedException;
 
 import org.apache.celeborn.client.write.DataPusher;
-import org.apache.celeborn.client.write.PushTask;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 
@@ -22,7 +19,6 @@ public class CelebornTezWriter {
   private final int attemptNumber;
   private final int numMappers;
   private final int numPartitions;
-  private final Consumer<Integer> afterPush;
 
   public CelebornTezWriter(
       int shuffleId,
@@ -32,8 +28,6 @@ public class CelebornTezWriter {
       int numMappers,
       int numPartitions,
       CelebornConf conf,
-      Consumer<Integer> afterPush,
-      LongAdder[] mapStatusLengths,
       String appUniqueId,
       String lifecycleManagerHost,
       int lifecycleManagerPort,
@@ -48,9 +42,11 @@ public class CelebornTezWriter {
     this.numMappers = numMappers;
     this.numPartitions = numPartitions;
 
-    this.afterPush = afterPush;
+    LongAdder[] mapStatusLengths = new LongAdder[numPartitions];
+    for (int i = 0; i < numPartitions; i++) {
+      mapStatusLengths[i] = new LongAdder();
+    }
     try {
-      LinkedBlockingQueue<PushTask> pushTaskQueue = new LinkedBlockingQueue<>();
       dataPusher =
           new DataPusher(
               shuffleId,
@@ -61,8 +57,8 @@ public class CelebornTezWriter {
               numPartitions,
               conf,
               shuffleClient,
-              pushTaskQueue,
-              afterPush,
+              null,
+              integer -> {},
               mapStatusLengths);
     } catch (InterruptedException e) {
       throw new RuntimeException(e);

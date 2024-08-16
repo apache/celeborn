@@ -1,21 +1,17 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
+ * agreements. See the NOTICE file distributed with this work for additional information regarding
+ * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the License. You may obtain a
+ * copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * <p>http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
+ * <p>Unless required by applicable law or agreed to in writing, software distributed under the
+ * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.tez.runtime.library.output;
 
 import java.util.Collections;
@@ -25,18 +21,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.tez.common.Preconditions;
 import com.google.common.annotations.VisibleForTesting;
-
-import org.apache.tez.common.TezUtils;
-import org.apache.tez.runtime.library.common.shuffle.ShuffleUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.tez.common.Preconditions;
 import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.common.TezRuntimeFrameworkConfigs;
+import org.apache.tez.common.TezUtils;
 import org.apache.tez.common.counters.TaskCounter;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.runtime.api.AbstractLogicalOutput;
@@ -46,7 +38,10 @@ import org.apache.tez.runtime.api.OutputContext;
 import org.apache.tez.runtime.api.Writer;
 import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.common.MemoryUpdateCallbackHandler;
+import org.apache.tez.runtime.library.common.shuffle.ShuffleUtils;
 import org.apache.tez.runtime.library.common.writers.UnorderedPartitionedKVWriter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link CelebornUnorderedPartitionedKVOutput} is a {@link LogicalOutput} which can be used to
@@ -56,10 +51,10 @@ import org.apache.tez.runtime.library.common.writers.UnorderedPartitionedKVWrite
 @Public
 public class CelebornUnorderedPartitionedKVOutput extends AbstractLogicalOutput {
 
-  private static final Logger LOG = LoggerFactory.getLogger(CelebornUnorderedPartitionedKVOutput.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(CelebornUnorderedPartitionedKVOutput.class);
 
-  @VisibleForTesting
-  Configuration conf;
+  @VisibleForTesting Configuration conf;
   private MemoryUpdateCallbackHandler memoryUpdateCallbackHandler;
   private UnorderedPartitionedKVWriter kvWriter;
   private final AtomicBoolean isStarted = new AtomicBoolean(false);
@@ -72,12 +67,14 @@ public class CelebornUnorderedPartitionedKVOutput extends AbstractLogicalOutput 
   public synchronized List<Event> initialize() throws Exception {
     this.conf = TezUtils.createConfFromBaseConfAndPayload(getContext());
     this.conf.setStrings(TezRuntimeFrameworkConfigs.LOCAL_DIRS, getContext().getWorkDirs());
-    this.conf.setInt(TezRuntimeFrameworkConfigs.TEZ_RUNTIME_NUM_EXPECTED_PARTITIONS,
-        getNumPhysicalOutputs());
+    this.conf.setInt(
+        TezRuntimeFrameworkConfigs.TEZ_RUNTIME_NUM_EXPECTED_PARTITIONS, getNumPhysicalOutputs());
     this.memoryUpdateCallbackHandler = new MemoryUpdateCallbackHandler();
-    getContext().requestInitialMemory(
-        UnorderedPartitionedKVWriter.getInitialMemoryRequirement(conf,
-            getContext().getTotalMemoryAvailableToTask()), memoryUpdateCallbackHandler);
+    getContext()
+        .requestInitialMemory(
+            UnorderedPartitionedKVWriter.getInitialMemoryRequirement(
+                conf, getContext().getTotalMemoryAvailableToTask()),
+            memoryUpdateCallbackHandler);
     return Collections.emptyList();
   }
 
@@ -85,8 +82,12 @@ public class CelebornUnorderedPartitionedKVOutput extends AbstractLogicalOutput 
   public synchronized void start() throws Exception {
     if (!isStarted.get()) {
       memoryUpdateCallbackHandler.validateUpdateReceived();
-      this.kvWriter = new UnorderedPartitionedKVWriter(getContext(), conf, getNumPhysicalOutputs(),
-          memoryUpdateCallbackHandler.getMemoryAssigned());
+      this.kvWriter =
+          new UnorderedPartitionedKVWriter(
+              getContext(),
+              conf,
+              getNumPhysicalOutputs(),
+              memoryUpdateCallbackHandler.getMemoryAssigned());
       isStarted.set(true);
     }
   }
@@ -98,8 +99,7 @@ public class CelebornUnorderedPartitionedKVOutput extends AbstractLogicalOutput 
   }
 
   @Override
-  public void handleEvents(List<Event> outputEvents) {
-  }
+  public void handleEvents(List<Event> outputEvents) {}
 
   @Override
   public synchronized List<Event> close() throws Exception {
@@ -108,20 +108,27 @@ public class CelebornUnorderedPartitionedKVOutput extends AbstractLogicalOutput 
       returnEvents = kvWriter.close();
       kvWriter = null;
     } else {
-      LOG.warn(getContext().getInputOutputVertexNames() +
-          ": Attempting to close output {} of type {} before it was started. Generating empty events",
-          getContext().getDestinationVertexName(), this.getClass().getSimpleName());
+      LOG.warn(
+          getContext().getInputOutputVertexNames()
+              + ": Attempting to close output {} of type {} before it was started. Generating empty events",
+          getContext().getDestinationVertexName(),
+          this.getClass().getSimpleName());
       returnEvents = new LinkedList<Event>();
-      ShuffleUtils
-          .generateEventsForNonStartedOutput(returnEvents, getNumPhysicalOutputs(), getContext(),
-              false, true, TezCommonUtils.newBestCompressionDeflater());
+      ShuffleUtils.generateEventsForNonStartedOutput(
+          returnEvents,
+          getNumPhysicalOutputs(),
+          getContext(),
+          false,
+          true,
+          TezCommonUtils.newBestCompressionDeflater());
     }
 
-    // This works for non-started outputs since new counters will be created with an initial value of 0
+    // This works for non-started outputs since new counters will be created with an initial value
+    // of 0
     long outputSize = getContext().getCounters().findCounter(TaskCounter.OUTPUT_BYTES).getValue();
     getContext().getStatisticsReporter().reportDataSize(outputSize);
-    long outputRecords = getContext().getCounters()
-        .findCounter(TaskCounter.OUTPUT_RECORDS).getValue();
+    long outputRecords =
+        getContext().getCounters().findCounter(TaskCounter.OUTPUT_RECORDS).getValue();
     getContext().getStatisticsReporter().reportItemsProcessed(outputRecords);
 
     return returnEvents;
