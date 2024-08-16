@@ -1,0 +1,65 @@
+Subject: [PATCH] for local test
+---
+Index: tez-dag/src/main/java/org/apache/tez/client/LocalClient.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/tez-dag/src/main/java/org/apache/tez/client/LocalClient.java b/tez-dag/src/main/java/org/apache/tez/client/LocalClient.java
+--- a/tez-dag/src/main/java/org/apache/tez/client/LocalClient.java	(revision 72977b8720b2337ab0a0a3bf3b12e1c57900fa69)
++++ b/tez-dag/src/main/java/org/apache/tez/client/LocalClient.java	(date 1723795814592)
+@@ -48,12 +48,10 @@
+ import org.apache.hadoop.yarn.api.records.YarnApplicationState;
+ import org.apache.hadoop.yarn.util.SystemClock;
+ import org.apache.tez.common.AsyncDispatcher;
++import org.apache.tez.common.ReflectionUtils;
+ import org.apache.tez.common.TezCommonUtils;
+ import org.apache.tez.common.TezUtilsInternal;
+-import org.apache.tez.dag.api.DAGSubmissionTimedOut;
+-import org.apache.tez.dag.api.DagTypeConverters;
+-import org.apache.tez.dag.api.TezConfiguration;
+-import org.apache.tez.dag.api.TezException;
++import org.apache.tez.dag.api.*;
+ import org.apache.tez.dag.api.client.DAGClient;
+ import org.apache.tez.dag.api.client.DAGClientHandler;
+ import org.apache.tez.dag.api.client.DAGClientImpl;
+@@ -87,6 +85,7 @@
+   private TezApiVersionInfo versionInfo = new TezApiVersionInfo();
+   private volatile Throwable amFailException = null;
+   private boolean isLocalWithoutNetwork;
++  private String appMasterName;
+ 
+   private static final String localModeDAGSchedulerClassName =
+       "org.apache.tez.dag.app.dag.impl.DAGSchedulerNaturalOrderControlled";
+@@ -109,6 +108,9 @@
+     this.isLocalWithoutNetwork =
+         tezConf.getBoolean(TezConfiguration.TEZ_LOCAL_MODE_WITHOUT_NETWORK,
+             TezConfiguration.TEZ_LOCAL_MODE_WITHOUT_NETWORK_DEFAULT);
++
++    this.appMasterName =
++            tezConf.get(TezConfiguration.TEZ_PREFIX + "appmaster.class.name");
+   }
+ 
+ 
+@@ -393,6 +395,21 @@
+         TezUtilsInternal.readUserSpecifiedTezConfiguration(userDir)
+             .getAmPluginDescriptor();
+ 
++    if (appMasterName != null) {
++      Class<?>[] classes = new Class[] {ApplicationAttemptId.class, ContainerId.class,
++              String.class, int.class, int.class, Clock.class, long.class, boolean.class,
++      String.class, String[].class, String[].class, String.class, Credentials.class,
++              String.class, AMPluginDescriptorProto.class};
++      Object[] args = new Object[] {applicationAttemptId, cId, currentHost, nmPort, nmHttpPort,
++              SystemClock.getInstance(), appSubmitTime, isSession, userDir, localDirs, logDirs,
++              versionInfo.getVersion(), credentials, jobUserName, amPluginDescriptorProto};
++        try {
++            return ReflectionUtils.createClazzInstance(appMasterName, classes, args);
++        } catch (TezReflectionException e) {
++            throw new RuntimeException(e);
++        }
++    }
++
+     return isLocalWithoutNetwork
+       ? new LocalDAGAppMaster(applicationAttemptId, cId, currentHost, nmPort, nmHttpPort,
+           SystemClock.getInstance(), appSubmitTime, isSession, userDir, localDirs, logDirs,

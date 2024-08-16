@@ -130,7 +130,7 @@ public class CelebornShuffle implements ExceptionReporter {
             ifileReadAhead,
             ifileReadAheadLength);
 
-    scheduler = new CelebornScheduler(inputContext, this.conf, merger);
+    scheduler = new CelebornScheduler(inputContext, this.conf, sourceDestNameTrimmed, merger, this);
 
     this.mergePhaseTime = inputContext.getCounters().findCounter(TaskCounter.MERGE_PHASE_TIME);
     this.shufflePhaseTime = inputContext.getCounters().findCounter(TaskCounter.SHUFFLE_PHASE_TIME);
@@ -196,7 +196,34 @@ public class CelebornShuffle implements ExceptionReporter {
   }
 
   @Override
-  public void reportException(Throwable throwable) {}
+  public synchronized void reportException(Throwable t) {
+    // RunShuffleCallable onFailure deals with ignoring errors on shutdown.
+    if (throwable.get() == null) {
+      LOG.info(sourceDestNameTrimmed + ": " + "Setting throwable in reportException with message [" + t.getMessage() +
+              "] from thread [" + Thread.currentThread().getName());
+      throwable.set(t);
+      throwingThreadName = Thread.currentThread().getName();
+      // Notify the scheduler so that the reporting thread finds the
+      // exception immediately.
+      cleanupShuffleSchedulerIgnoreErrors();
+    }
+  }
+
+  private void cleanupShuffleSchedulerIgnoreErrors() {
+    try {
+      cleanupShuffleScheduler();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOG.info(sourceDestNameTrimmed + ": " +
+              "Interrupted while attempting to close the scheduler during cleanup. Ignoring");
+    }
+  }
+
+  private void cleanupShuffleScheduler() throws InterruptedException {
+    if (!schedulerClosed.getAndSet(true)) {
+      scheduler.close();
+    }
+  }
 
   @Override
   public void killSelf(Exception e, String s) {}

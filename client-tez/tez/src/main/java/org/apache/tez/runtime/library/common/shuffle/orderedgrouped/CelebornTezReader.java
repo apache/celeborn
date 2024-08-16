@@ -134,7 +134,7 @@ public class CelebornTezReader {
 
     // write data to mapOutput
     try {
-      RssTezBypassWriter.write(mapOutput, shuffleData);
+      CelebornTezBypassWriter.write(mapOutput, shuffleData);
       mapOutput.getType();
       // let the merger knows this block is ready for merging
       mapOutput.commit();

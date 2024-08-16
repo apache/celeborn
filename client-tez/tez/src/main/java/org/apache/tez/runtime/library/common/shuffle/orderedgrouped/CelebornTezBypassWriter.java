@@ -25,8 +25,8 @@ import org.slf4j.LoggerFactory;
 
 // In Tez shuffle, MapOutput encapsulates the logic to fetch map task's output data via http.
 // So, in RSS, we should bypass this logic, and directly write data to MapOutput.
-public class RssTezBypassWriter {
-  private static final Logger LOG = LoggerFactory.getLogger(RssTezBypassWriter.class);
+public class CelebornTezBypassWriter {
+  private static final Logger LOG = LoggerFactory.getLogger(CelebornTezBypassWriter.class);
 
   public static void write(MapOutput mapOutput, byte[] buffer) {
     LOG.info(

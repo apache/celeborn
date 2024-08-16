@@ -239,19 +239,19 @@ public class CelebornDagAppMaster extends DAGAppMaster {
 
   private static String getNewOutputClassName(
       EdgeProperty.DataMovementType movementType, String oldClassName) {
-    if (CelebornOrderedPartitionedKVOutput.class.getName().equals(oldClassName)) {
+    if (oldClassName.equals(OrderedPartitionedKVOutput.class.getName())) {
       Logger.info(
           "Output class name will transient from {} to {}",
           oldClassName,
           CelebornOrderedPartitionedKVOutput.class.getName());
       return CelebornOrderedPartitionedKVOutput.class.getName();
-    } else if (CelebornUnorderedPartitionedKVOutput.class.getName().equals(oldClassName)) {
+    } else if (oldClassName.equals(UnorderedPartitionedKVOutput.class.getName())) {
       Logger.info(
               "Output class name will transient from {} to {}",
               oldClassName,
               CelebornUnorderedPartitionedKVOutput.class.getName());
       return CelebornUnorderedPartitionedKVOutput.class.getName();
-    } else if (CelebornUnorderedKVOutput.class.getName().equals(oldClassName)) {
+    } else if (oldClassName.equals(UnorderedKVOutput.class.getName())) {
       Logger.info(
           "Output class name will transient from {} to {}",
           oldClassName,
