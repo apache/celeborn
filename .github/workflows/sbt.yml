@@ -59,6 +59,7 @@ jobs:
           name: service-java-${{ matrix.java }}-scala-${{ matrix.scala }}-unit-test-log
           path: |
               **/target/test-reports/**
+              **/target/unit-tests.log
 
   spark2:
     runs-on: ubuntu-22.04
@@ -90,7 +91,7 @@ jobs:
             name: spark-${{ matrix.spark }}-unit-test-log
             path: |
                 **/target/test-reports/**
-
+                **/target/unit-tests.log
   spark3:
     runs-on: ubuntu-22.04
     strategy:
@@ -193,6 +194,7 @@ jobs:
           name: spark-${{ matrix.spark }}-scala-${{ matrix.scala }}-unit-test-log
           path: |
               **/target/test-reports/**
+              **/target/unit-tests.log
 
   flink:
     runs-on: ubuntu-22.04
@@ -228,6 +230,7 @@ jobs:
             name: flink-${{ matrix.flink }}-unit-test-log
             path: |
                 **/target/test-reports/**
+                **/target/unit-tests.log
 
   mr:
     runs-on: ubuntu-22.04
@@ -255,3 +258,5 @@ jobs:
           name: mr-unit-test-log
           path: |
             **/target/test/
+            **/target/test-reports/**
+            **/target/unit-tests.log
