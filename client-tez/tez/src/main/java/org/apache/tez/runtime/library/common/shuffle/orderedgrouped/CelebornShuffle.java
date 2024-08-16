@@ -34,10 +34,6 @@ import org.apache.tez.runtime.library.utils.CodecUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.tez.plugin.util.CelebornTezUtils;
-
 public class CelebornShuffle implements ExceptionReporter {
   private static final Logger LOG = LoggerFactory.getLogger(Shuffle.class);
 
@@ -46,18 +42,13 @@ public class CelebornShuffle implements ExceptionReporter {
 
   private final CelebornEventHandlerOrderedGrouped eventHandler;
 
+  final CelebornScheduler scheduler;
+
   @VisibleForTesting final MergeManager merger;
 
   private final CompressionCodec codec;
   private final boolean ifileReadAhead;
   private final int ifileReadAheadLength;
-
-  private String host;
-  private int port;
-  private int shuffleId;
-  private String appId;
-  private String user;
-  private CelebornConf celebornConf;
 
   private AtomicReference<Throwable> throwable = new AtomicReference<Throwable>();
   private String throwingThreadName = null;
@@ -87,13 +78,6 @@ public class CelebornShuffle implements ExceptionReporter {
       throws IOException {
     this.inputContext = inputContext;
     this.conf = conf;
-
-    this.host = this.conf.get(TEZ_CELEBORN_LM_HOST);
-    this.port = this.conf.getInt(TEZ_CELEBORN_LM_PORT, -1);
-    this.shuffleId = this.conf.getInt(TEZ_SHUFFLE_ID, -1);
-    this.appId = this.conf.get(TEZ_CELEBORN_APPLICATION_ID);
-    this.user = this.conf.get(TEZ_CELEBORN_USER);
-    this.celebornConf = CelebornTezUtils.fromTezConfiguration(conf);
 
     this.sourceDestNameTrimmed =
         TezUtilsInternal.cleanVertexName(inputContext.getSourceVertexName())
@@ -146,12 +130,14 @@ public class CelebornShuffle implements ExceptionReporter {
             ifileReadAhead,
             ifileReadAheadLength);
 
+    scheduler = new CelebornScheduler(inputContext, this.conf, merger);
+
     this.mergePhaseTime = inputContext.getCounters().findCounter(TaskCounter.MERGE_PHASE_TIME);
     this.shufflePhaseTime = inputContext.getCounters().findCounter(TaskCounter.SHUFFLE_PHASE_TIME);
 
     eventHandler =
         new CelebornEventHandlerOrderedGrouped(
-            inputContext, ShuffleUtils.isTezShuffleHandler(conf));
+            inputContext, scheduler, ShuffleUtils.isTezShuffleHandler(conf));
 
     ExecutorService rawExecutor =
         Executors.newFixedThreadPool(
@@ -248,10 +234,9 @@ public class CelebornShuffle implements ExceptionReporter {
   private class RunShuffleCallable extends CallableWithNdc<TezRawKeyValueIterator> {
     @Override
     protected TezRawKeyValueIterator callInternal() throws IOException, InterruptedException {
-      int partitionId = 0;
       if (!isShutDown.get()) {
         try {
-          partitionId = eventHandler.getPartitionId();
+          scheduler.start();
         } catch (Throwable e) {
           throw new Shuffle.ShuffleError("Error during shuffle", e);
         } finally {
@@ -265,20 +250,6 @@ public class CelebornShuffle implements ExceptionReporter {
               "error in shuffle in " + throwingThreadName, throwable.get());
         }
       }
-
-      CelebornTezReader reader =
-          new CelebornTezReader(
-              appId,
-              host,
-              port,
-              shuffleId,
-              partitionId,
-              0,
-              inputContext.getCounters(),
-              UserIdentifier.apply(user),
-              merger,
-              celebornConf);
-      reader.fetchAndMerge();
 
       // Finish the on-going merges...
       TezRawKeyValueIterator kvIter = null;
