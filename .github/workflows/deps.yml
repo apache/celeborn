@@ -54,9 +54,9 @@ jobs:
           - 'flink-1.18'
           - 'mr'
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Setup JDK 8
-      uses: actions/setup-java@v2
+      uses: actions/setup-java@v4
       with:
         distribution: zulu
         java-version: 8
@@ -85,9 +85,9 @@ jobs:
           - 'flink-1.18'
           - 'mr'
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Setup JDK 8
-      uses: actions/setup-java@v2
+      uses: actions/setup-java@v4
       with:
         distribution: zulu
         java-version: 8
