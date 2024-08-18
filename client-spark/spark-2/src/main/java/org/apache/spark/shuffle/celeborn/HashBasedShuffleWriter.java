@@ -163,7 +163,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   @Override
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
     boolean needAbort = true;
-    IOException lastIOException = null;
     try {
       if (canUseFastWrite()) {
         fastWrite0(records);
@@ -180,12 +179,9 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       needAbort = false;
     } catch (InterruptedException e) {
       TaskInterruptedHelper.throwTaskKillException();
-    } catch (IOException e) {
-      lastIOException = e;
-      throw e;
     } finally {
       if (needAbort) {
-        abort(lastIOException);
+        abort(false);
       }
     }
   }
@@ -324,17 +320,13 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     writeMetrics.incWriteTime(System.nanoTime() - start);
   }
 
-  private void abort(IOException lastIOException) throws IOException {
+  private void abort(boolean throwTaskKilledOnInterruption) throws IOException {
     try {
       dataPusher.waitOnTermination();
       sendBufferPool.returnPushTaskQueue(dataPusher.getIdleQueue());
     } catch (InterruptedException e) {
-      TaskInterruptedHelper.throwTaskKillException();
-    } catch (IOException e) {
-      if (lastIOException != null) {
-        throw lastIOException;
-      } else {
-        throw e;
+      if (throwTaskKilledOnInterruption) {
+        TaskInterruptedHelper.throwTaskKillException();
       }
     }
   }
