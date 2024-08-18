@@ -212,7 +212,7 @@ trait MiniClusterFeature extends Logging {
       workerThread
     }
     threads.foreach(_.start())
-    Thread.sleep(15000)
+    Thread.sleep(5000)
     var allWorkersStarted = false
     var workersWaitingTime = 0
     while (!allWorkersStarted) {
@@ -229,7 +229,7 @@ trait MiniClusterFeature extends Logging {
         workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
         allWorkersStarted = true
       } catch {
-        case ex: Exception =>
+        case ex: Throwable =>
           logError("all workers haven't been started retrying", ex)
           Thread.sleep(5000)
           workersWaitingTime += 5000
