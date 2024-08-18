@@ -160,7 +160,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       needAbort = false;
     } finally {
       if (needAbort) {
-        abort();
+        abort(false);
       }
     }
   }
@@ -296,9 +296,9 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     writeMetrics.incBytesWritten(bytesWritten);
   }
 
-  private void abort() throws IOException {
+  private void abort(boolean throwTaskKilledOnInterruption) throws IOException {
     if (pusher != null) {
-      pusher.close();
+      pusher.close(throwTaskKilledOnInterruption);
     }
   }
 
@@ -306,7 +306,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     logger.info("Memory used {}", Utils.bytesToString(pusher.getUsed()));
     long pushStartTime = System.nanoTime();
     pusher.pushData(false);
-    pusher.close();
+    pusher.close(true);
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
 
     shuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
