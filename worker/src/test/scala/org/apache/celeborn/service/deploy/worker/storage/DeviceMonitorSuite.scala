@@ -400,6 +400,8 @@ class DeviceMonitorSuite extends AnyFunSuite {
         assertEquals(1, deviceMonitorMetrics.head.gauge.getValue)
         assertEquals(1, deviceMonitorMetrics.last.gauge.getValue)
 
+        Thread.sleep(5000)
+
         device1.notifyObserversOnNonCriticalError(mountPoints1, DiskStatus.READ_OR_WRITE_FAILURE)
         device1.notifyObserversOnNonCriticalError(mountPoints1, DiskStatus.IO_HANG)
         assertEquals(2, deviceMonitorMetrics.head.gauge.getValue)
