@@ -791,13 +791,14 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           0
         }
       }.sum
-      val fileSystemReportedUsableSpace = Files.getFileStore(
-        Paths.get(diskInfo.mountPoint)).getUsableSpace
+      val fileStore = Files.getFileStore(Paths.get(diskInfo.mountPoint))
+      val fileSystemReportedUsableSpace = fileStore.getUsableSpace
       val workingDirUsableSpace =
         Math.min(diskInfo.configuredUsableSpace - totalUsage, fileSystemReportedUsableSpace)
-      logDebug(s"updateDiskInfos  workingDirUsableSpace:$workingDirUsableSpace filemeta:$fileSystemReportedUsableSpace conf:${diskInfo.configuredUsableSpace} totalUsage:$totalUsage")
+      val totalSpace = fileStore.getTotalSpace
+      logDebug(s"updateDiskInfos workingDirUsableSpace:$workingDirUsableSpace filemeta:$fileSystemReportedUsableSpace conf:${diskInfo.configuredUsableSpace} totalUsage:$totalUsage totalSpace: $totalSpace")
       diskInfo.setUsableSpace(workingDirUsableSpace)
-      diskInfo.setTotalSpace(totalUsage + workingDirUsableSpace)
+      diskInfo.setTotalSpace(totalSpace)
       diskInfo.updateFlushTime()
       diskInfo.updateFetchTime()
     }

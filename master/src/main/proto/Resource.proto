@@ -81,6 +81,7 @@ message DiskInfo {
   required int32 status = 5;
   required int64 avgFetchTime = 6;
   required int32 storageType =7;
+  optional int64 totalSpace = 8;
 }
 
 message RequestSlotsRequest {
