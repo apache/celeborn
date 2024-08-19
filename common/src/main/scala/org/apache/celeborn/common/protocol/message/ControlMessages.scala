@@ -412,6 +412,13 @@ object ControlMessages extends Logging {
         .build()
   }
 
+  object RemoveWorkersUnavailableInfoResponse {
+    def apply(success: Boolean): PbRemoveWorkersUnavailableInfoResponse =
+      PbRemoveWorkersUnavailableInfoResponse.newBuilder()
+        .setSuccess(success)
+        .build()
+  }
+
   object WorkerEventRequest {
     def apply(
         workers: util.List[WorkerInfo],
