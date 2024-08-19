@@ -21,8 +21,6 @@ import java.util.*;
 import java.util.function.IntUnaryOperator;
 import java.util.stream.Collectors;
 
-import scala.Double;
-import scala.Option;
 import scala.Tuple2;
 
 import org.apache.commons.lang3.StringUtils;
@@ -35,7 +33,6 @@ import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
-import org.apache.celeborn.common.util.DiskUtils;
 
 public class SlotsAllocator {
   static class UsableDiskInfo {
@@ -112,8 +109,6 @@ public class SlotsAllocator {
           List<Integer> partitionIds,
           boolean shouldReplicate,
           boolean shouldRackAware,
-          long diskReserveSize,
-          Option<Double> diskReserveRatio,
           int diskGroupCount,
           double diskGroupGradient,
           double flushTimeWeight,
@@ -143,13 +138,7 @@ public class SlotsAllocator {
                 .forEach(
                     (key, diskInfo) -> {
                       diskToWorkerMap.put(diskInfo, i);
-                      if (diskInfo.actualUsableSpace()
-                              > DiskUtils.getMinimumUsableSize(
-                                  diskInfo,
-                                  diskReserveSize,
-                                  diskReserveRatio.isEmpty()
-                                      ? Option.empty()
-                                      : Option.apply(diskReserveRatio.get()))
+                      if (diskInfo.actualUsableSpace() > 0
                           && diskInfo.status().equals(DiskStatus.HEALTHY)
                           && diskInfo.storageType() != StorageInfo.Type.HDFS
                           && diskInfo.storageType() != StorageInfo.Type.S3) {
