@@ -40,7 +40,9 @@ jobs:
       with:
         name: service-unit-test-log
         path: |
+          **/target/test-reports/**
           **/target/unit-tests.log
+
     - name: Upload coverage to Codecov
       if: matrix.java == 8
       uses: codecov/codecov-action@v3
@@ -77,6 +79,7 @@ jobs:
         with:
           name: spark-${{ matrix.spark }}-unit-test-log
           path: |
+            **/target/test-reports/**
             **/target/unit-tests.log
 
   spark3:
@@ -140,6 +143,7 @@ jobs:
       with:
         name: spark-${{ matrix.spark }}-unit-test-log
         path: |
+          **/target/test-reports/**
           **/target/unit-tests.log
 
   flink:
@@ -179,6 +183,7 @@ jobs:
         with:
           name: flink-${{ matrix.flink }}-unit-test-log
           path: |
+            **/target/test-reports/**
             **/target/unit-tests.log
 
   mr:
@@ -211,3 +216,5 @@ jobs:
           name: mr-unit-test-log
           path: |
             **/target/test/
+            **/target/test-reports/**
+            **/target/unit-tests.log
