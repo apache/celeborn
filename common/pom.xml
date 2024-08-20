@@ -210,22 +210,17 @@
       </dependencies>
     </profile>
     <profile>
-      <id>hadoop-aws</id>
+      <id>aws-mpu</id>
       <activation>
         <property>
-          <name>hadoop-aws-deps</name>
+          <name>aws-mpu-deps</name>
         </property>
       </activation>
       <dependencies>
         <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-aws</artifactId>
-          <version>${hadoop.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>com.amazonaws</groupId>
-          <artifactId>aws-java-sdk-bundle</artifactId>
-          <version>${aws.version}</version>
+          <groupId>org.apache.celeborn</groupId>
+          <artifactId>celeborn-multipart-uploader_2.12</artifactId>
+          <version>${project.version}</version>
         </dependency>
       </dependencies>
     </profile>

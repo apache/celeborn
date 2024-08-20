@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.TimeUnit;
@@ -32,11 +33,14 @@ import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.AWSCredentials;
+import org.apache.celeborn.S3MultipartUploader;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.AlreadyClosedException;
 import org.apache.celeborn.common.exception.CelebornIOException;
@@ -113,6 +117,10 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   private UserCongestionControlContext userCongestionControlContext = null;
 
+  protected S3MultipartUploader s3MultipartUploader;
+
+  protected int partNumber = 1;
+
   public PartitionDataWriter(
       StorageManager storageManager,
       AbstractSource workerSource,
@@ -187,6 +195,25 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       // If we reuse DFS output stream, we will exhaust the memory soon.
       try {
         hadoopFs.create(this.diskFileInfo.getDfsPath(), true).close();
+        if (diskFileInfo.isS3()) {
+          Configuration configuration = hadoopFs.getConf();
+          String s3AccessKey = configuration.get("fs.s3a.access.key");
+          String s3SecretKey = configuration.get("fs.s3a.secret.key");
+          String s3EndpointRegion = configuration.get("fs.s3a.endpoint.region");
+          URI uri = hadoopFs.getUri();
+          String bucketName = uri.getHost();
+          int slashIndex = diskFileInfo.getFilePath().indexOf("/");
+          String key = diskFileInfo.getFilePath().substring(slashIndex + 1);
+          AWSCredentials awsCredentials =
+              new AWSCredentials.Builder()
+                  .withS3AccessKey(s3AccessKey)
+                  .withS3SecretKey(s3SecretKey)
+                  .withS3EndpointRegion(s3EndpointRegion)
+                  .withBucketName(bucketName)
+                  .build();
+          this.s3MultipartUploader = new S3MultipartUploader(awsCredentials, key);
+          this.s3MultipartUploader.startUpload();
+        }
       } catch (IOException e) {
         try {
           // If create file failed, wait 10 ms and retry
@@ -236,7 +263,14 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           } else if (diskFileInfo.isHdfs()) {
             task = new HdfsFlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, false);
           } else if (diskFileInfo.isS3()) {
-            task = new S3FlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, false);
+            task =
+                new S3FlushTask(
+                    flushBuffer,
+                    diskFileInfo.getDfsPath(),
+                    notifier,
+                    false,
+                    s3MultipartUploader,
+                    partNumber);
           }
           MemoryManager.instance().releaseMemoryFileStorage(numBytes);
           MemoryManager.instance().incrementDiskBuffer(numBytes);
@@ -264,7 +298,14 @@ public abstract class PartitionDataWriter implements DeviceObserver {
             } else if (diskFileInfo.isHdfs()) {
               task = new HdfsFlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, true);
             } else if (diskFileInfo.isS3()) {
-              task = new S3FlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, true);
+              task =
+                  new S3FlushTask(
+                      flushBuffer,
+                      diskFileInfo.getDfsPath(),
+                      notifier,
+                      true,
+                      s3MultipartUploader,
+                      partNumber);
             }
           }
         }
@@ -273,6 +314,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         if (task != null) {
           addTask(task);
           flushBuffer = null;
+          partNumber++;
           if (!fromEvict) {
             diskFileInfo.updateBytesFlushed(numBytes);
           }
@@ -507,6 +549,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), diskFileInfo);
         }
       }
+      s3MultipartUploader.complete();
     }
   }
 

@@ -1136,7 +1136,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def s3SecretKey: String = get(S3_SECRET_KEY).getOrElse("")
 
-  def s3Endpoint: String = get(S3_ENDPOINT).getOrElse("")
+  def s3EndpointRegion: String = get(S3_ENDPOINT_REGION).getOrElse("")
 
   def s3Dir: String = {
     get(S3_DIR).map {
@@ -3019,8 +3019,8 @@ object CelebornConf extends Logging {
       .stringConf
       .createOptional
 
-  val S3_ENDPOINT: OptionalConfigEntry[String] =
-    buildConf("celeborn.storage.s3.endpoint")
+  val S3_ENDPOINT_REGION: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.s3.endpoint.region")
       .categories("worker", "master", "client")
       .version("0.6.0")
       .doc("S3 endpoint for Celeborn to store shuffle data.")

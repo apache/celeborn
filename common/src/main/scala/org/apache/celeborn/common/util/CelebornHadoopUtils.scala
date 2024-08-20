@@ -49,9 +49,9 @@ object CelebornHadoopUtils extends Logging {
     }
 
     if (conf.s3Dir.nonEmpty) {
-      if (conf.s3AccessKey.isEmpty || conf.s3SecretKey.isEmpty || conf.s3Endpoint.isEmpty) {
+      if (conf.s3AccessKey.isEmpty || conf.s3SecretKey.isEmpty || conf.s3EndpointRegion.isEmpty) {
         throw new CelebornException(
-          "S3 storage is enabled but s3AccessKey, s3SecretKey, or s3Endpoint is not set")
+          "S3 storage is enabled but s3AccessKey, s3SecretKey, or s3EndpointRegion is not set")
       }
       hadoopConf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
       hadoopConf.set(
@@ -59,7 +59,7 @@ object CelebornHadoopUtils extends Logging {
         "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
       hadoopConf.set("fs.s3a.access.key", conf.s3AccessKey)
       hadoopConf.set("fs.s3a.secret.key", conf.s3SecretKey)
-      hadoopConf.set("fs.s3a.endpoint", conf.s3Endpoint)
+      hadoopConf.set("fs.s3a.endpoint.region", conf.s3EndpointRegion)
     }
     appendSparkHadoopConfigs(conf, hadoopConf)
     hadoopConf
