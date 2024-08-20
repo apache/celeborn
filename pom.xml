@@ -152,6 +152,8 @@
     <testJarPhase>prepare-package</testJarPhase>
     <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars</jars.target.dir>
 
+    <unusedImportsWarning>-Ywarn-unused:imports</unusedImportsWarning>
+
     <!-- for JDK-17 test-->
     <extraJavaTestArgs>-XX:+IgnoreUnrecognizedVMOptions
       --add-exports=jdk.internal.jvmstat/sun.jvmstat.monitor=ALL-UNNAMED
@@ -965,7 +967,7 @@
               <arg>-explaintypes</arg>
               <arg>-Xfatal-warnings</arg>
               <arg>-P:silencer:globalFilters=.*deprecated.*</arg>
-              <arg>-Ywarn-unused:imports</arg>
+              <arg>${unusedImportsWarning}</arg>
             </args>
             <compilerPlugins>
               <compilerPlugin>
@@ -1343,6 +1345,7 @@
         <scala.binary.version>2.11</scala.binary.version>
         <spark.version>2.4.8</spark.version>
         <zstd-jni.version>1.4.4-3</zstd-jni.version>
+        <unusedImportsWarning></unusedImportsWarning>
       </properties>
     </profile>
 
