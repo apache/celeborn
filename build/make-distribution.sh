@@ -265,7 +265,7 @@ function sbt_build_service {
   echo "Build flags: $@" >> "$DIST_DIR/RELEASE"
 
   if [[ $@ == *"aws-mpu"* ]]; then
-     SBT_MAVEN_PROFILES="aws-mpu"
+     export SBT_MAVEN_PROFILES="aws-mpu"
   fi
   BUILD_COMMAND=("$SBT" clean package)
 

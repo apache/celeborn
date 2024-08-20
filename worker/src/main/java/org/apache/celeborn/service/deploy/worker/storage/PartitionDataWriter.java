@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.celeborn.reflect.DynConstructors;
 import scala.Tuple4;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -39,8 +40,6 @@ import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.AWSCredentials;
-import org.apache.celeborn.S3MultipartUploader;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.AlreadyClosedException;
 import org.apache.celeborn.common.exception.CelebornIOException;
@@ -53,6 +52,8 @@ import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.FileChannelUtils;
+import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler;
+import org.apache.celeborn.server.common.service.mpu.bean.AWSCredentials;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.UserBufferInfo;
@@ -117,7 +118,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   private UserCongestionControlContext userCongestionControlContext = null;
 
-  protected S3MultipartUploader s3MultipartUploader;
+  protected MultipartUploadHandler s3MultipartUploadHandler;
 
   protected int partNumber = 1;
 
@@ -200,19 +201,25 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           String s3AccessKey = configuration.get("fs.s3a.access.key");
           String s3SecretKey = configuration.get("fs.s3a.secret.key");
           String s3EndpointRegion = configuration.get("fs.s3a.endpoint.region");
+
           URI uri = hadoopFs.getUri();
           String bucketName = uri.getHost();
           int slashIndex = diskFileInfo.getFilePath().indexOf("/");
           String key = diskFileInfo.getFilePath().substring(slashIndex + 1);
+
           AWSCredentials awsCredentials =
-              new AWSCredentials.Builder()
-                  .withS3AccessKey(s3AccessKey)
-                  .withS3SecretKey(s3SecretKey)
-                  .withS3EndpointRegion(s3EndpointRegion)
-                  .withBucketName(bucketName)
-                  .build();
-          this.s3MultipartUploader = new S3MultipartUploader(awsCredentials, key);
-          this.s3MultipartUploader.startUpload();
+              new AWSCredentials(bucketName, s3AccessKey, s3SecretKey, s3EndpointRegion);
+          this.s3MultipartUploadHandler =
+              (MultipartUploadHandler)
+                  DynConstructors.builder()
+                      .impl(
+                          "org.apache.celeborn.S3MultipartUploadHandler",
+                          awsCredentials.getClass(),
+                          String.class)
+                      .build()
+                      .newInstance(awsCredentials, key);
+
+          s3MultipartUploadHandler.startUpload();
         }
       } catch (IOException e) {
         try {
@@ -264,13 +271,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
             task = new HdfsFlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, false);
           } else if (diskFileInfo.isS3()) {
             task =
-                new S3FlushTask(
-                    flushBuffer,
-                    diskFileInfo.getDfsPath(),
-                    notifier,
-                    false,
-                    s3MultipartUploader,
-                    partNumber);
+                new S3FlushTask(flushBuffer, notifier, false, s3MultipartUploadHandler, partNumber);
           }
           MemoryManager.instance().releaseMemoryFileStorage(numBytes);
           MemoryManager.instance().incrementDiskBuffer(numBytes);
@@ -300,12 +301,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
             } else if (diskFileInfo.isS3()) {
               task =
                   new S3FlushTask(
-                      flushBuffer,
-                      diskFileInfo.getDfsPath(),
-                      notifier,
-                      true,
-                      s3MultipartUploader,
-                      partNumber);
+                      flushBuffer, notifier, true, s3MultipartUploadHandler, partNumber);
             }
           }
         }
@@ -342,6 +338,11 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       String msg = getFileAlreadyClosedMsg();
       logger.warn(msg);
       throw new AlreadyClosedException(msg);
+    }
+
+    if (notifier.hasException() && s3MultipartUploadHandler != null) {
+      logger.warn("Abort s3 multipart upload for {}", diskFileInfo.getFilePath());
+      s3MultipartUploadHandler.complete();
     }
 
     if (notifier.hasException()) {
@@ -501,7 +502,9 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       }
 
       finalClose.run();
-
+      if (s3MultipartUploadHandler != null) {
+        s3MultipartUploadHandler.complete();
+      }
       // unregister from DeviceMonitor
       if (diskFileInfo != null && !this.diskFileInfo.isDFS()) {
         logger.debug("file info {} unregister from device monitor", diskFileInfo);
@@ -549,7 +552,6 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), diskFileInfo);
         }
       }
-      s3MultipartUploader.complete();
     }
   }
 
