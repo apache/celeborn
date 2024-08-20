@@ -160,7 +160,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       needCleanupPusher = false;
     } finally {
       if (needCleanupPusher) {
-        cleanPusher();
+        cleanupPusher();
       }
     }
   }
@@ -296,7 +296,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     writeMetrics.incBytesWritten(bytesWritten);
   }
 
-  private void cleanPusher() throws IOException {
+  private void cleanupPusher() throws IOException {
     if (pusher != null) {
       pusher.close(false);
     }

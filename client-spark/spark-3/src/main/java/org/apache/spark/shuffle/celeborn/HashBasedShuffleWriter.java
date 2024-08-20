@@ -177,7 +177,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       TaskInterruptedHelper.throwTaskKillException();
     } finally {
       if (needCleanupPusher) {
-        cleanPusher();
+        cleanupPusher();
       }
     }
   }
@@ -354,7 +354,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     writeMetrics.incBytesWritten(bytesWritten);
   }
 
-  private void cleanPusher() throws IOException {
+  private void cleanupPusher() throws IOException {
     try {
       dataPusher.waitOnTermination();
       sendBufferPool.returnPushTaskQueue(dataPusher.getIdleQueue());
