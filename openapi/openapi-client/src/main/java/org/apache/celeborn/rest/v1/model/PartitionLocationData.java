@@ -39,7 +39,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   PartitionLocationData.JSON_PROPERTY_STORAGE,
   PartitionLocationData.JSON_PROPERTY_MAP_ID_BIT_MAP
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class PartitionLocationData {
   public static final String JSON_PROPERTY_ID_EPOCH = "idEpoch";
   private String idEpoch;

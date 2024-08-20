@@ -35,7 +35,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkerEventInfoData.JSON_PROPERTY_EVENT_TYPE,
   WorkerEventInfoData.JSON_PROPERTY_EVENT_TIME
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class WorkerEventInfoData {
   public static final String JSON_PROPERTY_EVENT_TYPE = "eventType";
   private String eventType;

@@ -38,7 +38,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   AppDiskUsagesResponse.JSON_PROPERTY_APP_DISK_USAGES
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class AppDiskUsagesResponse {
   public static final String JSON_PROPERTY_APP_DISK_USAGES = "appDiskUsages";
   private List<AppDiskUsageData> appDiskUsages = new ArrayList<>();

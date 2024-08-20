@@ -38,7 +38,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   MasterCommitData.JSON_PROPERTY_CLIENT_ADDRESS,
   MasterCommitData.JSON_PROPERTY_START_UP_ROLE
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class MasterCommitData {
   public static final String JSON_PROPERTY_COMMIT_INDEX = "commitIndex";
   private Long commitIndex;
