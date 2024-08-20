@@ -27,8 +27,10 @@ import java.util.concurrent.atomic.LongAdder;
 
 import scala.Tuple2;
 
+import com.github.luben.zstd.ZstdException;
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.buffer.ByteBuf;
+import net.jpountz.lz4.LZ4Exception;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -664,7 +666,7 @@ public abstract class CelebornInputStream extends InputStream {
         }
 
         return hasData;
-      } catch (IOException e) {
+      } catch (LZ4Exception | ZstdException | IOException e) {
         logger.error(
             "Failed to fill buffer from chunk. AppShuffleId {}, shuffleId {}, partitionId {}, location {}",
             appShuffleId,
@@ -672,7 +674,12 @@ public abstract class CelebornInputStream extends InputStream {
             partitionId,
             currentReader.getLocation(),
             e);
-        IOException ioe = e;
+        IOException ioe;
+        if (e instanceof IOException) {
+          ioe = (IOException) e;
+        } else {
+          ioe = new IOException(e);
+        }
         if (exceptionMaker != null) {
           if (shuffleClient.reportShuffleFetchFailure(appShuffleId, shuffleId)) {
             /*
@@ -689,7 +696,7 @@ public abstract class CelebornInputStream extends InputStream {
         throw ioe;
       } catch (Exception e) {
         logger.error(
-            "Failed to read data from chunk. AppShuffleId {}, shuffleId {}, partitionId {}, location {}",
+            "Failed to fill buffer from chunk. AppShuffleId {}, shuffleId {}, partitionId {}, location {}",
             appShuffleId,
             shuffleId,
             partitionId,
