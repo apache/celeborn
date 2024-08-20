@@ -57,11 +57,6 @@ public class DbConfigServiceImpl extends BaseConfigServiceImpl implements Config
                     Function.identity())));
   }
 
-  @Override
-  public String getName() {
-    return "DB";
-  }
-
   @VisibleForTesting
   public IServiceManager getServiceManager() {
     return iServiceManager;
