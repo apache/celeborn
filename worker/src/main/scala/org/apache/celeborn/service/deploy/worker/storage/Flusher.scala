@@ -18,14 +18,12 @@
 package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.IOException
-import java.nio.channels.ClosedByInterruptException
 import java.util.concurrent.{ExecutorService, LinkedBlockingQueue, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLongArray}
 
-import scala.collection.JavaConverters._
 import scala.util.Random
 
-import io.netty.buffer.{CompositeByteBuf, PooledByteBufAllocator, Unpooled}
+import io.netty.buffer.{CompositeByteBuf, PooledByteBufAllocator}
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, TimeWindow}

@@ -30,8 +30,6 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.{CelebornHistogram, CelebornTimer, MetricLabels, ResettableSlidingWindowReservoir}
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
-// Can Remove this if celeborn don't support scala211 in future
-import org.apache.celeborn.common.util.FunctionConverter._
 
 case class NamedCounter(name: String, counter: Counter, labels: Map[String, String])
   extends MetricLabels

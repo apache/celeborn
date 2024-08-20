@@ -17,10 +17,6 @@
 
 package org.apache.celeborn.common.client
 
-import java.util
-
-import scala.collection.JavaConverters._
-
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.RpcNameConstants

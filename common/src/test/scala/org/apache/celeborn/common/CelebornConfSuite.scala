@@ -21,7 +21,6 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.internal.config.ConfigEntry
 import org.apache.celeborn.common.protocol.StorageInfo
-import org.apache.celeborn.common.util.Utils
 
 class CelebornConfSuite extends CelebornFunSuite {
 

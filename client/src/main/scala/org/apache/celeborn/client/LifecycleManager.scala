@@ -52,8 +52,6 @@ import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.{ClientSaslContextBuilder, RpcSecurityContext, RpcSecurityContextBuilder}
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
-// Can Remove this if celeborn don't support scala211 in future
-import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
 import org.apache.celeborn.common.util.Utils.UNKNOWN_APP_SHUFFLE_ID
 
@@ -237,8 +235,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   override def onStop(): Unit = {
-    import scala.concurrent.duration._
-
     checkForShuffleRemoval.cancel(true)
     ThreadUtils.shutdown(forwardMessageThread)
 
