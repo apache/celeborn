@@ -452,7 +452,7 @@ object CelebornCli {
   lazy val cli = Project("celeborn-cli", file("cli"))
     .dependsOn(CelebornCommon.common % "test")
     .dependsOn(CelebornMaster.master % "test")
-    .dependsOn(CelebornMaster.worker % "test")
+    .dependsOn(CelebornWorker.worker % "test")
     .dependsOn(CelebornOpenApi.openApiClient % "test->test;compile->compile")
     .settings (
       commonSettings,
