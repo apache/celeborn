@@ -228,7 +228,7 @@ trait MiniClusterFeature extends Logging {
         workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
         allWorkersStarted = true
       } catch {
-        case ex: Throwable =>
+        case ex: Exception =>
           logError("all workers haven't been started retrying", ex)
           Thread.sleep(5000)
           workersWaitingTime += 5000
