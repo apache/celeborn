@@ -149,7 +149,8 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
         val pushPort = splitWorkerId(2).toInt
         val fetchPort = splitWorkerId(3).toInt
         val replicatePort = splitWorkerId(4).toInt
-        new WorkerId().host(host).rpcPort(rpcPort).pushPort(pushPort).fetchPort(fetchPort).replicatePort(replicatePort)
+        new WorkerId().host(host).rpcPort(rpcPort).pushPort(pushPort).fetchPort(
+          fetchPort).replicatePort(replicatePort)
       })
       .toList
       .asJava

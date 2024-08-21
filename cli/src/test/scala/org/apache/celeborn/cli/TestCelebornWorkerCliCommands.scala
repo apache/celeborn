@@ -18,14 +18,14 @@
 package org.apache.celeborn.cli
 
 import java.io.{ByteArrayOutputStream, File, PrintStream}
+import java.nio.file.{Files, Paths}
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.worker.Worker
-
-import java.nio.file.{Files, Paths}
 
 class TestCelebornWorkerCliCommands extends CelebornFunSuite with MiniClusterFeature {
 
@@ -45,9 +45,9 @@ class TestCelebornWorkerCliCommands extends CelebornFunSuite with MiniClusterFea
       "--add-cluster-alias",
       "unit-test",
       "--host-list",
-      master.connectionUrl
-    )
-    captureOutputAndValidateResponse(aliasCommand,
+      master.connectionUrl)
+    captureOutputAndValidateResponse(
+      aliasCommand,
       s"Cluster alias unit-test added to ${CliConfigManager.cliConfigFilePath}")
   }
 
@@ -58,8 +58,7 @@ class TestCelebornWorkerCliCommands extends CelebornFunSuite with MiniClusterFea
     val removeAliasCommand = Array(
       "master",
       "--remove-cluster-alias",
-      "unit-test"
-    )
+      "unit-test")
     captureOutputAndValidateResponse(removeAliasCommand, s"Cluster alias unit-test removed.")
     val cliConfigManager = new CliConfigManager
     val aliasExists = cliConfigManager.loadConfig().exists(_.cliConfigData.contains("unit-test"))
@@ -197,14 +196,12 @@ class TestCelebornWorkerCliCommands extends CelebornFunSuite with MiniClusterFea
     val excludeArgs = prepareMasterArgs() ++ Array(
       "--exclude-worker",
       "--host-list",
-      getWorkerId()
-    )
+      getWorkerId())
     captureOutputAndValidateResponse(excludeArgs, "success: true")
     val removeExcludedArgs = prepareMasterArgs() ++ Array(
       "--remove-excluded-worker",
       "--host-list",
-      getWorkerId()
-    )
+      getWorkerId())
     captureOutputAndValidateResponse(removeExcludedArgs, "success: true")
   }
 
@@ -213,8 +210,7 @@ class TestCelebornWorkerCliCommands extends CelebornFunSuite with MiniClusterFea
       "--send-worker-event",
       "DECOMMISSION",
       "--host-list",
-      getWorkerId()
-    )
+      getWorkerId())
     captureOutputAndValidateResponse(args, "success: true")
   }
 
@@ -222,21 +218,19 @@ class TestCelebornWorkerCliCommands extends CelebornFunSuite with MiniClusterFea
     Array(
       "master",
       "--cluster",
-      "unit-test"
-    )
+      "unit-test")
   }
 
   private def prepareWorkerArgs(): Array[String] = {
     Array(
       "worker",
       "--hostport",
-      worker.connectionUrl
-    )
+      worker.connectionUrl)
   }
 
   private def captureOutputAndValidateResponse(
       args: Array[String],
-    stdoutValidationString: String): Unit = {
+      stdoutValidationString: String): Unit = {
     val stdoutStream = new ByteArrayOutputStream()
     val stdoutPrintStream = new PrintStream(stdoutStream)
     Console.withOut(stdoutPrintStream) {
