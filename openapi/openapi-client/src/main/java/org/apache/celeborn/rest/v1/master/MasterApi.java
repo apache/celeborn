@@ -47,8 +47,8 @@ public class MasterApi extends BaseApi {
   }
 
   /**
-   * 
-   * List master group information of the service. It will list all master&#39;s LEADER, FOLLOWER information. 
+   *
+   * List master group information of the service. It will list all master&#39;s LEADER, FOLLOWER information.
    * @return MasterInfoResponse
    * @throws ApiException if fails to make API call
    */
@@ -58,15 +58,15 @@ public class MasterApi extends BaseApi {
 
 
   /**
-   * 
-   * List master group information of the service. It will list all master&#39;s LEADER, FOLLOWER information. 
+   *
+   * List master group information of the service. It will list all master&#39;s LEADER, FOLLOWER information.
    * @param additionalHeaders additionalHeaders for this call
    * @return MasterInfoResponse
    * @throws ApiException if fails to make API call
    */
   public MasterInfoResponse getMasterGroupInfo(Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = null;
-    
+
     // create path and map variables
     String localVarPath = "/api/v1/masters";
 
@@ -78,18 +78,18 @@ public class MasterApi extends BaseApi {
     Map<String, String> localVarCookieParams = new HashMap<String, String>();
     Map<String, Object> localVarFormParams = new HashMap<String, Object>();
 
-    
+
     localVarHeaderParams.putAll(additionalHeaders);
 
-    
-    
+
+
     final String[] localVarAccepts = {
       "application/json"
     };
     final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
 
     final String[] localVarContentTypes = {
-      
+
     };
     final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
 
@@ -131,7 +131,7 @@ public class MasterApi extends BaseApi {
     final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
 
     final String[] localVarContentTypes = {
-      
+
     };
     final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
 
