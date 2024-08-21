@@ -133,6 +133,9 @@ upload_nexus_staging() {
 
   echo "Deploying celeborn-spi"
   ${PROJECT_DIR}/build/sbt "clean;celeborn-spi/publishSigned"
+
+    echo "Deploying celeborn-cli"
+    ${PROJECT_DIR}/build/sbt "clean;celeborn-cli/publishSigned"
 }
 
 finalize_svn() {
