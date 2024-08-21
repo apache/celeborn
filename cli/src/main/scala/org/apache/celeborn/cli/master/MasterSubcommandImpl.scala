@@ -98,7 +98,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   private[master] def runShowWorkerEventInfo: WorkerEventsResponse = workerApi.getWorkerEvents
 
   private[master] def runShowLostWorkers: Seq[WorkerTimestampData] = {
-    val lostWorkers = runShowWorkers.getLostWorkers.asScala
+    val lostWorkers = runShowWorkers.getLostWorkers.asScala.toSeq
     if (lostWorkers.isEmpty) {
       log("No lost workers found.")
       Seq.empty[WorkerTimestampData]
@@ -108,7 +108,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   }
 
   private[master] def runShowExcludedWorkers: Seq[WorkerData] = {
-    val excludedWorkers = runShowWorkers.getExcludedWorkers.asScala
+    val excludedWorkers = runShowWorkers.getExcludedWorkers.asScala.toSeq
     if (excludedWorkers.isEmpty) {
       log("No excluded workers found.")
       Seq.empty[WorkerData]
@@ -118,7 +118,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   }
 
   private[master] def runShowShutdownWorkers: Seq[WorkerData] = {
-    val shutdownWorkers = runShowWorkers.getShutdownWorkers.asScala
+    val shutdownWorkers = runShowWorkers.getShutdownWorkers.asScala.toSeq
     if (shutdownWorkers.isEmpty) {
       log("No shutdown workers found.")
       Seq.empty[WorkerData]
