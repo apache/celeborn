@@ -20,7 +20,6 @@ package org.apache.celeborn.service.deploy
 import java.io.IOException
 import java.net.BindException
 import java.nio.file.Files
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.{Lock, ReentrantLock}
 
 import scala.collection.mutable
@@ -203,7 +202,7 @@ trait MiniClusterFeature extends Logging {
                 logError(s"cannot start worker $i, reached to max retrying", ex)
                 throw ex
               } else {
-                TimeUnit.SECONDS.sleep(Math.pow(2, workerStartRetry).toLong)
+                Thread.sleep(math.pow(2000, workerStartRetry).toInt)
               }
           }
         }

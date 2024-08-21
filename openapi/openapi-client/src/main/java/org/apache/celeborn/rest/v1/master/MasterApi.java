@@ -84,7 +84,7 @@ public class MasterApi extends BaseApi {
 
 
     final String[] localVarAccepts = {
-      "application/json"
+        "application/json"
     };
     final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
 
@@ -126,7 +126,7 @@ public class MasterApi extends BaseApi {
     localVarHeaderParams.putAll(additionalHeaders);
 
     final String[] localVarAccepts = {
-      "application/json"
+        "application/json"
     };
     final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
 
@@ -138,7 +138,7 @@ public class MasterApi extends BaseApi {
     String[] localVarAuthNames = new String[] { "basic" };
 
     return apiClient.invokeAPI(
-      localVarPath,
+        localVarPath,
         method,
         localVarQueryParams,
         localVarCollectionQueryParams,
