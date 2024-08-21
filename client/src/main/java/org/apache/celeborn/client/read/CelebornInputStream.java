@@ -338,16 +338,16 @@ public abstract class CelebornInputStream extends InputStream {
 
     private PartitionReader createReaderWithRetry(
         PartitionLocation location, PbStreamHandler pbStreamHandler) throws IOException {
+      // For the first time, the location will be selected according to attemptNumber
+      if (fetchChunkRetryCnt == 0 && attemptNumber % 2 == 1 && location.hasPeer()) {
+        location = location.getPeer();
+        logger.debug("Read peer {} for attempt {}.", location, attemptNumber);
+      }
       Exception lastException = null;
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
           if (isExcluded(location)) {
             throw new CelebornIOException("Fetch data from excluded worker! " + location);
-          }
-          // should switch the location at a high level
-          if (fetchChunkRetryCnt == 0 && attemptNumber % 2 == 1 && location.hasPeer()) {
-            location = location.getPeer();
-            logger.info("Read peer {} for attempt {}.", location, attemptNumber);
           }
           return createReader(location, pbStreamHandler, fetchChunkRetryCnt, fetchChunkMaxRetry);
         } catch (Exception e) {
@@ -437,7 +437,7 @@ public abstract class CelebornInputStream extends InputStream {
         int fetchChunkRetryCnt,
         int fetchChunkMaxRetry)
         throws IOException, InterruptedException {
-      logger.info("Create reader for location {}", location);
+      logger.debug("Create reader for location {}", location);
 
       StorageInfo storageInfo = location.getStorageInfo();
       switch (storageInfo.getType()) {
