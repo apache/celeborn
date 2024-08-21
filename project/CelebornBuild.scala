@@ -204,6 +204,8 @@ object Dependencies {
   // SSL support
   val bouncycastleBcprovJdk18on = "org.bouncycastle" % "bcprov-jdk18on" % bouncycastleVersion % "test"
   val bouncycastleBcpkixJdk18on = "org.bouncycastle" % "bcpkix-jdk18on" % bouncycastleVersion % "test"
+
+  val picocli = "info.picocli" % "picocli" % picocliVersion
 }
 
 object CelebornCommonSettings {
@@ -457,8 +459,10 @@ object CelebornCli {
     .settings (
       commonSettings,
       libraryDependencies ++= Seq(
-        Dependencies.picocliVersion,
-        Dependencies.jacksonVersion
+        Dependencies.picocli,
+        Dependencies.jacksonCore,
+        Dependencies.jacksonDatabind,
+        Dependencies.jacksonModule
       ) ++ commonUnitTestDependencies
     )
 }
