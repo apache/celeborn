@@ -399,13 +399,15 @@ public class SortBasedPusher extends MemoryConsumer {
     taskContext.taskMetrics().incMemoryBytesSpilled(freedBytes);
   }
 
-  public void close() throws IOException {
+  public void close(boolean throwTaskKilledOnInterruption) throws IOException {
     cleanupResources();
     try {
       dataPusher.waitOnTermination();
       sendBufferPool.returnPushTaskQueue(dataPusher.getIdleQueue());
     } catch (InterruptedException e) {
-      TaskInterruptedHelper.throwTaskKillException();
+      if (throwTaskKilledOnInterruption) {
+        TaskInterruptedHelper.throwTaskKillException();
+      }
     }
   }
 

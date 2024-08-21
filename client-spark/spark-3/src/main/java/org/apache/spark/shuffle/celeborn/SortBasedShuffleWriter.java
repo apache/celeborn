@@ -188,10 +188,15 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   @Override
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
+    boolean needCleanupPusher = true;
     try {
       doWrite(records);
-    } finally {
       close();
+      needCleanupPusher = false;
+    } finally {
+      if (needCleanupPusher) {
+        cleanupPusher();
+      }
     }
   }
 
@@ -316,11 +321,17 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     writeMetrics.incBytesWritten(bytesWritten);
   }
 
+  private void cleanupPusher() throws IOException {
+    if (pusher != null) {
+      pusher.close(false);
+    }
+  }
+
   private void close() throws IOException {
     logger.info("Memory used {}", Utils.bytesToString(pusher.getUsed()));
     long pushStartTime = System.nanoTime();
     pusher.pushData();
-    pusher.close();
+    pusher.close(true);
 
     shuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
