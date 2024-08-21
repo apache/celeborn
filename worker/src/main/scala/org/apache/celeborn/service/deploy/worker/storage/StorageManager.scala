@@ -855,9 +855,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         }
       }.sum
 
-      val lists = getFileSystemReportedSpace(diskInfo.mountPoint)
-      val fileSystemReportedUsableSpace = lists.head
-      val fileSystemReportedTotalSpace = lists(1)
+      val (fileSystemReportedUsableSpace, fileSystemReportedTotalSpace) =
+        getFileSystemReportedSpace(diskInfo.mountPoint)
       val workingDirUsableSpace =
         Math.min(diskInfo.configuredUsableSpace - totalUsage, fileSystemReportedUsableSpace)
       val minimumReserveSize =
@@ -874,11 +873,11 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     logInfo(s"Updated diskInfos:\n${disksSnapshot().mkString("\n")}")
   }
 
-  def getFileSystemReportedSpace(mountPoint: String): List[Long] = {
+  def getFileSystemReportedSpace(mountPoint: String): (Long, Long) = {
     val fileStore = Files.getFileStore(Paths.get(mountPoint))
     val fileSystemReportedUsableSpace = fileStore.getUsableSpace
     val fileSystemReportedTotalSpace = fileStore.getTotalSpace
-    List(fileSystemReportedUsableSpace, fileSystemReportedTotalSpace)
+    (fileSystemReportedUsableSpace, fileSystemReportedTotalSpace)
   }
 
   def userResourceConsumptionSnapshot(): Map[UserIdentifier, ResourceConsumption] = {

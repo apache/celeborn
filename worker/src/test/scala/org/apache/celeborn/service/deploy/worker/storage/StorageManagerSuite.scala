@@ -51,7 +51,7 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
     val spyStorageManager = spy(storageManager)
 
     val disks = prepareDisks()
-    val diskSetSpace = List(80 * 1024 * 1024 * 1024L, 80 * 1024 * 1024 * 1024L)
+    val diskSetSpace = (80 * 1024 * 1024 * 1024L, 80 * 1024 * 1024 * 1024L)
     doReturn(disks).when(spyStorageManager).disksSnapshot()
     doReturn(diskSetSpace).when(spyStorageManager).getFileSystemReportedSpace(any)
     spyStorageManager.updateDiskInfos()
@@ -61,7 +61,7 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
           disk,
           conf.workerDiskReserveSize,
           conf.workerDiskReserveRatio)
-      assert(disk.actualUsableSpace == diskSetSpace.head - minimumReserveSize)
+      assert(disk.actualUsableSpace == diskSetSpace._1 - minimumReserveSize)
     }
   }
 
