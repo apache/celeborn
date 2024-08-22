@@ -22,6 +22,7 @@ package deploy.master.meta;
 
 enum Type {
   UnRegisterShuffle = 12;
+  BatchUnRegisterShuffle = 28;
   RequestSlots = 13;
 
   //deprecated
@@ -61,6 +62,7 @@ message ResourceRequest {
   // deprecated
   optional ReleaseSlotsRequest releaseSlotsRequest = 11;
   optional UnregisterShuffleRequest unregisterShuffleRequest = 12;
+  optional BatchUnregisterShuffleRequest batchUnregisterShuffleRequest = 28;
   optional AppHeartbeatRequest appHeartbeatRequest = 13;
   optional AppLostRequest appLostRequest = 14;
   optional WorkerLostRequest workerLostRequest = 15;
@@ -104,6 +106,10 @@ message ReleaseSlotsRequest {
 
 message UnregisterShuffleRequest {
   required string shuffleKey = 1;
+}
+
+message BatchUnregisterShuffleRequest{
+  repeated string shuffleKeys = 1;
 }
 
 message AppHeartbeatRequest {

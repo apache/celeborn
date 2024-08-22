@@ -103,6 +103,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val rpcCacheExpireTime = conf.clientRpcCacheExpireTime
   private val rpcMaxRetires = conf.clientRpcMaxRetries
 
+  private val batchRemoveExpiredShuffles = conf.batchHandleRemoveExpiredShuffles
+
   private val excludedWorkersFilter = conf.registerShuffleFilterExcludedWorkerEnabled
 
   private val registerShuffleResponseRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
@@ -229,6 +231,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
           self.send(RemoveExpiredShuffle)
+          // todo
         }
       },
       shuffleExpiredCheckIntervalMs,
@@ -302,7 +305,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   override def receive: PartialFunction[Any, Unit] = {
     case RemoveExpiredShuffle =>
-      removeExpiredShuffle()
+      if (batchRemoveExpiredShuffles) {
+        removeBatchExpiredShuffles()
+      } else {
+        removeExpiredShuffle()
+      }
     case StageEnd(shuffleId) =>
       logInfo(s"Received StageEnd request, shuffleId $shuffleId.")
       handleStageEnd(shuffleId)
@@ -1583,6 +1590,37 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
+  private def removeBatchExpiredShuffles(): Unit = {
+    val shuffleIds = new util.ArrayList[Integer]()
+    unregisterShuffleTime.keys().asScala.foreach { shuffleId =>
+      logInfo(s"Clear shuffle $shuffleId.")
+      // clear for the shuffle
+      registeredShuffle.remove(shuffleId)
+      registeringShuffleRequest.remove(shuffleId)
+      shuffleAllocatedWorkers.remove(shuffleId)
+      latestPartitionLocation.remove(shuffleId)
+      commitManager.removeExpiredShuffle(shuffleId)
+      changePartitionManager.removeExpiredShuffle(shuffleId)
+      shuffleIds.add(shuffleId)
+    }
+    val unregisterShuffleResponse = batchRequestMasterUnregisterShuffles(
+      BatchUnregisterShuffles(appUniqueId, shuffleIds, MasterClient.genRequestId()))
+    // if unregister shuffle not success, wait next turn
+    if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
+      unregisterShuffleTime.keys().asScala.foreach { shuffleId =>
+        unregisterShuffleTime.remove(shuffleId)
+      }
+    } else {
+      val responsesInfoList = unregisterShuffleResponse.getUnregisterShuffleResponsesInfoList
+      responsesInfoList.forEach { resInfo =>
+        logInfo(s"failed shuffleId ${resInfo.getShuffleId}, failed StatusCode ${resInfo.getStatus}")
+        if (Utils.toStatusCode(resInfo.getStatus) == StatusCode.SUCCESS) {
+          unregisterShuffleTime.remove(resInfo.getShuffleId)
+        }
+      }
+    }
+  }
+
   def requestMasterRequestSlotsWithRetry(
       shuffleId: Int,
       ids: util.ArrayList[Integer]): RequestSlotsResponse = {
@@ -1652,6 +1690,24 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       case e: Exception =>
         logError(s"AskSync UnregisterShuffle for ${message.getShuffleId} failed.", e)
         UnregisterShuffleResponse(StatusCode.REQUEST_FAILED)
+    }
+  }
+
+  private def batchRequestMasterUnregisterShuffles(message: PbBatchUnregisterShuffles): PbBatchUnregisterShuffleResponses = {
+    try {
+      logInfo(s"AskSync UnregisterShuffle for ${message.getShuffleIdsList}")
+      masterClient.askSync[PbBatchUnregisterShuffleResponses](
+        message,
+        classOf[PbBatchUnregisterShuffleResponses])
+    } catch {
+      case e: Exception =>
+        logError(s"AskSync UnregisterShuffle for ${message.getShuffleIdsList} failed.", e)
+        val map = JavaUtils.newConcurrentHashMap[Integer, StatusCode]()
+        val shuffleIds = message.getShuffleIdsList
+        shuffleIds.forEach { shuffleId =>
+          map.put(shuffleId, StatusCode.REQUEST_FAILED)
+        }
+        BatchUnregisterShuffleResponses(StatusCode.REQUEST_FAILED, map)
     }
   }
 

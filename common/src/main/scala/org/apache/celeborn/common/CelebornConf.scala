@@ -1035,6 +1035,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def batchHandleChangePartitionNumThreads: Int = get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_THREADS)
   def batchHandleChangePartitionRequestInterval: Long =
     get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_INTERVAL)
+  def batchHandleRemoveExpiredShuffles: Boolean = get(CLIENT_BATCH_REMOVE_EXPIRED_SHUFFLE)
   def batchHandleCommitPartitionEnabled: Boolean = get(CLIENT_BATCH_HANDLE_COMMIT_PARTITION_ENABLED)
   def batchHandleCommitPartitionNumThreads: Int = get(CLIENT_BATCH_HANDLE_COMMIT_PARTITION_THREADS)
   def batchHandleCommitPartitionRequestInterval: Long =
@@ -4418,7 +4419,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Interval for client to check expired shuffles.")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("60s")
+      .createWithDefaultString("20s")
 
   val CLIENT_SHUFFLE_MANAGER_PORT: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.manager.port")
@@ -4447,6 +4448,14 @@ object CelebornConf extends Logging {
       .doc("When true, LifecycleManager will handle change partition request in batch. " +
         "Otherwise, LifecycleManager will process the requests one by one")
       .version("0.3.0")
+      .booleanConf
+      .createWithDefault(true)
+
+  val CLIENT_BATCH_REMOVE_EXPIRED_SHUFFLE: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.batchHandleRemoveExpiredShuffles.enabled")
+      .categories("client")
+      .version("0.5.0")
+      .doc("This is an optimization on remove Expired Shuffles and it's true by default.")
       .booleanConf
       .createWithDefault(true)
 

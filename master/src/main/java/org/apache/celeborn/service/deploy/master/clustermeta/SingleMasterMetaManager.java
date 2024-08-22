@@ -66,6 +66,11 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void batchHandleUnRegisterShuffles(List<String> shuffleKeys, String requestId) {
+    shuffleKeys.forEach(shuffleKey -> updateUnregisterShuffleMeta(shuffleKey));
+  }
+
+  @Override
   public void handleAppHeartbeat(
       String appId, long totalWritten, long fileCount, long time, String requestId) {
     updateAppHeartbeatMeta(appId, time, totalWritten, fileCount);

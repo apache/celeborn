@@ -553,6 +553,81 @@ public class DefaultMetaSystemSuiteJ {
   }
 
   @Test
+  public void testBatchHandleUnRegisterShuffle() {
+    statusSystem.handleRegisterWorker(
+            HOSTNAME1,
+            RPCPORT1,
+            PUSHPORT1,
+            FETCHPORT1,
+            REPLICATEPORT1,
+            INTERNALPORT1,
+            NETWORK_LOCATION1,
+            disks1,
+            userResourceConsumption1,
+            getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+            HOSTNAME2,
+            RPCPORT2,
+            PUSHPORT2,
+            FETCHPORT2,
+            REPLICATEPORT2,
+            INTERNALPORT2,
+            NETWORK_LOCATION2,
+            disks2,
+            userResourceConsumption2,
+            getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+            HOSTNAME3,
+            RPCPORT3,
+            PUSHPORT3,
+            FETCHPORT3,
+            REPLICATEPORT3,
+            INTERNALPORT3,
+            NETWORK_LOCATION3,
+            disks3,
+            userResourceConsumption3,
+            getNewReqeustId());
+
+    WorkerInfo workerInfo1 =
+            new WorkerInfo(
+                    HOSTNAME1,
+                    RPCPORT1,
+                    PUSHPORT1,
+                    FETCHPORT1,
+                    REPLICATEPORT1,
+                    INTERNALPORT1,
+                    disks1,
+                    userResourceConsumption1);
+    WorkerInfo workerInfo2 =
+            new WorkerInfo(
+                    HOSTNAME2,
+                    RPCPORT2,
+                    PUSHPORT2,
+                    FETCHPORT2,
+                    REPLICATEPORT2,
+                    INTERNALPORT2,
+                    disks2,
+                    userResourceConsumption2);
+
+    Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
+    Map<String, Integer> allocation = new HashMap<>();
+    allocation.put("disk1", 5);
+    workersToAllocate.put(workerInfo1.toUniqueId(), allocation);
+    workersToAllocate.put(workerInfo2.toUniqueId(), allocation);
+
+    List<String> shuffleKeys = new ArrayList<>();
+    for (int i = 1; i <= 3; i++) {
+      String shuffleKey = APPID1 + "-" + i;
+      shuffleKeys.add(shuffleKey);
+      statusSystem.handleRequestSlots(shuffleKey, HOSTNAME1, workersToAllocate, getNewReqeustId());
+    }
+
+    assertEquals(3, statusSystem.registeredShuffle.size());
+    statusSystem.batchHandleUnRegisterShuffles(shuffleKeys, getNewReqeustId());
+    assertTrue(statusSystem.registeredShuffle.isEmpty());
+  }
+
+  @Test
   public void testHandleAppHeartbeat() {
     Long dummy = 1235L;
     statusSystem.handleAppHeartbeat(APPID1, 1, 1, dummy, getNewReqeustId());

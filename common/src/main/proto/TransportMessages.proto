@@ -38,6 +38,8 @@ enum MessageType {
   GET_REDUCER_FILE_GROUP_RESPONSE = 15;
   UNREGISTER_SHUFFLE = 16;
   UNREGISTER_SHUFFLE_RESPONSE = 17;
+  BATCH_UNREGISTER_SHUFFLES = 21;
+  BATCH_UNREGISTER_SHUFFLE_RESPONSES= 22;
   APPLICATION_LOST = 18;
   APPLICATION_LOST_RESPONSE = 19;
   HEARTBEAT_FROM_APPLICATION = 20;
@@ -402,8 +404,24 @@ message PbUnregisterShuffle {
   string requestId = 3;
 }
 
+message PbBatchUnregisterShuffles {
+  string appId = 1;
+  string requestId = 2;
+  repeated int32 shuffleIds = 3;
+}
+
 message PbUnregisterShuffleResponse {
   int32 status = 1;
+}
+
+message PbBatchUnregisterShuffleResponses {
+  int32 status = 1;
+  repeated PbUnregisterShuffleResponsesInfo unregisterShuffleResponsesInfo = 2;
+}
+
+message PbUnregisterShuffleResponsesInfo {
+  int32 shuffleId = 1;
+  int32 status = 2;
 }
 
 message PbApplicationLost {
