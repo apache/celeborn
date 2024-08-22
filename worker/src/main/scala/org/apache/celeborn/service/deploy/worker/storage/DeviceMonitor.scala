@@ -112,10 +112,10 @@ class LocalDeviceMonitor(
               val mountPoints = device.diskInfos.keySet.asScala.toList
               // tolerate time accuracy for better performance
               val now = System.currentTimeMillis()
-              for (concurrentSet <- device.nonCriticalErrors.values().asScala) {
-                for (time <- concurrentSet.asScala) {
+              for (concurrentList <- device.nonCriticalErrors.values().asScala) {
+                for (time <- concurrentList.asScala) {
                   if (now - time > device.notifyErrorExpireTimeout) {
-                    concurrentSet.remove(time)
+                    concurrentList.remove(time)
                   }
                 }
               }
