@@ -17,18 +17,20 @@
 
 package org.apache.celeborn.tests.client
 
+import java.util
+
+import org.scalatest.concurrent.Eventually.eventually
+import org.scalatest.concurrent.Futures.{interval, timeout}
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+
 import org.apache.celeborn.client.{LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.MiniClusterFeature
-import org.scalatest.concurrent.Eventually.eventually
-import org.scalatest.concurrent.Futures.{interval, timeout}
-import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
-import java.util
-
-class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite with MiniClusterFeature  {
+class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
+  with MiniClusterFeature {
 
   celebornConf
     .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "true")
@@ -52,7 +54,7 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite with
       shuffleIds.add(num + 1)
     }
 
-    shuffleIds.forEach{ shuffleId =>
+    shuffleIds.forEach { shuffleId =>
       val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
       assert(res.status == StatusCode.SUCCESS)
       lifecycleManager.registeredShuffle.add(shuffleId)
@@ -62,12 +64,12 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite with
       lifecycleManager.commitManager.setStageEnd(shuffleId)
     }
 
-    shuffleIds.forEach{ shuffleId =>
+    shuffleIds.forEach { shuffleId =>
       lifecycleManager.unregisterShuffle(shuffleId)
     }
     // after unregister shuffle
     eventually(timeout(40.seconds), interval(2.seconds)) {
-      shuffleIds.forEach{ shuffleId =>
+      shuffleIds.forEach { shuffleId =>
         val shuffleKey = Utils.makeShuffleKey(APP, shuffleId)
         assert(!lifecycleManager.registeredShuffle.contains(shuffleId))
         assert(!masterInfo._1.statusSystem.registeredShuffle.contains(shuffleKey))
@@ -87,7 +89,7 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite with
       ids.add(num)
       shuffleIds.add(num + 1)
     }
-    shuffleIds.forEach{ shuffleId =>
+    shuffleIds.forEach { shuffleId =>
       val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
       assert(res.status == StatusCode.SUCCESS)
       lifecycleManager.registeredShuffle.add(shuffleId)
@@ -97,12 +99,12 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite with
       lifecycleManager.commitManager.setStageEnd(shuffleId)
     }
     val previousTime = System.currentTimeMillis()
-    shuffleIds.forEach{ shuffleId =>
+    shuffleIds.forEach { shuffleId =>
       lifecycleManager.unregisterShuffle(shuffleId)
     }
     // after unregister shuffle
     eventually(timeout(40.seconds), interval(2.seconds)) {
-      shuffleIds.forEach{ shuffleId =>
+      shuffleIds.forEach { shuffleId =>
         val shuffleKey = Utils.makeShuffleKey(APP, shuffleId)
         assert(!lifecycleManager.registeredShuffle.contains(shuffleId))
         assert(!masterInfo._1.statusSystem.registeredShuffle.contains(shuffleKey))

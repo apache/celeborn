@@ -991,10 +991,10 @@ private[celeborn] class Master(
   }
 
   def batchHandleUnregisterShuffles(
-                               context: RpcCallContext,
-                               applicationId: String,
-                               shuffleIds: List[Integer],
-                               requestId: String): Unit = {
+      context: RpcCallContext,
+      applicationId: String,
+      shuffleIds: List[Integer],
+      requestId: String): Unit = {
     val map = JavaUtils.newConcurrentHashMap[Integer, StatusCode]()
     val shuffleKeys = new util.ArrayList[String]()
     shuffleIds.foreach { shuffleId =>

@@ -1693,7 +1693,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
-  private def batchRequestMasterUnregisterShuffles(message: PbBatchUnregisterShuffles): PbBatchUnregisterShuffleResponses = {
+  private def batchRequestMasterUnregisterShuffles(message: PbBatchUnregisterShuffles)
+      : PbBatchUnregisterShuffleResponses = {
     try {
       logInfo(s"AskSync UnregisterShuffle for ${message.getShuffleIdsList}")
       masterClient.askSync[PbBatchUnregisterShuffleResponses](

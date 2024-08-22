@@ -350,9 +350,9 @@ object ControlMessages extends Logging {
 
   object BatchUnregisterShuffles {
     def apply(
-         appId: String,
-         shuffleIds: util.List[Integer],
-         requestId: String): PbBatchUnregisterShuffles =
+        appId: String,
+        shuffleIds: util.List[Integer],
+        requestId: String): PbBatchUnregisterShuffles =
       PbBatchUnregisterShuffles.newBuilder()
         .setAppId(appId)
         .addAllShuffleIds(shuffleIds)
@@ -368,8 +368,9 @@ object ControlMessages extends Logging {
   }
 
   object BatchUnregisterShuffleResponses {
-    def apply(status: StatusCode,
-              statuses: util.Map[Integer, StatusCode]): PbBatchUnregisterShuffleResponses = {
+    def apply(
+        status: StatusCode,
+        statuses: util.Map[Integer, StatusCode]): PbBatchUnregisterShuffleResponses = {
       val builder = PbBatchUnregisterShuffleResponses.newBuilder()
       builder.setStatus(status.getValue)
       statuses.asScala.foreach { case (shuffleId, statusCode) =>
