@@ -55,9 +55,4 @@ public class DbConfigServiceImpl extends BaseConfigServiceImpl implements Config
                     tenantConfig -> Pair.of(tenantConfig.getTenantId(), tenantConfig.getName()),
                     Function.identity())));
   }
-
-  @Override
-  public String getName() {
-    return "DB";
-  }
 }
