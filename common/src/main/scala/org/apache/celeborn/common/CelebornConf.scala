@@ -4000,7 +4000,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.test.client.push.mockRandomPushForStageRerun")
       .internal
       .categories("test", "client")
-      .version("0.4.3")
+      .version("0.3.2")
       .booleanConf
       .createWithDefault(false)
 

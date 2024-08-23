@@ -171,7 +171,6 @@ public abstract class CelebornInputStream extends InputStream {
     private ExceptionMaker exceptionMaker;
     private boolean closed = false;
     private boolean alreadyReadChunk = false;
-    private boolean testRandomPushForStageRerun = false;
 
     CelebornInputStreamImpl(
         CelebornConf conf,
@@ -231,7 +230,6 @@ public abstract class CelebornInputStream extends InputStream {
         init();
         firstChunk = false;
       }
-      this.testRandomPushForStageRerun = conf.testRandomPushForStageRerun();
     }
 
     private boolean skipLocation(int startMapIndex, int endMapIndex, PartitionLocation location) {
@@ -393,9 +391,9 @@ public abstract class CelebornInputStream extends InputStream {
           }
 
           // read one chunk first, then throw CelebornIOException to let spark rerun stage
-          if (testRandomPushForStageRerun && shuffleId == 0 && !alreadyReadChunk) {
+          if (conf.testRandomPushForStageRerun() && shuffleId == 0 && !alreadyReadChunk) {
             alreadyReadChunk = true;
-          } else if (testRandomPushForStageRerun && shuffleId == 0 && alreadyReadChunk) {
+          } else if (conf.testRandomPushForStageRerun() && shuffleId == 0 && alreadyReadChunk) {
             alreadyReadChunk = false;
             throw new CelebornIOException("already read chunk");
           }
