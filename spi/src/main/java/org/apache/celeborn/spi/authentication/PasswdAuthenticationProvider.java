@@ -31,5 +31,5 @@ public interface PasswdAuthenticationProvider {
    * @return The identifier associated with the credential
    * @throws AuthenticationException When a user is found to be invalid by the implementation
    */
-  Principal authenticate(PasswordCredential credential);
+  Principal authenticate(PasswordCredential credential) throws AuthenticationException;
 }

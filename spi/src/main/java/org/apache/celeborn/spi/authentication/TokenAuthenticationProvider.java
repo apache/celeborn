@@ -32,5 +32,5 @@ public interface TokenAuthenticationProvider {
    * @throws AuthenticationException When the credential is found to be invalid by the
    *     implementation
    */
-  Principal authenticate(TokenCredential credential);
+  Principal authenticate(TokenCredential credential) throws AuthenticationException;
 }
