@@ -658,7 +658,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         replyRegisterShuffle(RegisterShuffleResponse(StatusCode.SLOT_NOT_AVAILABLE, Array.empty))
         return
       case StatusCode.SUCCESS =>
-        logInfo(s"OfferSlots for $shuffleId Success!Slots Info: ${res.workerResource}")
+        logDebug(s"OfferSlots for $shuffleId Success!Slots Info: ${res.workerResource}")
       case StatusCode.WORKER_EXCLUDED =>
         logInfo(s"OfferSlots for $shuffleId failed due to all workers be excluded!")
         replyRegisterShuffle(RegisterShuffleResponse(StatusCode.WORKER_EXCLUDED, Array.empty))

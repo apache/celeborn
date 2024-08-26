@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master
 
-import com.google.common.io.Files
+import java.nio.file.Files
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
@@ -30,7 +30,7 @@ class ApiMasterResourceAuthenticationSuite extends ApiBaseResourceAuthentication
   override protected def httpService: HttpService = master
 
   def getTmpDir(): String = {
-    val tmpDir = Files.createTempDir()
+    val tmpDir = Files.createTempDirectory(null).toFile
     tmpDir.deleteOnExit()
     tmpDir.getAbsolutePath
   }

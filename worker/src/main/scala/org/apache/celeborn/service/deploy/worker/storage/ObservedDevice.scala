@@ -19,8 +19,8 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.File
 import java.util
-import java.util.{Set => JSet}
-import java.util.concurrent.ConcurrentHashMap
+import java.util.{List => JList, Set => JSet}
+import java.util.concurrent.{ConcurrentHashMap, CopyOnWriteArrayList}
 
 import scala.collection.JavaConverters._
 import scala.io.Source
@@ -45,8 +45,8 @@ class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSourc
   val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
   val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
-  val nonCriticalErrors: ConcurrentHashMap[DiskStatus, JSet[Long]] =
-    JavaUtils.newConcurrentHashMap[DiskStatus, JSet[Long]]()
+  val nonCriticalErrors: ConcurrentHashMap[DiskStatus, JList[Long]] =
+    JavaUtils.newConcurrentHashMap[DiskStatus, JList[Long]]()
   val notifyErrorThreshold: Int = conf.workerDiskMonitorNotifyErrorThreshold
   val notifyErrorExpireTimeout: Long = conf.workerDiskMonitorNotifyErrorExpireTimeout
 
@@ -83,11 +83,11 @@ class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSourc
       nonCriticalErrors.computeIfAbsent(
         diskStatus,
         (_: DiskStatus) => {
-          val set = ConcurrentHashMap.newKeySet[Long]()
+          val list = new CopyOnWriteArrayList[Long]()
           workerSource.addGauge(s"Device_${deviceInfo.name}_${diskStatus.toMetric}_Count") { () =>
-            set.size()
+            list.size()
           }
-          set
+          list
         }).add(System.currentTimeMillis())
       mountPoints.foreach { mountPoint =>
         diskInfos.get(mountPoint).setStatus(diskStatus)

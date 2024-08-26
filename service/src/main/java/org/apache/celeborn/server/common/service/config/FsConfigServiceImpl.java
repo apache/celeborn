@@ -104,9 +104,4 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
     }
     return configFile;
   }
-
-  @Override
-  public String getName() {
-    return "FS";
-  }
 }
