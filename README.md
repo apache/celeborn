@@ -291,6 +291,7 @@ spark.celeborn.client.push.replicate.enabled true
 spark.sql.adaptive.localShuffleReader.enabled false
 
 # If Celeborn is using HDFS
+spark.celeborn.storage.availableTypes HDFS
 spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 
 # we recommend enabling aqe support to gain better performance
