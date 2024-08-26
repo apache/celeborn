@@ -23,7 +23,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.*;
 
-import scala.Option;
 import scala.Tuple2;
 
 import org.junit.Test;
@@ -232,8 +231,6 @@ public class SlotsAllocatorSuiteJ {
             partitionIds,
             shouldReplicate,
             false,
-            10 * 1024 * 1024 * 1024L,
-            Option.empty(),
             conf.masterSlotAssignLoadAwareDiskGroupNum(),
             conf.masterSlotAssignLoadAwareDiskGroupGradient(),
             conf.masterSlotAssignLoadAwareFlushTimeWeight(),
@@ -313,8 +310,6 @@ public class SlotsAllocatorSuiteJ {
               partitionIds,
               shouldReplicate,
               false,
-              1000_000_000,
-              Option.empty(),
               3,
               0.1,
               0,
