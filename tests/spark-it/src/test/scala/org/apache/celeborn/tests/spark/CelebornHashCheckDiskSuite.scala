@@ -38,7 +38,8 @@ class CelebornHashCheckDiskSuite extends SparkTestBase {
       CelebornConf.APPLICATION_HEARTBEAT_TIMEOUT.key -> "10s")
     val workerConf = Map(
       CelebornConf.WORKER_STORAGE_DIRS.key -> "/tmp:capacity=1000",
-      CelebornConf.WORKER_HEARTBEAT_TIMEOUT.key -> "10s")
+      CelebornConf.WORKER_HEARTBEAT_TIMEOUT.key -> "10s",
+      CelebornConf.WORKER_DISK_RESERVE_SIZE.key -> "0G")
     workers = setupMiniClusterWithRandomPorts(masterConf, workerConf)._2
   }
 
@@ -76,10 +77,10 @@ class CelebornHashCheckDiskSuite extends SparkTestBase {
     assert(combineResult.equals(celebornCombineResult))
     assert(sqlResult.equals(celebornSqlResult))
 
-    // shuffle key not expired, diskInfo.actualUsableSpace < 0, no space
+    // shuffle key not expired, diskInfo.actualUsableSpace <= 0, no space
     workers.foreach { worker =>
       worker.storageManager.disksSnapshot().foreach { diskInfo =>
-        assert(diskInfo.actualUsableSpace < 0)
+        assert(diskInfo.actualUsableSpace <= 0)
       }
     }
     sparkSessionEnableCeleborn.stop()
