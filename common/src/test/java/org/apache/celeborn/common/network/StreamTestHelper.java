@@ -21,9 +21,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.util.Random;
-
-import com.google.common.io.Files;
 
 import org.apache.celeborn.common.network.buffer.FileSegmentManagedBuffer;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
@@ -51,7 +50,7 @@ class StreamTestHelper {
   }
 
   StreamTestHelper() throws Exception {
-    tempDir = Files.createTempDir();
+    tempDir = Files.createTempDirectory(null).toFile();
     emptyBuffer = createBuffer(0);
     smallBuffer = createBuffer(100);
     largeBuffer = createBuffer(100000);
