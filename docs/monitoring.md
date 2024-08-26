@@ -151,147 +151,131 @@ These metrics are exposed by Celeborn master.
 These metrics are exposed by Celeborn worker.
 
   - namespace=worker
-    - RegisteredShuffleCount
-    - RunningApplicationCount
-    - ActiveShuffleSize
-        - The active shuffle size of a worker including master replica and slave replica.
-    - ActiveShuffleFileCount
-        - The active shuffle file count of a worker including master replica and slave replica.
-    - OpenStreamTime
-        - The time for a worker to process openStream RPC and return StreamHandle.
-    - FetchChunkTime
-        - The time for a worker to fetch a chunk which is 8MB by default from a reduced partition. 
-    - ActiveChunkStreamCount
-        - Active stream count for reduce partition reading streams.
-    - OpenStreamSuccessCount
-    - OpenStreamFailCount
-    - FetchChunkSuccessCount
-    - FetchChunkFailCount
-    - PrimaryPushDataTime
-        - The time for a worker to handle a pushData RPC sent from a celeborn client.
-    - ReplicaPushDataTime
-        - The time for a worker to handle a pushData RPC sent from a celeborn worker by replicating.
-    - WriteDataHardSplitCount
-    - WriteDataSuccessCount
-    - WriteDataFailCount
-    - ReplicateDataFailCount
-    - ReplicateDataWriteFailCount
-    - ReplicateDataCreateConnectionFailCount
-    - ReplicateDataConnectionExceptionCount
-    - ReplicateDataFailNonCriticalCauseCount
-    - ReplicateDataTimeoutCount
-    - PushDataHandshakeFailCount
-    - RegionStartFailCount
-    - RegionFinishFailCount
-    - PrimaryPushDataHandshakeTime
-    - ReplicaPushDataHandshakeTime
-    - PrimaryRegionStartTime
-    - ReplicaRegionStartTime
-    - PrimaryRegionFinishTime
-    - ReplicaRegionFinishTime
-    - PausePushDataTime
-        - The time for a worker to stop receiving pushData from clients because of back pressure.
-    - PausePushDataAndReplicateTime
-        - The time for a worker to stop receiving pushData from clients and other workers because of back pressure.
-    - PausePushData
-        - The count for a worker to stop receiving pushData from clients because of back pressure.
-    - PausePushDataAndReplicate
-        - The count for a worker to stop receiving pushData from clients and other workers because of back pressure.
-    - TakeBufferTime
-        - The time for a worker to take out a buffer from a disk flusher.
-    - FlushDataTime
-        - The time for a worker to write a buffer which is 256KB by default to storage.
-    - CommitFilesTime
-        - The time for a worker to flush buffers and close files related to specified shuffle.
-    - SlotsAllocated
-    - ActiveSlotsCount
-        - The number of slots currently being used in a worker 
-    - ReserveSlotsTime
-    - ActiveConnectionCount
-    - NettyMemory
-        - The total amount of off-heap memory used by celeborn worker.
-    - SortTime
-        - The time for a worker to sort a shuffle file.
-    - SortMemory
-        - The memory used by sorting shuffle files.
-    - SortingFiles
-    - SortedFiles
-    - SortedFileSize
-    - DiskBuffer
-        - The memory occupied by pushData and pushMergedData which should be written to disk.
-    - BufferStreamReadBuffer
-        - The memory used by credit stream read buffer.
-    - ReadBufferDispatcherRequestsLength
-        - The queue size of read buffer allocation requests.
-    - ReadBufferAllocatedCount
-        - Allocated read buffer count.
-    - ActiveCreditStreamCount
-        - Active stream count for map partition reading streams.
-    - ActiveMapPartitionCount
-    - CleanTaskQueueSize
-    - CleanExpiredShuffleKeysTime
-        - The time for a worker to clean up shuffle data of expired shuffle keys.
-    - DeviceOSFreeBytes
-    - DeviceOSTotalBytes
-    - DeviceCelebornFreeBytes
-    - DeviceCelebornTotalBytes
-    - PotentialConsumeSpeed
-    - UserProduceSpeed
-    - WorkerConsumeSpeed
-    - push_server_usedHeapMemory 
-    - push_server_usedDirectMemory
-    - push_server_numAllocations 
-    - push_server_numTinyAllocations
-    - push_server_numSmallAllocations
-    - push_server_numNormalAllocations
-    - push_server_numHugeAllocations
-    - push_server_numDeallocations
-    - push_server_numTinyDeallocations
-    - push_server_numSmallDeallocations
-    - push_server_numNormalDeallocations
-    - push_server_numHugeDeallocations
-    - push_server_numActiveAllocations
-    - push_server_numActiveTinyAllocations
-    - push_server_numActiveSmallAllocations
-    - push_server_numActiveNormalAllocations
-    - push_server_numActiveHugeAllocations
-    - push_server_numActiveBytes
-    - replicate_server_usedHeapMemory
-    - replicate_server_usedDirectMemory
-    - replicate_server_numAllocations 
-    - replicate_server_numTinyAllocations
-    - replicate_server_numSmallAllocations
-    - replicate_server_numNormalAllocations
-    - replicate_server_numHugeAllocations
-    - replicate_server_numDeallocations
-    - replicate_server_numTinyDeallocations
-    - replicate_server_numSmallDeallocations
-    - replicate_server_numNormalDeallocations
-    - replicate_server_numHugeDeallocations
-    - replicate_server_numActiveAllocations
-    - replicate_server_numActiveTinyAllocations
-    - replicate_server_numActiveSmallAllocations
-    - replicate_server_numActiveNormalAllocations
-    - replicate_server_numActiveHugeAllocations
-    - replicate_server_numActiveBytes
-    - fetch_server_usedHeapMemory
-    - fetch_server_usedDirectMemory
-    - fetch_server_numAllocations 
-    - fetch_server_numTinyAllocations
-    - fetch_server_numSmallAllocations
-    - fetch_server_numNormalAllocations
-    - fetch_server_numHugeAllocations
-    - fetch_server_numDeallocations
-    - fetch_server_numTinyDeallocations
-    - fetch_server_numSmallDeallocations
-    - fetch_server_numNormalDeallocations
-    - fetch_server_numHugeDeallocations
-    - fetch_server_numActiveAllocations
-    - fetch_server_numActiveTinyAllocations
-    - fetch_server_numActiveSmallAllocations
-    - fetch_server_numActiveNormalAllocations
-    - fetch_server_numActiveHugeAllocations
-    - fetch_server_numActiveBytes
+    
+    | Metric Name                                 | Description                                                                                                     |
+    |---------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
+    | RegisteredShuffleCount                      | The count of registered shuffle.                                                                                |
+    | RunningApplicationCount                     | The count of running applications.                                                                              |
+    | ActiveShuffleSize                           | The active shuffle size of a worker including master replica and slave replica.                                 |
+    | ActiveShuffleFileCount                      | The active shuffle file count of a worker including master replica and slave replica.                           |
+    | OpenStreamTime                              | The time for a worker to process openStream RPC and return StreamHandle.                                        |
+    | FetchChunkTime                              | The time for a worker to fetch a chunk which is 8MB by default from a reduced partition.                        |
+    | ActiveChunkStreamCount                      | Active stream count for reduce partition reading streams.                                                       |
+    | OpenStreamSuccessCount                      | The count of opening stream succeed in current worker.                                                          |
+    | OpenStreamFailCount                         | The count of opening stream failed in current worker.                                                           |
+    | FetchChunkSuccessCount                      | The count of fetching chunk succeed in current worker.                                                          |
+    | FetchChunkFailCount                         | The count of fetching chunk failed in current worker.                                                           |
+    | PrimaryPushDataTime                         | The time for a worker to handle a pushData RPC sent from a celeborn client.                                     |
+    | ReplicaPushDataTime                         | The time for a worker to handle a pushData RPC sent from a celeborn worker by replicating.                      |
+    | WriteDataHardSplitCount                     | The count of writing PushData or PushMergedData to HARD_SPLIT partition in current worker.                      |
+    | WriteDataSuccessCount                       | The count of writing PushData or PushMergedData succeed in current worker.                                      |
+    | WriteDataFailCount                          | The count of writing PushData or PushMergedData failed in current worker.                                       |
+    | ReplicateDataFailCount                      | The count of replicating PushData or PushMergedData failed in current worker.                                   |
+    | ReplicateDataWriteFailCount                 | The count of replicating PushData or PushMergedData failed caused by write failure in peer worker.              |
+    | ReplicateDataCreateConnectionFailCount      | The count of replicating PushData or PushMergedData failed caused by creating connection failed in peer worker. |
+    | ReplicateDataConnectionExceptionCount       | The count of replicating PushData or PushMergedData failed caused by connection exception in peer worker.       |
+    | ReplicateDataFailNonCriticalCauseCount      | The count of replicating PushData or PushMergedData failed caused by non-critical exception in peer worker.     |
+    | ReplicateDataTimeoutCount                   | The count of replicating PushData or PushMergedData failed caused by push timeout in peer worker.               |
+    | PushDataHandshakeFailCount                  | The count of PushDataHandshake failed in current worker.                                                        |
+    | RegionStartFailCount                        | The count of RegionStart failed in current worker.                                                              |
+    | RegionFinishFailCount                       | The count of RegionFinish failed in current worker.                                                             |
+    | PrimaryPushDataHandshakeTime                | PrimaryPushDataHandshake means handle PushData of primary partition location.                                   |
+    | ReplicaPushDataHandshakeTime                | ReplicaPushDataHandshake means handle PushData of replica partition location.                                   |
+    | PrimaryRegionStartTime                      | PrimaryRegionStart means handle RegionStart of primary partition location.                                      |
+    | ReplicaRegionStartTime                      | ReplicaRegionStart means handle RegionStart of replica partition location.                                      |
+    | PrimaryRegionFinishTime                     | PrimaryRegionFinish means handle RegionFinish of primary partition location.                                    |
+    | ReplicaRegionFinishTime                     | ReplicaRegionFinish means handle RegionFinish of replica partition location.                                    |
+    | PausePushDataTime                           | The time for a worker to stop receiving pushData from clients because of back pressure.                         |
+    | PausePushDataAndReplicateTime               | The time for a worker to stop receiving pushData from clients and other workers because of back pressure.       |
+    | PausePushData                               | The count for a worker to stop receiving pushData from clients because of back pressure.                        |
+    | PausePushDataAndReplicate                   | The count for a worker to stop receiving pushData from clients and other workers because of back pressure.      |
+    | TakeBufferTime                              | The time for a worker to take out a buffer from a disk flusher.                                                 |
+    | FlushDataTime                               | The time for a worker to write a buffer which is 256KB by default to storage.                                   |
+    | CommitFilesTime                             | The time for a worker to flush buffers and close files related to specified shuffle.                            |
+    | SlotsAllocated                              | Slots allocated in last hour.                                                                                   |
+    | ActiveSlotsCount                            | The number of slots currently being used in a worker.                                                           |
+    | ReserveSlotsTime                            | ReserveSlots means acquire a disk buffer and record partition location.                                         |
+    | ActiveConnectionCount                       | The count of active network connection.                                                                         |
+    | NettyMemory                                 | The total amount of off-heap memory used by celeborn worker.                                                    |
+    | SortTime                                    | The time for a worker to sort a shuffle file.                                                                   |
+    | SortMemory                                  | The memory used by sorting shuffle files.                                                                       |
+    | SortingFiles                                | The count of sorting shuffle files.                                                                             |
+    | SortedFiles                                 | The count of sorted shuffle files.                                                                              |
+    | SortedFileSize                              | The count of sorted shuffle files 's total size.                                                                |
+    | DiskBuffer                                  | The memory occupied by pushData and pushMergedData which should be written to disk.                             |
+    | BufferStreamReadBuffer                      | The memory used by credit stream read buffer.                                                                   |
+    | ReadBufferDispatcherRequestsLength          | The queue size of read buffer allocation requests.                                                              |
+    | ReadBufferAllocatedCount                    | Allocated read buffer count.                                                                                    |
+    | ActiveCreditStreamCount                     | Active stream count for map partition reading streams.                                                          |
+    | ActiveMapPartitionCount                     | The count of active map partition reading streams.                                                              |
+    | CleanTaskQueueSize                          | The count of task for cleaning up expired shuffle keys.                                                         |
+    | CleanExpiredShuffleKeysTime                 | The time for a worker to clean up shuffle data of expired shuffle keys.                                         |
+    | DeviceOSFreeBytes                           | The actual usable space of OS for device monitor.                                                               |
+    | DeviceOSTotalBytes                          | The total usable space of OS for device monitor.                                                                |
+    | DeviceCelebornFreeBytes                     | The actual usable space of Celeborn for device.                                                                 |
+    | DeviceCelebornTotalBytes                    | The total space of Celeborn for device.                                                                         |
+    | PotentialConsumeSpeed                       | The speed of potential consumption for congestion control.                                                      |
+    | UserProduceSpeed                            | The speed of user production for congestion control.                                                            |
+    | WorkerConsumeSpeed                          | The speed of worker consumption for congestion control.                                                         |
+    | IsDecommissioningWorker                     | 1 means worker decommissioning, 0 means not decommissioning.                                                    |
+    | MemoryStorageFileCount                      | The count of files in Memory Storage of a worker.                                                               |
+    | MemoryFileStorageSize                       | The total amount of memory used by Memory Storage.                                                              |
+    | EvictedFileCount                            | The count of files evicted from Memory Storage to Disk                                                          |
+    | DirectMemoryUsageRatio                      | Ratio of direct memory used and max direct memory.                                                              |
+    | push_server_usedHeapMemory                  |                                                                                                                 |
+    | push_server_usedDirectMemory                |                                                                                                                 |
+    | push_server_numAllocations                  |                                                                                                                 |
+    | push_server_numTinyAllocations              |                                                                                                                 |
+    | push_server_numSmallAllocations             |                                                                                                                 |
+    | push_server_numNormalAllocations            |                                                                                                                 |
+    | push_server_numHugeAllocations              |                                                                                                                 |
+    | push_server_numDeallocations                |                                                                                                                 |
+    | push_server_numTinyDeallocations            |                                                                                                                 |
+    | push_server_numSmallDeallocations           |                                                                                                                 |
+    | push_server_numNormalDeallocations          |                                                                                                                 |
+    | push_server_numHugeDeallocations            |                                                                                                                 |
+    | push_server_numActiveAllocations            |                                                                                                                 |
+    | push_server_numActiveTinyAllocations        |                                                                                                                 |
+    | push_server_numActiveSmallAllocations       |                                                                                                                 |
+    | push_server_numActiveNormalAllocations      |                                                                                                                 |
+    | push_server_numActiveHugeAllocations        |                                                                                                                 |
+    | push_server_numActiveBytes                  |                                                                                                                 |
+    | replicate_server_usedHeapMemory             |                                                                                                                 |
+    | replicate_server_usedDirectMemory           |                                                                                                                 |
+    | replicate_server_numAllocations             |                                                                                                                 |
+    | replicate_server_numTinyAllocations         |                                                                                                                 |
+    | replicate_server_numSmallAllocations        |                                                                                                                 |
+    | replicate_server_numNormalAllocations       |                                                                                                                 |
+    | replicate_server_numHugeAllocations         |                                                                                                                 |
+    | replicate_server_numDeallocations           |                                                                                                                 |
+    | replicate_server_numTinyDeallocations       |                                                                                                                 |
+    | replicate_server_numSmallDeallocations      |                                                                                                                 |
+    | replicate_server_numNormalDeallocations     |                                                                                                                 |
+    | replicate_server_numHugeDeallocations       |                                                                                                                 |
+    | replicate_server_numActiveAllocations       |                                                                                                                 |
+    | replicate_server_numActiveTinyAllocations   |                                                                                                                 |
+    | replicate_server_numActiveSmallAllocations  |                                                                                                                 |
+    | replicate_server_numActiveNormalAllocations |                                                                                                                 |
+    | replicate_server_numActiveHugeAllocations   |                                                                                                                 |
+    | replicate_server_numActiveBytes             |                                                                                                                 |
+    | fetch_server_usedHeapMemory                 |                                                                                                                 |
+    | fetch_server_usedDirectMemory               |                                                                                                                 |
+    | fetch_server_numAllocations                 |                                                                                                                 |
+    | fetch_server_numTinyAllocations             |                                                                                                                 |
+    | fetch_server_numSmallAllocations            |                                                                                                                 |
+    | fetch_server_numNormalAllocations           |                                                                                                                 |
+    | fetch_server_numHugeAllocations             |                                                                                                                 |
+    | fetch_server_numDeallocations               |                                                                                                                 |
+    | fetch_server_numTinyDeallocations           |                                                                                                                 |
+    | fetch_server_numSmallDeallocations          |                                                                                                                 |
+    | fetch_server_numNormalDeallocations         |                                                                                                                 |
+    | fetch_server_numHugeDeallocations           |                                                                                                                 |
+    | fetch_server_numActiveAllocations           |                                                                                                                 |
+    | fetch_server_numActiveTinyAllocations       |                                                                                                                 |
+    | fetch_server_numActiveSmallAllocations      |                                                                                                                 |
+    | fetch_server_numActiveNormalAllocations     |                                                                                                                 |
+    | fetch_server_numActiveHugeAllocations       |                                                                                                                 |
+    | fetch_server_numActiveBytes                 |                                                                                                                 |
 
   - namespace=CPU
     - JVMCPUTime
