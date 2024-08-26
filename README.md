@@ -150,7 +150,7 @@ celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
 
 # If Celeborn workers don't have local disks. You can use HDFS.
 # Do not set `celeborn.worker.storage.dirs` and use following configs.
-celeborn.storage.activeTypes HDFS
+celeborn.storage.availableTypes HDFS
 celeborn.worker.sortPartition.threads 64
 celeborn.worker.commitFiles.timeout 240s
 celeborn.worker.commitFiles.threads 128
@@ -199,7 +199,7 @@ celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
 
 # If Celeborn workers don't have local disks. You can use HDFS.
 # Do not set `celeborn.worker.storage.dirs` and use following configs.
-celeborn.storage.activeTypes HDFS
+celeborn.storage.availableTypes HDFS
 celeborn.worker.sortPartition.threads 64
 celeborn.worker.commitFiles.timeout 240s
 celeborn.worker.commitFiles.threads 128
