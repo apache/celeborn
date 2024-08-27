@@ -52,6 +52,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
 
   // 1 second.
   protected final int intervalPerBucketInMills = 1000;
+  protected final int timeWindowsInMills;
   private final int maxQueueSize;
   private Pair<N, Integer> sumInfo;
 
@@ -60,10 +61,22 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
   public TimeSlidingHub(int timeWindowsInSecs) {
     this._deque = new LinkedBlockingDeque<>();
     this.maxQueueSize = timeWindowsInSecs * 1000 / intervalPerBucketInMills;
+    this.timeWindowsInMills = maxQueueSize * intervalPerBucketInMills;
     this.sumInfo = Pair.of(newEmptyNode(), 0);
   }
 
-  public Pair<N, Integer> sum() {
+  private void removeExpiredNodes() {
+    long currentTime = currentTimeMillis();
+    while (!_deque.isEmpty() && currentTime - _deque.getFirst().getLeft() >= timeWindowsInMills) {
+      Pair<Long, N> removed = _deque.removeFirst();
+      N nodeToSeparate = sumInfo.getLeft();
+      nodeToSeparate.separateNode(removed.getRight());
+      sumInfo = Pair.of(nodeToSeparate, sumInfo.getRight() - 1);
+    }
+  }
+
+  public synchronized Pair<N, Integer> sum() {
+    removeExpiredNodes();
     return sumInfo;
   }
 
@@ -108,12 +121,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
       nodeToCombine.combineNode(newNode);
       sumInfo = Pair.of(nodeToCombine, sumInfo.getRight() + nodesToAdd);
 
-      while (_deque.size() > maxQueueSize) {
-        Pair<Long, N> removed = _deque.removeFirst();
-        N nodeToSeparate = sumInfo.getLeft();
-        nodeToSeparate.separateNode(removed.getRight());
-        sumInfo = Pair.of(nodeToSeparate, sumInfo.getRight() - 1);
-      }
+      removeExpiredNodes();
       return;
     }
 
