@@ -43,6 +43,7 @@ import org.apache.flink.util.function.SupplierWithException;
 import org.apache.celeborn.plugin.flink.buffer.BufferWithSubpartition;
 import org.apache.celeborn.plugin.flink.buffer.DataBuffer;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
+import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /**
  * A {@link ResultPartition} which appends records and events to {@link DataBuffer} and after the
