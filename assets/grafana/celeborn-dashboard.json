@@ -2550,7 +2550,7 @@
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "instant": false,
-              "legendFormat": "__auto",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A",
               "useBackend": false
