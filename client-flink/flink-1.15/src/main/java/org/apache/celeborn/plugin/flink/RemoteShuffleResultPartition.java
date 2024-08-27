@@ -17,6 +17,9 @@
 
 package org.apache.celeborn.plugin.flink;
 
+import static org.apache.celeborn.plugin.flink.utils.Utils.checkNotNull;
+import static org.apache.celeborn.plugin.flink.utils.Utils.checkState;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
@@ -51,6 +54,8 @@ public class RemoteShuffleResultPartition extends ResultPartition {
 
   private final RemoteShuffleResultPartitionDelegation delegation;
 
+  private final SupplierWithException<BufferPool, IOException> bufferPoolFactory;
+
   public RemoteShuffleResultPartition(
       String owningTaskName,
       int partitionIndex,
@@ -78,11 +83,17 @@ public class RemoteShuffleResultPartition extends ResultPartition {
     delegation =
         new RemoteShuffleResultPartitionDelegation(
             networkBufferSize, outputGate, this::updateStatistics, numSubpartitions);
+    this.bufferPoolFactory = bufferPoolFactory;
   }
 
   @Override
   public void setup() throws IOException {
-    super.setup();
+    // We can't call the `setup` method of the base class, otherwise it will cause a partition leak.
+    // So we copy the logic of `setup` but don't register partition to partition manager.
+    checkState(
+        this.bufferPool == null,
+        "Bug in result partition setup logic: Already registered buffer pool.");
+    this.bufferPool = checkNotNull(bufferPoolFactory.get());
     BufferUtils.reserveNumRequiredBuffers(bufferPool, 1);
     delegation.setup(
         bufferPool, bufferCompressor, this::canBeCompressed, this::checkInProduceState);
