@@ -20,23 +20,13 @@ package org.apache.celeborn.service.deploy.memory
 import java.util
 import java.util.concurrent.{CompletableFuture, TimeUnit}
 
-import scala.concurrent.duration.DurationInt
-
 import io.netty.buffer.ByteBuf
-import io.netty.channel.ChannelFuture
-import org.mockito.ArgumentMatchers.{any, anyInt, anyLong}
+import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mockito.{mock, when}
-import org.scalatest.concurrent.Eventually.eventually
-import org.scalatest.concurrent.Futures.{interval, timeout}
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.{WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER, WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE, WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE}
-import org.apache.celeborn.common.network.client.RpcResponseCallback
-import org.apache.celeborn.common.protocol.TransportModuleConstants
-import org.apache.celeborn.reflect.DynMethods
 import org.apache.celeborn.service.deploy.worker.memory.{MemoryManager, ReadBufferListener, ReadBufferRequest}
-import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.{MemoryPressureListener, ServingState}
 import org.apache.celeborn.service.deploy.worker.memory.ReadBufferDispatcher
 
 class ReadBufferDispactherSuite extends CelebornFunSuite {
@@ -54,11 +44,15 @@ class ReadBufferDispactherSuite extends CelebornFunSuite {
     val request = new ReadBufferRequest(
       Integer.MAX_VALUE,
       Integer.MAX_VALUE,
-      (_: util.List[ByteBuf], throwable: Throwable) => {
-        assert(throwable != null)
-        assert(throwable.isInstanceOf[RuntimeException])
-        assert(throwable.getMessage.equals("throw exception for test"))
-        requestFuture.complete(null);
+      new ReadBufferListener {
+        override def notifyBuffers(
+            allocatedBuffers: util.List[ByteBuf],
+            throwable: Throwable): Unit = {
+          assert(throwable != null)
+          assert(throwable.isInstanceOf[RuntimeException])
+          assert(throwable.getMessage.equals("throw exception for test"))
+          requestFuture.complete(null);
+        }
       })
 
     readBufferDispatcher.addBufferRequest(request)
