@@ -23,6 +23,8 @@ import java.util.concurrent.{CompletableFuture, TimeUnit}
 import io.netty.buffer.ByteBuf
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mockito.{mock, when}
+import org.mockito.invocation.InvocationOnMock
+import org.mockito.stubbing.Answer
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
@@ -33,9 +35,12 @@ class ReadBufferDispactherSuite extends CelebornFunSuite {
 
   test("[CELEBORN-1580] Test ReadBufferDispacther notify exception to listener") {
     val mockedMemoryManager = mock(classOf[MemoryManager])
-    when(mockedMemoryManager.readBufferAvailable(anyInt())).thenAnswer(_ => {
-      throw new RuntimeException("throw exception for test")
-    })
+    when(mockedMemoryManager.readBufferAvailable(anyInt())).thenAnswer(
+      new Answer[Int] {
+        override def answer(invocation: InvocationOnMock): Int = {
+          throw new RuntimeException("throw exception for test")
+        }
+      })
 
     val conf = new CelebornConf()
     val readBufferDispatcher = new ReadBufferDispatcher(mockedMemoryManager, conf)
