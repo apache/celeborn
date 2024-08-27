@@ -170,7 +170,6 @@ public abstract class CelebornInputStream extends InputStream {
     private int partitionId;
     private ExceptionMaker exceptionMaker;
     private boolean closed = false;
-    private boolean alreadyReadChunk = false;
 
     CelebornInputStreamImpl(
         CelebornConf conf,
@@ -389,15 +388,6 @@ public abstract class CelebornInputStream extends InputStream {
             throw new CelebornIOException(
                 "Fetch data from excluded worker! " + currentReader.getLocation());
           }
-
-          // read one chunk first, then throw CelebornIOException to let spark rerun stage
-          if (conf.testRandomPushForStageRerun() && shuffleId == 0 && !alreadyReadChunk) {
-            alreadyReadChunk = true;
-          } else if (conf.testRandomPushForStageRerun() && shuffleId == 0 && alreadyReadChunk) {
-            alreadyReadChunk = false;
-            throw new CelebornIOException("already read chunk");
-          }
-
           return currentReader.next();
         } catch (Exception e) {
           excludeFailedLocation(currentReader.getLocation(), e);

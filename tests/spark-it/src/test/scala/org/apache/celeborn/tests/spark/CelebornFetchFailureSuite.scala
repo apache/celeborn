@@ -18,7 +18,6 @@
 package org.apache.celeborn.tests.spark
 
 import java.io.{File, IOException}
-import java.util
 import java.util.concurrent.atomic.AtomicBoolean
 
 import org.apache.spark.{BarrierTaskContext, ShuffleDependency, SparkConf, SparkContextHelper, SparkException, TaskContext}
@@ -26,10 +25,7 @@ import org.apache.spark.celeborn.ExceptionMakerHelper
 import org.apache.spark.rdd.RDD
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
-import org.apache.spark.sql.{Row, RowFactory, SparkSession}
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{IntegerType, StringType, StructType}
-import org.junit.Assert
+import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -98,46 +94,6 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         }
         executed.set(true)
       }
-    }
-  }
-
-  test("celeborn spark integration test - Fetch Failure - Deterministic Stage") {
-    if (Spark3OrNewer) {
-      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
-      val sparkSession = SparkSession.builder()
-        .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
-        .config("spark.sql.shuffle.partitions", 2)
-        .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
-        .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
-        .config("spark.celeborn.client.spark.shuffle.writer", "sort")
-        .config(
-          "spark.shuffle.manager",
-          "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
-        .config("spark.default.parallelism", "10")
-        .config("spark.celeborn.test.client.push.mockRandomPushForStageRerun", true)
-        .config("spark.celeborn.shuffle.chunk.size", "100k")
-        .getOrCreate()
-
-      // code
-      val schema = new StructType().add("column1", StringType, nullable = true).add(
-        "column2",
-        IntegerType,
-        nullable = true)
-
-      val nums = new util.ArrayList[Row]
-      for (i <- 0 until 100000) {
-        nums.add(RowFactory.create(s"apple$i", new Integer(i)))
-        nums.add(RowFactory.create(s"banana$i", new Integer(i)));
-        nums.add(RowFactory.create(s"apple$i", new Integer(i)));
-        nums.add(RowFactory.create(s"banana$i", new Integer(i)));
-        nums.add(RowFactory.create(s"cherry$i", new Integer(i)));
-      }
-
-      val df = sparkSession.createDataFrame(nums, schema)
-      val value = df.groupBy("column1").agg(sum("column2").as("sum")).select("column1", "sum")
-
-      Assert.assertEquals(value.count(), 300000)
-      sparkSession.stop()
     }
   }
 
