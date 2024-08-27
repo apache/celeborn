@@ -336,7 +336,7 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornClient.client,
       CelebornService.service,
       CelebornWorker.worker,
-      CelebornMaster.master) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules
+      CelebornMaster.master) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules ++ maybeWebModules
   }
 
   // ThisBuild / parallelExecution := false
@@ -400,6 +400,15 @@ object Utils {
   }
 
   lazy val maybeMRClientModules: Seq[Project] = mrClientProjects.map(_.modules).getOrElse(Seq.empty)
+
+  val WEB_VERSION = profiles.filter(_.startsWith("web")).headOption
+
+  lazy val webProjects = WEB_VERSION match {
+    case Some("web") => Some(WebProjects)
+    case _ => None
+  }
+
+  lazy val maybeWebModules: Seq[Project] = webProjects.map(_.modules).getOrElse(Seq.empty)
 
   def defaultScalaVersion(): String = {
     // 1. Inherit the scala version of the spark project
@@ -1235,4 +1244,16 @@ object MRClientProjects {
       (Test / compile).value
     }
   )
+}
+
+object WebProjects {
+
+  def web: Project = {
+    Project("celeborn-web", file("web"))
+      .settings(commonSettings)
+  }
+
+  def modules: Seq[Project] = {
+    Seq(web)
+  }
 }

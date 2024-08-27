@@ -36,7 +36,6 @@
     <module>service</module>
     <module>master</module>
     <module>worker</module>
-    <module>web</module>
   </modules>
 
   <distributionManagement>
@@ -1631,6 +1630,13 @@
         <module>client-mr/mr</module>
         <module>client-mr/mr-shaded</module>
         <module>tests/mr-it</module>
+      </modules>
+    </profile>
+
+    <profile>
+      <id>web</id>
+      <modules>
+        <module>web</module>
       </modules>
     </profile>
 
