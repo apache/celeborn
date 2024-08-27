@@ -89,6 +89,11 @@ public class RemoteShuffleResultPartition extends ResultPartition {
   @Override
   public void setup() throws IOException {
     // We can't call the `setup` method of the base class, otherwise it will cause a partition leak.
+    // The reason is that this partition will be registered to the partition manager during
+    // `super.setup()`.
+    // Since this is a cluster/remote partition(i.e. resources are not stored on the Flink TM),
+    // Flink does not trigger the resource releasing over TM. Therefore, the partition object is
+    // leaked.
     // So we copy the logic of `setup` but don't register partition to partition manager.
     checkState(
         this.bufferPool == null,
