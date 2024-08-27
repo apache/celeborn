@@ -566,7 +566,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       waitTime -= WAIT_INTERVAL_MS;
     }
     if (counter.get() > 0) {
-      IOException ioe = new IOException("Wait pending actions timeout.");
+      IOException ioe = new IOException("Wait pending actions timeout, Counter: " + counter.get());
       notifier.setException(ioe);
       throw ioe;
     }
