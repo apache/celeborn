@@ -125,5 +125,8 @@ public class TestTimeSlidingHub {
     hub.setDummyTimestamp(10000L);
     hub.add(new DummyTimeSlidingHub.DummyTimeSlidingNode(2));
     Assert.assertEquals(2, hub.sum().getLeft().getValue());
+
+    hub.setDummyTimestamp(13000L);
+    Assert.assertEquals(0, hub.sum().getLeft().getValue());
   }
 }
