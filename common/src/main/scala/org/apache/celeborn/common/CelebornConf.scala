@@ -505,6 +505,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                      Network                        //
   // //////////////////////////////////////////////////////
   def bindPreferIP: Boolean = get(NETWORK_BIND_PREFER_IP)
+  def advertisePreferIP: Boolean = get(NETWORK_ADVERTISE_PREFER_IP)
+  def bindWildcardAddress: Boolean = get(NETWORK_WILDCARD_ADDRESS_BIND)
   def portMaxRetries: Int = get(PORT_MAX_RETRY)
   def networkTimeout: RpcTimeout =
     new RpcTimeout(get(NETWORK_TIMEOUT).milli, NETWORK_TIMEOUT.key)
@@ -1722,6 +1724,23 @@ object CelebornConf extends Logging {
       .doc("Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2.")
       .intConf
       .createOptional
+
+  val NETWORK_WILDCARD_ADDRESS_BIND: ConfigEntry[Boolean] =
+    buildConf("celeborn.network.bind.wildcardAddress")
+      .categories("network")
+      .version("0.6.0")
+      .doc("When `true`, the bind address will be set to a wildcard address, while the advertise address will " +
+        "remain as whatever is set by `celeborn.network.advertise.preferIpAddress`. This is helpful in dual-stack " +
+        "environments, where the service must listen to both IPv4 and IPv6 clients.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val NETWORK_ADVERTISE_PREFER_IP: ConfigEntry[Boolean] =
+    buildConf("celeborn.network.advertise.preferIpAddress")
+      .categories("network")
+      .version("0.6.0")
+      .doc("When `true`, prefer to use IP address, otherwise FQDN for advertise address.")
+      .fallbackConf(NETWORK_BIND_PREFER_IP)
 
   val NETWORK_MEMORY_ALLOCATOR_VERBOSE_METRIC: ConfigEntry[Boolean] =
     buildConf("celeborn.network.memory.allocator.verbose.metric")
