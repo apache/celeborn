@@ -30,7 +30,7 @@ import org.apache.celeborn.cli.config.CliConfigManager.cliConfigFilePath
 case class CliConfig(@JsonProperty("cliConfigData") cliConfigData: Map[String, String])
 
 object CliConfigManager {
-  val cliConfigFilePath = s"${sys.env.getOrElse("HOME", ".")}/.celeborn-cli/celeborn-cli.conf"
+  val cliConfigFilePath = s"${sys.env.getOrElse("CELEBORN_CONF_DIR", "HOME")}/celeborn-cli.conf"
 }
 
 class CliConfigManager {

@@ -30,7 +30,7 @@ class CliVersionProvider extends IVersionProvider with CliLogging {
     val versionFile = Paths.get(sys.env.getOrElse("CELEBORN_HOME", "") + "/RELEASE")
     val prefix = "Celeborn CLI"
     if (Files.exists(versionFile)) {
-      val versionPattern: Regex = """(Celeborn\s+\d+\.\d+\.\d+)""".r
+      val versionPattern: Regex = """Celeborn\s+\S+""".r
       val source = Source.fromFile(versionFile.toFile)
       val fileContent = source.getLines().mkString(" ")
       val version = versionPattern.findFirstIn(fileContent) match {
