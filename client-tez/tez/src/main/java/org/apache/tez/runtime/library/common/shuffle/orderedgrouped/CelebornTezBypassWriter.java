@@ -17,20 +17,27 @@
 
 package org.apache.tez.runtime.library.common.shuffle.orderedgrouped;
 
+import com.google.common.primitives.Ints;
 import java.io.IOException;
 
+import java.io.OutputStream;
+import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.tez.plugin.util.ChecksumUtils;
 import org.apache.tez.runtime.library.common.shuffle.FetchedInput;
+import org.apache.tez.runtime.library.common.shuffle.MemoryFetchedInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // In Tez shuffle, MapOutput encapsulates the logic to fetch map task's output data via http.
-// So, in RSS, we should bypass this logic, and directly write data to MapOutput.
+// So, in Celeborn, we should bypass this logic, and directly write data to MapOutput.
 public class CelebornTezBypassWriter {
+
   private static final Logger LOG = LoggerFactory.getLogger(CelebornTezBypassWriter.class);
+  private static final byte[] HEADER = new byte[]{(byte) 'T', (byte) 'I', (byte) 'F', (byte) 0};
 
   public static void write(MapOutput mapOutput, byte[] buffer) {
     LOG.info(
-        "RssTezBypassWriter write mapOutput, type:{}, buffer length:{}",
+        "CelebornTezBypassWriter write mapOutput, type:{}, buffer length:{}",
         mapOutput.getType(),
         buffer.length);
     // Write and commit uncompressed data to MapOutput.
@@ -49,5 +56,29 @@ public class CelebornTezBypassWriter {
     }
   }
 
-  public static void write(final FetchedInput mapOutput, byte[] buffer) throws IOException {}
+  public static void write(final FetchedInput fetchedInput, byte[] buffer) throws IOException {
+    LOG.info(
+        "CelebornTezBypassWriter write mapOutput, type:{}, buffer length:{}",
+        fetchedInput.getType(),
+        buffer.length);
+    // Write and commit uncompressed data to MapOutput.
+    // In the majority of cases, merger allocates memory to accept data,
+    // but when data size exceeds the threshold, merger can also allocate disk.
+    // So, we should consider the two situations, respectively.
+    if (fetchedInput.getType() == FetchedInput.Type.MEMORY) {
+      byte[] memory = ((MemoryFetchedInput) fetchedInput).getBytes();
+      System.arraycopy(buffer, 0, memory, 0, buffer.length);
+    } else if (fetchedInput.getType() == FetchedInput.Type.DISK) {
+      OutputStream output = fetchedInput.getOutputStream();
+      output.write(HEADER);
+      output.write(buffer);
+      output.write(Ints.toByteArray((int) ChecksumUtils.getCrc32(buffer)));
+      output.flush();
+      output.close();
+    } else {
+      throw new CelebornIOException(
+          "Merger reserve unknown type of MapOutput: " + fetchedInput.getClass()
+              .getCanonicalName());
+    }
+  }
 }

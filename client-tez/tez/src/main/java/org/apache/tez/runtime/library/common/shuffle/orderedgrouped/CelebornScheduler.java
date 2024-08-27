@@ -58,7 +58,7 @@ public class CelebornScheduler {
     this.srcNameTrimmed = srcNameTrimmed;
   }
 
-  private final Set<Integer> allRssPartition = Sets.newConcurrentHashSet();
+  private final Set<Integer> allCelebornPartition = Sets.newConcurrentHashSet();
   private int partitionIndex = 0;
   private final Map<Integer, Set<InputAttemptIdentifier>> partitionIdToSuccessMapTaskAttempts =
       new HashMap<>();
@@ -66,7 +66,7 @@ public class CelebornScheduler {
   public synchronized void addKnownMapOutput(
       String inputHostName, int port, int partitionId, CompositeInputAttemptIdentifier srcAttempt) {
 
-    allRssPartition.add(partitionId);
+    allCelebornPartition.add(partitionId);
     this.partitionId = partitionId;
     if (!partitionIdToSuccessMapTaskAttempts.containsKey(partitionId)) {
       partitionIdToSuccessMapTaskAttempts.put(partitionId, new HashSet<>());
@@ -76,8 +76,8 @@ public class CelebornScheduler {
 
   public void start() throws Exception {
     shuffleSchedulerThread = Thread.currentThread();
-    RssShuffleSchedulerCallable rssShuffleSchedulerCallable = new RssShuffleSchedulerCallable();
-    rssShuffleSchedulerCallable.call();
+    CelebornShuffleSchedulerCallable celebornShuffleSchedulerCallable = new CelebornShuffleSchedulerCallable();
+    celebornShuffleSchedulerCallable.call();
   }
 
   public void close() {
@@ -107,7 +107,7 @@ public class CelebornScheduler {
   public void logProgress() {
   }
 
-  private class RssShuffleSchedulerCallable extends CallableWithNdc<Void> {
+  private class CelebornShuffleSchedulerCallable extends CallableWithNdc<Void> {
 
     @Override
     protected Void callInternal() throws IOException, InterruptedException, TezException {

@@ -1,0 +1,28 @@
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.0.0
+          http://maven.apache.org/xsd/assembly-2.0.0.xsd http://maven.apache.org/ASSEMBLY/2.0.0 ">
+
+  <!-- see https://maven.apache.org/plugins/maven-assembly-plugin/assembly -->
+
+  <id>fat</id>
+
+  <formats>
+    <format>jar</format>
+  </formats>
+
+  <includeBaseDirectory>false</includeBaseDirectory>
+
+  <dependencySets>
+    <dependencySet>
+      <useProjectArtifact>true</useProjectArtifact>
+      <unpack>true</unpack>
+      <scope>runtime</scope>
+      <includes>
+        <include>org.apache.celeborn:*</include>
+        <include>com.google.protobuf:*</include>
+        <include>org.apache.tez:tez-runtime-library</include>
+      </includes>
+    </dependencySet>
+  </dependencySets>
+</assembly>

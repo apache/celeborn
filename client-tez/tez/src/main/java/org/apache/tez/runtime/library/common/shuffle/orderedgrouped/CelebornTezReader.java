@@ -58,6 +58,30 @@ public class CelebornTezReader {
     ioErrs = tezCounters.findCounter(SHUFFLE_ERR_GRP_NAME, "IO_ERROR");
   }
 
+  public  byte[] fetchData() throws IOException {
+    MetricsCallback metricsCallback =
+        new MetricsCallback() {
+          @Override
+          public void incBytesRead(long bytesRead) {}
+
+          @Override
+          public void incReadTime(long time) {}
+        };
+    celebornInputStream =
+        shuffleClient.readPartition(
+            shuffleId, partitionId, attemptNumber, 0, Integer.MAX_VALUE, metricsCallback);
+
+    while (!stopped) {
+      try {
+        return getShuffleBlock();
+      } catch (Exception e) {
+        logger.error("Celeborn shuffle fetcher fetch data failed.", e);
+      } finally {
+      }
+    }
+    return null;
+  }
+
   public void fetchAndMerge() throws IOException {
     MetricsCallback metricsCallback =
         new MetricsCallback() {
@@ -125,7 +149,7 @@ public class CelebornTezReader {
     }
     // Check if we can shuffle *now* ...
     if (mapOutput == null || mapOutput.getType() == MapOutput.Type.WAIT) {
-      logger.info("RssMRFetcher - MergeManager returned status WAIT ...");
+      logger.info("CelebornMRFetcher - MergeManager returned status WAIT ...");
       // Not an error but wait to process data.
       // Use a retry flag to avoid re-fetch and re-uncompress.
       hasPendingData = true;

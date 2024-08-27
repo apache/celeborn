@@ -19,7 +19,12 @@ package org.apache.tez.runtime.library.sort;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
+import com.google.common.collect.Sets;
+import org.apache.celeborn.client.CelebornTezWriter;
+import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.network.util.ByteUnit;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.api.OutputContext;
@@ -27,26 +32,24 @@ import org.apache.tez.runtime.library.common.sort.impl.ExternalSorter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.client.CelebornTezWriter;
-import org.apache.celeborn.common.exception.CelebornIOException;
-import org.apache.celeborn.common.network.util.ByteUnit;
 
-/** {@link RssSorter} is an {@link ExternalSorter} */
-public class RssSorter extends ExternalSorter {
+/** {@link CelebornUnSorter} is an {@link ExternalSorter} */
+public class CelebornUnSorter extends ExternalSorter {
 
-  private static final Logger LOG = LoggerFactory.getLogger(RssSorter.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CelebornUnSorter.class);
   private WriteBufferManager bufferManager;
-
+  private Set<Long> successBlockIds = Sets.newConcurrentHashSet();
+  private Set<Long> failedBlockIds = Sets.newConcurrentHashSet();
   private int[] numRecordsPerPartition;
 
   /** Initialization */
-  public RssSorter(
-      OutputContext outputContext,
-      Configuration conf,
-      int numOutputs,
-      long initialMemoryAvailable,
-      CelebornTezWriter celebornTezWriter)
-      throws IOException {
+  public CelebornUnSorter(
+          OutputContext outputContext,
+          Configuration conf,
+          int numOutputs,
+          long initialMemoryAvailable,
+          CelebornTezWriter celebornTezWriter)
+          throws IOException {
     super(outputContext, conf, numOutputs, initialMemoryAvailable);
 
     this.numRecordsPerPartition = new int[numOutputs];
@@ -64,21 +67,22 @@ public class RssSorter extends ExternalSorter {
     int batch = 50;
 
     bufferManager =
-        new WriteBufferManager(
-            (long) (ByteUnit.MiB.toBytes(sortmb) * sortThreshold),
-            celebornTezWriter,
-            comparator,
-            maxSegmentSize,
-            keySerializer,
-            valSerializer,
-            maxBufferSize,
-            memoryThreshold,
-            sendThreshold,
-            batch,
-            true,
-            mapOutputByteCounter,
-            mapOutputRecordCounter);
+            new WriteBufferManager(
+                    (long) (ByteUnit.MiB.toBytes(sortmb) * sortThreshold),
+                    celebornTezWriter,
+                    comparator,
+                    maxSegmentSize,
+                    keySerializer,
+                    valSerializer,
+                    maxBufferSize,
+                    memoryThreshold,
+                    sendThreshold,
+                    batch,
+                    true,
+                    mapOutputByteCounter,
+                    mapOutputRecordCounter);
     LOG.info("Initialized WriteBufferManager.");
+
   }
 
   @Override
@@ -104,17 +108,17 @@ public class RssSorter extends ExternalSorter {
       throws IOException, InterruptedException {
     if (key.getClass() != serializationContext.getKeyClass()) {
       throw new IOException(
-          "Type mismatch in key from map: expected "
-              + serializationContext.getKeyClass().getName()
-              + ", received "
-              + key.getClass().getName());
+              "Type mismatch in key from map: expected "
+                      + serializationContext.getKeyClass().getName()
+                      + ", received "
+                      + key.getClass().getName());
     }
     if (value.getClass() != serializationContext.getValueClass()) {
       throw new IOException(
-          "Type mismatch in value from map: expected "
-              + serializationContext.getValueClass().getName()
-              + ", received "
-              + value.getClass().getName());
+              "Type mismatch in value from map: expected "
+                      + serializationContext.getValueClass().getName()
+                      + ", received "
+                      + value.getClass().getName());
     }
     if (partition < 0 || partition >= partitions) {
       throw new IOException("Illegal partition for " + key + " (" + partition + ")");
@@ -127,4 +131,5 @@ public class RssSorter extends ExternalSorter {
   public int[] getNumRecordsPerPartition() {
     return numRecordsPerPartition;
   }
+
 }

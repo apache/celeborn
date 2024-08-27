@@ -24,22 +24,22 @@ import org.apache.hadoop.fs.Path;
 import org.apache.tez.runtime.library.common.sort.impl.TezIndexRecord;
 import org.apache.tez.runtime.library.common.sort.impl.TezSpillRecord;
 
-public class RssTezPerPartitionRecord extends TezSpillRecord {
+public class CelebornTezPerPartitionRecord extends TezSpillRecord {
   private int numPartitions;
   private int[] numRecordsPerPartition;
 
-  public RssTezPerPartitionRecord(int numPartitions) {
+  public CelebornTezPerPartitionRecord(int numPartitions) {
     super(numPartitions);
     this.numPartitions = numPartitions;
   }
 
-  public RssTezPerPartitionRecord(int numPartitions, int[] numRecordsPerPartition) {
+  public CelebornTezPerPartitionRecord(int numPartitions, int[] numRecordsPerPartition) {
     super(numPartitions);
     this.numPartitions = numPartitions;
     this.numRecordsPerPartition = numRecordsPerPartition;
   }
 
-  public RssTezPerPartitionRecord(Path indexFileName, Configuration job) throws IOException {
+  public CelebornTezPerPartitionRecord(Path indexFileName, Configuration job) throws IOException {
     super(indexFileName, job);
   }
 
@@ -49,14 +49,14 @@ public class RssTezPerPartitionRecord extends TezSpillRecord {
   }
 
   @Override
-  public RssTezIndexRecord getIndex(int i) {
+  public CelebornTezIndexRecord getIndex(int i) {
     int records = numRecordsPerPartition[i];
-    RssTezIndexRecord rssTezIndexRecord = new RssTezIndexRecord();
-    rssTezIndexRecord.setData(!(records == 0));
-    return rssTezIndexRecord;
+    CelebornTezIndexRecord celebornTezIndexRecord = new CelebornTezIndexRecord();
+    celebornTezIndexRecord.setData(!(records == 0));
+    return celebornTezIndexRecord;
   }
 
-  static class RssTezIndexRecord extends TezIndexRecord {
+  static class CelebornTezIndexRecord extends TezIndexRecord {
     private boolean hasData;
 
     private void setData(boolean hasData) {

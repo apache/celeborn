@@ -1,12 +1,12 @@
 package org.apache.tez.runtime.library.common.shuffle.orderedgrouped;
 
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.BitSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.Inflater;
 
-import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.common.TezUtilsInternal;

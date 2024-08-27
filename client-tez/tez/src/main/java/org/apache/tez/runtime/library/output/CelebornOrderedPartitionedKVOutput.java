@@ -49,8 +49,8 @@ import org.apache.tez.runtime.library.common.MemoryUpdateCallbackHandler;
 import org.apache.tez.runtime.library.common.shuffle.ShuffleUtils;
 import org.apache.tez.runtime.library.common.sort.impl.ExternalSorter;
 import org.apache.tez.runtime.library.conf.OrderedPartitionedKVOutputConfig.SorterImpl;
-import org.apache.tez.runtime.library.sort.RssSorter;
-import org.apache.tez.runtime.library.sort.RssTezPerPartitionRecord;
+import org.apache.tez.runtime.library.sort.CelebornSorter;
+import org.apache.tez.runtime.library.sort.CelebornTezPerPartitionRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -199,7 +199,7 @@ public class CelebornOrderedPartitionedKVOutput extends AbstractLogicalOutput {
       }
 
       sorter =
-          new RssSorter(
+          new CelebornSorter(
               getContext(),
               conf,
               getNumPhysicalOutputs(),
@@ -262,12 +262,12 @@ public class CelebornOrderedPartitionedKVOutput extends AbstractLogicalOutput {
             TezConfiguration.TEZ_AM_SHUFFLE_AUXILIARY_SERVICE_ID,
             TezConfiguration.TEZ_AM_SHUFFLE_AUXILIARY_SERVICE_ID_DEFAULT);
 
-    int[] numRecordsPerPartition = ((RssSorter) sorter).getNumRecordsPerPartition();
+    int[] numRecordsPerPartition = ((CelebornSorter) sorter).getNumRecordsPerPartition();
 
-    RssTezPerPartitionRecord rssTezPerPartitionRecord =
-        new RssTezPerPartitionRecord(numOutputs, numRecordsPerPartition);
+    CelebornTezPerPartitionRecord celebornTezPerPartitionRecord =
+        new CelebornTezPerPartitionRecord(numOutputs, numRecordsPerPartition);
 
-    LOG.info("RssTezPerPartitionRecord is initialized");
+    LOG.info("CelebornTezPerPartitionRecord is initialized");
 
     ShuffleUtils.generateEventOnSpill(
         eventList,
@@ -275,7 +275,7 @@ public class CelebornOrderedPartitionedKVOutput extends AbstractLogicalOutput {
         isLastEvent,
         getContext(),
         0,
-        rssTezPerPartitionRecord,
+        celebornTezPerPartitionRecord,
         getNumPhysicalOutputs(),
         sendEmptyPartitionDetails,
         getContext().getUniqueIdentifier(),
