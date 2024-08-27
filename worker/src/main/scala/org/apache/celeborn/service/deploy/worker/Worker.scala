@@ -52,7 +52,7 @@ import org.apache.celeborn.common.util.{CelebornExitKind, CollectionUtils, JavaU
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
-import org.apache.celeborn.service.deploy.worker.WorkerSource.ACTIVE_CONNECTION_COUNT
+import org.apache.celeborn.service.deploy.worker.WorkerSource.{ACTIVE_CONNECTION_COUNT, UNRELEASED_SHUFFLE_SIZE}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
@@ -948,15 +948,18 @@ private[celeborn] class Worker(
 
     def waitTime: Long = waitTimes * interval
 
-    while (!storageManager.shuffleKeySet().isEmpty && waitTime < timeout) {
+    val unreleasedShuffleKeys = storageManager.shuffleKeySet()
+    while (!unreleasedShuffleKeys.isEmpty && waitTime < timeout) {
       Thread.sleep(interval)
       waitTimes += 1
     }
-    if (storageManager.shuffleKeySet().isEmpty) {
+
+    if (unreleasedShuffleKeys.isEmpty) {
       logInfo(s"Waiting for all shuffle expired cost ${waitTime}ms.")
     } else {
       logWarning(s"Waiting for all shuffle expired cost ${waitTime}ms, " +
-        s"unreleased shuffle: \n${storageManager.shuffleKeySet().asScala.mkString("[", ", ", "]")}")
+        s"unreleased shuffle: \n${unreleasedShuffleKeys.asScala.mkString("[", ", ", "]")}")
+      workerSource.incCounter(UNRELEASED_SHUFFLE_SIZE, unreleasedShuffleKeys.size)
     }
     workerStatusManager.transitionState(State.Exit)
   }

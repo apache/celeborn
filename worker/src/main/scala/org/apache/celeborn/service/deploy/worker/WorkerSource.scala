@@ -59,6 +59,9 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
 
   addCounter(SLOTS_ALLOCATED)
 
+  // Unreleased shuffle size when worker was decommissioned
+  addCounter(UNRELEASED_SHUFFLE_SIZE)
+
   // add timers
   addTimer(COMMIT_FILES_TIME)
   addTimer(RESERVE_SLOTS_TIME)
@@ -216,6 +219,7 @@ object WorkerSource {
 
   // decommission
   val IS_DECOMMISSIONING_WORKER = "IsDecommissioningWorker"
+  val UNRELEASED_SHUFFLE_SIZE = "UnreleasedShuffleSize"
 
   // clean
   val CLEAN_TASK_QUEUE_SIZE = "CleanTaskQueueSize"
