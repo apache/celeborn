@@ -61,7 +61,7 @@ object RpcEnv {
         name,
         transportModule,
         resolvedBindAddress,
-        Utils.localHostNameForAdvertiseAddress(conf),
+        advertiseAddress,
         port,
         numUsableCores,
         securityContext,
