@@ -1349,6 +1349,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
@@ -1368,6 +1369,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
@@ -1387,6 +1389,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
@@ -1405,6 +1408,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
@@ -1423,6 +1427,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
@@ -1441,8 +1446,8 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
-        <!-- TODO solve compilation error when build spark-3-columnar-shuffle with Spark 3.5 -->
-        <!-- <module>client-spark/spark-3-columnar-shuffle</module> -->
+        <module>client-spark/spark-3-columnar-common</module>
+        <module>client-spark/spark-3.5-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
       </modules>
