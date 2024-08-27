@@ -1740,7 +1740,8 @@ object CelebornConf extends Logging {
       .categories("network")
       .version("0.6.0")
       .doc("When `true`, prefer to use IP address, otherwise FQDN for advertise address.")
-      .fallbackConf(NETWORK_BIND_PREFER_IP)
+      .booleanConf
+      .createWithDefault(true)
 
   val NETWORK_MEMORY_ALLOCATOR_VERBOSE_METRIC: ConfigEntry[Boolean] =
     buildConf("celeborn.network.memory.allocator.verbose.metric")
