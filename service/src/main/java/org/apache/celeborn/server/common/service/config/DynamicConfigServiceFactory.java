@@ -17,9 +17,7 @@
 
 package org.apache.celeborn.server.common.service.config;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Locale;
+import java.util.ServiceLoader;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.Utils;
@@ -27,16 +25,7 @@ import org.apache.celeborn.common.util.Utils;
 public class DynamicConfigServiceFactory {
   private static volatile ConfigService _INSTANCE;
 
-  // short names for dynamic config store backends
-  private static final HashMap<String, String> dynamicConfigStoreBackendShortNames =
-      new HashMap<String, String>() {
-        {
-          put("FS", FsConfigServiceImpl.class.getName());
-          put("DB", DbConfigServiceImpl.class.getName());
-        }
-      };
-
-  public static ConfigService getConfigService(CelebornConf celebornConf) throws IOException {
+  public static ConfigService getConfigService(CelebornConf celebornConf) {
     if (celebornConf.dynamicConfigStoreBackend().isEmpty()) {
       return null;
     }
@@ -44,13 +33,14 @@ public class DynamicConfigServiceFactory {
     if (_INSTANCE == null) {
       synchronized (DynamicConfigServiceFactory.class) {
         if (_INSTANCE == null) {
-          String configStoreBackendName = celebornConf.dynamicConfigStoreBackend().get();
-          String configStoreBackendClass =
-              dynamicConfigStoreBackendShortNames.getOrDefault(
-                  configStoreBackendName.toUpperCase(Locale.ROOT), configStoreBackendName);
-
-          _INSTANCE =
-              Utils.instantiateDynamicConfigStoreBackend(configStoreBackendClass, celebornConf);
+          String configStoreBackend = celebornConf.dynamicConfigStoreBackend().get();
+          for (ConfigStore configStore : ServiceLoader.load(ConfigStore.class)) {
+            if (configStore.getName().equalsIgnoreCase(configStoreBackend)) {
+              configStoreBackend = configStore.getService();
+              break;
+            }
+          }
+          _INSTANCE = Utils.instantiateDynamicConfigStoreBackend(configStoreBackend, celebornConf);
         }
       }
     }

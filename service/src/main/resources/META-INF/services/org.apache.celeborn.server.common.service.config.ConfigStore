@@ -15,35 +15,5 @@
 # limitations under the License.
 #
 
-name: Celeborn User Triggered Regression
-
-on:
-  workflow_dispatch:
-    inputs:
-      regression:
-        description: "regression"
-        required: true
-        default: "default-regression"
-
-jobs:
-
-  regression:
-    runs-on: self-hosted
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build
-        run: |
-          build/make-distribution.sh -Pspark-3.2
-          rm -rf /home/hadoop/celeborn-toolkit/dist/*
-          mv apache-celeborn-*.tgz /home/hadoop/celeborn-toolkit/dist/
-
-      - name: Regression
-        run: /home/hadoop/celeborn-toolkit/reg.sh regression
-
-      - name: Upload Result
-        uses: actions/upload-artifact@v4
-        with:
-          name: regression result
-          path: /home/hadoop/celeborn-toolkit/result/
+org.apache.celeborn.server.common.service.config.FsConfigStoreImpl
+org.apache.celeborn.server.common.service.config.DbConfigStoreImpl

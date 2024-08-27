@@ -173,6 +173,7 @@ message PbWorkerInfo {
   repeated PbDiskInfo disks = 6;
   map<string, PbResourceConsumption> userResourceConsumption = 7;
   int32 internalPort = 8;
+  string networkLocation = 9;
 }
 
 message PbFileGroup {
@@ -519,6 +520,10 @@ message PbCheckForWorkerTimeout {
 message PbRemoveWorkersUnavailableInfo {
   repeated PbWorkerInfo workerInfo = 1;
   string requestId = 2;
+}
+
+message PbRemoveWorkersUnavailableInfoResponse {
+  bool success = 1;
 }
 
 message PbWorkerExclude {

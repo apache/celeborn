@@ -43,7 +43,7 @@ import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSour
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.quota.ResourceConsumption
-import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, DiskUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
@@ -72,6 +72,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   val storageExpireDirTimeout = conf.workerStorageExpireDirTimeout
   val storagePolicy = new StoragePolicy(conf, this, workerSource)
+
+  val diskReserveSize = conf.workerDiskReserveSize
+  val diskReserveRatio = conf.workerDiskReserveRatio
 
   val topDiskUsageCount = conf.metricsAppTopDiskUsageCount
 
@@ -851,17 +854,30 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           0
         }
       }.sum
-      val fileSystemReportedUsableSpace = Files.getFileStore(
-        Paths.get(diskInfo.mountPoint)).getUsableSpace
+
+      val (fileSystemReportedUsableSpace, fileSystemReportedTotalSpace) =
+        getFileSystemReportedSpace(diskInfo.mountPoint)
       val workingDirUsableSpace =
         Math.min(diskInfo.configuredUsableSpace - totalUsage, fileSystemReportedUsableSpace)
-      logDebug(s"updateDiskInfos  workingDirUsableSpace:$workingDirUsableSpace filemeta:$fileSystemReportedUsableSpace conf:${diskInfo.configuredUsableSpace} totalUsage:$totalUsage")
-      diskInfo.setUsableSpace(workingDirUsableSpace)
-      diskInfo.setTotalSpace(totalUsage + workingDirUsableSpace)
+      val minimumReserveSize =
+        DiskUtils.getMinimumUsableSize(diskInfo, diskReserveSize, diskReserveRatio)
+      val usableSpace = Math.max(workingDirUsableSpace - minimumReserveSize, 0)
+      logDebug(s"updateDiskInfos workingDirUsableSpace:$workingDirUsableSpace filemeta:$fileSystemReportedUsableSpace" +
+        s"conf:${diskInfo.configuredUsableSpace} totalUsage:$totalUsage totalSpace:$fileSystemReportedTotalSpace" +
+        s"minimumReserveSize:$minimumReserveSize usableSpace:$usableSpace")
+      diskInfo.setUsableSpace(usableSpace)
+      diskInfo.setTotalSpace(fileSystemReportedTotalSpace)
       diskInfo.updateFlushTime()
       diskInfo.updateFetchTime()
     }
     logInfo(s"Updated diskInfos:\n${disksSnapshot().mkString("\n")}")
+  }
+
+  def getFileSystemReportedSpace(mountPoint: String): (Long, Long) = {
+    val fileStore = Files.getFileStore(Paths.get(mountPoint))
+    val fileSystemReportedUsableSpace = fileStore.getUsableSpace
+    val fileSystemReportedTotalSpace = fileStore.getTotalSpace
+    (fileSystemReportedUsableSpace, fileSystemReportedTotalSpace)
   }
 
   def userResourceConsumptionSnapshot(): Map[UserIdentifier, ResourceConsumption] = {

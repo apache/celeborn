@@ -110,11 +110,4 @@ public interface ConfigService {
 
   /** Shutdowns configuration management service. */
   void shutdown();
-
-  /**
-   * Retrieves the name of the configuration service.
-   *
-   * @return The name of the configuration service
-   */
-  String getName();
 }

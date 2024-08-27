@@ -17,16 +17,15 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
+import java.nio.file.Files
 import java.util.Collections
 import javax.servlet.http.HttpServletResponse
 import javax.ws.rs.client.Entity
 import javax.ws.rs.core.MediaType
 
-import com.google.common.io.Files
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
-import org.apache.celeborn.rest.v1.model.{AppDiskUsageSnapshotsResponse, ApplicationsResponse, ExcludeWorkerRequest, HandleResponse, HostnamesResponse, SendWorkerEventRequest, ShufflesResponse, WorkerEventsResponse, WorkerId, WorkersResponse}
+import org.apache.celeborn.rest.v1.model.{AppDiskUsageSnapshotsResponse, ApplicationsResponse, ExcludeWorkerRequest, HandleResponse, HostnamesResponse, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, ShufflesResponse, WorkerEventsResponse, WorkerId, WorkersResponse}
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.api.v1.ApiV1BaseResourceSuite
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
@@ -37,7 +36,7 @@ class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite {
   override protected def httpService: HttpService = master
 
   def getTmpDir(): String = {
-    val tmpDir = Files.createTempDir()
+    val tmpDir = Files.createTempDirectory(null).toFile
     tmpDir.deleteOnExit()
     tmpDir.getAbsolutePath
   }
@@ -121,6 +120,13 @@ class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite {
     assert(HttpServletResponse.SC_OK == response.getStatus)
     assert(response.readEntity(classOf[HandleResponse]).getMessage.contains(
       "Unknown workers Host:unknown.celeborn"))
+
+    val removeWorkersUnavailableInfoRequest = new RemoveWorkersUnavailableInfoRequest()
+      .workers(Collections.singletonList(worker))
+    response =
+      webTarget.path("workers/remove_unavailable").request(MediaType.APPLICATION_JSON).post(
+        Entity.entity(removeWorkersUnavailableInfoRequest, MediaType.APPLICATION_JSON))
+    assert(HttpServletResponse.SC_OK == response.getStatus)
 
     response = webTarget.path("workers/events").request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)

@@ -83,6 +83,8 @@ private[celeborn] class Master(
   private val sendApplicationMetaThreads = conf.masterSendApplicationMetaThreads
   // Send ApplicationMeta to workers
   private var sendApplicationMetaExecutor: ExecutorService = _
+  private val masterPersistWorkerNetworkLocation = conf.masterPersistWorkerNetworkLocation
+  PbSerDeUtils.setMasterPersistWorkerNetworkLocation(masterPersistWorkerNetworkLocation)
 
   if (conf.logCelebornConfEnabled) {
     logInfo(getConf)
@@ -254,11 +256,11 @@ private[celeborn] class Master(
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_TOTAL_CAPACITY) { () =>
-    statusSystem.workers.asScala.map(_.totalSpace()).sum
+    statusSystem.workers.asScala.toList.map(_.totalSpace()).sum
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_FREE_CAPACITY) { () =>
-    statusSystem.workers.asScala.map(_.totalActualUsableSpace()).sum
+    statusSystem.workers.asScala.toList.map(_.totalActualUsableSpace()).sum
   }
 
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
@@ -294,50 +296,34 @@ private[celeborn] class Master(
         sendApplicationMetaThreads,
         "send-application-meta")
     }
-    checkForWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
-      new Runnable {
-        override def run(): Unit = Utils.tryLogNonFatalError {
-          self.send(ControlMessages.pbCheckForWorkerTimeout)
-        }
-      },
-      0,
-      workerHeartbeatTimeoutMs,
-      TimeUnit.MILLISECONDS)
 
-    checkForApplicationTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
-      new Runnable {
-        override def run(): Unit = Utils.tryLogNonFatalError {
-          self.send(CheckForApplicationTimeOut)
-        }
-      },
-      0,
-      appHeartbeatTimeoutMs / 2,
-      TimeUnit.MILLISECONDS)
+    checkForWorkerTimeOutTask = scheduleCheckTask(workerHeartbeatTimeoutMs, pbCheckForWorkerTimeout)
+    checkForApplicationTimeOutTask =
+      scheduleCheckTask(appHeartbeatTimeoutMs / 2, CheckForApplicationTimeOut)
 
     if (workerUnavailableInfoExpireTimeoutMs > 0) {
-      checkForUnavailableWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
-        new Runnable {
-          override def run(): Unit = Utils.tryLogNonFatalError {
-            self.send(CheckForWorkerUnavailableInfoTimeout)
-          }
-        },
-        0,
+      scheduleCheckTask(
         workerUnavailableInfoExpireTimeoutMs / 2,
-        TimeUnit.MILLISECONDS)
+        CheckForWorkerUnavailableInfoTimeout)
     }
 
     if (hasHDFSStorage || hasS3Storage) {
-      checkForS3RemnantDirsTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
-        new Runnable {
-          override def run(): Unit = Utils.tryLogNonFatalError {
-            self.send(CheckForDFSExpiredDirsTimeout)
-          }
-        },
-        dfsExpireDirsTimeoutMS,
-        dfsExpireDirsTimeoutMS,
-        TimeUnit.MILLISECONDS)
+      checkForHDFSRemnantDirsTimeOutTask =
+        scheduleCheckTask(dfsExpireDirsTimeoutMS, CheckForDFSExpiredDirsTimeout)
     }
 
+  }
+
+  def scheduleCheckTask[T](timeoutMS: Long, message: T): ScheduledFuture[_] = {
+    forwardMessageThread.scheduleWithFixedDelay(
+      new Runnable {
+        override def run(): Unit = Utils.tryLogNonFatalError {
+          self.send(message)
+        }
+      },
+      timeoutMS,
+      timeoutMS,
+      TimeUnit.MILLISECONDS)
   }
 
   override def onStop(): Unit = {
@@ -403,12 +389,6 @@ private[celeborn] class Master(
       executeWithLeaderChecker(
         null,
         handleWorkerLost(null, host, rpcPort, pushPort, fetchPort, replicatePort, requestId))
-    case pb: PbRemoveWorkersUnavailableInfo =>
-      val unavailableWorkers = new util.ArrayList[WorkerInfo](pb.getWorkerInfoList
-        .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
-      executeWithLeaderChecker(
-        null,
-        handleRemoveWorkersUnavailableInfos(unavailableWorkers, pb.getRequestId))
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
@@ -576,6 +556,13 @@ private[celeborn] class Master(
     case pb: PbApplicationMetaRequest =>
       // This request is from a worker
       executeWithLeaderChecker(context, handleRequestForApplicationMeta(context, pb))
+
+    case pb: PbRemoveWorkersUnavailableInfo =>
+      val unavailableWorkers = new util.ArrayList[WorkerInfo](pb.getWorkerInfoList
+        .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
+      executeWithLeaderChecker(
+        context,
+        handleRemoveWorkersUnavailableInfos(context, unavailableWorkers, pb.getRequestId))
   }
 
   private def timeoutDeadWorkers(): Unit = {
@@ -610,13 +597,11 @@ private[celeborn] class Master(
 
     val unavailableInfoTimeoutWorkers = statusSystem.lostWorkers.asScala.filter {
       case (_, lostTime) => currentTime - lostTime > workerUnavailableInfoExpireTimeoutMs
-    }.keySet.toList.asJava
+    }.keySet.toSeq
 
     if (!unavailableInfoTimeoutWorkers.isEmpty) {
-      logDebug(s"Remove unavailable info for workers: $unavailableInfoTimeoutWorkers")
-      self.send(RemoveWorkersUnavailableInfo(
-        unavailableInfoTimeoutWorkers,
-        MasterClient.genRequestId()))
+      val handleResponse = removeWorkersUnavailableInfo(unavailableInfoTimeoutWorkers)
+      logDebug(s"Remove unavailable info for workers response: $handleResponse")
     }
   }
 
@@ -882,8 +867,6 @@ private[celeborn] class Master(
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware,
-              diskReserveSize,
-              diskReserveRatio,
               slotsAssignLoadAwareDiskGroupNum,
               slotsAssignLoadAwareDiskGroupGradient,
               loadAwareFlushTimeWeight,
@@ -1095,9 +1078,13 @@ private[celeborn] class Master(
   }
 
   private def handleRemoveWorkersUnavailableInfos(
+      context: RpcCallContext,
       unavailableWorkers: util.List[WorkerInfo],
       requestId: String): Unit = {
     statusSystem.handleRemoveWorkersUnavailableInfo(unavailableWorkers, requestId)
+    if (context != null) {
+      context.reply(RemoveWorkersUnavailableInfoResponse(true))
+    }
   }
 
   private def handleResourceConsumption(userIdentifier: UserIdentifier): ResourceConsumption = {
@@ -1355,6 +1342,19 @@ private[celeborn] class Master(
         s"Unknown workers ${unknownExcludedWorkers.map(_.readableAddress).mkString(",")}. Workers in Master:\n$getWorkers.")
     }
     workerExcludeResponse.getSuccess -> sb.toString()
+  }
+
+  def removeWorkersUnavailableInfo(unavailableWorkers: Seq[WorkerInfo]): HandleResponse = {
+    val removeWorkersUnavailableInfoResponse =
+      self.askSync[PbRemoveWorkersUnavailableInfoResponse](RemoveWorkersUnavailableInfo(
+        unavailableWorkers.asJava,
+        MasterClient.genRequestId()))
+    if (removeWorkersUnavailableInfoResponse.getSuccess) {
+      true -> s"Remove unavailable info for workers ${unavailableWorkers.map(_.readableAddress).mkString(",")} successfully."
+    } else {
+      false -> s"Failed to remove unavailable info for workers ${unavailableWorkers.map(
+        _.readableAddress).mkString(",")}."
+    }
   }
 
   private def isMasterActive: Int = {

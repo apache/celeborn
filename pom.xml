@@ -38,7 +38,6 @@
     <module>service</module>
     <module>master</module>
     <module>worker</module>
-    <module>web</module>
     <module>cli</module>
   </modules>
 
@@ -1458,7 +1457,7 @@
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
-        <spark.version>3.5.1</spark.version>
+        <spark.version>3.5.2</spark.version>
         <zstd-jni.version>1.5.5-4</zstd-jni.version>
       </properties>
     </profile>
@@ -1768,6 +1767,13 @@
         <module>client-mr/mr</module>
         <module>client-mr/mr-shaded</module>
         <module>tests/mr-it</module>
+      </modules>
+    </profile>
+
+    <profile>
+      <id>web</id>
+      <modules>
+        <module>web</module>
       </modules>
     </profile>
 

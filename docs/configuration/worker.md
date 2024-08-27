@@ -21,7 +21,7 @@ license: |
 | --- | ------- | --------- | ----------- | ----- | ---------- |
 | celeborn.cluster.name | default | false | Celeborn cluster name. | 0.5.0 |  | 
 | celeborn.dynamicConfig.refresh.interval | 120s | false | Interval for refreshing the corresponding dynamic config periodically. | 0.4.0 |  | 
-| celeborn.dynamicConfig.store.backend | &lt;undefined&gt; | false | Store backend for dynamic config service. The backend can be specified in two ways: - Using short names: Default available options are FS, DB. - Using the fully qualified class name of the backend implementation.If not provided, it means that dynamic configuration is disabled. | 0.4.0 |  | 
+| celeborn.dynamicConfig.store.backend | &lt;undefined&gt; | false | Store backend for dynamic config service. The store backend can be specified in two ways: - Using the short name of the store backend defined in the implementation of `ConfigStore#getName` whose return value can be mapped to the corresponding backend implementation. Available options: FS, DB. - Using the service class name of the store backend implementation.If not provided, it means that dynamic configuration is disabled. | 0.4.0 |  | 
 | celeborn.dynamicConfig.store.db.fetch.pageSize | 1000 | false | The page size for db store to query configurations. | 0.5.0 |  | 
 | celeborn.dynamicConfig.store.db.hikari.connectionTimeout | 30s | false | The connection timeout that a client will wait for a connection from the pool for db store backend. | 0.5.0 |  | 
 | celeborn.dynamicConfig.store.db.hikari.driverClassName |  | false | The jdbc driver class name of db store backend. | 0.5.0 |  | 
@@ -54,8 +54,8 @@ license: |
 | celeborn.worker.bufferStream.threadsPerMountpoint | 8 | false | Threads count for read buffer per mount point. | 0.3.0 |  | 
 | celeborn.worker.clean.threads | 64 | false | Thread number of worker to clean up expired shuffle keys. | 0.3.2 |  | 
 | celeborn.worker.closeIdleConnections | false | false | Whether worker will close idle connections. | 0.2.0 |  | 
-| celeborn.worker.commitFiles.threads | 32 | false | Thread number of worker to commit shuffle data files asynchronously. It's recommended to set at least `128` when `HDFS` is enabled in `celeborn.storage.activeTypes`. | 0.3.0 | celeborn.worker.commit.threads | 
-| celeborn.worker.commitFiles.timeout | 120s | false | Timeout for a Celeborn worker to commit files of a shuffle. It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes`. | 0.3.0 | celeborn.worker.shuffle.commit.timeout | 
+| celeborn.worker.commitFiles.threads | 32 | false | Thread number of worker to commit shuffle data files asynchronously. It's recommended to set at least `128` when `HDFS` is enabled in `celeborn.storage.availableTypes`. | 0.3.0 | celeborn.worker.commit.threads | 
+| celeborn.worker.commitFiles.timeout | 120s | false | Timeout for a Celeborn worker to commit files of a shuffle. It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.availableTypes`. | 0.3.0 | celeborn.worker.shuffle.commit.timeout | 
 | celeborn.worker.commitFiles.wait.threads | 32 | false | Thread number of worker to wait for commit shuffle data files to finish. | 0.5.0 |  | 
 | celeborn.worker.congestionControl.check.interval | 10ms | false | Interval of worker checks congestion if celeborn.worker.congestionControl.enabled is true. | 0.3.2 |  | 
 | celeborn.worker.congestionControl.enabled | false | false | Whether to enable congestion control or not. | 0.3.0 |  | 
@@ -143,7 +143,7 @@ license: |
 | celeborn.worker.readBuffer.target.updateInterval | 100ms | false | The interval for memory manager to calculate new read buffer's target memory. | 0.3.0 |  | 
 | celeborn.worker.readBuffer.toTriggerReadMin | 32 | false | Min buffers count for map data partition to trigger read. | 0.3.0 |  | 
 | celeborn.worker.register.timeout | 180s | false | Worker register timeout. | 0.2.0 |  | 
-| celeborn.worker.replicate.fastFail.duration | 60s | false | If a replicate request not replied during the duration, worker will mark the replicate data request as failed.It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes`. | 0.2.0 |  | 
+| celeborn.worker.replicate.fastFail.duration | 60s | false | If a replicate request not replied during the duration, worker will mark the replicate data request as failed.It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.availableTypes`. | 0.2.0 |  | 
 | celeborn.worker.replicate.io.threads | &lt;undefined&gt; | false | Netty IO thread number of worker to replicate shuffle data. The default threads number is the number of flush thread. | 0.2.0 |  | 
 | celeborn.worker.replicate.port | 0 | false | Server port for Worker to receive replicate data request from other Workers. | 0.2.0 |  | 
 | celeborn.worker.replicate.randomConnection.enabled | true | false | Whether worker will create random connection to peer when replicate data. When false, worker tend to reuse the same cached TransportClient to a specific replicate worker; when true, worker tend to use different cached TransportClient. Netty will use the same thread to serve the same connection, so with more connections replicate server can leverage more netty threads | 0.2.1 |  | 
@@ -156,7 +156,7 @@ license: |
 | celeborn.worker.sortPartition.indexCache.maxWeight | 100000 | false | PartitionSorter's cache max weight for index buffer. | 0.4.0 |  | 
 | celeborn.worker.sortPartition.prefetch.enabled | true | false | When true, partition sorter will prefetch the original partition files to page cache and reserve memory configured by `celeborn.worker.sortPartition.reservedMemoryPerPartition` to allocate a block of memory for prefetching while sorting a shuffle file off-heap with page cache for non-hdfs files. Otherwise, partition sorter seeks to position of each block and does not prefetch for non-hdfs files. | 0.5.0 |  | 
 | celeborn.worker.sortPartition.reservedMemoryPerPartition | 1mb | false | Reserved memory when sorting a shuffle file off-heap. | 0.3.0 | celeborn.worker.partitionSorter.reservedMemoryPerPartition | 
-| celeborn.worker.sortPartition.threads | &lt;undefined&gt; | false | PartitionSorter's thread counts. It's recommended to set at least `64` when `HDFS` is enabled in `celeborn.storage.activeTypes`. | 0.3.0 | celeborn.worker.partitionSorter.threads | 
+| celeborn.worker.sortPartition.threads | &lt;undefined&gt; | false | PartitionSorter's thread counts. It's recommended to set at least `64` when `HDFS` is enabled in `celeborn.storage.availableTypes`. | 0.3.0 | celeborn.worker.partitionSorter.threads | 
 | celeborn.worker.sortPartition.timeout | 220s | false | Timeout for a shuffle file to sort. | 0.3.0 | celeborn.worker.partitionSorter.sort.timeout | 
 | celeborn.worker.storage.checkDirsEmpty.maxRetries | 3 | false | The number of retries for a worker to check if the working directory is cleaned up before registering with the master. | 0.3.0 | celeborn.worker.disk.checkFileClean.maxRetries | 
 | celeborn.worker.storage.checkDirsEmpty.timeout | 1000ms | false | The wait time per retry for a worker to check if the working directory is cleaned up before registering with the master. | 0.3.0 | celeborn.worker.disk.checkFileClean.timeout | 

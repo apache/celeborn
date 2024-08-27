@@ -17,10 +17,9 @@
 
 package org.apache.celeborn.service.deploy.master.http.api
 
+import java.nio.file.Files
 import javax.ws.rs.client.Entity
 import javax.ws.rs.core.{Form, MediaType}
-
-import com.google.common.io.Files
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
@@ -34,7 +33,7 @@ class ApiMasterResourceSuite extends ApiBaseResourceSuite {
   override protected def httpService: HttpService = master
 
   def getTmpDir(): String = {
-    val tmpDir = Files.createTempDir()
+    val tmpDir = Files.createTempDirectory(null).toFile
     tmpDir.deleteOnExit()
     tmpDir.getAbsolutePath
   }

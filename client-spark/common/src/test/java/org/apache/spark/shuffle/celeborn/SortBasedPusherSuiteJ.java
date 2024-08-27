@@ -127,7 +127,7 @@ public class SortBasedPusherSuiteJ {
         !pusher.insertRecord(
             row5k.getBaseObject(), row5k.getBaseOffset(), row5k.getSizeInBytes(), 0, true));
 
-    pusher.close();
+    pusher.close(true);
 
     assertEquals(taskContext.taskMetrics().memoryBytesSpilled(), 2097152);
   }
