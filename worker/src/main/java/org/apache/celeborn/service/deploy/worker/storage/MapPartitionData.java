@@ -136,19 +136,23 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
 
   public void tryRequestBufferOrRead() {
     if (bufferQueueInitialized.compareAndSet(false, true)) {
-      bufferQueue.tryApplyNewBuffers(
-          readers.size(),
-          mapFileMeta.getBufferSize(),
-          (allocatedBuffers, throwable) -> onBuffer(allocatedBuffers));
+      bufferQueue.tryApplyNewBuffers(readers.size(), mapFileMeta.getBufferSize(), this::onBuffer);
     } else {
       triggerRead();
     }
   }
 
   // Read logic is executed on another thread.
-  public void onBuffer(List<ByteBuf> buffers) {
+  public void onBuffer(List<ByteBuf> buffers, Throwable throwable) {
     if (isReleased) {
       buffers.forEach(memoryManager::recycleReadBuffer);
+      return;
+    }
+
+    if (throwable != null) {
+      for (MapPartitionDataReader reader : readers.values()) {
+        reader.recycleOnError(throwable);
+      }
       return;
     }
 
@@ -174,10 +178,7 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
       triggerRead();
     }
 
-    bufferQueue.tryApplyNewBuffers(
-        readers.size(),
-        mapFileMeta.getBufferSize(),
-        (allocatedBuffers, throwable) -> onBuffer(allocatedBuffers));
+    bufferQueue.tryApplyNewBuffers(readers.size(), mapFileMeta.getBufferSize(), this::onBuffer);
   }
 
   public synchronized void readBuffers() {
