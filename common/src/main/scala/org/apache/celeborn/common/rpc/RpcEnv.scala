@@ -44,18 +44,27 @@ object RpcEnv {
   }
 
   def create(
-    name: String,
-    transportModule: String,
-    host: String,
-    port: Int,
-    conf: CelebornConf,
-    numUsableCores: Int,
-    securityContext: Option[RpcSecurityContext],
-    source: Option[AbstractSource]): RpcEnv = {
+      name: String,
+      transportModule: String,
+      host: String,
+      port: Int,
+      conf: CelebornConf,
+      numUsableCores: Int,
+      securityContext: Option[RpcSecurityContext],
+      source: Option[AbstractSource]): RpcEnv = {
     val bindAddress =
       if (conf.bindWildcardAddress) TransportModuleConstants.WILDCARD_BIND_ADDRESS else host
     val advertiseAddress = Utils.localHostNameForAdvertiseAddress(conf)
-    create(name, transportModule, bindAddress, advertiseAddress, port, conf, numUsableCores, securityContext, source)
+    create(
+      name,
+      transportModule,
+      bindAddress,
+      advertiseAddress,
+      port,
+      conf,
+      numUsableCores,
+      securityContext,
+      source)
   }
 
   def create(
