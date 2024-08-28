@@ -462,7 +462,8 @@ public class MemoryManager {
     readBufferCounter.addAndGet(delta);
   }
 
-  protected boolean readBufferAvailable(int requiredBytes) {
+  @VisibleForTesting
+  public boolean readBufferAvailable(int requiredBytes) {
     return readBufferCounter.get() + requiredBytes < readBufferThreshold;
   }
 
