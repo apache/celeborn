@@ -96,7 +96,6 @@ private[celeborn] class Worker(
         RpcNameConstants.WORKER_SYS,
         TransportModuleConstants.RPC_SERVICE_MODULE,
         workerArgs.host,
-        workerArgs.host,
         workerArgs.port,
         conf,
         Math.min(64, Math.max(4, Runtime.getRuntime.availableProcessors())),
@@ -114,7 +113,6 @@ private[celeborn] class Worker(
         RpcNameConstants.WORKER_SYS,
         TransportModuleConstants.RPC_SERVICE_MODULE,
         workerArgs.host,
-        workerArgs.host,
         workerArgs.port,
         conf,
         Math.max(64, Runtime.getRuntime.availableProcessors()),
@@ -129,7 +127,6 @@ private[celeborn] class Worker(
       RpcEnv.create(
         RpcNameConstants.WORKER_INTERNAL_SYS,
         TransportModuleConstants.RPC_SERVICE_MODULE,
-        workerArgs.host,
         workerArgs.host,
         workerArgs.internalPort,
         conf,

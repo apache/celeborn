@@ -96,7 +96,6 @@ private[celeborn] class Master(
         RpcNameConstants.MASTER_SYS,
         TransportModuleConstants.RPC_SERVICE_MODULE,
         masterArgs.host,
-        masterArgs.host,
         masterArgs.port,
         conf,
         Math.max(64, Runtime.getRuntime.availableProcessors()))
@@ -111,7 +110,6 @@ private[celeborn] class Master(
       RpcEnv.create(
         RpcNameConstants.MASTER_SYS,
         TransportModuleConstants.RPC_SERVICE_MODULE,
-        masterArgs.host,
         masterArgs.host,
         masterArgs.port,
         conf,
@@ -129,7 +127,6 @@ private[celeborn] class Master(
       RpcEnv.create(
         RpcNameConstants.MASTER_INTERNAL_SYS,
         TransportModuleConstants.RPC_SERVICE_MODULE,
-        masterArgs.host,
         masterArgs.host,
         masterArgs.internalPort,
         conf,

@@ -420,7 +420,12 @@ object Utils extends Logging {
   }
 
   def localHostNameForAdvertiseAddress(conf: CelebornConf): String = {
-    getHostName(conf.advertisePreferIP)
+    if (conf.masterHost != "<localhost>") {
+      conf.masterHost
+    } else {
+      getHostName(conf.advertisePreferIP)
+    }
+
   }
 
   private def getHostName(preferIP: Boolean): String = customHostname.getOrElse {

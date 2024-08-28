@@ -44,6 +44,21 @@ object RpcEnv {
   }
 
   def create(
+    name: String,
+    transportModule: String,
+    host: String,
+    port: Int,
+    conf: CelebornConf,
+    numUsableCores: Int,
+    securityContext: Option[RpcSecurityContext] = None,
+    source: Option[AbstractSource] = None): RpcEnv = {
+    val bindAddress =
+      if (conf.bindWildcardAddress) TransportModuleConstants.WILDCARD_BIND_ADDRESS else host
+    val advertiseAddress = Utils.localHostNameForAdvertiseAddress(conf)
+    create(name, transportModule, bindAddress, advertiseAddress, port, conf, numUsableCores, securityContext, source)
+  }
+
+  def create(
       name: String,
       transportModule: String,
       bindAddress: String,
@@ -53,15 +68,13 @@ object RpcEnv {
       numUsableCores: Int,
       securityContext: Option[RpcSecurityContext] = None,
       source: Option[AbstractSource] = None): RpcEnv = {
-    val resolvedBindAddress =
-      if (conf.bindWildcardAddress) TransportModuleConstants.WILDCARD_BIND_ADDRESS else bindAddress
     val config =
       RpcEnvConfig(
         conf,
         name,
         transportModule,
-        resolvedBindAddress,
-        Utils.localHostNameForAdvertiseAddress(conf),
+        bindAddress,
+        advertiseAddress,
         port,
         numUsableCores,
         securityContext,
