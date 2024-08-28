@@ -337,7 +337,7 @@ private[celeborn] class Worker(
       conf.workerCleanThreads)
   val asyncReplyPool: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-rpc-async-replier")
-  val timer = new HashedWheelTimer()
+  val timer = new HashedWheelTimer(ThreadUtils.namedSingleThreadFactory("worker-timer"))
 
   // Configs
   private val heartbeatInterval = conf.workerHeartbeatTimeout / 4
