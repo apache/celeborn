@@ -113,6 +113,9 @@ public class ReadBufferDispatcher extends Thread {
         if (buffers != null) {
           buffers.forEach(this::recycle);
         }
+
+        // notify listener has exception
+        request.getBufferListener().notifyBuffers(null, e);
       }
     }
   }
