@@ -146,7 +146,7 @@ public class MasterClient {
     AtomicInteger currentMasterIdx = new AtomicInteger(0);
 
     long sleepLimitTime = 2000; // 2s
-    while (numTries < maxRetries && shouldRetry) {
+    while (numTries <= maxRetries && shouldRetry) {
       try {
         endpointRef = getOrSetupRpcEndpointRef(currentMasterIdx);
         Future<T> future = endpointRef.ask(message, rpcTimeout, ClassTag$.MODULE$.apply(clz));
