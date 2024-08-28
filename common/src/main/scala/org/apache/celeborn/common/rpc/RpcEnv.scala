@@ -50,8 +50,8 @@ object RpcEnv {
     port: Int,
     conf: CelebornConf,
     numUsableCores: Int,
-    securityContext: Option[RpcSecurityContext] = None,
-    source: Option[AbstractSource] = None): RpcEnv = {
+    securityContext: Option[RpcSecurityContext],
+    source: Option[AbstractSource]): RpcEnv = {
     val bindAddress =
       if (conf.bindWildcardAddress) TransportModuleConstants.WILDCARD_BIND_ADDRESS else host
     val advertiseAddress = Utils.localHostNameForAdvertiseAddress(conf)

@@ -282,7 +282,9 @@ class WorkerInfoSuite extends CelebornFunSuite {
         "localhost",
         12345,
         conf,
-        64)
+        64,
+        None,
+        None)
       val worker4 = new WorkerInfo(
         "h4",
         40001,

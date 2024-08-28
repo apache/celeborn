@@ -98,7 +98,9 @@ private[celeborn] class Master(
         masterArgs.host,
         masterArgs.port,
         conf,
-        Math.max(64, Runtime.getRuntime.availableProcessors()))
+        Math.max(64, Runtime.getRuntime.availableProcessors()),
+        None,
+        None)
     } else {
       val externalSecurityContext = new RpcSecurityContextBuilder()
         .withServerSaslContext(
@@ -114,7 +116,8 @@ private[celeborn] class Master(
         masterArgs.port,
         conf,
         Math.max(64, Runtime.getRuntime.availableProcessors()),
-        Some(externalSecurityContext))
+        Some(externalSecurityContext),
+        None)
     }
 
   // Visible for testing
@@ -130,7 +133,9 @@ private[celeborn] class Master(
         masterArgs.host,
         masterArgs.internalPort,
         conf,
-        Math.max(64, Runtime.getRuntime.availableProcessors()))
+        Math.max(64, Runtime.getRuntime.availableProcessors()),
+        None,
+        None)
     }
 
   private val rackResolver = new CelebornRackResolver(conf)
