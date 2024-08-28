@@ -18,17 +18,21 @@
 package org.apache.celeborn.cli.config
 
 import java.io.{File, PrintWriter}
+
 import scala.io.Source
+
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+
 import org.apache.celeborn.cli.config.CliConfigManager.cliConfigFilePath
 import org.apache.celeborn.common.util.Utils
 
 case class CliConfig(@JsonProperty("cliConfigData") cliConfigData: Map[String, String])
 
 object CliConfigManager {
-  val cliConfigFilePath = s"${sys.env.getOrElse("CELEBORN_CONF_DIR", sys.env("HOME"))}/celeborn-cli.conf"
+  val cliConfigFilePath =
+    s"${sys.env.getOrElse("CELEBORN_CONF_DIR", sys.env("HOME"))}/celeborn-cli.conf"
 }
 
 class CliConfigManager {

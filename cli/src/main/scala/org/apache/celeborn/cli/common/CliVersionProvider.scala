@@ -17,11 +17,13 @@
 
 package org.apache.celeborn.cli.common
 
-import org.apache.celeborn.common.util.Utils
-
 import java.nio.file.{Files, Paths}
+
 import scala.io.Source
+
 import picocli.CommandLine.IVersionProvider
+
+import org.apache.celeborn.common.util.Utils
 
 class CliVersionProvider extends IVersionProvider with CliLogging {
 
@@ -34,7 +36,8 @@ class CliVersionProvider extends IVersionProvider with CliLogging {
     if (Files.exists(versionFile)) {
       Utils.tryWithResources(Source.fromFile(versionFile.toFile)) { source =>
         source.getLines().find(line => versionPattern.findFirstIn(line).isDefined) match {
-          case Some(matchingLine) => Array(s"$prefix - ${versionPattern.findFirstIn(matchingLine).get}")
+          case Some(matchingLine) =>
+            Array(s"$prefix - ${versionPattern.findFirstIn(matchingLine).get}")
           case _ =>
             logInfo("Could not resolve version of Celeborn since RELEASE file did not contain version info.")
             Array(prefix)
