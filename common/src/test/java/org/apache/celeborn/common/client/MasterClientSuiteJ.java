@@ -207,6 +207,7 @@ public class MasterClientSuiteJ {
       fail("It should be exceptions when sending one-way message.");
     } catch (Throwable t) {
       assertTrue(t.getCause() instanceof IOException);
+      assertEquals(1, client.getMaxRetries());
     }
   }
 

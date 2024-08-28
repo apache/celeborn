@@ -2145,7 +2145,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.client.maxRetries")
       .internal
       .categories("client", "worker")
-      .doc("Max retry times for client to connect master endpoint")
+      .doc("Max retry times for client to connect master endpoint. The minimum times of max retry times is the size of master endpoints.")
       .version("0.3.0")
       .intConf
       .createWithDefault(15)
