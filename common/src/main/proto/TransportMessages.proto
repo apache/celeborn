@@ -105,6 +105,8 @@ enum MessageType {
   REPORT_WORKER_DECOMMISSION = 82;
   REPORT_BARRIER_STAGE_ATTEMPT_FAILURE = 83;
   REPORT_BARRIER_STAGE_ATTEMPT_FAILURE_RESPONSE = 84;
+  SEGMENT_START = 85;
+  NOTIFY_REQUIRED_SEGMENT = 86;
 }
 
 enum StreamType {
@@ -258,6 +260,7 @@ message PbRegisterMapPartitionTask {
   int32 mapId = 3;
   int32 attemptId = 4;
   int32 partitionId = 5;
+  bool hasSegments = 6;
 }
 
 message PbRegisterShuffleResponse {
@@ -353,6 +356,7 @@ message PbMapperEndResponse {
 
 message PbGetReducerFileGroup {
   int32 shuffleId = 1;
+  bool hasSegments = 2;
 }
 
 message PbGetReducerFileGroupResponse {
@@ -471,6 +475,7 @@ message PbReserveSlots {
   bool partitionSplitEnabled = 11;
   int32 availableStorageTypes = 12;
   PbPackedPartitionLocationsPair partitionLocationsPair = 13;
+  bool hasSegments = 14;
 }
 
 message PbReserveSlotsResponse {
@@ -576,6 +581,13 @@ message PbFileInfo {
   int32 numSubpartitions = 6;
   int64 bytesFlushed = 7;
   bool partitionSplitEnabled = 8;
+  bool hasSegments = 9;
+  map<int32, int32> partitionWritingSegment = 10;
+  repeated PbSegmentIndex segmentIndex = 11;
+}
+
+message PbSegmentIndex {
+  map<int32, int32> firstBufferIndexToSegment = 1;
 }
 
 message PbMapFileMeta {
@@ -653,6 +665,7 @@ message PbOpenStream {
   int32 endIndex = 4;
   int32 initialCredit = 5;
   bool readLocalShuffle = 6;
+  bool requireSubpartitionId = 7;
 }
 
 message PbStreamHandler {
@@ -758,6 +771,21 @@ message PbAuthenticationInitiationRequest {
   string version = 1;
   bool authEnabled = 2;
   repeated PbSaslMechanism saslMechanisms = 3;
+}
+
+message PbSegmentStart {
+  PbPartitionLocation.Mode mode = 1;
+  string shuffleKey = 2;
+  string partitionUniqueId = 3;
+  int32 attemptId = 4;
+  int32 subPartitionId = 5;
+  int32 segmentId = 6;
+}
+
+message PbNotifyRequiredSegment {
+  int64 streamId = 1;
+  int32 requiredSegmentId = 2;
+  int32 subPartitionId = 3;
 }
 
 message PbAuthenticationInitiationResponse {
