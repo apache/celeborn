@@ -18,38 +18,32 @@
 package org.apache.celeborn.cli.config
 
 import java.io.{File, PrintWriter}
-
 import scala.io.Source
-
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-
 import org.apache.celeborn.cli.config.CliConfigManager.cliConfigFilePath
+import org.apache.celeborn.common.util.Utils
 
 case class CliConfig(@JsonProperty("cliConfigData") cliConfigData: Map[String, String])
 
 object CliConfigManager {
-  val cliConfigFilePath = s"${sys.env.getOrElse("CELEBORN_CONF_DIR", "HOME")}/celeborn-cli.conf"
+  val cliConfigFilePath = s"${sys.env.getOrElse("CELEBORN_CONF_DIR", sys.env("HOME"))}/celeborn-cli.conf"
 }
 
 class CliConfigManager {
 
-  private val mapper = new ObjectMapper().registerModule(DefaultScalaModule)
+  private val mapper = new ObjectMapper()
+  mapper.registerModule(DefaultScalaModule)
+
   def loadConfig(): Option[CliConfig] = {
     val file = new File(cliConfigFilePath)
     if (!file.exists()) {
       None
     } else {
-      try {
-        val source = Source.fromFile(cliConfigFilePath)
+      Utils.tryWithResources(Source.fromFile(cliConfigFilePath)) { source =>
         val jsonString = source.getLines().mkString
-        source.close()
         Some(mapper.readValue(jsonString, classOf[CliConfig]))
-      } catch {
-        case e: Exception =>
-          println(s"Error loading config: ${e.getMessage}")
-          None
       }
     }
   }

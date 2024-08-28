@@ -17,33 +17,31 @@
 
 package org.apache.celeborn.cli.common
 
+import org.apache.celeborn.common.util.Utils
+
 import java.nio.file.{Files, Paths}
-
 import scala.io.Source
-import scala.util.matching.Regex
-
 import picocli.CommandLine.IVersionProvider
 
 class CliVersionProvider extends IVersionProvider with CliLogging {
 
+  private val versionPattern = """Celeborn\s+\S+""".r
+  private val prefix = "Celeborn CLI"
+
   override def getVersion: Array[String] = {
     val versionFile = Paths.get(sys.env.getOrElse("CELEBORN_HOME", "") + "/RELEASE")
-    val prefix = "Celeborn CLI"
+
     if (Files.exists(versionFile)) {
-      val versionPattern: Regex = """Celeborn\s+\S+""".r
-      val source = Source.fromFile(versionFile.toFile)
-      val fileContent = source.getLines().mkString(" ")
-      val version = versionPattern.findFirstIn(fileContent) match {
-        case Some(v) => Array(s"$prefix - $v")
-        case _ =>
-          logError(
-            "Could not resolve version of Celeborn since RELEASE file did not contain version info.")
-          Array(prefix)
+      Utils.tryWithResources(Source.fromFile(versionFile.toFile)) { source =>
+        source.getLines().find(line => versionPattern.findFirstIn(line).isDefined) match {
+          case Some(matchingLine) => Array(s"$prefix - ${versionPattern.findFirstIn(matchingLine).get}")
+          case _ =>
+            logInfo("Could not resolve version of Celeborn since RELEASE file did not contain version info.")
+            Array(prefix)
+        }
       }
-      source.close()
-      version
     } else {
-      logError(
+      logInfo(
         "Could not resolve version of Celeborn since no RELEASE file was found in $CELEBORN_HOME.")
       Array(prefix)
     }

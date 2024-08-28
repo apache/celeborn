@@ -990,6 +990,17 @@ object Utils extends Logging {
     }
   }
 
+  def tryWithResources[R <: Closeable, U](f: => R)(func: R => U): U = {
+    val res = f
+    try {
+      func(f)
+    } finally {
+      if (null != res) {
+        res.close()
+      }
+    }
+  }
+
   def toTransportMessage(message: Any): Any = {
     message match {
       case legacy: Message =>
