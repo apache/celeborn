@@ -75,7 +75,7 @@ public class CelebornTezWriter {
     }
   }
 
-  public void pushOrMergeData(int partitionId, byte[] dataBuf) throws IOException {
+  public void mergeData(int partitionId, byte[] dataBuf, int size) throws IOException {
       int bytesWritten =
               shuffleClient.mergeData(
                       shuffleId,
@@ -84,7 +84,7 @@ public class CelebornTezWriter {
                       partitionId,
                       dataBuf,
                       0,
-                      dataBuf.length,
+                      size,
                       numMappers,
                       numPartitions);
   }
@@ -98,6 +98,7 @@ public class CelebornTezWriter {
             numMappers);
     try {
       dataPusher.waitOnTermination();
+      shuffleClient.pushMergedData(shuffleId, mapId, attemptNumber);
       shuffleClient.mapperEnd(shuffleId, mapId, attemptNumber, numMappers);
     } catch (InterruptedException e) {
       throw new IOInterruptedException(e);

@@ -77,7 +77,7 @@ public class CelebornSorter extends ExternalSorter {
 
   @Override
   public void flush() throws IOException {
-    celebornSortBasedPusher.flush();
+    celebornSortBasedPusher.close();
   }
 
   @Override

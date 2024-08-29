@@ -125,13 +125,13 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
           // data layout
           // pushdata header (16) + pushDataLen(4) +
           // [varKeyLen+varValLen+serializedRecord(x)][...]
-          sendSortedBuffersPartition(partition, localKVs, partitionKVTotalLen);
+          sendSortedBuffersPartition(partition, localKVs, partitionKVTotalLen, false);
           localKVs.clear();
           partitionKVTotalLen = 0;
         }
       }
       if (!localKVs.isEmpty()) {
-        sendSortedBuffersPartition(partition, localKVs, partitionKVTotalLen);
+        sendSortedBuffersPartition(partition, localKVs, partitionKVTotalLen, true);
       }
       kvs.clear();
     }
@@ -141,7 +141,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
   }
 
   private void sendSortedBuffersPartition(
-      int partition, List<SerializedKV> localKVs, int partitionKVTotalLen) throws IOException {
+      int partition, List<SerializedKV> localKVs, int partitionKVTotalLen, boolean isMerge) throws IOException {
     int extraSize = 0;
     for (SerializedKV localKV : localKVs) {
       extraSize += WritableUtils.getVIntSize(localKV.kLen);
@@ -151,7 +151,8 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
     extraSize += WritableUtils.getVIntSize(-1);
     extraSize += WritableUtils.getVIntSize(-1);
     // whole buffer's size + [(keyLen+valueLen)+(serializedKey+serializedValue)]
-    byte[] pkvs = new byte[4 + extraSize + partitionKVTotalLen];
+    int length = 4 + extraSize + partitionKVTotalLen;
+    byte[] pkvs = new byte[length];
     int pkvsPos = 4;
     Platform.putInt(pkvs, Platform.BYTE_ARRAY_OFFSET, partitionKVTotalLen + extraSize);
     for (SerializedKV kv : localKVs) {
@@ -167,7 +168,11 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
     // finally write -1 two times
     pkvsPos = writeVLong(pkvs, pkvsPos, -1);
     writeVLong(pkvs, pkvsPos, -1);
-    celebornTezWriter.pushData(partition, pkvs, 4 + extraSize + partitionKVTotalLen);
+    if (isMerge) {
+      celebornTezWriter.mergeData(partition, pkvs, length);
+    } else {
+      celebornTezWriter.pushData(partition, pkvs, length);
+    }
   }
 
   /**
