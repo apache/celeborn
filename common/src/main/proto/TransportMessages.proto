@@ -260,7 +260,7 @@ message PbRegisterMapPartitionTask {
   int32 mapId = 3;
   int32 attemptId = 4;
   int32 partitionId = 5;
-  bool hasSegments = 6;
+  bool isSegmentGranularityVisible = 6;
 }
 
 message PbRegisterShuffleResponse {
@@ -356,7 +356,7 @@ message PbMapperEndResponse {
 
 message PbGetReducerFileGroup {
   int32 shuffleId = 1;
-  bool hasSegments = 2;
+  bool isSegmentGranularityVisible = 2;
 }
 
 message PbGetReducerFileGroupResponse {
@@ -475,7 +475,7 @@ message PbReserveSlots {
   bool partitionSplitEnabled = 11;
   int32 availableStorageTypes = 12;
   PbPackedPartitionLocationsPair partitionLocationsPair = 13;
-  bool hasSegments = 14;
+  bool isSegmentGranularityVisible = 14;
 }
 
 message PbReserveSlotsResponse {
@@ -581,7 +581,7 @@ message PbFileInfo {
   int32 numSubpartitions = 6;
   int64 bytesFlushed = 7;
   bool partitionSplitEnabled = 8;
-  bool hasSegments = 9;
+  bool isSegmentGranularityVisible = 9;
   map<int32, int32> partitionWritingSegment = 10;
   repeated PbSegmentIndex segmentIndex = 11;
 }

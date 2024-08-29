@@ -95,8 +95,7 @@ public abstract class Message implements Encodable {
     HEARTBEAT(22),
     SEGMENT_START(23),
     NOTIFY_REQUIRED_SEGMENT(24),
-    SUBPARTITION_READ_DATA(25),
-    ;
+    SUBPARTITION_READ_DATA(25);
 
     private final byte id;
 
