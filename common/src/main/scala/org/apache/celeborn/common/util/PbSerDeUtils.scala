@@ -27,6 +27,7 @@ import com.google.protobuf.InvalidProtocolBufferException
 
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationMeta, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.MapFileMeta.SegmentIndex
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
@@ -103,7 +104,12 @@ object PbSerDeUtils {
       case PartitionType.REDUCE =>
         new ReduceFileMeta(pbFileInfo.getChunkOffsetsList)
       case PartitionType.MAP =>
-        new MapFileMeta(pbFileInfo.getBufferSize, pbFileInfo.getNumSubpartitions)
+        new MapFileMeta(
+          pbFileInfo.getBufferSize,
+          pbFileInfo.getNumSubpartitions,
+          pbFileInfo.getIsSegmentGranularityVisible,
+          pbFileInfo.getPartitionWritingSegmentMap,
+          fromPbSegmentIndexList(pbFileInfo.getSegmentIndexList))
       case PartitionType.MAPGROUP =>
         throw new NotImplementedError("Map group is not implemented")
     }
@@ -113,6 +119,19 @@ object PbSerDeUtils {
       meta,
       pbFileInfo.getFilePath,
       pbFileInfo.getBytesFlushed)
+  }
+
+  private def fromPbSegmentIndexList(
+      segmentIndexList: util.List[PbSegmentIndex]): util.List[SegmentIndex] = {
+    segmentIndexList.asScala.map(firstBufferIndexToSegment =>
+      new SegmentIndex(
+        firstBufferIndexToSegment.getFirstBufferIndexToSegmentMap)).asJava
+  }
+
+  private def toPbSegmentIndex(
+      firstBufferIndexToSegment: SegmentIndex): PbSegmentIndex = {
+    PbSegmentIndex.newBuilder().putAllFirstBufferIndexToSegment(
+      firstBufferIndexToSegment.getFirstBufferIndexToSegment).build()
   }
 
   def toPbFileInfo(fileInfo: DiskFileInfo): PbFileInfo = {
@@ -126,6 +145,10 @@ object PbSerDeUtils {
       builder.setPartitionType(PartitionType.MAP.getValue)
       builder.setBufferSize(mapFileMeta.getBufferSize)
       builder.setNumSubpartitions(mapFileMeta.getNumSubpartitions)
+      builder.setIsSegmentGranularityVisible(mapFileMeta.isSegmentGranularityVisible)
+      builder.putAllPartitionWritingSegment(mapFileMeta.getSubPartitionWritingSegmentId)
+      builder.addAllSegmentIndex(
+        mapFileMeta.getSubPartitionSegmentIndexes.asScala.map(toPbSegmentIndex).asJava)
     } else {
       val reduceFileMeta = fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta]
       builder.setPartitionType(PartitionType.REDUCE.getValue)

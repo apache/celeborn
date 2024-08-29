@@ -85,7 +85,7 @@ public class RemoteBufferStreamReader extends CreditListener {
     try {
       bufferStream =
           client.readBufferedPartition(
-              shuffleId, partitionId, subPartitionIndexStart, subPartitionIndexEnd);
+              shuffleId, partitionId, subPartitionIndexStart, subPartitionIndexEnd, false);
       bufferStream.open(
           RemoteBufferStreamReader.this::requestBuffer, initialCredit, messageConsumer);
     } catch (Exception e) {
