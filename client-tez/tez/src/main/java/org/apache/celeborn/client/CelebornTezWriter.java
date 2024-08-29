@@ -8,12 +8,14 @@ import org.apache.tez.runtime.library.api.IOInterruptedException;
 import org.apache.celeborn.client.write.DataPusher;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CelebornTezWriter {
+  private final Logger logger = LoggerFactory.getLogger(CelebornTezWriter.class);
 
   private final ShuffleClient shuffleClient;
   private DataPusher dataPusher;
-  private long pushSortMemoryThreshold;
   private final int shuffleId;
   private final int mapId;
   private final int attemptNumber;
@@ -65,15 +67,35 @@ public class CelebornTezWriter {
     }
   }
 
-  public void pushData(int partitionId, byte[] dataBuf) throws IOException {
+  public void pushData(int partitionId, byte[] dataBuf, int size) throws IOException {
     try {
-      dataPusher.addTask(partitionId, dataBuf, dataBuf.length);
+      dataPusher.addTask(partitionId, dataBuf, size);
     } catch (InterruptedException e) {
       throw new IOInterruptedException(e);
     }
   }
 
+  public void pushOrMergeData(int partitionId, byte[] dataBuf) throws IOException {
+      int bytesWritten =
+              shuffleClient.mergeData(
+                      shuffleId,
+                      mapId,
+                      attemptNumber,
+                      partitionId,
+                      dataBuf,
+                      0,
+                      dataBuf.length,
+                      numMappers,
+                      numPartitions);
+  }
+
   public void close() throws IOException {
+    logger.info(
+            "Call mapper end shuffleId:{} mapId:{} attemptId:{} numMappers:{}",
+            0,
+            mapId,
+            attemptNumber,
+            numMappers);
     try {
       dataPusher.waitOnTermination();
       shuffleClient.mapperEnd(shuffleId, mapId, attemptNumber, numMappers);

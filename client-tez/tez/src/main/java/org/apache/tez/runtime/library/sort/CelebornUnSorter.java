@@ -54,9 +54,7 @@ public class CelebornUnSorter extends ExternalSorter {
 
     this.numRecordsPerPartition = new int[numOutputs];
 
-    long sortmb = 100;
-    LOG.info("conf.sortmb is {}", sortmb);
-    sortmb = this.availableMemoryMb;
+    long sortmb = this.availableMemoryMb;
     LOG.info("sortmb, availableMemoryMb is {}, {}", sortmb, availableMemoryMb);
     double sortThreshold = 0.9;
 

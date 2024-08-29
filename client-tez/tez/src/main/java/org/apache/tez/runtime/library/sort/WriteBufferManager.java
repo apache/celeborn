@@ -154,7 +154,7 @@ public class WriteBufferManager<K, V> {
 
   private void prepareBufferForSend(WriteBuffer buffer) throws IOException {
     buffers.remove(buffer.getPartitionId());
-    celebornTezWriter.pushData(buffer.getPartitionId(), buffer.getData());
+    celebornTezWriter.pushData(buffer.getPartitionId(), buffer.getData(), buffer.getDataLength());
     memoryLock.lock();
     try {
       memoryUsedSize.addAndGet(buffer.getDataLength());

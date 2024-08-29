@@ -20,70 +20,64 @@ package org.apache.tez.runtime.library.sort;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.RawComparator;
 import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.api.OutputContext;
+import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
+import org.apache.tez.runtime.library.common.ConfigUtils;
 import org.apache.tez.runtime.library.common.sort.impl.ExternalSorter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.CelebornTezWriter;
 import org.apache.celeborn.common.exception.CelebornIOException;
-import org.apache.celeborn.common.network.util.ByteUnit;
 
 /** {@link CelebornSorter} is an {@link ExternalSorter} */
 public class CelebornSorter extends ExternalSorter {
 
   private static final Logger LOG = LoggerFactory.getLogger(CelebornSorter.class);
-  private WriteBufferManager bufferManager;
+  private CelebornSortBasedPusher celebornSortBasedPusher;
 
   private int[] numRecordsPerPartition;
 
   /** Initialization */
   public CelebornSorter(
-      OutputContext outputContext,
-      Configuration conf,
-      int numOutputs,
-      long initialMemoryAvailable,
-      CelebornTezWriter celebornTezWriter)
+          OutputContext outputContext,
+          Configuration conf,
+          int numOutputs,
+          int initialMemoryAvailable,
+          CelebornTezWriter celebornTezWriter, CelebornConf celebornConf)
       throws IOException {
     super(outputContext, conf, numOutputs, initialMemoryAvailable);
 
     this.numRecordsPerPartition = new int[numOutputs];
 
-    long sortmb = 100;
-    LOG.info("conf.sortmb is {}", sortmb);
-    sortmb = this.availableMemoryMb;
-    LOG.info("sortmb, availableMemoryMb is {}, {}", sortmb, availableMemoryMb);
-    double sortThreshold = 0.9;
 
-    long maxSegmentSize = 3 * 1024;
-    long maxBufferSize = 1024 * 1024 * 14;
-    double memoryThreshold = 0.8;
-    double sendThreshold = 0.2f;
-    int batch = 50;
-
-    bufferManager =
-        new WriteBufferManager(
-            (long) (ByteUnit.MiB.toBytes(sortmb) * sortThreshold),
-            celebornTezWriter,
-            comparator,
-            maxSegmentSize,
-            keySerializer,
-            valSerializer,
-            maxBufferSize,
-            memoryThreshold,
-            sendThreshold,
-            batch,
-            true,
-            mapOutputByteCounter,
-            mapOutputRecordCounter);
+    final float spillper = this.conf.getFloat(
+            TezRuntimeConfiguration.TEZ_RUNTIME_SORT_SPILL_PERCENT,
+            TezRuntimeConfiguration.TEZ_RUNTIME_SORT_SPILL_PERCENT_DEFAULT);
+    int pushSize = (int)(availableMemoryMb * spillper);
+    LOG.info("availableMemoryMb is {}", availableMemoryMb);
+    RawComparator intermediateOutputKeyComparator = ConfigUtils.getIntermediateOutputKeyComparator(conf);
+    celebornSortBasedPusher =
+            new CelebornSortBasedPusher<>(
+                    keySerializer,
+                    valSerializer,
+                    initialMemoryAvailable,
+                    pushSize,
+                    intermediateOutputKeyComparator,
+                    mapOutputByteCounter,
+                    mapOutputRecordCounter,
+                    celebornTezWriter,
+                    celebornConf);
     LOG.info("Initialized WriteBufferManager.");
   }
 
   @Override
   public void flush() throws IOException {
-    bufferManager.waitSendFinished();
+    celebornSortBasedPusher.flush();
   }
 
   @Override
@@ -120,7 +114,7 @@ public class CelebornSorter extends ExternalSorter {
       throw new IOException("Illegal partition for " + key + " (" + partition + ")");
     }
 
-    bufferManager.addRecord(partition, key, value);
+    celebornSortBasedPusher.insert(key, value, partition);
     numRecordsPerPartition[partition]++;
   }
 
