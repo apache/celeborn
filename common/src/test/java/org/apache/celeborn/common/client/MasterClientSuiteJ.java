@@ -183,12 +183,32 @@ public class MasterClientSuiteJ {
     try {
       response = client.askSync(message, HeartbeatFromWorkerResponse.class);
     } catch (Throwable t) {
-      t.printStackTrace();
       LOG.error("It should be no exceptions when sending one-way message.", t);
       fail("It should be no exceptions when sending one-way message.");
     }
 
     assertEquals(mockResponse, response);
+  }
+
+  @Test
+  public void testSendMessageWithoutHAWithoutRetry() {
+    final AtomicInteger numTries = new AtomicInteger(0);
+    final CelebornConf conf =
+        prepareForCelebornConfWithoutHA().set(CelebornConf.MASTER_CLIENT_MAX_RETRIES(), 0);
+
+    prepareForEndpointRefWithRetry(numTries, () -> Future$.MODULE$.failed(new IOException()));
+    prepareForRpcEnvWithoutHA();
+
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
+    HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
+
+    try {
+      client.askSync(message, HeartbeatFromWorkerResponse.class);
+      fail("It should be exceptions when sending one-way message.");
+    } catch (Throwable t) {
+      assertTrue(t.getCause() instanceof IOException);
+      assertEquals(1, client.getMaxRetries());
+    }
   }
 
   @Test
