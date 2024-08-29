@@ -20,8 +20,6 @@ package org.apache.celeborn.common.util
 import java.io.{File, IOException}
 import java.util.concurrent.atomic.AtomicBoolean
 
-import scala.collection.JavaConverters._
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.security.UserGroupInformation

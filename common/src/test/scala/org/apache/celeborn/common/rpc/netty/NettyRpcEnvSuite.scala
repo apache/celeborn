@@ -29,7 +29,6 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.protocol.TransportModuleConstants
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.ThreadUtils
 
 class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
 

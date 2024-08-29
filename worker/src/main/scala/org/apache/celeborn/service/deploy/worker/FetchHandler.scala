@@ -20,11 +20,8 @@ package org.apache.celeborn.service.deploy.worker
 import java.io.{FileNotFoundException, IOException}
 import java.nio.charset.StandardCharsets
 import java.util
-import java.util.concurrent.{Future => JFuture}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
-
-import scala.collection.JavaConverters._
 
 import com.google.common.base.Throwables
 import com.google.protobuf.GeneratedMessageV3

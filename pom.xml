@@ -958,12 +958,14 @@
           <version>${maven.plugin.scala.version}</version>
           <configuration>
             <args>
+              <arg>-Ywarn-unused-import</arg>
               <arg>-unchecked</arg>
               <arg>-deprecation</arg>
               <arg>-feature</arg>
               <arg>-explaintypes</arg>
               <arg>-Xfatal-warnings</arg>
               <arg>-P:silencer:globalFilters=.*deprecated.*</arg>
+              <arg>-P:silencer:lineContentFilters=.*FunctionConverter.*</arg>
             </args>
             <compilerPlugins>
               <compilerPlugin>

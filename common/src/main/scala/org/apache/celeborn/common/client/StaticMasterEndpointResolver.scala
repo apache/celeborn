@@ -17,9 +17,6 @@
 
 package org.apache.celeborn.common.client
 
-import java.util
-
-import scala.collection.JavaConverters._
 import scala.util.Random
 
 import org.apache.celeborn.common.CelebornConf

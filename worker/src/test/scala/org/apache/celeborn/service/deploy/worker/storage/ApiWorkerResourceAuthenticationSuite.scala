@@ -19,7 +19,7 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import org.apache.celeborn.common.util.CelebornExitKind
 import org.apache.celeborn.server.common.HttpService
-import org.apache.celeborn.server.common.http.{ApiBaseResourceAuthenticationSuite, ApiBaseResourceSuite}
+import org.apache.celeborn.server.common.http.ApiBaseResourceAuthenticationSuite
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 
 class ApiWorkerResourceAuthenticationSuite extends ApiBaseResourceAuthenticationSuite {

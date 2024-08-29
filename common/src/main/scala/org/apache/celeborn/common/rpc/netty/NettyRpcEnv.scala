@@ -38,7 +38,7 @@ import org.apache.celeborn.common.network.protocol.{RequestMessage => NRequestMe
 import org.apache.celeborn.common.network.sasl.{SaslClientBootstrap, SaslServerBootstrap}
 import org.apache.celeborn.common.network.sasl.registration.{RegistrationClientBootstrap, RegistrationServerBootstrap}
 import org.apache.celeborn.common.network.server._
-import org.apache.celeborn.common.protocol.{RpcNameConstants, TransportModuleConstants}
+import org.apache.celeborn.common.protocol.RpcNameConstants
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.serializer.{JavaSerializer, JavaSerializerInstance, SerializationStream}
 import org.apache.celeborn.common.util.{ByteBufferInputStream, ByteBufferOutputStream, JavaUtils, ThreadUtils, Utils}
