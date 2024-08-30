@@ -56,6 +56,7 @@ class CliConfigManager extends CliLogging {
         file.getParentFile.mkdirs()
         file.createNewFile()
       }
+      properties.clear()
       val outputStream = new FileOutputStream(file)
       Utils.tryWithResources(outputStream) { os =>
         cliConfig.cliConfigData.foreach { case (key, value) =>
