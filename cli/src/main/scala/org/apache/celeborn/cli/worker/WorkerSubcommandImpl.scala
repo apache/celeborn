@@ -19,7 +19,7 @@ package org.apache.celeborn.cli.worker
 
 import picocli.CommandLine.Command
 
-import org.apache.celeborn.rest.v1.model.{AppDiskUsagesResponse, ApplicationsResponse, ConfResponse, DynamicConfigResponse, HandleResponse, ShufflePartitionsResponse, ShufflesResponse, ThreadStackResponse, UnAvailablePeersResponse, WorkerExitRequest, WorkerInfoResponse}
+import org.apache.celeborn.rest.v1.model._
 import org.apache.celeborn.rest.v1.model.WorkerExitRequest.TypeEnum
 
 @Command(name = "worker", mixinStandardHelpOptions = true)

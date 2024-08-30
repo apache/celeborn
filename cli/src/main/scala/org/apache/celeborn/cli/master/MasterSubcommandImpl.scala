@@ -23,7 +23,7 @@ import scala.collection.JavaConverters._
 
 import picocli.CommandLine.{Command, ParameterException}
 
-import org.apache.celeborn.cli.config.{CliConfig, CliConfigManager}
+import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.rest.v1.model._
 import org.apache.celeborn.rest.v1.model.SendWorkerEventRequest.EventTypeEnum
 
