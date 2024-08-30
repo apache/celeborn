@@ -468,10 +468,7 @@ object CelebornCli {
     .settings (
       commonSettings,
       libraryDependencies ++= Seq(
-        Dependencies.picocli,
-        Dependencies.jacksonCore,
-        Dependencies.jacksonDatabind,
-        Dependencies.jacksonModule
+        Dependencies.picocli
       ) ++ commonUnitTestDependencies
     )
 }

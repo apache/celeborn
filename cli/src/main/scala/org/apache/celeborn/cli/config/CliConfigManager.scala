@@ -17,55 +17,55 @@
 
 package org.apache.celeborn.cli.config
 
-import java.io.{File, PrintWriter}
+import java.io.{File, FileInputStream, FileOutputStream}
+import java.time.LocalDateTime
+import java.util.Properties
 
-import scala.io.Source
-
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
-
-import org.apache.celeborn.cli.config.CliConfigManager.cliConfigFilePath
+import org.apache.celeborn.cli.common.CliLogging
 import org.apache.celeborn.common.util.Utils
 
-case class CliConfig(@JsonProperty("cliConfigData") cliConfigData: Map[String, String])
+case class CliConfig(cliConfigData: Map[String, String])
 
 object CliConfigManager {
-  val cliConfigFilePath =
-    s"${sys.env.getOrElse("CELEBORN_CONF_DIR", sys.env("HOME"))}/celeborn-cli.conf"
+  val cliConfigFilePath: String =
+    s"${sys.env.getOrElse("EXAMPLE_CONF_DIR", sys.env("HOME"))}/celeborn-cli.conf"
 }
 
-class CliConfigManager {
+class CliConfigManager extends CliLogging {
 
-  private val mapper = new ObjectMapper()
-  mapper.registerModule(DefaultScalaModule)
+  private val properties = new Properties()
 
   def loadConfig(): Option[CliConfig] = {
-    val file = new File(cliConfigFilePath)
+    val file = new File(CliConfigManager.cliConfigFilePath)
     if (!file.exists()) {
       None
     } else {
-      Utils.tryWithResources(Source.fromFile(cliConfigFilePath)) { source =>
-        val jsonString = source.getLines().mkString
-        Some(mapper.readValue(jsonString, classOf[CliConfig]))
+      Utils.tryWithResources(new FileInputStream(file)) { inputStream =>
+        properties.load(inputStream)
+        Some(CliConfig(properties.stringPropertyNames().toArray.map(_.toString).map { key =>
+          key -> properties.getProperty(key)
+        }.toMap))
       }
     }
   }
 
-  private def saveConfig(config: CliConfig): Unit = {
+  private def saveConfig(cliConfig: CliConfig): Unit = {
     try {
-      val file = new File(cliConfigFilePath)
+      val file = new File(CliConfigManager.cliConfigFilePath)
       if (!file.exists()) {
         file.getParentFile.mkdirs()
         file.createNewFile()
       }
-      val jsonString = mapper.writeValueAsString(config)
-      val writer = new PrintWriter(file)
-      writer.write(jsonString)
-      writer.close()
+      val outputStream = new FileOutputStream(file)
+      Utils.tryWithResources(outputStream) { os =>
+        cliConfig.cliConfigData.foreach { case (key, value) =>
+          properties.setProperty(key, value)
+        }
+        properties.store(os, s"Last updated conf at ${LocalDateTime.now()}")
+      }
     } catch {
       case e: Exception =>
-        println(s"Error saving config: ${e.getMessage}")
+        logError(s"Error saving config: ${e.getMessage}")
     }
   }
 

@@ -103,7 +103,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
       log("No lost workers found.")
       Seq.empty[WorkerTimestampData]
     } else {
-      lostWorkers
+      lostWorkers.sortBy(_.getWorker.getHost)
     }
   }
 
@@ -113,7 +113,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
       log("No excluded workers found.")
       Seq.empty[WorkerData]
     } else {
-      excludedWorkers
+      excludedWorkers.sortBy(_.getHost)
     }
   }
 
@@ -123,7 +123,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
       log("No shutdown workers found.")
       Seq.empty[WorkerData]
     } else {
-      shutdownWorkers
+      shutdownWorkers.sortBy(_.getHost)
     }
   }
 
@@ -133,13 +133,13 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   private[master] def runShowWorkers: WorkersResponse = workerApi.getWorkers
 
   private[master] def getWorkerIds: util.List[WorkerId] = {
-    val hostList = commonOptions.hostList
-    if (hostList == null || hostList.isEmpty) {
+    val workerIds = commonOptions.workerIds
+    if (workerIds == null || workerIds.isEmpty) {
       throw new ParameterException(
         spec.commandLine(),
         "Host list must be provided for this command.")
     }
-    hostList
+    workerIds
       .trim
       .split(",")
       .map(workerId => {

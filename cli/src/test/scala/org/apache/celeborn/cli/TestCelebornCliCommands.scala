@@ -195,12 +195,12 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   test("master --exclude-worker and --remove-excluded-worker") {
     val excludeArgs = prepareMasterArgs() ++ Array(
       "--exclude-worker",
-      "--host-list",
+      "--worker-ids",
       getWorkerId())
     captureOutputAndValidateResponse(excludeArgs, "success: true")
     val removeExcludedArgs = prepareMasterArgs() ++ Array(
       "--remove-excluded-worker",
-      "--host-list",
+      "--worker-ids",
       getWorkerId())
     captureOutputAndValidateResponse(removeExcludedArgs, "success: true")
   }
@@ -209,7 +209,7 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     val args = prepareMasterArgs() ++ Array(
       "--send-worker-event",
       "DECOMMISSION",
-      "--host-list",
+      "--worker-ids",
       getWorkerId())
     captureOutputAndValidateResponse(args, "success: true")
   }

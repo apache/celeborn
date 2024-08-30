@@ -28,7 +28,7 @@ class CommonOptions {
   @Option(
     names = Array("--hostport"),
     paramLabel = "host:port",
-    description = Array("The host and port"))
+    description = Array("The host and http port"))
   private[cli] var hostPort: String = _
 
   @Option(
@@ -36,6 +36,14 @@ class CommonOptions {
     paramLabel = "h1,h2,h3...",
     description = Array("List of hosts to pass to the command"))
   private[cli] var hostList: String = _
+
+  @Option(
+    names = Array("--worker-ids"),
+    paramLabel = "w1,w2,w3...",
+    description =
+      Array("List of workerIds to pass to the command. Each worker should be in the format" +
+        " host:rpcPort:pushPort:fetchPort:replicatePort."))
+  private[cli] var workerIds: String = _
 
   @Option(
     names = Array("--cluster"),

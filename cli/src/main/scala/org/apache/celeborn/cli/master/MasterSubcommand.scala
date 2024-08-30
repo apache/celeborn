@@ -24,7 +24,7 @@ import picocli.CommandLine.Model.CommandSpec
 
 import org.apache.celeborn.cli.CelebornCli
 import org.apache.celeborn.cli.common.{CliLogging, CommonOptions}
-import org.apache.celeborn.cli.config.{CliConfig, CliConfigManager}
+import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.rest.v1.master.{ApplicationApi, ConfApi, DefaultApi, MasterApi, ShuffleApi, WorkerApi}
 import org.apache.celeborn.rest.v1.master.invoker.ApiClient
 import org.apache.celeborn.rest.v1.model._
