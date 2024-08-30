@@ -17,9 +17,7 @@
 
 package org.apache.celeborn.cli
 import picocli.CommandLine
-import picocli.CommandLine.{ArgGroup, Command, ScopeType}
-import picocli.CommandLine.Help.Ansi.Style
-import picocli.CommandLine.Help.ColorScheme
+import picocli.CommandLine.Command
 
 import org.apache.celeborn.cli.common.{CliLogging, CliVersionProvider}
 import org.apache.celeborn.cli.master.MasterSubcommandImpl
