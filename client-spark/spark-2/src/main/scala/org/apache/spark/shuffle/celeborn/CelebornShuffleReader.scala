@@ -56,6 +56,7 @@ class CelebornShuffleReader[K, C](
     handle.extension)
 
   private val exceptionRef = new AtomicReference[IOException]
+  private val encodedAttemptId = SparkCommonUtils.getEncodedAttemptNumber(context)
 
   override def read(): Iterator[Product2[K, C]] = {
 
@@ -96,7 +97,7 @@ class CelebornShuffleReader[K, C](
               val inputStream = shuffleClient.readPartition(
                 shuffleId,
                 partitionId,
-                context.attemptNumber(),
+                encodedAttemptId,
                 startMapIndex,
                 endMapIndex,
                 metricsCallback)
