@@ -1598,7 +1598,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         }
       } else {
         val responsesInfoList = unregisterShuffleResponse.getUnregisterShuffleResponsesInfoList
-        responsesInfoList.forEach { resInfo =>
+        responsesInfoList.forEach { resInfo: PbUnregisterShuffleResponsesInfo =>
           if (Utils.toStatusCode(resInfo.getStatus) == StatusCode.SUCCESS) {
             unregisterShuffleTime.remove(resInfo.getShuffleId)
           }
@@ -1690,10 +1690,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       case e: Exception =>
         logError(s"AskSync UnregisterShuffle for ${message.getShuffleIdsList} failed.", e)
         val map = JavaUtils.newConcurrentHashMap[Integer, StatusCode]()
-        val shuffleIds = message.getShuffleIdsList
-        shuffleIds.forEach { shuffleId =>
-          map.put(shuffleId, StatusCode.REQUEST_FAILED)
-        }
         BatchUnregisterShuffleResponses(StatusCode.REQUEST_FAILED, map)
     }
   }
