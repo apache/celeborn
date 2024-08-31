@@ -55,7 +55,7 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
       shuffleIds.add(num + 1)
     }
 
-    shuffleIds.forEach { shuffleId =>
+    shuffleIds.forEach { shuffleId: Integer =>
       val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
       assert(res.status == StatusCode.SUCCESS)
       lifecycleManager.registeredShuffle.add(shuffleId)
@@ -65,12 +65,12 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
       lifecycleManager.commitManager.setStageEnd(shuffleId)
     }
 
-    shuffleIds.forEach { shuffleId =>
+    shuffleIds.forEach { shuffleId: Integer =>
       lifecycleManager.unregisterShuffle(shuffleId)
     }
     // after unregister shuffle
     eventually(timeout(120.seconds), interval(2.seconds)) {
-      shuffleIds.forEach { shuffleId =>
+      shuffleIds.forEach { shuffleId: Integer =>
         val shuffleKey = Utils.makeShuffleKey(APP, shuffleId)
         assert(!lifecycleManager.registeredShuffle.contains(shuffleId))
         assert(!masterInfo._1.statusSystem.registeredShuffle.contains(shuffleKey))
@@ -89,7 +89,7 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
       ids.add(num)
       shuffleIds.add(num + 1)
     }
-    shuffleIds.forEach { shuffleId =>
+    shuffleIds.forEach { shuffleId: Integer =>
       val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
       assert(res.status == StatusCode.SUCCESS)
       lifecycleManager.registeredShuffle.add(shuffleId)
@@ -99,12 +99,12 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
       lifecycleManager.commitManager.setStageEnd(shuffleId)
     }
     val previousTime = System.currentTimeMillis()
-    shuffleIds.forEach { shuffleId =>
+    shuffleIds.forEach { shuffleId: Integer =>
       lifecycleManager.unregisterShuffle(shuffleId)
     }
     // after unregister shuffle
     eventually(timeout(120.seconds), interval(2.seconds)) {
-      shuffleIds.forEach { shuffleId =>
+      shuffleIds.forEach { shuffleId: Integer =>
         val shuffleKey = Utils.makeShuffleKey(APP, shuffleId)
         assert(!lifecycleManager.registeredShuffle.contains(shuffleId))
         assert(!masterInfo._1.statusSystem.registeredShuffle.contains(shuffleKey))
