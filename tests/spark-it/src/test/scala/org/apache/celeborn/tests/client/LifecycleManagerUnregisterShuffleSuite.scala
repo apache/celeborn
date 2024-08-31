@@ -19,7 +19,7 @@ package org.apache.celeborn.tests.client
 
 import java.util
 
-import scala.jdk.CollectionConverters.asScalaBufferConverter
+import scala.collection.JavaConverters._
 
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
