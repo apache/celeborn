@@ -18,15 +18,18 @@
 package org.apache.celeborn.tests.client
 
 import java.util
+
+import scala.jdk.CollectionConverters.asScalaBufferConverter
+
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+
 import org.apache.celeborn.client.{LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.MiniClusterFeature
-import scala.jdk.CollectionConverters.asScalaBufferConverter
 
 class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
   with MiniClusterFeature {
