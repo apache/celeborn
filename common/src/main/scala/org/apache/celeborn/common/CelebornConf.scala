@@ -4419,7 +4419,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Interval for client to check expired shuffles.")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("20s")
+      .createWithDefaultString("60s")
 
   val CLIENT_SHUFFLE_MANAGER_PORT: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.manager.port")
@@ -4454,10 +4454,10 @@ object CelebornConf extends Logging {
   val CLIENT_BATCH_REMOVE_EXPIRED_SHUFFLE: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.batchHandleRemoveExpiredShuffles.enabled")
       .categories("client")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("This is an optimization on remove Expired Shuffles and it's true by default.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val CLIENT_BATCH_HANDLE_CHANGE_PARTITION_BUCKETS: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.batchHandleChangePartition.partitionBuckets")

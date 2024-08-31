@@ -46,6 +46,7 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
 
   test("test unregister shuffle in batch") {
     val conf = celebornConf.clone
+    conf.set(CelebornConf.CLIENT_BATCH_REMOVE_EXPIRED_SHUFFLE.key, "true")
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val ids = new util.ArrayList[Integer](10)
     val shuffleIds = new util.ArrayList[Integer](10)
@@ -68,7 +69,7 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
       lifecycleManager.unregisterShuffle(shuffleId)
     }
     // after unregister shuffle
-    eventually(timeout(40.seconds), interval(2.seconds)) {
+    eventually(timeout(120.seconds), interval(2.seconds)) {
       shuffleIds.forEach { shuffleId =>
         val shuffleKey = Utils.makeShuffleKey(APP, shuffleId)
         assert(!lifecycleManager.registeredShuffle.contains(shuffleId))
@@ -81,7 +82,6 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
 
   test("test unregister shuffle") {
     val conf = celebornConf.clone
-    conf.set(CelebornConf.CLIENT_BATCH_REMOVE_EXPIRED_SHUFFLE.key, "false")
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val shuffleIds = new util.ArrayList[Integer](10)
     val ids = new util.ArrayList[Integer](10)
@@ -103,7 +103,7 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
       lifecycleManager.unregisterShuffle(shuffleId)
     }
     // after unregister shuffle
-    eventually(timeout(40.seconds), interval(2.seconds)) {
+    eventually(timeout(120.seconds), interval(2.seconds)) {
       shuffleIds.forEach { shuffleId =>
         val shuffleKey = Utils.makeShuffleKey(APP, shuffleId)
         assert(!lifecycleManager.registeredShuffle.contains(shuffleId))

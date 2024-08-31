@@ -305,11 +305,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   override def receive: PartialFunction[Any, Unit] = {
     case RemoveExpiredShuffle =>
-      if (batchRemoveExpiredShuffles) {
-        removeBatchExpiredShuffles()
-      } else {
-        removeExpiredShuffle()
-      }
+      removeExpiredShuffle()
     case StageEnd(shuffleId) =>
       logInfo(s"Received StageEnd request, shuffleId $shuffleId.")
       handleStageEnd(shuffleId)
@@ -1570,6 +1566,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private def removeExpiredShuffle(): Unit = {
     val currentTime = System.currentTimeMillis()
+    val batchRemoveShuffleIds = new util.ArrayList[Integer]()
     unregisterShuffleTime.keys().asScala.foreach { shuffleId =>
       if (unregisterShuffleTime.get(shuffleId) < currentTime - shuffleExpiredCheckIntervalMs) {
         logInfo(s"Clear shuffle $shuffleId.")
@@ -1580,42 +1577,31 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         latestPartitionLocation.remove(shuffleId)
         commitManager.removeExpiredShuffle(shuffleId)
         changePartitionManager.removeExpiredShuffle(shuffleId)
-        val unregisterShuffleResponse = requestMasterUnregisterShuffle(
-          UnregisterShuffle(appUniqueId, shuffleId, MasterClient.genRequestId()))
-        // if unregister shuffle not success, wait next turn
-        if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
-          unregisterShuffleTime.remove(shuffleId)
+        if (!batchRemoveExpiredShuffles) {
+          val unregisterShuffleResponse = requestMasterUnregisterShuffle(
+            UnregisterShuffle(appUniqueId, shuffleId, MasterClient.genRequestId()))
+          // if unregister shuffle not success, wait next turn
+          if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
+            unregisterShuffleTime.remove(shuffleId)
+          }
+        } else {
+          batchRemoveShuffleIds.add(shuffleId)
         }
       }
     }
-  }
-
-  private def removeBatchExpiredShuffles(): Unit = {
-    val shuffleIds = new util.ArrayList[Integer]()
-    unregisterShuffleTime.keys().asScala.foreach { shuffleId =>
-      logInfo(s"Clear shuffle $shuffleId.")
-      // clear for the shuffle
-      registeredShuffle.remove(shuffleId)
-      registeringShuffleRequest.remove(shuffleId)
-      shuffleAllocatedWorkers.remove(shuffleId)
-      latestPartitionLocation.remove(shuffleId)
-      commitManager.removeExpiredShuffle(shuffleId)
-      changePartitionManager.removeExpiredShuffle(shuffleId)
-      shuffleIds.add(shuffleId)
-    }
-    val unregisterShuffleResponse = batchRequestMasterUnregisterShuffles(
-      BatchUnregisterShuffles(appUniqueId, shuffleIds, MasterClient.genRequestId()))
-    // if unregister shuffle not success, wait next turn
-    if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
-      unregisterShuffleTime.keys().asScala.foreach { shuffleId =>
-        unregisterShuffleTime.remove(shuffleId)
-      }
-    } else {
-      val responsesInfoList = unregisterShuffleResponse.getUnregisterShuffleResponsesInfoList
-      responsesInfoList.forEach { resInfo =>
-        logInfo(s"failed shuffleId ${resInfo.getShuffleId}, failed StatusCode ${resInfo.getStatus}")
-        if (Utils.toStatusCode(resInfo.getStatus) == StatusCode.SUCCESS) {
-          unregisterShuffleTime.remove(resInfo.getShuffleId)
+    if (!batchRemoveShuffleIds.isEmpty) {
+      val unregisterShuffleResponse = batchRequestMasterUnregisterShuffles(
+        BatchUnregisterShuffles(appUniqueId, batchRemoveShuffleIds, MasterClient.genRequestId()))
+      if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
+        unregisterShuffleTime.keys().asScala.foreach { shuffleId =>
+          unregisterShuffleTime.remove(shuffleId)
+        }
+      } else {
+        val responsesInfoList = unregisterShuffleResponse.getUnregisterShuffleResponsesInfoList
+        responsesInfoList.forEach { resInfo =>
+          if (Utils.toStatusCode(resInfo.getStatus) == StatusCode.SUCCESS) {
+            unregisterShuffleTime.remove(resInfo.getShuffleId)
+          }
         }
       }
     }

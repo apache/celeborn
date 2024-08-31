@@ -122,7 +122,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {
-      LOG.error("Handle unregister shuffle for {} failed!", shuffleKeys, e);
+      LOG.error("Batch handle unregister shuffle for {} failed!", shuffleKeys, e);
       throw e;
     }
   }
