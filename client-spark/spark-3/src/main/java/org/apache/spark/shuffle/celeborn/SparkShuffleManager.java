@@ -94,6 +94,7 @@ public class SparkShuffleManager implements ShuffleManager {
               + "use Celeborn as Remote Shuffle Service to avoid performance degradation.",
           SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key());
     }
+    SparkCommonUtils.validateAttemptConfig(conf);
     this.conf = conf;
     this.isDriver = isDriver;
     this.celebornConf = SparkUtils.fromSparkConf(conf);
