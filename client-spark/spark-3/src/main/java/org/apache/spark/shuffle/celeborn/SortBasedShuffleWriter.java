@@ -174,8 +174,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     return peakMemoryUsedBytes;
   }
 
-  @Override
-  public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
+  void doWrite(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
     if (canUseFastWrite()) {
       fastWrite0(records);
     } else if (dep.mapSideCombine()) {
@@ -187,7 +186,20 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     } else {
       write0(records);
     }
-    close();
+  }
+
+  @Override
+  public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
+    boolean needCleanupPusher = true;
+    try {
+      doWrite(records);
+      close();
+      needCleanupPusher = false;
+    } finally {
+      if (needCleanupPusher) {
+        cleanupPusher();
+      }
+    }
   }
 
   @VisibleForTesting
@@ -311,11 +323,17 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     writeMetrics.incBytesWritten(bytesWritten);
   }
 
+  private void cleanupPusher() throws IOException {
+    if (pusher != null) {
+      pusher.close(false);
+    }
+  }
+
   private void close() throws IOException {
     logger.info("Memory used {}", Utils.bytesToString(pusher.getUsed()));
     long pushStartTime = System.nanoTime();
     pusher.pushData();
-    pusher.close();
+    pusher.close(true);
 
     shuffleClient.pushMergedData(shuffleId, mapId, encodedAttemptId);
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);

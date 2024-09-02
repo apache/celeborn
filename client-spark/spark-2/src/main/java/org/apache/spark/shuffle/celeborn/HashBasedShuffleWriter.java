@@ -164,6 +164,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   @Override
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
+    boolean needCleanupPusher = true;
     try {
       if (canUseFastWrite()) {
         fastWrite0(records);
@@ -177,8 +178,13 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         write0(records);
       }
       close();
+      needCleanupPusher = false;
     } catch (InterruptedException e) {
       TaskInterruptedHelper.throwTaskKillException();
+    } finally {
+      if (needCleanupPusher) {
+        cleanupPusher();
+      }
     }
   }
 
@@ -314,6 +320,15 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     logger.debug("Flush buffer for partition {}, size {}.", partitionId, size);
     dataPusher.addTask(partitionId, buffer, size);
     writeMetrics.incWriteTime(System.nanoTime() - start);
+  }
+
+  private void cleanupPusher() throws IOException {
+    try {
+      dataPusher.waitOnTermination();
+      sendBufferPool.returnPushTaskQueue(dataPusher.getIdleQueue());
+    } catch (InterruptedException e) {
+      TaskInterruptedHelper.throwTaskKillException();
+    }
   }
 
   private void close() throws IOException, InterruptedException {
