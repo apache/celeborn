@@ -216,6 +216,65 @@ public class DefaultMetaSystemSuiteJ {
   }
 
   @Test
+  public void testHandleWorkerAvailable() {
+    WorkerInfo workerInfo1 =
+            new WorkerInfo(
+                    HOSTNAME1,
+                    RPCPORT1,
+                    PUSHPORT1,
+                    FETCHPORT1,
+                    REPLICATEPORT1,
+                    INTERNALPORT1,
+                    disks1,
+                    userResourceConsumption1);
+    WorkerInfo workerInfo2 =
+            new WorkerInfo(
+                    HOSTNAME2,
+                    RPCPORT2,
+                    PUSHPORT2,
+                    FETCHPORT2,
+                    REPLICATEPORT2,
+                    INTERNALPORT2,
+                    disks2,
+                    userResourceConsumption2);
+
+    statusSystem.handleRegisterWorker(
+            workerInfo1.host(),
+            workerInfo1.rpcPort(),
+            workerInfo1.pushPort(),
+            workerInfo1.fetchPort(),
+            workerInfo1.replicatePort(),
+            workerInfo1.internalPort(),
+            workerInfo1.networkLocation(),
+            workerInfo1.diskInfos(),
+            workerInfo1.userResourceConsumption(),
+            getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+            workerInfo2.host(),
+            workerInfo2.rpcPort(),
+            workerInfo2.pushPort(),
+            workerInfo2.fetchPort(),
+            workerInfo2.replicatePort(),
+            workerInfo2.internalPort(),
+            workerInfo2.networkLocation(),
+            workerInfo2.diskInfos(),
+            workerInfo2.userResourceConsumption(),
+            getNewReqeustId());
+
+    // updateRegisterWorkerMeta will update availableWorkers
+    assertEquals(2, statusSystem.workers.size());
+    assertEquals(2, statusSystem.availableWorkers.size());
+
+    statusSystem.handleWorkerExclude(
+            Collections.singletonList(workerInfo1), Collections.emptyList(), getNewReqeustId());
+    assertEquals(1, statusSystem.manuallyExcludedWorkers.size());
+    assertEquals(1, statusSystem.availableWorkers.size());
+
+
+
+  }
+
+  @Test
   public void testHandleWorkerLost() {
     statusSystem.handleRegisterWorker(
         HOSTNAME1,

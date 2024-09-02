@@ -23,15 +23,12 @@ import java.util
 import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
-
 import scala.collection.JavaConverters._
 import scala.util.Random
-
 import com.google.common.annotations.VisibleForTesting
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.ratis.proto.RaftProtos
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.exception.CelebornException
@@ -1178,7 +1175,7 @@ private[celeborn] class Master(
   private def workersAvailable(
       tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
     statusSystem.workers.asScala.filter { w =>
-      statusSystem.isWorkerAvailable(w) && !tmpExcludedWorkerList.contains(w)
+      statusSystem.updateAvailableWorkerMeta(w) && !tmpExcludedWorkerList.contains(w)
     }.toList.asJava
   }
 

@@ -439,7 +439,8 @@ object PbSerDeUtils {
       shutdownWorkers: java.util.Set[WorkerInfo],
       workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo],
       applicationMetas: ConcurrentHashMap[String, ApplicationMeta],
-      decommissionWorkers: java.util.Set[WorkerInfo]): PbSnapshotMetaInfo = {
+      decommissionWorkers: java.util.Set[WorkerInfo],
+      availableWorkers: java.util.Set[WorkerInfo]): PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
       .addAllRegisteredShuffle(registeredShuffle)
@@ -450,6 +451,7 @@ object PbSerDeUtils {
       .addAllWorkerLostEvents(workerLostEvent.asScala.map(toPbWorkerInfo(_, true, false)).asJava)
       .putAllAppHeartbeatTime(appHeartbeatTime)
       .addAllWorkers(workers.asScala.map(toPbWorkerInfo(_, true, false)).asJava)
+      .addAllAvailableWorkers(availableWorkers.asScala.map(toPbWorkerInfo(_, true, false)).asJava)
       .setPartitionTotalWritten(partitionTotalWritten)
       .setPartitionTotalFileCount(partitionTotalFileCount)
       // appDiskUsageMetricSnapshots can have null values,

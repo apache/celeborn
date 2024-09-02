@@ -656,6 +656,7 @@ message PbSnapshotMetaInfo {
   map<string, PbWorkerEventInfo> workerEventInfos = 15;
   map<string, PbApplicationMeta> applicationMetas = 16;
   repeated PbWorkerInfo decommissionWorkers = 17;
+  repeated PbWorkerInfo availableWorkers = 18;
 }
 
 message PbOpenStream {
