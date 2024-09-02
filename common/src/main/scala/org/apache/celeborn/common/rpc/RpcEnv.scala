@@ -54,7 +54,7 @@ object RpcEnv {
       source: Option[AbstractSource]): RpcEnv = {
     val bindAddress =
       if (conf.bindWildcardAddress) TransportModuleConstants.WILDCARD_BIND_ADDRESS else host
-    val advertiseAddress = Utils.localHostNameForAdvertiseAddress(conf)
+    val advertiseAddress = Utils.localHostNameForAdvertiseAddress(conf, name)
     create(
       name,
       transportModule,

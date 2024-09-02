@@ -26,22 +26,19 @@ import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
 import java.util
 import java.util.{Locale, Properties, Random, UUID}
-import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeoutException, TimeUnit}
-
+import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeUnit, TimeoutException}
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.io.Source
 import scala.reflect.ClassTag
-import scala.util.{Random => ScalaRandom, Try}
+import scala.util.{Try, Random => ScalaRandom}
 import scala.util.control.{ControlThrowable, NonFatal}
 import scala.util.matching.Regex
-
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
 import org.apache.commons.lang3.time.FastDateFormat
 import org.roaringbitmap.RoaringBitmap
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.PORT_MAX_RETRY
 import org.apache.celeborn.common.exception.CelebornException
@@ -49,7 +46,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.network.util.TransportConf
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, TransportModuleConstants}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.{ControlMessages, Message, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.reflect.DynConstructors
@@ -419,13 +416,27 @@ object Utils extends Logging {
     getHostName(conf.bindPreferIP)
   }
 
-  def localHostNameForAdvertiseAddress(conf: CelebornConf): String = {
+  def localHostNameForAdvertiseAddress(conf: CelebornConf, env: String): String = {
+    if (env.equals(RpcNameConstants.MASTER_SYS) || env.equals(RpcNameConstants.MASTER_INTERNAL_SYS)) {
+      getAdvertiseAddressForMaster(conf)
+    } else if (env.equals(RpcNameConstants.WORKER_SYS) || env.equals(RpcNameConstants.WORKER_INTERNAL_SYS)) {
+      getAdvertiseAddressForWorker(conf)
+    } else {
+      throw new IllegalArgumentException(s"Unknown env to get advertise address: $env. Expected one of MASTER_SYS," +
+        s" MASTER_INTERNAL_SYS, WORKER_SYS, or WORKER_INTERNAL_SYS.")
+    }
+  }
+
+  private def getAdvertiseAddressForMaster(conf: CelebornConf) = {
     if (conf.masterHost != "<localhost>") {
       conf.masterHost
     } else {
       getHostName(conf.advertisePreferIP)
     }
+  }
 
+  private def getAdvertiseAddressForWorker(conf: CelebornConf) = {
+    getHostName(conf.advertisePreferIP)
   }
 
   private def getHostName(preferIP: Boolean): String = customHostname.getOrElse {
