@@ -50,14 +50,12 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
     val conf = celebornConf.clone
     conf.set(CelebornConf.CLIENT_BATCH_REMOVE_EXPIRED_SHUFFLE.key, "true")
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
-    val ids = new util.ArrayList[Integer](10)
-    val shuffleIds = new util.ArrayList[Integer](10)
-    0 until 10 foreach { num =>
-      ids.add(num)
-      shuffleIds.add(num + 1)
-    }
+    val counts = 10
+    val ids =
+      new util.ArrayList[Integer]((0 until counts).toList.map(x => Integer.valueOf(x)).asJava)
+    val shuffleIds = (1 to counts).toList
 
-    shuffleIds.asScala.foreach { shuffleId: Integer =>
+    shuffleIds.foreach { shuffleId: Int =>
       val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
       assert(res.status == StatusCode.SUCCESS)
       lifecycleManager.registeredShuffle.add(shuffleId)
@@ -67,12 +65,12 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
       lifecycleManager.commitManager.setStageEnd(shuffleId)
     }
 
-    shuffleIds.asScala.foreach { shuffleId: Integer =>
+    shuffleIds.foreach { shuffleId: Int =>
       lifecycleManager.unregisterShuffle(shuffleId)
     }
     // after unregister shuffle
     eventually(timeout(120.seconds), interval(2.seconds)) {
-      shuffleIds.asScala.foreach { shuffleId: Integer =>
+      shuffleIds.foreach { shuffleId: Int =>
         val shuffleKey = Utils.makeShuffleKey(APP, shuffleId)
         assert(!lifecycleManager.registeredShuffle.contains(shuffleId))
         assert(!masterInfo._1.statusSystem.registeredShuffle.contains(shuffleKey))
@@ -85,13 +83,12 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
   test("test unregister shuffle") {
     val conf = celebornConf.clone
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
-    val shuffleIds = new util.ArrayList[Integer](10)
-    val ids = new util.ArrayList[Integer](10)
-    0 until 10 foreach { num =>
-      ids.add(num)
-      shuffleIds.add(num + 1)
-    }
-    shuffleIds.asScala.foreach { shuffleId: Integer =>
+    val counts = 10
+    val ids =
+      new util.ArrayList[Integer]((0 until counts).toList.map(x => Integer.valueOf(x)).asJava)
+    val shuffleIds = (1 to counts).toList
+
+    shuffleIds.foreach { shuffleId: Int =>
       val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
       assert(res.status == StatusCode.SUCCESS)
       lifecycleManager.registeredShuffle.add(shuffleId)
@@ -101,12 +98,12 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
       lifecycleManager.commitManager.setStageEnd(shuffleId)
     }
     val previousTime = System.currentTimeMillis()
-    shuffleIds.asScala.foreach { shuffleId: Integer =>
+    shuffleIds.foreach { shuffleId: Int =>
       lifecycleManager.unregisterShuffle(shuffleId)
     }
     // after unregister shuffle
     eventually(timeout(120.seconds), interval(2.seconds)) {
-      shuffleIds.asScala.foreach { shuffleId: Integer =>
+      shuffleIds.foreach { shuffleId: Int =>
         val shuffleKey = Utils.makeShuffleKey(APP, shuffleId)
         assert(!lifecycleManager.registeredShuffle.contains(shuffleId))
         assert(!masterInfo._1.statusSystem.registeredShuffle.contains(shuffleKey))

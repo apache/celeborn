@@ -993,17 +993,11 @@ private[celeborn] class Master(
       applicationId: String,
       shuffleIds: List[Integer],
       requestId: String): Unit = {
-    val map = JavaUtils.newConcurrentHashMap[Integer, StatusCode]()
-    val shuffleKeys = new util.ArrayList[String]()
-    shuffleIds.foreach { shuffleId =>
-      val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-      shuffleKeys.add(shuffleKey)
-    }
+    val shuffleKeys =
+      shuffleIds.map(shuffleId => Utils.makeShuffleKey(applicationId, shuffleId)).asJava
     statusSystem.batchHandleUnRegisterShuffles(shuffleKeys, requestId)
     logInfo(s"Unregister shuffle $shuffleKeys")
-    shuffleIds.foreach { shuffleId =>
-      map.put(shuffleId, StatusCode.SUCCESS)
-    }
+    val map = shuffleIds.map(shuffleId => shuffleId -> StatusCode.SUCCESS).toMap.asJava
     context.reply(BatchUnregisterShuffleResponses(StatusCode.SUCCESS, map))
   }
 
