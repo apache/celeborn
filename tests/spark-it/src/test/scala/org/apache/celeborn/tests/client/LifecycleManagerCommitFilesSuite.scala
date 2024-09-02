@@ -66,7 +66,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       res.workerResource,
       updateEpoch = false)
 
-    lifecycleManager.commitManager.registerShuffle(shuffleId, 1)
+    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
     0 until 10 foreach { partitionId =>
       lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
     }
@@ -116,7 +116,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       res.workerResource,
       updateEpoch = false)
 
-    lifecycleManager.commitManager.registerShuffle(shuffleId, 1)
+    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
     0 until 10 foreach { partitionId =>
       lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
     }
