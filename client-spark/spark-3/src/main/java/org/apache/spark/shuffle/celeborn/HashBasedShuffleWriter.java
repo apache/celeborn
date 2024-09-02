@@ -308,7 +308,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
     if ((buffer.length - offset) < serializedRecordSize) {
       flushSendBuffer(partitionId, buffer, offset);
-      updateRecordsWrittenMetrics();
       offset = 0;
     }
     return offset;
@@ -374,7 +373,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     closeWrite();
     shuffleClient.pushMergedData(shuffleId, mapId, encodedAttemptId);
     writeMetrics.incWriteTime(System.nanoTime() - pushMergedDataTime);
-    updateRecordsWrittenMetrics();
+    writeMetrics.incRecordsWritten(tmpRecordsWritten);
 
     long waitStartTime = System.nanoTime();
     shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers);
@@ -384,11 +383,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     mapStatus =
         SparkUtils.createMapStatus(
             bmId, SparkUtils.unwrap(mapStatusLengths), taskContext.taskAttemptId());
-  }
-
-  private void updateRecordsWrittenMetrics() {
-    writeMetrics.incRecordsWritten(tmpRecordsWritten);
-    tmpRecordsWritten = 0;
   }
 
   @Override
