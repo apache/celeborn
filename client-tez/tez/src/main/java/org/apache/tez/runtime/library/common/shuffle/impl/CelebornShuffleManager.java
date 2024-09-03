@@ -17,22 +17,12 @@
 
 package org.apache.tez.runtime.library.common.shuffle.impl;
 
-
 import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.TEZ_CELEBORN_APPLICATION_ID;
 import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.TEZ_CELEBORN_LM_HOST;
 import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.TEZ_CELEBORN_LM_PORT;
 import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.TEZ_CELEBORN_USER;
 import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.TEZ_SHUFFLE_ID;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.Collections;
@@ -52,9 +42,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import org.apache.celeborn.common.exception.CelebornRuntimeException;
-import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.tez.plugin.util.CelebornTezUtils;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.util.Time;
@@ -80,6 +77,11 @@ import org.apache.tez.runtime.library.common.shuffle.ShuffleUtils;
 import org.apache.tez.runtime.library.common.shuffle.orderedgrouped.CelebornTezReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.common.exception.CelebornRuntimeException;
+import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.tez.plugin.util.CelebornTezUtils;
 
 // This only knows how to deal with a single srcIndex for a given targetIndex.
 // In case the src task generates multiple outputs for the same target Index
@@ -129,7 +131,6 @@ public class CelebornShuffleManager extends ShuffleManager {
   private final BlockingQueue<FetchedInput> completedInputs;
   private final AtomicBoolean inputReadyNotificationSent = new AtomicBoolean(false);
 
-
   private volatile Throwable shuffleError;
 
   private final TezCounter shufflePhaseTime;
@@ -148,51 +149,54 @@ public class CelebornShuffleManager extends ShuffleManager {
   private final AtomicInteger nextProgressLineEventCount;
   private final DecimalFormat mbpsFormat = new DecimalFormat("0.00");
 
-  /**
-   * Executor for ReportCallable.
-   */
+  /** Executor for ReportCallable. */
   private ExecutorService reporterExecutor;
 
-  /**
-   * Lock to sync failedEvents.
-   */
+  /** Lock to sync failedEvents. */
   private final ReentrantLock reportLock = new ReentrantLock();
 
-  /**
-   * Condition to wake up the thread notifying when events fail.
-   */
+  /** Condition to wake up the thread notifying when events fail. */
   private final Condition reportCondition = reportLock.newCondition();
 
-  /**
-   * Events reporting fetcher failed.
-   */
+  /** Events reporting fetcher failed. */
   private final HashMap<InputReadErrorEvent, Integer> failedEvents = new HashMap<>();
 
-  /**
-   * Holds the time to wait for failures to batch them and send less events.
-   */
+  /** Holds the time to wait for failures to batch them and send less events. */
   private final int maxTimeToWaitForReportMillis = 1;
 
-  public CelebornShuffleManager(InputContext inputContext,
-      Configuration conf, int numInputs, int bufferSize,
-      boolean ifileReadAheadEnabled, int ifileReadAheadLength,
+  public CelebornShuffleManager(
+      InputContext inputContext,
+      Configuration conf,
+      int numInputs,
+      int bufferSize,
+      boolean ifileReadAheadEnabled,
+      int ifileReadAheadLength,
       CompressionCodec codec,
       FetchedInputAllocator inputAllocator,
       ApplicationAttemptId applicationAttemptId)
       throws IOException {
-    super(inputContext, conf, numInputs, bufferSize, ifileReadAheadEnabled, ifileReadAheadLength,
-        codec, inputAllocator);
+    super(
+        inputContext,
+        conf,
+        numInputs,
+        bufferSize,
+        ifileReadAheadEnabled,
+        ifileReadAheadLength,
+        codec,
+        inputAllocator);
     this.inputContext = inputContext;
     this.numInputs = numInputs;
     this.applicationAttemptId = applicationAttemptId;
 
     runningFetchers = Collections.newSetFromMap(new ConcurrentHashMap<>());
-    int maxConfiguredFetchers = conf.getInt(
-        TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_PARALLEL_COPIES,
-        TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_PARALLEL_COPIES_DEFAULT);
+    int maxConfiguredFetchers =
+        conf.getInt(
+            TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_PARALLEL_COPIES,
+            TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_PARALLEL_COPIES_DEFAULT);
     this.numFetchers = Math.min(maxConfiguredFetchers, numInputs);
     this.sourceDestNameTrimmed =
-        TezUtilsInternal.cleanVertexName(inputContext.getSourceVertexName()) + " -> "
+        TezUtilsInternal.cleanVertexName(inputContext.getSourceVertexName())
+            + " -> "
             + TezUtilsInternal.cleanVertexName(inputContext.getTaskVertexName());
     this.shufflePhaseTime = inputContext.getCounters().findCounter(TaskCounter.SHUFFLE_PHASE_TIME);
     this.startTime = System.currentTimeMillis();
@@ -203,12 +207,13 @@ public class CelebornShuffleManager extends ShuffleManager {
     this.appId = conf.get(TEZ_CELEBORN_APPLICATION_ID);
     this.user = conf.get(TEZ_CELEBORN_USER);
     this.celebornRunShuffleCallable = new CelebornRunShuffleCallable(conf);
-    ExecutorService schedulerRawExecutor = Executors.newFixedThreadPool(
-        1,
-        new ThreadFactoryBuilder()
-            .setDaemon(true)
-            .setNameFormat("ShuffleRunner {" + sourceDestNameTrimmed + "}")
-            .build());
+    ExecutorService schedulerRawExecutor =
+        Executors.newFixedThreadPool(
+            1,
+            new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("ShuffleRunner {" + sourceDestNameTrimmed + "}")
+                .build());
     this.schedulerExecutor = MoreExecutors.listeningDecorator(schedulerRawExecutor);
 
     final ExecutorService fetcherRawExecutor;
@@ -235,19 +240,19 @@ public class CelebornShuffleManager extends ShuffleManager {
      */
     completedInputs = new LinkedBlockingDeque<>();
 
-    this.shuffledInputsCounter = inputContext.getCounters()
-        .findCounter(TaskCounter.NUM_SHUFFLED_INPUTS);
-    this.failedShufflesCounter = inputContext.getCounters()
-        .findCounter(TaskCounter.NUM_FAILED_SHUFFLE_INPUTS);
+    this.shuffledInputsCounter =
+        inputContext.getCounters().findCounter(TaskCounter.NUM_SHUFFLED_INPUTS);
+    this.failedShufflesCounter =
+        inputContext.getCounters().findCounter(TaskCounter.NUM_FAILED_SHUFFLE_INPUTS);
     this.bytesShuffledCounter = inputContext.getCounters().findCounter(TaskCounter.SHUFFLE_BYTES);
-    this.bytesShuffledToMemCounter = inputContext.getCounters()
-        .findCounter(TaskCounter.SHUFFLE_BYTES_TO_MEM);
-    this.bytesShuffledToDiskCounter = inputContext.getCounters()
-        .findCounter(TaskCounter.SHUFFLE_BYTES_TO_DISK);
-    this.decompressedDataSizeCounter = inputContext.getCounters()
-        .findCounter(TaskCounter.SHUFFLE_BYTES_DECOMPRESSED);
-    this.bytesShuffledDirectDiskCounter = inputContext.getCounters()
-        .findCounter(TaskCounter.SHUFFLE_BYTES_DISK_DIRECT);
+    this.bytesShuffledToMemCounter =
+        inputContext.getCounters().findCounter(TaskCounter.SHUFFLE_BYTES_TO_MEM);
+    this.bytesShuffledToDiskCounter =
+        inputContext.getCounters().findCounter(TaskCounter.SHUFFLE_BYTES_TO_DISK);
+    this.decompressedDataSizeCounter =
+        inputContext.getCounters().findCounter(TaskCounter.SHUFFLE_BYTES_DECOMPRESSED);
+    this.bytesShuffledDirectDiskCounter =
+        inputContext.getCounters().findCounter(TaskCounter.SHUFFLE_BYTES_DISK_DIRECT);
     this.nextProgressLineEventCount = new AtomicInteger(0);
     this.localhostName = inputContext.getExecutionContext().getHostName();
   }
@@ -337,13 +342,12 @@ public class CelebornShuffleManager extends ShuffleManager {
 
   @Override
   public void addCompletedInputWithData(
-      InputAttemptIdentifier srcAttemptIdentifier, FetchedInput fetchedInput)
-      throws IOException {
-    //InputIdentifier inputIdentifier = srcAttemptIdentifier.getInputIdentifier();
+      InputAttemptIdentifier srcAttemptIdentifier, FetchedInput fetchedInput) throws IOException {
+    // InputIdentifier inputIdentifier = srcAttemptIdentifier.getInputIdentifier();
     int inputIdentifier = srcAttemptIdentifier.getInputIdentifier();
     if (LOG.isDebugEnabled()) {
-      LOG.debug("Received Data via Event: " + srcAttemptIdentifier + " to "
-          + fetchedInput.getType());
+      LOG.debug(
+          "Received Data via Event: " + srcAttemptIdentifier + " to " + fetchedInput.getType());
     }
     // Count irrespective of whether this is a copy of an already fetched input
     boolean committed = false;
@@ -355,8 +359,7 @@ public class CelebornShuffleManager extends ShuffleManager {
           if (!srcAttemptIdentifier.canRetrieveInputInChunks()) {
             registerCompletedInput(fetchedInput);
           } else {
-            registerCompletedInputForPipelinedShuffle(srcAttemptIdentifier,
-                fetchedInput);
+            registerCompletedInputForPipelinedShuffle(srcAttemptIdentifier, fetchedInput);
           }
         }
       }
@@ -403,14 +406,12 @@ public class CelebornShuffleManager extends ShuffleManager {
         allCelebornPartition);
   }
 
-  /**
-   * @return true if all of the required inputs have been fetched.
-   */
+  /** @return true if all of the required inputs have been fetched. */
   public boolean allInputsFetched() {
     lock.lock();
     try {
-      return (successCelebornPartitionSet.size() >= allCelebornPartition.size() ||
-          completedInputs.size() == 0);
+      return (successCelebornPartitionSet.size() >= allCelebornPartition.size()
+          || completedInputs.size() == 0);
     } finally {
       lock.unlock();
     }
@@ -418,7 +419,7 @@ public class CelebornShuffleManager extends ShuffleManager {
 
   /**
    * @return the next available input, or null if there are no available inputs. This method will
-   * block if there are currently no available inputs, but more may become available.
+   *     block if there are currently no available inputs, but more may become available.
    */
   @Override
   public FetchedInput getNextInput() throws InterruptedException {
@@ -432,8 +433,11 @@ public class CelebornShuffleManager extends ShuffleManager {
       lock.unlock();
     }
     LOG.info(
-        "getNextInput, ----- completedInputs {}, allInputsFetched {}, numInputs {}, numCompletedInputs {}"
-        , completedInputs.size(), allInputsFetched(), numInputs, numCompletedInputs.get());
+        "getNextInput, ----- completedInputs {}, allInputsFetched {}, numInputs {}, numCompletedInputs {}",
+        completedInputs.size(),
+        allInputsFetched(),
+        numInputs,
+        numCompletedInputs.get());
     // Block until next input or End of Input message
     FetchedInput fetchedInput = completedInputs.take();
     if (fetchedInput instanceof NullFetchedInput) {
@@ -443,7 +447,6 @@ public class CelebornShuffleManager extends ShuffleManager {
     LOG.info("getNextInput, fetchedInput:{}", fetchedInput);
     return fetchedInput;
   }
-
 
   private void registerCompletedInput(FetchedInput fetchedInput) {
     lock.lock();
@@ -545,11 +548,17 @@ public class CelebornShuffleManager extends ShuffleManager {
       double mbs = (double) this.totalBytesShuffledTillNow / 1048576.0;
       long secsSinceStart = (System.currentTimeMillis() - this.startTime) / 1000L + 1L;
       double transferRate = mbs / (double) secsSinceStart;
-      LOG.info("copy(" + inputsDone + " (spillsFetched=" + this.numFetchedSpills.get() + ") of "
-          + this.numInputs + ". Transfer rate (CumulativeDataFetched/TimeSinceInputStarted)) "
-          + this.mbpsFormat.format(transferRate) + " MB/s)");
+      LOG.info(
+          "copy("
+              + inputsDone
+              + " (spillsFetched="
+              + this.numFetchedSpills.get()
+              + ") of "
+              + this.numInputs
+              + ". Transfer rate (CumulativeDataFetched/TimeSinceInputStarted)) "
+              + this.mbpsFormat.format(transferRate)
+              + " MB/s)");
     }
-
   }
 
   @Override
@@ -617,11 +626,12 @@ public class CelebornShuffleManager extends ShuffleManager {
   }
 
   @Override
-  public void fetchFailed(String host, InputAttemptFetchFailure inputAttemptFetchFailure,
-      boolean connectFailed) {
+  public void fetchFailed(
+      String host, InputAttemptFetchFailure inputAttemptFetchFailure, boolean connectFailed) {
     // NEWTEZ. Implement logic to report fetch failures after a threshold.
     // For now, reporting immediately.
-    InputAttemptIdentifier srcAttemptIdentifier = inputAttemptFetchFailure.getInputAttemptIdentifier();
+    InputAttemptIdentifier srcAttemptIdentifier =
+        inputAttemptFetchFailure.getInputAttemptIdentifier();
     LOG.info(
         sourceDestNameTrimmed
             + ": "
@@ -637,8 +647,10 @@ public class CelebornShuffleManager extends ShuffleManager {
       reportFatalError(null, "Received fetchFailure for an unknown src (null)");
     } else {
       InputReadErrorEvent readError =
-          InputReadErrorEvent.create("Fetch failure while fetching from " +
-                  TezRuntimeUtils.getTaskAttemptIdentifier(this.inputContext.getSourceVertexName(),
+          InputReadErrorEvent.create(
+              "Fetch failure while fetching from "
+                  + TezRuntimeUtils.getTaskAttemptIdentifier(
+                      this.inputContext.getSourceVertexName(),
                       srcAttemptIdentifier.getInputIdentifier(),
                       srcAttemptIdentifier.getAttemptNumber()),
               srcAttemptIdentifier.getInputIdentifier(),
@@ -662,18 +674,21 @@ public class CelebornShuffleManager extends ShuffleManager {
     }
   }
   // End of Methods from FetcherCallbackHandler
-/////////////////// End of Methods from FetcherCallbackHandler
+  /////////////////// End of Methods from FetcherCallbackHandler
 
   public void shutdown() throws InterruptedException {
     if (Thread.currentThread().isInterrupted()) {
-      //TODO: need to cleanup all FetchedInput (DiskFetchedInput, LocalDisFetchedInput), lockFile
-      //As of now relying on job cleanup (when all directories would be cleared)
+      // TODO: need to cleanup all FetchedInput (DiskFetchedInput, LocalDisFetchedInput), lockFile
+      // As of now relying on job cleanup (when all directories would be cleared)
       LOG.info(sourceDestNameTrimmed + ": " + "Thread interrupted. Need to cleanup the local dirs");
     }
     if (!isShutdown.getAndSet(true)) {
       // Shut down any pending fetchers
-      LOG.info("Shutting down pending fetchers on source" + sourceDestNameTrimmed + ": "
-          + runningFetchers.size());
+      LOG.info(
+          "Shutting down pending fetchers on source"
+              + sourceDestNameTrimmed
+              + ": "
+              + runningFetchers.size());
       lock.lock();
       try {
         wakeLoop.signal(); // signal the fetch-scheduler
@@ -693,8 +708,7 @@ public class CelebornShuffleManager extends ShuffleManager {
       if (this.schedulerExecutor != null && !this.schedulerExecutor.isShutdown()) {
         this.schedulerExecutor.shutdownNow();
       }
-      if (this.reporterExecutor != null
-          && !this.reporterExecutor.isShutdown()) {
+      if (this.reporterExecutor != null && !this.reporterExecutor.isShutdown()) {
         this.reporterExecutor.shutdownNow();
       }
       if (this.fetcherExecutor != null && !this.fetcherExecutor.isShutdown()) {
@@ -705,11 +719,8 @@ public class CelebornShuffleManager extends ShuffleManager {
 
   private class ReporterCallable extends CallableWithNdc<Void> {
 
-    /**
-     * Measures if the batching interval has ended.
-     */
-    ReporterCallable() {
-    }
+    /** Measures if the batching interval has ended. */
+    ReporterCallable() {}
 
     @Override
     protected Void callInternal() throws Exception {
@@ -742,7 +753,6 @@ public class CelebornShuffleManager extends ShuffleManager {
       }
       return null;
     }
-
   }
 
   private class CelebornRunShuffleCallable extends CallableWithNdc<Void> {
@@ -790,8 +800,10 @@ public class CelebornShuffleManager extends ShuffleManager {
                 partition = pendingPartition.take();
               } catch (InterruptedException e) {
                 if (isShutdown.get()) {
-                  LOG.info(sourceDestNameTrimmed + ": " +
-                      "Interrupted and hasBeenShutdown, Breaking out of ShuffleScheduler Loop");
+                  LOG.info(
+                      sourceDestNameTrimmed
+                          + ": "
+                          + "Interrupted and hasBeenShutdown, Breaking out of ShuffleScheduler Loop");
                   Thread.currentThread().interrupt();
                   break;
                 } else {
@@ -799,31 +811,36 @@ public class CelebornShuffleManager extends ShuffleManager {
                 }
               }
               if (LOG.isDebugEnabled()) {
-                LOG.debug(sourceDestNameTrimmed + ": " + "Processing pending parition: " +
-                    partition);
+                LOG.debug(
+                    sourceDestNameTrimmed + ": " + "Processing pending parition: " + partition);
               }
               if (!isShutdown.get()
                   && (!successCelebornPartitionSet.contains(partition)
-                  && !runningCelebornPartitionMap.contains(partition))) {
+                      && !runningCelebornPartitionMap.contains(partition))) {
                 CelebornFetcher fetcher = constructFetcherForPartition(partition, conf);
                 runningFetchers.add(fetcher);
                 if (isShutdown.get()) {
-                  LOG.info(sourceDestNameTrimmed + ": " + "hasBeenShutdown," +
-                      "Breaking out of ShuffleScheduler Loop");
+                  LOG.info(
+                      sourceDestNameTrimmed
+                          + ": "
+                          + "hasBeenShutdown,"
+                          + "Breaking out of ShuffleScheduler Loop");
                   break;
                 }
-                ListenableFuture<FetchResult> future = fetcherExecutor
-                    .submit(fetcher);
-                Futures.addCallback(future, new FetchFutureCallback(fetcher),
-                    GuavaShim.directExecutor());
+                ListenableFuture<FetchResult> future = fetcherExecutor.submit(fetcher);
+                Futures.addCallback(
+                    future, new FetchFutureCallback(fetcher), GuavaShim.directExecutor());
                 if (++count >= maxFetchersToRun) {
                   break;
                 }
               } else {
                 if (LOG.isDebugEnabled()) {
-                  LOG.debug(sourceDestNameTrimmed + ": " + "Skipping partition: " +
-                      partition +
-                      " since it has no inputs to process");
+                  LOG.debug(
+                      sourceDestNameTrimmed
+                          + ": "
+                          + "Skipping partition: "
+                          + partition
+                          + " since it has no inputs to process");
                 }
               }
             }
@@ -833,8 +850,11 @@ public class CelebornShuffleManager extends ShuffleManager {
         }
       }
       shufflePhaseTime.setValue(System.currentTimeMillis() - startTime);
-      LOG.info(sourceDestNameTrimmed + ": " + "Shutting down FetchScheduler, Was Interrupted: " +
-          Thread.currentThread().isInterrupted());
+      LOG.info(
+          sourceDestNameTrimmed
+              + ": "
+              + "Shutting down FetchScheduler, Was Interrupted: "
+              + Thread.currentThread().isInterrupted());
       if (!fetcherExecutor.isShutdown()) {
         fetcherExecutor.shutdownNow();
       }
@@ -843,17 +863,17 @@ public class CelebornShuffleManager extends ShuffleManager {
   }
 
   CelebornFetcher constructFetcherForPartition(Integer partition, Configuration conf) {
-    CelebornTezReader reader = new CelebornTezReader(
-        appId,
-        host,
-        port,
-        shuffleId,
-        partition,
-        applicationAttemptId.getAttemptId(),
-        inputContext.getCounters(),
-        UserIdentifier.apply(user),
-        null,
-        CelebornTezUtils.fromTezConfiguration(conf));
+    ShuffleClient shuffleClient =
+        ShuffleClient.get(
+            appId,
+            host,
+            port,
+            CelebornTezUtils.fromTezConfiguration(conf),
+            UserIdentifier.apply(user),
+            null);
+    CelebornTezReader reader =
+        new CelebornTezReader(
+            shuffleClient, shuffleId, partition, applicationAttemptId.getAttemptId());
     pendingPartition.add(partition);
     return new CelebornFetcher(inputManager, CelebornShuffleManager.this, reader, partition);
   }
@@ -898,8 +918,7 @@ public class CelebornShuffleManager extends ShuffleManager {
 
     @Override
     public void onSuccess(FetchResult result) {
-      LOG.info(
-          "FetchFutureCallback success, partition:{}", fetcher.getPartition());
+      LOG.info("FetchFutureCallback success, partition:{}", fetcher.getPartition());
       if (isShutdown.get()) {
         if (LOG.isDebugEnabled()) {
           LOG.debug("{}: Already shutdown. Ignoring event from fetcher", sourceDestNameTrimmed);
@@ -927,8 +946,8 @@ public class CelebornShuffleManager extends ShuffleManager {
       // Unsuccessful - the fetcher may not have shutdown correctly. Try shutting it down.
       if (isShutdown.get()) {
         if (LOG.isDebugEnabled()) {
-          LOG.debug("{}: Already shutdown. Ignoring error from fetcher: ", sourceDestNameTrimmed,
-              t);
+          LOG.debug(
+              "{}: Already shutdown. Ignoring error from fetcher: ", sourceDestNameTrimmed, t);
         }
       } else {
         LOG.error("{}: Fetcher failed with error: ", sourceDestNameTrimmed, t);
@@ -938,6 +957,4 @@ public class CelebornShuffleManager extends ShuffleManager {
       }
     }
   }
-
-
 }

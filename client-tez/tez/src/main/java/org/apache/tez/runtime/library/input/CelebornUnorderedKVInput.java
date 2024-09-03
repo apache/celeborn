@@ -23,7 +23,7 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.celeborn.common.exception.CelebornException;
+
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.conf.Configuration;
@@ -54,6 +54,8 @@ import org.apache.tez.runtime.library.common.shuffle.impl.SimpleFetchedInputAllo
 import org.apache.tez.runtime.library.utils.CodecUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.celeborn.common.exception.CelebornException;
 
 /**
  * {@link CelebornUnorderedKVInput} provides unordered key value input by bringing together
@@ -94,8 +96,9 @@ public class CelebornUnorderedKVInput extends AbstractLogicalInput {
       getContext().requestInitialMemory(0l, null);
       isStarted.set(true);
       getContext().inputIsReady();
-      LOG.info("input fetch not required since there are 0 physical inputs for input vertex: "
-          + getContext().getInputOutputVertexNames());
+      LOG.info(
+          "input fetch not required since there are 0 physical inputs for input vertex: "
+              + getContext().getInputOutputVertexNames());
       return Collections.emptyList();
     } else {
       long initialMemReq = getInitialMemoryReq();
@@ -120,44 +123,69 @@ public class CelebornUnorderedKVInput extends AbstractLogicalInput {
       CompressionCodec codec = CodecUtils.getCodec(conf);
 
       boolean compositeFetch = ShuffleUtils.isTezShuffleHandler(conf);
-      boolean ifileReadAhead = conf.getBoolean(TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD,
-          TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_DEFAULT);
+      boolean ifileReadAhead =
+          conf.getBoolean(
+              TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD,
+              TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_DEFAULT);
       int ifileReadAheadLength = 0;
       int ifileBufferSize = 0;
 
       if (ifileReadAhead) {
-        ifileReadAheadLength = conf.getInt(
-            TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_BYTES,
-            TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_BYTES_DEFAULT);
+        ifileReadAheadLength =
+            conf.getInt(
+                TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_BYTES,
+                TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_BYTES_DEFAULT);
       }
-      ifileBufferSize = conf.getInt("io.file.buffer.size",
-          TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_BUFFER_SIZE_DEFAULT);
+      ifileBufferSize =
+          conf.getInt(
+              "io.file.buffer.size", TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_BUFFER_SIZE_DEFAULT);
 
-      this.inputManager = new SimpleFetchedInputAllocator(
-          TezUtilsInternal.cleanVertexName(getContext().getSourceVertexName()),
-          getContext().getUniqueIdentifier(), getContext().getDagIdentifier(), conf,
-          getContext().getTotalMemoryAvailableToTask(),
-          memoryUpdateCallbackHandler.getMemoryAssigned());
+      this.inputManager =
+          new SimpleFetchedInputAllocator(
+              TezUtilsInternal.cleanVertexName(getContext().getSourceVertexName()),
+              getContext().getUniqueIdentifier(),
+              getContext().getDagIdentifier(),
+              conf,
+              getContext().getTotalMemoryAvailableToTask(),
+              memoryUpdateCallbackHandler.getMemoryAssigned());
 
-      this.shuffleManager = new CelebornShuffleManager(getContext(), conf, getNumPhysicalInputs(),
-          ifileBufferSize, ifileReadAhead, ifileReadAheadLength, codec, inputManager,
-          applicationAttemptId);
+      this.shuffleManager =
+          new CelebornShuffleManager(
+              getContext(),
+              conf,
+              getNumPhysicalInputs(),
+              ifileBufferSize,
+              ifileReadAhead,
+              ifileReadAheadLength,
+              codec,
+              inputManager,
+              applicationAttemptId);
 
-      this.inputEventHandler = new ShuffleInputEventHandlerImpl(getContext(), shuffleManager,
-          inputManager, codec, ifileReadAhead, ifileReadAheadLength, compositeFetch);
+      this.inputEventHandler =
+          new ShuffleInputEventHandlerImpl(
+              getContext(),
+              shuffleManager,
+              inputManager,
+              codec,
+              ifileReadAhead,
+              ifileReadAheadLength,
+              compositeFetch);
 
       ////// End of Initial configuration
 
       this.shuffleManager.run();
-      this.kvReader = createReader(inputRecordCounter, codec, ifileBufferSize, ifileReadAhead,
-          ifileReadAheadLength);
+      this.kvReader =
+          createReader(
+              inputRecordCounter, codec, ifileBufferSize, ifileReadAhead, ifileReadAheadLength);
       List<Event> pending = new LinkedList<Event>();
       pendingEvents.drainTo(pending);
       if (pending.size() > 0) {
         if (LOG.isDebugEnabled()) {
-          LOG.debug(getContext().getInputOutputVertexNames() + ": "
-              + "NoAutoStart delay in processing first event: " + (System.currentTimeMillis()
-              - firstEventReceivedTime));
+          LOG.debug(
+              getContext().getInputOutputVertexNames()
+                  + ": "
+                  + "NoAutoStart delay in processing first event: "
+                  + (System.currentTimeMillis() - firstEventReceivedTime));
         }
         inputEventHandler.handleEvents(pending);
       }
@@ -224,27 +252,38 @@ public class CelebornUnorderedKVInput extends AbstractLogicalInput {
       this.shuffleManager.shutdown();
     }
 
-    long dataSize = getContext().getCounters().findCounter(TaskCounter.SHUFFLE_BYTES_DECOMPRESSED)
-        .getValue();
+    long dataSize =
+        getContext().getCounters().findCounter(TaskCounter.SHUFFLE_BYTES_DECOMPRESSED).getValue();
     getContext().getStatisticsReporter().reportDataSize(dataSize);
-    long inputRecords = getContext().getCounters().findCounter(TaskCounter.INPUT_RECORDS_PROCESSED)
-        .getValue();
+    long inputRecords =
+        getContext().getCounters().findCounter(TaskCounter.INPUT_RECORDS_PROCESSED).getValue();
     getContext().getStatisticsReporter().reportItemsProcessed(inputRecords);
 
     return null;
   }
 
   private long getInitialMemoryReq() {
-    return SimpleFetchedInputAllocator.getInitialMemoryReq(conf,
-        getContext().getTotalMemoryAvailableToTask());
+    return SimpleFetchedInputAllocator.getInitialMemoryReq(
+        conf, getContext().getTotalMemoryAvailableToTask());
   }
 
   @SuppressWarnings("rawtypes")
-  private UnorderedKVReader createReader(TezCounter inputRecordCounter, CompressionCodec codec,
-      int ifileBufferSize, boolean ifileReadAheadEnabled, int ifileReadAheadLength)
+  private UnorderedKVReader createReader(
+      TezCounter inputRecordCounter,
+      CompressionCodec codec,
+      int ifileBufferSize,
+      boolean ifileReadAheadEnabled,
+      int ifileReadAheadLength)
       throws IOException {
-    return new UnorderedKVReader(shuffleManager, conf, codec, ifileReadAheadEnabled,
-        ifileReadAheadLength, ifileBufferSize, inputRecordCounter, getContext());
+    return new UnorderedKVReader(
+        shuffleManager,
+        conf,
+        codec,
+        ifileReadAheadEnabled,
+        ifileReadAheadLength,
+        ifileBufferSize,
+        inputRecordCounter,
+        getContext());
   }
 
   private static final Set<String> confKeys = new HashSet<String>();

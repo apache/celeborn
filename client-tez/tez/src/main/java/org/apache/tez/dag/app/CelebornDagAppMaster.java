@@ -27,9 +27,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.celeborn.client.LifecycleManager;
-import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.tez.plugin.util.CelebornTezUtils;
+
+import scala.Tuple2;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.Options;
@@ -81,7 +81,10 @@ import org.apache.tez.state.OnStateChangedCallback;
 import org.apache.tez.state.StateMachineTez;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Tuple2;
+
+import org.apache.celeborn.client.LifecycleManager;
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.tez.plugin.util.CelebornTezUtils;
 
 public class CelebornDagAppMaster extends DAGAppMaster {
 

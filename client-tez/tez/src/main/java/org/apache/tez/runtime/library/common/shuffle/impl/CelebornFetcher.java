@@ -2,7 +2,7 @@ package org.apache.tez.runtime.library.common.shuffle.impl;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.celeborn.common.exception.CelebornIOException;
+
 import org.apache.tez.common.CallableWithNdc;
 import org.apache.tez.runtime.library.common.InputAttemptIdentifier;
 import org.apache.tez.runtime.library.common.shuffle.FetchResult;
@@ -13,6 +13,8 @@ import org.apache.tez.runtime.library.common.shuffle.orderedgrouped.CelebornTezB
 import org.apache.tez.runtime.library.common.shuffle.orderedgrouped.CelebornTezReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.celeborn.common.exception.CelebornIOException;
 
 public class CelebornFetcher extends CallableWithNdc<FetchResult> {
 
@@ -25,7 +27,8 @@ public class CelebornFetcher extends CallableWithNdc<FetchResult> {
   private final AtomicBoolean isShutDown = new AtomicBoolean(false);
   final int partition;
 
-  public CelebornFetcher(FetchedInputAllocator inputManager,
+  public CelebornFetcher(
+      FetchedInputAllocator inputManager,
       FetcherCallback fetcherCallback,
       CelebornTezReader reader,
       int partition) {
@@ -94,6 +97,7 @@ public class CelebornFetcher extends CallableWithNdc<FetchResult> {
 
   @Override
   protected FetchResult callInternal() throws Exception {
+    reader.init();
     if (!isShutDown.get()) {
       fetchAllBlocksInOnPartition();
       isShutDown.getAndSet(true);

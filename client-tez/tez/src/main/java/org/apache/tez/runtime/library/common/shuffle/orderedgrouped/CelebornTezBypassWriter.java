@@ -17,23 +17,24 @@
 
 package org.apache.tez.runtime.library.common.shuffle.orderedgrouped;
 
-import com.google.common.primitives.Ints;
 import java.io.IOException;
-
 import java.io.OutputStream;
-import org.apache.celeborn.common.exception.CelebornIOException;
-import org.apache.celeborn.tez.plugin.util.ChecksumUtils;
+
+import com.google.common.primitives.Ints;
 import org.apache.tez.runtime.library.common.shuffle.FetchedInput;
 import org.apache.tez.runtime.library.common.shuffle.MemoryFetchedInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.tez.plugin.util.ChecksumUtils;
 
 // In Tez shuffle, MapOutput encapsulates the logic to fetch map task's output data via http.
 // So, in Celeborn, we should bypass this logic, and directly write data to MapOutput.
 public class CelebornTezBypassWriter {
 
   private static final Logger LOG = LoggerFactory.getLogger(CelebornTezBypassWriter.class);
-  private static final byte[] HEADER = new byte[]{(byte) 'T', (byte) 'I', (byte) 'F', (byte) 0};
+  private static final byte[] HEADER = new byte[] {(byte) 'T', (byte) 'I', (byte) 'F', (byte) 0};
 
   public static void write(MapOutput mapOutput, byte[] buffer) {
     LOG.info(
@@ -77,8 +78,8 @@ public class CelebornTezBypassWriter {
       output.close();
     } else {
       throw new CelebornIOException(
-          "Merger reserve unknown type of MapOutput: " + fetchedInput.getClass()
-              .getCanonicalName());
+          "Merger reserve unknown type of MapOutput: "
+              + fetchedInput.getClass().getCanonicalName());
     }
   }
 }

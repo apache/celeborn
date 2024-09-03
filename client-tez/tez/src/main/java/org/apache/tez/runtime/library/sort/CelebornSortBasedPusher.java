@@ -17,23 +17,22 @@
 
 package org.apache.tez.runtime.library.sort;
 
-import org.apache.celeborn.client.CelebornTezWriter;
-import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.unsafe.Platform;
-import org.apache.celeborn.common.util.Utils;
-import org.apache.hadoop.io.RawComparator;
-import org.apache.hadoop.io.WritableUtils;
-import org.apache.hadoop.io.serializer.Serializer;
-import org.apache.hadoop.mapred.Counters;
-import org.apache.tez.common.counters.TezCounter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.hadoop.io.RawComparator;
+import org.apache.hadoop.io.WritableUtils;
+import org.apache.hadoop.io.serializer.Serializer;
+import org.apache.tez.common.counters.TezCounter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.celeborn.client.CelebornTezWriter;
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.unsafe.Platform;
+import org.apache.celeborn.common.util.Utils;
 
 public class CelebornSortBasedPusher<K, V> extends OutputStream {
   private final Logger logger = LoggerFactory.getLogger(CelebornSortBasedPusher.class);
@@ -141,7 +140,8 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
   }
 
   private void sendSortedBuffersPartition(
-      int partition, List<SerializedKV> localKVs, int partitionKVTotalLen, boolean isMerge) throws IOException {
+      int partition, List<SerializedKV> localKVs, int partitionKVTotalLen, boolean isMerge)
+      throws IOException {
     int extraSize = 0;
     for (SerializedKV localKV : localKVs) {
       extraSize += WritableUtils.getVIntSize(localKV.kLen);

@@ -14,6 +14,12 @@
  */
 package org.apache.tez.runtime.library.output;
 
+import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.TEZ_CELEBORN_APPLICATION_ID;
+import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.TEZ_CELEBORN_LM_HOST;
+import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.TEZ_CELEBORN_LM_PORT;
+import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.TEZ_CELEBORN_USER;
+import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.TEZ_SHUFFLE_ID;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
@@ -25,10 +31,6 @@ import java.util.zip.Deflater;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import org.apache.celeborn.client.CelebornTezWriter;
-import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.tez.plugin.util.CelebornTezUtils;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.conf.Configuration;
@@ -55,11 +57,10 @@ import org.apache.tez.runtime.library.sort.CelebornUnSorter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.TEZ_CELEBORN_APPLICATION_ID;
-import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.TEZ_CELEBORN_LM_HOST;
-import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.TEZ_CELEBORN_LM_PORT;
-import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.TEZ_CELEBORN_USER;
-import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.TEZ_SHUFFLE_ID;
+import org.apache.celeborn.client.CelebornTezWriter;
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.tez.plugin.util.CelebornTezUtils;
 
 /**
  * {@link CelebornUnorderedPartitionedKVOutput} is a {@link LogicalOutput} which can be used to
@@ -97,11 +98,10 @@ public class CelebornUnorderedPartitionedKVOutput extends AbstractLogicalOutput 
     this.numOutputs = getNumPhysicalOutputs();
     this.mapNum = outputContext.getVertexParallelism();
     TezTaskAttemptID taskAttemptId =
-            TezTaskAttemptID.fromString(
-                    CelebornTezUtils.uniqueIdentifierToAttemptId(outputContext.getUniqueIdentifier()));
+        TezTaskAttemptID.fromString(
+            CelebornTezUtils.uniqueIdentifierToAttemptId(outputContext.getUniqueIdentifier()));
     attemptId = taskAttemptId.getId();
     mapId = taskAttemptId.getTaskID().getId();
-
   }
 
   @Override
@@ -118,9 +118,9 @@ public class CelebornUnorderedPartitionedKVOutput extends AbstractLogicalOutput 
             memoryUpdateCallbackHandler);
 
     sendEmptyPartitionDetails =
-            conf.getBoolean(
-                    TezRuntimeConfiguration.TEZ_RUNTIME_EMPTY_PARTITION_INFO_VIA_EVENTS_ENABLED,
-                    TezRuntimeConfiguration.TEZ_RUNTIME_EMPTY_PARTITION_INFO_VIA_EVENTS_ENABLED_DEFAULT);
+        conf.getBoolean(
+            TezRuntimeConfiguration.TEZ_RUNTIME_EMPTY_PARTITION_INFO_VIA_EVENTS_ENABLED,
+            TezRuntimeConfiguration.TEZ_RUNTIME_EMPTY_PARTITION_INFO_VIA_EVENTS_ENABLED_DEFAULT);
 
     this.host = this.conf.get(TEZ_CELEBORN_LM_HOST);
     this.port = this.conf.getInt(TEZ_CELEBORN_LM_PORT, -1);
@@ -129,18 +129,18 @@ public class CelebornUnorderedPartitionedKVOutput extends AbstractLogicalOutput 
     String user = this.conf.get(TEZ_CELEBORN_USER);
     CelebornConf celebornConf = CelebornTezUtils.fromTezConfiguration(conf);
     celebornTezWriter =
-            new CelebornTezWriter(
-                    shuffleId,
-                    mapId,
-                    mapId,
-                    attemptId,
-                    mapNum,
-                    numOutputs,
-                    celebornConf,
-                    appId,
-                    host,
-                    port,
-                    UserIdentifier.apply(user));
+        new CelebornTezWriter(
+            shuffleId,
+            mapId,
+            mapId,
+            attemptId,
+            mapNum,
+            numOutputs,
+            celebornConf,
+            appId,
+            host,
+            port,
+            UserIdentifier.apply(user));
 
     return Collections.emptyList();
   }
@@ -150,12 +150,13 @@ public class CelebornUnorderedPartitionedKVOutput extends AbstractLogicalOutput 
     if (!isStarted.get()) {
       memoryUpdateCallbackHandler.validateUpdateReceived();
 
-      sorter = new CelebornUnSorter(
-                      getContext(),
-                      conf,
-                      getNumPhysicalOutputs(),
-                      memoryUpdateCallbackHandler.getMemoryAssigned(),
-                      celebornTezWriter);
+      sorter =
+          new CelebornUnSorter(
+              getContext(),
+              conf,
+              getNumPhysicalOutputs(),
+              memoryUpdateCallbackHandler.getMemoryAssigned(),
+              celebornTezWriter);
 
       isStarted.set(true);
     }
@@ -188,7 +189,7 @@ public class CelebornUnorderedPartitionedKVOutput extends AbstractLogicalOutput 
       if (sorter != null) {
         sorter.flush();
         returnEvents.addAll(sorter.close());
-//        this.endTime = System.nanoTime();
+        //        this.endTime = System.nanoTime();
         returnEvents.addAll(generateEvents());
         sorter = null;
       }
@@ -219,36 +220,35 @@ public class CelebornUnorderedPartitionedKVOutput extends AbstractLogicalOutput 
     return returnEvents;
   }
 
-
   private List<Event> generateEvents() throws IOException {
     List<Event> eventList = Lists.newLinkedList();
     boolean isLastEvent = true;
     String auxiliaryService =
-            conf.get(
-                    TezConfiguration.TEZ_AM_SHUFFLE_AUXILIARY_SERVICE_ID,
-                    TezConfiguration.TEZ_AM_SHUFFLE_AUXILIARY_SERVICE_ID_DEFAULT);
+        conf.get(
+            TezConfiguration.TEZ_AM_SHUFFLE_AUXILIARY_SERVICE_ID,
+            TezConfiguration.TEZ_AM_SHUFFLE_AUXILIARY_SERVICE_ID_DEFAULT);
 
     int[] numRecordsPerPartition = ((CelebornUnSorter) sorter).getNumRecordsPerPartition();
 
     CelebornTezPerPartitionRecord celebornTezPerPartitionRecord =
-            new CelebornTezPerPartitionRecord(numOutputs, numRecordsPerPartition);
+        new CelebornTezPerPartitionRecord(numOutputs, numRecordsPerPartition);
 
     LOG.info("CelebornTezPerPartitionRecord is initialized");
 
     ShuffleUtils.generateEventOnSpill(
-            eventList,
-            true,
-            isLastEvent,
-            getContext(),
-            0,
+        eventList,
+        true,
+        isLastEvent,
+        getContext(),
+        0,
         celebornTezPerPartitionRecord,
-            getNumPhysicalOutputs(),
-            sendEmptyPartitionDetails,
-            getContext().getUniqueIdentifier(),
-            sorter.getPartitionStats(),
-            sorter.reportDetailedPartitionStats(),
-            auxiliaryService,
-            deflater);
+        getNumPhysicalOutputs(),
+        sendEmptyPartitionDetails,
+        getContext().getUniqueIdentifier(),
+        sorter.getPartitionStats(),
+        sorter.reportDetailedPartitionStats(),
+        auxiliaryService,
+        deflater);
     LOG.info("Generate events.");
     return eventList;
   }
@@ -256,7 +256,7 @@ public class CelebornUnorderedPartitionedKVOutput extends AbstractLogicalOutput 
   private List<Event> generateEmptyEvents() throws IOException {
     List<Event> eventList = Lists.newLinkedList();
     ShuffleUtils.generateEventsForNonStartedOutput(
-            eventList, getNumPhysicalOutputs(), getContext(), true, true, deflater);
+        eventList, getNumPhysicalOutputs(), getContext(), true, true, deflater);
     return eventList;
   }
 

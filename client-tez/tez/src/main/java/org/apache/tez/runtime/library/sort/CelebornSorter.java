@@ -20,7 +20,6 @@ package org.apache.tez.runtime.library.sort;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.celeborn.common.CelebornConf;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.tez.runtime.api.Event;
@@ -32,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.CelebornTezWriter;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 
 /** {@link CelebornSorter} is an {@link ExternalSorter} */
@@ -44,34 +44,36 @@ public class CelebornSorter extends ExternalSorter {
 
   /** Initialization */
   public CelebornSorter(
-          OutputContext outputContext,
-          Configuration conf,
-          int numOutputs,
-          int initialMemoryAvailable,
-          CelebornTezWriter celebornTezWriter, CelebornConf celebornConf)
+      OutputContext outputContext,
+      Configuration conf,
+      int numOutputs,
+      int initialMemoryAvailable,
+      CelebornTezWriter celebornTezWriter,
+      CelebornConf celebornConf)
       throws IOException {
     super(outputContext, conf, numOutputs, initialMemoryAvailable);
 
     this.numRecordsPerPartition = new int[numOutputs];
 
-
-    final float spillper = this.conf.getFloat(
+    final float spillper =
+        this.conf.getFloat(
             TezRuntimeConfiguration.TEZ_RUNTIME_SORT_SPILL_PERCENT,
             TezRuntimeConfiguration.TEZ_RUNTIME_SORT_SPILL_PERCENT_DEFAULT);
-    int pushSize = (int)(availableMemoryMb * spillper);
+    int pushSize = (int) (availableMemoryMb * spillper);
     LOG.info("availableMemoryMb is {}", availableMemoryMb);
-    RawComparator intermediateOutputKeyComparator = ConfigUtils.getIntermediateOutputKeyComparator(conf);
+    RawComparator intermediateOutputKeyComparator =
+        ConfigUtils.getIntermediateOutputKeyComparator(conf);
     celebornSortBasedPusher =
-            new CelebornSortBasedPusher<>(
-                    keySerializer,
-                    valSerializer,
-                    initialMemoryAvailable,
-                    pushSize,
-                    intermediateOutputKeyComparator,
-                    mapOutputByteCounter,
-                    mapOutputRecordCounter,
-                    celebornTezWriter,
-                    celebornConf);
+        new CelebornSortBasedPusher<>(
+            keySerializer,
+            valSerializer,
+            initialMemoryAvailable,
+            pushSize,
+            intermediateOutputKeyComparator,
+            mapOutputByteCounter,
+            mapOutputRecordCounter,
+            celebornTezWriter,
+            celebornConf);
     LOG.info("Initialized WriteBufferManager.");
   }
 

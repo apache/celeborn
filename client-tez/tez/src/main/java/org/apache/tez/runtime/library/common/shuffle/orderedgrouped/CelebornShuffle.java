@@ -1,12 +1,7 @@
 package org.apache.tez.runtime.library.common.shuffle.orderedgrouped;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.*;
+
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.List;
@@ -15,10 +10,19 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalDirAllocator;
 import org.apache.hadoop.io.compress.CompressionCodec;
+import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.tez.common.CallableWithNdc;
 import org.apache.tez.common.GuavaShim;
 import org.apache.tez.common.Preconditions;
@@ -40,13 +44,18 @@ import org.apache.tez.runtime.library.utils.CodecUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.tez.plugin.util.CelebornTezUtils;
+
 public class CelebornShuffle implements ExceptionReporter {
   private static final Logger LOG = LoggerFactory.getLogger(Shuffle.class);
 
   private final Configuration conf;
   private final InputContext inputContext;
 
-  private final CelebornEventHandlerOrderedGrouped eventHandler;
+  private final ShuffleInputEventHandlerOrderedGrouped eventHandler;
 
   final CelebornScheduler scheduler;
 
@@ -79,8 +88,9 @@ public class CelebornShuffle implements ExceptionReporter {
   public CelebornShuffle(
       InputContext inputContext,
       Configuration conf,
-      int numPhysicalInputs,
-      long initialMemoryAvailable)
+      int numInputs,
+      long initialMemoryAvailable,
+      ApplicationAttemptId applicationAttemptId)
       throws IOException {
     this.inputContext = inputContext;
     this.conf = conf;
@@ -136,13 +146,37 @@ public class CelebornShuffle implements ExceptionReporter {
             ifileReadAhead,
             ifileReadAheadLength);
 
-    scheduler = new CelebornScheduler(inputContext, this.conf, sourceDestNameTrimmed, merger, this);
+    String host = conf.get(TEZ_CELEBORN_LM_HOST);
+    int port = conf.getInt(TEZ_CELEBORN_LM_PORT, -1);
+    int shuffleId = conf.getInt(TEZ_SHUFFLE_ID, -1);
+    String appId = conf.get(TEZ_CELEBORN_APPLICATION_ID);
+    String user = conf.get(TEZ_CELEBORN_USER);
+    CelebornConf celebornConf = CelebornTezUtils.fromTezConfiguration(conf);
+    ShuffleClient shuffleClient =
+        ShuffleClient.get(appId, host, port, celebornConf, UserIdentifier.apply(user), null);
+
+    scheduler =
+        new CelebornScheduler(
+            this.inputContext,
+            this.conf,
+            numInputs,
+            this,
+            shuffleClient,
+            merger,
+            merger,
+            startTime,
+            codec,
+            ifileReadAhead,
+            ifileReadAheadLength,
+            sourceDestNameTrimmed,
+            shuffleId,
+            applicationAttemptId);
 
     this.mergePhaseTime = inputContext.getCounters().findCounter(TaskCounter.MERGE_PHASE_TIME);
     this.shufflePhaseTime = inputContext.getCounters().findCounter(TaskCounter.SHUFFLE_PHASE_TIME);
 
     eventHandler =
-        new CelebornEventHandlerOrderedGrouped(
+        new ShuffleInputEventHandlerOrderedGrouped(
             inputContext, scheduler, ShuffleUtils.isTezShuffleHandler(conf));
 
     ExecutorService rawExecutor =
@@ -205,8 +239,13 @@ public class CelebornShuffle implements ExceptionReporter {
   public synchronized void reportException(Throwable t) {
     // RunShuffleCallable onFailure deals with ignoring errors on shutdown.
     if (throwable.get() == null) {
-      LOG.info(sourceDestNameTrimmed + ": " + "Setting throwable in reportException with message [" + t.getMessage() +
-              "] from thread [" + Thread.currentThread().getName());
+      LOG.info(
+          sourceDestNameTrimmed
+              + ": "
+              + "Setting throwable in reportException with message ["
+              + t.getMessage()
+              + "] from thread ["
+              + Thread.currentThread().getName());
       throwable.set(t);
       throwingThreadName = Thread.currentThread().getName();
       // Notify the scheduler so that the reporting thread finds the
@@ -220,8 +259,10 @@ public class CelebornShuffle implements ExceptionReporter {
       cleanupShuffleScheduler();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      LOG.info(sourceDestNameTrimmed + ": " +
-              "Interrupted while attempting to close the scheduler during cleanup. Ignoring");
+      LOG.info(
+          sourceDestNameTrimmed
+              + ": "
+              + "Interrupted while attempting to close the scheduler during cleanup. Ignoring");
     }
   }
 

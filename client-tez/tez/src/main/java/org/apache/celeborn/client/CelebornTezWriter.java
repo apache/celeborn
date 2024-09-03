@@ -4,12 +4,12 @@ import java.io.IOException;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.apache.tez.runtime.library.api.IOInterruptedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.write.DataPusher;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class CelebornTezWriter {
   private final Logger logger = LoggerFactory.getLogger(CelebornTezWriter.class);
@@ -76,26 +76,26 @@ public class CelebornTezWriter {
   }
 
   public void mergeData(int partitionId, byte[] dataBuf, int size) throws IOException {
-      int bytesWritten =
-              shuffleClient.mergeData(
-                      shuffleId,
-                      mapId,
-                      attemptNumber,
-                      partitionId,
-                      dataBuf,
-                      0,
-                      size,
-                      numMappers,
-                      numPartitions);
+    int bytesWritten =
+        shuffleClient.mergeData(
+            shuffleId,
+            mapId,
+            attemptNumber,
+            partitionId,
+            dataBuf,
+            0,
+            size,
+            numMappers,
+            numPartitions);
   }
 
   public void close() throws IOException {
     logger.info(
-            "Call mapper end shuffleId:{} mapId:{} attemptId:{} numMappers:{}",
-            0,
-            mapId,
-            attemptNumber,
-            numMappers);
+        "Call mapper end shuffleId:{} mapId:{} attemptId:{} numMappers:{}",
+        0,
+        mapId,
+        attemptNumber,
+        numMappers);
     try {
       dataPusher.waitOnTermination();
       shuffleClient.pushMergedData(shuffleId, mapId, attemptNumber);

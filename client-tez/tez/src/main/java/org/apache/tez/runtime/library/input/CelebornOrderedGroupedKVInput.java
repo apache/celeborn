@@ -14,7 +14,6 @@
  */
 package org.apache.tez.runtime.library.input;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
@@ -24,10 +23,13 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.RawComparator;
+import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.tez.common.Preconditions;
 import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.common.TezUtils;
@@ -72,6 +74,7 @@ public class CelebornOrderedGroupedKVInput extends AbstractLogicalInput {
   protected TezRawKeyValueIterator rawIter = null;
   protected Configuration conf;
   protected CelebornShuffle shuffle;
+  private ApplicationAttemptId applicationAttemptId;
   protected MemoryUpdateCallbackHandler memoryUpdateCallbackHandler;
   private final BlockingQueue<Event> pendingEvents = new LinkedBlockingQueue<Event>();
   private long firstEventReceivedTime = -1;
@@ -113,6 +116,9 @@ public class CelebornOrderedGroupedKVInput extends AbstractLogicalInput {
         getContext().getCounters().findCounter(TaskCounter.REDUCE_INPUT_RECORDS);
     this.shuffledInputs = getContext().getCounters().findCounter(TaskCounter.NUM_SHUFFLED_INPUTS);
     this.conf.setStrings(TezRuntimeFrameworkConfigs.LOCAL_DIRS, getContext().getWorkDirs());
+    this.applicationAttemptId =
+        ApplicationAttemptId.newInstance(
+            getContext().getApplicationId(), getContext().getDAGAttemptNumber());
     return Collections.emptyList();
   }
 
@@ -144,7 +150,8 @@ public class CelebornOrderedGroupedKVInput extends AbstractLogicalInput {
         getContext(),
         conf,
         getNumPhysicalInputs(),
-        memoryUpdateCallbackHandler.getMemoryAssigned());
+        memoryUpdateCallbackHandler.getMemoryAssigned(),
+        applicationAttemptId);
   }
 
   /**
