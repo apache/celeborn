@@ -442,51 +442,51 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertNotNull(statusSystem);
 
     WorkerInfo workerInfo1 =
-            new WorkerInfo(
-                    HOSTNAME1,
-                    RPCPORT1,
-                    PUSHPORT1,
-                    FETCHPORT1,
-                    REPLICATEPORT1,
-                    INTERNALPORT1,
-                    disks1,
-                    userResourceConsumption1);
+        new WorkerInfo(
+            HOSTNAME1,
+            RPCPORT1,
+            PUSHPORT1,
+            FETCHPORT1,
+            REPLICATEPORT1,
+            INTERNALPORT1,
+            disks1,
+            userResourceConsumption1);
     WorkerInfo workerInfo2 =
-            new WorkerInfo(
-                    HOSTNAME2,
-                    RPCPORT2,
-                    PUSHPORT2,
-                    FETCHPORT2,
-                    REPLICATEPORT2,
-                    INTERNALPORT2,
-                    disks2,
-                    userResourceConsumption2);
+        new WorkerInfo(
+            HOSTNAME2,
+            RPCPORT2,
+            PUSHPORT2,
+            FETCHPORT2,
+            REPLICATEPORT2,
+            INTERNALPORT2,
+            disks2,
+            userResourceConsumption2);
 
     statusSystem.handleRegisterWorker(
-            workerInfo1.host(),
-            workerInfo1.rpcPort(),
-            workerInfo1.pushPort(),
-            workerInfo1.fetchPort(),
-            workerInfo1.replicatePort(),
-            workerInfo1.internalPort(),
-            workerInfo1.networkLocation(),
-            workerInfo1.diskInfos(),
-            workerInfo1.userResourceConsumption(),
-            getNewReqeustId());
+        workerInfo1.host(),
+        workerInfo1.rpcPort(),
+        workerInfo1.pushPort(),
+        workerInfo1.fetchPort(),
+        workerInfo1.replicatePort(),
+        workerInfo1.internalPort(),
+        workerInfo1.networkLocation(),
+        workerInfo1.diskInfos(),
+        workerInfo1.userResourceConsumption(),
+        getNewReqeustId());
     statusSystem.handleRegisterWorker(
-            workerInfo2.host(),
-            workerInfo2.rpcPort(),
-            workerInfo2.pushPort(),
-            workerInfo2.fetchPort(),
-            workerInfo2.replicatePort(),
-            workerInfo2.internalPort(),
-            workerInfo2.networkLocation(),
-            workerInfo2.diskInfos(),
-            workerInfo2.userResourceConsumption(),
-            getNewReqeustId());
+        workerInfo2.host(),
+        workerInfo2.rpcPort(),
+        workerInfo2.pushPort(),
+        workerInfo2.fetchPort(),
+        workerInfo2.replicatePort(),
+        workerInfo2.internalPort(),
+        workerInfo2.networkLocation(),
+        workerInfo2.diskInfos(),
+        workerInfo2.userResourceConsumption(),
+        getNewReqeustId());
 
     statusSystem.handleWorkerExclude(
-            Collections.singletonList(workerInfo1), Collections.emptyList(), getNewReqeustId());
+        Collections.singletonList(workerInfo1), Collections.emptyList(), getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(1, STATUSSYSTEM1.manuallyExcludedWorkers.size());
@@ -497,7 +497,7 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
 
     statusSystem.handleWorkerExclude(
-            Collections.singletonList(workerInfo2), Collections.emptyList(), getNewReqeustId());
+        Collections.singletonList(workerInfo2), Collections.emptyList(), getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(2, STATUSSYSTEM1.manuallyExcludedWorkers.size());
@@ -509,7 +509,6 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM1.workers.size());
     Assert.assertEquals(2, STATUSSYSTEM2.workers.size());
     Assert.assertEquals(2, STATUSSYSTEM3.workers.size());
-
   }
 
   @Test

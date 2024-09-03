@@ -382,9 +382,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
               .collect(Collectors.toSet()));
 
       availableWorkers.addAll(
-              snapshotMetaInfo.getAvailableWorkersList().stream()
-                      .map(PbSerDeUtils::fromPbWorkerInfo)
-                      .collect(Collectors.toSet()));
+          snapshotMetaInfo.getAvailableWorkersList().stream()
+              .map(PbSerDeUtils::fromPbWorkerInfo)
+              .collect(Collectors.toSet()));
 
       decommissionWorkers.addAll(
           snapshotMetaInfo.getDecommissionWorkersList().stream()
