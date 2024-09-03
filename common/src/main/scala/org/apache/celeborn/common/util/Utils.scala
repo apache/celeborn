@@ -429,7 +429,7 @@ object Utils extends Logging {
   }
 
   private def getAdvertiseAddressForMaster(conf: CelebornConf) = {
-    if (conf.masterHost != "<localhost>") {
+    if (conf.masterHost.equals("localhost")) {
       conf.masterHost
     } else {
       getHostName(conf.advertisePreferIP)
