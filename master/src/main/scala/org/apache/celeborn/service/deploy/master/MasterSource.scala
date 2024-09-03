@@ -40,6 +40,8 @@ object MasterSource {
 
   val SHUTDOWN_WORKER_COUNT = "ShutdownWorkerCount"
 
+  val AVAILABLE_WORKER = "AvailableWorkerCount"
+
   val DECOMMISSION_WORKER_COUNT = "DecommissionWorkerCount"
 
   val REGISTERED_SHUFFLE_COUNT = "RegisteredShuffleCount"

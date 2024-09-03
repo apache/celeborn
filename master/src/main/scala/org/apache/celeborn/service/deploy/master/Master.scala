@@ -227,6 +227,11 @@ private[celeborn] class Master(
   masterSource.addGauge(MasterSource.EXCLUDED_WORKER_COUNT) { () =>
     statusSystem.excludedWorkers.size + statusSystem.manuallyExcludedWorkers.size
   }
+  masterSource.addGauge(MasterSource.AVAILABLE_WORKER) { () =>
+    statusSystem.workers.asScala.count { w =>
+      statusSystem.isWorkerAvailable(w)
+    }
+  }
   masterSource.addGauge(MasterSource.SHUTDOWN_WORKER_COUNT) { () =>
     statusSystem.shutdownWorkers.size
   }
