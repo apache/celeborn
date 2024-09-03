@@ -20,4 +20,5 @@ if [ -z "${CELEBORN_HOME}" ]; then
   export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
+. "${CELEBORN_HOME}/sbin/load-celeborn-env.sh"
 exec "${CELEBORN_HOME}"/bin/celeborn-class org.apache.celeborn.cli.CelebornCli "$@"
