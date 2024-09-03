@@ -179,6 +179,8 @@ These metrics are exposed by Celeborn worker.
     | FetchChunkFailCount                         | The count of fetching chunk failed in current worker.                                                           |
     | PrimaryPushDataTime                         | The time for a worker to handle a pushData RPC sent from a celeborn client.                                     |
     | ReplicaPushDataTime                         | The time for a worker to handle a pushData RPC sent from a celeborn worker by replicating.                      |
+    | PrimarySegmentStartTime                     | The time for a worker to handle a segmentStart RPC sent from a celeborn client.                                 |
+    | ReplicaSegmentStartTime                     | The time for a worker to handle a segmentStart RPC sent from a celeborn worker by replicating.                  |
     | WriteDataHardSplitCount                     | The count of writing PushData or PushMergedData to HARD_SPLIT partition in current worker.                      |
     | WriteDataSuccessCount                       | The count of writing PushData or PushMergedData succeed in current worker.                                      |
     | WriteDataFailCount                          | The count of writing PushData or PushMergedData failed in current worker.                                       |
@@ -191,6 +193,7 @@ These metrics are exposed by Celeborn worker.
     | PushDataHandshakeFailCount                  | The count of PushDataHandshake failed in current worker.                                                        |
     | RegionStartFailCount                        | The count of RegionStart failed in current worker.                                                              |
     | RegionFinishFailCount                       | The count of RegionFinish failed in current worker.                                                             |
+    | SegmentStartFailCount                       | The count of segmentStart failed in current worker.                                                             |
     | PrimaryPushDataHandshakeTime                | PrimaryPushDataHandshake means handle PushData of primary partition location.                                   |
     | ReplicaPushDataHandshakeTime                | ReplicaPushDataHandshake means handle PushData of replica partition location.                                   |
     | PrimaryRegionStartTime                      | PrimaryRegionStart means handle RegionStart of primary partition location.                                      |

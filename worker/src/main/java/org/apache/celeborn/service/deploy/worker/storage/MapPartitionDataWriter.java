@@ -40,7 +40,7 @@ import org.apache.celeborn.common.util.Utils;
 /*
  * map partition file writer, it will create index for each partition
  */
-public final class MapPartitionDataWriter extends PartitionDataWriter {
+public class MapPartitionDataWriter extends PartitionDataWriter {
   private static final Logger logger = LoggerFactory.getLogger(MapPartitionDataWriter.class);
 
   private int numSubpartitions;
@@ -115,7 +115,7 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
     long length = data.readableBytes();
     totalBytes += length;
     numSubpartitionBytes[partitionId] += length;
-    super.write(data);
+    writeDataToFile(data);
     isRegionFinished = false;
   }
 
@@ -186,6 +186,10 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
   }
 
   public void regionFinish() throws IOException {
+    // TODO: When region is finished, flush the data to be ready for the reading, in scenarios that
+    // the upstream task writes and the downstream task reads simultaneously, such as flink hybrid
+    // shuffle
+
     logger.debug("FileWriter:{} regionFinish", diskFileInfo.getFilePath());
     if (regionStartingOffset == totalBytes) {
       return;
@@ -232,6 +236,10 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
     isRegionFinished = true;
   }
 
+  protected void writeDataToFile(ByteBuf data) throws IOException {
+    super.write(data);
+  }
+
   private synchronized void destroyIndex() {
     try {
       if (indexChannel != null) {
@@ -246,7 +254,10 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
   }
 
   @SuppressWarnings("ByteBufferBackingArray")
-  private void flushIndex() throws IOException {
+  protected void flushIndex() throws IOException {
+    // TODO: force flush the index file channel in scenarios which the upstream task writes and
+    // downstream task reads simultaneously, such as flink hybrid shuffle
+
     if (indexBuffer != null) {
       logger.debug("flushIndex start:{}", diskFileInfo.getIndexPath());
       long startTime = System.currentTimeMillis();
@@ -275,7 +286,11 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
     }
   }
 
-  private ByteBuffer allocateIndexBuffer(int numSubpartitions) {
+  protected MapFileMeta getFileMeta() {
+    return (MapFileMeta) diskFileInfo.getFileMeta();
+  }
+
+  protected ByteBuffer allocateIndexBuffer(int numSubpartitions) {
 
     // the returned buffer size is no smaller than 4096 bytes to improve disk IO performance
     int minBufferSize = 4096;
@@ -312,5 +327,29 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
       times += 1;
     }
     return false;
+  }
+
+  public int getCurrentSubpartition() {
+    return currentSubpartition;
+  }
+
+  public long[] getNumSubpartitionBytes() {
+    return numSubpartitionBytes;
+  }
+
+  public long getTotalBytes() {
+    return totalBytes;
+  }
+
+  public void setCurrentSubpartition(int currentSubpartition) {
+    this.currentSubpartition = currentSubpartition;
+  }
+
+  public void setTotalBytes(long totalBytes) {
+    this.totalBytes = totalBytes;
+  }
+
+  public void setRegionFinished(boolean regionFinished) {
+    isRegionFinished = regionFinished;
   }
 }

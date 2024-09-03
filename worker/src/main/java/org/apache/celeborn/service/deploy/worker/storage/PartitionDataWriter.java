@@ -214,6 +214,9 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   @VisibleForTesting
   public void flush(boolean finalFlush, boolean fromEvict) throws IOException {
+    // TODO: force flush buffer in scenarios where the upstream task writes and the downstream task
+    // reads simultaneously, such as flink hybrid shuffle.
+
     // flushBuffer == null here means this writer is already closed
     if (flushBuffer != null) {
       int numBytes = flushBuffer.readableBytes();
@@ -415,6 +418,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   public boolean isClosed() {
     return closed;
   }
+
+  public void setWriterClosed() {}
 
   protected synchronized long close(
       RunnableWithIOException tryClose,
