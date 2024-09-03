@@ -1645,7 +1645,7 @@ class CelebornScheduler extends ShuffleScheduler {
       int partitionId = mapHost.getPartitionId();
       CelebornTezReader reader =
           new CelebornTezReader(
-              shuffleClient, partitionId, shuffleId, applicationAttemptId.getAttemptId());
+              shuffleClient, shuffleId, partitionId, applicationAttemptId.getAttemptId());
       CelebornTezShuffleDataFetcher fetcher =
           new CelebornTezShuffleDataFetcher(
               partitionIdToSuccessMapTaskAttempts.get(mapHost.getPartitionId()).iterator().next(),
