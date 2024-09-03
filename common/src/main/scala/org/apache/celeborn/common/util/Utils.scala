@@ -429,18 +429,14 @@ object Utils extends Logging {
   }
 
   private def getAdvertiseAddressForMaster(conf: CelebornConf) = {
-    if (conf.masterHost.equals("localhost")) {
-      conf.masterHost
-    } else {
-      getHostName(conf.advertisePreferIP)
-    }
+    conf.advertiseAddressMasterHost
   }
 
   private def getAdvertiseAddressForWorker(conf: CelebornConf) = {
     getHostName(conf.advertisePreferIP)
   }
 
-  private def getHostName(preferIP: Boolean): String = customHostname.getOrElse {
+  def getHostName(preferIP: Boolean): String = customHostname.getOrElse {
     if (preferIP) {
       localIpAddress match {
         case ipv6Address: Inet6Address =>

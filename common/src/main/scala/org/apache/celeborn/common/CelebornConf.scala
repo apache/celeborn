@@ -677,6 +677,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def masterHost: String = get(MASTER_HOST).replace("<localhost>", Utils.localHostName(this))
 
+  def advertiseAddressMasterHost: String = get(MASTER_HOST)
+    .replace("<localhost>", Utils.getHostName(this.advertisePreferIP))
+
   def masterHttpHost: String =
     get(MASTER_HTTP_HOST).replace("<localhost>", Utils.localHostName(this))
 
