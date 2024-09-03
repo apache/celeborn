@@ -60,7 +60,7 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
       .ctxId(ctxId)
       .buildContext(true)
 
-    val openApi = setCelebornOpenAPIDefinition(ctx.read())
+    val openApi = setCelebornOpenAPIDefinition(ctx.read(), uriInfo.getBaseUri.toString)
 
     if (StringUtils.isNotBlank(tpe) && tpe.trim().equalsIgnoreCase("yaml")) {
       Response.status(Response.Status.OK)
@@ -81,9 +81,9 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
     }
   }
 
-  private def setCelebornOpenAPIDefinition(openApi: OpenAPI): OpenAPI = {
+  private def setCelebornOpenAPIDefinition(openApi: OpenAPI, requestBaseUrl: String): OpenAPI = {
     // TODO: to improve when https is enabled.
-    val apiUrl = s"http://${httpService.connectionUrl}/"
+    val apiUrls = List(requestBaseUrl, s"http://${httpService.connectionUrl}/").distinct
     openApi.info(
       new Info().title(
         s"Apache Celeborn REST API Documentation")
@@ -91,7 +91,7 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
         .license(
           new License().name("Apache License 2.0")
             .url("https://www.apache.org/licenses/LICENSE-2.0.txt")))
-      .servers(List(new Server().url(apiUrl)).asJava)
+      .servers(apiUrls.map(url => new Server().url(url)).asJava)
       .components(Option(openApi.getComponents).getOrElse(new Components())
         .addSecuritySchemes(
           "BasicAuth",
