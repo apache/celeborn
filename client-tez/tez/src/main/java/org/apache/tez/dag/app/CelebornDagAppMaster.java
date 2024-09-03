@@ -59,6 +59,7 @@ import org.apache.tez.dag.app.dag.DAGState;
 import org.apache.tez.dag.app.dag.impl.DAGImpl;
 import org.apache.tez.dag.app.dag.impl.Edge;
 import org.apache.tez.dag.library.vertexmanager.ShuffleVertexManager;
+import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.input.CelebornConcatenatedMergedKeyValueInput;
 import org.apache.tez.runtime.library.input.CelebornConcatenatedMergedKeyValuesInput;
 import org.apache.tez.runtime.library.input.CelebornOrderedGroupedInputLegacy;
@@ -205,7 +206,7 @@ public class CelebornDagAppMaster extends DAGAppMaster {
                   outputClassNameField.setAccessible(true);
                   String outputClassName = (String) outputClassNameField.get(outputDescriptor);
                   outputClassNameField.set(
-                      outputDescriptor, getNewOutputClassName(dataMovementType, outputClassName));
+                      outputDescriptor, getNewOutputClassName(outputClassName));
 
                   // rename input class name
                   InputDescriptor inputDescriptor = edge.getEdgeProperty().getEdgeDestination();
@@ -213,8 +214,7 @@ public class CelebornDagAppMaster extends DAGAppMaster {
                       outputDescriptor.getClass().getSuperclass().getDeclaredField("className");
                   inputClassNameField.setAccessible(true);
                   String inputClassName = (String) outputClassNameField.get(inputDescriptor);
-                  outputClassNameField.set(
-                      inputDescriptor, getNewInputClassName(dataMovementType, inputClassName));
+                  outputClassNameField.set(inputDescriptor, getNewInputClassName(inputClassName));
                 }
               } catch (IOException | IllegalAccessException | NoSuchFieldException e) {
                 Logger.error("Reconfigure failed after dag was inited, caused by {}", e);
@@ -241,8 +241,7 @@ public class CelebornDagAppMaster extends DAGAppMaster {
   }
 
   // tez-runtime-library may be shaded, so we need to use reflection to get the class name
-  private static String getNewOutputClassName(
-      EdgeProperty.DataMovementType movementType, String oldClassName) {
+  private static String getNewOutputClassName(String oldClassName) {
     if (OrderedPartitionedKVOutput.class.getName().contains(oldClassName)) {
       Logger.info(
           "Output class name will transient from {} to {}",
@@ -267,8 +266,7 @@ public class CelebornDagAppMaster extends DAGAppMaster {
     }
   }
 
-  private static String getNewInputClassName(
-      EdgeProperty.DataMovementType movementType, String oldClassName) {
+  private static String getNewInputClassName(String oldClassName) {
     if (OrderedGroupedKVInput.class.getName().contains(oldClassName)) {
       Logger.info(
           "Input class name will transient from {} to {}",
@@ -392,6 +390,12 @@ public class CelebornDagAppMaster extends DAGAppMaster {
       // disable tez slow start
       conf.setFloat(ShuffleVertexManager.TEZ_SHUFFLE_VERTEX_MANAGER_MIN_SRC_FRACTION, 1.0f);
       conf.setFloat(ShuffleVertexManager.TEZ_SHUFFLE_VERTEX_MANAGER_MAX_SRC_FRACTION, 1.0f);
+      // disable transfer shuffle from event
+      conf.setBoolean(TezRuntimeConfiguration.TEZ_RUNTIME_TRANSFER_DATA_VIA_EVENTS_ENABLED, false);
+      conf.setBoolean(
+          TezRuntimeConfiguration.TEZ_RUNTIME_TRANSFER_DATA_VIA_EVENTS_SUPPORT_IN_MEM_FILE, false);
+      // disable pipelined shuffle
+      conf.setBoolean(TezRuntimeConfiguration.TEZ_RUNTIME_PIPELINED_SHUFFLE_ENABLED, false);
       // disable reschedule task on unhealthy nodes because shuffle data are stored in Celeborn
       conf.setBoolean(TEZ_AM_NODE_UNHEALTHY_RESCHEDULE_TASKS, false);
 
