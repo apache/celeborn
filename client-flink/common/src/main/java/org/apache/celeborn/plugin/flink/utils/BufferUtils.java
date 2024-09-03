@@ -59,6 +59,26 @@ public class BufferUtils {
     buffer.setSize(dataLength + HEADER_LENGTH);
   }
 
+  /**
+   * It is utilized in Hybrid Shuffle integration strategy, in this case the buffer containing data
+   * only. Copies the data of the compressed buffer to the origin buffer.
+   */
+  public static void setCompressedDataWithoutHeader(Buffer buffer, Buffer compressedBuffer) {
+    checkArgument(buffer != null, "Must be not null.");
+    checkArgument(buffer.getReaderIndex() == 0, "Illegal reader index.");
+
+    boolean isCompressed = compressedBuffer != null && compressedBuffer.isCompressed();
+    int dataLength = isCompressed ? compressedBuffer.readableBytes() : buffer.readableBytes();
+    ByteBuf byteBuf = buffer.asByteBuf();
+    if (isCompressed) {
+      byteBuf.writerIndex(0);
+      byteBuf.writeBytes(compressedBuffer.asByteBuf());
+      // set the compression flag here, as we need it when writing the sub-header of this buffer
+      buffer.setCompressed(true);
+    }
+    buffer.setSize(dataLength);
+  }
+
   public static void setBufferHeader(
       ByteBuf byteBuf, Buffer.DataType dataType, boolean isCompressed, int dataLength) {
     byteBuf.writerIndex(0);
