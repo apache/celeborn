@@ -119,9 +119,8 @@ public class CelebornUnorderedPartitionedKVOutput extends AbstractLogicalOutput 
       this.kvWriter =
           new CelebornUnorderedPartitionedKVWriter(
               getContext(),
-              conf,
-              1,
-              numMapppers,
+              conf, numOutputs,
+                  numOutputs,
               memoryUpdateCallbackHandler.getMemoryAssigned(),
               shuffleClient,
               shuffleId,
