@@ -25,12 +25,12 @@ trait CliLogging {
     Console.println(msg)
   }
 
-  def logInfo(msg: String): Unit = {
-    Console.println(s"${RESET}${GREEN}${msg}")
-  }
-
   def log(obj: Any): Unit = {
     Console.println(obj)
+  }
+
+  def logInfo(msg: String): Unit = {
+    Console.println(s"${RESET}${GREEN}${msg}")
   }
 
   def logError(msg: String): Unit = {

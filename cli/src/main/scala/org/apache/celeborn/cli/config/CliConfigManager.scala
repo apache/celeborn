@@ -27,8 +27,11 @@ import org.apache.celeborn.common.util.Utils
 case class CliConfig(cliConfigData: Map[String, String])
 
 object CliConfigManager {
-  val cliConfigFilePath: String =
-    s"${sys.env.getOrElse("EXAMPLE_CONF_DIR", sys.env("HOME"))}/celeborn-cli.conf"
+  val cliConfigFilePath: String = {
+    val basePath = sys.env.getOrElse("CELEBORN_HOME", sys.env("HOME"))
+    if (basePath == sys.env("HOME")) s"$basePath/.celeborn-cli.conf"
+    else s"$basePath/celeborn-cli.conf"
+  }
 }
 
 class CliConfigManager extends CliLogging {
