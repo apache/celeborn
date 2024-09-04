@@ -18,8 +18,8 @@
 package org.apache.tez.runtime.library.common.shuffle.impl;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.tez.common.CallableWithNdc;
 import org.apache.tez.runtime.library.common.InputAttemptIdentifier;
 import org.apache.tez.runtime.library.common.shuffle.FetchResult;
@@ -34,40 +34,106 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.exception.CelebornIOException;
 
 public class CelebornFetcher extends CallableWithNdc<FetchResult> {
-
   private static final Logger LOG = LoggerFactory.getLogger(CelebornFetcher.class);
-
   private final FetcherCallback fetcherCallback;
-  private final FetchedInputAllocator inputManager;
-  private static int uniqueMapId = 0;
-  CelebornTezReader reader;
-  private final AtomicBoolean isShutDown = new AtomicBoolean(false);
-  final int partition;
 
-  public CelebornFetcher(
-      FetchedInputAllocator inputManager,
+  private final FetchedInputAllocator inputManager;
+
+  private long copyBlockCount = 0;
+
+  private volatile boolean stopped = false;
+
+  private final CelebornTezReader celebornTezReader;
+  private long readTime = 0;
+  private long decompressTime = 0;
+  private long serializeTime = 0;
+  private long waitTime = 0;
+  private long copyTime = 0; // the sum of readTime + decompressTime + serializeTime + waitTime
+  private static int uniqueMapId = 0;
+
+  private boolean hasPendingData = false;
+  private long startWait;
+  private int waitCount = 0;
+  private byte[] shuffleData = null;
+
+  CelebornFetcher(
       FetcherCallback fetcherCallback,
-      CelebornTezReader reader,
-      int partition) {
+      FetchedInputAllocator inputManager,
+      CelebornTezReader celebornTezReader) {
     this.fetcherCallback = fetcherCallback;
     this.inputManager = inputManager;
-    this.partition = partition;
-    this.reader = reader;
+    this.celebornTezReader = celebornTezReader;
   }
 
-  public void fetchAllBlocksInOnPartition() throws IOException {
-    try {
-      byte[] data = reader.fetchData();
-      long blockStartFetchTime = System.currentTimeMillis();
-      issueMapOutputMerge(data.length, blockStartFetchTime, data);
-    } catch (Exception e) {
-      LOG.error("Failed to fetchAllCelebornBlocks.", e);
-      throw e;
+  public void fetchAllRssBlocks() throws IOException {
+    while (!stopped) {
+      try {
+        copyFromRssServer();
+      } catch (Exception e) {
+        LOG.error("Failed to fetchAllRssBlocks.", e);
+        throw e;
+      }
     }
   }
 
-  private boolean issueMapOutputMerge(int compressedLength, long blockStartFetch, byte[] data)
-      throws IOException {
+  @VisibleForTesting
+  public void copyFromRssServer() throws IOException {
+    long blockStartFetch = 0;
+    // fetch a block
+    if (!hasPendingData) {
+      final long startFetch = System.currentTimeMillis();
+      blockStartFetch = System.currentTimeMillis();
+      shuffleData = celebornTezReader.getShuffleBlock();
+      long fetchDuration = System.currentTimeMillis() - startFetch;
+      readTime += fetchDuration;
+    }
+
+    if (shuffleData != null) {
+      // start to merge
+      final long startSerialization = System.currentTimeMillis();
+      if (issueMapOutputMerge(blockStartFetch)) {
+        long serializationDuration = System.currentTimeMillis() - startSerialization;
+        serializeTime += serializationDuration;
+        // if reserve successes, reset status for next fetch
+        if (hasPendingData) {
+          waitTime += System.currentTimeMillis() - startWait;
+        }
+        hasPendingData = false;
+        shuffleData = null;
+      } else {
+        LOG.info("UncompressedData is null");
+        // if reserve fail, return and wait
+        waitCount++;
+        startWait = System.currentTimeMillis();
+        return;
+      }
+
+      // update some status
+      copyBlockCount++;
+      copyTime = readTime + decompressTime + serializeTime + waitTime;
+    } else {
+      LOG.info("UncompressedData is null");
+      // finish reading data, close related reader and check data consistent
+      celebornTezReader.close();
+      LOG.info(
+          "Reduce task partition:"
+              + celebornTezReader.getPartitionId()
+              + " read block cnt: "
+              + copyBlockCount
+              + " cost "
+              + readTime
+              + " ms to fetch and "
+              + serializeTime
+              + " ms to serialize and "
+              + waitTime
+              + " ms to wait resource, total copy time: "
+              + copyTime);
+      LOG.info("Stop fetcher");
+      stopFetch();
+    }
+  }
+
+  private boolean issueMapOutputMerge(long blockStartFetch) throws IOException {
     // Allocate a MapOutput (either in-memory or on-disk) to put uncompressed block
     // In Rss, a MapOutput is sent as multiple blocks, so the reducer needs to
     // treat each "block" as a faked "mapout".
@@ -78,7 +144,8 @@ public class CelebornFetcher extends CallableWithNdc<FetchResult> {
 
     try {
       fetchedInput =
-          inputManager.allocate(compressedLength, compressedLength, uniqueInputAttemptIdentifier);
+          inputManager.allocate(
+              shuffleData.length, shuffleData.length, uniqueInputAttemptIdentifier);
     } catch (IOException ioe) {
       // kill this reduce attempt
       throw ioe;
@@ -86,20 +153,20 @@ public class CelebornFetcher extends CallableWithNdc<FetchResult> {
 
     // Allocated space and then write data to mapOutput
     try {
-      CelebornTezBypassWriter.write(fetchedInput, data);
+      CelebornTezBypassWriter.write(fetchedInput, shuffleData);
       // let the merger knows this block is ready for merging
       fetcherCallback.fetchSucceeded(
           null,
           uniqueInputAttemptIdentifier,
           fetchedInput,
-          compressedLength,
-          compressedLength,
+          shuffleData.length,
+          shuffleData.length,
           System.currentTimeMillis() - blockStartFetch);
     } catch (Throwable t) {
       LOG.error("Failed to write fetchedInput.", t);
       throw new CelebornIOException(
           "Partition: "
-              + partition
+              + celebornTezReader.getPartitionId()
               + " cannot write block to "
               + fetchedInput.getClass().getSimpleName()
               + " due to: "
@@ -112,21 +179,25 @@ public class CelebornFetcher extends CallableWithNdc<FetchResult> {
     return new InputAttemptIdentifier(uniqueMapId++, 0);
   }
 
+  private void stopFetch() {
+    stopped = true;
+  }
+
+  @VisibleForTesting
+  public int getRetryCount() {
+    return waitCount;
+  }
+
   @Override
   protected FetchResult callInternal() throws Exception {
-    reader.init();
-    if (!isShutDown.get()) {
-      fetchAllBlocksInOnPartition();
-      isShutDown.getAndSet(true);
-    }
+    celebornTezReader.init();
+    fetchAllRssBlocks();
     return null;
   }
 
-  public void close() throws IOException {
-    isShutDown.getAndSet(true);
-  }
+  public void shutdown() {}
 
-  public int getPartition() {
-    return partition;
+  public Integer getPartitionId() {
+    return celebornTezReader.getPartitionId();
   }
 }

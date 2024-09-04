@@ -34,7 +34,6 @@ public class CelebornTezReader {
   private int partitionId;
   private int attemptNumber;
   private ShuffleClient shuffleClient;
-  private volatile boolean stopped = false;
   private long inputShuffleSize;
   private CelebornInputStream celebornInputStream;
 
@@ -44,30 +43,6 @@ public class CelebornTezReader {
     this.partitionId = partitionId;
     this.attemptNumber = attemptNumber;
     this.shuffleId = shuffleId;
-  }
-
-  public byte[] fetchData() throws IOException {
-    MetricsCallback metricsCallback =
-        new MetricsCallback() {
-          @Override
-          public void incBytesRead(long bytesRead) {}
-
-          @Override
-          public void incReadTime(long time) {}
-        };
-    celebornInputStream =
-        shuffleClient.readPartition(
-            shuffleId, partitionId, attemptNumber, 0, Integer.MAX_VALUE, metricsCallback);
-
-    while (!stopped) {
-      try {
-        return getShuffleBlock();
-      } catch (Exception e) {
-        logger.error("Celeborn shuffle fetcher fetch data failed.", e);
-      } finally {
-      }
-    }
-    return null;
   }
 
   public void init() throws IOException {
@@ -89,7 +64,6 @@ public class CelebornTezReader {
     byte[] header = new byte[4];
     int count = celebornInputStream.read(header);
     if (count == -1) {
-      stopped = true;
       return null;
     }
     while (count != header.length) {
@@ -105,7 +79,6 @@ public class CelebornTezReader {
       count += celebornInputStream.read(shuffleData, count, blockLen - count);
       if (count == -1) {
         // read shuffle is done.
-        stopped = true;
         throw new CelebornIOException("Read mr shuffle failed.");
       }
     }
@@ -114,5 +87,9 @@ public class CelebornTezReader {
 
   public void close() throws IOException {
     celebornInputStream.close();
+  }
+
+  public int getPartitionId() {
+    return partitionId;
   }
 }

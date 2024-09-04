@@ -14,6 +14,8 @@
  */
 package org.apache.tez.runtime.library.input;
 
+import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.*;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
@@ -55,7 +57,11 @@ import org.apache.tez.runtime.library.utils.CodecUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornException;
+import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.tez.plugin.util.CelebornTezUtils;
 
 /**
  * {@link CelebornUnorderedKVInput} provides unordered key value input by bringing together
@@ -149,16 +155,27 @@ public class CelebornUnorderedKVInput extends AbstractLogicalInput {
               getContext().getTotalMemoryAvailableToTask(),
               memoryUpdateCallbackHandler.getMemoryAssigned());
 
+      String host = conf.get(TEZ_CELEBORN_LM_HOST);
+      int port = conf.getInt(TEZ_CELEBORN_LM_PORT, -1);
+      int shuffleId = conf.getInt(TEZ_SHUFFLE_ID, -1);
+      String appId = conf.get(TEZ_CELEBORN_APPLICATION_ID);
+      String user = conf.get(TEZ_CELEBORN_USER);
+      CelebornConf celebornConf = CelebornTezUtils.fromTezConfiguration(conf);
+      ShuffleClient shuffleClient =
+          ShuffleClient.get(appId, host, port, celebornConf, UserIdentifier.apply(user), null);
+
       this.shuffleManager =
           new CelebornShuffleManager(
               getContext(),
               conf,
               getNumPhysicalInputs(),
+              shuffleClient,
               ifileBufferSize,
               ifileReadAhead,
               ifileReadAheadLength,
               codec,
               inputManager,
+              shuffleId,
               applicationAttemptId);
 
       this.inputEventHandler =

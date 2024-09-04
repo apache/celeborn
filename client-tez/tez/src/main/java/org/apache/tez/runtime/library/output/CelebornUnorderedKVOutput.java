@@ -124,7 +124,7 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
             getContext(),
             conf,
             1,
-            numOutputs,
+            numMapppers,
             memoryUpdateCallbackHandler.getMemoryAssigned(),
             shuffleClient,
             shuffleId,
