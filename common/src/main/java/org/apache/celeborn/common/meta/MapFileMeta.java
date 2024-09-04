@@ -29,7 +29,7 @@ public class MapFileMeta implements FileMeta {
   private String mountPoint;
   private Map<Integer, Integer> subPartitionWritingSegmentId;
   private List<SegmentIndex> subPartitionSegmentIndexes;
-  private volatile boolean hasWriteFinished;
+  private volatile boolean isWriterClosed;
   private boolean isSegmentGranularityVisible;
 
   public MapFileMeta() {}
@@ -71,8 +71,8 @@ public class MapFileMeta implements FileMeta {
     this.mountPoint = mountPoint;
   }
 
-  public void setHasWriteFinished(boolean hasWriteFinished) {
-    this.hasWriteFinished = hasWriteFinished;
+  public void setIsWriterClosed(boolean isWriterClosed) {
+    this.isWriterClosed = isWriterClosed;
   }
 
   public void setSubPartitionWritingSegmentId(Map<Integer, Integer> subPartitionWritingSegmentId) {
@@ -99,8 +99,8 @@ public class MapFileMeta implements FileMeta {
     return subPartitionSegmentIndexes;
   }
 
-  public boolean hasWriteFinished() {
-    return hasWriteFinished;
+  public boolean isWriterClosed() {
+    return isWriterClosed;
   }
 
   public boolean isSegmentGranularityVisible() {

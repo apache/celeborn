@@ -61,6 +61,7 @@ import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
+import org.apache.celeborn.common.util.CollectionUtils;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
@@ -185,7 +186,9 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         // partition locations may be found empty, should retry until the upstream task started
         return CelebornBufferStream.empty();
       } else {
-        throw new PartitionUnRetryAbleException(partitionId + " may be lost.");
+        throw new PartitionUnRetryAbleException(
+            String.format(
+                "Shuffle data lost for shuffle %d partition %d.", shuffleId, partitionId));
       }
     } else {
       Arrays.sort(partitionLocations, Comparator.comparingInt(PartitionLocation::getEpoch));
@@ -216,14 +219,11 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       int shuffleId, int partitionId, boolean isSegmentGranularityVisible) throws IOException {
     ReduceFileGroups fileGroups =
         updateFileGroup(shuffleId, partitionId, isSegmentGranularityVisible);
-    if (fileGroups.partitionGroups == null
-        || fileGroups.partitionGroups.isEmpty()
+    if (CollectionUtils.isEmpty(fileGroups.partitionGroups)
         || !fileGroups.partitionGroups.containsKey(partitionId)) {
       return new PartitionLocation[0];
     } else {
-      PartitionLocation[] partitionLocations =
-          fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]);
-      return partitionLocations;
+      return fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]);
     }
   }
 
@@ -566,11 +566,13 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         () -> {
           final String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
           logger.debug(
-              "SegmentStart for shuffle {} map {} attemptId {} locationId {}.",
+              "SegmentStart for shuffle {} map {} attemptId {} locationId {} subpartitionId{} segmentId {}.",
               shuffleId,
               mapId,
               attemptId,
-              location);
+              location,
+              subPartitionId,
+              segmentId);
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
           client.sendRpcSync(
               new TransportMessage(

@@ -104,12 +104,14 @@ object PbSerDeUtils {
       case PartitionType.REDUCE =>
         new ReduceFileMeta(pbFileInfo.getChunkOffsetsList)
       case PartitionType.MAP =>
-        new MapFileMeta(
+        val fileMeta = new MapFileMeta(
           pbFileInfo.getBufferSize,
           pbFileInfo.getNumSubpartitions,
           pbFileInfo.getIsSegmentGranularityVisible,
           pbFileInfo.getPartitionWritingSegmentMap,
           fromPbSegmentIndexList(pbFileInfo.getSegmentIndexList))
+        // writer always closed as this is committed file info.
+        fileMeta.setIsWriterClosed(true)
       case PartitionType.MAPGROUP =>
         throw new NotImplementedError("Map group is not implemented")
     }
