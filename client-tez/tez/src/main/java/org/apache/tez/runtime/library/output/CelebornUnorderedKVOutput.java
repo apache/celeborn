@@ -25,7 +25,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.tez.common.Preconditions;
@@ -34,18 +33,17 @@ import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.common.TezUtils;
 import org.apache.tez.common.counters.TaskCounter;
 import org.apache.tez.dag.api.TezConfiguration;
-import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.runtime.api.AbstractLogicalOutput;
 import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.api.LogicalOutput;
 import org.apache.tez.runtime.api.OutputContext;
-import org.apache.tez.runtime.library.api.KeyValuesWriter;
-import org.apache.tez.runtime.library.api.Partitioner;
+import org.apache.tez.runtime.api.Writer;
 import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.common.MemoryUpdateCallbackHandler;
 import org.apache.tez.runtime.library.common.shuffle.ShuffleUtils;
 import org.apache.tez.runtime.library.common.writers.CelebornUnorderedPartitionedKVWriter;
+import org.apache.tez.runtime.library.common.writers.UnorderedPartitionedKVWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,21 +53,19 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.tez.plugin.util.CelebornTezUtils;
 
 /**
- * {@link CelebornUnorderedKVOutput} is a {@link LogicalOutput} that writes key value data without
- * applying any ordering or grouping constraints. This can be used to write raw key value data as
- * is.
+ * {@link UnorderedPartitionedKVOutput} is a {@link LogicalOutput} which can be used to write
+ * Key-Value pairs. The key-value pairs are written to the correct partition based on the configured
+ * Partitioner.
  */
-// broad cast
 @Public
 public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
 
-  private static final Logger LOG = LoggerFactory.getLogger(CelebornUnorderedKVOutput.class);
-
-  @VisibleForTesting CelebornUnorderedPartitionedKVWriter kvWriter;
+  private static final Logger LOG =
+      LoggerFactory.getLogger(CelebornUnorderedPartitionedKVOutput.class);
 
   @VisibleForTesting Configuration conf;
-
   private MemoryUpdateCallbackHandler memoryUpdateCallbackHandler;
+  private CelebornUnorderedPartitionedKVWriter kvWriter;
   private final AtomicBoolean isStarted = new AtomicBoolean(false);
 
   private static int mapId;
@@ -96,42 +92,21 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
   public synchronized List<Event> initialize() throws Exception {
     this.conf = TezUtils.createConfFromBaseConfAndPayload(getContext());
     this.conf.setStrings(TezRuntimeFrameworkConfigs.LOCAL_DIRS, getContext().getWorkDirs());
-
+    this.conf.setInt(
+        TezRuntimeFrameworkConfigs.TEZ_RUNTIME_NUM_EXPECTED_PARTITIONS, getNumPhysicalOutputs());
     this.conf.set(
-        TezRuntimeConfiguration.TEZ_RUNTIME_PARTITIONER_CLASS, CustomPartitioner.class.getName());
-
+        TezRuntimeConfiguration.TEZ_RUNTIME_PARTITIONER_CLASS,
+        UnorderedKVOutput.CustomPartitioner.class.getName());
     this.memoryUpdateCallbackHandler = new MemoryUpdateCallbackHandler();
-
-    boolean pipelinedShuffle =
-        this.conf.getBoolean(
-            TezRuntimeConfiguration.TEZ_RUNTIME_PIPELINED_SHUFFLE_ENABLED,
-            TezRuntimeConfiguration.TEZ_RUNTIME_PIPELINED_SHUFFLE_ENABLED_DEFAULT);
-
-    Preconditions.checkArgument(
-        !pipelinedShuffle, "Tez on Celeborn can not run on pipelined shuffle mode");
-    getContext().requestInitialMemory(0, memoryUpdateCallbackHandler);
-
+    getContext()
+        .requestInitialMemory(
+            UnorderedPartitionedKVWriter.getInitialMemoryRequirement(
+                conf, getContext().getTotalMemoryAvailableToTask()),
+            memoryUpdateCallbackHandler);
     this.host = this.conf.get(TEZ_CELEBORN_LM_HOST);
     this.port = this.conf.getInt(TEZ_CELEBORN_LM_PORT, -1);
     this.shuffleId = this.conf.getInt(TEZ_SHUFFLE_ID, -1);
     this.appId = this.conf.get(TEZ_CELEBORN_APPLICATION_ID);
-    String user = this.conf.get(TEZ_CELEBORN_USER);
-    CelebornConf celebornConf = CelebornTezUtils.fromTezConfiguration(conf);
-    ShuffleClient shuffleClient =
-        ShuffleClient.get(appId, host, port, celebornConf, UserIdentifier.apply(user));
-    this.kvWriter =
-        new CelebornUnorderedPartitionedKVWriter(
-            getContext(),
-            conf,
-            1,
-            numMapppers,
-            memoryUpdateCallbackHandler.getMemoryAssigned(),
-            shuffleClient,
-            shuffleId,
-            mapId,
-            attemptId,
-            numMapppers,
-            celebornConf);
 
     return Collections.emptyList();
   }
@@ -140,25 +115,35 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
   public synchronized void start() throws Exception {
     if (!isStarted.get()) {
       memoryUpdateCallbackHandler.validateUpdateReceived();
-      // This would have just a single partition
+      CelebornConf celebornConf = CelebornTezUtils.fromTezConfiguration(conf);
+      String user = this.conf.get(TEZ_CELEBORN_USER);
+      ShuffleClient shuffleClient =
+          ShuffleClient.get(appId, host, port, celebornConf, UserIdentifier.apply(user));
+      this.kvWriter =
+          new CelebornUnorderedPartitionedKVWriter(
+              getContext(),
+              conf,
+              numOutputs,
+              numOutputs,
+              memoryUpdateCallbackHandler.getMemoryAssigned(),
+              shuffleClient,
+              shuffleId,
+              mapId,
+              attemptId,
+              numMapppers,
+              celebornConf);
       isStarted.set(true);
-      LOG.info(
-          getContext().getInputOutputVertexNames()
-              + " started. MemoryAssigned="
-              + memoryUpdateCallbackHandler.getMemoryAssigned());
     }
   }
 
   @Override
-  public synchronized KeyValuesWriter getWriter() throws Exception {
-    // Eventually, disallow multiple invocations.
+  public synchronized Writer getWriter() throws Exception {
+    Preconditions.checkState(isStarted.get(), "Cannot get writer before starting the Output");
     return kvWriter;
   }
 
   @Override
-  public synchronized void handleEvents(List<Event> outputEvents) {
-    throw new TezUncheckedException("Not expecting any events");
-  }
+  public void handleEvents(List<Event> outputEvents) {}
 
   @Override
   public synchronized List<Event> close() throws Exception {
@@ -178,7 +163,7 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
           getNumPhysicalOutputs(),
           getContext(),
           false,
-          false,
+          true,
           TezCommonUtils.newBestCompressionDeflater());
     }
 
@@ -193,20 +178,16 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
     return returnEvents;
   }
 
-  @VisibleForTesting
-  @Private
-  String getHost() {
-    return getContext().getExecutionContext().getHostName();
-  }
-
   private static final Set<String> confKeys = new HashSet<String>();
 
   static {
     confKeys.add(TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD);
     confKeys.add(TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_BYTES);
     confKeys.add(TezRuntimeConfiguration.TEZ_RUNTIME_IO_FILE_BUFFER_SIZE);
+    confKeys.add(TezRuntimeConfiguration.TEZ_RUNTIME_INDEX_CACHE_MEMORY_LIMIT_BYTES);
     confKeys.add(TezRuntimeConfiguration.TEZ_RUNTIME_UNORDERED_OUTPUT_BUFFER_SIZE_MB);
     confKeys.add(TezRuntimeConfiguration.TEZ_RUNTIME_UNORDERED_OUTPUT_MAX_PER_BUFFER_SIZE_BYTES);
+    confKeys.add(TezRuntimeConfiguration.TEZ_RUNTIME_PARTITIONER_CLASS);
     confKeys.add(TezRuntimeConfiguration.TEZ_RUNTIME_KEY_CLASS);
     confKeys.add(TezRuntimeConfiguration.TEZ_RUNTIME_VALUE_CLASS);
     confKeys.add(TezRuntimeConfiguration.TEZ_RUNTIME_COMPRESS);
@@ -225,6 +206,8 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
     confKeys.add(TezRuntimeConfiguration.TEZ_RUNTIME_CLEANUP_FILES_ON_INTERRUPT);
     confKeys.add(TezRuntimeConfiguration.TEZ_RUNTIME_REPORT_PARTITION_STATS);
     confKeys.add(TezConfiguration.TEZ_AM_SHUFFLE_AUXILIARY_SERVICE_ID);
+    confKeys.add(
+        TezRuntimeConfiguration.TEZ_RUNTIME_UNORDERED_PARTITIONED_KVWRITER_BUFFER_MERGE_PERCENT);
   }
 
   // TODO Maybe add helper methods to extract keys
@@ -233,14 +216,5 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
   @InterfaceAudience.Private
   public static Set<String> getConfigurationKeySet() {
     return Collections.unmodifiableSet(confKeys);
-  }
-
-  @Private
-  public static class CustomPartitioner implements Partitioner {
-
-    @Override
-    public int getPartition(Object key, Object value, int numPartitions) {
-      return mapId;
-    }
   }
 }

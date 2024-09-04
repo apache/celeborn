@@ -59,7 +59,7 @@ public class BroadcastAndOneToOneExample extends Configured implements Tool {
     public void run() throws Exception {
       Preconditions.checkArgument(getOutputs().size() == 1);
       CelebornUnorderedKVOutput output = (CelebornUnorderedKVOutput) getOutputs().values().iterator().next();
-      KeyValueWriter kvWriter = output.getWriter();
+      KeyValueWriter kvWriter = (KeyValueWriter) output.getWriter();
       kvWriter.write(word, new IntWritable(getContext().getTaskIndex()));
       ByteBuffer userPayload =
           getContext().getUserPayload() == null ? null : getContext().getUserPayload().getPayload();
