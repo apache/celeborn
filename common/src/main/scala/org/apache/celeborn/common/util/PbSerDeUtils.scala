@@ -112,6 +112,7 @@ object PbSerDeUtils {
           fromPbSegmentIndexList(pbFileInfo.getSegmentIndexList))
         // writer always closed as this is committed file info.
         fileMeta.setIsWriterClosed(true)
+        fileMeta
       case PartitionType.MAPGROUP =>
         throw new NotImplementedError("Map group is not implemented")
     }
