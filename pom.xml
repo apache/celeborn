@@ -70,7 +70,7 @@
     <spark.version>3.3.4</spark.version>
 
     <!-- use hadoop-3 as default  -->
-    <hadoop.version>3.3.1</hadoop.version>
+    <hadoop.version>3.3.6</hadoop.version>
     <!--
     If you change codahale.metrics.version, you also need to change
     the link to metrics.dropwizard.io in docs/monitoring.md.

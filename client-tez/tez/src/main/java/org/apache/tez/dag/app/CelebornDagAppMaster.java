@@ -28,8 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.tez.dag.history.utils.DAGUtils;
-import org.codehaus.jettison.json.JSONException;
 import scala.Tuple2;
 
 import org.apache.commons.cli.CommandLine;
@@ -60,6 +58,7 @@ import org.apache.tez.dag.app.dag.DAG;
 import org.apache.tez.dag.app.dag.DAGState;
 import org.apache.tez.dag.app.dag.impl.DAGImpl;
 import org.apache.tez.dag.app.dag.impl.Edge;
+import org.apache.tez.dag.history.utils.DAGUtils;
 import org.apache.tez.dag.library.vertexmanager.ShuffleVertexManager;
 import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.input.CelebornConcatenatedMergedKeyValueInput;
@@ -82,6 +81,7 @@ import org.apache.tez.runtime.library.output.UnorderedKVOutput;
 import org.apache.tez.runtime.library.output.UnorderedPartitionedKVOutput;
 import org.apache.tez.state.OnStateChangedCallback;
 import org.apache.tez.state.StateMachineTez;
+import org.codehaus.jettison.json.JSONException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
