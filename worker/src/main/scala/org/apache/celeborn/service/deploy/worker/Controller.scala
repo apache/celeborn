@@ -90,7 +90,8 @@ private[deploy] class Controller(
           rangeReadFilter,
           userIdentifier,
           pushDataTimeout,
-          partitionSplitEnabled) =>
+          partitionSplitEnabled,
+          isSegmentGranularityVisible) =>
       checkAuth(context, applicationId)
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.RESERVE_SLOTS_TIME, shuffleKey) {
@@ -109,7 +110,8 @@ private[deploy] class Controller(
           rangeReadFilter,
           userIdentifier,
           pushDataTimeout,
-          partitionSplitEnabled)
+          partitionSplitEnabled,
+          isSegmentGranularityVisible)
         logDebug(s"ReserveSlots for $shuffleKey finished.")
       }
 
@@ -155,7 +157,8 @@ private[deploy] class Controller(
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
       pushDataTimeout: Long,
-      partitionSplitEnabled: Boolean): Unit = {
+      partitionSplitEnabled: Boolean,
+      isSegmentGranularityVisible: Boolean): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (shutdown.get()) {
       val msg = "Current worker is shutting down!"

@@ -147,13 +147,15 @@ object ControlMessages extends Logging {
         numMappers: Int,
         mapId: Int,
         attemptId: Int,
-        partitionId: Int): PbRegisterMapPartitionTask =
+        partitionId: Int,
+        isSegmentGranularityVisible: Boolean): PbRegisterMapPartitionTask =
       PbRegisterMapPartitionTask.newBuilder()
         .setShuffleId(shuffleId)
         .setNumMappers(numMappers)
         .setMapId(mapId)
         .setAttemptId(attemptId)
         .setPartitionId(partitionId)
+        .setIsSegmentGranularityVisible(isSegmentGranularityVisible)
         .build()
   }
 
@@ -274,7 +276,8 @@ object ControlMessages extends Logging {
 
   case class MapperEndResponse(status: StatusCode) extends MasterMessage
 
-  case class GetReducerFileGroup(shuffleId: Int) extends MasterMessage
+  case class GetReducerFileGroup(shuffleId: Int, isSegmentGranularityVisible: Boolean)
+    extends MasterMessage
 
   // util.Set[String] -> util.Set[Path.toString]
   // Path can't be serialized
@@ -457,7 +460,8 @@ object ControlMessages extends Logging {
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
       pushDataTimeout: Long,
-      partitionSplitEnabled: Boolean = false)
+      partitionSplitEnabled: Boolean = false,
+      isSegmentGranularityVisible: Boolean = false)
     extends WorkerMessage
 
   case class ReserveSlotsResponse(
@@ -677,9 +681,10 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END_RESPONSE, payload)
 
-    case GetReducerFileGroup(shuffleId) =>
+    case GetReducerFileGroup(shuffleId, isSegmentGranularityVisible) =>
       val payload = PbGetReducerFileGroup.newBuilder()
         .setShuffleId(shuffleId)
+        .setIsSegmentGranularityVisible(isSegmentGranularityVisible)
         .build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP, payload)
 
@@ -828,7 +833,8 @@ object ControlMessages extends Logging {
           rangeReadFilter,
           userIdentifier,
           pushDataTimeout,
-          partitionSplitEnabled) =>
+          partitionSplitEnabled,
+          isSegmentGranularityVisible) =>
       val payload = PbReserveSlots.newBuilder()
         .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
@@ -841,6 +847,7 @@ object ControlMessages extends Logging {
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
         .setPushDataTimeout(pushDataTimeout)
         .setPartitionSplitEnabled(partitionSplitEnabled)
+        .setIsSegmentGranularityVisible(isSegmentGranularityVisible)
         .build().toByteArray
       new TransportMessage(MessageType.RESERVE_SLOTS, payload)
 
@@ -1075,7 +1082,8 @@ object ControlMessages extends Logging {
       case GET_REDUCER_FILE_GROUP_VALUE =>
         val pbGetReducerFileGroup = PbGetReducerFileGroup.parseFrom(message.getPayload)
         GetReducerFileGroup(
-          pbGetReducerFileGroup.getShuffleId)
+          pbGetReducerFileGroup.getShuffleId,
+          pbGetReducerFileGroup.getIsSegmentGranularityVisible)
 
       case GET_REDUCER_FILE_GROUP_RESPONSE_VALUE =>
         val pbGetReducerFileGroupResponse = PbGetReducerFileGroupResponse
@@ -1208,7 +1216,8 @@ object ControlMessages extends Logging {
           pbReserveSlots.getRangeReadFilter,
           userIdentifier,
           pbReserveSlots.getPushDataTimeout,
-          pbReserveSlots.getPartitionSplitEnabled)
+          pbReserveSlots.getPartitionSplitEnabled,
+          pbReserveSlots.getIsSegmentGranularityVisible)
 
       case RESERVE_SLOTS_RESPONSE_VALUE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)
