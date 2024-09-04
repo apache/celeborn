@@ -20,12 +20,14 @@ package org.apache.celeborn.tests.tez;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.tez.plugin.util.CelebornTezUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.app.CelebornDagAppMaster;
 import org.apache.tez.test.MiniTezCluster;
 import org.junit.Before;
+import org.junit.jupiter.api.BeforeAll;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,12 +36,16 @@ public class TezIntegrationTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(TezIntegrationTestBase.class);
     protected static MiniTezCluster miniTezCluster;
 
-    @Before
-    public void beforeClass() throws Exception {
+
+    protected static FileSystem fs;
+
+    @BeforeAll
+    public static void beforeClass() throws Exception {
         miniTezCluster = new MiniTezCluster(TezIntegrationTestBase.class.getName(), 1, 1, 1);
         Configuration conf = new Configuration();
         miniTezCluster.init(conf);
         miniTezCluster.start();
+        fs = FileSystem.get(conf);
     }
 
     public void run() throws Exception {

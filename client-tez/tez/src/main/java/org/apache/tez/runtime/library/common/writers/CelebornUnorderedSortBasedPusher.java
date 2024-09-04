@@ -116,8 +116,8 @@ public class CelebornUnorderedSortBasedPusher<K, V> extends OutputStream {
         sendKVAndUpdateWritePos();
       }
       int dataLen = insertRecordInternal(key, value, partition);
-      recordsPerPartition.putIfAbsent(partition, new AtomicInteger()).incrementAndGet();
-      bytesPerPartition.putIfAbsent(partition, new AtomicLong()).getAndAdd(dataLen);
+      recordsPerPartition.computeIfAbsent(partition, p -> new AtomicInteger()).incrementAndGet();
+      bytesPerPartition.computeIfAbsent(partition, p -> new AtomicLong()).getAndAdd(dataLen);
       if (logger.isDebugEnabled()) {
         logger.debug(
             "Sort based pusher insert into partition:{} with {} bytes", partition, dataLen);
@@ -325,7 +325,9 @@ public class CelebornUnorderedSortBasedPusher<K, V> extends OutputStream {
   public int[] getRecordsPerPartition() {
     int[] values = new int[numReducers];
     for (int i = 0; i < numReducers; i++) {
-      values[i] = recordsPerPartition.get(i).get();
+      if (recordsPerPartition.containsKey(i)) {
+        values[i] = recordsPerPartition.get(i).get();
+      }
     }
     return values;
   }
@@ -333,7 +335,9 @@ public class CelebornUnorderedSortBasedPusher<K, V> extends OutputStream {
   public long[] getBytesPerPartition() {
     long[] values = new long[numReducers];
     for (int i = 0; i < numReducers; i++) {
-      values[i] = bytesPerPartition.get(i).get();
+      if (bytesPerPartition.containsKey(i)) {
+        values[i] = bytesPerPartition.get(i).get();
+      }
     }
     return values;
   }
