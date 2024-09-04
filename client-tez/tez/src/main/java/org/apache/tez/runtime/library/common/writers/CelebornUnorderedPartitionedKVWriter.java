@@ -71,15 +71,14 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
   protected final SerializationFactory serializationFactory;
   protected final Serialization keySerialization;
   protected final Serialization valSerialization;
-  protected final int numPartitions;
-  protected final int numReducers;
+  protected final int numOutputs;
   protected final CompressionCodec codec;
 
   protected final TezCounter outputRecordBytesCounter;
   protected final TezCounter outputRecordsCounter;
   protected final TezCounter outputBytesWithOverheadCounter;
 
-  private final long availableMemory;
+  private long availableMemory;
   private int[] numRecordsPerPartition;
   private long[] sizePerPartition;
   private AtomicBoolean isShutdown = new AtomicBoolean(false);
@@ -124,8 +123,7 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    this.numPartitions = numOutputs;
-    this.numReducers = numPartitions;
+    this.numOutputs = numOutputs;
 
     // k/v serialization
     keyClass = ConfigUtils.getIntermediateOutputKeyClass(this.conf);
@@ -147,8 +145,8 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
             conf.get(
                 TezRuntimeConfiguration.TEZ_RUNTIME_REPORT_PARTITION_STATS,
                 TezRuntimeConfiguration.TEZ_RUNTIME_REPORT_PARTITION_STATS_DEFAULT));
-    sizePerPartition = (reportPartitionStats.isEnabled()) ? new long[numPartitions] : null;
-    numRecordsPerPartition = new int[numPartitions];
+    sizePerPartition = (reportPartitionStats.isEnabled()) ? new long[numOutputs] : null;
+    numRecordsPerPartition = new int[numOutputs];
 
     // compression
     try {
@@ -168,11 +166,16 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
     }
 
     availableMemory = availableMemoryBytes;
+    // assume that there is 64MB memory to writer shuffle data
+    if (availableMemory == 0) {
+      availableMemory = 64 * 1024 * 1024;
+    }
     pusher =
         new CelebornUnorderedSortBasedPusher(
             shuffleId,
             numMappers,
-            numReducers,
+            numPartitions,
+            numOutputs,
             mapId,
             attemptId,
             keySerializer,
@@ -196,7 +199,7 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
     if (isShutdown.get()) {
       throw new RuntimeException("Writer already closed");
     }
-    pusher.insert(key, value, partitioner.getPartition(key, value, numPartitions));
+    pusher.insert(key, value, partitioner.getPartition(key, value, numOutputs));
   }
 
   public List<Event> close() throws IOException {
@@ -230,7 +233,7 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
     outputContext.notifyProgress();
     ShuffleUserPayloads.DataMovementEventPayloadProto.Builder payloadBuilder =
         ShuffleUserPayloads.DataMovementEventPayloadProto.newBuilder();
-    if (numPartitions == 1) {
+    if (numOutputs == 1) {
       payloadBuilder.setNumRecord((int) outputRecordsCounter.getValue());
     }
 
@@ -243,7 +246,7 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
       payloadBuilder.setEmptyPartitions(emptyPartitionsByteString);
     }
 
-    if (emptyPartitions.cardinality() != numPartitions) {
+    if (emptyPartitions.cardinality() != numOutputs) {
       // Populate payload only if at least 1 partition has data
       payloadBuilder.setHost(host);
       payloadBuilder.setPort(0);
@@ -256,14 +259,14 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
     }
 
     ByteBuffer payload = payloadBuilder.build().toByteString().asReadOnlyByteBuffer();
-    return CompositeDataMovementEvent.create(0, numPartitions, payload);
+    return CompositeDataMovementEvent.create(0, numOutputs, payload);
   }
 
   private BitSet getEmptyPartitions(int[] recordsPerPartition) {
     Preconditions.checkArgument(
         recordsPerPartition != null, "records per partition can not be null");
     BitSet emptyPartitions = new BitSet();
-    for (int i = 0; i < numPartitions; i++) {
+    for (int i = 0; i < numOutputs; i++) {
       if (recordsPerPartition[i] == 0) {
         emptyPartitions.set(i);
       }

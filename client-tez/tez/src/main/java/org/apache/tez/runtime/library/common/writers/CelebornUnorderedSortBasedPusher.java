@@ -40,7 +40,8 @@ public class CelebornUnorderedSortBasedPusher<K, V> extends OutputStream {
   private final int mapId;
   private final int attempt;
   private final int numMappers;
-  private final int numReducers;
+  private final int numPartitions;
+  private final int numOutputs;
   private final ShuffleClient shuffleClient;
   private final int maxIOBufferSize;
   private final int spillIOBufferSize;
@@ -60,7 +61,8 @@ public class CelebornUnorderedSortBasedPusher<K, V> extends OutputStream {
   public CelebornUnorderedSortBasedPusher(
       int shuffleId,
       int numMappers,
-      int numReducers,
+      int numPartitions,
+      int numOutputs,
       int mapId,
       int attemptId,
       Serializer<K> kSer,
@@ -71,7 +73,8 @@ public class CelebornUnorderedSortBasedPusher<K, V> extends OutputStream {
       CelebornConf celebornConf) {
     this.shuffleId = shuffleId;
     this.numMappers = numMappers;
-    this.numReducers = numReducers;
+    this.numOutputs = numOutputs;
+    this.numPartitions = numPartitions;
     this.mapId = mapId;
     this.attempt = attemptId;
     this.kSer = kSer;
@@ -87,7 +90,7 @@ public class CelebornUnorderedSortBasedPusher<K, V> extends OutputStream {
             + " numMappers:{} numReducers:{} mapId:{} attemptId:{}"
             + " maxIOBufferSize:{} spillIOBufferSize:{}",
         numMappers,
-        numReducers,
+        numPartitions,
         mapId,
         attemptId,
         maxIOBufferSize,
@@ -116,8 +119,17 @@ public class CelebornUnorderedSortBasedPusher<K, V> extends OutputStream {
         sendKVAndUpdateWritePos();
       }
       int dataLen = insertRecordInternal(key, value, partition);
-      recordsPerPartition.computeIfAbsent(partition, p -> new AtomicInteger()).incrementAndGet();
-      bytesPerPartition.computeIfAbsent(partition, p -> new AtomicLong()).getAndAdd(dataLen);
+      if (numOutputs == 1) {
+        recordsPerPartition.putIfAbsent(0, new AtomicInteger());
+        bytesPerPartition.putIfAbsent(0, new AtomicLong());
+        recordsPerPartition.get(0).incrementAndGet();
+        bytesPerPartition.get(0).incrementAndGet();
+      } else {
+        recordsPerPartition.computeIfAbsent(partition, p -> new AtomicInteger());
+        bytesPerPartition.computeIfAbsent(partition, p -> new AtomicLong());
+        recordsPerPartition.get(partition).incrementAndGet();
+        bytesPerPartition.get(partition).incrementAndGet();
+      }
       if (logger.isDebugEnabled()) {
         logger.debug(
             "Sort based pusher insert into partition:{} with {} bytes", partition, dataLen);
@@ -200,7 +212,7 @@ public class CelebornUnorderedSortBasedPusher<K, V> extends OutputStream {
             0,
             4 + extraSize + partitionKVTotalLen,
             numMappers,
-            numReducers);
+            numPartitions);
     if (logger.isDebugEnabled()) {
       logger.debug(
           "Send sorted buffer mapId:{} attemptId:{} to partition:{} uncompressed size:{} compressed size:{}",
@@ -323,20 +335,26 @@ public class CelebornUnorderedSortBasedPusher<K, V> extends OutputStream {
   }
 
   public int[] getRecordsPerPartition() {
-    int[] values = new int[numReducers];
-    for (int i = 0; i < numReducers; i++) {
-      if (recordsPerPartition.containsKey(i)) {
+    int[] values = new int[numOutputs];
+    for (int i = 0; i < numOutputs; i++) {
+      AtomicInteger records = recordsPerPartition.get(i);
+      if (records != null) {
         values[i] = recordsPerPartition.get(i).get();
+      } else {
+        values[i] = 0;
       }
     }
     return values;
   }
 
   public long[] getBytesPerPartition() {
-    long[] values = new long[numReducers];
-    for (int i = 0; i < numReducers; i++) {
-      if (bytesPerPartition.containsKey(i)) {
-        values[i] = bytesPerPartition.get(i).get();
+    long[] values = new long[numOutputs];
+    for (int i = 0; i < numOutputs; i++) {
+      AtomicLong bytes = bytesPerPartition.get(i);
+      if (bytes != null) {
+        values[i] = bytes.get();
+      } else {
+        values[i] = 0;
       }
     }
     return values;

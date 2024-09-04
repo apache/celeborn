@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.tez.dag.history.utils.DAGUtils;
+import org.codehaus.jettison.json.JSONException;
 import scala.Tuple2;
 
 import org.apache.commons.cli.CommandLine;
@@ -237,6 +239,11 @@ public class CelebornDagAppMaster extends DAGAppMaster {
                         lifecycleManager.unregisterShuffle(shuffleId);
                       }
                     }));
+    try {
+      Logger.info("Tez with Celeborn dag :{}", DAGUtils.generateSimpleJSONPlan(dagPB));
+    } catch (JSONException e) {
+      throw new RuntimeException(e);
+    }
     return dag;
   }
 
