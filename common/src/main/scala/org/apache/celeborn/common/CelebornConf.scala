@@ -5059,7 +5059,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.quota.lowWatermark")
       .categories("quota")
       .dynamic
-      .doc("Quota dynamic configuration for lowWatermark.")
+      .doc("Quota configuration for quota lowWatermark.")
       .version("0.6.0")
       .doubleConf
       .checkValue(v => v > 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
