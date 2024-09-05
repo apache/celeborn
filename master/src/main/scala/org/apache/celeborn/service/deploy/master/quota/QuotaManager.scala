@@ -39,10 +39,23 @@ class QuotaManager(celebornConf: CelebornConf, configService: ConfigService) ext
     }
   }
 
+  private def getQuotaWithWatermark(
+      userIdentifier: UserIdentifier,
+      quotaWatermark: Double): Quota = {
+    val quota = getQuota(userIdentifier)
+    Quota(
+      (quota.diskBytesWritten * quotaWatermark).toLong,
+      (quota.diskFileCount * quotaWatermark).toLong,
+      (quota.hdfsBytesWritten * quotaWatermark).toLong,
+      (quota.hdfsFileCount * quotaWatermark).toLong)
+  }
+
   def checkQuotaSpaceAvailable(
       userIdentifier: UserIdentifier,
-      resourceResumption: ResourceConsumption): (Boolean, String) = {
-    val quota = getQuota(userIdentifier)
+      resourceResumption: ResourceConsumption,
+      quotaWatermark: Double = 1.0): (Boolean, String) = {
+    val quota = getQuotaWithWatermark(userIdentifier, quotaWatermark)
+
     val checkResults = Seq(
       checkDiskBytesWritten(userIdentifier, resourceResumption.diskBytesWritten, quota),
       checkDiskFileCount(userIdentifier, resourceResumption.diskFileCount, quota),

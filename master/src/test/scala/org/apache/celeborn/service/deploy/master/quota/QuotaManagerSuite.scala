@@ -95,4 +95,27 @@ class QuotaManagerSuite extends AnyFunSuite
     assert(res2 == exp2)
     assert(res3 == exp3)
   }
+
+  test("test check quota return result with low watermark") {
+    val user = UserIdentifier("tenant_01", "Jerry")
+    val rc1 =
+      ResourceConsumption(
+        Utils.byteStringAsBytes("100G"),
+        10000,
+        Utils.byteStringAsBytes("10G"),
+        40)
+
+    val res1 = quotaManager.checkQuotaSpaceAvailable(user, rc1)
+    val res2 = quotaManager.checkQuotaSpaceAvailable(user, rc1, 0.9)
+
+    val exp1 = (true, "")
+    val exp2 = (
+      false,
+      s"User $user used diskBytesWritten (100.0 GiB) exceeds quota (90.0 GiB). " +
+        s"User $user used diskFileCount(10000) exceeds quota(9000). " +
+        s"User $user used hdfsBytesWritten(10.0 GiB) exceeds quota(9.0 GiB). ")
+
+    assert(res1 == exp1)
+    assert(res2 == exp2)
+  }
 }
