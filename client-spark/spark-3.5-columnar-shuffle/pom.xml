@@ -24,9 +24,9 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-spark-3-columnar-shuffle_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-spark-3.5-columnar-shuffle_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Client for Spark 3 Columnar Shuffle</name>
+  <name>Celeborn Client for Spark 3.5 Columnar Shuffle</name>
 
   <dependencies>
     <dependency>
