@@ -331,7 +331,8 @@ class ChangePartitionManager(
               s"$changes.")
           }
 
-          // todo: should record the new partition locations and acknowledge the new partitionLocations to downstream task, in scenario the downstream task start early before the upstream task
+          // TODO: should record the new partition locations and acknowledge the new partitionLocations to downstream task,
+          //  in scenario the downstream task start early before the upstream task.
           locations
       }
     replySuccess(newPrimaryLocations.toArray)
