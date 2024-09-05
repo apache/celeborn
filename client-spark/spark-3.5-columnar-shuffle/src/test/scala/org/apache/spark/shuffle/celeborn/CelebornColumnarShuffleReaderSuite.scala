@@ -17,7 +17,7 @@
 
 package org.apache.spark.shuffle.celeborn
 
-import org.apache.spark.{ShuffleDependency, SparkConf}
+import org.apache.spark.{ShuffleDependency, SparkConf, TaskContext}
 import org.apache.spark.serializer.{KryoSerializer, KryoSerializerInstance}
 import org.apache.spark.sql.execution.UnsafeRowSerializer
 import org.apache.spark.sql.execution.columnar.CelebornColumnarBatchSerializerInstance
@@ -45,6 +45,9 @@ class CelebornColumnarShuffleReaderSuite {
 
     var shuffleClient: MockedStatic[ShuffleClient] = null
     try {
+      val taskContext = Mockito.mock(classOf[TaskContext])
+      Mockito.when(taskContext.stageAttemptNumber).thenReturn(0)
+      Mockito.when(taskContext.attemptNumber).thenReturn(0)
       shuffleClient = Mockito.mockStatic(classOf[ShuffleClient])
       val shuffleReader = SparkUtils.createColumnarShuffleReader(
         handle,
@@ -52,7 +55,7 @@ class CelebornColumnarShuffleReaderSuite {
         10,
         0,
         10,
-        null,
+        taskContext,
         new CelebornConf(),
         null,
         new ExecutorShuffleIdTracker())
@@ -68,6 +71,9 @@ class CelebornColumnarShuffleReaderSuite {
   def columnarShuffleReaderNewSerializerInstance(): Unit = {
     var shuffleClient: MockedStatic[ShuffleClient] = null
     try {
+      val taskContext = Mockito.mock(classOf[TaskContext])
+      Mockito.when(taskContext.stageAttemptNumber).thenReturn(0)
+      Mockito.when(taskContext.attemptNumber).thenReturn(0)
       shuffleClient = Mockito.mockStatic(classOf[ShuffleClient])
       val shuffleReader = SparkUtils.createColumnarShuffleReader(
         new CelebornShuffleHandle[Int, String, String](
@@ -83,7 +89,7 @@ class CelebornColumnarShuffleReaderSuite {
         10,
         0,
         10,
-        null,
+        taskContext,
         new CelebornConf(),
         null,
         new ExecutorShuffleIdTracker())
