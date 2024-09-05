@@ -38,7 +38,7 @@
     <module>service</module>
     <module>master</module>
     <module>worker</module>
-    <module>web</module>
+    <!--module>web</module-->
   </modules>
 
   <distributionManagement>
@@ -1749,10 +1749,10 @@
       <modules>
         <module>client-tez/tez</module>
         <module>client-tez/tez-shaded</module>
-        <module>tests/mr-it</module>
+        <module>tests/tez-it</module>
       </modules>
       <properties>
-        <tez.version>0.9.1</tez.version>
+        <tez.version>0.10.3</tez.version>
       </properties>
       <dependencyManagement>
         <dependencies>
