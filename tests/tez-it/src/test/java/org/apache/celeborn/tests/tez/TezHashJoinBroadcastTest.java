@@ -19,28 +19,36 @@ package org.apache.celeborn.tests.tez;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.Tool;
-import org.apache.tez.examples.SortMergeJoinExample;
+import org.apache.tez.examples.HashJoinExample;
 import org.junit.jupiter.api.Test;
 
-public class TezSortMergeJoinTest extends TezJoinIntegrationTestBase {
+public class TezHashJoinBroadcastTest extends TezJoinIntegrationTestBase {
 
-  private static final String SORT_MERGE_JOIN_OUTPUT_PATH = "sort_merge_join_output";
+  private static final String HASH_JOIN_OUTPUT_PATH = "hash_join_output";
 
   @Test
-  public void sortMergeJoinTest() throws Exception {
-    fs.delete(new Path(SORT_MERGE_JOIN_OUTPUT_PATH), true);
+  public void hashJoinDoBroadcastTest() throws Exception {
+    MiniCelebornCluster.setupMiniClusterWithRandomPorts();
     generateInputFile();
-    run(SORT_MERGE_JOIN_OUTPUT_PATH);
+    String path = HASH_JOIN_OUTPUT_PATH + "_broadcast";
+    fs.delete(new Path(path), true);
+    run(path);
   }
 
   @Override
   public Tool getTestTool() {
-    return new SortMergeJoinExample();
+    return new HashJoinExample();
   }
 
   @Override
   public String[] getTestArgs(String uniqueOutputName) {
-    return new String[] {STREAM_INPUT_PATH, HASH_INPUT_PATH, "2", uniqueOutputName};
+    if (uniqueOutputName.contains("broadcast")) {
+      return new String[] {
+        STREAM_INPUT_PATH, HASH_INPUT_PATH, "2", uniqueOutputName, "doBroadcast"
+      };
+    } else {
+      return new String[] {STREAM_INPUT_PATH, HASH_INPUT_PATH, "2", uniqueOutputName};
+    }
   }
 
   @Override

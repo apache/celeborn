@@ -17,49 +17,61 @@
 
 package org.apache.celeborn.tests.tez;
 
+import java.util.*;
+
 import com.google.common.collect.Lists;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.Tool;
-import org.apache.tez.examples.WordCount;
-import org.junit.Test;
+import org.apache.tez.examples.OrderedWordCount;
+import org.junit.jupiter.api.Test;
 
-import java.io.FileOutputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
-import java.util.Random;
+public class TezOrderedWordCountTest extends TezIntegrationTestBase {
 
-public class TezWordCountTest extends TezIntegrationTestBase {
-
-  private String inputPath = "word_count_input";
-  private String outputPath = "word_count_output";
+  private String inputPath = "ordered_word_count_input";
+  private String outputPath = "ordered_word_count_output";
   private List<String> wordTable =
       Lists.newArrayList(
           "apple", "banana", "fruit", "cherry", "Chinese", "America", "Japan", "tomato");
 
   @Test
-  public void wordCountTest() throws Exception {
+  public void orderedWordCountTest() throws Exception {
+    MiniCelebornCluster.setupMiniClusterWithRandomPorts();
     generateInputFile();
     run();
   }
 
   private void generateInputFile() throws Exception {
-    FileOutputStream outputStream = new FileOutputStream(inputPath);
-
+    // For ordered word count, the key of last ordered sorter is the summation of word, the value is
+    // the word. So it means this key may not be unique. Because Sorter can only make sure key is
+    // sorted, so the second column (word column) may be not sorted.
+    // To keep pace with verifyResults, here make sure summation of word is unique number.
+    FSDataOutputStream outputStream = fs.create(new Path(inputPath));
     Random random = new Random();
-    for (int i = 0; i < 100; i++) {
-      int index = random.nextInt(wordTable.size());
-      String str = wordTable.get(index) + "\n";
-      outputStream.write(str.getBytes(StandardCharsets.UTF_8));
+    Set<Integer> used = new HashSet();
+    List<String> outputList = new ArrayList<>();
+    int index = 0;
+    while (index < wordTable.size()) {
+      int summation = random.nextInt(50);
+      if (used.contains(summation)) {
+        continue;
+      }
+      used.add(summation);
+      for (int i = 0; i < summation; i++) {
+        outputList.add(wordTable.get(index));
+      }
+      index++;
+    }
+    Collections.shuffle(outputList);
+    for (String word : outputList) {
+      outputStream.writeBytes(word + "\n");
     }
     outputStream.close();
   }
 
   @Override
   public Tool getTestTool() {
-    return new WordCount();
+    return new OrderedWordCount();
   }
 
   @Override

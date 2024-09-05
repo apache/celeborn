@@ -17,48 +17,30 @@
 
 package org.apache.celeborn.tests.tez;
 
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.Tool;
-import org.apache.tez.examples.HashJoinExample;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
-public class TezHashJoinTest extends TezJoinIntegrationTestBase {
-
-  private static final String HASH_JOIN_OUTPUT_PATH = "hash_join_output";
+public class BroadcastAndOneToOneTest extends TezIntegrationTestBase {
+  public static final String outputPath = "broadcast_oneone_output";
 
   @Test
   public void hashJoinTest() throws Exception {
-    generateInputFile();
-    fs.delete(new Path(HASH_JOIN_OUTPUT_PATH), true);
-    run(HASH_JOIN_OUTPUT_PATH);
-  }
-
-  @Test
-  public void hashJoinDoBroadcastTest() throws Exception {
-    generateInputFile();
-    String path = HASH_JOIN_OUTPUT_PATH + "_broadcast";
-    fs.delete(new Path(path), true);
-    run(path);
+    MiniCelebornCluster.setupMiniClusterWithRandomPorts();
+    run();
   }
 
   @Override
   public Tool getTestTool() {
-    return new HashJoinExample();
+    return new BroadcastAndOneToOneExample();
   }
 
   @Override
   public String[] getTestArgs(String uniqueOutputName) {
-    if (uniqueOutputName.contains("broadcast")) {
-      return new String[] {
-        STREAM_INPUT_PATH, HASH_INPUT_PATH, "2", uniqueOutputName, "doBroadcast"
-      };
-    } else {
-      return new String[] {STREAM_INPUT_PATH, HASH_INPUT_PATH, "2", uniqueOutputName};
-    }
+    return new String[] {};
   }
 
   @Override
   public String getOutputDir(String uniqueOutputName) {
-    return uniqueOutputName;
+    return outputPath + "/" + uniqueOutputName;
   }
 }

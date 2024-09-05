@@ -33,6 +33,7 @@ public class TezCartesianProductTest extends TezIntegrationTestBase {
 
   @Test
   public void cartesianProductTest() throws Exception {
+    MiniCelebornCluster.setupMiniClusterWithRandomPorts();
     generateInputFile();
     run();
   }
