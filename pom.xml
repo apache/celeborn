@@ -38,6 +38,7 @@
     <module>service</module>
     <module>master</module>
     <module>worker</module>
+    <module>cli</module>
   </modules>
 
   <distributionManagement>
@@ -104,6 +105,7 @@
     <jackson.version>2.15.3</jackson.version>
     <snappy.version>1.1.10.5</snappy.version>
     <ap.loader.version>3.0-8</ap.loader.version>
+    <picocli.version>4.7.6</picocli.version>
 
     <!-- Db dependencies -->
     <mybatis.version>3.5.15</mybatis.version>
@@ -707,6 +709,11 @@
         <artifactId>bcpkix-jdk18on</artifactId>
         <version>${bouncycastle.version}</version>
         <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>info.picocli</groupId>
+        <artifactId>picocli</artifactId>
+        <version>${picocli.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

@@ -80,6 +80,7 @@ object Dependencies {
   val httpClient5Version = "5.3.1"
   val httpCore5Version = "5.2.4"
   val javaxAnnotationApiVersion = "1.3.2"
+  val picocliVersion = "4.7.6"
 
   // For SSL support
   val bouncycastleVersion = "1.77"
@@ -203,6 +204,8 @@ object Dependencies {
   // SSL support
   val bouncycastleBcprovJdk18on = "org.bouncycastle" % "bcprov-jdk18on" % bouncycastleVersion % "test"
   val bouncycastleBcpkixJdk18on = "org.bouncycastle" % "bcpkix-jdk18on" % bouncycastleVersion % "test"
+
+  val picocli = "info.picocli" % "picocli" % picocliVersion
 }
 
 object CelebornCommonSettings {
@@ -355,7 +358,8 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornClient.client,
       CelebornService.service,
       CelebornWorker.worker,
-      CelebornMaster.master) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules ++ maybeWebModules
+      CelebornMaster.master,
+      CelebornCli.cli) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules ++ maybeWebModules
   }
 
   // ThisBuild / parallelExecution := false
@@ -453,6 +457,20 @@ object Utils {
       }
     }).transform(node).head
   }
+}
+
+object CelebornCli {
+  lazy val cli = Project("celeborn-cli", file("cli"))
+    .dependsOn(CelebornCommon.common % "test->test;compile->compile")
+    .dependsOn(CelebornMaster.master % "test->test;compile->compile")
+    .dependsOn(CelebornWorker.worker % "test->test;compile->compile")
+    .dependsOn(CelebornOpenApi.openApiClient % "test->test;compile->compile")
+    .settings (
+      commonSettings,
+      libraryDependencies ++= Seq(
+        Dependencies.picocli
+      ) ++ commonUnitTestDependencies
+    )
 }
 
 object CelebornSpi {
