@@ -65,6 +65,7 @@ import org.apache.tez.common.counters.TaskCounter;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.security.JobTokenSecretManager;
 import org.apache.tez.dag.api.TezConfiguration;
+import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.http.HttpConnectionParams;
 import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.api.InputContext;
@@ -91,6 +92,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.tez.plugin.util.CelebornTezUtils;
 
 // This only knows how to deal with a single srcIndex for a given targetIndex.
 // In case the src task generates multiple outputs for the same target Index
@@ -206,6 +208,7 @@ public class CelebornShuffleManager extends ShuffleManager {
   Map<Integer, List<InputAttemptIdentifier>> partitionToInput = new HashMap<>();
   private final AtomicInteger numNoDataInput = new AtomicInteger(0);
   private final AtomicInteger numWithDataInput = new AtomicInteger(0);
+  private final boolean broadcastOrOneToOne;
 
   // TODO More counters - FetchErrors, speed?
 
@@ -220,7 +223,8 @@ public class CelebornShuffleManager extends ShuffleManager {
       CompressionCodec codec,
       FetchedInputAllocator inputAllocator,
       int shuffleId,
-      ApplicationAttemptId applicationAttemptId)
+      ApplicationAttemptId applicationAttemptId,
+      boolean broadcastOrOneToOne)
       throws IOException {
     super(
         inputContext,
@@ -236,6 +240,7 @@ public class CelebornShuffleManager extends ShuffleManager {
     this.shuffleId = shuffleId;
     this.applicationAttemptId = applicationAttemptId;
     this.shuffleClient = shuffleClient;
+    this.broadcastOrOneToOne = broadcastOrOneToOne;
 
     this.approximateInputRecords =
         inputContext.getCounters().findCounter(TaskCounter.APPROXIMATE_INPUT_RECORDS);
@@ -811,20 +816,35 @@ public class CelebornShuffleManager extends ShuffleManager {
         srcPhysicalIndex, srcAttemptIdentifier.getInputIdentifierCount(), srcAttemptIdentifier);
     lock.lock();
     try {
-      for (int i = 0; i < srcAttemptIdentifier.getInputIdentifierCount(); i++) {
-        int p = srcPhysicalIndex + i;
-        LOG.info(
-            "PartitionToInput, original:{}, add:{},  now:{}",
-            srcAttemptIdentifier,
-            srcAttemptIdentifier.expand(i),
-            partitionToInput.get(p));
-        if (!allRssPartition.contains(srcPhysicalIndex + i)) {
-          pendingPartition.add(p);
+      if (broadcastOrOneToOne) {
+        String pathComponent = srcAttemptIdentifier.getPathComponent();
+        TezTaskAttemptID taskAttemptId =
+            TezTaskAttemptID.fromString(
+                CelebornTezUtils.uniqueIdentifierToAttemptId(pathComponent));
+        int partitionId = taskAttemptId.getTaskID().getId();
+        LOG.info("Read partition, shuffleId {} partitionId {}", shuffleId, partitionId);
+        if (!allRssPartition.contains(partitionId)) {
+          pendingPartition.add(partitionId);
         }
-        allRssPartition.add(p);
-        partitionToInput.putIfAbsent(p, new ArrayList<>());
-        partitionToInput.get(p).add(srcAttemptIdentifier);
-        LOG.info("Add partition:{}, after add, now partition:{}", p, allRssPartition);
+        allRssPartition.add(partitionId);
+        partitionToInput.putIfAbsent(partitionId, new ArrayList<>());
+        partitionToInput.get(partitionId).add(srcAttemptIdentifier);
+      } else {
+        for (int i = 0; i < srcAttemptIdentifier.getInputIdentifierCount(); i++) {
+          int p = srcPhysicalIndex + i;
+          LOG.info(
+              "PartitionToInput, original:{}, add:{},  now:{}",
+              srcAttemptIdentifier,
+              srcAttemptIdentifier.expand(i),
+              partitionToInput.get(p));
+          if (!allRssPartition.contains(srcPhysicalIndex + i)) {
+            pendingPartition.add(p);
+          }
+          allRssPartition.add(p);
+          partitionToInput.putIfAbsent(p, new ArrayList<>());
+          partitionToInput.get(p).add(srcAttemptIdentifier);
+          LOG.info("Add partition:{}, after add, now partition:{}", p, allRssPartition);
+        }
       }
 
       numWithDataInput.incrementAndGet();

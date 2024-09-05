@@ -114,8 +114,7 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
       int mapId,
       int attemptId,
       int numMappers,
-      CelebornConf celebornConf)
-      throws IOException {
+      CelebornConf celebornConf) {
     this.outputContext = outputContext;
     this.conf = conf;
     try {
@@ -156,9 +155,9 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
     }
 
     Logger.info(
-        "Instantiating Partitioner: ["
-            + conf.get(TezRuntimeConfiguration.TEZ_RUNTIME_PARTITIONER_CLASS)
-            + "]");
+        "Instantiating Partitioner: [{}]",
+        conf.get(TezRuntimeConfiguration.TEZ_RUNTIME_PARTITIONER_CLASS));
+
     try {
       this.partitioner = TezRuntimeUtils.instantiatePartitioner(this.conf);
     } catch (IOException e) {

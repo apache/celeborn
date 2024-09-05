@@ -250,10 +250,4 @@ public class BroadcastAndOneToOneExample extends Configured implements Tool {
 
   static String skipLocalityCheck = "-skipLocalityCheck";
 
-  public static void main(String[] args) throws Exception {
-    Configuration conf = new Configuration();
-    BroadcastAndOneToOneExample job = new BroadcastAndOneToOneExample();
-    int status = ToolRunner.run(conf, job, args);
-    System.exit(status);
-  }
 }

@@ -39,6 +39,7 @@ import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.api.LogicalOutput;
 import org.apache.tez.runtime.api.OutputContext;
 import org.apache.tez.runtime.api.Writer;
+import org.apache.tez.runtime.library.api.Partitioner;
 import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.common.MemoryUpdateCallbackHandler;
 import org.apache.tez.runtime.library.common.shuffle.ShuffleUtils;
@@ -76,6 +77,7 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
   private int port;
   private int shuffleId;
   private String appId;
+  private static boolean broadcastOrOntToOne;
 
   public CelebornUnorderedKVOutput(OutputContext outputContext, int numPhysicalOutputs) {
     super(outputContext, numPhysicalOutputs);
@@ -95,8 +97,7 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
     this.conf.setInt(
         TezRuntimeFrameworkConfigs.TEZ_RUNTIME_NUM_EXPECTED_PARTITIONS, getNumPhysicalOutputs());
     this.conf.set(
-        TezRuntimeConfiguration.TEZ_RUNTIME_PARTITIONER_CLASS,
-        UnorderedKVOutput.CustomPartitioner.class.getName());
+        TezRuntimeConfiguration.TEZ_RUNTIME_PARTITIONER_CLASS, CustomPartitioner.class.getName());
     this.memoryUpdateCallbackHandler = new MemoryUpdateCallbackHandler();
     getContext()
         .requestInitialMemory(
@@ -107,7 +108,7 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
     this.port = this.conf.getInt(TEZ_CELEBORN_LM_PORT, -1);
     this.shuffleId = this.conf.getInt(TEZ_SHUFFLE_ID, -1);
     this.appId = this.conf.get(TEZ_CELEBORN_APPLICATION_ID);
-
+    this.broadcastOrOntToOne = conf.getBoolean(TEZ_BROADCAST_OR_ONETOONE, false);
     return Collections.emptyList();
   }
 
@@ -216,5 +217,18 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
   @InterfaceAudience.Private
   public static Set<String> getConfigurationKeySet() {
     return Collections.unmodifiableSet(confKeys);
+  }
+
+  @InterfaceAudience.Private
+  public static class CustomPartitioner implements Partitioner {
+
+    @Override
+    public int getPartition(Object key, Object value, int numPartitions) {
+      if (broadcastOrOntToOne) {
+        return mapId;
+      } else {
+        return 0;
+      }
+    }
   }
 }

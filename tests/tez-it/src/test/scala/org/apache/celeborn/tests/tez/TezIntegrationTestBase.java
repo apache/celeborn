@@ -96,7 +96,7 @@ public class TezIntegrationTestBase {
         appConf.set(TezConfiguration.TEZ_PREFIX + "appmaster.class.name", "org.apache.tez.dag.app.CelebornDagAppMaster");
         appConf.setInt(TezConfiguration.TEZ_TASK_RESOURCE_MEMORY_MB, 512);
         appConf.set(TezConfiguration.TEZ_TASK_LAUNCH_CMD_OPTS, " -Xmx384m");
-        appConf.set(CelebornTezUtils.TEZ_PREFIX + CelebornConf.MASTER_ENDPOINTS().key(), "localhost:9097");
+        appConf.set(CelebornTezUtils.TEZ_PREFIX + CelebornConf.MASTER_ENDPOINTS().key(), "30.220.92.109:9097");
         appConf.set(
                 TezConfiguration.TEZ_AM_LAUNCH_CMD_OPTS,
                 TezConfiguration.TEZ_AM_LAUNCH_CMD_OPTS_DEFAULT + " -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 " + CelebornDagAppMaster.class.getName());

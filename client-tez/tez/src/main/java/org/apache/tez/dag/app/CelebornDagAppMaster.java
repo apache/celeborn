@@ -171,6 +171,15 @@ public class CelebornDagAppMaster extends DAGAppMaster {
                 for (Map.Entry<String, Edge> entry : edges.entrySet()) {
                   Edge edge = entry.getValue();
 
+                  EdgeProperty.DataMovementType dataMovementType =
+                      edge.getEdgeProperty().getDataMovementType();
+
+                  boolean broadCastOrOneToOne = false;
+                  if (dataMovementType == EdgeProperty.DataMovementType.BROADCAST
+                      || dataMovementType == EdgeProperty.DataMovementType.ONE_TO_ONE) {
+                    broadCastOrOneToOne = true;
+                  }
+
                   Configuration edgeSourceConf =
                       org.apache.tez.common.TezUtils.createConfFromUserPayload(
                           edge.getEdgeProperty().getEdgeSource().getUserPayload());
@@ -185,6 +194,9 @@ public class CelebornDagAppMaster extends DAGAppMaster {
                   edgeSourceConf.set(
                       CelebornTezUtils.TEZ_CELEBORN_USER,
                       lifecycleManager.getUserIdentifier().toString());
+                  edgeSourceConf.set(
+                      CelebornTezUtils.TEZ_BROADCAST_OR_ONETOONE,
+                      String.valueOf(broadCastOrOneToOne));
                   for (Tuple2<String, String> stringStringTuple2 : celebornConf.getAll()) {
                     edgeSourceConf.set(stringStringTuple2._1, stringStringTuple2._2);
                   }
@@ -197,9 +209,6 @@ public class CelebornDagAppMaster extends DAGAppMaster {
                       .getEdgeDestination()
                       .setUserPayload(
                           org.apache.tez.common.TezUtils.createUserPayloadFromConf(edgeSourceConf));
-
-                  EdgeProperty.DataMovementType dataMovementType =
-                      edge.getEdgeProperty().getDataMovementType();
 
                   // rename output class name
                   OutputDescriptor outputDescriptor = edge.getEdgeProperty().getEdgeSource();

@@ -35,6 +35,7 @@ public class CelebornTezUtils {
   public static final String TEZ_CELEBORN_USER = "celeborn.lifecycleManager.user";
   public static final String TEZ_CELEBORN_APPLICATION_ID = "celeborn.applicationId";
   public static final String TEZ_SHUFFLE_ID = "celeborn.tez.shuffle.id";
+  public static final String TEZ_BROADCAST_OR_ONETOONE = "celeborn.tez.broadcastOrOneToOne";
 
   public static final CelebornConf fromTezConfiguration(Configuration tezConfig) {
     CelebornConf tmpCelebornConf = new CelebornConf();
