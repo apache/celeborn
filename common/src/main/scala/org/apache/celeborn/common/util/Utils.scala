@@ -49,7 +49,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.network.util.TransportConf
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, TransportModuleConstants}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.{ControlMessages, Message, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.reflect.DynConstructors
@@ -415,8 +415,29 @@ object Utils extends Logging {
     customHostname = Some(hostname)
   }
 
-  def localHostName(conf: CelebornConf): String = customHostname.getOrElse {
-    if (conf.bindPreferIP) {
+  def localHostName(conf: CelebornConf): String = {
+    getHostName(conf.bindPreferIP)
+  }
+
+  def localHostNameForAdvertiseAddress(conf: CelebornConf, env: String): String = {
+    if (env.equals(RpcNameConstants.MASTER_SYS) || env.equals(
+        RpcNameConstants.MASTER_INTERNAL_SYS)) {
+      getAdvertiseAddressForMaster(conf)
+    } else {
+      getAdvertiseAddressForWorker(conf)
+    }
+  }
+
+  private def getAdvertiseAddressForMaster(conf: CelebornConf) = {
+    conf.advertiseAddressMasterHost
+  }
+
+  private def getAdvertiseAddressForWorker(conf: CelebornConf) = {
+    getHostName(conf.advertisePreferIP)
+  }
+
+  def getHostName(preferIP: Boolean): String = customHostname.getOrElse {
+    if (preferIP) {
       localIpAddress match {
         case ipv6Address: Inet6Address =>
           val ip = ipv6Address.getHostAddress

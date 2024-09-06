@@ -41,7 +41,9 @@ license: |
 | celeborn.&lt;module&gt;.push.timeoutCheck.threads | 4 | false | Threads num for checking push data timeout. If setting <module> to `data`, it works for shuffle client push data. If setting <module> to `push`, it works for Flink shuffle client push data. If setting <module> to `replicate`, it works for replicate client of worker replicating data to peer worker. | 0.3.0 |  | 
 | celeborn.&lt;role&gt;.rpc.dispatcher.threads | &lt;value of celeborn.rpc.dispatcher.threads&gt; | false | Threads number of message dispatcher event loop for roles |  |  | 
 | celeborn.io.maxDefaultNettyThreads | 64 | false | Max default netty threads | 0.3.2 |  | 
+| celeborn.network.advertise.preferIpAddress | &lt;value of celeborn.network.bind.preferIpAddress&gt; | false | When `true`, prefer to use IP address, otherwise FQDN for advertise address. | 0.6.0 |  | 
 | celeborn.network.bind.preferIpAddress | true | false | When `true`, prefer to use IP address, otherwise FQDN. This configuration only takes effects when the bind hostname is not set explicitly, in such case, Celeborn will find the first non-loopback address to bind. | 0.3.0 |  | 
+| celeborn.network.bind.wildcardAddress | false | false | When `true`, the bind address will be set to a wildcard address, while the advertise address will remain as whatever is set by `celeborn.network.advertise.preferIpAddress`. This is helpful in dual-stack environments, where the service must listen to both IPv4 and IPv6 clients. | 0.6.0 |  | 
 | celeborn.network.connect.timeout | 10s | false | Default socket connect timeout. | 0.2.0 |  | 
 | celeborn.network.memory.allocator.numArenas | &lt;undefined&gt; | false | Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2. | 0.3.0 |  | 
 | celeborn.network.memory.allocator.verbose.metric | false | false | Whether to enable verbose metric for pooled allocator. | 0.3.0 |  | 
