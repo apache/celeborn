@@ -49,6 +49,7 @@ import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.StreamType;
+import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
@@ -115,9 +116,9 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     this.endPartitionIndex = endPartitionIndex;
 
     int indexBufferSize = 16 * (endPartitionIndex - startPartitionIndex + 1);
-    this.indexBuffer = ByteBuffer.allocateDirect(indexBufferSize);
+    this.indexBuffer = Platform.allocateDirectBuffer(indexBufferSize);
 
-    this.headerBuffer = ByteBuffer.allocateDirect(16);
+    this.headerBuffer = Platform.allocateDirectBuffer(16);
     this.streamId = streamId;
     this.associatedChannel = associatedChannel;
     this.recycleStream = recycleStream;

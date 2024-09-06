@@ -707,7 +707,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         int batchHeaderLen = 16;
         ByteBuffer headerBuf = ByteBuffer.allocate(batchHeaderLen);
         ByteBuffer paddingBuf =
-            isPrefetch ? ByteBuffer.allocateDirect((int) reservedMemoryPerPartition) : null;
+            isPrefetch ? Platform.allocateDirectBuffer((int) reservedMemoryPerPartition) : null;
 
         long index = 0;
         while (index != originFileLen) {

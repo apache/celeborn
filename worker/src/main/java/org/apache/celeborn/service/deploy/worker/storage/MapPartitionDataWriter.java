@@ -34,6 +34,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.MapFileMeta;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.Utils;
 
@@ -282,7 +283,7 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
 
     int indexRegionSize = numSubpartitions * (8 + 8);
     if (indexRegionSize >= minBufferSize) {
-      ByteBuffer buffer = ByteBuffer.allocateDirect(indexRegionSize);
+      ByteBuffer buffer = Platform.allocateDirectBuffer(indexRegionSize);
       buffer.order(ByteOrder.BIG_ENDIAN);
       return buffer;
     }
@@ -291,7 +292,7 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
     if (minBufferSize % indexRegionSize != 0) {
       ++numRegions;
     }
-    ByteBuffer buffer = ByteBuffer.allocateDirect(numRegions * indexRegionSize);
+    ByteBuffer buffer = Platform.allocateDirectBuffer(numRegions * indexRegionSize);
     buffer.order(ByteOrder.BIG_ENDIAN);
 
     return buffer;
