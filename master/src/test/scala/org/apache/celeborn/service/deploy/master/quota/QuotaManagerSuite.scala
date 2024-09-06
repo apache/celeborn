@@ -100,9 +100,9 @@ class QuotaManagerSuite extends AnyFunSuite
     val user = UserIdentifier("tenant_01", "Jerry")
     val rc1 =
       ResourceConsumption(
-        Utils.byteStringAsBytes("100G"),
-        10000,
-        Utils.byteStringAsBytes("10G"),
+        Utils.byteStringAsBytes("99G"),
+        9999,
+        Utils.byteStringAsBytes("9999M"),
         40)
 
     val res1 = quotaManager.checkQuotaSpaceAvailable(user, rc1)
@@ -111,9 +111,9 @@ class QuotaManagerSuite extends AnyFunSuite
     val exp1 = (true, "")
     val exp2 = (
       false,
-      s"User $user used diskBytesWritten (100.0 GiB) exceeds quota (90.0 GiB). " +
-        s"User $user used diskFileCount(10000) exceeds quota(9000). " +
-        s"User $user used hdfsBytesWritten(10.0 GiB) exceeds quota(9.0 GiB). ")
+      s"User $user used diskBytesWritten (99.0 GiB) exceeds quota (90.0 GiB). " +
+        s"User $user used diskFileCount(9999) exceeds quota(9000). " +
+        s"User $user used hdfsBytesWritten(9.8 GiB) exceeds quota(9.0 GiB). ")
 
     assert(res1 == exp1)
     assert(res2 == exp2)
