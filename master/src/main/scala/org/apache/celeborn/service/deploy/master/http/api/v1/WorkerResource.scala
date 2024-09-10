@@ -17,13 +17,16 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import javax.ws.rs.{BadRequestException, Consumes, GET, POST, Path, Produces}
+import javax.ws.rs.{BadRequestException, Consumes, GET, Path, POST, Produces}
 import javax.ws.rs.core.MediaType
+
 import scala.collection.JavaConverters._
+
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
-import org.apache.celeborn.rest.v1.model.{ExcludeWorkerRequest, HandleResponse, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, WorkerEventData, WorkerEventInfoData, WorkerEventsResponse, WorkerTimestampData, WorkersResponse}
+
+import org.apache.celeborn.rest.v1.model._
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.server.common.http.api.v1.ApiUtils
 import org.apache.celeborn.service.deploy.master.Master
@@ -70,7 +73,7 @@ class WorkerResource extends ApiRequestContext {
       "Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove.")
   @POST
   @Path("/exclude")
-  def excludeWorker(request: ExcludeWorkerRequest): HandleResponse = ensureMasterActive {
+  def excludeWorker(request: ExcludeWorkerRequest): HandleResponse = ensureMasterIsLeader {
     val (success, msg) = httpService.exclude(
       request.getAdd.asScala.map(ApiUtils.toWorkerInfo).toSeq,
       request.getRemove.asScala.map(ApiUtils.toWorkerInfo).toSeq)
@@ -85,11 +88,12 @@ class WorkerResource extends ApiRequestContext {
     description = "Remove the workers unavailable info from the master.")
   @POST
   @Path("/remove_unavailable")
-  def removeWorkersUnavailableInfo(request: RemoveWorkersUnavailableInfoRequest): HandleResponse = ensureMasterActive {
-    val (success, msg) = master.removeWorkersUnavailableInfo(
-      request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq)
-    new HandleResponse().success(success).message(msg)
-  }
+  def removeWorkersUnavailableInfo(request: RemoveWorkersUnavailableInfoRequest): HandleResponse =
+    ensureMasterIsLeader {
+      val (success, msg) = master.removeWorkersUnavailableInfo(
+        request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq)
+      new HandleResponse().success(success).message(msg)
+    }
 
   @ApiResponse(
     responseCode = "200",
@@ -121,7 +125,7 @@ class WorkerResource extends ApiRequestContext {
       "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'.")
   @POST
   @Path("/events")
-  def sendWorkerEvents(request: SendWorkerEventRequest): HandleResponse = ensureMasterActive {
+  def sendWorkerEvents(request: SendWorkerEventRequest): HandleResponse = ensureMasterIsLeader {
     if (request.getEventType == SendWorkerEventRequest.EventTypeEnum.NONE || request.getWorkers.isEmpty) {
       throw new BadRequestException(
         s"eventType(${request.getEventType}) and workers(${request.getWorkers}) are required")
