@@ -62,6 +62,9 @@ class MapPartitionCommitHandler(
   // shuffleId -> in processing partitionId set
   private val inProcessMapPartitionEndIds = JavaUtils.newConcurrentHashMap[Int, util.Set[Integer]]()
 
+  // shuffleId -> boolean, records whether the shuffle is visible at the segment level, facilitating future optimization of worker read and write processes
+  private val shuffleIsSegmentGranularityVisible = JavaUtils.newConcurrentHashMap[Int, Boolean]
+
   override def getPartitionType(): PartitionType = {
     PartitionType.MAP
   }
@@ -113,6 +116,7 @@ class MapPartitionCommitHandler(
   override def removeExpiredShuffle(shuffleId: Int): Unit = {
     inProcessMapPartitionEndIds.remove(shuffleId)
     shuffleSucceedPartitionIds.remove(shuffleId)
+    shuffleIsSegmentGranularityVisible.remove(shuffleId)
     super.removeExpiredShuffle(shuffleId)
   }
 
@@ -143,7 +147,8 @@ class MapPartitionCommitHandler(
         getPartitionUniqueIds(shuffleCommittedInfo.committedPrimaryIds, partitionId),
         getPartitionUniqueIds(shuffleCommittedInfo.committedReplicaIds, partitionId),
         parallelCommitResult.primaryPartitionLocationMap,
-        parallelCommitResult.replicaPartitionLocationMap)
+        parallelCommitResult.replicaPartitionLocationMap,
+        shuffleIsSegmentGranularityVisible.get(shuffleId))
     }
 
     (dataLost, parallelCommitResult.commitFilesFailedWorkers)
@@ -211,7 +216,23 @@ class MapPartitionCommitHandler(
     (dataCommitSuccess, false)
   }
 
+  override def registerShuffle(
+      shuffleId: Int,
+      numMappers: Int,
+      isSegmentGranularityVisible: Boolean): Unit = {
+    super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible)
+    shuffleIsSegmentGranularityVisible.put(shuffleId, isSegmentGranularityVisible)
+  }
+
+  override def isSegmentGranularityVisible(shuffleId: Int): Boolean = {
+    shuffleIsSegmentGranularityVisible.get(shuffleId)
+  }
+
   override def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+    // TODO: if support the downstream map task start early before the upstream reduce task, it should
+    //  waiting the upstream task register shuffle, then reply these GetReducerFileGroup.
+    //  Note that flink hybrid shuffle should support it in the future.
+
     // we need obtain the last succeed partitionIds
     val lastSucceedPartitionIds =
       shuffleSucceedPartitionIds.getOrDefault(shuffleId, new util.HashSet[Integer]())

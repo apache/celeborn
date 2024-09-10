@@ -253,8 +253,11 @@ class ReducePartitionCommitHandler(
     }
   }
 
-  override def registerShuffle(shuffleId: Int, numMappers: Int): Unit = {
-    super.registerShuffle(shuffleId, numMappers)
+  override def registerShuffle(
+      shuffleId: Int,
+      numMappers: Int,
+      isSegmentGranularityVisible: Boolean): Unit = {
+    super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible)
     getReducerFileGroupRequest.put(shuffleId, new util.HashSet[RpcCallContext]())
     initMapperAttempts(shuffleId, numMappers)
   }
