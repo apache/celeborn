@@ -717,10 +717,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       // Fifth, reply the allocated partition location to ShuffleClient.
       logInfo(s"Handle RegisterShuffle Success for $shuffleId.")
       val allPrimaryPartitionLocations = slots.asScala.flatMap(_._2._1.asScala).toArray
-      commitManager.registerShuffle(
-        shuffleId,
-        numMappers,
-        isSegmentGranularityVisible)
       replyRegisterShuffle(RegisterShuffleResponse(
         StatusCode.SUCCESS,
         allPrimaryPartitionLocations))
