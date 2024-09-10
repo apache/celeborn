@@ -17,19 +17,17 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import javax.ws.rs.{BadRequestException, Consumes, GET, Path, POST, Produces}
+import javax.ws.rs.{BadRequestException, Consumes, GET, POST, Path, Produces}
 import javax.ws.rs.core.MediaType
-
 import scala.collection.JavaConverters._
-
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
-
-import org.apache.celeborn.rest.v1.model.{ExcludeWorkerRequest, HandleResponse, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, WorkerEventData, WorkerEventInfoData, WorkerEventsResponse, WorkersResponse, WorkerTimestampData}
+import org.apache.celeborn.rest.v1.model.{ExcludeWorkerRequest, HandleResponse, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, WorkerEventData, WorkerEventInfoData, WorkerEventsResponse, WorkerTimestampData, WorkersResponse}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.server.common.http.api.v1.ApiUtils
 import org.apache.celeborn.service.deploy.master.Master
+import org.apache.celeborn.service.deploy.master.http.api.MasterHttpResourceUtils._
 
 @Tag(name = "Worker")
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -72,17 +70,11 @@ class WorkerResource extends ApiRequestContext {
       "Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove.")
   @POST
   @Path("/exclude")
-  def excludeWorker(request: ExcludeWorkerRequest): HandleResponse = {
-    if (master.isMasterActive == 1) {
-      val (success, msg) = httpService.exclude(
-        request.getAdd.asScala.map(ApiUtils.toWorkerInfo).toSeq,
-        request.getRemove.asScala.map(ApiUtils.toWorkerInfo).toSeq)
-      new HandleResponse().success(success).message(msg)
-    } else {
-      throw new BadRequestException(
-        s"This operation can only be done from a master that has the LEADER role." +
-          s" The master group info is: \n${master.getMasterGroupInfo}")
-    }
+  def excludeWorker(request: ExcludeWorkerRequest): HandleResponse = ensureMasterActive {
+    val (success, msg) = httpService.exclude(
+      request.getAdd.asScala.map(ApiUtils.toWorkerInfo).toSeq,
+      request.getRemove.asScala.map(ApiUtils.toWorkerInfo).toSeq)
+    new HandleResponse().success(success).message(msg)
   }
 
   @ApiResponse(
@@ -93,17 +85,10 @@ class WorkerResource extends ApiRequestContext {
     description = "Remove the workers unavailable info from the master.")
   @POST
   @Path("/remove_unavailable")
-  def removeWorkersUnavailableInfo(request: RemoveWorkersUnavailableInfoRequest): HandleResponse = {
-    if (master.isMasterActive == 1) {
-      val (success, msg) = master.removeWorkersUnavailableInfo(
-        request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq)
-      new HandleResponse().success(success).message(msg)
-    } else {
-      throw new BadRequestException(
-        s"This operation can only be done from a master that has the LEADER role." +
-          s" The master group info is: \n${master.getMasterGroupInfo}")
-    }
-
+  def removeWorkersUnavailableInfo(request: RemoveWorkersUnavailableInfoRequest): HandleResponse = ensureMasterActive {
+    val (success, msg) = master.removeWorkersUnavailableInfo(
+      request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq)
+    new HandleResponse().success(success).message(msg)
   }
 
   @ApiResponse(
@@ -136,30 +121,24 @@ class WorkerResource extends ApiRequestContext {
       "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'.")
   @POST
   @Path("/events")
-  def sendWorkerEvents(request: SendWorkerEventRequest): HandleResponse = {
-    if (master.isMasterActive == 1) {
-      if (request.getEventType == SendWorkerEventRequest.EventTypeEnum.NONE || request.getWorkers.isEmpty) {
-        throw new BadRequestException(
-          s"eventType(${request.getEventType}) and workers(${request.getWorkers}) are required")
-      }
-      val workers = request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq
-      val (filteredWorkers, unknownWorkers) = workers.partition(statusSystem.workers.contains)
-      if (filteredWorkers.isEmpty) {
-        throw new BadRequestException(
-          s"None of the workers are known: ${unknownWorkers.map(_.readableAddress).mkString(", ")}")
-      }
-      val (success, msg) = httpService.handleWorkerEvent(request.getEventType.toString, workers)
-      val finalMsg =
-        if (unknownWorkers.isEmpty) {
-          msg
-        } else {
-          s"${msg}\n(Unknown workers: ${unknownWorkers.map(_.readableAddress).mkString(", ")})"
-        }
-      new HandleResponse().success(success).message(finalMsg)
-    } else {
+  def sendWorkerEvents(request: SendWorkerEventRequest): HandleResponse = ensureMasterActive {
+    if (request.getEventType == SendWorkerEventRequest.EventTypeEnum.NONE || request.getWorkers.isEmpty) {
       throw new BadRequestException(
-        s"This operation can only be done from a master that has the LEADER role." +
-          s" The master group info is: \n${master.getMasterGroupInfo}")
+        s"eventType(${request.getEventType}) and workers(${request.getWorkers}) are required")
     }
+    val workers = request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq
+    val (filteredWorkers, unknownWorkers) = workers.partition(statusSystem.workers.contains)
+    if (filteredWorkers.isEmpty) {
+      throw new BadRequestException(
+        s"None of the workers are known: ${unknownWorkers.map(_.readableAddress).mkString(", ")}")
+    }
+    val (success, msg) = httpService.handleWorkerEvent(request.getEventType.toString, workers)
+    val finalMsg =
+      if (unknownWorkers.isEmpty) {
+        msg
+      } else {
+        s"${msg}\n(Unknown workers: ${unknownWorkers.map(_.readableAddress).mkString(", ")})"
+      }
+    new HandleResponse().success(success).message(finalMsg)
   }
 }
