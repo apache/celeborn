@@ -80,7 +80,8 @@ class WorkerResource extends ApiRequestContext {
       new HandleResponse().success(success).message(msg)
     } else {
       throw new BadRequestException(
-        s"This operation can only be done from a master that has the LEADER role.")
+        s"This operation can only be done from a master that has the LEADER role." +
+          s" The master group info is: \n${master.getMasterGroupInfo}")
     }
   }
 
@@ -99,7 +100,8 @@ class WorkerResource extends ApiRequestContext {
       new HandleResponse().success(success).message(msg)
     } else {
       throw new BadRequestException(
-        s"This operation can only be done from a master that has the LEADER role.")
+        s"This operation can only be done from a master that has the LEADER role." +
+          s" The master group info is: \n${master.getMasterGroupInfo}")
     }
 
   }
@@ -156,7 +158,8 @@ class WorkerResource extends ApiRequestContext {
       new HandleResponse().success(success).message(finalMsg)
     } else {
       throw new BadRequestException(
-        s"This operation can only be done from a master that has the LEADER role.")
+        s"This operation can only be done from a master that has the LEADER role." +
+          s" The master group info is: \n${master.getMasterGroupInfo}")
     }
   }
 }
