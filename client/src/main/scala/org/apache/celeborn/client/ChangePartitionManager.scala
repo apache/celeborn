@@ -55,7 +55,6 @@ class ChangePartitionManager(
   // shuffleId -> set of partition id
   private val inBatchPartitions =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap.KeySetView[Int, java.lang.Boolean]]()
-  private val shuffleIsSegmentGranularityVisible = JavaUtils.newConcurrentHashMap[Int, Boolean]()
 
   private val batchHandleChangePartitionEnabled = conf.batchHandleChangePartitionEnabled
   private val batchHandleChangePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
@@ -105,7 +104,7 @@ class ChangePartitionManager(
                         handleRequestPartitions(
                           shuffleId,
                           distinctPartitions,
-                          shuffleIsSegmentGranularityVisible.get(shuffleId))
+                          lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
                       }
                     }
                   }
@@ -168,7 +167,6 @@ class ChangePartitionManager(
     // check if there exists request for the partition, if do just register
     val requests = changePartitionRequests.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
     inBatchPartitions.computeIfAbsent(shuffleId, inBatchShuffleIdRegisterFunc)
-    shuffleIsSegmentGranularityVisible.put(shuffleId, isSegmentGranularityVisible)
 
     lifecycleManager.commitManager.registerCommitPartitionRequest(
       shuffleId,
@@ -355,7 +353,6 @@ class ChangePartitionManager(
   def removeExpiredShuffle(shuffleId: Int): Unit = {
     changePartitionRequests.remove(shuffleId)
     inBatchPartitions.remove(shuffleId)
-    shuffleIsSegmentGranularityVisible.remove(shuffleId)
     locks.remove(shuffleId)
   }
 }
