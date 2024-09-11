@@ -1364,7 +1364,7 @@ private[celeborn] class Master(
     }
   }
 
-  def isMasterActive: Int = {
+  private[master] def isMasterActive: Int = {
     // use int rather than bool for better monitoring on dashboard
     val isActive =
       if (conf.haEnabled) {
