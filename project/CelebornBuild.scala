@@ -626,7 +626,8 @@ object CelebornMaster {
         Dependencies.ratisMetricsDefault,
         Dependencies.ratisNetty,
         Dependencies.ratisServer,
-        Dependencies.ratisShell
+        Dependencies.ratisShell,
+        Dependencies.scalatestMockito % "test",
       ) ++ commonUnitTestDependencies
     )
 }

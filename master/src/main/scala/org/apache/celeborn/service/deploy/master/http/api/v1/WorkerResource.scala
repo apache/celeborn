@@ -73,7 +73,7 @@ class WorkerResource extends ApiRequestContext {
       "Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove.")
   @POST
   @Path("/exclude")
-  def excludeWorker(request: ExcludeWorkerRequest): HandleResponse = ensureMasterIsLeader {
+  def excludeWorker(request: ExcludeWorkerRequest): HandleResponse = ensureMasterIsLeader(master) {
     val (success, msg) = httpService.exclude(
       request.getAdd.asScala.map(ApiUtils.toWorkerInfo).toSeq,
       request.getRemove.asScala.map(ApiUtils.toWorkerInfo).toSeq)
@@ -89,7 +89,7 @@ class WorkerResource extends ApiRequestContext {
   @POST
   @Path("/remove_unavailable")
   def removeWorkersUnavailableInfo(request: RemoveWorkersUnavailableInfoRequest): HandleResponse =
-    ensureMasterIsLeader {
+    ensureMasterIsLeader(master) {
       val (success, msg) = master.removeWorkersUnavailableInfo(
         request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq)
       new HandleResponse().success(success).message(msg)
@@ -125,24 +125,25 @@ class WorkerResource extends ApiRequestContext {
       "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'.")
   @POST
   @Path("/events")
-  def sendWorkerEvents(request: SendWorkerEventRequest): HandleResponse = ensureMasterIsLeader {
-    if (request.getEventType == SendWorkerEventRequest.EventTypeEnum.NONE || request.getWorkers.isEmpty) {
-      throw new BadRequestException(
-        s"eventType(${request.getEventType}) and workers(${request.getWorkers}) are required")
-    }
-    val workers = request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq
-    val (filteredWorkers, unknownWorkers) = workers.partition(statusSystem.workers.contains)
-    if (filteredWorkers.isEmpty) {
-      throw new BadRequestException(
-        s"None of the workers are known: ${unknownWorkers.map(_.readableAddress).mkString(", ")}")
-    }
-    val (success, msg) = httpService.handleWorkerEvent(request.getEventType.toString, workers)
-    val finalMsg =
-      if (unknownWorkers.isEmpty) {
-        msg
-      } else {
-        s"${msg}\n(Unknown workers: ${unknownWorkers.map(_.readableAddress).mkString(", ")})"
+  def sendWorkerEvents(request: SendWorkerEventRequest): HandleResponse =
+    ensureMasterIsLeader(master) {
+      if (request.getEventType == SendWorkerEventRequest.EventTypeEnum.NONE || request.getWorkers.isEmpty) {
+        throw new BadRequestException(
+          s"eventType(${request.getEventType}) and workers(${request.getWorkers}) are required")
       }
-    new HandleResponse().success(success).message(finalMsg)
-  }
+      val workers = request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq
+      val (filteredWorkers, unknownWorkers) = workers.partition(statusSystem.workers.contains)
+      if (filteredWorkers.isEmpty) {
+        throw new BadRequestException(
+          s"None of the workers are known: ${unknownWorkers.map(_.readableAddress).mkString(", ")}")
+      }
+      val (success, msg) = httpService.handleWorkerEvent(request.getEventType.toString, workers)
+      val finalMsg =
+        if (unknownWorkers.isEmpty) {
+          msg
+        } else {
+          s"${msg}\n(Unknown workers: ${unknownWorkers.map(_.readableAddress).mkString(", ")})"
+        }
+      new HandleResponse().success(success).message(finalMsg)
+    }
 }

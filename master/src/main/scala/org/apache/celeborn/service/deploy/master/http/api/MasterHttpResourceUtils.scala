@@ -23,7 +23,7 @@ import org.apache.celeborn.service.deploy.master.Master
 
 object MasterHttpResourceUtils {
 
-  def ensureMasterIsLeader[T](master: Master, f: => T): T = {
+  def ensureMasterIsLeader[T](master: Master)(f: => T): T = {
     if (master.isMasterActive != 1) {
       throw new BadRequestException(
         s"This operation can only be done from a master that has the LEADER role." +
