@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
+import org.apache.flink.shaded.netty4.io.netty.buffer.CompositeByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -157,6 +158,27 @@ public class BufferPacker {
   public static Queue<Buffer> unpack(ByteBuf byteBuf) {
     Queue<Buffer> buffers = new ArrayDeque<>();
     try {
+      if (byteBuf instanceof CompositeByteBuf) {
+        // If the received byteBuf is a CompositeByteBuf, it indicates that the byteBuf originates
+        // from the Flink hybrid shuffle integration strategy. This byteBuf consists of two parts: a
+        // celeborn header and a data buffer.
+        CompositeByteBuf compositeByteBuf = (CompositeByteBuf) byteBuf;
+        ByteBuf headerBuffer = compositeByteBuf.component(0).unwrap();
+        ByteBuf dataBuffer = compositeByteBuf.component(1).unwrap();
+        dataBuffer.retain();
+        Utils.checkState(dataBuffer instanceof Buffer, "Illegal buffer type.");
+        BufferHeader bufferHeader = BufferUtils.getBufferHeaderFromByteBuf(headerBuffer, 0);
+        Buffer slice = ((Buffer) dataBuffer).readOnlySlice(0, bufferHeader.getSize());
+        buffers.add(
+            new UnpackSlicedBuffer(
+                slice,
+                bufferHeader.getDataType(),
+                bufferHeader.isCompressed(),
+                bufferHeader.getSize()));
+
+        return buffers;
+      }
+
       Utils.checkState(byteBuf instanceof Buffer, "Illegal buffer type.");
 
       Buffer buffer = (Buffer) byteBuf;

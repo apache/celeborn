@@ -64,6 +64,7 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
 
   private final int numBuffersPerSegment;
 
+  // The flink buffer size in bytes.
   private final int bufferSizeBytes;
 
   private final int numPartitions;
@@ -325,9 +326,18 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
     try {
       int remainingReviveTimes = maxReviveTimes;
       while (remainingReviveTimes-- > 0 && !hasSentHandshake) {
+        // In the Flink hybrid shuffle integration strategy, the data buffer sent to the Celeborn
+        // workers consists of two components: the Celeborn header and the data buffers.
+        // In this scenario, the maximum byte size of the buffer received by the Celeborn worker is
+        // equal to the Flink buffer size plus the size of the Celeborn header.
         Optional<PartitionLocation> revivePartition =
             flinkShuffleClient.pushDataHandShake(
-                shuffleId, mapId, attemptId, numSubPartitions, bufferSizeBytes, partitionLocation);
+                shuffleId,
+                mapId,
+                attemptId,
+                numSubPartitions,
+                bufferSizeBytes + BufferUtils.HEADER_LENGTH,
+                partitionLocation);
         // if remainingReviveTimes == 0 and revivePartition.isPresent(), there is no need to send
         // handshake again
         if (revivePartition.isPresent() && remainingReviveTimes > 0) {
@@ -478,7 +488,8 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
           lifecycleManagerPort,
           lifecycleManagerTimestamp,
           celebornConf,
-          null);
+          null,
+          bufferSizeBytes);
     } catch (DriverChangedException e) {
       // would generate a new attempt to retry output gate
       throw new RuntimeException(e.getMessage());

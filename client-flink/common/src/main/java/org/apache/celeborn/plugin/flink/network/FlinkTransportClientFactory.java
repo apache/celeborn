@@ -39,11 +39,14 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
 
   private ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers;
 
+  private int bufferSizeBytes;
+
   public FlinkTransportClientFactory(
-      TransportContext context, List<TransportClientBootstrap> bootstraps) {
+      TransportContext context, List<TransportClientBootstrap> bootstraps, int bufferSizeBytes) {
     super(context, bootstraps);
     bufferSuppliers = JavaUtils.newConcurrentHashMap();
     this.pooledAllocator = new UnpooledByteBufAllocator(true);
+    this.bufferSizeBytes = bufferSizeBytes;
   }
 
   public TransportClient createClientWithRetry(String remoteHost, int remotePort)
@@ -52,7 +55,7 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
         remoteHost,
         remotePort,
         -1,
-        () -> new TransportFrameDecoderWithBufferSupplier(bufferSuppliers));
+        () -> new TransportFrameDecoderWithBufferSupplier(bufferSuppliers, bufferSizeBytes));
   }
 
   public void registerSupplier(long streamId, Supplier<ByteBuf> supplier) {
