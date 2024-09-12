@@ -36,6 +36,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     if (masterOptions.showTopDiskUsedApps) log(runShowTopDiskUsedApps)
     if (masterOptions.excludeWorkers) log(runExcludeWorkers)
     if (masterOptions.removeExcludedWorkers) log(runRemoveExcludedWorkers)
+    if (masterOptions.removeWorkersUnavailableInfo) log(runRemoveWorkersUnavailableInfo)
     if (masterOptions.sendWorkerEvent != null && masterOptions.sendWorkerEvent.nonEmpty)
       log(runSendWorkerEvent)
     if (masterOptions.showWorkerEventInfo) log(runShowWorkerEventInfo)
@@ -75,6 +76,13 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     val removeExcludeWorkerRequest = new ExcludeWorkerRequest().remove(workerIds)
     logInfo(s"Sending remove exclude worker requests to workers: $workerIds")
     workerApi.excludeWorker(removeExcludeWorkerRequest)
+  }
+
+  private[master] def runRemoveWorkersUnavailableInfo: HandleResponse = {
+    val workerIds = getWorkerIds
+    val removeWorkersUnavailableInfoRequest = new RemoveWorkersUnavailableInfoRequest().workers(workerIds)
+    logInfo(s"Sending remove workers unavailable info requests to workers: $workerIds")
+    workerApi.removeWorkersUnavailableInfo(removeWorkersUnavailableInfoRequest)
   }
 
   private[master] def runSendWorkerEvent: HandleResponse = {

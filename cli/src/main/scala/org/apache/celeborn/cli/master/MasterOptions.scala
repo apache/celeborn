@@ -91,4 +91,9 @@ final class MasterOptions {
     paramLabel = "alias",
     description = Array("Remove alias to use in the cli for the given set of masters"))
   private[master] var removeClusterAlias: String = _
+
+  @Option(
+    names = Array("--remove-workers-unavailable-info"),
+    description = Array("Remove the workers unavailable info from the master."))
+  private[master] var removeWorkersUnavailableInfo: Boolean = _
 }

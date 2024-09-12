@@ -80,6 +80,8 @@ trait MasterSubcommand extends CliLogging {
 
   private[master] def runRemoveExcludedWorkers: HandleResponse
 
+  private[master] def runRemoveWorkersUnavailableInfo: HandleResponse
+
   private[master] def runSendWorkerEvent: HandleResponse
 
   private[master] def runShowWorkerEventInfo: WorkerEventsResponse

@@ -214,6 +214,14 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "success: true")
   }
 
+  test("master --remove-workers-unavailable-info") {
+    val args = prepareMasterArgs() ++ Array(
+      "--remove-workers-unavailable-info",
+      "--worker-ids",
+      getWorkerId())
+    captureOutputAndValidateResponse(args, "success: true")
+  }
+
   private def prepareMasterArgs(): Array[String] = {
     Array(
       "master",
