@@ -208,7 +208,7 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   test("master --send-worker-event") {
     val args = prepareMasterArgs() ++ Array(
       "--send-worker-event",
-      "DECOMMISSION",
+      "RECOMMISSION",
       "--worker-ids",
       getWorkerId())
     captureOutputAndValidateResponse(args, "success: true")

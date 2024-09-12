@@ -85,7 +85,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
         case _: IllegalArgumentException => throw new ParameterException(
             spec.commandLine(),
             "Worker event type must be " +
-              "IMMEDIATELY, DECOMMISSION, DECOMMISSION_THEN_IDLE, or GRACEFUL")
+              EventTypeEnum.values().toStream.map(_.name()).mkString(","))
       }
     }
     val workerIds = getWorkerIds
