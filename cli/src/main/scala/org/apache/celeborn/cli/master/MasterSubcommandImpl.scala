@@ -80,7 +80,8 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
 
   private[master] def runRemoveWorkersUnavailableInfo: HandleResponse = {
     val workerIds = getWorkerIds
-    val removeWorkersUnavailableInfoRequest = new RemoveWorkersUnavailableInfoRequest().workers(workerIds)
+    val removeWorkersUnavailableInfoRequest =
+      new RemoveWorkersUnavailableInfoRequest().workers(workerIds)
     logInfo(s"Sending remove workers unavailable info requests to workers: $workerIds")
     workerApi.removeWorkersUnavailableInfo(removeWorkersUnavailableInfoRequest)
   }
