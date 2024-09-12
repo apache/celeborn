@@ -1735,8 +1735,10 @@ object CelebornConf extends Logging {
       .categories("network")
       .version("0.6.0")
       .doc("When `true`, the bind address will be set to a wildcard address, while the advertise address will " +
-        "remain as whatever is set by `celeborn.network.advertise.preferIpAddress`. This is helpful in dual-stack " +
-        "environments, where the service must listen to both IPv4 and IPv6 clients.")
+        "remain as whatever is set by `celeborn.network.advertise.preferIpAddress`. The wildcard address is a special " +
+        "local IP address, and usually refers to 'any' and can only be used for bind operations. In the case of IPv4, " +
+        "this is 0.0.0.0 and in the case of IPv6 this is ::0. This is helpful in dual-stack environments, where the " +
+        "service must listen to both IPv4 and IPv6 clients.")
       .booleanConf
       .createWithDefault(false)
 
