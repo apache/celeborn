@@ -70,8 +70,8 @@ public class FlinkResultPartitionInfo {
     final StringBuilder sb = new StringBuilder("FlinkResultPartitionInfo{");
     sb.append("jobID=").append(jobID);
     sb.append(", resultPartitionId=").append(resultPartitionId);
-    sb.append(", partitionDescriptor=").append(partitionId);
-    sb.append(", producerDescriptor=").append(producerId);
+    sb.append(", partitionId=").append(partitionId);
+    sb.append(", producerId=").append(producerId);
     sb.append('}');
     return sb.toString();
   }

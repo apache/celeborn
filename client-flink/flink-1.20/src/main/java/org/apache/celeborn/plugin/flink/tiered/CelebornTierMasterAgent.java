@@ -27,7 +27,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -63,10 +63,8 @@ public class CelebornTierMasterAgent implements TierMasterAgent {
 
   private final ShuffleTaskInfo shuffleTaskInfo = new ShuffleTaskInfo();
 
-  private final ScheduledThreadPoolExecutor executor =
-      new ScheduledThreadPoolExecutor(
-          1, ThreadUtils.namedThreadFactory("celeborn-client-tier-master-executor"));
-
+  private final ScheduledExecutorService executor =
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-client-tier-master-executor");
   private final long lifecycleManagerTimestamp;
 
   private final CelebornConf conf;
@@ -89,7 +87,10 @@ public class CelebornTierMasterAgent implements TierMasterAgent {
         if (lifecycleManager == null) {
           celebornAppId = FlinkUtils.toCelebornAppId(lifecycleManagerTimestamp, jobID);
           LOG.info("CelebornAppId: {}", celebornAppId);
-          // if not set, set to true as default for flink
+          // The default value of this config option is false. If set to true, Celeborn will use
+          // local allocated workers as candidate being checked workers, this is more useful for
+          // map partition to regenerate the lost data. So if not set, set to true as default for
+          // flink.
           conf.setIfMissing(CelebornConf.CLIENT_CHECKED_USE_ALLOCATED_WORKERS(), true);
           lifecycleManager = new LifecycleManager(celebornAppId, conf);
           this.shuffleResourceTracker = new ShuffleResourceTracker(executor, lifecycleManager);
@@ -99,10 +100,10 @@ public class CelebornTierMasterAgent implements TierMasterAgent {
 
     Set<Integer> previousShuffleIds = jobShuffleIds.putIfAbsent(jobID, new HashSet<>());
     LOG.info("Register job: {}.", jobID);
-    shuffleResourceTracker.registerJob(getJobShuffleContext(jobID, tierShuffleHandler));
     if (previousShuffleIds != null) {
       throw new RuntimeException("Duplicated registration job: " + jobID);
     }
+    shuffleResourceTracker.registerJob(getJobShuffleContext(jobID, tierShuffleHandler));
   }
 
   @Override
@@ -112,15 +113,11 @@ public class CelebornTierMasterAgent implements TierMasterAgent {
     if (shuffleIds != null) {
       executor.execute(
           () -> {
-            try {
-              for (Integer shuffleId : shuffleIds) {
-                lifecycleManager.unregisterShuffle(shuffleId);
-                shuffleTaskInfo.removeExpiredShuffle(shuffleId);
-              }
-              shuffleResourceTracker.unRegisterJob(jobID);
-            } catch (Throwable throwable) {
-              LOG.error("Encounter an error when unregistering job: {}.", jobID, throwable);
+            for (Integer shuffleId : shuffleIds) {
+              lifecycleManager.unregisterShuffle(shuffleId);
+              shuffleTaskInfo.removeExpiredShuffle(shuffleId);
             }
+            shuffleResourceTracker.unRegisterJob(jobID);
           });
     }
   }
