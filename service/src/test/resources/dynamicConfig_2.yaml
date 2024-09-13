@@ -24,4 +24,3 @@
    users:
      - name: Jerry
        config:
-         celeborn.key:
