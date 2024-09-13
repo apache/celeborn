@@ -168,7 +168,7 @@ If `celeborn.worker.flusher.buffer.size` is 256 KB, we can have total slots up t
 
 ## Rack Awareness
 
-Celeborn can be rack-aware by setting `celeborn.client.reserveSlots.rackaware.enabled` to `true` on client side.
+Celeborn can be rack-aware by setting `celeborn.client.reserveSlots.rackware.enabled` to `true` on client side.
 Shuffle partition block replica placement will use rack awareness for fault tolerance by placing one shuffle partition replica
 on a different rack. This provides data availability in the event of a network switch failure or partition within the cluster.
 

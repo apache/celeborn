@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -84,7 +85,10 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
     Map<String, Object> configs = (Map<String, Object>) configMap.get(CONF_CONFIG);
     if (configs == null) return Collections.emptyMap();
     return configs.entrySet().stream()
-        .collect(Collectors.toMap(Map.Entry::getKey, config -> config.getValue().toString()));
+        .collect(
+            Collectors.toMap(
+                Map.Entry::getKey,
+                config -> Optional.ofNullable(config.getValue()).map(Object::toString).orElse("")));
   }
 
   private File getConfigFile(Map<String, String> env) throws IOException {
