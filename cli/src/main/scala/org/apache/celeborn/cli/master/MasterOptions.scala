@@ -45,7 +45,8 @@ final class MasterOptions {
 
   @Option(
     names = Array("--send-worker-event"),
-    paramLabel = "IMMEDIATELY | DECOMMISSION | DECOMMISSION_THEN_IDLE | GRACEFUL",
+    paramLabel =
+      "IMMEDIATELY | DECOMMISSION | DECOMMISSION_THEN_IDLE | GRACEFUL | RECOMMISSION | NONE",
     description = Array("Send an event to a worker"))
   private[master] var sendWorkerEvent: String = _
 
