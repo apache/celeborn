@@ -20,6 +20,7 @@ package org.apache.celeborn.server.common.service.config;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,9 +81,10 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
   }
 
   private Map<String, String> getConfigs(Map<String, Object> configMap) {
-    return ((Map<String, Object>) configMap.get(CONF_CONFIG))
-        .entrySet().stream()
-            .collect(Collectors.toMap(Map.Entry::getKey, config -> config.getValue().toString()));
+    Map<String, Object> configs = (Map<String, Object>) configMap.get(CONF_CONFIG);
+    if (configs == null) return Collections.emptyMap();
+    return configs.entrySet().stream()
+        .collect(Collectors.toMap(Map.Entry::getKey, config -> config.getValue().toString()));
   }
 
   private File getConfigFile(Map<String, String> env) throws IOException {
