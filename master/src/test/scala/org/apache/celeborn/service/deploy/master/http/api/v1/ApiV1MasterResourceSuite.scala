@@ -133,12 +133,21 @@ class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite {
     assert(response.readEntity(classOf[WorkerEventsResponse]).getWorkerEvents.isEmpty)
 
     val sendWorkerEventRequest = new SendWorkerEventRequest()
-      .eventType(SendWorkerEventRequest.EventTypeEnum.DECOMMISSION)
-      .workers(Collections.singletonList(worker))
     response = webTarget.path("workers/events").request(MediaType.APPLICATION_JSON).post(
       Entity.entity(sendWorkerEventRequest, MediaType.APPLICATION_JSON))
     assert(HttpServletResponse.SC_BAD_REQUEST == response.getStatus)
-    assert(response.readEntity(classOf[String]).contains(
-      "None of the workers are known"))
+    assert(
+      response.readEntity(classOf[String]).contains("eventType(null) and workers([]) are required"))
+    sendWorkerEventRequest.eventType(SendWorkerEventRequest.EventTypeEnum.NONE)
+    response = webTarget.path("workers/events").request(MediaType.APPLICATION_JSON).post(
+      Entity.entity(sendWorkerEventRequest, MediaType.APPLICATION_JSON))
+    assert(HttpServletResponse.SC_BAD_REQUEST == response.getStatus)
+    assert(
+      response.readEntity(classOf[String]).contains("eventType(None) and workers([]) are required"))
+    sendWorkerEventRequest.workers(Collections.singletonList(worker))
+    response = webTarget.path("workers/events").request(MediaType.APPLICATION_JSON).post(
+      Entity.entity(sendWorkerEventRequest, MediaType.APPLICATION_JSON))
+    assert(HttpServletResponse.SC_BAD_REQUEST == response.getStatus)
+    assert(response.readEntity(classOf[String]).contains("None of the workers are known"))
   }
 }

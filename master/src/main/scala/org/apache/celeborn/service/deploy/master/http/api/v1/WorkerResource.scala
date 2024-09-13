@@ -127,7 +127,7 @@ class WorkerResource extends ApiRequestContext {
   @Path("/events")
   def sendWorkerEvents(request: SendWorkerEventRequest): HandleResponse =
     ensureMasterIsLeader(master) {
-      if (request.getEventType == SendWorkerEventRequest.EventTypeEnum.NONE || request.getWorkers.isEmpty) {
+      if (request.getEventType == null || request.getWorkers.isEmpty) {
         throw new BadRequestException(
           s"eventType(${request.getEventType}) and workers(${request.getWorkers}) are required")
       }
