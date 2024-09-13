@@ -16,12 +16,15 @@
 #
 -  level: SYSTEM
    config:
-     celeborn.worker.directMemoryRatioToPauseReceive: 0.75
-
 
 -  tenantId: tenant_id
    level: TENANT
    config:
+   users:
+     - name: user_name
+       config:
+         celeborn.quota.tenant.diskBytesWritten: 100G
+         celeborn.quota.tenant.diskFileCount: 10000
 
 
 
