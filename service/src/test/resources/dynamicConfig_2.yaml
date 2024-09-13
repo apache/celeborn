@@ -18,3 +18,9 @@
    config:
      celeborn.test.int.only: 100
 
+-  tenantId: tenant_id
+   level: TENANT
+   config:
+   users:
+     - name: Jerry
+       config:
