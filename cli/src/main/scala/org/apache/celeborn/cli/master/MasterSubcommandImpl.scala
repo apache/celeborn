@@ -75,7 +75,8 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   private[master] def runRemoveExcludedWorkers: HandleResponse = {
     val workerIds = getWorkerIds
     val removeExcludeWorkerRequest = new ExcludeWorkerRequest().remove(workerIds)
-    logInfo(s"Sending remove exclude worker requests to master for the following workers: $workerIds")
+    logInfo(
+      s"Sending remove exclude worker requests to master for the following workers: $workerIds")
     workerApi.excludeWorker(removeExcludeWorkerRequest)
   }
 
@@ -83,7 +84,8 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     val workerIds = getWorkerIds
     val removeWorkersUnavailableInfoRequest =
       new RemoveWorkersUnavailableInfoRequest().workers(workerIds)
-    logInfo(s"Sending remove workers unavailable info requests to master for the following workers: $workerIds")
+    logInfo(
+      s"Sending remove workers unavailable info requests to master for the following workers: $workerIds")
     workerApi.removeWorkersUnavailableInfo(removeWorkersUnavailableInfoRequest)
   }
 
