@@ -50,6 +50,9 @@ final class WorkerOptions {
   @Option(names = Array("--is-shutdown"), description = Array("Check if the system is shutdown"))
   private[worker] var isShutdown: Boolean = _
 
+  @Option(names = Array("--is-decommissioning"), description = Array("Check if the system is decommissioning"))
+  private[worker] var isDecommissioning: Boolean = _
+
   @Option(
     names = Array("--is-registered"),
     description = Array("Check if the system is registered"))

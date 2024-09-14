@@ -63,6 +63,9 @@ final class MasterOptions {
   @Option(names = Array("--show-shutdown-workers"), description = Array("Show shutdown workers"))
   private[master] var showShutdownWorkers: Boolean = _
 
+  @Option(names = Array("--show-decommissioning-workers"), description = Array("Show decommissioning workers"))
+  private[master] var showDecommissioningWorkers: Boolean = _
+
   @Option(
     names = Array("--show-lifecycle-managers"),
     description = Array("Show lifecycle managers"))

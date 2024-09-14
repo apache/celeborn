@@ -33,6 +33,7 @@ class WorkerSubcommandImpl extends Runnable with WorkerSubcommand {
     if (workerOptions.showPartitionLocationInfo) log(runShowPartitionLocationInfo)
     if (workerOptions.showUnavailablePeers) log(runShowUnavailablePeers)
     if (workerOptions.isShutdown) log(runIsShutdown)
+    if (workerOptions.isDecommissioning) log(runIsDecommissioning)
     if (workerOptions.isRegistered) log(runIsRegistered)
     if (workerOptions.exitType != null && workerOptions.exitType.nonEmpty) log(runExit)
     if (workerOptions.showConf) log(runShowConf)
@@ -56,6 +57,8 @@ class WorkerSubcommandImpl extends Runnable with WorkerSubcommand {
     workerApi.unavailablePeers()
 
   private[worker] def runIsShutdown: Boolean = runShowWorkerInfo.getIsShutdown
+
+  private[worker] def runIsDecommissioning: Boolean = runShowWorkerInfo.getIsDecommissioning
 
   private[worker] def runIsRegistered: Boolean = runShowWorkerInfo.getIsRegistered
 

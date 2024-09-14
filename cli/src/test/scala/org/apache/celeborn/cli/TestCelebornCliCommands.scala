@@ -104,6 +104,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "false")
   }
 
+  test("worker --is-decommissioning") {
+    val args = prepareWorkerArgs() :+ "--is-decommissioning"
+    captureOutputAndValidateResponse(args, "false")
+  }
+
   test("worker --is-registered") {
     val args = prepareWorkerArgs() :+ "--is-registered"
     captureOutputAndValidateResponse(args, "true")
@@ -164,6 +169,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   test("master --show-shutdown-workers") {
     val args = prepareMasterArgs() :+ "--show-shutdown-workers"
     captureOutputAndValidateResponse(args, "No shutdown workers found.")
+  }
+
+  test("master --show-decommissioning-workers") {
+    val args = prepareMasterArgs() :+ "--show-decommissioning-workers"
+    captureOutputAndValidateResponse(args, "No decommissioning workers found.")
   }
 
   test("master --show-lifecycle-managers") {
