@@ -50,4 +50,11 @@
          celeborn.client.push.buffer.initial.size: 1k
          celeborn.client.push.buffer.initial.size.user.only: 512k
 
+-  tenantId: tenant_id2
+   level: TENANT
+   config:
+   users:
+     - name: Jerry
+       config:
+         celeborn.client.push.buffer.initial.size:
 
