@@ -36,24 +36,20 @@ class TagsManager extends Logging {
   private val tagStore = new TagsStore()
 
   def getTaggedWorkers(tag: Tag, workers: List[WorkerInfo]): List[WorkerInfo] = {
-    if (!tagStore.containsKey(tag)) {
+    val workersForTag = tagStore.get(tag)
+    if (null == workersForTag) {
       logWarning(s"Tag $tag not found in cluster")
       return List.empty
     }
-
-    workers.filter(worker => tagStore.get(tag).contains(worker.host))
+    workers.filter(worker => workersForTag.contains(worker.host))
   }
 
   def addTagToWorker(tag: Tag, worker: WorkerInfo): Unit = {
     val workerId = worker.host
-    val workers = tagStore.get(tag)
+    val workers = tagStore.computeIfAbsent(tag, ConcurrentHashMap.newKeySet[String]())
 
     logInfo(s"Adding Tag $tag to worker $workerId")
-    if (workers == null) {
-      tagStore.put(tag, Set(workerId))
-    } else {
-      tagStore.put(tag, workers + workerId)
-    }
+    workers.add(workerId)
   }
 
   def removeTagFromWorker(tag: Tag, worker: WorkerInfo): Unit = {
