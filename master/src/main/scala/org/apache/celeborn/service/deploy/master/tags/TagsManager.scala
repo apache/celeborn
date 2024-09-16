@@ -23,13 +23,14 @@ import scala.collection.JavaConverters.{asScalaIteratorConverter, mapAsScalaConc
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
-import org.apache.celeborn.service.deploy.master.tags.TagsManager.{Tag, TagsStore}
+import org.apache.celeborn.service.deploy.master.tags.TagsManager.{Tag, TagsStore, WorkerId}
 
 object TagsManager {
   type Tag = String
   type WorkerId = String
 
-  type TagsStore = ConcurrentHashMap[Tag, Set[WorkerId]]
+  import java.util.{Set => JSet}
+  type TagsStore = ConcurrentHashMap[Tag, JSet[WorkerId]]
 }
 
 class TagsManager extends Logging {
@@ -37,7 +38,7 @@ class TagsManager extends Logging {
 
   def getTaggedWorkers(tag: Tag, workers: List[WorkerInfo]): List[WorkerInfo] = {
     val workersForTag = tagStore.get(tag)
-    if (null == workersForTag) {
+    if (workersForTag == null) {
       logWarning(s"Tag $tag not found in cluster")
       return List.empty
     }
@@ -46,7 +47,7 @@ class TagsManager extends Logging {
 
   def addTagToWorker(tag: Tag, worker: WorkerInfo): Unit = {
     val workerId = worker.host
-    val workers = tagStore.computeIfAbsent(tag, ConcurrentHashMap.newKeySet[String]())
+    val workers = tagStore.computeIfAbsent(tag, _ => ConcurrentHashMap.newKeySet[WorkerId]())
 
     logInfo(s"Adding Tag $tag to worker $workerId")
     workers.add(workerId)
@@ -58,7 +59,7 @@ class TagsManager extends Logging {
 
     if (workers != null && workers.contains(workerId)) {
       logInfo(s"Removing Tag $tag from worker $workerId")
-      tagStore.put(tag, workers - workerId)
+      workers.remove(workerId)
     } else {
       logWarning(s"Tag $tag not found for worker $workerId")
     }
@@ -71,7 +72,7 @@ class TagsManager extends Logging {
   def removeTagFromCluster(tag: Tag): Unit = {
     val workers = tagStore.remove(tag)
     if (workers != null) {
-      logInfo(s"Removed Tag $tag from cluster with workers ${workers.mkString(", ")}")
+      logInfo(s"Removed Tag $tag from cluster with workers ${workers.toArray.mkString(", ")}")
     } else {
       logWarning(s"Tag $tag not found in cluster and thus can not be removed")
     }
