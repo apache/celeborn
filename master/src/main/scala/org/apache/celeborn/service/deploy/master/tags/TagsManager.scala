@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.service.deploy.master.tags
 
+import java.util
+import java.util.{Set => JSet}
 import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters.{asScalaIteratorConverter, mapAsScalaConcurrentMapConverter}
@@ -29,12 +31,17 @@ object TagsManager {
   type Tag = String
   type WorkerId = String
 
-  import java.util.{Set => JSet}
   type TagsStore = ConcurrentHashMap[Tag, JSet[WorkerId]]
 }
 
 class TagsManager extends Logging {
   private val tagStore = new TagsStore()
+
+  private val addNewTagFunc =
+    new util.function.Function[Tag, ConcurrentHashMap.KeySetView[WorkerId, java.lang.Boolean]]() {
+      override def apply(t: Tag): ConcurrentHashMap.KeySetView[WorkerId, java.lang.Boolean] =
+        ConcurrentHashMap.newKeySet[WorkerId]()
+    }
 
   def getTaggedWorkers(tag: Tag, workers: List[WorkerInfo]): List[WorkerInfo] = {
     val workersForTag = tagStore.get(tag)
@@ -47,10 +54,7 @@ class TagsManager extends Logging {
 
   def addTagToWorker(tag: Tag, worker: WorkerInfo): Unit = {
     val workerId = worker.host
-    val workers = tagStore.computeIfAbsent(
-      tag,
-      (_: Tag) => ConcurrentHashMap.newKeySet[WorkerId]())
-
+    val workers = tagStore.computeIfAbsent(tag, addNewTagFunc)
     logInfo(s"Adding Tag $tag to worker $workerId")
     workers.add(workerId)
   }
