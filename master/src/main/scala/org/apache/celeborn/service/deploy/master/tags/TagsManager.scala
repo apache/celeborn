@@ -47,7 +47,9 @@ class TagsManager extends Logging {
 
   def addTagToWorker(tag: Tag, worker: WorkerInfo): Unit = {
     val workerId = worker.host
-    val workers = tagStore.computeIfAbsent(tag, _ => ConcurrentHashMap.newKeySet[WorkerId]())
+    val workers = tagStore.computeIfAbsent(
+      tag,
+      (_: Tag) => ConcurrentHashMap.newKeySet[WorkerId]())
 
     logInfo(s"Adding Tag $tag to worker $workerId")
     workers.add(workerId)
