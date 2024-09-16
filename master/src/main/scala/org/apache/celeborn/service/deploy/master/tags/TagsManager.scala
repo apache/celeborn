@@ -28,7 +28,7 @@ import org.apache.celeborn.common.meta.WorkerInfo
 
 class TagsManager extends Logging {
   private val tagStore = new ConcurrentHashMap[String, JSet[String]]()
-
+  
   private val addNewTagFunc =
     new util.function.Function[String, ConcurrentHashMap.KeySetView[String, java.lang.Boolean]]() {
       override def apply(t: String): ConcurrentHashMap.KeySetView[String, java.lang.Boolean] =
