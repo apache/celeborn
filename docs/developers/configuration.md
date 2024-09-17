@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS celeborn_cluster_tenant_config (
   gmt_create timestamp NOT NULL,
   gmt_modify timestamp NOT NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY `index_unique_tenant_config_key` (`cluster_id`, `tenant_id`, `user`, `config_key`)
+  UNIQUE KEY `index_unique_tenant_config_key` (`cluster_id`, `tenant_id`, `name`, `config_key`)
 );
 
 INSERT INTO celeborn_cluster_info ( `id`, `name`, `namespace`, `endpoint`, `gmt_create`, `gmt_modify` )
