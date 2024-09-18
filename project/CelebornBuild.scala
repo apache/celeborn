@@ -152,6 +152,7 @@ object Dependencies {
   val jacksonDataTypeJsr310 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonVersion
   val jacksonDataFormatYam = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % jacksonVersion
   val jacksonJaxrsBase = "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-base" % jacksonVersion
+  val activationApi = "jakarta.activation" % "jakarta.activation-api" % "1.2.1"
   val jacksonJaxrsJsonProvider = "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider" % jacksonVersion
   val jacksonModuleJaxbAnnotations = "com.fasterxml.jackson.module" % "jackson-module-jaxb-annotations" % jacksonVersion
   val scalaReflect = "org.scala-lang" % "scala-reflect" % projectScalaVersion
@@ -1198,10 +1199,13 @@ object MRClientProjects {
       .settings(
         commonSettings,
         libraryDependencies ++= Seq(
+          Dependencies.activationApi,
           Dependencies.hadoopClientApi,
           Dependencies.hadoopClientRuntime,
-          Dependencies.hadoopMapreduceClientApp
-        ) ++ commonUnitTestDependencies,
+          Dependencies.hadoopMapreduceClientApp,
+          Dependencies.jacksonJaxrsJsonProvider
+        ).map(_.excludeAll(ExclusionRule("jakarta.activation", "jakarta.activation-api"))) ++
+          commonUnitTestDependencies,
         dependencyOverrides += Dependencies.commonsCompress
       )
   }
