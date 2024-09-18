@@ -259,6 +259,8 @@ if [ "$REPLACE" == "true" ]; then
 fi
 
 # skip check for sbt server now until sbt_build_server_classpath is refactored
-if [ "$CHECK" == "true" -a "$MODULE" != "server" ]; then
-  check_diff
+if [ "$CHECK" == "true" ]; then
+  if [ "$SBT_ENABLED" != "true" -o "$MODULE" != "server" ]; then
+    check_diff
+  fi
 fi
