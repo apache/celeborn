@@ -156,6 +156,7 @@ public class MetaHandler {
           break;
 
         case WorkerRemove:
+          // TODO: Remove `WorkerRemove` in 0.7.x version to guarantee upgrade compatibility.
           host = request.getWorkerRemoveRequest().getHost();
           rpcPort = request.getWorkerRemoveRequest().getRpcPort();
           pushPort = request.getWorkerRemoveRequest().getPushPort();

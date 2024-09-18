@@ -47,9 +47,6 @@ public interface IMetadataHandler {
   void handleWorkerLost(
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId);
 
-  void handleWorkerRemove(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId);
-
   void handleRemoveWorkersUnavailableInfo(List<WorkerInfo> unavailableWorkers, String requestId);
 
   void handleWorkerHeartbeat(
