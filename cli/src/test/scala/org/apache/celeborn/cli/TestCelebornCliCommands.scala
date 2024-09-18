@@ -104,6 +104,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "false")
   }
 
+  test("worker --is-decommissioning") {
+    val args = prepareWorkerArgs() :+ "--is-decommissioning"
+    captureOutputAndValidateResponse(args, "false")
+  }
+
   test("worker --is-registered") {
     val args = prepareWorkerArgs() :+ "--is-registered"
     captureOutputAndValidateResponse(args, "true")
@@ -166,6 +171,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "No shutdown workers found.")
   }
 
+  test("master --show-decommissioning-workers") {
+    val args = prepareMasterArgs() :+ "--show-decommissioning-workers"
+    captureOutputAndValidateResponse(args, "No decommissioning workers found.")
+  }
+
   test("master --show-lifecycle-managers") {
     val args = prepareMasterArgs() :+ "--show-lifecycle-managers"
     captureOutputAndValidateResponse(args, "HostnamesResponse")
@@ -209,6 +219,14 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     val args = prepareMasterArgs() ++ Array(
       "--send-worker-event",
       "RECOMMISSION",
+      "--worker-ids",
+      getWorkerId())
+    captureOutputAndValidateResponse(args, "success: true")
+  }
+
+  test("master --remove-workers-unavailable-info") {
+    val args = prepareMasterArgs() ++ Array(
+      "--remove-workers-unavailable-info",
       "--worker-ids",
       getWorkerId())
     captureOutputAndValidateResponse(args, "success: true")

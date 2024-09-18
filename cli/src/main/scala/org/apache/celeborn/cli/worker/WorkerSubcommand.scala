@@ -70,6 +70,8 @@ trait WorkerSubcommand extends CliLogging {
 
   private[worker] def runIsShutdown: Boolean
 
+  private[worker] def runIsDecommissioning: Boolean
+
   private[worker] def runIsRegistered: Boolean
 
   private[worker] def runExit: HandleResponse

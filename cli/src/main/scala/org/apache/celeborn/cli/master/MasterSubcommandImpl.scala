@@ -36,12 +36,14 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     if (masterOptions.showTopDiskUsedApps) log(runShowTopDiskUsedApps)
     if (masterOptions.excludeWorkers) log(runExcludeWorkers)
     if (masterOptions.removeExcludedWorkers) log(runRemoveExcludedWorkers)
+    if (masterOptions.removeWorkersUnavailableInfo) log(runRemoveWorkersUnavailableInfo)
     if (masterOptions.sendWorkerEvent != null && masterOptions.sendWorkerEvent.nonEmpty)
       log(runSendWorkerEvent)
     if (masterOptions.showWorkerEventInfo) log(runShowWorkerEventInfo)
     if (masterOptions.showLostWorkers) log(runShowLostWorkers)
     if (masterOptions.showExcludedWorkers) log(runShowExcludedWorkers)
     if (masterOptions.showShutdownWorkers) log(runShowShutdownWorkers)
+    if (masterOptions.showDecommissioningWorkers) log(runShowDecommissioningWorkers)
     if (masterOptions.showLifecycleManagers) log(runShowLifecycleManagers)
     if (masterOptions.showWorkers) log(runShowWorkers)
     if (masterOptions.showConf) log(runShowConf)
@@ -66,15 +68,25 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   private[master] def runExcludeWorkers: HandleResponse = {
     val workerIds = getWorkerIds
     val excludeWorkerRequest = new ExcludeWorkerRequest().add(workerIds)
-    logInfo(s"Sending exclude worker requests to workers: $workerIds")
+    logInfo(s"Sending exclude worker requests to master for the following workers: $workerIds")
     workerApi.excludeWorker(excludeWorkerRequest)
   }
 
   private[master] def runRemoveExcludedWorkers: HandleResponse = {
     val workerIds = getWorkerIds
     val removeExcludeWorkerRequest = new ExcludeWorkerRequest().remove(workerIds)
-    logInfo(s"Sending remove exclude worker requests to workers: $workerIds")
+    logInfo(
+      s"Sending remove exclude worker requests to master for the following workers: $workerIds")
     workerApi.excludeWorker(removeExcludeWorkerRequest)
+  }
+
+  private[master] def runRemoveWorkersUnavailableInfo: HandleResponse = {
+    val workerIds = getWorkerIds
+    val removeWorkersUnavailableInfoRequest =
+      new RemoveWorkersUnavailableInfoRequest().workers(workerIds)
+    logInfo(
+      s"Sending remove workers unavailable info requests to master for the following workers: $workerIds")
+    workerApi.removeWorkersUnavailableInfo(removeWorkersUnavailableInfoRequest)
   }
 
   private[master] def runSendWorkerEvent: HandleResponse = {
@@ -124,6 +136,16 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
       Seq.empty[WorkerData]
     } else {
       shutdownWorkers.sortBy(_.getHost)
+    }
+  }
+
+  private[master] def runShowDecommissioningWorkers: Seq[WorkerData] = {
+    val decommissioningWorkers = runShowWorkers.getDecommissioningWorkers.asScala.toSeq
+    if (decommissioningWorkers.isEmpty) {
+      log("No decommissioning workers found.")
+      Seq.empty[WorkerData]
+    } else {
+      decommissioningWorkers.sortBy(_.getHost)
     }
   }
 
