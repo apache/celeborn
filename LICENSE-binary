@@ -221,6 +221,7 @@ commons-cli:commons-cli
 commons-io:commons-io
 commons-logging:commons-logging
 com.zaxxer:HikariCP
+info.picocli:picocli
 io.dropwizard.metrics:metrics-core
 io.dropwizard.metrics:metrics-graphite
 io.dropwizard.metrics:metrics-jvm
@@ -309,7 +310,6 @@ org.slf4j:jcl-over-slf4j
 org.webjars:swagger-ui
 org.xerial.snappy:snappy-java
 org.yaml:snakeyaml
-info.picocli:picocli
 
 ------------------------------------------------------------------------------------
 This product bundles various third-party components under other open source licenses.
