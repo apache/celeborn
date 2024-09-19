@@ -40,6 +40,8 @@ enum Type {
   WorkerEvent = 25;
   ApplicationMeta = 26;
   ReportWorkerDecommission = 27;
+
+  ReviseLostShuffles = 102;
 }
 
 enum WorkerEventType {
@@ -73,6 +75,7 @@ message ResourceRequest {
   optional WorkerEventRequest workerEventRequest = 22;
   optional ApplicationMetaRequest applicationMetaRequest = 23;
   optional ReportWorkerDecommissionRequest reportWorkerDecommissionRequest = 24;
+  optional ReviseLostShufflesRequest reviseLostShufflesRequest = 102;
 }
 
 message DiskInfo {
@@ -236,4 +239,9 @@ message ResourceResponse {
 message ApplicationMetaRequest {
   required string appId = 1;
   optional string secret = 2;
+}
+
+message ReviseLostShufflesRequest {
+  required string appId = 1 ;
+  repeated int32 lostShuffles = 2 ;
 }

@@ -139,4 +139,5 @@ class ApiMasterResource extends ApiRequestContext {
     sb.append(httpService.handleWorkerEvent(normalizeParam(eventType), workerList)._2)
     sb.toString()
   }
+
 }

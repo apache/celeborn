@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,7 +102,16 @@ public class MetaHandler {
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
       Map<String, Long> estimatedAppDiskUsage = new HashMap<>();
       WorkerStatus workerStatus;
+      List<Integer> lostShuffles;
       switch (cmdType) {
+        case ReviseLostShuffles:
+          appId = request.getReviseLostShufflesRequest().getAppId();
+          lostShuffles = request.getReviseLostShufflesRequest().getLostShufflesList();
+          LOG.info(
+              "Handle revise lost shuffles for {} {}", appId, StringUtils.join(lostShuffles, ","));
+          metaSystem.reviseLostShuffles(appId, lostShuffles);
+          break;
+
         case RequestSlots:
           shuffleKey = request.getRequestSlotsRequest().getShuffleKey();
           LOG.debug("Handle request slots for {}", shuffleKey);

@@ -17,7 +17,8 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import javax.ws.rs.{Consumes, GET, Path, Produces}
+import java.util
+import javax.ws.rs.{Consumes, GET, Path, Produces, QueryParam}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
@@ -27,7 +28,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 
 import org.apache.celeborn.common.util.Utils
-import org.apache.celeborn.rest.v1.model.{AppDiskUsageData, AppDiskUsageSnapshotData, AppDiskUsageSnapshotsResponse, ApplicationHeartbeatData, ApplicationsHeartbeatResponse, HostnamesResponse}
+import org.apache.celeborn.rest.v1.model.{AppDiskUsageData, AppDiskUsageSnapshotData, AppDiskUsageSnapshotsResponse, ApplicationHeartbeatData, ApplicationsHeartbeatResponse, HandleResponse, HostnamesResponse}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.master.Master
 
@@ -93,5 +94,32 @@ class ApplicationResource extends ApiRequestContext {
   @Path("/hostnames")
   def hostnames(): HostnamesResponse = {
     new HostnamesResponse().hostnames(statusSystem.hostnameSet.asScala.toSeq.asJava)
+  }
+
+  @Path("/reviseLostShuffles")
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[HandleResponse]))),
+    description =
+      "Revise lost shuffles")
+  @GET
+  def reviseLostShuffles(
+      @QueryParam("deleteApp") deleteApp: String,
+      @QueryParam("appId") appId: String,
+      @QueryParam("shuffleIds") shufflesIds: String): HandleResponse = {
+    if (deleteApp == "true") {
+      httpService.deleteAppId(appId)
+      return new HandleResponse().success(true).message(s"delete shuffles of app ${appId}")
+    }
+    val shuffles = new util.ArrayList[Integer]()
+    shufflesIds.split(",").foreach { p =>
+      shuffles.add(Integer.parseInt(p))
+    }
+    if (!shuffles.isEmpty) {
+      httpService.reviseLostShuffles(appId, shuffles)
+    }
+    new HandleResponse().success(true).message("revise lost shuffle done")
   }
 }

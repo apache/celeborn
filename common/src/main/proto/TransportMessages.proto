@@ -107,6 +107,9 @@ enum MessageType {
   REPORT_BARRIER_STAGE_ATTEMPT_FAILURE_RESPONSE = 84;
   SEGMENT_START = 85;
   NOTIFY_REQUIRED_SEGMENT = 86;
+
+  REVISE_LOST_SHUFFLES = 202;
+  REVISE_LOST_SHUFFLES_RESPONSE = 203;
 }
 
 enum StreamType {
@@ -433,6 +436,7 @@ message PbHeartbeatFromApplicationResponse {
   repeated PbWorkerInfo excludedWorkers = 2;
   repeated PbWorkerInfo unknownWorkers = 3;
   repeated PbWorkerInfo shuttingWorkers = 4;
+  repeated int32 registeredShuffles = 6;
 }
 
 message PbCheckQuota {
@@ -841,4 +845,15 @@ message PbPackedWorkerResource {
 message PbReportWorkerDecommission {
   repeated PbWorkerInfo workers = 1;
   string requestId = 2;
+}
+
+message PbReviseLostShuffles{
+  string appId = 1;
+  repeated int32 lostShuffles = 2;
+  string requestId = 3;
+}
+
+message PbReviseLostShufflesResponse{
+  bool success = 1;
+  string message = 2;
 }
