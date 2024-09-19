@@ -79,7 +79,7 @@ object Dependencies {
   val openApiToolsJacksonBindNullableVersion = "0.2.6"
   val httpClient5Version = "5.3.1"
   val httpCore5Version = "5.2.4"
-  val javaxAnnotationApiVersion = "1.3.2"
+  val jakartaAnnotationApiVersion = "1.3.5"
   val picocliVersion = "4.7.6"
 
   // For SSL support
@@ -153,8 +153,10 @@ object Dependencies {
   val jacksonDataFormatYam = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % jacksonVersion
   val jacksonJaxrsBase = "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-base" % jacksonVersion
   val activationApi = "jakarta.activation" % "jakarta.activation-api" % "1.2.1"
-  val jacksonJaxrsJsonProvider = "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider" % jacksonVersion
-  val jacksonModuleJaxbAnnotations = "com.fasterxml.jackson.module" % "jackson-module-jaxb-annotations" % jacksonVersion
+  val jacksonJaxrsJsonProvider = "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider" % jacksonVersion excludeAll (
+    ExclusionRule("jakarta.activation", "jakarta.activation-api"))
+  val jacksonModuleJaxbAnnotations = "com.fasterxml.jackson.module" % "jackson-module-jaxb-annotations" % jacksonVersion excludeAll (
+    ExclusionRule("jakarta.activation", "jakarta.activation-api"))
   val scalaReflect = "org.scala-lang" % "scala-reflect" % projectScalaVersion
   val slf4jApi = "org.slf4j" % "slf4j-api" % slf4jVersion
   val slf4jJulToSlf4j = "org.slf4j" % "jul-to-slf4j" % slf4jVersion
@@ -186,7 +188,7 @@ object Dependencies {
   val httpClient5 = "org.apache.httpcomponents.client5" % "httpclient5" % httpClient5Version
   val httpCore5 = "org.apache.httpcomponents.core5" % "httpcore5" % httpCore5Version
   val httpCore5H2 = "org.apache.httpcomponents.core5" % "httpcore5-h2" % httpCore5Version
-  val javaxAnnotationApi = "javax.annotation" % "javax.annotation-api" % javaxAnnotationApiVersion
+  val jakartaAnnotationApi = "jakarta.annotation" % "jakarta.annotation-api" % jakartaAnnotationApiVersion
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html
@@ -586,6 +588,7 @@ object CelebornService {
         Dependencies.slf4jApi,
         Dependencies.mybatis,
         Dependencies.hikaricp,
+        Dependencies.jacksonDataFormatYam,
         Dependencies.swaggerJaxrs2,
         Dependencies.swaggerUi,
         Dependencies.jakartaServletApi,
@@ -1396,7 +1399,7 @@ object CelebornOpenApi {
         Dependencies.jacksonDataTypeJsr310,
         Dependencies.jacksonJaxrsJsonProvider,
         Dependencies.findbugsJsr305,
-        Dependencies.javaxAnnotationApi,
+        Dependencies.jakartaAnnotationApi,
         Dependencies.httpClient5,
         Dependencies.httpCore5,
         Dependencies.httpCore5H2,

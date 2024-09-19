@@ -56,13 +56,29 @@ function mvn_build_classpath() {
 }
 
 function sbt_build_client_classpath() {
-  PATTERN="$SBT_PROJECT / Runtime / managedClasspath"
-  deps=$(
-    $SBT -P$MODULE "clean; export Runtime/managedClasspath" | \
-      awk -v pat="$PATTERN" '$0 ~ pat { found=1 } found { print }' | \
-      awk 'NR==2' | \
-      tr ":" "\n"
-  )
+    PATTERN="$SBT_PROJECT / Runtime / managedClasspath"
+    deps=$(
+      $SBT -P$MODULE "clean; export Runtime/managedClasspath" | \
+        awk -v pat="$PATTERN" '$0 ~ pat { found=1 } found { print }' | \
+        awk 'NR==2' | \
+        tr ":" "\n"
+    )
+    sbt_process_classpath "$deps"
+ }
+
+function sbt_build_server_classpath() {
+    deps=$(
+      $SBT "error; clean; export managedClasspath" | \
+       awk '/managedClasspath/ { found=1 } found { print }' | \
+       awk 'NR % 2 == 0' | \
+       # This will skip the last line
+       sed '$d' | \
+       tr ":" "\n"
+    )
+    sbt_process_classpath "$deps"
+}
+
+function sbt_process_classpath() {
   deps1=$(echo "$deps" | grep -v ".sbt")
   deps2=$(echo "$deps" | grep ".sbt" || true)
   result1=$(
@@ -93,24 +109,6 @@ function sbt_build_client_classpath() {
   result=("${result1[@]}" "${result2[@]}")
 
   echo "${result[@]}" | tr ' ' '\n' | sort -u >> "${DEP_PR}"
-}
-
-function sbt_build_server_classpath() {
-  $SBT "error; clean; export managedClasspath" | \
-    awk '/managedClasspath/ { found=1 } found { print }' | \
-    awk 'NR % 2 == 0' | \
-    # This will skip the last line 
-    sed '$d' | \
-    tr ":" "\n" | \
-    awk -F '/' '{
-      artifact_id=$(NF-2);
-      version=$(NF-1);
-      jar_name=$NF;
-      classifier_start_index=length(artifact_id"-"version"-") + 1;
-      classifier_end_index=index(jar_name, ".jar") - 1;
-      classifier=substr(jar_name, classifier_start_index, classifier_end_index - classifier_start_index + 1);
-      print artifact_id"/"version"/"classifier"/"jar_name
-    }' | sort -u >> "${DEP_PR}"
 }
 
 function check_diff() {
@@ -208,7 +206,7 @@ case "$MODULE" in
     ;;
   *)
     MODULE="server"
-    MVN_MODULES="worker,master"
+    MVN_MODULES="worker,master,cli"
     ;;
 esac
 
@@ -260,7 +258,5 @@ fi
 
 # skip check for sbt server now until sbt_build_server_classpath is refactored
 if [ "$CHECK" == "true" ]; then
-  if [ "$SBT_ENABLED" != "true" -o "$MODULE" != "server" ]; then
-    check_diff
-  fi
+  check_diff
 fi

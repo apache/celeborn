@@ -120,6 +120,7 @@ netty-transport-udt/4.1.109.Final//netty-transport-udt-4.1.109.Final.jar
 netty-transport/4.1.109.Final//netty-transport-4.1.109.Final.jar
 osgi-resource-locator/1.0.3//osgi-resource-locator-1.0.3.jar
 paranamer/2.8//paranamer-2.8.jar
+picocli/4.7.6//picocli-4.7.6.jar
 protobuf-java/3.21.7//protobuf-java-3.21.7.jar
 ratis-client/3.1.0//ratis-client-3.1.0.jar
 ratis-common/3.1.0//ratis-common-3.1.0.jar
