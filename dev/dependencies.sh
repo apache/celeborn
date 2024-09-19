@@ -56,26 +56,26 @@ function mvn_build_classpath() {
 }
 
 function sbt_build_client_classpath() {
-    PATTERN="$SBT_PROJECT / Runtime / managedClasspath"
-    deps=$(
-      $SBT -P$MODULE "clean; export Runtime/managedClasspath" | \
-        awk -v pat="$PATTERN" '$0 ~ pat { found=1 } found { print }' | \
-        awk 'NR==2' | \
-        tr ":" "\n"
-    )
-    sbt_process_classpath "$deps"
+  PATTERN="$SBT_PROJECT / Runtime / managedClasspath"
+  deps=$(
+    $SBT -P$MODULE "clean; export Runtime/managedClasspath" | \
+      awk -v pat="$PATTERN" '$0 ~ pat { found=1 } found { print }' | \
+      awk 'NR==2' | \
+      tr ":" "\n"
+  )
+  sbt_process_classpath "$deps"
  }
 
 function sbt_build_server_classpath() {
-    deps=$(
-      $SBT "error; clean; export managedClasspath" | \
-       awk '/managedClasspath/ { found=1 } found { print }' | \
-       awk 'NR % 2 == 0' | \
-       # This will skip the last line
-       sed '$d' | \
-       tr ":" "\n"
-    )
-    sbt_process_classpath "$deps"
+  deps=$(
+    $SBT "error; clean; export managedClasspath" | \
+     awk '/managedClasspath/ { found=1 } found { print }' | \
+     awk 'NR % 2 == 0' | \
+     # This will skip the last line
+     sed '$d' | \
+     tr ":" "\n"
+  )
+  sbt_process_classpath "$deps"
 }
 
 function sbt_process_classpath() {
