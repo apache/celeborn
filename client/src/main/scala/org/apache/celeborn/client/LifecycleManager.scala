@@ -231,7 +231,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
           self.send(RemoveExpiredShuffle)
-          // todo
         }
       },
       shuffleExpiredCheckIntervalMs,
@@ -1596,13 +1595,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         unregisterShuffleTime.keys().asScala.foreach { shuffleId =>
           unregisterShuffleTime.remove(shuffleId)
         }
-      } else {
-        val responsesInfoList = unregisterShuffleResponse.getUnregisterShuffleResponsesInfoList
-        responsesInfoList.forEach { resInfo: PbUnregisterShuffleResponsesInfo =>
-          if (Utils.toStatusCode(resInfo.getStatus) == StatusCode.SUCCESS) {
-            unregisterShuffleTime.remove(resInfo.getShuffleId)
-          }
-        }
       }
     }
   }
@@ -1689,8 +1681,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     } catch {
       case e: Exception =>
         logError(s"AskSync UnregisterShuffle for ${message.getShuffleIdsList} failed.", e)
-        val map = JavaUtils.newConcurrentHashMap[Integer, StatusCode]()
-        BatchUnregisterShuffleResponses(StatusCode.REQUEST_FAILED, map)
+        BatchUnregisterShuffleResponses(StatusCode.REQUEST_FAILED)
     }
   }
 

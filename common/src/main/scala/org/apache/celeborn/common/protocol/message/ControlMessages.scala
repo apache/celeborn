@@ -370,17 +370,11 @@ object ControlMessages extends Logging {
   object BatchUnregisterShuffleResponses {
     def apply(
         status: StatusCode,
-        statuses: util.Map[Integer, StatusCode]): PbBatchUnregisterShuffleResponses = {
-      val builder = PbBatchUnregisterShuffleResponses.newBuilder()
-      builder.setStatus(status.getValue)
-      statuses.asScala.foreach { case (shuffleId, statusCode) =>
-        val unregisterShuffleResponsesInfo = PbUnregisterShuffleResponsesInfo.newBuilder()
-          .setShuffleId(shuffleId)
-          .setStatus(statusCode.getValue)
-        builder.addUnregisterShuffleResponsesInfo(unregisterShuffleResponsesInfo)
-      }
-      builder.build()
-    }
+        shuffleIds: util.List[Integer] = Collections.emptyList()): PbBatchUnregisterShuffleResponses =
+      PbBatchUnregisterShuffleResponses.newBuilder()
+        .setStatus(status.getValue)
+        .addAllShuffleIds(shuffleIds)
+        .build()
   }
 
   case class ApplicationLost(

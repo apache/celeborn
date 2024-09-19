@@ -22,7 +22,6 @@ package deploy.master.meta;
 
 enum Type {
   UnRegisterShuffle = 12;
-  BatchUnRegisterShuffle = 28;
   RequestSlots = 13;
 
   //deprecated
@@ -41,6 +40,7 @@ enum Type {
   WorkerEvent = 25;
   ApplicationMeta = 26;
   ReportWorkerDecommission = 27;
+  BatchUnRegisterShuffle = 28;
 }
 
 enum WorkerEventType {

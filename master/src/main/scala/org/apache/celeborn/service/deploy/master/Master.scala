@@ -997,8 +997,7 @@ private[celeborn] class Master(
       shuffleIds.map(shuffleId => Utils.makeShuffleKey(applicationId, shuffleId)).asJava
     statusSystem.batchHandleUnRegisterShuffles(shuffleKeys, requestId)
     logInfo(s"Unregister shuffle $shuffleKeys")
-    val map = shuffleIds.map(shuffleId => shuffleId -> StatusCode.SUCCESS).toMap.asJava
-    context.reply(BatchUnregisterShuffleResponses(StatusCode.SUCCESS, map))
+    context.reply(BatchUnregisterShuffleResponses(StatusCode.SUCCESS, shuffleIds.asJava))
   }
 
   private def handleReportNodeUnavailable(
