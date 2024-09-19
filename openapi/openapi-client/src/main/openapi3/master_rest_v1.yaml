@@ -704,7 +704,6 @@ components:
       properties:
         eventType:
           type: string
-          default: None
           description: The type of the event.
           enum:
             - Immediately

@@ -27,6 +27,7 @@ import org.eclipse.jetty.servlet.FilterHolder
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
+import org.apache.celeborn.common.protocol.TransportModuleConstants
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.http.HttpServer
 import org.apache.celeborn.server.common.http.api.ApiRootResource
@@ -210,11 +211,15 @@ abstract class HttpService extends Service with Logging {
   }
 
   private def httpHost(): String = {
-    serviceName match {
-      case Service.MASTER =>
-        conf.masterHttpHost
-      case Service.WORKER =>
-        conf.workerHttpHost
+    if (conf.bindWildcardAddress) {
+      TransportModuleConstants.WILDCARD_BIND_ADDRESS
+    } else {
+      serviceName match {
+        case Service.MASTER =>
+          conf.masterHttpHost
+        case Service.WORKER =>
+          conf.workerHttpHost
+      }
     }
   }
 

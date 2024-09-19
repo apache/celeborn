@@ -29,7 +29,7 @@ import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
 case class ChangePartitionRequest(
     context: RequestLocationCallContext,
@@ -103,7 +103,8 @@ class ChangePartitionManager(
                       if (distinctPartitions.nonEmpty) {
                         handleRequestPartitions(
                           shuffleId,
-                          distinctPartitions)
+                          distinctPartitions,
+                          lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
                       }
                     }
                   }
@@ -153,7 +154,8 @@ class ChangePartitionManager(
       partitionId: Int,
       oldEpoch: Int,
       oldPartition: PartitionLocation,
-      cause: Option[StatusCode] = None): Unit = {
+      cause: Option[StatusCode] = None,
+      isSegmentGranularityVisible: Boolean): Unit = {
 
     val changePartition = ChangePartitionRequest(
       context,
@@ -195,7 +197,7 @@ class ChangePartitionManager(
       }
     }
     if (!batchHandleChangePartitionEnabled) {
-      handleRequestPartitions(shuffleId, Array(changePartition))
+      handleRequestPartitions(shuffleId, Array(changePartition), isSegmentGranularityVisible)
     }
   }
 
@@ -215,7 +217,8 @@ class ChangePartitionManager(
 
   def handleRequestPartitions(
       shuffleId: Int,
-      changePartitions: Array[ChangePartitionRequest]): Unit = {
+      changePartitions: Array[ChangePartitionRequest],
+      isSegmentGranularityVisible: Boolean): Unit = {
     val requestsMap = changePartitionRequests.get(shuffleId)
 
     val changes = changePartitions.map { change =>
@@ -296,7 +299,8 @@ class ChangePartitionManager(
     if (!lifecycleManager.reserveSlotsWithRetry(
         shuffleId,
         new util.HashSet(candidates.toSet.asJava),
-        newlyAllocatedLocations)) {
+        newlyAllocatedLocations,
+        isSegmentGranularityVisible = isSegmentGranularityVisible)) {
       logError(s"[Update partition] failed for $shuffleId.")
       replyFailure(StatusCode.RESERVE_SLOTS_FAILED)
       return
@@ -324,6 +328,9 @@ class ChangePartitionManager(
               s"shuffle $shuffleId, succeed partitions: " +
               s"$changes.")
           }
+
+          // TODO: should record the new partition locations and acknowledge the new partitionLocations to downstream task,
+          //  in scenario the downstream task start early before the upstream task.
           locations
       }
     replySuccess(newPrimaryLocations.toArray)

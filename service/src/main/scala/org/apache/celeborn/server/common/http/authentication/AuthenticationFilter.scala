@@ -27,7 +27,7 @@ import scala.collection.mutable
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.authentication.HttpAuthSchemes
-import org.apache.celeborn.common.authentication.HttpAuthSchemes.{HttpAuthScheme, _}
+import org.apache.celeborn.common.authentication.HttpAuthSchemes.HttpAuthScheme
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.Service
 import org.apache.celeborn.server.common.http.HttpAuthUtils.AUTHORIZATION_HEADER

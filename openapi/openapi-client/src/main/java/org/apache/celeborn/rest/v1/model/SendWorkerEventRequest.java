@@ -85,7 +85,7 @@ public class SendWorkerEventRequest {
   }
 
   public static final String JSON_PROPERTY_EVENT_TYPE = "eventType";
-  private EventTypeEnum eventType = EventTypeEnum.NONE;
+  private EventTypeEnum eventType;
 
   public static final String JSON_PROPERTY_WORKERS = "workers";
   private List<WorkerId> workers = new ArrayList<>();

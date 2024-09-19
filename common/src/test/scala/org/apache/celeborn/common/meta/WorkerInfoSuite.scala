@@ -280,10 +280,11 @@ class WorkerInfoSuite extends CelebornFunSuite {
         "mockEnv",
         TransportModuleConstants.RPC_SERVICE_MODULE,
         "localhost",
-        "localhost",
         12345,
         conf,
-        64)
+        64,
+        None,
+        None)
       val worker4 = new WorkerInfo(
         "h4",
         40001,

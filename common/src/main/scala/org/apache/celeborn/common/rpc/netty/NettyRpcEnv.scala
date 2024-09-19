@@ -38,7 +38,7 @@ import org.apache.celeborn.common.network.protocol.{RequestMessage => NRequestMe
 import org.apache.celeborn.common.network.sasl.{SaslClientBootstrap, SaslServerBootstrap}
 import org.apache.celeborn.common.network.sasl.registration.{RegistrationClientBootstrap, RegistrationServerBootstrap}
 import org.apache.celeborn.common.network.server._
-import org.apache.celeborn.common.protocol.{RpcNameConstants, TransportModuleConstants}
+import org.apache.celeborn.common.protocol.RpcNameConstants
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.serializer.{JavaSerializer, JavaSerializerInstance, SerializationStream}
 import org.apache.celeborn.common.util.{ByteBufferInputStream, ByteBufferOutputStream, JavaUtils, ThreadUtils, Utils}
@@ -395,8 +395,13 @@ private[celeborn] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
       new JavaSerializer(celebornConf).newInstance().asInstanceOf[JavaSerializerInstance]
     val nettyEnv = new NettyRpcEnv(config, javaSerializerInstance)
     val startNettyRpcEnv: Int => (NettyRpcEnv, Int) = { actualPort =>
-      logInfo(s"Starting RPC Server [${config.name}] on ${config.bindAddress}:$actualPort " +
-        s"with advisor endpoint ${config.advertiseAddress}:$actualPort")
+      if (celebornConf.bindWildcardAddress) {
+        logInfo(s"Starting RPC Server [${config.name}] on wildcard address with port" +
+          s" $actualPort, and advertised endpoint ${config.advertiseAddress}:$actualPort")
+      } else {
+        logInfo(s"Starting RPC Server [${config.name}] on ${config.bindAddress}:$actualPort " +
+          s"with advertised endpoint ${config.advertiseAddress}:$actualPort")
+      }
       nettyEnv.startServer(config.bindAddress, actualPort)
       (nettyEnv, nettyEnv.address.port)
     }

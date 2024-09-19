@@ -37,8 +37,8 @@ import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.rpc.{RpcCallContext, RpcEndpointRef}
-import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.rpc.RpcCallContext
+import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
@@ -199,8 +199,18 @@ abstract class CommitHandler(
       partitionId: Int,
       recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean)
 
-  def registerShuffle(shuffleId: Int, numMappers: Int): Unit = {
+  def registerShuffle(
+      shuffleId: Int,
+      numMappers: Int,
+      isSegmentGranularityVisible: Boolean): Unit = {
+    // TODO: if isSegmentGranularityVisible is set to true, it is necessary to handle the pending
+    //  get partition request of downstream reduce task here, in scenarios which support
+    //  downstream task start early before the upstream task, e.g. flink hybrid shuffle.
     reducerFileGroupsMap.put(shuffleId, JavaUtils.newConcurrentHashMap())
+  }
+
+  def isSegmentGranularityVisible(shuffleId: Int): Boolean = {
+    false
   }
 
   def doParallelCommitFiles(
@@ -463,7 +473,8 @@ abstract class CommitHandler(
       primaryPartitionUniqueIds: util.Iterator[String],
       replicaPartitionUniqueIds: util.Iterator[String],
       primaryPartMap: ConcurrentHashMap[String, PartitionLocation],
-      replicaPartMap: ConcurrentHashMap[String, PartitionLocation]): Unit = {
+      replicaPartMap: ConcurrentHashMap[String, PartitionLocation],
+      isSegmentGranularityVisible: Boolean = false): Unit = {
     val committedPartitions = new util.HashMap[String, PartitionLocation]
     primaryPartitionUniqueIds.asScala.foreach { id =>
       val partitionLocation = primaryPartMap.get(id)
@@ -488,6 +499,8 @@ abstract class CommitHandler(
       }
     }
 
+    // TODO: if support upstream task write and downstream task read simultaneously,
+    //  should record the partition locations information in upstream task start time, rather than end time.
     committedPartitions.values().asScala.foreach { partition =>
       val partitionLocations = reducerFileGroupsMap.get(shuffleId).computeIfAbsent(
         partition.getId,

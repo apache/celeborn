@@ -31,7 +31,7 @@ import org.roaringbitmap.RoaringBitmap
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{ReduceFileMeta, WorkerInfo, WorkerPartitionLocationInfo}
+import org.apache.celeborn.common.meta.{WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -90,7 +90,8 @@ private[deploy] class Controller(
           rangeReadFilter,
           userIdentifier,
           pushDataTimeout,
-          partitionSplitEnabled) =>
+          partitionSplitEnabled,
+          isSegmentGranularityVisible) =>
       checkAuth(context, applicationId)
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.RESERVE_SLOTS_TIME, shuffleKey) {
@@ -109,7 +110,8 @@ private[deploy] class Controller(
           rangeReadFilter,
           userIdentifier,
           pushDataTimeout,
-          partitionSplitEnabled)
+          partitionSplitEnabled,
+          isSegmentGranularityVisible)
         logDebug(s"ReserveSlots for $shuffleKey finished.")
       }
 
@@ -155,7 +157,8 @@ private[deploy] class Controller(
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
       pushDataTimeout: Long,
-      partitionSplitEnabled: Boolean): Unit = {
+      partitionSplitEnabled: Boolean,
+      isSegmentGranularityVisible: Boolean): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (shutdown.get()) {
       val msg = "Current worker is shutting down!"

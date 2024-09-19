@@ -107,6 +107,7 @@ public class SparkShuffleManager implements ShuffleManager {
           key,
           defaultValue);
     }
+    SparkCommonUtils.validateAttemptConfig(conf);
     this.conf = conf;
     this.isDriver = isDriver;
     this.celebornConf = SparkUtils.fromSparkConf(conf);

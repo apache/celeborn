@@ -25,6 +25,7 @@ import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.plugin.flink.buffer.FlinkNettyManagedBuffer;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
+import org.apache.celeborn.plugin.flink.protocol.SubPartitionReadData;
 
 public class MessageDecoderExt {
   public static Message decode(Message.Type type, ByteBuf in, boolean decodeBody) {
@@ -73,6 +74,11 @@ public class MessageDecoderExt {
       case READ_DATA:
         streamId = in.readLong();
         return new ReadData(streamId);
+
+      case SUBPARTITION_READ_DATA:
+        streamId = in.readLong();
+        int subPartitionId = in.readInt();
+        return new SubPartitionReadData(streamId, subPartitionId);
 
       case BACKLOG_ANNOUNCEMENT:
         streamId = in.readLong();

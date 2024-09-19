@@ -20,7 +20,6 @@ package org.apache.celeborn.common.rpc.netty
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.network.TestHelper
 import org.apache.celeborn.common.network.ssl.SslSampleConfigs
-import org.apache.celeborn.common.protocol.TransportModuleConstants
 
 class SSLNettyRpcEnvSuite extends NettyRpcEnvSuite {
 

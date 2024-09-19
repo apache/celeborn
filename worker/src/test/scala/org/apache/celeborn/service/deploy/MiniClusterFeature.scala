@@ -21,7 +21,7 @@ import java.io.IOException
 import java.net.BindException
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.locks.{Lock, ReentrantLock}
+import java.util.concurrent.locks.ReentrantLock
 
 import scala.collection.mutable
 

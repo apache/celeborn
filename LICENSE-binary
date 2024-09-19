@@ -221,6 +221,7 @@ commons-cli:commons-cli
 commons-io:commons-io
 commons-logging:commons-logging
 com.zaxxer:HikariCP
+info.picocli:picocli
 io.dropwizard.metrics:metrics-core
 io.dropwizard.metrics:metrics-graphite
 io.dropwizard.metrics:metrics-jvm

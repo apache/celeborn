@@ -19,8 +19,6 @@ package org.apache.celeborn.tests.client
 
 import java.util
 
-import scala.collection.JavaConverters._
-
 import org.apache.celeborn.client.{LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.message.StatusCode

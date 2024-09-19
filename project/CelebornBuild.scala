@@ -80,6 +80,7 @@ object Dependencies {
   val httpClient5Version = "5.3.1"
   val httpCore5Version = "5.2.4"
   val javaxAnnotationApiVersion = "1.3.2"
+  val picocliVersion = "4.7.6"
 
   // For SSL support
   val bouncycastleVersion = "1.77"
@@ -203,6 +204,8 @@ object Dependencies {
   // SSL support
   val bouncycastleBcprovJdk18on = "org.bouncycastle" % "bcprov-jdk18on" % bouncycastleVersion % "test"
   val bouncycastleBcpkixJdk18on = "org.bouncycastle" % "bcpkix-jdk18on" % bouncycastleVersion % "test"
+
+  val picocli = "info.picocli" % "picocli" % picocliVersion
 }
 
 object CelebornCommonSettings {
@@ -355,7 +358,8 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornClient.client,
       CelebornService.service,
       CelebornWorker.worker,
-      CelebornMaster.master) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules
+      CelebornMaster.master,
+      CelebornCli.cli) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules ++ maybeWebModules
   }
 
   // ThisBuild / parallelExecution := false
@@ -422,6 +426,15 @@ object Utils {
 
   lazy val maybeMRClientModules: Seq[Project] = mrClientProjects.map(_.modules).getOrElse(Seq.empty)
 
+  val WEB_VERSION = profiles.filter(_.startsWith("web")).headOption
+
+  lazy val webProjects = WEB_VERSION match {
+    case Some("web") => Some(WebProjects)
+    case _ => None
+  }
+
+  lazy val maybeWebModules: Seq[Project] = webProjects.map(_.modules).getOrElse(Seq.empty)
+
   def defaultScalaVersion(): String = {
     // 1. Inherit the scala version of the spark project
     // 2. if the spark profile not specified, using the DEFAULT_SCALA_VERSION
@@ -444,6 +457,20 @@ object Utils {
       }
     }).transform(node).head
   }
+}
+
+object CelebornCli {
+  lazy val cli = Project("celeborn-cli", file("cli"))
+    .dependsOn(CelebornCommon.common % "test->test;compile->compile")
+    .dependsOn(CelebornMaster.master % "test->test;compile->compile")
+    .dependsOn(CelebornWorker.worker % "test->test;compile->compile")
+    .dependsOn(CelebornOpenApi.openApiClient % "test->test;compile->compile")
+    .settings (
+      commonSettings,
+      libraryDependencies ++= Seq(
+        Dependencies.picocli
+      ) ++ commonUnitTestDependencies
+    )
 }
 
 object CelebornSpi {
@@ -599,7 +626,8 @@ object CelebornMaster {
         Dependencies.ratisMetricsDefault,
         Dependencies.ratisNetty,
         Dependencies.ratisServer,
-        Dependencies.ratisShell
+        Dependencies.ratisShell,
+        Dependencies.scalatestMockito % "test",
       ) ++ commonUnitTestDependencies
     )
 }
@@ -649,6 +677,8 @@ object Spark24 extends SparkClientProjects {
   // val scalaBinaryVersion = "2.11"
   val sparkVersion = "2.4.8"
   val zstdJniVersion = "1.4.4-3"
+
+  override val includeColumnarShuffle: Boolean = false
 }
 
 object Spark30 extends SparkClientProjects {
@@ -663,8 +693,6 @@ object Spark30 extends SparkClientProjects {
 
   val sparkVersion = "3.0.3"
   val zstdJniVersion = "1.4.4-3"
-
-  override val includeColumnarShuffle: Boolean = true
 }
 
 object Spark31 extends SparkClientProjects {
@@ -679,8 +707,6 @@ object Spark31 extends SparkClientProjects {
 
   val sparkVersion = "3.1.3"
   val zstdJniVersion = "1.4.8-1"
-
-  override val includeColumnarShuffle: Boolean = true
 }
 
 object Spark32 extends SparkClientProjects {
@@ -695,8 +721,6 @@ object Spark32 extends SparkClientProjects {
 
   val sparkVersion = "3.2.4"
   val zstdJniVersion = "1.5.0-4"
-
-  override val includeColumnarShuffle: Boolean = true
 }
 
 object Spark33 extends SparkClientProjects {
@@ -714,8 +738,6 @@ object Spark33 extends SparkClientProjects {
   // val scalaBinaryVersion = "2.12"
   val sparkVersion = "3.3.4"
   val zstdJniVersion = "1.5.2-1"
-
-  override val includeColumnarShuffle: Boolean = true
 }
 
 object Spark34 extends SparkClientProjects {
@@ -730,8 +752,6 @@ object Spark34 extends SparkClientProjects {
 
   val sparkVersion = "3.4.3"
   val zstdJniVersion = "1.5.2-5"
-
-  override val includeColumnarShuffle: Boolean = true
 }
 
 object Spark35 extends SparkClientProjects {
@@ -746,6 +766,8 @@ object Spark35 extends SparkClientProjects {
 
   val sparkVersion = "3.5.2"
   val zstdJniVersion = "1.5.5-4"
+
+  override val sparkColumnarShuffleVersion: String = "3.5"
 }
 
 trait SparkClientProjects {
@@ -760,11 +782,11 @@ trait SparkClientProjects {
   val sparkVersion: String
   val zstdJniVersion: String
 
-  val includeColumnarShuffle: Boolean = false
+  val includeColumnarShuffle: Boolean = true
 
   def modules: Seq[Project] = {
     val seq = Seq(sparkCommon, sparkClient, sparkIt, sparkGroup, sparkClientShade)
-    if (includeColumnarShuffle) seq :+ sparkColumnarShuffle else seq
+    if (includeColumnarShuffle) seq ++ Seq(sparkColumnarCommon, sparkColumnarShuffle) else seq
   }
 
   // for test only, don't use this group for any other projects
@@ -772,7 +794,7 @@ trait SparkClientProjects {
     val p = (project withId "celeborn-spark-group")
       .aggregate(sparkCommon, sparkClient, sparkIt)
     if (includeColumnarShuffle) {
-      p.aggregate(sparkColumnarShuffle)
+      p.aggregate(sparkColumnarCommon, sparkColumnarShuffle)
     } else {
       p
     }
@@ -807,9 +829,24 @@ trait SparkClientProjects {
       )
   }
 
-  def sparkColumnarShuffle: Project = {
-    Project("celeborn-spark-3-columnar-shuffle", file("client-spark/spark-3-columnar-shuffle"))
+  def sparkColumnarCommon: Project = {
+    Project("celeborn-spark-3-columnar-common", file("client-spark/spark-3-columnar-common"))
       // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
+      .dependsOn(sparkClient)
+      .settings(
+        commonSettings,
+        libraryDependencies ++= Seq(
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
+        )
+      )
+  }
+
+  val sparkColumnarShuffleVersion: String = "3"
+
+  def sparkColumnarShuffle: Project = {
+    Project("celeborn-spark-3-columnar-shuffle", file(s"client-spark/spark-$sparkColumnarShuffleVersion-columnar-shuffle"))
+      // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
+      .dependsOn(sparkColumnarCommon)
       .dependsOn(sparkClient % "test->test;compile->compile")
       .dependsOn(CelebornClient.client % "test")
       .settings(
@@ -1431,4 +1468,16 @@ object CelebornOpenApi {
     Compile / packageBin := assembly.value,
     pomPostProcess := removeDependenciesTransformer
   )
+}
+
+object WebProjects {
+
+  def web: Project = {
+    Project("celeborn-web", file("web"))
+      .settings(commonSettings)
+  }
+
+  def modules: Seq[Project] = {
+    Seq(web)
+  }
 }

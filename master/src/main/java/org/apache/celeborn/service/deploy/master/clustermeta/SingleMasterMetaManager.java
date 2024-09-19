@@ -94,12 +94,6 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleWorkerRemove(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
-    updateWorkerRemoveMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
-  }
-
-  @Override
   public void handleRemoveWorkersUnavailableInfo(
       List<WorkerInfo> unavailableWorkers, String requestId) {
     removeWorkersUnavailableInfoMeta(unavailableWorkers);

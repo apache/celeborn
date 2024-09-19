@@ -62,6 +62,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final ShuffleWriteMetrics writeMetrics;
   private final int shuffleId;
   private final int mapId;
+  private final int encodedAttemptId;
   private final TaskContext taskContext;
   private final ShuffleClient shuffleClient;
   private final int numMappers;
@@ -102,6 +103,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.mapId = taskContext.partitionId();
     this.dep = dep;
     this.shuffleId = shuffleId;
+    this.encodedAttemptId = SparkCommonUtils.getEncodedAttemptNumber(taskContext);
     SerializerInstance serializer = dep.serializer().newInstance();
     this.partitioner = dep.partitioner();
     this.writeMetrics = taskContext.taskMetrics().shuffleWriteMetrics();
@@ -130,7 +132,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             taskContext,
             shuffleId,
             mapId,
-            taskContext.attemptNumber(),
+            encodedAttemptId,
             taskContext.taskAttemptId(),
             numMappers,
             numPartitions,
@@ -285,7 +287,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         shuffleClient.pushData(
             shuffleId,
             mapId,
-            taskContext.attemptNumber(),
+            encodedAttemptId,
             partitionId,
             buffer,
             0,
@@ -309,12 +311,12 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     pusher.close(true);
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
 
-    shuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
+    shuffleClient.pushMergedData(shuffleId, mapId, encodedAttemptId);
 
     updateMapStatus();
 
     long waitStartTime = System.nanoTime();
-    shuffleClient.mapperEnd(shuffleId, mapId, taskContext.attemptNumber(), numMappers);
+    shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers);
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
   }
 
@@ -350,7 +352,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     } catch (IOException e) {
       return Option.apply(null);
     } finally {
-      shuffleClient.cleanup(shuffleId, mapId, taskContext.attemptNumber());
+      shuffleClient.cleanup(shuffleId, mapId, encodedAttemptId);
     }
   }
 

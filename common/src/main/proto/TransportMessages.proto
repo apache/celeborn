@@ -105,8 +105,10 @@ enum MessageType {
   REPORT_WORKER_DECOMMISSION = 82;
   REPORT_BARRIER_STAGE_ATTEMPT_FAILURE = 83;
   REPORT_BARRIER_STAGE_ATTEMPT_FAILURE_RESPONSE = 84;
-  BATCH_UNREGISTER_SHUFFLES = 85;
-  BATCH_UNREGISTER_SHUFFLE_RESPONSES= 86;
+  SEGMENT_START = 85;
+  NOTIFY_REQUIRED_SEGMENT = 86;
+  BATCH_UNREGISTER_SHUFFLES = 87;
+  BATCH_UNREGISTER_SHUFFLE_RESPONSES= 88;
 }
 
 enum StreamType {
@@ -404,19 +406,8 @@ message PbUnregisterShuffle {
   string requestId = 3;
 }
 
-message PbBatchUnregisterShuffles {
-  string appId = 1;
-  string requestId = 2;
-  repeated int32 shuffleIds = 3;
-}
-
 message PbUnregisterShuffleResponse {
   int32 status = 1;
-}
-
-message PbBatchUnregisterShuffleResponses {
-  int32 status = 1;
-  repeated int32 shuffleIds = 2;
 }
 
 message PbApplicationLost {

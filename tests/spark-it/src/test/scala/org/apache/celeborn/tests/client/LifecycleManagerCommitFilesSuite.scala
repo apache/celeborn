@@ -26,9 +26,8 @@ import org.apache.celeborn.client.{LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.client.commit.CommitFilesParam
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
+import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.worker.CommitInfo
 
@@ -67,7 +66,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       res.workerResource,
       updateEpoch = false)
 
-    lifecycleManager.commitManager.registerShuffle(shuffleId, 1)
+    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
     0 until 10 foreach { partitionId =>
       lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
     }
@@ -117,7 +116,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       res.workerResource,
       updateEpoch = false)
 
-    lifecycleManager.commitManager.registerShuffle(shuffleId, 1)
+    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
     0 until 10 foreach { partitionId =>
       lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
     }

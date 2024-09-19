@@ -44,4 +44,7 @@ public class TransportModuleConstants {
   @Deprecated public static final String RPC_MODULE = "rpc";
 
   public static final String DATA_MODULE = "data";
+
+  // When using null, InetSocketAddress will resolve to a wildcard address for bind operations.
+  public static final String WILDCARD_BIND_ADDRESS = null;
 }

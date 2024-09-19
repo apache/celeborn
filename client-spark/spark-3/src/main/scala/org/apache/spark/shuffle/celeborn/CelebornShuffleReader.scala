@@ -41,7 +41,7 @@ import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol.{MessageType, PartitionLocation, PbOpenStreamList, PbOpenStreamListResponse, PbStreamHandler}
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.util.{ExceptionMaker, JavaUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
 
 class CelebornShuffleReader[K, C](
     handle: CelebornShuffleHandle[K, _, C],
@@ -66,6 +66,7 @@ class CelebornShuffleReader[K, C](
 
   private val exceptionRef = new AtomicReference[IOException]
   private val throwsFetchFailure = handle.throwsFetchFailure
+  private val encodedAttemptId = SparkCommonUtils.getEncodedAttemptNumber(context)
 
   override def read(): Iterator[Product2[K, C]] = {
 
@@ -193,7 +194,7 @@ class CelebornShuffleReader[K, C](
             shuffleId,
             handle.shuffleId,
             partitionId,
-            context.attemptNumber(),
+            encodedAttemptId,
             startMapIndex,
             endMapIndex,
             if (throwsFetchFailure) ExceptionMakerHelper.SHUFFLE_FETCH_FAILURE_EXCEPTION_MAKER

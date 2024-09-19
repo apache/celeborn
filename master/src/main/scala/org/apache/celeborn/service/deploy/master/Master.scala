@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, ExecutorService, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
 
@@ -43,12 +43,12 @@ import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, Resou
 import org.apache.celeborn.common.network.CelebornRackResolver
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol._
-import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
+import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.{RpcSecurityContextBuilder, ServerSaslContextBuilder}
-import org.apache.celeborn.common.util.{CelebornHadoopUtils, CollectionUtils, JavaUtils, PbSerDeUtils, SignalUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, SignalUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
@@ -96,10 +96,11 @@ private[celeborn] class Master(
         RpcNameConstants.MASTER_SYS,
         TransportModuleConstants.RPC_SERVICE_MODULE,
         masterArgs.host,
-        masterArgs.host,
         masterArgs.port,
         conf,
-        Math.max(64, Runtime.getRuntime.availableProcessors()))
+        Math.max(64, Runtime.getRuntime.availableProcessors()),
+        None,
+        None)
     } else {
       val externalSecurityContext = new RpcSecurityContextBuilder()
         .withServerSaslContext(
@@ -112,11 +113,11 @@ private[celeborn] class Master(
         RpcNameConstants.MASTER_SYS,
         TransportModuleConstants.RPC_SERVICE_MODULE,
         masterArgs.host,
-        masterArgs.host,
         masterArgs.port,
         conf,
         Math.max(64, Runtime.getRuntime.availableProcessors()),
-        Some(externalSecurityContext))
+        Some(externalSecurityContext),
+        None)
     }
 
   // Visible for testing
@@ -130,10 +131,11 @@ private[celeborn] class Master(
         RpcNameConstants.MASTER_INTERNAL_SYS,
         TransportModuleConstants.RPC_SERVICE_MODULE,
         masterArgs.host,
-        masterArgs.host,
         masterArgs.internalPort,
         conf,
-        Math.max(64, Runtime.getRuntime.availableProcessors()))
+        Math.max(64, Runtime.getRuntime.availableProcessors()),
+        None,
+        None)
     }
 
   private val rackResolver = new CelebornRackResolver(conf)
@@ -227,6 +229,11 @@ private[celeborn] class Master(
   masterSource.addGauge(MasterSource.EXCLUDED_WORKER_COUNT) { () =>
     statusSystem.excludedWorkers.size + statusSystem.manuallyExcludedWorkers.size
   }
+  masterSource.addGauge(MasterSource.AVAILABLE_WORKER_COUNT) { () =>
+    statusSystem.workers.asScala.count { w =>
+      statusSystem.isWorkerAvailable(w)
+    }
+  }
   masterSource.addGauge(MasterSource.SHUTDOWN_WORKER_COUNT) { () =>
     statusSystem.shutdownWorkers.size
   }
@@ -256,11 +263,11 @@ private[celeborn] class Master(
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_TOTAL_CAPACITY) { () =>
-    statusSystem.workers.asScala.map(_.totalSpace()).sum
+    statusSystem.workers.asScala.toList.map(_.totalSpace()).sum
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_FREE_CAPACITY) { () =>
-    statusSystem.workers.asScala.map(_.totalActualUsableSpace()).sum
+    statusSystem.workers.asScala.toList.map(_.totalActualUsableSpace()).sum
   }
 
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
@@ -774,9 +781,6 @@ private[celeborn] class Master(
     if (statusSystem.workers.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")
-      // TODO: remove `WorkerRemove` because we have improve register logic to cover `WorkerRemove`
-      statusSystem.handleWorkerRemove(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
-      val newRequestId = MasterClient.genRequestId()
       statusSystem.handleRegisterWorker(
         host,
         rpcPort,
@@ -787,7 +791,7 @@ private[celeborn] class Master(
         networkLocation,
         disks,
         userResourceConsumption,
-        newRequestId)
+        requestId)
       context.reply(RegisterWorkerResponse(true, "Worker in snapshot, re-register."))
     } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker $workerToRegister " +
@@ -1379,7 +1383,7 @@ private[celeborn] class Master(
     }
   }
 
-  private def isMasterActive: Int = {
+  private[master] def isMasterActive: Int = {
     // use int rather than bool for better monitoring on dashboard
     val isActive =
       if (conf.haEnabled) {

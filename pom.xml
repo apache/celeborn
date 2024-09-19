@@ -38,7 +38,7 @@
     <module>service</module>
     <module>master</module>
     <module>worker</module>
-    <module>web</module>
+    <module>cli</module>
   </modules>
 
   <distributionManagement>
@@ -105,6 +105,7 @@
     <jackson.version>2.15.3</jackson.version>
     <snappy.version>1.1.10.5</snappy.version>
     <ap.loader.version>3.0-8</ap.loader.version>
+    <picocli.version>4.7.6</picocli.version>
 
     <!-- Db dependencies -->
     <mybatis.version>3.5.15</mybatis.version>
@@ -709,6 +710,11 @@
         <version>${bouncycastle.version}</version>
         <scope>test</scope>
       </dependency>
+      <dependency>
+        <groupId>info.picocli</groupId>
+        <artifactId>picocli</artifactId>
+        <version>${picocli.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -959,12 +965,14 @@
           <version>${maven.plugin.scala.version}</version>
           <configuration>
             <args>
+              <arg>-Ywarn-unused-import</arg>
               <arg>-unchecked</arg>
               <arg>-deprecation</arg>
               <arg>-feature</arg>
               <arg>-explaintypes</arg>
               <arg>-Xfatal-warnings</arg>
               <arg>-P:silencer:globalFilters=.*deprecated.*</arg>
+              <arg>-P:silencer:lineContentFilters=.*FunctionConverter.*</arg>
             </args>
             <compilerPlugins>
               <compilerPlugin>
@@ -1350,6 +1358,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
@@ -1369,6 +1378,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
@@ -1388,6 +1398,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
@@ -1406,6 +1417,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
@@ -1424,6 +1436,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
@@ -1442,8 +1455,8 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
-        <!-- TODO solve compilation error when build spark-3-columnar-shuffle with Spark 3.5 -->
-        <!-- <module>client-spark/spark-3-columnar-shuffle</module> -->
+        <module>client-spark/spark-3-columnar-common</module>
+        <module>client-spark/spark-3.5-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
       </modules>
@@ -1761,6 +1774,13 @@
         <module>client-mr/mr</module>
         <module>client-mr/mr-shaded</module>
         <module>tests/mr-it</module>
+      </modules>
+    </profile>
+
+    <profile>
+      <id>web</id>
+      <modules>
+        <module>web</module>
       </modules>
     </profile>
 

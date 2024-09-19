@@ -46,6 +46,9 @@ do
   if [ "$i" == "org.apache.celeborn.service.deploy.worker.Worker" ] ; then
     LAUNCH_CLASS=org.apache.celeborn.service.deploy.worker.Worker
   fi
+  if [ "$i" == "org.apache.celeborn.cli.CelebornCli" ] ; then
+    LAUNCH_CLASS=org.apache.celeborn.cli.CelebornCli
+  fi
 done
 
 if [ "${LAUNCH_CLASS}" == "org.apache.celeborn.service.deploy.master.Master" ] ; then
@@ -61,6 +64,14 @@ if [ "${LAUNCH_CLASS}" == "org.apache.celeborn.service.deploy.worker.Worker" ] ;
     CELEBORN_JARS_DIR="${CELEBORN_HOME}/worker-jars"
   else
     CELEBORN_JARS_DIR="${CELEBORN_HOME}/worker/target"
+  fi
+fi
+
+if [ "${LAUNCH_CLASS}" == "org.apache.celeborn.cli.CelebornCli" ] ; then
+  if [ -d "${CELEBORN_HOME}/cli-jars" ]; then
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/cli-jars"
+  else
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/cli/target"
   fi
 fi
 

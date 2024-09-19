@@ -27,8 +27,8 @@ import com.google.common.collect.Sets
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerStatus
-import org.apache.celeborn.common.protocol.{PbWorkerStatus, WorkerEventType}
 import org.apache.celeborn.common.protocol.PbWorkerStatus.State
+import org.apache.celeborn.common.protocol.WorkerEventType
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager
 
 private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging {
