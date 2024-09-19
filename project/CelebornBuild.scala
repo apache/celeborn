@@ -111,6 +111,7 @@ object Dependencies {
     ExclusionRule("com.google.guava", "guava"),
     ExclusionRule("com.fasterxml.jackson.core", "jackson-annotations"),
     ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"),
+    ExclusionRule("jakarta.activation", "jakarta.activation-api"),
     ExclusionRule("jline", "jline"),
     ExclusionRule("log4j", "log4j"),
     ExclusionRule("org.slf4j", "slf4j-log4j12"))
@@ -1207,8 +1208,7 @@ object MRClientProjects {
           Dependencies.hadoopClientRuntime,
           Dependencies.hadoopMapreduceClientApp,
           Dependencies.jacksonJaxrsJsonProvider
-        ).map(_.excludeAll(ExclusionRule("jakarta.activation", "jakarta.activation-api"))) ++
-          commonUnitTestDependencies,
+        ) ++ commonUnitTestDependencies,
         dependencyOverrides += Dependencies.commonsCompress
       )
   }
