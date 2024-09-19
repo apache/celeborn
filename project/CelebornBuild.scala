@@ -63,6 +63,7 @@ object Dependencies {
   val roaringBitmapVersion = "1.0.6"
   val rocksdbJniVersion = "8.11.3"
   val jacksonVersion = "2.15.3"
+  val jakartaActivationApiVersion = "1.2.1"
   val scalatestMockitoVersion = "1.17.14"
   val scalatestVersion = "3.2.16"
   val slf4jVersion = "1.7.36"
@@ -153,11 +154,11 @@ object Dependencies {
   val jacksonDataTypeJsr310 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonVersion
   val jacksonDataFormatYam = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % jacksonVersion
   val jacksonJaxrsBase = "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-base" % jacksonVersion
-  val activationApi = "jakarta.activation" % "jakarta.activation-api" % "1.2.1"
   val jacksonJaxrsJsonProvider = "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider" % jacksonVersion excludeAll (
     ExclusionRule("jakarta.activation", "jakarta.activation-api"))
   val jacksonModuleJaxbAnnotations = "com.fasterxml.jackson.module" % "jackson-module-jaxb-annotations" % jacksonVersion excludeAll (
     ExclusionRule("jakarta.activation", "jakarta.activation-api"))
+  val jakartaActivationApi = "jakarta.activation" % "jakarta.activation-api" % jakartaActivationApiVersion
   val scalaReflect = "org.scala-lang" % "scala-reflect" % projectScalaVersion
   val slf4jApi = "org.slf4j" % "slf4j-api" % slf4jVersion
   val slf4jJulToSlf4j = "org.slf4j" % "jul-to-slf4j" % slf4jVersion
@@ -1203,11 +1204,11 @@ object MRClientProjects {
       .settings(
         commonSettings,
         libraryDependencies ++= Seq(
-          Dependencies.activationApi,
           Dependencies.hadoopClientApi,
           Dependencies.hadoopClientRuntime,
           Dependencies.hadoopMapreduceClientApp,
-          Dependencies.jacksonJaxrsJsonProvider
+          Dependencies.jacksonJaxrsJsonProvider,
+          Dependencies.jakartaActivationApi
         ) ++ commonUnitTestDependencies,
         dependencyOverrides += Dependencies.commonsCompress
       )
