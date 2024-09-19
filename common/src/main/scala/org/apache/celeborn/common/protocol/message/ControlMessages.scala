@@ -373,7 +373,8 @@ object ControlMessages extends Logging {
   object BatchUnregisterShuffleResponses {
     def apply(
         status: StatusCode,
-        shuffleIds: util.List[Integer] = Collections.emptyList()): PbBatchUnregisterShuffleResponses =
+        shuffleIds: util.List[Integer] = Collections.emptyList())
+        : PbBatchUnregisterShuffleResponses =
       PbBatchUnregisterShuffleResponses.newBuilder()
         .setStatus(status.getValue)
         .addAllShuffleIds(shuffleIds)

@@ -406,8 +406,19 @@ message PbUnregisterShuffle {
   string requestId = 3;
 }
 
+message PbBatchUnregisterShuffles {
+  string appId = 1;
+  string requestId = 2;
+  repeated int32 shuffleIds = 3;
+}
+
 message PbUnregisterShuffleResponse {
   int32 status = 1;
+}
+
+message PbBatchUnregisterShuffleResponses {
+  int32 status = 1;
+  repeated int32 shuffleIds = 2;
 }
 
 message PbApplicationLost {
