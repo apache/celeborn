@@ -195,6 +195,25 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void handleReviseLostShuffles(String appId, List<Integer> shuffles, String requestId) {
+    try {
+      ratisServer.submitRequest(
+          ResourceRequest.newBuilder()
+              .setCmdType(Type.ReviseLostShuffles)
+              .setRequestId(requestId)
+              .setReviseLostShufflesRequest(
+                  ResourceProtos.ReviseLostShufflesRequest.newBuilder()
+                      .setAppId(appId)
+                      .addAllLostShuffles(shuffles)
+                      .build())
+              .build());
+    } catch (CelebornRuntimeException e) {
+      LOG.error("Handle revise lost shuffle failed!", e);
+      throw e;
+    }
+  }
+
+  @Override
   public void handleWorkerLost(
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
     try {

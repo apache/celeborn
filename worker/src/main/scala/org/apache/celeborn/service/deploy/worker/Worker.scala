@@ -881,6 +881,11 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
+  override def reviseLostShuffles(appId: String, shuffles: java.util.List[Integer]): Unit =
+    throw new UnsupportedOperationException()
+
+  override def deleteAppId(appId: String): Unit = throw new UnsupportedOperationException()
+
   override def exit(exitType: String): String = {
     exitType.toUpperCase(Locale.ROOT) match {
       case "DECOMMISSION" =>

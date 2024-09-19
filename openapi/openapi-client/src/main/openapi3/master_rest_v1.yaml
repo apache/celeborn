@@ -270,6 +270,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/HostnamesResponse'
 
+  /api/v1/applications/reviseLostShuffles:
+    get:
+      tags:
+        - Application
+      operationId: reviseLostShuffles
+      description: Revise lost shuffles or delete shuffles of an application.
+      parameters:
+        - name: deleteApp
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: appId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: shuffleIds
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
   /api/v1/ratis/election/transfer:
     post:
       tags:

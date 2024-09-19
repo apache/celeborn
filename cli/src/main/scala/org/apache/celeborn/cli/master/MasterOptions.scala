@@ -110,4 +110,10 @@ final class MasterOptions {
     names = Array("--remove-workers-unavailable-info"),
     description = Array("Remove the workers unavailable info from the master."))
   private[master] var removeWorkersUnavailableInfo: Boolean = _
+
+  @Option(
+    names = Array("--revise-lost-shuffles"),
+    description = Array("Revise lost shuffles or remove shuffles for an application."))
+  private[master] var reviseLostShuffles: Boolean = _
+
 }

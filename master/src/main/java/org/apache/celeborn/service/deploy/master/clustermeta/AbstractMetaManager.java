@@ -22,10 +22,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -33,6 +30,7 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
 import scala.Option;
+import scala.Tuple2;
 
 import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.Node;
@@ -63,7 +61,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractMetaManager.class);
 
   // Metadata for master service
-  public final Set<String> registeredShuffle = ConcurrentHashMap.newKeySet();
+  public final Map<String, Set<Integer>> registeredAppAndShuffles =
+      JavaUtils.newConcurrentHashMap();
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
   public final Set<WorkerInfo> workers = ConcurrentHashMap.newKeySet();
 
@@ -92,9 +91,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   public void updateRequestSlotsMeta(
       String shuffleKey, String hostName, Map<String, Map<String, Integer>> workerWithAllocations) {
-    registeredShuffle.add(shuffleKey);
+    Tuple2<String, Object> appIdShuffleId = Utils.splitShuffleKey(shuffleKey);
+    registeredAppAndShuffles
+        .computeIfAbsent(appIdShuffleId._1(), v -> new HashSet<>())
+        .add((Integer) appIdShuffleId._2);
 
-    String appId = Utils.splitShuffleKey(shuffleKey)._1;
+    String appId = appIdShuffleId._1;
     appHeartbeatTime.compute(
         appId,
         (applicationId, oldTimestamp) -> {
@@ -111,7 +113,19 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateUnregisterShuffleMeta(String shuffleKey) {
-    registeredShuffle.remove(shuffleKey);
+    Tuple2<String, Object> appIdShuffleId = Utils.splitShuffleKey(shuffleKey);
+    Set<Integer> shuffleIds = registeredAppAndShuffles.get(appIdShuffleId._1());
+    if (shuffleIds != null) {
+      shuffleIds.remove(appIdShuffleId._2);
+      registeredAppAndShuffles.compute(
+          appIdShuffleId._1(),
+          (s, shuffles) -> {
+            if (shuffles.size() == 0) {
+              return null;
+            }
+            return shuffles;
+          });
+    }
   }
 
   public void updateBatchUnregisterShuffleMeta(List<String> shuffleKeys) {
@@ -125,7 +139,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateAppLostMeta(String appId) {
-    registeredShuffle.removeIf(shuffleKey -> shuffleKey.startsWith(appId));
+    registeredAppAndShuffles.remove(appId);
     appHeartbeatTime.remove(appId);
     applicationMetas.remove(appId);
   }
@@ -134,6 +148,14 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       List<WorkerInfo> workersToAdd, List<WorkerInfo> workersToRemove) {
     manuallyExcludedWorkers.addAll(workersToAdd);
     workersToRemove.forEach(manuallyExcludedWorkers::remove);
+  }
+
+  public void reviseLostShuffles(String appId, List<Integer> lostShuffles) {
+    registeredAppAndShuffles.computeIfAbsent(appId, v -> new HashSet<>()).addAll(lostShuffles);
+  }
+
+  public void deleteAppId(String appId) {
+    registeredAppAndShuffles.remove(appId);
   }
 
   public void updateWorkerLostMeta(
@@ -280,7 +302,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     byte[] snapshotBytes =
         PbSerDeUtils.toPbSnapshotMetaInfo(
                 estimatedPartitionSize,
-                registeredShuffle,
+                registeredAppAndShuffles,
                 hostnameSet,
                 excludedWorkers,
                 manuallyExcludedWorkers,
@@ -313,7 +335,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
       estimatedPartitionSize = snapshotMetaInfo.getEstimatedPartitionSize();
 
-      registeredShuffle.addAll(snapshotMetaInfo.getRegisteredShuffleList());
+      for (String shuffleKey : snapshotMetaInfo.getRegisteredShuffleList()) {
+        Tuple2<String, Object> appIdShuffleId = Utils.splitShuffleKey(shuffleKey);
+        registeredAppAndShuffles
+            .computeIfAbsent(appIdShuffleId._1, v -> new HashSet<>())
+            .add((Integer) appIdShuffleId._2);
+      }
       hostnameSet.addAll(snapshotMetaInfo.getHostnameSetList());
       excludedWorkers.addAll(
           snapshotMetaInfo.getExcludedWorkersList().stream()
@@ -329,9 +356,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
               .collect(Collectors.toSet()));
       appHeartbeatTime.putAll(snapshotMetaInfo.getAppHeartbeatTimeMap());
 
-      registeredShuffle.forEach(
-          shuffleKey -> {
-            String appId = Utils.splitShuffleKey(shuffleKey)._1;
+      registeredAppAndShuffles.forEach(
+          (appId, shuffleId) -> {
             if (!appHeartbeatTime.containsKey(appId)) {
               appHeartbeatTime.put(appId, System.currentTimeMillis());
             }
@@ -405,15 +431,16 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     LOG.info(
         "Worker size: {}, Registered shuffle size: {}. Worker excluded list size: {}. Manually Excluded list size: {}",
         workers.size(),
-        registeredShuffle.size(),
+        registeredAppAndShuffles.size(),
         excludedWorkers.size(),
         manuallyExcludedWorkers.size());
     workers.forEach(workerInfo -> LOG.info(workerInfo.toString()));
-    registeredShuffle.forEach(shuffle -> LOG.info("RegisteredShuffle {}", shuffle));
+    registeredAppAndShuffles.forEach(
+        (appId, shuffleId) -> LOG.info("RegisteredShuffle {}-{}", appId, shuffleId));
   }
 
   private void cleanUpState() {
-    registeredShuffle.clear();
+    registeredAppAndShuffles.clear();
     hostnameSet.clear();
     workers.clear();
     lostWorkers.clear();
@@ -503,5 +530,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   public void updateApplicationMeta(ApplicationMeta applicationMeta) {
     applicationMetas.putIfAbsent(applicationMeta.appId(), applicationMeta);
+  }
+
+  public int registeredShuffleCount() {
+    return registeredAppAndShuffles.values().stream().mapToInt(Set::size).sum();
   }
 }
