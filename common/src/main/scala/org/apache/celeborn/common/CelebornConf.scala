@@ -1042,7 +1042,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def batchHandleChangePartitionNumThreads: Int = get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_THREADS)
   def batchHandleChangePartitionRequestInterval: Long =
     get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_INTERVAL)
-  def batchHandleRemoveExpiredShuffles: Boolean = get(CLIENT_BATCH_REMOVE_EXPIRED_SHUFFLE)
+  def batchHandleRemoveExpiredShufflesEnabled: Boolean =
+    get(CLIENT_BATCH_REMOVE_EXPIRED_SHUFFLE_ENABLED)
   def batchHandleCommitPartitionEnabled: Boolean = get(CLIENT_BATCH_HANDLE_COMMIT_PARTITION_ENABLED)
   def batchHandleCommitPartitionNumThreads: Int = get(CLIENT_BATCH_HANDLE_COMMIT_PARTITION_THREADS)
   def batchHandleCommitPartitionRequestInterval: Long =
@@ -4477,11 +4478,11 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val CLIENT_BATCH_REMOVE_EXPIRED_SHUFFLE: ConfigEntry[Boolean] =
+  val CLIENT_BATCH_REMOVE_EXPIRED_SHUFFLE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.batchHandleRemoveExpiredShuffles.enabled")
       .categories("client")
       .version("0.6.0")
-      .doc("This is an optimization on remove Expired Shuffles and it's true by default.")
+      .doc("This is an optimization on remove Expired Shuffles and it's false by default.")
       .booleanConf
       .createWithDefault(false)
 

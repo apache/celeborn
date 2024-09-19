@@ -66,8 +66,8 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void batchHandleUnRegisterShuffles(List<String> shuffleKeys, String requestId) {
-    registeredShuffle.removeAll(shuffleKeys);
+  public void handleBatchUnRegisterShuffles(List<String> shuffleKeys, String requestId) {
+    updateBatchUnregisterShuffleMeta(shuffleKeys);
   }
 
   @Override

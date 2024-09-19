@@ -845,7 +845,7 @@ public class RatisMasterStatusSystemSuiteJ {
   }
 
   @Test
-  public void testBatchHandleUnRegisterShuffle() throws InterruptedException {
+  public void testHandleBatchUnRegisterShuffle() throws InterruptedException {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
 
@@ -910,20 +910,29 @@ public class RatisMasterStatusSystemSuiteJ {
     workersToAllocate.put(workerInfo1.toUniqueId(), allocations);
     workersToAllocate.put(workerInfo2.toUniqueId(), allocations);
 
-    List<String> shuffleKeys = new ArrayList<>();
-    for (int i = 1; i <= 3; i++) {
+    List<String> shuffleKeysAll = new ArrayList<>();
+    for (int i = 1; i <= 4; i++) {
       String shuffleKey = APPID1 + "-" + i;
-      shuffleKeys.add(shuffleKey);
+      shuffleKeysAll.add(shuffleKey);
       statusSystem.handleRequestSlots(shuffleKey, HOSTNAME1, workersToAllocate, getNewReqeustId());
     }
 
     Thread.sleep(3000L);
 
+    Assert.assertEquals(4, STATUSSYSTEM1.registeredShuffle.size());
+    Assert.assertEquals(4, STATUSSYSTEM2.registeredShuffle.size());
+    Assert.assertEquals(4, STATUSSYSTEM3.registeredShuffle.size());
+
+    List<String> shuffleKeys1 = new ArrayList<>();
+    shuffleKeys1.add(shuffleKeysAll.get(0));
+
+    statusSystem.handleBatchUnRegisterShuffles(shuffleKeys1, getNewReqeustId());
+    Thread.sleep(3000L);
     Assert.assertEquals(3, STATUSSYSTEM1.registeredShuffle.size());
     Assert.assertEquals(3, STATUSSYSTEM2.registeredShuffle.size());
     Assert.assertEquals(3, STATUSSYSTEM3.registeredShuffle.size());
 
-    statusSystem.batchHandleUnRegisterShuffles(shuffleKeys, getNewReqeustId());
+    statusSystem.handleBatchUnRegisterShuffles(shuffleKeysAll, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertTrue(STATUSSYSTEM1.registeredShuffle.isEmpty());

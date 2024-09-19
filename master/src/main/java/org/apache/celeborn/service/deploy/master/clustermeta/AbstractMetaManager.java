@@ -114,6 +114,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     registeredShuffle.remove(shuffleKey);
   }
 
+  public void updateBatchUnregisterShuffleMeta(List<String> shuffleKeys) {
+    registeredShuffle.removeAll(shuffleKeys);
+  }
+
   public void updateAppHeartbeatMeta(String appId, long time, long totalWritten, long fileCount) {
     appHeartbeatTime.put(appId, time);
     partitionTotalWritten.add(totalWritten);

@@ -999,7 +999,7 @@ private[celeborn] class Master(
       requestId: String): Unit = {
     val shuffleKeys =
       shuffleIds.map(shuffleId => Utils.makeShuffleKey(applicationId, shuffleId)).asJava
-    statusSystem.batchHandleUnRegisterShuffles(shuffleKeys, requestId)
+    statusSystem.handleBatchUnRegisterShuffles(shuffleKeys, requestId)
     logInfo(s"Unregister shuffle $shuffleKeys")
     context.reply(BatchUnregisterShuffleResponses(StatusCode.SUCCESS, shuffleIds.asJava))
   }

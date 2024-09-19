@@ -103,7 +103,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val rpcCacheExpireTime = conf.clientRpcCacheExpireTime
   private val rpcMaxRetires = conf.clientRpcMaxRetries
 
-  private val batchRemoveExpiredShuffles = conf.batchHandleRemoveExpiredShuffles
+  private val batchRemoveExpiredShuffles = conf.batchHandleRemoveExpiredShufflesEnabled
 
   private val excludedWorkersFilter = conf.registerShuffleFilterExcludedWorkerEnabled
 
@@ -1608,7 +1608,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val unregisterShuffleResponse = batchRequestMasterUnregisterShuffles(
         BatchUnregisterShuffles(appUniqueId, batchRemoveShuffleIds, MasterClient.genRequestId()))
       if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
-        unregisterShuffleTime.keys().asScala.foreach { shuffleId =>
+        batchRemoveShuffleIds.forEach { shuffleId =>
           unregisterShuffleTime.remove(shuffleId)
         }
       }

@@ -110,7 +110,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void batchHandleUnRegisterShuffles(List<String> shuffleKeys, String requestId) {
+  public void handleBatchUnRegisterShuffles(List<String> shuffleKeys, String requestId) {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()

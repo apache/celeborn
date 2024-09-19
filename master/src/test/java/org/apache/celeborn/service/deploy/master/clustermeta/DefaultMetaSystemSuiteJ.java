@@ -553,7 +553,7 @@ public class DefaultMetaSystemSuiteJ {
   }
 
   @Test
-  public void testBatchHandleUnRegisterShuffle() {
+  public void testHandleBatchUnRegisterShuffle() {
     statusSystem.handleRegisterWorker(
         HOSTNAME1,
         RPCPORT1,
@@ -615,16 +615,23 @@ public class DefaultMetaSystemSuiteJ {
     workersToAllocate.put(workerInfo1.toUniqueId(), allocation);
     workersToAllocate.put(workerInfo2.toUniqueId(), allocation);
 
-    List<String> shuffleKeys = new ArrayList<>();
-    for (int i = 1; i <= 3; i++) {
+    List<String> shuffleKeysAll = new ArrayList<>();
+    for (int i = 1; i <= 4; i++) {
       String shuffleKey = APPID1 + "-" + i;
-      shuffleKeys.add(shuffleKey);
+      shuffleKeysAll.add(shuffleKey);
       statusSystem.handleRequestSlots(shuffleKey, HOSTNAME1, workersToAllocate, getNewReqeustId());
     }
+    Assert.assertEquals(4, statusSystem.registeredShuffle.size());
 
-    assertEquals(3, statusSystem.registeredShuffle.size());
-    statusSystem.batchHandleUnRegisterShuffles(shuffleKeys, getNewReqeustId());
-    assertTrue(statusSystem.registeredShuffle.isEmpty());
+    List<String> shuffleKeys1 = new ArrayList<>();
+    shuffleKeys1.add(shuffleKeysAll.get(0));
+
+    statusSystem.handleBatchUnRegisterShuffles(shuffleKeys1, getNewReqeustId());
+    Assert.assertEquals(3, statusSystem.registeredShuffle.size());
+
+    statusSystem.handleBatchUnRegisterShuffles(shuffleKeysAll, getNewReqeustId());
+
+    Assert.assertTrue(statusSystem.registeredShuffle.isEmpty());
   }
 
   @Test
