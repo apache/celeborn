@@ -256,7 +256,6 @@ if [ "$REPLACE" == "true" ]; then
   exit 0
 fi
 
-# skip check for sbt server now until sbt_build_server_classpath is refactored
 if [ "$CHECK" == "true" ]; then
   check_diff
 fi
