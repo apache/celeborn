@@ -133,7 +133,7 @@ ratis-server-api/3.1.0//ratis-server-api-3.1.0.jar
 ratis-server/3.1.0//ratis-server-3.1.0.jar
 ratis-shell/3.1.0//ratis-shell-3.1.0.jar
 ratis-thirdparty-misc/1.0.6//ratis-thirdparty-misc-1.0.6.jar
-rocksdbjni/8.11.3//rocksdbjni-8.11.3.jar
+rocksdbjni/9.5.2//rocksdbjni-9.5.2.jar
 scala-library/2.12.18//scala-library-2.12.18.jar
 scala-reflect/2.12.18//scala-reflect-2.12.18.jar
 slf4j-api/1.7.36//slf4j-api-1.7.36.jar
