@@ -103,7 +103,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val rpcCacheExpireTime = conf.clientRpcCacheExpireTime
   private val rpcMaxRetires = conf.clientRpcMaxRetries
 
-  private val batchRemoveExpiredShuffles = conf.batchHandleRemoveExpiredShufflesEnabled
+  private val batchRemoveExpiredShufflesEnabled = conf.batchHandleRemoveExpiredShufflesEnabled
 
   private val excludedWorkersFilter = conf.registerShuffleFilterExcludedWorkerEnabled
 
@@ -1592,7 +1592,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         latestPartitionLocation.remove(shuffleId)
         commitManager.removeExpiredShuffle(shuffleId)
         changePartitionManager.removeExpiredShuffle(shuffleId)
-        if (!batchRemoveExpiredShuffles) {
+        if (!batchRemoveExpiredShufflesEnabled) {
           val unregisterShuffleResponse = requestMasterUnregisterShuffle(
             UnregisterShuffle(appUniqueId, shuffleId, MasterClient.genRequestId()))
           // if unregister shuffle not success, wait next turn
