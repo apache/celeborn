@@ -1608,7 +1608,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val unregisterShuffleResponse = batchRequestMasterUnregisterShuffles(
         BatchUnregisterShuffles(appUniqueId, batchRemoveShuffleIds, MasterClient.genRequestId()))
       if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
-        batchRemoveShuffleIds.forEach { shuffleId =>
+        batchRemoveShuffleIds.forEach { shuffleId: Integer =>
           unregisterShuffleTime.remove(shuffleId)
         }
       }

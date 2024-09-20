@@ -48,7 +48,7 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
 
   test("test unregister shuffle in batch") {
     val conf = celebornConf.clone
-    conf.set(CelebornConf.CLIENT_BATCH_REMOVE_EXPIRED_SHUFFLE.key, "true")
+    conf.set(CelebornConf.CLIENT_BATCH_REMOVE_EXPIRED_SHUFFLE_ENABLED.key, "true")
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val counts = 10
     val ids =
