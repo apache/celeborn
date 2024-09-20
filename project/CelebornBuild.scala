@@ -45,7 +45,7 @@ object Dependencies {
   val commonsCryptoVersion = "1.0.0"
   val commonsIoVersion = "2.13.0"
   val commonsLoggingVersion = "1.1.3"
-  val commonsLang3Version = "3.13.0"
+  val commonsLang3Version = "3.17.0"
   val findbugsVersion = "1.3.9"
   val guavaVersion = "33.1.0-jre"
   val hadoopVersion = "3.3.6"
