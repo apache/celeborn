@@ -96,10 +96,10 @@ public class SegmentMapPartitionFileWriter extends MapPartitionDataWriter {
     // the subPartitionId must be ordered in a region
     if (subPartitionId < currentSubpartition) {
       throw new IOException(
-              "Must writing data in reduce partition index order, but now supPartitionId is "
-                      + subPartitionId
-                      + " and the previous supPartitionId is "
-                      + currentSubpartition);
+          "Must writing data in reduce partition index order, but now supPartitionId is "
+              + subPartitionId
+              + " and the previous supPartitionId is "
+              + currentSubpartition);
     }
 
     data.resetReaderIndex();
