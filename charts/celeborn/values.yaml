@@ -33,6 +33,8 @@ image:
   tag: 0.1.1-6badd20
   # -- Image pull policy
   pullPolicy: Always
+  # -- Image name for init containter. (your-private-repo/alpine:3.18)
+  initContainerImage: alpine:3.18
 
 # -- Image pull secrets for private image registry
 imagePullSecrets: []
