@@ -534,6 +534,15 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       callbackWithTimer.onFailure(new CelebornIOException(cause))
       return
     }
+
+    if (fileWriters.exists(checkDiskFull(_) == true)) {
+      val (mapId, attemptId) = getMapAttempt(body)
+      logWarning(
+        s"return hard split for disk full with shuffle $shuffleKey map $mapId attempt $attemptId")
+      callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+      return
+    }
+
     fileWriters.foreach(_.incrementPendingWrites())
 
     val closedFileWriter = fileWriters.find(_.isClosed)
