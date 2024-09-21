@@ -42,11 +42,6 @@ class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite {
   }
 
   override def beforeAll(): Unit = {
-    if (sslEnabled) {
-      celebornConf.set(CelebornConf.MASTER_HTTP_SSL_ENABLED, true)
-      celebornConf.set(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_PATH, keyStoreFile.getAbsolutePath)
-      celebornConf.set(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_PASSWORD, keyStorePassword)
-    }
     val randomMasterPort = Utils.selectRandomPort(1024, 65535)
     val randomHttpPort = randomMasterPort + 1
     celebornConf.set(CelebornConf.HA_ENABLED.key, "false")
@@ -155,8 +150,4 @@ class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite {
     assert(HttpServletResponse.SC_BAD_REQUEST == response.getStatus)
     assert(response.readEntity(classOf[String]).contains("None of the workers are known"))
   }
-}
-
-class ApiV1MasterResourceSslSuite extends ApiV1MasterResourceSuite {
-  override val sslEnabled: Boolean = true
 }

@@ -200,14 +200,14 @@ abstract class HttpService extends Service with Logging {
       httpMaxWorkerThreads(),
       httpStopTimeout(),
       httpIdleTimeout(),
-      httpSSLEnabled(),
-      httpSSLHttpVersion(),
-      httpSSLKeyStorePath(),
-      httpSSLKeyStorePassword(),
-      httpSSLKeyStoreType(),
-      httpSSLKeyStoreAlgorithm(),
-      httpSSLDisallowedProtocols(),
-      httpSSLIncludedCipherSuites())
+      httpSslEnabled(),
+      httpSslHttpVersion(),
+      httpSslKeyStorePath(),
+      httpSslKeyStorePassword(),
+      httpSslKeyStoreType(),
+      httpSslKeyStoreAlgorithm(),
+      httpSslDisallowedProtocols(),
+      httpSslIncludedCipherSuites())
     httpServer.start()
     startInternal()
     // block until the HTTP server is started, otherwise, we may get
@@ -267,7 +267,7 @@ abstract class HttpService extends Service with Logging {
     }
   }
 
-  private[celeborn] def httpSSLEnabled(): Boolean = {
+  private[celeborn] def httpSslEnabled(): Boolean = {
     serviceName match {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_ENABLED)
@@ -276,7 +276,7 @@ abstract class HttpService extends Service with Logging {
     }
   }
 
-  private def httpSSLHttpVersion(): String = {
+  private def httpSslHttpVersion(): String = {
     serviceName match {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_HTTP_VERSION)
@@ -285,7 +285,7 @@ abstract class HttpService extends Service with Logging {
     }
   }
 
-  private def httpSSLKeyStorePath(): Option[String] = {
+  private def httpSslKeyStorePath(): Option[String] = {
     serviceName match {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_PATH)
@@ -294,7 +294,7 @@ abstract class HttpService extends Service with Logging {
     }
   }
 
-  private def httpSSLKeyStorePassword(): Option[String] = {
+  private def httpSslKeyStorePassword(): Option[String] = {
     serviceName match {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_PASSWORD)
@@ -303,7 +303,7 @@ abstract class HttpService extends Service with Logging {
     }
   }
 
-  private def httpSSLKeyStoreType(): Option[String] = {
+  private def httpSslKeyStoreType(): Option[String] = {
     serviceName match {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_TYPE)
@@ -312,7 +312,7 @@ abstract class HttpService extends Service with Logging {
     }
   }
 
-  private def httpSSLKeyStoreAlgorithm(): Option[String] = {
+  private def httpSslKeyStoreAlgorithm(): Option[String] = {
     serviceName match {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_ALGORITHM)
@@ -321,7 +321,7 @@ abstract class HttpService extends Service with Logging {
     }
   }
 
-  private def httpSSLDisallowedProtocols(): Seq[String] = {
+  private def httpSslDisallowedProtocols(): Seq[String] = {
     serviceName match {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_DISALLOWED_PROTOCOLS)
@@ -330,7 +330,7 @@ abstract class HttpService extends Service with Logging {
     }
   }
 
-  private def httpSSLIncludedCipherSuites(): Seq[String] = {
+  private def httpSslIncludedCipherSuites(): Seq[String] = {
     serviceName match {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_INCLUDE_CIPHER_SUITES)
