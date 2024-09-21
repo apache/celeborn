@@ -17,12 +17,12 @@
 
 package org.apache.celeborn.server.common.http.api
 
+import java.net.URI
+
 import javax.servlet.ServletConfig
 import javax.ws.rs.{GET, Path, PathParam, Produces}
 import javax.ws.rs.core.{Application, Context, HttpHeaders, MediaType, Response, UriInfo}
-
 import scala.collection.JavaConverters._
-
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
 import io.swagger.v3.jaxrs2.integration.JaxrsOpenApiContextBuilder
 import io.swagger.v3.jaxrs2.integration.resources.BaseOpenApiResource
@@ -60,7 +60,7 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
       .ctxId(ctxId)
       .buildContext(true)
 
-    val openApi = setCelebornOpenAPIDefinition(ctx.read(), uriInfo.getBaseUri.toString)
+    val openApi = setCelebornOpenAPIDefinition(ctx.read(), uriInfo.getBaseUri)
 
     if (StringUtils.isNotBlank(tpe) && tpe.trim().equalsIgnoreCase("yaml")) {
       Response.status(Response.Status.OK)
@@ -81,9 +81,10 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
     }
   }
 
-  private def setCelebornOpenAPIDefinition(openApi: OpenAPI, requestBaseUrl: String): OpenAPI = {
-    val httpScheme = if (httpService.httpSslEnabled()) "https" else "http"
-    val apiUrls = List(requestBaseUrl, s"$httpScheme://${httpService.connectionUrl}/").distinct
+  private def setCelebornOpenAPIDefinition(openApi: OpenAPI, requestBaseUri: URI): OpenAPI = {
+    val httpScheme = if (httpService.httpSslEnabled()) "https:" else "http:"
+    val requestBaseUrl = s"$httpScheme${requestBaseUri.getSchemeSpecificPart}"
+    val apiUrls = List(requestBaseUrl, s"$httpScheme//${httpService.connectionUrl}/").distinct
     openApi.info(
       new Info().title(
         s"Apache Celeborn REST API Documentation")
