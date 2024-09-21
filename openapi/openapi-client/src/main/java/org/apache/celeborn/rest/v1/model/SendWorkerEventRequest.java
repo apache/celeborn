@@ -41,51 +41,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
 public class SendWorkerEventRequest {
-  /**
-   * The type of the event.
-   */
-  public enum EventTypeEnum {
-    IMMEDIATELY("Immediately"),
-    
-    DECOMMISSION("Decommission"),
-    
-    DECOMMISSION_THEN_IDLE("DecommissionThenIdle"),
-    
-    GRACEFUL("Graceful"),
-    
-    RECOMMISSION("Recommission"),
-    
-    NONE("None");
-
-    private String value;
-
-    EventTypeEnum(String value) {
-      this.value = value;
-    }
-
-    @JsonValue
-    public String getValue() {
-      return value;
-    }
-
-    @Override
-    public String toString() {
-      return String.valueOf(value);
-    }
-
-    @JsonCreator
-    public static EventTypeEnum fromValue(String value) {
-      for (EventTypeEnum b : EventTypeEnum.values()) {
-        if (b.value.equals(value)) {
-          return b;
-        }
-      }
-      throw new IllegalArgumentException("Unexpected value '" + value + "'");
-    }
-  }
-
   public static final String JSON_PROPERTY_EVENT_TYPE = "eventType";
-  private EventTypeEnum eventType;
+  private String eventType;
 
   public static final String JSON_PROPERTY_WORKERS = "workers";
   private List<WorkerId> workers = new ArrayList<>();
@@ -93,28 +50,28 @@ public class SendWorkerEventRequest {
   public SendWorkerEventRequest() {
   }
 
-  public SendWorkerEventRequest eventType(EventTypeEnum eventType) {
+  public SendWorkerEventRequest eventType(String eventType) {
     
     this.eventType = eventType;
     return this;
   }
 
   /**
-   * The type of the event.
+   * The type of the event. Legal types are &#39;None&#39;, &#39;Immediately&#39;, &#39;Decommission&#39;, &#39;DecommissionThenIdle&#39;, &#39;Graceful&#39;, &#39;Recommission&#39;
    * @return eventType
    */
   @javax.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_EVENT_TYPE)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
-  public EventTypeEnum getEventType() {
+  public String getEventType() {
     return eventType;
   }
 
 
   @JsonProperty(JSON_PROPERTY_EVENT_TYPE)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setEventType(EventTypeEnum eventType) {
+  public void setEventType(String eventType) {
     this.eventType = eventType;
   }
 

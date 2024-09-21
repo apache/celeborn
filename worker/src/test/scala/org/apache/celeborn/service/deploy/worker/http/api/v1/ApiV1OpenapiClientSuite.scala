@@ -23,7 +23,6 @@ import javax.servlet.http.HttpServletResponse
 import org.apache.celeborn.rest.v1.master._
 import org.apache.celeborn.rest.v1.master.invoker._
 import org.apache.celeborn.rest.v1.model.{ExcludeWorkerRequest, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, WorkerId}
-import org.apache.celeborn.rest.v1.model.SendWorkerEventRequest.EventTypeEnum
 
 class ApiV1OpenapiClientSuite extends ApiV1WorkerOpenapiClientSuite {
   private var masterApiClient: ApiClient = _
@@ -107,8 +106,7 @@ class ApiV1OpenapiClientSuite extends ApiV1WorkerOpenapiClientSuite {
     assert(api.getWorkerEvents.getWorkerEvents.isEmpty)
 
     handleResponse = api.sendWorkerEvent(
-      new SendWorkerEventRequest().addWorkersItem(workerId).eventType(
-        EventTypeEnum.DECOMMISSION_THEN_IDLE))
+      new SendWorkerEventRequest().addWorkersItem(workerId).eventType("DecommissionThenIdle"))
     assert(handleResponse.getSuccess)
 
     assert(!api.getWorkerEvents.getWorkerEvents.isEmpty)

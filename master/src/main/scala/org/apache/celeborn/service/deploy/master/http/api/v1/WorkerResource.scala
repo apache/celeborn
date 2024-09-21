@@ -137,7 +137,7 @@ class WorkerResource extends ApiRequestContext {
         throw new BadRequestException(
           s"None of the workers are known: ${unknownWorkers.map(_.readableAddress).mkString(", ")}")
       }
-      val (success, msg) = httpService.handleWorkerEvent(request.getEventType.toString, workers)
+      val (success, msg) = httpService.handleWorkerEvent(request.getEventType, workers)
       val finalMsg =
         if (unknownWorkers.isEmpty) {
           msg

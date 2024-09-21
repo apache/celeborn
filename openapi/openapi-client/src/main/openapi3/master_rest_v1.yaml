@@ -704,14 +704,14 @@ components:
       properties:
         eventType:
           type: string
-          description: The type of the event.
-          enum:
-            - Immediately
-            - Decommission
-            - DecommissionThenIdle
-            - Graceful
-            - Recommission
-            - None
+          description: The type of the event. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'
+          # enum:
+            # - Immediately
+            # - Decommission
+            # - DecommissionThenIdle
+            # - Graceful
+            # - Recommission
+            # - None
         workers:
           type: array
           description: The workers to send the event.
