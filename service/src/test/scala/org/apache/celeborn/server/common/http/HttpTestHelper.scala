@@ -51,10 +51,7 @@ object HttpTestHelper {
   }
 }
 
-trait HttpTestHelper extends AnyFunSuite
-  with BeforeAndAfterAll
-  with BeforeAndAfterEach
-  with Logging {
+trait HttpTestHelper extends SslTestHelper {
 
   protected val celebornConf = new CelebornConf()
   protected def httpService: HttpService
@@ -72,8 +69,9 @@ trait HttpTestHelper extends AnyFunSuite
     super.afterAll()
   }
 
+  private lazy val httpScheme = if (httpService.httpSSLEnabled()) "https" else "http"
   protected lazy val baseUri: URI =
-    UriBuilder.fromUri(s"http://${httpService.connectionUrl}/").build()
+    UriBuilder.fromUri(s"${httpScheme}://${httpService.connectionUrl}/").build()
 
   protected lazy val webTarget: WebTarget = restApiBaseSuite.client.target(baseUri)
 }

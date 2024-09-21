@@ -82,8 +82,8 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
   }
 
   private def setCelebornOpenAPIDefinition(openApi: OpenAPI, requestBaseUrl: String): OpenAPI = {
-    // TODO: to improve when https is enabled.
-    val apiUrls = List(requestBaseUrl, s"http://${httpService.connectionUrl}/").distinct
+    val httpScheme = if (httpService.httpSSLEnabled()) "https" else "http"
+    val apiUrls = List(requestBaseUrl, s"$httpScheme://${httpService.connectionUrl}/").distinct
     openApi.info(
       new Info().title(
         s"Apache Celeborn REST API Documentation")

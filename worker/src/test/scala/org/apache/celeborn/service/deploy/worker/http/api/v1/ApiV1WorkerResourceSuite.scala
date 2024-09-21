@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.worker.http.api.v1
 import javax.servlet.http.HttpServletResponse
 import javax.ws.rs.core.MediaType
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.rest.v1.model.{AppDiskUsagesResponse, ApplicationsResponse, ShufflePartitionsResponse, ShufflesResponse, UnAvailablePeersResponse, WorkerInfoResponse}
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.api.v1.ApiV1BaseResourceSuite
@@ -32,6 +33,11 @@ class ApiV1WorkerResourceSuite extends ApiV1BaseResourceSuite with MiniClusterFe
 
   override def beforeAll(): Unit = {
     logInfo("test initialized, setup celeborn mini cluster")
+    if (sslEnabled) {
+      celebornConf.set(CelebornConf.WORKER_HTTP_SSL_ENABLED, true)
+      celebornConf.set(CelebornConf.WORKER_HTTP_SSL_KEYSTORE_PATH, keyStoreFile.getAbsolutePath)
+      celebornConf.set(CelebornConf.WORKER_HTTP_SSL_KEYSTORE_PASSWORD, keyStorePassword)
+    }
     val (m, w) =
       setupMiniClusterWithRandomPorts(workerConf = celebornConf.getAll.toMap, workerNum = 1)
     worker = w.head
@@ -79,4 +85,8 @@ class ApiV1WorkerResourceSuite extends ApiV1BaseResourceSuite with MiniClusterFe
     assert(HttpServletResponse.SC_OK == response.getStatus)
     assert(response.readEntity(classOf[UnAvailablePeersResponse]).getPeers.isEmpty)
   }
+}
+
+class ApiV1WorkerResourceSslSuite extends ApiV1WorkerResourceSuite {
+  override val sslEnabled: Boolean = true
 }

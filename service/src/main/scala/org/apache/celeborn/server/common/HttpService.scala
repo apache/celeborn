@@ -267,7 +267,7 @@ abstract class HttpService extends Service with Logging {
     }
   }
 
-  private def httpSSLEnabled(): Boolean = {
+  private[celeborn] def httpSSLEnabled(): Boolean = {
     serviceName match {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_ENABLED)
