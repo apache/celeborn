@@ -124,7 +124,7 @@ class WorkerResource extends ApiRequestContext {
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[HandleResponse]))),
     description =
-      "For Master(Leader) can send worker event to manager workers. Legal types are 'NONE', 'IMMEDIATELY', 'DECOMMISSION', 'DECOMMISSIONTHENIDLE', 'GRACEFUL', 'RECOMMISSION'.")
+      "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'.")
   @POST
   @Path("/events")
   def sendWorkerEvents(request: SendWorkerEventRequest): HandleResponse =

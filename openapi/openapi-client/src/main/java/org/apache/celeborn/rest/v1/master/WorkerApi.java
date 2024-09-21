@@ -325,7 +325,7 @@ public class WorkerApi extends BaseApi {
 
   /**
    * 
-   * For Master(Leader) can send worker event to manager workers. Legal types are &#39;NONE&#39;, &#39;IMMEDIATELY&#39;, &#39;DECOMMISSION&#39;, &#39;DECOMMISSIONTHENIDLE&#39;, &#39;GRACEFUL&#39;, &#39;RECOMMISSION&#39;. 
+   * For Master(Leader) can send worker event to manager workers. Legal types are &#39;None&#39;, &#39;Immediately&#39;, &#39;Decommission&#39;, &#39;DecommissionThenIdle&#39;, &#39;Graceful&#39;, &#39;Recommission&#39;. 
    * @param sendWorkerEventRequest  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
@@ -337,7 +337,7 @@ public class WorkerApi extends BaseApi {
 
   /**
    * 
-   * For Master(Leader) can send worker event to manager workers. Legal types are &#39;NONE&#39;, &#39;IMMEDIATELY&#39;, &#39;DECOMMISSION&#39;, &#39;DECOMMISSIONTHENIDLE&#39;, &#39;GRACEFUL&#39;, &#39;RECOMMISSION&#39;. 
+   * For Master(Leader) can send worker event to manager workers. Legal types are &#39;None&#39;, &#39;Immediately&#39;, &#39;Decommission&#39;, &#39;DecommissionThenIdle&#39;, &#39;Graceful&#39;, &#39;Recommission&#39;. 
    * @param sendWorkerEventRequest  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
