@@ -704,7 +704,10 @@ components:
       properties:
         eventType:
           type: string
-          description: The type of the event. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'
+          description: |
+            The type of the event.
+            Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'
+          # met issue with enum, see details in CELEBORN-1607
           # enum:
             # - Immediately
             # - Decommission

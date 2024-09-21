@@ -138,7 +138,7 @@ class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite {
     assert(HttpServletResponse.SC_BAD_REQUEST == response.getStatus)
     assert(
       response.readEntity(classOf[String]).contains("eventType(null) and workers([]) are required"))
-    sendWorkerEventRequest.eventType(SendWorkerEventRequest.EventTypeEnum.NONE)
+    sendWorkerEventRequest.eventType("None")
     response = webTarget.path("workers/events").request(MediaType.APPLICATION_JSON).post(
       Entity.entity(sendWorkerEventRequest, MediaType.APPLICATION_JSON))
     assert(HttpServletResponse.SC_BAD_REQUEST == response.getStatus)

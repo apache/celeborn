@@ -25,7 +25,6 @@ import picocli.CommandLine.{Command, ParameterException}
 
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.rest.v1.model._
-import org.apache.celeborn.rest.v1.model.SendWorkerEventRequest.EventTypeEnum
 
 @Command(name = "master", mixinStandardHelpOptions = true)
 class MasterSubcommandImpl extends Runnable with MasterSubcommand {
@@ -90,16 +89,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   }
 
   private[master] def runSendWorkerEvent: HandleResponse = {
-    val eventType = {
-      try {
-        EventTypeEnum.valueOf(masterOptions.sendWorkerEvent.toUpperCase)
-      } catch {
-        case _: IllegalArgumentException => throw new ParameterException(
-            spec.commandLine(),
-            "Worker event type must be " +
-              EventTypeEnum.values().toStream.map(_.name()).mkString(","))
-      }
-    }
+    val eventType = masterOptions.sendWorkerEvent
     val workerIds = getWorkerIds
     val sendWorkerEventRequest =
       new SendWorkerEventRequest().workers(workerIds).eventType(eventType)

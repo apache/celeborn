@@ -57,7 +57,7 @@ public class SendWorkerEventRequest {
   }
 
   /**
-   * The type of the event. Legal types are &#39;None&#39;, &#39;Immediately&#39;, &#39;Decommission&#39;, &#39;DecommissionThenIdle&#39;, &#39;Graceful&#39;, &#39;Recommission&#39;
+   * The type of the event. Legal types are &#39;None&#39;, &#39;Immediately&#39;, &#39;Decommission&#39;, &#39;DecommissionThenIdle&#39;, &#39;Graceful&#39;, &#39;Recommission&#39; 
    * @return eventType
    */
   @javax.annotation.Nonnull
