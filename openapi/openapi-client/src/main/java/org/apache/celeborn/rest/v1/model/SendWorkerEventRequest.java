@@ -45,17 +45,17 @@ public class SendWorkerEventRequest {
    * The type of the event.
    */
   public enum EventTypeEnum {
-    IMMEDIATELY("Immediately"),
+    IMMEDIATELY("IMMEDIATELY"),
     
-    DECOMMISSION("Decommission"),
+    DECOMMISSION("DECOMMISSION"),
     
-    DECOMMISSION_THEN_IDLE("DecommissionThenIdle"),
+    DECOMMISSIONTHENIDLE("DECOMMISSIONTHENIDLE"),
     
-    GRACEFUL("Graceful"),
+    GRACEFUL("GRACEFUL"),
     
-    RECOMMISSION("Recommission"),
+    RECOMMISSION("RECOMMISSION"),
     
-    NONE("None");
+    NONE("NONE");
 
     private String value;
 

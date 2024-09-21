@@ -200,7 +200,7 @@ paths:
       operationId: sendWorkerEvent
       description: |
         For Master(Leader) can send worker event to manager workers.
-        Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'.
+        Legal types are 'NONE', 'IMMEDIATELY', 'DECOMMISSION', 'DECOMMISSIONTHENIDLE', 'GRACEFUL', 'RECOMMISSION'.
       requestBody:
         content:
           application/json:
@@ -706,12 +706,12 @@ components:
           type: string
           description: The type of the event.
           enum:
-            - Immediately
-            - Decommission
-            - DecommissionThenIdle
-            - Graceful
-            - Recommission
-            - None
+            - IMMEDIATELY
+            - DECOMMISSION
+            - DECOMMISSIONTHENIDLE
+            - GRACEFUL
+            - RECOMMISSION
+            - NONE
         workers:
           type: array
           description: The workers to send the event.
