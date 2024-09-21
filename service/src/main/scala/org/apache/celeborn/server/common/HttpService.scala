@@ -259,6 +259,15 @@ abstract class HttpService extends Service with Logging {
     }
   }
 
+  private def httpSSLEnabled(): Boolean = {
+    serviceName match {
+      case Service.MASTER =>
+        conf.get(CelebornConf.MASTER_HTTP_SSL_ENABLED)
+      case Service.WORKER =>
+
+    }
+  }
+
   def connectionUrl: String = {
     httpServer.getServerUri
   }

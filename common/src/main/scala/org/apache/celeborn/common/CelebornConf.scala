@@ -2376,6 +2376,64 @@ object CelebornConf extends Logging {
       .toSequence
       .createWithDefault(Seq.empty)
 
+  val MASTER_HTTP_SSL_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.http.ssl.enabled")
+      .categories("master")
+      .version("0.6.0")
+      .doc("Set this to true for using SSL encryption in http server.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val MASTER_HTTP_SSL_KEYSTORE_PATH: OptionalConfigEntry[String] =
+    buildConf("celeborn.master.http.ssl.keystore.path")
+      .categories("master")
+      .version("0.6.0")
+      .doc("SSL certificate keystore location.")
+      .stringConf
+      .createOptional
+
+  val MASTER_HTTP_SSL_KEYSTORE_PASSWORD: OptionalConfigEntry[String] =
+    buildConf("celeborn.master.http.ssl.keystore.password")
+      .categories("master")
+      .version("0.6.0")
+      .doc("SSL certificate keystore password.")
+      .stringConf
+      .createOptional
+
+  val MASTER_HTTP_SSL_KEYSTORE_TYPE: OptionalConfigEntry[String] =
+    buildConf("celeborn.master.http.ssl.keystore.type")
+      .categories("master")
+      .version("0.6.0")
+      .doc("SSL certificate keystore type.")
+      .stringConf
+      .createOptional
+
+  val MASTER_HTTP_SSL_KEYSTORE_ALGORITHM: OptionalConfigEntry[String] =
+    buildConf("celeborn.master.http.ssl.keystore.algorithm")
+      .categories("master")
+      .version("0.6.0")
+      .doc("SSL certificate keystore algorithm.")
+      .stringConf
+      .createOptional
+
+  val MASTER_HTTP_SSL_DISALLOWED_PROTOCOLS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.master.http.ssl.disallowed.protocols")
+      .categories("master")
+      .version("0.6.0")
+      .doc("SSL versions to disallow.")
+      .stringConf
+      .toSequence
+      .createWithDefault(Seq("SSLv2", "SSLv3"))
+
+  val MASTER_HTTP_SSL_INCLUDE_CIPHER_SUITES: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.master.http.ssl.include.ciphersuites")
+      .categories("master")
+      .version("0.6.0")
+      .doc("A comma-separated list of include SSL cipher suite names.")
+      .stringConf
+      .toSequence
+      .createWithDefault(Nil)
+
   val HA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.master.ha.enabled")
       .withAlternative("celeborn.ha.enabled")
@@ -3122,6 +3180,64 @@ object CelebornConf extends Logging {
       .stringConf
       .toSequence
       .createWithDefault(Seq.empty)
+
+  val WORKER_HTTP_SSL_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.http.ssl.enabled")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("Set this to true for using SSL encryption in http server.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val WORKER_HTTP_SSL_KEYSTORE_PATH: OptionalConfigEntry[String] =
+    buildConf("celeborn.worker.http.ssl.keystore.path")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("SSL certificate keystore location.")
+      .stringConf
+      .createOptional
+
+  val WORKER_HTTP_SSL_KEYSTORE_PASSWORD: OptionalConfigEntry[String] =
+    buildConf("celeborn.worker.http.ssl.keystore.password")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("SSL certificate keystore password.")
+      .stringConf
+      .createOptional
+
+  val WORKER_HTTP_SSL_KEYSTORE_TYPE: OptionalConfigEntry[String] =
+    buildConf("celeborn.worker.http.ssl.keystore.type")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("SSL certificate keystore type.")
+      .stringConf
+      .createOptional
+
+  val WORKER_HTTP_SSL_KEYSTORE_ALGORITHM: OptionalConfigEntry[String] =
+    buildConf("celeborn.worker.http.ssl.keystore.algorithm")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("SSL certificate keystore algorithm.")
+      .stringConf
+      .createOptional
+
+  val WORKER_HTTP_SSL_DISALLOWED_PROTOCOLS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.worker.http.ssl.disallowed.protocols")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("SSL versions to disallow.")
+      .stringConf
+      .toSequence
+      .createWithDefault(Seq("SSLv2", "SSLv3"))
+
+  val WORKER_HTTP_SSL_INCLUDE_CIPHER_SUITES: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.worker.http.ssl.include.ciphersuites")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("A comma-separated list of include SSL cipher suite names.")
+      .stringConf
+      .toSequence
+      .createWithDefault(Nil)
 
   val WORKER_RPC_PORT: ConfigEntry[Int] =
     buildConf("celeborn.worker.rpc.port")
