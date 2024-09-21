@@ -20,6 +20,7 @@ package org.apache.celeborn.server.common.http
 import scala.util.Try
 
 import org.apache.commons.lang3.SystemUtils
+import org.eclipse.jetty.http.HttpVersion
 import org.eclipse.jetty.server.{Handler, HttpConfiguration, HttpConnectionFactory, Server, ServerConnector, SslConnectionFactory}
 import org.eclipse.jetty.server.handler.{ContextHandlerCollection, ErrorHandler}
 import org.eclipse.jetty.util.component.LifeCycle
@@ -116,7 +117,6 @@ object HttpServer extends Logging {
       stopTimeout: Long,
       idleTimeout: Long,
       sslEnabled: Boolean,
-      sslHttpVersion: String,
       keyStorePath: Option[String],
       keyStorePassword: Option[String],
       keyStoreType: Option[String],
@@ -171,7 +171,7 @@ object HttpServer extends Logging {
           null,
           -1,
           -1,
-          new SslConnectionFactory(sslContextFactory, sslHttpVersion),
+          new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.toString),
           new HttpConnectionFactory(httpConf))
       } else {
         new ServerConnector(

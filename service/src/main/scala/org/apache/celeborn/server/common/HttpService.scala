@@ -201,7 +201,6 @@ abstract class HttpService extends Service with Logging {
       httpStopTimeout(),
       httpIdleTimeout(),
       httpSslEnabled(),
-      httpSslHttpVersion(),
       httpSslKeyStorePath(),
       httpSslKeyStorePassword(),
       httpSslKeyStoreType(),
@@ -273,15 +272,6 @@ abstract class HttpService extends Service with Logging {
         conf.get(CelebornConf.MASTER_HTTP_SSL_ENABLED)
       case Service.WORKER =>
         conf.get(CelebornConf.WORKER_HTTP_SSL_ENABLED)
-    }
-  }
-
-  private def httpSslHttpVersion(): String = {
-    serviceName match {
-      case Service.MASTER =>
-        conf.get(CelebornConf.MASTER_HTTP_SSL_HTTP_VERSION)
-      case Service.WORKER =>
-        conf.get(CelebornConf.WORKER_HTTP_SSL_HTTP_VERSION)
     }
   }
 

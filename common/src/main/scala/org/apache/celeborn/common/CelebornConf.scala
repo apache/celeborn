@@ -2384,15 +2384,6 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val MASTER_HTTP_SSL_HTTP_VERSION: ConfigEntry[String] =
-    buildConf("celeborn.master.http.ssl.http.version")
-      .categories("master")
-      .version("0.6.0")
-      .doc("SSL http version, available options: HTTP/1.1, HTTP/2.0.")
-      .stringConf
-      .checkValues(Set("HTTP/1.1", "HTTP/2.0"))
-      .createWithDefault("HTTP/1.1")
-
   val MASTER_HTTP_SSL_KEYSTORE_PATH: OptionalConfigEntry[String] =
     buildConf("celeborn.master.http.ssl.keystore.path")
       .categories("master")
@@ -3197,15 +3188,6 @@ object CelebornConf extends Logging {
       .doc("Set this to true for using SSL encryption in http server.")
       .booleanConf
       .createWithDefault(false)
-
-  val WORKER_HTTP_SSL_HTTP_VERSION: ConfigEntry[String] =
-    buildConf("celeborn.worker.http.ssl.http.version")
-      .categories("worker")
-      .version("0.6.0")
-      .doc("SSL http version, available options: HTTP/1.1, HTTP/2.0.")
-      .stringConf
-      .checkValues(Set("HTTP/1.1", "HTTP/2.0"))
-      .createWithDefault("HTTP/1.1")
 
   val WORKER_HTTP_SSL_KEYSTORE_PATH: OptionalConfigEntry[String] =
     buildConf("celeborn.worker.http.ssl.keystore.path")

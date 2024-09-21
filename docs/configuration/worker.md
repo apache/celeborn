@@ -106,7 +106,6 @@ license: |
 | celeborn.worker.http.spnego.principal | &lt;undefined&gt; | false | SPNego service principal, typical value would look like HTTP/_HOST@EXAMPLE.COM. SPNego service principal would be used when celeborn http authentication is enabled. This needs to be set only if SPNEGO is to be used in authentication. | 0.6.0 |  | 
 | celeborn.worker.http.ssl.disallowed.protocols | SSLv2,SSLv3 | false | SSL versions to disallow. | 0.6.0 |  | 
 | celeborn.worker.http.ssl.enabled | false | false | Set this to true for using SSL encryption in http server. | 0.6.0 |  | 
-| celeborn.worker.http.ssl.http.version | HTTP/1.1 | false | SSL http version, available options: HTTP/1.1, HTTP/2.0. | 0.6.0 |  | 
 | celeborn.worker.http.ssl.include.ciphersuites |  | false | A comma-separated list of include SSL cipher suite names. | 0.6.0 |  | 
 | celeborn.worker.http.ssl.keystore.algorithm | &lt;undefined&gt; | false | SSL certificate keystore algorithm. | 0.6.0 |  | 
 | celeborn.worker.http.ssl.keystore.password | &lt;undefined&gt; | false | SSL certificate keystore password. | 0.6.0 |  | 
