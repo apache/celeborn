@@ -18,11 +18,12 @@
 package org.apache.celeborn.server.common.http.api
 
 import java.net.URI
-
 import javax.servlet.ServletConfig
 import javax.ws.rs.{GET, Path, PathParam, Produces}
 import javax.ws.rs.core.{Application, Context, HttpHeaders, MediaType, Response, UriInfo}
+
 import scala.collection.JavaConverters._
+
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
 import io.swagger.v3.jaxrs2.integration.JaxrsOpenApiContextBuilder
 import io.swagger.v3.jaxrs2.integration.resources.BaseOpenApiResource
