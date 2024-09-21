@@ -40,13 +40,13 @@ public class WorkerExitRequest {
    * The type of the worker exit request.
    */
   public enum TypeEnum {
-    DECOMMISSION("Decommission"),
+    DECOMMISSION("DECOMMISSION"),
     
-    GRACEFUL("Graceful"),
+    GRACEFUL("GRACEFUL"),
     
-    IMMEDIATELY("Immediately"),
+    IMMEDIATELY("IMMEDIATELY"),
     
-    NONE("None");
+    NONE("NONE");
 
     private String value;
 
