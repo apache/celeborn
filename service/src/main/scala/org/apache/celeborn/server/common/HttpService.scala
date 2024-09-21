@@ -27,7 +27,7 @@ import org.eclipse.jetty.servlet.FilterHolder
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
-import org.apache.celeborn.common.protocol.TransportModuleConstants
+import org.apache.celeborn.common.protocol.{TransportModuleConstants, WorkerEventType}
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.http.HttpServer
 import org.apache.celeborn.server.common.http.api.ApiRootResource
@@ -187,7 +187,9 @@ abstract class HttpService extends Service with Logging {
 
   def exit(exitType: String): String = throw new UnsupportedOperationException()
 
-  def handleWorkerEvent(workerEventType: String, workers: Seq[WorkerInfo]): HandleResponse =
+  def handleWorkerEvent(
+      workerEventType: WorkerEventType,
+      workers: Seq[WorkerInfo]): HandleResponse =
     throw new UnsupportedOperationException()
 
   def getWorkerEventInfo(): String = throw new UnsupportedOperationException()

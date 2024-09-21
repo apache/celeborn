@@ -150,15 +150,15 @@ class WorkerResource extends ApiRequestContext {
       new HandleResponse().success(success).message(finalMsg)
     }
 
-  private def toWorkerEventType(enum: EventTypeEnum): String = {
+  private def toWorkerEventType(enum: EventTypeEnum): WorkerEventType = {
     enum match {
-      case EventTypeEnum.NONE => WorkerEventType.None.toString
-      case EventTypeEnum.IMMEDIATELY => WorkerEventType.Immediately.toString
-      case EventTypeEnum.DECOMMISSION => WorkerEventType.Decommission.toString
-      case EventTypeEnum.DECOMMISSIONTHENIDLE => WorkerEventType.DecommissionThenIdle.toString
-      case EventTypeEnum.GRACEFUL => WorkerEventType.Graceful.toString
-      case EventTypeEnum.RECOMMISSION => WorkerEventType.Recommission.toString
-      case _ => WorkerEventType.UNRECOGNIZED.toString
+      case EventTypeEnum.NONE => WorkerEventType.None
+      case EventTypeEnum.IMMEDIATELY => WorkerEventType.Immediately
+      case EventTypeEnum.DECOMMISSION => WorkerEventType.Decommission
+      case EventTypeEnum.DECOMMISSIONTHENIDLE => WorkerEventType.DecommissionThenIdle
+      case EventTypeEnum.GRACEFUL => WorkerEventType.Graceful
+      case EventTypeEnum.RECOMMISSION => WorkerEventType.Recommission
+      case _ => WorkerEventType.UNRECOGNIZED
     }
   }
 }
