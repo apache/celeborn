@@ -76,7 +76,7 @@ public class SendWorkerEventRequest {
     @JsonCreator
     public static EventTypeEnum fromValue(String value) {
       for (EventTypeEnum b : EventTypeEnum.values()) {
-        if (b.value.equals(value)) {
+        if (b.value.equalsIgnoreCase(value)) {
           return b;
         }
       }
