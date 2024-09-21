@@ -57,6 +57,14 @@ license: |
 | celeborn.master.http.proxy.client.ip.header | X-Real-IP | false | The HTTP header to record the real client IP address. If your server is behind a load balancer or other proxy, the server will see this load balancer or proxy IP address as the client IP address, to get around this common issue, most load balancers or proxies offer the ability to record the real remote IP address in an HTTP header that will be added to the request for other devices to use. Note that, because the header value can be specified to any IP address, so it will not be used for authentication. | 0.6.0 |  | 
 | celeborn.master.http.spnego.keytab | &lt;undefined&gt; | false | The keytab file for SPNego authentication. | 0.6.0 |  | 
 | celeborn.master.http.spnego.principal | &lt;undefined&gt; | false | SPNego service principal, typical value would look like HTTP/_HOST@EXAMPLE.COM. SPNego service principal would be used when celeborn http authentication is enabled. This needs to be set only if SPNEGO is to be used in authentication. | 0.6.0 |  | 
+| celeborn.master.http.ssl.disallowed.protocols | SSLv2,SSLv3 | false | SSL versions to disallow. | 0.6.0 |  | 
+| celeborn.master.http.ssl.enabled | false | false | Set this to true for using SSL encryption in http server. | 0.6.0 |  | 
+| celeborn.master.http.ssl.http.version | HTTP/1.1 | false | SSL http version, available options: HTTP/1.1, HTTP/2.0. | 0.6.0 |  | 
+| celeborn.master.http.ssl.include.ciphersuites |  | false | A comma-separated list of include SSL cipher suite names. | 0.6.0 |  | 
+| celeborn.master.http.ssl.keystore.algorithm | &lt;undefined&gt; | false | SSL certificate keystore algorithm. | 0.6.0 |  | 
+| celeborn.master.http.ssl.keystore.password | &lt;undefined&gt; | false | SSL certificate keystore password. | 0.6.0 |  | 
+| celeborn.master.http.ssl.keystore.path | &lt;undefined&gt; | false | SSL certificate keystore location. | 0.6.0 |  | 
+| celeborn.master.http.ssl.keystore.type | &lt;undefined&gt; | false | SSL certificate keystore type. | 0.6.0 |  | 
 | celeborn.master.http.stopTimeout | 5s | false | Master http server stop timeout. | 0.5.0 |  | 
 | celeborn.master.internal.port | 8097 | false | Internal port on the master where both workers and other master nodes connect. | 0.5.0 |  | 
 | celeborn.master.persist.workerNetworkLocation | false | false |  | 0.6.0 |  | 
