@@ -113,7 +113,14 @@ object HttpServer {
       port: Int,
       poolSize: Int,
       stopTimeout: Long,
-      idleTimeout: Long): HttpServer = {
+      idleTimeout: Long,
+      sslEnabled: Boolean,
+      keyStorePath: Option[String],
+      keyStorePassword: Option[String],
+      keyStoreType: Option[String],
+      keyStoreAlgorithm: Option[String],
+      sslDisabledProtocols: Seq[String],
+      sslIncludeCipherSuites: Seq[String]): HttpServer = {
     val pool = new QueuedThreadPool(math.max(poolSize, 8))
     pool.setName(s"$role-JettyThreadPool")
     pool.setDaemon(true)

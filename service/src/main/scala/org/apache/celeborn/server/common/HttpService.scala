@@ -199,7 +199,14 @@ abstract class HttpService extends Service with Logging {
       httpPort(),
       httpMaxWorkerThreads(),
       httpStopTimeout(),
-      httpIdleTimeout())
+      httpIdleTimeout(),
+      httpSSLEnabled(),
+      httpSSLKeyStorePath(),
+      httpSSLKeyStorePassword(),
+      httpSSLKeyStoreType(),
+      httpSSLKeyStoreAlgorithm(),
+      httpSSLDisallowedProtocols(),
+      httpSSLIncludedCipherSuites())
     httpServer.start()
     startInternal()
     // block until the HTTP server is started, otherwise, we may get
@@ -264,7 +271,61 @@ abstract class HttpService extends Service with Logging {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_ENABLED)
       case Service.WORKER =>
+        conf.get(CelebornConf.MASTER_HTTP_SSL_ENABLED)
+    }
+  }
 
+  private def httpSSLKeyStorePath(): Option[String] = {
+    serviceName match {
+      case Service.MASTER =>
+        conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_PATH)
+      case Service.WORKER =>
+        conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_PATH)
+    }
+  }
+
+  private def httpSSLKeyStorePassword(): Option[String] = {
+    serviceName match {
+      case Service.MASTER =>
+        conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_PASSWORD)
+      case Service.WORKER =>
+        conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_PASSWORD)
+    }
+  }
+
+  private def httpSSLKeyStoreType(): Option[String] = {
+    serviceName match {
+      case Service.MASTER =>
+        conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_TYPE)
+      case Service.WORKER =>
+        conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_TYPE)
+    }
+  }
+
+  private def httpSSLKeyStoreAlgorithm(): Option[String] = {
+    serviceName match {
+      case Service.MASTER =>
+        conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_ALGORITHM)
+      case Service.WORKER =>
+        conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_ALGORITHM)
+    }
+  }
+
+  private def httpSSLDisallowedProtocols(): Seq[String] = {
+    serviceName match {
+      case Service.MASTER =>
+        conf.get(CelebornConf.MASTER_HTTP_SSL_DISALLOWED_PROTOCOLS)
+      case Service.WORKER =>
+        conf.get(CelebornConf.MASTER_HTTP_SSL_DISALLOWED_PROTOCOLS)
+    }
+  }
+
+  private def httpSSLIncludedCipherSuites(): Seq[String] = {
+    serviceName match {
+      case Service.MASTER =>
+        conf.get(CelebornConf.MASTER_HTTP_SSL_INCLUDE_CIPHER_SUITES)
+      case Service.WORKER =>
+        conf.get(CelebornConf.WORKER_HTTP_SSL_INCLUDE_CIPHER_SUITES)
     }
   }
 
