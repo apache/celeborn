@@ -23,6 +23,7 @@ import org.apache.commons.lang3.SystemUtils
 import org.eclipse.jetty.server.{Handler, HttpConfiguration, HttpConnectionFactory, Server, ServerConnector}
 import org.eclipse.jetty.server.handler.{ContextHandlerCollection, ErrorHandler}
 import org.eclipse.jetty.util.component.LifeCycle
+import org.eclipse.jetty.util.ssl.SslContextFactory
 import org.eclipse.jetty.util.thread.{QueuedThreadPool, ScheduledExecutorScheduler}
 
 import org.apache.celeborn.common.internal.Logging
@@ -105,7 +106,7 @@ private[celeborn] case class HttpServer(
   def getState: String = server.getState
 }
 
-object HttpServer {
+object HttpServer extends Logging {
 
   def apply(
       role: String,
@@ -119,7 +120,7 @@ object HttpServer {
       keyStorePassword: Option[String],
       keyStoreType: Option[String],
       keyStoreAlgorithm: Option[String],
-      sslDisabledProtocols: Seq[String],
+      sslDisallowedProtocols: Seq[String],
       sslIncludeCipherSuites: Seq[String]): HttpServer = {
     val pool = new QueuedThreadPool(math.max(poolSize, 8))
     pool.setName(s"$role-JettyThreadPool")
@@ -134,6 +135,24 @@ object HttpServer {
 
     val collection = new ContextHandlerCollection
     server.setHandler(collection)
+
+    if (sslEnabled) {
+      if (keyStorePath.isEmpty) {
+        throw new IllegalArgumentException("KeyStorePath is not provided for SSL connection.")
+      }
+      if (keyStorePassword.isEmpty) {
+        throw new IllegalArgumentException("KeyStorePassword is not provided for SSL connection.")
+      }
+
+      val sslContextFactory = new SslContextFactory.Server()
+      logInfo("HTTP Server SSL: adding excluded protocols: " + sslDisallowedProtocols.mkString(","))
+      sslContextFactory.addExcludeProtocols(sslDisallowedProtocols: _*)
+      logInfo(s"HTTP Server SSL: SslContextFactory.getExcludeProtocols = ${sslContextFactory.getExcludeProtocols.mkString(",")}")
+      logInfo(
+        "HTTP Server SSL: adding included cipher suites: " + sslIncludeCipherSuites.mkString(","))
+      sslContextFactory.setIncludeCipherSuites(sslIncludeCipherSuites: _*)
+      logInfo(s"HTTP Server SSL: SslContextFactory.getIncludeCipherSuites = ${sslContextFactory.getIncludeCipherSuites.mkString(",")}")
+    }
 
     val serverExecutor = new ScheduledExecutorScheduler(s"$role-JettyScheduler", true)
     val httpConf = new HttpConfiguration()
