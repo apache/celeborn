@@ -20,7 +20,7 @@ package org.apache.celeborn.server.common.http
 import scala.util.Try
 
 import org.apache.commons.lang3.SystemUtils
-import org.eclipse.jetty.server.{Handler, HttpConfiguration, HttpConnectionFactory, Server, ServerConnector}
+import org.eclipse.jetty.server.{Handler, HttpConfiguration, HttpConnectionFactory, Server, ServerConnector, SslConnectionFactory}
 import org.eclipse.jetty.server.handler.{ContextHandlerCollection, ErrorHandler}
 import org.eclipse.jetty.util.component.LifeCycle
 import org.eclipse.jetty.util.ssl.SslContextFactory
@@ -116,6 +116,7 @@ object HttpServer extends Logging {
       stopTimeout: Long,
       idleTimeout: Long,
       sslEnabled: Boolean,
+      sslHttpVersion: String,
       keyStorePath: Option[String],
       keyStorePassword: Option[String],
       keyStoreType: Option[String],
@@ -136,34 +137,53 @@ object HttpServer extends Logging {
     val collection = new ContextHandlerCollection
     server.setHandler(collection)
 
-    if (sslEnabled) {
-      if (keyStorePath.isEmpty) {
-        throw new IllegalArgumentException("KeyStorePath is not provided for SSL connection.")
-      }
-      if (keyStorePassword.isEmpty) {
-        throw new IllegalArgumentException("KeyStorePassword is not provided for SSL connection.")
-      }
-
-      val sslContextFactory = new SslContextFactory.Server()
-      logInfo("HTTP Server SSL: adding excluded protocols: " + sslDisallowedProtocols.mkString(","))
-      sslContextFactory.addExcludeProtocols(sslDisallowedProtocols: _*)
-      logInfo(s"HTTP Server SSL: SslContextFactory.getExcludeProtocols = ${sslContextFactory.getExcludeProtocols.mkString(",")}")
-      logInfo(
-        "HTTP Server SSL: adding included cipher suites: " + sslIncludeCipherSuites.mkString(","))
-      sslContextFactory.setIncludeCipherSuites(sslIncludeCipherSuites: _*)
-      logInfo(s"HTTP Server SSL: SslContextFactory.getIncludeCipherSuites = ${sslContextFactory.getIncludeCipherSuites.mkString(",")}")
-    }
-
     val serverExecutor = new ScheduledExecutorScheduler(s"$role-JettyScheduler", true)
     val httpConf = new HttpConfiguration()
-    val connector = new ServerConnector(
-      server,
-      null,
-      serverExecutor,
-      null,
-      -1,
-      -1,
-      new HttpConnectionFactory(httpConf))
+
+    val connector =
+      if (sslEnabled) {
+        if (keyStorePath.isEmpty) {
+          throw new IllegalArgumentException("KeyStorePath is not provided for SSL connection.")
+        }
+        if (keyStorePassword.isEmpty) {
+          throw new IllegalArgumentException("KeyStorePassword is not provided for SSL connection.")
+        }
+
+        val sslContextFactory = new SslContextFactory.Server()
+        logInfo(
+          "HTTP Server SSL: adding excluded protocols: " + sslDisallowedProtocols.mkString(","))
+        sslContextFactory.addExcludeProtocols(sslDisallowedProtocols: _*)
+        logInfo(s"HTTP Server SSL: SslContextFactory.getExcludeProtocols = ${sslContextFactory.getExcludeProtocols.mkString(",")}")
+        logInfo(
+          "HTTP Server SSL: adding included cipher suites: " + sslIncludeCipherSuites.mkString(","))
+        sslContextFactory.setIncludeCipherSuites(sslIncludeCipherSuites: _*)
+        logInfo(s"HTTP Server SSL: SslContextFactory.getIncludeCipherSuites = ${sslContextFactory.getIncludeCipherSuites.mkString(",")}")
+
+        sslContextFactory.setKeyStorePath(keyStorePath.get)
+        sslContextFactory.setKeyStorePassword(keyStorePassword.get)
+        keyStoreType.foreach(sslContextFactory.setKeyStoreType)
+        keyStoreAlgorithm.foreach(sslContextFactory.setKeyManagerFactoryAlgorithm)
+
+        new ServerConnector(
+          server,
+          null,
+          serverExecutor,
+          null,
+          -1,
+          -1,
+          new SslConnectionFactory(sslContextFactory, sslHttpVersion),
+          new HttpConnectionFactory(httpConf))
+      } else {
+        new ServerConnector(
+          server,
+          null,
+          serverExecutor,
+          null,
+          -1,
+          -1,
+          new HttpConnectionFactory(httpConf))
+      }
+
     connector.setHost(host)
     connector.setPort(port)
     connector.setReuseAddress(!SystemUtils.IS_OS_WINDOWS)

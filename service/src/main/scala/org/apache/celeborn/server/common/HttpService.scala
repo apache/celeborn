@@ -201,6 +201,7 @@ abstract class HttpService extends Service with Logging {
       httpStopTimeout(),
       httpIdleTimeout(),
       httpSSLEnabled(),
+      httpSSLHttpVersion(),
       httpSSLKeyStorePath(),
       httpSSLKeyStorePassword(),
       httpSSLKeyStoreType(),
@@ -271,7 +272,16 @@ abstract class HttpService extends Service with Logging {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_ENABLED)
       case Service.WORKER =>
-        conf.get(CelebornConf.MASTER_HTTP_SSL_ENABLED)
+        conf.get(CelebornConf.WORKER_HTTP_SSL_ENABLED)
+    }
+  }
+
+  private def httpSSLHttpVersion(): String = {
+    serviceName match {
+      case Service.MASTER =>
+        conf.get(CelebornConf.MASTER_HTTP_SSL_HTTP_VERSION)
+      case Service.WORKER =>
+        conf.get(CelebornConf.WORKER_HTTP_SSL_HTTP_VERSION)
     }
   }
 
@@ -280,7 +290,7 @@ abstract class HttpService extends Service with Logging {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_PATH)
       case Service.WORKER =>
-        conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_PATH)
+        conf.get(CelebornConf.WORKER_HTTP_SSL_KEYSTORE_PATH)
     }
   }
 
@@ -289,7 +299,7 @@ abstract class HttpService extends Service with Logging {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_PASSWORD)
       case Service.WORKER =>
-        conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_PASSWORD)
+        conf.get(CelebornConf.WORKER_HTTP_SSL_KEYSTORE_PASSWORD)
     }
   }
 
@@ -298,7 +308,7 @@ abstract class HttpService extends Service with Logging {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_TYPE)
       case Service.WORKER =>
-        conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_TYPE)
+        conf.get(CelebornConf.WORKER_HTTP_SSL_KEYSTORE_TYPE)
     }
   }
 
@@ -307,7 +317,7 @@ abstract class HttpService extends Service with Logging {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_ALGORITHM)
       case Service.WORKER =>
-        conf.get(CelebornConf.MASTER_HTTP_SSL_KEYSTORE_ALGORITHM)
+        conf.get(CelebornConf.WORKER_HTTP_SSL_KEYSTORE_ALGORITHM)
     }
   }
 
@@ -316,7 +326,7 @@ abstract class HttpService extends Service with Logging {
       case Service.MASTER =>
         conf.get(CelebornConf.MASTER_HTTP_SSL_DISALLOWED_PROTOCOLS)
       case Service.WORKER =>
-        conf.get(CelebornConf.MASTER_HTTP_SSL_DISALLOWED_PROTOCOLS)
+        conf.get(CelebornConf.WORKER_HTTP_SSL_DISALLOWED_PROTOCOLS)
     }
   }
 
