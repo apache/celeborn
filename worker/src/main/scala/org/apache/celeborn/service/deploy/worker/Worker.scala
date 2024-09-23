@@ -435,6 +435,13 @@ private[celeborn] class Worker(
       0
     }
   }
+  workerSource.addGauge(WorkerSource.UNRELEASED_SHUFFLE_COUNT) { () =>
+    if (shutdown.get() && workerStatusManager.currentWorkerStatus.getState == State.Exit) {
+      storageManager.shuffleKeySet().size
+    } else {
+      0
+    }
+  }
   workerSource.addGauge(WorkerSource.CLEAN_TASK_QUEUE_SIZE) { () =>
     cleanTaskQueue.size()
   }
@@ -959,7 +966,6 @@ private[celeborn] class Worker(
     } else {
       logWarning(s"Waiting for all shuffle expired cost ${waitTime}ms, " +
         s"unreleased shuffle: \n${unreleasedShuffleKeys.asScala.mkString("[", ", ", "]")}")
-      workerSource.incCounter(UNRELEASED_SHUFFLE_COUNT, unreleasedShuffleKeys.size)
     }
     workerStatusManager.transitionState(State.Exit)
   }
