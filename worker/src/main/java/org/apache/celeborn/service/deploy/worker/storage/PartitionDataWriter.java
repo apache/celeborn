@@ -419,8 +419,6 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     return closed;
   }
 
-  public void setWriterClosed() {}
-
   protected synchronized long close(
       RunnableWithIOException tryClose,
       RunnableWithIOException streamClose,

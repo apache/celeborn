@@ -193,7 +193,7 @@ These metrics are exposed by Celeborn worker.
     | PushDataHandshakeFailCount                  | The count of PushDataHandshake failed in current worker.                                                        |
     | RegionStartFailCount                        | The count of RegionStart failed in current worker.                                                              |
     | RegionFinishFailCount                       | The count of RegionFinish failed in current worker.                                                             |
-    | SegmentStartFailCount                       | The count of segmentStart failed in current worker.                                                             |
+    | SegmentStartFailCount                       | The count of SegmentStart failed in current worker.                                                             |
     | PrimaryPushDataHandshakeTime                | PrimaryPushDataHandshake means handle PushData of primary partition location.                                   |
     | ReplicaPushDataHandshakeTime                | ReplicaPushDataHandshake means handle PushData of replica partition location.                                   |
     | PrimaryRegionStartTime                      | PrimaryRegionStart means handle RegionStart of primary partition location.                                      |
