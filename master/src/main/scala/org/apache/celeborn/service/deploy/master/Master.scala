@@ -1343,7 +1343,9 @@ private[celeborn] class Master(
       (addWorkers ++ removeWorkers).filter(!statusSystem.workers.contains(_))
     if (unknownExcludedWorkers.nonEmpty) {
       sb.append(
-        s"Unknown workers ${unknownExcludedWorkers.map(_.readableAddress).mkString(",")}. Workers in Master:\n$getWorkers.")
+        s"Unknown workers ${unknownExcludedWorkers.map(_.readableAddress).mkString(",")}." +
+          s" Currently total ${statusSystem.manuallyExcludedWorkers.size()}" +
+          s" workers excluded manually in Master.")
     }
     workerExcludeResponse.getSuccess -> sb.toString()
   }
