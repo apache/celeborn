@@ -26,7 +26,9 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 
+import org.apache.celeborn.common.protocol.WorkerEventType
 import org.apache.celeborn.rest.v1.model._
+import org.apache.celeborn.rest.v1.model.SendWorkerEventRequest.EventTypeEnum
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.server.common.http.api.v1.ApiUtils
 import org.apache.celeborn.service.deploy.master.Master
@@ -137,7 +139,8 @@ class WorkerResource extends ApiRequestContext {
         throw new BadRequestException(
           s"None of the workers are known: ${unknownWorkers.map(_.readableAddress).mkString(", ")}")
       }
-      val (success, msg) = httpService.handleWorkerEvent(request.getEventType.toString, workers)
+      val (success, msg) =
+        httpService.handleWorkerEvent(toWorkerEventType(request.getEventType), workers)
       val finalMsg =
         if (unknownWorkers.isEmpty) {
           msg
@@ -146,4 +149,16 @@ class WorkerResource extends ApiRequestContext {
         }
       new HandleResponse().success(success).message(finalMsg)
     }
+
+  private def toWorkerEventType(enum: EventTypeEnum): WorkerEventType = {
+    enum match {
+      case EventTypeEnum.NONE => WorkerEventType.None
+      case EventTypeEnum.IMMEDIATELY => WorkerEventType.Immediately
+      case EventTypeEnum.DECOMMISSION => WorkerEventType.Decommission
+      case EventTypeEnum.DECOMMISSIONTHENIDLE => WorkerEventType.DecommissionThenIdle
+      case EventTypeEnum.GRACEFUL => WorkerEventType.Graceful
+      case EventTypeEnum.RECOMMISSION => WorkerEventType.Recommission
+      case _ => WorkerEventType.UNRECOGNIZED
+    }
+  }
 }

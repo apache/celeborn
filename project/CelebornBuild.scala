@@ -1364,6 +1364,7 @@ object CelebornOpenApi {
       "supportUrlQuery" -> "false",
       "annotationLibrary" -> "none",
       "templateDir" -> s"$openApiSpecDir/templates",
+      "useEnumCaseInsensitive" -> "true"
     )
   )
 

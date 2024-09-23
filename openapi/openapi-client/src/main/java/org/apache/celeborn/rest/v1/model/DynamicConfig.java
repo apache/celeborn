@@ -71,7 +71,7 @@ public class DynamicConfig {
     @JsonCreator
     public static LevelEnum fromValue(String value) {
       for (LevelEnum b : LevelEnum.values()) {
-        if (b.value.equals(value)) {
+        if (b.value.equalsIgnoreCase(value)) {
           return b;
         }
       }

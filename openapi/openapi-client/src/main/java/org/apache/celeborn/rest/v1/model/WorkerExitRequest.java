@@ -40,13 +40,13 @@ public class WorkerExitRequest {
    * The type of the worker exit request.
    */
   public enum TypeEnum {
-    DECOMMISSION("Decommission"),
+    DECOMMISSION("DECOMMISSION"),
     
-    GRACEFUL("Graceful"),
+    GRACEFUL("GRACEFUL"),
     
-    IMMEDIATELY("Immediately"),
+    IMMEDIATELY("IMMEDIATELY"),
     
-    NONE("None");
+    NONE("NONE");
 
     private String value;
 
@@ -67,7 +67,7 @@ public class WorkerExitRequest {
     @JsonCreator
     public static TypeEnum fromValue(String value) {
       for (TypeEnum b : TypeEnum.values()) {
-        if (b.value.equals(value)) {
+        if (b.value.equalsIgnoreCase(value)) {
           return b;
         }
       }

@@ -1218,7 +1218,7 @@ private[celeborn] class Master(
   }
 
   override def handleWorkerEvent(
-      workerEventType: String,
+      workerEventType: WorkerEventType,
       workers: Seq[WorkerInfo]): HandleResponse = {
     val sb = new StringBuilder()
     try {

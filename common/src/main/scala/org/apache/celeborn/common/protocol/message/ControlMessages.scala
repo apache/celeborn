@@ -425,11 +425,11 @@ object ControlMessages extends Logging {
   object WorkerEventRequest {
     def apply(
         workers: util.List[WorkerInfo],
-        eventType: String,
+        eventType: WorkerEventType,
         requestId: String): PbWorkerEventRequest =
       PbWorkerEventRequest.newBuilder()
         .setRequestId(requestId)
-        .setWorkerEventType(WorkerEventType.valueOf(eventType))
+        .setWorkerEventType(eventType)
         .addAllWorkers(workers.asScala.map { workerInfo =>
           PbSerDeUtils.toPbWorkerInfo(workerInfo, true, false)
         }.toList.asJava)
