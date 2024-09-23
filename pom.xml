@@ -94,7 +94,7 @@
     <netty.version>4.1.109.Final</netty.version>
     <bouncycastle.version>1.77</bouncycastle.version>
     <protobuf.version>3.21.7</protobuf.version>
-    <ratis.version>3.1.0</ratis.version>
+    <ratis.version>3.1.1</ratis.version>
     <scalatest.version>3.2.16</scalatest.version>
     <slf4j.version>1.7.36</slf4j.version>
     <roaringbitmap.version>1.0.6</roaringbitmap.version>
