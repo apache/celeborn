@@ -78,6 +78,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   val topDiskUsageCount = conf.metricsAppTopDiskUsageCount
 
+  val humanFriendlyLogEnabled = conf.humanFriendlyLogEnabled
+
   // (deviceName -> deviceInfo) and (mount point -> diskInfo)
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
@@ -871,7 +873,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       diskInfo.updateFetchTime()
     }
 
-    val (prefix, delimiter, suffix) = Utils.getFormattingTokens(conf.humanFriendlyLogEnabled)
+    val (prefix, delimiter, suffix) = Utils.getFormattingTokens(humanFriendlyLogEnabled)
     logInfo(s"Updated diskInfos: ${disksSnapshot().mkString(prefix, delimiter, suffix)}")
   }
 

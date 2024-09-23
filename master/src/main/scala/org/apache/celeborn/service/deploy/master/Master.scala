@@ -81,6 +81,7 @@ private[celeborn] class Master(
   private val authEnabled = conf.authEnabled
   private val secretRegistry = new MasterSecretRegistryImpl()
   private val sendApplicationMetaThreads = conf.masterSendApplicationMetaThreads
+  private val humanFriendlyLogEnabled = conf.humanFriendlyLogEnabled
   // Send ApplicationMeta to workers
   private var sendApplicationMetaExecutor: ExecutorService = _
   private val masterPersistWorkerNetworkLocation = conf.masterPersistWorkerNetworkLocation
@@ -814,8 +815,9 @@ private[celeborn] class Master(
         disks,
         userResourceConsumption,
         requestId)
+
       logInfo(
-        s"Registered worker: ${workerToRegister.workerInfoToString(conf.humanFriendlyLogEnabled)}.")
+        s"Registered worker: ${workerToRegister.workerInfoToString(humanFriendlyLogEnabled)}.")
       context.reply(RegisterWorkerResponse(true, ""))
     }
   }
