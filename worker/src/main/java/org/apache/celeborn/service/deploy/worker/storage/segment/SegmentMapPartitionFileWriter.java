@@ -90,16 +90,18 @@ public class SegmentMapPartitionFileWriter extends MapPartitionDataWriter {
     int size = data.readInt();
 
     if (!subPartitionHasStartSegment.containsKey(subPartitionId)) {
-      throw new IllegalStateException("This partition may not start a segment: " + subPartitionId);
+      throw new IllegalStateException(
+          String.format(
+              "This partition may not start a segment: subPartitionId:%s attemptId:%s batchId:%s size:%s",
+              subPartitionId, attemptId, batchId, size));
     }
     int currentSubpartition = getCurrentSubpartition();
     // the subPartitionId must be ordered in a region
     if (subPartitionId < currentSubpartition) {
       throw new IOException(
-          "Must writing data in reduce partition index order, but now supPartitionId is "
-              + subPartitionId
-              + " and the previous supPartitionId is "
-              + currentSubpartition);
+          String.format(
+              "Must writing data in reduce partition index order, but now supPartitionId is %s and the previous supPartitionId is %s, attemptId is %s, batchId is %s, size is %s",
+              subPartitionId, currentSubpartition, attemptId, batchId, size));
     }
 
     data.resetReaderIndex();
@@ -148,6 +150,7 @@ public class SegmentMapPartitionFileWriter extends MapPartitionDataWriter {
 
   @Override
   public synchronized long close() throws IOException {
+    subPartitionHasStartSegment.clear();
     long fileLength = super.close();
     logger.debug("Close {} for file {}", this, getFile());
     getFileMeta().setIsWriterClosed(true);
