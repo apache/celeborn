@@ -70,5 +70,6 @@ class ApiV1BaseResource extends ApiRequestContext {
     description = "List the container info.")
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def containerInfo(): ContainerInfo = ContainerInfoProvider.instantiate(httpService.conf).getContainerInfo()
+  def containerInfo(): ContainerInfo =
+    ContainerInfoProvider.instantiate(httpService.conf).getContainerInfo()
 }
