@@ -18,10 +18,10 @@
 package org.apache.celeborn.common.util
 
 import java.util
-
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.{MasterEndpointResolver, StaticMasterEndpointResolver}
+import org.apache.celeborn.common.container.DefaultContainerInfoProvider
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.protocol.{PartitionLocation, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd}
@@ -243,5 +243,11 @@ class UtilsSuite extends CelebornFunSuite {
         PartitionLocation.Mode.PRIMARY))
     }
     partitionSet
+  }
+
+  test("test instantiate") {
+    val celebornConf = new CelebornConf()
+    assert(Utils.instantiate[DefaultContainerInfoProvider](celebornConf.containerInfoProviderClass)
+      .isInstanceOf[DefaultContainerInfoProvider])
   }
 }

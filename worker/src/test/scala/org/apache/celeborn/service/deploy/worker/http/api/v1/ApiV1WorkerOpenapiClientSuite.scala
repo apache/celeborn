@@ -52,6 +52,7 @@ abstract class ApiV1WorkerOpenapiClientSuite extends CelebornFunSuite with MiniC
   test("worker: default api") {
     val api = new DefaultApi(workerApiClient)
     assert(!api.getThreadDump.getThreadStacks.isEmpty)
+    assert(api.getContainerInfo.getContainerAddress.nonEmpty && api.getContainerInfo.getContainerAddress.nonEmpty)
   }
 
   test("worker: conf api") {
