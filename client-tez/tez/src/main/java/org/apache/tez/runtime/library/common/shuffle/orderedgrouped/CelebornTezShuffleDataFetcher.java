@@ -86,7 +86,7 @@ public class CelebornTezShuffleDataFetcher extends CallableWithNdc<Void> {
     this.celebornTezReader = celebornTezReader;
 
     LOG.info(
-        "RssTezShuffleDataFetcher, partitionId:{}, inputAttemptIdentifier:{}.",
+        "CelebornTezShuffleDataFetcher, partitionId:{}, inputAttemptIdentifier:{}.",
         this.partitionId,
         this.inputAttemptIdentifier);
   }
@@ -184,10 +184,6 @@ public class CelebornTezShuffleDataFetcher extends CallableWithNdc<Void> {
     return partitionId;
   }
 
-  public void setPartitionId(Integer partitionId) {
-    this.partitionId = partitionId;
-  }
-
   private boolean issueMapOutputMerge() throws IOException {
     // Allocate a MapOutput (either in-memory or on-disk) to put uncompressed block
     // In Rss, a MapOutput is sent as multiple blocks, so the reducer needs to
@@ -245,12 +241,12 @@ public class CelebornTezShuffleDataFetcher extends CallableWithNdc<Void> {
   }
 
   private void stopFetch() {
-    LOG.info("RssTezShuffleDataFetcher stop fetch");
+    LOG.info("CelebornTezShuffleDataFetcher stop fetch");
     stopped = true;
   }
 
   public void shutDown() {
     stopFetch();
-    LOG.info("RssTezShuffleDataFetcher shutdown");
+    LOG.info("CelebornTezShuffleDataFetcher shutdown");
   }
 }
