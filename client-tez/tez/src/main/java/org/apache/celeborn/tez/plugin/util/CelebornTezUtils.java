@@ -59,6 +59,16 @@ public class CelebornTezUtils {
     }
   }
 
+  public static Object getParentPrivateField(Object object, String name) {
+    try {
+      Field f = object.getClass().getSuperclass().getDeclaredField(name);
+      f.setAccessible(true);
+      return f.get(object);
+    } catch (Exception e) {
+      throw new CelebornRuntimeException(e.getMessage(), e);
+    }
+  }
+
   public static String uniqueIdentifierToAttemptId(String uniqueIdentifier) {
     if (uniqueIdentifier == null) {
       throw new CelebornRuntimeException("uniqueIdentifier should not be null");
