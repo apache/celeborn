@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.util
 
 import java.util
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.{MasterEndpointResolver, StaticMasterEndpointResolver}
