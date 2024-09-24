@@ -119,6 +119,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "ConfResponse")
   }
 
+  test("worker --show-container-info") {
+    val args = prepareWorkerArgs() :+ "--show-container-info"
+    captureOutputAndValidateResponse(args, "ContainerInfo")
+  }
+
   test("worker --show-dynamic-conf") {
     cancel("This test is temporarily disabled since dynamic conf is not enabled in unit tests.")
     val args = prepareWorkerArgs() :+ "--show-dynamic-conf"
@@ -189,6 +194,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   test("master --show-conf") {
     val args = prepareMasterArgs() :+ "--show-conf"
     captureOutputAndValidateResponse(args, "ConfResponse")
+  }
+
+  test("master --show-container-info") {
+    val args = prepareMasterArgs() :+ "--show-container-info"
+    captureOutputAndValidateResponse(args, "ContainerInfo")
   }
 
   test("master --show-dynamic-conf") {

@@ -19,6 +19,7 @@ package org.apache.celeborn.common.identity
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.util.Utils
 
 abstract class IdentityProvider {
   def provide(): UserIdentifier
@@ -29,20 +30,6 @@ object IdentityProvider extends Logging {
   val DEFAULT_USERNAME = "default"
 
   def instantiate(conf: CelebornConf): IdentityProvider = {
-    val className = conf.quotaIdentityProviderClass
-    logDebug(s"Creating identity provider $className")
-    val clazz = Class.forName(
-      className,
-      true,
-      Thread.currentThread().getContextClassLoader).asInstanceOf[Class[IdentityProvider]]
-    try {
-      val ctor = clazz.getDeclaredConstructor()
-      logDebug("Using (String, String, Boolean) constructor")
-      ctor.newInstance()
-    } catch {
-      case e: NoSuchMethodException =>
-        logError(s"Falling to instantiate identity provider $className", e)
-        throw e
-    }
+    Utils.instantiate[IdentityProvider](conf.quotaIdentityProviderClass)
   }
 }

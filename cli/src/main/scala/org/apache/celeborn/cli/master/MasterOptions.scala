@@ -86,6 +86,9 @@ final class MasterOptions {
   @Option(names = Array("--show-thread-dump"), description = Array("Show master thread dump"))
   private[master] var showThreadDump: Boolean = _
 
+  @Option(names = Array("--show-container-info"), description = Array("Show container info"))
+  private[master] var showContainerInfo: Boolean = _
+
   @Option(
     names = Array("--add-cluster-alias"),
     paramLabel = "alias",
