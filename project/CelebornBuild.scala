@@ -493,6 +493,7 @@ object CelebornCommon {
 
   lazy val common = Project("celeborn-common", file("common"))
     .dependsOn(CelebornSpi.spi)
+    .dependsOn(CelebornOpenApi.openApiClient % "test->test;compile->compile")
     .settings (
       commonSettings,
       protoSettings,
