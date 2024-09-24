@@ -29,22 +29,6 @@
   <packaging>jar</packaging>
   <name>Celeborn OpenAPI Client</name>
 
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>com.fasterxml.jackson.jaxrs</groupId>
-        <artifactId>jackson-jaxrs-json-provider</artifactId>
-        <version>${jackson.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>jakarta.activation</groupId>
-            <artifactId>jakarta.activation-api</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-
   <dependencies>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
@@ -260,6 +244,7 @@
                     <hideGenerationTimestamp>true</hideGenerationTimestamp>
                     <supportUrlQuery>false</supportUrlQuery>
                     <annotationLibrary>none</annotationLibrary>
+                    <useEnumCaseInsensitive>true</useEnumCaseInsensitive>
                   </configOptions>
                 </configuration>
               </execution>
@@ -294,6 +279,7 @@
                     <hideGenerationTimestamp>true</hideGenerationTimestamp>
                     <supportUrlQuery>false</supportUrlQuery>
                     <annotationLibrary>none</annotationLibrary>
+                    <useEnumCaseInsensitive>true</useEnumCaseInsensitive>
                   </configOptions>
                 </configuration>
               </execution>

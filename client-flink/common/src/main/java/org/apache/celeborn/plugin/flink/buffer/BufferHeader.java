@@ -38,6 +38,11 @@ public class BufferHeader {
   }
 
   public BufferHeader(
+      int subPartitionId, Buffer.DataType dataType, boolean isCompressed, int size) {
+    this(subPartitionId, 0, 0, size + 2, dataType, isCompressed, size);
+  }
+
+  public BufferHeader(
       int subPartitionId,
       int attemptId,
       int nextBatchId,
@@ -52,6 +57,10 @@ public class BufferHeader {
     this.dataType = dataType;
     this.isCompressed = isCompressed;
     this.size = size;
+  }
+
+  public int getSubPartitionId() {
+    return subPartitionId;
   }
 
   public Buffer.DataType getDataType() {

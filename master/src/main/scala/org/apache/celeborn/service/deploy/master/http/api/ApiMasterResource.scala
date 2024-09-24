@@ -26,6 +26,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import org.apache.commons.lang3.StringUtils
 
 import org.apache.celeborn.common.meta.WorkerInfo
+import org.apache.celeborn.common.protocol.WorkerEventType
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 
 @Tag(name = "Deprecated")
@@ -136,7 +137,9 @@ class ApiMasterResource extends ApiRequestContext {
     }
     sb.append("============================ Handle Worker Event =============================\n")
     val workerList = workers.split(",").filter(_.nonEmpty).map(WorkerInfo.fromUniqueId)
-    sb.append(httpService.handleWorkerEvent(normalizeParam(eventType), workerList)._2)
+    sb.append(httpService.handleWorkerEvent(
+      WorkerEventType.valueOf(normalizeParam(eventType)),
+      workerList)._2)
     sb.toString()
   }
 }

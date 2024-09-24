@@ -23,7 +23,7 @@ classgraph/4.8.138//classgraph-4.8.138.jar
 commons-cli/1.5.0//commons-cli-1.5.0.jar
 commons-crypto/1.0.0//commons-crypto-1.0.0.jar
 commons-io/2.13.0//commons-io-2.13.0.jar
-commons-lang3/3.13.0//commons-lang3-3.13.0.jar
+commons-lang3/3.17.0//commons-lang3-3.17.0.jar
 commons-logging/1.1.3//commons-logging-1.1.3.jar
 failureaccess/1.0.2//failureaccess-1.0.2.jar
 guava/33.1.0-jre//guava-33.1.0-jre.jar
@@ -122,6 +122,7 @@ netty-transport-udt/4.1.109.Final//netty-transport-udt-4.1.109.Final.jar
 netty-transport/4.1.109.Final//netty-transport-4.1.109.Final.jar
 osgi-resource-locator/1.0.3//osgi-resource-locator-1.0.3.jar
 paranamer/2.8//paranamer-2.8.jar
+picocli/4.7.6//picocli-4.7.6.jar
 protobuf-java/3.21.7//protobuf-java-3.21.7.jar
 ratis-client/3.1.0//ratis-client-3.1.0.jar
 ratis-common/3.1.0//ratis-common-3.1.0.jar
@@ -134,7 +135,7 @@ ratis-server-api/3.1.0//ratis-server-api-3.1.0.jar
 ratis-server/3.1.0//ratis-server-3.1.0.jar
 ratis-shell/3.1.0//ratis-shell-3.1.0.jar
 ratis-thirdparty-misc/1.0.6//ratis-thirdparty-misc-1.0.6.jar
-rocksdbjni/8.11.3//rocksdbjni-8.11.3.jar
+rocksdbjni/9.5.2//rocksdbjni-9.5.2.jar
 scala-library/2.12.18//scala-library-2.12.18.jar
 scala-reflect/2.12.18//scala-reflect-2.12.18.jar
 slf4j-api/1.7.36//slf4j-api-1.7.36.jar

@@ -76,7 +76,7 @@
     the link to metrics.dropwizard.io in docs/monitoring.md.
     -->
     <codahale.metrics.version>4.2.25</codahale.metrics.version>
-    <commons-lang3.version>3.13.0</commons-lang3.version>
+    <commons-lang3.version>3.17.0</commons-lang3.version>
     <commons-io.version>2.13.0</commons-io.version>
     <commons-crypto.version>1.0.0</commons-crypto.version>
     <!-- last version to support compilation in java 8. See https://errorprone.info/docs/installation#:~:text=you%20are%20using.-,JDK%208,-Error%20Prone%202.10.0 -->
@@ -101,7 +101,7 @@
     <snakeyaml.version>2.2</snakeyaml.version>
     <zstd-jni.version>1.5.2-1</zstd-jni.version>
     <kubernetes-client.version>6.7.0</kubernetes-client.version>
-    <rocksdbjni.version>8.11.3</rocksdbjni.version>
+    <rocksdbjni.version>9.5.2</rocksdbjni.version>
     <jackson.version>2.15.3</jackson.version>
     <snappy.version>1.1.10.5</snappy.version>
     <ap.loader.version>3.0-8</ap.loader.version>
@@ -691,6 +691,28 @@
         <groupId>com.fasterxml.jackson.datatype</groupId>
         <artifactId>jackson-datatype-jsr310</artifactId>
         <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.jaxrs</groupId>
+        <artifactId>jackson-jaxrs-json-provider</artifactId>
+        <version>${jackson.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>jakarta.activation</groupId>
+            <artifactId>jakarta.activation-api</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.module</groupId>
+        <artifactId>jackson-module-jaxb-annotations</artifactId>
+        <version>${jackson.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>jakarta.activation</groupId>
+            <artifactId>jakarta.activation-api</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.xerial.snappy</groupId>

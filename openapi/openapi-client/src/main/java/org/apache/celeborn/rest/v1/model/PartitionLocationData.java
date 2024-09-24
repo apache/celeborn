@@ -74,7 +74,7 @@ public class PartitionLocationData {
     @JsonCreator
     public static ModeEnum fromValue(String value) {
       for (ModeEnum b : ModeEnum.values()) {
-        if (b.value.equals(value)) {
+        if (b.value.equalsIgnoreCase(value)) {
           return b;
         }
       }
@@ -123,7 +123,7 @@ public class PartitionLocationData {
     @JsonCreator
     public static StorageEnum fromValue(String value) {
       for (StorageEnum b : StorageEnum.values()) {
-        if (b.value.equals(value)) {
+        if (b.value.equalsIgnoreCase(value)) {
           return b;
         }
       }

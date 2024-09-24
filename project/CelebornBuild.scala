@@ -45,7 +45,7 @@ object Dependencies {
   val commonsCryptoVersion = "1.0.0"
   val commonsIoVersion = "2.13.0"
   val commonsLoggingVersion = "1.1.3"
-  val commonsLang3Version = "3.13.0"
+  val commonsLang3Version = "3.17.0"
   val findbugsVersion = "1.3.9"
   val guavaVersion = "33.1.0-jre"
   val hadoopVersion = "3.3.6"
@@ -61,8 +61,9 @@ object Dependencies {
   val nettyVersion = "4.1.109.Final"
   val ratisVersion = "3.1.0"
   val roaringBitmapVersion = "1.0.6"
-  val rocksdbJniVersion = "8.11.3"
+  val rocksdbJniVersion = "9.5.2"
   val jacksonVersion = "2.15.3"
+  val jakartaActivationApiVersion = "1.2.1"
   val scalatestMockitoVersion = "1.17.14"
   val scalatestVersion = "3.2.16"
   val slf4jVersion = "1.7.36"
@@ -79,7 +80,7 @@ object Dependencies {
   val openApiToolsJacksonBindNullableVersion = "0.2.6"
   val httpClient5Version = "5.3.1"
   val httpCore5Version = "5.2.4"
-  val javaxAnnotationApiVersion = "1.3.2"
+  val jakartaAnnotationApiVersion = "1.3.5"
   val picocliVersion = "4.7.6"
 
   // For SSL support
@@ -111,6 +112,7 @@ object Dependencies {
     ExclusionRule("com.google.guava", "guava"),
     ExclusionRule("com.fasterxml.jackson.core", "jackson-annotations"),
     ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"),
+    ExclusionRule("jakarta.activation", "jakarta.activation-api"),
     ExclusionRule("jline", "jline"),
     ExclusionRule("log4j", "log4j"),
     ExclusionRule("org.slf4j", "slf4j-log4j12"))
@@ -152,8 +154,11 @@ object Dependencies {
   val jacksonDataTypeJsr310 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonVersion
   val jacksonDataFormatYam = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % jacksonVersion
   val jacksonJaxrsBase = "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-base" % jacksonVersion
-  val jacksonJaxrsJsonProvider = "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider" % jacksonVersion
-  val jacksonModuleJaxbAnnotations = "com.fasterxml.jackson.module" % "jackson-module-jaxb-annotations" % jacksonVersion
+  val jacksonJaxrsJsonProvider = "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider" % jacksonVersion excludeAll (
+    ExclusionRule("jakarta.activation", "jakarta.activation-api"))
+  val jacksonModuleJaxbAnnotations = "com.fasterxml.jackson.module" % "jackson-module-jaxb-annotations" % jacksonVersion excludeAll (
+    ExclusionRule("jakarta.activation", "jakarta.activation-api"))
+  val jakartaActivationApi = "jakarta.activation" % "jakarta.activation-api" % jakartaActivationApiVersion
   val scalaReflect = "org.scala-lang" % "scala-reflect" % projectScalaVersion
   val slf4jApi = "org.slf4j" % "slf4j-api" % slf4jVersion
   val slf4jJulToSlf4j = "org.slf4j" % "jul-to-slf4j" % slf4jVersion
@@ -185,7 +190,7 @@ object Dependencies {
   val httpClient5 = "org.apache.httpcomponents.client5" % "httpclient5" % httpClient5Version
   val httpCore5 = "org.apache.httpcomponents.core5" % "httpcore5" % httpCore5Version
   val httpCore5H2 = "org.apache.httpcomponents.core5" % "httpcore5-h2" % httpCore5Version
-  val javaxAnnotationApi = "javax.annotation" % "javax.annotation-api" % javaxAnnotationApiVersion
+  val jakartaAnnotationApi = "jakarta.annotation" % "jakarta.annotation-api" % jakartaAnnotationApiVersion
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html
@@ -586,6 +591,7 @@ object CelebornService {
         Dependencies.slf4jApi,
         Dependencies.mybatis,
         Dependencies.hikaricp,
+        Dependencies.jacksonDataFormatYam,
         Dependencies.swaggerJaxrs2,
         Dependencies.swaggerUi,
         Dependencies.jakartaServletApi,
@@ -1201,7 +1207,9 @@ object MRClientProjects {
         libraryDependencies ++= Seq(
           Dependencies.hadoopClientApi,
           Dependencies.hadoopClientRuntime,
-          Dependencies.hadoopMapreduceClientApp
+          Dependencies.hadoopMapreduceClientApp,
+          Dependencies.jacksonJaxrsJsonProvider,
+          Dependencies.jakartaActivationApi
         ) ++ commonUnitTestDependencies,
         dependencyOverrides += Dependencies.commonsCompress
       )
@@ -1357,6 +1365,7 @@ object CelebornOpenApi {
       "supportUrlQuery" -> "false",
       "annotationLibrary" -> "none",
       "templateDir" -> s"$openApiSpecDir/templates",
+      "useEnumCaseInsensitive" -> "true"
     )
   )
 
@@ -1393,7 +1402,7 @@ object CelebornOpenApi {
         Dependencies.jacksonDataTypeJsr310,
         Dependencies.jacksonJaxrsJsonProvider,
         Dependencies.findbugsJsr305,
-        Dependencies.javaxAnnotationApi,
+        Dependencies.jakartaAnnotationApi,
         Dependencies.httpClient5,
         Dependencies.httpCore5,
         Dependencies.httpCore5H2,
