@@ -40,7 +40,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   AppDiskUsageSnapshotData.JSON_PROPERTY_END,
   AppDiskUsageSnapshotData.JSON_PROPERTY_TOP_N_ITEMS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class AppDiskUsageSnapshotData {
   public static final String JSON_PROPERTY_START = "start";
   private Long start;

@@ -41,7 +41,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   MasterInfoResponse.JSON_PROPERTY_LEADER,
   MasterInfoResponse.JSON_PROPERTY_MASTER_COMMIT_INFO
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class MasterInfoResponse {
   public static final String JSON_PROPERTY_GROUP_ID = "groupId";
   private String groupId;

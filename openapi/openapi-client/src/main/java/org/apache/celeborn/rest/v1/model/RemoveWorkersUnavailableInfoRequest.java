@@ -38,7 +38,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   RemoveWorkersUnavailableInfoRequest.JSON_PROPERTY_WORKERS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class RemoveWorkersUnavailableInfoRequest {
   public static final String JSON_PROPERTY_WORKERS = "workers";
   private List<WorkerId> workers = new ArrayList<>();

@@ -39,7 +39,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   SendWorkerEventRequest.JSON_PROPERTY_EVENT_TYPE,
   SendWorkerEventRequest.JSON_PROPERTY_WORKERS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class SendWorkerEventRequest {
   /**
    * The type of the event.

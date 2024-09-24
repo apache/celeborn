@@ -35,7 +35,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   ApplicationHeartbeatData.JSON_PROPERTY_APP_ID,
   ApplicationHeartbeatData.JSON_PROPERTY_LAST_HEARTBEAT_TIMESTAMP
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class ApplicationHeartbeatData {
   public static final String JSON_PROPERTY_APP_ID = "appId";
   private String appId;
