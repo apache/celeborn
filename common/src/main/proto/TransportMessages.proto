@@ -283,6 +283,7 @@ message PbRequestSlots {
   int32 availableStorageTypes = 11;
   repeated PbWorkerInfo excludedWorkerSet = 12;
   bool packed = 13;
+  int32 numGroupTask = 14;
 }
 
 message PbSlotInfo {
@@ -825,6 +826,7 @@ message PbPackedPartitionLocations {
   repeated string filePaths = 10;
   repeated int32 availableStorageTypes = 11;
   repeated int32 modes = 12;
+  repeated int32 groupId = 13;
 }
 
 message PbPackedPartitionLocationsPair {
