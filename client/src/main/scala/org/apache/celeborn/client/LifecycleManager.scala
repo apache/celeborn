@@ -76,6 +76,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val slotsAssignMaxWorkers = conf.clientSlotAssignMaxWorkers
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   private val pushRackAwareEnabled = conf.clientReserveSlotsRackAwareEnabled
+  private var groupMapTaskEnabled = conf.groupMapTaskEnabled
+  private val groupMapTaskGroupSize = conf.groupMapTaskGroupSize
   private val partitionSplitThreshold = conf.shufflePartitionSplitThreshold
   private val partitionSplitMode = conf.shufflePartitionSplitMode
   // shuffle id -> partition type
@@ -99,7 +101,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)]]()
   private val shuffleIdGenerator = new AtomicInteger(0)
   // app shuffle id -> whether shuffle is determinate, rerun of a indeterminate shuffle gets different result
-  private val appShuffleDeterminateMap = JavaUtils.newConcurrentHashMap[Int, Boolean]();
+  private val appShuffleDeterminateMap = JavaUtils.newConcurrentHashMap[Int, Boolean]()
+
+  // key: mapId, value: mapTaskGroupId
+  val mapTaskGroupMap = JavaUtils.newConcurrentHashMap[Int, Int]()
 
   private val rpcCacheSize = conf.clientRpcCacheSize
   private val rpcCacheConcurrencyLevel = conf.clientRpcCacheConcurrencyLevel
@@ -659,9 +664,17 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
 
     // First, request to get allocated slots from Primary
-    val ids = new util.ArrayList[Integer](numPartitions)
-    (0 until numPartitions).foreach(idx => ids.add(Integer.valueOf(idx)))
-    val res = requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    val numGroupTask = math.ceil(numMappers / groupMapTaskGroupSize).toInt
+    var groupNumPartitions = numPartitions
+    if (groupMapTaskEnabled) {
+      groupNumPartitions = numPartitions * numGroupTask
+    }
+    val ids = new util.ArrayList[Integer](groupNumPartitions)
+    (0 until groupNumPartitions).foreach(idx => ids.add(Integer.valueOf(idx)))
+    val res = requestMasterRequestSlotsWithRetry(shuffleId, ids, numGroupTask)
+    if (groupMapTaskEnabled && res.status != StatusCode.SUCCESS) {
+      groupMapTaskEnabled = false
+    }
 
     res.status match {
       case StatusCode.REQUEST_FAILED =>
@@ -1635,7 +1648,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   def requestMasterRequestSlotsWithRetry(
       shuffleId: Int,
-      ids: util.ArrayList[Integer]): RequestSlotsResponse = {
+      ids: util.ArrayList[Integer],
+      numGroupTask: Int = 1): RequestSlotsResponse = {
     val excludedWorkerSet =
       if (excludedWorkersFilter) {
         workerStatusTracker.excludedWorkers.asScala.keys.toSet
@@ -1657,7 +1671,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         availableStorageTypes,
         excludedWorkerSet,
         true,
-        clientTagsExpr)
+        clientTagsExpr,
+        numGroupTask)
     val res = requestMasterRequestSlots(req)
     if (res.status != StatusCode.SUCCESS) {
       requestMasterRequestSlots(req)

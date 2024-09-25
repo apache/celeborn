@@ -184,6 +184,7 @@ object ControlMessages extends Logging {
       excludedWorkerSet: Set[WorkerInfo] = Set.empty,
       packed: Boolean = false,
       tagsExpr: String = "",
+      numGroupTask: Int,
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
@@ -665,6 +666,7 @@ object ControlMessages extends Logging {
           excludedWorkerSet,
           packed,
           tagsExpr,
+          numGroupTask,
           requestId) =>
       val payload = PbRequestSlots.newBuilder()
         .setApplicationId(applicationId)
@@ -681,6 +683,7 @@ object ControlMessages extends Logging {
           PbSerDeUtils.toPbWorkerInfo(_, true, true)).asJava)
         .setPacked(packed)
         .setTagsExpr(tagsExpr)
+        .setNumGroupTask(numGroupTask)
         .build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS, payload)
 
@@ -1117,6 +1120,7 @@ object ControlMessages extends Logging {
           excludedWorkerInfoSet,
           pbRequestSlots.getPacked,
           pbRequestSlots.getTagsExpr,
+          pbRequestSlots.getNumGroupTask,
           pbRequestSlots.getRequestId)
 
       case REQUEST_SLOTS_RESPONSE_VALUE =>

@@ -454,7 +454,7 @@ private[celeborn] class Master(
       // keep it for compatible reason
       context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
 
-    case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _, _, _) =>
+    case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       checkAuth(context, applicationId)
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
@@ -857,7 +857,9 @@ private[celeborn] class Master(
   }
 
   def handleRequestSlots(context: RpcCallContext, requestSlots: RequestSlots): Unit = {
-    val numReducers = requestSlots.partitionIdList.size()
+    val numMapTaskGroups = requestSlots.numGroupTask
+    val numPartitions = requestSlots.partitionIdList.size()
+    val numReducers = numPartitions / numMapTaskGroups
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
     var availableWorkers = workersAvailable(requestSlots.excludedWorkerSet)

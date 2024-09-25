@@ -288,6 +288,7 @@ message PbRequestSlots {
   repeated PbWorkerInfo excludedWorkerSet = 12;
   bool packed = 13;
   string tagsExpr = 14;
+  int32 numGroupTask = 15;
 }
 
 message PbSlotInfo {
@@ -846,6 +847,7 @@ message PbPackedPartitionLocations {
   repeated string filePaths = 10;
   repeated int32 availableStorageTypes = 11;
   repeated int32 modes = 12;
+  repeated int32 groupId = 13;
 }
 
 message PbPackedPartitionLocationsPair {

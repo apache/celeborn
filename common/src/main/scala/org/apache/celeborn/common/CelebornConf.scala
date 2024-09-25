@@ -1057,6 +1057,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shufflePartitionSplitMode: PartitionSplitMode =
     PartitionSplitMode.valueOf(get(SHUFFLE_PARTITION_SPLIT_MODE))
   def shufflePartitionSplitThreshold: Long = get(SHUFFLE_PARTITION_SPLIT_THRESHOLD)
+  def groupMapTaskEnabled: Boolean = get(GROUP_MAP_TASK_ENABLED)
+  def groupMapTaskGroupSize: Int = get(GROUP_MAP_TASK_GROUP_SIZE)
   def batchHandleChangePartitionEnabled: Boolean = get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED)
   def batchHandleChangePartitionBuckets: Int =
     get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_BUCKETS)
@@ -4733,6 +4735,29 @@ object CelebornConf extends Logging {
         },
         "")
       .createWithDefault(0)
+
+  val GROUP_MAP_TASK_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.groupMapTask.enabled")
+      .withAlternative("celeborn.shuffle.groupMapTask.enabled")
+      .categories("client")
+      .internal
+      .doc("When true, LifecycleManager will group map tasks and their corresponding worker resources. " +
+        "Map tasks in Different group will push data into different partition group and reduce task " +
+        "will fetch data from partitions in different group." +
+        "Otherwise, client just process the shuffle in general Reduce Partition mode.")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val GROUP_MAP_TASK_GROUP_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.client.shuffle.groupMapTask.groupSize")
+      .withAlternative("celeborn.shuffle.groupMapTask.groupSize")
+      .categories("client")
+      .internal
+      .doc("The group size of map task when grouping map task is enable.")
+      .version("0.6.0")
+      .intConf
+      .createWithDefault(1000)
 
   val CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.batchHandleChangePartition.enabled")

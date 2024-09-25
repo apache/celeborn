@@ -658,6 +658,11 @@ public class ShuffleClientImpl extends ShuffleClient {
       throws CelebornIOException {
     int numRetries = registerShuffleMaxRetries;
     StatusCode lastFailedStatusCode = null;
+    // use it to add another register tempt for group task
+    boolean mapTaskGroupFailed = !conf.groupMapTaskEnabled();
+    if (!mapTaskGroupFailed) {
+      numRetries++;
+    }
     while (numRetries > 0) {
       try {
         PbRegisterShuffleResponse response = callable.call();
