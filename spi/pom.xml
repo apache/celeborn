@@ -25,6 +25,11 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+  <properties>
+    <hadoop.deps.scope>provided</hadoop.deps.scope>
+    <hadoop.deps.optional>true</hadoop.deps.optional>
+  </properties>
+
   <artifactId>celeborn-spi</artifactId>
   <packaging>jar</packaging>
   <name>Celeborn SPI</name>

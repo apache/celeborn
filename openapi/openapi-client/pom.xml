@@ -30,7 +30,8 @@
   <name>Celeborn OpenAPI Client</name>
 
   <properties>
-    <hadoop.scope>provided</hadoop.scope>
+    <hadoop.deps.scope>provided</hadoop.deps.scope>
+    <hadoop.deps.optional>true</hadoop.deps.optional>
   </properties>
 
   <dependencies>
