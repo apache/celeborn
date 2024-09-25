@@ -957,12 +957,12 @@ private[celeborn] class Worker(
 
     def waitTime: Long = waitTimes * interval
 
-    val unreleasedShuffleKeys = storageManager.shuffleKeySet()
-    while (!unreleasedShuffleKeys.isEmpty && waitTime < timeout) {
+    while (!storageManager.shuffleKeySet().isEmpty && waitTime < timeout) {
       Thread.sleep(interval)
       waitTimes += 1
     }
 
+    val unreleasedShuffleKeys = storageManager.shuffleKeySet()
     if (unreleasedShuffleKeys.isEmpty) {
       logInfo(s"Waiting for all shuffle expired cost ${waitTime}ms.")
     } else {
