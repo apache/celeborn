@@ -2741,7 +2741,7 @@
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "metrics_UnreleasedShuffleCount_Count",
+              "expr": "metrics_UnreleasedShuffleCount_Value",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "instant": false,
