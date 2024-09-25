@@ -52,7 +52,7 @@ import org.apache.celeborn.common.util.{CelebornExitKind, CollectionUtils, JavaU
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
-import org.apache.celeborn.service.deploy.worker.WorkerSource.{ACTIVE_CONNECTION_COUNT, UNRELEASED_SHUFFLE_COUNT}
+import org.apache.celeborn.service.deploy.worker.WorkerSource.ACTIVE_CONNECTION_COUNT
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
