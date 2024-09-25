@@ -370,7 +370,7 @@ For Spark versions < 3.5.0, we provide a patch to enable users to use Spark with
 - For Spark 3.4 check [Spark3.4 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_4.patch).
 
 ### Metrics
-Celeborn has various metrics. [METRICS](METRICS.md)
+Celeborn has various metrics. [METRICS](https://celeborn.apache.org/docs/latest/monitoring/#metrics)
 
 ## Community and Support
 
