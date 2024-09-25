@@ -71,8 +71,12 @@
 
     <!-- use hadoop-3 as default  -->
     <hadoop.version>3.3.6</hadoop.version>
+
+    <!-- to make related dependencies optional -->
     <hadoop.deps.scope>compile</hadoop.deps.scope>
     <hadoop.deps.optional>false</hadoop.deps.optional>
+    <jdk.tools.optional>false</jdk.tools.optional>
+
     <!--
     If you change codahale.metrics.version, you also need to change
     the link to metrics.dropwizard.io in docs/monitoring.md.
@@ -1516,6 +1520,7 @@
           <groupId>com.github.olivergondza</groupId>
           <artifactId>maven-jdk-tools-wrapper</artifactId>
           <version>0.1</version>
+          <optional>${jdk.tools.optional}</optional>
         </dependency>
       </dependencies>
       <build>
