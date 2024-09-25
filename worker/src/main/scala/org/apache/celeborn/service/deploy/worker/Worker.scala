@@ -435,6 +435,7 @@ private[celeborn] class Worker(
       0
     }
   }
+  // Unreleased shuffle count when worker was decommissioned
   workerSource.addGauge(WorkerSource.UNRELEASED_SHUFFLE_COUNT) { () =>
     if (shutdown.get() && workerStatusManager.currentWorkerStatus.getState == State.Exit) {
       storageManager.shuffleKeySet().size

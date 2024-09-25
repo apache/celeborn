@@ -59,9 +59,6 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
 
   addCounter(SLOTS_ALLOCATED)
 
-  // Unreleased shuffle count when worker was decommissioned
-  addCounter(UNRELEASED_SHUFFLE_COUNT)
-
   // add timers
   addTimer(COMMIT_FILES_TIME)
   addTimer(RESERVE_SLOTS_TIME)
