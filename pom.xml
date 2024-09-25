@@ -71,6 +71,7 @@
 
     <!-- use hadoop-3 as default  -->
     <hadoop.version>3.3.6</hadoop.version>
+    <hadoop.scope>compile</hadoop.scope>
     <!--
     If you change codahale.metrics.version, you also need to change
     the link to metrics.dropwizard.io in docs/monitoring.md.
@@ -1278,11 +1279,13 @@
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-client-api</artifactId>
           <version>${hadoop.version}</version>
+          <scope>${hadoop.scope}</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-client-runtime</artifactId>
           <version>${hadoop.version}</version>
+          <scope>${hadoop.scope}</scope>
         </dependency>
       </dependencies>
     </profile>
@@ -1302,6 +1305,7 @@
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-client</artifactId>
           <version>${hadoop.version}</version>
+          <scope>${hadoop.scope}</scope>
           <exclusions>
             <exclusion>
               <groupId>org.apache.hadoop</groupId>
@@ -1350,11 +1354,13 @@
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-aws</artifactId>
           <version>${hadoop.version}</version>
+          <scope>${hadoop.scope}</scope>
         </dependency>
         <dependency>
           <groupId>com.amazonaws</groupId>
           <artifactId>aws-java-sdk-bundle</artifactId>
           <version>${aws.version}</version>
+          <scope>${hadoop.scope}</scope>
         </dependency>
       </dependencies>
     </profile>
