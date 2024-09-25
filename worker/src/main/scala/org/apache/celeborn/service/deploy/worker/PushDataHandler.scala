@@ -38,13 +38,14 @@ import org.apache.celeborn.common.network.client.{RpcResponseCallback, Transport
 import org.apache.celeborn.common.network.protocol.{Message, PushData, PushDataHandShake, PushMergedData, RegionFinish, RegionStart, RequestMessage, RpcFailure, RpcRequest, RpcResponse, TransportMessage}
 import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, PbPushDataHandShake, PbRegionFinish, PbRegionStart}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, PbPushDataHandShake, PbRegionFinish, PbRegionStart, PbSegmentStart}
 import org.apache.celeborn.common.protocol.PbPartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.{DiskUtils, ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{HdfsFlusher, LocalFlusher, MapPartitionDataWriter, PartitionDataWriter, S3Flusher, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapPartitionFileWriter
 
 class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler with Logging {
 
@@ -916,6 +917,16 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             rf.getShuffleKey,
             rf.getPartitionUniqueId,
             false)
+        case ss: PbSegmentStart =>
+          (
+            msg,
+            null,
+            false,
+            Type.SEGMENT_START,
+            ss.getMode,
+            ss.getShuffleKey,
+            ss.getPartitionUniqueId,
+            false)
       }
     } catch {
       case _: Exception =>
@@ -980,6 +991,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           (WorkerSource.PRIMARY_REGION_START_TIME, WorkerSource.REPLICA_REGION_START_TIME)
         case Type.REGION_FINISH =>
           (WorkerSource.PRIMARY_REGION_FINISH_TIME, WorkerSource.REPLICA_REGION_FINISH_TIME)
+        case Type.SEGMENT_START =>
+          (WorkerSource.PRIMARY_SEGMENT_START_TIME, WorkerSource.REPLICA_SEGMENT_START_TIME)
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
 
@@ -1064,6 +1077,14 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             isBroadcast)
         case Type.REGION_FINISH =>
           fileWriter.asInstanceOf[MapPartitionDataWriter].regionFinish()
+        case Type.SEGMENT_START =>
+          val (subPartitionId, segmentId) =
+            (
+              pbMsg.asInstanceOf[PbSegmentStart].getSubPartitionId,
+              pbMsg.asInstanceOf[PbSegmentStart].getSegmentId)
+          fileWriter.asInstanceOf[SegmentMapPartitionFileWriter].segmentStart(
+            subPartitionId,
+            segmentId)
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
       // for primary , send data to replica
@@ -1123,6 +1144,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         case Type.REGION_FINISH =>
           workerSource.incCounter(WorkerSource.REGION_FINISH_FAIL_COUNT)
           callback.onFailure(new CelebornIOException(StatusCode.REGION_FINISH_FAIL_REPLICA, e))
+        case Type.SEGMENT_START =>
+          workerSource.incCounter(WorkerSource.SEGMENT_START_FAIL_COUNT)
+          callback.onFailure(new CelebornIOException(StatusCode.SEGMENT_START_FAIL_REPLICA, e))
         case _ =>
           workerSource.incCounter(WorkerSource.REPLICATE_DATA_FAIL_COUNT)
           if (e.isInstanceOf[CelebornIOException]) {
@@ -1177,6 +1201,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         case Type.REGION_FINISH => (
             StatusCode.REGION_FINISH_FAIL_PRIMARY,
             StatusCode.REGION_FINISH_FAIL_REPLICA)
+        case Type.SEGMENT_START => (
+            StatusCode.SEGMENT_START_FAIL_PRIMARY,
+            StatusCode.SEGMENT_START_FAIL_REPLICA)
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
     callback.onFailure(new CelebornIOException(
