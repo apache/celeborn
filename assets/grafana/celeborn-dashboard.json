@@ -2665,13 +2665,11 @@
                 "mode": "palette-classic"
               },
               "custom": {
-                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
-                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -2680,7 +2678,6 @@
                   "tooltip": false,
                   "viz": false
                 },
-                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -2702,8 +2699,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2739,16 +2735,11 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "disableTextWrap": false,
               "editorMode": "builder",
               "expr": "metrics_UnreleasedShuffleCount_Value",
-              "fullMetaSearch": false,
-              "includeNullMetadata": true,
               "instant": false,
-              "legendFormat": "${baseLegend}",
               "range": true,
-              "refId": "A",
-              "useBackend": false
+              "refId": "A"
             }
           ],
           "title": "metrics_UnreleasedShuffleCount_Value",
