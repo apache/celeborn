@@ -348,6 +348,7 @@ abstract class HttpService extends Service with Logging {
 
     if (metricsSystem.running) {
       metricsSystem.getServletContextHandlers.foreach { handler =>
+        logInfo(s"Adding metrics servlet handler with path ${handler.getContextPath}")
         httpServer.addHandler(handler)
       }
     }
