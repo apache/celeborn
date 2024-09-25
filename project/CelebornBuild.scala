@@ -770,7 +770,7 @@ object Spark35 extends SparkClientProjects {
   val lz4JavaVersion = "1.8.0"
   val sparkProjectScalaVersion = "2.12.18"
 
-  val sparkVersion = "3.5.2"
+  val sparkVersion = "3.5.3"
   val zstdJniVersion = "1.5.5-4"
 
   override val sparkColumnarShuffleVersion: String = "3.5"
