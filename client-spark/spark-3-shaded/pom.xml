@@ -52,6 +52,10 @@
               <shadedPattern>${shading.prefix}.com.google.common</shadedPattern>
             </relocation>
             <relocation>
+              <pattern>com.google.thirdparty</pattern>
+              <shadedPattern>${shading.prefix}.com.google.thirdparty</shadedPattern>
+            </relocation>
+            <relocation>
               <pattern>io.netty</pattern>
               <shadedPattern>${shading.prefix}.io.netty</shadedPattern>
             </relocation>
