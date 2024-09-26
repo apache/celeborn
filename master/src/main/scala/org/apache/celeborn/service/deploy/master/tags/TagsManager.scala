@@ -25,42 +25,32 @@ import scala.collection.JavaConverters.{asScalaIteratorConverter, mapAsScalaConc
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
-import org.apache.celeborn.service.deploy.master.tags.TagsManager.{Tag, TagsStore, WorkerId}
-
-object TagsManager {
-  type Tag = String
-  type WorkerId = String
-
-  type TagsStore = ConcurrentHashMap[Tag, JSet[WorkerId]]
-}
 
 class TagsManager extends Logging {
-  private val tagStore = new TagsStore()
+  private val tagStore = new ConcurrentHashMap[String, JSet[String]]()
 
   private val addNewTagFunc =
-    new util.function.Function[Tag, ConcurrentHashMap.KeySetView[WorkerId, java.lang.Boolean]]() {
-      override def apply(t: Tag): ConcurrentHashMap.KeySetView[WorkerId, java.lang.Boolean] =
-        ConcurrentHashMap.newKeySet[WorkerId]()
+    new util.function.Function[String, ConcurrentHashMap.KeySetView[String, java.lang.Boolean]]() {
+      override def apply(t: String): ConcurrentHashMap.KeySetView[String, java.lang.Boolean] =
+        ConcurrentHashMap.newKeySet[String]()
     }
 
-  def getTaggedWorkers(tag: Tag, workers: List[WorkerInfo]): List[WorkerInfo] = {
+  def getTaggedWorkers(tag: String, workers: List[WorkerInfo]): List[WorkerInfo] = {
     val workersForTag = tagStore.get(tag)
     if (workersForTag == null) {
       logWarning(s"Tag $tag not found in cluster")
       return List.empty
     }
-    workers.filter(worker => workersForTag.contains(worker.host))
+    workers.filter(worker => workersForTag.contains(worker.toUniqueId()))
   }
 
-  def addTagToWorker(tag: Tag, worker: WorkerInfo): Unit = {
-    val workerId = worker.host
+  def addTagToWorker(tag: String, workerId: String): Unit = {
     val workers = tagStore.computeIfAbsent(tag, addNewTagFunc)
     logInfo(s"Adding Tag $tag to worker $workerId")
     workers.add(workerId)
   }
 
-  def removeTagFromWorker(tag: Tag, worker: WorkerInfo): Unit = {
-    val workerId = worker.host
+  def removeTagFromWorker(tag: String, workerId: String): Unit = {
     val workers = tagStore.get(tag)
 
     if (workers != null && workers.contains(workerId)) {
@@ -71,11 +61,11 @@ class TagsManager extends Logging {
     }
   }
 
-  def getTagsForWorker(worker: WorkerInfo): Set[Tag] = {
-    tagStore.asScala.filter(_._2.contains(worker.host)).keySet.toSet
+  def getTagsForWorker(worker: WorkerInfo): Set[String] = {
+    tagStore.asScala.filter(_._2.contains(worker.toUniqueId())).keySet.toSet
   }
 
-  def removeTagFromCluster(tag: Tag): Unit = {
+  def removeTagFromCluster(tag: String): Unit = {
     val workers = tagStore.remove(tag)
     if (workers != null) {
       logInfo(s"Removed Tag $tag from cluster with workers ${workers.toArray.mkString(", ")}")
@@ -84,7 +74,7 @@ class TagsManager extends Logging {
     }
   }
 
-  def getTagsForCluster: Set[Tag] = {
+  def getTagsForCluster: Set[String] = {
     tagStore.keySet().iterator().asScala.toSet
   }
 }

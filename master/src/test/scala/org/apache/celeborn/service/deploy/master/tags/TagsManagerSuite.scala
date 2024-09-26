@@ -40,13 +40,13 @@ class TagsManagerSuite extends AnyFunSuite
 
     // Tag1
     val TAG1 = "tag1"
-    tagsManager.addTagToWorker(TAG1, WORKER1)
-    tagsManager.addTagToWorker(TAG1, WORKER2)
+    tagsManager.addTagToWorker(TAG1, WORKER1.toUniqueId())
+    tagsManager.addTagToWorker(TAG1, WORKER2.toUniqueId())
 
     // Tag2
     val TAG2 = "tag2"
-    tagsManager.addTagToWorker(TAG2, WORKER2)
-    tagsManager.addTagToWorker(TAG2, WORKER3)
+    tagsManager.addTagToWorker(TAG2, WORKER2.toUniqueId())
+    tagsManager.addTagToWorker(TAG2, WORKER3.toUniqueId())
 
     {
       val taggedWorkers = tagsManager.getTaggedWorkers(TAG1, workers)
@@ -101,7 +101,7 @@ class TagsManagerSuite extends AnyFunSuite
 
     {
       // Remove tag from worker
-      tagsManager.removeTagFromWorker(TAG1, WORKER2)
+      tagsManager.removeTagFromWorker(TAG1, WORKER2.toUniqueId())
       val taggedWorkers = tagsManager.getTaggedWorkers(TAG1, workers)
       assert(taggedWorkers.size == 1)
       assert(taggedWorkers.contains(WORKER1))
