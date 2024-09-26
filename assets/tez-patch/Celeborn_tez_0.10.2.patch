@@ -1,0 +1,51 @@
+
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+Subject: [PATCH] [CORE][SHUFFLE] Support am custom main class with Apache Tez
+
+diff --git a/tez-api/src/main/java/org/apache/tez/client/TezClientUtils.java b/tez-api/src/main/java/org/apache/tez/client/TezClientUtils.java
+index d78ccf3e8..50ec76676 100644
+--- a/tez-api/src/main/java/org/apache/tez/client/TezClientUtils.java
++++ b/tez-api/src/main/java/org/apache/tez/client/TezClientUtils.java
+@@ -510,7 +510,9 @@ public class TezClientUtils {
+     // FIX sun bug mentioned in TEZ-327
+     vargs.add("-Dsun.nio.ch.bugLevel=''");
+
+-    vargs.add(TezConstants.TEZ_APPLICATION_MASTER_CLASS);
++    String amClassName = amConfig.getTezConfiguration().get(TezConfiguration.TEZ_AM_APPLICATION_MASTER_CLASS,
++            TezConstants.TEZ_APPLICATION_MASTER_CLASS);
++    vargs.add(amClassName);
+     if (dag == null) {
+       vargs.add("--" + TezConstants.TEZ_SESSION_MODE_CLI_OPTION);
+     }
+diff --git a/tez-api/src/main/java/org/apache/tez/dag/api/TezConfiguration.java b/tez-api/src/main/java/org/apache/tez/dag/api/TezConfiguration.java
+index 1ffd70a3f..c712b79c6 100644
+--- a/tez-api/src/main/java/org/apache/tez/dag/api/TezConfiguration.java
++++ b/tez-api/src/main/java/org/apache/tez/dag/api/TezConfiguration.java
+@@ -133,6 +133,14 @@ public class TezConfiguration extends Configuration {
+   @Private
+   public static final String TEZ_TASK_PREFIX = TEZ_PREFIX + "task.";
+
++  /**
++   * String value. The class name of the Tez ApplicationMaster to use.
++   */
++  @ConfigurationScope(Scope.AM)
++  @ConfigurationProperty
++  public static final String TEZ_AM_APPLICATION_MASTER_CLASS = TEZ_AM_PREFIX
++          + "application-master.class";
++
+   /**
+    * Boolean value. If true then Tez will try to automatically delete temporary job
+    * artifacts that it creates within the specified staging dir. Does not affect any user data.
