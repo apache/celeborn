@@ -28,7 +28,6 @@ import scala.util.Try
 import scala.util.matching.Regex
 
 import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
-import org.apache.celeborn.common.container.DefaultContainerInfoProvider
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
