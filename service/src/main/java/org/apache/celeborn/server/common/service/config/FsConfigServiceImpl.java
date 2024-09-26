@@ -20,10 +20,7 @@ package org.apache.celeborn.server.common.service.config;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -38,6 +35,8 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
   private static final String CONF_LEVEL = "level";
   private static final String CONF_CONFIG = "config";
 
+  private static final String TAGS_CONFIG = "tags";
+
   public FsConfigServiceImpl(CelebornConf celebornConf) throws IOException {
     super(celebornConf);
   }
@@ -51,7 +50,10 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
       for (Map<String, Object> configMap : configs) {
         if (ConfigLevel.SYSTEM.name().equals(configMap.get(CONF_LEVEL))) {
           if (configMap.containsKey(CONF_CONFIG)) {
-            systemConfigAtomicReference.set(new SystemConfig(celebornConf, getConfigs(configMap)));
+            systemConfigAtomicReference.get().setConfigs(getConfigs(configMap));
+          }
+          if (configMap.containsKey(TAGS_CONFIG)) {
+            systemConfigAtomicReference.get().setTags(getTags(configMap));
           }
         } else {
           if (configMap.containsKey(CONF_TENANT_ID)) {
@@ -86,6 +88,16 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
     return configs.entrySet().stream()
         .filter(config -> config.getValue() != null)
         .collect(Collectors.toMap(Map.Entry::getKey, config -> config.getValue().toString()));
+  }
+
+  private Map<String, Set<String>> getTags(Map<String, Object> configMap) {
+    Map<String, Object> tagsConfig = (Map<String, Object>) configMap.get(TAGS_CONFIG);
+    if (tagsConfig == null) return Collections.emptyMap();
+    return tagsConfig.entrySet().stream()
+        .filter(tags -> tags.getValue() != null)
+        .collect(
+            Collectors.toMap(
+                Map.Entry::getKey, tags -> new HashSet<>((ArrayList<String>) tags.getValue())));
   }
 
   private File getConfigFile(Map<String, String> env) throws IOException {
