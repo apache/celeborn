@@ -17,12 +17,12 @@
 
 package org.apache.celeborn.server.common.container
 
+import scala.collection.JavaConverters._
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.rest.v1.model.ContainerInfo
-
-import scala.collection.JavaConverters._
 
 abstract class ContainerInfoProvider {
 
