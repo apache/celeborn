@@ -5044,10 +5044,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.container.info.provider")
       .categories("master", "worker")
       .doc(s"ContainerInfoProvider class name. Default class is " +
-        s"`${classOf[DefaultContainerInfoProvider].getName}`. ")
+        s"`org.apache.celeborn.server.common.container.DefaultContainerInfoProvider`. ")
       .version("0.6.0")
       .stringConf
-      .createWithDefault(classOf[DefaultContainerInfoProvider].getName)
+      .createWithDefault("org.apache.celeborn.server.common.container.DefaultContainerInfoProvider")
 
   val QUOTA_USER_SPECIFIC_TENANT: ConfigEntry[String] =
     buildConf("celeborn.quota.identity.user-specific.tenant")

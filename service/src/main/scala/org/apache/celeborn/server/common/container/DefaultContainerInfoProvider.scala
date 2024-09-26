@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.container
+package org.apache.celeborn.server.common.container
 
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.rest.v1.model.ContainerInfo
@@ -29,7 +29,7 @@ class DefaultContainerInfoProvider extends ContainerInfoProvider {
       .containerAddress(Utils.getHostName(true))
       .containerDataCenter(ContainerInfoProvider.DEFAULT_CONTAINER_DATA_CENTER)
       .containerAvailabilityZone(ContainerInfoProvider.DEFAULT_CONTAINER_AVAILABILITY_ZONE)
-      .containerUser(sys.env("user.name"))
+      .containerUser(System.getProperty("user.name"))
       .containerCluster(ContainerInfoProvider.DEFAULT_CONTAINER_CLUSTER)
       .containerTags(ContainerInfoProvider.DEFAULT_CONTAINER_TAGS)
   }

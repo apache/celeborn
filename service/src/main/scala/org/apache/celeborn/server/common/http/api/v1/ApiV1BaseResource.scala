@@ -19,15 +19,12 @@ package org.apache.celeborn.server.common.http.api.v1
 
 import javax.ws.rs.{GET, Path, Produces}
 import javax.ws.rs.core.MediaType
-
 import scala.collection.JavaConverters._
-
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
-
-import org.apache.celeborn.common.container.ContainerInfoProvider
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.rest.v1.model.{ContainerInfo, ThreadStack, ThreadStackResponse}
+import org.apache.celeborn.server.common.container.ContainerInfoProvider
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 
 @Path("/api/v1")
