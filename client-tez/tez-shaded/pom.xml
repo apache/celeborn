@@ -86,14 +86,6 @@
               <pattern>org.apache.commons.lang3</pattern>
               <shadedPattern>${shading.prefix}.org.apache.commons.lang3</shadedPattern>
             </relocation>
-            <relocation>
-              <pattern>org.apache.tez.runtime.library.shuffle.impl.ShuffleUserPayloads</pattern>
-              <shadedPattern>${shading.prefix}.org.apache.tez.runtime.library.shuffle.impl.ShuffleUserPayloads</shadedPattern>
-            </relocation>
-            <relocation>
-              <pattern>org.apache.tez.common.TezCommonUtils</pattern>
-              <shadedPattern>${shading.prefix}.org.apache.tez.common.TezCommonUtils</shadedPattern>
-            </relocation>
           </relocations>
           <artifactSet>
             <includes>

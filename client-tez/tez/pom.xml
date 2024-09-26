@@ -54,6 +54,7 @@
       <groupId>org.apache.tez</groupId>
       <artifactId>tez-common</artifactId>
       <version>${tez.version}</version>
+      <scope>provided</scope>
       <exclusions>
         <exclusion>
           <groupId>org.apache.hadoop</groupId>
@@ -73,6 +74,7 @@
       <groupId>org.apache.tez</groupId>
       <artifactId>tez-runtime-library</artifactId>
       <version>${tez.version}</version>
+      <scope>provided</scope>
       <exclusions>
         <exclusion>
           <groupId>org.apache.hadoop</groupId>
@@ -92,6 +94,7 @@
       <groupId>org.apache.tez</groupId>
       <artifactId>tez-runtime-internals</artifactId>
       <version>${tez.version}</version>
+      <scope>provided</scope>
       <exclusions>
         <exclusion>
           <groupId>org.apache.hadoop</groupId>
@@ -111,6 +114,7 @@
       <groupId>org.apache.tez</groupId>
       <artifactId>tez-dag</artifactId>
       <version>${tez.version}</version>
+      <scope>provided</scope>
       <exclusions>
         <exclusion>
           <groupId>org.apache.hadoop</groupId>
@@ -142,6 +146,7 @@
       <groupId>org.apache.tez</groupId>
       <artifactId>tez-api</artifactId>
       <version>${tez.version}</version>
+      <scope>provided</scope>
       <exclusions>
         <exclusion>
           <groupId>org.apache.hadoop</groupId>
@@ -173,6 +178,7 @@
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
       <version>${hadoop.version}</version>
+      <scope>provided</scope>
       <exclusions>
         <exclusion>
           <groupId>com.sun.jersey</groupId>

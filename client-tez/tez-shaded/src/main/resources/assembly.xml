@@ -38,8 +38,6 @@
       <includes>
         <include>org.apache.celeborn:*</include>
         <include>com.google.protobuf:*</include>
-        <include>org.apache.tez:tez-runtime-library</include>
-        <include>org.apache.tez:tez-api</include>
       </includes>
     </dependencySet>
   </dependencySets>
