@@ -28,6 +28,6 @@ class ContainerInfoSuite extends CelebornFunSuite {
     val defaultContainerInfo = ContainerInfoProvider.instantiate(conf).getContainerInfo()
     assert(defaultContainerInfo.getContainerHostName == Utils.getHostName(false))
     assert(defaultContainerInfo.getContainerAddress == Utils.getHostName(true))
-    assert(defaultContainerInfo.getContainerUser == sys.env("user.name"))
+    assert(defaultContainerInfo.getContainerUser == System.getProperty("user.name"))
   }
 }
