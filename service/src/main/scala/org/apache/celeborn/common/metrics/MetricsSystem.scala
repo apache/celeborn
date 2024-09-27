@@ -48,7 +48,7 @@ class MetricsSystem(
   private var prometheusServlet: Option[PrometheusServlet] = None
   private var jsonServlet: Option[JsonServlet] = None
 
-  @volatile var running: Boolean = false
+  var running: Boolean = false
 
   metricsConfig.initialize()
 
