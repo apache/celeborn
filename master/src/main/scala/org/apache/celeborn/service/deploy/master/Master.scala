@@ -53,6 +53,7 @@ import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 import org.apache.celeborn.service.deploy.master.quota.QuotaManager
+import org.apache.celeborn.service.deploy.master.tags.TagsManager
 
 private[celeborn] class Master(
     override val conf: CelebornConf,
@@ -185,6 +186,7 @@ private[celeborn] class Master(
   private val hasS3Storage = conf.hasS3Storage
 
   private val quotaManager = new QuotaManager(conf, configService)
+  private val tagsManager = new TagsManager()
   private val masterResourceConsumptionInterval = conf.masterResourceConsumptionInterval
   private val userResourceConsumptions =
     JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
@@ -455,7 +457,7 @@ private[celeborn] class Master(
       // keep it for compatible reason
       context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
 
-    case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _, _) =>
+    case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       checkAuth(context, applicationId)
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
@@ -836,7 +838,13 @@ private[celeborn] class Master(
     val numReducers = requestSlots.partitionIdList.size()
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
-    val availableWorkers = workersAvailable(requestSlots.excludedWorkerSet)
+    var availableWorkers = workersAvailable(requestSlots.excludedWorkerSet)
+    if (requestSlots.tagsExpr.nonEmpty) {
+      availableWorkers = tagsManager.getTaggedWorkers(
+        requestSlots.tagsExpr,
+        availableWorkers)
+    }
+
     val numAvailableWorkers = availableWorkers.size()
 
     if (numAvailableWorkers == 0) {

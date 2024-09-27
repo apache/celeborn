@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.master.tags
 import java.util
 import java.util.{Set => JSet}
 import java.util.concurrent.ConcurrentHashMap
+import java.util.stream.Collectors
 
 import scala.collection.JavaConverters.{asScalaIteratorConverter, mapAsScalaConcurrentMapConverter}
 
@@ -35,13 +36,14 @@ class TagsManager extends Logging {
         ConcurrentHashMap.newKeySet[String]()
     }
 
-  def getTaggedWorkers(tag: String, workers: List[WorkerInfo]): List[WorkerInfo] = {
+  def getTaggedWorkers(tag: String, workers: util.List[WorkerInfo]): util.List[WorkerInfo] = {
     val workersForTag = tagStore.get(tag)
     if (workersForTag == null) {
       logWarning(s"Tag $tag not found in cluster")
-      return List.empty
+      return new util.ArrayList[WorkerInfo]()
     }
-    workers.filter(worker => workersForTag.contains(worker.toUniqueId()))
+    workers.stream().filter(worker => workersForTag.contains(worker.toUniqueId())).collect(
+      Collectors.toList())
   }
 
   def addTagToWorker(tag: String, workerId: String): Unit = {
