@@ -23,6 +23,8 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
 
+import scala.collection.JavaConverters.seqAsJavaListConverter
+
 class TagsManagerSuite extends AnyFunSuite
   with BeforeAndAfterAll
   with BeforeAndAfterEach
@@ -33,7 +35,7 @@ class TagsManagerSuite extends AnyFunSuite
   val WORKER2 = new WorkerInfo("host2", 211, 212, 213, 214, 215)
   val WORKER3 = new WorkerInfo("host3", 311, 312, 313, 314, 315)
 
-  val workers = List(WORKER1, WORKER2, WORKER3)
+  val workers = List(WORKER1, WORKER2, WORKER3).asJava
 
   test("test tags manager") {
     tagsManager = new TagsManager()
