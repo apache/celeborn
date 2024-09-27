@@ -17,13 +17,13 @@
 
 package org.apache.celeborn.service.deploy.master.tags
 
+import scala.collection.JavaConverters.seqAsJavaListConverter
+
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
-
-import scala.collection.JavaConverters.seqAsJavaListConverter
 
 class TagsManagerSuite extends AnyFunSuite
   with BeforeAndAfterAll
