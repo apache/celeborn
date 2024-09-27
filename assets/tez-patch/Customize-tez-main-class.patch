@@ -1,0 +1,55 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+Subject: [PATCH] parameterize tez app master class
+---
+Index: tez-api/src/main/java/org/apache/tez/dag/api/TezConfiguration.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/tez-api/src/main/java/org/apache/tez/dag/api/TezConfiguration.java b/tez-api/src/main/java/org/apache/tez/dag/api/TezConfiguration.java
+--- a/tez-api/src/main/java/org/apache/tez/dag/api/TezConfiguration.java	(revision 3882a38482884f4aac41081810dac6be8628be62)
++++ b/tez-api/src/main/java/org/apache/tez/dag/api/TezConfiguration.java	(date 1727082792902)
+@@ -239,6 +239,9 @@
+   public static final String TEZ_AM_LOG_LEVEL = TEZ_AM_PREFIX + "log.level";
+   public static final String TEZ_AM_LOG_LEVEL_DEFAULT = "INFO";
+
++  @ConfigurationScope(Scope.AM)
++  public static final String TEZ_APPLICATION_MAIN_CLASS = TezConfiguration.TEZ_AM_PREFIX + "application.main.class";
++
+   /**
+    * Root Logging level passed to the Tez tasks.
+    *
+Index: tez-api/src/main/java/org/apache/tez/client/TezClientUtils.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/tez-api/src/main/java/org/apache/tez/client/TezClientUtils.java b/tez-api/src/main/java/org/apache/tez/client/TezClientUtils.java
+--- a/tez-api/src/main/java/org/apache/tez/client/TezClientUtils.java	(revision 3882a38482884f4aac41081810dac6be8628be62)
++++ b/tez-api/src/main/java/org/apache/tez/client/TezClientUtils.java	(date 1727082792894)
+@@ -514,7 +514,10 @@
+     // FIX sun bug mentioned in TEZ-327
+     vargs.add("-Dsun.nio.ch.bugLevel=''");
+
+-    vargs.add(TezConstants.TEZ_APPLICATION_MASTER_CLASS);
++    String appMaster = amConfig.getTezConfiguration().get(
++        TezConfiguration.TEZ_APPLICATION_MAIN_CLASS,
++        TezConstants.TEZ_APPLICATION_MASTER_CLASS);
++    vargs.add(appMaster);
+     if (dag == null) {
+       vargs.add("--" + TezConstants.TEZ_SESSION_MODE_CLI_OPTION);
+     }
