@@ -108,7 +108,6 @@ class CelebornScheduler extends ShuffleScheduler {
     this.mergeManager = mergeManager;
     this.numInputs = numberOfInputs;
     this.numFetchers = (int) getParentPrivateField(this, "numFetchers");
-    ;
     this.fetcherExecutor =
         (ListeningExecutorService) getParentPrivateField(this, "fetcherExecutor");
     this.isShutdown = (AtomicBoolean) getParentPrivateField(this, "isShutdown");

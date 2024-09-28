@@ -67,7 +67,7 @@ public class CelebornOrderedGroupedKVInput extends AbstractLogicalInput {
 
   protected TezRawKeyValueIterator rawIter = null;
   protected Configuration conf;
-  protected CelebornShuffle shuffle;
+  protected Shuffle shuffle;
   private ApplicationAttemptId applicationAttemptId;
   protected MemoryUpdateCallbackHandler memoryUpdateCallbackHandler;
   private final BlockingQueue<Event> pendingEvents = new LinkedBlockingQueue<Event>();
@@ -139,7 +139,7 @@ public class CelebornOrderedGroupedKVInput extends AbstractLogicalInput {
   }
 
   @VisibleForTesting
-  CelebornShuffle createShuffle() throws IOException {
+  Shuffle createShuffle() throws IOException {
     return new CelebornShuffle(
         getContext(),
         conf,
@@ -173,7 +173,7 @@ public class CelebornOrderedGroupedKVInput extends AbstractLogicalInput {
    */
   public void waitForInputReady() throws IOException, InterruptedException, TezException {
     // Cannot synchronize entire method since this is called form user code and can block.
-    CelebornShuffle localShuffleCopy = null;
+    Shuffle localShuffleCopy = null;
     synchronized (this) {
       Preconditions.checkState(isStarted.get(), "Must start input before invoking this method");
       if (getNumPhysicalInputs() == 0) {
@@ -279,7 +279,7 @@ public class CelebornOrderedGroupedKVInput extends AbstractLogicalInput {
 
   @Override
   public void handleEvents(List<Event> inputEvents) throws IOException {
-    CelebornShuffle shuffleLocalRef;
+    Shuffle shuffleLocalRef;
     synchronized (this) {
       if (getNumPhysicalInputs() == 0) {
         throw new RuntimeException("No input events expected as numInputs is 0");
