@@ -56,7 +56,6 @@ public class CelebornTezShuffleDataFetcher extends CallableWithNdc<Void> {
   private long serializeTime = 0;
   private long waitTime = 0;
   private long copyTime = 0; // the sum of readTime + decompressTime + serializeTime + waitTime
-  private long unCompressionLength = 0;
   private final InputAttemptIdentifier inputAttemptIdentifier;
   private static int uniqueMapId = 0;
 
@@ -167,9 +166,7 @@ public class CelebornTezShuffleDataFetcher extends CallableWithNdc<Void> {
               + readTime
               + " ms to fetch and "
               + decompressTime
-              + " ms to decompress with unCompressionLength["
-              + unCompressionLength
-              + "] and "
+              + " ms to decompress "
               + serializeTime
               + " ms to serialize and "
               + waitTime

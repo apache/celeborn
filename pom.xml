@@ -1154,23 +1154,6 @@
             <target>${java.version}</target>
             <encoding>UTF-8</encoding>
             <fork>true</fork>
-            <compilerArgs>
-              <arg>-XDcompilePolicy=simple</arg>
-              <arg>-Xplugin:ErrorProne \
-                -XepExcludedPaths:.*/target/generated-sources/.* \
-                -Xep:BadImport:OFF \
-                -Xep:EmptyBlockTag:OFF \
-                -Xep:EmptyCatch:OFF \
-                -Xep:EqualsGetClass:OFF \
-                -Xep:FutureReturnValueIgnored:OFF \
-                -Xep:JdkObsolete:OFF \
-                -Xep:MissingSummary:OFF \
-                -Xep:MutableConstantField:OFF \
-                -Xep:StringSplitter:OFF \
-                -Xep:TypeParameterUnusedInFormals:OFF \
-                -Xep:UnnecessaryParentheses:OFF \
-                -Xep:UnusedVariable:OFF</arg>
-            </compilerArgs>
             <annotationProcessorPaths>
               <path>
                 <groupId>com.google.errorprone</groupId>

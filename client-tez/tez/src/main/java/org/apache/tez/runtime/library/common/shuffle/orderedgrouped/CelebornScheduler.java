@@ -17,17 +17,10 @@ package org.apache.tez.runtime.library.common.shuffle.orderedgrouped;
 import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.getParentPrivateField;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.DelayQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -38,10 +31,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.tez.common.CallableWithNdc;
-import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.runtime.api.InputContext;
-import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.common.CompositeInputAttemptIdentifier;
 import org.apache.tez.runtime.library.common.InputAttemptIdentifier;
 import org.slf4j.Logger;
@@ -52,14 +43,10 @@ import org.apache.celeborn.client.ShuffleClient;
 class CelebornScheduler extends ShuffleScheduler {
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleScheduler.class);
 
-  @VisibleForTesting final Set<MapHost> pendingHosts = new HashSet<MapHost>();
-
   private final AtomicBoolean isShutdown;
-  private final DelayQueue<Penalty> penalties = new DelayQueue<Penalty>();
-  private final Referee referee;
+  private final Random random = new Random(System.currentTimeMillis());
 
   private final String srcNameTrimmed;
-  @VisibleForTesting final AtomicInteger remainingMaps;
 
   private final int numFetchers;
   private final ListeningExecutorService fetcherExecutor;
@@ -120,17 +107,12 @@ class CelebornScheduler extends ShuffleScheduler {
     this.applicationAttemptId = applicationAttemptId;
     this.mergeManager = mergeManager;
     this.numInputs = numberOfInputs;
-    int configuredNumFetchers =
-        conf.getInt(
-            TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_PARALLEL_COPIES,
-            TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_PARALLEL_COPIES_DEFAULT);
-    this.numFetchers = Math.min(configuredNumFetchers, numberOfInputs);
+    this.numFetchers = (int) getParentPrivateField(this, "numFetchers");
+    ;
     this.fetcherExecutor =
         (ListeningExecutorService) getParentPrivateField(this, "fetcherExecutor");
     this.isShutdown = (AtomicBoolean) getParentPrivateField(this, "isShutdown");
-    this.remainingMaps = (AtomicInteger) getParentPrivateField(this, "remainingMaps");
     this.skippedInputCounter = (TezCounter) getParentPrivateField(this, "skippedInputCounter");
-    this.referee = new Referee();
   }
 
   public void start() throws Exception {
@@ -141,61 +123,22 @@ class CelebornScheduler extends ShuffleScheduler {
   }
 
   public void close() {
-    try {
-      if (!isShutdown.getAndSet(true)) {
-        // Notify and interrupt the waiting scheduler thread
-        synchronized (this) {
-          notifyAll();
-        }
-        // Interrupt the ShuffleScheduler thread only if the close is invoked by another thread.
-        // If this is invoked on the same thread, then the shuffleRunner has already complete, and
-        // there's
-        // no point interrupting it.
-        // The interrupt is needed to unblock any merges or waits which may be happening, so that
-        // the thread can
-        // exit.
-        if (shuffleSchedulerThread != null
-            && !Thread.currentThread().equals(shuffleSchedulerThread)) {
-          shuffleSchedulerThread.interrupt();
-        }
-
-        // Interrupt the fetchers.
-        for (CelebornTezShuffleDataFetcher fetcher : celebornRunningFetchers) {
-          try {
-            fetcher.shutDown();
-          } catch (Exception e) {
-            LOG.warn(
-                "Error while shutting down fetcher. Ignoring and continuing shutdown. Message={}",
-                e.getMessage());
-          }
-        }
-
-        // Kill the Referee thread.
+    if (!isShutdown.get()) {
+      // Notify and interrupt the waiting scheduler thread
+      synchronized (this) {
+        notifyAll();
+      }
+      super.close();
+      // Interrupt the fetchers.
+      for (CelebornTezShuffleDataFetcher fetcher : celebornRunningFetchers) {
         try {
-          referee.interrupt();
-          referee.join();
-        } catch (InterruptedException e) {
-          LOG.warn("Interrupted while shutting down referee. Ignoring and continuing shutdown");
-          Thread.currentThread().interrupt();
+          fetcher.shutDown();
         } catch (Exception e) {
           LOG.warn(
-              "Error while shutting down referee. Ignoring and continuing shutdown. Message={}",
+              "Error while shutting down fetcher. Ignoring and continuing shutdown. Message={}",
               e.getMessage());
         }
       }
-    } finally {
-      long startTime = System.currentTimeMillis();
-      if (!fetcherExecutor.isShutdown()) {
-        // Ensure that fetchers respond to cancel request.
-        fetcherExecutor.shutdownNow();
-      }
-      long endTime = System.currentTimeMillis();
-      LOG.info(
-          "Shutting down fetchers for input: {}, shutdown timetaken: {} ms, "
-              + "hasFetcherExecutorStopped: {}",
-          srcNameTrimmed,
-          (endTime - startTime),
-          hasFetcherExecutorStopped());
     }
   }
 
@@ -216,42 +159,32 @@ class CelebornScheduler extends ShuffleScheduler {
       String inputHostName, int port, int partitionId, CompositeInputAttemptIdentifier srcAttempt) {
 
     allRssPartition.add(partitionId);
-    if (!partitionIdToSuccessMapTaskAttempts.containsKey(partitionId)) {
-      partitionIdToSuccessMapTaskAttempts.put(partitionId, new HashSet<>());
-    }
-    partitionIdToSuccessMapTaskAttempts.get(partitionId).add(srcAttempt);
+    Set<InputAttemptIdentifier> inputAttemptIdentifiers =
+        partitionIdToSuccessMapTaskAttempts.computeIfAbsent(partitionId, id -> new HashSet<>());
+    inputAttemptIdentifiers.add(srcAttempt);
     super.addKnownMapOutput(inputHostName, port, partitionId, srcAttempt);
   }
 
-  /** A thread that takes hosts off of the penalty list when the timer expires. */
-  private class Referee extends Thread {
-    public Referee() {
-      setName(
-          "ShufflePenaltyReferee {"
-              + TezUtilsInternal.cleanVertexName(inputContext.getSourceVertexName())
-              + "}");
-      setDaemon(true);
+  public synchronized MapHost getHost() throws InterruptedException {
+    while (pendingHosts.isEmpty() && !isAllInputFetched()) {
+      LOG.debug("PendingHosts={}", pendingHosts);
+      waitAndNotifyProgress();
     }
 
-    public void run() {
-      try {
-        while (!isShutdown.get()) {
-          // take the first host that has an expired penalty
-          MapHost host = penalties.take().host;
-          synchronized (CelebornScheduler.this) {
-            if (host.markAvailable() == MapHost.State.PENDING) {
-              pendingHosts.add(host);
-              CelebornScheduler.this.notifyAll();
-            }
-          }
-        }
-      } catch (InterruptedException ie) {
-        Thread.currentThread().interrupt();
-        // This handles shutdown of the entire fetch / merge process.
-      } catch (Throwable t) {
-        // Shuffle knows how to deal with failures post shutdown via the onFailure hook
-        exceptionReporter.reportException(t);
+    if (!pendingHosts.isEmpty()) {
+
+      MapHost host = null;
+      Iterator<MapHost> iter = pendingHosts.iterator();
+      int numToPick = random.nextInt(pendingHosts.size());
+      for (int i = 0; i <= numToPick; ++i) {
+        host = iter.next();
       }
+
+      pendingHosts.remove(host);
+      host.markBusy();
+      return host;
+    } else {
+      return null;
     }
   }
 
@@ -369,7 +302,8 @@ class CelebornScheduler extends ShuffleScheduler {
 
     private synchronized boolean isFirstRssPartitionFetch(MapHost mapHost) {
       Integer partitionId = mapHost.getPartitionId();
-      LOG.info("Check isFirstRssPartitionFetch, mapHost:{},partitionId:{}", mapHost, partitionId);
+      LOG.info(
+          "Check isFirstCelebornPartitionFetch, mapHost:{},partitionId:{}", mapHost, partitionId);
 
       if (runningRssPartitionMap.containsKey(partitionId)
           || successRssPartitionSet.contains(partitionId)) {
@@ -384,15 +318,13 @@ class CelebornScheduler extends ShuffleScheduler {
       CelebornTezReader reader =
           new CelebornTezReader(
               shuffleClient, shuffleId, partitionId, applicationAttemptId.getAttemptId());
-      CelebornTezShuffleDataFetcher fetcher =
-          new CelebornTezShuffleDataFetcher(
-              partitionIdToSuccessMapTaskAttempts.get(mapHost.getPartitionId()).iterator().next(),
-              mapHost.getPartitionId(),
-              mergeManager,
-              inputContext.getCounters(),
-              reader,
-              exceptionReporter);
-      return fetcher;
+      return new CelebornTezShuffleDataFetcher(
+          partitionIdToSuccessMapTaskAttempts.get(mapHost.getPartitionId()).iterator().next(),
+          mapHost.getPartitionId(),
+          mergeManager,
+          inputContext.getCounters(),
+          reader,
+          exceptionReporter);
     }
   }
 

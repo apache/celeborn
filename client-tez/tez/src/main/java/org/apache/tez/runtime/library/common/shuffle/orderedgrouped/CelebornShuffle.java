@@ -394,6 +394,7 @@ public class CelebornShuffle implements ExceptionReporter {
         eventHandler.logProgress(true);
       }
       try {
+        cleanupShuffleSchedulerIgnoreErrors();
       } catch (Exception e) {
         LOG.warn(
             "Error cleaning up shuffle scheduler. Ignoring and continuing with shutdown. Message={}",
