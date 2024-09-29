@@ -982,7 +982,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (loc == null) {
       throw new CelebornIOException(
           String.format(
-              "Partition location for shuffle %s partition %d groupPartition %d is NULL!", shuffleId, partitionId, finalGroupTaskPartitionId));
+              "Partition location for shuffle %s partition %d groupPartition %d is NULL!",
+              shuffleId, partitionId, finalGroupTaskPartitionId));
     }
 
     PushState pushState = getPushState(mapKey);
@@ -1045,7 +1046,13 @@ public class ShuffleClientImpl extends ShuffleClient {
               String errorMsg =
                   String.format(
                       "Push data to %s failed for shuffle %d map %d attempt %d partition %d groupPartition %d batch %d.",
-                      loc, shuffleId, mapId, attemptId, partitionId, finalGroupTaskPartitionId, nextBatchId);
+                      loc,
+                      shuffleId,
+                      mapId,
+                      attemptId,
+                      partitionId,
+                      finalGroupTaskPartitionId,
+                      nextBatchId);
               pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
             }
           };
@@ -1077,7 +1084,10 @@ public class ShuffleClientImpl extends ShuffleClient {
                       finalGroupTaskPartitionId,
                       nextBatchId);
                   if (!newerPartitionLocationExists(
-                      reducePartitionMap.get(shuffleId), finalGroupTaskPartitionId, latest.getEpoch(), false)) {
+                      reducePartitionMap.get(shuffleId),
+                      finalGroupTaskPartitionId,
+                      latest.getEpoch(),
+                      false)) {
                     ReviveRequest reviveRequest =
                         new ReviveRequest(
                             shuffleId,
@@ -1199,7 +1209,13 @@ public class ShuffleClientImpl extends ShuffleClient {
                 remainReviveTimes = remainReviveTimes - 1;
                 ReviveRequest reviveRequest =
                     new ReviveRequest(
-                        shuffleId, mapId, attemptId, finalGroupTaskPartitionId, latest.getEpoch(), latest, cause);
+                        shuffleId,
+                        mapId,
+                        attemptId,
+                        finalGroupTaskPartitionId,
+                        latest.getEpoch(),
+                        latest,
+                        cause);
                 reviveManager.addRequest(reviveRequest);
                 long dueTime =
                     System.currentTimeMillis()
@@ -1236,7 +1252,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           if (!testRetryRevive) {
             assert dataClientFactory != null;
             TransportClient client =
-                dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), finalGroupTaskPartitionId);
+                dataClientFactory.createClient(
+                    loc.getHost(), loc.getPushPort(), finalGroupTaskPartitionId);
             client.pushData(pushData, pushDataTimeout, wrappedCallback);
           } else {
             wrappedCallback.onFailure(
