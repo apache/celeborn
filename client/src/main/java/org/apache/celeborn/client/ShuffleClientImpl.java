@@ -658,9 +658,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       throws CelebornIOException {
     int numRetries = registerShuffleMaxRetries;
     StatusCode lastFailedStatusCode = null;
-    // use it to add another register tempt for group task
-    boolean mapTaskGroupFailed = !conf.groupMapTaskEnabled();
-    if (!mapTaskGroupFailed) {
+    boolean mapTaskGroupTempt = conf.groupMapTaskEnabled();
+    if (mapTaskGroupTempt) {
       numRetries++;
     }
     while (numRetries > 0) {
@@ -970,11 +969,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       return 0;
     }
 
-    final int numGroupTask = (int) Math.ceil((double) numMappers / conf.groupMapTaskGroupSize());
     int groupTaskPartitionId = partitionId;
     if (conf.groupMapTaskEnabled()) {
-      int groupTaskId = mapId / numGroupTask;
-      groupTaskPartitionId = partitionId + numPartitions * groupTaskId;
+      int mapTaskGroupId = mapId / conf.groupMapTaskGroupSize();
+      groupTaskPartitionId = partitionId + numPartitions * mapTaskGroupId;
     }
     final int finalGroupTaskPartitionId = groupTaskPartitionId;
     PartitionLocation loc = map.get(finalGroupTaskPartitionId);

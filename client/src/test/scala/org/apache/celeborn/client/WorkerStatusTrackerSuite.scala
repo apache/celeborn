@@ -110,4 +110,23 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
   private def mock(host: String): WorkerInfo = {
     new WorkerInfo(host, -1, -1, -1, -1)
   }
+
+  test("task group test suit") {
+    val groupMapTaskGroupSize = 1000
+    val numPartitions = 10
+    val groupMapTaskEnabled = true
+    val numMappers = 100
+
+    val numGroupTask = math.ceil(numMappers.toDouble / groupMapTaskGroupSize).toInt
+//    val numGroupTask = math.ceil(100 / 1000).toInt
+    println(s"numGroupTask = $numGroupTask")
+    var groupNumPartitions = numPartitions
+    if (groupMapTaskEnabled) {
+      groupNumPartitions = numPartitions * numGroupTask
+    }
+    println(s"groupNumPartitions = $groupNumPartitions")
+
+    val ids = new util.ArrayList[Integer](groupNumPartitions)
+    (0 until groupNumPartitions).foreach(idx => ids.add(Integer.valueOf(idx)))
+  }
 }
