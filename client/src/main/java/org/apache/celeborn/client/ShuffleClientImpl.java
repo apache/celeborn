@@ -965,11 +965,19 @@ public class ShuffleClientImpl extends ShuffleClient {
       return 0;
     }
 
-    final PartitionLocation loc = map.get(partitionId);
+    final int numGroupTask = (int) Math.ceil((double) numMappers / conf.groupMapTaskGroupSize());
+    int groupTaskPartitionId = partitionId;
+    if (conf.groupMapTaskEnabled()) {
+      int groupTaskId = mapId / numGroupTask;
+      groupTaskPartitionId = partitionId + numPartitions * groupTaskId;
+    }
+    final int finalGroupTaskPartitionId = groupTaskPartitionId;
+    PartitionLocation loc = map.get(finalGroupTaskPartitionId);
+
     if (loc == null) {
       throw new CelebornIOException(
           String.format(
-              "Partition location for shuffle %s partition %d is NULL!", shuffleId, partitionId));
+              "Partition location for shuffle %s partition %d groupPartition %d is NULL!", shuffleId, partitionId, finalGroupTaskPartitionId));
     }
 
     PushState pushState = getPushState(mapKey);
@@ -1017,12 +1025,13 @@ public class ShuffleClientImpl extends ShuffleClient {
                     .add(mapId);
               }
               logger.debug(
-                  "Push data to {} success for shuffle {} map {} attempt {} partition {} batch {}.",
+                  "Push data to {} success for shuffle {} map {} attempt {} partition {} groupPartition {} batch {}.",
                   loc.hostAndPushPort(),
                   shuffleId,
                   mapId,
                   attemptId,
                   partitionId,
+                  finalGroupTaskPartitionId,
                   nextBatchId);
             }
 
@@ -1030,8 +1039,8 @@ public class ShuffleClientImpl extends ShuffleClient {
             public void onFailure(Throwable e) {
               String errorMsg =
                   String.format(
-                      "Push data to %s failed for shuffle %d map %d attempt %d partition %d batch %d.",
-                      loc, shuffleId, mapId, attemptId, partitionId, nextBatchId);
+                      "Push data to %s failed for shuffle %d map %d attempt %d partition %d groupPartition %d batch %d.",
+                      loc, shuffleId, mapId, attemptId, partitionId, finalGroupTaskPartitionId, nextBatchId);
               pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
             }
           };
@@ -1054,21 +1063,22 @@ public class ShuffleClientImpl extends ShuffleClient {
                 byte reason = response.get();
                 if (reason == StatusCode.SOFT_SPLIT.getValue()) {
                   logger.debug(
-                      "Push data to {} soft split required for shuffle {} map {} attempt {} partition {} batch {}.",
+                      "Push data to {} soft split required for shuffle {} map {} attempt {} partition {} groupPartition {} batch {}.",
                       latest.hostAndPushPort(),
                       shuffleId,
                       mapId,
                       attemptId,
                       partitionId,
+                      finalGroupTaskPartitionId,
                       nextBatchId);
                   if (!newerPartitionLocationExists(
-                      reducePartitionMap.get(shuffleId), partitionId, latest.getEpoch(), false)) {
+                      reducePartitionMap.get(shuffleId), finalGroupTaskPartitionId, latest.getEpoch(), false)) {
                     ReviveRequest reviveRequest =
                         new ReviveRequest(
                             shuffleId,
                             mapId,
                             attemptId,
-                            partitionId,
+                            finalGroupTaskPartitionId,
                             latest.getEpoch(),
                             latest,
                             StatusCode.SOFT_SPLIT);
@@ -1079,19 +1089,20 @@ public class ShuffleClientImpl extends ShuffleClient {
                   callback.onSuccess(response);
                 } else if (reason == StatusCode.HARD_SPLIT.getValue()) {
                   logger.debug(
-                      "Push data to {} hard split required for shuffle {} map {} attempt {} partition {} batch {}.",
+                      "Push data to {} hard split required for shuffle {} map {} attempt {} partition {} groupPartition {} batch {}.",
                       latest.hostAndPushPort(),
                       shuffleId,
                       mapId,
                       attemptId,
                       partitionId,
+                      finalGroupTaskPartitionId,
                       nextBatchId);
                   ReviveRequest reviveRequest =
                       new ReviveRequest(
                           shuffleId,
                           mapId,
                           attemptId,
-                          partitionId,
+                          finalGroupTaskPartitionId,
                           latest.getEpoch(),
                           latest,
                           StatusCode.HARD_SPLIT);
@@ -1114,24 +1125,26 @@ public class ShuffleClientImpl extends ShuffleClient {
                               dueTime));
                 } else if (reason == StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue()) {
                   logger.debug(
-                      "Push data to {} primary congestion required for shuffle {} map {} attempt {} partition {} batch {}.",
+                      "Push data to {} primary congestion required for shuffle {} map {} attempt {} partition {} groupPartition {} batch {}.",
                       latest.hostAndPushPort(),
                       shuffleId,
                       mapId,
                       attemptId,
                       partitionId,
+                      finalGroupTaskPartitionId,
                       nextBatchId);
                   pushState.onCongestControl(latest.hostAndPushPort());
                   pushState.removeBatch(nextBatchId, latest.hostAndPushPort());
                   callback.onSuccess(response);
                 } else if (reason == StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue()) {
                   logger.debug(
-                      "Push data to {} replica congestion required for shuffle {} map {} attempt {} partition {} batch {}.",
+                      "Push data to {} replica congestion required for shuffle {} map {} attempt {} partition {} groupPartition {} batch {}.",
                       latest.hostAndPushPort(),
                       shuffleId,
                       mapId,
                       attemptId,
                       partitionId,
+                      finalGroupTaskPartitionId,
                       nextBatchId);
                   pushState.onCongestControl(latest.hostAndPushPort());
                   pushState.removeBatch(nextBatchId, latest.hostAndPushPort());
@@ -1166,12 +1179,13 @@ public class ShuffleClientImpl extends ShuffleClient {
               }
 
               logger.error(
-                  "Push data to {} failed for shuffle {} map {} attempt {} partition {} batch {}, remain revive times {}.",
+                  "Push data to {} failed for shuffle {} map {} attempt {} partition {} groupPartition {} batch {}, remain revive times {}.",
                   latest.hostAndPushPort(),
                   shuffleId,
                   mapId,
                   attemptId,
                   partitionId,
+                  finalGroupTaskPartitionId,
                   nextBatchId,
                   remainReviveTimes,
                   e);
@@ -1180,7 +1194,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 remainReviveTimes = remainReviveTimes - 1;
                 ReviveRequest reviveRequest =
                     new ReviveRequest(
-                        shuffleId, mapId, attemptId, partitionId, latest.getEpoch(), latest, cause);
+                        shuffleId, mapId, attemptId, finalGroupTaskPartitionId, latest.getEpoch(), latest, cause);
                 reviveManager.addRequest(reviveRequest);
                 long dueTime =
                     System.currentTimeMillis()
@@ -1217,7 +1231,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           if (!testRetryRevive) {
             assert dataClientFactory != null;
             TransportClient client =
-                dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
+                dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), finalGroupTaskPartitionId);
             client.pushData(pushData, pushDataTimeout, wrappedCallback);
           } else {
             wrappedCallback.onFailure(
@@ -1228,11 +1242,12 @@ public class ShuffleClientImpl extends ShuffleClient {
         }
       } catch (Exception e) {
         logger.error(
-            "Exception raised while pushing data for shuffle {} map {} attempt {} partition {} batch {} location {}.",
+            "Exception raised while pushing data for shuffle {} map {} attempt {} partition {} groupPartition {} batch {} location {}.",
             shuffleId,
             mapId,
             attemptId,
             partitionId,
+            finalGroupTaskPartitionId,
             nextBatchId,
             loc,
             e);
