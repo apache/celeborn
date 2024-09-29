@@ -706,12 +706,12 @@ components:
           type: string
           description: The type of the event.
           enum:
-            - Immediately
-            - Decommission
-            - DecommissionThenIdle
-            - Graceful
-            - Recommission
-            - None
+            - IMMEDIATELY
+            - DECOMMISSION
+            - DECOMMISSIONTHENIDLE
+            - GRACEFUL
+            - RECOMMISSION
+            - NONE
         workers:
           type: array
           description: The workers to send the event.

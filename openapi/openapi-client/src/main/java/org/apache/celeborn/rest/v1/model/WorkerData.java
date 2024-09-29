@@ -49,7 +49,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkerData.JSON_PROPERTY_WORKER_STATE,
   WorkerData.JSON_PROPERTY_WORKER_STATE_START_TIME
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class WorkerData {
   public static final String JSON_PROPERTY_HOST = "host";
   private String host;

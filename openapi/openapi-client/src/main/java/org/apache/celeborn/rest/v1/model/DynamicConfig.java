@@ -40,7 +40,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   DynamicConfig.JSON_PROPERTY_DESC,
   DynamicConfig.JSON_PROPERTY_CONFIGS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class DynamicConfig {
   /**
    * the config level of dynamic configs.
@@ -71,7 +71,7 @@ public class DynamicConfig {
     @JsonCreator
     public static LevelEnum fromValue(String value) {
       for (LevelEnum b : LevelEnum.values()) {
-        if (b.value.equals(value)) {
+        if (b.value.equalsIgnoreCase(value)) {
           return b;
         }
       }

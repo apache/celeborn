@@ -20,9 +20,11 @@ package org.apache.celeborn.server.common.http
 import scala.util.Try
 
 import org.apache.commons.lang3.SystemUtils
-import org.eclipse.jetty.server.{Handler, HttpConfiguration, HttpConnectionFactory, Server, ServerConnector}
+import org.eclipse.jetty.http.HttpVersion
+import org.eclipse.jetty.server.{Handler, HttpConfiguration, HttpConnectionFactory, Server, ServerConnector, SslConnectionFactory}
 import org.eclipse.jetty.server.handler.{ContextHandlerCollection, ErrorHandler}
 import org.eclipse.jetty.util.component.LifeCycle
+import org.eclipse.jetty.util.ssl.SslContextFactory
 import org.eclipse.jetty.util.thread.{QueuedThreadPool, ScheduledExecutorScheduler}
 
 import org.apache.celeborn.common.internal.Logging
@@ -105,7 +107,7 @@ private[celeborn] case class HttpServer(
   def getState: String = server.getState
 }
 
-object HttpServer {
+object HttpServer extends Logging {
 
   def apply(
       role: String,
@@ -113,7 +115,14 @@ object HttpServer {
       port: Int,
       poolSize: Int,
       stopTimeout: Long,
-      idleTimeout: Long): HttpServer = {
+      idleTimeout: Long,
+      sslEnabled: Boolean,
+      keyStorePath: Option[String],
+      keyStorePassword: Option[String],
+      keyStoreType: Option[String],
+      keyStoreAlgorithm: Option[String],
+      sslDisallowedProtocols: Seq[String],
+      sslIncludeCipherSuites: Seq[String]): HttpServer = {
     val pool = new QueuedThreadPool(math.max(poolSize, 8))
     pool.setName(s"$role-JettyThreadPool")
     pool.setDaemon(true)
@@ -130,14 +139,51 @@ object HttpServer {
 
     val serverExecutor = new ScheduledExecutorScheduler(s"$role-JettyScheduler", true)
     val httpConf = new HttpConfiguration()
-    val connector = new ServerConnector(
-      server,
-      null,
-      serverExecutor,
-      null,
-      -1,
-      -1,
-      new HttpConnectionFactory(httpConf))
+
+    val connector =
+      if (sslEnabled) {
+        if (keyStorePath.isEmpty) {
+          throw new IllegalArgumentException("KeyStorePath is not provided for SSL connection.")
+        }
+        if (keyStorePassword.isEmpty) {
+          throw new IllegalArgumentException("KeyStorePassword is not provided for SSL connection.")
+        }
+
+        val sslContextFactory = new SslContextFactory.Server()
+        logInfo(
+          "HTTP Server SSL: adding excluded protocols: " + sslDisallowedProtocols.mkString(","))
+        sslContextFactory.addExcludeProtocols(sslDisallowedProtocols: _*)
+        logInfo(s"HTTP Server SSL: SslContextFactory.getExcludeProtocols = ${sslContextFactory.getExcludeProtocols.mkString(",")}")
+        logInfo(
+          "HTTP Server SSL: adding included cipher suites: " + sslIncludeCipherSuites.mkString(","))
+        sslContextFactory.setIncludeCipherSuites(sslIncludeCipherSuites: _*)
+        logInfo(s"HTTP Server SSL: SslContextFactory.getIncludeCipherSuites = ${sslContextFactory.getIncludeCipherSuites.mkString(",")}")
+
+        sslContextFactory.setKeyStorePath(keyStorePath.get)
+        sslContextFactory.setKeyStorePassword(keyStorePassword.get)
+        keyStoreType.foreach(sslContextFactory.setKeyStoreType)
+        keyStoreAlgorithm.foreach(sslContextFactory.setKeyManagerFactoryAlgorithm)
+
+        new ServerConnector(
+          server,
+          null,
+          serverExecutor,
+          null,
+          -1,
+          -1,
+          new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.toString),
+          new HttpConnectionFactory(httpConf))
+      } else {
+        new ServerConnector(
+          server,
+          null,
+          serverExecutor,
+          null,
+          -1,
+          -1,
+          new HttpConnectionFactory(httpConf))
+      }
+
     connector.setHost(host)
     connector.setPort(port)
     connector.setReuseAddress(!SystemUtils.IS_OS_WINDOWS)

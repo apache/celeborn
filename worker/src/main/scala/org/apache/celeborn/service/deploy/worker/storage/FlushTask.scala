@@ -44,6 +44,8 @@ private[worker] class LocalFlushTask(
         fileChannel.write(buffer)
       }
     }
+
+    // TODO: force flush file channel in scenarios where the upstream task writes and the downstream task reads simultaneously, such as flink hybrid shuffle.
   }
 }
 

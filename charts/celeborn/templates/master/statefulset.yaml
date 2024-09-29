@@ -43,7 +43,7 @@ spec:
       {{- $dirs := .Values.volumes.master }}
       {{- if eq "hostPath" (index $dirs 0).type }}
       - name: chown-{{ $.Release.Name }}-master-volume
-        image: alpine:3.18
+        image: {{ .Values.image.initContainerImage  }}
         {{- with .Values.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end }}

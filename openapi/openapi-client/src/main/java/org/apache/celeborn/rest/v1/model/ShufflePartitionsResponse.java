@@ -38,7 +38,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   ShufflePartitionsResponse.JSON_PROPERTY_PRIMARY_PARTITIONS,
   ShufflePartitionsResponse.JSON_PROPERTY_REPLICA_PARTITIONS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class ShufflePartitionsResponse {
   public static final String JSON_PROPERTY_PRIMARY_PARTITIONS = "primaryPartitions";
   private Map<String, Map<String, PartitionLocationData>> primaryPartitions = new HashMap<>();

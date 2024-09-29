@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.server.common.http.api
 
+import java.net.URI
 import javax.servlet.ServletConfig
 import javax.ws.rs.{GET, Path, PathParam, Produces}
 import javax.ws.rs.core.{Application, Context, HttpHeaders, MediaType, Response, UriInfo}
@@ -60,7 +61,7 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
       .ctxId(ctxId)
       .buildContext(true)
 
-    val openApi = setCelebornOpenAPIDefinition(ctx.read(), uriInfo.getBaseUri.toString)
+    val openApi = setCelebornOpenAPIDefinition(ctx.read(), uriInfo.getBaseUri)
 
     if (StringUtils.isNotBlank(tpe) && tpe.trim().equalsIgnoreCase("yaml")) {
       Response.status(Response.Status.OK)
@@ -81,9 +82,10 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
     }
   }
 
-  private def setCelebornOpenAPIDefinition(openApi: OpenAPI, requestBaseUrl: String): OpenAPI = {
-    // TODO: to improve when https is enabled.
-    val apiUrls = List(requestBaseUrl, s"http://${httpService.connectionUrl}/").distinct
+  private def setCelebornOpenAPIDefinition(openApi: OpenAPI, requestBaseUri: URI): OpenAPI = {
+    val httpScheme = if (httpService.httpSslEnabled()) "https:" else "http:"
+    val requestBaseUrl = s"$httpScheme${requestBaseUri.getSchemeSpecificPart}"
+    val apiUrls = List(requestBaseUrl, s"$httpScheme//${httpService.connectionUrl}/").distinct
     openApi.info(
       new Info().title(
         s"Apache Celeborn REST API Documentation")

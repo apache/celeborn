@@ -38,7 +38,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   WorkerEventsResponse.JSON_PROPERTY_WORKER_EVENTS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class WorkerEventsResponse {
   public static final String JSON_PROPERTY_WORKER_EVENTS = "workerEvents";
   private List<WorkerEventData> workerEvents = new ArrayList<>();

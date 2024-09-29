@@ -21,7 +21,7 @@ license: |
 
 [Gluten](https://github.com/apache/incubator-gluten) with velox backend supports Celeborn as remote shuffle service. Below introduction is used to enable this feature.
 
-First refer to [Get Started With Velox](https://gluten.apache.org/docs/velox/getting-started) to build Gluten with velox backend.
+First refer to [Get Started With Velox](https://gluten.apache.org/docs/getting-started/velox-backend) to build Gluten with velox backend.
 
 When compiling the Gluten Java module, it's required to enable `celeborn` profile, as follows:
 
@@ -32,13 +32,13 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -Pceleborn -DskipTests
 Then add the Gluten and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
 
 - Celeborn: `celeborn-client-spark-3-shaded_2.12-[celebornVersion].jar`
-- Gluten: `gluten-velox-bundle-spark3.x_2.12-xx-xx-SNAPSHOT.jar`, `gluten-thirdparty-lib-xx.jar`
+- Gluten: `gluten-velox-bundle-spark3.x_2.12-xx-xx-SNAPSHOT.jar` (The bundled Gluten Jar. Make sure -Pceleborn is specified when it is built.)
 
 ## ClickHouse Backend
 
 [Gluten](https://github.com/apache/incubator-gluten) with clickhouse backend supports Celeborn as remote shuffle service. Below introduction is used to enable this feature.
 
-First refer to [Get Started With ClickHouse](https://gluten.apache.org/docs/clickhouse/getting-started) to build Gluten with clickhouse backend.
+First refer to [Get Started With ClickHouse](https://gluten.apache.org/docs/getting-started/clickhouse-backend) to build Gluten with clickhouse backend.
 
 When compiling the Gluten Java module, it's required to enable `celeborn` profile, as follows:
 

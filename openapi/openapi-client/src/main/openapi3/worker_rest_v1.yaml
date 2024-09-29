@@ -602,13 +602,13 @@ components:
       properties:
         type:
           type: string
-          default: None
+          default: NONE
           description: The type of the worker exit request.
           enum:
-            - Decommission
-            - Graceful
-            - Immediately
-            - None
+            - DECOMMISSION
+            - GRACEFUL
+            - IMMEDIATELY
+            - NONE
 
     HandleResponse:
       type: object

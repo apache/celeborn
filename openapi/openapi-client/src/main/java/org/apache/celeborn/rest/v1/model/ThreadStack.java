@@ -43,7 +43,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   ThreadStack.JSON_PROPERTY_BLOCKED_BY_LOCK,
   ThreadStack.JSON_PROPERTY_HOLDING_LOCKS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class ThreadStack {
   public static final String JSON_PROPERTY_THREAD_ID = "threadId";
   private Long threadId;

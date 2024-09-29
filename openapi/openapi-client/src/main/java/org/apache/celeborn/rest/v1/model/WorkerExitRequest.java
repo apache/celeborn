@@ -34,19 +34,19 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   WorkerExitRequest.JSON_PROPERTY_TYPE
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class WorkerExitRequest {
   /**
    * The type of the worker exit request.
    */
   public enum TypeEnum {
-    DECOMMISSION("Decommission"),
+    DECOMMISSION("DECOMMISSION"),
     
-    GRACEFUL("Graceful"),
+    GRACEFUL("GRACEFUL"),
     
-    IMMEDIATELY("Immediately"),
+    IMMEDIATELY("IMMEDIATELY"),
     
-    NONE("None");
+    NONE("NONE");
 
     private String value;
 
@@ -67,7 +67,7 @@ public class WorkerExitRequest {
     @JsonCreator
     public static TypeEnum fromValue(String value) {
       for (TypeEnum b : TypeEnum.values()) {
-        if (b.value.equals(value)) {
+        if (b.value.equalsIgnoreCase(value)) {
           return b;
         }
       }

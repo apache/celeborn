@@ -39,23 +39,23 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   SendWorkerEventRequest.JSON_PROPERTY_EVENT_TYPE,
   SendWorkerEventRequest.JSON_PROPERTY_WORKERS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class SendWorkerEventRequest {
   /**
    * The type of the event.
    */
   public enum EventTypeEnum {
-    IMMEDIATELY("Immediately"),
+    IMMEDIATELY("IMMEDIATELY"),
     
-    DECOMMISSION("Decommission"),
+    DECOMMISSION("DECOMMISSION"),
     
-    DECOMMISSION_THEN_IDLE("DecommissionThenIdle"),
+    DECOMMISSIONTHENIDLE("DECOMMISSIONTHENIDLE"),
     
-    GRACEFUL("Graceful"),
+    GRACEFUL("GRACEFUL"),
     
-    RECOMMISSION("Recommission"),
+    RECOMMISSION("RECOMMISSION"),
     
-    NONE("None");
+    NONE("NONE");
 
     private String value;
 
@@ -76,7 +76,7 @@ public class SendWorkerEventRequest {
     @JsonCreator
     public static EventTypeEnum fromValue(String value) {
       for (EventTypeEnum b : EventTypeEnum.values()) {
-        if (b.value.equals(value)) {
+        if (b.value.equalsIgnoreCase(value)) {
           return b;
         }
       }

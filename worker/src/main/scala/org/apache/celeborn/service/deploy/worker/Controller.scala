@@ -190,7 +190,8 @@ private[deploy] class Controller(
             partitionType,
             rangeReadFilter,
             userIdentifier,
-            partitionSplitEnabled)
+            partitionSplitEnabled,
+            isSegmentGranularityVisible)
           primaryLocs.add(new WorkingPartition(location, writer))
         } else {
           primaryLocs.add(location)
@@ -230,7 +231,8 @@ private[deploy] class Controller(
             partitionType,
             rangeReadFilter,
             userIdentifier,
-            partitionSplitEnabled)
+            partitionSplitEnabled,
+            isSegmentGranularityVisible)
           replicaLocs.add(new WorkingPartition(location, writer))
         } else {
           replicaLocs.add(location)

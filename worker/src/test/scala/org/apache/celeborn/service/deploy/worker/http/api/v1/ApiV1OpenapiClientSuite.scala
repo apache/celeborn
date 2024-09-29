@@ -108,7 +108,7 @@ class ApiV1OpenapiClientSuite extends ApiV1WorkerOpenapiClientSuite {
 
     handleResponse = api.sendWorkerEvent(
       new SendWorkerEventRequest().addWorkersItem(workerId).eventType(
-        EventTypeEnum.DECOMMISSION_THEN_IDLE))
+        EventTypeEnum.DECOMMISSIONTHENIDLE))
     assert(handleResponse.getSuccess)
 
     assert(!api.getWorkerEvents.getWorkerEvents.isEmpty)
