@@ -198,9 +198,13 @@ public class PartitionLocation implements Serializable {
     this.fetchPort = fetchPort;
   }
 
-  public int getGroupId() { return groupId; }
+  public int getGroupId() {
+    return groupId;
+  }
 
-  public void serGroupId(int groupId) { this.groupId = groupId; }
+  public void serGroupId(int groupId) {
+    this.groupId = groupId;
+  }
 
   public String hostAndPorts() {
     return "host-rpcPort-pushPort-fetchPort-replicatePort:"
