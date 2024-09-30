@@ -907,7 +907,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       int length,
       int numMappers,
       int numPartitions,
-      boolean doPush)
+      boolean doPush,
+      boolean skipCompress)
       throws IOException {
     // mapKey
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
@@ -972,7 +973,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     // increment batchId
     final int nextBatchId = pushState.nextBatchId();
 
-    if (shuffleCompressionEnabled) {
+    if (shuffleCompressionEnabled && !skipCompress) {
       // compress data
       final Compressor compressor = compressorThreadLocal.get();
       compressor.compress(data, offset, length);
@@ -1278,7 +1279,8 @@ public class ShuffleClientImpl extends ShuffleClient {
         length,
         numMappers,
         numPartitions,
-        true);
+        true,
+        false);
   }
 
   @Override
@@ -1312,6 +1314,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         length,
         numMappers,
         numPartitions,
+        false,
         false);
   }
 
