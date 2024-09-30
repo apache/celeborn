@@ -27,6 +27,7 @@ import org.apache.celeborn.rest.v1.master.invoker.Pair;
 
 import org.apache.celeborn.rest.v1.model.AppDiskUsageSnapshotsResponse;
 import org.apache.celeborn.rest.v1.model.ApplicationsHeartbeatResponse;
+import org.apache.celeborn.rest.v1.model.HandleResponse;
 import org.apache.celeborn.rest.v1.model.HostnamesResponse;
 
 
@@ -232,6 +233,82 @@ public class ApplicationApi extends BaseApi {
     String[] localVarAuthNames = new String[] { "basic" };
 
     TypeReference<AppDiskUsageSnapshotsResponse> localVarReturnType = new TypeReference<AppDiskUsageSnapshotsResponse>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "GET",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
+  }
+
+  /**
+   * 
+   * Revise lost shuffles or delete shuffles of an application.
+   * @param deleteApp  (optional)
+   * @param appId  (optional)
+   * @param shuffleIds  (optional)
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse reviseLostShuffles(String deleteApp, String appId, String shuffleIds) throws ApiException {
+    return this.reviseLostShuffles(deleteApp, appId, shuffleIds, Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * Revise lost shuffles or delete shuffles of an application.
+   * @param deleteApp  (optional)
+   * @param appId  (optional)
+   * @param shuffleIds  (optional)
+   * @param additionalHeaders additionalHeaders for this call
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse reviseLostShuffles(String deleteApp, String appId, String shuffleIds, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = null;
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/applications/reviseLostShuffles";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    localVarQueryParams.addAll(apiClient.parameterToPair("deleteApp", deleteApp));
+    localVarQueryParams.addAll(apiClient.parameterToPair("appId", appId));
+    localVarQueryParams.addAll(apiClient.parameterToPair("shuffleIds", shuffleIds));
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/json"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<HandleResponse> localVarReturnType = new TypeReference<HandleResponse>() {};
     return apiClient.invokeAPI(
         localVarPath,
         "GET",

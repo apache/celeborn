@@ -472,11 +472,11 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleApplicationMeta(new ApplicationMeta(APPID1, "testSecret"));
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
-    assertEquals(1, statusSystem.registeredShuffle.size());
+    assertEquals(1, statusSystem.registeredAppAndShuffles.size());
     assertEquals(1, statusSystem.applicationMetas.size());
     statusSystem.handleAppLost(APPID1, getNewReqeustId());
 
-    assertTrue(statusSystem.registeredShuffle.isEmpty());
+    assertTrue(statusSystem.registeredAppAndShuffles.isEmpty());
     assertTrue(statusSystem.applicationMetas.isEmpty());
   }
 
@@ -545,11 +545,11 @@ public class DefaultMetaSystemSuiteJ {
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
-    assertEquals(1, statusSystem.registeredShuffle.size());
+    assertEquals(1, statusSystem.registeredAppAndShuffles.size());
 
     statusSystem.handleUnRegisterShuffle(SHUFFLEKEY1, getNewReqeustId());
 
-    assertTrue(statusSystem.registeredShuffle.isEmpty());
+    assertTrue(statusSystem.registeredAppAndShuffles.isEmpty());
   }
 
   @Test

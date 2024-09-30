@@ -37,6 +37,9 @@ trait MasterSubcommand extends CliLogging {
   @ArgGroup(exclusive = true, multiplicity = "1")
   private[master] var masterOptions: MasterOptions = _
 
+  @ArgGroup(exclusive = false)
+  private[master] var reviseLostShuffleOptions: ReviseLostShuffleOptions = _
+
   @Mixin
   private[master] var commonOptions: CommonOptions = _
 
@@ -105,5 +108,7 @@ trait MasterSubcommand extends CliLogging {
   private[master] def runShowDynamicConf: DynamicConfigResponse
 
   private[master] def runShowThreadDump: ThreadStackResponse
+
+  private[master] def reviseLostShuffles: HandleResponse
 
 }

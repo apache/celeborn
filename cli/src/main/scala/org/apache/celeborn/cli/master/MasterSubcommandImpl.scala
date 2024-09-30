@@ -49,6 +49,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     if (masterOptions.showConf) log(runShowConf)
     if (masterOptions.showDynamicConf) log(runShowDynamicConf)
     if (masterOptions.showThreadDump) log(runShowThreadDump)
+    if (masterOptions.reviseLostShuffles) log(reviseLostShuffles)
     if (masterOptions.addClusterAlias != null && masterOptions.addClusterAlias.nonEmpty)
       runAddClusterAlias
     if (masterOptions.removeClusterAlias != null && masterOptions.removeClusterAlias.nonEmpty)
@@ -205,5 +206,12 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     val aliasToRemove = masterOptions.removeClusterAlias
     cliConfigManager.remove(aliasToRemove)
     logInfo(s"Cluster alias $aliasToRemove removed.")
+  }
+
+  override private[master] def reviseLostShuffles: HandleResponse = {
+    val deleteApp = reviseLostShuffleOptions.deleteApp
+    val appId = reviseLostShuffleOptions.appId
+    val shuffleIds = reviseLostShuffleOptions.shuffleIds
+    applicationApi.reviseLostShuffles(deleteApp, appId, shuffleIds)
   }
 }
