@@ -67,7 +67,9 @@ nav:
   - Deployment:
       - Overview: deploy.md
       - Kubernetes: deploy_on_k8s.md
-      - Monitoring: monitoring.md
+      - Monitoring:
+        - Overview: monitoring.md
+        - Rest API: restapi.md
       - Security: security.md
       - Quota Management: quota_management.md
       - Upgrading: upgrading.md
