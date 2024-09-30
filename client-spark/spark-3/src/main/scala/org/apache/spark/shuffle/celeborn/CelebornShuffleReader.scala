@@ -105,6 +105,7 @@ class CelebornShuffleReader[K, C](
     val localHostAddress = Utils.localHostName(conf)
     val shuffleKey = Utils.makeShuffleKey(handle.appUniqueId, shuffleId)
     // startPartition is irrelevant
+    // fileGroups.partitionGroups has changed in groupMapTask.
     val fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition)
     // host-port -> (TransportClient, PartitionLocation Array, PbOpenStreamList)
     val workerRequestMap = new util.HashMap[
@@ -112,8 +113,17 @@ class CelebornShuffleReader[K, C](
       (TransportClient, util.ArrayList[PartitionLocation], PbOpenStreamList.Builder)]()
 
     var partCnt = 0
+    val partitionGroupCnt = math.ceil(handle.numMappers.toDouble / conf.groupMapTaskGroupSize).toInt
+    val partitionIdList = new util.ArrayList[Int]()
+    (startPartition until endPartition).foreach { originalPartitionId =>
+      (0 until partitionGroupCnt).foreach { groupCnt =>
+        val tmpPartitionId =
+          originalPartitionId + groupCnt * (fileGroups.partitionGroups.keySet().size() / partitionGroupCnt)
+        partitionIdList.add(tmpPartitionId)
+      }
+    }
 
-    (startPartition until endPartition).foreach { partitionId =>
+    partitionIdList.forEach { partitionId =>
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
         fileGroups.partitionGroups.get(partitionId).asScala.foreach { location =>
           partCnt += 1
@@ -216,17 +226,16 @@ class CelebornShuffleReader[K, C](
     }
 
     val inputStreamCreationWindow = conf.clientInputStreamCreationWindow
-    (startPartition until Math.min(
-      startPartition + inputStreamCreationWindow,
-      endPartition)).foreach(partitionId => {
+
+    (0 until Math.min(inputStreamCreationWindow, partitionIdList.size())).foreach(listIndex => {
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
-          createInputStream(partitionId)
+          createInputStream(partitionIdList.get(listIndex))
         }
       })
     })
 
-    val recordIter = (startPartition until endPartition).iterator.map(partitionId => {
+    val recordIter = partitionIdList.asScala.iterator.map(partitionId => {
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
         var inputStream: CelebornInputStream = streams.get(partitionId)
