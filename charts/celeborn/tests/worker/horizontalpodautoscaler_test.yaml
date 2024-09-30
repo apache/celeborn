@@ -1,0 +1,131 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+suite: Test Celeborn worker horizontal autoscaler
+
+templates:
+  - worker/horizontalpodautoscaler.yaml
+
+release:
+  name: celeborn
+
+tests:
+  - it: Should exits if `autoscaling.enabled` is true and `celeborn.metrics.enabled` is true
+    set:
+      autoscaling:
+        enabled: true
+      celeborn:
+        celeborn.metrics.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: Should not exits if `autoscaling.enabled` is false
+    set:
+      autoscaling:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should not exits if `celeborn.metrics.enabled` is false
+    set:
+      celeborn:
+        celeborn.metrics.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should set maxReplicas if `maxReplicas` is set
+    set:
+      autoscaling:
+        enabled: true
+        maxReplicas: 20
+    asserts:
+      - equal:
+          path: spec.maxReplicas
+          value: 20
+
+  - it: Should set minReplicas if `workerReplicas` is set
+    set:
+      autoscaling:
+        enabled: true
+      workerReplicas: 1
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 1
+
+  - it: use the specified metrics if `autoscaling.metrics` is specified
+    set:
+      autoscaling:
+        enabled: true
+        metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 50
+    asserts:
+      - equal:
+          path: spec.metrics
+          value:
+            - type: Resource
+              resource:
+                name: cpu
+                target:
+                  type: Utilization
+                  averageUtilization: 50
+
+  - it: Should use the specified behavior if `autoscaling.behavior` is specified
+    set:
+      autoscaling:
+        enabled: true
+        behavior:
+          scaleUp:
+            stabilizationWindowSeconds: 60
+            selectPolicy: Max
+            policies:
+              - type: Pods
+                value: 1
+                periodSeconds: 10
+          scaleDown:
+            stabilizationWindowSeconds: 180
+            selectPolicy: Max
+            policies:
+              - type: Pods
+                value: 1
+                periodSeconds: 300
+    asserts:
+      - equal:
+          path: spec.behavior
+          value:
+            scaleUp:
+              stabilizationWindowSeconds: 60
+              selectPolicy: Max
+              policies:
+                - type: Pods
+                  value: 1
+                  periodSeconds: 10
+            scaleDown:
+              stabilizationWindowSeconds: 180
+              selectPolicy: Max
+              policies:
+                - type: Pods
+                  value: 1
+                  periodSeconds: 300

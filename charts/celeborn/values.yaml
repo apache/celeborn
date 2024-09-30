@@ -235,3 +235,31 @@ podMonitor:
     interval: 5s
     # Specifies port name
     portName: metrics
+
+autoscaling:
+  # -- Specifies whether to enable creating hpa for Celeborn worker pods
+  # -- If set to true, it's highly recommended to set `celeborn.client.push.replicate.enabled` to true for more stable performance
+  enabled: false
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      selectPolicy: Max
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 10
+    scaleDown:
+      stabilizationWindowSeconds: 180
+      selectPolicy: Max
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 300
