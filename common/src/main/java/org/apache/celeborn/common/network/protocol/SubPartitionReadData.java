@@ -22,36 +22,28 @@ import java.util.Objects;
 
 import io.netty.buffer.ByteBuf;
 
-import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
-
 /**
  * Comparing {@link ReadData}, this class has an additional field of subpartitionId. This class is
  * added to keep the backward compatibility.
  */
-public class SubPartitionReadData extends RequestMessage {
-  private long streamId;
+public class SubPartitionReadData extends ReadData {
 
   private int subPartitionId;
 
   public SubPartitionReadData(long streamId, int subPartitionId, ByteBuf buf) {
-    super(new NettyManagedBuffer(buf));
-    this.streamId = streamId;
+    super(streamId, buf);
     this.subPartitionId = subPartitionId;
   }
 
   @Override
   public int encodedLength() {
-    return 8 + 4;
+    return super.encodedLength() + 4;
   }
 
   @Override
   public void encode(ByteBuf buf) {
-    buf.writeLong(streamId);
+    super.encode(buf);
     buf.writeInt(subPartitionId);
-  }
-
-  public long getStreamId() {
-    return streamId;
   }
 
   public int getSubPartitionId() {
@@ -68,8 +60,8 @@ public class SubPartitionReadData extends RequestMessage {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     SubPartitionReadData readData = (SubPartitionReadData) o;
-    return streamId == readData.streamId
-        && subPartitionId == readData.subPartitionId
+    return streamId == readData.getStreamId()
+        && subPartitionId == readData.getSubPartitionId()
         && super.equals(o);
   }
 

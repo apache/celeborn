@@ -26,7 +26,7 @@ import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 // This is buffer wrapper used in celeborn worker only
 // It doesn't need decode in worker.
 public class ReadData extends RequestMessage {
-  private long streamId;
+  protected long streamId;
 
   public ReadData(long streamId, ByteBuf buf) {
     super(new NettyManagedBuffer(buf));
