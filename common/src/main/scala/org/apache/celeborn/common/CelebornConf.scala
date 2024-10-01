@@ -4482,7 +4482,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.shuffle.batchHandleRemoveExpiredShuffles.enabled")
       .categories("client")
       .version("0.6.0")
-      .doc("This is an optimization on remove Expired Shuffles and it's false by default.")
+      .doc("Whether to batch remove expired shuffles. This is an optimization switch on removing expired shuffles.")
       .booleanConf
       .createWithDefault(false)
 
