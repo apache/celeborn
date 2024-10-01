@@ -345,7 +345,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_DeviceCelebornTotalBytes_Value{role=\"Master\", instance=~\"${instance}\"}",
-              "legendFormat": "${baseLegend} device={{device}}",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -440,7 +440,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_DeviceCelebornFreeBytes_Value{role=\"Master\", instance=~\"${instance}\"}",
-              "legendFormat": "${baseLegend} device={{device}}",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -2645,7 +2645,7 @@
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "instant": false,
-              "legendFormat": "${baseLegend} mountpoint={{mountpoint}}",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A",
               "useBackend": false
@@ -9814,7 +9814,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_DeviceOSFreeBytes_Value{instance=~\"${instance}\"}",
-              "legendFormat": "${baseLegend} device={{device}}",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -9907,7 +9907,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_DeviceCelebornFreeBytes_Value{instance=~\"${instance}\"}",
-              "legendFormat": "${baseLegend} device={{device}}",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -10430,10 +10430,11 @@
       },
       {
         "current": {
-          "selected": true,
-          "text": "{{instance}}",
-          "value": "{{instance}}"
+          "selected": false,
+          "text": "__auto",
+          "value": "__auto"
         },
+        "description": "The base legend format to apply for all metrics",
         "hide": 0,
         "includeAll": false,
         "label": "baseLegend",
@@ -10442,11 +10443,11 @@
         "options": [
           {
             "selected": true,
-            "text": "{{instance}}",
-            "value": "{{instance}}"
+            "text": "__auto",
+            "value": "__auto"
           }
         ],
-        "query": "{{instance}}",
+        "query": "__auto",
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
