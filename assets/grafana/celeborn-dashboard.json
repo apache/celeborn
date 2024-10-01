@@ -345,7 +345,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_DeviceCelebornTotalBytes_Value{role=\"Master\", instance=~\"${instance}\"}",
-              "legendFormat": "${baseLegend}",
+              "legendFormat": "${baseLegend} device={{device}}",
               "refId": "A"
             }
           ],
@@ -440,7 +440,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_DeviceCelebornFreeBytes_Value{role=\"Master\", instance=~\"${instance}\"}",
-              "legendFormat": "${baseLegend}",
+              "legendFormat": "${baseLegend} device={{device}}",
               "refId": "A"
             }
           ],
@@ -2645,7 +2645,7 @@
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "instant": false,
-              "legendFormat": "${baseLegend}",
+              "legendFormat": "${baseLegend} mountpoint={{mountpoint}}",
               "range": true,
               "refId": "A",
               "useBackend": false
@@ -9814,7 +9814,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_DeviceOSFreeBytes_Value{instance=~\"${instance}\"}",
-              "legendFormat": "${baseLegend}",
+              "legendFormat": "${baseLegend} device={{device}}",
               "range": true,
               "refId": "A"
             }
@@ -9907,7 +9907,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_DeviceCelebornFreeBytes_Value{instance=~\"${instance}\"}",
-              "legendFormat": "${baseLegend}",
+              "legendFormat": "${baseLegend} device={{device}}",
               "range": true,
               "refId": "A"
             }
