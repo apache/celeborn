@@ -10430,11 +10430,10 @@
       },
       {
         "current": {
-          "selected": false,
-          "text": "__auto",
-          "value": "__auto"
+          "selected": true,
+          "text": "{{instance}}",
+          "value": "{{instance}}"
         },
-        "description": "The base legend format to apply for all metrics",
         "hide": 0,
         "includeAll": false,
         "label": "baseLegend",
@@ -10443,11 +10442,11 @@
         "options": [
           {
             "selected": true,
-            "text": "__auto",
-            "value": "__auto"
+            "text": "{{instance}}",
+            "value": "{{instance}}"
           }
         ],
-        "query": "__auto",
+        "query": "{{instance}}",
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
