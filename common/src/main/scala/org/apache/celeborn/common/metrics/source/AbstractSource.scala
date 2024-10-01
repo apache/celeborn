@@ -65,8 +65,10 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   val roleLabel: (String, String) = "role" -> role
   val instanceLabel: Map[String, String] = role match {
-    case Source.ROLE_MASTER => Map("instance" -> s"${Utils.localHostName(conf)}:${conf.masterHttpPort}")
-    case Source.ROLE_WORKER => Map("instance" -> s"${Utils.localHostName(conf)}:${conf.workerHttpPort}")
+    case Source.ROLE_MASTER =>
+      Map("instance" -> s"${Utils.localHostName(conf)}:${conf.masterHttpPort}")
+    case Source.ROLE_WORKER =>
+      Map("instance" -> s"${Utils.localHostName(conf)}:${conf.workerHttpPort}")
     case _ => Map.empty
   }
   val staticLabels: Map[String, String] = conf.metricsExtraLabels + roleLabel ++ instanceLabel

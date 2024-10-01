@@ -28,7 +28,10 @@ class CelebornSourceSuite extends CelebornFunSuite {
     createAbstractSourceAndCheck(conf, "", Source.ROLE_WORKER)
   }
 
-  def createAbstractSourceAndCheck(conf: CelebornConf, extraLabels: String, role: String = "mock"): Unit = {
+  def createAbstractSourceAndCheck(
+      conf: CelebornConf,
+      extraLabels: String,
+      role: String = "mock"): Unit = {
     val mockSource = new AbstractSource(conf, role) {
       override def sourceName: String = "mockSource"
     }
@@ -56,13 +59,17 @@ class CelebornSourceSuite extends CelebornFunSuite {
     if (extraLabels.nonEmpty) {
       extraLabelsStr = extraLabels + ","
     }
-    val instanceLabelStr = mockSource.instanceLabel.map(kv => s"""${kv._1}="${kv._2}",""").mkString(",")
+    val instanceLabelStr =
+      mockSource.instanceLabel.map(kv => s"""${kv._1}="${kv._2}",""").mkString(",")
     val exp1 = s"""metrics_Gauge1_Value{${extraLabelsStr}${instanceLabelStr}role="$role"} 1000"""
-    val exp2 = s"""metrics_Gauge2_Value{${extraLabelsStr}${instanceLabelStr}role="$role",user="user1"} 2000"""
+    val exp2 =
+      s"""metrics_Gauge2_Value{${extraLabelsStr}${instanceLabelStr}role="$role",user="user1"} 2000"""
     val exp3 = s"""metrics_Counter1_Count{${extraLabelsStr}${instanceLabelStr}role="$role"} 3000"""
-    val exp4 = s"""metrics_Counter2_Count{${extraLabelsStr}${instanceLabelStr}role="$role",user="user2"} 4000"""
+    val exp4 =
+      s"""metrics_Counter2_Count{${extraLabelsStr}${instanceLabelStr}role="$role",user="user2"} 4000"""
     val exp5 = s"""metrics_Timer1_Count{${extraLabelsStr}${instanceLabelStr}role="$role"} 1"""
-    val exp6 = s"""metrics_Timer2_Count{${extraLabelsStr}${instanceLabelStr}role="$role",user="user3"} 1"""
+    val exp6 =
+      s"""metrics_Timer2_Count{${extraLabelsStr}${instanceLabelStr}role="$role",user="user3"} 1"""
 
     assert(res.contains(exp1))
     assert(res.contains(exp2))
