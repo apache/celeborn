@@ -18,10 +18,9 @@
 package org.apache.celeborn.service.deploy.master
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.AbstractSource
+import org.apache.celeborn.common.metrics.source.{AbstractSource, Source}
 
-class MasterSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSystem.ROLE_MASTER) {
+class MasterSource(conf: CelebornConf) extends AbstractSource(conf, Source.ROLE_MASTER) {
   override val sourceName = "master"
 
   import MasterSource._

@@ -39,7 +39,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Source, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.CelebornRackResolver
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol._
@@ -67,15 +67,15 @@ private[celeborn] class Master(
     MetricsSystem.createMetricsSystem(serviceName, conf)
   // init and register master metrics
   private val resourceConsumptionSource =
-    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_MASTER)
-  private val threadPoolSource = ThreadPoolSource(conf, MetricsSystem.ROLE_MASTER)
+    new ResourceConsumptionSource(conf, Source.ROLE_MASTER)
+  private val threadPoolSource = ThreadPoolSource(conf, Source.ROLE_MASTER)
   private val masterSource = new MasterSource(conf)
   metricsSystem.registerSource(resourceConsumptionSource)
   metricsSystem.registerSource(masterSource)
   metricsSystem.registerSource(threadPoolSource)
-  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
-  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
-  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
+  metricsSystem.registerSource(new JVMSource(conf, Source.ROLE_MASTER))
+  metricsSystem.registerSource(new JVMCPUSource(conf, Source.ROLE_MASTER))
+  metricsSystem.registerSource(new SystemMiscSource(conf, Source.ROLE_MASTER))
 
   private val bindPreferIP: Boolean = conf.bindPreferIP
   private val authEnabled = conf.authEnabled

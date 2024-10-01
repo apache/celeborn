@@ -29,3 +29,8 @@ trait Source {
   def getMetrics: String
   def destroy(): Unit
 }
+
+object Source {
+  val ROLE_MASTER = "master"
+  val ROLE_WORKER = "worker"
+}
