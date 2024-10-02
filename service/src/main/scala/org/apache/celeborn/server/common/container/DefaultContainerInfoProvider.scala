@@ -25,8 +25,8 @@ class DefaultContainerInfoProvider extends ContainerInfoProvider {
   override def getContainerInfo(): ContainerInfo = {
     new ContainerInfo()
       .containerName(ContainerInfoProvider.DEFAULT_CONTAINER_NAME)
-      .containerHostName(Utils.getHostName(false))
-      .containerAddress(Utils.getHostName(true))
+      .containerHostName(Utils.getHostName(preferIP = false))
+      .containerAddress(Utils.getHostName(preferIP = true))
       .containerDataCenter(ContainerInfoProvider.DEFAULT_CONTAINER_DATA_CENTER)
       .containerAvailabilityZone(ContainerInfoProvider.DEFAULT_CONTAINER_AVAILABILITY_ZONE)
       .containerUser(System.getProperty("user.name"))
