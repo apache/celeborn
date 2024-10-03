@@ -53,7 +53,7 @@ public class RatisApi extends BaseApi {
 
   /**
    * 
-   * Add a new peer to the raft group.
+   * Add new peers to the raft group.
    * @param ratisPeerAddRequest  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
@@ -65,7 +65,7 @@ public class RatisApi extends BaseApi {
 
   /**
    * 
-   * Add a new peer to the raft group.
+   * Add new peers to the raft group.
    * @param ratisPeerAddRequest  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
@@ -323,7 +323,7 @@ public class RatisApi extends BaseApi {
 
   /**
    * 
-   * Remove a new peer to the raft group.
+   * Remove peers from the raft group.
    * @param ratisPeerRemoveRequest  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
@@ -335,7 +335,7 @@ public class RatisApi extends BaseApi {
 
   /**
    * 
-   * Remove a new peer to the raft group.
+   * Remove peers from the raft group.
    * @param ratisPeerRemoveRequest  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
@@ -459,7 +459,7 @@ public class RatisApi extends BaseApi {
 
   /**
    * 
-   * Set the priority of the peer in the raft group.
+   * Set the priority of the peers in the raft group.
    * @param ratisPeerSetPriorityRequest  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
@@ -471,7 +471,7 @@ public class RatisApi extends BaseApi {
 
   /**
    * 
-   * Set the priority of the peer in the raft group.
+   * Set the priority of the peers in the raft group.
    * @param ratisPeerSetPriorityRequest  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse

@@ -139,7 +139,7 @@ class RatisResource extends ApiRequestContext with Logging {
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Add new peers to the group.")
+    description = "Add new peers to the raft group.")
   @POST
   @Path("/peer/add")
   def peerAdd(request: RatisPeerAddRequest): HandleResponse = {
@@ -184,7 +184,7 @@ class RatisResource extends ApiRequestContext with Logging {
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Remove peers from the group.")
+    description = "Remove peers from the raft group.")
   @POST
   @Path("/peer/remove")
   def peerRemove(request: RatisPeerRemoveRequest): HandleResponse = {
@@ -223,7 +223,7 @@ class RatisResource extends ApiRequestContext with Logging {
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Set the priority of the peers.")
+    description = "Set the priority of the peers in the raft group.")
   @POST
   @Path("/peer/set_priority")
   def peerSetPriority(request: RatisPeerSetPriorityRequest): HandleResponse = {
