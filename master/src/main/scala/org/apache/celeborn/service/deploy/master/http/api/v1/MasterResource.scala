@@ -69,10 +69,12 @@ class MasterResource extends ApiRequestContext {
         .address(commitInfo.getServer.getAddress)
         .clientAddress(commitInfo.getServer.getClientAddress)
         .startUpRole(commitInfo.getServer.getStartupRole.toString)
+        .priority(commitInfo.getServer.getPriority)
     }
     new MasterInfoResponse()
       .groupId(groupInfo.getGroup.getGroupId.getUuid.toString)
       .leader(masterLeader)
       .masterCommitInfo(masterCommitDataList.toSeq.asJava)
+      .logInfo(groupInfo.getLogInfoProto.toString)
   }
 }
