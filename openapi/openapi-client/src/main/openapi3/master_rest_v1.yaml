@@ -263,7 +263,7 @@ paths:
       tags:
         - Ratis
       operationId: transferRatisLeader
-      description: Transfer a group leader to the specified server.
+      description: Transfer the group leader to the specified server.
       requestBody:
         content:
           application/json:

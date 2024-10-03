@@ -250,7 +250,7 @@ public class RatisApi extends BaseApi {
 
   /**
    * 
-   * Transfer a group leader to the specified server.
+   * Transfer the group leader to the specified server.
    * @param ratisElectionTransferRequest  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
@@ -262,7 +262,7 @@ public class RatisApi extends BaseApi {
 
   /**
    * 
-   * Transfer a group leader to the specified server.
+   * Transfer the group leader to the specified server.
    * @param ratisElectionTransferRequest  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse

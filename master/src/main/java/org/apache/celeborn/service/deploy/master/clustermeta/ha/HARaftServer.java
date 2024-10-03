@@ -75,7 +75,7 @@ public class HARaftServer {
 
   public static final RaftGroupId RAFT_GROUP_ID = RaftGroupId.valueOf(CELEBORN_UUID);
 
-  public static final long TIMEOUT_MS = 60_000;
+  public static final long REQUEST_TIMEOUT_MS = 60_000;
 
   private final MasterNode localNode;
   private final InetSocketAddress ratisAddr;
@@ -621,7 +621,7 @@ public class HARaftServer {
               raftGroup.getGroupId(),
               CallId.getAndIncrement(),
               null,
-              60_000);
+              REQUEST_TIMEOUT_MS);
       RaftClientReply reply = server.transferLeadership(request);
       if (reply.isSuccess()) {
         LOG.info("Successfully step down leader {}.", server.getId());

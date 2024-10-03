@@ -46,12 +46,12 @@ class RatisResource extends ApiRequestContext {
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Transfer a group leader to the specified server.")
+    description = "Transfer the group leader to the specified server.")
   @POST
   @Path("/election/transfer")
   def electionTransfer(request: RatisElectionTransferRequest): HandleResponse =
     ensureMasterIsLeader(master) {
-      transferLeadership(getRaftPeerId(request.getPeerAddress))
+      transferLeadership(request.getPeerAddress)
     }
 
   @ApiResponse(
@@ -91,27 +91,24 @@ class RatisResource extends ApiRequestContext {
     applyElectionOp(new LeaderElectionManagementRequest.Resume)
   }
 
-  private def getRaftPeerId(peerAddress: String): RaftPeerId = {
-    val groupInfo =
-      master.statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getGroupInfo
-    groupInfo.getCommitInfos.asScala.filter(peer => peer.getServer.getAddress == peerAddress)
-      .map(peer => RaftPeerId.valueOf(peer.getServer.getId)).headOption.getOrElse(
-        throw new IllegalArgumentException(s"Peer $peerAddress not found in group: $groupInfo"))
-  }
-
-  private def transferLeadership(newLeaderId: RaftPeerId): HandleResponse = {
+  private def transferLeadership(peerAddress: String): HandleResponse = {
+    val newLeaderId = Option(peerAddress).map(getRaftPeerId).orNull
+    val op =
+      if (newLeaderId == null) "step down leader"
+      else s"transfer leadership to $newLeaderId/$peerAddress"
     val request = new TransferLeadershipRequest(
       ratisServer.getClientId,
       ratisServer.getServer.getId,
       ratisServer.getGroupId,
       CallId.getAndIncrement(),
       newLeaderId,
-      HARaftServer.TIMEOUT_MS)
+      HARaftServer.REQUEST_TIMEOUT_MS)
     val reply = ratisServer.getServer.transferLeadership(request)
     if (reply.isSuccess) {
-      new HandleResponse().success(true).message(reply.toString)
+      new HandleResponse().success(true).message(s"Successfully $op.")
+    } else {
+      new HandleResponse().success(false).message(s"Failed to $op: $reply")
     }
-    new HandleResponse().success(reply.isSuccess).message(reply.toString)
   }
 
   private def applyElectionOp(op: LeaderElectionManagementRequest.Op): HandleResponse = {
@@ -122,6 +119,18 @@ class RatisResource extends ApiRequestContext {
       CallId.getAndIncrement(),
       op)
     val reply = ratisServer.getServer.leaderElectionManagement(request)
-    new HandleResponse().success(reply.isSuccess).message(reply.toString)
+    if (reply.isSuccess) {
+      new HandleResponse().success(true).message(s"Successfully applied election $op.")
+    } else {
+      new HandleResponse().success(false).message(s"Failed to apply election $op: $reply")
+    }
+  }
+
+  private def getRaftPeerId(peerAddress: String): RaftPeerId = {
+    val groupInfo =
+      master.statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getGroupInfo
+    groupInfo.getCommitInfos.asScala.filter(peer => peer.getServer.getAddress == peerAddress)
+      .map(peer => RaftPeerId.valueOf(peer.getServer.getId)).headOption.getOrElse(
+        throw new IllegalArgumentException(s"Peer $peerAddress not found in group: $groupInfo"))
   }
 }
