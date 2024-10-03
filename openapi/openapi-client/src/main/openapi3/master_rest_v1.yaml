@@ -324,7 +324,7 @@ paths:
       tags:
         - Ratis
       operationId: addRatisPeer
-      description: Add a new peer to the raft group.
+      description: Add new peers to the raft group.
       requestBody:
         content:
           application/json:
@@ -343,7 +343,7 @@ paths:
       tags:
         - Ratis
       operationId: removeRatisPeer
-      description: Remove a new peer to the raft group.
+      description: Remove peers from the raft group.
       requestBody:
         content:
           application/json:
@@ -362,7 +362,7 @@ paths:
       tags:
         - Ratis
       operationId: setRatisPeerPriority
-      description: Set the priority of the peer in the raft group.
+      description: Set the priority of the peers in the raft group.
       requestBody:
         content:
           application/json:
