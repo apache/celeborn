@@ -319,6 +319,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/HandleResponse'
 
+  /api/v1/ratis/peer/add:
+    post:
+      tags:
+        - Ratis
+      operationId: addRatisPeer
+      description: Add a new peer to the raft group.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatisPeerUpdateRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
+  /api/v1/ratis/peer/remove:
+    post:
+      tags:
+        - Ratis
+      operationId: removeRatisPeer
+      description: Remove a new peer to the raft group.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatisPeerUpdateRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
   /api/v1/ratis/snapshot/create:
     post:
       tags:
@@ -826,6 +864,30 @@ components:
           description: The address of the peer to transfer the leader.
       required:
         - peerAddress
+
+    RatisPeer:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The id of the peer.
+        address:
+          type: string
+          description: The address of the peer.
+      required:
+          - id
+          - address
+
+    RatisPeerUpdateRequest:
+      type: object
+      properties:
+        peers:
+          type: array
+          description: The peers to be added/removed to/from the raft group.
+          items:
+              $ref: '#/components/schemas/RatisPeer'
+      required:
+        - peers
 
     HandleResponse:
       type: object
