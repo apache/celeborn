@@ -31,6 +31,7 @@ import org.apache.celeborn.rest.v1.model.{MasterCommitData, MasterInfoResponse, 
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager
+import org.apache.celeborn.service.deploy.master.http.api.MasterHttpResourceUtils._
 
 @Tag(name = "Master")
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -46,36 +47,32 @@ class MasterResource extends ApiRequestContext {
     description =
       "List master group information of the service. It will list all master's LEADER, FOLLOWER information.")
   @GET
-  def masterGroupInfo: MasterInfoResponse = {
-    if (master.conf.haEnabled) {
-      val groupInfo =
-        master.statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getGroupInfo
-      val leader = Option(groupInfo.getRoleInfoProto).map { roleInfo =>
-        if (roleInfo.getRole == RaftPeerRole.LEADER) {
-          roleInfo.getSelf
-        } else {
-          Option(roleInfo.getFollowerInfo).map(_.getLeaderInfo.getId).orNull
-        }
-      }.orNull
-      val masterLeader = Option(leader).map { _ =>
-        new MasterLeader()
-          .id(leader.getId.toStringUtf8)
-          .address(leader.getAddress)
-      }.orNull
-      val masterCommitDataList = groupInfo.getCommitInfos.asScala.map { commitInfo =>
-        new MasterCommitData()
-          .commitIndex(commitInfo.getCommitIndex)
-          .id(commitInfo.getServer.getId.toStringUtf8)
-          .address(commitInfo.getServer.getAddress)
-          .clientAddress(commitInfo.getServer.getClientAddress)
-          .startUpRole(commitInfo.getServer.getStartupRole.toString)
+  def masterGroupInfo: MasterInfoResponse = ensureMasterHAEnabled(master) {
+    val groupInfo =
+      master.statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getGroupInfo
+    val leader = Option(groupInfo.getRoleInfoProto).map { roleInfo =>
+      if (roleInfo.getRole == RaftPeerRole.LEADER) {
+        roleInfo.getSelf
+      } else {
+        Option(roleInfo.getFollowerInfo).map(_.getLeaderInfo.getId).orNull
       }
-      new MasterInfoResponse()
-        .groupId(groupInfo.getGroup.getGroupId.getUuid.toString)
-        .leader(masterLeader)
-        .masterCommitInfo(masterCommitDataList.toSeq.asJava)
-    } else {
-      throw new BadRequestException("HA is not enabled")
+    }.orNull
+    val masterLeader = Option(leader).map { _ =>
+      new MasterLeader()
+        .id(leader.getId.toStringUtf8)
+        .address(leader.getAddress)
+    }.orNull
+    val masterCommitDataList = groupInfo.getCommitInfos.asScala.map { commitInfo =>
+      new MasterCommitData()
+        .commitIndex(commitInfo.getCommitIndex)
+        .id(commitInfo.getServer.getId.toStringUtf8)
+        .address(commitInfo.getServer.getAddress)
+        .clientAddress(commitInfo.getServer.getClientAddress)
+        .startUpRole(commitInfo.getServer.getStartupRole.toString)
     }
+    new MasterInfoResponse()
+      .groupId(groupInfo.getGroup.getGroupId.getUuid.toString)
+      .leader(masterLeader)
+      .masterCommitInfo(masterCommitDataList.toSeq.asJava)
   }
 }
