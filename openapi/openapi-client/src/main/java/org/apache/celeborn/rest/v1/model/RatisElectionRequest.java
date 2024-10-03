@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
-import org.apache.celeborn.rest.v1.model.RatisPeer;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -33,39 +32,39 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
  * RatisElectionRequest
  */
 @JsonPropertyOrder({
-  RatisElectionRequest.JSON_PROPERTY_PEER
+  RatisElectionRequest.JSON_PROPERTY_PEER_ADDRESS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class RatisElectionRequest {
-  public static final String JSON_PROPERTY_PEER = "peer";
-  private RatisPeer peer;
+  public static final String JSON_PROPERTY_PEER_ADDRESS = "peerAddress";
+  private String peerAddress;
 
   public RatisElectionRequest() {
   }
 
-  public RatisElectionRequest peer(RatisPeer peer) {
+  public RatisElectionRequest peerAddress(String peerAddress) {
     
-    this.peer = peer;
+    this.peerAddress = peerAddress;
     return this;
   }
 
   /**
-   * Get peer
-   * @return peer
+   * The address of the ratis peer.
+   * @return peerAddress
    */
-  @javax.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_PEER)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  @javax.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_PEER_ADDRESS)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
-  public RatisPeer getPeer() {
-    return peer;
+  public String getPeerAddress() {
+    return peerAddress;
   }
 
 
-  @JsonProperty(JSON_PROPERTY_PEER)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setPeer(RatisPeer peer) {
-    this.peer = peer;
+  @JsonProperty(JSON_PROPERTY_PEER_ADDRESS)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setPeerAddress(String peerAddress) {
+    this.peerAddress = peerAddress;
   }
 
   @Override
@@ -77,19 +76,19 @@ public class RatisElectionRequest {
       return false;
     }
     RatisElectionRequest ratisElectionRequest = (RatisElectionRequest) o;
-    return Objects.equals(this.peer, ratisElectionRequest.peer);
+    return Objects.equals(this.peerAddress, ratisElectionRequest.peerAddress);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(peer);
+    return Objects.hash(peerAddress);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class RatisElectionRequest {\n");
-    sb.append("    peer: ").append(toIndentedString(peer)).append("\n");
+    sb.append("    peerAddress: ").append(toIndentedString(peerAddress)).append("\n");
     sb.append("}");
     return sb.toString();
   }

@@ -792,25 +792,12 @@ components:
         - eventType
         - worker
 
-    RatisPeer:
-      type: object
-      properties:
-        host:
-          type: string
-          description: The host of the ratis peer.
-        port:
-          type: integer
-          format: int32
-          description: The port of the ratis peer.
-      required:
-        - host
-        - port
-
     RatisElectionRequest:
       type: object
       properties:
-        peer:
-          $ref: '#/components/schemas/RatisPeer'
+        peerAddress:
+          type: string
+          description: The address of the ratis peer.
       required:
         - peer
 
