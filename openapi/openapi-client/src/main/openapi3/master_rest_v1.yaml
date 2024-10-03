@@ -258,6 +258,77 @@ paths:
               schema:
                 $ref: '#/components/schemas/HostnamesResponse'
 
+  /api/v1/ratis/election/transfer:
+    post:
+      tags:
+        - Ratis
+      operationId: transferRatisLeader
+      description: Transfer a group leader to the specified server.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatisElectionRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
+  /api/v1/ratis/election/stepdown:
+    post:
+      tags:
+        - Ratis
+      operationId: stepdownRatisLeader
+      description: Make a group leader of the given group step down its leadership.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
+  /api/v1/ratis/election/pause:
+    post:
+      tags:
+        - Ratis
+      operationId: pauseRatisElection
+      description: Pause leader election at the specified server. Then, the specified server would not start a leader election.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatisElectionRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
+  /api/v1/ratis/election/resume:
+    post:
+      tags:
+        - Ratis
+      operationId: resumeRatisElection
+      description: Resume leader election at the specified server.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatisElectionRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
 components:
   schemas:
     ConfigData:
@@ -720,6 +791,28 @@ components:
       required:
         - eventType
         - worker
+
+    RatisPeer:
+      type: object
+      properties:
+        host:
+          type: string
+          description: The host of the ratis peer.
+        port:
+          type: integer
+          format: int32
+          description: The port of the ratis peer.
+      required:
+        - host
+        - port
+
+    RatisElectionRequest:
+      type: object
+      properties:
+        peer:
+          $ref: '#/components/schemas/RatisPeer'
+      required:
+        - peer
 
     HandleResponse:
       type: object
