@@ -357,6 +357,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/HandleResponse'
 
+  /api/v1/ratis/peer/set_priority:
+    post:
+      tags:
+        - Ratis
+      operationId: setRatisPeerPriority
+      description: Set the priority of the peer in the raft group.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatisPeerSetPriorityRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
   /api/v1/ratis/snapshot/create:
     post:
       tags:
@@ -899,6 +918,15 @@ components:
             type: string
       required:
         - peers
+
+    RatisPeerSetPriorityRequest:
+      type: object
+      properties:
+        addressPriorities:
+          type: object
+          description: The address and priority of the peer.
+          additionalProperties:
+            type: integer
 
     HandleResponse:
       type: object
