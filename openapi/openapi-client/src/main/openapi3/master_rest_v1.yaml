@@ -477,6 +477,10 @@ components:
         startUpRole:
           type: string
           description: The raft start up role of the master.
+        priority:
+          type: integer
+          format: int32
+          description: The raft peer priority.
       required:
         - commitIndex
         - id
@@ -497,6 +501,9 @@ components:
           description: The raft commit info of the master.
           items:
             $ref: '#/components/schemas/MasterCommitData'
+        logInfo:
+          type: string
+          description: The log info of the master raft group.
       required:
         - groupId
 
