@@ -94,8 +94,8 @@ class RatisResource extends ApiRequestContext {
   private def transferLeadership(peerAddress: String): HandleResponse = {
     val newLeaderId = Option(peerAddress).map(getRaftPeerId).orNull
     val op =
-      if (newLeaderId == null) "step down leader"
-      else s"transfer leadership to $newLeaderId/$peerAddress"
+      if (newLeaderId == null) s"step down leader $localServerAddress"
+      else s"transfer leadership from $localServerAddress to $peerAddress"
     val request = new TransferLeadershipRequest(
       ratisServer.getClientId,
       ratisServer.getServer.getId,
@@ -120,11 +120,15 @@ class RatisResource extends ApiRequestContext {
       op)
     val reply = ratisServer.getServer.leaderElectionManagement(request)
     if (reply.isSuccess) {
-      new HandleResponse().success(true).message(s"Successfully applied election $op.")
+      new HandleResponse().success(true).message(
+        s"Successfully applied election $op $localServerAddress.")
     } else {
-      new HandleResponse().success(false).message(s"Failed to apply election $op: $reply")
+      new HandleResponse().success(false).message(
+        s"Failed to apply election $op $localServerAddress. $reply")
     }
   }
+
+  private lazy val localServerAddress = ratisServer.getLocalNode.ratisEndpoint
 
   private def getRaftPeerId(peerAddress: String): RaftPeerId = {
     val groupInfo =

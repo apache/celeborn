@@ -658,6 +658,10 @@ public class HARaftServer {
     return raftGroup.getGroupId();
   }
 
+  public MasterNode getLocalNode() {
+    return localNode;
+  }
+
   public static class LeaderPeerEndpoints {
     // the rpcEndpoints Tuple2 (ip:port, host:port)
     public final Tuple2<String, String> rpcEndpoints;
