@@ -95,14 +95,14 @@ $ celeborn-ratis sh election stepDown -peers <P0_HOST:P0_PORT,P1_HOST:P1_PORT,P2
 ```
 
 ### election pause
-Pause leader election at the specified server.
-Then, the specified server would not start a leader election.
+Pause leader election at the current server.
+Then, the current server would not start a leader election.
 ```
 $ celeborn-ratis sh election pause -peers <P0_HOST:P0_PORT,P1_HOST:P1_PORT,P2_HOST:P2_PORT> -address <HOSTNAME:PORT> [-groupid <RAFT_GROUP_ID>]
 ```
 
 ### election resume
-Resume leader election at the specified server.
+Resume leader election at the current server.
 ```
 $ celeborn-ratis sh election resume -peers <P0_HOST:P0_PORT,P1_HOST:P1_PORT,P2_HOST:P2_PORT> -address <HOSTNAME:PORT> [-groupid <RAFT_GROUP_ID>]
 ```

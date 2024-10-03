@@ -17,18 +17,15 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import javax.ws.rs.{Consumes, POST, Produces}
+import javax.ws.rs.{Consumes, POST, Path, Produces}
 import javax.ws.rs.core.MediaType
-
 import scala.collection.JavaConverters._
-
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.apache.ratis.protocol.{LeaderElectionManagementRequest, RaftPeerId, TransferLeadershipRequest}
 import org.apache.ratis.rpc.CallId
-
-import org.apache.celeborn.rest.v1.model.{HandleResponse, RatisElectionRequest}
+import org.apache.celeborn.rest.v1.model.{HandleResponse, RatisElectionTransferRequest}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAMasterMetaManager, HARaftServer}
@@ -48,7 +45,8 @@ class RatisResource extends ApiRequestContext {
       schema = new Schema(implementation = classOf[HandleResponse]))),
     description = "Transfer a group leader to the specified server.")
   @POST
-  def electionTransfer(request: RatisElectionRequest): HandleResponse =
+  @Path("/election/transfer")
+  def electionTransfer(request: RatisElectionTransferRequest): HandleResponse =
     ensureMasterIsLeader(master) {
       transferLeadership(getRaftPeerId(request.getPeerAddress))
     }
@@ -60,6 +58,7 @@ class RatisResource extends ApiRequestContext {
       schema = new Schema(implementation = classOf[HandleResponse]))),
     description = "Make a group leader of the given group step down its leadership.")
   @POST
+  @Path("/election/step_down")
   def electionStepDown(): HandleResponse = ensureMasterIsLeader(master) {
     transferLeadership(null)
   }
@@ -69,9 +68,10 @@ class RatisResource extends ApiRequestContext {
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Pause leader election at the specified server." +
-      " Then, the specified server would not start a leader election.")
+    description = "Pause leader election at the current server." +
+      " Then, the current server would not start a leader election.")
   @POST
+  @Path("/election/pause")
   def electionPause(): HandleResponse = ensureMasterHAEnabled(master) {
     applyElectionOp(new LeaderElectionManagementRequest.Pause)
   }
@@ -81,8 +81,9 @@ class RatisResource extends ApiRequestContext {
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Resume leader election at the specified server.")
+    description = "Resume leader election at the current server.")
   @POST
+  @Path("/election/resume")
   def electionResume(): HandleResponse = ensureMasterHAEnabled(master) {
     applyElectionOp(new LeaderElectionManagementRequest.Resume)
   }

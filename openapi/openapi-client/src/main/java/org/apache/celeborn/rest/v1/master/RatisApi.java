@@ -26,7 +26,7 @@ import org.apache.celeborn.rest.v1.master.invoker.Configuration;
 import org.apache.celeborn.rest.v1.master.invoker.Pair;
 
 import org.apache.celeborn.rest.v1.model.HandleResponse;
-import org.apache.celeborn.rest.v1.model.RatisElectionRequest;
+import org.apache.celeborn.rest.v1.model.RatisElectionTransferRequest;
 
 
 import java.util.ArrayList;
@@ -49,26 +49,24 @@ public class RatisApi extends BaseApi {
 
   /**
    * 
-   * Pause leader election at the specified server. Then, the specified server would not start a leader election.
-   * @param ratisElectionRequest  (optional)
+   * Pause leader election at the current server. Then, the current server would not start a leader election.
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse pauseRatisElection(RatisElectionRequest ratisElectionRequest) throws ApiException {
-    return this.pauseRatisElection(ratisElectionRequest, Collections.emptyMap());
+  public HandleResponse pauseRatisElection() throws ApiException {
+    return this.pauseRatisElection(Collections.emptyMap());
   }
 
 
   /**
    * 
-   * Pause leader election at the specified server. Then, the specified server would not start a leader election.
-   * @param ratisElectionRequest  (optional)
+   * Pause leader election at the current server. Then, the current server would not start a leader election.
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse pauseRatisElection(RatisElectionRequest ratisElectionRequest, Map<String, String> additionalHeaders) throws ApiException {
-    Object localVarPostBody = ratisElectionRequest;
+  public HandleResponse pauseRatisElection(Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = null;
     
     // create path and map variables
     String localVarPath = "/api/v1/ratis/election/pause";
@@ -92,7 +90,7 @@ public class RatisApi extends BaseApi {
     final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
 
     final String[] localVarContentTypes = {
-      "application/json"
+      
     };
     final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
 
@@ -118,26 +116,24 @@ public class RatisApi extends BaseApi {
 
   /**
    * 
-   * Resume leader election at the specified server.
-   * @param ratisElectionRequest  (optional)
+   * Resume leader election at the current server.
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse resumeRatisElection(RatisElectionRequest ratisElectionRequest) throws ApiException {
-    return this.resumeRatisElection(ratisElectionRequest, Collections.emptyMap());
+  public HandleResponse resumeRatisElection() throws ApiException {
+    return this.resumeRatisElection(Collections.emptyMap());
   }
 
 
   /**
    * 
-   * Resume leader election at the specified server.
-   * @param ratisElectionRequest  (optional)
+   * Resume leader election at the current server.
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse resumeRatisElection(RatisElectionRequest ratisElectionRequest, Map<String, String> additionalHeaders) throws ApiException {
-    Object localVarPostBody = ratisElectionRequest;
+  public HandleResponse resumeRatisElection(Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = null;
     
     // create path and map variables
     String localVarPath = "/api/v1/ratis/election/resume";
@@ -161,7 +157,7 @@ public class RatisApi extends BaseApi {
     final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
 
     final String[] localVarContentTypes = {
-      "application/json"
+      
     };
     final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
 
@@ -255,25 +251,25 @@ public class RatisApi extends BaseApi {
   /**
    * 
    * Transfer a group leader to the specified server.
-   * @param ratisElectionRequest  (optional)
+   * @param ratisElectionTransferRequest  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse transferRatisLeader(RatisElectionRequest ratisElectionRequest) throws ApiException {
-    return this.transferRatisLeader(ratisElectionRequest, Collections.emptyMap());
+  public HandleResponse transferRatisLeader(RatisElectionTransferRequest ratisElectionTransferRequest) throws ApiException {
+    return this.transferRatisLeader(ratisElectionTransferRequest, Collections.emptyMap());
   }
 
 
   /**
    * 
    * Transfer a group leader to the specified server.
-   * @param ratisElectionRequest  (optional)
+   * @param ratisElectionTransferRequest  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse transferRatisLeader(RatisElectionRequest ratisElectionRequest, Map<String, String> additionalHeaders) throws ApiException {
-    Object localVarPostBody = ratisElectionRequest;
+  public HandleResponse transferRatisLeader(RatisElectionTransferRequest ratisElectionTransferRequest, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = ratisElectionTransferRequest;
     
     // create path and map variables
     String localVarPath = "/api/v1/ratis/election/transfer";

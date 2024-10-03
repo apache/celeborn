@@ -29,27 +29,27 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
- * RatisElectionRequest
+ * RatisElectionTransferRequest
  */
 @JsonPropertyOrder({
-  RatisElectionRequest.JSON_PROPERTY_PEER_ADDRESS
+  RatisElectionTransferRequest.JSON_PROPERTY_PEER_ADDRESS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
-public class RatisElectionRequest {
+public class RatisElectionTransferRequest {
   public static final String JSON_PROPERTY_PEER_ADDRESS = "peerAddress";
   private String peerAddress;
 
-  public RatisElectionRequest() {
+  public RatisElectionTransferRequest() {
   }
 
-  public RatisElectionRequest peerAddress(String peerAddress) {
+  public RatisElectionTransferRequest peerAddress(String peerAddress) {
     
     this.peerAddress = peerAddress;
     return this;
   }
 
   /**
-   * The address of the ratis peer.
+   * The address of the peer to transfer the leader.
    * @return peerAddress
    */
   @javax.annotation.Nullable
@@ -75,8 +75,8 @@ public class RatisElectionRequest {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    RatisElectionRequest ratisElectionRequest = (RatisElectionRequest) o;
-    return Objects.equals(this.peerAddress, ratisElectionRequest.peerAddress);
+    RatisElectionTransferRequest ratisElectionTransferRequest = (RatisElectionTransferRequest) o;
+    return Objects.equals(this.peerAddress, ratisElectionTransferRequest.peerAddress);
   }
 
   @Override
@@ -87,7 +87,7 @@ public class RatisElectionRequest {
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class RatisElectionRequest {\n");
+    sb.append("class RatisElectionTransferRequest {\n");
     sb.append("    peerAddress: ").append(toIndentedString(peerAddress)).append("\n");
     sb.append("}");
     return sb.toString();

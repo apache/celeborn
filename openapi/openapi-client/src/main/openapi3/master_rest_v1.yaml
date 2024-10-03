@@ -268,7 +268,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RatisElectionRequest'
+              $ref: '#/components/schemas/RatisElectionTransferRequest'
       responses:
         "200":
           description: The request was successful.
@@ -296,12 +296,7 @@ paths:
       tags:
         - Ratis
       operationId: pauseRatisElection
-      description: Pause leader election at the specified server. Then, the specified server would not start a leader election.
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RatisElectionRequest'
+      description: Pause leader election at the current server. Then, the current server would not start a leader election.
       responses:
         "200":
           description: The request was successful.
@@ -315,12 +310,7 @@ paths:
       tags:
         - Ratis
       operationId: resumeRatisElection
-      description: Resume leader election at the specified server.
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RatisElectionRequest'
+      description: Resume leader election at the current server.
       responses:
         "200":
           description: The request was successful.
@@ -792,12 +782,12 @@ components:
         - eventType
         - worker
 
-    RatisElectionRequest:
+    RatisElectionTransferRequest:
       type: object
       properties:
         peerAddress:
           type: string
-          description: The address of the ratis peer.
+          description: The address of the peer to transfer the leader.
       required:
         - peer
 
