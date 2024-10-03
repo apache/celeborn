@@ -28,55 +28,54 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.celeborn.rest.v1.model.RatisPeer;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
- * RatisPeerUpdateRequest
+ * RatisPeerRemoveRequest
  */
 @JsonPropertyOrder({
-  RatisPeerUpdateRequest.JSON_PROPERTY_PEERS
+  RatisPeerRemoveRequest.JSON_PROPERTY_PEER_ADDRESSES
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
-public class RatisPeerUpdateRequest {
-  public static final String JSON_PROPERTY_PEERS = "peers";
-  private List<RatisPeer> peers = new ArrayList<>();
+public class RatisPeerRemoveRequest {
+  public static final String JSON_PROPERTY_PEER_ADDRESSES = "peerAddresses";
+  private List<String> peerAddresses = new ArrayList<>();
 
-  public RatisPeerUpdateRequest() {
+  public RatisPeerRemoveRequest() {
   }
 
-  public RatisPeerUpdateRequest peers(List<RatisPeer> peers) {
+  public RatisPeerRemoveRequest peerAddresses(List<String> peerAddresses) {
     
-    this.peers = peers;
+    this.peerAddresses = peerAddresses;
     return this;
   }
 
-  public RatisPeerUpdateRequest addPeersItem(RatisPeer peersItem) {
-    if (this.peers == null) {
-      this.peers = new ArrayList<>();
+  public RatisPeerRemoveRequest addPeerAddressesItem(String peerAddressesItem) {
+    if (this.peerAddresses == null) {
+      this.peerAddresses = new ArrayList<>();
     }
-    this.peers.add(peersItem);
+    this.peerAddresses.add(peerAddressesItem);
     return this;
   }
 
   /**
-   * The peers to be added/removed to/from the raft group.
-   * @return peers
+   * The peer addresses to be removed from the raft group.
+   * @return peerAddresses
    */
-  @javax.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_PEERS)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  @javax.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_PEER_ADDRESSES)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
-  public List<RatisPeer> getPeers() {
-    return peers;
+  public List<String> getPeerAddresses() {
+    return peerAddresses;
   }
 
 
-  @JsonProperty(JSON_PROPERTY_PEERS)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setPeers(List<RatisPeer> peers) {
-    this.peers = peers;
+  @JsonProperty(JSON_PROPERTY_PEER_ADDRESSES)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setPeerAddresses(List<String> peerAddresses) {
+    this.peerAddresses = peerAddresses;
   }
 
   @Override
@@ -87,20 +86,20 @@ public class RatisPeerUpdateRequest {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    RatisPeerUpdateRequest ratisPeerUpdateRequest = (RatisPeerUpdateRequest) o;
-    return Objects.equals(this.peers, ratisPeerUpdateRequest.peers);
+    RatisPeerRemoveRequest ratisPeerRemoveRequest = (RatisPeerRemoveRequest) o;
+    return Objects.equals(this.peerAddresses, ratisPeerRemoveRequest.peerAddresses);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(peers);
+    return Objects.hash(peerAddresses);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class RatisPeerUpdateRequest {\n");
-    sb.append("    peers: ").append(toIndentedString(peers)).append("\n");
+    sb.append("class RatisPeerRemoveRequest {\n");
+    sb.append("    peerAddresses: ").append(toIndentedString(peerAddresses)).append("\n");
     sb.append("}");
     return sb.toString();
   }

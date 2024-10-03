@@ -329,7 +329,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RatisPeerUpdateRequest'
+              $ref: '#/components/schemas/RatisPeerAddRequest'
       responses:
         "200":
           description: The request was successful.
@@ -348,7 +348,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RatisPeerUpdateRequest'
+              $ref: '#/components/schemas/RatisPeerRemoveRequest'
       responses:
         "200":
           description: The request was successful.
@@ -878,14 +878,25 @@ components:
           - id
           - address
 
-    RatisPeerUpdateRequest:
+    RatisPeerAddRequest:
       type: object
       properties:
         peers:
           type: array
-          description: The peers to be added/removed to/from the raft group.
+          description: The peers to be added to the raft group.
           items:
               $ref: '#/components/schemas/RatisPeer'
+      required:
+        - peers
+
+    RatisPeerRemoveRequest:
+      type: object
+      properties:
+        peerAddresses:
+          type: array
+          description: The peer addresses to be removed from the raft group.
+          items:
+            type: string
       required:
         - peers
 

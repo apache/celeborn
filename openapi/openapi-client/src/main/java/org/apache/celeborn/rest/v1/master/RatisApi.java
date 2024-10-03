@@ -28,7 +28,8 @@ import org.apache.celeborn.rest.v1.master.invoker.Pair;
 import java.io.File;
 import org.apache.celeborn.rest.v1.model.HandleResponse;
 import org.apache.celeborn.rest.v1.model.RatisElectionTransferRequest;
-import org.apache.celeborn.rest.v1.model.RatisPeerUpdateRequest;
+import org.apache.celeborn.rest.v1.model.RatisPeerAddRequest;
+import org.apache.celeborn.rest.v1.model.RatisPeerRemoveRequest;
 
 
 import java.util.ArrayList;
@@ -52,25 +53,25 @@ public class RatisApi extends BaseApi {
   /**
    * 
    * Add a new peer to the raft group.
-   * @param ratisPeerUpdateRequest  (optional)
+   * @param ratisPeerAddRequest  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse addRatisPeer(RatisPeerUpdateRequest ratisPeerUpdateRequest) throws ApiException {
-    return this.addRatisPeer(ratisPeerUpdateRequest, Collections.emptyMap());
+  public HandleResponse addRatisPeer(RatisPeerAddRequest ratisPeerAddRequest) throws ApiException {
+    return this.addRatisPeer(ratisPeerAddRequest, Collections.emptyMap());
   }
 
 
   /**
    * 
    * Add a new peer to the raft group.
-   * @param ratisPeerUpdateRequest  (optional)
+   * @param ratisPeerAddRequest  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse addRatisPeer(RatisPeerUpdateRequest ratisPeerUpdateRequest, Map<String, String> additionalHeaders) throws ApiException {
-    Object localVarPostBody = ratisPeerUpdateRequest;
+  public HandleResponse addRatisPeer(RatisPeerAddRequest ratisPeerAddRequest, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = ratisPeerAddRequest;
     
     // create path and map variables
     String localVarPath = "/api/v1/ratis/peer/add";
@@ -322,25 +323,25 @@ public class RatisApi extends BaseApi {
   /**
    * 
    * Remove a new peer to the raft group.
-   * @param ratisPeerUpdateRequest  (optional)
+   * @param ratisPeerRemoveRequest  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse removeRatisPeer(RatisPeerUpdateRequest ratisPeerUpdateRequest) throws ApiException {
-    return this.removeRatisPeer(ratisPeerUpdateRequest, Collections.emptyMap());
+  public HandleResponse removeRatisPeer(RatisPeerRemoveRequest ratisPeerRemoveRequest) throws ApiException {
+    return this.removeRatisPeer(ratisPeerRemoveRequest, Collections.emptyMap());
   }
 
 
   /**
    * 
    * Remove a new peer to the raft group.
-   * @param ratisPeerUpdateRequest  (optional)
+   * @param ratisPeerRemoveRequest  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse removeRatisPeer(RatisPeerUpdateRequest ratisPeerUpdateRequest, Map<String, String> additionalHeaders) throws ApiException {
-    Object localVarPostBody = ratisPeerUpdateRequest;
+  public HandleResponse removeRatisPeer(RatisPeerRemoveRequest ratisPeerRemoveRequest, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = ratisPeerRemoveRequest;
     
     // create path and map variables
     String localVarPath = "/api/v1/ratis/peer/remove";
