@@ -17,17 +17,14 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import javax.ws.rs.{Consumes, Path, POST, Produces}
-import javax.ws.rs.core.MediaType
-
+import javax.ws.rs.{Consumes, POST, Path, Produces}
+import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.JavaConverters._
-
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
-import org.apache.ratis.protocol.{LeaderElectionManagementRequest, RaftPeerId, SnapshotManagementRequest, TransferLeadershipRequest}
+import org.apache.ratis.protocol.{LeaderElectionManagementRequest, RaftPeerId, SetConfigurationRequest, SnapshotManagementRequest, TransferLeadershipRequest}
 import org.apache.ratis.rpc.CallId
-
 import org.apache.celeborn.rest.v1.model.{HandleResponse, RatisElectionTransferRequest}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.master.Master
@@ -114,6 +111,21 @@ class RatisResource extends ApiRequestContext {
       new HandleResponse().success(false).message(
         s"Failed to create snapshot at $localServerAddress. $reply")
     }
+  }
+
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[HandleResponse]))),
+    description = "Generate a new-raft-meta.conf file.")
+  @POST
+  @Path("/local/raft_meta_conf")
+  @Produces(Array(MediaType.APPLICATION_OCTET_STREAM))
+  def localRaftMetaConf(): Response = ensureMasterHAEnabled(master) {
+    Response.ok(ratisServer.getGroupInfo().getLogInfoProto().writeTo(new java.io.ByteArrayOutputStream()))
+      .header("Content-Disposition", "attachment; filename=\"new-raft-meta.conf\"")
+      .build()
   }
 
   private def transferLeadership(peerAddress: String): HandleResponse = {
