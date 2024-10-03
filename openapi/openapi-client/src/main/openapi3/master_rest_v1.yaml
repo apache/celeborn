@@ -789,7 +789,7 @@ components:
           type: string
           description: The address of the peer to transfer the leader.
       required:
-        - peer
+        - peerAddress
 
     HandleResponse:
       type: object

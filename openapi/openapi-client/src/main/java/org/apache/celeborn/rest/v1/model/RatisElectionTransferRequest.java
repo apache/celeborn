@@ -52,9 +52,9 @@ public class RatisElectionTransferRequest {
    * The address of the peer to transfer the leader.
    * @return peerAddress
    */
-  @javax.annotation.Nullable
+  @javax.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_PEER_ADDRESS)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
   public String getPeerAddress() {
     return peerAddress;
@@ -62,7 +62,7 @@ public class RatisElectionTransferRequest {
 
 
   @JsonProperty(JSON_PROPERTY_PEER_ADDRESS)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
   public void setPeerAddress(String peerAddress) {
     this.peerAddress = peerAddress;
   }
