@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import javax.ws.rs.{BadRequestException, Consumes, GET, Produces}
+import javax.ws.rs.{Consumes, GET, Produces}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
