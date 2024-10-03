@@ -183,7 +183,7 @@ public class RatisApi extends BaseApi {
 
   /**
    * 
-   * Make a group leader of the given group step down its leadership.
+   * Make the group leader step down its leadership.
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
@@ -194,7 +194,7 @@ public class RatisApi extends BaseApi {
 
   /**
    * 
-   * Make a group leader of the given group step down its leadership.
+   * Make the group leader step down its leadership.
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
    * @throws ApiException if fails to make API call

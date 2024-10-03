@@ -59,7 +59,7 @@ class RatisResource extends ApiRequestContext {
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Make a group leader of the given group step down its leadership.")
+    description = "Make the group leader step down its leadership.")
   @POST
   @Path("/election/step_down")
   def electionStepDown(): HandleResponse = ensureMasterIsLeader(master) {
@@ -108,6 +108,9 @@ class RatisResource extends ApiRequestContext {
       newLeaderId,
       HARaftServer.TIMEOUT_MS)
     val reply = ratisServer.getServer.transferLeadership(request)
+    if (reply.isSuccess) {
+      new HandleResponse().success(true).message(reply.toString)
+    }
     new HandleResponse().success(reply.isSuccess).message(reply.toString)
   }
 

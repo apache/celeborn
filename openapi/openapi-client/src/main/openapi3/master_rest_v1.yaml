@@ -282,7 +282,7 @@ paths:
       tags:
         - Ratis
       operationId: stepdownRatisLeader
-      description: Make a group leader of the given group step down its leadership.
+      description: Make the group leader step down its leadership.
       responses:
         "200":
           description: The request was successful.
