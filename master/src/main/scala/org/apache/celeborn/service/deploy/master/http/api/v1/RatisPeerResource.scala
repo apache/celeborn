@@ -26,20 +26,19 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole
-import org.apache.ratis.protocol.{LeaderElectionManagementRequest, RaftPeer, RaftPeerId, SetConfigurationRequest, SnapshotManagementRequest, TransferLeadershipRequest}
+import org.apache.ratis.protocol.{RaftPeer, RaftPeerId, SetConfigurationRequest}
 import org.apache.ratis.rpc.CallId
 
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.rest.v1.model.{HandleResponse, RatisElectionTransferRequest, RatisPeerAddRequest, RatisPeerRemoveRequest, RatisPeerSetPriorityRequest}
+import org.apache.celeborn.rest.v1.model.{HandleResponse, RatisPeerAddRequest, RatisPeerRemoveRequest, RatisPeerSetPriorityRequest}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.master.Master
-import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAMasterMetaManager, HARaftServer}
-import org.apache.celeborn.service.deploy.master.http.api.MasterHttpResourceUtils._
+import org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager
 
 @Tag(name = "Ratis")
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Consumes(Array(MediaType.APPLICATION_JSON))
-class RatisResource extends ApiRequestContext with Logging {
+class RatisPeerResource extends ApiRequestContext with Logging {
   private def master = httpService.asInstanceOf[Master]
   private def ratisServer = master.statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer
 
@@ -48,84 +47,9 @@ class RatisResource extends ApiRequestContext with Logging {
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Transfer the group leader to the specified server.")
-  @POST
-  @Path("/election/transfer")
-  def electionTransfer(request: RatisElectionTransferRequest): HandleResponse =
-    ensureMasterIsLeader(master) {
-      transferLeadership(request.getPeerAddress)
-    }
-
-  @ApiResponse(
-    responseCode = "200",
-    content = Array(new Content(
-      mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Make the group leader step down its leadership.")
-  @POST
-  @Path("/election/step_down")
-  def electionStepDown(): HandleResponse = ensureMasterIsLeader(master) {
-    transferLeadership(null)
-  }
-
-  @ApiResponse(
-    responseCode = "200",
-    content = Array(new Content(
-      mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Pause leader election at the current server." +
-      " Then, the current server would not start a leader election.")
-  @POST
-  @Path("/election/pause")
-  def electionPause(): HandleResponse = ensureMasterHAEnabled(master) {
-    applyElectionOp(new LeaderElectionManagementRequest.Pause)
-  }
-
-  @ApiResponse(
-    responseCode = "200",
-    content = Array(new Content(
-      mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Resume leader election at the current server.")
-  @POST
-  @Path("/election/resume")
-  def electionResume(): HandleResponse = ensureMasterHAEnabled(master) {
-    applyElectionOp(new LeaderElectionManagementRequest.Resume)
-  }
-
-  @ApiResponse(
-    responseCode = "200",
-    content = Array(new Content(
-      mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Trigger the current server to take snapshot.")
-  @POST
-  @Path("/snapshot/create")
-  def createSnapshot(): HandleResponse = ensureMasterHAEnabled(master) {
-    val request = SnapshotManagementRequest.newCreate(
-      ratisServer.getClientId,
-      ratisServer.getServer.getId,
-      ratisServer.getGroupId,
-      CallId.getAndIncrement(),
-      HARaftServer.REQUEST_TIMEOUT_MS)
-    val reply = ratisServer.getServer.snapshotManagement(request)
-    if (reply.isSuccess) {
-      new HandleResponse().success(true).message(
-        s"Successfully create snapshot at $localServerAddress.")
-    } else {
-      new HandleResponse().success(false).message(
-        s"Failed to create snapshot at $localServerAddress. $reply")
-    }
-  }
-
-  @ApiResponse(
-    responseCode = "200",
-    content = Array(new Content(
-      mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
     description = "Add new peers to the raft group.")
   @POST
-  @Path("/peer/add")
+  @Path("/add")
   def peerAdd(request: RatisPeerAddRequest): HandleResponse = {
     val remaining = getPeersWithRole(RaftPeerRole.FOLLOWER)
     val adding = request.getPeers.asScala.map { peer =>
@@ -170,7 +94,7 @@ class RatisResource extends ApiRequestContext with Logging {
       schema = new Schema(implementation = classOf[HandleResponse]))),
     description = "Remove peers from the raft group.")
   @POST
-  @Path("/peer/remove")
+  @Path("/remove")
   def peerRemove(request: RatisPeerRemoveRequest): HandleResponse = {
     val removing = request.getPeerAddresses.asScala.map(getRaftPeerId)
 
@@ -209,7 +133,7 @@ class RatisResource extends ApiRequestContext with Logging {
       schema = new Schema(implementation = classOf[HandleResponse]))),
     description = "Set the priority of the peers in the raft group.")
   @POST
-  @Path("/peer/set_priority")
+  @Path("/set_priority")
   def peerSetPriority(request: RatisPeerSetPriorityRequest): HandleResponse = {
     val peers = getPeersWithRole(RaftPeerRole.FOLLOWER).map { peer =>
       val newPriority = request.getAddressPriorities.get(peer.getAddress)
@@ -236,45 +160,6 @@ class RatisResource extends ApiRequestContext with Logging {
           ",")} to group ${ratisServer.getGroupInfo}. $reply")
     }
   }
-
-  private def transferLeadership(peerAddress: String): HandleResponse = {
-    val newLeaderId = Option(peerAddress).map(getRaftPeerId).orNull
-    val op =
-      if (newLeaderId == null) s"step down leader $localServerAddress"
-      else s"transfer leadership from $localServerAddress to $peerAddress"
-    val request = new TransferLeadershipRequest(
-      ratisServer.getClientId,
-      ratisServer.getServer.getId,
-      ratisServer.getGroupId,
-      CallId.getAndIncrement(),
-      newLeaderId,
-      HARaftServer.REQUEST_TIMEOUT_MS)
-    val reply = ratisServer.getServer.transferLeadership(request)
-    if (reply.isSuccess) {
-      new HandleResponse().success(true).message(s"Successfully $op.")
-    } else {
-      new HandleResponse().success(false).message(s"Failed to $op: $reply")
-    }
-  }
-
-  private def applyElectionOp(op: LeaderElectionManagementRequest.Op): HandleResponse = {
-    val request = new LeaderElectionManagementRequest(
-      ratisServer.getClientId,
-      ratisServer.getServer.getId,
-      ratisServer.getGroupId,
-      CallId.getAndIncrement(),
-      op)
-    val reply = ratisServer.getServer.leaderElectionManagement(request)
-    if (reply.isSuccess) {
-      new HandleResponse().success(true).message(
-        s"Successfully applied election $op $localServerAddress.")
-    } else {
-      new HandleResponse().success(false).message(
-        s"Failed to apply election $op $localServerAddress. $reply")
-    }
-  }
-
-  private lazy val localServerAddress = ratisServer.getLocalNode.ratisEndpoint
 
   private def getRaftPeerId(peerAddress: String): RaftPeerId = {
     val groupInfo =

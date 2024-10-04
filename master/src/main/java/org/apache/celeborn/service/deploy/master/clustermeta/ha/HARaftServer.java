@@ -658,8 +658,8 @@ public class HARaftServer {
     return raftGroup.getGroupId();
   }
 
-  public MasterNode getLocalNode() {
-    return localNode;
+  public String getLocalAddress() {
+    return localNode.ratisEndpoint();
   }
 
   public static class LeaderPeerEndpoints {

@@ -35,8 +35,14 @@ class ApiV1MasterResource extends ApiRequestContext {
   @Path("workers")
   def workers: Class[WorkerResource] = classOf[WorkerResource]
 
-  @Path("ratis")
-  def ratis: Class[RatisResource] = classOf[RatisResource]
+  @Path("ratis/election")
+  def ratisElection: Class[RatisElectionResource] = classOf[RatisElectionResource]
+
+  @Path("ratis/peer")
+  def ratisPeer: Class[RatisPeerResource] = classOf[RatisPeerResource]
+
+  @Path("ratis/snapshot")
+  def ratisSnapshot: Class[RatisSnapshotResource] = classOf[RatisSnapshotResource]
 
   @Path("ratis/local")
   def ratisLocal: Class[RatisLocalResource] = classOf[RatisLocalResource]
