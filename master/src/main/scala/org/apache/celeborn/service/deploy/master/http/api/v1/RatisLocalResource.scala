@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.rest.v1.model.HandleResponse
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager
@@ -24,7 +23,7 @@ class RatisLocalResource extends ApiRequestContext with Logging  {
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
+      schema = new Schema(implementation = classOf[Response]))),
     description = "Generate a new-raft-meta.conf file.")
   @POST
   @Path("/raft_meta_conf")
