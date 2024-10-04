@@ -38,7 +38,7 @@ import org.apache.celeborn.service.deploy.master.http.api.MasterHttpResourceUtil
 @Tag(name = "Ratis")
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Consumes(Array(MediaType.APPLICATION_JSON))
-class RatisElectionResource extends ApiRequestContext with Logging {
+class RatisResource extends ApiRequestContext with Logging {
   private def master = httpService.asInstanceOf[Master]
   private def ratisServer = master.statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer
 
@@ -49,7 +49,7 @@ class RatisElectionResource extends ApiRequestContext with Logging {
       schema = new Schema(implementation = classOf[HandleResponse]))),
     description = "Transfer the group leader to the specified server.")
   @POST
-  @Path("/transfer")
+  @Path("/election/transfer")
   def electionTransfer(request: RatisElectionTransferRequest): HandleResponse =
     ensureMasterIsLeader(master) {
       transferLeadership(request.getPeerAddress)
@@ -62,7 +62,7 @@ class RatisElectionResource extends ApiRequestContext with Logging {
       schema = new Schema(implementation = classOf[HandleResponse]))),
     description = "Make the group leader step down its leadership.")
   @POST
-  @Path("/step_down")
+  @Path("/election/step_down")
   def electionStepDown(): HandleResponse = ensureMasterIsLeader(master) {
     transferLeadership(null)
   }
@@ -75,7 +75,7 @@ class RatisElectionResource extends ApiRequestContext with Logging {
     description = "Pause leader election at the current server." +
       " Then, the current server would not start a leader election.")
   @POST
-  @Path("/pause")
+  @Path("/election/pause")
   def electionPause(): HandleResponse = ensureMasterHAEnabled(master) {
     applyElectionOp(new LeaderElectionManagementRequest.Pause)
   }
@@ -87,7 +87,7 @@ class RatisElectionResource extends ApiRequestContext with Logging {
       schema = new Schema(implementation = classOf[HandleResponse]))),
     description = "Resume leader election at the current server.")
   @POST
-  @Path("/resume")
+  @Path("/election/resume")
   def electionResume(): HandleResponse = ensureMasterHAEnabled(master) {
     applyElectionOp(new LeaderElectionManagementRequest.Resume)
   }

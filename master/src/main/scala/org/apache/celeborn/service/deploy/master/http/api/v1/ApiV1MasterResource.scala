@@ -35,6 +35,6 @@ class ApiV1MasterResource extends ApiRequestContext {
   @Path("workers")
   def workers: Class[WorkerResource] = classOf[WorkerResource]
 
-  @Path("ratis/election")
-  def ratisElection: Class[RatisElectionResource] = classOf[RatisElectionResource]
+  @Path("ratis")
+  def ratisElection: Class[RatisResource] = classOf[RatisResource]
 }
