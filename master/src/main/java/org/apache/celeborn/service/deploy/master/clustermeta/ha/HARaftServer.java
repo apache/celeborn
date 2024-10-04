@@ -25,7 +25,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.net.ssl.KeyManager;
@@ -76,11 +75,7 @@ public class HARaftServer {
 
   public static final RaftGroupId RAFT_GROUP_ID = RaftGroupId.valueOf(CELEBORN_UUID);
 
-  private static final AtomicLong CALL_ID_COUNTER = new AtomicLong();
-
-  static long nextCallId() {
-    return CALL_ID_COUNTER.getAndIncrement() & Long.MAX_VALUE;
-  }
+  public static final long REQUEST_TIMEOUT_MS = 60_000;
 
   private final MasterNode localNode;
   private final InetSocketAddress ratisAddr;
@@ -596,7 +591,7 @@ public class HARaftServer {
 
   public GroupInfoReply getGroupInfo() throws IOException {
     GroupInfoRequest groupInfoRequest =
-        new GroupInfoRequest(clientId, raftPeerId, RAFT_GROUP_ID, nextCallId());
+        new GroupInfoRequest(clientId, raftPeerId, RAFT_GROUP_ID, CallId.getAndIncrement());
     return server.getGroupInfo(groupInfoRequest);
   }
 
@@ -626,7 +621,7 @@ public class HARaftServer {
               raftGroup.getGroupId(),
               CallId.getAndIncrement(),
               null,
-              60_000);
+              REQUEST_TIMEOUT_MS);
       RaftClientReply reply = server.transferLeadership(request);
       if (reply.isSuccess()) {
         LOG.info("Successfully step down leader {}.", server.getId());
@@ -651,9 +646,20 @@ public class HARaftServer {
     return appTimeoutDeadline;
   }
 
-  @VisibleForTesting
+  public ClientId getClientId() {
+    return clientId;
+  }
+
   public RaftServer getServer() {
     return server;
+  }
+
+  public RaftGroupId getGroupId() {
+    return raftGroup.getGroupId();
+  }
+
+  public String getLocalAddress() {
+    return localNode.ratisEndpoint();
   }
 
   public static class LeaderPeerEndpoints {
