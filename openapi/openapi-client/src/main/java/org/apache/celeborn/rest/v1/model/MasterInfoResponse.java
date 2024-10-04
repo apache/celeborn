@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.celeborn.rest.v1.model.MasterCommitData;
 import org.apache.celeborn.rest.v1.model.MasterLeader;
+import org.apache.celeborn.rest.v1.model.RatisLogInfo;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -54,7 +55,7 @@ public class MasterInfoResponse {
   private List<MasterCommitData> masterCommitInfo = new ArrayList<>();
 
   public static final String JSON_PROPERTY_LOG_INFO = "logInfo";
-  private String logInfo;
+  private RatisLogInfo logInfo;
 
   public MasterInfoResponse() {
   }
@@ -142,28 +143,28 @@ public class MasterInfoResponse {
     this.masterCommitInfo = masterCommitInfo;
   }
 
-  public MasterInfoResponse logInfo(String logInfo) {
+  public MasterInfoResponse logInfo(RatisLogInfo logInfo) {
     
     this.logInfo = logInfo;
     return this;
   }
 
   /**
-   * The log info of the master raft group.
+   * Get logInfo
    * @return logInfo
    */
   @javax.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_LOG_INFO)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
-  public String getLogInfo() {
+  public RatisLogInfo getLogInfo() {
     return logInfo;
   }
 
 
   @JsonProperty(JSON_PROPERTY_LOG_INFO)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLogInfo(String logInfo) {
+  public void setLogInfo(RatisLogInfo logInfo) {
     this.logInfo = logInfo;
   }
 

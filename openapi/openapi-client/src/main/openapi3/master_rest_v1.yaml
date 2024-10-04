@@ -488,6 +488,33 @@ components:
         - clientAddress
         - startUpRole
 
+    RatisLogTermIndex:
+      type: object
+      properties:
+        term:
+          type: integer
+          format: int64
+          description: The term of the log entry.
+        index:
+          type: integer
+          format: int64
+          description: The index of the log entry.
+      required:
+        - term
+        - index
+
+    RatisLogInfo:
+      type: object
+      properties:
+        lastSnapshot:
+          $ref: '#/components/schemas/RatisLogTermIndex'
+        applied:
+          $ref: '#/components/schemas/RatisLogTermIndex'
+        committed:
+          $ref: '#/components/schemas/RatisLogTermIndex'
+        lastEntry:
+          $ref: '#/components/schemas/RatisLogTermIndex'
+
     MasterInfoResponse:
       type: object
       properties:
@@ -502,8 +529,7 @@ components:
           items:
             $ref: '#/components/schemas/MasterCommitData'
         logInfo:
-          type: string
-          description: The log info of the master raft group.
+            $ref: '#/components/schemas/RatisLogInfo'
       required:
         - groupId
 
