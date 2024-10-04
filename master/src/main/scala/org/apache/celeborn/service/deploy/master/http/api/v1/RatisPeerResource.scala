@@ -34,6 +34,7 @@ import org.apache.celeborn.rest.v1.model.{HandleResponse, RatisPeerAddRequest, R
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager
+import org.apache.celeborn.service.deploy.master.http.api.MasterHttpResourceUtils.ensureMasterIsLeader
 
 @Tag(name = "Ratis")
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -50,7 +51,7 @@ class RatisPeerResource extends ApiRequestContext with Logging {
     description = "Add new peers to the raft group.")
   @POST
   @Path("/add")
-  def peerAdd(request: RatisPeerAddRequest): HandleResponse = {
+  def peerAdd(request: RatisPeerAddRequest): HandleResponse = ensureMasterIsLeader(master) {
     val remaining = getPeersWithRole(RaftPeerRole.FOLLOWER)
     val adding = request.getPeers.asScala.map { peer =>
       RaftPeer.newBuilder()
@@ -95,7 +96,7 @@ class RatisPeerResource extends ApiRequestContext with Logging {
     description = "Remove peers from the raft group.")
   @POST
   @Path("/remove")
-  def peerRemove(request: RatisPeerRemoveRequest): HandleResponse = {
+  def peerRemove(request: RatisPeerRemoveRequest): HandleResponse = ensureMasterIsLeader(master) {
     val removing = request.getPeerAddresses.asScala.map(getRaftPeerId)
 
     val peers = getPeersWithRole(RaftPeerRole.FOLLOWER)
@@ -134,32 +135,33 @@ class RatisPeerResource extends ApiRequestContext with Logging {
     description = "Set the priority of the peers in the raft group.")
   @POST
   @Path("/set_priority")
-  def peerSetPriority(request: RatisPeerSetPriorityRequest): HandleResponse = {
-    val peers = getPeersWithRole(RaftPeerRole.FOLLOWER).map { peer =>
-      val newPriority = request.getAddressPriorities.get(peer.getAddress)
-      val priority: Int = if (newPriority != null) newPriority else peer.getPriority
-      RaftPeer.newBuilder(peer).setPriority(priority).build()
-    }
-    val listeners = getPeersWithRole(RaftPeerRole.LISTENER)
+  def peerSetPriority(request: RatisPeerSetPriorityRequest): HandleResponse =
+    ensureMasterIsLeader(master) {
+      val peers = getPeersWithRole(RaftPeerRole.FOLLOWER).map { peer =>
+        val newPriority = request.getAddressPriorities.get(peer.getAddress)
+        val priority: Int = if (newPriority != null) newPriority else peer.getPriority
+        RaftPeer.newBuilder(peer).setPriority(priority).build()
+      }
+      val listeners = getPeersWithRole(RaftPeerRole.LISTENER)
 
-    val reply = ratisServer.getServer.setConfiguration(
-      new SetConfigurationRequest(
-        ratisServer.getClientId,
-        ratisServer.getServer.getId,
-        ratisServer.getGroupId,
-        CallId.getAndIncrement(),
-        peers.asJava,
-        listeners.asJava))
+      val reply = ratisServer.getServer.setConfiguration(
+        new SetConfigurationRequest(
+          ratisServer.getClientId,
+          ratisServer.getServer.getId,
+          ratisServer.getGroupId,
+          CallId.getAndIncrement(),
+          peers.asJava,
+          listeners.asJava))
 
-    if (reply.isSuccess) {
-      new HandleResponse().success(true).message(
-        s"Successfully set priority of peers ${peers.map(_.getId).mkString(",")} to group ${ratisServer.getGroupInfo}.")
-    } else {
-      new HandleResponse().success(false).message(
-        s"Failed to set priority of peers ${peers.map(_.getId).mkString(
-          ",")} to group ${ratisServer.getGroupInfo}. $reply")
+      if (reply.isSuccess) {
+        new HandleResponse().success(true).message(
+          s"Successfully set priority of peers ${peers.map(_.getId).mkString(",")} to group ${ratisServer.getGroupInfo}.")
+      } else {
+        new HandleResponse().success(false).message(
+          s"Failed to set priority of peers ${peers.map(_.getId).mkString(
+            ",")} to group ${ratisServer.getGroupInfo}. $reply")
+      }
     }
-  }
 
   private def getRaftPeerId(peerAddress: String): RaftPeerId = {
     val groupInfo =

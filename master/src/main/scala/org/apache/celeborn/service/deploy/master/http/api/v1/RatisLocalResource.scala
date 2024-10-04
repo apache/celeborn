@@ -1,4 +1,3 @@
-package org.apache.celeborn.service.deploy.master.http.api.v1
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -15,6 +14,8 @@ package org.apache.celeborn.service.deploy.master.http.api.v1
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package org.apache.celeborn.service.deploy.master.http.api.v1
 
 import javax.ws.rs.{Consumes, Path, POST, Produces}
 import javax.ws.rs.core.{MediaType, Response}
