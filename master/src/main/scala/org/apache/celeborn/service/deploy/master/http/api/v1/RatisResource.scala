@@ -17,9 +17,8 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import java.io.ByteArrayOutputStream
 import javax.ws.rs.{Consumes, Path, POST, Produces}
-import javax.ws.rs.core.{MediaType, Response}
+import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
 
@@ -117,21 +116,6 @@ class RatisResource extends ApiRequestContext with Logging {
       new HandleResponse().success(false).message(
         s"Failed to create snapshot at $localServerAddress. $reply")
     }
-  }
-
-  @ApiResponse(
-    responseCode = "200",
-    content = Array(new Content(
-      mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Generate a new-raft-meta.conf file.")
-  @POST
-  @Path("/local/raft_meta_conf")
-  @Produces(Array(MediaType.APPLICATION_OCTET_STREAM))
-  def localRaftMetaConf(): Response = ensureMasterHAEnabled(master) {
-    Response.ok(ratisServer.getGroupInfo().getLogInfoProto().writeTo(new ByteArrayOutputStream()))
-      .header("Content-Disposition", "attachment; filename=\"new-raft-meta.conf\"")
-      .build()
   }
 
   @ApiResponse(
