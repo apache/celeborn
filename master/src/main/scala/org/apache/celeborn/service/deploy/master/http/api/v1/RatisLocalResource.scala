@@ -22,14 +22,16 @@ class RatisLocalResource extends ApiRequestContext with Logging  {
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
-      mediaType = MediaType.APPLICATION_JSON,
+      mediaType = MediaType.APPLICATION_OCTET_STREAM,
       schema = new Schema(implementation = classOf[Response]))),
     description = "Generate a new-raft-meta.conf file.")
   @POST
   @Path("/raft_meta_conf")
   @Produces(Array(MediaType.APPLICATION_OCTET_STREAM))
   def localRaftMetaConf(): Response = ensureMasterHAEnabled(master) {
-    Response.ok(ratisServer.getGroupInfo().getLogInfoProto().writeTo(new ByteArrayOutputStream()))
+    val outputStream = new ByteArrayOutputStream()
+    ratisServer.getGroupInfo().getLogInfoProto().writeTo(outputStream)
+    Response.ok(outputStream.toByteArray)
       .header("Content-Disposition", "attachment; filename=\"new-raft-meta.conf\"")
       .build()
   }
