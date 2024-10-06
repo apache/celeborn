@@ -31,7 +31,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.tez.common.CallableWithNdc;
-import org.apache.tez.common.counters.TezCounter;
+import org.apache.tez.dag.records.TezTaskAttemptID;
+import org.apache.tez.dag.records.TezTaskID;
 import org.apache.tez.runtime.api.InputContext;
 import org.apache.tez.runtime.library.common.CompositeInputAttemptIdentifier;
 import org.apache.tez.runtime.library.common.InputAttemptIdentifier;
@@ -57,7 +58,6 @@ class CelebornScheduler extends ShuffleScheduler {
   private final InputContext inputContext;
   private final ExceptionReporter exceptionReporter;
   private final int numInputs;
-  private final TezCounter skippedInputCounter;
 
   // celeborn
   private final int shuffleId;
@@ -70,6 +70,7 @@ class CelebornScheduler extends ShuffleScheduler {
 
   private final Map<Integer, Set<InputAttemptIdentifier>> partitionIdToSuccessMapTaskAttempts =
       new HashMap<>();
+  final Map<Integer, Set<TezTaskID>> partitionIdToSuccessTezTasks = new HashMap<>();
 
   public CelebornScheduler(
       InputContext inputContext,
@@ -111,7 +112,6 @@ class CelebornScheduler extends ShuffleScheduler {
     this.fetcherExecutor =
         (ListeningExecutorService) getParentPrivateField(this, "fetcherExecutor");
     this.isShutdown = (AtomicBoolean) getParentPrivateField(this, "isShutdown");
-    this.skippedInputCounter = (TezCounter) getParentPrivateField(this, "skippedInputCounter");
   }
 
   public void start() throws Exception {
@@ -121,37 +121,13 @@ class CelebornScheduler extends ShuffleScheduler {
     schedulerCallable.call();
   }
 
-  public void close() {
-    if (!isShutdown.get()) {
-      // Notify and interrupt the waiting scheduler thread
-      synchronized (this) {
-        notifyAll();
-      }
-      super.close();
-      // Interrupt the fetchers.
-      for (CelebornTezShuffleDataFetcher fetcher : celebornRunningFetchers) {
-        try {
-          fetcher.shutDown();
-        } catch (Exception e) {
-          LOG.warn(
-              "Error while shutting down fetcher. Ignoring and continuing shutdown. Message={}",
-              e.getMessage());
-        }
-      }
-    }
+  private boolean allInputTaskAttemptDone() {
+    return this.partitionIdToSuccessTezTasks.values().stream().mapToInt(s -> s.size()).sum()
+        == numInputs;
   }
 
   private boolean isAllInputFetched() {
-    return allEventsReceived() && (successRssPartitionSet.size() >= allRssPartition.size());
-  }
-
-  private boolean allEventsReceived() {
-    if (!pipelinedShuffleInfoEventsMap.isEmpty()) {
-      return (pipelinedShuffleInfoEventsMap.size() == numInputs);
-    } else {
-      // no pipelining
-      return ((pathToIdentifierMap.size() + skippedInputCounter.getValue()) == numInputs);
-    }
+    return allInputTaskAttemptDone() && (successRssPartitionSet.size() >= allRssPartition.size());
   }
 
   public synchronized void addKnownMapOutput(
@@ -160,6 +136,12 @@ class CelebornScheduler extends ShuffleScheduler {
     allRssPartition.add(partitionId);
     Set<InputAttemptIdentifier> inputAttemptIdentifiers =
         partitionIdToSuccessMapTaskAttempts.computeIfAbsent(partitionId, id -> new HashSet<>());
+    String pathComponent = srcAttempt.getPathComponent();
+    TezTaskAttemptID tezTaskAttemptId =
+        TezTaskAttemptID.fromString(pathComponent.substring(0, pathComponent.length() - 6));
+    partitionIdToSuccessTezTasks.putIfAbsent(partitionId, new HashSet<>());
+    partitionIdToSuccessTezTasks.get(partitionId).add(tezTaskAttemptId.getTaskID());
+
     inputAttemptIdentifiers.add(srcAttempt);
     super.addKnownMapOutput(inputHostName, port, partitionId, srcAttempt);
   }
@@ -193,7 +175,7 @@ class CelebornScheduler extends ShuffleScheduler {
     protected Void callInternal() throws InterruptedException {
       while (!isShutdown.get() && !isAllInputFetched()) {
         synchronized (CelebornScheduler.this) {
-          while (!allEventsReceived()
+          while (!allInputTaskAttemptDone()
               || ((celebornRunningFetchers.size() >= numFetchers || pendingHosts.isEmpty())
                   && !isAllInputFetched())) {
             try {
