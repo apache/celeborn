@@ -33,14 +33,15 @@ import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 /**
  * A message dispatcher, responsible for routing RPC messages to the appropriate endpoint(s).
  */
-private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
+private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) extends Logging {
 
   private class EndpointData(
       val name: String,
       val endpoint: RpcEndpoint,
       val ref: NettyRpcEndpointRef) {
     val celebornConf = nettyEnv.celebornConf
-    val inbox = new Inbox(ref, endpoint, celebornConf)
+    val inbox =
+      new Inbox(ref, endpoint, celebornConf, new RpcMetricsTracker(name, rpcSource, celebornConf))
   }
 
   private val endpoints: ConcurrentMap[String, EndpointData] =

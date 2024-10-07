@@ -532,6 +532,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     if (num != 0) num else availableCores
   }
 
+  def rpcSlowThreshold(): Long = get(RPC_SLOW_THRESHOLD)
+  def rpcSlowInterval(): Long = get(RPC_SLOW_INTERVAL)
+  def rpcDumpInterval(): Long = get(RPC_TRACE_DUMP_INTERVAL)
+
   def networkIoMode(module: String): String = {
     getTransportConf(module, NETWORK_IO_MODE)
   }
@@ -1864,6 +1868,30 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Threads number of message dispatcher event loop for roles")
       .fallbackConf(RPC_DISPATCHER_THREADS)
+
+  val RPC_SLOW_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.rpc.slow.threshold")
+      .categories("network")
+      .doc("threshold for RPC framework to log slow RPC")
+      .version("0.6.0")
+      .longConf
+      .createWithDefault(1000000000)
+
+  val RPC_SLOW_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.rpc.slow.interval")
+      .categories("network")
+      .doc("min interval (ms) for RPC framework to log slow RPC")
+      .version("0.6.0")
+      .longConf
+      .createWithDefault(-1)
+
+  val RPC_TRACE_DUMP_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.rpc.dump.interval")
+      .categories("network")
+      .doc("min interval (ms) for RPC framework to dump performance summary")
+      .version("0.6.0")
+      .longConf
+      .createWithDefault(60000)
 
   val NETWORK_IO_MODE: ConfigEntry[String] =
     buildConf("celeborn.<module>.io.mode")

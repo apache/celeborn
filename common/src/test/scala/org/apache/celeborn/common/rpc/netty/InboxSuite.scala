@@ -25,7 +25,7 @@ import org.scalatest.BeforeAndAfter
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.rpc.{RpcAddress, TestRpcEndpoint}
+import org.apache.celeborn.common.rpc.{RpcAddress, RpcMetricsTracker, RpcSource, TestRpcEndpoint}
 import org.apache.celeborn.common.util.ThreadUtils
 
 class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
@@ -37,10 +37,20 @@ class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
       testRpcEndpoint: TestRpcEndpoint,
       onDropOverride: Option[InboxMessage => T]): Inbox = {
     val rpcEnvRef = mock(classOf[NettyRpcEndpointRef])
+    val conf = new CelebornConf()
+    val source: RpcSource = new RpcSource(conf)
     if (onDropOverride.isEmpty) {
-      new Inbox(rpcEnvRef, testRpcEndpoint, new CelebornConf())
+      new Inbox(
+        rpcEnvRef,
+        testRpcEndpoint,
+        new CelebornConf(),
+        new RpcMetricsTracker("testRpc", source, conf))
     } else {
-      new Inbox(rpcEnvRef, testRpcEndpoint, new CelebornConf()) {
+      new Inbox(
+        rpcEnvRef,
+        testRpcEndpoint,
+        new CelebornConf(),
+        new RpcMetricsTracker("testRpc", source, conf)) {
         override protected def onDrop(message: InboxMessage): Unit = {
           onDropOverride.get(message)
         }
