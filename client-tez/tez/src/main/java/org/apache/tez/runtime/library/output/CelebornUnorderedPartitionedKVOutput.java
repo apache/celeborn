@@ -108,9 +108,15 @@ public class CelebornUnorderedPartitionedKVOutput extends AbstractLogicalOutput 
     if (!isStarted.get()) {
       memoryUpdateCallbackHandler.validateUpdateReceived();
       CelebornConf celebornConf = CelebornTezUtils.fromTezConfiguration(conf);
-      String user = this.conf.get(TEZ_CELEBORN_USER);
       ShuffleClient shuffleClient =
-          ShuffleClient.get(appId, host, port, celebornConf, UserIdentifier.apply(user));
+          ShuffleClient.get(
+              appId,
+              host,
+              port,
+              celebornConf,
+              new UserIdentifier(
+                  celebornConf.quotaUserSpecificTenant(),
+                  celebornConf.quotaUserSpecificUserName()));
       this.kvWriter =
           new CelebornUnorderedPartitionedKVWriter(
               getContext(),

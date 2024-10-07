@@ -154,11 +154,17 @@ public class CelebornUnorderedKVInput extends AbstractLogicalInput {
       int port = conf.getInt(TEZ_CELEBORN_LM_PORT, -1);
       int shuffleId = conf.getInt(TEZ_SHUFFLE_ID, -1);
       String appId = conf.get(TEZ_CELEBORN_APPLICATION_ID);
-      String user = conf.get(TEZ_CELEBORN_USER);
       boolean broadcastOrOneToOne = conf.getBoolean(TEZ_BROADCAST_OR_ONETOONE, false);
       CelebornConf celebornConf = CelebornTezUtils.fromTezConfiguration(conf);
       ShuffleClient shuffleClient =
-          ShuffleClient.get(appId, host, port, celebornConf, UserIdentifier.apply(user), null);
+          ShuffleClient.get(
+              appId,
+              host,
+              port,
+              celebornConf,
+              new UserIdentifier(
+                  celebornConf.quotaUserSpecificTenant(), celebornConf.quotaUserSpecificUserName()),
+              null);
 
       this.shuffleManager =
           new CelebornShuffleManager(

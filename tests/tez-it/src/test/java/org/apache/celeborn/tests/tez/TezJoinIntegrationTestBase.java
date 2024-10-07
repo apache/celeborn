@@ -17,15 +17,17 @@
 
 package org.apache.celeborn.tests.tez;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.examples.JoinDataGen;
 import org.apache.tez.examples.JoinValidate;
 
-public class TezJoinIntegrationTestBase extends TezIntegrationTestBase {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public class TezJoinIntegrationTestBase extends TezIntegrationTestBase2 {
 
   protected static final String STREAM_INPUT_PATH = "stream_input";
   protected static final String STREAM_INPUT_FILE_SIZE = "5000000";
@@ -54,7 +56,11 @@ public class TezJoinIntegrationTestBase extends TezIntegrationTestBase {
   }
 
   public void run(String path) throws Exception {
+    // TezConfiguration appConf = new TezConfiguration(miniTezCluster.getConfig());
     TezConfiguration appConf = new TezConfiguration();
+    //updateCommonConfiguration(appConf);
+    //runTezApp(appConf, getTestTool(), getTestArgs("test"));
+
     updateRssConfiguration(appConf);
     runTezApp(appConf, getTestTool(), getTestArgs(path));
     verifyResults(JOIN_EXPECTED_PATH, getOutputDir(path));

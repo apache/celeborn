@@ -30,9 +30,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import scala.Tuple2;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.GnuParser;
-import org.apache.commons.cli.Options;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -192,9 +189,6 @@ public class CelebornDagAppMaster extends DAGAppMaster {
                   edgeSourceConf.setInt(
                       CelebornTezUtils.TEZ_CELEBORN_LM_PORT, lifecycleManagerPort);
                   edgeSourceConf.set(
-                      CelebornTezUtils.TEZ_CELEBORN_USER,
-                      lifecycleManager.getUserIdentifier().toString());
-                  edgeSourceConf.set(
                       CelebornTezUtils.TEZ_BROADCAST_OR_ONETOONE,
                       String.valueOf(broadCastOrOneToOne));
                   for (Tuple2<String, String> stringStringTuple2 : celebornConf.getAll()) {
@@ -333,9 +327,19 @@ public class CelebornDagAppMaster extends DAGAppMaster {
 
   public static void main(String[] args) {
     try {
-      String s = "org.apache.tez.runtime.library.output.OrderedPartitionedKVOutput";
-      if (s.equalsIgnoreCase(OrderedPartitionedKVOutput.class.getName())) {
-        System.out.println("this is truth----");
+
+      boolean sessionModeCliOption = false;
+      for (int i = 0; i < args.length; i++) {
+        if (args[i].startsWith("-D")) {
+          String[] property = args[i].split("=");
+          if (property.length < 2) {
+            System.setProperty(property[0].substring(2), "");
+          } else {
+            System.setProperty(property[0].substring(2), property[1]);
+          }
+        } else if (args[i].contains("--session") || args[i].contains("-s")) {
+          sessionModeCliOption = true;
+        }
       }
 
       Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
@@ -359,16 +363,6 @@ public class CelebornDagAppMaster extends DAGAppMaster {
       long appSubmitTime = Long.parseLong(appSubmitTimeStr);
 
       String jobUserName = System.getenv(ApplicationConstants.Environment.USER.name());
-
-      // Command line options
-      Options opts = new Options();
-      opts.addOption(
-          TezConstants.TEZ_SESSION_MODE_CLI_OPTION,
-          false,
-          "Run Tez Application Master in Session mode");
-
-      CommandLine cliParser = new GnuParser().parse(opts, args);
-      boolean sessionModeCliOption = cliParser.hasOption(TezConstants.TEZ_SESSION_MODE_CLI_OPTION);
 
       Logger.info(
           "Creating CelebornDAGAppMaster for "

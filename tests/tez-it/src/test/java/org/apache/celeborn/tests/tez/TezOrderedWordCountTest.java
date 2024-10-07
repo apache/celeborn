@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.tests.tez;
 
-import java.util.*;
-
 import com.google.common.collect.Lists;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
@@ -26,7 +24,9 @@ import org.apache.hadoop.util.Tool;
 import org.apache.tez.examples.OrderedWordCount;
 import org.junit.jupiter.api.Test;
 
-public class TezOrderedWordCountTest extends TezIntegrationTestBase {
+import java.util.*;
+
+public class TezOrderedWordCountTest extends TezIntegrationTestBase2 {
 
   private String inputPath = "ordered_word_count_input";
   private String outputPath = "ordered_word_count_output";
@@ -36,7 +36,6 @@ public class TezOrderedWordCountTest extends TezIntegrationTestBase {
 
   @Test
   public void orderedWordCountTest() throws Exception {
-    MiniCelebornCluster.setupMiniClusterWithRandomPorts();
     generateInputFile();
     run();
   }

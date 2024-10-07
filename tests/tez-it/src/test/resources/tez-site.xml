@@ -18,10 +18,4 @@
 <!-- Put site-specific property overrides in this file. -->
 
 <configuration>
-
-<property>
-  <name>tez.local.mode</name>
-  <value>true</value>
-</property>
-
 </configuration>

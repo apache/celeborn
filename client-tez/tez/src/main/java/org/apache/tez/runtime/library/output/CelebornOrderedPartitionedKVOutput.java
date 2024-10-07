@@ -88,7 +88,6 @@ public class CelebornOrderedPartitionedKVOutput extends OrderedPartitionedKVOutp
     this.port = this.conf.getInt(TEZ_CELEBORN_LM_PORT, -1);
     this.shuffleId = this.conf.getInt(TEZ_SHUFFLE_ID, -1);
     this.appId = this.conf.get(TEZ_CELEBORN_APPLICATION_ID);
-    String user = this.conf.get(TEZ_CELEBORN_USER);
     celebornConf = CelebornTezUtils.fromTezConfiguration(conf);
     celebornTezWriter =
         new CelebornTezWriter(
@@ -102,7 +101,8 @@ public class CelebornOrderedPartitionedKVOutput extends OrderedPartitionedKVOutp
             appId,
             host,
             port,
-            UserIdentifier.apply(user));
+            new UserIdentifier(
+                celebornConf.quotaUserSpecificTenant(), celebornConf.quotaUserSpecificUserName()));
 
     return Collections.emptyList();
   }

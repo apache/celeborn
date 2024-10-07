@@ -32,7 +32,6 @@ public class CelebornTezUtils {
   public static final String TEZ_PREFIX = "tez.";
   public static final String TEZ_CELEBORN_LM_HOST = "celeborn.lifecycleManager.host";
   public static final String TEZ_CELEBORN_LM_PORT = "celeborn.lifecycleManager.port";
-  public static final String TEZ_CELEBORN_USER = "celeborn.lifecycleManager.user";
   public static final String TEZ_CELEBORN_APPLICATION_ID = "celeborn.applicationId";
   public static final String TEZ_SHUFFLE_ID = "celeborn.tez.shuffle.id";
   public static final String TEZ_BROADCAST_OR_ONETOONE = "celeborn.tez.broadcastOrOneToOne";

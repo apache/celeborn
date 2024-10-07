@@ -24,7 +24,7 @@ import org.apache.hadoop.util.Tool;
 import org.apache.tez.examples.CartesianProduct;
 import org.junit.jupiter.api.Test;
 
-public class TezCartesianProductTest extends TezIntegrationTestBase {
+public class TezCartesianProductTest extends TezIntegrationTestBase2 {
 
   private String inputPath1 = "cartesian_product_input1";
   private String inputPath2 = "cartesian_product_input2";
