@@ -239,7 +239,7 @@ celeborn.worker.readBuffer.allocationWait 10ms
 ```
 22/10/08 19:29:11,805 INFO [main] Dispatcher: Dispatcher numThreads: 64
 22/10/08 19:29:11,875 INFO [main] TransportClientFactory: mode NIO threads 64
-22/10/08 19:29:12,057 INFO [main] Utils: Successfully started service 'MasterSys' on port 9097.
+22/10/08 19:29:12,057 INFO [main] Utils: Successfully started service 'Master' on port 9097.
 22/10/08 19:29:12,113 INFO [main] Master: Metrics system enabled.
 22/10/08 19:29:12,125 INFO [main] HttpServer: master: HttpServer started on port 9098.
 22/10/08 19:29:12,126 INFO [main] Master: Master started.

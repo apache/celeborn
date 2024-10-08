@@ -110,6 +110,24 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void handleBatchUnRegisterShuffles(List<String> shuffleKeys, String requestId) {
+    try {
+      ratisServer.submitRequest(
+          ResourceRequest.newBuilder()
+              .setCmdType(Type.BatchUnRegisterShuffle)
+              .setRequestId(requestId)
+              .setBatchUnregisterShuffleRequest(
+                  ResourceProtos.BatchUnregisterShuffleRequest.newBuilder()
+                      .addAllShuffleKeys(shuffleKeys)
+                      .build())
+              .build());
+    } catch (CelebornRuntimeException e) {
+      LOG.error("Batch handle unregister shuffle for {} failed!", shuffleKeys, e);
+      throw e;
+    }
+  }
+
+  @Override
   public void handleAppHeartbeat(
       String appId, long totalWritten, long fileCount, long time, String requestId) {
     try {

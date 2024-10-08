@@ -29,6 +29,7 @@ import java.util.function.Consumer
 import scala.collection.JavaConverters._
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 import scala.util.Random
@@ -102,6 +103,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val rpcCacheConcurrencyLevel = conf.clientRpcCacheConcurrencyLevel
   private val rpcCacheExpireTime = conf.clientRpcCacheExpireTime
   private val rpcMaxRetires = conf.clientRpcMaxRetries
+
+  private val batchRemoveExpiredShufflesEnabled = conf.batchHandleRemoveExpiredShufflesEnabled
 
   private val excludedWorkersFilter = conf.registerShuffleFilterExcludedWorkerEnabled
 
@@ -1579,6 +1582,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private def removeExpiredShuffle(): Unit = {
     val currentTime = System.currentTimeMillis()
+    val batchRemoveShuffleIds = new ArrayBuffer[Integer]
     unregisterShuffleTime.keys().asScala.foreach { shuffleId =>
       if (unregisterShuffleTime.get(shuffleId) < currentTime - shuffleExpiredCheckIntervalMs) {
         logInfo(s"Clear shuffle $shuffleId.")
@@ -1589,10 +1593,26 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         latestPartitionLocation.remove(shuffleId)
         commitManager.removeExpiredShuffle(shuffleId)
         changePartitionManager.removeExpiredShuffle(shuffleId)
-        val unregisterShuffleResponse = requestMasterUnregisterShuffle(
-          UnregisterShuffle(appUniqueId, shuffleId, MasterClient.genRequestId()))
-        // if unregister shuffle not success, wait next turn
-        if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
+        if (!batchRemoveExpiredShufflesEnabled) {
+          val unregisterShuffleResponse = requestMasterUnregisterShuffle(
+            UnregisterShuffle(appUniqueId, shuffleId, MasterClient.genRequestId()))
+          // if unregister shuffle not success, wait next turn
+          if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
+            unregisterShuffleTime.remove(shuffleId)
+          }
+        } else {
+          batchRemoveShuffleIds += shuffleId
+        }
+      }
+    }
+    if (batchRemoveShuffleIds.nonEmpty) {
+      val unregisterShuffleResponse = batchRequestMasterUnregisterShuffles(
+        BatchUnregisterShuffles(
+          appUniqueId,
+          batchRemoveShuffleIds.asJava,
+          MasterClient.genRequestId()))
+      if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
+        batchRemoveShuffleIds.foreach { shuffleId: Integer =>
           unregisterShuffleTime.remove(shuffleId)
         }
       }
@@ -1668,6 +1688,20 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       case e: Exception =>
         logError(s"AskSync UnregisterShuffle for ${message.getShuffleId} failed.", e)
         UnregisterShuffleResponse(StatusCode.REQUEST_FAILED)
+    }
+  }
+
+  private def batchRequestMasterUnregisterShuffles(message: PbBatchUnregisterShuffles)
+      : PbBatchUnregisterShuffleResponse = {
+    try {
+      logInfo(s"AskSync BatchUnregisterShuffle for ${message.getShuffleIdsList}")
+      masterClient.askSync[PbBatchUnregisterShuffleResponse](
+        message,
+        classOf[PbBatchUnregisterShuffleResponse])
+    } catch {
+      case e: Exception =>
+        logError(s"AskSync BatchUnregisterShuffle for ${message.getShuffleIdsList} failed.", e)
+        BatchUnregisterShuffleResponse(StatusCode.REQUEST_FAILED)
     }
   }
 

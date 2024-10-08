@@ -351,10 +351,33 @@ object ControlMessages extends Logging {
         .build()
   }
 
+  object BatchUnregisterShuffles {
+    def apply(
+        appId: String,
+        shuffleIds: util.List[Integer],
+        requestId: String): PbBatchUnregisterShuffles =
+      PbBatchUnregisterShuffles.newBuilder()
+        .setAppId(appId)
+        .addAllShuffleIds(shuffleIds)
+        .setRequestId(requestId)
+        .build()
+  }
+
   object UnregisterShuffleResponse {
     def apply(status: StatusCode): PbUnregisterShuffleResponse =
       PbUnregisterShuffleResponse.newBuilder()
         .setStatus(status.getValue)
+        .build()
+  }
+
+  object BatchUnregisterShuffleResponse {
+    def apply(
+        status: StatusCode,
+        shuffleIds: util.List[Integer] = Collections.emptyList())
+        : PbBatchUnregisterShuffleResponse =
+      PbBatchUnregisterShuffleResponse.newBuilder()
+        .setStatus(status.getValue)
+        .addAllShuffleIds(shuffleIds)
         .build()
   }
 
@@ -731,8 +754,14 @@ object ControlMessages extends Logging {
     case pb: PbUnregisterShuffle =>
       new TransportMessage(MessageType.UNREGISTER_SHUFFLE, pb.toByteArray)
 
+    case pb: PbBatchUnregisterShuffles =>
+      new TransportMessage(MessageType.BATCH_UNREGISTER_SHUFFLES, pb.toByteArray)
+
     case pb: PbUnregisterShuffleResponse =>
       new TransportMessage(MessageType.UNREGISTER_SHUFFLE_RESPONSE, pb.toByteArray)
+
+    case pb: PbBatchUnregisterShuffleResponse =>
+      new TransportMessage(MessageType.BATCH_UNREGISTER_SHUFFLE_RESPONSE, pb.toByteArray)
 
     case ApplicationLost(appId, requestId) =>
       val payload = PbApplicationLost.newBuilder()
@@ -1119,8 +1148,14 @@ object ControlMessages extends Logging {
       case UNREGISTER_SHUFFLE_VALUE =>
         PbUnregisterShuffle.parseFrom(message.getPayload)
 
+      case BATCH_UNREGISTER_SHUFFLES_VALUE =>
+        PbBatchUnregisterShuffles.parseFrom(message.getPayload)
+
       case UNREGISTER_SHUFFLE_RESPONSE_VALUE =>
         PbUnregisterShuffleResponse.parseFrom(message.getPayload)
+
+      case BATCH_UNREGISTER_SHUFFLE_RESPONSE_VALUE =>
+        PbBatchUnregisterShuffleResponse.parseFrom(message.getPayload)
 
       case APPLICATION_LOST_VALUE =>
         val pbApplicationLost = PbApplicationLost.parseFrom(message.getPayload)

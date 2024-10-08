@@ -40,6 +40,7 @@ enum Type {
   WorkerEvent = 25;
   ApplicationMeta = 26;
   ReportWorkerDecommission = 27;
+  BatchUnRegisterShuffle = 28;
 }
 
 enum WorkerEventType {
@@ -73,6 +74,7 @@ message ResourceRequest {
   optional WorkerEventRequest workerEventRequest = 22;
   optional ApplicationMetaRequest applicationMetaRequest = 23;
   optional ReportWorkerDecommissionRequest reportWorkerDecommissionRequest = 24;
+  optional BatchUnregisterShuffleRequest batchUnregisterShuffleRequest = 25;
 }
 
 message DiskInfo {
@@ -104,6 +106,10 @@ message ReleaseSlotsRequest {
 
 message UnregisterShuffleRequest {
   required string shuffleKey = 1;
+}
+
+message BatchUnregisterShuffleRequest {
+  repeated string shuffleKeys = 1;
 }
 
 message AppHeartbeatRequest {
