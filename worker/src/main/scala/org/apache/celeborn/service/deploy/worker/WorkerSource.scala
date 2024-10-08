@@ -222,6 +222,7 @@ object WorkerSource {
 
   // decommission
   val IS_DECOMMISSIONING_WORKER = "IsDecommissioningWorker"
+  val UNRELEASED_SHUFFLE_COUNT = "UnreleasedShuffleCount"
 
   // clean
   val CLEAN_TASK_QUEUE_SIZE = "CleanTaskQueueSize"

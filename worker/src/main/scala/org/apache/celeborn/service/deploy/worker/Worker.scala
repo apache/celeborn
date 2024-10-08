@@ -435,6 +435,15 @@ private[celeborn] class Worker(
       0
     }
   }
+  // Unreleased shuffle count when worker is decommissioning
+  workerSource.addGauge(WorkerSource.UNRELEASED_SHUFFLE_COUNT) { () =>
+    if (shutdown.get() && (workerStatusManager.currentWorkerStatus.getState == State.InDecommission ||
+        workerStatusManager.currentWorkerStatus.getState == State.InDecommissionThenIdle)) {
+      storageManager.shuffleKeySet().size
+    } else {
+      0
+    }
+  }
   workerSource.addGauge(WorkerSource.CLEAN_TASK_QUEUE_SIZE) { () =>
     cleanTaskQueue.size()
   }
@@ -952,11 +961,13 @@ private[celeborn] class Worker(
       Thread.sleep(interval)
       waitTimes += 1
     }
-    if (storageManager.shuffleKeySet().isEmpty) {
+
+    val unreleasedShuffleKeys = storageManager.shuffleKeySet()
+    if (unreleasedShuffleKeys.isEmpty) {
       logInfo(s"Waiting for all shuffle expired cost ${waitTime}ms.")
     } else {
       logWarning(s"Waiting for all shuffle expired cost ${waitTime}ms, " +
-        s"unreleased shuffle: \n${storageManager.shuffleKeySet().asScala.mkString("[", ", ", "]")}")
+        s"unreleased shuffle: \n${unreleasedShuffleKeys.asScala.mkString("[", ", ", "]")}")
     }
     workerStatusManager.transitionState(State.Exit)
   }
