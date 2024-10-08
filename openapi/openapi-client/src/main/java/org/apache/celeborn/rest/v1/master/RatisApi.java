@@ -187,8 +187,8 @@ public class RatisApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse stepdownRatisLeader() throws ApiException {
-    return this.stepdownRatisLeader(Collections.emptyMap());
+  public HandleResponse stepDownRatisLeader() throws ApiException {
+    return this.stepDownRatisLeader(Collections.emptyMap());
   }
 
 
@@ -199,11 +199,11 @@ public class RatisApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse stepdownRatisLeader(Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse stepDownRatisLeader(Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = null;
     
     // create path and map variables
-    String localVarPath = "/api/v1/ratis/election/stepdown";
+    String localVarPath = "/api/v1/ratis/election/step_down";
 
     StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
     String localVarQueryParameterBaseName;

@@ -277,11 +277,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/HandleResponse'
 
-  /api/v1/ratis/election/stepdown:
+  /api/v1/ratis/election/step_down:
     post:
       tags:
         - Ratis
-      operationId: stepdownRatisLeader
+      operationId: stepDownRatisLeader
       description: Make the group leader step down its leadership.
       responses:
         "200":
