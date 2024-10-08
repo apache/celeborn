@@ -17,14 +17,14 @@
 
 package org.apache.celeborn.tests.tez;
 
+import java.util.*;
+
 import com.google.common.collect.Lists;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.Tool;
 import org.apache.tez.examples.OrderedWordCount;
 import org.junit.jupiter.api.Test;
-
-import java.util.*;
 
 public class TezOrderedWordCountTest extends TezIntegrationTestBase2 {
 

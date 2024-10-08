@@ -96,7 +96,7 @@ public class TestOrderedPartitionedKVOutput {
   }
 
   // @Test(timeout = 5000)
-  public void testConfigMerge() throws IOException {
+  private void testConfigMerge() throws IOException {
     Configuration localConf = new Configuration(conf);
     localConf.set("config-from-local", "config-from-local-value");
     Configuration payload = new Configuration(false);
@@ -113,7 +113,7 @@ public class TestOrderedPartitionedKVOutput {
   }
 
   // @Test(timeout = 10000)
-  public void testClose() throws Exception {
+  private void testClose() throws Exception {
     OutputContext outputContext = OutputTestHelpers.createOutputContext(conf, conf, workingDir);
     int numPartitions = 10;
     OrderedPartitionedKVOutput output =
