@@ -24,8 +24,8 @@ class CelebornSourceSuite extends CelebornFunSuite {
 
   test("test getMetrics with customized label") {
     val conf = new CelebornConf()
-    createAbstractSourceAndCheck(conf, "", Source.ROLE_MASTER)
-    createAbstractSourceAndCheck(conf, "", Source.ROLE_WORKER)
+    createAbstractSourceAndCheck(conf, "", Role.MASTER)
+    createAbstractSourceAndCheck(conf, "", Role.WORKER)
   }
 
   def createAbstractSourceAndCheck(

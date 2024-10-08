@@ -17,20 +17,7 @@
 
 package org.apache.celeborn.common.metrics.source
 
-import com.codahale.metrics.MetricRegistry
-
-trait Source {
-  def sourceName: String
-  def metricRegistry: MetricRegistry
-  def sample[T](metricsName: String, key: String)(f: => T): T
-  def startTimer(metricsName: String, key: String): Unit
-  def stopTimer(metricsName: String, key: String): Unit
-  def incCounter(metricsName: String, incV: Long): Unit
-  def getMetrics: String
-  def destroy(): Unit
-}
-
-object Source {
+object Role {
   val MASTER = "master"
   val WORKER = "worker"
 }

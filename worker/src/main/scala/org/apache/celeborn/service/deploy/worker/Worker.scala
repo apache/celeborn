@@ -37,7 +37,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Source, SystemMiscSource, ThreadPoolSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Role, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.{CelebornRackResolver, TransportContext}
 import org.apache.celeborn.common.network.sasl.SaslServerBootstrap
 import org.apache.celeborn.common.network.server.TransportServerBootstrap
@@ -73,14 +73,14 @@ private[celeborn] class Worker(
     MetricsSystem.createMetricsSystem(serviceName, conf)
   val workerSource = new WorkerSource(conf)
   private val resourceConsumptionSource =
-    new ResourceConsumptionSource(conf, Source.ROLE_WORKER)
-  private val threadPoolSource = ThreadPoolSource(conf, Source.ROLE_WORKER)
+    new ResourceConsumptionSource(conf, Role.WORKER)
+  private val threadPoolSource = ThreadPoolSource(conf, Role.WORKER)
   metricsSystem.registerSource(workerSource)
   metricsSystem.registerSource(threadPoolSource)
   metricsSystem.registerSource(resourceConsumptionSource)
-  metricsSystem.registerSource(new JVMSource(conf, Source.ROLE_WORKER))
-  metricsSystem.registerSource(new JVMCPUSource(conf, Source.ROLE_WORKER))
-  metricsSystem.registerSource(new SystemMiscSource(conf, Source.ROLE_WORKER))
+  metricsSystem.registerSource(new JVMSource(conf, Role.WORKER))
+  metricsSystem.registerSource(new JVMCPUSource(conf, Role.WORKER))
+  metricsSystem.registerSource(new SystemMiscSource(conf, Role.WORKER))
 
   private val topResourceConsumptionCount = conf.metricsWorkerAppTopResourceConsumptionCount
   private val topApplicationUserIdentifiers =
