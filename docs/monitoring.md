@@ -412,6 +412,6 @@ scrape_configs:
 
 ## REST API
 
-In addition to viewing the metrics, Celeborn also supports [REST API](webapi.md).
+In addition to viewing the metrics, Celeborn also supports [REST API](restapi.md).
 This gives developers an easy way to create new visualizations and monitoring tools for Celeborn and
 also easy for users to get the running status of the service.

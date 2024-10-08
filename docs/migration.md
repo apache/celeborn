@@ -22,11 +22,11 @@ license: |
 # Migration Guide
 
 # Upgrading from 0.5 to 0.6
-- 
+
 - Since 0.6.0, Celeborn has introduced a new RESTful API namespace: /api/v1, which uses the application/json media type for requests and responses.
    The `celeborn-openapi-client` SDK is also available to help users interact with the new RESTful APIs.
    The legacy RESTful APIs have been deprecated and will be removed in future releases.
-   Access the full [RESTful API documentation](./webapi.md) for detailed information.
+   Access the full [RESTful API documentation](./restapi.md) for detailed information.
   
   - The mappings of the old RESTful APIs to the new RESTful APIs for Master.
 
