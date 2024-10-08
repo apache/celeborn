@@ -460,6 +460,16 @@ private[celeborn] class Master(
       checkAuth(context, applicationId)
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
+    case pb: PbBatchUnregisterShuffles =>
+      val applicationId = pb.getAppId
+      val shuffleIds = pb.getShuffleIdsList.asScala.toList
+      val requestId = pb.getRequestId
+      logDebug(s"Received BatchUnregisterShuffle request $requestId, $applicationId, $shuffleIds")
+      checkAuth(context, applicationId)
+      executeWithLeaderChecker(
+        context,
+        batchHandleUnregisterShuffles(context, applicationId, shuffleIds, requestId))
+
     case pb: PbUnregisterShuffle =>
       val applicationId = pb.getAppId
       val shuffleId = pb.getShuffleId
@@ -980,6 +990,18 @@ private[celeborn] class Master(
     statusSystem.handleUnRegisterShuffle(shuffleKey, requestId)
     logInfo(s"Unregister shuffle $shuffleKey")
     context.reply(UnregisterShuffleResponse(StatusCode.SUCCESS))
+  }
+
+  def batchHandleUnregisterShuffles(
+      context: RpcCallContext,
+      applicationId: String,
+      shuffleIds: List[Integer],
+      requestId: String): Unit = {
+    val shuffleKeys =
+      shuffleIds.map(shuffleId => Utils.makeShuffleKey(applicationId, shuffleId)).asJava
+    statusSystem.handleBatchUnRegisterShuffles(shuffleKeys, requestId)
+    logInfo(s"BatchUnregister shuffle $shuffleKeys")
+    context.reply(BatchUnregisterShuffleResponse(StatusCode.SUCCESS, shuffleIds.asJava))
   }
 
   private def handleReportNodeUnavailable(

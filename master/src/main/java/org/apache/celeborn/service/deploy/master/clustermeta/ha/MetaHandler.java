@@ -118,6 +118,13 @@ public class MetaHandler {
           metaSystem.updateUnregisterShuffleMeta(shuffleKey);
           break;
 
+        case BatchUnRegisterShuffle:
+          List<String> shuffleKeys =
+              request.getBatchUnregisterShuffleRequest().getShuffleKeysList();
+          metaSystem.updateBatchUnregisterShuffleMeta(shuffleKeys);
+          LOG.debug("Handle batch unregister shuffle for {}", shuffleKeys);
+          break;
+
         case AppHeartbeat:
           appId = request.getAppHeartbeatRequest().getAppId();
           LOG.debug("Handle app heartbeat for {}", appId);
