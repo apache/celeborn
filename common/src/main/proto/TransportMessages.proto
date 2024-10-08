@@ -418,7 +418,7 @@ message PbUnregisterShuffleResponse {
   int32 status = 1;
 }
 
-message PbBatchUnregisterShuffleResponses {
+message PbBatchUnregisterShuffleResponse {
   int32 status = 1;
   repeated int32 shuffleIds = 2;
 }

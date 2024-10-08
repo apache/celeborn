@@ -1001,7 +1001,7 @@ private[celeborn] class Master(
       shuffleIds.map(shuffleId => Utils.makeShuffleKey(applicationId, shuffleId)).asJava
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeys, requestId)
     logInfo(s"BatchUnregister shuffle $shuffleKeys")
-    context.reply(BatchUnregisterShuffleResponses(StatusCode.SUCCESS, shuffleIds.asJava))
+    context.reply(BatchUnregisterShuffleResponse(StatusCode.SUCCESS, shuffleIds.asJava))
   }
 
   private def handleReportNodeUnavailable(

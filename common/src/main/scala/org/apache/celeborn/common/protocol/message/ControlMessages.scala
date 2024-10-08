@@ -370,12 +370,12 @@ object ControlMessages extends Logging {
         .build()
   }
 
-  object BatchUnregisterShuffleResponses {
+  object BatchUnregisterShuffleResponse {
     def apply(
         status: StatusCode,
         shuffleIds: util.List[Integer] = Collections.emptyList())
-        : PbBatchUnregisterShuffleResponses =
-      PbBatchUnregisterShuffleResponses.newBuilder()
+        : PbBatchUnregisterShuffleResponse =
+      PbBatchUnregisterShuffleResponse.newBuilder()
         .setStatus(status.getValue)
         .addAllShuffleIds(shuffleIds)
         .build()
@@ -760,7 +760,7 @@ object ControlMessages extends Logging {
     case pb: PbUnregisterShuffleResponse =>
       new TransportMessage(MessageType.UNREGISTER_SHUFFLE_RESPONSE, pb.toByteArray)
 
-    case pb: PbBatchUnregisterShuffleResponses =>
+    case pb: PbBatchUnregisterShuffleResponse =>
       new TransportMessage(MessageType.BATCH_UNREGISTER_SHUFFLE_RESPONSE, pb.toByteArray)
 
     case ApplicationLost(appId, requestId) =>
@@ -1155,7 +1155,7 @@ object ControlMessages extends Logging {
         PbUnregisterShuffleResponse.parseFrom(message.getPayload)
 
       case BATCH_UNREGISTER_SHUFFLE_RESPONSE_VALUE =>
-        PbBatchUnregisterShuffleResponses.parseFrom(message.getPayload)
+        PbBatchUnregisterShuffleResponse.parseFrom(message.getPayload)
 
       case APPLICATION_LOST_VALUE =>
         val pbApplicationLost = PbApplicationLost.parseFrom(message.getPayload)
