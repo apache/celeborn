@@ -4747,7 +4747,7 @@ object CelebornConf extends Logging {
         "Otherwise, client just process the shuffle in general Reduce Partition mode.")
       .version("0.6.0")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val GROUP_MAP_TASK_GROUP_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.groupMapTask.groupSize")
