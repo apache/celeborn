@@ -53,9 +53,9 @@ class TezIntegrationTestBase extends AnyFunSuite with Logging with MiniClusterFe
   private val TEST_ROOT_DIR =
     "target" + Path.SEPARATOR + classOf[TezIntegrationTestBase].getName + "-tmpDir"
 
-  var fs: FileSystem = null
+  protected var fs: FileSystem = null
   var conf: Configuration = null
-  private var remoteStagingDir: Path = null
+  protected var remoteStagingDir: Path = null
   protected var cluster: MiniDFSCluster = null
   protected var HDFS_URI: String = null
   var miniTezCluster: MiniTezCluster = null
