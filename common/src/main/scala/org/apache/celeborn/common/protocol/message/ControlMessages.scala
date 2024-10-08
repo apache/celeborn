@@ -761,7 +761,7 @@ object ControlMessages extends Logging {
       new TransportMessage(MessageType.UNREGISTER_SHUFFLE_RESPONSE, pb.toByteArray)
 
     case pb: PbBatchUnregisterShuffleResponses =>
-      new TransportMessage(MessageType.BATCH_UNREGISTER_SHUFFLE_RESPONSES, pb.toByteArray)
+      new TransportMessage(MessageType.BATCH_UNREGISTER_SHUFFLE_RESPONSE, pb.toByteArray)
 
     case ApplicationLost(appId, requestId) =>
       val payload = PbApplicationLost.newBuilder()
@@ -1154,7 +1154,7 @@ object ControlMessages extends Logging {
       case UNREGISTER_SHUFFLE_RESPONSE_VALUE =>
         PbUnregisterShuffleResponse.parseFrom(message.getPayload)
 
-      case BATCH_UNREGISTER_SHUFFLE_RESPONSES_VALUE =>
+      case BATCH_UNREGISTER_SHUFFLE_RESPONSE_VALUE =>
         PbBatchUnregisterShuffleResponses.parseFrom(message.getPayload)
 
       case APPLICATION_LOST_VALUE =>

@@ -464,7 +464,7 @@ private[celeborn] class Master(
       val applicationId = pb.getAppId
       val shuffleIds = pb.getShuffleIdsList.asScala.toList
       val requestId = pb.getRequestId
-      logDebug(s"Received UnregisterShuffle request $requestId, $applicationId, $shuffleIds")
+      logDebug(s"Received BatchUnregisterShuffle request $requestId, $applicationId, $shuffleIds")
       checkAuth(context, applicationId)
       executeWithLeaderChecker(
         context,
@@ -1000,7 +1000,7 @@ private[celeborn] class Master(
     val shuffleKeys =
       shuffleIds.map(shuffleId => Utils.makeShuffleKey(applicationId, shuffleId)).asJava
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeys, requestId)
-    logInfo(s"Unregister shuffle $shuffleKeys")
+    logInfo(s"BatchUnregister shuffle $shuffleKeys")
     context.reply(BatchUnregisterShuffleResponses(StatusCode.SUCCESS, shuffleIds.asJava))
   }
 
