@@ -62,7 +62,6 @@ message ResourceRequest {
   // deprecated
   optional ReleaseSlotsRequest releaseSlotsRequest = 11;
   optional UnregisterShuffleRequest unregisterShuffleRequest = 12;
-  optional BatchUnregisterShuffleRequest batchUnregisterShuffleRequest = 28;
   optional AppHeartbeatRequest appHeartbeatRequest = 13;
   optional AppLostRequest appLostRequest = 14;
   optional WorkerLostRequest workerLostRequest = 15;
@@ -75,6 +74,7 @@ message ResourceRequest {
   optional WorkerEventRequest workerEventRequest = 22;
   optional ApplicationMetaRequest applicationMetaRequest = 23;
   optional ReportWorkerDecommissionRequest reportWorkerDecommissionRequest = 24;
+  optional BatchUnregisterShuffleRequest batchUnregisterShuffleRequest = 25;
 }
 
 message DiskInfo {
@@ -108,7 +108,7 @@ message UnregisterShuffleRequest {
   required string shuffleKey = 1;
 }
 
-message BatchUnregisterShuffleRequest{
+message BatchUnregisterShuffleRequest {
   repeated string shuffleKeys = 1;
 }
 
