@@ -21,15 +21,19 @@ import java.io.IOException
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
+
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
+
 import org.apache.spark.{Aggregator, InterruptibleIterator, ShuffleDependency, TaskContext}
 import org.apache.spark.celeborn.ExceptionMakerHelper
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.SerializerInstance
-import org.apache.spark.shuffle.{FetchFailedException, ShuffleReadMetricsReporter, ShuffleReader}
+import org.apache.spark.shuffle.{FetchFailedException, ShuffleReader, ShuffleReadMetricsReporter}
 import org.apache.spark.shuffle.celeborn.CelebornShuffleReader.streamCreatorPool
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
+
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.ShuffleClientImpl.ReduceFileGroups
 import org.apache.celeborn.client.read.{CelebornInputStream, MetricsCallback}
@@ -40,8 +44,6 @@ import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol.{MessageType, PartitionLocation, PbOpenStreamList, PbOpenStreamListResponse, PbStreamHandler}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
-
-import scala.collection.mutable.ArrayBuffer
 
 class CelebornShuffleReader[K, C](
     handle: CelebornShuffleHandle[K, _, C],
@@ -124,7 +126,10 @@ class CelebornShuffleReader[K, C](
     if (!conf.groupMapTaskEnabled) {
       partitionIdList = ArrayBuffer[Int]() ++ (startPartition until endPartition)
     } else {
-      val partitionGroupCnt = if(conf.groupMapTaskEnabled) math.ceil(handle.numMappers.toDouble / conf.groupMapTaskGroupSize).toInt else 1
+      val partitionGroupCnt =
+        if (conf.groupMapTaskEnabled)
+          math.ceil(handle.numMappers.toDouble / conf.groupMapTaskGroupSize).toInt
+        else 1
       (startPartition until endPartition).foreach { originalPartitionId =>
         (0 until partitionGroupCnt).foreach { groupCnt =>
           val tmpPartitionId =
