@@ -666,15 +666,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     // First, request to get allocated slots from Primary
     val numGroupTask = math.ceil(numMappers.toDouble / groupMapTaskGroupSize).toInt
     var groupNumPartitions = numPartitions
-    if (groupMapTaskEnabled) {
+    if (partitionType.getValue.equals(PartitionType.REDUCE.getValue) && groupMapTaskEnabled) {
       groupNumPartitions = numPartitions * numGroupTask
     }
     val ids = new util.ArrayList[Integer](groupNumPartitions)
     (0 until groupNumPartitions).foreach(idx => ids.add(Integer.valueOf(idx)))
     val res = requestMasterRequestSlotsWithRetry(shuffleId, ids, numGroupTask)
-    if (groupMapTaskEnabled && res.status != StatusCode.SUCCESS) {
-      groupMapTaskEnabled = false
-    }
+//    if (groupMapTaskEnabled && res.status != StatusCode.SUCCESS) {
+//      groupMapTaskEnabled = false
+//    }
 
     res.status match {
       case StatusCode.REQUEST_FAILED =>

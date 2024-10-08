@@ -358,22 +358,4 @@ public class ShuffleClientSuiteJ {
     shuffleClient.dataClientFactory = clientFactory;
     return conf;
   }
-
-  @Test
-  public void testGroupMapTask() throws IOException, InterruptedException {
-    int numMappers = 100;
-    int numPartitions = 10;
-    int partitionId = 1;
-    int mapId = 3;
-    final int numGroupTask = (int) Math.ceil((double) numMappers / 1000);
-    System.out.println("numGroupTask = " + numGroupTask);
-    int groupTaskPartitionId = partitionId;
-    if (true) {
-      int groupTaskId = mapId / 1000;
-      System.out.println("groupTaskId = " + groupTaskId);
-      groupTaskPartitionId = partitionId + numPartitions * groupTaskId;
-      System.out.println("partitionId = " + partitionId);
-      System.out.println("groupTaskPartitionId = " + groupTaskPartitionId);
-    }
-  }
 }

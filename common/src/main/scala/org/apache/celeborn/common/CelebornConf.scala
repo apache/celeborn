@@ -4747,7 +4747,7 @@ object CelebornConf extends Logging {
         "Otherwise, client just process the shuffle in general Reduce Partition mode.")
       .version("0.6.0")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val GROUP_MAP_TASK_GROUP_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.groupMapTask.groupSize")
@@ -4757,7 +4757,7 @@ object CelebornConf extends Logging {
       .doc("The group size of map task when grouping map task is enable.")
       .version("0.6.0")
       .intConf
-      .createWithDefault(1000)
+      .createWithDefault(100)
 
   val CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.batchHandleChangePartition.enabled")

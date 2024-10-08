@@ -21,18 +21,15 @@ import java.io.IOException
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
-
 import scala.collection.JavaConverters._
-
 import org.apache.spark.{Aggregator, InterruptibleIterator, ShuffleDependency, TaskContext}
 import org.apache.spark.celeborn.ExceptionMakerHelper
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.SerializerInstance
-import org.apache.spark.shuffle.{FetchFailedException, ShuffleReader, ShuffleReadMetricsReporter}
+import org.apache.spark.shuffle.{FetchFailedException, ShuffleReadMetricsReporter, ShuffleReader}
 import org.apache.spark.shuffle.celeborn.CelebornShuffleReader.streamCreatorPool
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
-
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.ShuffleClientImpl.ReduceFileGroups
 import org.apache.celeborn.client.read.{CelebornInputStream, MetricsCallback}
@@ -43,6 +40,8 @@ import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol.{MessageType, PartitionLocation, PbOpenStreamList, PbOpenStreamListResponse, PbStreamHandler}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
+
+import scala.collection.mutable.ArrayBuffer
 
 class CelebornShuffleReader[K, C](
     handle: CelebornShuffleHandle[K, _, C],
@@ -121,17 +120,22 @@ class CelebornShuffleReader[K, C](
       (TransportClient, util.ArrayList[PartitionLocation], PbOpenStreamList.Builder)]()
 
     var partCnt = 0
-    val partitionGroupCnt = math.ceil(handle.numMappers.toDouble / conf.groupMapTaskGroupSize).toInt
-    val partitionIdList = new util.ArrayList[Int]()
-    (startPartition until endPartition).foreach { originalPartitionId =>
-      (0 until partitionGroupCnt).foreach { groupCnt =>
-        val tmpPartitionId =
-          originalPartitionId + groupCnt * (fileGroups.partitionGroups.keySet().size() / partitionGroupCnt)
-        partitionIdList.add(tmpPartitionId)
+    var partitionIdList = new ArrayBuffer[Int]()
+    if (!conf.groupMapTaskEnabled) {
+      partitionIdList = ArrayBuffer[Int]() ++ (startPartition until endPartition)
+    } else {
+      val partitionGroupCnt = if(conf.groupMapTaskEnabled) math.ceil(handle.numMappers.toDouble / conf.groupMapTaskGroupSize).toInt else 1
+      (startPartition until endPartition).foreach { originalPartitionId =>
+        (0 until partitionGroupCnt).foreach { groupCnt =>
+          val tmpPartitionId =
+            originalPartitionId + groupCnt * (fileGroups.partitionGroups.keySet().size() / partitionGroupCnt)
+          partitionIdList += tmpPartitionId
+        }
       }
+      logInfo(s"groupPartition read, partitionGroupCnt: $partitionGroupCnt, partitionIdList: $partitionIdList")
     }
 
-    partitionIdList.forEach { partitionId =>
+    partitionIdList.foreach { partitionId =>
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
         fileGroups.partitionGroups.get(partitionId).asScala.foreach { location =>
           partCnt += 1
@@ -246,15 +250,15 @@ class CelebornShuffleReader[K, C](
 
     val inputStreamCreationWindow = conf.clientInputStreamCreationWindow
 
-    (0 until Math.min(inputStreamCreationWindow, partitionIdList.size())).foreach(listIndex => {
+    (0 until Math.min(inputStreamCreationWindow, partitionIdList.size)).foreach(listIndex => {
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
-          createInputStream(partitionIdList.get(listIndex))
+          createInputStream(partitionIdList(listIndex))
         }
       })
     })
 
-    val recordIter = partitionIdList.asScala.iterator.map(partitionId => {
+    val recordIter = partitionIdList.iterator.map(partitionId => {
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
         var inputStream: CelebornInputStream = streams.get(partitionId)
