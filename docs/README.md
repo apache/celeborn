@@ -51,7 +51,7 @@ cd $CELEBORN_HOME
 ```
 You should see `Master`'s ip:port in the log:
 ```log
-INFO [main] NettyRpcEnvFactory: Starting RPC Server [Master] on 192.168.2.109:9097 with advisor endpoint 192.168.2.109:9097
+INFO [main] NettyRpcEnvFactory: Starting RPC Server [Master] on 192.168.2.109:9097 with advertised endpoint 192.168.2.109:9097
 ```
 #### Start Worker
 Use the Master's IP and Port to start Worker:
