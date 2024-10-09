@@ -209,7 +209,6 @@ abstract class HttpService extends Service with Logging {
       httpSslKeyStoreAlgorithm(),
       httpSslDisallowedProtocols(),
       httpSslIncludedCipherSuites())
-    httpServer.start()
     startInternal()
     // block until the HTTP server is started, otherwise, we may get
     // the wrong HTTP server port -1
@@ -348,9 +347,13 @@ abstract class HttpService extends Service with Logging {
 
     if (metricsSystem.running) {
       metricsSystem.getServletContextHandlers.foreach { handler =>
+        logInfo(s"Adding metrics servlet handler with path ${handler.getContextPath}")
         httpServer.addHandler(handler)
       }
     }
+
+    // start the http server after all handlers are added
+    httpServer.start()
   }
 
   override def initialize(): Unit = {
