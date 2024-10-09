@@ -86,7 +86,24 @@ spec:
             sleep 2;
           done && exec /opt/celeborn/sbin/start-worker.sh
         resources:
+          {{- if .Values.resources.worker }}
           {{- toYaml .Values.resources.worker | nindent 10 }}
+          {{- else }}
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          {{- end }}
+        {{- if .Values.autoscaling.enabled }}
+        lifecycle:
+          preStop:
+            exec:
+              command:
+                - sh
+                - '-c'
+                - >-
+                  curl -X POST -H "Content-Type: application/json" -d '{"type":"DECOMMISSION"}' 
+                  http://$HOSTNAME.{{ include "celeborn.workerServiceName" . }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local:{{ get .Values.celeborn "celeborn.worker.http.port" | default 9096 }}/api/v1/workers/exit; sleep 180
+        {{- end }}
         ports:
         - containerPort: {{ get .Values.celeborn "celeborn.worker.http.port" | default 9096 }}
           name: metrics
@@ -103,10 +120,6 @@ spec:
         {{- range $index, $volume := .Values.volumes.worker }}
         - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
           mountPath: {{ .mountPath }}
-        {{- end }}
-        {{- with .Values.resources.worker }}
-        resources:
-          {{- toYaml . | nindent 10 }}
         {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -154,5 +167,9 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.autoscaling.enabled }}
+      terminationGracePeriodSeconds: 180
+      {{- else }}
       terminationGracePeriodSeconds: 30
+      {{- end }}
   replicas: {{ .Values.workerReplicas }}
