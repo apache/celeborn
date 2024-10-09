@@ -155,7 +155,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_RegisteredShuffleCount_Value",
+              "expr": "metrics_RegisteredShuffleCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -249,7 +249,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_WorkerCount_Value",
+              "expr": "metrics_WorkerCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -344,7 +344,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_DeviceCelebornTotalBytes_Value{role=\"Master\"}",
+              "expr": "metrics_DeviceCelebornTotalBytes_Value{role=\"Master\", instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -439,7 +439,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_DeviceCelebornFreeBytes_Value{role=\"Master\"}",
+              "expr": "metrics_DeviceCelebornFreeBytes_Value{role=\"Master\", instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -533,7 +533,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_RunningApplicationCount_Value",
+              "expr": "metrics_RunningApplicationCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -643,7 +643,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_IsActiveMaster_Value",
+              "expr": "metrics_IsActiveMaster_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -740,7 +740,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_PartitionSize_Value",
+              "expr": "metrics_PartitionSize_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -835,7 +835,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_ShutdownWorkerCount_Value",
+              "expr": "metrics_ShutdownWorkerCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -931,7 +931,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ActiveShuffleFileCount_Value{role=\"Master\"}",
+              "expr": "metrics_ActiveShuffleFileCount_Value{role=\"Master\", instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -1028,7 +1028,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ActiveShuffleSize_Value{role=\"Master\"}",
+              "expr": "metrics_ActiveShuffleSize_Value{role=\"Master\", instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -1123,7 +1123,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_OfferSlotsTime_Max",
+              "expr": "metrics_OfferSlotsTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -1216,7 +1216,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_OfferSlotsTime_Mean",
+              "expr": "metrics_OfferSlotsTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -1310,7 +1310,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ExcludedWorkerCount_Value",
+              "expr": "metrics_ExcludedWorkerCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -1405,7 +1405,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_AvailableWorkerCount_Value",
+              "expr": "metrics_AvailableWorkerCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -1499,7 +1499,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_LostWorkerCount_Value",
+              "expr": "metrics_LostWorkerCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -1606,7 +1606,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "increase(metrics_SlotsAllocated_Count[1h])",
+              "expr": "increase(metrics_SlotsAllocated_Count[1h]){instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -1699,7 +1699,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_ReserveSlotsTime_Mean",
+              "expr": "metrics_ReserveSlotsTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -1793,7 +1793,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ReserveSlotsTime_Max",
+              "expr": "metrics_ReserveSlotsTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -1886,7 +1886,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_PausePushData_Value",
+              "expr": "metrics_PausePushData_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -1979,7 +1979,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_PausePushDataAndReplicate_Value",
+              "expr": "metrics_PausePushDataAndReplicate_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -2073,7 +2073,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_PausePushDataTime_Value",
+              "expr": "metrics_PausePushDataTime_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -2167,7 +2167,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_PausePushDataAndReplicateTime_Value",
+              "expr": "metrics_PausePushDataAndReplicateTime_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -2263,7 +2263,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_ActiveShuffleSize_Value{role=\"Worker\"}",
+              "expr": "metrics_ActiveShuffleSize_Value{role=\"Worker\", instance=~\"${instance}\"}",
               "instant": false,
               "legendFormat": "${baseLegend}",
               "range": true,
@@ -2359,7 +2359,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_ActiveShuffleFileCount_Value{role=\"Worker\"}",
+              "expr": "metrics_ActiveShuffleFileCount_Value{role=\"Worker\", instance=~\"${instance}\"}",
               "instant": false,
               "legendFormat": "${baseLegend}",
               "range": true,
@@ -2453,7 +2453,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_ActiveConnectionCount_Count",
+              "expr": "metrics_ActiveConnectionCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -2546,7 +2546,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_ActiveSlotsCount_Value",
+              "expr": "metrics_ActiveSlotsCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -2641,7 +2641,7 @@
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "metrics_FlushWorkingQueueSize_Value",
+              "expr": "metrics_FlushWorkingQueueSize_Value{instance=~\"${instance}\"}",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "instant": false,
@@ -2841,7 +2841,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_PrimaryPushDataTime_Mean",
+              "expr": "metrics_PrimaryPushDataTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -2931,7 +2931,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_PrimaryPushDataTime_Max",
+              "expr": "metrics_PrimaryPushDataTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -3021,7 +3021,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_ReplicaPushDataTime_Mean",
+              "expr": "metrics_ReplicaPushDataTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -3111,7 +3111,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_ReplicaPushDataTime_Max",
+              "expr": "metrics_ReplicaPushDataTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -3201,7 +3201,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_WriteDataSuccessCount_Count",
+              "expr": "metrics_WriteDataSuccessCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -3292,7 +3292,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_WriteDataFailCount_Count",
+              "expr": "metrics_WriteDataFailCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -3383,7 +3383,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ReplicateDataFailCount_Count",
+              "expr": "metrics_ReplicateDataFailCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -3474,7 +3474,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ReplicateDataWriteFailCount_Count",
+              "expr": "metrics_ReplicateDataWriteFailCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -3565,7 +3565,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ReplicateDataCreateConnectionFailCount_Count",
+              "expr": "metrics_ReplicateDataCreateConnectionFailCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -3656,7 +3656,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ReplicateDataConnectionExceptionCount_Count",
+              "expr": "metrics_ReplicateDataConnectionExceptionCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -3747,7 +3747,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ReplicateDataTimeoutCount_Count",
+              "expr": "metrics_ReplicateDataTimeoutCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -3838,7 +3838,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ReplicateDataFailNonCriticalCauseCount_Count",
+              "expr": "metrics_ReplicateDataFailNonCriticalCauseCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -3929,7 +3929,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_WriteDataHardSplitCount_Count",
+              "expr": "metrics_WriteDataHardSplitCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -4034,7 +4034,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_OpenStreamTime_Mean",
+              "expr": "metrics_OpenStreamTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -4124,7 +4124,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_OpenStreamTime_Max",
+              "expr": "metrics_OpenStreamTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -4214,7 +4214,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_FetchChunkTime_Mean",
+              "expr": "metrics_FetchChunkTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -4304,7 +4304,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_FetchChunkTime_Max",
+              "expr": "metrics_FetchChunkTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -4394,7 +4394,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_OpenStreamSuccessCount_Count",
+              "expr": "metrics_OpenStreamSuccessCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -4485,7 +4485,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_OpenStreamFailCount_Count",
+              "expr": "metrics_OpenStreamFailCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -4576,7 +4576,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_FetchChunkSuccessCount_Count",
+              "expr": "metrics_FetchChunkSuccessCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -4667,7 +4667,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_FetchChunkFailCount_Count",
+              "expr": "metrics_FetchChunkFailCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -4758,7 +4758,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ActiveChunkStreamCount_Value",
+              "expr": "metrics_ActiveChunkStreamCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -4863,7 +4863,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_TakeBufferTime_Mean",
+              "expr": "metrics_TakeBufferTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -4953,7 +4953,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_TakeBufferTime_Max",
+              "expr": "metrics_TakeBufferTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -5043,7 +5043,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_FlushDataTime_Mean",
+              "expr": "metrics_FlushDataTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -5133,7 +5133,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_FlushDataTime_Max",
+              "expr": "metrics_FlushDataTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -5223,7 +5223,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_CommitFilesTime_Mean",
+              "expr": "metrics_CommitFilesTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -5313,7 +5313,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_CommitFilesTime_Max",
+              "expr": "metrics_CommitFilesTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -5421,7 +5421,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_NettyMemory_Value",
+              "expr": "metrics_NettyMemory_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -5516,7 +5516,8 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_DirectMemoryUsageRatio_Value",
+              "expr": "metrics_DirectMemoryUsageRatio_Value{instance=~\"${instance}\"}",
+              "legendFormat": "${baseLegend}",
               "instant": false,
               "range": true,
               "refId": "A"
@@ -5611,7 +5612,8 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_MemoryFileStorageSize_Value",
+              "expr": "metrics_MemoryFileStorageSize_Value{instance=~\"${instance}\"}",
+              "legendFormat": "${baseLegend}",
               "instant": false,
               "range": true,
               "refId": "A"
@@ -5705,7 +5707,8 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_MemoryStorageFileCount_Value",
+              "expr": "metrics_MemoryStorageFileCount_Value{instance=~\"${instance}\"}",
+              "legendFormat": "${baseLegend}",
               "instant": false,
               "range": true,
               "refId": "A"
@@ -5796,7 +5799,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_DiskBuffer_Value",
+              "expr": "metrics_DiskBuffer_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -5887,7 +5890,8 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_EvictedFileCount_Value",
+              "expr": "metrics_EvictedFileCount_Value{instance=~\"${instance}\"}",
+              "legendFormat": "${baseLegend}",
               "instant": false,
               "range": true,
               "refId": "A"
@@ -5979,7 +5983,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_push_usedHeapMemory_Value",
+              "expr": "metrics_push_usedHeapMemory_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -6071,7 +6075,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_push_usedDirectMemory_Value",
+              "expr": "metrics_push_usedDirectMemory_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -6163,7 +6167,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_fetch_usedHeapMemory_Value",
+              "expr": "metrics_fetch_usedHeapMemory_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -6255,7 +6259,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_fetch_usedDirectMemory_Value",
+              "expr": "metrics_fetch_usedDirectMemory_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -6347,7 +6351,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_replicate_usedHeapMemory_Value",
+              "expr": "metrics_replicate_usedHeapMemory_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -6439,7 +6443,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_replicate_usedDirectMemory_Value",
+              "expr": "metrics_replicate_usedDirectMemory_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -6530,7 +6534,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_ReadBufferAllocatedCount_Value",
+              "expr": "metrics_ReadBufferAllocatedCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -6622,7 +6626,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_BufferStreamReadBuffer_Value",
+              "expr": "metrics_BufferStreamReadBuffer_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -6713,7 +6717,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_ReadBufferDispatcherRequestsLength_Value",
+              "expr": "metrics_ReadBufferDispatcherRequestsLength_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -6818,7 +6822,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_SortTime_Mean",
+              "expr": "metrics_SortTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -6908,7 +6912,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_SortTime_Max",
+              "expr": "metrics_SortTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
@@ -6997,7 +7001,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_SortingFiles_Value",
+              "expr": "metrics_SortingFiles_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -7087,7 +7091,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_SortedFiles_Value",
+              "expr": "metrics_SortedFiles_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -7178,7 +7182,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_SortMemory_Value",
+              "expr": "metrics_SortMemory_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -7269,7 +7273,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_SortedFileSize_Value",
+              "expr": "metrics_SortedFileSize_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -7376,7 +7380,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_PotentialConsumeSpeed_Value",
+              "expr": "metrics_PotentialConsumeSpeed_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -7469,7 +7473,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_WorkerConsumeSpeed_Value",
+              "expr": "metrics_WorkerConsumeSpeed_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -7562,7 +7566,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_UserProduceSpeed_Value",
+              "expr": "metrics_UserProduceSpeed_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -7668,7 +7672,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_PrimaryPushDataHandshakeTime_Mean",
+              "expr": "metrics_PrimaryPushDataHandshakeTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -7760,7 +7764,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_PrimaryPushDataHandshakeTime_Max",
+              "expr": "metrics_PrimaryPushDataHandshakeTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -7852,7 +7856,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ReplicaPushDataHandshakeTime_Mean",
+              "expr": "metrics_ReplicaPushDataHandshakeTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -7944,7 +7948,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ReplicaPushDataHandshakeTime_Max",
+              "expr": "metrics_ReplicaPushDataHandshakeTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -8036,7 +8040,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_PrimaryRegionStartTime_Mean",
+              "expr": "metrics_PrimaryRegionStartTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -8128,7 +8132,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_PrimaryRegionStartTime_Max",
+              "expr": "metrics_PrimaryRegionStartTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -8220,7 +8224,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ReplicaRegionStartTime_Mean",
+              "expr": "metrics_ReplicaRegionStartTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -8312,7 +8316,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ReplicaRegionStartTime_Max",
+              "expr": "metrics_ReplicaRegionStartTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -8404,7 +8408,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_PrimaryRegionFinishTime_Mean",
+              "expr": "metrics_PrimaryRegionFinishTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -8496,7 +8500,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_PrimaryRegionFinishTime_Max",
+              "expr": "metrics_PrimaryRegionFinishTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -8588,7 +8592,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ReplicaRegionFinishTime_Mean",
+              "expr": "metrics_ReplicaRegionFinishTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -8680,7 +8684,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ReplicaRegionFinishTime_Max",
+              "expr": "metrics_ReplicaRegionFinishTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -8771,7 +8775,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_PushDataHandshakeFailCount_Count",
+              "expr": "metrics_PushDataHandshakeFailCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -8862,7 +8866,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_RegionStartFailCount_Count",
+              "expr": "metrics_RegionStartFailCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -8953,7 +8957,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_RegionStartFailCount_Count",
+              "expr": "metrics_RegionStartFailCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -9517,7 +9521,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_ActiveCreditStreamCount_Value",
+              "expr": "metrics_ActiveCreditStreamCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -9608,7 +9612,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_ActiveMapPartitionCount_Value",
+              "expr": "metrics_ActiveMapPartitionCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -9714,7 +9718,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_JVMCPUTime_Value",
+              "expr": "metrics_JVMCPUTime_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -9807,7 +9811,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_LastMinuteSystemLoad_Value",
+              "expr": "metrics_LastMinuteSystemLoad_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -9900,7 +9904,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_DeviceOSFreeBytes_Value",
+              "expr": "metrics_DeviceOSFreeBytes_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -9993,7 +9997,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_DeviceCelebornFreeBytes_Value",
+              "expr": "metrics_DeviceCelebornFreeBytes_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -10086,7 +10090,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_AvailableProcessors_Value",
+              "expr": "metrics_AvailableProcessors_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -10192,7 +10196,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_diskFileCount_Value",
+              "expr": "metrics_diskFileCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -10285,7 +10289,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_diskBytesWritten_Value",
+              "expr": "metrics_diskBytesWritten_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -10377,7 +10381,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_hdfsFileCount_Value",
+              "expr": "metrics_hdfsFileCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -10470,7 +10474,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_hdfsBytesWritten_Value",
+              "expr": "metrics_hdfsBytesWritten_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -10490,6 +10494,31 @@
   "tags": [],
   "templating": {
     "list": [
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(metrics_JVMCPUTime_Value, instance)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "instance",
+        "mapping": "",
+        "mappingOnLegend": true,
+        "multi": true,
+        "name": "instance",
+        "options": [],
+        "query": {
+          "query": "label_values(metrics_JVMCPUTime_Value, instance)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
       {
         "current": {
           "selected": false,

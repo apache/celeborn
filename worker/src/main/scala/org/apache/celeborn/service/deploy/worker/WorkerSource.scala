@@ -25,12 +25,11 @@ import scala.collection.JavaConverters._
 import com.google.common.collect.Sets
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.AbstractSource
+import org.apache.celeborn.common.metrics.source.{AbstractSource, Role}
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
 
-class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSystem.ROLE_WORKER) {
+class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER) {
   override val sourceName = "worker"
 
   val appActiveConnections: ConcurrentHashMap[String, util.Set[String]] =
