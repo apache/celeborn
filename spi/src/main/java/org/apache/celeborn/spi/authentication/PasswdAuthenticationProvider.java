@@ -19,6 +19,8 @@ package org.apache.celeborn.spi.authentication;
 
 import java.security.Principal;
 
+import javax.security.sasl.AuthenticationException;
+
 public interface PasswdAuthenticationProvider {
   /**
    * The authenticate method is called by the celeborn authentication layer to authenticate password
@@ -27,7 +29,7 @@ public interface PasswdAuthenticationProvider {
    *
    * @param credential The credential received over the connection request
    * @return The identifier associated with the credential
-   * @throws SecurityException When a user is found to be invalid by the implementation
+   * @throws AuthenticationException When a user is found to be invalid by the implementation
    */
-  Principal authenticate(PasswordCredential credential);
+  Principal authenticate(PasswordCredential credential) throws AuthenticationException;
 }
