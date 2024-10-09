@@ -279,13 +279,16 @@ class ChangePartitionManager(
     }
 
     // Get candidate worker that not in excluded worker list of shuffleId
-    val candidates =
+    val oldCandidates =
       lifecycleManager
         .workerSnapshots(shuffleId)
         .keySet()
         .asScala
         .filter(lifecycleManager.workerStatusTracker.workerAvailable)
         .toList
+
+    val candidates = lifecycleManager.workerStatusTracker.availableWorkers.asScala.toList
+
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")
       replyFailure(StatusCode.SLOT_NOT_AVAILABLE)

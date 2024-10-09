@@ -97,6 +97,7 @@ class ApplicationHeartbeater(
           StatusCode.REQUEST_FAILED,
           List.empty.asJava,
           List.empty.asJava,
+          List.empty.asJava,
           List.empty.asJava)
     }
   }
