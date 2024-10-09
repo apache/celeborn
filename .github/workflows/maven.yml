@@ -38,7 +38,7 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: service-unit-test-log
+        name: service-java-${{ matrix.java }}-unit-test-log
         path: |
           **/target/test-reports/**
           **/target/unit-tests.log
