@@ -19,7 +19,6 @@ package org.apache.celeborn.plugin.flink;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.flink.api.common.JobID;
@@ -33,6 +32,7 @@ import org.apache.celeborn.client.listener.WorkerStatusListener;
 import org.apache.celeborn.client.listener.WorkersStatus;
 import org.apache.celeborn.common.meta.ShufflePartitionLocationInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.util.JavaUtils;
 
 public class ShuffleResourceTracker implements WorkerStatusListener {
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleResourceTracker.class);
@@ -40,7 +40,7 @@ public class ShuffleResourceTracker implements WorkerStatusListener {
   private final LifecycleManager lifecycleManager;
   // JobID -> ShuffleResourceListener
   private final Map<JobID, JobShuffleResourceListener> shuffleResourceListeners =
-      new ConcurrentHashMap<>();
+      JavaUtils.newConcurrentHashMap();
   private static final int MAX_RETRY_TIMES = 3;
 
   public ShuffleResourceTracker(
@@ -132,7 +132,7 @@ public class ShuffleResourceTracker implements WorkerStatusListener {
     private final ExecutorService executorService;
     // celeborn shuffleId -> partitionId -> Flink ResultPartitionID
     private Map<Integer, Map<Integer, ResultPartitionID>> resultPartitionMap =
-        new ConcurrentHashMap<>();
+        JavaUtils.newConcurrentHashMap();
 
     public JobShuffleResourceListener(
         JobShuffleContext jobShuffleContext, ExecutorService executorService) {
@@ -143,7 +143,7 @@ public class ShuffleResourceTracker implements WorkerStatusListener {
     public void addPartitionResource(
         int shuffleId, int partitionId, ResultPartitionID partitionID) {
       Map<Integer, ResultPartitionID> shufflePartitionMap =
-          resultPartitionMap.computeIfAbsent(shuffleId, (s) -> new ConcurrentHashMap<>());
+          resultPartitionMap.computeIfAbsent(shuffleId, (s) -> JavaUtils.newConcurrentHashMap());
       shufflePartitionMap.put(partitionId, partitionID);
     }
 

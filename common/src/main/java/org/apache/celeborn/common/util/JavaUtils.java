@@ -460,6 +460,14 @@ public class JavaUtils {
     }
   }
 
+  public static <K, V> ConcurrentHashMap<K, V> newConcurrentHashMap(int initialCapacity) {
+    if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
+      return new ConcurrentHashMap<>(initialCapacity);
+    } else {
+      return new ConcurrentHashMapForJDK8<>(initialCapacity);
+    }
+  }
+
   /**
    * For JDK8, there is bug for ConcurrentHashMap#computeIfAbsent, checking the key existence to
    * speed up. See details in CELEBORN-474.
@@ -467,6 +475,10 @@ public class JavaUtils {
   private static class ConcurrentHashMapForJDK8<K, V> extends ConcurrentHashMap<K, V> {
     public ConcurrentHashMapForJDK8() {
       super();
+    }
+
+    public ConcurrentHashMapForJDK8(int initialCapacity) {
+      super(initialCapacity);
     }
 
     public ConcurrentHashMapForJDK8(Map<? extends K, ? extends V> m) {

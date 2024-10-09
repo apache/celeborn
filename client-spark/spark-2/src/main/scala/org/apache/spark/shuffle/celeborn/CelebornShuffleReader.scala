@@ -33,7 +33,7 @@ import org.apache.celeborn.client.read.CelebornInputStream
 import org.apache.celeborn.client.read.MetricsCallback
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.{CelebornIOException, PartitionUnRetryAbleException}
-import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
 class CelebornShuffleReader[K, C](
     handle: CelebornShuffleHandle[K, _, C],
@@ -88,7 +88,7 @@ class CelebornShuffleReader[K, C](
       }
     }
 
-    val streams = new ConcurrentHashMap[Integer, CelebornInputStream]()
+    val streams = JavaUtils.newConcurrentHashMap[Integer, CelebornInputStream]()
     (startPartition until endPartition).map(partitionId => {
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
