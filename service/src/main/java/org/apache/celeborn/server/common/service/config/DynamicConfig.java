@@ -19,6 +19,7 @@ package org.apache.celeborn.server.common.service.config;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +42,7 @@ public abstract class DynamicConfig {
   private static final Logger LOG = LoggerFactory.getLogger(DynamicConfig.class);
   protected Map<String, String> configs = new HashMap<>();
   protected volatile Quota quota = null;
+  protected volatile Map<String, Set<String>> tags = null;
 
   public abstract DynamicConfig getParentLevelConfig();
 
@@ -129,6 +131,21 @@ public abstract class DynamicConfig {
 
   public Map<String, String> getConfigs() {
     return configs;
+  }
+
+  public Map<String, Set<String>> getTags() {
+    if (tags == null) {
+      synchronized (DynamicConfig.class) {
+        if (tags == null) {
+          tags = currentTags();
+        }
+      }
+    }
+    return tags;
+  }
+
+  protected Map<String, Set<String>> currentTags() {
+    return null;
   }
 
   @Override
