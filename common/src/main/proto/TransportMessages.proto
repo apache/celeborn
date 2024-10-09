@@ -449,7 +449,8 @@ message PbHeartbeatFromApplicationResponse {
   repeated PbWorkerInfo excludedWorkers = 2;
   repeated PbWorkerInfo unknownWorkers = 3;
   repeated PbWorkerInfo shuttingWorkers = 4;
-  repeated int32 registeredShuffles = 5;
+  repeated PbWorkerInfo availableWorkers = 5;
+  repeated int32 registeredShuffles = 6;
 }
 
 message PbCheckQuota {

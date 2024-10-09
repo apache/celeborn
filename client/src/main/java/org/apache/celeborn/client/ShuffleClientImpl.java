@@ -409,7 +409,9 @@ public class ShuffleClientImpl extends ShuffleClient {
               request.partitionId,
               oldGroupedBatchId);
         } else if (request.reviveStatus == StatusCode.SUCCESS.getValue()) {
+
           PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(request.partitionId);
+
           DataBatches newDataBatches =
               newDataBatchesMap.computeIfAbsent(genAddressPair(newLoc), (s) -> new DataBatches());
           newDataBatches.addDataBatch(newLoc, batch.batchId, batch.body);

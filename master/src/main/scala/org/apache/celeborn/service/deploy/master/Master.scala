@@ -1135,6 +1135,9 @@ private[celeborn] class Master(
         needCheckedWorkerList,
         new util.ArrayList[WorkerInfo](
           (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava),
+        new util.ArrayList[WorkerInfo](
+          statusSystem.workers.asScala.filter(worker =>
+            statusSystem.isWorkerAvailable(worker)).asJava),
         new util.ArrayList(appRelatedShuffles)))
     } else {
       context.reply(OneWayMessageResponse)
