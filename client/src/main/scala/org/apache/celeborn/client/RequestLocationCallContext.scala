@@ -18,13 +18,13 @@
 package org.apache.celeborn.client
 
 import java.util
-import java.util.concurrent.ConcurrentHashMap
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.{ChangeLocationResponse, RegisterShuffleResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
+import org.apache.celeborn.common.util.JavaUtils
 
 trait RequestLocationCallContext {
   def reply(
@@ -40,7 +40,8 @@ case class ChangeLocationsCallContext(
   extends RequestLocationCallContext with Logging {
   val endedMapIds = new util.HashSet[Integer]()
   val newLocs =
-    new ConcurrentHashMap[Integer, (StatusCode, Boolean, PartitionLocation)](partitionCount)
+    JavaUtils.newConcurrentHashMap[Integer, (StatusCode, Boolean, PartitionLocation)](
+      partitionCount)
 
   def markMapperEnd(mapId: Int): Unit = this.synchronized {
     endedMapIds.add(mapId)

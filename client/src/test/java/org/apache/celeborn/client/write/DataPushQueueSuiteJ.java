@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.junit.AfterClass;
@@ -76,7 +75,7 @@ public class DataPushQueueSuiteJ {
       tarWorkerData.add(new ArrayList<>());
     }
 
-    Map<Integer, Integer> partitionBatchIdMap = new ConcurrentHashMap<>();
+    Map<Integer, Integer> partitionBatchIdMap = JavaUtils.newConcurrentHashMap();
 
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REQS_IN_FLIGHT_PERWORKER().key(), "2");

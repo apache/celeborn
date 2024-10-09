@@ -25,9 +25,10 @@ import scala.collection.JavaConverters.{asScalaIteratorConverter, mapAsScalaConc
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
+import org.apache.celeborn.common.util.JavaUtils
 
 class TagsManager extends Logging {
-  private val tagStore = new ConcurrentHashMap[String, JSet[String]]()
+  private val tagStore = JavaUtils.newConcurrentHashMap[String, JSet[String]]()
 
   private val addNewTagFunc =
     new util.function.Function[String, ConcurrentHashMap.KeySetView[String, java.lang.Boolean]]() {

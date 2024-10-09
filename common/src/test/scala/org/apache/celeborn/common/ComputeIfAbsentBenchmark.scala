@@ -18,13 +18,13 @@
 package org.apache.celeborn.common
 
 import java.util.{HashMap => JHashMap, Map => JMap}
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.{Function => JFunction}
 
 import scala.util.Random
 
 import org.apache.celeborn.benchmark.{Benchmark, BenchmarkBase}
+import org.apache.celeborn.common.util.JavaUtils
 
 /**
  * ComputeIfAbsent benchmark.
@@ -66,6 +66,6 @@ object ComputeIfAbsentBenchmark extends BenchmarkBase {
 
   override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
     test("HashMap", new JHashMap[Int, AtomicInteger], 1 << 26)
-    test("ConcurrentHashMap", new ConcurrentHashMap[Int, AtomicInteger], 1 << 26)
+    test("ConcurrentHashMap", JavaUtils.newConcurrentHashMap[Int, AtomicInteger], 1 << 26)
   }
 }
