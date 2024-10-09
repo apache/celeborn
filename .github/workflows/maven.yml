@@ -77,7 +77,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: spark-${{ matrix.spark }}-unit-test-log
+          name: spark-${{ matrix.spark }}-java-${{ matrix.java }}-unit-test-log
           path: |
             **/target/test-reports/**
             **/target/unit-tests.log
@@ -141,7 +141,7 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: spark-${{ matrix.spark }}-unit-test-log
+        name: spark-${{ matrix.spark }}-java-${{ matrix.java }}-unit-test-log
         path: |
           **/target/test-reports/**
           **/target/unit-tests.log
@@ -181,7 +181,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: flink-${{ matrix.flink }}-unit-test-log
+          name: flink-${{ matrix.flink }}-java-${{ matrix.java }}-unit-test-log
           path: |
             **/target/test-reports/**
             **/target/unit-tests.log
@@ -213,7 +213,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: mr-unit-test-log
+          name: mr-java-${{ matrix.java }}-unit-test-log
           path: |
             **/target/test/
             **/target/test-reports/**
