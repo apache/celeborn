@@ -52,7 +52,7 @@ class LifecycleManagerSetupEndpointSuite extends WithShuffleClientSuite with Min
     assert(res.workerResource.keySet().size() == 3)
 
     val connectFailedWorkers = new ShuffleFailedWorkers()
-    lifecycleManager.setupEndpoints(res.workerResource, 0, connectFailedWorkers)
+    lifecycleManager.setupEndpoints(res.workerResource.keySet(), 0, connectFailedWorkers)
     assert(connectFailedWorkers.isEmpty)
 
     lifecycleManager.stop()
@@ -73,7 +73,7 @@ class LifecycleManagerSetupEndpointSuite extends WithShuffleClientSuite with Min
     firstWorker.rpcEnv.shutdown()
 
     val connectFailedWorkers = new ShuffleFailedWorkers()
-    lifecycleManager.setupEndpoints(res.workerResource, 0, connectFailedWorkers)
+    lifecycleManager.setupEndpoints(res.workerResource.keySet(), 0, connectFailedWorkers)
     assert(connectFailedWorkers.size() == 1)
     assert(connectFailedWorkers.keySet().asScala.head == firstWorker.workerInfo)
 

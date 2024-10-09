@@ -449,11 +449,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   def setupEndpoints(
-      slots: WorkerResource,
+      workers: util.Set[WorkerInfo],
       shuffleId: Int,
       connectFailedWorkers: ShuffleFailedWorkers): Unit = {
     val futures = new util.LinkedList[(Future[RpcEndpointRef], WorkerInfo)]()
-    slots.asScala foreach { case (workerInfo, _) =>
+    workers.asScala foreach { workerInfo =>
       val future = workerRpcEnvInUse.asyncSetupEndpointRefByAddr(RpcEndpointAddress(
         RpcAddress.apply(workerInfo.host, workerInfo.rpcPort),
         WORKER_EP))
@@ -676,7 +676,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val connectFailedWorkers = new ShuffleFailedWorkers()
 
     // Second, for each worker, try to initialize the endpoint.
-    setupEndpoints(slots, shuffleId, connectFailedWorkers)
+    setupEndpoints(slots.keySet(), shuffleId, connectFailedWorkers)
 
     candidatesWorkers.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
     workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
