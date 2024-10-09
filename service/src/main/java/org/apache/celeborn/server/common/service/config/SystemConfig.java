@@ -20,6 +20,7 @@ package org.apache.celeborn.server.common.service.config;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.internal.config.ConfigEntry;
@@ -62,5 +63,18 @@ public class SystemConfig extends DynamicConfig {
     } else {
       return formatValue;
     }
+  }
+
+  public void setConfigs(Map<String, String> configs) {
+    this.configs = configs;
+  }
+
+  public void setTags(Map<String, Set<String>> tags) {
+    this.tags = tags;
+  }
+
+  @Override
+  protected Map<String, Set<String>> currentTags() {
+    return this.tags;
   }
 }

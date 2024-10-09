@@ -23,6 +23,9 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -306,5 +309,69 @@ public class ConfigServiceSuiteJ {
     ClusterInfo clusterInfo = serviceManager.getClusterInfo(celebornConf.clusterName());
     Assert.assertEquals(gmtTime, clusterInfo.getGmtCreate());
     Assert.assertEquals(gmtTime, clusterInfo.getGmtModify());
+  }
+
+  @Test
+  public void testTags() throws IOException {
+    CelebornConf celebornConf = new CelebornConf();
+    String file = getClass().getResource("/dynamicConfig_tags.yaml").getFile();
+    celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), file);
+    celebornConf.set(CelebornConf.DYNAMIC_CONFIG_REFRESH_INTERVAL(), 5L);
+    configService = new FsConfigServiceImpl(celebornConf);
+
+    verifyTags(configService);
+
+    // change -> refresh config
+    file = getClass().getResource("/dynamicConfig_tags2.yaml").getFile();
+    celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), file);
+    configService.refreshCache();
+
+    verifyModifiedTags(configService);
+  }
+
+  public void verifyTags(ConfigService configService) {
+    SystemConfig systemConfig = configService.getSystemConfigFromCache();
+    Map<String, Set<String>> tags = systemConfig.getTags();
+
+    Set<String> tag1 = tags.getOrDefault("tag1", new HashSet<>());
+    Assert.assertEquals(tag1.size(), 2);
+    Assert.assertTrue(tag1.contains("host1:1111"));
+    Assert.assertTrue(tag1.contains("host2:2222"));
+
+    Set<String> tag2 = tags.getOrDefault("tag2", new HashSet<>());
+    Assert.assertEquals(tag2.size(), 2);
+    Assert.assertTrue(tag2.contains("host3:3333"));
+    Assert.assertTrue(tag2.contains("host4:4444"));
+
+    Set<String> tag3 = tags.getOrDefault("tag3", new HashSet<>());
+    Assert.assertEquals(tag3.size(), 0);
+
+    verifyTenantAndUserTagsAsNull(configService);
+  }
+
+  public void verifyModifiedTags(ConfigService configService) {
+    System.out.println("Tags changed");
+
+    SystemConfig systemConfig = configService.getSystemConfigFromCache();
+    Map<String, Set<String>> tags = systemConfig.getTags();
+
+    Set<String> tag1 = tags.getOrDefault("tag1", new HashSet<>());
+    Assert.assertEquals(tag1.size(), 1);
+    Assert.assertTrue(tag1.contains("host1:1111"));
+
+    Set<String> tag2 = tags.getOrDefault("tag2", new HashSet<>());
+    Assert.assertEquals(tag2.size(), 0);
+
+    Set<String> tag3 = tags.getOrDefault("tag3", new HashSet<>());
+    Assert.assertEquals(tag3.size(), 1);
+    Assert.assertTrue(tag3.contains("host5:5555"));
+  }
+
+  public void verifyTenantAndUserTagsAsNull(ConfigService configService) {
+    TenantConfig tenantConfig = configService.getRawTenantConfigFromCache("tenant_id1");
+    Assert.assertNull(tenantConfig.getTags());
+
+    DynamicConfig userConfig = configService.getTenantUserConfigFromCache("tenant_id1", "Jerry");
+    Assert.assertNull(userConfig.getTags());
   }
 }
