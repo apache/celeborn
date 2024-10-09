@@ -40,6 +40,7 @@ import org.apache.celeborn.client.listener.WorkersStatus;
 import org.apache.celeborn.common.meta.ShufflePartitionLocationInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.util.JavaUtils;
 
 public class ShuffleResourceTrackerSuiteJ {
 
@@ -48,14 +49,17 @@ public class ShuffleResourceTrackerSuiteJ {
     LifecycleManager lifecycleManager = Mockito.mock(LifecycleManager.class);
     ScheduledThreadPoolExecutor executor = Mockito.mock(ScheduledThreadPoolExecutor.class);
 
-    ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map = new ConcurrentHashMap<>();
+    ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map =
+        JavaUtils.newConcurrentHashMap();
     WorkerInfo workerInfo = new WorkerInfo("mock", -1, -1, -1, -1);
     map.put(workerInfo, mockShufflePartitionLocationInfo());
 
-    ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map2 = new ConcurrentHashMap<>();
+    ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map2 =
+        JavaUtils.newConcurrentHashMap();
     map2.put(workerInfo, mockShufflePartitionLocationInfo());
 
-    ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map3 = new ConcurrentHashMap<>();
+    ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map3 =
+        JavaUtils.newConcurrentHashMap();
     map3.put(workerInfo, mockShufflePartitionLocationInfo());
 
     Mockito.when(lifecycleManager.workerSnapshots(Mockito.anyInt())).thenReturn(map, map2, map3);

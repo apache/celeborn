@@ -19,10 +19,12 @@ package org.apache.celeborn.common.network.sasl;
 
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.celeborn.common.util.JavaUtils;
+
 /** A simple implementation of {@link SecretRegistry} that stores secrets in memory. */
 public class SecretRegistryImpl implements SecretRegistry {
 
-  private final ConcurrentHashMap<String, String> secrets = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, String> secrets = JavaUtils.newConcurrentHashMap();
 
   @Override
   public void register(String appId, String secret) {
