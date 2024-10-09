@@ -177,9 +177,6 @@ object MetricsSystem {
   val SINK_REGEX: Regex = "^sink\\.(.+)\\.(.+)".r
   val SOURCE_REGEX: Regex = "^org.apache.celeborn.common.metrics.source\\.(.+)\\.(.+)".r
 
-  val ROLE_WORKER = "Worker"
-  val ROLE_MASTER = "Master"
-
   private[this] val MINIMAL_POLL_UNIT = TimeUnit.SECONDS
   private[this] val MINIMAL_POLL_PERIOD = 1
 
