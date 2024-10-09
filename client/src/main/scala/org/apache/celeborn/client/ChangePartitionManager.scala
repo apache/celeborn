@@ -293,9 +293,7 @@ class ChangePartitionManager(
     lifecycleManager.setupEndpoints(candidates1, shuffleId, connectFailedWorkers)
     candidates1.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
     lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
-    // If newly allocated from primary and can setup endpoint success, LifecycleManager should remove worker from
-    // the excluded worker list to improve the accuracy of the list.
-    lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates1)
+//    lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates1)
 
     if (candidates1.size < 1 || (pushReplicateEnabled && candidates1.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")
