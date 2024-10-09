@@ -42,6 +42,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     if (masterOptions.showWorkerEventInfo) log(runShowWorkerEventInfo)
     if (masterOptions.showLostWorkers) log(runShowLostWorkers)
     if (masterOptions.showExcludedWorkers) log(runShowExcludedWorkers)
+    if (masterOptions.showManualExcludedWorkers) log(runShowManualExcludedWorkers)
     if (masterOptions.showShutdownWorkers) log(runShowShutdownWorkers)
     if (masterOptions.showDecommissioningWorkers) log(runShowDecommissioningWorkers)
     if (masterOptions.showLifecycleManagers) log(runShowLifecycleManagers)
@@ -126,6 +127,16 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
       Seq.empty[WorkerData]
     } else {
       excludedWorkers.sortBy(_.getHost)
+    }
+  }
+
+  private[master] def runShowManualExcludedWorkers: Seq[WorkerData] = {
+    val manualExcludedWorkers = runShowWorkers.getManualExcludedWorkers.asScala.toSeq
+    if (manualExcludedWorkers.isEmpty) {
+      log("No manual excluded workers found.")
+      Seq.empty[WorkerData]
+    } else {
+      manualExcludedWorkers.sortBy(_.getHost)
     }
   }
 

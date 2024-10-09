@@ -61,6 +61,11 @@ final class MasterOptions {
   @Option(names = Array("--show-excluded-workers"), description = Array("Show excluded workers"))
   private[master] var showExcludedWorkers: Boolean = _
 
+  @Option(
+    names = Array("--show-manual-excluded-workers"),
+    description = Array("Show manual excluded workers"))
+  private[master] var showManualExcludedWorkers: Boolean = _
+
   @Option(names = Array("--show-shutdown-workers"), description = Array("Show shutdown workers"))
   private[master] var showShutdownWorkers: Boolean = _
 
