@@ -20,6 +20,8 @@ package org.apache.celeborn.common.rpc
 import java.util.concurrent.ConcurrentMap
 import java.util.concurrent.atomic.AtomicLong
 
+import scala.collection.JavaConverters._
+
 import com.codahale.metrics.{Counter, Histogram, UniformReservoir}
 import com.google.protobuf.GeneratedMessageV3
 
@@ -149,7 +151,7 @@ private[celeborn] class RpcMetricsTracker(
     builder.append(s"RPC statistics for $name").append("\n")
     builder.append(s"current queue size = ${queueSize()}").append("\n")
     builder.append(s"max queue length = $maxQueueLength").append("\n")
-    histogramMap.entrySet.forEach(entry => {
+    histogramMap.entrySet.asScala.foreach(entry => {
       val histogram = entry.getValue
       val snapshot = histogram.getSnapshot;
       builder.append(s"histogram for $name RPC metrics: ").append(entry.getKey).append("\n")
