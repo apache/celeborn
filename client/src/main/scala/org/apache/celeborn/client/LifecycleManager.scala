@@ -1622,9 +1622,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         userIdentifier,
         slotsAssignMaxWorkers,
         availableStorageTypes,
-        excludedWorkerSet = excludedWorkerSet,
-        packed = true,
-        tagsExpr = clientTagsExpr)
+        excludedWorkerSet,
+        true,
+        clientTagsExpr)
     val res = requestMasterRequestSlots(req)
     if (res.status != StatusCode.SUCCESS) {
       requestMasterRequestSlots(req)

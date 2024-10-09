@@ -283,6 +283,7 @@ message PbRequestSlots {
   int32 availableStorageTypes = 11;
   repeated PbWorkerInfo excludedWorkerSet = 12;
   bool packed = 13;
+  string tagsExpr = 14;
 }
 
 message PbSlotInfo {
