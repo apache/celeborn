@@ -40,13 +40,19 @@ public class CongestionController {
   private final WorkerSource workerSource;
 
   private final int sampleTimeWindowSeconds;
-  private final long highWatermark;
-  private final long lowWatermark;
+  private final long diskBufferHighWatermark;
+  private final long diskBufferLowWatermark;
+  private final long userProduceSpeedHighWatermark;
+  private final long userProduceSpeedLowWatermark;
+  private final long workerProduceSpeedHighWatermark;
+  private final long workerProduceSpeedLowWatermark;
   private final long userInactiveTimeMills;
 
   private final AtomicBoolean overHighWatermark = new AtomicBoolean(false);
 
   private final BufferStatusHub consumedBufferStatusHub;
+
+  private final BufferStatusHub producedBufferStatusHub;
 
   private final ConcurrentHashMap<UserIdentifier, UserBufferInfo> userBufferStatuses;
 
@@ -54,22 +60,37 @@ public class CongestionController {
 
   private final ScheduledExecutorService checkService;
 
+  private final ConcurrentHashMap<UserIdentifier, UserCongestionControlContext>
+      userCongestionContextMap;
+
   protected CongestionController(
       WorkerSource workerSource,
       int sampleTimeWindowSeconds,
-      long highWatermark,
-      long lowWatermark,
+      long diskBufferHighWatermark,
+      long diskBufferLowWatermark,
+      long userProduceSpeedHighWatermark,
+      long userProduceSpeedLowWatermark,
+      long workerProduceSpeedHighWatermark,
+      long workerProduceSpeedLowWatermark,
       long userInactiveTimeMills,
       long checkIntervalTimeMills) {
-    assert (highWatermark > lowWatermark);
+    assert (diskBufferHighWatermark > diskBufferLowWatermark);
+    assert (userProduceSpeedHighWatermark > userProduceSpeedLowWatermark);
+    assert (workerProduceSpeedHighWatermark > workerProduceSpeedLowWatermark);
 
     this.workerSource = workerSource;
     this.sampleTimeWindowSeconds = sampleTimeWindowSeconds;
-    this.highWatermark = highWatermark;
-    this.lowWatermark = lowWatermark;
+    this.diskBufferHighWatermark = diskBufferHighWatermark;
+    this.diskBufferLowWatermark = diskBufferLowWatermark;
+    this.userProduceSpeedHighWatermark = userProduceSpeedHighWatermark;
+    this.userProduceSpeedLowWatermark = userProduceSpeedLowWatermark;
+    this.workerProduceSpeedHighWatermark = workerProduceSpeedHighWatermark;
+    this.workerProduceSpeedLowWatermark = workerProduceSpeedLowWatermark;
     this.userInactiveTimeMills = userInactiveTimeMills;
     this.consumedBufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
+    this.producedBufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
     this.userBufferStatuses = JavaUtils.newConcurrentHashMap();
+    this.userCongestionContextMap = JavaUtils.newConcurrentHashMap();
 
     this.removeUserExecutorService =
         ThreadUtils.newDaemonSingleThreadScheduledExecutor(
@@ -94,16 +115,24 @@ public class CongestionController {
   public static synchronized CongestionController initialize(
       WorkerSource workSource,
       int sampleTimeWindowSeconds,
-      long highWatermark,
-      long lowWatermark,
+      long highWatermarkDiskBuffer,
+      long lowWatermarkDiskBuffer,
+      long highWatermarkUserProduceSpeed,
+      long lowWatermarkUserProduceSpeed,
+      long highWatermarkWorkerProduceSpeed,
+      long lowWatermarkWorkerProduceSpeed,
       long userInactiveTimeMills,
       long checkIntervalTimeMills) {
     _INSTANCE =
         new CongestionController(
             workSource,
             sampleTimeWindowSeconds,
-            highWatermark,
-            lowWatermark,
+            highWatermarkDiskBuffer,
+            lowWatermarkDiskBuffer,
+            highWatermarkUserProduceSpeed,
+            lowWatermarkUserProduceSpeed,
+            highWatermarkWorkerProduceSpeed,
+            lowWatermarkWorkerProduceSpeed,
             userInactiveTimeMills,
             checkIntervalTimeMills);
     return _INSTANCE;
@@ -122,25 +151,41 @@ public class CongestionController {
    * <p>3. If the pending bytes doesn't exceed the high watermark, will allow all users to try to
    * get max throughout capacity.
    */
-  public boolean isUserCongested(UserIdentifier userIdentifier) {
-    if (userBufferStatuses.size() == 0) {
+  public boolean isUserCongested(UserCongestionControlContext userCongestionControlContext) {
+    if (userBufferStatuses.isEmpty()) {
       return false;
     }
-    if (overHighWatermark.get()) {
-      // If the user produce speed is higher that the avg consume speed, will congest it
-      long userProduceSpeed = getUserProduceSpeed(userBufferStatuses.get(userIdentifier));
-      long avgConsumeSpeed = getPotentialConsumeSpeed();
+
+    UserIdentifier userIdentifier = userCongestionControlContext.getUserIdentifier();
+    long userProduceSpeed = getUserProduceSpeed(userCongestionControlContext.getUserBufferInfo());
+    long avgConsumeSpeed = getPotentialConsumeSpeed();
+    // If the user produce speed is higher that the avg consume speed, will congest it
+    if (overHighWatermark.get() && userProduceSpeed > avgConsumeSpeed) {
       if (logger.isDebugEnabled()) {
         logger.debug(
-            "The user {}, produceSpeed is {}, while consumeSpeed is {}, need to congest it: {}",
+            "The user {}, produceSpeed is {}, while consumeSpeed is {}, need to congest it.",
             userIdentifier,
             userProduceSpeed,
-            avgConsumeSpeed,
-            userProduceSpeed > avgConsumeSpeed);
+            avgConsumeSpeed);
       }
-      return userProduceSpeed > avgConsumeSpeed;
+      return true;
+    } else {
+      if (userProduceSpeed > userProduceSpeedHighWatermark) {
+        userCongestionControlContext.onCongestionControl();
+        if (logger.isDebugEnabled()) {
+          logger.debug(
+              "The user {}, produceSpeed is {}, while userProduceSpeedHighWatermark is {}, need to congest it.",
+              userIdentifier,
+              userProduceSpeed,
+              userProduceSpeedHighWatermark);
+        }
+        return true;
+      } else if (userCongestionControlContext.inCongestionControl()
+          && userProduceSpeed < userProduceSpeedLowWatermark) {
+        userCongestionControlContext.offCongestionControl();
+      }
+      return userCongestionControlContext.inCongestionControl();
     }
-    return false;
   }
 
   public UserBufferInfo getUserBuffer(UserIdentifier userIdentifier) {
@@ -181,7 +226,7 @@ public class CongestionController {
       return 0;
     }
 
-    return consumedBufferStatusHub.avgBytesPerSec() / userBufferStatuses.size();
+    return producedBufferStatusHub.avgBytesPerSec() / userBufferStatuses.size();
   }
 
   /** Get the avg user produce speed, the unit is bytes/sec. */
@@ -205,6 +250,7 @@ public class CongestionController {
         UserBufferInfo userBufferInfo = next.getValue();
         if (currentTimeMillis - userBufferInfo.getTimestamp() >= userInactiveTimeMills) {
           userBufferStatuses.remove(userIdentifier);
+          userCongestionContextMap.remove(userIdentifier);
           workerSource.removeGauge(WorkerSource.USER_PRODUCE_SPEED(), userIdentifier.toMap());
           logger.info("User {} has been expired, remove from rate limit list", userIdentifier);
         }
@@ -217,15 +263,22 @@ public class CongestionController {
   protected void checkCongestion() {
     try {
       long pendingConsume = getTotalPendingBytes();
-      if (pendingConsume < lowWatermark) {
+      long workerProduceSpeed = producedBufferStatusHub.avgBytesPerSec();
+      boolean diskBufferOverHighWatermark = pendingConsume > diskBufferHighWatermark;
+      if (pendingConsume < diskBufferLowWatermark
+          && workerProduceSpeed < workerProduceSpeedLowWatermark) {
         if (overHighWatermark.compareAndSet(true, false)) {
-          logger.info("Pending consume is lower than low watermark, exit congestion control");
+          logger.info(
+              "Pending consume and produce speed is lower than low watermark, exit congestion control");
         }
         return;
-      } else if (pendingConsume > highWatermark && overHighWatermark.compareAndSet(false, true)) {
-        logger.info("Pending consume is higher than high watermark, need congestion control");
+      } else if ((diskBufferOverHighWatermark
+              || workerProduceSpeed > workerProduceSpeedHighWatermark)
+          && overHighWatermark.compareAndSet(false, true)) {
+        logger.info(
+            "Pending consume or produce speed is higher than high watermark, need congestion control");
       }
-      if (overHighWatermark.get()) {
+      if (overHighWatermark.get() && diskBufferOverHighWatermark) {
         trimMemoryUsage();
       }
     } catch (Exception e) {
@@ -239,6 +292,7 @@ public class CongestionController {
     this.checkService.shutdownNow();
     this.userBufferStatuses.clear();
     this.consumedBufferStatusHub.clear();
+    this.producedBufferStatusHub.clear();
   }
 
   public static synchronized void destroy() {
@@ -246,5 +300,23 @@ public class CongestionController {
       _INSTANCE.close();
       _INSTANCE = null;
     }
+  }
+
+  public BufferStatusHub getProducedBufferStatusHub() {
+    return producedBufferStatusHub;
+  }
+
+  public UserCongestionControlContext getUserCongestionContext(UserIdentifier userIdentifier) {
+    return userCongestionContextMap.computeIfAbsent(
+        userIdentifier,
+        user -> {
+          UserBufferInfo userBufferInfo = getUserBuffer(userIdentifier);
+          return new UserCongestionControlContext(
+              producedBufferStatusHub, userBufferInfo, workerSource, userIdentifier);
+        });
+  }
+
+  public Map<UserIdentifier, UserCongestionControlContext> getUserCongestionContextMap() {
+    return userCongestionContextMap;
   }
 }

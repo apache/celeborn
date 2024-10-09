@@ -50,9 +50,9 @@ import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
-import org.apache.celeborn.service.deploy.worker.congestcontrol.BufferStatusHub;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.UserBufferInfo;
+import org.apache.celeborn.service.deploy.worker.congestcontrol.UserCongestionControlContext;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
 /*
@@ -111,6 +111,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   protected FileSystem hadoopFs;
 
+  private UserCongestionControlContext userCongestionControlContext = null;
+
   public PartitionDataWriter(
       StorageManager storageManager,
       AbstractSource workerSource,
@@ -164,9 +166,10 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       this.mapIdBitMap = new RoaringBitmap();
     }
     takeBuffer();
-    CongestionController congestionController = CongestionController.instance();
-    if (!isMemoryShuffleFile.get() && congestionController != null) {
-      userBufferInfo = congestionController.getUserBuffer(getDiskFileInfo().getUserIdentifier());
+    if (CongestionController.instance() != null) {
+      userCongestionControlContext =
+          CongestionController.instance()
+              .getUserCongestionContext(writerContext.getUserIdentifier());
     }
   }
 
@@ -317,9 +320,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       MemoryManager.instance().increaseMemoryFileStorage(numBytes);
     } else {
       MemoryManager.instance().incrementDiskBuffer(numBytes);
-      if (userBufferInfo != null) {
-        userBufferInfo.updateInfo(
-            System.currentTimeMillis(), new BufferStatusHub.BufferStatusNode(numBytes));
+      if (userCongestionControlContext != null) {
+        userCongestionControlContext.updateProduceBytes(numBytes);
       }
     }
 
@@ -683,5 +685,13 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   public MemoryFileInfo getMemoryFileInfo() {
     return memoryFileInfo;
+  }
+
+  public UserBufferInfo getUserBufferInfo() {
+    return userBufferInfo;
+  }
+
+  public UserCongestionControlContext getUserCongestionControlContext() {
+    return userCongestionControlContext;
   }
 }
