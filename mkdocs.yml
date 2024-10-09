@@ -97,5 +97,7 @@ nav:
       - Worker Exclusion: developers/workerexclusion.md
       - Integrating Celeborn: developers/integrate.md
       - SBT Build: developers/sbt.md
-      - Gluten Support: developers/glutensupport.md
+      - Native Engine Integration:
+        - Blaze: developers/blazesupport.md
+        - Gluten: developers/glutensupport.md
       - Helm Charts: developers/helm-charts.md

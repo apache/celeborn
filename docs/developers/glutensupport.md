@@ -60,10 +60,6 @@ spark.shuffle.manager org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleMa
 # celeborn master
 spark.celeborn.master.endpoints clb-master:9097
 
-# we recommend set `spark.celeborn.push.replicate.enabled` to true to enable server-side data replication
-# If you have only one worker, this setting must be false 
-spark.celeborn.client.push.replicate.enabled true
-
 spark.celeborn.client.spark.shuffle.writer hash
 # This is not necessary if your Spark external shuffle service is Spark 3.1 or newer
 spark.shuffle.service.enabled false
