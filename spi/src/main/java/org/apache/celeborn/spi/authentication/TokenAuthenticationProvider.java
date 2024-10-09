@@ -19,6 +19,8 @@ package org.apache.celeborn.spi.authentication;
 
 import java.security.Principal;
 
+import javax.security.sasl.AuthenticationException;
+
 public interface TokenAuthenticationProvider {
   /**
    * The authenticate method is called by the celeborn authentication layer to authenticate
@@ -27,7 +29,8 @@ public interface TokenAuthenticationProvider {
    *
    * @param credential The credential received over the connection request
    * @return The identifier associated with the token
-   * @throws SecurityException When the credential is found to be invalid by the implementation
+   * @throws AuthenticationException When the credential is found to be invalid by the
+   *     implementation
    */
-  Principal authenticate(TokenCredential credential);
+  Principal authenticate(TokenCredential credential) throws AuthenticationException;
 }
