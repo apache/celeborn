@@ -23,6 +23,7 @@ import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, Schedu
 
 import scala.collection.JavaConverters._
 
+import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
@@ -279,7 +280,7 @@ class ChangePartitionManager(
     }
 
     // Get candidate worker that not in excluded worker list of shuffleId
-    val oldCandidates =
+    val candidates =
       lifecycleManager
         .workerSnapshots(shuffleId)
         .keySet()
@@ -287,9 +288,16 @@ class ChangePartitionManager(
         .filter(lifecycleManager.workerStatusTracker.workerAvailable)
         .toList
 
-    val candidates = lifecycleManager.workerStatusTracker.availableWorkers.asScala.toList
+    val candidates1 = new util.HashSet(lifecycleManager.workerStatusTracker.availableWorkers)
+    val connectFailedWorkers = new ShuffleFailedWorkers()
+    lifecycleManager.setupEndpoints(candidates1, shuffleId, connectFailedWorkers)
+    candidates1.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
+    lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
+    // If newly allocated from primary and can setup endpoint success, LifecycleManager should remove worker from
+    // the excluded worker list to improve the accuracy of the list.
+    lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates1)
 
-    if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
+    if (candidates1.size < 1 || (pushReplicateEnabled && candidates1.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")
       replyFailure(StatusCode.SLOT_NOT_AVAILABLE)
       return
@@ -297,11 +305,13 @@ class ChangePartitionManager(
 
     // PartitionSplit all contains oldPartition
     val newlyAllocatedLocations =
-      reallocateChangePartitionRequestSlotsFromCandidates(changePartitions.toList, candidates)
+      reallocateChangePartitionRequestSlotsFromCandidates(
+        changePartitions.toList,
+        candidates1.asScala.toList)
 
     if (!lifecycleManager.reserveSlotsWithRetry(
         shuffleId,
-        new util.HashSet(candidates.toSet.asJava),
+        candidates1,
         newlyAllocatedLocations,
         isSegmentGranularityVisible = isSegmentGranularityVisible)) {
       logError(s"[Update partition] failed for $shuffleId.")
