@@ -39,8 +39,8 @@ private[celeborn] case class HttpServer(
   @throws[Exception]
   def start(): Unit = synchronized {
     try {
-      server.start()
       connector.start()
+      server.start()
       server.addConnector(connector)
       logInfo(s"$role: HttpServer started on ${connector.getHost}:${connector.getPort}.")
       isStarted = true
