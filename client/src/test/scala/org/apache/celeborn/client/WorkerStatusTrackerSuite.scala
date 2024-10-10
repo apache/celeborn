@@ -95,7 +95,8 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
       StatusCode.SUCCESS,
       excludedWorkers,
       unknownWorkers,
-      shuttingWorkers)
+      shuttingWorkers,
+      null)
   }
 
   private def mockWorkers(workerHosts: Array[String]): util.ArrayList[WorkerInfo] = {

@@ -399,7 +399,8 @@ object ControlMessages extends Logging {
       statusCode: StatusCode,
       excludedWorkers: util.List[WorkerInfo],
       unknownWorkers: util.List[WorkerInfo],
-      shuttingWorkers: util.List[WorkerInfo]) extends Message
+      shuttingWorkers: util.List[WorkerInfo],
+      checkQuotaResponse: CheckQuotaResponse) extends Message
 
   case class CheckQuota(userIdentifier: UserIdentifier) extends Message
 
@@ -796,7 +797,10 @@ object ControlMessages extends Logging {
           statusCode,
           excludedWorkers,
           unknownWorkers,
-          shuttingWorkers) =>
+          shuttingWorkers,
+          checkQuotaResponse) =>
+      val pbCheckQuotaResponse = PbCheckQuotaResponse.newBuilder().setAvailable(
+        checkQuotaResponse.isAvailable).setReason(checkQuotaResponse.reason)
       val payload = PbHeartbeatFromApplicationResponse.newBuilder()
         .setStatus(statusCode.getValue)
         .addAllExcludedWorkers(
@@ -805,6 +809,7 @@ object ControlMessages extends Logging {
           unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true, true)).toList.asJava)
         .addAllShuttingWorkers(
           shuttingWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true, true)).toList.asJava)
+        .setCheckQuotaResponse(pbCheckQuotaResponse)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload)
 
@@ -1180,6 +1185,7 @@ object ControlMessages extends Logging {
       case HEARTBEAT_FROM_APPLICATION_RESPONSE_VALUE =>
         val pbHeartbeatFromApplicationResponse =
           PbHeartbeatFromApplicationResponse.parseFrom(message.getPayload)
+        val pbCheckQuotaResponse = pbHeartbeatFromApplicationResponse.getCheckQuotaResponse
         HeartbeatFromApplicationResponse(
           Utils.toStatusCode(pbHeartbeatFromApplicationResponse.getStatus),
           pbHeartbeatFromApplicationResponse.getExcludedWorkersList.asScala
@@ -1187,7 +1193,8 @@ object ControlMessages extends Logging {
           pbHeartbeatFromApplicationResponse.getUnknownWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
           pbHeartbeatFromApplicationResponse.getShuttingWorkersList.asScala
-            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
+            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
+          CheckQuotaResponse(pbCheckQuotaResponse.getAvailable, pbCheckQuotaResponse.getReason))
 
       case CHECK_QUOTA_VALUE =>
         val pbCheckAvailable = PbCheckQuota.parseFrom(message.getPayload)
