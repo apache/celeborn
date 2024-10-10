@@ -179,7 +179,6 @@ public class CongestionController {
               userProduceSpeed,
               userProduceSpeedHighWatermark);
         }
-        return true;
       } else if (userCongestionControlContext.inCongestionControl()
           && userProduceSpeed < userProduceSpeedLowWatermark) {
         userCongestionControlContext.offCongestionControl();
