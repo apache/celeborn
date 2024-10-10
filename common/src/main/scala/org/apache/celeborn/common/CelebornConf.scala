@@ -1552,11 +1552,11 @@ object CelebornConf extends Logging {
         "Please use celeborn.client.spark.shuffle.fallback.policy"),
       DeprecatedConfig(
         "celeborn.worker.congestionControl.low.watermark",
-        "0.5.0",
+        "0.6.0",
         "Please use celeborn.worker.congestionControl.diskBuffer.low.watermark"),
       DeprecatedConfig(
         "celeborn.worker.congestionControl.high.watermark",
-        "0.5.0",
+        "0.6.0",
         "Please use celeborn.worker.congestionControl.diskBuffer.high.watermark"))
 
     Map(configs.map { cfg => (cfg.key -> cfg) }: _*)

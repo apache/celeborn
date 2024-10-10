@@ -158,7 +158,7 @@ public class CongestionController {
 
     UserIdentifier userIdentifier = userCongestionControlContext.getUserIdentifier();
     long userProduceSpeed = getUserProduceSpeed(userCongestionControlContext.getUserBufferInfo());
-    long avgConsumeSpeed = getPotentialConsumeSpeed();
+    long avgConsumeSpeed = getPotentialProduceSpeed();
     // If the user produce speed is higher that the avg consume speed, will congest it
     if (overHighWatermark.get() && userProduceSpeed > avgConsumeSpeed) {
       if (logger.isDebugEnabled()) {
@@ -225,6 +225,14 @@ public class CongestionController {
       return 0;
     }
 
+    return consumedBufferStatusHub.avgBytesPerSec() / userBufferStatuses.size();
+  }
+
+  public long getPotentialProduceSpeed() {
+    if (userBufferStatuses.size() == 0) {
+      return 0;
+    }
+
     return producedBufferStatusHub.avgBytesPerSec() / userBufferStatuses.size();
   }
 
@@ -263,7 +271,6 @@ public class CongestionController {
     try {
       long pendingConsume = getTotalPendingBytes();
       long workerProduceSpeed = producedBufferStatusHub.avgBytesPerSec();
-      boolean diskBufferOverHighWatermark = pendingConsume > diskBufferHighWatermark;
       if (pendingConsume < diskBufferLowWatermark
           && workerProduceSpeed < workerProduceSpeedLowWatermark) {
         if (overHighWatermark.compareAndSet(true, false)) {
@@ -271,13 +278,13 @@ public class CongestionController {
               "Pending consume and produce speed is lower than low watermark, exit congestion control");
         }
         return;
-      } else if ((diskBufferOverHighWatermark
+      } else if ((pendingConsume > diskBufferHighWatermark
               || workerProduceSpeed > workerProduceSpeedHighWatermark)
           && overHighWatermark.compareAndSet(false, true)) {
         logger.info(
             "Pending consume or produce speed is higher than high watermark, need congestion control");
       }
-      if (overHighWatermark.get() && diskBufferOverHighWatermark) {
+      if (overHighWatermark.get()) {
         trimMemoryUsage();
       }
     } catch (Exception e) {
