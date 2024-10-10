@@ -70,7 +70,7 @@ public class TestCongestionController {
 
   @Test
   public void testSingleUser() {
-    UserIdentifier userIdentifier = new UserIdentifier("test", "celeborn");
+    UserIdentifier userIdentifier = new UserIdentifier("test", "celeborn1");
     UserCongestionControlContext userCongestionControlContext =
         controller.getUserCongestionContext(userIdentifier);
     Assert.assertFalse(controller.isUserCongested(userCongestionControlContext));
@@ -88,7 +88,7 @@ public class TestCongestionController {
 
   @Test
   public void testMultipleUsers() {
-    UserIdentifier user1 = new UserIdentifier("test", "celeborn");
+    UserIdentifier user1 = new UserIdentifier("test", "celeborn2");
     UserIdentifier user2 = new UserIdentifier("test", "spark");
 
     UserCongestionControlContext context1 = controller.getUserCongestionContext(user1);
@@ -126,7 +126,7 @@ public class TestCongestionController {
 
   @Test
   public void testUserMetrics() throws InterruptedException {
-    UserIdentifier user = new UserIdentifier("test", "celeborn");
+    UserIdentifier user = new UserIdentifier("test", "celeborn3");
     UserCongestionControlContext context = controller.getUserCongestionContext(user);
 
     Assert.assertFalse(controller.isUserCongested(context));
@@ -223,14 +223,14 @@ public class TestCongestionController {
           }
         };
 
-    UserIdentifier user1 = new UserIdentifier("test1", "celeborn");
+    UserIdentifier user1 = new UserIdentifier("test1", "celeborn4");
     UserCongestionControlContext context1 = controller1.getUserCongestionContext(user1);
     Assert.assertFalse(controller1.isUserCongested(context1));
     produceBytes(controller1, user1, 500);
     controller1.getProducedBufferStatusHub().add(new BufferStatusHub.BufferStatusNode(500));
     Assert.assertFalse(controller1.isUserCongested(context1));
 
-    UserIdentifier user2 = new UserIdentifier("test2", "celeborn");
+    UserIdentifier user2 = new UserIdentifier("test2", "celeborn5");
     UserCongestionControlContext context2 = controller1.getUserCongestionContext(user2);
     produceBytes(controller1, user2, 400);
     controller1.getProducedBufferStatusHub().add(new BufferStatusHub.BufferStatusNode(400));
