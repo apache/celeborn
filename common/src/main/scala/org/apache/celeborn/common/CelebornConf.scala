@@ -3683,7 +3683,7 @@ object CelebornConf extends Logging {
       .categories("worker")
       .doc("Max ratio of partition sorter's memory for sorting, when reserved memory is higher than max partition " +
         "sorter memory, partition sorter will stop sorting." +
-        "If this value is set to 0, partition files sorter will skip memory check and ServingState check.")
+        " If this value is set to 0, partition files sorter will skip memory check and ServingState check.")
       .version("0.2.0")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
