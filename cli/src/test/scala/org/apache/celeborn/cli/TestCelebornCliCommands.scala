@@ -166,6 +166,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "No excluded workers found.")
   }
 
+  test("master --show-manual-excluded-workers") {
+    val args = prepareMasterArgs() :+ "--show-manual-excluded-workers"
+    captureOutputAndValidateResponse(args, "No manual excluded workers found.")
+  }
+
   test("master --show-shutdown-workers") {
     val args = prepareMasterArgs() :+ "--show-shutdown-workers"
     captureOutputAndValidateResponse(args, "No shutdown workers found.")
