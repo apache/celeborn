@@ -90,6 +90,8 @@ trait MasterSubcommand extends CliLogging {
 
   private[master] def runShowExcludedWorkers: Seq[WorkerData]
 
+  private[master] def runShowManualExcludedWorkers: Seq[WorkerData]
+
   private[master] def runShowShutdownWorkers: Seq[WorkerData]
 
   private[master] def runShowDecommissioningWorkers: Seq[WorkerData]
