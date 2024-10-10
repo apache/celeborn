@@ -1173,7 +1173,6 @@ object ControlMessages extends Logging {
       case HEARTBEAT_FROM_APPLICATION_VALUE =>
         val pbHeartbeatFromApplication = PbHeartbeatFromApplication.parseFrom(message.getPayload)
         HeartbeatFromApplication(
-          PbSerDeUtils.fromPbUserIdentifier(pbHeartbeatFromApplication.getUserIdentifier),
           pbHeartbeatFromApplication.getAppId,
           pbHeartbeatFromApplication.getTotalWritten,
           pbHeartbeatFromApplication.getFileCount,
