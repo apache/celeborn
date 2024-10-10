@@ -20,7 +20,9 @@ package org.apache.celeborn.client
 import java.util
 import java.util.{Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
+
 import scala.collection.JavaConverters._
+
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
@@ -283,7 +285,7 @@ class ChangePartitionManager(
     lifecycleManager.setupEndpoints(candidates, shuffleId, connectFailedWorkers)
     candidates.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
     lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
-     // lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates1)
+    // lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates1)
 
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")

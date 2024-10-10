@@ -17,18 +17,20 @@
 
 package org.apache.celeborn.tests.client
 
-import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
+import java.util
+
+import scala.collection.JavaConverters.mapAsScalaMapConverter
+
 import org.apache.celeborn.client.{ChangePartitionManager, ChangePartitionRequest, LifecycleManager, WithShuffleClientSuite}
+import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
-import java.util
-import scala.collection.JavaConverters.mapAsScalaMapConverter
-
-class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite with MiniClusterFeature {
+class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
+  with MiniClusterFeature {
 
   celebornConf
     .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "false")
@@ -46,7 +48,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite wi
       s"${CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key}" -> "3",
       s"${CelebornConf.CLIENT_SLOT_ASSIGN_MAX_WORKERS.key}" -> "1",
       s"${CelebornConf.MASTER_SLOT_ASSIGN_EXTRA_SLOTS.key}" -> "0")
-    val (master, _) = setupMiniClusterWithRandomPorts(testConf,testConf,workerNum = 3)
+    val (master, _) = setupMiniClusterWithRandomPorts(testConf, testConf, workerNum = 3)
     celebornConf.set(
       CelebornConf.MASTER_ENDPOINTS.key,
       master.conf.get(CelebornConf.MASTER_ENDPOINTS.key))
@@ -57,7 +59,8 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite wi
     val conf = celebornConf.clone
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
-    val changePartitionManager: ChangePartitionManager = new ChangePartitionManager(conf, lifecycleManager)
+    val changePartitionManager: ChangePartitionManager =
+      new ChangePartitionManager(conf, lifecycleManager)
     val ids = new util.ArrayList[Integer](10)
     0 until 10 foreach {
       ids.add(_)
@@ -82,17 +85,19 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite wi
     if (reserveSlotsSuccess) {
       val allocatedWorkers =
         JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
-      res.workerResource.asScala.foreach { case (workerInfo, (primaryLocations, replicaLocations)) =>
-        val partitionLocationInfo = new ShufflePartitionLocationInfo()
-        partitionLocationInfo.addPrimaryPartitions(primaryLocations)
-        partitionLocationInfo.addReplicaPartitions(replicaLocations)
-        allocatedWorkers.put(workerInfo, partitionLocationInfo)
+      res.workerResource.asScala.foreach {
+        case (workerInfo, (primaryLocations, replicaLocations)) =>
+          val partitionLocationInfo = new ShufflePartitionLocationInfo()
+          partitionLocationInfo.addPrimaryPartitions(primaryLocations)
+          partitionLocationInfo.addReplicaPartitions(replicaLocations)
+          allocatedWorkers.put(workerInfo, partitionLocationInfo)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }
     assert(lifecycleManager.workerSnapshots(shuffleId).size() == 1)
-    lifecycleManager.workerSnapshots(shuffleId).forEach { case (workerInfo, partitionLocationInfo) =>
-      logInfo(s"worker: ${workerInfo}; partitionLocationInfo size: ${partitionLocationInfo.getPrimaryPartitions().size()}")
+    lifecycleManager.workerSnapshots(shuffleId).forEach {
+      case (workerInfo, partitionLocationInfo) =>
+        logInfo(s"worker: ${workerInfo}; partitionLocationInfo size: ${partitionLocationInfo.getPrimaryPartitions().size()}")
     }
     ids.forEach { partitionId =>
       val req = ChangePartitionRequest(
@@ -102,15 +107,16 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite wi
         -1,
         null,
         None)
-      changePartitionManager.handleRequestPartitions(shuffleId, Array(req), lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
+      changePartitionManager.handleRequestPartitions(
+        shuffleId,
+        Array(req),
+        lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
     }
 
     assert(lifecycleManager.workerSnapshots(shuffleId).size() > 1)
 
     lifecycleManager.stop()
   }
-
-
 
   override def afterAll(): Unit = {
     logInfo("all test complete , stop celeborn mini cluster")

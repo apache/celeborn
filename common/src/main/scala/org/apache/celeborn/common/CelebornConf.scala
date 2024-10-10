@@ -4497,7 +4497,6 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-
   val CLIENT_FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.timeout")
       .withAlternative("celeborn.fetch.timeout")

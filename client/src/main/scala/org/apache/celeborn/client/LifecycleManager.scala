@@ -673,7 +673,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     // won't be empty since primary will reply SlotNotAvailable status when reserved slots is empty.
     val slots = res.workerResource
     val candidatesWorkers = new util.HashSet(slots.keySet())
-    logInfo(s"requestSlotsResWorkers, num: ${candidatesWorkers.size}; workerInfo: ${candidatesWorkers}")
     val connectFailedWorkers = new ShuffleFailedWorkers()
 
     // Second, for each worker, try to initialize the endpoint.
