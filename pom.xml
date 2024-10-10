@@ -71,6 +71,12 @@
 
     <!-- use hadoop-3 as default  -->
     <hadoop.version>3.3.6</hadoop.version>
+
+    <!-- to make related dependencies optional -->
+    <hadoop.deps.scope>compile</hadoop.deps.scope>
+    <hadoop.deps.optional>false</hadoop.deps.optional>
+    <jdk.tools.optional>false</jdk.tools.optional>
+
     <!--
     If you change codahale.metrics.version, you also need to change
     the link to metrics.dropwizard.io in docs/monitoring.md.
@@ -1278,11 +1284,15 @@
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-client-api</artifactId>
           <version>${hadoop.version}</version>
+          <scope>${hadoop.deps.scope}</scope>
+          <optional>${hadoop.deps.optional}</optional>
         </dependency>
         <dependency>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-client-runtime</artifactId>
           <version>${hadoop.version}</version>
+          <scope>${hadoop.deps.scope}</scope>
+          <optional>${hadoop.deps.optional}</optional>
         </dependency>
       </dependencies>
     </profile>
@@ -1302,6 +1312,8 @@
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-client</artifactId>
           <version>${hadoop.version}</version>
+          <scope>${hadoop.deps.scope}</scope>
+          <optional>${hadoop.deps.optional}</optional>
           <exclusions>
             <exclusion>
               <groupId>org.apache.hadoop</groupId>
@@ -1350,11 +1362,15 @@
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-aws</artifactId>
           <version>${hadoop.version}</version>
+          <scope>${hadoop.deps.scope}</scope>
+          <optional>${hadoop.deps.optional}</optional>
         </dependency>
         <dependency>
           <groupId>com.amazonaws</groupId>
           <artifactId>aws-java-sdk-bundle</artifactId>
           <version>${aws.version}</version>
+          <scope>${hadoop.deps.scope}</scope>
+          <optional>${hadoop.deps.optional}</optional>
         </dependency>
       </dependencies>
     </profile>
@@ -1504,6 +1520,7 @@
           <groupId>com.github.olivergondza</groupId>
           <artifactId>maven-jdk-tools-wrapper</artifactId>
           <version>0.1</version>
+          <optional>${jdk.tools.optional}</optional>
         </dependency>
       </dependencies>
       <build>

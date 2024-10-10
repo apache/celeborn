@@ -28,4 +28,10 @@
   <artifactId>celeborn-spi</artifactId>
   <packaging>jar</packaging>
   <name>Celeborn SPI</name>
+
+  <properties>
+    <hadoop.deps.scope>provided</hadoop.deps.scope>
+    <hadoop.deps.optional>true</hadoop.deps.optional>
+    <jdk.tools.optional>true</jdk.tools.optional>
+  </properties>
 </project>

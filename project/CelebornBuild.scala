@@ -1475,7 +1475,11 @@ object CelebornOpenApi {
       case _ => MergeStrategy.first
     },
     Compile / packageBin := assembly.value,
-    pomPostProcess := removeDependenciesTransformer
+    pomPostProcess := removeDependenciesTransformer,
+    Compile / doc := {
+      // skip due to doc generation failure for openapi modules, see CELEBORN-1477
+      target.value / "none"
+    }
   )
 }
 
