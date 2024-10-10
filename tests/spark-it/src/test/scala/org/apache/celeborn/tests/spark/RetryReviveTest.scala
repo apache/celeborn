@@ -56,4 +56,20 @@ class RetryReviveTest extends AnyFunSuite
     assert(result.size == 1000)
     ss.stop()
   }
+
+  test("celeborn spark integration test - retry revive with available workers from heartbeat") {
+    val sparkConf = new SparkConf()
+      .set(s"spark.${CelebornConf.TEST_CLIENT_RETRY_REVIVE.key}", "true")
+      .set(s"spark.${CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key}", "3")
+      .set(s"spark.${CelebornConf.CLIENT_SLOT_ASSIGN_MAX_WORKERS.key}", "1")
+      .set(s"spark.${CelebornConf.MASTER_SLOT_ASSIGN_EXTRA_SLOTS.key}", "0")
+      .setAppName("celeborn-demo").setMaster("local[2]")
+    val ss = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .getOrCreate()
+    val result = ss.sparkContext.parallelize(1 to 1000, 2)
+      .map { i => (i, Range(1, 1000).mkString(",")) }.groupByKey(4).collect()
+    assert(result.size == 1000)
+    ss.stop()
+  }
 }
