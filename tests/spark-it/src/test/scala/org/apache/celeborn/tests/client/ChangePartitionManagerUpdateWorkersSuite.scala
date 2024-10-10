@@ -39,7 +39,6 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     .set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
     .set(CelebornConf.CLIENT_SLOT_ASSIGN_MAX_WORKERS.key, "1")
     .set(CelebornConf.MASTER_SLOT_ASSIGN_EXTRA_SLOTS.key, "0")
-    .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
     .set(CelebornConf.TEST_CLIENT_UPDATE_AVAILABLE_WORKER.key, "true")
 
   override def beforeAll(): Unit = {
@@ -95,11 +94,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }
     assert(lifecycleManager.workerSnapshots(shuffleId).size() == 1)
-    lifecycleManager.workerSnapshots(shuffleId).forEach {
-      case (workerInfo, partitionLocationInfo) =>
-        logInfo(s"worker: ${workerInfo}; partitionLocationInfo size: ${partitionLocationInfo.getPrimaryPartitions().size()}")
-    }
-    ids.forEach { partitionId =>
+    ids.forEach { partitionId: Integer =>
       val req = ChangePartitionRequest(
         null,
         shuffleId,
