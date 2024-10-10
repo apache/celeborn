@@ -22,6 +22,10 @@ license: |
 # Migration Guide
 
 # Upgrading from 0.5 to 0.6
+- Since 0.6.0, Celeborn deprecate `celeborn.worker.congestionControl.low.watermark`. Please use `celeborn.worker.congestionControl.diskBuffer.low.watermark` instead.
+
+- Since 0.6.0, Celeborn deprecate `celeborn.worker.congestionControl.high.watermark`. Please use `celeborn.worker.congestionControl.diskBuffer.high.watermark` instead.
+
 
 - Since 0.6.0, Celeborn has introduced a new RESTful API namespace: /api/v1, which uses the application/json media type for requests and responses.
    The `celeborn-openapi-client` SDK is also available to help users interact with the new RESTful APIs.

@@ -317,7 +317,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                     Option(CongestionController.instance()) match {
                       case Some(congestionController) =>
                         if (congestionController.isUserCongested(
-                            fileWriter.getDiskFileInfo.getUserIdentifier)) {
+                            fileWriter.getUserCongestionControlContext)) {
                           // Check whether primary congest the data though the replicas doesn't congest
                           // it(the response is empty)
                           callbackWithTimer.onSuccess(
@@ -396,7 +396,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             Option(CongestionController.instance()) match {
               case Some(congestionController) =>
                 if (congestionController.isUserCongested(
-                    fileWriter.getDiskFileInfo.getUserIdentifier)) {
+                    fileWriter.getUserCongestionControlContext)) {
                   if (isPrimary) {
                     callbackWithTimer.onSuccess(
                       ByteBuffer.wrap(
@@ -594,7 +594,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                     Option(CongestionController.instance()) match {
                       case Some(congestionController) if fileWriters.nonEmpty =>
                         if (congestionController.isUserCongested(
-                            fileWriters.head.getDiskFileInfo.getUserIdentifier)) {
+                            fileWriters.head.getUserCongestionControlContext)) {
                           // Check whether primary congest the data though the replicas doesn't congest
                           // it(the response is empty)
                           callbackWithTimer.onSuccess(
@@ -670,7 +670,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           Option(CongestionController.instance()) match {
             case Some(congestionController) if fileWriters.nonEmpty =>
               if (congestionController.isUserCongested(
-                  fileWriters.head.getDiskFileInfo.getUserIdentifier)) {
+                  fileWriters.head.getUserCongestionControlContext)) {
                 if (isPrimary) {
                   callbackWithTimer.onSuccess(
                     ByteBuffer.wrap(
