@@ -97,6 +97,32 @@ public class NettyMemoryMetrics {
           MetricRegistry.name(metricPrefix, "usedDirectMemory"),
           labels,
           pooledAllocatorMetric::usedDirectMemory);
+      source.addGauge(
+          MetricRegistry.name(metricPrefix, "numHeapArenas"),
+          labels,
+          pooledAllocatorMetric::numHeapArenas);
+      source.addGauge(
+          MetricRegistry.name(metricPrefix, "numDirectArenas"),
+          labels,
+          pooledAllocatorMetric::numDirectArenas);
+      source.addGauge(
+          MetricRegistry.name(metricPrefix, "tinyCacheSize"),
+          labels,
+          pooledAllocatorMetric::tinyCacheSize);
+      source.addGauge(
+          MetricRegistry.name(metricPrefix, "smallCacheSize"),
+          labels,
+          pooledAllocatorMetric::smallCacheSize);
+      source.addGauge(
+          MetricRegistry.name(metricPrefix, "normalCacheSize"),
+          labels,
+          pooledAllocatorMetric::normalCacheSize);
+      source.addGauge(
+          MetricRegistry.name(metricPrefix, "numThreadLocalCaches"),
+          labels,
+          pooledAllocatorMetric::numThreadLocalCaches);
+      source.addGauge(
+          MetricRegistry.name(metricPrefix, "chunkSize"), labels, pooledAllocatorMetric::chunkSize);
       if (verboseMetricsEnabled) {
         int directArenaIndex = 0;
         for (PoolArenaMetric metric : pooledAllocatorMetric.directArenas()) {
