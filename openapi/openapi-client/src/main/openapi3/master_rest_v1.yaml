@@ -258,6 +258,67 @@ paths:
               schema:
                 $ref: '#/components/schemas/HostnamesResponse'
 
+  /api/v1/ratis/election/transfer:
+    post:
+      tags:
+        - Ratis
+      operationId: transferRatisLeader
+      description: Transfer the group leader to the specified server.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatisElectionTransferRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
+  /api/v1/ratis/election/step_down:
+    post:
+      tags:
+        - Ratis
+      operationId: stepDownRatisLeader
+      description: Make the group leader step down its leadership.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
+  /api/v1/ratis/election/pause:
+    post:
+      tags:
+        - Ratis
+      operationId: pauseRatisElection
+      description: Pause leader election at the current server. Then, the current server would not start a leader election.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
+  /api/v1/ratis/election/resume:
+    post:
+      tags:
+        - Ratis
+      operationId: resumeRatisElection
+      description: Resume leader election at the current server.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
 components:
   schemas:
     ConfigData:
@@ -720,6 +781,15 @@ components:
       required:
         - eventType
         - worker
+
+    RatisElectionTransferRequest:
+      type: object
+      properties:
+        peerAddress:
+          type: string
+          description: The address of the peer to transfer the leader.
+      required:
+        - peerAddress
 
     HandleResponse:
       type: object

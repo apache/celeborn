@@ -31,4 +31,11 @@ object MasterHttpResourceUtils {
     }
     f
   }
+
+  def ensureMasterHAEnabled[T](master: Master)(f: => T): T = {
+    if (!master.conf.haEnabled) {
+      throw new BadRequestException("Master HA is not enabled.")
+    }
+    f
+  }
 }
