@@ -687,10 +687,6 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     return memoryFileInfo;
   }
 
-  public UserBufferInfo getUserBufferInfo() {
-    return userBufferInfo;
-  }
-
   public UserCongestionControlContext getUserCongestionControlContext() {
     return userCongestionControlContext;
   }
