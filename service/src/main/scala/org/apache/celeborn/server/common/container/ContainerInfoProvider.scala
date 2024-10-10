@@ -15,21 +15,31 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.identity
+package org.apache.celeborn.server.common.container
+
+import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.rest.v1.model.ContainerInfo
 
-abstract class IdentityProvider {
-  def provide(): UserIdentifier
+abstract class ContainerInfoProvider {
+
+  def getContainerInfo(): ContainerInfo
+
 }
 
-object IdentityProvider extends Logging {
-  val DEFAULT_TENANT_ID = "default"
-  val DEFAULT_USERNAME = "default"
+object ContainerInfoProvider extends Logging {
 
-  def instantiate(conf: CelebornConf): IdentityProvider = {
-    Utils.instantiate[IdentityProvider](conf.quotaIdentityProviderClass)
+  val DEFAULT_CONTAINER_NAME = "default_container_name"
+  val DEFAULT_CONTAINER_DATA_CENTER = "default_container_data_center"
+  val DEFAULT_CONTAINER_AVAILABILITY_ZONE = "default_container_availability_zone"
+  val DEFAULT_CONTAINER_CLUSTER = "default_container_cluster"
+  val DEFAULT_CONTAINER_TAGS = List.empty[String].asJava
+
+  def instantiate(conf: CelebornConf): ContainerInfoProvider = {
+    Utils.instantiate(conf.containerInfoProviderClass)
   }
+
 }

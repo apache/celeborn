@@ -23,6 +23,7 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.{MasterEndpointResolver, StaticMasterEndpointResolver}
 import org.apache.celeborn.common.exception.CelebornException
+import org.apache.celeborn.common.identity.DefaultIdentityProvider
 import org.apache.celeborn.common.protocol.{PartitionLocation, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -243,5 +244,11 @@ class UtilsSuite extends CelebornFunSuite {
         PartitionLocation.Mode.PRIMARY))
     }
     partitionSet
+  }
+
+  test("test instantiate") {
+    val celebornConf = new CelebornConf()
+    assert(Utils.instantiate[DefaultIdentityProvider](celebornConf.quotaIdentityProviderClass)
+      .isInstanceOf[DefaultIdentityProvider])
   }
 }

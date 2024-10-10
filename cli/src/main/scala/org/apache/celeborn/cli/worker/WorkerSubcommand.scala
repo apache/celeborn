@@ -78,6 +78,8 @@ trait WorkerSubcommand extends CliLogging {
 
   private[worker] def runShowConf: ConfResponse
 
+  private[worker] def runShowContainerInfo: ContainerInfo
+
   private[worker] def runShowDynamicConf: DynamicConfigResponse
 
   private[worker] def runShowThreadDump: ThreadStackResponse

@@ -25,6 +25,7 @@ import org.apache.celeborn.rest.v1.worker.invoker.BaseApi;
 import org.apache.celeborn.rest.v1.worker.invoker.Configuration;
 import org.apache.celeborn.rest.v1.worker.invoker.Pair;
 
+import org.apache.celeborn.rest.v1.model.ContainerInfo;
 import org.apache.celeborn.rest.v1.model.ThreadStackResponse;
 
 
@@ -44,6 +45,73 @@ public class DefaultApi extends BaseApi {
 
   public DefaultApi(ApiClient apiClient) {
     super(apiClient);
+  }
+
+  /**
+   * 
+   * List the container info that the Master or Worker is running on.
+   * @return ContainerInfo
+   * @throws ApiException if fails to make API call
+   */
+  public ContainerInfo getContainerInfo() throws ApiException {
+    return this.getContainerInfo(Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * List the container info that the Master or Worker is running on.
+   * @param additionalHeaders additionalHeaders for this call
+   * @return ContainerInfo
+   * @throws ApiException if fails to make API call
+   */
+  public ContainerInfo getContainerInfo(Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = null;
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/container_info";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/json"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<ContainerInfo> localVarReturnType = new TypeReference<ContainerInfo>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "GET",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
   }
 
   /**

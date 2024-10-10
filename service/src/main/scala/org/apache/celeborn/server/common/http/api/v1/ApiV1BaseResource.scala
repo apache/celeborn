@@ -26,7 +26,8 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 
 import org.apache.celeborn.common.util.Utils
-import org.apache.celeborn.rest.v1.model.{ThreadStack, ThreadStackResponse}
+import org.apache.celeborn.rest.v1.model.{ContainerInfo, ThreadStack, ThreadStackResponse}
+import org.apache.celeborn.server.common.container.ContainerInfoProvider
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 
 @Path("/api/v1")
@@ -58,4 +59,17 @@ class ApiV1BaseResource extends ApiRequestContext {
           .holdingLocks(threadStack.holdingLocks.asJava)
       }.asJava)
   }
+
+  @Path("/container_info")
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(
+        implementation = classOf[ContainerInfo]))),
+    description = "List the container info.")
+  @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def containerInfo(): ContainerInfo =
+    ContainerInfoProvider.instantiate(httpService.conf).getContainerInfo()
 }
