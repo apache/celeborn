@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import scala.Tuple2;
+import scala.collection.JavaConverters;
 
 import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.TableMapping;
@@ -91,6 +92,9 @@ public class SlotsAllocatorRackAwareSuiteJ {
                 resolver.resolve(location.getPeer().getHost()).getNetworkLocation());
           }
         };
+    Integer locationsCount =
+        slots.values().stream().map(tup -> tup._1.size() + tup._2.size()).reduce(0, Integer::sum);
+    Assert.assertEquals((long) locationsCount, partitionIds.size() * 2);
     slots.values().stream().map(Tuple2::_1).flatMap(Collection::stream).forEach(assertCustomer);
   }
 
@@ -131,17 +135,32 @@ public class SlotsAllocatorRackAwareSuiteJ {
                 resolver.resolve(location.getPeer().getHost()).getNetworkLocation());
           }
         };
+    Integer locationsCount =
+        slots.values().stream().map(tup -> tup._1.size() + tup._2.size()).reduce(0, Integer::sum);
+    Assert.assertEquals((long) locationsCount, partitionIds.size() * 2);
     slots.values().stream().map(Tuple2::_1).flatMap(Collection::stream).forEach(assertConsumer);
   }
 
   private List<WorkerInfo> prepareWorkers(CelebornRackResolver resolver) {
     ArrayList<WorkerInfo> workers = new ArrayList<>(3);
-    workers.add(new WorkerInfo("host1", 9, 10, 110, 113, 212, new HashMap<>(), null));
-    workers.add(new WorkerInfo("host2", 9, 11, 111, 114, 212, new HashMap<>(), null));
-    workers.add(new WorkerInfo("host3", 9, 12, 112, 115, 212, new HashMap<>(), null));
-    workers.add(new WorkerInfo("host4", 9, 10, 110, 113, 212, new HashMap<>(), null));
-    workers.add(new WorkerInfo("host5", 9, 11, 111, 114, 212, new HashMap<>(), null));
-    workers.add(new WorkerInfo("host6", 9, 12, 112, 115, 212, new HashMap<>(), null));
+    List<File> files = Arrays.asList(new File("/mnt/disk/1"), new File("/mnt/disk/2"));
+    HashMap<String, DiskInfo> diskInfos = new HashMap<>();
+    diskInfos.put(
+        "disk1",
+        new DiskInfo(
+            "/mnt/disk/0",
+            1000,
+            1000,
+            1000,
+            1000,
+            JavaConverters.asScalaBuffer(files).toList(),
+            null));
+    workers.add(new WorkerInfo("host1", 9, 10, 110, 113, 212, diskInfos, null));
+    workers.add(new WorkerInfo("host2", 9, 11, 111, 114, 212, diskInfos, null));
+    workers.add(new WorkerInfo("host3", 9, 12, 112, 115, 212, diskInfos, null));
+    workers.add(new WorkerInfo("host4", 9, 10, 110, 113, 212, diskInfos, null));
+    workers.add(new WorkerInfo("host5", 9, 11, 111, 114, 212, diskInfos, null));
+    workers.add(new WorkerInfo("host6", 9, 12, 112, 115, 212, diskInfos, null));
 
     workers.forEach(
         new Consumer<WorkerInfo>() {
@@ -217,7 +236,6 @@ public class SlotsAllocatorRackAwareSuiteJ {
     List<SlotReplicaAllocatorTestCase> allTests = getSlotReplicaAllocatorTestCases();
 
     for (final SlotReplicaAllocatorTestCase test : allTests) {
-
       final int numPartitions = test.getNumPartitions();
       long maxValue = Long.MIN_VALUE;
       List<WorkerInfo> maxValueWorkers = null;
