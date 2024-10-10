@@ -200,7 +200,7 @@ public class SparkUtils {
         scheduler.cancelStage(shuffleMapStage.get().id(), new Some<>(reason));
       }
     } else {
-      LOG.error("Can not get active SparkContext, skip cancelShuffle.");
+      logger.error("Can not get active SparkContext, skip cancelShuffle.");
     }
   }
 }
