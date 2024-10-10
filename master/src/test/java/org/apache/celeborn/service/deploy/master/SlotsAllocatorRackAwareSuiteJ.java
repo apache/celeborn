@@ -148,15 +148,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
     files.$plus$eq(new File("/mnt/disk/2"));
     HashMap<String, DiskInfo> diskInfos = new HashMap<>();
     diskInfos.put(
-        "disk1",
-        new DiskInfo(
-            "/mnt/disk/0",
-            1000,
-            1000,
-            1000,
-            1000,
-            files.toList(),
-            null));
+        "disk1", new DiskInfo("/mnt/disk/0", 1000, 1000, 1000, 1000, files.toList(), null));
     workers.add(new WorkerInfo("host1", 9, 10, 110, 113, 212, diskInfos, null));
     workers.add(new WorkerInfo("host2", 9, 11, 111, 114, 212, diskInfos, null));
     workers.add(new WorkerInfo("host3", 9, 12, 112, 115, 212, diskInfos, null));
