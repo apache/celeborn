@@ -69,7 +69,7 @@ public class MemoryManager {
   private final AtomicLong diskBufferCounter = new AtomicLong(0);
   private final LongAdder pausePushDataCounter = new LongAdder();
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
-  private ServingState servingState = ServingState.NONE_PAUSED;
+  public ServingState servingState = ServingState.NONE_PAUSED;
   private long pausePushDataStartTime = -1L;
   private long pausePushDataTime = 0L;
   private long pausePushDataAndReplicateStartTime = -1L;
@@ -284,7 +284,7 @@ public class MemoryManager {
   }
 
   public boolean shouldEvict(boolean aggressiveMemoryFileEvictEnabled, double evictRatio) {
-    return currentServingState() != ServingState.NONE_PAUSED
+    return servingState != ServingState.NONE_PAUSED
         && (aggressiveMemoryFileEvictEnabled
             || (memoryFileStorageCounter.sum() >= evictRatio * memoryFileStorageThreshold));
   }
@@ -402,8 +402,8 @@ public class MemoryManager {
   }
 
   public boolean sortMemoryReady() {
-    return currentServingState() == ServingState.NONE_PAUSED
-        && sortMemoryCounter.get() < maxSortMemory;
+    return maxSortMemory == 0
+        || (servingState == ServingState.NONE_PAUSED && sortMemoryCounter.get() < maxSortMemory);
   }
 
   public void releaseSortMemory(long size) {
