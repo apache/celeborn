@@ -321,4 +321,13 @@ public class CongestionController {
               producedBufferStatusHub, userBufferInfo, workerSource, userIdentifier);
         });
   }
+
+  public ConcurrentHashMap<UserIdentifier, UserCongestionControlContext>
+      getUserCongestionContextMap() {
+    return userCongestionContextMap;
+  }
+
+  public BufferStatusHub getConsumedBufferStatusHub() {
+    return consumedBufferStatusHub;
+  }
 }

@@ -70,7 +70,7 @@ public class TestCongestionController {
 
   @Test
   public void testSingleUser() {
-    UserIdentifier userIdentifier = new UserIdentifier("test", "celeborn1");
+    UserIdentifier userIdentifier = new UserIdentifier("test", "celeborn");
     UserCongestionControlContext userCongestionControlContext =
         controller.getUserCongestionContext(userIdentifier);
     Assert.assertFalse(controller.isUserCongested(userCongestionControlContext));
@@ -84,11 +84,12 @@ public class TestCongestionController {
     pendingBytes = 0;
     controller.checkCongestion();
     Assert.assertFalse(controller.isUserCongested(userCongestionControlContext));
+    clearBufferStatus(controller);
   }
 
   @Test
   public void testMultipleUsers() {
-    UserIdentifier user1 = new UserIdentifier("test", "celeborn2");
+    UserIdentifier user1 = new UserIdentifier("test", "celeborn");
     UserIdentifier user2 = new UserIdentifier("test", "spark");
 
     UserCongestionControlContext context1 = controller.getUserCongestionContext(user1);
@@ -122,11 +123,12 @@ public class TestCongestionController {
     controller.checkCongestion();
     Assert.assertFalse(controller.isUserCongested(context1));
     Assert.assertFalse(controller.isUserCongested(context2));
+    clearBufferStatus(controller);
   }
 
   @Test
   public void testUserMetrics() throws InterruptedException {
-    UserIdentifier user = new UserIdentifier("test", "celeborn3");
+    UserIdentifier user = new UserIdentifier("test", "celeborn");
     UserCongestionControlContext context = controller.getUserCongestionContext(user);
 
     Assert.assertFalse(controller.isUserCongested(context));
@@ -137,6 +139,7 @@ public class TestCongestionController {
     Thread.sleep(userInactiveTimeMills * 2);
 
     Assert.assertFalse(source.gaugeExists(WorkerSource.USER_PRODUCE_SPEED(), user.toMap()));
+    clearBufferStatus(controller);
   }
 
   public void produceBytes(
@@ -223,14 +226,14 @@ public class TestCongestionController {
           }
         };
 
-    UserIdentifier user1 = new UserIdentifier("test1", "celeborn4");
+    UserIdentifier user1 = new UserIdentifier("test1", "celeborn");
     UserCongestionControlContext context1 = controller1.getUserCongestionContext(user1);
     Assert.assertFalse(controller1.isUserCongested(context1));
     produceBytes(controller1, user1, 500);
     controller1.getProducedBufferStatusHub().add(new BufferStatusHub.BufferStatusNode(500));
     Assert.assertFalse(controller1.isUserCongested(context1));
 
-    UserIdentifier user2 = new UserIdentifier("test2", "celeborn5");
+    UserIdentifier user2 = new UserIdentifier("test2", "celeborn");
     UserCongestionControlContext context2 = controller1.getUserCongestionContext(user2);
     produceBytes(controller1, user2, 400);
     controller1.getProducedBufferStatusHub().add(new BufferStatusHub.BufferStatusNode(400));
@@ -248,5 +251,13 @@ public class TestCongestionController {
     Assert.assertFalse(controller1.isUserCongested(context1));
     Assert.assertFalse(controller1.isUserCongested(context2));
     controller1.close();
+  }
+
+  private void clearBufferStatus(CongestionController controller) {
+    controller.getProducedBufferStatusHub().clear();
+    controller.getConsumedBufferStatusHub().clear();
+    for (UserCongestionControlContext context : controller.getUserCongestionContextMap().values()) {
+      context.getUserBufferInfo().getBufferStatusHub().clear();
+    }
   }
 }
