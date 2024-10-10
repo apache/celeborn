@@ -58,9 +58,9 @@ license: |
 | celeborn.worker.commitFiles.timeout | 120s | false | Timeout for a Celeborn worker to commit files of a shuffle. It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.availableTypes`. | 0.3.0 | celeborn.worker.shuffle.commit.timeout | 
 | celeborn.worker.commitFiles.wait.threads | 32 | false | Thread number of worker to wait for commit shuffle data files to finish. | 0.5.0 |  | 
 | celeborn.worker.congestionControl.check.interval | 10ms | false | Interval of worker checks congestion if celeborn.worker.congestionControl.enabled is true. | 0.3.2 |  | 
-| celeborn.worker.congestionControl.enabled | false | false | Whether to enable congestion control or not. | 0.3.0 |  | 
 | celeborn.worker.congestionControl.diskBuffer.high.watermark | &lt;undefined&gt; | false | If the total bytes in disk buffer exceeds this configure, will start to congestusers whose produce rate is higher than the potential average consume rate. The congestion will stop if the produce rate is lower or equal to the average consume rate, or the total pending bytes lower than celeborn.worker.congestionControl.diskBuffer.low.watermark | 0.3.0 | celeborn.worker.congestionControl.high.watermark | 
 | celeborn.worker.congestionControl.diskBuffer.low.watermark | &lt;undefined&gt; | false | Will stop congest users if the total pending bytes of disk buffer is lower than this configuration | 0.3.0 | celeborn.worker.congestionControl.low.watermark | 
+| celeborn.worker.congestionControl.enabled | false | false | Whether to enable congestion control or not. | 0.3.0 |  | 
 | celeborn.worker.congestionControl.sample.time.window | 10s | false | The worker holds a time sliding list to calculate users' produce/consume rate | 0.3.0 |  | 
 | celeborn.worker.congestionControl.user.inactive.interval | 10min | false | How long will consider this user is inactive if it doesn't send data | 0.3.0 |  | 
 | celeborn.worker.congestionControl.userProduceSpeed.high.watermark | &lt;undefined&gt; | false | For those users that produce byte speeds greater than this configuration, start congestion for these users | 0.6.0 |  | 

@@ -149,33 +149,24 @@ public class TestCongestionController {
   @Test
   public void testUserLevelTrafficQuota() throws InterruptedException {
     CongestionController controller1 =
-            new CongestionController(
-                    source,
-                    10,
-                    100000,
-                    50000,
-                    500,
-                    400,
-                    1200,
-                    1000,
-                    120L * 1000,
-                    checkIntervalTimeMills) {
-              @Override
-              public long getTotalPendingBytes() {
-                return 0;
-              }
+        new CongestionController(
+            source, 10, 100000, 50000, 500, 400, 1200, 1000, 120L * 1000, checkIntervalTimeMills) {
+          @Override
+          public long getTotalPendingBytes() {
+            return 0;
+          }
 
-              @Override
-              public void trimMemoryUsage() {
-                // No op
-              }
-            };
+          @Override
+          public void trimMemoryUsage() {
+            // No op
+          }
+        };
 
     UserIdentifier user1 = new UserIdentifier("test1", "celeborn");
     UserCongestionControlContext context1 = controller1.getUserCongestionContext(user1);
     Assert.assertFalse(controller1.isUserCongested(context1));
     produceBytes(controller1, user1, 600);
-    controller1.consumeBytes(600);
+    controller1.getProducedBufferStatusHub().add(new BufferStatusHub.BufferStatusNode(600));
     Assert.assertTrue(controller1.isUserCongested(context1));
     Thread.sleep(1001);
     produceBytes(controller1, user1, 100);
@@ -197,7 +188,7 @@ public class TestCongestionController {
     Assert.assertFalse(controller1.isUserCongested(context3));
 
     produceBytes(controller1, user1, 400);
-    controller1.consumeBytes(1300);
+    controller1.getProducedBufferStatusHub().add(new BufferStatusHub.BufferStatusNode(1300));
     controller1.checkCongestion();
     // user1 -> 550mb/s, user2 -> 400mb/s, user3 -> 400mb/s, avg consume 316mb/s
     Assert.assertTrue(controller1.isUserCongested(context1));
@@ -208,7 +199,7 @@ public class TestCongestionController {
     produceBytes(controller1, user1, 10);
     produceBytes(controller1, user2, 50);
     produceBytes(controller1, user3, 50);
-    controller1.consumeBytes(110);
+    controller1.getProducedBufferStatusHub().add(new BufferStatusHub.BufferStatusNode(110));
     controller1.checkCongestion();
     Assert.assertFalse(controller1.isUserCongested(context1));
     Assert.assertFalse(controller1.isUserCongested(context2));
@@ -233,20 +224,20 @@ public class TestCongestionController {
         };
 
     UserIdentifier user1 = new UserIdentifier("test1", "celeborn");
-    UserCongestionControlContext context1 = controller.getUserCongestionContext(user1);
+    UserCongestionControlContext context1 = controller1.getUserCongestionContext(user1);
     Assert.assertFalse(controller1.isUserCongested(context1));
     produceBytes(controller1, user1, 500);
     controller1.getProducedBufferStatusHub().add(new BufferStatusHub.BufferStatusNode(500));
     Assert.assertFalse(controller1.isUserCongested(context1));
 
     UserIdentifier user2 = new UserIdentifier("test2", "celeborn");
-    UserCongestionControlContext context2 = controller.getUserCongestionContext(user2);
+    UserCongestionControlContext context2 = controller1.getUserCongestionContext(user2);
     produceBytes(controller1, user2, 400);
     controller1.getProducedBufferStatusHub().add(new BufferStatusHub.BufferStatusNode(400));
     Assert.assertFalse(controller1.isUserCongested(context2));
 
     controller1.checkCongestion();
-    Assert.assertTrue(controller1.isUserCongested(context2));
+    Assert.assertTrue(controller1.isUserCongested(context1));
     Assert.assertFalse(controller1.isUserCongested(context2));
 
     Thread.sleep(1001);
