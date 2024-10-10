@@ -21,6 +21,8 @@ import static org.apache.celeborn.common.network.client.TransportClient.requestI
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,18 +33,40 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.mockito.Mockito;
 
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.ReadData;
+import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.RpcRequest;
+import org.apache.celeborn.common.network.protocol.SubPartitionReadData;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbBacklogAnnouncement;
 import org.apache.celeborn.common.util.JavaUtils;
 
+@RunWith(Parameterized.class)
 public class TransportFrameDecoderWithBufferSupplierSuiteJ {
+
+  enum TestReadDataType {
+    READ_DATA,
+    SUBPARTITION_READ_DATA,
+  }
+
+  private TestReadDataType testReadDataType;
+
+  public TransportFrameDecoderWithBufferSupplierSuiteJ(TestReadDataType testReadDataType) {
+    this.testReadDataType = testReadDataType;
+  }
+
+  @Parameterized.Parameters
+  public static Collection prepareData() {
+    Object[][] object = {{TestReadDataType.READ_DATA}, {TestReadDataType.SUBPARTITION_READ_DATA}};
+    return Arrays.asList(object);
+  }
 
   @Test
   public void testDropUnusedBytes() throws IOException {
@@ -64,11 +88,11 @@ public class TransportFrameDecoderWithBufferSupplierSuiteJ {
     ChannelHandlerContext context = Mockito.mock(ChannelHandlerContext.class);
 
     RpcRequest announcement = createBacklogAnnouncement(0, 0);
-    ReadData unUsedReadData = new ReadData(1, generateData(1024));
-    ReadData readData = new ReadData(2, generateData(1024));
+    RequestMessage unUsedReadData = generateReadDataMessage(1, 0, generateData(1024));
+    RequestMessage readData = generateReadDataMessage(2, 0, generateData(1024));
     RpcRequest announcement1 = createBacklogAnnouncement(0, 0);
-    ReadData unUsedReadData1 = new ReadData(1, generateData(1024));
-    ReadData readData1 = new ReadData(2, generateData(8));
+    RequestMessage unUsedReadData1 = generateReadDataMessage(1, 0, generateData(1024));
+    RequestMessage readData1 = generateReadDataMessage(2, 0, generateData(8));
 
     ByteBuf buffer = Unpooled.buffer(5000);
     encodeMessage(announcement, buffer);
@@ -144,5 +168,13 @@ public class TransportFrameDecoderWithBufferSupplierSuiteJ {
     }
 
     return data;
+  }
+
+  private RequestMessage generateReadDataMessage(long streamId, int subPartitionId, ByteBuf buf) {
+    if (testReadDataType == TestReadDataType.READ_DATA) {
+      return new ReadData(streamId, buf);
+    } else {
+      return new SubPartitionReadData(streamId, subPartitionId, buf);
+    }
   }
 }

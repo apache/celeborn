@@ -181,15 +181,11 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           shuffleId,
           partitionId,
           isSegmentGranularityVisible);
-      if (isSegmentGranularityVisible) {
-        // When the downstream reduce tasks start early than upstream map tasks, the shuffle
-        // partition locations may be found empty, should retry until the upstream task started
-        return CelebornBufferStream.empty();
-      } else {
-        throw new PartitionUnRetryAbleException(
-            String.format(
-                "Shuffle data lost for shuffle %d partition %d.", shuffleId, partitionId));
-      }
+      // TODO: in segment granularity visible senarios, when the downstream reduce tasks start early
+      // than upstream map tasks, the shuffle
+      // partition locations may be found empty, should retry until the upstream task started
+      throw new PartitionUnRetryAbleException(
+          String.format("Shuffle data lost for shuffle %d partition %d.", shuffleId, partitionId));
     } else {
       Arrays.sort(partitionLocations, Comparator.comparingInt(PartitionLocation::getEpoch));
       logger.debug(

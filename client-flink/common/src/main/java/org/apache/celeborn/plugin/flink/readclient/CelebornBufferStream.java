@@ -20,8 +20,11 @@ package org.apache.celeborn.plugin.flink.readclient;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import javax.annotation.Nullable;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -36,6 +39,7 @@ import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
+import org.apache.celeborn.common.protocol.PbNotifyRequiredSegment;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbReadAddCredit;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
@@ -108,8 +112,25 @@ public class CelebornBufferStream {
         });
   }
 
+  public void addCreditWithoutResponse(PbReadAddCredit pbReadAddCredit) {
+    this.client.sendRpc(
+        new TransportMessage(MessageType.READ_ADD_CREDIT, pbReadAddCredit.toByteArray())
+            .toByteBuffer());
+  }
+
+  public void notifyRequiredSegment(PbNotifyRequiredSegment pbNotifyRequiredSegment) {
+    this.client.sendRpc(
+        new TransportMessage(
+                MessageType.NOTIFY_REQUIRED_SEGMENT, pbNotifyRequiredSegment.toByteArray())
+            .toByteBuffer());
+  }
+
   public static CelebornBufferStream empty() {
     return EMPTY_CELEBORN_BUFFER_STREAM;
+  }
+
+  public static boolean isEmptyStream(CelebornBufferStream stream) {
+    return stream == null || stream == EMPTY_CELEBORN_BUFFER_STREAM;
   }
 
   public long getStreamId() {
@@ -165,6 +186,11 @@ public class CelebornBufferStream {
   }
 
   public void moveToNextPartitionIfPossible(long endedStreamId) {
+    moveToNextPartitionIfPossible(endedStreamId, null);
+  }
+
+  public void moveToNextPartitionIfPossible(
+      long endedStreamId, @Nullable BiConsumer<Long, Integer> requiredSegmentIdConsumer) {
     logger.debug(
         "MoveToNextPartitionIfPossible in this:{},  endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
         this,
@@ -176,9 +202,10 @@ public class CelebornBufferStream {
       logger.debug("Get end streamId {}", endedStreamId);
       cleanStream(endedStreamId);
     }
+
     if (currentLocationIndex.get() < locations.length) {
       try {
-        openStreamInternal();
+        openStreamInternal(requiredSegmentIdConsumer);
         logger.debug(
             "MoveToNextPartitionIfPossible after openStream this:{},  endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
             this,
@@ -193,7 +220,12 @@ public class CelebornBufferStream {
     }
   }
 
-  private void openStreamInternal() throws IOException, InterruptedException {
+  /**
+   * Open the stream, note that if the openReaderFuture is not null, requiredSegmentIdConsumer will
+   * be invoked for every subPartition when open stream success.
+   */
+  private void openStreamInternal(@Nullable BiConsumer<Long, Integer> requiredSegmentIdConsumer)
+      throws IOException, InterruptedException {
     this.client =
         clientFactory.createClientWithRetry(
             locations[currentLocationIndex.get()].getHost(),
@@ -208,6 +240,7 @@ public class CelebornBufferStream {
                 .setStartIndex(subIndexStart)
                 .setEndIndex(subIndexEnd)
                 .setInitialCredit(initialCredit)
+                .setRequireSubpartitionId(true)
                 .build()
                 .toByteArray());
     client.sendRpc(
@@ -228,6 +261,13 @@ public class CelebornBufferStream {
                       .getReadClientHandler()
                       .registerHandler(streamId, messageConsumer, client);
                   isOpenSuccess = true;
+                  if (requiredSegmentIdConsumer != null) {
+                    for (int subPartitionId = subIndexStart;
+                        subPartitionId <= subIndexEnd;
+                        subPartitionId++) {
+                      requiredSegmentIdConsumer.accept(streamId, subPartitionId);
+                    }
+                  }
                   logger.debug(
                       "open stream success from remote:{}, stream id:{}, fileName: {}",
                       client.getSocketAddress(),
@@ -266,5 +306,9 @@ public class CelebornBufferStream {
 
   public TransportClient getClient() {
     return client;
+  }
+
+  public boolean isOpened() {
+    return isOpenSuccess;
   }
 }

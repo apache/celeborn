@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.util.FrameDecoder;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
+import org.apache.celeborn.plugin.flink.protocol.SubPartitionReadData;
 
 public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandlerAdapter
     implements FrameDecoder {
@@ -123,8 +124,15 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
       return buf;
     }
 
-    ReadData readData = (ReadData) curMsg;
-    long streamId = readData.getStreamId();
+    long streamId;
+    if (curMsg instanceof ReadData) {
+      ReadData readData = (ReadData) curMsg;
+      streamId = readData.getStreamId();
+    } else {
+      SubPartitionReadData readData = (SubPartitionReadData) curMsg;
+      streamId = readData.getStreamId();
+    }
+
     if (externalBuf == null) {
       Supplier<ByteBuf> supplier = bufferSuppliers.get(streamId);
       if (supplier == null) {
@@ -140,7 +148,11 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
 
     copyByteBuf(buf, externalBuf, bodySize);
     if (externalBuf.readableBytes() == bodySize) {
-      ((ReadData) curMsg).setFlinkBuffer(externalBuf);
+      if (curMsg instanceof ReadData) {
+        ((ReadData) curMsg).setFlinkBuffer(externalBuf);
+      } else {
+        ((SubPartitionReadData) curMsg).setFlinkBuffer(externalBuf);
+      }
       ctx.fireChannelRead(curMsg);
       clear();
     }
