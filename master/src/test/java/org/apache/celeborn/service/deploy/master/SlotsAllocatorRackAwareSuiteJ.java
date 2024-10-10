@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import scala.Tuple2;
-import scala.collection.JavaConverters;
+import scala.collection.mutable.ArrayBuffer;
 
 import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.TableMapping;
@@ -143,7 +143,9 @@ public class SlotsAllocatorRackAwareSuiteJ {
 
   private List<WorkerInfo> prepareWorkers(CelebornRackResolver resolver) {
     ArrayList<WorkerInfo> workers = new ArrayList<>(3);
-    List<File> files = Arrays.asList(new File("/mnt/disk/1"), new File("/mnt/disk/2"));
+    ArrayBuffer<File> files = new ArrayBuffer<>();
+    files.$plus$eq(new File("/mnt/disk/1"));
+    files.$plus$eq(new File("/mnt/disk/2"));
     HashMap<String, DiskInfo> diskInfos = new HashMap<>();
     diskInfos.put(
         "disk1",
@@ -153,7 +155,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
             1000,
             1000,
             1000,
-            JavaConverters.asScalaBuffer(files).toList(),
+            files.toList(),
             null));
     workers.add(new WorkerInfo("host1", 9, 10, 110, 113, 212, diskInfos, null));
     workers.add(new WorkerInfo("host2", 9, 11, 111, 114, 212, diskInfos, null));
