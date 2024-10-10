@@ -114,6 +114,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
 
+  private val clientTagsExpr = conf.clientTagsExpr
   private val mockDestroyFailure = conf.testMockDestroySlotsFailure
   private val authEnabled = conf.authEnabledOnClient
   private var applicationMeta: ApplicationMeta = _
@@ -1642,7 +1643,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         slotsAssignMaxWorkers,
         availableStorageTypes,
         excludedWorkerSet,
-        true)
+        true,
+        clientTagsExpr)
     val res = requestMasterRequestSlots(req)
     if (res.status != StatusCode.SUCCESS) {
       requestMasterRequestSlots(req)
