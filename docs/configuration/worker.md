@@ -140,7 +140,7 @@ license: |
 | celeborn.worker.monitor.memory.trimFlushWaitInterval | 1s | false | Wait time after worker trigger StorageManger to flush data. | 0.3.0 |  | 
 | celeborn.worker.partition.initial.readBuffersMax | 1024 | false | Max number of initial read buffers | 0.3.0 |  | 
 | celeborn.worker.partition.initial.readBuffersMin | 1 | false | Min number of initial read buffers | 0.3.0 |  | 
-| celeborn.worker.partitionSorter.directMemoryRatioThreshold | 0.1 | false | Max ratio of partition sorter's memory for sorting, when reserved memory is higher than max partition sorter memory, partition sorter will stop sorting. | 0.2.0 |  | 
+| celeborn.worker.partitionSorter.directMemoryRatioThreshold | 0.1 | false | Max ratio of partition sorter's memory for sorting, when reserved memory is higher than max partition sorter memory, partition sorter will stop sorting.If this value is set to 0, partition files sorter will skip memory check and ServingState check. | 0.2.0 |  | 
 | celeborn.worker.push.heartbeat.enabled | false | false | enable the heartbeat from worker to client when pushing data | 0.3.0 |  | 
 | celeborn.worker.push.io.threads | &lt;undefined&gt; | false | Netty IO thread number of worker to handle client push data. The default threads number is the number of flush thread. | 0.2.0 |  | 
 | celeborn.worker.push.port | 0 | false | Server port for Worker to receive push data request from ShuffleClient. | 0.2.0 |  | 
@@ -161,7 +161,6 @@ license: |
 | celeborn.worker.shuffle.partitionSplit.min | 1m | false | Min size for a partition to split | 0.3.0 | celeborn.shuffle.partitionSplit.min | 
 | celeborn.worker.sortPartition.indexCache.expire | 180s | false | PartitionSorter's cache item expire time. | 0.4.0 |  | 
 | celeborn.worker.sortPartition.indexCache.maxWeight | 100000 | false | PartitionSorter's cache max weight for index buffer. | 0.4.0 |  | 
-| celeborn.worker.sortPartition.memoryCheck.bypass | false | false | Bypass memory check in partition files sorter. If your worker has quite large direct memory and same Celeborn cluster supports Spark and Flink, enable this setting will be helpful. | 0.6.0 |  | 
 | celeborn.worker.sortPartition.prefetch.enabled | true | false | When true, partition sorter will prefetch the original partition files to page cache and reserve memory configured by `celeborn.worker.sortPartition.reservedMemoryPerPartition` to allocate a block of memory for prefetching while sorting a shuffle file off-heap with page cache for non-hdfs files. Otherwise, partition sorter seeks to position of each block and does not prefetch for non-hdfs files. | 0.5.0 |  | 
 | celeborn.worker.sortPartition.reservedMemoryPerPartition | 1mb | false | Reserved memory when sorting a shuffle file off-heap. | 0.3.0 | celeborn.worker.partitionSorter.reservedMemoryPerPartition | 
 | celeborn.worker.sortPartition.threads | &lt;undefined&gt; | false | PartitionSorter's thread counts. It's recommended to set at least `64` when `HDFS` is enabled in `celeborn.storage.availableTypes`. | 0.3.0 | celeborn.worker.partitionSorter.threads | 

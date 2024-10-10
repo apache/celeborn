@@ -831,8 +831,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerPartitionSorterIndexCacheMaxWeight: Long =
     get(WORKER_PARTITION_SORTER_INDEX_CACHE_MAX_WEIGHT)
   def workerPartitionSorterIndexExpire: Long = get(WORKER_PARTITION_SORTER_INDEX_CACHE_EXPIRE)
-  def workerPartitionSorterByPassMemoryCheck: Boolean =
-    get(WORKER_PARTITION_SORTER_BYPASS_MEMORY_CHECK)
   def workerPushHeartbeatEnabled: Boolean = get(WORKER_PUSH_HEARTBEAT_ENABLED)
   def workerPushMaxComponents: Int = get(WORKER_PUSH_COMPOSITEBUFFER_MAXCOMPONENTS)
   def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
@@ -3417,15 +3415,6 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("180s")
 
-  val WORKER_PARTITION_SORTER_BYPASS_MEMORY_CHECK: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.sortPartition.memoryCheck.bypass")
-      .categories("worker")
-      .doc("Bypass memory check in partition files sorter. " +
-        "If your worker has quite large direct memory and same Celeborn cluster supports Spark and Flink, enable this setting will be helpful.")
-      .version("0.6.0")
-      .booleanConf
-      .createWithDefault(false)
-
   val WORKER_PARTITION_SORTER_RESERVED_MEMORY_PER_PARTITION: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.reservedMemoryPerPartition")
       .withAlternative("celeborn.worker.partitionSorter.reservedMemoryPerPartition")
@@ -3693,7 +3682,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.partitionSorter.directMemoryRatioThreshold")
       .categories("worker")
       .doc("Max ratio of partition sorter's memory for sorting, when reserved memory is higher than max partition " +
-        "sorter memory, partition sorter will stop sorting.")
+        "sorter memory, partition sorter will stop sorting." +
+        "If this value is set to 0, partition files sorter will skip memory check and ServingState check.")
       .version("0.2.0")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")

@@ -52,7 +52,6 @@ public class MemoryManager {
   private final double resumeRatio;
   private final long maxSortMemory;
   private final int forceAppendPauseSpentTimeThreshold;
-  private final boolean bypassMemoryCheckForSortingFiles;
   private final List<MemoryPressureListener> memoryPressureListeners = new ArrayList<>();
 
   private final ScheduledExecutorService checkService =
@@ -131,7 +130,6 @@ public class MemoryManager {
     boolean aggressiveEvictModeEnabled = conf.workerMemoryFileStorageEictAggressiveModeEnabled();
     double evictRatio = conf.workerMemoryFileStorageEvictRatio();
     forceAppendPauseSpentTimeThreshold = conf.metricsWorkerForceAppendPauseSpentTimeThreshold();
-    bypassMemoryCheckForSortingFiles = conf.workerPartitionSorterByPassMemoryCheck();
     maxDirectMemory =
         DynMethods.builder("maxDirectMemory")
             .impl("jdk.internal.misc.VM") // for Java 10 and above
@@ -404,7 +402,7 @@ public class MemoryManager {
   }
 
   public boolean sortMemoryReady() {
-    return bypassMemoryCheckForSortingFiles
+    return maxSortMemory == 0
         || (servingState == ServingState.NONE_PAUSED && sortMemoryCounter.get() < maxSortMemory);
   }
 
