@@ -256,9 +256,9 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
       payloadBuilder.setSpillId(spillId);
       payloadBuilder.setLastEvent(isLastSpill);
     }
-
-    ByteBuffer payload = payloadBuilder.build().toByteString().asReadOnlyByteBuffer();
-    return CompositeDataMovementEvent.create(0, numOutputs, payload);
+    byte[] byteArray = payloadBuilder.build().toByteArray();
+    ByteBuffer wrap = ByteBuffer.wrap(byteArray);
+    return CompositeDataMovementEvent.create(0, numOutputs, wrap);
   }
 
   private BitSet getEmptyPartitions(int[] recordsPerPartition) {

@@ -32,7 +32,6 @@ public class CelebornTezUtils {
   public static final String TEZ_PREFIX = "tez.";
   public static final String TEZ_CELEBORN_LM_HOST = "celeborn.lifecycleManager.host";
   public static final String TEZ_CELEBORN_LM_PORT = "celeborn.lifecycleManager.port";
-  public static final String TEZ_CELEBORN_USER = "celeborn.lifecycleManager.user";
   public static final String TEZ_CELEBORN_APPLICATION_ID = "celeborn.applicationId";
   public static final String TEZ_SHUFFLE_ID = "celeborn.tez.shuffle.id";
   public static final String TEZ_BROADCAST_OR_ONETOONE = "celeborn.tez.broadcastOrOneToOne";
@@ -54,6 +53,26 @@ public class CelebornTezUtils {
       Field f = object.getClass().getDeclaredField(name);
       f.setAccessible(true);
       return f.get(object);
+    } catch (Exception e) {
+      throw new CelebornRuntimeException(e.getMessage(), e);
+    }
+  }
+
+  public static Object getParentPrivateField(Object object, String name) {
+    try {
+      Field f = object.getClass().getSuperclass().getDeclaredField(name);
+      f.setAccessible(true);
+      return f.get(object);
+    } catch (Exception e) {
+      throw new CelebornRuntimeException(e.getMessage(), e);
+    }
+  }
+
+  public static void setParentPrivateField(Object object, String name, Object value) {
+    try {
+      Field f = object.getClass().getSuperclass().getDeclaredField(name);
+      f.setAccessible(true);
+      f.set(object, value);
     } catch (Exception e) {
       throw new CelebornRuntimeException(e.getMessage(), e);
     }

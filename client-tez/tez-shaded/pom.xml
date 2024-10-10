@@ -40,25 +40,6 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <configuration>
-          <descriptors>
-            <descriptor>src/main/resources/assembly.xml</descriptor>
-          </descriptors>
-          <appendAssemblyId>false</appendAssemblyId>
-        </configuration>
-        <executions>
-          <execution>
-            <id>make-assembly</id>
-            <goals>
-              <goal>single</goal>
-            </goals>
-            <phase>package</phase>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <configuration>
           <relocations>
@@ -69,30 +50,21 @@
             <relocation>
               <pattern>com.google.common</pattern>
               <shadedPattern>${shading.prefix}.com.google.common</shadedPattern>
+              <excludes>
+                <exclude>com.google.common.util.concurrent.*</exclude>
+              </excludes>
             </relocation>
             <relocation>
               <pattern>io.netty</pattern>
               <shadedPattern>${shading.prefix}.io.netty</shadedPattern>
             </relocation>
             <relocation>
-              <pattern>org.scala-lang</pattern>
-              <shadedPattern>${shading.prefix}.org.scala-lang</shadedPattern>
+              <pattern>org.apache.commons</pattern>
+              <shadedPattern>${shading.prefix}.org.apache.commons</shadedPattern>
             </relocation>
             <relocation>
               <pattern>org.roaringbitmap</pattern>
               <shadedPattern>${shading.prefix}.org.roaringbitmap</shadedPattern>
-            </relocation>
-            <relocation>
-              <pattern>org.apache.commons.lang3</pattern>
-              <shadedPattern>${shading.prefix}.org.apache.commons.lang3</shadedPattern>
-            </relocation>
-            <relocation>
-              <pattern>org.apache.tez.runtime.library.shuffle.impl.ShuffleUserPayloads</pattern>
-              <shadedPattern>${shading.prefix}.org.apache.tez.runtime.library.shuffle.impl.ShuffleUserPayloads</shadedPattern>
-            </relocation>
-            <relocation>
-              <pattern>org.apache.tez.common.TezCommonUtils</pattern>
-              <shadedPattern>${shading.prefix}.org.apache.tez.common.TezCommonUtils</shadedPattern>
             </relocation>
           </relocations>
           <artifactSet>
@@ -103,9 +75,6 @@
               <include>com.google.guava:failureaccess</include>
               <include>io.netty:*</include>
               <include>org.apache.commons:commons-lang3</include>
-              <include>org.scala-lang:scala-library</include>
-              <include>org.lz4:lz4-java</include>
-              <include>com.github.luben:zstd-jni</include>
               <include>org.roaringbitmap:RoaringBitmap</include>
             </includes>
           </artifactSet>

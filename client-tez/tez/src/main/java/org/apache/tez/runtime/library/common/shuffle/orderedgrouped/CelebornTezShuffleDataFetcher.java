@@ -56,7 +56,6 @@ public class CelebornTezShuffleDataFetcher extends CallableWithNdc<Void> {
   private long serializeTime = 0;
   private long waitTime = 0;
   private long copyTime = 0; // the sum of readTime + decompressTime + serializeTime + waitTime
-  private long unCompressionLength = 0;
   private final InputAttemptIdentifier inputAttemptIdentifier;
   private static int uniqueMapId = 0;
 
@@ -86,7 +85,7 @@ public class CelebornTezShuffleDataFetcher extends CallableWithNdc<Void> {
     this.celebornTezReader = celebornTezReader;
 
     LOG.info(
-        "RssTezShuffleDataFetcher, partitionId:{}, inputAttemptIdentifier:{}.",
+        "CelebornTezShuffleDataFetcher, partitionId:{}, inputAttemptIdentifier:{}.",
         this.partitionId,
         this.inputAttemptIdentifier);
   }
@@ -167,9 +166,7 @@ public class CelebornTezShuffleDataFetcher extends CallableWithNdc<Void> {
               + readTime
               + " ms to fetch and "
               + decompressTime
-              + " ms to decompress with unCompressionLength["
-              + unCompressionLength
-              + "] and "
+              + " ms to decompress "
               + serializeTime
               + " ms to serialize and "
               + waitTime
@@ -182,10 +179,6 @@ public class CelebornTezShuffleDataFetcher extends CallableWithNdc<Void> {
 
   public Integer getPartitionId() {
     return partitionId;
-  }
-
-  public void setPartitionId(Integer partitionId) {
-    this.partitionId = partitionId;
   }
 
   private boolean issueMapOutputMerge() throws IOException {
@@ -245,12 +238,12 @@ public class CelebornTezShuffleDataFetcher extends CallableWithNdc<Void> {
   }
 
   private void stopFetch() {
-    LOG.info("RssTezShuffleDataFetcher stop fetch");
+    LOG.info("CelebornTezShuffleDataFetcher stop fetch");
     stopped = true;
   }
 
   public void shutDown() {
     stopFetch();
-    LOG.info("RssTezShuffleDataFetcher shutdown");
+    LOG.info("CelebornTezShuffleDataFetcher shutdown");
   }
 }
