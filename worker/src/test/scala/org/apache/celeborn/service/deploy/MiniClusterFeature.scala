@@ -37,6 +37,7 @@ trait MiniClusterFeature extends Logging {
 
   var masterInfo: (Master, Thread) = _
   val workerInfos = new mutable.HashMap[Worker, Thread]()
+  var workerConfForAdding: Map[String, String] = _
 
   class RunnerWrap[T](code: => T) extends Thread {
 
@@ -71,6 +72,7 @@ trait MiniClusterFeature extends Logging {
           workerConf
         logInfo(
           s"generated configuration. Master conf = $finalMasterConf, worker conf = $finalWorkerConf")
+        workerConfForAdding = finalWorkerConf
         val (m, w) =
           setUpMiniCluster(masterConf = finalMasterConf, workerConf = finalWorkerConf, workerNum)
         master = m
@@ -148,10 +150,7 @@ trait MiniClusterFeature extends Logging {
     }
   }
 
-  private def setUpMiniCluster(
-      masterConf: Map[String, String] = null,
-      workerConf: Map[String, String] = null,
-      workerNum: Int = 3): (Master, collection.Set[Worker]) = {
+  def setUpMaster(masterConf: Map[String, String] = null): Master = {
     val timeout = 30000
     val master = createMaster(masterConf)
     val masterStartedSignal = Array(false)
@@ -176,7 +175,13 @@ trait MiniClusterFeature extends Logging {
         throw new BindException("cannot start master rpc endpoint")
       }
     }
+    master
+  }
 
+  def setUpWorkers(
+      workerConf: Map[String, String] = null,
+      workerNum: Int = 3): collection.Set[Worker] = {
+    val timeout = 30000
     val workers = new Array[Worker](workerNum)
     val flagUpdateLock = new ReentrantLock()
     val threads = (1 to workerNum).map { i =>
@@ -239,7 +244,14 @@ trait MiniClusterFeature extends Logging {
           }
       }
     }
-    (master, workerInfos.keySet)
+    workerInfos.keySet
+  }
+
+  private def setUpMiniCluster(
+      masterConf: Map[String, String] = null,
+      workerConf: Map[String, String] = null,
+      workerNum: Int = 3): (Master, collection.Set[Worker]) = {
+    (setUpMaster(masterConf), setUpWorkers(workerConf, workerNum))
   }
 
   def shutdownMiniCluster(): Unit = {
