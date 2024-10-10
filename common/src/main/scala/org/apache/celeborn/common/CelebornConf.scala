@@ -1320,6 +1320,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushPrimaryDataTimeout: Boolean = get(TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT)
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
+  def testClientUpdateAvailableWorker: Boolean = get(TEST_CLIENT_UPDATE_AVAILABLE_WORKER)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
   def clientFlinkMemoryPerResultPartition: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION)
   def clientFlinkMemoryPerInputGate: Long = get(CLIENT_MEMORY_PER_INPUT_GATE)
@@ -4485,6 +4486,17 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
+
+  val TEST_CLIENT_UPDATE_AVAILABLE_WORKER: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.client.updateAvailableWorker")
+      .withAlternative("celeborn.test.updateAvailableWorker")
+      .internal
+      .categories("test", "client")
+      .doc("skip reply Rpc for test")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefault(false)
+
 
   val CLIENT_FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.timeout")

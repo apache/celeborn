@@ -66,8 +66,8 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     Assert.assertTrue(statusTracker.shuttingWorkers.contains(mock("host4")))
 
     // test re heartbeat with shutdown workers
-    val response3 = buildResponse(Array.empty, Array.empty, Array("host4"), Array.empty)
-    statusTracker.handleHeartbeatResponse(response3)
+    val response2 = buildResponse(Array.empty, Array.empty, Array("host4"), Array.empty)
+    statusTracker.handleHeartbeatResponse(response2)
     Assert.assertTrue(!statusTracker.excludedWorkers.containsKey(mock("host4")))
     Assert.assertTrue(statusTracker.shuttingWorkers.contains(mock("host4")))
 
@@ -79,13 +79,24 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
 
     // test register time elapsed
     Thread.sleep(3000)
-    val response2 = buildResponse(Array.empty, Array("host5", "host6"), Array.empty, Array.empty)
-    statusTracker.handleHeartbeatResponse(response2)
+    val response3 = buildResponse(Array.empty, Array("host5", "host6"), Array.empty, Array.empty)
+    statusTracker.handleHeartbeatResponse(response3)
     Assert.assertEquals(statusTracker.excludedWorkers.size(), 2)
     Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mock("host1")))
 
-    // todo: test available workers in heartbeat
+    // test available workers
+    Assert.assertEquals(statusTracker.availableWorkers.size(), 0)
+    val response4 = buildResponse(Array.empty, Array.empty, Array.empty, Array("host7", "host8"))
+    statusTracker.handleHeartbeatResponse(response4)
+    Assert.assertEquals(statusTracker.availableWorkers.size(), 2)
 
+    // test re heartbeat with available workers
+    val response5 = buildResponse(Array.empty, Array.empty, Array.empty, Array("host8", "host9"))
+    statusTracker.handleHeartbeatResponse(response5)
+    Assert.assertEquals(statusTracker.availableWorkers.size(), 2)
+    Assert.assertFalse(statusTracker.availableWorkers.contains(mock("host7")))
+    Assert.assertTrue(statusTracker.availableWorkers.contains(mock("host8")))
+    Assert.assertTrue(statusTracker.availableWorkers.contains(mock("host9")))
   }
 
   private def buildResponse(
