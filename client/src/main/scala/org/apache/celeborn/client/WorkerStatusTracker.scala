@@ -40,6 +40,7 @@ class WorkerStatusTracker(
 
   val excludedWorkers = new ShuffleFailedWorkers()
   val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
+  val availableWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
 
   def registerWorkerStatusListener(workerStatusListener: WorkerStatusListener): Unit = {
     workerStatusListeners.add(workerStatusListener)
@@ -150,7 +151,7 @@ class WorkerStatusTracker(
   def handleHeartbeatResponse(res: HeartbeatFromApplicationResponse): Unit = {
     if (res.statusCode == StatusCode.SUCCESS) {
       logDebug(s"Received Worker status from Primary, excluded workers: ${res.excludedWorkers} " +
-        s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shuttingWorkers}")
+        s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shuttingWorkers}, available workers: ${res.availableWorkers}")
       val current = System.currentTimeMillis()
       var statusChanged = false
 
@@ -188,9 +189,13 @@ class WorkerStatusTracker(
           statusChanged = true
         }
       }
-      val retainResult = shuttingWorkers.retainAll(res.shuttingWorkers)
-      val addResult = shuttingWorkers.addAll(res.shuttingWorkers)
-      statusChanged = statusChanged || retainResult || addResult
+      val retainShuttingWorkersResult = shuttingWorkers.retainAll(res.shuttingWorkers)
+      val addShuttingWorkersResult = shuttingWorkers.addAll(res.shuttingWorkers)
+      val retainAvailableWorkersResult = availableWorkers.retainAll(res.availableWorkers)
+      val addAvailableWorkersResult = availableWorkers.addAll(res.availableWorkers)
+
+      statusChanged =
+        statusChanged || retainShuttingWorkersResult || addShuttingWorkersResult || retainAvailableWorkersResult || addAvailableWorkersResult
       // Always trigger commit files for shutting down workers from HeartbeatFromApplicationResponse
       // See details in CELEBORN-696
       if (!res.unknownWorkers.isEmpty || !res.shuttingWorkers.isEmpty) {
