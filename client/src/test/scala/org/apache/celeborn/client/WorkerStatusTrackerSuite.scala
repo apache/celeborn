@@ -86,9 +86,17 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
 
     // test available workers
     Assert.assertEquals(statusTracker.availableWorkers.size(), 0)
-    val response4 = buildResponse(Array.empty, Array.empty, Array.empty, Array("host7", "host8"))
+    val response4 = buildResponse(
+      Array.empty,
+      Array.empty,
+      Array.empty,
+      Array("host5", "host6", "host7", "host8"))
     statusTracker.handleHeartbeatResponse(response4)
     Assert.assertEquals(statusTracker.availableWorkers.size(), 2)
+    // available workers won't overwrite excluded workers
+    Assert.assertEquals(statusTracker.excludedWorkers.size(), 2)
+    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host5")))
+    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host6")))
 
     // test re heartbeat with available workers
     val response5 = buildResponse(Array.empty, Array.empty, Array.empty, Array("host8", "host9"))
