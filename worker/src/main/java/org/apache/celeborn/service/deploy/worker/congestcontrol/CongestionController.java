@@ -157,34 +157,37 @@ public class CongestionController {
     }
 
     UserIdentifier userIdentifier = userCongestionControlContext.getUserIdentifier();
-    long userProduceSpeed = getUserProduceSpeed(userCongestionControlContext.getUserBufferInfo());
-    long avgConsumeSpeed = getPotentialProduceSpeed();
     // If the user produce speed is higher that the avg consume speed, will congest it
-    if (overHighWatermark.get() && userProduceSpeed > avgConsumeSpeed) {
-      if (logger.isDebugEnabled()) {
-        logger.debug(
-            "The user {}, produceSpeed is {}, while consumeSpeed is {}, need to congest it.",
-            userIdentifier,
-            userProduceSpeed,
-            avgConsumeSpeed);
-      }
-      return true;
-    } else {
-      if (userProduceSpeed > userProduceSpeedHighWatermark) {
-        userCongestionControlContext.onCongestionControl();
+    if (overHighWatermark.get()) {
+      long userProduceSpeed = getUserProduceSpeed(userCongestionControlContext.getUserBufferInfo());
+      long avgConsumeSpeed = getPotentialProduceSpeed();
+      if (userProduceSpeed > avgConsumeSpeed) {
         if (logger.isDebugEnabled()) {
           logger.debug(
-              "The user {}, produceSpeed is {}, while userProduceSpeedHighWatermark is {}, need to congest it.",
-              userIdentifier,
-              userProduceSpeed,
-              userProduceSpeedHighWatermark);
+                  "The user {}, produceSpeed is {}, while consumeSpeed is {}, need to congest it.",
+                  userIdentifier,
+                  userProduceSpeed,
+                  avgConsumeSpeed);
         }
-      } else if (userCongestionControlContext.inCongestionControl()
-          && userProduceSpeed < userProduceSpeedLowWatermark) {
-        userCongestionControlContext.offCongestionControl();
+        return true;
       }
-      return userCongestionControlContext.inCongestionControl();
     }
+
+    long userProduceSpeed = getUserProduceSpeed(userCongestionControlContext.getUserBufferInfo());
+    if (userProduceSpeed > userProduceSpeedHighWatermark) {
+      userCongestionControlContext.onCongestionControl();
+      if (logger.isDebugEnabled()) {
+        logger.debug(
+            "The user {}, produceSpeed is {}, while userProduceSpeedHighWatermark is {}, need to congest it.",
+            userIdentifier,
+            userProduceSpeed,
+            userProduceSpeedHighWatermark);
+      }
+    } else if (userCongestionControlContext.inCongestionControl()
+        && userProduceSpeed < userProduceSpeedLowWatermark) {
+      userCongestionControlContext.offCongestionControl();
+    }
+    return userCongestionControlContext.inCongestionControl();
   }
 
   public UserBufferInfo getUserBuffer(UserIdentifier userIdentifier) {
