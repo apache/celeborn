@@ -319,6 +319,63 @@ paths:
               schema:
                 $ref: '#/components/schemas/HandleResponse'
 
+  /api/v1/ratis/peer/add:
+    post:
+      tags:
+        - Ratis
+      operationId: addRatisPeer
+      description: Add new peers to the raft group.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatisPeerAddRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
+  /api/v1/ratis/peer/remove:
+    post:
+      tags:
+        - Ratis
+      operationId: removeRatisPeer
+      description: Remove peers from the raft group.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatisPeerRemoveRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
+  /api/v1/ratis/peer/set_priority:
+    post:
+      tags:
+        - Ratis
+      operationId: setRatisPeerPriority
+      description: Set the priority of the peers in the raft group.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatisPeerSetPriorityRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
 components:
   schemas:
     ConfigData:
@@ -823,6 +880,50 @@ components:
           description: The address of the peer to transfer the leader.
       required:
         - peerAddress
+
+    RatisPeer:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The id of the peer.
+        address:
+          type: string
+          description: The address of the peer.
+      required:
+        - id
+        - address
+
+    RatisPeerAddRequest:
+      type: object
+      properties:
+        peers:
+          type: array
+          description: The peers to be added to the raft group.
+          items:
+            $ref: '#/components/schemas/RatisPeer'
+      required:
+        - peers
+
+    RatisPeerRemoveRequest:
+      type: object
+      properties:
+        peers:
+          type: array
+          description: The peers to be removed from the raft group.
+          items:
+            $ref: '#/components/schemas/RatisPeer'
+      required:
+        - peers
+
+    RatisPeerSetPriorityRequest:
+      type: object
+      properties:
+        addressPriorities:
+          type: object
+          description: The peer address and priority of the peer.
+          additionalProperties:
+            type: integer
 
     HandleResponse:
       type: object
