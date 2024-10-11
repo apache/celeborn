@@ -285,7 +285,7 @@ class ChangePartitionManager(
     lifecycleManager.setupEndpoints(candidates, shuffleId, connectFailedWorkers)
     candidates.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
     lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
-    // lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates1)
+    lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates)
 
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")

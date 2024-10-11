@@ -132,13 +132,16 @@ class WorkerStatusTracker(
       failedWorkers.asScala.foreach {
         case (worker, (StatusCode.WORKER_SHUTDOWN, _)) =>
           shuttingWorkers.add(worker)
+          availableWorkers.remove(worker)
         case (worker, (statusCode, registerTime)) if !excludedWorkers.containsKey(worker) =>
           excludedWorkers.put(worker, (statusCode, registerTime))
+          availableWorkers.remove(worker)
         case (worker, (statusCode, _))
             if statusCode == StatusCode.NO_AVAILABLE_WORKING_DIR ||
               statusCode == StatusCode.RESERVE_SLOTS_FAILED ||
               statusCode == StatusCode.WORKER_UNKNOWN =>
           excludedWorkers.put(worker, (statusCode, excludedWorkers.get(worker)._2))
+          availableWorkers.remove(worker)
         case _ => // Not cover
       }
     }
@@ -189,10 +192,18 @@ class WorkerStatusTracker(
           statusChanged = true
         }
       }
+
       val retainShuttingWorkersResult = shuttingWorkers.retainAll(res.shuttingWorkers)
       val addShuttingWorkersResult = shuttingWorkers.addAll(res.shuttingWorkers)
       val retainAvailableWorkersResult = availableWorkers.retainAll(res.availableWorkers)
       val addAvailableWorkersResult = availableWorkers.addAll(res.availableWorkers)
+
+      excludedWorkers.asScala.foreach {
+        case (workerInfo: WorkerInfo, (_, _)) =>
+          if (availableWorkers.contains(workerInfo))
+            availableWorkers.remove(workerInfo)
+          statusChanged = true
+      }
 
       statusChanged =
         statusChanged || retainShuttingWorkersResult || addShuttingWorkersResult || retainAvailableWorkersResult || addAvailableWorkersResult
