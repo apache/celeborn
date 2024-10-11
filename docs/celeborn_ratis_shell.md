@@ -22,6 +22,8 @@ license: |
 Celeborn uses Ratis to implement the HA function of the master, Celeborn directly introduces ratis-shell package into the project
 then it's convenient for Celeborn Admin to operate the master ratis service.
 
+Since 0.6.0, the ratis [RESTful API](webapi.md) is supported, which is more convenient to operate the ratis service, see details in the swagger: `http://<CELEBORN_HOST>:<CELEBORN_PORT>/swagger/#/Ratis`.
+
 > **Note**:
 > Ratis-shell is currently only **experimental**.
 > The compatibility story is not considered for the time being.
