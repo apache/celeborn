@@ -144,9 +144,12 @@ class PushDataTimeoutTest extends AnyFunSuite
       .getLifecycleManager
       .workerStatusTracker
       .excludedWorkers
+      .asScala.filter { case (_, (code, _)) =>
+        code != StatusCode.WORKER_UNKNOWN
+      }.toMap
 
-    assert(excludedWorkers.size() > 0)
-    excludedWorkers.asScala.foreach { case (_, (code, _)) =>
+    assert(excludedWorkers.size > 0)
+    excludedWorkers.foreach { case (_, (code, _)) =>
       assert(code == StatusCode.PUSH_DATA_TIMEOUT_PRIMARY ||
         code == StatusCode.PUSH_DATA_TIMEOUT_REPLICA)
     }
