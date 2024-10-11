@@ -23,6 +23,7 @@ import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.{Aggregator, InterruptibleIterator, ShuffleDependency, TaskContext}
 import org.apache.spark.celeborn.ExceptionMakerHelper
@@ -105,6 +106,7 @@ class CelebornShuffleReader[K, C](
     val localHostAddress = Utils.localHostName(conf)
     val shuffleKey = Utils.makeShuffleKey(handle.appUniqueId, shuffleId)
     // startPartition is irrelevant
+    // fileGroups.partitionGroups has changed in groupMapTask.
     val fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition)
     // host-port -> (TransportClient, PartitionLocation Array, PbOpenStreamList)
     val workerRequestMap = new util.HashMap[
@@ -112,8 +114,25 @@ class CelebornShuffleReader[K, C](
       (TransportClient, util.ArrayList[PartitionLocation], PbOpenStreamList.Builder)]()
 
     var partCnt = 0
+    var partitionIdList = new ArrayBuffer[Int]()
+    if (!conf.groupMapTaskEnabled) {
+      partitionIdList = ArrayBuffer[Int]() ++ (startPartition until endPartition)
+    } else {
+      val partitionGroupCnt =
+        if (conf.groupMapTaskEnabled)
+          math.ceil(handle.numMappers.toDouble / conf.groupMapTaskGroupSize).toInt
+        else 1
+      (startPartition until endPartition).foreach { originalPartitionId =>
+        (0 until partitionGroupCnt).foreach { groupCnt =>
+          val tmpPartitionId =
+            originalPartitionId + groupCnt * (fileGroups.partitionGroups.keySet().size() / partitionGroupCnt)
+          partitionIdList += tmpPartitionId
+        }
+      }
+      logInfo(s"groupPartition read, partitionGroupCnt: $partitionGroupCnt, partitionIdList: $partitionIdList")
+    }
 
-    (startPartition until endPartition).foreach { partitionId =>
+    partitionIdList.foreach { partitionId =>
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
         fileGroups.partitionGroups.get(partitionId).asScala.foreach { location =>
           partCnt += 1
@@ -216,17 +235,16 @@ class CelebornShuffleReader[K, C](
     }
 
     val inputStreamCreationWindow = conf.clientInputStreamCreationWindow
-    (startPartition until Math.min(
-      startPartition + inputStreamCreationWindow,
-      endPartition)).foreach(partitionId => {
+
+    (0 until Math.min(inputStreamCreationWindow, partitionIdList.size)).foreach(listIndex => {
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
-          createInputStream(partitionId)
+          createInputStream(partitionIdList(listIndex))
         }
       })
     })
 
-    val recordIter = (startPartition until endPartition).iterator.map(partitionId => {
+    val recordIter = partitionIdList.iterator.map(partitionId => {
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
         var inputStream: CelebornInputStream = streams.get(partitionId)
