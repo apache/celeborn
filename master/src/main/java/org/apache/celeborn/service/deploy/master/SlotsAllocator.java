@@ -337,7 +337,7 @@ public class SlotsAllocator {
     // workerInfo -> (diskIndexForPrimary, diskIndexForReplica)
     Map<WorkerInfo, Integer> workerDiskIndexForPrimary = new HashMap<>();
     Map<WorkerInfo, Integer> workerDiskIndexForReplica = new HashMap<>();
-    List<Integer> partitionIdList = new ArrayList<>(partitionIds);
+    List<Integer> partitionIdList = new LinkedList<>(partitionIds);
 
     final int workerSize = workers.size();
     final IntUnaryOperator incrementIndex = v -> (v + 1) % workerSize;
