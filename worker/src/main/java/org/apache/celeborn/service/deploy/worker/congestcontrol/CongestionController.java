@@ -157,9 +157,9 @@ public class CongestionController {
     }
 
     UserIdentifier userIdentifier = userCongestionControlContext.getUserIdentifier();
+    long userProduceSpeed = getUserProduceSpeed(userCongestionControlContext.getUserBufferInfo());
     // If the user produce speed is higher that the avg consume speed, will congest it
     if (overHighWatermark.get()) {
-      long userProduceSpeed = getUserProduceSpeed(userCongestionControlContext.getUserBufferInfo());
       long avgConsumeSpeed = getPotentialProduceSpeed();
       if (userProduceSpeed > avgConsumeSpeed) {
         if (logger.isDebugEnabled()) {
@@ -173,7 +173,6 @@ public class CongestionController {
       }
     }
 
-    long userProduceSpeed = getUserProduceSpeed(userCongestionControlContext.getUserBufferInfo());
     if (userProduceSpeed > userProduceSpeedHighWatermark) {
       userCongestionControlContext.onCongestionControl();
       if (logger.isDebugEnabled()) {
