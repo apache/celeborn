@@ -538,12 +538,43 @@ components:
         startUpRole:
           type: string
           description: The raft start up role of the master.
+        priority:
+          type: integer
+          format: int32
+          description: The raft peer priority.
       required:
         - commitIndex
         - id
         - address
         - clientAddress
         - startUpRole
+
+    RatisLogTermIndex:
+      type: object
+      properties:
+        term:
+          type: integer
+          format: int64
+          description: The term of the log entry.
+        index:
+          type: integer
+          format: int64
+          description: The index of the log entry.
+      required:
+        - term
+        - index
+
+    RatisLogInfo:
+      type: object
+      properties:
+        lastSnapshot:
+          $ref: '#/components/schemas/RatisLogTermIndex'
+        applied:
+          $ref: '#/components/schemas/RatisLogTermIndex'
+        committed:
+          $ref: '#/components/schemas/RatisLogTermIndex'
+        lastEntry:
+          $ref: '#/components/schemas/RatisLogTermIndex'
 
     MasterInfoResponse:
       type: object
@@ -558,6 +589,8 @@ components:
           description: The raft commit info of the master.
           items:
             $ref: '#/components/schemas/MasterCommitData'
+        logInfo:
+            $ref: '#/components/schemas/RatisLogInfo'
       required:
         - groupId
 

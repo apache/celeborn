@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.celeborn.rest.v1.model.MasterCommitData;
 import org.apache.celeborn.rest.v1.model.MasterLeader;
+import org.apache.celeborn.rest.v1.model.RatisLogInfo;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -39,7 +40,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   MasterInfoResponse.JSON_PROPERTY_GROUP_ID,
   MasterInfoResponse.JSON_PROPERTY_LEADER,
-  MasterInfoResponse.JSON_PROPERTY_MASTER_COMMIT_INFO
+  MasterInfoResponse.JSON_PROPERTY_MASTER_COMMIT_INFO,
+  MasterInfoResponse.JSON_PROPERTY_LOG_INFO
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class MasterInfoResponse {
@@ -51,6 +53,9 @@ public class MasterInfoResponse {
 
   public static final String JSON_PROPERTY_MASTER_COMMIT_INFO = "masterCommitInfo";
   private List<MasterCommitData> masterCommitInfo = new ArrayList<>();
+
+  public static final String JSON_PROPERTY_LOG_INFO = "logInfo";
+  private RatisLogInfo logInfo;
 
   public MasterInfoResponse() {
   }
@@ -138,6 +143,31 @@ public class MasterInfoResponse {
     this.masterCommitInfo = masterCommitInfo;
   }
 
+  public MasterInfoResponse logInfo(RatisLogInfo logInfo) {
+    
+    this.logInfo = logInfo;
+    return this;
+  }
+
+  /**
+   * Get logInfo
+   * @return logInfo
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_LOG_INFO)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public RatisLogInfo getLogInfo() {
+    return logInfo;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_LOG_INFO)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setLogInfo(RatisLogInfo logInfo) {
+    this.logInfo = logInfo;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -149,12 +179,13 @@ public class MasterInfoResponse {
     MasterInfoResponse masterInfoResponse = (MasterInfoResponse) o;
     return Objects.equals(this.groupId, masterInfoResponse.groupId) &&
         Objects.equals(this.leader, masterInfoResponse.leader) &&
-        Objects.equals(this.masterCommitInfo, masterInfoResponse.masterCommitInfo);
+        Objects.equals(this.masterCommitInfo, masterInfoResponse.masterCommitInfo) &&
+        Objects.equals(this.logInfo, masterInfoResponse.logInfo);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(groupId, leader, masterCommitInfo);
+    return Objects.hash(groupId, leader, masterCommitInfo, logInfo);
   }
 
   @Override
@@ -164,6 +195,7 @@ public class MasterInfoResponse {
     sb.append("    groupId: ").append(toIndentedString(groupId)).append("\n");
     sb.append("    leader: ").append(toIndentedString(leader)).append("\n");
     sb.append("    masterCommitInfo: ").append(toIndentedString(masterCommitInfo)).append("\n");
+    sb.append("    logInfo: ").append(toIndentedString(logInfo)).append("\n");
     sb.append("}");
     return sb.toString();
   }

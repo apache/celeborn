@@ -27,7 +27,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole
 
-import org.apache.celeborn.rest.v1.model.{MasterCommitData, MasterInfoResponse, MasterLeader}
+import org.apache.celeborn.rest.v1.model.{MasterCommitData, MasterInfoResponse, MasterLeader, RatisLogInfo, RatisLogTermIndex}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager
@@ -69,11 +69,30 @@ class MasterResource extends ApiRequestContext {
           .address(commitInfo.getServer.getAddress)
           .clientAddress(commitInfo.getServer.getClientAddress)
           .startUpRole(commitInfo.getServer.getStartupRole.toString)
+          .priority(commitInfo.getServer.getPriority)
       }
+      val logInfo = new RatisLogInfo()
+        .lastSnapshot(
+          new RatisLogTermIndex()
+            .term(groupInfo.getLogInfoProto.getLastSnapshot.getTerm)
+            .index(groupInfo.getLogInfoProto.getLastSnapshot.getIndex))
+        .applied(
+          new RatisLogTermIndex()
+            .term(groupInfo.getLogInfoProto.getApplied.getTerm)
+            .index(groupInfo.getLogInfoProto.getApplied.getIndex))
+        .committed(
+          new RatisLogTermIndex()
+            .term(groupInfo.getLogInfoProto.getCommitted.getTerm)
+            .index(groupInfo.getLogInfoProto.getCommitted.getIndex))
+        .lastEntry(
+          new RatisLogTermIndex()
+            .term(groupInfo.getLogInfoProto.getLastEntry.getTerm)
+            .index(groupInfo.getLogInfoProto.getLastEntry.getIndex))
       new MasterInfoResponse()
         .groupId(groupInfo.getGroup.getGroupId.getUuid.toString)
         .leader(masterLeader)
         .masterCommitInfo(masterCommitDataList.toSeq.asJava)
+        .logInfo(logInfo)
     } else {
       throw new BadRequestException("HA is not enabled")
     }
