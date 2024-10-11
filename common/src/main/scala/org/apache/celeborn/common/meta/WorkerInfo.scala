@@ -247,14 +247,16 @@ class WorkerInfo(
     userResourceConsumption
   }
 
-  override def toString: String = {
+  def workerInfoToString(humanFriendly: Boolean): String = {
+    val (prefix, delimiter, suffix) = Utils.getFormattingTokens(humanFriendly)
+
     val (diskInfosString, slots) =
       if (diskInfos == null || diskInfos.isEmpty) {
         ("empty", 0)
       } else if (diskInfos != null) {
         val str = diskInfos.values().asScala.zipWithIndex.map { case (diskInfo, index) =>
           s"\n  DiskInfo${index}: ${diskInfo}"
-        }.mkString("")
+        }.mkString(prefix, delimiter, suffix)
         (str, usedSlots)
       }
     val userResourceConsumptionString =
@@ -263,25 +265,34 @@ class WorkerInfo(
       } else if (userResourceConsumption != null) {
         userResourceConsumption.asScala.map { case (userIdentifier, resourceConsumption) =>
           s"\n  UserIdentifier: ${userIdentifier}, ResourceConsumption: ${resourceConsumption}"
-        }.mkString("")
+        }.mkString(prefix, delimiter, suffix)
       }
-    s"""
-       |Host: $host
-       |RpcPort: $rpcPort
-       |PushPort: $pushPort
-       |FetchPort: $fetchPort
-       |ReplicatePort: $replicatePort
-       |InternalPort: $internalPort
-       |SlotsUsed: $slots
-       |LastHeartbeat: $lastHeartbeat
-       |HeartbeatElapsedSeconds: ${TimeUnit.MILLISECONDS.toSeconds(
+    val str = s"""
+                 |Host: $host
+                 |RpcPort: $rpcPort
+                 |PushPort: $pushPort
+                 |FetchPort: $fetchPort
+                 |ReplicatePort: $replicatePort
+                 |InternalPort: $internalPort
+                 |SlotsUsed: $slots
+                 |LastHeartbeat: $lastHeartbeat
+                 |HeartbeatElapsedSeconds: ${TimeUnit.MILLISECONDS.toSeconds(
       System.currentTimeMillis() - lastHeartbeat)}
-       |Disks: $diskInfosString
-       |UserResourceConsumption: $userResourceConsumptionString
-       |WorkerRef: $endpoint
-       |WorkerStatus: $workerStatus
-       |NetworkLocation: $networkLocation
-       |""".stripMargin
+                 |Disks: $diskInfosString
+                 |UserResourceConsumption: $userResourceConsumptionString
+                 |WorkerRef: $endpoint
+                 |WorkerStatus: $workerStatus
+                 |NetworkLocation: $networkLocation
+                 |""".stripMargin
+    if (humanFriendly) {
+      str
+    } else {
+      str.trim.replace("\n", ", ")
+    }
+  }
+
+  override def toString: String = {
+    workerInfoToString(humanFriendly = true)
   }
 
   override def equals(other: Any): Boolean = other match {
