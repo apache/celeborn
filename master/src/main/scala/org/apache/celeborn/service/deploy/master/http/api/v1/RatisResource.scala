@@ -119,14 +119,14 @@ class RatisResource extends ApiRequestContext with Logging {
     logInfo(s"New peers: ${peers.map(_.getId).mkString(",")}")
     logInfo(s"New listeners: ${listeners.map(_.getId).mkString(",")}")
 
-    val reply = ratisServer.getServer.setConfiguration(
-      new SetConfigurationRequest(
-        ratisServer.getClientId,
-        ratisServer.getServer.getId,
-        ratisServer.getGroupId,
-        CallId.getAndIncrement(),
-        peers.asJava,
-        listeners.asJava))
+    val reply = ratisServer.getServer.setConfiguration(new SetConfigurationRequest(
+      ratisServer.getClientId,
+      ratisServer.getServer.getId,
+      ratisServer.getGroupId,
+      CallId.getAndIncrement(),
+      SetConfigurationRequest.Arguments.newBuilder
+        .setServersInNewConf(peers.asJava)
+        .setListenersInNewConf(listeners.asJava).build()))
 
     if (reply.isSuccess) {
       new HandleResponse().success(true).message(
@@ -165,14 +165,14 @@ class RatisResource extends ApiRequestContext with Logging {
     logInfo(s"New peers: ${peers.map(_.getId).mkString(",")}")
     logInfo(s"New listeners: ${listeners.map(_.getId).mkString(",")}")
 
-    val reply = ratisServer.getServer.setConfiguration(
-      new SetConfigurationRequest(
-        ratisServer.getClientId,
-        ratisServer.getServer.getId,
-        ratisServer.getGroupId,
-        CallId.getAndIncrement(),
-        peers.asJava,
-        listeners.asJava))
+    val reply = ratisServer.getServer.setConfiguration(new SetConfigurationRequest(
+      ratisServer.getClientId,
+      ratisServer.getServer.getId,
+      ratisServer.getGroupId,
+      CallId.getAndIncrement(),
+      SetConfigurationRequest.Arguments.newBuilder
+        .setServersInNewConf(peers.asJava)
+        .setListenersInNewConf(listeners.asJava).build()))
 
     if (reply.isSuccess) {
       new HandleResponse().success(true).message(
@@ -201,14 +201,14 @@ class RatisResource extends ApiRequestContext with Logging {
       }
       val listeners = getPeersWithRole(RaftPeerRole.LISTENER)
 
-      val reply = ratisServer.getServer.setConfiguration(
-        new SetConfigurationRequest(
-          ratisServer.getClientId,
-          ratisServer.getServer.getId,
-          ratisServer.getGroupId,
-          CallId.getAndIncrement(),
-          peers.asJava,
-          listeners.asJava))
+      val reply = ratisServer.getServer.setConfiguration(new SetConfigurationRequest(
+        ratisServer.getClientId,
+        ratisServer.getServer.getId,
+        ratisServer.getGroupId,
+        CallId.getAndIncrement(),
+        SetConfigurationRequest.Arguments.newBuilder
+          .setServersInNewConf(peers.asJava)
+          .setListenersInNewConf(listeners.asJava).build()))
 
       if (reply.isSuccess) {
         new HandleResponse().success(true).message(
