@@ -27,6 +27,9 @@ import org.apache.celeborn.rest.v1.master.invoker.Pair;
 
 import org.apache.celeborn.rest.v1.model.HandleResponse;
 import org.apache.celeborn.rest.v1.model.RatisElectionTransferRequest;
+import org.apache.celeborn.rest.v1.model.RatisPeerAddRequest;
+import org.apache.celeborn.rest.v1.model.RatisPeerRemoveRequest;
+import org.apache.celeborn.rest.v1.model.RatisPeerSetPriorityRequest;
 
 
 import java.util.ArrayList;
@@ -45,6 +48,75 @@ public class RatisApi extends BaseApi {
 
   public RatisApi(ApiClient apiClient) {
     super(apiClient);
+  }
+
+  /**
+   * 
+   * Add new peers to the raft group.
+   * @param ratisPeerAddRequest  (optional)
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse addRatisPeer(RatisPeerAddRequest ratisPeerAddRequest) throws ApiException {
+    return this.addRatisPeer(ratisPeerAddRequest, Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * Add new peers to the raft group.
+   * @param ratisPeerAddRequest  (optional)
+   * @param additionalHeaders additionalHeaders for this call
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse addRatisPeer(RatisPeerAddRequest ratisPeerAddRequest, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = ratisPeerAddRequest;
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/ratis/peer/add";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/json"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      "application/json"
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<HandleResponse> localVarReturnType = new TypeReference<HandleResponse>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "POST",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
   }
 
   /**
@@ -116,6 +188,75 @@ public class RatisApi extends BaseApi {
 
   /**
    * 
+   * Remove peers from the raft group.
+   * @param ratisPeerRemoveRequest  (optional)
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse removeRatisPeer(RatisPeerRemoveRequest ratisPeerRemoveRequest) throws ApiException {
+    return this.removeRatisPeer(ratisPeerRemoveRequest, Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * Remove peers from the raft group.
+   * @param ratisPeerRemoveRequest  (optional)
+   * @param additionalHeaders additionalHeaders for this call
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse removeRatisPeer(RatisPeerRemoveRequest ratisPeerRemoveRequest, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = ratisPeerRemoveRequest;
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/ratis/peer/remove";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/json"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      "application/json"
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<HandleResponse> localVarReturnType = new TypeReference<HandleResponse>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "POST",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
+  }
+
+  /**
+   * 
    * Resume leader election at the current server.
    * @return HandleResponse
    * @throws ApiException if fails to make API call
@@ -158,6 +299,75 @@ public class RatisApi extends BaseApi {
 
     final String[] localVarContentTypes = {
       
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<HandleResponse> localVarReturnType = new TypeReference<HandleResponse>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "POST",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
+  }
+
+  /**
+   * 
+   * Set the priority of the peers in the raft group.
+   * @param ratisPeerSetPriorityRequest  (optional)
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse setRatisPeerPriority(RatisPeerSetPriorityRequest ratisPeerSetPriorityRequest) throws ApiException {
+    return this.setRatisPeerPriority(ratisPeerSetPriorityRequest, Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * Set the priority of the peers in the raft group.
+   * @param ratisPeerSetPriorityRequest  (optional)
+   * @param additionalHeaders additionalHeaders for this call
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse setRatisPeerPriority(RatisPeerSetPriorityRequest ratisPeerSetPriorityRequest, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = ratisPeerSetPriorityRequest;
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/ratis/peer/set_priority";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/json"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      "application/json"
     };
     final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
 
