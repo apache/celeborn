@@ -36,7 +36,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   MasterCommitData.JSON_PROPERTY_ID,
   MasterCommitData.JSON_PROPERTY_ADDRESS,
   MasterCommitData.JSON_PROPERTY_CLIENT_ADDRESS,
-  MasterCommitData.JSON_PROPERTY_START_UP_ROLE
+  MasterCommitData.JSON_PROPERTY_START_UP_ROLE,
+  MasterCommitData.JSON_PROPERTY_PRIORITY
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class MasterCommitData {
@@ -54,6 +55,9 @@ public class MasterCommitData {
 
   public static final String JSON_PROPERTY_START_UP_ROLE = "startUpRole";
   private String startUpRole;
+
+  public static final String JSON_PROPERTY_PRIORITY = "priority";
+  private Integer priority;
 
   public MasterCommitData() {
   }
@@ -183,6 +187,31 @@ public class MasterCommitData {
     this.startUpRole = startUpRole;
   }
 
+  public MasterCommitData priority(Integer priority) {
+    
+    this.priority = priority;
+    return this;
+  }
+
+  /**
+   * The raft peer priority.
+   * @return priority
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_PRIORITY)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public Integer getPriority() {
+    return priority;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_PRIORITY)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setPriority(Integer priority) {
+    this.priority = priority;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -196,12 +225,13 @@ public class MasterCommitData {
         Objects.equals(this.id, masterCommitData.id) &&
         Objects.equals(this.address, masterCommitData.address) &&
         Objects.equals(this.clientAddress, masterCommitData.clientAddress) &&
-        Objects.equals(this.startUpRole, masterCommitData.startUpRole);
+        Objects.equals(this.startUpRole, masterCommitData.startUpRole) &&
+        Objects.equals(this.priority, masterCommitData.priority);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(commitIndex, id, address, clientAddress, startUpRole);
+    return Objects.hash(commitIndex, id, address, clientAddress, startUpRole, priority);
   }
 
   @Override
@@ -213,6 +243,7 @@ public class MasterCommitData {
     sb.append("    address: ").append(toIndentedString(address)).append("\n");
     sb.append("    clientAddress: ").append(toIndentedString(clientAddress)).append("\n");
     sb.append("    startUpRole: ").append(toIndentedString(startUpRole)).append("\n");
+    sb.append("    priority: ").append(toIndentedString(priority)).append("\n");
     sb.append("}");
     return sb.toString();
   }
