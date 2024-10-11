@@ -164,10 +164,10 @@ public class CongestionController {
       if (userProduceSpeed > avgConsumeSpeed) {
         if (logger.isDebugEnabled()) {
           logger.debug(
-                  "The user {}, produceSpeed is {}, while consumeSpeed is {}, need to congest it.",
-                  userIdentifier,
-                  userProduceSpeed,
-                  avgConsumeSpeed);
+              "The user {}, produceSpeed is {}, while consumeSpeed is {}, need to congest it.",
+              userIdentifier,
+              userProduceSpeed,
+              avgConsumeSpeed);
         }
         return true;
       }
