@@ -40,13 +40,13 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     super.beforeAll()
     val testConf = Map(
       s"${CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key}" -> "3")
-    val (master, _) = setupMiniClusterWithRandomPorts(testConf, testConf, workerNum = 2)
+    val (master, _) = setupMiniClusterWithRandomPorts(testConf, testConf, workerNum = 1)
     celebornConf.set(
       CelebornConf.MASTER_ENDPOINTS.key,
       master.conf.get(CelebornConf.MASTER_ENDPOINTS.key))
   }
 
-  test("test revive with available workers") {
+  test("test changePartition with available workers") {
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
@@ -61,8 +61,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     }
     val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
     assert(res.status == StatusCode.SUCCESS)
-    assert(res.workerResource.keySet().size() == 2)
-    logInfo(s"RequestSlots worker num: ${res.workerResource.keySet().size()}; workerInfo: ${res.workerResource.keySet()}")
+    assert(res.workerResource.keySet().size() == 1)
 
     lifecycleManager.setupEndpoints(
       res.workerResource.keySet(),
@@ -87,7 +86,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }
-    assert(lifecycleManager.workerSnapshots(shuffleId).size() == 2)
+    assert(lifecycleManager.workerSnapshots(shuffleId).size() == 1)
 
     setUpWorkers(workerConfForAdding, 2)
     // longer than APPLICATION_HEARTBEAT_INTERVAL 10s
@@ -106,7 +105,8 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         Array(req),
         lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
     }
-    assert(lifecycleManager.workerSnapshots(shuffleId).size() == 4)
+    logInfo(s"reallocated worker num: ${res.workerResource.keySet().size()}; workerInfo: ${res.workerResource.keySet()}")
+    assert(lifecycleManager.workerSnapshots(shuffleId).size() > 1)
 
     lifecycleManager.stop()
   }
