@@ -498,7 +498,8 @@ object ControlMessages extends Logging {
       replicaIds: util.List[String],
       mapAttempts: Array[Int],
       epoch: Long,
-      var mockFailure: Boolean = false)
+      var mockFailure: Boolean = false,
+      val isStageEnd: Boolean)
     extends WorkerMessage
 
   case class CommitFilesResponse(
@@ -893,7 +894,8 @@ object ControlMessages extends Logging {
           replicaIds,
           mapAttempts,
           epoch,
-          mockFailure) =>
+          mockFailure,
+          isStageEnd) =>
       val payload = PbCommitFiles.newBuilder()
         .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
@@ -902,6 +904,7 @@ object ControlMessages extends Logging {
         .addAllMapAttempts(mapAttempts.map(Integer.valueOf).toIterable.asJava)
         .setEpoch(epoch)
         .setMockFailure(mockFailure)
+        .setStageEnd(isStageEnd)
         .build().toByteArray
       new TransportMessage(MessageType.COMMIT_FILES, payload)
 
@@ -1269,7 +1272,8 @@ object ControlMessages extends Logging {
           pbCommitFiles.getReplicaIdsList,
           pbCommitFiles.getMapAttemptsList.asScala.map(_.toInt).toArray,
           pbCommitFiles.getEpoch,
-          pbCommitFiles.getMockFailure)
+          pbCommitFiles.getMockFailure,
+          pbCommitFiles.getStageEnd)
 
       case COMMIT_FILES_RESPONSE_VALUE =>
         val pbCommitFilesResponse = PbCommitFilesResponse.parseFrom(message.getPayload)

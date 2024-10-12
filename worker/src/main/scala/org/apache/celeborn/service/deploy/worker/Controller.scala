@@ -49,6 +49,7 @@ private[deploy] class Controller(
 
   var storageManager: StorageManager = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
+  var presumptiveEndedShuffles: ConcurrentHashMap.KeySetView[String, java.lang.Boolean] = _
   // shuffleKey -> (epoch -> CommitInfo)
   var shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]] = _
   var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
@@ -68,6 +69,7 @@ private[deploy] class Controller(
     shufflePartitionType = worker.shufflePartitionType
     shufflePushDataTimeout = worker.shufflePushDataTimeout
     shuffleMapperAttempts = worker.shuffleMapperAttempts
+    presumptiveEndedShuffles = worker.presumptiveEndedShuffles
     shuffleCommitInfos = worker.shuffleCommitInfos
     workerInfo = worker.workerInfo
     partitionLocationInfo = worker.partitionLocationInfo
@@ -122,7 +124,8 @@ private[deploy] class Controller(
           replicaIds,
           mapAttempts,
           epoch,
-          mockFailure) =>
+          mockFailure,
+          isStageEnd) =>
       checkAuth(context, applicationId)
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       logDebug(s"Received CommitFiles request, $shuffleKey, primary files" +
@@ -135,7 +138,8 @@ private[deploy] class Controller(
           replicaIds,
           mapAttempts,
           epoch,
-          mockFailure)
+          mockFailure,
+          isStageEnd)
       })
       logDebug(s"Done processed CommitFiles request with shuffleKey $shuffleKey, in " +
         s"$commitFilesTimeMs ms.")
@@ -373,7 +377,8 @@ private[deploy] class Controller(
       replicaIds: jList[String],
       mapAttempts: Array[Int],
       epoch: Long,
-      mockFailure: Boolean): Unit = {
+      mockFailure: Boolean,
+      isStageEnd: Boolean): Unit = {
     if (mockFailure) {
       logError(s"Mock commit files failure for Shuffle $shuffleKey!")
       context.reply(
@@ -411,6 +416,9 @@ private[deploy] class Controller(
 
     val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
 
+    if (isStageEnd) {
+      presumptiveEndedShuffles.add(shuffleKey)
+    }
     shuffleCommitInfos.putIfAbsent(shuffleKey, JavaUtils.newConcurrentHashMap[Long, CommitInfo]())
     val epochCommitMap = shuffleCommitInfos.get(shuffleKey)
     epochCommitMap.putIfAbsent(epoch, new CommitInfo(null, CommitInfo.COMMIT_NOTSTARTED))

@@ -504,6 +504,7 @@ message PbCommitFiles {
   repeated int32 mapAttempts = 5;
   int64 epoch = 6;
   bool mockFailure = 7;
+  bool stageEnd = 8;
 }
 
 message PbCommitFilesResponse {

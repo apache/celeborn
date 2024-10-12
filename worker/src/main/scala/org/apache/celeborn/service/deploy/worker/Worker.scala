@@ -301,6 +301,8 @@ private[celeborn] class Worker(
   val registered = new AtomicBoolean(false)
   val shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] =
     JavaUtils.newConcurrentHashMap[String, AtomicIntegerArray]()
+  val presumptiveEndedShuffles: ConcurrentHashMap.KeySetView[String, java.lang.Boolean] =
+    ConcurrentHashMap.newKeySet[String]()
   val shufflePartitionType: ConcurrentHashMap[String, PartitionType] =
     JavaUtils.newConcurrentHashMap[String, PartitionType]
   var shufflePushDataTimeout: ConcurrentHashMap[String, Long] =
@@ -742,6 +744,7 @@ private[celeborn] class Worker(
         shufflePartitionType.remove(shuffleKey)
         shufflePushDataTimeout.remove(shuffleKey)
         shuffleMapperAttempts.remove(shuffleKey)
+        presumptiveEndedShuffles.remove(shuffleKey)
         shuffleCommitInfos.remove(shuffleKey)
         workerInfo.releaseSlots(shuffleKey)
         val applicationId = Utils.splitShuffleKey(shuffleKey)._1

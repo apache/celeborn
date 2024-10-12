@@ -217,7 +217,8 @@ abstract class CommitHandler(
       shuffleId: Int,
       shuffleCommittedInfo: ShuffleCommittedInfo,
       params: ArrayBuffer[CommitFilesParam],
-      commitFilesFailedWorkers: ShuffleFailedWorkers): Unit = {
+      commitFilesFailedWorkers: ShuffleFailedWorkers,
+      isStageEnd: Boolean = false): Unit = {
 
     def retryCommitFiles(status: CommitFutureWithStatus, currentTime: Long): Unit = {
       status.retriedTimes = status.retriedTimes + 1
@@ -290,7 +291,8 @@ abstract class CommitHandler(
           param.replicaIds,
           getMapperAttempts(shuffleId),
           commitEpoch.incrementAndGet(),
-          mockCommitFilesFailure)
+          mockCommitFilesFailure,
+          isStageEnd)
         val future = commitFiles(param.worker, msg)
 
         futures.add(CommitFutureWithStatus(future, msg, param.worker, 1, startTime))
@@ -311,13 +313,14 @@ abstract class CommitHandler(
       while (iter.hasNext) {
         val status = iter.next()
         val worker = status.workerInfo
+        val workerAddr = worker.readableAddress()
         if (status.future.isCompleted) {
           status.future.value.get match {
             case scala.util.Success(res) =>
               res.status match {
                 case StatusCode.SUCCESS | StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.REQUEST_FAILED | StatusCode.WORKER_EXCLUDED =>
                   logInfo(s"Request commitFiles return ${res.status} for " +
-                    s"${Utils.makeShuffleKey(appUniqueId, shuffleId)}")
+                    s"${Utils.makeShuffleKey(appUniqueId, shuffleId)} from ${workerAddr}")
                   if (res.status != StatusCode.SUCCESS && res.status != StatusCode.WORKER_EXCLUDED) {
                     commitFilesFailedWorkers.put(worker, (res.status, System.currentTimeMillis()))
                   }
@@ -326,12 +329,12 @@ abstract class CommitHandler(
                 case StatusCode.COMMIT_FILES_MOCK_FAILURE =>
                   if (status.retriedTimes < maxRetries) {
                     logError(s"Request commitFiles return ${res.status} for " +
-                      s"${Utils.makeShuffleKey(appUniqueId, shuffleId)} for ${status.retriedTimes}/$maxRetries, will retry")
+                      s"${Utils.makeShuffleKey(appUniqueId, shuffleId)} from ${workerAddr} for ${status.retriedTimes}/$maxRetries, will retry")
                     retryCommitFiles(status, currentTime)
                   } else {
                     logError(
                       s"Request commitFiles return ${StatusCode.COMMIT_FILES_MOCK_FAILURE} for " +
-                        s"${Utils.makeShuffleKey(appUniqueId, shuffleId)} for ${status.retriedTimes}/$maxRetries, will not retry")
+                        s"${Utils.makeShuffleKey(appUniqueId, shuffleId)} from ${workerAddr} for ${status.retriedTimes}/$maxRetries, will not retry")
                     val res = createFailResponse(status)
                     processResponse(res, status.workerInfo)
                     iter.remove()
@@ -439,7 +442,7 @@ abstract class CommitHandler(
         replicaIds)
     }
 
-    doParallelCommitFiles(shuffleId, shuffleCommittedInfo, params, commitFilesFailedWorkers)
+    doParallelCommitFiles(shuffleId, shuffleCommittedInfo, params, commitFilesFailedWorkers, true)
 
     logInfo(s"Shuffle $shuffleId " +
       s"commit files complete. File count ${shuffleCommittedInfo.currentShuffleFileCount.sum()} " +

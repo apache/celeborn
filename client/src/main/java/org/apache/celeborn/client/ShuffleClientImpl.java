@@ -1391,10 +1391,16 @@ public class ShuffleClientImpl extends ShuffleClient {
                 groupedBatchId,
                 Arrays.toString(batchIds));
             pushState.removeBatch(groupedBatchId, hostPort);
-            if (response.remaining() > 0 && response.get() == StatusCode.MAP_ENDED.getValue()) {
-              mapperEndMap
-                  .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
-                  .add(mapId);
+            if (response.remaining() > 0) {
+              int retCode = response.get();
+              if (retCode == StatusCode.MAP_ENDED.getValue()) {
+                mapperEndMap
+                    .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
+                    .add(mapId);
+              }
+              if (retCode == StatusCode.STAGE_ENDED.getValue()) {
+                stageEndShuffleSet.add(shuffleId);
+              }
             }
           }
 
