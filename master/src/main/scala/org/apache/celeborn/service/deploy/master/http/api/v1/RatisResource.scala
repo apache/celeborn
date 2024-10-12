@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import javax.ws.rs.{Consumes, Path, POST, Produces}
+import javax.ws.rs.{BadRequestException, Consumes, Path, POST, Produces}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
@@ -29,6 +29,7 @@ import org.apache.ratis.proto.RaftProtos.RaftPeerRole
 import org.apache.ratis.protocol.{LeaderElectionManagementRequest, RaftClientReply, RaftPeer, RaftPeerId, SetConfigurationRequest, TransferLeadershipRequest}
 import org.apache.ratis.rpc.CallId
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.rest.v1.model.{HandleResponse, RatisElectionTransferRequest, RatisPeerAddRequest, RatisPeerRemoveRequest, RatisPeerSetPriorityRequest}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
@@ -101,32 +102,33 @@ class RatisResource extends ApiRequestContext with Logging {
     description = "Add new peers to the raft group.")
   @POST
   @Path("/peer/add")
-  def peerAdd(request: RatisPeerAddRequest): HandleResponse = ensureMasterIsLeader(master) {
-    val remaining = getPeersWithRole(RaftPeerRole.FOLLOWER)
-    val adding = request.getPeers.asScala.map { peer =>
-      RaftPeer.newBuilder()
-        .setId(peer.getId)
-        .setAddress(peer.getAddress)
-        .setPriority(0)
-        .build()
+  def peerAdd(request: RatisPeerAddRequest): HandleResponse =
+    ensureLeaderElectionMemberMajorityAddEnabled(master) {
+      val remaining = getPeersWithRole(RaftPeerRole.FOLLOWER)
+      val adding = request.getPeers.asScala.map { peer =>
+        RaftPeer.newBuilder()
+          .setId(peer.getId)
+          .setAddress(peer.getAddress)
+          .setPriority(0)
+          .build()
+      }
+
+      val peers = (remaining ++ adding).distinct
+      val listeners = getPeersWithRole(RaftPeerRole.LISTENER)
+
+      logInfo(s"Adding peers: $adding to group ${ratisServer.getGroupInfo}.")
+      logInfo(s"New peers: $peers")
+      logInfo(s"New listeners: $listeners")
+
+      val reply = setConfiguration(peers, listeners)
+      if (reply.isSuccess) {
+        new HandleResponse().success(true).message(
+          s"Successfully added peers $adding to group ${ratisServer.getGroupInfo}.")
+      } else {
+        new HandleResponse().success(false).message(
+          s"Failed to add peers $adding to group ${ratisServer.getGroupInfo}. $reply")
+      }
     }
-
-    val peers = (remaining ++ adding).distinct
-    val listeners = getPeersWithRole(RaftPeerRole.LISTENER)
-
-    logInfo(s"Adding peers: $adding to group ${ratisServer.getGroupInfo}.")
-    logInfo(s"New peers: $peers")
-    logInfo(s"New listeners: $listeners")
-
-    val reply = setConfiguration(peers, listeners)
-    if (reply.isSuccess) {
-      new HandleResponse().success(true).message(
-        s"Successfully added peers $adding to group ${ratisServer.getGroupInfo}.")
-    } else {
-      new HandleResponse().success(false).message(
-        s"Failed to add peers $adding to group ${ratisServer.getGroupInfo}. $reply")
-    }
-  }
 
   @ApiResponse(
     responseCode = "200",
@@ -136,36 +138,36 @@ class RatisResource extends ApiRequestContext with Logging {
     description = "Remove peers from the raft group.")
   @POST
   @Path("/peer/remove")
-  def peerRemove(request: RatisPeerRemoveRequest): HandleResponse = ensureMasterIsLeader(master) {
-    val removingPeerIds = request.getPeers.asScala.map { peer =>
-      val existingPeerId = getRaftPeerId(peer.getAddress)
-      if (existingPeerId.getRaftPeerIdProto.getId.toStringUtf8 != peer.getId) {
-        throw new IllegalArgumentException(
-          s"Peer $peer does not match the existing peerId: $existingPeerId.")
+  def peerRemove(request: RatisPeerRemoveRequest): HandleResponse =
+    ensureLeaderElectionMemberMajorityAddEnabled(master) {
+      val removingPeerIds = request.getPeers.asScala.map { peer =>
+        val existingPeerId = getRaftPeerId(peer.getAddress)
+        if (existingPeerId.getRaftPeerIdProto.getId.toStringUtf8 != peer.getId) {
+          throw new IllegalArgumentException(
+            s"Peer $peer does not match the existing peerId: $existingPeerId.")
+        }
+        existingPeerId
       }
-      existingPeerId
+
+      val (peers, removingPeers) = getPeersWithRole(RaftPeerRole.FOLLOWER)
+        .partition(peer => !removingPeerIds.contains(peer.getId))
+      val (listeners, removingListeners) = getPeersWithRole(RaftPeerRole.LISTENER)
+        .partition(listener => !removingPeerIds.contains(listener.getId))
+      val removing = removingPeers ++ removingListeners
+
+      logInfo(s"Removing peers:$removing from group ${ratisServer.getGroupInfo}.")
+      logInfo(s"New peers: $peers")
+      logInfo(s"New listeners: $listeners")
+
+      val reply = setConfiguration(peers, listeners)
+      if (reply.isSuccess) {
+        new HandleResponse().success(true).message(
+          s"Successfully removed peers $removing from group ${ratisServer.getGroupInfo}.")
+      } else {
+        new HandleResponse().success(false).message(
+          s"Failed to remove peers $removing from group ${ratisServer.getGroupInfo}. $reply")
+      }
     }
-
-    val (peers, removingPeers) = getPeersWithRole(RaftPeerRole.FOLLOWER).partition(peer =>
-      !removingPeerIds.contains(peer.getId))
-    val (listeners, removingListeners) =
-      getPeersWithRole(RaftPeerRole.LISTENER).partition(listener =>
-        !removingPeerIds.contains(listener.getId))
-    val removing = removingPeers ++ removingListeners
-
-    logInfo(s"Removing peers:$removing from group ${ratisServer.getGroupInfo}.")
-    logInfo(s"New peers: $peers")
-    logInfo(s"New listeners: $listeners")
-
-    val reply = setConfiguration(peers, listeners)
-    if (reply.isSuccess) {
-      new HandleResponse().success(true).message(
-        s"Successfully removed peers $removing from group ${ratisServer.getGroupInfo}.")
-    } else {
-      new HandleResponse().success(false).message(
-        s"Failed to remove peers $removing from group ${ratisServer.getGroupInfo}. $reply")
-    }
-  }
 
   @ApiResponse(
     responseCode = "200",
@@ -176,7 +178,7 @@ class RatisResource extends ApiRequestContext with Logging {
   @POST
   @Path("/peer/set_priority")
   def peerSetPriority(request: RatisPeerSetPriorityRequest): HandleResponse =
-    ensureMasterIsLeader(master) {
+    ensureLeaderElectionMemberMajorityAddEnabled(master) {
       val peers = getPeersWithRole(RaftPeerRole.FOLLOWER).map { peer =>
         val newPriority = request.getAddressPriorities.get(peer.getAddress)
         val priority: Int = if (newPriority != null) newPriority else peer.getPriority
@@ -256,5 +258,15 @@ class RatisResource extends ApiRequestContext with Logging {
     if (conf == null) return Seq.empty
     val targets = if (role == RaftPeerRole.LISTENER) conf.getListenersList else conf.getPeersList
     groupInfo.getGroup.getPeers.asScala.filter(peer => targets.contains(peer.getId)).toSeq
+  }
+
+  private def ensureLeaderElectionMemberMajorityAddEnabled[T](master: Master)(f: => T): T = {
+    ensureMasterIsLeader(master) {
+      if (!master.conf.hasMasterRatisLeaderElectionMemeberMajorityAdd) {
+        throw new BadRequestException(s"This operation can only be done when" +
+          s" ${CelebornConf.HA_MASTER_RATIS_LEADER_ELECTION_MEMBER_MAJORITY_ADD.key} is true.")
+      }
+      f
+    }
   }
 }

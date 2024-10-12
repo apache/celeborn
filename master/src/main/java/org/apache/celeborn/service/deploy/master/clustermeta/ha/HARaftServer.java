@@ -364,6 +364,10 @@ public class HARaftServer {
     RaftServerConfigKeys.Rpc.setFirstElectionTimeoutMin(properties, firstElectionTimeoutMin);
     RaftServerConfigKeys.Rpc.setFirstElectionTimeoutMax(properties, firstElectionTimeoutMax);
 
+    boolean leaderElectionMemberMajorityAdd = conf.hasMasterRatisLeaderElectionMemeberMajorityAdd();
+    RaftServerConfigKeys.LeaderElection.setMemberMajorityAdd(
+        properties, leaderElectionMemberMajorityAdd);
+
     // Set the rpc client timeout
     TimeDuration clientRpcTimeout =
         TimeDuration.valueOf(conf.haMasterRatisClientRpcTimeout(), TimeUnit.SECONDS);

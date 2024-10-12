@@ -766,6 +766,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisClientRpcWatchTimeout: Long = get(HA_MASTER_RATIS_CLIENT_RPC_WATCH_TIMEOUT)
   def haMasterRatisFirstElectionTimeoutMin: Long = get(HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MIN)
   def haMasterRatisFirstElectionTimeoutMax: Long = get(HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MAX)
+  def hasMasterRatisLeaderElectionMemeberMajorityAdd: Boolean =
+    get(HA_MASTER_RATIS_LEADER_ELECTION_MEMBER_MAJORITY_ADD)
   def haMasterRatisNotificationNoLeaderTimeout: Long =
     get(HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT)
   def haMasterRatisRpcSlownessTimeout: Long = get(HA_MASTER_RATIS_RPC_SLOWNESS_TIMEOUT)
@@ -2654,6 +2656,14 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("5s")
+
+  val HA_MASTER_RATIS_LEADER_ELECTION_MEMBER_MAJORITY_ADD: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.ha.ratis.leader.election.member.majority.add")
+      .internal
+      .categories("ha")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefault(false)
 
   val HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.ha.ratis.raft.server.notification.no-leader.timeout")
