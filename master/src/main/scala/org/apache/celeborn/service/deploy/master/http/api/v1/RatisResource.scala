@@ -190,15 +190,18 @@ class RatisResource extends ApiRequestContext with Logging {
         RaftPeer.newBuilder(peer).setPriority(priority).build()
       }
 
-      logInfo(s"Setting peer priorities: $request.")
+      val peerPriorities =
+        request.getAddressPriorities.asScala.map { case (a, p) => s"$a:$p" }.mkString(", ")
+      logInfo(s"Setting peer priorities: $peerPriorities.")
       logInfo(s"New peers: $peers")
 
       val reply = setConfiguration(peers)
       if (reply.isSuccess) {
-        new HandleResponse().success(true).message(s"Successfully set peer priorities: $request.")
+        new HandleResponse().success(true).message(
+          s"Successfully set peer priorities: $peerPriorities.")
       } else {
         new HandleResponse().success(false).message(
-          s"Failed to set peer priorities: $request. $reply")
+          s"Failed to set peer priorities: $peerPriorities. $reply")
       }
     }
 
@@ -249,9 +252,7 @@ class RatisResource extends ApiRequestContext with Logging {
       ratisServer.getServer.getId,
       ratisServer.getGroupId,
       CallId.getAndIncrement(),
-      SetConfigurationRequest.Arguments.newBuilder
-        .setServersInNewConf(peers.asJava)
-        .build()))
+      SetConfigurationRequest.Arguments.newBuilder.setServersInNewConf(peers.asJava).build()))
   }
 
   private def getRaftPeers(): Seq[RaftPeer] = {
