@@ -111,6 +111,11 @@ class RatisResource extends ApiRequestContext with Logging {
 
       val remaining = getRaftPeers()
       val adding = request.getPeers.asScala.map { peer =>
+        if (remaining.exists(e =>
+            e.getId.toString == peer.getId || e.getAddress == peer.getAddress)) {
+          throw new IllegalArgumentException(
+            s"Peer $peer with same id or address already exists in group $groupInfo.")
+        }
         RaftPeer.newBuilder()
           .setId(peer.getId)
           .setAddress(peer.getAddress)
@@ -151,7 +156,7 @@ class RatisResource extends ApiRequestContext with Logging {
 
       val removing = request.getPeers.asScala.map { peer =>
         getRaftPeers().find { raftPeer =>
-          raftPeer.getId.toByteString.toStringUtf8 == peer.getId && raftPeer.getAddress == peer.getAddress
+          raftPeer.getId.toString == peer.getId && raftPeer.getAddress == peer.getAddress
         }.getOrElse(throw new IllegalArgumentException(
           s"Peer $peer not found in group $groupInfo."))
       }
