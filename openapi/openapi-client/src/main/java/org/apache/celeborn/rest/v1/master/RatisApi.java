@@ -25,8 +25,10 @@ import org.apache.celeborn.rest.v1.master.invoker.BaseApi;
 import org.apache.celeborn.rest.v1.master.invoker.Configuration;
 import org.apache.celeborn.rest.v1.master.invoker.Pair;
 
+import java.io.File;
 import org.apache.celeborn.rest.v1.model.HandleResponse;
 import org.apache.celeborn.rest.v1.model.RatisElectionTransferRequest;
+import org.apache.celeborn.rest.v1.model.RatisLocalRaftMetaConfRequest;
 import org.apache.celeborn.rest.v1.model.RatisPeerAddRequest;
 import org.apache.celeborn.rest.v1.model.RatisPeerRemoveRequest;
 import org.apache.celeborn.rest.v1.model.RatisPeerSetPriorityRequest;
@@ -169,6 +171,75 @@ public class RatisApi extends BaseApi {
     String[] localVarAuthNames = new String[] { "basic" };
 
     TypeReference<HandleResponse> localVarReturnType = new TypeReference<HandleResponse>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "POST",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
+  }
+
+  /**
+   * 
+   * Generate a new-raft-meta.conf file based on original raft-meta.conf and new peers, which is used to move a raft node to a new node.
+   * @param ratisLocalRaftMetaConfRequest  (optional)
+   * @return File
+   * @throws ApiException if fails to make API call
+   */
+  public File generateLocalRaftMetaConf(RatisLocalRaftMetaConfRequest ratisLocalRaftMetaConfRequest) throws ApiException {
+    return this.generateLocalRaftMetaConf(ratisLocalRaftMetaConfRequest, Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * Generate a new-raft-meta.conf file based on original raft-meta.conf and new peers, which is used to move a raft node to a new node.
+   * @param ratisLocalRaftMetaConfRequest  (optional)
+   * @param additionalHeaders additionalHeaders for this call
+   * @return File
+   * @throws ApiException if fails to make API call
+   */
+  public File generateLocalRaftMetaConf(RatisLocalRaftMetaConfRequest ratisLocalRaftMetaConfRequest, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = ratisLocalRaftMetaConfRequest;
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/ratis/local_raft_meta_conf";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/octet-stream"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      "application/json"
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<File> localVarReturnType = new TypeReference<File>() {};
     return apiClient.invokeAPI(
         localVarPath,
         "POST",
