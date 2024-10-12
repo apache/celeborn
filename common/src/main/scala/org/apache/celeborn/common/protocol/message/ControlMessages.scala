@@ -183,6 +183,7 @@ object ControlMessages extends Logging {
       availableStorageTypes: Int,
       excludedWorkerSet: Set[WorkerInfo] = Set.empty,
       packed: Boolean = false,
+      tagsExpr: String = "",
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
@@ -635,6 +636,7 @@ object ControlMessages extends Logging {
           availableStorageTypes,
           excludedWorkerSet,
           packed,
+          tagsExpr,
           requestId) =>
       val payload = PbRequestSlots.newBuilder()
         .setApplicationId(applicationId)
@@ -650,6 +652,7 @@ object ControlMessages extends Logging {
         .addAllExcludedWorkerSet(excludedWorkerSet.map(
           PbSerDeUtils.toPbWorkerInfo(_, true, true)).asJava)
         .setPacked(packed)
+        .setTagsExpr(tagsExpr)
         .build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS, payload)
 
@@ -1080,6 +1083,7 @@ object ControlMessages extends Logging {
           pbRequestSlots.getAvailableStorageTypes,
           excludedWorkerInfoSet,
           pbRequestSlots.getPacked,
+          pbRequestSlots.getTagsExpr,
           pbRequestSlots.getRequestId)
 
       case REQUEST_SLOTS_RESPONSE_VALUE =>
