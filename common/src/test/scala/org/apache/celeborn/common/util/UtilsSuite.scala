@@ -27,6 +27,7 @@ import org.apache.celeborn.common.identity.DefaultIdentityProvider
 import org.apache.celeborn.common.protocol.{PartitionLocation, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd}
 import org.apache.celeborn.common.protocol.message.StatusCode
+import org.apache.celeborn.common.write.PushFailedBatch
 
 class UtilsSuite extends CelebornFunSuite {
 
@@ -144,7 +145,7 @@ class UtilsSuite extends CelebornFunSuite {
   }
 
   test("MapperEnd class convert with pb") {
-    val mapperEnd = MapperEnd(1, 1, 1, 2, 1)
+    val mapperEnd = MapperEnd(1, 1, 1, 2, 1, new util.HashSet[PushFailedBatch]())
     val mapperEndTrans =
       Utils.fromTransportMessage(Utils.toTransportMessage(mapperEnd)).asInstanceOf[MapperEnd]
     assert(mapperEnd == mapperEndTrans)

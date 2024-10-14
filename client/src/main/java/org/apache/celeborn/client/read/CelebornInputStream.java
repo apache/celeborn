@@ -43,6 +43,7 @@ import org.apache.celeborn.common.protocol.*;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.ExceptionMaker;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.write.PushFailedBatch;
 
 public abstract class CelebornInputStream extends InputStream {
   private static final Logger logger = LoggerFactory.getLogger(CelebornInputStream.class);
@@ -54,6 +55,7 @@ public abstract class CelebornInputStream extends InputStream {
       ArrayList<PartitionLocation> locations,
       ArrayList<PbStreamHandler> streamHandlers,
       int[] attempts,
+      Set<PushFailedBatch> failedBatchSet,
       int attemptNumber,
       int startMapIndex,
       int endMapIndex,
@@ -68,13 +70,20 @@ public abstract class CelebornInputStream extends InputStream {
     if (locations == null || locations.size() == 0) {
       return emptyInputStream;
     } else {
+      // if startMapIndex > endMapIndex, means partition is skew partition.
+      // locations will split to sub-partitions with startMapIndex size.
+      ArrayList<PartitionLocation> filterLocations = locations;
+      if (conf.clientPushFailureTrackingEnabled() && startMapIndex > endMapIndex) {
+        filterLocations = getSkewPartitionLocations(locations, startMapIndex, endMapIndex);
+      }
       return new CelebornInputStreamImpl(
           conf,
           clientFactory,
           shuffleKey,
-          locations,
+          filterLocations,
           streamHandlers,
           attempts,
+          failedBatchSet,
           attemptNumber,
           startMapIndex,
           endMapIndex,
@@ -86,6 +95,41 @@ public abstract class CelebornInputStream extends InputStream {
           exceptionMaker,
           metricsCallback);
     }
+  }
+
+  public static ArrayList<PartitionLocation> getSkewPartitionLocations(
+      List<PartitionLocation> locations, int subPartitionSize, int subPartitionIndex) {
+    Set<PartitionLocation> sortSet =
+        new TreeSet<>(
+            (o1, o2) -> {
+              if (o1.getStorageInfo().fileSize > o2.getStorageInfo().fileSize) {
+                return 1;
+              } else if (o1.getStorageInfo().fileSize < o2.getStorageInfo().fileSize) {
+                return -1;
+              } else {
+                return o1.hashCode() - o2.hashCode();
+              }
+            });
+    sortSet.addAll(locations);
+    PartitionLocation[] orderedPartitionLocations = sortSet.toArray(new PartitionLocation[0]);
+
+    ArrayList<PartitionLocation> result = new ArrayList<>();
+
+    int step = locations.size() / subPartitionSize;
+
+    // if partition location is [1,2,3,4,5,6,7,8,9,10], and skew partition split to 3 task:
+    // task 0: 1, 6, 7
+    // task 1: 2, 5, 8
+    // task 2: 3, 4, 9, 10
+    for (int i = 0; i < step + 1; i++) {
+      if (i % 2 == 0 && (i * 3 + subPartitionIndex) < locations.size()) {
+        result.add(orderedPartitionLocations[i * subPartitionSize + subPartitionIndex]);
+      } else if (((i + 1) * subPartitionSize - subPartitionIndex - 1) < locations.size()) {
+        result.add(orderedPartitionLocations[(i + 1) * subPartitionSize - subPartitionIndex - 1]);
+      }
+    }
+
+    return result;
   }
 
   public static CelebornInputStream empty() {
@@ -134,6 +178,8 @@ public abstract class CelebornInputStream extends InputStream {
 
     private Map<Integer, Set<Integer>> batchesRead = new HashMap<>();
 
+    private final Set<PushFailedBatch> failedBatches;
+
     private byte[] compressedBuf;
     private byte[] rawDataBuf;
     private Decompressor decompressor;
@@ -170,6 +216,8 @@ public abstract class CelebornInputStream extends InputStream {
     private ExceptionMaker exceptionMaker;
     private boolean closed = false;
 
+    private final boolean pushShuffleFailureTrackingEnabled;
+
     CelebornInputStreamImpl(
         CelebornConf conf,
         TransportClientFactory clientFactory,
@@ -177,6 +225,7 @@ public abstract class CelebornInputStream extends InputStream {
         ArrayList<PartitionLocation> locations,
         ArrayList<PbStreamHandler> streamHandlers,
         int[] attempts,
+        Set<PushFailedBatch> failedBatchSet,
         int attemptNumber,
         int startMapIndex,
         int endMapIndex,
@@ -205,6 +254,8 @@ public abstract class CelebornInputStream extends InputStream {
       this.shuffleCompressionEnabled =
           !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
+      this.failedBatches = failedBatchSet;
+      this.pushShuffleFailureTrackingEnabled = conf.clientPushFailureTrackingEnabled();
       this.fetchExcludedWorkers = fetchExcludedWorkers;
 
       if (conf.clientPushReplicateEnabled()) {
@@ -608,6 +659,19 @@ public abstract class CelebornInputStream extends InputStream {
 
           // de-duplicate
           if (attemptId == attempts[mapId]) {
+            if (pushShuffleFailureTrackingEnabled) {
+              PushFailedBatch failedBatch =
+                  new PushFailedBatch(
+                      mapId,
+                      attemptId,
+                      batchId,
+                      currentReader.getLocation().getId(),
+                      currentReader.getLocation().getEpoch());
+              if (this.failedBatches.contains(failedBatch)) {
+                logger.warn("Skip duplicated batch: {}.", failedBatch);
+                continue;
+              }
+            }
             if (!batchesRead.containsKey(mapId)) {
               Set<Integer> batchSet = new HashSet<>();
               batchesRead.put(mapId, batchSet);
