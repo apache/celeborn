@@ -131,8 +131,8 @@ public class DataPusher {
               } catch (IOException e) {
                 exceptionRef.set(new CelebornIOException(e));
               } catch (InterruptedException e) {
-                exceptionRef.set(new CelebornIOException(e));
                 logger.error("DataPusher push thread interrupted while pushing data.");
+                break;
               }
             }
           }
@@ -213,7 +213,9 @@ public class DataPusher {
 
   private void waitIdleQueueFullWithLock() throws InterruptedException {
     try {
-      while (idleQueue.remainingCapacity() > 0 && exceptionRef.get() == null) {
+      while (idleQueue.remainingCapacity() > 0
+          && exceptionRef.get() == null
+          && (pushThread != null && pushThread.isAlive())) {
         idleFull.await(WAIT_TIME_NANOS, TimeUnit.NANOSECONDS);
       }
     } catch (InterruptedException e) {
