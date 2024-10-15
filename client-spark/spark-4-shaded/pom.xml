@@ -24,9 +24,9 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-client-spark-3-shaded_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-client-spark-4-shaded_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Shaded Client for Spark 3</name>
+  <name>Celeborn Shaded Client for Spark 4</name>
 
   <dependencies>
     <dependency>
@@ -140,57 +140,4 @@
       </plugin>
     </plugins>
   </build>
-
-  <profiles>
-    <profile>
-      <id>spark-3.0</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-spark-3-columnar-shuffle_${scala.binary.version}</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>spark-3.1</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-spark-3-columnar-shuffle_${scala.binary.version}</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>spark-3.2</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-spark-3-columnar-shuffle_${scala.binary.version}</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>spark-3.3</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-spark-3-columnar-shuffle_${scala.binary.version}</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>spark-3.4</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-spark-3-columnar-shuffle_${scala.binary.version}</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-  </profiles>
 </project>
