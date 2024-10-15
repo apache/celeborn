@@ -782,6 +782,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haRatisCustomConfigs: JMap[String, String] = {
     settings.asScala.filter(_._1.startsWith("celeborn.ratis")).toMap.asJava
   }
+  def masterExcludeWorkerUnhealthyDiskRatioThreshold: Double =
+    get(MASTER_EXCLUDE_WORKER_UNHEALTHY_DISK_RATIO_THRESHOLD)
 
   // //////////////////////////////////////////////////////
   //                      Worker                         //
@@ -5878,4 +5880,14 @@ object CelebornConf extends Logging {
         "`prod,high-io` filters workers that have both the `prod` and `high-io` tags.")
       .stringConf
       .createWithDefault("")
+
+  val MASTER_EXCLUDE_WORKER_UNHEALTHY_DISK_RATIO_THRESHOLD: ConfigEntry[Double] =
+    buildConf("celeborn.master.excludeWorker.unhealthyDiskRatioThreshold")
+      .categories("master")
+      .version("0.6.0")
+      .doc("Max ratio of unhealthy disks for excluding worker, when unhealthy disk is larger than max unhealthy count, master will exclude worker." +
+        " If this value is set to 1, master will exclude worker of which disks are all unhealthy.")
+      .doubleConf
+      .checkValue(v => v > 0.0 && v <= 1.0, "Should be in (0.0, 1.0].")
+      .createWithDefault(1)
 }

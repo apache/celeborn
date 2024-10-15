@@ -56,6 +56,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
     this.conf = conf;
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
+    this.unhealthyDiskRatioThreshold = conf.masterExcludeWorkerUnhealthyDiskRatioThreshold();
     this.appDiskUsageMetric = new AppDiskUsageMetric(conf);
     this.rackResolver = rackResolver;
   }

@@ -83,6 +83,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   public long initialEstimatedPartitionSize;
   public long estimatedPartitionSize;
+  public double unhealthyDiskRatioThreshold;
   public final LongAdder partitionTotalWritten = new LongAdder();
   public final LongAdder partitionTotalFileCount = new LongAdder();
   public AppDiskUsageMetric appDiskUsageMetric = null;
@@ -213,14 +214,14 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
     appDiskUsageMetric.update(estimatedAppDiskUsage);
     // If using HDFSONLY mode, workers with empty disks should not be put into excluded worker list.
-    long healthyDiskNum =
-        disks.values().stream().filter(s -> s.status().equals(DiskStatus.HEALTHY)).count();
+    long unhealthyDiskNum =
+        disks.values().stream().filter(s -> !s.status().equals(DiskStatus.HEALTHY)).count();
+    boolean exceed = unhealthyDiskNum * 1.0 / disks.size() >= unhealthyDiskRatioThreshold;
     if (!excludedWorkers.contains(worker)
-        && (((disks.isEmpty() || healthyDiskNum <= 0)
-                && (!conf.hasHDFSStorage())
-                && (!conf.hasS3Storage()))
+        && (((disks.isEmpty() || exceed) && !conf.hasHDFSStorage() && !conf.hasS3Storage())
             || highWorkload)) {
-      LOG.debug("Worker: {} num total slots is 0, add to excluded list", worker);
+      LOG.debug(
+          "Worker {} (unhealthy disks num: {}) adds to excluded workers", worker, unhealthyDiskNum);
       excludedWorkers.add(worker);
     } else if ((availableSlots.get() > 0 || conf.hasHDFSStorage() || conf.hasS3Storage())
         && !highWorkload) {
