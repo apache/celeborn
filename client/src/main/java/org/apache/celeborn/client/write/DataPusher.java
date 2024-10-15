@@ -213,7 +213,9 @@ public class DataPusher {
 
   private void waitIdleQueueFullWithLock() throws InterruptedException {
     try {
-      while (idleQueue.remainingCapacity() > 0 && exceptionRef.get() == null) {
+      while (idleQueue.remainingCapacity() > 0
+          && exceptionRef.get() == null
+          && (pushThread != null && pushThread.isAlive())) {
         idleFull.await(WAIT_TIME_NANOS, TimeUnit.NANOSECONDS);
       }
     } catch (InterruptedException e) {
