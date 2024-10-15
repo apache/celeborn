@@ -477,7 +477,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         // A shuffle can trigger multiple CommitFiles requests, for reasons like: HARD_SPLIT happens, StageEnd.
         // If MapperAttempts but the value is -1 for the mapId(-1 means the map has not yet finished),
         // it's probably because commitFiles for HARD_SPLIT happens.
-        if (shuffleMapperAttempts.containsKey(shuffleKey)) {
+        if (presumptiveEndedShuffles.contains(shuffleKey)) {
+          logDebug(s"Receive push merged data from speculative " +
+            s"task(shuffle $shuffleKey, map $mapId, attempt $attemptId), " +
+            s"but this stage is ended.")
+          callbackWithTimer.onSuccess(
+            ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
+        } else if (shuffleMapperAttempts.containsKey(shuffleKey)) {
           if (-1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
             logDebug(s"Receive push merged data from speculative " +
               s"task(shuffle $shuffleKey, map $mapId, attempt $attemptId), " +
@@ -493,13 +499,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           }
         } else {
           // This means that this stage is ended and invoked commit files by stage end
-          if (presumptiveEndedShuffles.contains(shuffleKey)) {
-            logDebug(s"Receive push merged data from speculative " +
-              s"task(shuffle $shuffleKey, map $mapId, attempt $attemptId), " +
-              s"but this stage is ended.")
-            callbackWithTimer.onSuccess(
-              ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
-          } else if (storageManager.shuffleKeySet().contains(shuffleKey)) {
+          if (storageManager.shuffleKeySet().contains(shuffleKey)) {
             // If there is no shuffle key in shuffleMapperAttempts but there is shuffle key
             // in StorageManager. This partition should be HARD_SPLIT partition and
             // after worker restart, some tasks still push data to this HARD_SPLIT partition.
