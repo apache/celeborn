@@ -691,7 +691,7 @@ object Spark24 extends SparkClientProjects {
 
 object Spark30 extends SparkClientProjects {
 
-  val sparkClientProjectPath = "client-spark/spark-3"
+  val sparkClientProjectPath = "client-spark/spark-3-4"
   val sparkClientProjectName = "celeborn-client-spark-3"
   val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
   val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
@@ -705,7 +705,7 @@ object Spark30 extends SparkClientProjects {
 
 object Spark31 extends SparkClientProjects {
 
-  val sparkClientProjectPath = "client-spark/spark-3"
+  val sparkClientProjectPath = "client-spark/spark-3-4"
   val sparkClientProjectName = "celeborn-client-spark-3"
   val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
   val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
@@ -719,7 +719,7 @@ object Spark31 extends SparkClientProjects {
 
 object Spark32 extends SparkClientProjects {
 
-  val sparkClientProjectPath = "client-spark/spark-3"
+  val sparkClientProjectPath = "client-spark/spark-3-4"
   val sparkClientProjectName = "celeborn-client-spark-3"
   val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
   val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
@@ -733,7 +733,7 @@ object Spark32 extends SparkClientProjects {
 
 object Spark33 extends SparkClientProjects {
 
-  val sparkClientProjectPath = "client-spark/spark-3"
+  val sparkClientProjectPath = "client-spark/spark-3-4"
   val sparkClientProjectName = "celeborn-client-spark-3"
   val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
   val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
@@ -750,7 +750,7 @@ object Spark33 extends SparkClientProjects {
 
 object Spark34 extends SparkClientProjects {
 
-  val sparkClientProjectPath = "client-spark/spark-3"
+  val sparkClientProjectPath = "client-spark/spark-3-4"
   val sparkClientProjectName = "celeborn-client-spark-3"
   val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
   val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
@@ -764,7 +764,7 @@ object Spark34 extends SparkClientProjects {
 
 object Spark35 extends SparkClientProjects {
 
-  val sparkClientProjectPath = "client-spark/spark-3"
+  val sparkClientProjectPath = "client-spark/spark-3-4"
   val sparkClientProjectName = "celeborn-client-spark-3"
   val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
   val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
@@ -780,7 +780,7 @@ object Spark35 extends SparkClientProjects {
 
 object Spark40 extends SparkClientProjects {
 
-  val sparkClientProjectPath = "client-spark/spark-3"
+  val sparkClientProjectPath = "client-spark/spark-3-4"
   val sparkClientProjectName = "celeborn-client-spark-3"
   val sparkClientShadedProjectPath = "client-spark/spark-4-shaded"
   val sparkClientShadedProjectName = "celeborn-client-spark-4-shaded"
@@ -792,7 +792,7 @@ object Spark40 extends SparkClientProjects {
   val zstdJniVersion = "1.5.5-6"
   val scalaBinaryVersion = "2.13"
 
-  override val sparkColumnarShuffleVersion: String = "4.0"
+  override val sparkColumnarShuffleVersion: String = "4"
 }
 
 trait SparkClientProjects {
