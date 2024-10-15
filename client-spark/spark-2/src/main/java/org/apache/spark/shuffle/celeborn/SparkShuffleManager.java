@@ -95,7 +95,8 @@ public class SparkShuffleManager implements ShuffleManager {
     if (isDriver && lifecycleManager == null) {
       synchronized (this) {
         if (lifecycleManager == null) {
-          lifecycleManager = new LifecycleManager(appId, celebornConf);
+          appUniqueId = celebornConf.appUniqueIdWithUUIDSuffix(appId);
+          lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
           if (celebornConf.clientFetchThrowsFetchFailure()) {
             MapOutputTrackerMaster mapOutputTracker =
                 (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();
@@ -113,8 +114,8 @@ public class SparkShuffleManager implements ShuffleManager {
     // Note: generate app unique id at driver side, make sure dependency.rdd.context
     // is the same SparkContext among different shuffleIds.
     // This method may be called many times.
-    appUniqueId = SparkUtils.appUniqueId(dependency.rdd().context());
-    initializeLifecycleManager(appUniqueId);
+    String appId = SparkUtils.appUniqueId(dependency.rdd().context());
+    initializeLifecycleManager(appId);
 
     lifecycleManager.registerAppShuffleDeterminate(
         shuffleId,
