@@ -25,7 +25,7 @@ import scala.collection.JavaConverters._
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
-import org.apache.ratis.protocol.{LeaderElectionManagementRequest, RaftPeerId, TransferLeadershipRequest}
+import org.apache.ratis.protocol.{LeaderElectionManagementRequest, RaftPeerId, SnapshotManagementRequest, TransferLeadershipRequest}
 import org.apache.ratis.rpc.CallId
 
 import org.apache.celeborn.common.internal.Logging
@@ -90,6 +90,31 @@ class RatisResource extends ApiRequestContext with Logging {
   @Path("/election/resume")
   def electionResume(): HandleResponse = ensureMasterHAEnabled(master) {
     applyElectionOp(new LeaderElectionManagementRequest.Resume)
+  }
+
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[HandleResponse]))),
+    description = "Trigger the current server to take snapshot.")
+  @POST
+  @Path("/snapshot/create")
+  def createSnapshot(): HandleResponse = ensureMasterHAEnabled(master) {
+    val request = SnapshotManagementRequest.newCreate(
+      ratisServer.getClientId,
+      ratisServer.getServer.getId,
+      ratisServer.getGroupId,
+      CallId.getAndIncrement(),
+      HARaftServer.REQUEST_TIMEOUT_MS)
+    val reply = ratisServer.getServer.snapshotManagement(request)
+    if (reply.isSuccess) {
+      new HandleResponse().success(true).message(
+        s"Successfully create snapshot at ${ratisServer.getLocalAddress}.")
+    } else {
+      new HandleResponse().success(false).message(
+        s"Failed to create snapshot at ${ratisServer.getLocalAddress}. $reply")
+    }
   }
 
   private def transferLeadership(peerAddress: String): HandleResponse = {
