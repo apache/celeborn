@@ -163,8 +163,7 @@ public class SparkShuffleManager implements ShuffleManager {
         shuffleId,
         !DeterministicLevel.INDETERMINATE().equals(dependency.rdd().getOutputDeterministicLevel()));
 
-    if (fallbackPolicyRunner.applyAllFallbackPolicy(
-        lifecycleManager, dependency.partitioner().numPartitions())) {
+    if (fallbackPolicyRunner.applyFallbackPolicies(dependency, lifecycleManager)) {
       if (conf.getBoolean("spark.dynamicAllocation.enabled", false)
           && !conf.getBoolean("spark.shuffle.service.enabled", false)) {
         logger.error(

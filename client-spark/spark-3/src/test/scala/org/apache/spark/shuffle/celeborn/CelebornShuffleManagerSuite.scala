@@ -69,6 +69,7 @@ class SparkShuffleManagerSuite extends Logging {
     sc.stop()
   }
 
+  @junit.Test
   def testChangeWriteModeByPartitionCount(): Unit = {
     val conf = new SparkConf().setIfMissing("spark.master", "local")
       .setIfMissing(
