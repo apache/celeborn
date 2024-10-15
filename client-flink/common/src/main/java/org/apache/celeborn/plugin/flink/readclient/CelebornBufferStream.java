@@ -100,10 +100,12 @@ public class CelebornBufferStream {
 
           @Override
           public void onFailure(Throwable e) {
-            logger.warn(
-                "Send PbReadAddCredit to {} failed, detail {}",
+            logger.error(
+                "Send PbReadAddCredit to {} failed, streamId {}, detail {}",
                 NettyUtils.getRemoteAddress(client.getChannel()),
+                streamId,
                 e.getCause());
+            messageConsumer.accept(new TransportableError(streamId, e));
           }
         });
   }
