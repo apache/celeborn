@@ -373,7 +373,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     updateInnerMetrics(sb.toString())
   }
 
-  override def getMetrics(): String = {
+  override def getMetrics: String = {
     innerMetrics.synchronized {
       counters().foreach(c => recordCounter(c))
       gauges().foreach(g => recordGauge(g))

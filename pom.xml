@@ -987,7 +987,6 @@
           <version>${maven.plugin.scala.version}</version>
           <configuration>
             <args>
-              <arg>-Ywarn-unused-import</arg>
               <arg>-unchecked</arg>
               <arg>-deprecation</arg>
               <arg>-feature</arg>
@@ -1379,7 +1378,7 @@
       <id>spark-3.0</id>
       <modules>
         <module>client-spark/common</module>
-        <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-4</module>
         <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
@@ -1399,7 +1398,7 @@
       <id>spark-3.1</id>
       <modules>
         <module>client-spark/common</module>
-        <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-4</module>
         <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
@@ -1419,7 +1418,7 @@
       <id>spark-3.2</id>
       <modules>
         <module>client-spark/common</module>
-        <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-4</module>
         <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
@@ -1438,7 +1437,7 @@
       <id>spark-3.3</id>
       <modules>
         <module>client-spark/common</module>
-        <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-4</module>
         <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
@@ -1476,7 +1475,7 @@
       <id>spark-3.5</id>
       <modules>
         <module>client-spark/common</module>
-        <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-4</module>
         <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3.5-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
@@ -1488,6 +1487,25 @@
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.5.3</spark.version>
         <zstd-jni.version>1.5.5-4</zstd-jni.version>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>spark-4.0</id>
+      <modules>
+        <module>client-spark/common</module>
+        <module>client-spark/spark-3-4</module>
+        <module>client-spark/spark-3-columnar-common</module>
+        <module>client-spark/spark-4-columnar-shuffle</module>
+        <module>client-spark/spark-4-shaded</module>
+        <module>tests/spark-it</module>
+      </modules>
+      <properties>
+        <lz4-java.version>1.8.0</lz4-java.version>
+        <scala.version>2.13.11</scala.version>
+        <scala.binary.version>2.13</scala.binary.version>
+        <spark.version>4.0.0-preview2</spark.version>
+        <zstd-jni.version>1.5.5-6</zstd-jni.version>
       </properties>
     </profile>
 
