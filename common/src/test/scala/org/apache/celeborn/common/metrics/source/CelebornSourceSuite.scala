@@ -70,7 +70,7 @@ class CelebornSourceSuite extends CelebornFunSuite {
     mockSource.stopTimer("Timer1", "key1")
     mockSource.stopTimer("Timer2", "key2", user3)
 
-    val res = mockSource.getMetrics()
+    val res = mockSource.getMetrics
     var extraLabelsStr = extraLabels
     if (extraLabels.nonEmpty) {
       extraLabelsStr = extraLabels + ","

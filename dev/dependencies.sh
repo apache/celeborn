@@ -169,7 +169,7 @@ case "$MODULE" in
     SBT_PROJECT="celeborn-client-spark-2"
     ;;
   "spark-3"*)  # Match all versions starting with "spark-3"
-    MVN_MODULES="client-spark/spark-3"
+    MVN_MODULES="client-spark/spark-3-4"
     SBT_PROJECT="celeborn-client-spark-3"
     ;;
   "flink-1.14")

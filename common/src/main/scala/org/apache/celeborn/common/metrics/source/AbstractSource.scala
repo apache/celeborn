@@ -487,7 +487,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     sum
   }
 
-  override def getMetrics(): String = {
+  override def getMetrics: String = {
     var leftMetricsNum = metricsCapacity
     val sb = new mutable.StringBuilder
     leftMetricsNum = fillInnerMetricsSnapshot(getAndClearTimerMetrics(), leftMetricsNum, sb)

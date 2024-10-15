@@ -24,9 +24,9 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-client-spark-3-4_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Client for Spark 3</name>
+  <name>Celeborn Client for Spark 3 and 4</name>
 
   <dependencies>
     <dependency>
