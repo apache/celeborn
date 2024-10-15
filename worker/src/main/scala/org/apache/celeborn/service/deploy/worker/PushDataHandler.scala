@@ -591,7 +591,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                         } else {
                           callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
                         }
-                      case None =>
+                      case Some(_) | None =>
                         callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
                     }
                   }
@@ -671,7 +671,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               } else {
                 callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
               }
-            case None =>
+            case Some(_) | None =>
               callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
           }
         case Failure(e) => callbackWithTimer.onFailure(e)
