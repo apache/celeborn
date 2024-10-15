@@ -1397,8 +1397,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 mapperEndMap
                     .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
                     .add(mapId);
-              }
-              if (retCode == StatusCode.STAGE_ENDED.getValue()) {
+              } else if (retCode == StatusCode.STAGE_ENDED.getValue()) {
                 stageEndShuffleSet.add(shuffleId);
               }
             }
