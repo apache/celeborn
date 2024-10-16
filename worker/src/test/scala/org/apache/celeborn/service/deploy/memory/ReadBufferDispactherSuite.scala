@@ -28,8 +28,7 @@ import org.mockito.stubbing.Answer
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.service.deploy.worker.memory.{MemoryManager, ReadBufferListener, ReadBufferRequest}
-import org.apache.celeborn.service.deploy.worker.memory.ReadBufferDispatcher
+import org.apache.celeborn.service.deploy.worker.memory.{MemoryManager, ReadBufferDispatcher, ReadBufferListener, ReadBufferRequest}
 
 class ReadBufferDispactherSuite extends CelebornFunSuite {
 
@@ -64,4 +63,15 @@ class ReadBufferDispactherSuite extends CelebornFunSuite {
     requestFuture.get(5, TimeUnit.SECONDS)
   }
 
+  test("Test check thread alive") {
+    val mockedMemoryManager = mock(classOf[MemoryManager])
+    val conf = new CelebornConf()
+    val readBufferDispatcher = new ReadBufferDispatcher(mockedMemoryManager, conf)
+    val threadId1 = readBufferDispatcher.dispatcherThread.get().getId
+    readBufferDispatcher.stopFlag = true
+    Thread.sleep(1500);
+    readBufferDispatcher.stopFlag = false
+    val threadId2 = readBufferDispatcher.dispatcherThread.get().getId
+    assert(threadId1 != threadId2)
+  }
 }

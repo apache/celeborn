@@ -20,9 +20,12 @@ package org.apache.celeborn.service.deploy.worker.memory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import org.slf4j.Logger;
@@ -31,15 +34,18 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.util.ThreadExceptionHandler;
+import org.apache.celeborn.common.util.ThreadUtils;
 
-public class ReadBufferDispatcher extends Thread {
+public class ReadBufferDispatcher {
   private final Logger logger = LoggerFactory.getLogger(ReadBufferDispatcher.class);
   private final LinkedBlockingQueue<ReadBufferRequest> requests = new LinkedBlockingQueue<>();
   private final MemoryManager memoryManager;
   private final PooledByteBufAllocator readBufferAllocator;
   private final LongAdder allocatedReadBuffers = new LongAdder();
   private final long readBufferAllocationWait;
-  private volatile boolean stopFlag = false;
+  @VisibleForTesting public volatile boolean stopFlag = false;
+  @VisibleForTesting public final AtomicReference<Thread> dispatcherThread;
 
   public ReadBufferDispatcher(MemoryManager memoryManager, CelebornConf conf) {
     this.readBufferAllocationWait = conf.readBufferAllocationWait();
@@ -47,8 +53,30 @@ public class ReadBufferDispatcher extends Thread {
     readBufferAllocator =
         NettyUtils.getPooledByteBufAllocator(new TransportConf("readBuffer", conf), null, true);
     this.memoryManager = memoryManager;
-    this.setName("Read-Buffer-Dispatcher");
-    this.start();
+    dispatcherThread =
+        new AtomicReference<>(
+            new Thread(new DispatcherRunnable(memoryManager), "ReadBufferDispatcher"));
+    dispatcherThread
+        .get()
+        .setUncaughtExceptionHandler(new ThreadExceptionHandler("ReadBufferDispatcher"));
+    dispatcherThread.get().start();
+
+    ScheduledExecutorService checkAliveThread =
+        ThreadUtils.newDaemonSingleThreadScheduledExecutor("ReadBufferDispatcherChecker");
+    checkAliveThread.scheduleWithFixedDelay(
+        () -> {
+          if (!dispatcherThread.get().isAlive()) {
+            dispatcherThread.set(
+                new Thread(new DispatcherRunnable(memoryManager), "ReadBufferDispatcher"));
+            dispatcherThread
+                .get()
+                .setUncaughtExceptionHandler(new ThreadExceptionHandler("ReadBufferDispatcher"));
+            dispatcherThread.get().start();
+          }
+        },
+        50,
+        50,
+        TimeUnit.MILLISECONDS);
   }
 
   public void addBufferRequest(ReadBufferRequest request) {
@@ -66,60 +94,6 @@ public class ReadBufferDispatcher extends Thread {
     memoryManager.changeReadBufferCounter(-1 * bufferSize);
   }
 
-  @Override
-  public void run() {
-    while (!stopFlag) {
-      ReadBufferRequest request = null;
-      try {
-        request = requests.poll(1000, TimeUnit.MILLISECONDS);
-      } catch (InterruptedException e) {
-        logger.info("Buffer dispatcher is closing");
-      }
-
-      List<ByteBuf> buffers = null;
-      try {
-        if (request != null) {
-          long start = System.nanoTime();
-          int bufferSize = request.getBufferSize();
-          buffers = new ArrayList<>();
-          while (buffers.size() < request.getNumber()) {
-            if (memoryManager.readBufferAvailable(bufferSize)) {
-              ByteBuf buf = readBufferAllocator.buffer(bufferSize, bufferSize);
-              buffers.add(buf);
-              memoryManager.changeReadBufferCounter(bufferSize);
-              allocatedReadBuffers.increment();
-            } else {
-              try {
-                // If dispatcher can not allocate requested buffers, it will wait here until
-                // necessary buffers are get.
-                Thread.sleep(this.readBufferAllocationWait);
-              } catch (InterruptedException e) {
-                logger.info("Buffer dispatcher is closing");
-              }
-            }
-          }
-          long end = System.nanoTime();
-          logger.debug(
-              "process read buffer request using {} ms",
-              TimeUnit.NANOSECONDS.toMillis(end - start));
-          request.getBufferListener().notifyBuffers(buffers, null);
-        } else {
-          // Free buffer pool memory to main direct memory when dispatcher is idle.
-          readBufferAllocator.trimCurrentThreadCache();
-        }
-      } catch (Throwable e) {
-        logger.error(e.getMessage(), e);
-        // recycle all allocated buffers
-        if (buffers != null) {
-          buffers.forEach(this::recycle);
-        }
-
-        // notify listener has exception
-        request.getBufferListener().notifyBuffers(null, e);
-      }
-    }
-  }
-
   public int requestsLength() {
     return requests.size();
   }
@@ -131,5 +105,71 @@ public class ReadBufferDispatcher extends Thread {
   public void close() {
     stopFlag = true;
     requests.clear();
+  }
+
+  private class DispatcherRunnable implements Runnable {
+    private final MemoryManager memoryManager;
+
+    public DispatcherRunnable(MemoryManager memoryManager) {
+      this.memoryManager = memoryManager;
+    }
+
+    @Override
+    public void run() {
+      while (!stopFlag) {
+        try {
+          ReadBufferRequest request = null;
+          request = requests.poll(1000, TimeUnit.MILLISECONDS);
+          List<ByteBuf> buffers = null;
+          try {
+            if (request != null) {
+              long start = System.nanoTime();
+              int bufferSize = request.getBufferSize();
+              buffers = new ArrayList<>();
+              while (buffers.size() < request.getNumber()) {
+                if (memoryManager.readBufferAvailable(bufferSize)) {
+                  ByteBuf buf = readBufferAllocator.buffer(bufferSize, bufferSize);
+                  buffers.add(buf);
+                  memoryManager.changeReadBufferCounter(bufferSize);
+                  allocatedReadBuffers.increment();
+                } else {
+                  try {
+                    // If dispatcher can not allocate requested buffers, it will wait here until
+                    // necessary
+                    // buffers are get.
+                    Thread.sleep(readBufferAllocationWait);
+                  } catch (InterruptedException e) {
+                    logger.info("Buffer dispatcher is closing");
+                  }
+                }
+              }
+              long end = System.nanoTime();
+              logger.debug(
+                  "process read buffer request using {} ms",
+                  TimeUnit.NANOSECONDS.toMillis(end - start));
+              request.getBufferListener().notifyBuffers(buffers, null);
+            } else {
+              // Free buffer pool memory to main direct memory when dispatcher is idle.
+              readBufferAllocator.trimCurrentThreadCache();
+            }
+          } catch (Throwable e) {
+            logger.error(e.getMessage(), e);
+            try {
+              // recycle all allocated buffers
+              if (buffers != null) {
+                for (ByteBuf buffer : buffers) {
+                  recycle(buffer);
+                }
+              }
+            } catch (Throwable e1) {
+              logger.error("Recycle read buffer failed.", e1);
+            }
+            request.getBufferListener().notifyBuffers(null, e);
+          }
+        } catch (Throwable e) {
+          logger.error("Read buffer dispatcher encountered error: {}", e.getMessage(), e);
+        }
+      }
+    }
   }
 }
