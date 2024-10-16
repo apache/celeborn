@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
-import com.codahale.metrics.Gauge;
-
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
@@ -45,7 +43,7 @@ public class UserCongestionControlContext {
     workerSource.addGauge(
         WorkerSource.USER_PRODUCE_SPEED(),
         userIdentifier.toJMap(),
-        (Gauge<Long>) () -> userBufferInfo.getBufferStatusHub().avgBytesPerSec());
+        () -> userBufferInfo.getBufferStatusHub().avgBytesPerSec());
   }
 
   public void onCongestionControl() {
