@@ -278,12 +278,9 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
       return;
     }
     TierShuffleDescriptorImpl shuffleDescriptor = (TierShuffleDescriptorImpl) tierShuffleDescriptor;
-    if (shuffleClient == null) {
-      initShuffleClient(shuffleDescriptor);
-    }
     checkState(
         shuffleDescriptor.getResultPartitionID().equals(tieredStoragePartitionId.getPartitionID()),
-        "Wrong result partition id.");
+        "Wrong result partition id: " + shuffleDescriptor.getResultPartitionID());
     ResultSubpartitionIndexSet subpartitionIndexSet =
         new ResultSubpartitionIndexSet(subpartitionId.getSubpartitionId());
     if (!bufferReaders.containsKey(tieredStoragePartitionId)
@@ -527,6 +524,7 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
         if (throwable.getMessage() != null && throwable.getMessage().contains(clazz.getName())) {
           cause =
               new PartitionNotFoundException(TieredStorageIdMappingUtils.convertId(partitionId));
+          LOG.error("The consumer agent received an PartitionUnRetryAbleException.", throwable);
         } else {
           LOG.error("The consumer agent received an exception.", throwable);
           cause = throwable;

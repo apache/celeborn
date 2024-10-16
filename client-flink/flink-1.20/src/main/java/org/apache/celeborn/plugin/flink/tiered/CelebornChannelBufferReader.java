@@ -138,6 +138,7 @@ public class CelebornChannelBufferReader {
       this.isOpened = bufferStream.isOpened();
     } catch (Exception e) {
       messageConsumer.accept(new TransportableError(0L, e));
+      LOG.error("Failed to open reader", e);
     }
   }
 
@@ -292,7 +293,7 @@ public class CelebornChannelBufferReader {
     checkState(
         readData.getSubPartitionId() >= subPartitionIndexStart
             && readData.getSubPartitionId() <= subPartitionIndexEnd,
-        "Wrong sub partition id");
+        "Wrong sub partition id: " + readData.getSubPartitionId());
     dataListener.accept(
         readData.getFlinkBuffer(), new TieredStorageSubpartitionId(readData.getSubPartitionId()));
     int numRequested = bufferManager.tryRequestBuffersIfNeeded();
