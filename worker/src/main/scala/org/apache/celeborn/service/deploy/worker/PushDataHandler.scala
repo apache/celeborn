@@ -498,7 +498,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
           }
         } else {
-          // This means that this stage is ended and invoked commit files by stage end
           if (storageManager.shuffleKeySet().contains(shuffleKey)) {
             // If there is no shuffle key in shuffleMapperAttempts but there is shuffle key
             // in StorageManager. This partition should be HARD_SPLIT partition and

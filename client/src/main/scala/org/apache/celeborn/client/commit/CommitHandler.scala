@@ -442,7 +442,12 @@ abstract class CommitHandler(
         replicaIds)
     }
 
-    doParallelCommitFiles(shuffleId, shuffleCommittedInfo, params, commitFilesFailedWorkers, true)
+    doParallelCommitFiles(
+      shuffleId,
+      shuffleCommittedInfo,
+      params,
+      commitFilesFailedWorkers,
+      this.isInstanceOf[ReducePartitionCommitHandler])
 
     logInfo(s"Shuffle $shuffleId " +
       s"commit files complete. File count ${shuffleCommittedInfo.currentShuffleFileCount.sum()} " +
