@@ -22,6 +22,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import java.util.LinkedList;
 import java.util.Queue;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
@@ -44,9 +46,11 @@ public class CelebornChannelBufferManager implements BufferListener, BufferRecyc
   private final CelebornChannelBufferReader bufferReader;
 
   /** The tag indicates whether it is waiting for buffers from the buffer pool. */
+  @GuardedBy("bufferQueue")
   private boolean isWaitingForFloatingBuffers;
 
   /** The total number of required buffers for the respective input channel. */
+  @GuardedBy("bufferQueue")
   private int numRequiredBuffers = 0;
 
   public CelebornChannelBufferManager(
@@ -140,6 +144,7 @@ public class CelebornChannelBufferManager implements BufferListener, BufferRecyc
     }
   }
 
+  @GuardedBy("bufferQueue")
   private int tryRequestBuffers() {
     assert Thread.holdsLock(bufferQueue);
     int numRequestedBuffers = 0;
