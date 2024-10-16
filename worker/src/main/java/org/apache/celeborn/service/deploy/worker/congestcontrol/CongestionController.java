@@ -196,10 +196,6 @@ public class CongestionController {
           logger.info("New user {} comes, initializing its rate status", user);
           BufferStatusHub bufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
           UserBufferInfo userInfo = new UserBufferInfo(System.currentTimeMillis(), bufferStatusHub);
-          workerSource.addGauge(
-              WorkerSource.USER_PRODUCE_SPEED(),
-              userIdentifier.toJMap(),
-              () -> getUserProduceSpeed(userInfo));
           return userInfo;
         });
   }
