@@ -21,6 +21,7 @@ import com.codahale.metrics.Gauge;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
+import org.apache.celeborn.common.quota.UserTrafficQuota;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 
 public class UserCongestionControlContext {
@@ -33,7 +34,10 @@ public class UserCongestionControlContext {
 
   private final UserIdentifier userIdentifier;
 
+  private volatile UserTrafficQuota userTrafficQuota;
+
   public UserCongestionControlContext(
+      UserTrafficQuota userTrafficQuota,
       BufferStatusHub workerBufferStatusHub,
       UserBufferInfo userBufferInfo,
       AbstractSource workerSource,
@@ -42,6 +46,7 @@ public class UserCongestionControlContext {
     this.userBufferInfo = userBufferInfo;
     this.userIdentifier = userIdentifier;
     this.workerBufferStatusHub = workerBufferStatusHub;
+    this.userTrafficQuota = userTrafficQuota;
     workerSource.addGauge(
         WorkerSource.USER_PRODUCE_SPEED(),
         userIdentifier.toJMap(),
@@ -73,5 +78,13 @@ public class UserCongestionControlContext {
 
   public UserIdentifier getUserIdentifier() {
     return userIdentifier;
+  }
+
+  public UserTrafficQuota getUserTrafficQuota() {
+    return userTrafficQuota;
+  }
+
+  public void updateUserTrafficQuota(UserTrafficQuota userTrafficQuota) {
+    this.userTrafficQuota = userTrafficQuota;
   }
 }

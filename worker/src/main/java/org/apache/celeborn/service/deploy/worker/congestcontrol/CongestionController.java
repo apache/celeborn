@@ -27,9 +27,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.quota.UserTrafficQuota;
+import org.apache.celeborn.common.quota.WorkerTrafficQuota;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
+import org.apache.celeborn.server.common.service.config.ConfigService;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
@@ -40,12 +44,6 @@ public class CongestionController {
   private final WorkerSource workerSource;
 
   private final int sampleTimeWindowSeconds;
-  private final long diskBufferHighWatermark;
-  private final long diskBufferLowWatermark;
-  private final long userProduceSpeedHighWatermark;
-  private final long userProduceSpeedLowWatermark;
-  private final long workerProduceSpeedHighWatermark;
-  private final long workerProduceSpeedLowWatermark;
   private final long userInactiveTimeMills;
 
   private final AtomicBoolean overHighWatermark = new AtomicBoolean(false);
@@ -63,34 +61,37 @@ public class CongestionController {
   private final ConcurrentHashMap<UserIdentifier, UserCongestionControlContext>
       userCongestionContextMap;
 
+  private final ConfigService configService;
+
+  private final UserTrafficQuota defaultUserQuota;
+
+  private volatile WorkerTrafficQuota workerTrafficQuota;
+
   protected CongestionController(
       WorkerSource workerSource,
       int sampleTimeWindowSeconds,
-      long diskBufferHighWatermark,
-      long diskBufferLowWatermark,
-      long userProduceSpeedHighWatermark,
-      long userProduceSpeedLowWatermark,
-      long workerProduceSpeedHighWatermark,
-      long workerProduceSpeedLowWatermark,
-      long userInactiveTimeMills,
-      long checkIntervalTimeMills) {
-    assert (diskBufferHighWatermark > diskBufferLowWatermark);
-    assert (userProduceSpeedHighWatermark > userProduceSpeedLowWatermark);
-    assert (workerProduceSpeedHighWatermark > workerProduceSpeedLowWatermark);
+      CelebornConf conf,
+      ConfigService configService) {
 
     this.workerSource = workerSource;
     this.sampleTimeWindowSeconds = sampleTimeWindowSeconds;
-    this.diskBufferHighWatermark = diskBufferHighWatermark;
-    this.diskBufferLowWatermark = diskBufferLowWatermark;
-    this.userProduceSpeedHighWatermark = userProduceSpeedHighWatermark;
-    this.userProduceSpeedLowWatermark = userProduceSpeedLowWatermark;
-    this.workerProduceSpeedHighWatermark = workerProduceSpeedHighWatermark;
-    this.workerProduceSpeedLowWatermark = workerProduceSpeedLowWatermark;
-    this.userInactiveTimeMills = userInactiveTimeMills;
+    this.userInactiveTimeMills = conf.workerCongestionControlUserInactiveIntervalMs();
     this.consumedBufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
     this.producedBufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
     this.userBufferStatuses = JavaUtils.newConcurrentHashMap();
     this.userCongestionContextMap = JavaUtils.newConcurrentHashMap();
+
+    defaultUserQuota =
+        new UserTrafficQuota(
+            conf.workerCongestionControlUserProduceSpeedHighWatermark(),
+            conf.workerCongestionControlUserProduceSpeedLowWatermark());
+
+    workerTrafficQuota =
+        new WorkerTrafficQuota(
+            conf.workerCongestionControlDiskBufferHighWatermark(),
+            conf.workerCongestionControlDiskBufferLowWatermark(),
+            conf.workerCongestionControlWorkerProduceSpeedHighWatermark(),
+            conf.workerCongestionControlWorkerProduceSpeedLowWatermark());
 
     this.removeUserExecutorService =
         ThreadUtils.newDaemonSingleThreadScheduledExecutor(
@@ -103,38 +104,31 @@ public class CongestionController {
         ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-congestion-controller-checker");
 
     this.checkService.scheduleWithFixedDelay(
-        this::checkCongestion, 0, checkIntervalTimeMills, TimeUnit.MILLISECONDS);
+        this::checkCongestion,
+        0,
+        conf.workerCongestionControlCheckIntervalMs(),
+        TimeUnit.MILLISECONDS);
 
     this.workerSource.addGauge(
         WorkerSource.POTENTIAL_CONSUME_SPEED(), this::getPotentialConsumeSpeed);
 
     this.workerSource.addGauge(
         WorkerSource.WORKER_CONSUME_SPEED(), consumedBufferStatusHub::avgBytesPerSec);
+
+    this.configService = configService;
+
+    if (configService != null) {
+      updateQuota(configService);
+      configService.registerListenerOnConfigUpdate(this::updateQuota);
+    }
   }
 
   public static synchronized CongestionController initialize(
       WorkerSource workSource,
       int sampleTimeWindowSeconds,
-      long highWatermarkDiskBuffer,
-      long lowWatermarkDiskBuffer,
-      long highWatermarkUserProduceSpeed,
-      long lowWatermarkUserProduceSpeed,
-      long highWatermarkWorkerProduceSpeed,
-      long lowWatermarkWorkerProduceSpeed,
-      long userInactiveTimeMills,
-      long checkIntervalTimeMills) {
-    _INSTANCE =
-        new CongestionController(
-            workSource,
-            sampleTimeWindowSeconds,
-            highWatermarkDiskBuffer,
-            lowWatermarkDiskBuffer,
-            highWatermarkUserProduceSpeed,
-            lowWatermarkUserProduceSpeed,
-            highWatermarkWorkerProduceSpeed,
-            lowWatermarkWorkerProduceSpeed,
-            userInactiveTimeMills,
-            checkIntervalTimeMills);
+      CelebornConf conf,
+      ConfigService configService) {
+    _INSTANCE = new CongestionController(workSource, sampleTimeWindowSeconds, conf, configService);
     return _INSTANCE;
   }
 
@@ -158,6 +152,7 @@ public class CongestionController {
 
     UserIdentifier userIdentifier = userCongestionControlContext.getUserIdentifier();
     long userProduceSpeed = getUserProduceSpeed(userCongestionControlContext.getUserBufferInfo());
+    UserTrafficQuota userTrafficQuota = userCongestionControlContext.getUserTrafficQuota();
     // If the user produce speed is higher that the avg consume speed, will congest it
     if (overHighWatermark.get()) {
       long avgConsumeSpeed = getPotentialProduceSpeed();
@@ -173,17 +168,17 @@ public class CongestionController {
       }
     }
 
-    if (userProduceSpeed > userProduceSpeedHighWatermark) {
+    if (userProduceSpeed > userTrafficQuota.userProduceSpeedHighWatermark()) {
       userCongestionControlContext.onCongestionControl();
       if (logger.isDebugEnabled()) {
         logger.debug(
             "The user {}, produceSpeed is {}, while userProduceSpeedHighWatermark is {}, need to congest it.",
             userIdentifier,
             userProduceSpeed,
-            userProduceSpeedHighWatermark);
+            userTrafficQuota.userProduceSpeedHighWatermark());
       }
     } else if (userCongestionControlContext.inCongestionControl()
-        && userProduceSpeed < userProduceSpeedLowWatermark) {
+        && userProduceSpeed < userTrafficQuota.userProduceSpeedLowWatermark()) {
       userCongestionControlContext.offCongestionControl();
     }
     return userCongestionControlContext.inCongestionControl();
@@ -273,15 +268,15 @@ public class CongestionController {
     try {
       long pendingConsume = getTotalPendingBytes();
       long workerProduceSpeed = producedBufferStatusHub.avgBytesPerSec();
-      if (pendingConsume < diskBufferLowWatermark
-          && workerProduceSpeed < workerProduceSpeedLowWatermark) {
+      if (pendingConsume < workerTrafficQuota.diskBufferLowWatermark()
+          && workerProduceSpeed < workerTrafficQuota.workerProduceSpeedLowWatermark()) {
         if (overHighWatermark.compareAndSet(true, false)) {
           logger.info(
               "Pending consume and produce speed is lower than low watermark, exit congestion control");
         }
         return;
-      } else if ((pendingConsume > diskBufferHighWatermark
-              || workerProduceSpeed > workerProduceSpeedHighWatermark)
+      } else if ((pendingConsume > workerTrafficQuota.diskBufferHighWatermark()
+              || workerProduceSpeed > workerTrafficQuota.workerProduceSpeedHighWatermark())
           && overHighWatermark.compareAndSet(false, true)) {
         logger.info(
             "Pending consume or produce speed is higher than high watermark, need congestion control");
@@ -319,8 +314,21 @@ public class CongestionController {
         userIdentifier,
         user -> {
           UserBufferInfo userBufferInfo = getUserBuffer(userIdentifier);
+          UserTrafficQuota userTrafficQuota;
+          if (configService == null) {
+            userTrafficQuota = defaultUserQuota;
+          } else {
+            userTrafficQuota =
+                configService
+                    .getTenantUserConfigFromCache(userIdentifier.tenantId(), userIdentifier.name())
+                    .getUserTrafficQuota();
+          }
           return new UserCongestionControlContext(
-              producedBufferStatusHub, userBufferInfo, workerSource, userIdentifier);
+              userTrafficQuota,
+              producedBufferStatusHub,
+              userBufferInfo,
+              workerSource,
+              userIdentifier);
         });
   }
 
@@ -331,5 +339,18 @@ public class CongestionController {
 
   public BufferStatusHub getConsumedBufferStatusHub() {
     return consumedBufferStatusHub;
+  }
+
+  private void updateQuota(ConfigService configService) {
+    workerTrafficQuota = configService.getSystemConfigFromCache().getWorkerTrafficQuota();
+    for (Map.Entry<UserIdentifier, UserCongestionControlContext> entry :
+        userCongestionContextMap.entrySet()) {
+      UserIdentifier user = entry.getKey();
+      UserCongestionControlContext context = entry.getValue();
+      context.updateUserTrafficQuota(
+          configService
+              .getTenantUserConfigFromCache(user.tenantId(), user.name())
+              .getUserTrafficQuota());
+    }
   }
 }

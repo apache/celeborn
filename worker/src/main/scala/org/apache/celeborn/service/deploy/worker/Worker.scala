@@ -181,27 +181,12 @@ private[celeborn] class Worker(
   val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
 
   if (conf.workerCongestionControlEnabled) {
-    if (conf.workerCongestionControlDiskBufferLowWatermark.isEmpty ||
-      conf.workerCongestionControlDiskBufferHighWatermark.isEmpty ||
-      conf.workerCongestionControlUserProduceSpeedLowWatermark.isEmpty ||
-      conf.workerCongestionControlUserProduceSpeedHighWatermark.isEmpty ||
-      conf.workerCongestionControlWorkerProduceSpeedLowWatermark.isEmpty ||
-      conf.workerCongestionControlWorkerProduceSpeedHighWatermark.isEmpty) {
-      throw new IllegalArgumentException("High watermark and low watermark must be set" +
-        " when enabling rate limit")
-    }
 
     CongestionController.initialize(
       workerSource,
       conf.workerCongestionControlSampleTimeWindowSeconds.toInt,
-      conf.workerCongestionControlDiskBufferHighWatermark.get,
-      conf.workerCongestionControlDiskBufferLowWatermark.get,
-      conf.workerCongestionControlUserProduceSpeedHighWatermark.get,
-      conf.workerCongestionControlUserProduceSpeedLowWatermark.get,
-      conf.workerCongestionControlWorkerProduceSpeedHighWatermark.get,
-      conf.workerCongestionControlWorkerProduceSpeedLowWatermark.get,
-      conf.workerCongestionControlUserInactiveIntervalMs,
-      conf.workerCongestionControlCheckIntervalMs)
+      conf,
+      configService)
   }
 
   var controller = new Controller(rpcEnv, conf, metricsSystem, workerSource)

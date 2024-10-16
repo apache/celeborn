@@ -19,6 +19,7 @@ package org.apache.celeborn.server.common.service.config;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.function.Consumer;
 
 import org.apache.celeborn.common.CelebornConf;
 
@@ -107,6 +108,13 @@ public interface ConfigService {
    * @throws IOException If refresh fails with exception.
    */
   void refreshCache() throws IOException;
+
+  /**
+   * Registers a listener to be called when the configuration is updated.
+   *
+   * @param listener the listener to be registered
+   */
+  void registerListenerOnConfigUpdate(Consumer<ConfigService> listener);
 
   /** Shutdowns configuration management service. */
   void shutdown();

@@ -22,9 +22,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -48,6 +50,8 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
   private final ScheduledExecutorService configRefreshService =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-config-refresher");
 
+  private LinkedBlockingDeque<Consumer<ConfigService>> listeners;
+
   public BaseConfigServiceImpl(CelebornConf celebornConf) throws IOException {
     this.celebornConf = celebornConf;
     this.systemConfigAtomicReference.set(new SystemConfig(celebornConf));
@@ -57,6 +61,7 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
         () -> {
           try {
             refreshCache();
+            notifyListenersOnConfigUpdate();
           } catch (Throwable e) {
             LOG.error(
                 "Failed to refresh dynamic configs. Encounter exception: {}.", e.getMessage(), e);
@@ -65,6 +70,7 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
         dynamicConfigRefreshInterval,
         dynamicConfigRefreshInterval,
         TimeUnit.MILLISECONDS);
+    this.listeners = new LinkedBlockingDeque<>();
   }
 
   @Override
@@ -100,5 +106,16 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
   @Override
   public void shutdown() {
     ThreadUtils.shutdown(configRefreshService);
+  }
+
+  @Override
+  public void registerListenerOnConfigUpdate(Consumer<ConfigService> listener) {
+    listeners.add(listener);
+  }
+
+  private void notifyListenersOnConfigUpdate() {
+    for (Consumer<ConfigService> listener : listeners) {
+      listener.accept(this);
+    }
   }
 }
