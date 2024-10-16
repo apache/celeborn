@@ -86,7 +86,14 @@ class LocalDeviceMonitor(
       .groupBy(_.deviceInfo)
       .foreach { case (deviceInfo: DeviceInfo, diskInfos: List[DiskInfo]) =>
         val deviceLabel = Map("device" -> deviceInfo.name)
-        def usage: DeviceMonitor.DiskUsageInfo = DeviceMonitor.getDiskUsageInfos(diskInfos.head)
+        def usage: DeviceMonitor.DiskUsageInfo =
+          try {
+            DeviceMonitor.getDiskUsageInfos(diskInfos.head)
+          } catch {
+            case t: Throwable =>
+              logError("Device monitor get usage infos failed.", t)
+              DeviceMonitor.DiskUsageInfo(0L, 0L, 0L, 0)
+          }
         workerSource.addGauge(WorkerSource.DEVICE_OS_TOTAL_CAPACITY, deviceLabel) { () =>
           usage.totalSpace
         }
