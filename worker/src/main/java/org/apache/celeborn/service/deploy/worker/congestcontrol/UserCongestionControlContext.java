@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
-import com.codahale.metrics.Gauge;
-
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
