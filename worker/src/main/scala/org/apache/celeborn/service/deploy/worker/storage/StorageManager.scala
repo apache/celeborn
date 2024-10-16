@@ -783,33 +783,43 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def updateDiskInfos(): Unit = this.synchronized {
-    disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { diskInfo =>
-      val totalUsage = diskInfo.dirs.map { dir =>
-        val writers = workingDirWriters.get(dir)
-        if (writers != null) {
-          writers.synchronized {
-            writers.values.asScala.map(_.getDiskFileInfo.getFileLength).sum
-          }
-        } else {
-          0
-        }
-      }.sum
+    disksSnapshot()
+      .filter(diskInfo =>
+        diskInfo.status != DiskStatus.IO_HANG || diskInfo.status != DiskStatus.READ_OR_WRITE_FAILURE)
+      .foreach {
+        diskInfo =>
+          val totalUsage = diskInfo.dirs.map { dir =>
+            val writers = workingDirWriters.get(dir)
+            if (writers != null) {
+              writers.synchronized {
+                writers.values.asScala.map(_.getDiskFileInfo.getFileLength).sum
+              }
+            } else {
+              0
+            }
+          }.sum
 
-      val (fileSystemReportedUsableSpace, fileSystemReportedTotalSpace) =
-        getFileSystemReportedSpace(diskInfo.mountPoint)
-      val workingDirUsableSpace =
-        Math.min(diskInfo.configuredUsableSpace - totalUsage, fileSystemReportedUsableSpace)
-      val minimumReserveSize =
-        DiskUtils.getMinimumUsableSize(diskInfo, diskReserveSize, diskReserveRatio)
-      val usableSpace = Math.max(workingDirUsableSpace - minimumReserveSize, 0)
-      logDebug(s"updateDiskInfos workingDirUsableSpace:$workingDirUsableSpace filemeta:$fileSystemReportedUsableSpace" +
-        s"conf:${diskInfo.configuredUsableSpace} totalUsage:$totalUsage totalSpace:$fileSystemReportedTotalSpace" +
-        s"minimumReserveSize:$minimumReserveSize usableSpace:$usableSpace")
-      diskInfo.setUsableSpace(usableSpace)
-      diskInfo.setTotalSpace(fileSystemReportedTotalSpace)
-      diskInfo.updateFlushTime()
-      diskInfo.updateFetchTime()
-    }
+          try {
+            val (fileSystemReportedUsableSpace, fileSystemReportedTotalSpace) =
+              getFileSystemReportedSpace(diskInfo.mountPoint)
+            val workingDirUsableSpace =
+              Math.min(diskInfo.configuredUsableSpace - totalUsage, fileSystemReportedUsableSpace)
+            val minimumReserveSize =
+              DiskUtils.getMinimumUsableSize(diskInfo, diskReserveSize, diskReserveRatio)
+            val usableSpace = Math.max(workingDirUsableSpace - minimumReserveSize, 0)
+            logDebug(
+              s"Update diskInfo:${diskInfo.mountPoint} workingDirUsableSpace:$workingDirUsableSpace fileMeta:$fileSystemReportedUsableSpace" +
+                s"conf:${diskInfo.configuredUsableSpace} totalUsage:$totalUsage totalSpace:$fileSystemReportedTotalSpace" +
+                s"minimumReserveSize:$minimumReserveSize usableSpace:$usableSpace")
+            diskInfo.setUsableSpace(usableSpace)
+            diskInfo.setTotalSpace(fileSystemReportedTotalSpace)
+          } catch {
+            case t: Throwable =>
+              logError(s"Update diskInfo:${diskInfo.mountPoint} failed.", t)
+          }
+          diskInfo.updateFlushTime()
+          diskInfo.updateFetchTime()
+      }
     logInfo(s"Updated diskInfos:\n${disksSnapshot().mkString("\n")}")
   }
 
