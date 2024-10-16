@@ -45,7 +45,7 @@ public class UserCongestionControlContext {
     workerSource.addGauge(
         WorkerSource.USER_PRODUCE_SPEED(),
         userIdentifier.toJMap(),
-        (Gauge<Long>) () -> userBufferInfo.getBufferStatusHub().avgBytesPerSec());
+            () -> userBufferInfo.getBufferStatusHub().avgBytesPerSec());
   }
 
   public void onCongestionControl() {
