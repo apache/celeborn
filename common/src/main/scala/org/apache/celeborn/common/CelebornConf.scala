@@ -661,6 +661,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def estimatedPartitionSizeForEstimationUpdateInterval: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
   def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
+  def masterUserDiskUsageThreshold: Long = get(MASTER_USER_DISK_USAGE_THRESHOLD)
+  def masterClusterDiskUsageThreshold: Long = get(MASTER_CLUSTER_DISK_USAGE_THRESHOLD)
   def clusterName: String = get(CLUSTER_NAME)
 
   // //////////////////////////////////////////////////////
@@ -1060,6 +1062,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def registerShuffleFilterExcludedWorkerEnabled: Boolean =
     get(REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED)
+
+  def interruptShuffleEnabled: Boolean = get(QUOTA_INTERRUPT_SHUFFLE_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                       Worker                        //
@@ -2840,6 +2844,26 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val MASTER_USER_DISK_USAGE_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.master.userResourceConsumption.user.threshold")
+      .categories("master")
+      .doc("When user resource consumption exceeds quota, Master will " +
+        "interrupt some apps until user resource consumption is less " +
+        "than this value. Default value is Long.MaxValue which means disable check.")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
+
+  val MASTER_CLUSTER_DISK_USAGE_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.master.userResourceConsumption.cluster.threshold")
+      .categories("master")
+      .doc("When cluster resource consumption exceeds quota, Master will " +
+        "interrupt some apps until cluster resource consumption is less " +
+        "than this value. Default value is Long.MaxValue which means disable check.")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
 
   val CLUSTER_NAME: ConfigEntry[String] =
     buildConf("celeborn.cluster.name")
@@ -5185,7 +5209,7 @@ object CelebornConf extends Logging {
       .dynamic
       .doc("Quota dynamic configuration for written disk bytes.")
       .version("0.5.0")
-      .longConf
+      .bytesConf(ByteUnit.BYTE)
       .createWithDefault(Long.MaxValue)
 
   val QUOTA_DISK_FILE_COUNT: ConfigEntry[Long] =
@@ -5203,7 +5227,7 @@ object CelebornConf extends Logging {
       .dynamic
       .doc("Quota dynamic configuration for written hdfs bytes.")
       .version("0.5.0")
-      .longConf
+      .bytesConf(ByteUnit.BYTE)
       .createWithDefault(Long.MaxValue)
 
   val QUOTA_HDFS_FILE_COUNT: ConfigEntry[Long] =
@@ -5765,4 +5789,51 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
+  val QUOTA_CLUSTER_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
+    buildConf("celeborn.quota.cluster.diskBytesWritten")
+      .categories("quota")
+      .dynamic
+      .doc("Quota dynamic configuration for cluster written disk bytes.")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_CLUSTER_DISK_FILE_COUNT: ConfigEntry[Long] =
+    buildConf("celeborn.quota.cluster.diskFileCount")
+      .categories("quota")
+      .dynamic
+      .doc("Quota dynamic configuration for cluster written disk file count.")
+      .version("0.6.0")
+      .longConf
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_CLUSTER_HDFS_BYTES_WRITTEN: ConfigEntry[Long] =
+    buildConf("celeborn.quota.cluster.hdfsBytesWritten")
+      .categories("quota")
+      .dynamic
+      .doc("Quota dynamic configuration for cluster written hdfs bytes.")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_CLUSTER_HDFS_FILE_COUNT: ConfigEntry[Long] =
+    buildConf("celeborn.quota.cluster.hdfsFileCount")
+      .categories("quota")
+      .dynamic
+      .doc("Quota dynamic configuration for cluster written hdfs file count.")
+      .version("0.6.0")
+      .longConf
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_INTERRUPT_SHUFFLE_ENABLED: ConfigEntry[Boolean] = {
+    buildConf("celeborn.quota.interruptShuffle.enabled")
+      .categories("quota")
+      .dynamic
+      .doc("If enabled, the resource consumption used by the tenant exceeds " +
+        "celeborn.quota.tenant.xx, or the resource consumption of the entire cluster " +
+        "exceeds celeborn.quota.cluster.xx, some shuffles will be selected and interrupted.")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefault(false)
+  }
 }

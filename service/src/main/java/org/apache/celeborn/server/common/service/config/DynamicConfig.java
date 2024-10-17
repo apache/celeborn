@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.internal.config.ConfigEntry;
-import org.apache.celeborn.common.quota.Quota;
+import org.apache.celeborn.common.quota.StorageQuota;
 import org.apache.celeborn.common.util.Utils;
 
 /**
@@ -40,7 +40,9 @@ import org.apache.celeborn.common.util.Utils;
 public abstract class DynamicConfig {
   private static final Logger LOG = LoggerFactory.getLogger(DynamicConfig.class);
   protected Map<String, String> configs = new HashMap<>();
-  protected volatile Quota quota = null;
+  protected volatile StorageQuota tenantStorageQuota = null;
+
+  protected volatile StorageQuota clusterStorageQuota = null;
 
   public abstract DynamicConfig getParentLevelConfig();
 
@@ -92,19 +94,19 @@ public abstract class DynamicConfig {
     return null;
   }
 
-  public Quota getQuota() {
-    if (quota == null) {
+  public StorageQuota getTenantStorageQuota() {
+    if (tenantStorageQuota == null) {
       synchronized (DynamicConfig.class) {
-        if (quota == null) {
-          quota = currentQuota();
+        if (tenantStorageQuota == null) {
+          tenantStorageQuota = currentTenantQuota();
         }
       }
     }
-    return quota;
+    return tenantStorageQuota;
   }
 
-  protected Quota currentQuota() {
-    return new Quota(
+  protected StorageQuota currentTenantQuota() {
+    return new StorageQuota(
         getValue(
             CelebornConf.QUOTA_DISK_BYTES_WRITTEN().key(),
             CelebornConf.QUOTA_DISK_BYTES_WRITTEN(),
@@ -127,6 +129,49 @@ public abstract class DynamicConfig {
             ConfigType.STRING));
   }
 
+  public StorageQuota getClusterStorageQuota() {
+    if (clusterStorageQuota == null) {
+      synchronized (DynamicConfig.class) {
+        if (clusterStorageQuota == null) {
+          clusterStorageQuota = currentClusterQuota();
+        }
+      }
+    }
+    return clusterStorageQuota;
+  }
+
+  protected StorageQuota currentClusterQuota() {
+    return new StorageQuota(
+        getValue(
+            CelebornConf.QUOTA_CLUSTER_DISK_BYTES_WRITTEN().key(),
+            CelebornConf.QUOTA_CLUSTER_DISK_BYTES_WRITTEN(),
+            Long.TYPE,
+            ConfigType.BYTES),
+        getValue(
+            CelebornConf.QUOTA_CLUSTER_DISK_FILE_COUNT().key(),
+            CelebornConf.QUOTA_CLUSTER_DISK_FILE_COUNT(),
+            Long.TYPE,
+            ConfigType.STRING),
+        getValue(
+            CelebornConf.QUOTA_CLUSTER_HDFS_BYTES_WRITTEN().key(),
+            CelebornConf.QUOTA_CLUSTER_HDFS_BYTES_WRITTEN(),
+            Long.TYPE,
+            ConfigType.BYTES),
+        getValue(
+            CelebornConf.QUOTA_CLUSTER_HDFS_FILE_COUNT().key(),
+            CelebornConf.QUOTA_CLUSTER_HDFS_FILE_COUNT(),
+            Long.TYPE,
+            ConfigType.STRING));
+  }
+
+  public boolean interruptShuffleEnabled() {
+    return getValue(
+        CelebornConf.QUOTA_INTERRUPT_SHUFFLE_ENABLED().key(),
+        CelebornConf.QUOTA_INTERRUPT_SHUFFLE_ENABLED(),
+        Boolean.TYPE,
+        ConfigType.BOOLEAN);
+  }
+
   public Map<String, String> getConfigs() {
     return configs;
   }
@@ -143,6 +188,7 @@ public abstract class DynamicConfig {
     BYTES,
     STRING,
     TIME_MS,
+    BOOLEAN
   }
 
   public static <T> T convert(Class<T> clazz, String value) {

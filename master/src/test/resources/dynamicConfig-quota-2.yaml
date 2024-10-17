@@ -16,9 +16,10 @@
 #
 -  level: SYSTEM
    config:
-     celeborn.quota.tenant.diskBytesWritten: 1G
+     celeborn.quota.tenant.diskBytesWritten: 1000G
      celeborn.quota.tenant.diskFileCount: 100
      celeborn.quota.tenant.hdfsBytesWritten: 1G
+     celeborn.quota.cluster.diskBytesWritten: 130G
      celeborn.quota.interruptShuffle.enabled: true
 
 -  tenantId: tenant_01
@@ -32,5 +33,6 @@
        config:
          celeborn.quota.tenant.diskBytesWritten: 100G
          celeborn.quota.tenant.diskFileCount: 10000
+         celeborn.master.userResourceConsumption.user.threshold: 120G
 
 
