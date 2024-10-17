@@ -57,7 +57,7 @@ class RetryReviveTest extends AnyFunSuite
     ss.stop()
   }
 
-  test("celeborn spark integration test - retry revive with available workers from heartbeat") {
+  test("celeborn spark integration test - e2e test retry revive with available workers from heartbeat") {
     val sparkConf = new SparkConf()
       .set(s"spark.${CelebornConf.TEST_CLIENT_RETRY_REVIVE.key}", "true")
       .set(s"spark.${CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key}", "3")
