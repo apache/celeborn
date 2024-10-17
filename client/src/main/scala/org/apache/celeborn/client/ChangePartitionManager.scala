@@ -287,7 +287,7 @@ class ChangePartitionManager(
       // Get candidate worker from available worker in heartbeat
       val workersRequireEndpoints: mutable.Set[WorkerInfo] = mutable.Set()
       val availableWorkers: Set[WorkerInfo] =
-        Set(lifecycleManager.workerStatusTracker.availableWorkers)
+        lifecycleManager.workerStatusTracker.availableWorkers.asScala.toSet
       availableWorkers.foreach((workerInfo: WorkerInfo) => {
         if (lifecycleManager.workersWithEndpoints.keySet().contains(workerInfo)) {
           candidates.add(lifecycleManager.workersWithEndpoints.get(workerInfo))
