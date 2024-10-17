@@ -5068,7 +5068,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.application.uuidSuffix.enabled")
       .categories("client")
       .version("0.6.0")
-      .doc("Whether to add UUID suffix for application id for unique. When `true`, add UUID suffix for unique application id.")
+      .doc("Whether to add UUID suffix for application id for unique. When `true`, add UUID suffix for unique application id. Currently, this only applies to Spark and MR.")
       .booleanConf
       .createWithDefault(false)
 
