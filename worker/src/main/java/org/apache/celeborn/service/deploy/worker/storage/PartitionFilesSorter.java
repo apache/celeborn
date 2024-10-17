@@ -774,7 +774,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         logger.error(
             "Sorting shuffle file for " + fileId + " " + originFilePath + " failed, detail: ", e);
         sortExceptions
-            .computeIfAbsent(fileId, v -> JavaUtils.newConcurrentHashMap())
+            .computeIfAbsent(shuffleKey, v -> JavaUtils.newConcurrentHashMap())
             .put(fileId, new IOException(e));
       } finally {
         closeFiles();
