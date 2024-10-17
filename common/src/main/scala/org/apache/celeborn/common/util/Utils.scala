@@ -1305,4 +1305,21 @@ object Utils extends Logging {
         (key, value)
     }.asInstanceOf[Seq[(K, V)]]
   }
+
+  def instantiate[T](className: String)(implicit tag: scala.reflect.ClassTag[T]): T = {
+    logDebug(s"Creating instance of $className")
+    val clazz = Class.forName(
+      className,
+      true,
+      Thread.currentThread().getContextClassLoader).asInstanceOf[Class[T]]
+    try {
+      val ctor = clazz.getDeclaredConstructor()
+      logDebug("Using no-arg constructor")
+      ctor.newInstance()
+    } catch {
+      case e: NoSuchMethodException =>
+        logError(s"Failed to instantiate class $className", e)
+        throw e
+    }
+  }
 }

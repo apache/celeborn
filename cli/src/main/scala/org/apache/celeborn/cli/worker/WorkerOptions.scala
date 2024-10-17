@@ -69,6 +69,9 @@ final class WorkerOptions {
   @Option(names = Array("--show-conf"), description = Array("Show worker conf"))
   private[worker] var showConf: Boolean = _
 
+  @Option(names = Array("--show-container-info"), description = Array("Show container info"))
+  private[worker] var showContainerInfo: Boolean = _
+
   @Option(names = Array("--show-dynamic-conf"), description = Array("Show dynamic worker conf"))
   private[worker] var showDynamicConf: Boolean = _
 

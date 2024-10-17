@@ -36,6 +36,8 @@ class ApiV1OpenapiClientSuite extends ApiV1WorkerOpenapiClientSuite {
   test("master: default api") {
     val api = new DefaultApi(masterApiClient)
     assert(!api.getThreadDump.getThreadStacks.isEmpty)
+    assert(
+      api.getContainerInfo.getContainerAddress.nonEmpty && api.getContainerInfo.getContainerAddress.nonEmpty)
   }
 
   test("master: conf api") {

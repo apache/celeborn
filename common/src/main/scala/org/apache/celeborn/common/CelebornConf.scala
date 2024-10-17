@@ -1487,6 +1487,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def logCelebornConfEnabled = get(LOG_CELEBORN_CONF_ENABLED)
 
   def secretRedactionPattern = get(SECRET_REDACTION_PATTERN)
+
+  def containerInfoProviderClass = get(CONTAINER_INFO_PROVIDER)
 }
 
 object CelebornConf extends Logging {
@@ -5279,6 +5281,15 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .stringConf
       .createWithDefault(classOf[DefaultIdentityProvider].getName)
+
+  val CONTAINER_INFO_PROVIDER: ConfigEntry[String] =
+    buildConf("celeborn.container.info.provider")
+      .categories("master", "worker")
+      .doc(s"ContainerInfoProvider class name. Default class is " +
+        s"`org.apache.celeborn.server.common.container.DefaultContainerInfoProvider`. ")
+      .version("0.6.0")
+      .stringConf
+      .createWithDefault("org.apache.celeborn.server.common.container.DefaultContainerInfoProvider")
 
   val QUOTA_USER_SPECIFIC_TENANT: ConfigEntry[String] =
     buildConf("celeborn.quota.identity.user-specific.tenant")

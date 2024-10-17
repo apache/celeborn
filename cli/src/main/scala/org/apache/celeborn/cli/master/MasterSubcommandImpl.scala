@@ -48,6 +48,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     if (masterOptions.showLifecycleManagers) log(runShowLifecycleManagers)
     if (masterOptions.showWorkers) log(runShowWorkers)
     if (masterOptions.showConf) log(runShowConf)
+    if (masterOptions.showContainerInfo) log(runShowContainerInfo)
     if (masterOptions.showDynamicConf) log(runShowDynamicConf)
     if (masterOptions.showThreadDump) log(runShowThreadDump)
     if (masterOptions.addClusterAlias != null && masterOptions.addClusterAlias.nonEmpty)
@@ -217,4 +218,6 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     cliConfigManager.remove(aliasToRemove)
     logInfo(s"Cluster alias $aliasToRemove removed.")
   }
+
+  private[master] def runShowContainerInfo: ContainerInfo = defaultApi.getContainerInfo
 }

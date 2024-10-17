@@ -41,6 +41,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConfResponse'
 
+  /api/v1/container_info:
+    get:
+      operationId: getContainerInfo
+      description: List the container info that the Master or Worker is running on.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContainerInfo'
+
   /api/v1/conf/dynamic:
     get:
       tags:
@@ -589,6 +601,36 @@ components:
       required:
         - id
         - address
+
+    ContainerInfo:
+      type: object
+      properties:
+        containerName:
+          type: string
+          description: The name of the container.
+        containerAddress:
+          type: string
+          description: The IP address of the container.
+        containerHostName:
+          type: string
+          description: The hostname of the container.
+        containerDataCenter:
+          type: string
+          description: The datacenter of the container.
+        containerAvailabilityZone:
+          type: string
+          description: The availability zone of the container.
+        containerUser:
+          type: string
+          description: The user of the container.
+        containerCluster:
+          type: string
+          description: The cluster that the container is part of.
+        containerTags:
+          type: array
+          description: The tags applied to this container if any.
+          items:
+            type: string
 
     MasterCommitData:
       type: object
