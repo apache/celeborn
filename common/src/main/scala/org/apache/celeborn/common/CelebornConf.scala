@@ -896,6 +896,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientReserveSlotsRetryWait: Long = get(CLIENT_RESERVE_SLOTS_RETRY_WAIT)
   def clientRequestCommitFilesMaxRetries: Int = get(CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY)
   def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
+  def clientChangPartitionWithAvailableWorkers: Boolean =
+    get(CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
   def dfsExpireDirsTimeoutMS: Long = get(DFS_EXPIRE_DIRS_TIMEOUT)
@@ -1318,6 +1320,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushPrimaryDataTimeout: Boolean = get(TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT)
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
+  def testClientUpdateAvailableWorker: Boolean = get(TEST_CLIENT_UPDATE_AVAILABLE_WORKER)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
   def clientFlinkMemoryPerResultPartition: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION)
   def clientFlinkMemoryPerInputGate: Long = get(CLIENT_MEMORY_PER_INPUT_GATE)
@@ -4475,6 +4478,16 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
+  val TEST_CLIENT_UPDATE_AVAILABLE_WORKER: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.client.updateAvailableWorker")
+      .withAlternative("celeborn.test.updateAvailableWorker")
+      .internal
+      .categories("test", "client")
+      .doc("skip reply Rpc for test")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefault(false)
+
   val CLIENT_FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.timeout")
       .withAlternative("celeborn.fetch.timeout")
@@ -4811,6 +4824,15 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.3.0")
       .doc("When true, LifecycleManager will skip workers which are in the excluded list.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.elasticScaling.withAvailableWorker")
+      .categories("client")
+      .version("0.6.0")
+      .doc("When enabled, the ChangePartitionManager will obtain candidate workers from the available pool “ +" +
+        "during heartbeats when elastic scaling is activated.")
       .booleanConf
       .createWithDefault(false)
 

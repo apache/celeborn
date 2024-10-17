@@ -400,7 +400,8 @@ object ControlMessages extends Logging {
       statusCode: StatusCode,
       excludedWorkers: util.List[WorkerInfo],
       unknownWorkers: util.List[WorkerInfo],
-      shuttingWorkers: util.List[WorkerInfo]) extends Message
+      shuttingWorkers: util.List[WorkerInfo],
+      availableWorkers: util.List[WorkerInfo]) extends Message
 
   case class CheckQuota(userIdentifier: UserIdentifier) extends Message
 
@@ -799,7 +800,8 @@ object ControlMessages extends Logging {
           statusCode,
           excludedWorkers,
           unknownWorkers,
-          shuttingWorkers) =>
+          shuttingWorkers,
+          availableWorkers) =>
       val payload = PbHeartbeatFromApplicationResponse.newBuilder()
         .setStatus(statusCode.getValue)
         .addAllExcludedWorkers(
@@ -808,6 +810,8 @@ object ControlMessages extends Logging {
           unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true, true)).toList.asJava)
         .addAllShuttingWorkers(
           shuttingWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true, true)).toList.asJava)
+        .addAllAvailableWorkers(
+          availableWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true, true)).toList.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload)
 
@@ -1191,6 +1195,8 @@ object ControlMessages extends Logging {
           pbHeartbeatFromApplicationResponse.getUnknownWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
           pbHeartbeatFromApplicationResponse.getShuttingWorkersList.asScala
+            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
+          pbHeartbeatFromApplicationResponse.getAvailableWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
 
       case CHECK_QUOTA_VALUE =>
