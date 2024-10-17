@@ -1105,7 +1105,8 @@ private[celeborn] class Master(
           (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).asJava),
         needCheckedWorkerList,
         new util.ArrayList[WorkerInfo](
-          (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava)))
+          (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava),
+        CheckQuotaResponse(isAvailable = true, "")))
     } else {
       context.reply(OneWayMessageResponse)
     }

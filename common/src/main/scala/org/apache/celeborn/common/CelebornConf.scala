@@ -1330,6 +1330,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientShuffleMapPartitionSplitEnabled = get(CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED)
   def clientChunkPrefetchEnabled = get(CLIENT_CHUNK_PREFETCH_ENABLED)
   def clientInputStreamCreationWindow = get(CLIENT_INPUTSTREAM_CREATION_WINDOW)
+  def clientQuotaInterruptShuffleEnable = get(CLIENT_QUOTA_INTERRUPT_SHUFFLE_ENABLED)
 
   def clientTagsExpr: String = get(CLIENT_TAGS_EXPR)
 
@@ -5868,4 +5869,12 @@ object CelebornConf extends Logging {
         "`prod,high-io` filters workers that have both the `prod` and `high-io` tags.")
       .stringConf
       .createWithDefault("")
+
+  val CLIENT_QUOTA_INTERRUPT_SHUFFLE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.quota.interruptShuffle.enabled")
+      .categories("client")
+      .version("0.6.0")
+      .doc("Whether to enable interrupt shuffle when quota exceeds.")
+      .booleanConf
+      .createWithDefault(false)
 }

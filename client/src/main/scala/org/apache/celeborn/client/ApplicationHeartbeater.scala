@@ -24,7 +24,7 @@ import scala.collection.JavaConverters._
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.protocol.message.ControlMessages.{ApplicationLost, ApplicationLostResponse, HeartbeatFromApplication, HeartbeatFromApplicationResponse, ZERO_UUID}
+import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
@@ -33,7 +33,8 @@ class ApplicationHeartbeater(
     conf: CelebornConf,
     masterClient: MasterClient,
     shuffleMetrics: () => (Long, Long),
-    workerStatusTracker: WorkerStatusTracker) extends Logging {
+    workerStatusTracker: WorkerStatusTracker,
+    cancelAllActiveStages: String => Unit) extends Logging {
 
   private var stopped = false
 
@@ -68,6 +69,7 @@ class ApplicationHeartbeater(
             if (response.statusCode == StatusCode.SUCCESS) {
               logDebug("Successfully send app heartbeat.")
               workerStatusTracker.handleHeartbeatResponse(response)
+              checkQuotaExceeds(response.checkQuotaResponse)
             }
           } catch {
             case it: InterruptedException =>
@@ -97,7 +99,8 @@ class ApplicationHeartbeater(
           StatusCode.REQUEST_FAILED,
           List.empty.asJava,
           List.empty.asJava,
-          List.empty.asJava)
+          List.empty.asJava,
+          CheckQuotaResponse(isAvailable = true, ""))
     }
   }
 
@@ -111,6 +114,12 @@ class ApplicationHeartbeater(
     } catch {
       case e: Exception =>
         logWarning("AskSync unRegisterApplication failed.", e)
+    }
+  }
+
+  private def checkQuotaExceeds(response: CheckQuotaResponse): Unit = {
+    if (conf.clientQuotaInterruptShuffleEnable && !response.isAvailable) {
+      cancelAllActiveStages(response.reason)
     }
   }
 
