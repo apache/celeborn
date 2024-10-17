@@ -285,10 +285,10 @@ class ChangePartitionManager(
     var candidates = new util.HashSet[WorkerInfo]()
     if (changPartitionWithAvailableWorkers) {
       // Get candidate worker from available worker in heartbeat
-//      val workersRequireEndpoints = new util.HashSet[WorkerInfo]()
       val workersRequireEndpoints: mutable.Set[WorkerInfo] = mutable.Set()
-      val availableWorkers = new util.HashSet(lifecycleManager.workerStatusTracker.availableWorkers)
-      availableWorkers.forEach((workerInfo: WorkerInfo) => {
+      val availableWorkers: Set[WorkerInfo] =
+        Set(lifecycleManager.workerStatusTracker.availableWorkers)
+      availableWorkers.foreach((workerInfo: WorkerInfo) => {
         if (lifecycleManager.workersWithEndpoints.keySet().contains(workerInfo)) {
           candidates.add(lifecycleManager.workersWithEndpoints.get(workerInfo))
         } else {
