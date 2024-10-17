@@ -18,7 +18,7 @@
 package org.apache.celeborn.common
 
 import java.io.{File, IOException}
-import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Locale, Map => JMap}
+import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Locale, Map => JMap, UUID}
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
@@ -911,6 +911,15 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientExcludeReplicaOnFailureEnabled: Boolean =
     get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
   def clientMrMaxPushData: Long = get(CLIENT_MR_PUSH_DATA_MAX)
+  def clientApplicationUUIDSuffixEnabled: Boolean = get(CLIENT_APPLICATION_UUID_SUFFIX_ENABLED)
+
+  def appUniqueIdWithUUIDSuffix(appId: String): String = {
+    if (clientApplicationUUIDSuffixEnabled) {
+      appId + "-" + UUID.randomUUID().toString.replaceAll("-", "")
+    } else {
+      appId
+    }
+  }
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -5098,6 +5107,14 @@ object CelebornConf extends Logging {
       .doubleConf
       .checkValue(v => v > 0.0 && v <= 1.0, "Value must be between 0 and 1 (inclusive)")
       .createWithDefault(0.4)
+
+  val CLIENT_APPLICATION_UUID_SUFFIX_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.application.uuidSuffix.enabled")
+      .categories("client")
+      .version("0.6.0")
+      .doc("Whether to add UUID suffix for application id for unique. When `true`, add UUID suffix for unique application id. Currently, this only applies to Spark and MR.")
+      .booleanConf
+      .createWithDefault(false)
 
   val TEST_ALTERNATIVE: OptionalConfigEntry[String] =
     buildConf("celeborn.test.alternative.key")

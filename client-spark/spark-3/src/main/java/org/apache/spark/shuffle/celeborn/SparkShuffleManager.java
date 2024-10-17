@@ -129,7 +129,7 @@ public class SparkShuffleManager implements ShuffleManager {
     return _sortShuffleManager;
   }
 
-  private void initializeLifecycleManager() {
+  private void initializeLifecycleManager(String appId) {
     // Only create LifecycleManager singleton in Driver. When register shuffle multiple times, we
     // need to ensure that LifecycleManager will only be created once. Parallelism needs to be
     // considered in this place, because if there is one RDD that depends on multiple RDDs
@@ -137,6 +137,7 @@ public class SparkShuffleManager implements ShuffleManager {
     if (isDriver && lifecycleManager == null) {
       synchronized (this) {
         if (lifecycleManager == null) {
+          appUniqueId = celebornConf.appUniqueIdWithUUIDSuffix(appId);
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
           if (celebornConf.clientFetchThrowsFetchFailure()) {
             MapOutputTrackerMaster mapOutputTracker =
@@ -156,8 +157,8 @@ public class SparkShuffleManager implements ShuffleManager {
     // Note: generate app unique id at driver side, make sure dependency.rdd.context
     // is the same SparkContext among different shuffleIds.
     // This method may be called many times.
-    appUniqueId = SparkUtils.appUniqueId(dependency.rdd().context());
-    initializeLifecycleManager();
+    String appId = SparkUtils.appUniqueId(dependency.rdd().context());
+    initializeLifecycleManager(appId);
 
     lifecycleManager.registerAppShuffleDeterminate(
         shuffleId,
