@@ -286,18 +286,22 @@ class ChangePartitionManager(
       // Get candidate worker from available worker in heartbeat
       val workersRequireEndpoints = new util.HashSet[WorkerInfo]()
       val availableWorkers = new util.HashSet(lifecycleManager.workerStatusTracker.availableWorkers)
-      availableWorkers.forEach { workerInfo: WorkerInfo =>
-        if (lifecycleManager.workersWithEndpoints.contains(workerInfo)) {
-          candidates.add(workerInfo)
+      availableWorkers.forEach((workerInfo: WorkerInfo) => {
+        if (lifecycleManager.workersWithEndpoints.keySet().contains(workerInfo)) {
+          candidates.add(lifecycleManager.workersWithEndpoints.get(workerInfo))
+          logInfo(s"worker with endpoints, workerInfo: ${workerInfo}")
         } else {
           workersRequireEndpoints.add(workerInfo)
+          logInfo(s"worker without endpoints, workerInfo: ${workerInfo}")
         }
-      }
+      })
       val connectFailedWorkers = new ShuffleFailedWorkers()
       lifecycleManager.setupEndpoints(workersRequireEndpoints, shuffleId, connectFailedWorkers)
       workersRequireEndpoints.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
       candidates.addAll(workersRequireEndpoints)
-      lifecycleManager.workersWithEndpoints.addAll(workersRequireEndpoints)
+      workersRequireEndpoints.forEach { workerInfo =>
+        lifecycleManager.workersWithEndpoints.put(workerInfo, workerInfo)
+      }
       lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
       lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates)
     } else {
