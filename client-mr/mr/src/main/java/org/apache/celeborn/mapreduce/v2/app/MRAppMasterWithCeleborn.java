@@ -66,16 +66,16 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
     int numReducers = jobConf.getInt(MRJobConfig.NUM_REDUCES, 0);
     if (numReducers > 0) {
       CelebornConf conf = HadoopUtils.fromYarnConf(jobConf);
-      LifecycleManager lifecycleManager =
-          new LifecycleManager(applicationAttemptId.toString(), conf);
+      String appUniqueId = conf.appUniqueIdWithUUIDSuffix(applicationAttemptId.toString());
+      LifecycleManager lifecycleManager = new LifecycleManager(appUniqueId, conf);
       String lmHost = lifecycleManager.getHost();
       int lmPort = lifecycleManager.getPort();
-      logger.info("MRAppMaster initialized with {} {} {}", lmHost, lmPort, applicationAttemptId);
+      logger.info("MRAppMaster initialized with {} {} {}", lmHost, lmPort, appUniqueId);
       JobConf lmConf = new JobConf();
       lmConf.clear();
       lmConf.set(HadoopUtils.MR_CELEBORN_LM_HOST, lmHost);
       lmConf.set(HadoopUtils.MR_CELEBORN_LM_PORT, lmPort + "");
-      lmConf.set(HadoopUtils.MR_CELEBORN_APPLICATION_ID, applicationAttemptId.toString());
+      lmConf.set(HadoopUtils.MR_CELEBORN_APPLICATION_ID, appUniqueId);
       writeLifecycleManagerConfToTask(jobConf, lmConf);
     }
   }
