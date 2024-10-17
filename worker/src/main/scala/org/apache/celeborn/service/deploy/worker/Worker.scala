@@ -123,6 +123,7 @@ private[celeborn] class Worker(
         Some(externalSecurityContext),
         Some(workerSource))
     }
+  metricsSystem.registerSource(rpcEnv.rpcSource())
 
   private[worker] var internalRpcEnvInUse =
     if (!conf.internalPortEnabled) {
