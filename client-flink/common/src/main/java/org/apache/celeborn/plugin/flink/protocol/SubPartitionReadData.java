@@ -20,44 +20,28 @@ package org.apache.celeborn.plugin.flink.protocol;
 
 import java.util.Objects;
 
-import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
-
-import org.apache.celeborn.common.network.protocol.ReadData;
-import org.apache.celeborn.common.network.protocol.RequestMessage;
-
 /**
  * Comparing {@link ReadData}, this class has an additional field of subpartitionId. This class is
  * added to keep the backward compatibility.
  */
-public class SubPartitionReadData extends RequestMessage {
-  private final long streamId;
+public class SubPartitionReadData extends ReadData {
   private final int subPartitionId;
-  private ByteBuf flinkBuffer;
-
-  @Override
-  public boolean needCopyOut() {
-    return true;
-  }
 
   public SubPartitionReadData(long streamId, int subPartitionId) {
+    super(streamId);
     this.subPartitionId = subPartitionId;
-    this.streamId = streamId;
   }
 
   @Override
   public int encodedLength() {
-    return 8 + 4;
+    return super.encodedLength() + 4;
   }
 
   // This method will not be called because ReadData won't be created at flink client.
   @Override
   public void encode(io.netty.buffer.ByteBuf buf) {
-    buf.writeLong(streamId);
+    super.encode(buf);
     buf.writeInt(subPartitionId);
-  }
-
-  public long getStreamId() {
-    return streamId;
   }
 
   public int getSubPartitionId() {
@@ -74,8 +58,8 @@ public class SubPartitionReadData extends RequestMessage {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     SubPartitionReadData readData = (SubPartitionReadData) o;
-    return streamId == readData.streamId
-        && subPartitionId == readData.subPartitionId
+    return streamId == readData.getStreamId()
+        && subPartitionId == readData.getSubPartitionId()
         && Objects.equals(flinkBuffer, readData.flinkBuffer);
   }
 
@@ -94,13 +78,5 @@ public class SubPartitionReadData extends RequestMessage {
         + ", flinkBuffer="
         + flinkBuffer
         + '}';
-  }
-
-  public ByteBuf getFlinkBuffer() {
-    return flinkBuffer;
-  }
-
-  public void setFlinkBuffer(ByteBuf flinkBuffer) {
-    this.flinkBuffer = flinkBuffer;
   }
 }
