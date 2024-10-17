@@ -19,12 +19,17 @@ license: |
 <!--begin-include-->
 | Key | Default | isDynamic | Description | Since | Deprecated |
 | --- | ------- | --------- | ----------- | ----- | ---------- |
+| celeborn.quota.cluster.diskBytesWritten | 9223372036854775807b | true | Quota dynamic configuration for cluster written disk bytes. | 0.6.0 |  | 
+| celeborn.quota.cluster.diskFileCount | 9223372036854775807 | true | Quota dynamic configuration for cluster written disk file count. | 0.6.0 |  | 
+| celeborn.quota.cluster.hdfsBytesWritten | 9223372036854775807b | true | Quota dynamic configuration for cluster written hdfs bytes. | 0.6.0 |  | 
+| celeborn.quota.cluster.hdfsFileCount | 9223372036854775807 | true | Quota dynamic configuration for cluster written hdfs file count. | 0.6.0 |  | 
 | celeborn.quota.enabled | true | false | When Master side sets to true, the master will enable to check the quota via QuotaManager. When Client side sets to true, LifecycleManager will request Master side to check whether the current user has enough quota before registration of shuffle. Fallback to the default shuffle service of Spark when Master side checks that there is no enough quota for current user. | 0.2.0 |  | 
 | celeborn.quota.identity.provider | org.apache.celeborn.common.identity.DefaultIdentityProvider | false | IdentityProvider class name. Default class is `org.apache.celeborn.common.identity.DefaultIdentityProvider`. Optional values: org.apache.celeborn.common.identity.HadoopBasedIdentityProvider user name will be obtained by UserGroupInformation.getUserName; org.apache.celeborn.common.identity.DefaultIdentityProvider user name and tenant id are default values or user-specific values. | 0.2.0 |  | 
 | celeborn.quota.identity.user-specific.tenant | default | false | Tenant id if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.DefaultIdentityProvider. | 0.3.0 |  | 
 | celeborn.quota.identity.user-specific.userName | default | false | User name if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.DefaultIdentityProvider. | 0.3.0 |  | 
-| celeborn.quota.tenant.diskBytesWritten | 9223372036854775807 | true | Quota dynamic configuration for written disk bytes. | 0.5.0 |  | 
+| celeborn.quota.interruptShuffle.enabled | false | true | If enabled, the resource consumption used by the tenant exceeds celeborn.quota.tenant.xx, or the resource consumption of the entire cluster exceeds celeborn.quota.cluster.xx, some shuffles will be selected and interrupted. | 0.6.0 |  | 
+| celeborn.quota.tenant.diskBytesWritten | 9223372036854775807b | true | Quota dynamic configuration for written disk bytes. | 0.5.0 |  | 
 | celeborn.quota.tenant.diskFileCount | 9223372036854775807 | true | Quota dynamic configuration for written disk file count. | 0.5.0 |  | 
-| celeborn.quota.tenant.hdfsBytesWritten | 9223372036854775807 | true | Quota dynamic configuration for written hdfs bytes. | 0.5.0 |  | 
+| celeborn.quota.tenant.hdfsBytesWritten | 9223372036854775807b | true | Quota dynamic configuration for written hdfs bytes. | 0.5.0 |  | 
 | celeborn.quota.tenant.hdfsFileCount | 9223372036854775807 | true | Quota dynamic configuration for written hdfs file count. | 0.5.0 |  | 
 <!--end-include-->
