@@ -23,9 +23,9 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 
-public final class ReadData extends RequestMessage {
-  private final long streamId;
-  private ByteBuf flinkBuffer;
+public class ReadData extends RequestMessage {
+  protected final long streamId;
+  protected ByteBuf flinkBuffer;
 
   @Override
   public boolean needCopyOut() {

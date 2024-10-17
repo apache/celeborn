@@ -66,8 +66,6 @@ public class ReadClientHandler extends BaseMessageHandler {
     } else {
       if (msg != null && msg instanceof ReadData) {
         ((ReadData) msg).getFlinkBuffer().release();
-      } else if (msg != null && msg instanceof SubPartitionReadData) {
-        ((SubPartitionReadData) msg).getFlinkBuffer().release();
       }
 
       logger.warn("Unexpected streamId received: {}", streamId);
