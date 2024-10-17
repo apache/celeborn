@@ -75,6 +75,8 @@ class ChangePartitionManager(
 
   private val testRetryRevive = conf.testRetryRevive
 
+  private val changPartitionWithAvailableWorkers = conf.clientChangPartitionWithAvailableWorkers
+
   def start(): Unit = {
     batchHandleChangePartition = batchHandleChangePartitionSchedulerThread.map {
       // noinspection ConvertExpressionToSAM
@@ -279,13 +281,35 @@ class ChangePartitionManager(
       }
     }
 
-    // Get candidate worker from available worker in heartbeat
-    val candidates = new util.HashSet(lifecycleManager.workerStatusTracker.availableWorkers)
-    val connectFailedWorkers = new ShuffleFailedWorkers()
-    lifecycleManager.setupEndpoints(candidates, shuffleId, connectFailedWorkers)
-    candidates.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
-    lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
-    lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates)
+    var candidates = new util.HashSet[WorkerInfo]()
+    if (changPartitionWithAvailableWorkers) {
+      // Get candidate worker from available worker in heartbeat
+      val workersRequireEndpoints = new util.HashSet[WorkerInfo]()
+      val availableWorkers = new util.HashSet(lifecycleManager.workerStatusTracker.availableWorkers)
+      availableWorkers.forEach { workerInfo =>
+        if (lifecycleManager.workersWithEndpoints.contains(workerInfo)) {
+          candidates.add(workerInfo)
+        } else {
+          workersRequireEndpoints.add(workerInfo)
+        }
+      }
+      val connectFailedWorkers = new ShuffleFailedWorkers()
+      lifecycleManager.setupEndpoints(workersRequireEndpoints, shuffleId, connectFailedWorkers)
+      workersRequireEndpoints.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
+      candidates.addAll(workersRequireEndpoints)
+      lifecycleManager.workersWithEndpoints.addAll(workersRequireEndpoints)
+      lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
+      lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates)
+    } else {
+      val snapshotCandidates =
+        lifecycleManager
+          .workerSnapshots(shuffleId)
+          .keySet()
+          .asScala
+          .filter(lifecycleManager.workerStatusTracker.workerAvailable)
+          .asJava
+      candidates = new util.HashSet(snapshotCandidates)
+    }
 
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")
