@@ -119,7 +119,7 @@ public class CongestionController {
 
     if (configService != null) {
       updateQuota(configService);
-      configService.registerListenerOnConfigUpdate(this::updateQuota);
+      configService.registerListenerOnConfigUpdate(() -> updateQuota(configService));
     }
   }
 

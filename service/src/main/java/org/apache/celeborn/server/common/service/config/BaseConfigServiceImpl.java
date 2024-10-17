@@ -26,7 +26,6 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -50,7 +49,7 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
   private final ScheduledExecutorService configRefreshService =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-config-refresher");
 
-  private LinkedBlockingDeque<Consumer<ConfigService>> listeners;
+  private LinkedBlockingDeque<Runnable> listeners;
 
   public BaseConfigServiceImpl(CelebornConf celebornConf) throws IOException {
     this.celebornConf = celebornConf;
@@ -109,13 +108,13 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
   }
 
   @Override
-  public void registerListenerOnConfigUpdate(Consumer<ConfigService> listener) {
+  public void registerListenerOnConfigUpdate(Runnable listener) {
     listeners.add(listener);
   }
 
   private void notifyListenersOnConfigUpdate() {
-    for (Consumer<ConfigService> listener : listeners) {
-      listener.accept(this);
+    for (Runnable listener : listeners) {
+      listener.run();
     }
   }
 }

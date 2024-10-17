@@ -19,7 +19,6 @@ package org.apache.celeborn.server.common.service.config;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.function.Consumer;
 
 import org.apache.celeborn.common.CelebornConf;
 
@@ -114,7 +113,7 @@ public interface ConfigService {
    *
    * @param listener the listener to be registered
    */
-  void registerListenerOnConfigUpdate(Consumer<ConfigService> listener);
+  void registerListenerOnConfigUpdate(Runnable listener);
 
   /** Shutdowns configuration management service. */
   void shutdown();
