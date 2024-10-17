@@ -716,10 +716,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         allocatedWorkers.put(workerInfo, partitionLocationInfo)
       }
       shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
-      candidatesWorkers.forEach { workerInfo =>
+      candidatesWorkers.forEach { case workerInfo: WorkerInfo =>
         workersWithEndpoints.put(workerInfo, workerInfo)
       }
-      logInfo(s"add workers with endpoints, workerInfo: ${candidatesWorkers}")
       registeredShuffle.add(shuffleId)
       commitManager.registerShuffle(
         shuffleId,
