@@ -136,7 +136,7 @@ public class TestCongestionController {
 
     Assert.assertTrue(source.gaugeExists(WorkerSource.USER_PRODUCE_SPEED(), user.toMap()));
 
-    Thread.sleep(userInactiveTimeMills * 2);
+    Thread.sleep(userInactiveTimeMills * 2 + 100);
 
     Assert.assertFalse(source.gaugeExists(WorkerSource.USER_PRODUCE_SPEED(), user.toMap()));
     clearBufferStatus(controller);
