@@ -51,6 +51,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val conf = celebornConf.clone
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
       .set(CelebornConf.TEST_CLIENT_UPDATE_AVAILABLE_WORKER.key, "true")
+      .set(CelebornConf.CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS.key, "true")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val changePartitionManager: ChangePartitionManager =
@@ -83,14 +84,19 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
           allocatedWorkers.put(workerInfo, partitionLocationInfo)
+          lifecycleManager.workersWithEndpoints.add(workerInfo)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }
     assert(lifecycleManager.workerSnapshots(shuffleId).size() == 1)
+    assert(lifecycleManager.workersWithEndpoints.size() == 1)
 
+    // total workerNum is 1 + 2 = 3 now
     setUpWorkers(workerConfForAdding, 2)
     // longer than APPLICATION_HEARTBEAT_INTERVAL 10s
     Thread.sleep(15000)
+    assert(workerInfos.size == 3)
+    assert(lifecycleManager.workersWithEndpoints.size() == 1)
 
     0 until 10 foreach { partitionId: Int =>
       val req = ChangePartitionRequest(
@@ -107,6 +113,83 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     }
     logInfo(s"reallocated worker num: ${res.workerResource.keySet().size()}; workerInfo: ${res.workerResource.keySet()}")
     assert(lifecycleManager.workerSnapshots(shuffleId).size() > 1)
+    assert(lifecycleManager.workersWithEndpoints.size() == lifecycleManager.workerSnapshots(
+      shuffleId).size())
+
+    lifecycleManager.stop()
+  }
+
+  test("test changePartition without available workers") {
+    val shuffleId = nextShuffleId
+    val conf = celebornConf.clone
+    conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
+      .set(CelebornConf.TEST_CLIENT_UPDATE_AVAILABLE_WORKER.key, "true")
+      .set(CelebornConf.CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS.key, "false")
+
+    val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
+    val changePartitionManager: ChangePartitionManager =
+      new ChangePartitionManager(conf, lifecycleManager)
+    val ids = new util.ArrayList[Integer](10)
+    0 until 10 foreach {
+      ids.add(_)
+    }
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    assert(res.status == StatusCode.SUCCESS)
+
+    // workerNum is between [1, 3]
+    val workerNum = res.workerResource.keySet().size()
+    assert(workerNum >= 1)
+
+    lifecycleManager.setupEndpoints(
+      res.workerResource.keySet(),
+      shuffleId,
+      new ShuffleFailedWorkers())
+
+    val reserveSlotsSuccess = lifecycleManager.reserveSlotsWithRetry(
+      shuffleId,
+      new util.HashSet(res.workerResource.keySet()),
+      res.workerResource,
+      updateEpoch = false)
+
+    if (reserveSlotsSuccess) {
+      val allocatedWorkers =
+        JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
+      res.workerResource.asScala.foreach {
+        case (workerInfo, (primaryLocations, replicaLocations)) =>
+          val partitionLocationInfo = new ShufflePartitionLocationInfo()
+          partitionLocationInfo.addPrimaryPartitions(primaryLocations)
+          partitionLocationInfo.addReplicaPartitions(replicaLocations)
+          allocatedWorkers.put(workerInfo, partitionLocationInfo)
+          lifecycleManager.workersWithEndpoints.add(workerInfo)
+      }
+      lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
+    }
+    assert(lifecycleManager.workerSnapshots(shuffleId).size() == workerNum)
+    assert(lifecycleManager.workersWithEndpoints.size() == workerNum)
+
+    // total workerNum is 1 + 2 + 2 = 5 now
+    setUpWorkers(workerConfForAdding, 2)
+    // longer than APPLICATION_HEARTBEAT_INTERVAL 10s
+    Thread.sleep(15000)
+    assert(workerInfos.size == 5)
+    assert(lifecycleManager.workersWithEndpoints.size() == workerNum)
+
+    0 until 10 foreach { partitionId: Int =>
+      val req = ChangePartitionRequest(
+        null,
+        shuffleId,
+        partitionId,
+        -1,
+        null,
+        None)
+      changePartitionManager.handleRequestPartitions(
+        shuffleId,
+        Array(req),
+        lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
+    }
+    logInfo(s"reallocated worker num: ${res.workerResource.keySet().size()}; workerInfo: ${res.workerResource.keySet()}")
+    assert(lifecycleManager.workerSnapshots(shuffleId).size() == workerNum)
+    assert(lifecycleManager.workersWithEndpoints.size() == workerNum)
 
     lifecycleManager.stop()
   }
