@@ -15,21 +15,22 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.identity
+package org.apache.celeborn.server.common.container
 
-import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.rest.v1.model.ContainerInfo
 
-abstract class IdentityProvider {
-  def provide(): UserIdentifier
-}
+class DefaultContainerInfoProvider extends ContainerInfoProvider {
 
-object IdentityProvider extends Logging {
-  val DEFAULT_TENANT_ID = "default"
-  val DEFAULT_USERNAME = "default"
-
-  def instantiate(conf: CelebornConf): IdentityProvider = {
-    Utils.instantiate[IdentityProvider](conf.quotaIdentityProviderClass)
+  override def getContainerInfo(): ContainerInfo = {
+    new ContainerInfo()
+      .containerName(ContainerInfoProvider.DEFAULT_CONTAINER_NAME)
+      .containerHostName(Utils.getHostName(preferIP = false))
+      .containerAddress(Utils.getHostName(preferIP = true))
+      .containerDataCenter(ContainerInfoProvider.DEFAULT_CONTAINER_DATA_CENTER)
+      .containerAvailabilityZone(ContainerInfoProvider.DEFAULT_CONTAINER_AVAILABILITY_ZONE)
+      .containerUser(System.getProperty("user.name"))
+      .containerCluster(ContainerInfoProvider.DEFAULT_CONTAINER_CLUSTER)
+      .containerTags(ContainerInfoProvider.DEFAULT_CONTAINER_TAGS)
   }
 }

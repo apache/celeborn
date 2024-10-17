@@ -104,6 +104,8 @@ trait MasterSubcommand extends CliLogging {
 
   private[master] def runShowConf: ConfResponse
 
+  private[master] def runShowContainerInfo: ContainerInfo
+
   private[master] def runShowDynamicConf: DynamicConfigResponse
 
   private[master] def runShowThreadDump: ThreadStackResponse

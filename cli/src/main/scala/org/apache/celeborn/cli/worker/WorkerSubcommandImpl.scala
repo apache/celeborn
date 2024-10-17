@@ -37,6 +37,7 @@ class WorkerSubcommandImpl extends Runnable with WorkerSubcommand {
     if (workerOptions.isRegistered) log(runIsRegistered)
     if (workerOptions.exitType != null && workerOptions.exitType.nonEmpty) log(runExit)
     if (workerOptions.showConf) log(runShowConf)
+    if (workerOptions.showContainerInfo) log(runShowContainerInfo)
     if (workerOptions.showDynamicConf) log(runShowDynamicConf)
     if (workerOptions.showThreadDump) log(runShowThreadDump)
   }
@@ -78,4 +79,6 @@ class WorkerSubcommandImpl extends Runnable with WorkerSubcommand {
       commonOptions.configName)
 
   private[worker] def runShowThreadDump: ThreadStackResponse = defaultApi.getThreadDump
+
+  private[worker] def runShowContainerInfo: ContainerInfo = defaultApi.getContainerInfo
 }
