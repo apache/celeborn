@@ -166,7 +166,7 @@ class ReducePartitionCommitHandler(
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
 
     // commit files
-    val parallelCommitResult = parallelCommitFiles(shuffleId, allocatedWorkers, None)
+    val parallelCommitResult = parallelCommitFiles(shuffleId, allocatedWorkers, None, true)
 
     // check all inflight request complete
     waitInflightRequestComplete(shuffleCommittedInfo)

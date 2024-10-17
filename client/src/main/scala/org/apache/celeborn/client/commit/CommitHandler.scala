@@ -395,7 +395,8 @@ abstract class CommitHandler(
   def parallelCommitFiles(
       shuffleId: Int,
       allocatedWorkers: util.Map[WorkerInfo, ShufflePartitionLocationInfo],
-      partitionIdOpt: Option[Int] = None): CommitResult = {
+      partitionIdOpt: Option[Int] = None,
+      finalCommit: Boolean = false): CommitResult = {
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
     val primaryPartMap = JavaUtils.newConcurrentHashMap[String, PartitionLocation]
     val replicaPartMap = JavaUtils.newConcurrentHashMap[String, PartitionLocation]
@@ -447,7 +448,7 @@ abstract class CommitHandler(
       shuffleCommittedInfo,
       params,
       commitFilesFailedWorkers,
-      this.isInstanceOf[ReducePartitionCommitHandler])
+      finalCommit)
 
     logInfo(s"Shuffle $shuffleId " +
       s"commit files complete. File count ${shuffleCommittedInfo.currentShuffleFileCount.sum()} " +
