@@ -118,8 +118,8 @@ public class CongestionController {
     this.configService = configService;
 
     if (configService != null) {
-      updateQuota(configService);
-      configService.registerListenerOnConfigUpdate(() -> updateQuota(configService));
+      updateQuota();
+      configService.registerListenerOnConfigUpdate(this::updateQuota);
     }
   }
 
@@ -341,7 +341,7 @@ public class CongestionController {
     return consumedBufferStatusHub;
   }
 
-  private void updateQuota(ConfigService configService) {
+  private void updateQuota() {
     workerTrafficQuota = configService.getSystemConfigFromCache().getWorkerTrafficQuota();
     for (Map.Entry<UserIdentifier, UserCongestionControlContext> entry :
         userCongestionContextMap.entrySet()) {
