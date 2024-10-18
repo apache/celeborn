@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
-import org.apache.celeborn.common.util.ThreadExceptionHandler;
 import org.apache.celeborn.common.util.ThreadUtils;
 
 public class ReadBufferDispatcher {
@@ -56,23 +55,17 @@ public class ReadBufferDispatcher {
     this.memoryManager = memoryManager;
     dispatcherThread =
         new AtomicReference<>(
-            ThreadUtils.newThread(new DispatcherRunnable(), "ReadBufferDispatcher"));
-    dispatcherThread
-        .get()
-        .setUncaughtExceptionHandler(new ThreadExceptionHandler("ReadBufferDispatcher"));
+            ThreadUtils.newThread(new DispatcherRunnable(), "read-buffer-dispatcher"));
     dispatcherThread.get().start();
 
     if (checkThreadInterval > 0) {
       ScheduledExecutorService checkAliveThread =
-          ThreadUtils.newDaemonSingleThreadScheduledExecutor("ReadBufferDispatcherChecker");
+          ThreadUtils.newDaemonSingleThreadScheduledExecutor("read-buffer-dispatcher-checker");
       checkAliveThread.scheduleWithFixedDelay(
           () -> {
             if (!dispatcherThread.get().isAlive()) {
               dispatcherThread.set(
-                  ThreadUtils.newThread(new DispatcherRunnable(), "ReadBufferDispatcher"));
-              dispatcherThread
-                  .get()
-                  .setUncaughtExceptionHandler(new ThreadExceptionHandler("ReadBufferDispatcher"));
+                  ThreadUtils.newThread(new DispatcherRunnable(), "read-buffer-dispatcher"));
               dispatcherThread.get().start();
             }
           },
@@ -161,7 +154,7 @@ public class ReadBufferDispatcher {
             // necessary buffers are get.
             Thread.sleep(readBufferAllocationWait);
           } catch (InterruptedException e) {
-            logger.info("Buffer dispatcher is closing");
+            logger.warn("Buffer dispatcher is closing");
           }
         }
       }
