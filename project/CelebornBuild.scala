@@ -245,7 +245,7 @@ object CelebornCommonSettings {
     javacOptions ++= Seq("-encoding", UTF_8.name(), "-source", "1.8", "-g"),
     Compile / packageBin / packageOptions +=  Package.ManifestAttributes(
       "Build-Jdk-Spec" -> System.getProperty("java.version"),
-      "Build-Commit" -> gitHeadCommit.value.getOrElse("N/A"),
+      "Build-Revision" -> gitHeadCommit.value.getOrElse("N/A"),
       "Build-Branch" -> gitCurrentBranch.value,
       "Build-Time" -> java.time.ZonedDateTime.now().format(java.time.format.DateTimeFormatter.ISO_DATE_TIME)),
   
