@@ -69,7 +69,7 @@ class ReadBufferDispactherSuite extends CelebornFunSuite {
     val readBufferDispatcher = new ReadBufferDispatcher(mockedMemoryManager, conf)
     val threadId1 = readBufferDispatcher.dispatcherThread.get().getId
     readBufferDispatcher.stopFlag = true
-    Thread.sleep(1500);
+    Thread.sleep(1500)
     readBufferDispatcher.stopFlag = false
     val threadId2 = readBufferDispatcher.dispatcherThread.get().getId
     assert(threadId1 != threadId2)

@@ -1163,6 +1163,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def readBufferTargetUpdateInterval: Long = get(WORKER_READBUFFER_TARGET_UPDATE_INTERVAL)
   def readBufferTargetNotifyThreshold: Long = get(WORKER_READBUFFER_TARGET_NOTIFY_THRESHOLD)
   def readBuffersToTriggerReadMin: Int = get(WORKER_READBUFFERS_TOTRIGGERREAD_MIN)
+  def readBufferDispatcherCheckThreadInterval: Long = get(WORKER_READBUFFERS_CHECK_THREAD_INTERVAL)
   def workerStoragePolicyCreateFilePolicy: Option[List[String]] =
     get(WORKER_STORAGE_CREATE_FILE_POLICY).map {
       policy => policy.split(",").map(_.trim).toList
@@ -4011,6 +4012,15 @@ object CelebornConf extends Logging {
       .doc("Min buffers count for map data partition to trigger read.")
       .intConf
       .createWithDefault(32)
+
+  val WORKER_READBUFFERS_CHECK_THREAD_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.readBuffer.checkThread.interval")
+      .categories("worker")
+      .version("0.5.2")
+      .internal
+      .doc("The interval for worker to check read buffer dispatcher thread.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("50ms")
 
   val WORKER_PUSH_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.push.heartbeat.enabled")
