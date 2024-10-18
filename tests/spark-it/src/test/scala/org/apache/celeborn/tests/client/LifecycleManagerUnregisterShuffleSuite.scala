@@ -28,7 +28,6 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.apache.celeborn.client.{LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
@@ -60,8 +59,8 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
       assert(res.status == StatusCode.SUCCESS)
       lifecycleManager.registeredShuffle.add(shuffleId)
       assert(lifecycleManager.registeredShuffle.contains(shuffleId))
-      val shuffleKey = Utils.makeShuffleKey(APP, shuffleId)
-      assert(masterInfo._1.statusSystem.registeredShuffle.contains(shuffleKey))
+      assert(masterInfo._1.statusSystem.registeredAppAndShuffles.containsKey(APP))
+      assert(masterInfo._1.statusSystem.registeredAppAndShuffles.get(APP).contains(shuffleId))
       lifecycleManager.commitManager.setStageEnd(shuffleId)
     }
 
@@ -71,9 +70,10 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
     // after unregister shuffle
     eventually(timeout(120.seconds), interval(2.seconds)) {
       shuffleIds.foreach { shuffleId: Int =>
-        val shuffleKey = Utils.makeShuffleKey(APP, shuffleId)
         assert(!lifecycleManager.registeredShuffle.contains(shuffleId))
-        assert(!masterInfo._1.statusSystem.registeredShuffle.contains(shuffleKey))
+        val containShuffleKey = masterInfo._1.statusSystem.registeredAppAndShuffles.containsKey(
+          APP) && masterInfo._1.statusSystem.registeredAppAndShuffles.get(APP).contains(shuffleId)
+        assert(!containShuffleKey)
       }
     }
 
@@ -93,8 +93,8 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
       assert(res.status == StatusCode.SUCCESS)
       lifecycleManager.registeredShuffle.add(shuffleId)
       assert(lifecycleManager.registeredShuffle.contains(shuffleId))
-      val shuffleKey = Utils.makeShuffleKey(APP, shuffleId)
-      assert(masterInfo._1.statusSystem.registeredShuffle.contains(shuffleKey))
+      assert(masterInfo._1.statusSystem.registeredAppAndShuffles.containsKey(APP))
+      assert(masterInfo._1.statusSystem.registeredAppAndShuffles.get(APP).contains(shuffleId))
       lifecycleManager.commitManager.setStageEnd(shuffleId)
     }
     val previousTime = System.currentTimeMillis()
@@ -104,9 +104,10 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
     // after unregister shuffle
     eventually(timeout(120.seconds), interval(2.seconds)) {
       shuffleIds.foreach { shuffleId: Int =>
-        val shuffleKey = Utils.makeShuffleKey(APP, shuffleId)
         assert(!lifecycleManager.registeredShuffle.contains(shuffleId))
-        assert(!masterInfo._1.statusSystem.registeredShuffle.contains(shuffleKey))
+        val containShuffleKey = masterInfo._1.statusSystem.registeredAppAndShuffles.containsKey(
+          APP) && masterInfo._1.statusSystem.registeredAppAndShuffles.get(APP).contains(shuffleId)
+        assert(!containShuffleKey)
       }
     }
     val currentTime = System.currentTimeMillis()

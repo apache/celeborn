@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
+import java.util
 import javax.ws.rs.{Consumes, GET, Produces}
 import javax.ws.rs.core.MediaType
 
@@ -44,6 +45,13 @@ class ShuffleResource extends ApiRequestContext {
       "List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.")
   @GET
   def shuffles: ShufflesResponse = {
-    new ShufflesResponse().shuffleIds(statusSystem.registeredShuffle.asScala.toSeq.asJava)
+    val shuffles = new util.ArrayList[String]()
+    statusSystem.registeredAppAndShuffles.asScala.foreach { shuffleKey =>
+      val appId = shuffleKey._1
+      shuffleKey._2.asScala.foreach { id =>
+        shuffles.add(s"$appId-${id}")
+      }
+    }
+    new ShufflesResponse().shuffleIds(shuffles)
   }
 }

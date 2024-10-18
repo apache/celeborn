@@ -450,7 +450,7 @@ object PbSerDeUtils {
 
   def toPbSnapshotMetaInfo(
       estimatedPartitionSize: java.lang.Long,
-      registeredShuffle: java.util.Set[String],
+      registeredShuffle: java.util.Map[String, java.util.Set[Integer]],
       hostnameSet: java.util.Set[String],
       excludedWorkers: java.util.Set[WorkerInfo],
       manuallyExcludedWorkers: java.util.Set[WorkerInfo],
@@ -468,7 +468,9 @@ object PbSerDeUtils {
       decommissionWorkers: java.util.Set[WorkerInfo]): PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
-      .addAllRegisteredShuffle(registeredShuffle)
+      .addAllRegisteredShuffle(registeredShuffle.asScala.flatMap { appIdAndShuffleId =>
+        appIdAndShuffleId._2.asScala.map(i => Utils.makeShuffleKey(appIdAndShuffleId._1, i))
+      }.asJava)
       .addAllHostnameSet(hostnameSet)
       .addAllExcludedWorkers(excludedWorkers.asScala.map(toPbWorkerInfo(_, true, false)).asJava)
       .addAllManuallyExcludedWorkers(manuallyExcludedWorkers.asScala

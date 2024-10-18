@@ -335,6 +335,26 @@ object ControlMessages extends Logging {
         .build()
   }
 
+  object ReviseLostShuffles {
+    def apply(
+        appId: String,
+        lostShuffles: java.util.List[Integer],
+        requestId: String): PbReviseLostShuffles =
+      PbReviseLostShuffles.newBuilder()
+        .setAppId(appId)
+        .addAllLostShuffles(lostShuffles)
+        .setRequestId(requestId)
+        .build()
+  }
+
+  object ReviseLostShufflesResponse {
+    def apply(success: Boolean, message: String): PbReviseLostShufflesResponse =
+      PbReviseLostShufflesResponse.newBuilder()
+        .setSuccess(success)
+        .setMessage(message)
+        .build()
+  }
+
   case class StageEnd(shuffleId: Int) extends MasterMessage
 
   case class StageEndResponse(status: StatusCode)
@@ -400,7 +420,8 @@ object ControlMessages extends Logging {
       statusCode: StatusCode,
       excludedWorkers: util.List[WorkerInfo],
       unknownWorkers: util.List[WorkerInfo],
-      shuttingWorkers: util.List[WorkerInfo]) extends Message
+      shuttingWorkers: util.List[WorkerInfo],
+      registeredShuffles: util.List[Integer]) extends Message
 
   case class CheckQuota(userIdentifier: UserIdentifier) extends Message
 
@@ -564,6 +585,12 @@ object ControlMessages extends Logging {
 
     case pb: PbReportShuffleFetchFailureResponse =>
       new TransportMessage(MessageType.REPORT_SHUFFLE_FETCH_FAILURE_RESPONSE, pb.toByteArray)
+
+    case pb: PbReviseLostShuffles =>
+      new TransportMessage(MessageType.REVISE_LOST_SHUFFLES, pb.toByteArray)
+
+    case pb: PbReviseLostShufflesResponse =>
+      new TransportMessage(MessageType.REVISE_LOST_SHUFFLES_RESPONSE, pb.toByteArray)
 
     case pb: PbReportBarrierStageAttemptFailure =>
       new TransportMessage(MessageType.REPORT_BARRIER_STAGE_ATTEMPT_FAILURE, pb.toByteArray)
@@ -799,7 +826,8 @@ object ControlMessages extends Logging {
           statusCode,
           excludedWorkers,
           unknownWorkers,
-          shuttingWorkers) =>
+          shuttingWorkers,
+          registeredShuffles) =>
       val payload = PbHeartbeatFromApplicationResponse.newBuilder()
         .setStatus(statusCode.getValue)
         .addAllExcludedWorkers(
@@ -808,6 +836,7 @@ object ControlMessages extends Logging {
           unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true, true)).toList.asJava)
         .addAllShuttingWorkers(
           shuttingWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true, true)).toList.asJava)
+        .addAllRegisteredShuffles(registeredShuffles)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload)
 
@@ -1191,7 +1220,8 @@ object ControlMessages extends Logging {
           pbHeartbeatFromApplicationResponse.getUnknownWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
           pbHeartbeatFromApplicationResponse.getShuttingWorkersList.asScala
-            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
+            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
+          pbHeartbeatFromApplicationResponse.getRegisteredShufflesList)
 
       case CHECK_QUOTA_VALUE =>
         val pbCheckAvailable = PbCheckQuota.parseFrom(message.getPayload)

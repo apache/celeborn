@@ -88,6 +88,11 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void handleReviseLostShuffles(String appId, List<Integer> shuffles, String requestId) {
+    reviseLostShuffles(appId, shuffles);
+  }
+
+  @Override
   public void handleWorkerLost(
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
     updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort, replicatePort);

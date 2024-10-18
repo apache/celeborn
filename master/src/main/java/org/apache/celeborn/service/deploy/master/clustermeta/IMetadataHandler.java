@@ -46,6 +46,8 @@ public interface IMetadataHandler {
   void handleWorkerExclude(
       List<WorkerInfo> workersToAdd, List<WorkerInfo> workersToRemove, String requestId);
 
+  void handleReviseLostShuffles(String appId, List<Integer> shuffles, String requestId);
+
   void handleWorkerLost(
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId);
 

@@ -210,7 +210,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       conf,
       masterClient,
       () => commitManager.commitMetrics(),
-      workerStatusTracker)
+      workerStatusTracker,
+      registeredShuffle)
   private val changePartitionManager = new ChangePartitionManager(conf, this)
   private val releasePartitionManager = new ReleasePartitionManager(conf, this)
 
