@@ -93,7 +93,7 @@ public class ReloadingX509TrustManager implements X509TrustManager, Runnable {
   /** Starts the reloader thread. */
   public void init() {
     reloader =
-        ThreadUtils.newDeamonThreadWithDefaultUncaughtExceptionHandler(
+        ThreadUtils.newDeamonThread(
             this, "Truststore reloader thread");
     reloader.start();
   }

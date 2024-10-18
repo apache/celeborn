@@ -67,7 +67,7 @@ public final class ShutdownHookManager {
     try {
       Runtime.getRuntime()
           .addShutdownHook(
-              ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+              ThreadUtils.newThread(
                   new Runnable() {
                     @Override
                     public void run() {

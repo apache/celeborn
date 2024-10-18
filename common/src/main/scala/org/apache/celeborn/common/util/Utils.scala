@@ -866,7 +866,7 @@ object Utils extends Logging {
       threadName: String,
       inputStream: InputStream,
       processLine: String => Unit): Thread = {
-    val t = ThreadUtils.newDeamonThreadWithDefaultUncaughtExceptionHandler(
+    val t = ThreadUtils.newDeamonThread(
       new Runnable {
         override def run(): Unit = {
           for (line <- Source.fromInputStream(inputStream).getLines()) {

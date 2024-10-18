@@ -95,7 +95,7 @@ public class TransportClientFactorySuiteJ {
     // Launch a bunch of threads to create new clients.
     for (int i = 0; i < attempts.length; i++) {
       attempts[i] =
-          ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+          ThreadUtils.newThread(
               () -> {
                 try {
                   TransportClient client = factory.createClient(getLocalHost(), server1.getPort());

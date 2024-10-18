@@ -114,7 +114,7 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
 
     // Compatible with current exit logic
     // trigger shutdown hook to exit
-    ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+    ThreadUtils.newThread(
       new Runnable {
         override def run(): Unit = {
           Thread.sleep(10000)

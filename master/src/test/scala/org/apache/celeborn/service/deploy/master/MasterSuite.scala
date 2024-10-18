@@ -54,7 +54,7 @@ class MasterSuite extends AnyFunSuite
 
     val masterArgs = new MasterArguments(args, conf)
     val master = new Master(conf, masterArgs)
-    ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+    ThreadUtils.newThread(
       new Runnable {
         override def run(): Unit = {
           master.initialize()
@@ -78,7 +78,7 @@ class MasterSuite extends AnyFunSuite
 
     val masterArgs = new MasterArguments(args, conf)
     val master = new Master(conf, masterArgs)
-    ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+    ThreadUtils.newThread(
       new Runnable {
         override def run(): Unit = {
           master.initialize()

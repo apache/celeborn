@@ -51,7 +51,7 @@ class ApiMasterResourceSuite extends ApiBaseResourceSuite {
 
     val masterArgs = new MasterArguments(args, celebornConf)
     master = new Master(celebornConf, masterArgs)
-    ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+    ThreadUtils.newThread(
       new Runnable {
         override def run(): Unit = {
           master.initialize()

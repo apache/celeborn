@@ -95,7 +95,7 @@ class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
     val exitLatch = new CountDownLatch(10)
 
     for (_ <- 0 until 10) {
-      ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+      ThreadUtils.newThread(
         new Runnable {
           override def run(): Unit = {
             for (_ <- 0 until 100) {

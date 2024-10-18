@@ -100,7 +100,7 @@ public class DataPusher {
     this.mapStatusLengths = mapStatusLengths;
 
     pushThread =
-        ThreadUtils.newDeamonThreadWithDefaultUncaughtExceptionHandler(
+        ThreadUtils.newDeamonThread(
             new Runnable() {
               private void reclaimTask(PushTask task) throws InterruptedException {
                 idleLock.lockInterruptibly();

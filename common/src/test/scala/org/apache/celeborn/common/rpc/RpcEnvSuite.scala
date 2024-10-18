@@ -383,7 +383,7 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
         })
 
       (0 until 10) foreach { _ =>
-        ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+        ThreadUtils.newThread(
           new Runnable {
             override def run(): Unit = {
               (0 until 100) foreach { _ =>

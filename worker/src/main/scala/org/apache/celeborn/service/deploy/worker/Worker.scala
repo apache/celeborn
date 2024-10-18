@@ -1008,7 +1008,7 @@ private[celeborn] class Worker(
   }
 
   ShutdownHookManager.get().addShutdownHook(
-    ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+    ThreadUtils.newThread(
       new Runnable {
         override def run(): Unit = {
           logInfo("Shutdown hook called.")

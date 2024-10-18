@@ -56,7 +56,7 @@ public class ReadBufferDispatcher {
     this.memoryManager = memoryManager;
     dispatcherThread =
         new AtomicReference<>(
-            ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+            ThreadUtils.newThread(
                 new DispatcherRunnable(), "ReadBufferDispatcher"));
     dispatcherThread
         .get()
@@ -70,7 +70,7 @@ public class ReadBufferDispatcher {
           () -> {
             if (!dispatcherThread.get().isAlive()) {
               dispatcherThread.set(
-                  ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+                  ThreadUtils.newThread(
                       new DispatcherRunnable(), "ReadBufferDispatcher"));
               dispatcherThread
                   .get()
