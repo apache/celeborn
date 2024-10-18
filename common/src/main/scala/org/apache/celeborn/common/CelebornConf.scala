@@ -4014,7 +4014,7 @@ object CelebornConf extends Logging {
       .createWithDefault(32)
 
   val WORKER_READBUFFERS_CHECK_THREAD_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.readBuffer.checkThread.interval")
+    buildConf("celeborn.worker.readBufferDispatcherThreadWatchdog.checkInterval")
       .categories("worker")
       .version("0.5.2")
       .internal
