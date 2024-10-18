@@ -62,9 +62,9 @@ public class ReadBufferDispatcher {
         .setUncaughtExceptionHandler(new ThreadExceptionHandler("ReadBufferDispatcher"));
     dispatcherThread.get().start();
 
-    ScheduledExecutorService checkAliveThread =
-        ThreadUtils.newDaemonSingleThreadScheduledExecutor("ReadBufferDispatcherChecker");
     if (checkThreadInterval > 0) {
+      ScheduledExecutorService checkAliveThread =
+          ThreadUtils.newDaemonSingleThreadScheduledExecutor("ReadBufferDispatcherChecker");
       checkAliveThread.scheduleWithFixedDelay(
           () -> {
             if (!dispatcherThread.get().isAlive()) {

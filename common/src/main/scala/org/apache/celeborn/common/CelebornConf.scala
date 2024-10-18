@@ -4020,7 +4020,7 @@ object CelebornConf extends Logging {
       .internal
       .doc("The interval for worker to check read buffer dispatcher thread. 0 means disable.")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("50ms")
+      .createWithDefault(0)
 
   val WORKER_PUSH_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.push.heartbeat.enabled")
