@@ -29,6 +29,12 @@
   <packaging>jar</packaging>
   <name>Celeborn OpenAPI Client</name>
 
+  <properties>
+    <hadoop.deps.scope>provided</hadoop.deps.scope>
+    <hadoop.deps.optional>true</hadoop.deps.optional>
+    <jdk.tools.optional>true</jdk.tools.optional>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
