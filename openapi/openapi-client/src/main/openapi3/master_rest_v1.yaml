@@ -277,11 +277,6 @@ paths:
       operationId: reviseLostShuffles
       description: Revise lost shuffles or delete shuffles of an application.
       parameters:
-        - name: deleteApp
-          in: query
-          required: false
-          schema:
-            type: string
         - name: appId
           in: query
           required: false
@@ -299,6 +294,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HandleResponse'
+
+  /api/v1/applications/deleteApp:
+    get:
+      tags:
+        - Application
+      operationId: deleteApp
+      description: Delete resource of an app
+      parameters:
+        - name: app
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
 
   /api/v1/ratis/election/transfer:
     post:

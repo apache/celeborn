@@ -884,7 +884,7 @@ private[celeborn] class Worker(
   override def reviseLostShuffles(appId: String, shuffles: java.util.List[Integer]): Unit =
     throw new UnsupportedOperationException()
 
-  override def deleteAppId(appId: String): Unit = throw new UnsupportedOperationException()
+  override def deleteApp(appId: String): Unit = throw new UnsupportedOperationException()
 
   override def exit(exitType: String): String = {
     exitType.toUpperCase(Locale.ROOT) match {

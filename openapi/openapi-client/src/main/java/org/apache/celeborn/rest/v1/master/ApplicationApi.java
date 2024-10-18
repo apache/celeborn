@@ -51,6 +51,76 @@ public class ApplicationApi extends BaseApi {
 
   /**
    * 
+   * Delete resource of an app
+   * @param deleteApp  (optional)
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse deleteApp(String deleteApp) throws ApiException {
+    return this.deleteApp(deleteApp, Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * Delete resource of an app
+   * @param deleteApp  (optional)
+   * @param additionalHeaders additionalHeaders for this call
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse deleteApp(String deleteApp, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = null;
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/applications/deleteApp";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    localVarQueryParams.addAll(apiClient.parameterToPair("deleteApp", deleteApp));
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/json"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<HandleResponse> localVarReturnType = new TypeReference<HandleResponse>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "GET",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
+  }
+
+  /**
+   * 
    * List all running application&#39;s LifecycleManager&#39;s hostnames of the cluster.
    * @return HostnamesResponse
    * @throws ApiException if fails to make API call
@@ -253,28 +323,26 @@ public class ApplicationApi extends BaseApi {
   /**
    * 
    * Revise lost shuffles or delete shuffles of an application.
-   * @param deleteApp  (optional)
    * @param appId  (optional)
    * @param shuffleIds  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse reviseLostShuffles(String deleteApp, String appId, String shuffleIds) throws ApiException {
-    return this.reviseLostShuffles(deleteApp, appId, shuffleIds, Collections.emptyMap());
+  public HandleResponse reviseLostShuffles(String appId, String shuffleIds) throws ApiException {
+    return this.reviseLostShuffles(appId, shuffleIds, Collections.emptyMap());
   }
 
 
   /**
    * 
    * Revise lost shuffles or delete shuffles of an application.
-   * @param deleteApp  (optional)
    * @param appId  (optional)
    * @param shuffleIds  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse reviseLostShuffles(String deleteApp, String appId, String shuffleIds, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse reviseLostShuffles(String appId, String shuffleIds, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = null;
     
     // create path and map variables
@@ -288,7 +356,6 @@ public class ApplicationApi extends BaseApi {
     Map<String, String> localVarCookieParams = new HashMap<String, String>();
     Map<String, Object> localVarFormParams = new HashMap<String, Object>();
 
-    localVarQueryParams.addAll(apiClient.parameterToPair("deleteApp", deleteApp));
     localVarQueryParams.addAll(apiClient.parameterToPair("appId", appId));
     localVarQueryParams.addAll(apiClient.parameterToPair("shuffleIds", shuffleIds));
     

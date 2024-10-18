@@ -1479,7 +1479,7 @@ private[celeborn] class Master(
     statusSystem.reviseLostShuffles(appId, shuffles)
   }
 
-  override def deleteAppId(appId: String): Unit = {
+  override def deleteApp(appId: String): Unit = {
     statusSystem.deleteAppId(appId)
   }
 

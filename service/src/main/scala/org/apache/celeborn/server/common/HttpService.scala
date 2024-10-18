@@ -196,7 +196,7 @@ abstract class HttpService extends Service with Logging {
 
   def reviseLostShuffles(appId: String, shuffles: java.util.List[Integer])
 
-  def deleteAppId(appId: String)
+  def deleteApp(appId: String)
 
   def startHttpServer(): Unit = {
     httpServer = HttpServer(

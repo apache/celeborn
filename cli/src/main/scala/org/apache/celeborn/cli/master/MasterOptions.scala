@@ -116,4 +116,13 @@ final class MasterOptions {
     description = Array("Revise lost shuffles or remove shuffles for an application."))
   private[master] var reviseLostShuffles: Boolean = _
 
+  @Option(
+    names = Array("--delete-app"),
+    description = Array("Delete resource of an application."))
+  private[master] var deleteApp: Boolean = _
+
+  @Option(
+    names = Array("--app"),
+    description = Array("Delete resource of an application."))
+  private[master] var app: String = _
 }

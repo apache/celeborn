@@ -106,13 +106,8 @@ class ApplicationResource extends ApiRequestContext {
       "Revise lost shuffles")
   @GET
   def reviseLostShuffles(
-      @QueryParam("deleteApp") deleteApp: String,
       @QueryParam("appId") appId: String,
       @QueryParam("shuffleIds") shufflesIds: String): HandleResponse = {
-    if (deleteApp == "true") {
-      httpService.deleteAppId(appId)
-      return new HandleResponse().success(true).message(s"delete shuffles of app ${appId}")
-    }
     val shuffles = new util.ArrayList[Integer]()
     shufflesIds.split(",").foreach { p =>
       shuffles.add(Integer.parseInt(p))
@@ -122,4 +117,20 @@ class ApplicationResource extends ApiRequestContext {
     }
     new HandleResponse().success(true).message("revise lost shuffle done")
   }
+
+  @Path("/deleteApp")
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[HandleResponse]))),
+    description =
+      "Delete resource of an app")
+  @GET
+  def deleteApp(
+      @QueryParam("app") app: String): HandleResponse = {
+    httpService.deleteApp(app)
+    new HandleResponse().success(true).message(s"delete shuffles of app ${app}")
+  }
+
 }

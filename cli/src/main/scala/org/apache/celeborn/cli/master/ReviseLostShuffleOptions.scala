@@ -22,11 +22,6 @@ import picocli.CommandLine.Option
 final class ReviseLostShuffleOptions {
 
   @Option(
-    names = Array("--deleteApp"),
-    description = Array("Whether to delete an application's shuffles or not"))
-  private[master] var deleteApp: String = _
-
-  @Option(
     names = Array("--appId"),
     description = Array("The application to manipulate shuffles"))
   private[master] var appId: String = _
