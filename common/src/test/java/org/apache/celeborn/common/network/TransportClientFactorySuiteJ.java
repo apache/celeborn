@@ -19,14 +19,20 @@ package org.apache.celeborn.common.network;
 
 import static org.apache.celeborn.common.util.JavaUtils.getLocalHost;
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -34,6 +40,7 @@ import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.network.util.TransportFrameDecoder;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 
@@ -239,5 +246,18 @@ public class TransportClientFactorySuiteJ {
               IOException.class, () -> factory.createClient(getLocalHost(), unreachablePort));
       assertNotEquals(exception.getCause(), null);
     }
+  }
+
+  @Test
+  public void testRetryCreateClient() throws IOException, InterruptedException {
+    TransportClientFactory factory = Mockito.spy(context.createClientFactory());
+    TransportClient client = mock(TransportClient.class);
+    Mockito.doThrow(new IOException("xx"))
+        .doReturn(client)
+        .when(factory)
+        .createClient(anyString(), anyInt(), anyInt(), any());
+    TransportClient transportClient =
+        factory.retryCreateClient("xxx", 10, 1, TransportFrameDecoder::new);
+    Assert.assertEquals(transportClient, client);
   }
 }

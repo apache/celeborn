@@ -26,10 +26,12 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.*;
@@ -92,6 +94,8 @@ public class TransportClientFactory implements Closeable {
   private final Class<? extends Channel> socketChannelClass;
   private EventLoopGroup workerGroup;
   protected ByteBufAllocator pooledAllocator;
+  private final int maxClientConnectRetries;
+  private final int maxClientConnectRetryWaitTimeMs;
 
   public TransportClientFactory(
       TransportContext context, List<TransportClientBootstrap> clientBootstraps) {
@@ -114,6 +118,8 @@ public class TransportClientFactory implements Closeable {
     this.pooledAllocator =
         NettyUtils.getPooledByteBufAllocator(
             conf, context.getSource(), false, conf.clientThreads());
+    this.maxClientConnectRetries = conf.maxIORetries();
+    this.maxClientConnectRetryWaitTimeMs = conf.ioRetryWaitTimeMs();
   }
 
   /**
@@ -130,7 +136,40 @@ public class TransportClientFactory implements Closeable {
    */
   public TransportClient createClient(String remoteHost, int remotePort, int partitionId)
       throws IOException, InterruptedException {
-    return createClient(remoteHost, remotePort, partitionId, new TransportFrameDecoder());
+    return retryCreateClient(remoteHost, remotePort, partitionId, TransportFrameDecoder::new);
+  }
+
+  public TransportClient retryCreateClient(
+      String remoteHost,
+      int remotePort,
+      int partitionId,
+      Supplier<ChannelInboundHandlerAdapter> supplier)
+      throws IOException, InterruptedException {
+    int numTries = 0;
+    while (numTries < maxClientConnectRetries) {
+      try {
+        return createClient(remoteHost, remotePort, partitionId, supplier.get());
+      } catch (Exception e) {
+        numTries++;
+        logger.warn(
+            "Retry create client, times {}/{} with error: {}",
+            numTries,
+            maxClientConnectRetries,
+            e.getMessage(),
+            e.getCause());
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
+        if (numTries == maxClientConnectRetries) {
+          throw e;
+        }
+
+        Uninterruptibles.sleepUninterruptibly(
+            maxClientConnectRetryWaitTimeMs, TimeUnit.MILLISECONDS);
+      }
+    }
+
+    return null;
   }
 
   public TransportClient createClient(
