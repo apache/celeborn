@@ -24,7 +24,7 @@ import javax.ws.rs.client.Entity
 import javax.ws.rs.core.MediaType
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, ThreadUtils, Utils}
 import org.apache.celeborn.rest.v1.model.{AppDiskUsageSnapshotsResponse, ApplicationsResponse, ExcludeWorkerRequest, HandleResponse, HostnamesResponse, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, ShufflesResponse, WorkerEventsResponse, WorkerId, WorkersResponse}
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.api.v1.ApiV1BaseResourceSuite
@@ -54,11 +54,13 @@ class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite {
 
     val masterArgs = new MasterArguments(args, celebornConf)
     master = new Master(celebornConf, masterArgs)
-    new Thread() {
-      override def run(): Unit = {
-        master.initialize()
-      }
-    }.start()
+    ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+      new Runnable {
+        override def run(): Unit = {
+          master.initialize()
+        }
+      },
+      "master-init-thread").start()
     super.beforeAll()
   }
 

@@ -67,25 +67,27 @@ public final class ShutdownHookManager {
     try {
       Runtime.getRuntime()
           .addShutdownHook(
-              new Thread() {
-                @Override
-                public void run() {
-                  if (MGR.shutdownInProgress.getAndSet(true)) {
-                    LOG.info("Shutdown process invoked a second time: ignoring");
-                    return;
-                  }
-                  long started = System.currentTimeMillis();
-                  int timeoutCount = executeShutdown();
-                  long ended = System.currentTimeMillis();
-                  LOG.debug(
-                      String.format(
-                          "Completed shutdown in %.3f seconds; Timeouts: %d",
-                          (ended - started) / 1000.0, timeoutCount));
-                  // each of the hooks have executed; now shut down the
-                  // executor itself.
-                  shutdownExecutor(new CelebornConf());
-                }
-              });
+              ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+                  new Runnable() {
+                    @Override
+                    public void run() {
+                      if (MGR.shutdownInProgress.getAndSet(true)) {
+                        LOG.info("Shutdown process invoked a second time: ignoring");
+                        return;
+                      }
+                      long started = System.currentTimeMillis();
+                      int timeoutCount = executeShutdown();
+                      long ended = System.currentTimeMillis();
+                      LOG.debug(
+                          String.format(
+                              "Completed shutdown in %.3f seconds; Timeouts: %d",
+                              (ended - started) / 1000.0, timeoutCount));
+                      // each of the hooks have executed; now shut down the
+                      // executor itself.
+                      shutdownExecutor(new CelebornConf());
+                    }
+                  },
+                  "shutdown-hook-thread"));
     } catch (IllegalStateException ex) {
       // JVM is being shut down. Ignore
       LOG.warn("Failed to add the ShutdownHook", ex);

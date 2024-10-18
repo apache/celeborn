@@ -55,7 +55,9 @@ public class ReadBufferDispatcher {
         NettyUtils.getPooledByteBufAllocator(new TransportConf("readBuffer", conf), null, true);
     this.memoryManager = memoryManager;
     dispatcherThread =
-        new AtomicReference<>(new Thread(new DispatcherRunnable(), "ReadBufferDispatcher"));
+        new AtomicReference<>(
+            ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+                new DispatcherRunnable(), "ReadBufferDispatcher"));
     dispatcherThread
         .get()
         .setUncaughtExceptionHandler(new ThreadExceptionHandler("ReadBufferDispatcher"));
@@ -63,19 +65,23 @@ public class ReadBufferDispatcher {
 
     ScheduledExecutorService checkAliveThread =
         ThreadUtils.newDaemonSingleThreadScheduledExecutor("ReadBufferDispatcherChecker");
-    checkAliveThread.scheduleWithFixedDelay(
-        () -> {
-          if (!dispatcherThread.get().isAlive()) {
-            dispatcherThread.set(new Thread(new DispatcherRunnable(), "ReadBufferDispatcher"));
-            dispatcherThread
-                .get()
-                .setUncaughtExceptionHandler(new ThreadExceptionHandler("ReadBufferDispatcher"));
-            dispatcherThread.get().start();
-          }
-        },
-        checkThreadInterval,
-        checkThreadInterval,
-        TimeUnit.MILLISECONDS);
+    if (checkThreadInterval > 0) {
+      checkAliveThread.scheduleWithFixedDelay(
+          () -> {
+            if (!dispatcherThread.get().isAlive()) {
+              dispatcherThread.set(
+                  ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+                      new DispatcherRunnable(), "ReadBufferDispatcher"));
+              dispatcherThread
+                  .get()
+                  .setUncaughtExceptionHandler(new ThreadExceptionHandler("ReadBufferDispatcher"));
+              dispatcherThread.get().start();
+            }
+          },
+          checkThreadInterval,
+          checkThreadInterval,
+          TimeUnit.MILLISECONDS);
+    }
   }
 
   public void addBufferRequest(ReadBufferRequest request) {

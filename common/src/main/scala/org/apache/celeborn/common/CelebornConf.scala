@@ -4018,7 +4018,7 @@ object CelebornConf extends Logging {
       .categories("worker")
       .version("0.5.2")
       .internal
-      .doc("The interval for worker to check read buffer dispatcher thread.")
+      .doc("The interval for worker to check read buffer dispatcher thread. 0 means disable.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("50ms")
 

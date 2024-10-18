@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
-import org.apache.celeborn.common.util.ThreadExceptionHandler;
+import org.apache.celeborn.common.util.ThreadUtils;
 
 public class DataPusher {
   private static final Logger logger = LoggerFactory.getLogger(DataPusher.class);
@@ -100,45 +100,46 @@ public class DataPusher {
     this.mapStatusLengths = mapStatusLengths;
 
     pushThread =
-        new Thread("celeborn-client-data-pusher-" + taskId) {
-          private void reclaimTask(PushTask task) throws InterruptedException {
-            idleLock.lockInterruptibly();
-            try {
-              idleQueue.put(task);
-              if (idleQueue.remainingCapacity() == 0) {
-                idleFull.signal();
-              }
-            } catch (InterruptedException e) {
-              logger.error("DataPusher thread interrupted while reclaiming data.");
-              throw e;
-            } finally {
-              idleLock.unlock();
-            }
-          }
-
-          @Override
-          public void run() {
-            while (stillRunning()) {
-              try {
-                ArrayList<PushTask> tasks = dataPushQueue.takePushTasks();
-                for (int i = 0; i < tasks.size(); i++) {
-                  PushTask task = tasks.get(i);
-                  pushData(task);
-                  reclaimTask(task);
+        ThreadUtils.newDeamonThreadWithDefaultUncaughtExceptionHandler(
+            new Runnable() {
+              private void reclaimTask(PushTask task) throws InterruptedException {
+                idleLock.lockInterruptibly();
+                try {
+                  idleQueue.put(task);
+                  if (idleQueue.remainingCapacity() == 0) {
+                    idleFull.signal();
+                  }
+                } catch (InterruptedException e) {
+                  logger.error("DataPusher thread interrupted while reclaiming data.");
+                  throw e;
+                } finally {
+                  idleLock.unlock();
                 }
-              } catch (CelebornIOException e) {
-                exceptionRef.set(e);
-              } catch (IOException e) {
-                exceptionRef.set(new CelebornIOException(e));
-              } catch (InterruptedException e) {
-                logger.error("DataPusher push thread interrupted while pushing data.");
-                break;
               }
-            }
-          }
-        };
-    pushThread.setDaemon(true);
-    pushThread.setUncaughtExceptionHandler(new ThreadExceptionHandler("DataPusher-" + taskId));
+
+              @Override
+              public void run() {
+                while (stillRunning()) {
+                  try {
+                    ArrayList<PushTask> tasks = dataPushQueue.takePushTasks();
+                    for (int i = 0; i < tasks.size(); i++) {
+                      PushTask task = tasks.get(i);
+                      pushData(task);
+                      reclaimTask(task);
+                    }
+                  } catch (CelebornIOException e) {
+                    exceptionRef.set(e);
+                  } catch (IOException e) {
+                    exceptionRef.set(new CelebornIOException(e));
+                  } catch (InterruptedException e) {
+                    logger.error("DataPusher push thread interrupted while pushing data.");
+                    break;
+                  }
+                }
+              }
+            },
+            "celeborn-client-data-pusher-" + taskId);
+
     pushThread.start();
   }
 

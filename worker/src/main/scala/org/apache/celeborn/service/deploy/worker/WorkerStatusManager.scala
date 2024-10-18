@@ -29,6 +29,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerStatus
 import org.apache.celeborn.common.protocol.PbWorkerStatus.State
 import org.apache.celeborn.common.protocol.WorkerEventType
+import org.apache.celeborn.common.util.ThreadUtils
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager
 
 private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging {
@@ -113,12 +114,14 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
 
     // Compatible with current exit logic
     // trigger shutdown hook to exit
-    new Thread() {
-      override def run(): Unit = {
-        Thread.sleep(10000)
-        System.exit(0)
-      }
-    }.start()
+    ThreadUtils.newThreadWithDefaultUncaughtExceptionHandler(
+      new Runnable {
+        override def run(): Unit = {
+          Thread.sleep(10000)
+          System.exit(0)
+        }
+      },
+      "worker-exit-thread").start()
   }
 
   def transitionState(state: State): Unit = this.synchronized {
