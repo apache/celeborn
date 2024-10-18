@@ -393,7 +393,7 @@ object ThreadUtils {
     }
   }
 
-  def newThreadWithDefaultUncaughtExceptionHandler(runnable: Runnable, name: String): Thread = {
+  def newThread(runnable: Runnable, name: String): Thread = {
     val thread = new Thread(runnable, name)
     thread.setUncaughtExceptionHandler(new ThreadExceptionHandler(name))
     thread
