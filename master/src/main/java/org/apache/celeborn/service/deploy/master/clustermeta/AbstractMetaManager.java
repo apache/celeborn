@@ -160,7 +160,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     registeredAppAndShuffles.computeIfAbsent(appId, v -> new HashSet<>()).addAll(lostShuffles);
   }
 
-  public void deleteAppId(String appId) {
+  public void deleteApp(String appId) {
     registeredAppAndShuffles.remove(appId);
   }
 

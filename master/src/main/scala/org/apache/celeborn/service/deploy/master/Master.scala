@@ -1480,7 +1480,7 @@ private[celeborn] class Master(
   }
 
   override def deleteApp(appId: String): Unit = {
-    statusSystem.deleteAppId(appId)
+    statusSystem.deleteApp(appId)
   }
 
   override def getWorkerEventInfo(): String = {
