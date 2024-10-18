@@ -621,17 +621,17 @@ public class DefaultMetaSystemSuiteJ {
       shuffleKeysAll.add(shuffleKey);
       statusSystem.handleRequestSlots(shuffleKey, HOSTNAME1, workersToAllocate, getNewReqeustId());
     }
-    Assert.assertEquals(4, statusSystem.registeredShuffle.size());
+    Assert.assertEquals(4, statusSystem.registeredShuffleCount());
 
     List<String> shuffleKeys1 = new ArrayList<>();
     shuffleKeys1.add(shuffleKeysAll.get(0));
 
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeys1, getNewReqeustId());
-    Assert.assertEquals(3, statusSystem.registeredShuffle.size());
+    Assert.assertEquals(3, statusSystem.registeredShuffleCount());
 
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeysAll, getNewReqeustId());
 
-    Assert.assertTrue(statusSystem.registeredShuffle.isEmpty());
+    Assert.assertTrue(statusSystem.registeredShuffleCount() == 0);
   }
 
   @Test

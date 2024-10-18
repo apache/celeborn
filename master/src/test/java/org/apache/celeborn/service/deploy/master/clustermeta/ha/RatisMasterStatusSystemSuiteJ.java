@@ -919,25 +919,25 @@ public class RatisMasterStatusSystemSuiteJ {
 
     Thread.sleep(3000L);
 
-    Assert.assertEquals(4, STATUSSYSTEM1.registeredShuffle.size());
-    Assert.assertEquals(4, STATUSSYSTEM2.registeredShuffle.size());
-    Assert.assertEquals(4, STATUSSYSTEM3.registeredShuffle.size());
+    Assert.assertEquals(4, STATUSSYSTEM1.registeredShuffleCount());
+    Assert.assertEquals(4, STATUSSYSTEM2.registeredShuffleCount());
+    Assert.assertEquals(4, STATUSSYSTEM3.registeredShuffleCount());
 
     List<String> shuffleKeys1 = new ArrayList<>();
     shuffleKeys1.add(shuffleKeysAll.get(0));
 
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeys1, getNewReqeustId());
     Thread.sleep(3000L);
-    Assert.assertEquals(3, STATUSSYSTEM1.registeredShuffle.size());
-    Assert.assertEquals(3, STATUSSYSTEM2.registeredShuffle.size());
-    Assert.assertEquals(3, STATUSSYSTEM3.registeredShuffle.size());
+    Assert.assertEquals(3, STATUSSYSTEM1.registeredShuffleCount());
+    Assert.assertEquals(3, STATUSSYSTEM2.registeredShuffleCount());
+    Assert.assertEquals(3, STATUSSYSTEM3.registeredShuffleCount());
 
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeysAll, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertTrue(STATUSSYSTEM1.registeredShuffle.isEmpty());
-    Assert.assertTrue(STATUSSYSTEM2.registeredShuffle.isEmpty());
-    Assert.assertTrue(STATUSSYSTEM3.registeredShuffle.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM1.registeredShuffleCount() == 0);
+    Assert.assertTrue(STATUSSYSTEM2.registeredShuffleCount() == 0);
+    Assert.assertTrue(STATUSSYSTEM3.registeredShuffleCount() == 0);
   }
 
   @Test
