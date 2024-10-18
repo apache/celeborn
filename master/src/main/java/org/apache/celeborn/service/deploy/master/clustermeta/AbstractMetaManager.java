@@ -29,7 +29,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
-import scala.Int;
 import scala.Option;
 import scala.Tuple2;
 
@@ -134,7 +133,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       Tuple2<String, Object> appIdShuffleId = Utils.splitShuffleKey(shuffleKey);
       String appId = appIdShuffleId._1;
       if (registeredAppAndShuffles.containsKey(appId)) {
-        registeredAppAndShuffles.get(appId).remove((Int) appIdShuffleId._2);
+        registeredAppAndShuffles.get(appId).remove(appIdShuffleId._2);
       }
     }
   }

@@ -42,6 +42,7 @@ class ApplicationHeartbeater(
     registeredShuffles: ConcurrentHashMap.KeySetView[Int, java.lang.Boolean]) extends Logging {
 
   private var stopped = false
+  private val reviseLostShuffles = conf.reviseLostShufflesEnabled
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
@@ -75,24 +76,27 @@ class ApplicationHeartbeater(
               logDebug("Successfully send app heartbeat.")
               workerStatusTracker.handleHeartbeatResponse(response)
               // revise shuffle id if there are lost shuffles
-              val masterRecordedShuffleIds = response.registeredShuffles
-              val localShuffleIds = new util.ArrayList[Integer]()
-              registeredShuffles.forEach(new Consumer[Int] {
-                override def accept(key: Int): Unit = {
-                  localShuffleIds.add(key)
-                }
-              })
-              localShuffleIds.removeAll(masterRecordedShuffleIds)
-              if (!localShuffleIds.isEmpty) {
-                logWarning(s"There are lost shuffle found ${StringUtils.join(localShuffleIds, ",")}, revise lost shuffles.")
-                val reviseLostShufflesResponse = masterClient.askSync(
-                  ReviseLostShuffles.apply(appId, localShuffleIds, MasterClient.genRequestId()),
-                  classOf[PbReviseLostShufflesResponse])
-                if (!reviseLostShufflesResponse.getSuccess) {
+              if (reviseLostShuffles) {
+                val masterRecordedShuffleIds = response.registeredShuffles
+                val localOnlyShuffles = new util.ArrayList[Integer]()
+                registeredShuffles.forEach(new Consumer[Int] {
+                  override def accept(key: Int): Unit = {
+                    localOnlyShuffles.add(key)
+                  }
+                })
+                localOnlyShuffles.removeAll(masterRecordedShuffleIds)
+                if (!localOnlyShuffles.isEmpty) {
                   logWarning(
-                    s"Revise lost shuffles failed. Error message :${reviseLostShufflesResponse.getMessage}")
-                } else {
-                  logInfo("Revise lost shuffles succeed.")
+                    s"There are lost shuffle found ${StringUtils.join(localOnlyShuffles, ",")}, revise lost shuffles.")
+                  val reviseLostShufflesResponse = masterClient.askSync(
+                    ReviseLostShuffles.apply(appId, localOnlyShuffles, MasterClient.genRequestId()),
+                    classOf[PbReviseLostShufflesResponse])
+                  if (!reviseLostShufflesResponse.getSuccess) {
+                    logWarning(
+                      s"Revise lost shuffles failed. Error message :${reviseLostShufflesResponse.getMessage}")
+                  } else {
+                    logInfo("Revise lost shuffles succeed.")
+                  }
                 }
               }
             }
