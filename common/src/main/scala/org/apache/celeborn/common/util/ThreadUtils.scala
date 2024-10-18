@@ -399,9 +399,7 @@ object ThreadUtils {
     thread
   }
 
-  def newDeamonThread(
-      runnable: Runnable,
-      name: String): Thread = {
+  def newDeamonThread(runnable: Runnable, name: String): Thread = {
     val thread = newThread(runnable, name)
     thread.setDaemon(true)
     thread
