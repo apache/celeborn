@@ -275,7 +275,7 @@ function sbt_build_service {
 
   "${BUILD_COMMAND[@]}"
 
-  $SBT "celeborn-master/copyJars;celeborn-worker/copyJars"
+  $SBT "celeborn-master/copyJars;celeborn-worker/copyJars;celeborn-cli/copyJars"
 
   mkdir -p "$DIST_DIR/jars"
   mkdir -p "$DIST_DIR/master-jars"
