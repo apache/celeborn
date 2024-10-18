@@ -501,6 +501,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             && workerInfo.getWorkerStatus().getState() == PbWorkerStatus.State.Normal);
   }
 
+  public Set<WorkerInfo> getAvailableWorkers() {
+    return workers.stream().filter(this::isWorkerAvailable).collect(Collectors.toSet());
+  }
+
   public void updateApplicationMeta(ApplicationMeta applicationMeta) {
     applicationMetas.putIfAbsent(applicationMeta.appId(), applicationMeta);
   }
