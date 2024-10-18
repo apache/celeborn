@@ -42,6 +42,7 @@ COPY conf /opt/celeborn/conf
 COPY jars /opt/celeborn/jars
 COPY master-jars /opt/celeborn/master-jars
 COPY worker-jars /opt/celeborn/worker-jars
+COPY cli-jars /opt/celeborn/cli-jars
 COPY RELEASE /opt/celeborn/RELEASE
 
 RUN chown -R celeborn:celeborn ${CELEBORN_HOME} && \
