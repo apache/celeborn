@@ -52,24 +52,24 @@ public class ApplicationApi extends BaseApi {
   /**
    * 
    * Delete resource of an app
-   * @param deleteApp  (optional)
+   * @param app  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse deleteApp(String deleteApp) throws ApiException {
-    return this.deleteApp(deleteApp, Collections.emptyMap());
+  public HandleResponse deleteApp(String app) throws ApiException {
+    return this.deleteApp(app, Collections.emptyMap());
   }
 
 
   /**
    * 
    * Delete resource of an app
-   * @param deleteApp  (optional)
+   * @param app  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse deleteApp(String deleteApp, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse deleteApp(String app, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = null;
     
     // create path and map variables
@@ -83,7 +83,7 @@ public class ApplicationApi extends BaseApi {
     Map<String, String> localVarCookieParams = new HashMap<String, String>();
     Map<String, Object> localVarFormParams = new HashMap<String, Object>();
 
-    localVarQueryParams.addAll(apiClient.parameterToPair("deleteApp", deleteApp));
+    localVarQueryParams.addAll(apiClient.parameterToPair("app", app));
     
     localVarHeaderParams.putAll(additionalHeaders);
 
@@ -323,26 +323,26 @@ public class ApplicationApi extends BaseApi {
   /**
    * 
    * Revise lost shuffles or delete shuffles of an application.
-   * @param appId  (optional)
+   * @param app  (optional)
    * @param shuffleIds  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse reviseLostShuffles(String appId, String shuffleIds) throws ApiException {
-    return this.reviseLostShuffles(appId, shuffleIds, Collections.emptyMap());
+  public HandleResponse reviseLostShuffles(String app, String shuffleIds) throws ApiException {
+    return this.reviseLostShuffles(app, shuffleIds, Collections.emptyMap());
   }
 
 
   /**
    * 
    * Revise lost shuffles or delete shuffles of an application.
-   * @param appId  (optional)
+   * @param app  (optional)
    * @param shuffleIds  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse reviseLostShuffles(String appId, String shuffleIds, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse reviseLostShuffles(String app, String shuffleIds, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = null;
     
     // create path and map variables
@@ -356,7 +356,7 @@ public class ApplicationApi extends BaseApi {
     Map<String, String> localVarCookieParams = new HashMap<String, String>();
     Map<String, Object> localVarFormParams = new HashMap<String, Object>();
 
-    localVarQueryParams.addAll(apiClient.parameterToPair("appId", appId));
+    localVarQueryParams.addAll(apiClient.parameterToPair("app", app));
     localVarQueryParams.addAll(apiClient.parameterToPair("shuffleIds", shuffleIds));
     
     localVarHeaderParams.putAll(additionalHeaders);

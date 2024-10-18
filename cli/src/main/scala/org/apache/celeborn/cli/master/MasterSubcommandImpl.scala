@@ -224,13 +224,13 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   private[master] def runShowContainerInfo: ContainerInfo = defaultApi.getContainerInfo
 
   override private[master] def reviseLostShuffles: HandleResponse = {
-    val appId = reviseLostShuffleOptions.appId
+    val app = commonOptions.app
     val shuffleIds = reviseLostShuffleOptions.shuffleIds
-    applicationApi.reviseLostShuffles(appId, shuffleIds)
+    applicationApi.reviseLostShuffles(app, shuffleIds)
   }
 
   override private[master] def deleteApp: HandleResponse = {
-    val app = masterOptions.app
+    val app = commonOptions.app
     applicationApi.deleteApp(app)
   }
 }

@@ -277,7 +277,7 @@ paths:
       operationId: reviseLostShuffles
       description: Revise lost shuffles or delete shuffles of an application.
       parameters:
-        - name: appId
+        - name: app
           in: query
           required: false
           schema:

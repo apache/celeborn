@@ -71,4 +71,11 @@ class CommonOptions {
     paramLabel = "username",
     description = Array("The username of the TENANT_USER level."))
   private[cli] var configName: String = _
+
+  @Option(
+    names = Array("--app"),
+    paramLabel = "appId",
+    description = Array("The application Id."))
+  private[cli] var app: String = _
+
 }

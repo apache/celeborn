@@ -120,9 +120,4 @@ final class MasterOptions {
     names = Array("--delete-app"),
     description = Array("Delete resource of an application."))
   private[master] var deleteApp: Boolean = _
-
-  @Option(
-    names = Array("--app"),
-    description = Array("Delete resource of an application."))
-  private[master] var app: String = _
 }

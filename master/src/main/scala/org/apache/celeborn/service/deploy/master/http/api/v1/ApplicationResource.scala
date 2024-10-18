@@ -106,7 +106,7 @@ class ApplicationResource extends ApiRequestContext {
       "Revise lost shuffles")
   @GET
   def reviseLostShuffles(
-      @QueryParam("appId") appId: String,
+      @QueryParam("app") appId: String,
       @QueryParam("shuffleIds") shufflesIds: String): HandleResponse = {
     val shuffles = new util.ArrayList[Integer]()
     shufflesIds.split(",").foreach { p =>
