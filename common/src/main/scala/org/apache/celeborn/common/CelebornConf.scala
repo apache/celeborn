@@ -1163,7 +1163,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def readBufferTargetUpdateInterval: Long = get(WORKER_READBUFFER_TARGET_UPDATE_INTERVAL)
   def readBufferTargetNotifyThreshold: Long = get(WORKER_READBUFFER_TARGET_NOTIFY_THRESHOLD)
   def readBuffersToTriggerReadMin: Int = get(WORKER_READBUFFERS_TOTRIGGERREAD_MIN)
-  def readBufferDispatcherCheckThreadInterval: Long = get(WORKER_READBUFFERS_CHECK_THREAD_INTERVAL)
+  def readBufferDispatcherCheckThreadInterval: Long = get(WORKER_READBUFFER_CHECK_THREAD_INTERVAL)
   def workerStoragePolicyCreateFilePolicy: Option[List[String]] =
     get(WORKER_STORAGE_CREATE_FILE_POLICY).map {
       policy => policy.split(",").map(_.trim).toList
@@ -4013,7 +4013,7 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(32)
 
-  val WORKER_READBUFFERS_CHECK_THREAD_INTERVAL: ConfigEntry[Long] =
+  val WORKER_READBUFFER_CHECK_THREAD_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.worker.readBufferDispatcherThreadWatchdog.checkInterval")
       .categories("worker")
       .version("0.5.2")
