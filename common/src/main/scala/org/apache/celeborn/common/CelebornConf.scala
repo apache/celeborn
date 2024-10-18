@@ -885,6 +885,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def quotaUserSpecificTenant: String = get(QUOTA_USER_SPECIFIC_TENANT)
   def quotaUserSpecificUserName: String = get(QUOTA_USER_SPECIFIC_USERNAME)
 
+  def quotaLowWatermark: Double = get(QUOTA_LOW_WATERMARK)
+
   // //////////////////////////////////////////////////////
   //                      Client                         //
   // //////////////////////////////////////////////////////
@@ -5308,6 +5310,16 @@ object CelebornConf extends Logging {
       .version("0.5.0")
       .longConf
       .createWithDefault(Long.MaxValue)
+
+  val QUOTA_LOW_WATERMARK: ConfigEntry[Double] =
+    buildConf("celeborn.quota.lowWatermark")
+      .categories("quota")
+      .dynamic
+      .doc("Quota configuration for quota lowWatermark.")
+      .version("0.6.0")
+      .doubleConf
+      .checkValue(v => v > 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
+      .createWithDefault(1.0)
 
   val COLUMNAR_SHUFFLE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.columnarShuffle.enabled")
