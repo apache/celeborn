@@ -22,9 +22,9 @@ import java.nio.ByteBuffer
 import java.security.SecureRandom
 import java.util
 import java.util.{function, List => JList}
-import java.util.concurrent.{Callable, ConcurrentHashMap, LinkedBlockingQueue, ScheduledFuture, TimeUnit}
+import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.function.Consumer
+import java.util.function.{BiConsumer, Consumer}
 
 import scala.collection.JavaConverters._
 import scala.collection.generic.CanBuildFrom
@@ -54,7 +54,6 @@ import org.apache.celeborn.common.rpc.{ClientSaslContextBuilder, RpcSecurityCont
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
-import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
 import org.apache.celeborn.common.util.Utils.UNKNOWN_APP_SHUFFLE_ID
 
@@ -210,7 +209,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       conf,
       masterClient,
       () => commitManager.commitMetrics(),
-      workerStatusTracker)
+      workerStatusTracker,
+      reason => cancelAllActiveStages(reason))
   private val changePartitionManager = new ChangePartitionManager(conf, this)
   private val releasePartitionManager = new ReleasePartitionManager(conf, this)
 
@@ -1762,6 +1762,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     appShuffleDeterminateMap.put(appShuffleId, determinate)
   }
 
+  @volatile private var cancelShuffleCallback: Option[BiConsumer[Integer, String]] = None
+  def registerCancelShuffleCallback(callback: BiConsumer[Integer, String]): Unit = {
+    cancelShuffleCallback = Some(callback)
+  }
+
   // Initialize at the end of LifecycleManager construction.
   initialize()
 
@@ -1780,4 +1785,16 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     rnd.nextBytes(secretBytes)
     JavaUtils.bytesToString(ByteBuffer.wrap(secretBytes))
   }
+
+  def cancelAllActiveStages(reason: String): Unit = cancelShuffleCallback match {
+    case Some(c) =>
+      shuffleAllocatedWorkers
+        .asScala
+        .keys
+        .filter(!commitManager.isStageEnd(_))
+        .foreach(c.accept(_, reason))
+
+    case _ =>
+  }
+
 }
