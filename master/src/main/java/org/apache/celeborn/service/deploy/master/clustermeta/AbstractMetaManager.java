@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
+import scala.Int;
 import scala.Option;
 import scala.Tuple2;
 
@@ -129,7 +130,13 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateBatchUnregisterShuffleMeta(List<String> shuffleKeys) {
-    registeredShuffle.removeAll(shuffleKeys);
+    for (String shuffleKey : shuffleKeys) {
+      Tuple2<String, Object> appIdShuffleId = Utils.splitShuffleKey(shuffleKey);
+      String appId = appIdShuffleId._1;
+      if (registeredAppAndShuffles.containsKey(appId)) {
+        registeredAppAndShuffles.get(appId).remove((Int) appIdShuffleId._2);
+      }
+    }
   }
 
   public void updateAppHeartbeatMeta(String appId, long time, long totalWritten, long fileCount) {
