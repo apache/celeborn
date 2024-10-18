@@ -66,6 +66,7 @@ class ReadBufferDispactherSuite extends CelebornFunSuite {
   test("Test check thread alive") {
     val mockedMemoryManager = mock(classOf[MemoryManager])
     val conf = new CelebornConf()
+    conf.set("celeborn.worker.readBufferDispatcherThreadWatchdog.checkInterval", "100ms")
     val readBufferDispatcher = new ReadBufferDispatcher(mockedMemoryManager, conf)
     val threadId1 = readBufferDispatcher.dispatcherThread.get().getId
     readBufferDispatcher.stopFlag = true
