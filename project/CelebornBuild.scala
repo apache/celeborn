@@ -23,11 +23,11 @@ import scala.util.Properties
 import scala.xml._
 import scala.xml.transform._
 
+import com.github.sbt.git.SbtGit.GitKeys._
 import org.openapitools.generator.sbt.plugin.OpenApiGeneratorPlugin
 import org.openapitools.generator.sbt.plugin.OpenApiGeneratorPlugin.autoImport._
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtprotoc.ProtocPlugin.autoImport._
-import com.github.sbt.git.SbtGit.GitKeys._
 
 import sbt._
 import sbt.Keys._
