@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.network.sasl.SecretRegistry;
 import org.apache.celeborn.common.network.sasl.SecretRegistryImpl;
-import org.apache.celeborn.service.deploy.master.clustermeta.IMetadataHandler;
+import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
 
 /**
  * A simple implementation of {@link SecretRegistry} that stores secrets in memory and Ratis. This
@@ -33,7 +33,7 @@ import org.apache.celeborn.service.deploy.master.clustermeta.IMetadataHandler;
 public class MasterSecretRegistryImpl extends SecretRegistryImpl {
 
   private static final Logger LOG = LoggerFactory.getLogger(MasterSecretRegistryImpl.class);
-  private IMetadataHandler metadataHandler;
+  private AbstractMetaManager metadataHandler;
 
   @Override
   public void register(String appId, String secret) {
@@ -44,7 +44,32 @@ public class MasterSecretRegistryImpl extends SecretRegistryImpl {
     }
   }
 
-  void setMetadataHandler(IMetadataHandler metadataHandler) {
+  @Override
+  public String getSecretKey(String appId) {
+    String secret = super.getSecretKey(appId);
+    if (secret == null && metadataHandler != null) {
+      LOG.info("Fetching secret from AbstractMetaManager for appId: {}", appId);
+      ApplicationMeta applicationMeta = metadataHandler.applicationMetas.get(appId);
+      if (applicationMeta != null) {
+        secret = applicationMeta.secret();
+      } else {
+        LOG.warn("Secret not found from AbstractMetaManager for appId: {}", appId);
+      }
+    }
+    return secret;
+  }
+
+  @Override
+  public boolean isRegistered(String appId) {
+    boolean isRegistered = super.isRegistered(appId);
+    if (!isRegistered && metadataHandler != null) {
+      LOG.info("Fetching registration status from AbstractMetaManager for appId: {}", appId);
+      isRegistered = metadataHandler.applicationMetas.containsKey(appId);
+    }
+    return isRegistered;
+  }
+
+  void setMetadataHandler(AbstractMetaManager metadataHandler) {
     this.metadataHandler = metadataHandler;
   }
 }
