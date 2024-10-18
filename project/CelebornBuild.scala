@@ -27,6 +27,7 @@ import org.openapitools.generator.sbt.plugin.OpenApiGeneratorPlugin
 import org.openapitools.generator.sbt.plugin.OpenApiGeneratorPlugin.autoImport._
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtprotoc.ProtocPlugin.autoImport._
+import com.github.sbt.git.SbtGit.GitKeys._
 
 import sbt._
 import sbt.Keys._
@@ -242,7 +243,10 @@ object CelebornCommonSettings {
     fork := true,
     scalacOptions ++= Seq("-target:jvm-1.8"),
     javacOptions ++= Seq("-encoding", UTF_8.name(), "-source", "1.8", "-g"),
-
+    Compile / packageBin / packageOptions +=  Package.ManifestAttributes(
+      "Build-Jdk-Spec" -> System.getProperty("java.version"),
+      "Git-Head-Commit" -> gitHeadCommit.value.get),
+  
     // -target cannot be passed as a parameter to javadoc. See https://github.com/sbt/sbt/issues/355
     Compile / compile / javacOptions ++= Seq("-target", "1.8"),
 
