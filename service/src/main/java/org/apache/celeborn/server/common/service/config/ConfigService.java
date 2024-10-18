@@ -108,6 +108,13 @@ public interface ConfigService {
    */
   void refreshCache() throws IOException;
 
+  /**
+   * Registers a listener to be called when the configuration is updated.
+   *
+   * @param listener the listener to be registered
+   */
+  void registerListenerOnConfigUpdate(Runnable listener);
+
   /** Shutdowns configuration management service. */
   void shutdown();
 }
