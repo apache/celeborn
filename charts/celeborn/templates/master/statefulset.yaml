@@ -101,10 +101,6 @@ spec:
         - name: {{ $.Release.Name }}-master-vol-{{ $index }}
           mountPath: {{ .mountPath }}
         {{- end }}
-        {{- with .Values.resources.master }}
-        resources:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

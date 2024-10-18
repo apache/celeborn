@@ -1,0 +1,42 @@
+{{- /*
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+  this work for additional information regarding copyright ownership.
+  The ASF licenses this file to You under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with
+  the License.  You may obtain a copy of the License at
+  
+  http://www.apache.org/licenses/LICENSE-2.0
+  
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+  */ -}}
+
+{{- if .Values.autoscaling.enabled -}}
+{{- if eq ( toString ( get .Values.celeborn "celeborn.metrics.enabled" | default "true" )) "true" -}}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "celeborn.workerStatefulSetName" . }}-autoscaler
+  labels:
+    {{- include "celeborn.labels" . | nindent 4 }}
+spec:
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
+  minReplicas: {{ .Values.workerReplicas }}
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: {{ include "celeborn.workerStatefulSetName" . }}
+  {{- if .Values.autoscaling.metrics }}
+  metrics:
+    {{- toYaml .Values.autoscaling.metrics | nindent 4}}
+  {{- end }}
+  {{- if .Values.autoscaling.behavior }}
+  behavior:
+    {{- toYaml .Values.autoscaling.behavior | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
