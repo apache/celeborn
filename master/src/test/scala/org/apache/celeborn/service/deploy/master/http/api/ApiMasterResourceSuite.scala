@@ -22,7 +22,7 @@ import javax.ws.rs.client.Entity
 import javax.ws.rs.core.{Form, MediaType}
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.ApiBaseResourceSuite
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
@@ -51,11 +51,13 @@ class ApiMasterResourceSuite extends ApiBaseResourceSuite {
 
     val masterArgs = new MasterArguments(args, celebornConf)
     master = new Master(celebornConf, masterArgs)
-    new Thread() {
-      override def run(): Unit = {
-        master.initialize()
-      }
-    }.start()
+    ThreadUtils.newThread(
+      new Runnable {
+        override def run(): Unit = {
+          master.initialize()
+        }
+      },
+      "master-init-thread").start()
     super.beforeAll()
   }
 

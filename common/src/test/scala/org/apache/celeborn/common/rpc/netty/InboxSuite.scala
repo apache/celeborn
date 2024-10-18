@@ -26,6 +26,7 @@ import org.scalatest.BeforeAndAfter
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.rpc.{RpcAddress, TestRpcEndpoint}
+import org.apache.celeborn.common.util.ThreadUtils
 
 class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
 
@@ -94,15 +95,17 @@ class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
     val exitLatch = new CountDownLatch(10)
 
     for (_ <- 0 until 10) {
-      new Thread {
-        override def run(): Unit = {
-          for (_ <- 0 until 100) {
-            val message = OneWayMessage(null, "hi")
-            inbox.post(message)
+      ThreadUtils.newThread(
+        new Runnable {
+          override def run(): Unit = {
+            for (_ <- 0 until 100) {
+              val message = OneWayMessage(null, "hi")
+              inbox.post(message)
+            }
+            exitLatch.countDown()
           }
-          exitLatch.countDown()
-        }
-      }.start()
+        },
+        "inbox-test-thread").start()
     }
     // Try to process some messages
     inbox.process(dispatcher)
