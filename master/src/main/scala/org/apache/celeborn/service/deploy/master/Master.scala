@@ -120,6 +120,7 @@ private[celeborn] class Master(
         Some(externalSecurityContext),
         None)
     }
+  metricsSystem.registerSource(rpcEnv.rpcSource())
 
   // Visible for testing
   private[master] var internalRpcEnvInUse: RpcEnv =
