@@ -866,14 +866,15 @@ object Utils extends Logging {
       threadName: String,
       inputStream: InputStream,
       processLine: String => Unit): Thread = {
-    val t = new Thread(threadName) {
-      override def run(): Unit = {
-        for (line <- Source.fromInputStream(inputStream).getLines()) {
-          processLine(line)
+    val t = ThreadUtils.newDaemonThread(
+      new Runnable {
+        override def run(): Unit = {
+          for (line <- Source.fromInputStream(inputStream).getLines()) {
+            processLine(line)
+          }
         }
-      }
-    }
-    t.setDaemon(true)
+      },
+      threadName)
     t.start()
     t
   }

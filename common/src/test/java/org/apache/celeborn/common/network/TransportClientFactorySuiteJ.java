@@ -35,6 +35,7 @@ import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.common.util.ThreadUtils;
 
 public class TransportClientFactorySuiteJ {
 
@@ -94,7 +95,7 @@ public class TransportClientFactorySuiteJ {
     // Launch a bunch of threads to create new clients.
     for (int i = 0; i < attempts.length; i++) {
       attempts[i] =
-          new Thread(
+          ThreadUtils.newThread(
               () -> {
                 try {
                   TransportClient client = factory.createClient(getLocalHost(), server1.getPort());
@@ -105,7 +106,8 @@ public class TransportClientFactorySuiteJ {
                 } catch (InterruptedException e) {
                   throw new RuntimeException(e);
                 }
-              });
+              },
+              "test-thread");
 
       if (concurrent) {
         attempts[i].start();

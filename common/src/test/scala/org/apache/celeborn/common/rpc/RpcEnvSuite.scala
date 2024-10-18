@@ -383,13 +383,15 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
         })
 
       (0 until 10) foreach { _ =>
-        new Thread {
-          override def run(): Unit = {
-            (0 until 100) foreach { _ =>
-              endpointRef.send("Hello")
+        ThreadUtils.newThread(
+          new Runnable {
+            override def run(): Unit = {
+              (0 until 100) foreach { _ =>
+                endpointRef.send("Hello")
+              }
             }
-          }
-        }.start()
+          },
+          "rpc-env-test-thread").start()
       }
 
       eventually(timeout(5.seconds), interval(5.milliseconds)) {
