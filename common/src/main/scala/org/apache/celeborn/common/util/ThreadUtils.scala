@@ -393,6 +393,18 @@ object ThreadUtils {
       pool.shutdownNow()
     }
   }
+
+  def newThread(runnable: Runnable, name: String): Thread = {
+    val thread = new Thread(runnable, name)
+    thread.setUncaughtExceptionHandler(new ThreadExceptionHandler(name))
+    thread
+  }
+
+  def newDaemonThread(runnable: Runnable, name: String): Thread = {
+    val thread = newThread(runnable, name)
+    thread.setDaemon(true)
+    thread
+  }
 }
 
 class ThreadExceptionHandler(executorService: String)

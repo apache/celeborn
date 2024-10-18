@@ -35,6 +35,8 @@ import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.util.ThreadUtils;
+
 /**
  * A {@link TrustManager} implementation that reloads its configuration when the truststore file on
  * disk changes. This implementation is based off of the
@@ -90,8 +92,7 @@ public class ReloadingX509TrustManager implements X509TrustManager, Runnable {
 
   /** Starts the reloader thread. */
   public void init() {
-    reloader = new Thread(this, "Truststore reloader thread");
-    reloader.setDaemon(true);
+    reloader = ThreadUtils.newDaemonThread(this, "Truststore reloader thread");
     reloader.start();
   }
 

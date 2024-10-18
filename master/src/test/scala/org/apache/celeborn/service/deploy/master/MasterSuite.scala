@@ -18,15 +18,14 @@
 package org.apache.celeborn.service.deploy.master
 
 import com.google.common.io.Files
-import org.mockito.Mockito.{mock, times, verify}
+import org.mockito.Mockito.mock
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.{PbCheckForWorkerTimeout, PbRegisterWorker}
-import org.apache.celeborn.common.protocol.message.ControlMessages.{ApplicationLost, HeartbeatFromApplication}
-import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, ThreadUtils, Utils}
 
 class MasterSuite extends AnyFunSuite
   with BeforeAndAfterAll
@@ -54,11 +53,13 @@ class MasterSuite extends AnyFunSuite
 
     val masterArgs = new MasterArguments(args, conf)
     val master = new Master(conf, masterArgs)
-    new Thread() {
-      override def run(): Unit = {
-        master.initialize()
-      }
-    }.start()
+    ThreadUtils.newThread(
+      new Runnable {
+        override def run(): Unit = {
+          master.initialize()
+        }
+      },
+      "master-init-thread").start()
     Thread.sleep(5000L)
     master.stop(CelebornExitKind.EXIT_IMMEDIATELY)
     master.rpcEnv.shutdown()
@@ -76,11 +77,13 @@ class MasterSuite extends AnyFunSuite
 
     val masterArgs = new MasterArguments(args, conf)
     val master = new Master(conf, masterArgs)
-    new Thread() {
-      override def run(): Unit = {
-        master.initialize()
-      }
-    }.start()
+    ThreadUtils.newThread(
+      new Runnable {
+        override def run(): Unit = {
+          master.initialize()
+        }
+      },
+      "master-init-thread").start()
     Thread.sleep(5000L)
     master.receive.applyOrElse(
       PbCheckForWorkerTimeout.newBuilder().build(),

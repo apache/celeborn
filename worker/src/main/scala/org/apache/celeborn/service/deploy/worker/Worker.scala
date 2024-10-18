@@ -933,25 +933,27 @@ private[celeborn] class Worker(
   }
 
   ShutdownHookManager.get().addShutdownHook(
-    new Thread(new Runnable {
-      override def run(): Unit = {
-        logInfo("Shutdown hook called.")
-        workerStatusManager.exitEventType match {
-          case WorkerEventType.Graceful =>
-            shutdownGracefully()
-          case WorkerEventType.Decommission =>
-            decommissionWorker()
-          case _ =>
-            exitImmediately()
-        }
+    ThreadUtils.newThread(
+      new Runnable {
+        override def run(): Unit = {
+          logInfo("Shutdown hook called.")
+          workerStatusManager.exitEventType match {
+            case WorkerEventType.Graceful =>
+              shutdownGracefully()
+            case WorkerEventType.Decommission =>
+              decommissionWorker()
+            case _ =>
+              exitImmediately()
+          }
 
-        if (workerStatusManager.exitEventType == WorkerEventType.Graceful) {
-          stop(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
-        } else {
-          stop(CelebornExitKind.EXIT_IMMEDIATELY)
+          if (workerStatusManager.exitEventType == WorkerEventType.Graceful) {
+            stop(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
+          } else {
+            stop(CelebornExitKind.EXIT_IMMEDIATELY)
+          }
         }
-      }
-    }),
+      },
+      "worker-shutdown-hook-thread"),
     WORKER_SHUTDOWN_PRIORITY)
 
   @VisibleForTesting
