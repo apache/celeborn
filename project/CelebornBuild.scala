@@ -245,7 +245,7 @@ object CelebornCommonSettings {
     javacOptions ++= Seq("-encoding", UTF_8.name(), "-source", "1.8", "-g"),
     Compile / packageBin / packageOptions +=  Package.ManifestAttributes(
       "Build-Jdk-Spec" -> System.getProperty("java.version"),
-      "Git-Head-Commit" -> gitHeadCommit.value.get),
+      "Git-Head-Commit" -> gitHeadCommit.value.getOrElse("N/A")),
   
     // -target cannot be passed as a parameter to javadoc. See https://github.com/sbt/sbt/issues/355
     Compile / compile / javacOptions ++= Seq("-target", "1.8"),
