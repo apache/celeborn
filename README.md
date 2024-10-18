@@ -100,7 +100,8 @@ General package layout:
     ├── conf                            
     ├── jars           // common jars for master and worker                 
     ├── master-jars                     
-    ├── worker-jars                     
+    ├── worker-jars                  
+    ├── cli-jars     
     ├── spark          // Spark client jars if spark profiles are activated
     ├── flink          // Flink client jars if flink profiles are activated
     ├── mr             // MapReduce client jars if mr profile is activated
