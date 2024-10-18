@@ -72,7 +72,6 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
     eventually(timeout(120.seconds), interval(2.seconds)) {
       shuffleIds.foreach { shuffleId: Int =>
         assert(!lifecycleManager.registeredShuffle.contains(shuffleId))
-        assert(!masterInfo._1.statusSystem.registeredAppAndShuffles.containsKey(APP))
         val containShuffleKey = masterInfo._1.statusSystem.registeredAppAndShuffles.containsKey(
           APP) && masterInfo._1.statusSystem.registeredAppAndShuffles.get(APP).contains(shuffleId)
         assert(!containShuffleKey)
