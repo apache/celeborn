@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
+import java.io.IOException;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -24,6 +26,7 @@ import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.server.common.service.config.FsConfigServiceImpl;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 
 public class TestCongestionController {
@@ -37,19 +40,27 @@ public class TestCongestionController {
 
   @Before
   public void initialize() {
+    CelebornConf celebornConf = new CelebornConf();
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_DISK_BUFFER_HIGH_WATERMARK().key(), "1000");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_DISK_BUFFER_LOW_WATERMARK().key(), "500");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_HIGH_WATERMARK().key(), "20000");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_LOW_WATERMARK().key(), "10000");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_HIGH_WATERMARK().key(),
+        "20000");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK().key(), "10000");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_USER_INACTIVE_INTERVAL(), userInactiveTimeMills);
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_CHECK_INTERVAL(), checkIntervalTimeMills);
     // Make sampleTimeWindow a bit larger in case the tests run time exceed this window.
     controller =
-        new CongestionController(
-            source,
-            10,
-            1000,
-            500,
-            20000,
-            10000,
-            20000,
-            10000,
-            userInactiveTimeMills,
-            checkIntervalTimeMills) {
+        new CongestionController(source, 10, celebornConf, null) {
           @Override
           public long getTotalPendingBytes() {
             return pendingBytes;
@@ -151,9 +162,24 @@ public class TestCongestionController {
 
   @Test
   public void testUserLevelTrafficQuota() throws InterruptedException {
+    CelebornConf celebornConf = new CelebornConf();
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_DISK_BUFFER_HIGH_WATERMARK().key(), "100000");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_DISK_BUFFER_LOW_WATERMARK().key(), "50000");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_HIGH_WATERMARK().key(), "500");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_LOW_WATERMARK().key(), "400");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_HIGH_WATERMARK().key(), "1200");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK().key(), "1000");
+    celebornConf.set(CelebornConf.WORKER_CONGESTION_CONTROL_USER_INACTIVE_INTERVAL(), 120L * 1000);
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_CHECK_INTERVAL(), checkIntervalTimeMills);
     CongestionController controller1 =
-        new CongestionController(
-            source, 10, 100000, 50000, 500, 400, 1200, 1000, 120L * 1000, checkIntervalTimeMills) {
+        new CongestionController(source, 10, celebornConf, null) {
           @Override
           public long getTotalPendingBytes() {
             return 0;
@@ -212,9 +238,24 @@ public class TestCongestionController {
 
   @Test
   public void testWorkerLevelTrafficQuota() throws InterruptedException {
+    CelebornConf celebornConf = new CelebornConf();
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_DISK_BUFFER_HIGH_WATERMARK().key(), "100000");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_DISK_BUFFER_LOW_WATERMARK().key(), "50000");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_HIGH_WATERMARK().key(), "500");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_LOW_WATERMARK().key(), "400");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_HIGH_WATERMARK().key(), "800");
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK().key(), "700");
+    celebornConf.set(CelebornConf.WORKER_CONGESTION_CONTROL_USER_INACTIVE_INTERVAL(), 120L * 1000);
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_CHECK_INTERVAL(), checkIntervalTimeMills);
     CongestionController controller1 =
-        new CongestionController(
-            source, 10, 100000, 50000, 500, 400, 800, 700, 120 * 1000, checkIntervalTimeMills) {
+        new CongestionController(source, 10, celebornConf, null) {
           @Override
           public long getTotalPendingBytes() {
             return 0;
@@ -251,6 +292,54 @@ public class TestCongestionController {
     Assert.assertFalse(controller1.isUserCongested(context1));
     Assert.assertFalse(controller1.isUserCongested(context2));
     controller1.close();
+  }
+
+  @Test
+  public void testDynamicConfiguration() throws IOException, InterruptedException {
+    String file1 = getClass().getResource("/dynamicConfig.yaml").getFile();
+    CelebornConf celebornConf1 = new CelebornConf();
+    celebornConf1.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_DISK_BUFFER_HIGH_WATERMARK().key(), "100000");
+    celebornConf1.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_DISK_BUFFER_LOW_WATERMARK().key(), "50000");
+    celebornConf1.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_HIGH_WATERMARK().key(), "500");
+    celebornConf1.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_LOW_WATERMARK().key(), "400");
+    celebornConf1.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_HIGH_WATERMARK().key(), "2000");
+    celebornConf1.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK().key(), "1600");
+    celebornConf1.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), file1);
+    celebornConf1.set(CelebornConf.DYNAMIC_CONFIG_REFRESH_INTERVAL(), 1000L);
+    FsConfigServiceImpl configService = new FsConfigServiceImpl(celebornConf1);
+
+    CongestionController controller1 =
+        new CongestionController(source, 10, celebornConf1, configService) {
+          @Override
+          public long getTotalPendingBytes() {
+            return 0;
+          }
+
+          @Override
+          public void trimMemoryUsage() {
+            // No op
+          }
+        };
+
+    UserIdentifier user1 = new UserIdentifier("default", "Jerry");
+    UserCongestionControlContext context1 = controller1.getUserCongestionContext(user1);
+    Assert.assertFalse(controller1.isUserCongested(context1));
+    produceBytes(controller1, user1, 600);
+    Assert.assertTrue(controller1.isUserCongested(context1));
+
+    String file2 = getClass().getResource("/dynamicConfig_2.yaml").getFile();
+    celebornConf1.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), file2);
+    celebornConf1.set(CelebornConf.DYNAMIC_CONFIG_REFRESH_INTERVAL(), 1L);
+    Thread.sleep(2001);
+
+    produceBytes(controller1, user1, 600);
+    Assert.assertFalse(controller1.isUserCongested(context1));
   }
 
   private void clearBufferStatus(CongestionController controller) {

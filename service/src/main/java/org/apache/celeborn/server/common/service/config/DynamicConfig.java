@@ -27,6 +27,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.internal.config.ConfigEntry;
 import org.apache.celeborn.common.quota.Quota;
+import org.apache.celeborn.common.quota.UserTrafficQuota;
+import org.apache.celeborn.common.quota.WorkerTrafficQuota;
 import org.apache.celeborn.common.util.Utils;
 
 /**
@@ -127,6 +129,44 @@ public abstract class DynamicConfig {
             CelebornConf.QUOTA_HDFS_FILE_COUNT(),
             Long.TYPE,
             ConfigType.STRING));
+  }
+
+  public UserTrafficQuota getUserTrafficQuota() {
+    return new UserTrafficQuota(
+        getValue(
+            CelebornConf.WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_HIGH_WATERMARK().key(),
+            CelebornConf.WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_HIGH_WATERMARK(),
+            Long.TYPE,
+            ConfigType.BYTES),
+        getValue(
+            CelebornConf.WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_LOW_WATERMARK().key(),
+            CelebornConf.WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_LOW_WATERMARK(),
+            Long.TYPE,
+            ConfigType.BYTES));
+  }
+
+  public WorkerTrafficQuota getWorkerTrafficQuota() {
+    return new WorkerTrafficQuota(
+        getValue(
+            CelebornConf.WORKER_CONGESTION_CONTROL_DISK_BUFFER_HIGH_WATERMARK().key(),
+            CelebornConf.WORKER_CONGESTION_CONTROL_DISK_BUFFER_HIGH_WATERMARK(),
+            Long.TYPE,
+            ConfigType.BYTES),
+        getValue(
+            CelebornConf.WORKER_CONGESTION_CONTROL_DISK_BUFFER_LOW_WATERMARK().key(),
+            CelebornConf.WORKER_CONGESTION_CONTROL_DISK_BUFFER_LOW_WATERMARK(),
+            Long.TYPE,
+            ConfigType.BYTES),
+        getValue(
+            CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_HIGH_WATERMARK().key(),
+            CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_HIGH_WATERMARK(),
+            Long.TYPE,
+            ConfigType.BYTES),
+        getValue(
+            CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK().key(),
+            CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK(),
+            Long.TYPE,
+            ConfigType.BYTES));
   }
 
   public Map<String, String> getConfigs() {
