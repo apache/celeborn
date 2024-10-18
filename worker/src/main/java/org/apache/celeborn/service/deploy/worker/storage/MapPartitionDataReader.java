@@ -42,7 +42,9 @@ import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.ReadData;
+import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.RpcRequest;
+import org.apache.celeborn.common.network.protocol.SubPartitionReadData;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.util.NettyUtils;
@@ -68,12 +70,12 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
   private long dataConsumingOffset;
   private volatile long currentPartitionRemainingBytes;
   private DiskFileInfo fileInfo;
-  private MapFileMeta mapFileMeta;
+  protected MapFileMeta mapFileMeta;
   private int INDEX_ENTRY_SIZE = 16;
-  private long streamId;
+  protected long streamId;
   protected final Object lock = new Object();
 
-  private final AtomicInteger credits = new AtomicInteger();
+  protected final AtomicInteger credits = new AtomicInteger();
 
   @GuardedBy("lock")
   protected final Queue<RecyclableBuffer> buffersToSend = new ArrayDeque<>();
@@ -101,8 +103,10 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
 
   private Runnable recycleStream;
 
-  private AtomicInteger numInUseBuffers = new AtomicInteger(0);
+  protected AtomicInteger numInUseBuffers = new AtomicInteger(0);
   private boolean isOpen = false;
+
+  private boolean requireSubpartitionId;
 
   public MapPartitionDataReader(
       int startPartitionIndex,
@@ -110,7 +114,8 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
       DiskFileInfo fileInfo,
       long streamId,
       Channel associatedChannel,
-      Runnable recycleStream) {
+      Runnable recycleStream,
+      boolean requireSubpartitionId) {
     this.startPartitionIndex = startPartitionIndex;
     this.endPartitionIndex = endPartitionIndex;
 
@@ -125,6 +130,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     this.fileInfo = fileInfo;
     this.mapFileMeta = ((MapFileMeta) fileInfo.getFileMeta());
     this.readFinished = false;
+    this.requireSubpartitionId = requireSubpartitionId;
   }
 
   public void open(FileChannel dataFileChannel, FileChannel indexFileChannel, long indexSize)
@@ -177,18 +183,22 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
       closeReader();
     }
 
+    tryNotifyBacklog(numDataBuffers);
+  }
+
+  protected void tryNotifyBacklog(int numDataBuffers) {
     if (numDataBuffers > 0) {
       notifyBacklog(numDataBuffers);
     }
   }
 
-  private void addBuffer(ByteBuf buffer, BufferRecycler bufferRecycler) {
+  protected void addBuffer(ByteBuf buffer, BufferRecycler bufferRecycler) {
     if (buffer == null) {
       return;
     }
     synchronized (lock) {
       if (!isReleased) {
-        buffersToSend.add(new RecyclableBuffer(buffer, bufferRecycler));
+        buffersToSend.add(new RecyclableBuffer(buffer, -1, bufferRecycler));
       } else {
         bufferRecycler.recycle(buffer);
         numInUseBuffers.decrementAndGet();
@@ -197,7 +207,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     }
   }
 
-  private RecyclableBuffer fetchBufferToSend() {
+  protected RecyclableBuffer fetchBufferToSend() {
     synchronized (lock) {
       if (!buffersToSend.isEmpty() && credits.get() > 0 && !isReleased) {
         return buffersToSend.poll();
@@ -207,7 +217,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     }
   }
 
-  private int getNumBuffersToSend() {
+  protected int getNumBuffersToSend() {
     synchronized (lock) {
       return buffersToSend.size();
     }
@@ -216,32 +226,13 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
   public synchronized void sendData() {
     RecyclableBuffer buffer;
     while (null != (buffer = fetchBufferToSend())) {
-      final RecyclableBuffer wrappedBuffer = buffer;
-      int readableBytes = wrappedBuffer.byteBuf.readableBytes();
-      if (logger.isDebugEnabled()) {
-        logger.debug("send data start: {}, {}, {}", streamId, readableBytes, getNumBuffersToSend());
-      }
-      ReadData readData = new ReadData(streamId, wrappedBuffer.byteBuf);
-      associatedChannel
-          .writeAndFlush(readData)
-          .addListener(
-              (ChannelFutureListener)
-                  future -> {
-                    try {
-                      if (!future.isSuccess()) {
-                        recycleOnError(future.cause());
-                      }
-                    } finally {
-                      logger.debug("send data end: {}, {}", streamId, readableBytes);
-                      wrappedBuffer.recycle();
-                      numInUseBuffers.decrementAndGet();
-                    }
-                  });
-
-      int currentCredit = credits.decrementAndGet();
-      logger.debug("stream {} credit {}", streamId, currentCredit);
+      sendDataInternal(buffer);
     }
 
+    tryRecycleReader();
+  }
+
+  public void tryRecycleReader() {
     boolean shouldRecycle = false;
     synchronized (lock) {
       if (isReleased) return;
@@ -255,11 +246,48 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     }
   }
 
-  private long getIndexRegionSize() {
+  public RequestMessage generateReadDataMessage(
+      long streamId, int subPartitionId, ByteBuf byteBuf) {
+    if (requireSubpartitionId) {
+      return new SubPartitionReadData(streamId, subPartitionId, byteBuf);
+    } else {
+      return new ReadData(streamId, byteBuf);
+    }
+  }
+
+  protected void sendDataInternal(RecyclableBuffer buffer) {
+    final RecyclableBuffer wrappedBuffer = buffer;
+    int readableBytes = wrappedBuffer.byteBuf.readableBytes();
+    if (logger.isDebugEnabled()) {
+      logger.debug("send data start: {}, {}, {}", streamId, readableBytes, getNumBuffersToSend());
+    }
+
+    RequestMessage readData =
+        generateReadDataMessage(streamId, wrappedBuffer.subPartitionId, wrappedBuffer.byteBuf);
+    associatedChannel
+        .writeAndFlush(readData)
+        .addListener(
+            (ChannelFutureListener)
+                future -> {
+                  try {
+                    if (!future.isSuccess()) {
+                      recycleOnError(future.cause());
+                    }
+                  } finally {
+                    logger.debug("send data end: {}, {}", streamId, readableBytes);
+                    wrappedBuffer.recycle();
+                    numInUseBuffers.decrementAndGet();
+                  }
+                });
+    int currentCredit = credits.decrementAndGet();
+    logger.debug("stream {} credit {}", streamId, currentCredit);
+  }
+
+  protected long getIndexRegionSize() {
     return mapFileMeta.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
   }
 
-  private void readHeaderOrIndexBuffer(FileChannel channel, ByteBuffer buffer, int length)
+  protected void readHeaderOrIndexBuffer(FileChannel channel, ByteBuffer buffer, int length)
       throws IOException {
     Utils.checkFileIntegrity(channel, length);
     buffer.clear();
@@ -270,7 +298,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     buffer.flip();
   }
 
-  private void readBufferIntoReadBuffer(FileChannel channel, ByteBuf buf, int length)
+  protected void readBufferIntoReadBuffer(FileChannel channel, ByteBuf buf, int length)
       throws IOException {
     Utils.checkFileIntegrity(channel, length);
     ByteBuffer tmpBuffer = ByteBuffer.allocate(length);
@@ -281,7 +309,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     buf.writeBytes(tmpBuffer);
   }
 
-  private int readBuffer(
+  protected int readBuffer(
       String filename, FileChannel channel, ByteBuffer header, ByteBuf buffer, int headerSize)
       throws IOException {
     readHeaderOrIndexBuffer(channel, header, headerSize);
@@ -297,7 +325,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     return bufferLength + headerSize;
   }
 
-  private void updateConsumingOffset() throws IOException {
+  protected void updateConsumingOffset() throws IOException {
     while (currentPartitionRemainingBytes == 0
         && (currentDataRegion < numRegions - 1 || numRemainingPartitions > 0)) {
       if (numRemainingPartitions <= 0) {
@@ -344,6 +372,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
               buffer,
               headerBuffer.capacity());
       currentPartitionRemainingBytes -= readSize;
+      dataConsumingOffset = dataFileChannel.position();
 
       logger.debug(
           "readBuffer data: {}, {}, {}, {}, {}, {}",
@@ -369,8 +398,6 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
         return prevDataRegion == currentDataRegion && currentPartitionRemainingBytes > 0;
       }
 
-      dataConsumingOffset = dataFileChannel.position();
-
       logger.debug(
           "readBuffer run: {}, {}, {}, {}",
           streamId,
@@ -391,7 +418,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     return currentPartitionRemainingBytes > 0;
   }
 
-  private void notifyBacklog(int backlog) {
+  protected void notifyBacklog(int backlog) {
     logger.debug("stream manager stream id {} backlog:{}", streamId, backlog);
     associatedChannel
         .writeAndFlush(new BacklogAnnouncement(streamId, backlog))
@@ -471,7 +498,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
         logger.debug("release reader for stream {}", streamId);
         // old client can't support BufferStreamEnd, so for new client it tells client that this
         // stream is finished.
-        if (fileInfo.isPartitionSplitEnabled() && !errorNotified)
+        if (fileInfo.isPartitionSplitEnabled() && !errorNotified) {
           associatedChannel.writeAndFlush(
               new RpcRequest(
                   TransportClient.requestId(),
@@ -484,10 +511,17 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
                                   .build()
                                   .toByteArray())
                           .toByteBuffer())));
+        }
         if (!buffersToSend.isEmpty()) {
-          numInUseBuffers.addAndGet(-1 * buffersToSend.size());
-          buffersToSend.forEach(RecyclableBuffer::recycle);
-          buffersToSend.clear();
+          int dataBufferInUse = 0;
+          RecyclableBuffer buffer;
+          while ((buffer = buffersToSend.poll()) != null) {
+            if (buffer.isDataBuffer()) {
+              dataBufferInUse++;
+            }
+            buffer.recycle();
+          }
+          numInUseBuffers.addAndGet(-1 * dataBufferInUse);
         }
         isReleased = true;
       }

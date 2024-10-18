@@ -45,12 +45,12 @@ import org.apache.celeborn.service.deploy.worker.memory.BufferRecycler;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
 // this means active data partition
-class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
+public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
   public static final Logger logger = LoggerFactory.getLogger(MapPartitionData.class);
-  private final DiskFileInfo diskFileInfo;
+  protected final DiskFileInfo diskFileInfo;
   private final MapFileMeta mapFileMeta;
-  private final ExecutorService readExecutor;
-  private final ConcurrentHashMap<Long, MapPartitionDataReader> readers =
+  protected final ExecutorService readExecutor;
+  protected final ConcurrentHashMap<Long, MapPartitionDataReader> readers =
       JavaUtils.newConcurrentHashMap();
   private FileChannel dataFileChanel;
   private FileChannel indexChannel;
@@ -59,11 +59,15 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
   private final BufferQueue bufferQueue = new BufferQueue();
   private AtomicBoolean bufferQueueInitialized = new AtomicBoolean(false);
   private MemoryManager memoryManager = MemoryManager.instance();
-  private Consumer<Long> recycleStream;
+  protected Consumer<Long> recycleStream;
   private int minReadBuffers;
   private int maxReadBuffers;
   private int minBuffersToTriggerRead;
   private AtomicBoolean hasReadingTask = new AtomicBoolean(false);
+
+  // if requireSubpartitionId is set to true, means that the buffer sent to client
+  // by the worker should be SubpartitionReadData rather than ReadData
+  protected boolean requireSubpartitionId;
 
   public MapPartitionData(
       int minReadBuffers,
@@ -72,7 +76,8 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
       int threadsPerMountPoint,
       DiskFileInfo diskFileInfo,
       Consumer<Long> recycleStream,
-      int minBuffersToTriggerRead)
+      int minBuffersToTriggerRead,
+      boolean requireSubpartitionId)
       throws IOException {
     this.recycleStream = recycleStream;
     this.diskFileInfo = diskFileInfo;
@@ -89,6 +94,7 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
         mapFileMeta.getBufferSize());
 
     this.minBuffersToTriggerRead = minBuffersToTriggerRead;
+    this.requireSubpartitionId = requireSubpartitionId;
 
     readExecutor =
         storageFetcherPool.computeIfAbsent(
@@ -130,7 +136,8 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
             diskFileInfo,
             streamId,
             channel,
-            () -> recycleStream.accept(streamId));
+            () -> recycleStream.accept(streamId),
+            requireSubpartitionId);
     readers.put(streamId, mapPartitionDataReader);
   }
 
@@ -181,6 +188,10 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
     bufferQueue.tryApplyNewBuffers(readers.size(), mapFileMeta.getBufferSize(), this::onBuffer);
   }
 
+  protected void openReader(MapPartitionDataReader reader) throws IOException {
+    reader.open(dataFileChanel, indexChannel, indexSize);
+  }
+
   public synchronized void readBuffers() {
     hasReadingTask.set(false);
     if (isReleased) {
@@ -195,7 +206,7 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
                   .filter(MapPartitionDataReader::shouldReadData)
                   .collect(Collectors.toList()));
       for (MapPartitionDataReader reader : sortedReaders) {
-        reader.open(dataFileChanel, indexChannel, indexSize);
+        openReader(reader);
       }
       while (bufferQueue.bufferAvailable() && !sortedReaders.isEmpty()) {
         BufferRecycler bufferRecycler = new BufferRecycler(MapPartitionData.this::recycle);
