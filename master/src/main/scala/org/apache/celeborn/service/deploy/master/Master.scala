@@ -265,7 +265,7 @@ private[celeborn] class Master(
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_TOTAL_CAPACITY) { () =>
-    statusSystem.getAvailableWorkers.asScala.toList.map(_.totalSpace()).sum
+    statusSystem.workers.asScala.toList.map(_.totalSpace()).sum
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_FREE_CAPACITY) { () =>
