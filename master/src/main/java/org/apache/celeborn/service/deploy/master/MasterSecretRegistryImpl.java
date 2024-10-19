@@ -48,12 +48,14 @@ public class MasterSecretRegistryImpl extends SecretRegistryImpl {
   public String getSecretKey(String appId) {
     String secret = super.getSecretKey(appId);
     if (secret == null && metadataHandler != null) {
-      LOG.info("Fetching secret from AbstractMetaManager for appId: {}", appId);
+      LOG.info("Fetching secret from metadata manager for appId: {}", appId);
       ApplicationMeta applicationMeta = metadataHandler.applicationMetas.get(appId);
       if (applicationMeta != null) {
         secret = applicationMeta.secret();
+        LOG.debug("Found Secret from metadata manager for appId: {}, register secret", appId);
+        super.register(appId, secret);
       } else {
-        LOG.warn("Secret not found from AbstractMetaManager for appId: {}", appId);
+        LOG.warn("Secret not found from metadata manager for appId: {}", appId);
       }
     }
     return secret;
@@ -63,8 +65,12 @@ public class MasterSecretRegistryImpl extends SecretRegistryImpl {
   public boolean isRegistered(String appId) {
     boolean isRegistered = super.isRegistered(appId);
     if (!isRegistered && metadataHandler != null) {
-      LOG.info("Fetching registration status from AbstractMetaManager for appId: {}", appId);
+      LOG.info("Fetching registration status from metadata manager for appId: {}", appId);
       isRegistered = metadataHandler.applicationMetas.containsKey(appId);
+      if (isRegistered) {
+        LOG.debug("Found Secret from metadata manager for appId: {}, register secret", appId);
+        super.register(appId, metadataHandler.applicationMetas.get(appId).secret());
+      }
     }
     return isRegistered;
   }
