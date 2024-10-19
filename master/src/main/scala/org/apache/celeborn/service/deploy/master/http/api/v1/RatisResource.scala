@@ -255,8 +255,12 @@ class RatisResource extends ApiRequestContext with Logging {
   @POST
   @Path("/local/raft_meta_conf")
   @Produces(Array(MediaType.APPLICATION_OCTET_STREAM))
-  def localRaftMeteConf(request: RatisLocalRaftMetaConfRequest): Response =
+  def localRaftMetaConf(request: RatisLocalRaftMetaConfRequest): Response =
     ensureMasterHAEnabled(master) {
+      if (request.getPeers.isEmpty) {
+        throw new BadRequestException("No peers specified.")
+      }
+
       val groupInfo = ratisServer.getGroupInfo
 
       val existingPeers = getRaftPeers().map(_.getRaftPeerProto)
@@ -274,12 +278,13 @@ class RatisResource extends ApiRequestContext with Logging {
       }
       val allPeers = existingPeers ++ newPeers
 
-      logInfo(s"Generating new-raft-meta.conf with peers: $allPeers.")
+      val newIndex = groupInfo.getLogIndex + 1
+      logInfo(s"Generating new-raft-meta.conf with peers: $allPeers, index: $newIndex.")
 
       val generateLogEntryProto = LogEntryProto.newBuilder()
         .setConfigurationEntry(RaftConfigurationProto.newBuilder()
           .addAllPeers(allPeers.asJava).build())
-        .setIndex(groupInfo.getLogIndex + 1).build()
+        .setIndex(newIndex).build()
       Response.ok(generateLogEntryProto.toByteArray)
         .header("Content-Disposition", "attachment; filename=\"new-raft-meta.conf\"")
         .build()
