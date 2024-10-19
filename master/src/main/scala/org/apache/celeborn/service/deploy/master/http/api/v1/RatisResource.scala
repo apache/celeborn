@@ -17,27 +17,29 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
+import java.nio.charset.StandardCharsets
 import javax.ws.rs.{BadRequestException, Consumes, Path, POST, Produces}
-import javax.ws.rs.core.MediaType
+import javax.ws.rs.core.{MediaType, Response}
 
 import scala.collection.JavaConverters._
 
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.apache.ratis.proto.RaftProtos.{LogEntryProto, RaftConfigurationProto, RaftPeerProto, RaftPeerRole}
 import org.apache.ratis.protocol.{LeaderElectionManagementRequest, RaftClientReply, RaftPeer, SetConfigurationRequest, SnapshotManagementRequest, TransferLeadershipRequest}
 import org.apache.ratis.rpc.CallId
+import org.apache.ratis.thirdparty.com.google.protobuf.ByteString
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.rest.v1.model.{HandleResponse, RatisElectionTransferRequest, RatisPeerAddRequest, RatisPeerRemoveRequest, RatisPeerSetPriorityRequest}
+import org.apache.celeborn.rest.v1.model.{HandleResponse, RatisElectionTransferRequest, RatisLocalRaftMetaConfRequest, RatisPeerAddRequest, RatisPeerRemoveRequest, RatisPeerSetPriorityRequest}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAMasterMetaManager, HARaftServer}
 import org.apache.celeborn.service.deploy.master.http.api.MasterHttpResourceUtils.{ensureMasterHAEnabled, ensureMasterIsLeader}
 
 @Tag(name = "Ratis")
-@Produces(Array(MediaType.APPLICATION_JSON))
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class RatisResource extends ApiRequestContext with Logging {
   private def master = httpService.asInstanceOf[Master]
@@ -51,6 +53,7 @@ class RatisResource extends ApiRequestContext with Logging {
     description = "Transfer the group leader to the specified server.")
   @POST
   @Path("/election/transfer")
+  @Produces(Array(MediaType.APPLICATION_JSON))
   def electionTransfer(request: RatisElectionTransferRequest): HandleResponse =
     ensureMasterIsLeader(master) {
       transferLeadership(request.getPeerAddress)
@@ -64,6 +67,7 @@ class RatisResource extends ApiRequestContext with Logging {
     description = "Make the group leader step down its leadership.")
   @POST
   @Path("/election/step_down")
+  @Produces(Array(MediaType.APPLICATION_JSON))
   def electionStepDown(): HandleResponse = ensureMasterIsLeader(master) {
     transferLeadership(null)
   }
@@ -77,6 +81,7 @@ class RatisResource extends ApiRequestContext with Logging {
       " Then, the current server would not start a leader election.")
   @POST
   @Path("/election/pause")
+  @Produces(Array(MediaType.APPLICATION_JSON))
   def electionPause(): HandleResponse = ensureMasterHAEnabled(master) {
     applyElectionOp(new LeaderElectionManagementRequest.Pause)
   }
@@ -89,6 +94,7 @@ class RatisResource extends ApiRequestContext with Logging {
     description = "Resume leader election at the current server.")
   @POST
   @Path("/election/resume")
+  @Produces(Array(MediaType.APPLICATION_JSON))
   def electionResume(): HandleResponse = ensureMasterHAEnabled(master) {
     applyElectionOp(new LeaderElectionManagementRequest.Resume)
   }
@@ -101,6 +107,7 @@ class RatisResource extends ApiRequestContext with Logging {
     description = "Add new peers to the raft group.")
   @POST
   @Path("/peer/add")
+  @Produces(Array(MediaType.APPLICATION_JSON))
   def peerAdd(request: RatisPeerAddRequest): HandleResponse =
     ensureLeaderElectionMemberMajorityAddEnabled(master) {
       if (request.getPeers.isEmpty) {
@@ -146,6 +153,7 @@ class RatisResource extends ApiRequestContext with Logging {
     description = "Remove peers from the raft group.")
   @POST
   @Path("/peer/remove")
+  @Produces(Array(MediaType.APPLICATION_JSON))
   def peerRemove(request: RatisPeerRemoveRequest): HandleResponse =
     ensureLeaderElectionMemberMajorityAddEnabled(master) {
       if (request.getPeers.isEmpty) {
@@ -183,6 +191,7 @@ class RatisResource extends ApiRequestContext with Logging {
     description = "Set the priority of the peers in the raft group.")
   @POST
   @Path("/peer/set_priority")
+  @Produces(Array(MediaType.APPLICATION_JSON))
   def peerSetPriority(request: RatisPeerSetPriorityRequest): HandleResponse =
     ensureLeaderElectionMemberMajorityAddEnabled(master) {
       if (request.getAddressPriorities.isEmpty) {
@@ -218,6 +227,7 @@ class RatisResource extends ApiRequestContext with Logging {
     description = "Trigger the current server to take snapshot.")
   @POST
   @Path("/snapshot/create")
+  @Produces(Array(MediaType.APPLICATION_JSON))
   def createSnapshot(): HandleResponse = ensureMasterHAEnabled(master) {
     val request = SnapshotManagementRequest.newCreate(
       ratisServer.getClientId,
@@ -234,6 +244,46 @@ class RatisResource extends ApiRequestContext with Logging {
         s"Failed to create snapshot at ${ratisServer.getLocalAddress}. $reply")
     }
   }
+
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_OCTET_STREAM,
+      schema = new Schema(implementation = classOf[Response]))),
+    description = "Generate a new-raft-meta.conf file based on original raft-meta.conf" +
+      " and new peers, which is used to move a raft node to a new node.")
+  @POST
+  @Path("/local/raft_meta_conf")
+  @Produces(Array(MediaType.APPLICATION_OCTET_STREAM))
+  def localRaftMeteConf(request: RatisLocalRaftMetaConfRequest): Response =
+    ensureMasterHAEnabled(master) {
+      val groupInfo = ratisServer.getGroupInfo
+
+      val existingPeers = getRaftPeers().map(_.getRaftPeerProto)
+      val newPeers = request.getPeers.asScala.map { peer =>
+        if (existingPeers.exists(e =>
+            e.getId.toStringUtf8 == peer.getId || e.getAddress == peer.getAddress)) {
+          throw new IllegalArgumentException(
+            s"Peer $peer with same id or address already exists in group $groupInfo.")
+        }
+        RaftPeerProto.newBuilder()
+          .setId(ByteString.copyFrom(peer.getId.getBytes(StandardCharsets.UTF_8)))
+          .setAddress(peer.getAddress)
+          .setStartupRole(RaftPeerRole.FOLLOWER)
+          .build()
+      }
+      val allPeers = existingPeers ++ newPeers
+
+      logInfo(s"Generating new-raft-meta.conf with peers: $allPeers.")
+
+      val generateLogEntryProto = LogEntryProto.newBuilder()
+        .setConfigurationEntry(RaftConfigurationProto.newBuilder()
+          .addAllPeers(allPeers.asJava).build())
+        .setIndex(groupInfo.getLogIndex + 1).build()
+      Response.ok(generateLogEntryProto.toByteArray)
+        .header("Content-Disposition", "attachment; filename=\"new-raft-meta.conf\"")
+        .build()
+    }
 
   private def transferLeadership(peerAddress: String): HandleResponse = {
     val newLeaderId = Option(peerAddress).map { addr =>
