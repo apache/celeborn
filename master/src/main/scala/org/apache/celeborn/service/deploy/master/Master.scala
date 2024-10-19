@@ -269,7 +269,8 @@ private[celeborn] class Master(
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_FREE_CAPACITY) { () =>
-    statusSystem.getAvailableWorkers.asScala.toList.map(_.totalActualUsableSpace()).sum
+    statusSystem.workers.asScala.toList.filter(statusSystem.isWorkerAvailable).map(
+      _.totalActualUsableSpace()).sum
   }
 
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
