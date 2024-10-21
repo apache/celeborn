@@ -25,7 +25,6 @@ license: |
 | celeborn.client.closeIdleConnections | true | false | Whether client will close idle connections. | 0.3.0 |  | 
 | celeborn.client.commitFiles.ignoreExcludedWorker | false | false | When true, LifecycleManager will skip workers which are in the excluded list. | 0.3.0 |  | 
 | celeborn.client.eagerlyCreateInputStream.threads | 32 | false | Threads count for streamCreatorPool in CelebornShuffleReader. | 0.3.1 |  | 
-| celeborn.client.elasticScaling.withAvailableWorker | false | false | When enabled, the ChangePartitionManager will obtain candidate workers from the available pool “ +during heartbeats when elastic scaling is activated. | 0.6.0 |  | 
 | celeborn.client.excludePeerWorkerOnFailure.enabled | true | false | When true, Celeborn will exclude partition's peer worker on failure when push data to replica failed. | 0.3.0 |  | 
 | celeborn.client.excludedWorker.expireTimeout | 180s | false | Timeout time for LifecycleManager to clear reserved excluded worker. Default to be 1.5 * `celeborn.master.heartbeat.worker.timeout`to cover worker heartbeat timeout check period | 0.3.0 | celeborn.worker.excluded.expireTimeout | 
 | celeborn.client.fetch.buffer.size | 64k | false | Size of reducer partition buffer memory for shuffle reader. The fetched data will be buffered in memory before consuming. For performance consideration keep this buffer size not less than `celeborn.client.push.buffer.max.size`. | 0.4.0 |  | 
@@ -95,6 +94,7 @@ license: |
 | celeborn.client.shuffle.compression.codec | LZ4 | false | The codec used to compress shuffle data. By default, Celeborn provides three codecs: `lz4`, `zstd`, `none`. `none` means that shuffle compression is disabled. Since Flink version 1.17, zstd is supported for Flink shuffle client. | 0.3.0 | celeborn.shuffle.compression.codec,remote-shuffle.job.compression.codec | 
 | celeborn.client.shuffle.compression.zstd.level | 1 | false | Compression level for Zstd compression codec, its value should be an integer between -5 and 22. Increasing the compression level will result in better compression at the expense of more CPU and memory. | 0.3.0 | celeborn.shuffle.compression.zstd.level | 
 | celeborn.client.shuffle.decompression.lz4.xxhash.instance | &lt;undefined&gt; | false | Decompression XXHash instance for Lz4. Available options: JNI, JAVASAFE, JAVAUNSAFE. | 0.3.2 |  | 
+| celeborn.client.shuffle.dynamicResourceEnable | false | false | This configuration requires APPLICATION_HEARTBEAT_WITH_AVAILABLE_WORKERS_ENABLE to be true.When enabled, the ChangePartitionManager will obtain candidate workers from the availableWorkers pool “ +during heartbeats when worker resource change. | 0.6.0 |  | 
 | celeborn.client.shuffle.expired.checkInterval | 60s | false | Interval for client to check expired shuffles. | 0.3.0 | celeborn.shuffle.expired.checkInterval | 
 | celeborn.client.shuffle.manager.port | 0 | false | Port used by the LifecycleManager on the Driver. | 0.3.0 | celeborn.shuffle.manager.port | 
 | celeborn.client.shuffle.mapPartition.split.enabled | false | false | whether to enable shuffle partition split. Currently, this only applies to MapPartition. | 0.3.1 |  | 
