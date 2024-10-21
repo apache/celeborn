@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
+import java.util.Collections
 import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
@@ -224,7 +225,7 @@ private[celeborn] class Master(
 
   private var hadoopFs: util.Map[StorageInfo.Type, FileSystem] = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
-    statusSystem.registeredShuffle.size
+    statusSystem.registeredShuffleCount
   }
   masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.workers.size }
   masterSource.addGauge(MasterSource.LOST_WORKER_COUNT) { () => statusSystem.lostWorkers.size }
@@ -530,6 +531,11 @@ private[celeborn] class Master(
         context,
         handleWorkerDecommission(context, workers, requestId))
 
+    case pb: PbReviseLostShuffles =>
+      executeWithLeaderChecker(
+        context,
+        handleReviseLostShuffle(context, pb.getAppId, pb.getLostShufflesList, pb.getRequestId))
+
     case pb: PbWorkerExclude =>
       val workersToAdd = new util.ArrayList[WorkerInfo](pb.getWorkersToAddList
         .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
@@ -684,7 +690,11 @@ private[celeborn] class Master(
 
     val expiredShuffleKeys = new util.HashSet[String]
     activeShuffleKeys.asScala.foreach { shuffleKey =>
-      if (!statusSystem.registeredShuffle.contains(shuffleKey)) {
+      val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
+      val shuffleIds = statusSystem.registeredAppAndShuffles.get(appId)
+      if (shuffleIds == null || !shuffleIds.contains(shuffleId)) {
+        logWarning(
+          s"Shuffle $shuffleKey expired on $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
         expiredShuffleKeys.add(shuffleKey)
       }
     }
@@ -701,6 +711,23 @@ private[celeborn] class Master(
         expiredShuffleKeys,
         registered,
         workerEventInfo.getEventType))
+    }
+  }
+
+  private def handleReviseLostShuffle(
+      context: RpcCallContext,
+      appId: String,
+      lostShuffles: java.util.List[Integer],
+      requestId: String) = {
+    try {
+      logInfo(s"Handle lost shuffles for ${appId} ${lostShuffles} ")
+      statusSystem.handleReviseLostShuffles(appId, lostShuffles, requestId);
+      if (context != null) {
+        context.reply(ReviseLostShufflesResponse(true, ""))
+      }
+    } catch {
+      case e: Exception =>
+        context.reply(ReviseLostShufflesResponse(false, e.getMessage))
     }
   }
 
@@ -1099,13 +1126,16 @@ private[celeborn] class Master(
     if (shouldResponse) {
       // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
       // during serialization of HeartbeatFromApplicationResponse
+      var appRelatedShuffles =
+        statusSystem.registeredAppAndShuffles.getOrDefault(appId, Collections.emptySet())
       context.reply(HeartbeatFromApplicationResponse(
         StatusCode.SUCCESS,
         new util.ArrayList(
           (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).asJava),
         needCheckedWorkerList,
         new util.ArrayList[WorkerInfo](
-          (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava)))
+          (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava),
+        new util.ArrayList(appRelatedShuffles)))
     } else {
       context.reply(OneWayMessageResponse)
     }
@@ -1339,8 +1369,11 @@ private[celeborn] class Master(
   override def getShuffleList: String = {
     val sb = new StringBuilder
     sb.append("======================= Shuffle Key List ============================\n")
-    statusSystem.registeredShuffle.asScala.foreach { shuffleKey =>
-      sb.append(s"$shuffleKey\n")
+    statusSystem.registeredAppAndShuffles.asScala.foreach { shuffleKey =>
+      val appId = shuffleKey._1
+      shuffleKey._2.asScala.foreach { id =>
+        sb.append(s"$appId-${id}\n")
+      }
     }
     sb.toString()
   }
@@ -1440,6 +1473,14 @@ private[celeborn] class Master(
     } else {
       "HA is not enabled"
     }
+  }
+
+  override def reviseLostShuffles(appId: String, shuffles: java.util.List[Integer]): Unit = {
+    statusSystem.reviseLostShuffles(appId, shuffles)
+  }
+
+  override def deleteApps(appIds: String): Unit = {
+    appIds.split(",").foreach(id => statusSystem.deleteApp(id))
   }
 
   override def getWorkerEventInfo(): String = {
