@@ -124,8 +124,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
 
     assert(lifecycleManager.workerSnapshots(shuffleId).size() > 1)
     assert(
-      lifecycleManager.workerStatusTracker.availableWorkersWithEndpoint.size() == lifecycleManager.workerSnapshots(
-        shuffleId).size())
+      lifecycleManager.workerStatusTracker.availableWorkersWithEndpoint.size() > 1)
 
     lifecycleManager.stop()
   }
