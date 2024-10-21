@@ -1146,7 +1146,6 @@ private[celeborn] class Master(
           (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava),
         availableWorksSentToClient,
         new util.ArrayList(appRelatedShuffles)))
-        ))
     } else {
       context.reply(OneWayMessageResponse)
     }
