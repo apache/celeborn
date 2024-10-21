@@ -175,8 +175,9 @@ public class SparkShuffleManager implements ShuffleManager {
       return sortShuffleManager().registerShuffle(shuffleId, dependency);
     } else {
       lifecycleManager.registerAppShuffleDeterminate(
-              shuffleId,
-              !DeterministicLevel.INDETERMINATE().equals(dependency.rdd().getOutputDeterministicLevel()));
+        shuffleId,
+        !DeterministicLevel.INDETERMINATE()
+          .equals(dependency.rdd().getOutputDeterministicLevel()));
 
       return new CelebornShuffleHandle<>(
           appUniqueId,
