@@ -118,7 +118,7 @@ class ApplicationResource extends ApiRequestContext {
     new HandleResponse().success(true).message("revise lost shuffle done")
   }
 
-  @Path("/deleteApp")
+  @Path("/deleteApps")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
