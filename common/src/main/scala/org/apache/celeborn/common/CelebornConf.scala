@@ -1075,6 +1075,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def registerShuffleFilterExcludedWorkerEnabled: Boolean =
     get(REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED)
+  def reviseLostShufflesEnabled: Boolean = get(REVISE_LOST_SHUFFLES_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                       Worker                        //
@@ -5667,6 +5668,14 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.4.0")
       .doc("Whether to filter excluded worker when register shuffle.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val REVISE_LOST_SHUFFLES_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.reviseLostShuffles.enabled")
+      .categories("client")
+      .version("0.6.0")
+      .doc("Whether to revise lost shuffles.")
       .booleanConf
       .createWithDefault(false)
 
