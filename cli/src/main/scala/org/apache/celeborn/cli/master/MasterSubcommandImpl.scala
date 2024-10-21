@@ -52,7 +52,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     if (masterOptions.showDynamicConf) log(runShowDynamicConf)
     if (masterOptions.showThreadDump) log(runShowThreadDump)
     if (masterOptions.reviseLostShuffles) log(reviseLostShuffles)
-    if (masterOptions.deleteApp) log(deleteApp)
+    if (masterOptions.deleteApps) log(deleteApps)
     if (masterOptions.addClusterAlias != null && masterOptions.addClusterAlias.nonEmpty)
       runAddClusterAlias
     if (masterOptions.removeClusterAlias != null && masterOptions.removeClusterAlias.nonEmpty)
@@ -224,13 +224,18 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   private[master] def runShowContainerInfo: ContainerInfo = defaultApi.getContainerInfo
 
   override private[master] def reviseLostShuffles: HandleResponse = {
-    val app = commonOptions.app
+    val app = commonOptions.apps
+    if (app.contains(",")) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Only one application id can be provided for this command.")
+    }
     val shuffleIds = reviseLostShuffleOptions.shuffleIds
     applicationApi.reviseLostShuffles(app, shuffleIds)
   }
 
-  override private[master] def deleteApp: HandleResponse = {
-    val app = commonOptions.app
-    applicationApi.deleteApp(app)
+  override private[master] def deleteApps: HandleResponse = {
+    val apps = commonOptions.apps
+    applicationApi.deleteApps(apps)
   }
 }

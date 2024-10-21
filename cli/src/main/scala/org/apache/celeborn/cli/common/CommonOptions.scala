@@ -75,7 +75,7 @@ class CommonOptions {
   @Option(
     names = Array("--app"),
     paramLabel = "appId",
-    description = Array("The application Id."))
-  private[cli] var app: String = _
+    description = Array("The application Id list seperated by comma."))
+  private[cli] var apps: String = _
 
 }

@@ -115,6 +115,6 @@ trait MasterSubcommand extends CliLogging {
 
   private[master] def reviseLostShuffles: HandleResponse
 
-  private[master] def deleteApp: HandleResponse
+  private[master] def deleteApps: HandleResponse
 
 }

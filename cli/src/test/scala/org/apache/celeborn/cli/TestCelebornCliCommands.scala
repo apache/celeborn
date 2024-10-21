@@ -247,11 +247,19 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "success: true")
   }
 
-  test("master --delete-app case1") {
+  test("master --delete-apps case1") {
     val args = prepareMasterArgs() ++ Array(
-      "--delete-app",
+      "--delete-apps",
       "--app",
       "app1")
+    captureOutputAndValidateResponse(args, "success: true")
+  }
+
+  test("master --delete-apps case2") {
+    val args = prepareMasterArgs() ++ Array(
+      "--delete-apps",
+      "--app",
+      "app1,app2")
     captureOutputAndValidateResponse(args, "success: true")
   }
 

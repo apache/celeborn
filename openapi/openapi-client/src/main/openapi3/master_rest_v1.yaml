@@ -295,14 +295,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/HandleResponse'
 
-  /api/v1/applications/deleteApp:
+  /api/v1/applications/deleteApps:
     get:
       tags:
         - Application
-      operationId: deleteApp
-      description: Delete resource of an app
+      operationId: deleteApps
+      description: Delete resource of apps
       parameters:
-        - name: app
+        - name: apps
           in: query
           required: false
           schema:

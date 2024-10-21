@@ -1479,8 +1479,8 @@ private[celeborn] class Master(
     statusSystem.reviseLostShuffles(appId, shuffles)
   }
 
-  override def deleteApp(appId: String): Unit = {
-    statusSystem.deleteApp(appId)
+  override def deleteApps(appIds: String): Unit = {
+    appIds.split(",").foreach(id => statusSystem.deleteApp(id))
   }
 
   override def getWorkerEventInfo(): String = {

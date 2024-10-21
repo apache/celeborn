@@ -51,29 +51,29 @@ public class ApplicationApi extends BaseApi {
 
   /**
    * 
-   * Delete resource of an app
-   * @param app  (optional)
+   * Delete resource of apps
+   * @param apps  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse deleteApp(String app) throws ApiException {
-    return this.deleteApp(app, Collections.emptyMap());
+  public HandleResponse deleteApps(String apps) throws ApiException {
+    return this.deleteApps(apps, Collections.emptyMap());
   }
 
 
   /**
    * 
-   * Delete resource of an app
-   * @param app  (optional)
+   * Delete resource of apps
+   * @param apps  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse deleteApp(String app, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse deleteApps(String apps, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = null;
     
     // create path and map variables
-    String localVarPath = "/api/v1/applications/deleteApp";
+    String localVarPath = "/api/v1/applications/deleteApps";
 
     StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
     String localVarQueryParameterBaseName;
@@ -83,7 +83,7 @@ public class ApplicationApi extends BaseApi {
     Map<String, String> localVarCookieParams = new HashMap<String, String>();
     Map<String, Object> localVarFormParams = new HashMap<String, Object>();
 
-    localVarQueryParams.addAll(apiClient.parameterToPair("app", app));
+    localVarQueryParams.addAll(apiClient.parameterToPair("apps", apps));
     
     localVarHeaderParams.putAll(additionalHeaders);
 

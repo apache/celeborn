@@ -128,9 +128,9 @@ class ApplicationResource extends ApiRequestContext {
       "Delete resource of an app")
   @GET
   def deleteApp(
-      @QueryParam("app") app: String): HandleResponse = {
-    httpService.deleteApp(app)
-    new HandleResponse().success(true).message(s"delete shuffles of app ${app}")
+      @QueryParam("apps") apps: String): HandleResponse = {
+    httpService.deleteApps(apps)
+    new HandleResponse().success(true).message(s"delete shuffles of app ${apps}")
   }
 
 }
