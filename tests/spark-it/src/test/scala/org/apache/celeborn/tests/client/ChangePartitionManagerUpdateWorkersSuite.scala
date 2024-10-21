@@ -85,7 +85,9 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
           allocatedWorkers.put(workerInfo, partitionLocationInfo)
-          lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.put(workerInfo, workerInfo)
+          lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.put(
+            workerInfo,
+            workerInfo)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }
@@ -114,8 +116,9 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     }
     logInfo(s"reallocated worker num: ${res.workerResource.keySet().size()}; workerInfo: ${res.workerResource.keySet()}")
     assert(lifecycleManager.workerSnapshots(shuffleId).size() > 1)
-    assert(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.size() == lifecycleManager.workerSnapshots(
-      shuffleId).size())
+    assert(
+      lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.size() == lifecycleManager.workerSnapshots(
+        shuffleId).size())
 
     lifecycleManager.stop()
   }
@@ -161,7 +164,9 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
           allocatedWorkers.put(workerInfo, partitionLocationInfo)
-          lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.put(workerInfo, workerInfo)
+          lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.put(
+            workerInfo,
+            workerInfo)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }

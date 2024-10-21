@@ -18,7 +18,9 @@
 package org.apache.celeborn.client
 
 import java.util
+
 import org.junit.Assert
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.{CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS, CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT}

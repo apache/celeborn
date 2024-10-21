@@ -216,9 +216,9 @@ class WorkerStatusTracker(
             }
         }
         shuttingWorkers.asScala.foreach { workerInfo: WorkerInfo =>
-            if (resAvailableWorkers.contains(workerInfo)) {
-              resAvailableWorkers.remove(workerInfo)
-            }
+          if (resAvailableWorkers.contains(workerInfo)) {
+            resAvailableWorkers.remove(workerInfo)
+          }
         }
 
         // update availableWorkers
