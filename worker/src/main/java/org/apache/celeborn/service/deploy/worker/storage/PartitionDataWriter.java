@@ -26,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.celeborn.reflect.DynConstructors;
 import scala.Tuple4;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -52,6 +51,7 @@ import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.FileChannelUtils;
+import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler;
 import org.apache.celeborn.server.common.service.mpu.bean.AWSCredentials;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
