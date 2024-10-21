@@ -34,8 +34,7 @@ class RetryReviveTest extends AnyFunSuite
     logInfo("test initialized , setup celeborn mini cluster")
   }
 
-  override def beforeEach(): Unit = {
-  }
+  override def beforeEach(): Unit = {}
 
   override def afterEach(): Unit = {
     System.gc()

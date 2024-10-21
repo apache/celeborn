@@ -294,7 +294,8 @@ class ChangePartitionManager(
         .asJava)
 
       // SetupEndpoint for those availableWorkers without endpoint
-      val workersRequireEndpoints = new util.HashSet[WorkerInfo](lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint)
+      val workersRequireEndpoints = new util.HashSet[WorkerInfo](
+        lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint)
       val connectFailedWorkers = new ShuffleFailedWorkers()
       lifecycleManager.setupEndpoints(
         workersRequireEndpoints,
