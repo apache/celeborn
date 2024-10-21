@@ -205,6 +205,9 @@ class WorkerStatusTracker(
         }
       }
 
+      val retainShuttingWorkersResult = shuttingWorkers.retainAll(res.shuttingWorkers)
+      val addShuttingWorkersResult = shuttingWorkers.addAll(res.shuttingWorkers)
+
       if (appHeartbeatWithAvailableWorkers) {
         // AvailableWorkers filter Client excludedWorkers and shuttingWorkers.
         // AvailableWorkers already filtered res.excludedWorkers and res.shuttingWorkers.
@@ -235,9 +238,6 @@ class WorkerStatusTracker(
         statusChanged =
           statusChanged || retainAvailableWorkersResult || addAvailableWorkersResult
       }
-
-      val retainShuttingWorkersResult = shuttingWorkers.retainAll(res.shuttingWorkers)
-      val addShuttingWorkersResult = shuttingWorkers.addAll(res.shuttingWorkers)
 
       statusChanged =
         statusChanged || retainShuttingWorkersResult || addShuttingWorkersResult
