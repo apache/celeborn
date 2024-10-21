@@ -1888,7 +1888,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       cause = StatusCode.PUSH_DATA_PRIMARY_WORKER_EXCLUDED;
     } else if (message.startsWith(StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED.name())) {
       cause = StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.name()) {
+    } else if (message.startsWith(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.name())) {
       cause = StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND;
     } else if (ExceptionUtils.connectFail(message)) {
       // Throw when push to primary worker connection causeException.
