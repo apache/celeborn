@@ -30,7 +30,7 @@ import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromApplicationResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.common.util.{JavaUtils, Utils}
 
 class WorkerStatusTracker(
     conf: CelebornConf,
@@ -44,7 +44,8 @@ class WorkerStatusTracker(
   val availableWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
 
   // Workers that have already set an endpoint can skip the setupEndpoint process in changePartition when reviving
-  val availableWorkersWithEndpoints = new ConcurrentHashMap[WorkerInfo, WorkerInfo]()
+  val availableWorkersWithEndpoints: ConcurrentHashMap[WorkerInfo, WorkerInfo] =
+    JavaUtils.newConcurrentHashMap[WorkerInfo, WorkerInfo]()
   // Workers that may be available but have not been used（without endpoint）
   val availableWorkersWithoutEndpoint: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
 
