@@ -283,8 +283,15 @@ class ChangePartitionManager(
 
     var candidates = new util.HashSet[WorkerInfo]()
     if (changPartitionWithAvailableWorkers) {
-      // workersWithEndpoints will filter workerAvailable in workerStatusTracker
-      candidates.addAll(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.keySet())
+      // availableWorkers will filter when unAvailableWorkers update, still do filtering here in case
+      // recordWorkerFailure not be called.
+      candidates.addAll(lifecycleManager
+        .workerStatusTracker
+        .availableWorkersWithEndpoints
+        .keySet()
+        .asScala
+        .filter(lifecycleManager.workerStatusTracker.workerAvailable)
+        .asJava)
 
       // SetupEndpoint for those availableWorkers without endpoint
       val workersRequireEndpoints =
