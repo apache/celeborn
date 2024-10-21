@@ -900,6 +900,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
   def dfsExpireDirsTimeoutMS: Long = get(DFS_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
+  def appHeartbeatWithAvailableWorkers: Boolean = get(APPLICATION_HEARTBEAT_WITH_AVAILABLE_WORKERS_ENABLE)
   def applicationUnregisterEnabled: Boolean = get(APPLICATION_UNREGISTER_ENABLED)
 
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
@@ -2189,6 +2190,15 @@ object CelebornConf extends Logging {
       .doc("Application heartbeat timeout.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("300s")
+
+  val APPLICATION_HEARTBEAT_WITH_AVAILABLE_WORKERS_ENABLE: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.heartbeat.application.availableWorkers.enable")
+      .withAlternative("celeborn.application.heartbeat.availableWorkers.enable")
+      .categories("master")
+      .version("0.6.0")
+      .doc("Whether application heartbeat send availableWorkers.")
+      .booleanConf
+      .createWithDefault(false)
 
   val HDFS_EXPIRE_DIRS_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.hdfs.expireDirs.timeout")
@@ -4751,11 +4761,12 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.elasticScaling.withAvailableWorker")
+    buildConf("celeborn.client.shuffle.dynamicResourceEnable")
       .categories("client")
       .version("0.6.0")
-      .doc("When enabled, the ChangePartitionManager will obtain candidate workers from the available pool “ +" +
-        "during heartbeats when elastic scaling is activated.")
+      .doc("This configuration requires APPLICATION_HEARTBEAT_WITH_AVAILABLE_WORKERS_ENABLE to be true." +
+        "When enabled, the ChangePartitionManager will obtain candidate workers from the availableWorkers pool “ +" +
+        "during heartbeats when worker resource change.")
       .booleanConf
       .createWithDefault(false)
 
