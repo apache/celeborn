@@ -1563,7 +1563,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "increase(metrics_SlotsAllocated_Count[1h]){instance=~\"${instance}\"}",
+              "expr": "increase(metrics_SlotsAllocated_Count{instance=~\"${instance}\"}[1h])",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
