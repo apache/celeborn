@@ -42,7 +42,7 @@ enum Type {
   ReportWorkerDecommission = 27;
   BatchUnRegisterShuffle = 28;
 
-  ReviseLostShuffles = 102;
+  ReviseLostShuffles = 29;
 }
 
 enum WorkerEventType {
