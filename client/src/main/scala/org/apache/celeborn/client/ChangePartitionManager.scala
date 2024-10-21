@@ -22,7 +22,6 @@ import java.util.{Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.common.CelebornConf
@@ -284,26 +283,22 @@ class ChangePartitionManager(
 
     var candidates = new util.HashSet[WorkerInfo]()
     if (changPartitionWithAvailableWorkers) {
-      // Get candidate worker from available worker in heartbeat
-      val workersRequireEndpoints: mutable.Set[WorkerInfo] = mutable.Set()
-      val availableWorkers: Set[WorkerInfo] =
-        lifecycleManager.workerStatusTracker.availableWorkers.asScala.toSet
-      availableWorkers.foreach((workerInfo: WorkerInfo) => {
-        if (lifecycleManager.workersWithEndpoints.keySet().contains(workerInfo)) {
-          candidates.add(lifecycleManager.workersWithEndpoints.get(workerInfo))
-        } else {
-          workersRequireEndpoints.add(workerInfo)
-        }
-      })
+      // workersWithEndpoints will filter workerAvailable in workerStatusTracker
+      candidates.addAll(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.keySet())
+
+      // SetupEndpoint for those availableWorkers without endpoint
+      val workersRequireEndpoints = lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint
       val connectFailedWorkers = new ShuffleFailedWorkers()
       lifecycleManager.setupEndpoints(
-        workersRequireEndpoints.asJava,
+        workersRequireEndpoints,
         shuffleId,
         connectFailedWorkers)
-      workersRequireEndpoints.asJava.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
-      candidates.addAll(workersRequireEndpoints.asJava)
-      workersRequireEndpoints.foreach(workerInfo => {
-        lifecycleManager.workersWithEndpoints.put(workerInfo, workerInfo)
+      workersRequireEndpoints.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
+      candidates.addAll(workersRequireEndpoints)
+
+      // Update worker status
+      workersRequireEndpoints.asScala.foreach(workerInfo => {
+        lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.put(workerInfo, workerInfo)
       })
       lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
       lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates)

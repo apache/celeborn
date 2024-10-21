@@ -52,6 +52,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
       .set(CelebornConf.TEST_CLIENT_UPDATE_AVAILABLE_WORKER.key, "true")
       .set(CelebornConf.CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS.key, "true")
+      .set(CelebornConf.APPLICATION_HEARTBEAT_WITH_AVAILABLE_WORKERS_ENABLE.key, "true")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val changePartitionManager: ChangePartitionManager =
@@ -84,19 +85,19 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
           allocatedWorkers.put(workerInfo, partitionLocationInfo)
-          lifecycleManager.workersWithEndpoints.put(workerInfo, workerInfo)
+          lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.put(workerInfo, workerInfo)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }
     assert(lifecycleManager.workerSnapshots(shuffleId).size() == 1)
-    assert(lifecycleManager.workersWithEndpoints.size() == 1)
+    assert(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.size() == 1)
 
     // total workerNum is 1 + 2 = 3 now
     setUpWorkers(workerConfForAdding, 2)
     // longer than APPLICATION_HEARTBEAT_INTERVAL 10s
     Thread.sleep(15000)
     assert(workerInfos.size == 3)
-    assert(lifecycleManager.workersWithEndpoints.size() == 1)
+    assert(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.size() == 1)
 
     0 until 10 foreach { partitionId: Int =>
       val req = ChangePartitionRequest(
@@ -113,7 +114,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     }
     logInfo(s"reallocated worker num: ${res.workerResource.keySet().size()}; workerInfo: ${res.workerResource.keySet()}")
     assert(lifecycleManager.workerSnapshots(shuffleId).size() > 1)
-    assert(lifecycleManager.workersWithEndpoints.size() == lifecycleManager.workerSnapshots(
+    assert(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.size() == lifecycleManager.workerSnapshots(
       shuffleId).size())
 
     lifecycleManager.stop()
@@ -160,19 +161,19 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
           allocatedWorkers.put(workerInfo, partitionLocationInfo)
-          lifecycleManager.workersWithEndpoints.put(workerInfo, workerInfo)
+          lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.put(workerInfo, workerInfo)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }
     assert(lifecycleManager.workerSnapshots(shuffleId).size() == workerNum)
-    assert(lifecycleManager.workersWithEndpoints.size() == workerNum)
+    assert(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.size() == workerNum)
 
     // total workerNum is 1 + 2 + 2 = 5 now
     setUpWorkers(workerConfForAdding, 2)
     // longer than APPLICATION_HEARTBEAT_INTERVAL 10s
     Thread.sleep(15000)
     assert(workerInfos.size == 5)
-    assert(lifecycleManager.workersWithEndpoints.size() == workerNum)
+    assert(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.size() == workerNum)
 
     0 until 10 foreach { partitionId: Int =>
       val req = ChangePartitionRequest(
@@ -189,7 +190,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     }
     logInfo(s"reallocated worker num: ${res.workerResource.keySet().size()}; workerInfo: ${res.workerResource.keySet()}")
     assert(lifecycleManager.workerSnapshots(shuffleId).size() == workerNum)
-    assert(lifecycleManager.workersWithEndpoints.size() == workerNum)
+    assert(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.size() == workerNum)
 
     lifecycleManager.stop()
   }

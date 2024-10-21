@@ -84,8 +84,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val unregisterShuffleTime = JavaUtils.newConcurrentHashMap[Int, Long]()
 
   val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
-  // Workers that have already set an endpoint can skip the setupEndpoint process in changePartition when reviving
-  val workersWithEndpoints = JavaUtils.newConcurrentHashMap[WorkerInfo, WorkerInfo]()
   // maintain each shuffle's map relation of WorkerInfo and partition location
   val shuffleAllocatedWorkers = new ShuffleAllocatedWorkers
   // shuffle id -> (partitionId -> newest PartitionLocation)
@@ -679,9 +677,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
     // Second, for each worker, try to initialize the endpoint.
     setupEndpoints(slots.keySet(), shuffleId, connectFailedWorkers)
-
     candidatesWorkers.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
-
     workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
     // If newly allocated from primary and can setup endpoint success, LifecycleManager should remove worker from
     // the excluded worker list to improve the accuracy of the list.
@@ -717,7 +713,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       }
       shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
       candidatesWorkers.asScala.foreach { workerInfo: WorkerInfo =>
-        workersWithEndpoints.put(workerInfo, workerInfo)
+        workerStatusTracker.availableWorkersWithEndpoints.put(workerInfo, workerInfo)
+        workerStatusTracker.availableWorkers.add(workerInfo)
       }
       registeredShuffle.add(shuffleId)
       commitManager.registerShuffle(

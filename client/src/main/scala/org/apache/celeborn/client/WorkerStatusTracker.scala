@@ -37,10 +37,16 @@ class WorkerStatusTracker(
     lifecycleManager: LifecycleManager) extends Logging {
   private val excludedWorkerExpireTimeout = conf.clientExcludedWorkerExpireTimeout
   private val workerStatusListeners = ConcurrentHashMap.newKeySet[WorkerStatusListener]()
+  private val appHeartbeatWithAvailableWorkers = conf.appHeartbeatWithAvailableWorkers
 
   val excludedWorkers = new ShuffleFailedWorkers()
   val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
   val availableWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
+
+  // Workers that have already set an endpoint can skip the setupEndpoint process in changePartition when reviving
+  val availableWorkersWithEndpoints = new ConcurrentHashMap[WorkerInfo, WorkerInfo]()
+  // Workers that may be available but have not been used（without endpoint）
+  val availableWorkersWithoutEndpoint: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
 
   def registerWorkerStatusListener(workerStatusListener: WorkerStatusListener): Unit = {
     workerStatusListeners.add(workerStatusListener)
@@ -132,16 +138,16 @@ class WorkerStatusTracker(
       failedWorkers.asScala.foreach {
         case (worker, (StatusCode.WORKER_SHUTDOWN, _)) =>
           shuttingWorkers.add(worker)
-          availableWorkers.remove(worker)
+          removeFromAvailableWorkers(worker)
         case (worker, (statusCode, registerTime)) if !excludedWorkers.containsKey(worker) =>
           excludedWorkers.put(worker, (statusCode, registerTime))
-          availableWorkers.remove(worker)
+          removeFromAvailableWorkers(worker)
         case (worker, (statusCode, _))
             if statusCode == StatusCode.NO_AVAILABLE_WORKING_DIR ||
               statusCode == StatusCode.RESERVE_SLOTS_FAILED ||
               statusCode == StatusCode.WORKER_UNKNOWN =>
           excludedWorkers.put(worker, (statusCode, excludedWorkers.get(worker)._2))
-          availableWorkers.remove(worker)
+          removeFromAvailableWorkers(worker)
         case _ => // Not cover
       }
     }
@@ -151,10 +157,16 @@ class WorkerStatusTracker(
     excludedWorkers.keySet.removeAll(workers)
   }
 
+  private def removeFromAvailableWorkers(worker: WorkerInfo): Unit = {
+    availableWorkers.remove(worker)
+    availableWorkersWithEndpoints.remove(worker)
+    availableWorkersWithoutEndpoint.remove(worker)
+  }
+
   def handleHeartbeatResponse(res: HeartbeatFromApplicationResponse): Unit = {
     if (res.statusCode == StatusCode.SUCCESS) {
       logDebug(s"Received Worker status from Primary, excluded workers: ${res.excludedWorkers} " +
-        s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shuttingWorkers}, available workers: ${res.availableWorkers}")
+        s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shuttingWorkers}, available workers from heartbeat: ${res.availableWorkers}")
       val current = System.currentTimeMillis()
       var statusChanged = false
 
@@ -193,20 +205,42 @@ class WorkerStatusTracker(
         }
       }
 
-      val retainShuttingWorkersResult = shuttingWorkers.retainAll(res.shuttingWorkers)
-      val addShuttingWorkersResult = shuttingWorkers.addAll(res.shuttingWorkers)
-      val retainAvailableWorkersResult = availableWorkers.retainAll(res.availableWorkers)
-      val addAvailableWorkersResult = availableWorkers.addAll(res.availableWorkers)
+      if (appHeartbeatWithAvailableWorkers) {
+        // AvailableWorkers filter Client excludedWorkers and shuttingWorkers.
+        // AvailableWorkers already filtered res.excludedWorkers and res.shuttingWorkers.
+        val resAvailableWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo](res.availableWorkers)
+        excludedWorkers.asScala.foreach {
+          case (workerInfo: WorkerInfo, (_, _)) =>
+            if (resAvailableWorkers.contains(workerInfo)) {
+              resAvailableWorkers.remove(workerInfo)
+            }
+        }
+        shuttingWorkers.asScala.foreach { workerInfo: WorkerInfo =>
+            if (resAvailableWorkers.contains(workerInfo)) {
+              resAvailableWorkers.remove(workerInfo)
+            }
+        }
 
-      excludedWorkers.asScala.foreach {
-        case (workerInfo: WorkerInfo, (_, _)) =>
-          if (availableWorkers.contains(workerInfo))
-            availableWorkers.remove(workerInfo)
-          statusChanged = true
+        // update availableWorkers
+        val retainAvailableWorkersResult = availableWorkers.retainAll(resAvailableWorkers)
+        val addAvailableWorkersResult = availableWorkers.addAll(resAvailableWorkers)
+        availableWorkersWithoutEndpoint.retainAll(resAvailableWorkers)
+        availableWorkersWithEndpoints.keySet().retainAll(resAvailableWorkers)
+        resAvailableWorkers.asScala.foreach { workerInfo: WorkerInfo =>
+          if (!availableWorkersWithEndpoints.contains(workerInfo)) {
+            availableWorkersWithoutEndpoint.add(workerInfo)
+            statusChanged = true
+          }
+        }
+        statusChanged =
+          statusChanged || retainAvailableWorkersResult || addAvailableWorkersResult
       }
 
+      val retainShuttingWorkersResult = shuttingWorkers.retainAll(res.shuttingWorkers)
+      val addShuttingWorkersResult = shuttingWorkers.addAll(res.shuttingWorkers)
+
       statusChanged =
-        statusChanged || retainShuttingWorkersResult || addShuttingWorkersResult || retainAvailableWorkersResult || addAvailableWorkersResult
+        statusChanged || retainShuttingWorkersResult || addShuttingWorkersResult
       // Always trigger commit files for shutting down workers from HeartbeatFromApplicationResponse
       // See details in CELEBORN-696
       if (!res.unknownWorkers.isEmpty || !res.shuttingWorkers.isEmpty) {
