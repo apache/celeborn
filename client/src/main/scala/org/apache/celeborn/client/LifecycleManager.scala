@@ -712,7 +712,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         allocatedWorkers.put(workerInfo, partitionLocationInfo)
       }
       shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
-      workerStatusTracker.updateWorkersWithEndpoint(candidatesWorkers)
+      candidatesWorkers.asScala.foreach { workerInfo: WorkerInfo =>
+        workerStatusTracker.availableWorkersWithEndpoints.put(workerInfo, workerInfo)
+        workerStatusTracker.availableWorkers.add(workerInfo)
+      }
       registeredShuffle.add(shuffleId)
       commitManager.registerShuffle(
         shuffleId,
