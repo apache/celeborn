@@ -287,7 +287,8 @@ class ChangePartitionManager(
       candidates.addAll(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.keySet())
 
       // SetupEndpoint for those availableWorkers without endpoint
-      val workersRequireEndpoints = lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint
+      val workersRequireEndpoints =
+        lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint
       val connectFailedWorkers = new ShuffleFailedWorkers()
       lifecycleManager.setupEndpoints(
         workersRequireEndpoints,
@@ -298,7 +299,9 @@ class ChangePartitionManager(
 
       // Update worker status
       workersRequireEndpoints.asScala.foreach(workerInfo => {
-        lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.put(workerInfo, workerInfo)
+        lifecycleManager.workerStatusTracker.availableWorkersWithEndpoints.put(
+          workerInfo,
+          workerInfo)
       })
       lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
       lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates)

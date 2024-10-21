@@ -902,7 +902,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
   def dfsExpireDirsTimeoutMS: Long = get(DFS_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
-  def appHeartbeatWithAvailableWorkers: Boolean = get(APPLICATION_HEARTBEAT_WITH_AVAILABLE_WORKERS_ENABLE)
+  def appHeartbeatWithAvailableWorkers: Boolean =
+    get(APPLICATION_HEARTBEAT_WITH_AVAILABLE_WORKERS_ENABLE)
   def applicationUnregisterEnabled: Boolean = get(APPLICATION_UNREGISTER_ENABLED)
 
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
