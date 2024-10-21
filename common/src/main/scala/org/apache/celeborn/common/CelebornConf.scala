@@ -5630,7 +5630,7 @@ object CelebornConf extends Logging {
   val REVISE_LOST_SHUFFLES_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.reviseLostShuffles.enabled")
       .categories("client")
-      .version("0.5.2")
+      .version("0.6.0")
       .doc("Whether to revise lost shuffles.")
       .booleanConf
       .createWithDefault(false)
