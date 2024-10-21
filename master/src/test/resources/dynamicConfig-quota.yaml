@@ -32,4 +32,9 @@
          celeborn.quota.tenant.diskBytesWritten: 100G
          celeborn.quota.tenant.diskFileCount: 10000
 
+     - name: Tom
+       config:
+         celeborn.quota.tenant.diskBytesWritten: 0G
+         celeborn.quota.tenant.diskFileCount: 0
+
 

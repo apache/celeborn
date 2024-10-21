@@ -75,15 +75,29 @@ class QuotaManagerSuite extends CelebornFunSuite {
     val exp1 = (true, "")
     val exp2 = (
       false,
-      s"User $user used hdfsBytesWritten(30.0 GiB) exceeds quota(10.0 GiB). ")
+      s"User $user used hdfsBytesWritten (30.0 GiB) exceeds quota (10.0 GiB). ")
     val exp3 = (
       false,
       s"User $user used diskBytesWritten (200.0 GiB) exceeds quota (100.0 GiB). " +
-        s"User $user used diskFileCount(20000) exceeds quota(10000). " +
-        s"User $user used hdfsBytesWritten(30.0 GiB) exceeds quota(10.0 GiB). ")
+        s"User $user used diskFileCount (20000) exceeds quota (10000). " +
+        s"User $user used hdfsBytesWritten (30.0 GiB) exceeds quota (10.0 GiB). ")
 
     assert(res1 == exp1)
     assert(res2 == exp2)
     assert(res3 == exp3)
+  }
+
+  test("User with zero quota should not be allowed to submit any shuffle to cluster") {
+    val user = UserIdentifier("tenant_01", "Tom")
+    val rc1 =
+      ResourceConsumption(Utils.byteStringAsBytes("0"), 0, Utils.byteStringAsBytes("0"), 0)
+
+    val res1 = quotaManager.checkQuotaSpaceAvailable(user, rc1)
+
+    val exp1 = (
+      false,
+      s"User $user used diskBytesWritten (0.0 B) exceeds quota (0.0 B). ")
+
+    assert(res1 == exp1)
   }
 }

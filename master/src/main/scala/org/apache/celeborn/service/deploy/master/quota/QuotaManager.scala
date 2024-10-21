@@ -57,7 +57,7 @@ class QuotaManager(celebornConf: CelebornConf, configService: ConfigService) ext
       userIdentifier: UserIdentifier,
       value: Long,
       quota: Quota): (Boolean, String) = {
-    val exceed = (quota.diskBytesWritten > 0 && value >= quota.diskBytesWritten)
+    val exceed = (quota.diskBytesWritten >= 0 && value >= quota.diskBytesWritten)
     var reason = ""
     if (exceed) {
       reason = s"User $userIdentifier used diskBytesWritten (${Utils.bytesToString(value)}) " +
@@ -71,11 +71,11 @@ class QuotaManager(celebornConf: CelebornConf, configService: ConfigService) ext
       userIdentifier: UserIdentifier,
       value: Long,
       quota: Quota): (Boolean, String) = {
-    val exceed = (quota.diskFileCount > 0 && value >= quota.diskFileCount)
+    val exceed = (quota.diskFileCount >= 0 && value >= quota.diskFileCount)
     var reason = ""
     if (exceed) {
       reason =
-        s"User $userIdentifier used diskFileCount($value) exceeds quota(${quota.diskFileCount}). "
+        s"User $userIdentifier used diskFileCount ($value) exceeds quota (${quota.diskFileCount}). "
       logWarning(reason)
     }
     (exceed, reason)
@@ -85,11 +85,11 @@ class QuotaManager(celebornConf: CelebornConf, configService: ConfigService) ext
       userIdentifier: UserIdentifier,
       value: Long,
       quota: Quota): (Boolean, String) = {
-    val exceed = (quota.hdfsBytesWritten > 0 && value >= quota.hdfsBytesWritten)
+    val exceed = (quota.hdfsBytesWritten >= 0 && value >= quota.hdfsBytesWritten)
     var reason = ""
     if (exceed) {
-      reason = s"User $userIdentifier used hdfsBytesWritten(${Utils.bytesToString(value)}) " +
-        s"exceeds quota(${Utils.bytesToString(quota.hdfsBytesWritten)}). "
+      reason = s"User $userIdentifier used hdfsBytesWritten (${Utils.bytesToString(value)}) " +
+        s"exceeds quota (${Utils.bytesToString(quota.hdfsBytesWritten)}). "
       logWarning(reason)
     }
     (exceed, reason)
@@ -99,11 +99,11 @@ class QuotaManager(celebornConf: CelebornConf, configService: ConfigService) ext
       userIdentifier: UserIdentifier,
       value: Long,
       quota: Quota): (Boolean, String) = {
-    val exceed = (quota.hdfsFileCount > 0 && value >= quota.hdfsFileCount)
+    val exceed = (quota.hdfsFileCount >= 0 && value >= quota.hdfsFileCount)
     var reason = ""
     if (exceed) {
       reason =
-        s"User $userIdentifier used hdfsFileCount($value) exceeds quota(${quota.hdfsFileCount}). "
+        s"User $userIdentifier used hdfsFileCount ($value) exceeds quota (${quota.hdfsFileCount}). "
       logWarning(reason)
     }
     (exceed, reason)
