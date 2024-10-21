@@ -131,6 +131,7 @@ class ApplicationHeartbeater(
           List.empty.asJava,
           List.empty.asJava,
           List.empty.asJava,
+          List.empty.asJava,
           List.empty.asJava)
     }
   }
