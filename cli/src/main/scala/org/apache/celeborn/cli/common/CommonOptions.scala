@@ -73,7 +73,7 @@ class CommonOptions {
   private[cli] var configName: String = _
 
   @Option(
-    names = Array("--app"),
+    names = Array("--apps"),
     paramLabel = "appId",
     description = Array("The application Id list seperated by comma."))
   private[cli] var apps: String = _
