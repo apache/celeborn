@@ -908,7 +908,7 @@ private[celeborn] class Master(
     // offer slots
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
-        statusSystem.synchronizedWorkers { () =>
+        statusSystem.synchronizedWorkers(() => {
           if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE) {
             SlotsAllocator.offerSlotsLoadAware(
               selectedWorkers,
@@ -928,7 +928,7 @@ private[celeborn] class Master(
               requestSlots.shouldRackAware,
               requestSlots.availableStorageTypes)
           }
-        }
+        })
       }
 
     if (log.isDebugEnabled()) {
