@@ -28,13 +28,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.google.common.annotations.VisibleForTesting;
 import scala.Option;
 import scala.Tuple2;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.Node;
 import org.slf4j.Logger;
@@ -97,12 +96,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     return workersMap.values().stream().collect(Collectors.toSet());
   }
 
-  public void removeWorker(WorkerInfo worker) {
-    workersMap.remove(worker.hashCode());
-  }
-
-  public void updateWorker(WorkerInfo worker) {
-      workersMap.put(worker.hashCode(), worker);
+  public <T> T synchronizedWorkers(Callable<T> f) throws Exception {
+    synchronized (workersMap) {
+      return f.call();
+    }
   }
 
   public boolean containsWorker(WorkerInfo worker) {
@@ -113,15 +110,17 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     return workersMap.get(worker.hashCode());
   }
 
+  public void updateWorker(WorkerInfo worker) {
+    workersMap.put(worker.hashCode(), worker);
+  }
+
+  public void removeWorker(WorkerInfo worker) {
+    workersMap.remove(worker.hashCode());
+  }
+
   @VisibleForTesting
   public void clearWorkers() {
     workersMap.clear();
-  }
-
-  public <T> T synchronizedWorkers(Callable<T> f) throws Exception {
-    synchronized (workersMap) {
-      return f.call();
-    }
   }
 
   public void updateRequestSlotsMeta(

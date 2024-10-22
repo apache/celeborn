@@ -51,7 +51,7 @@ class WorkerResource extends ApiRequestContext {
   @GET
   def workers: WorkersResponse = {
     new WorkersResponse()
-      .workers(statusSystem.workers().asScala.map(ApiUtils.workerData).toSeq.asJava)
+      .workers(statusSystem.workers.asScala.map(ApiUtils.workerData).toSeq.asJava)
       .lostWorkers(statusSystem.lostWorkers.asScala.toSeq.sortBy(_._2)
         .map(kv =>
           new WorkerTimestampData().worker(ApiUtils.workerData(kv._1)).timestamp(kv._2)).asJava)
