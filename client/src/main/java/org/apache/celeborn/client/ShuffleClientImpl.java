@@ -966,12 +966,16 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     int groupTaskPartitionId = partitionId;
+    int mapTaskGroupId = 0;
     if (conf.groupMapTaskEnabled()) {
-      int mapTaskGroupId = mapId / conf.groupMapTaskGroupSize();
+      mapTaskGroupId = mapId / conf.groupMapTaskGroupSize();
       groupTaskPartitionId = partitionId + numPartitions * mapTaskGroupId;
     }
     final int finalGroupTaskPartitionId = groupTaskPartitionId;
     PartitionLocation loc = map.get(finalGroupTaskPartitionId);
+
+    //    logger.info("[test groupMapTask] mapId: {} partitionId:{} mapTaskGroupId: {}
+    // groupTaskPartitionId:{}", mapId, partitionId, mapTaskGroupId, groupTaskPartitionId);
 
     if (loc == null) {
       throw new CelebornIOException(

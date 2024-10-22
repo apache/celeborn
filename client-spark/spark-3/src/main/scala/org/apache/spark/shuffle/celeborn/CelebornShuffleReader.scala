@@ -122,9 +122,10 @@ class CelebornShuffleReader[K, C](
       (TransportClient, util.ArrayList[PartitionLocation], PbOpenStreamList.Builder)]()
 
     var partCnt = 0
-    var partitionIdList = new ArrayBuffer[Int]()
+    var groupPartitionIdList = new ArrayBuffer[Int]()
+//    var partitionIdList = ArrayBuffer[Int]() ++ (startPartition until endPartition)
     if (!conf.groupMapTaskEnabled) {
-      partitionIdList = ArrayBuffer[Int]() ++ (startPartition until endPartition)
+      groupPartitionIdList = ArrayBuffer[Int]() ++ (startPartition until endPartition)
     } else {
       val partitionGroupCnt =
         if (conf.groupMapTaskEnabled)
@@ -134,13 +135,15 @@ class CelebornShuffleReader[K, C](
         (0 until partitionGroupCnt).foreach { groupCnt =>
           val tmpPartitionId =
             originalPartitionId + groupCnt * (fileGroups.partitionGroups.keySet().size() / partitionGroupCnt)
-          partitionIdList += tmpPartitionId
+          groupPartitionIdList += tmpPartitionId
         }
       }
-      logInfo(s"groupPartition read, partitionGroupCnt: $partitionGroupCnt, partitionIdList: $partitionIdList")
+//      logInfo(s"[test groupMapTask] groupPartition read, partitionGroupCnt: $partitionGroupCnt, " +
+//        s"partitionIdList: $partitionIdList " +
+//        s"groupPartitionIdList: $groupPartitionIdList")
     }
 
-    partitionIdList.foreach { partitionId =>
+    groupPartitionIdList.foreach { partitionId =>
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
         fileGroups.partitionGroups.get(partitionId).asScala.foreach { location =>
           partCnt += 1
@@ -255,15 +258,15 @@ class CelebornShuffleReader[K, C](
 
     val inputStreamCreationWindow = conf.clientInputStreamCreationWindow
 
-    (0 until Math.min(inputStreamCreationWindow, partitionIdList.size)).foreach(listIndex => {
+    (0 until Math.min(inputStreamCreationWindow, groupPartitionIdList.size)).foreach(listIndex => {
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
-          createInputStream(partitionIdList(listIndex))
+          createInputStream(groupPartitionIdList(listIndex))
         }
       })
     })
 
-    val recordIter = partitionIdList.iterator.map(partitionId => {
+    val recordIter = groupPartitionIdList.iterator.map(partitionId => {
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
         var inputStream: CelebornInputStream = streams.get(partitionId)
