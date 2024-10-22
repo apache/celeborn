@@ -32,25 +32,25 @@ import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager
 public class MasterSecretRegistryImpl implements SecretRegistry {
 
   private static final Logger LOG = LoggerFactory.getLogger(MasterSecretRegistryImpl.class);
-  private AbstractMetaManager metadataHandler;
+  private AbstractMetaManager statusSystem;
 
   @Override
   public void register(String appId, String secret) {
     LOG.info("Persisting metadata for appId: {}", appId);
-    metadataHandler.handleApplicationMeta(new ApplicationMeta(appId, secret));
+    statusSystem.handleApplicationMeta(new ApplicationMeta(appId, secret));
   }
 
   @Override
   public void unregister(String appId) {
     LOG.info("Removing metadata for appId: {}", appId);
-    metadataHandler.removeApplicationMeta(appId);
+    statusSystem.removeApplicationMeta(appId);
   }
 
   @Override
   public String getSecretKey(String appId) {
     String secret = null;
     LOG.info("Fetching secret from metadata manager for appId: {}", appId);
-    ApplicationMeta applicationMeta = metadataHandler.applicationMetas.get(appId);
+    ApplicationMeta applicationMeta = statusSystem.applicationMetas.get(appId);
     if (applicationMeta != null) {
       secret = applicationMeta.secret();
     }
@@ -60,10 +60,10 @@ public class MasterSecretRegistryImpl implements SecretRegistry {
   @Override
   public boolean isRegistered(String appId) {
     LOG.info("Fetching registration status from metadata manager for appId: {}", appId);
-    return metadataHandler.applicationMetas.containsKey(appId);
+    return statusSystem.applicationMetas.containsKey(appId);
   }
 
-  void setMetadataHandler(AbstractMetaManager metadataHandler) {
-    this.metadataHandler = metadataHandler;
+  void setMetadataHandler(AbstractMetaManager statusSystem) {
+    this.statusSystem = statusSystem;
   }
 }
