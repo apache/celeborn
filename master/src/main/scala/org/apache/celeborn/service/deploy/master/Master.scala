@@ -1036,7 +1036,6 @@ private[celeborn] class Master(
     nonEagerHandler.submit(new Runnable {
       override def run(): Unit = {
         workersAssignedToApp.remove(appId)
-        secretRegistry.unregister(appId);
         statusSystem.handleAppLost(appId, requestId)
         logInfo(s"Removed application $appId")
         if (hasHDFSStorage || hasS3Storage) {
