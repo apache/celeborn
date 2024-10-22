@@ -66,7 +66,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final Map<String, Set<Integer>> registeredAppAndShuffles =
       JavaUtils.newConcurrentHashMap();
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
-  private final Map<Integer, WorkerInfo> workersMap = JavaUtils.newConcurrentHashMap();
+  private final Map<String, WorkerInfo> workersMap = JavaUtils.newConcurrentHashMap();
 
   public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = JavaUtils.newConcurrentHashMap();
   public final ConcurrentHashMap<WorkerInfo, WorkerEventInfo> workerEventInfos =
@@ -103,19 +103,19 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public boolean containsWorker(WorkerInfo worker) {
-    return workersMap.containsKey(worker.hashCode());
+    return workersMap.containsKey(worker.toUniqueId());
   }
 
   public WorkerInfo getWorker(WorkerInfo worker) {
-    return workersMap.get(worker.hashCode());
+    return workersMap.get(worker.toUniqueId());
   }
 
   public void updateWorker(WorkerInfo worker) {
-    workersMap.put(worker.hashCode(), worker);
+    workersMap.put(worker.toUniqueId(), worker);
   }
 
   public void removeWorker(WorkerInfo worker) {
-    workersMap.remove(worker.hashCode());
+    workersMap.remove(worker.toUniqueId());
   }
 
   @VisibleForTesting
@@ -424,7 +424,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                           resolveMap.get(workerInfo.host()).get().getNetworkLocation());
                     }
                   })
-              .collect(Collectors.toMap(WorkerInfo::hashCode, w -> w)));
+              .collect(Collectors.toMap(WorkerInfo::toUniqueId, w -> w)));
 
       snapshotMetaInfo
           .getLostWorkersMap()
