@@ -504,4 +504,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public void updateApplicationMeta(ApplicationMeta applicationMeta) {
     applicationMetas.putIfAbsent(applicationMeta.appId(), applicationMeta);
   }
+
+  public void removeApplicationMeta(String appId) {
+    applicationMetas.remove(appId);
+  }
 }
