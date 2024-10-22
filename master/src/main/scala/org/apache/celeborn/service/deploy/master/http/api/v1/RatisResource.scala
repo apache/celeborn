@@ -265,21 +265,20 @@ class RatisResource extends ApiRequestContext with Logging {
 
       val existingPeers = getRaftPeers().map(_.getRaftPeerProto)
       val newPeers = request.getPeers.asScala.map { peer =>
-        if (existingPeers.exists(e =>
-            e.getId.toStringUtf8 == peer.getId || e.getAddress == peer.getAddress)) {
-          throw new IllegalArgumentException(
-            s"Peer $peer with same id or address already exists in group $groupInfo.")
-        }
         RaftPeerProto.newBuilder()
           .setId(ByteString.copyFrom(peer.getId.getBytes(StandardCharsets.UTF_8)))
           .setAddress(peer.getAddress)
           .setStartupRole(RaftPeerRole.FOLLOWER)
           .build()
       }
-      val allPeers = existingPeers ++ newPeers
+
+      val remainingPeers =
+        existingPeers.filterNot(p => newPeers.exists(_.getId.toStringUtf8 == p.getId.toStringUtf8))
+      val allPeers = remainingPeers ++ newPeers
 
       val newIndex = groupInfo.getLogIndex + 1
-      logInfo(s"Generating new-raft-meta.conf with peers: $allPeers, index: $newIndex.")
+      logInfo(s"Generating new-raft-meta.conf with remaining peers:" +
+        s" $remainingPeers and new peers: $newPeers, index: $newIndex.")
 
       val generateLogEntryProto = LogEntryProto.newBuilder()
         .setConfigurationEntry(RaftConfigurationProto.newBuilder()
