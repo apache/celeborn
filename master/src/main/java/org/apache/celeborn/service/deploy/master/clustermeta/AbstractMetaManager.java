@@ -538,6 +538,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     applicationMetas.putIfAbsent(applicationMeta.appId(), applicationMeta);
   }
 
+  public void removeApplicationMeta(String appId) {
+    applicationMetas.remove(appId);
+  }
+
   public int registeredShuffleCount() {
     return registeredAppAndShuffles.values().stream().mapToInt(Set::size).sum();
   }
