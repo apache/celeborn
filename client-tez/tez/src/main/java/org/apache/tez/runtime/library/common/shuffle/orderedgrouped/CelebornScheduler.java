@@ -31,6 +31,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.tez.common.CallableWithNdc;
+import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.dag.records.TezTaskID;
 import org.apache.tez.runtime.api.InputContext;
@@ -71,6 +72,7 @@ class CelebornScheduler extends ShuffleScheduler {
   private final Map<Integer, Set<InputAttemptIdentifier>> partitionIdToSuccessMapTaskAttempts =
       new HashMap<>();
   final Map<Integer, Set<TezTaskID>> partitionIdToSuccessTezTasks = new HashMap<>();
+  private final TezCounter skippedInputCounter;
 
   public CelebornScheduler(
       InputContext inputContext,
@@ -112,6 +114,7 @@ class CelebornScheduler extends ShuffleScheduler {
     this.fetcherExecutor =
         (ListeningExecutorService) getParentPrivateField(this, "fetcherExecutor");
     this.isShutdown = (AtomicBoolean) getParentPrivateField(this, "isShutdown");
+    this.skippedInputCounter = (TezCounter) getParentPrivateField(this, "skippedInputCounter");
   }
 
   public void start() throws Exception {
@@ -122,7 +125,8 @@ class CelebornScheduler extends ShuffleScheduler {
   }
 
   private boolean allInputTaskAttemptDone() {
-    return this.partitionIdToSuccessTezTasks.values().stream().mapToInt(s -> s.size()).sum()
+    return (this.partitionIdToSuccessTezTasks.values().stream().mapToInt(s -> s.size()).sum()
+            + skippedInputCounter.getValue())
         == numInputs;
   }
 
