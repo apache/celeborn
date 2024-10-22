@@ -22,57 +22,45 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.network.sasl.SecretRegistry;
-import org.apache.celeborn.common.network.sasl.SecretRegistryImpl;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
 
 /**
- * A simple implementation of {@link SecretRegistry} that stores secrets in memory and Ratis. This
- * persists an application secret in Ratis but the deletion of that secret happens when
- * ApplicationLost is triggered.
+ * A simple implementation of {@link SecretRegistry} that stores secrets in Ratis. This persists an
+ * application secret in Ratis but the deletion of that secret happens when ApplicationLost is
+ * triggered.
  */
-public class MasterSecretRegistryImpl extends SecretRegistryImpl {
+public class MasterSecretRegistryImpl implements SecretRegistry {
 
   private static final Logger LOG = LoggerFactory.getLogger(MasterSecretRegistryImpl.class);
   private AbstractMetaManager metadataHandler;
 
   @Override
   public void register(String appId, String secret) {
-    super.register(appId, secret);
-    if (metadataHandler != null) {
-      LOG.info("Persisting metadata for appId: {}", appId);
-      metadataHandler.handleApplicationMeta(new ApplicationMeta(appId, secret));
-    }
+    LOG.info("Persisting metadata for appId: {}", appId);
+    metadataHandler.handleApplicationMeta(new ApplicationMeta(appId, secret));
+  }
+
+  @Override
+  public void unregister(String appId) {
+    LOG.info("Removing metadata for appId: {}", appId);
+    metadataHandler.removeApplicationMeta(appId);
   }
 
   @Override
   public String getSecretKey(String appId) {
-    String secret = super.getSecretKey(appId);
-    if (secret == null && metadataHandler != null) {
-      LOG.info("Fetching secret from metadata manager for appId: {}", appId);
-      ApplicationMeta applicationMeta = metadataHandler.applicationMetas.get(appId);
-      if (applicationMeta != null) {
-        secret = applicationMeta.secret();
-        LOG.debug("Found Secret from metadata manager for appId: {}, register secret", appId);
-        super.register(appId, secret);
-      } else {
-        LOG.warn("Secret not found from metadata manager for appId: {}", appId);
-      }
+    String secret = null;
+    LOG.info("Fetching secret from metadata manager for appId: {}", appId);
+    ApplicationMeta applicationMeta = metadataHandler.applicationMetas.get(appId);
+    if (applicationMeta != null) {
+      secret = applicationMeta.secret();
     }
     return secret;
   }
 
   @Override
   public boolean isRegistered(String appId) {
-    boolean isRegistered = super.isRegistered(appId);
-    if (!isRegistered && metadataHandler != null) {
-      LOG.info("Fetching registration status from metadata manager for appId: {}", appId);
-      isRegistered = metadataHandler.applicationMetas.containsKey(appId);
-      if (isRegistered) {
-        LOG.debug("Found Secret from metadata manager for appId: {}, register secret", appId);
-        super.register(appId, metadataHandler.applicationMetas.get(appId).secret());
-      }
-    }
-    return isRegistered;
+    LOG.info("Fetching registration status from metadata manager for appId: {}", appId);
+    return metadataHandler.applicationMetas.containsKey(appId);
   }
 
   void setMetadataHandler(AbstractMetaManager metadataHandler) {
