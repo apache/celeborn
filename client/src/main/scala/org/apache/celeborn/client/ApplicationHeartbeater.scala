@@ -17,14 +17,19 @@
 
 package org.apache.celeborn.client
 
-import java.util.concurrent.{ScheduledFuture, TimeUnit}
+import java.util
+import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
+import java.util.function.Consumer
 
 import scala.collection.JavaConverters._
+
+import org.apache.commons.lang3.StringUtils
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.protocol.message.ControlMessages.{ApplicationLost, ApplicationLostResponse, HeartbeatFromApplication, HeartbeatFromApplicationResponse, ZERO_UUID}
+import org.apache.celeborn.common.protocol.PbReviseLostShufflesResponse
+import org.apache.celeborn.common.protocol.message.ControlMessages.{ApplicationLost, ApplicationLostResponse, HeartbeatFromApplication, HeartbeatFromApplicationResponse, ReviseLostShuffles, ZERO_UUID}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
@@ -33,9 +38,11 @@ class ApplicationHeartbeater(
     conf: CelebornConf,
     masterClient: MasterClient,
     shuffleMetrics: () => (Long, Long),
-    workerStatusTracker: WorkerStatusTracker) extends Logging {
+    workerStatusTracker: WorkerStatusTracker,
+    registeredShuffles: ConcurrentHashMap.KeySetView[Int, java.lang.Boolean]) extends Logging {
 
   private var stopped = false
+  private val reviseLostShuffles = conf.reviseLostShufflesEnabled
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
@@ -68,6 +75,30 @@ class ApplicationHeartbeater(
             if (response.statusCode == StatusCode.SUCCESS) {
               logDebug("Successfully send app heartbeat.")
               workerStatusTracker.handleHeartbeatResponse(response)
+              // revise shuffle id if there are lost shuffles
+              if (reviseLostShuffles) {
+                val masterRecordedShuffleIds = response.registeredShuffles
+                val localOnlyShuffles = new util.ArrayList[Integer]()
+                registeredShuffles.forEach(new Consumer[Int] {
+                  override def accept(key: Int): Unit = {
+                    localOnlyShuffles.add(key)
+                  }
+                })
+                localOnlyShuffles.removeAll(masterRecordedShuffleIds)
+                if (!localOnlyShuffles.isEmpty) {
+                  logWarning(
+                    s"There are lost shuffle found ${StringUtils.join(localOnlyShuffles, ",")}, revise lost shuffles.")
+                  val reviseLostShufflesResponse = masterClient.askSync(
+                    ReviseLostShuffles.apply(appId, localOnlyShuffles, MasterClient.genRequestId()),
+                    classOf[PbReviseLostShufflesResponse])
+                  if (!reviseLostShufflesResponse.getSuccess) {
+                    logWarning(
+                      s"Revise lost shuffles failed. Error message :${reviseLostShufflesResponse.getMessage}")
+                  } else {
+                    logInfo("Revise lost shuffles succeed.")
+                  }
+                }
+              }
             }
           } catch {
             case it: InterruptedException =>
@@ -95,6 +126,7 @@ class ApplicationHeartbeater(
         logError("AskSync HeartbeatFromApplication failed.", e)
         HeartbeatFromApplicationResponse(
           StatusCode.REQUEST_FAILED,
+          List.empty.asJava,
           List.empty.asJava,
           List.empty.asJava,
           List.empty.asJava)

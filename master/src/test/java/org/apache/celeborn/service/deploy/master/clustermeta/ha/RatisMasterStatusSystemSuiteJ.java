@@ -751,16 +751,16 @@ public class RatisMasterStatusSystemSuiteJ {
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(1, STATUSSYSTEM1.registeredShuffle.size());
-    Assert.assertEquals(1, STATUSSYSTEM2.registeredShuffle.size());
-    Assert.assertEquals(1, STATUSSYSTEM3.registeredShuffle.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.registeredAppAndShuffles.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.registeredAppAndShuffles.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.registeredAppAndShuffles.size());
 
     statusSystem.handleAppLost(APPID1, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertTrue(STATUSSYSTEM1.registeredShuffle.isEmpty());
-    Assert.assertTrue(STATUSSYSTEM2.registeredShuffle.isEmpty());
-    Assert.assertTrue(STATUSSYSTEM3.registeredShuffle.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM1.registeredAppAndShuffles.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM2.registeredAppAndShuffles.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM3.registeredAppAndShuffles.isEmpty());
   }
 
   @Test
@@ -832,16 +832,16 @@ public class RatisMasterStatusSystemSuiteJ {
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(1, STATUSSYSTEM1.registeredShuffle.size());
-    Assert.assertEquals(1, STATUSSYSTEM2.registeredShuffle.size());
-    Assert.assertEquals(1, STATUSSYSTEM3.registeredShuffle.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.registeredAppAndShuffles.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.registeredAppAndShuffles.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.registeredAppAndShuffles.size());
 
     statusSystem.handleUnRegisterShuffle(SHUFFLEKEY1, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertTrue(STATUSSYSTEM1.registeredShuffle.isEmpty());
-    Assert.assertTrue(STATUSSYSTEM2.registeredShuffle.isEmpty());
-    Assert.assertTrue(STATUSSYSTEM3.registeredShuffle.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM1.registeredAppAndShuffles.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM2.registeredAppAndShuffles.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM3.registeredAppAndShuffles.isEmpty());
   }
 
   @Test
@@ -919,25 +919,25 @@ public class RatisMasterStatusSystemSuiteJ {
 
     Thread.sleep(3000L);
 
-    Assert.assertEquals(4, STATUSSYSTEM1.registeredShuffle.size());
-    Assert.assertEquals(4, STATUSSYSTEM2.registeredShuffle.size());
-    Assert.assertEquals(4, STATUSSYSTEM3.registeredShuffle.size());
+    Assert.assertEquals(4, STATUSSYSTEM1.registeredShuffleCount());
+    Assert.assertEquals(4, STATUSSYSTEM2.registeredShuffleCount());
+    Assert.assertEquals(4, STATUSSYSTEM3.registeredShuffleCount());
 
     List<String> shuffleKeys1 = new ArrayList<>();
     shuffleKeys1.add(shuffleKeysAll.get(0));
 
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeys1, getNewReqeustId());
     Thread.sleep(3000L);
-    Assert.assertEquals(3, STATUSSYSTEM1.registeredShuffle.size());
-    Assert.assertEquals(3, STATUSSYSTEM2.registeredShuffle.size());
-    Assert.assertEquals(3, STATUSSYSTEM3.registeredShuffle.size());
+    Assert.assertEquals(3, STATUSSYSTEM1.registeredShuffleCount());
+    Assert.assertEquals(3, STATUSSYSTEM2.registeredShuffleCount());
+    Assert.assertEquals(3, STATUSSYSTEM3.registeredShuffleCount());
 
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeysAll, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertTrue(STATUSSYSTEM1.registeredShuffle.isEmpty());
-    Assert.assertTrue(STATUSSYSTEM2.registeredShuffle.isEmpty());
-    Assert.assertTrue(STATUSSYSTEM3.registeredShuffle.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM1.registeredShuffleCount() == 0);
+    Assert.assertTrue(STATUSSYSTEM2.registeredShuffleCount() == 0);
+    Assert.assertTrue(STATUSSYSTEM3.registeredShuffleCount() == 0);
   }
 
   @Test
@@ -1085,21 +1085,21 @@ public class RatisMasterStatusSystemSuiteJ {
 
   @Before
   public void resetStatus() {
-    STATUSSYSTEM1.registeredShuffle.clear();
+    STATUSSYSTEM1.registeredAppAndShuffles.clear();
     STATUSSYSTEM1.hostnameSet.clear();
     STATUSSYSTEM1.workers.clear();
     STATUSSYSTEM1.appHeartbeatTime.clear();
     STATUSSYSTEM1.excludedWorkers.clear();
     STATUSSYSTEM1.workerLostEvents.clear();
 
-    STATUSSYSTEM2.registeredShuffle.clear();
+    STATUSSYSTEM2.registeredAppAndShuffles.clear();
     STATUSSYSTEM2.hostnameSet.clear();
     STATUSSYSTEM2.workers.clear();
     STATUSSYSTEM2.appHeartbeatTime.clear();
     STATUSSYSTEM2.excludedWorkers.clear();
     STATUSSYSTEM2.workerLostEvents.clear();
 
-    STATUSSYSTEM3.registeredShuffle.clear();
+    STATUSSYSTEM3.registeredAppAndShuffles.clear();
     STATUSSYSTEM3.hostnameSet.clear();
     STATUSSYSTEM3.workers.clear();
     STATUSSYSTEM3.appHeartbeatTime.clear();
@@ -1412,6 +1412,19 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(
         WorkerEventType.Decommission,
         STATUSSYSTEM1.workerEventInfos.get(workerInfo2).getEventType());
+  }
+
+  @Test
+  public void testReviseShuffles() throws InterruptedException {
+    AbstractMetaManager statusSystem = pickLeaderStatusSystem();
+    Assert.assertNotNull(statusSystem);
+
+    statusSystem.handleReviseLostShuffles(
+        "app-1", Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8), getNewReqeustId());
+    Thread.sleep(1000l);
+    Assert.assertEquals(STATUSSYSTEM1.registeredShuffleCount(), 8);
+    Assert.assertEquals(STATUSSYSTEM2.registeredShuffleCount(), 8);
+    Assert.assertEquals(STATUSSYSTEM3.registeredShuffleCount(), 8);
   }
 
   @AfterClass

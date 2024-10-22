@@ -15,12 +15,15 @@
  * limitations under the License.
  */
 
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.1.1")
+package org.apache.celeborn.cli.master
 
-addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.6")
+import picocli.CommandLine.Option
 
-addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.2.1")
+final class ReviseLostShuffleOptions {
 
-addSbtPlugin("org.openapitools" % "sbt-openapi-generator" % "7.8.0")
+  @Option(
+    names = Array("--shuffleIds"),
+    description = Array("The shuffle ids to manipulate."))
+  private[master] var shuffleIds: String = _
 
-addSbtPlugin("com.github.sbt" % "sbt-git" % "2.1.0")
+}
