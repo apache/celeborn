@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
 
-import com.codahale.metrics.{Counter, Histogram, UniformReservoir}
+import com.codahale.metrics.{Histogram, UniformReservoir}
 import com.google.protobuf.GeneratedMessageV3
 
 import org.apache.celeborn.common.CelebornConf
@@ -40,7 +40,7 @@ private[celeborn] class RpcMetricsTracker(
   // Histogram is used for Client, eg LifecycleManager
   val histogramMap: ConcurrentMap[String, Histogram] =
     JavaUtils.newConcurrentHashMap[String, Histogram]
-  private val queueLength: Counter = new Counter()
+
   private var maxQueueLength: Long = 0
   private val slowRpcThreshold: Long = conf.rpcSlowThreshold()
   private val slowRpcInterval: Long = conf.rpcSlowInterval()
@@ -57,12 +57,16 @@ private[celeborn] class RpcMetricsTracker(
   final private val QUEUE_TIME_METRIC = s"${name}_${RpcSource.QUEUE_TIME}"
   final private val PROCESS_TIME_METRIC = s"${name}_${RpcSource.PROCESS_TIME}"
 
-  if (name != null) {
-    rpcSource.addGauge(QUEUE_LENGTH_METRIC) {
-      () => queueSize()
+  private var queueLengthFunc: () => Long = _
+
+  def init(lengthFunc: () => Long): Unit = {
+    queueLengthFunc = lengthFunc
+    if (name != null) {
+      rpcSource.addGauge(QUEUE_LENGTH_METRIC)(queueLengthFunc)
+
+      rpcSource.addTimer(QUEUE_TIME_METRIC)
+      rpcSource.addTimer(PROCESS_TIME_METRIC)
     }
-    rpcSource.addTimer(QUEUE_TIME_METRIC)
-    rpcSource.addTimer(PROCESS_TIME_METRIC)
   }
 
   def updateHistogram(name: String, value: Long): Unit = {
@@ -71,19 +75,11 @@ private[celeborn] class RpcMetricsTracker(
     histogram.update(value)
   }
 
-  def queueSize(): Long = {
-    queueLength.getCount
-  }
-
-  def incQueueLength(): Unit = {
-    queueLength.inc()
-    if (queueSize() > maxQueueLength) {
-      maxQueueLength = queueSize()
+  def updateMaxLength(): Unit = {
+    val len = queueLengthFunc()
+    if (len > maxQueueLength) {
+      maxQueueLength = len
     }
-  }
-
-  def decQueueLength(): Unit = {
-    queueLength.dec()
   }
 
   private def logSlowRpc(message: InboxMessage, queueTime: Long, processTime: Long): Unit = {
@@ -92,7 +88,7 @@ private[celeborn] class RpcMetricsTracker(
       if (slowRpcInterval < 0 || System.currentTimeMillis() - lastLogTime > slowRpcInterval &&
         lastSlowLogTime.compareAndSet(lastLogTime, System.currentTimeMillis())) {
         logWarning(
-          s"slow rpc detected: currentQueueSize = ${queueSize()}, queueTime=$queueTime processTime=$processTime message=$message")
+          s"slow rpc detected: currentQueueSize = ${queueLengthFunc()}, queueTime=$queueTime processTime=$processTime message=$message")
       }
 
       val lastTime = lastDumpTime.get
@@ -149,7 +145,7 @@ private[celeborn] class RpcMetricsTracker(
 
     val builder = new StringBuilder();
     builder.append(s"RPC statistics for $name").append("\n")
-    builder.append(s"current queue size = ${queueSize()}").append("\n")
+    builder.append(s"current queue size = ${queueLengthFunc()}").append("\n")
     builder.append(s"max queue length = $maxQueueLength").append("\n")
     histogramMap.entrySet.asScala.foreach(entry => {
       val histogram = entry.getValue

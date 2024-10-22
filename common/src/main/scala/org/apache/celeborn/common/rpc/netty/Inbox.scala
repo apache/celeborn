@@ -28,9 +28,9 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpoint, RpcMetricsTracker, ThreadSafeRpcEndpoint}
 
-sealed private[celeborn] trait InboxMessage extends RpcMetricUtil
+sealed private[celeborn] trait InboxMessage extends RpcTimeMetrics
 
-private[celeborn] trait RpcMetricUtil {
+private[celeborn] trait RpcTimeMetrics {
   var enqueueTime: Long = 0
   var dequeueTime: Long = 0
   var endProcessTime: Long = 0
@@ -55,7 +55,7 @@ private[celeborn] case object OnStop
 
 /** A message to tell all endpoints that a remote process has connected. */
 private[celeborn] case class RemoteProcessConnected(remoteAddress: RpcAddress)
-  extends InboxMessage with RpcMetricUtil
+  extends InboxMessage
 
 /** A message to tell all endpoints that a remote process has disconnected. */
 private[celeborn] case class RemoteProcessDisconnected(
@@ -101,12 +101,14 @@ private[celeborn] class Inbox(
   @GuardedBy("this")
   private var numActiveThreads = 0
 
+  metrics.init(() => messageCount.get())
+
   // OnStart should be the first message to process
   try {
     inboxLock.lockInterruptibly()
     messages.add(OnStart)
-    RpcMetricUtil.updateTime(OnStart, RpcMetricUtil.Enqueue)
-    metrics.incQueueLength()
+    RpcTimeMetrics.updateTime(OnStart, RpcTimeMetrics.Enqueue)
+    metrics.updateMaxLength()
     messageCount.incrementAndGet()
   } finally {
     inboxLock.unlock()
@@ -213,8 +215,7 @@ private[celeborn] class Inbox(
       message = messages.poll()
       if (message != null) {
         numActiveThreads += 1
-        RpcMetricUtil.updateTime(message, RpcMetricUtil.Dequeue)
-        metrics.decQueueLength()
+        RpcTimeMetrics.updateTime(message, RpcTimeMetrics.Dequeue)
         messageCount.decrementAndGet()
         signalNotFull()
       } else {
@@ -242,8 +243,7 @@ private[celeborn] class Inbox(
           numActiveThreads -= 1
           return
         } else {
-          RpcMetricUtil.updateTime(message, RpcMetricUtil.Dequeue)
-          metrics.decQueueLength()
+          RpcTimeMetrics.updateTime(message, RpcTimeMetrics.Dequeue)
           messageCount.decrementAndGet()
           signalNotFull()
         }
@@ -261,8 +261,8 @@ private[celeborn] class Inbox(
         onDrop(message)
       } else {
         addMessage(message)
-        RpcMetricUtil.updateTime(message, RpcMetricUtil.Enqueue)
-        metrics.incQueueLength()
+        RpcTimeMetrics.updateTime(message, RpcTimeMetrics.Enqueue)
+        metrics.updateMaxLength()
       }
     } finally {
       inboxLock.unlock()
@@ -345,7 +345,7 @@ private[celeborn] class Inbox(
       case fatal: Throwable =>
         dealWithFatalError(fatal)
     } finally {
-      RpcMetricUtil.updateTime(message, RpcMetricUtil.Process)
+      RpcTimeMetrics.updateTime(message, RpcTimeMetrics.Process)
       metrics.update(message)
     }
   }
@@ -361,16 +361,16 @@ private[celeborn] class Inbox(
   }
 }
 
-private[celeborn] object RpcMetricUtil {
+private[celeborn] object RpcTimeMetrics {
   trait MetricsType
   case object Enqueue extends MetricsType
   case object Dequeue extends MetricsType
   case object Process extends MetricsType
   def updateTime(message: InboxMessage, op: MetricsType): Unit = {
     (message, op) match {
-      case (msg: RpcMetricUtil, Enqueue) => msg.enqueueTime = System.nanoTime
-      case (msg: RpcMetricUtil, Dequeue) => msg.dequeueTime = System.nanoTime
-      case (msg: RpcMetricUtil, Process) => msg.endProcessTime = System.nanoTime
+      case (msg: RpcTimeMetrics, Enqueue) => msg.enqueueTime = System.nanoTime
+      case (msg: RpcTimeMetrics, Dequeue) => msg.dequeueTime = System.nanoTime
+      case (msg: RpcTimeMetrics, Process) => msg.endProcessTime = System.nanoTime
       case _ =>
     }
   }
