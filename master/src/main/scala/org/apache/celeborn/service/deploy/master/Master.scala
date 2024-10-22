@@ -227,13 +227,13 @@ private[celeborn] class Master(
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
     statusSystem.registeredShuffleCount
   }
-  masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.workers.size }
+  masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.getWorkers.size }
   masterSource.addGauge(MasterSource.LOST_WORKER_COUNT) { () => statusSystem.lostWorkers.size }
   masterSource.addGauge(MasterSource.EXCLUDED_WORKER_COUNT) { () =>
     statusSystem.excludedWorkers.size + statusSystem.manuallyExcludedWorkers.size
   }
   masterSource.addGauge(MasterSource.AVAILABLE_WORKER_COUNT) { () =>
-    statusSystem.workers.asScala.count { w =>
+    statusSystem.getWorkers.asScala.count { w =>
       statusSystem.isWorkerAvailable(w)
     }
   }
@@ -245,7 +245,7 @@ private[celeborn] class Master(
   }
   masterSource.addGauge(MasterSource.PARTITION_SIZE) { () => statusSystem.estimatedPartitionSize }
   masterSource.addGauge(MasterSource.ACTIVE_SHUFFLE_SIZE) { () =>
-    statusSystem.workers.parallelStream()
+    statusSystem.getWorkers.parallelStream()
       .mapToLong(new ToLongFunction[WorkerInfo]() {
         override def applyAsLong(value: WorkerInfo): Long =
           value.userResourceConsumption.values().parallelStream()
@@ -255,7 +255,7 @@ private[celeborn] class Master(
       }).sum()
   }
   masterSource.addGauge(MasterSource.ACTIVE_SHUFFLE_FILE_COUNT) { () =>
-    statusSystem.workers.parallelStream()
+    statusSystem.getWorkers.parallelStream()
       .mapToLong(new ToLongFunction[WorkerInfo]() {
         override def applyAsLong(value: WorkerInfo): Long =
           value.userResourceConsumption.values().parallelStream()
@@ -266,11 +266,11 @@ private[celeborn] class Master(
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_TOTAL_CAPACITY) { () =>
-    statusSystem.workers.asScala.toList.map(_.totalSpace()).sum
+    statusSystem.getWorkers.asScala.toList.map(_.totalSpace()).sum
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_FREE_CAPACITY) { () =>
-    statusSystem.workers.asScala.toList.map(_.totalActualUsableSpace()).sum
+    statusSystem.getWorkers.asScala.toList.map(_.totalActualUsableSpace()).sum
   }
 
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
@@ -599,7 +599,7 @@ private[celeborn] class Master(
       return
     }
 
-    statusSystem.workers.asScala.foreach { worker =>
+    statusSystem.getWorkers.asScala.foreach { worker =>
       if (worker.lastHeartbeat < currentTime - workerHeartbeatTimeoutMs
         && !statusSystem.workerLostEvents.contains(worker)) {
         logWarning(s"Worker ${worker.readableAddress()} timeout! Trigger WorkerLost event.")
@@ -1122,7 +1122,7 @@ private[celeborn] class Master(
       System.currentTimeMillis(),
       requestId)
     // unknown workers will retain in needCheckedWorkerList
-    needCheckedWorkerList.removeAll(statusSystem.workers)
+    needCheckedWorkerList.removeAll(statusSystem.getWorkers)
     if (shouldResponse) {
       // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
       // during serialization of HeartbeatFromApplicationResponse
@@ -1214,7 +1214,7 @@ private[celeborn] class Master(
   // TODO: Support calculate topN app resource consumption.
   private def computeUserResourceConsumption(
       userIdentifier: UserIdentifier): ResourceConsumption = {
-    val resourceConsumption = statusSystem.workers.asScala.flatMap {
+    val resourceConsumption = statusSystem.getWorkers.asScala.flatMap {
       workerInfo => workerInfo.userResourceConsumption.asScala.get(userIdentifier)
     }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
     resourceConsumption
@@ -1248,7 +1248,7 @@ private[celeborn] class Master(
 
   private def workersAvailable(
       tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
-    statusSystem.workers.asScala.filter { w =>
+    statusSystem.getWorkers.asScala.filter { w =>
       statusSystem.isWorkerAvailable(w) && !tmpExcludedWorkerList.contains(w)
     }.toList.asJava
   }
@@ -1281,7 +1281,7 @@ private[celeborn] class Master(
   }
 
   private def getWorkers: String = {
-    statusSystem.workers.asScala.mkString("\n")
+    statusSystem.getWorkers.asScala.mkString("\n")
   }
 
   override def handleWorkerEvent(

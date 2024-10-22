@@ -23,11 +23,11 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import scala.Option;
@@ -92,13 +92,13 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
       JavaUtils.newConcurrentHashMap();
 
-  public Set<WorkerInfo> workers() {
-    return workersMap.values().stream().collect(Collectors.toSet());
+  public Collection<WorkerInfo> getWorkers() {
+    return workersMap.values();
   }
 
-  public <T> T synchronizedWorkers(Callable<T> f) throws Exception {
+  public <T> T synchronizedWorkers(Supplier<T> s) throws Exception {
     synchronized (workersMap) {
-      return f.call();
+      return s.get();
     }
   }
 
@@ -348,7 +348,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 manuallyExcludedWorkers,
                 workerLostEvents,
                 appHeartbeatTime,
-                workers(),
+                new HashSet(getWorkers()),
                 partitionTotalWritten.sum(),
                 partitionTotalFileCount.sum(),
                 appDiskUsageMetric.snapShots(),
@@ -474,7 +474,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         registeredAppAndShuffles.size(),
         excludedWorkers.size(),
         manuallyExcludedWorkers.size());
-    workers().forEach(workerInfo -> LOG.info(workerInfo.toString()));
+    getWorkers().forEach(workerInfo -> LOG.info(workerInfo.toString()));
     registeredAppAndShuffles.forEach(
         (appId, shuffleId) -> LOG.info("RegisteredShuffle {}-{}", appId, shuffleId));
   }
@@ -553,7 +553,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         "Celeborn cluster estimated partition size changed from {} to {}",
         Utils.bytesToString(oldEstimatedPartitionSize),
         Utils.bytesToString(estimatedPartitionSize));
-    workers().stream()
+    getWorkers().stream()
         .filter(
             worker ->
                 !excludedWorkers.contains(worker) && !manuallyExcludedWorkers.contains(worker))

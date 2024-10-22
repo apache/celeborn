@@ -245,7 +245,7 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
 
     masterStatusSystem.restoreMetaFromFile(tmpFile);
 
-    Assert.assertEquals(3, masterStatusSystem.workers().size());
+    Assert.assertEquals(3, masterStatusSystem.getWorkers().size());
     Assert.assertEquals(3, masterStatusSystem.excludedWorkers.size());
     Assert.assertEquals(2, masterStatusSystem.manuallyExcludedWorkers.size());
     Assert.assertEquals(3, masterStatusSystem.hostnameSet.size());
@@ -260,7 +260,7 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     Assert.assertArrayEquals(originSnapshots, masterStatusSystem.appDiskUsageMetric.snapShots());
 
     masterStatusSystem.restoreMetaFromFile(tmpFile);
-    Assert.assertEquals(3, masterStatusSystem.workers().size());
+    Assert.assertEquals(3, masterStatusSystem.getWorkers().size());
   }
 
   private String getNewReqeustId() {
