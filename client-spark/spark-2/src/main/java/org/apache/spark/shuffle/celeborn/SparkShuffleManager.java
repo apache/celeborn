@@ -117,15 +117,16 @@ public class SparkShuffleManager implements ShuffleManager {
     String appId = SparkUtils.appUniqueId(dependency.rdd().context());
     initializeLifecycleManager(appId);
 
-    lifecycleManager.registerAppShuffleDeterminate(
-        shuffleId,
-        !DeterministicLevel.INDETERMINATE().equals(dependency.rdd().getOutputDeterministicLevel()));
-
     if (fallbackPolicyRunner.applyFallbackPolicies(dependency, lifecycleManager)) {
       logger.warn("Fallback to SortShuffleManager!");
       sortShuffleIds.add(shuffleId);
       return sortShuffleManager().registerShuffle(shuffleId, numMaps, dependency);
     } else {
+      lifecycleManager.registerAppShuffleDeterminate(
+          shuffleId,
+          !DeterministicLevel.INDETERMINATE()
+              .equals(dependency.rdd().getOutputDeterministicLevel()));
+
       return new CelebornShuffleHandle<>(
           appUniqueId,
           lifecycleManager.getHost(),
