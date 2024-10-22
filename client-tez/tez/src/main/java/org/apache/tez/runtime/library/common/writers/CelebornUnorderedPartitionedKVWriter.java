@@ -18,15 +18,10 @@
 package org.apache.tez.runtime.library.common.writers;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.Deflater;
 
-import com.google.protobuf.ByteString;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.RawLocalFileSystem;
@@ -34,21 +29,15 @@ import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.serializer.Serialization;
 import org.apache.hadoop.io.serializer.SerializationFactory;
 import org.apache.hadoop.io.serializer.Serializer;
-import org.apache.tez.common.Preconditions;
 import org.apache.tez.common.TezCommonUtils;
-import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.common.counters.TaskCounter;
 import org.apache.tez.common.counters.TezCounter;
-import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.api.OutputContext;
-import org.apache.tez.runtime.api.events.CompositeDataMovementEvent;
 import org.apache.tez.runtime.library.api.KeyValuesWriter;
 import org.apache.tez.runtime.library.api.Partitioner;
 import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.common.ConfigUtils;
 import org.apache.tez.runtime.library.common.TezRuntimeUtils;
-import org.apache.tez.runtime.library.common.shuffle.ShuffleUtils;
-import org.apache.tez.runtime.library.shuffle.impl.ShuffleUserPayloads;
 import org.apache.tez.runtime.library.utils.CodecUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -201,76 +190,10 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
     pusher.insert(key, value, partitioner.getPartition(key, value, numOutputs));
   }
 
-  public List<Event> close() throws IOException {
+  public void close() throws IOException {
     pusher.close();
     isShutdown.set(true);
     updateTezCountersAndNotify();
-    List<Event> eventList = new ArrayList<>();
-    eventList.add(generateVMEvent());
-    eventList.add(generateDMEvent());
-    return eventList;
-  }
-
-  private Event generateVMEvent() throws IOException {
-    return ShuffleUtils.generateVMEvent(
-        outputContext, this.sizePerPartition, reportPartitionStats.isPrecise(), deflater.get());
-  }
-
-  private Event generateDMEvent() throws IOException {
-    BitSet emptyPartitions = getEmptyPartitions(numRecordsPerPartition);
-    return generateDMEvent(false, -1, false, outputContext.getUniqueIdentifier(), emptyPartitions);
-  }
-
-  private Event generateDMEvent(
-      boolean addSpillDetails,
-      int spillId,
-      boolean isLastSpill,
-      String pathComponent,
-      BitSet emptyPartitions)
-      throws IOException {
-
-    outputContext.notifyProgress();
-    ShuffleUserPayloads.DataMovementEventPayloadProto.Builder payloadBuilder =
-        ShuffleUserPayloads.DataMovementEventPayloadProto.newBuilder();
-    if (numOutputs == 1) {
-      payloadBuilder.setNumRecord((int) outputRecordsCounter.getValue());
-    }
-
-    String host = "fake";
-    if (emptyPartitions.cardinality() != 0) {
-      // Empty partitions exist
-      ByteString emptyPartitionsByteString =
-          TezCommonUtils.compressByteArrayToByteString(
-              TezUtilsInternal.toByteArray(emptyPartitions), deflater.get());
-      payloadBuilder.setEmptyPartitions(emptyPartitionsByteString);
-    }
-
-    if (emptyPartitions.cardinality() != numOutputs) {
-      // Populate payload only if at least 1 partition has data
-      payloadBuilder.setHost(host);
-      payloadBuilder.setPort(0);
-      payloadBuilder.setPathComponent(pathComponent);
-    }
-
-    if (addSpillDetails) {
-      payloadBuilder.setSpillId(spillId);
-      payloadBuilder.setLastEvent(isLastSpill);
-    }
-    byte[] byteArray = payloadBuilder.build().toByteArray();
-    ByteBuffer wrap = ByteBuffer.wrap(byteArray);
-    return CompositeDataMovementEvent.create(0, numOutputs, wrap);
-  }
-
-  private BitSet getEmptyPartitions(int[] recordsPerPartition) {
-    Preconditions.checkArgument(
-        recordsPerPartition != null, "records per partition can not be null");
-    BitSet emptyPartitions = new BitSet();
-    for (int i = 0; i < numOutputs; i++) {
-      if (recordsPerPartition[i] == 0) {
-        emptyPartitions.set(i);
-      }
-    }
-    return emptyPartitions;
   }
 
   private void updateTezCountersAndNotify() {
@@ -282,5 +205,17 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
       sizePerPartition = pusher.getBytesPerPartition();
     }
     outputContext.notifyProgress();
+  }
+
+  public int[] getNumRecordsPerPartition() {
+    return numRecordsPerPartition;
+  }
+
+  public boolean reportDetailedPartitionStats() {
+    return reportPartitionStats.isPrecise();
+  }
+
+  public long[] getPartitionStats() {
+    return sizePerPartition;
   }
 }

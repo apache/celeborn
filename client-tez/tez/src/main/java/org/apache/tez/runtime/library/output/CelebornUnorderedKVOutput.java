@@ -16,12 +16,16 @@ package org.apache.tez.runtime.library.output;
 
 import static org.apache.celeborn.tez.plugin.util.CelebornTezUtils.*;
 
+import java.io.IOException;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.zip.Deflater;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.conf.Configuration;
@@ -30,6 +34,7 @@ import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.common.TezUtils;
 import org.apache.tez.common.counters.TaskCounter;
+import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.runtime.api.AbstractLogicalOutput;
 import org.apache.tez.runtime.api.Event;
@@ -40,8 +45,10 @@ import org.apache.tez.runtime.library.api.Partitioner;
 import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.common.MemoryUpdateCallbackHandler;
 import org.apache.tez.runtime.library.common.shuffle.ShuffleUtils;
+import org.apache.tez.runtime.library.common.sort.impl.TezIndexRecord;
 import org.apache.tez.runtime.library.common.writers.CelebornUnorderedPartitionedKVWriter;
 import org.apache.tez.runtime.library.common.writers.UnorderedPartitionedKVWriter;
+import org.apache.tez.runtime.library.sort.CelebornTezPerPartitionRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +71,8 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
   @VisibleForTesting Configuration conf;
   private MemoryUpdateCallbackHandler memoryUpdateCallbackHandler;
   private CelebornUnorderedPartitionedKVWriter kvWriter;
+  private final Deflater deflater;
+  private boolean sendEmptyPartitionDetails;
   private final AtomicBoolean isStarted = new AtomicBoolean(false);
 
   private static int mapId;
@@ -85,6 +94,7 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
             CelebornTezUtils.uniqueIdentifierToAttemptId(outputContext.getUniqueIdentifier()));
     attemptId = taskAttemptId.getId();
     mapId = taskAttemptId.getTaskID().getId();
+    deflater = TezCommonUtils.newBestCompressionDeflater();
   }
 
   @Override
@@ -95,6 +105,10 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
         TezRuntimeFrameworkConfigs.TEZ_RUNTIME_NUM_EXPECTED_PARTITIONS, getNumPhysicalOutputs());
     this.conf.set(
         TezRuntimeConfiguration.TEZ_RUNTIME_PARTITIONER_CLASS, CustomPartitioner.class.getName());
+    sendEmptyPartitionDetails =
+        conf.getBoolean(
+            TezRuntimeConfiguration.TEZ_RUNTIME_EMPTY_PARTITION_INFO_VIA_EVENTS_ENABLED,
+            TezRuntimeConfiguration.TEZ_RUNTIME_EMPTY_PARTITION_INFO_VIA_EVENTS_ENABLED_DEFAULT);
     this.memoryUpdateCallbackHandler = new MemoryUpdateCallbackHandler();
     getContext()
         .requestInitialMemory(
@@ -151,9 +165,10 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
 
   @Override
   public synchronized List<Event> close() throws Exception {
-    List<Event> returnEvents = null;
+    List<Event> returnEvents;
     if (isStarted.get()) {
-      returnEvents = kvWriter.close();
+      kvWriter.close();
+      returnEvents = generateEvents();
       kvWriter = null;
     } else {
       LOG.warn(
@@ -180,6 +195,49 @@ public class CelebornUnorderedKVOutput extends AbstractLogicalOutput {
     getContext().getStatisticsReporter().reportItemsProcessed(outputRecords);
 
     return returnEvents;
+  }
+
+  private List<Event> generateEvents() throws IOException {
+    List<Event> eventList = Lists.newLinkedList();
+    boolean isLastEvent = true;
+
+    String auxiliaryService =
+        conf.get(
+            TezConfiguration.TEZ_AM_SHUFFLE_AUXILIARY_SERVICE_ID,
+            TezConfiguration.TEZ_AM_SHUFFLE_AUXILIARY_SERVICE_ID_DEFAULT);
+
+    int[] numRecordsPerPartition = kvWriter.getNumRecordsPerPartition();
+
+    CelebornTezPerPartitionRecord celebornTezPerPartitionRecord =
+        new CelebornTezPerPartitionRecord(numOutputs, numRecordsPerPartition);
+
+    BitSet emptyPartitionDetails = new BitSet();
+    for (int i = 0; i < celebornTezPerPartitionRecord.size(); i++) {
+      TezIndexRecord indexRecord = celebornTezPerPartitionRecord.getIndex(i);
+      if (!indexRecord.hasData()) {
+        emptyPartitionDetails.set(i);
+      }
+    }
+    if (emptyPartitionDetails.cardinality() > 0) {
+      LOG.info("empty partition details");
+    }
+
+    ShuffleUtils.generateEventOnSpill(
+        eventList,
+        true,
+        isLastEvent,
+        getContext(),
+        0,
+        celebornTezPerPartitionRecord,
+        getNumPhysicalOutputs(),
+        sendEmptyPartitionDetails,
+        getContext().getUniqueIdentifier(),
+        kvWriter.getPartitionStats(),
+        kvWriter.reportDetailedPartitionStats(),
+        auxiliaryService,
+        deflater);
+    LOG.info("Generate events.");
+    return eventList;
   }
 
   @InterfaceAudience.Private

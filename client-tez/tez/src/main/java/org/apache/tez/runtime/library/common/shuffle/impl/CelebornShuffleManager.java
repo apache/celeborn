@@ -330,6 +330,20 @@ public class CelebornShuffleManager extends ShuffleManager {
     }
   }
 
+  @Override
+  public void addCompletedInputWithNoData(InputAttemptIdentifier srcAttemptIdentifier) {
+    super.addCompletedInputWithNoData(srcAttemptIdentifier);
+    numNoDataInput.incrementAndGet();
+    LOG.info(
+        "AddCompletedInputWithNoData, numNoDataInput:{}, numWithDataInput:{},numInputs:{},  "
+            + "successRssPartitionSet:{}, allRssPartition:{}.",
+        numNoDataInput,
+        numWithDataInput,
+        numInputs,
+        successRssPartitionSet,
+        allRssPartition);
+  }
+
   public void shutdown() throws InterruptedException {
 
     if (!isShutdown.get()) {
