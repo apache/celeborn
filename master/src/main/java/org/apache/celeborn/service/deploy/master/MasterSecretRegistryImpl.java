@@ -49,7 +49,7 @@ public class MasterSecretRegistryImpl implements SecretRegistry {
   @Override
   public String getSecretKey(String appId) {
     String secret = null;
-    LOG.info("Fetching secret from metadata manager for appId: {}", appId);
+    LOG.debug("Fetching secret from metadata manager for appId: {}", appId);
     ApplicationMeta applicationMeta = statusSystem.applicationMetas.get(appId);
     if (applicationMeta != null) {
       secret = applicationMeta.secret();
