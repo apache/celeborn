@@ -20,10 +20,10 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
-import java.util.Collections
+import java.util.{Collections, List => JList, Map => JMap}
 import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.function.ToLongFunction
+import java.util.function.{Supplier, ToLongFunction}
 
 import scala.collection.JavaConverters._
 import scala.util.Random
@@ -908,25 +908,30 @@ private[celeborn] class Master(
     // offer slots
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
-        statusSystem.synchronizedWorkers(() => {
-          if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE) {
-            SlotsAllocator.offerSlotsLoadAware(
-              selectedWorkers,
-              requestSlots.partitionIdList,
-              requestSlots.shouldReplicate,
-              requestSlots.shouldRackAware,
-              slotsAssignLoadAwareDiskGroupNum,
-              slotsAssignLoadAwareDiskGroupGradient,
-              loadAwareFlushTimeWeight,
-              loadAwareFetchTimeWeight,
-              requestSlots.availableStorageTypes)
-          } else {
-            SlotsAllocator.offerSlotsRoundRobin(
-              selectedWorkers,
-              requestSlots.partitionIdList,
-              requestSlots.shouldReplicate,
-              requestSlots.shouldRackAware,
-              requestSlots.availableStorageTypes)
+        statusSystem.synchronizedWorkers(new Supplier[JMap[
+          WorkerInfo,
+          Tuple2[JList[PartitionLocation], JList[PartitionLocation]]]] {
+          override def get()
+              : JMap[WorkerInfo, (JList[PartitionLocation], JList[PartitionLocation])] = {
+            if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE) {
+              SlotsAllocator.offerSlotsLoadAware(
+                selectedWorkers,
+                requestSlots.partitionIdList,
+                requestSlots.shouldReplicate,
+                requestSlots.shouldRackAware,
+                slotsAssignLoadAwareDiskGroupNum,
+                slotsAssignLoadAwareDiskGroupGradient,
+                loadAwareFlushTimeWeight,
+                loadAwareFetchTimeWeight,
+                requestSlots.availableStorageTypes)
+            } else {
+              SlotsAllocator.offerSlotsRoundRobin(
+                selectedWorkers,
+                requestSlots.partitionIdList,
+                requestSlots.shouldReplicate,
+                requestSlots.shouldRackAware,
+                requestSlots.availableStorageTypes)
+            }
           }
         })
       }
