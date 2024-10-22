@@ -1102,10 +1102,24 @@ object Utils extends Logging {
         StatusCode.WORKER_EXCLUDED
       case 28 =>
         StatusCode.WORKER_UNKNOWN
+      case 29 =>
+        StatusCode.COMMIT_FILE_EXCEPTION
       case 30 =>
         StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED
       case 31 =>
         StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED
+      case 32 =>
+        StatusCode.PUSH_DATA_HANDSHAKE_FAIL_REPLICA
+      case 33 =>
+        StatusCode.PUSH_DATA_HANDSHAKE_FAIL_PRIMARY
+      case 34 =>
+        StatusCode.REGION_START_FAIL_REPLICA
+      case 35 =>
+        StatusCode.REGION_START_FAIL_PRIMARY
+      case 36 =>
+        StatusCode.REGION_FINISH_FAIL_REPLICA
+      case 37 =>
+        StatusCode.REGION_FINISH_FAIL_PRIMARY
       case 38 =>
         StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY
       case 39 =>
@@ -1132,6 +1146,12 @@ object Utils extends Logging {
         StatusCode.COMMIT_FILES_MOCK_FAILURE
       case 50 =>
         StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA
+      case 51 =>
+        StatusCode.OPEN_STREAM_FAILED
+      case 52 =>
+        StatusCode.SEGMENT_START_FAIL_REPLICA
+      case 53 =>
+        StatusCode.SEGMENT_START_FAIL_PRIMARY
       case _ =>
         null
     }
