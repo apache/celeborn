@@ -25,6 +25,7 @@ import java.util.Map;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import org.slf4j.Logger;
@@ -138,13 +139,10 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
 
         // fetch first buffer and send
         buffer = fetchBufferToSend();
-        if (buffer instanceof RecyclableSegmentIdBuffer) {
-          logger.error("Wrong type of buffer. ");
-          throw new RuntimeException("Wrong type of buffer.");
-        }
         if (buffer == null) {
           break;
         }
+        Preconditions.checkState(!(buffer instanceof RecyclableSegmentIdBuffer));
         sendDataInternal(buffer);
       }
     }
@@ -220,10 +218,8 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
 
   private boolean isEndOfSegment(ByteBuf buffer, int subPartitionId) {
     boolean isEndOfSegment = false;
-    if (subPartitionId < startPartitionIndex || subPartitionId > endPartitionIndex) {
-      logger.error("Wrong sub partition id.");
-      throw new IllegalArgumentException("Wrong sub partition id.");
-    }
+    Preconditions.checkState(
+        subPartitionId >= startPartitionIndex && subPartitionId <= endPartitionIndex);
     if (mapFileMeta.hasPartitionSegmentIds()) {
       // skip another 3 int fields, the write details are in
       // FlinkShuffleClientImpl#pushDataToLocation

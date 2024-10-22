@@ -188,7 +188,9 @@ public class CreditStreamManager {
             .notifyRequiredSegmentId(requiredSegmentId, streamId, subPartitionId);
       }
     } catch (Throwable e) {
-      logger.error("Fail to notify segmentId {} for stream {}", requiredSegmentId, streamId);
+      logger.error(
+          String.format("Fail to notify segmentId %s for stream %s.", requiredSegmentId, streamId),
+          e);
       throw e;
     }
   }
