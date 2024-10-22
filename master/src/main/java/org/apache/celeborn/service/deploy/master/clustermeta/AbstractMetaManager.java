@@ -23,12 +23,15 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.google.common.annotations.VisibleForTesting;
 import scala.Option;
 import scala.Tuple2;
 
@@ -64,7 +67,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final Map<String, Set<Integer>> registeredAppAndShuffles =
       JavaUtils.newConcurrentHashMap();
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
-  public final Set<WorkerInfo> workers = ConcurrentHashMap.newKeySet();
+  private final Map<Integer, WorkerInfo> workersMap = JavaUtils.newConcurrentHashMap();
 
   public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = JavaUtils.newConcurrentHashMap();
   public final ConcurrentHashMap<WorkerInfo, WorkerEventInfo> workerEventInfos =
@@ -89,6 +92,37 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
       JavaUtils.newConcurrentHashMap();
+
+  public Set<WorkerInfo> workers() {
+    return workersMap.values().stream().collect(Collectors.toSet());
+  }
+
+  public void removeWorker(WorkerInfo worker) {
+    workersMap.remove(worker.hashCode());
+  }
+
+  public void updateWorker(WorkerInfo worker) {
+      workersMap.put(worker.hashCode(), worker);
+  }
+
+  public boolean containsWorker(WorkerInfo worker) {
+    return workersMap.containsKey(worker.hashCode());
+  }
+
+  public WorkerInfo getWorker(WorkerInfo worker) {
+    return workersMap.get(worker.hashCode());
+  }
+
+  @VisibleForTesting
+  public void clearWorkers() {
+    workersMap.clear();
+  }
+
+  public <T> T synchronizedWorkers(Callable<T> f) throws Exception {
+    synchronized (workersMap) {
+      return f.call();
+    }
+  }
 
   public void updateRequestSlotsMeta(
       String shuffleKey, String hostName, Map<String, Map<String, Integer>> workerWithAllocations) {
@@ -170,8 +204,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
     workerLostEvents.add(worker);
     // remove worker from workers
-    synchronized (workers) {
-      workers.remove(worker);
+    synchronized (workersMap) {
+      removeWorker(worker);
       lostWorkers.put(worker, System.currentTimeMillis());
     }
     excludedWorkers.remove(worker);
@@ -182,15 +216,15 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
     WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
     // remove worker from workers
-    synchronized (workers) {
-      workers.remove(worker);
+    synchronized (workersMap) {
+      removeWorker(worker);
       lostWorkers.put(worker, System.currentTimeMillis());
     }
     excludedWorkers.remove(worker);
   }
 
   public void removeWorkersUnavailableInfoMeta(List<WorkerInfo> unavailableWorkers) {
-    synchronized (workers) {
+    synchronized (workersMap) {
       for (WorkerInfo workerInfo : unavailableWorkers) {
         if (lostWorkers.containsKey(workerInfo)) {
           lostWorkers.remove(workerInfo);
@@ -219,8 +253,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             host, rpcPort, pushPort, fetchPort, replicatePort, -1, disks, userResourceConsumption);
     AtomicLong availableSlots = new AtomicLong();
     LOG.debug("update worker {}:{} heartbeat {}", host, rpcPort, disks);
-    synchronized (workers) {
-      Optional<WorkerInfo> workerInfo = workers.stream().filter(w -> w.equals(worker)).findFirst();
+    synchronized (workersMap) {
+      Optional<WorkerInfo> workerInfo = Optional.ofNullable(getWorker(worker));
       workerInfo.ifPresent(
           info -> {
             info.updateThenGetDiskInfos(disks, Option.apply(estimatedPartitionSize));
@@ -287,9 +321,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       workerInfo.networkLocation_$eq(rackResolver.resolve(host).getNetworkLocation());
     }
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
-    synchronized (workers) {
-      if (!workers.contains(workerInfo)) {
-        workers.add(workerInfo);
+    synchronized (workersMap) {
+      if (!containsWorker(workerInfo)) {
+        updateWorker(workerInfo);
       }
       shutdownWorkers.remove(workerInfo);
       lostWorkers.remove(workerInfo);
@@ -315,7 +349,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 manuallyExcludedWorkers,
                 workerLostEvents,
                 appHeartbeatTime,
-                workers,
+                workers(),
                 partitionTotalWritten.sum(),
                 partitionTotalFileCount.sum(),
                 appDiskUsageMetric.snapShots(),
@@ -381,7 +415,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
               .collect(Collectors.toList());
       scala.collection.immutable.Map<String, Node> resolveMap =
           rackResolver.resolveToMap(workerHostList);
-      workers.addAll(
+      workersMap.putAll(
           workerInfoSet.stream()
               .peek(
                   workerInfo -> {
@@ -391,7 +425,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                           resolveMap.get(workerInfo.host()).get().getNetworkLocation());
                     }
                   })
-              .collect(Collectors.toSet()));
+              .collect(Collectors.toMap(WorkerInfo::hashCode, w -> w)));
 
       snapshotMetaInfo
           .getLostWorkersMap()
@@ -437,11 +471,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     LOG.info("Successfully restore meta info from snapshot {}", file.getAbsolutePath());
     LOG.info(
         "Worker size: {}, Registered shuffle size: {}. Worker excluded list size: {}. Manually Excluded list size: {}",
-        workers.size(),
+        workersMap.size(),
         registeredAppAndShuffles.size(),
         excludedWorkers.size(),
         manuallyExcludedWorkers.size());
-    workers.forEach(workerInfo -> LOG.info(workerInfo.toString()));
+    workers().forEach(workerInfo -> LOG.info(workerInfo.toString()));
     registeredAppAndShuffles.forEach(
         (appId, shuffleId) -> LOG.info("RegisteredShuffle {}-{}", appId, shuffleId));
   }
@@ -449,7 +483,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   private void cleanUpState() {
     registeredAppAndShuffles.clear();
     hostnameSet.clear();
-    workers.clear();
+    workersMap.clear();
     lostWorkers.clear();
     appHeartbeatTime.clear();
     excludedWorkers.clear();
@@ -464,7 +498,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateMetaByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
-    synchronized (this.workers) {
+    synchronized (this.workersMap) {
       shutdownWorkers.addAll(failedWorkers);
     }
   }
@@ -473,7 +507,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     long eventTime = System.currentTimeMillis();
     ResourceProtos.WorkerEventType eventType =
         ResourceProtos.WorkerEventType.forNumber(workerEventTypeValue);
-    synchronized (this.workers) {
+    synchronized (this.workersMap) {
       for (WorkerInfo workerInfo : workerInfoList) {
         WorkerEventInfo workerEventInfo = workerEventInfos.get(workerInfo);
         LOG.info("Received worker event: {} for worker: {}", eventType, workerInfo.toUniqueId());
@@ -489,7 +523,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateMetaByReportWorkerDecommission(List<WorkerInfo> workers) {
-    synchronized (this.workers) {
+    synchronized (this.workersMap) {
       decommissionWorkers.addAll(workers);
     }
   }
@@ -520,7 +554,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         "Celeborn cluster estimated partition size changed from {} to {}",
         Utils.bytesToString(oldEstimatedPartitionSize),
         Utils.bytesToString(estimatedPartitionSize));
-    workers.stream()
+    workers().stream()
         .filter(
             worker ->
                 !excludedWorkers.contains(worker) && !manuallyExcludedWorkers.contains(worker))

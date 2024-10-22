@@ -477,7 +477,7 @@ object PbSerDeUtils {
         .map(toPbWorkerInfo(_, true, false)).asJava)
       .addAllWorkerLostEvents(workerLostEvent.asScala.map(toPbWorkerInfo(_, true, false)).asJava)
       .putAllAppHeartbeatTime(appHeartbeatTime)
-      .addAllWorkers(workers.asScala.map(toPbWorkerInfo(_, true, false)).asJava)
+      .addAllWorkers(workers.values().asScala.map(toPbWorkerInfo(_, true, false)).asJava)
       .setPartitionTotalWritten(partitionTotalWritten)
       .setPartitionTotalFileCount(partitionTotalFileCount)
       // appDiskUsageMetricSnapshots can have null values,
