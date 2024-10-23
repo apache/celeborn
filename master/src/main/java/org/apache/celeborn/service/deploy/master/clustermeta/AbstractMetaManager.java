@@ -220,7 +220,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     if (!excludedWorkers.contains(worker)
         && (((disks.isEmpty() || exceed) && !conf.hasHDFSStorage() && !conf.hasS3Storage())
             || highWorkload)) {
-      LOG.debug(
+      LOG.warn(
           "Worker {} (unhealthy disks num: {}) adds to excluded workers", worker, unhealthyDiskNum);
       excludedWorkers.add(worker);
     } else if ((availableSlots.get() > 0 || conf.hasHDFSStorage() || conf.hasS3Storage())
