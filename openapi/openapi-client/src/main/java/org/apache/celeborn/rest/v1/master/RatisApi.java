@@ -195,8 +195,8 @@ public class RatisApi extends BaseApi {
    * @return File
    * @throws ApiException if fails to make API call
    */
-  public File generateLocalRaftMetaConf(RatisLocalRaftMetaConfRequest ratisLocalRaftMetaConfRequest) throws ApiException {
-    return this.generateLocalRaftMetaConf(ratisLocalRaftMetaConfRequest, Collections.emptyMap());
+  public File generateNewRaftMetaConf(RatisLocalRaftMetaConfRequest ratisLocalRaftMetaConfRequest) throws ApiException {
+    return this.generateNewRaftMetaConf(ratisLocalRaftMetaConfRequest, Collections.emptyMap());
   }
 
 
@@ -208,11 +208,11 @@ public class RatisApi extends BaseApi {
    * @return File
    * @throws ApiException if fails to make API call
    */
-  public File generateLocalRaftMetaConf(RatisLocalRaftMetaConfRequest ratisLocalRaftMetaConfRequest, Map<String, String> additionalHeaders) throws ApiException {
+  public File generateNewRaftMetaConf(RatisLocalRaftMetaConfRequest ratisLocalRaftMetaConfRequest, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = ratisLocalRaftMetaConfRequest;
     
     // create path and map variables
-    String localVarPath = "/api/v1/ratis/local_raft_meta_conf";
+    String localVarPath = "/api/v1/ratis/local/raft_meta_conf";
 
     StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
     String localVarQueryParameterBaseName;
@@ -243,6 +243,73 @@ public class RatisApi extends BaseApi {
     return apiClient.invokeAPI(
         localVarPath,
         "POST",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
+  }
+
+  /**
+   * 
+   * Get the raft-meta.conf file of the current server.
+   * @return File
+   * @throws ApiException if fails to make API call
+   */
+  public File getLocalRaftMetaConf() throws ApiException {
+    return this.getLocalRaftMetaConf(Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * Get the raft-meta.conf file of the current server.
+   * @param additionalHeaders additionalHeaders for this call
+   * @return File
+   * @throws ApiException if fails to make API call
+   */
+  public File getLocalRaftMetaConf(Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = null;
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/ratis/local/raft_meta_conf";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/octet-stream"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<File> localVarReturnType = new TypeReference<File>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "GET",
         localVarQueryParams,
         localVarCollectionQueryParams,
         localVarQueryStringJoiner.toString(),

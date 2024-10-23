@@ -18,7 +18,8 @@
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
 import java.nio.charset.StandardCharsets
-import javax.ws.rs.{BadRequestException, Consumes, Path, POST, Produces}
+import java.nio.file.Paths
+import javax.ws.rs.{BadRequestException, Consumes, GET, NotFoundException, Path, POST, Produces}
 import javax.ws.rs.core.{MediaType, Response}
 
 import scala.collection.JavaConverters._
@@ -26,9 +27,11 @@ import scala.collection.JavaConverters._
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.apache.commons.io.IOUtils
 import org.apache.ratis.proto.RaftProtos.{LogEntryProto, RaftConfigurationProto, RaftPeerProto, RaftPeerRole}
 import org.apache.ratis.protocol.{LeaderElectionManagementRequest, RaftClientReply, RaftPeer, SetConfigurationRequest, SnapshotManagementRequest, TransferLeadershipRequest}
 import org.apache.ratis.rpc.CallId
+import org.apache.ratis.server.storage.RaftStorageDirectory
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString
 
 import org.apache.celeborn.common.CelebornConf
@@ -250,12 +253,37 @@ class RatisResource extends ApiRequestContext with Logging {
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_OCTET_STREAM,
       schema = new Schema(implementation = classOf[Response]))),
+    description = "Get the raft-meta.conf file of the current server.")
+  @GET
+  @Path("/local/raft_meta_conf")
+  @Produces(Array(MediaType.APPLICATION_OCTET_STREAM))
+  def getLocalRaftMetaConf(): Response = ensureMasterHAEnabled(master) {
+    val raftMetaConfFile = Paths.get(
+      master.conf.haMasterRatisStorageDir,
+      ratisServer.getGroupId.getUuid.toString,
+      RaftStorageDirectory.CURRENT_DIR_NAME,
+      "raft-meta.conf")
+
+    if (!raftMetaConfFile.toFile.exists()) {
+      throw new NotFoundException(s"File $raftMetaConfFile not found.")
+    }
+
+    Response.ok(IOUtils.toByteArray(raftMetaConfFile.toUri))
+      .header("Content-Disposition", "attachment; filename=\"raft-meta.conf\"")
+      .build()
+  }
+
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_OCTET_STREAM,
+      schema = new Schema(implementation = classOf[Response]))),
     description = "Generate a new-raft-meta.conf file based on original raft-meta.conf" +
       " and new peers, which is used to move a raft node to a new node.")
   @POST
   @Path("/local/raft_meta_conf")
   @Produces(Array(MediaType.APPLICATION_OCTET_STREAM))
-  def localRaftMetaConf(request: RatisLocalRaftMetaConfRequest): Response =
+  def generateNewRaftMetaConf(request: RatisLocalRaftMetaConfRequest): Response =
     ensureMasterHAEnabled(master) {
       if (request.getPeers.isEmpty) {
         throw new BadRequestException("No peers specified.")
