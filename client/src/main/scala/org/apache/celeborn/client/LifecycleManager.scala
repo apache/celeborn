@@ -212,7 +212,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       () => commitManager.commitMetrics(),
       workerStatusTracker,
       registeredShuffle)
-  private val changePartitionManager = new ChangePartitionManager(conf, this)
+  val changePartitionManager = new ChangePartitionManager(conf, this)
   private val releasePartitionManager = new ReleasePartitionManager(conf, this)
 
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and

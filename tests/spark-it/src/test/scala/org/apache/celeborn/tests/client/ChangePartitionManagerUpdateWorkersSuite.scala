@@ -66,8 +66,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
       .set(CelebornConf.CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS.key, "true")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
-    val changePartitionManager: ChangePartitionManager =
-      new ChangePartitionManager(conf, lifecycleManager)
+    val changePartitionManager = lifecycleManager.changePartitionManager
     val mockChangePartitionManager = spy(changePartitionManager)
     doNothing.when(mockChangePartitionManager).replySuccess(
       any[Array[PartitionLocation]],
@@ -149,8 +148,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
-    val changePartitionManager: ChangePartitionManager =
-      new ChangePartitionManager(conf, lifecycleManager)
+    val changePartitionManager = lifecycleManager.changePartitionManager
     val mockChangePartitionManager = spy(changePartitionManager)
     doNothing.when(mockChangePartitionManager).replySuccess(
       any[Array[PartitionLocation]],
