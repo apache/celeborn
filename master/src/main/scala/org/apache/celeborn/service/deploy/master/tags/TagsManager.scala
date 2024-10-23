@@ -30,6 +30,8 @@ import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.util.JavaUtils
 
 class TagsManager extends Logging {
+  private val scheme = "AND"
+
   private val tagStore = JavaUtils.newConcurrentHashMap[String, JSet[String]]()
 
   private val addNewTagFunc =
@@ -46,16 +48,28 @@ class TagsManager extends Logging {
       return new util.ArrayList[WorkerInfo]()
     }
 
-    // TODO: Support multiple tags (CELEBORN-1642)
-    val tag = tags(0)
-    val workersForTag = tagStore.get(tag)
-    if (workersForTag == null) {
-      logWarning(s"Tag $tag not found in cluster")
+    val workersForTags = new util.HashSet[String]()
+    tags.foreach { tag =>
+      val workers = tagStore.get(tag)
+      if (workers != null) {
+        scheme match {
+          case "AND" =>
+            workersForTags.addAll(workers)
+          case "OR" =>
+            workersForTags.retainAll(workers)
+          case _ =>
+            logWarning(s"Unknown scheme: $scheme")
+        }
+      }
+    }
+
+    if (workersForTags == null) {
+      logWarning(s"No workers for tags: $tagExpr schema: $scheme not found in cluster")
       return new util.ArrayList[WorkerInfo]()
     }
 
     val workerTagsPredicate = new Predicate[WorkerInfo] {
-      override def test(w: WorkerInfo): Boolean = workersForTag.contains(w.toUniqueId())
+      override def test(w: WorkerInfo): Boolean = workersForTags.contains(w.toUniqueId())
     }
     workers.stream().filter(workerTagsPredicate).collect(Collectors.toList())
   }
