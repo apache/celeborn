@@ -965,6 +965,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       return 0;
     }
 
+    //    int numGroupTask = (int) Math.ceil(numMappers * 1.0 / conf.groupMapTaskGroupSize());
     int groupTaskPartitionId = partitionId;
     int mapTaskGroupId = 0;
     if (conf.groupMapTaskEnabled()) {
@@ -974,8 +975,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     final int finalGroupTaskPartitionId = groupTaskPartitionId;
     PartitionLocation loc = map.get(finalGroupTaskPartitionId);
 
-    //    logger.info("[test groupMapTask] mapId: {} partitionId:{} mapTaskGroupId: {}
-    // groupTaskPartitionId:{}", mapId, partitionId, mapTaskGroupId, groupTaskPartitionId);
+    //    logger.info("[test groupMapTask] partitionGroupCnt: {} numPartitions: {} mapId: {}
+    // partitionId:{} mapTaskGroupId: {} groupTaskPartitionId:{}", numGroupTask, numPartitions,
+    // mapId, partitionId, mapTaskGroupId, groupTaskPartitionId);
 
     if (loc == null) {
       throw new CelebornIOException(

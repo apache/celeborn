@@ -669,12 +669,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     if (partitionType.getValue.equals(PartitionType.REDUCE.getValue) && groupMapTaskEnabled) {
       groupNumPartitions = numPartitions * numGroupTask
     }
+//    logInfo(s"[test groupMapTask] partitionGroupCnt: ${numGroupTask}, groupNumPartitions: ${groupNumPartitions}, " +
+//      s"numMappers: ${numMappers}, numPartitions: ${numPartitions}")
     val ids = new util.ArrayList[Integer](groupNumPartitions)
     (0 until groupNumPartitions).foreach(idx => ids.add(Integer.valueOf(idx)))
     val res = requestMasterRequestSlotsWithRetry(shuffleId, ids, numGroupTask)
-//    if (groupMapTaskEnabled && res.status != StatusCode.SUCCESS) {
-//      groupMapTaskEnabled = false
-//    }
 
     res.status match {
       case StatusCode.REQUEST_FAILED =>

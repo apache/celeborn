@@ -123,24 +123,29 @@ class CelebornShuffleReader[K, C](
 
     var partCnt = 0
     var groupPartitionIdList = new ArrayBuffer[Int]()
-//    var partitionIdList = ArrayBuffer[Int]() ++ (startPartition until endPartition)
+//    val partitionIdList = ArrayBuffer[Int]() ++ (startPartition until endPartition)
     if (!conf.groupMapTaskEnabled) {
       groupPartitionIdList = ArrayBuffer[Int]() ++ (startPartition until endPartition)
     } else {
+      val numPartitions = handle.dependency.partitioner.numPartitions
+      val numMappers = handle.numMappers
       val partitionGroupCnt =
         if (conf.groupMapTaskEnabled)
-          math.ceil(handle.numMappers.toDouble / conf.groupMapTaskGroupSize).toInt
+          math.ceil(numMappers.toDouble / conf.groupMapTaskGroupSize).toInt
         else 1
+      val groupNumPartitions = numPartitions * partitionGroupCnt
       (startPartition until endPartition).foreach { originalPartitionId =>
         (0 until partitionGroupCnt).foreach { groupCnt =>
-          val tmpPartitionId =
-            originalPartitionId + groupCnt * (fileGroups.partitionGroups.keySet().size() / partitionGroupCnt)
+          val tmpPartitionId = {
+            // fileGroups.partitionGroups.keySet().size() != numPartitions (for the whole shuffleId)
+            originalPartitionId + groupCnt * (groupNumPartitions / partitionGroupCnt)
+          }
           groupPartitionIdList += tmpPartitionId
         }
       }
-//      logInfo(s"[test groupMapTask] groupPartition read, partitionGroupCnt: $partitionGroupCnt, " +
-//        s"partitionIdList: $partitionIdList " +
-//        s"groupPartitionIdList: $groupPartitionIdList")
+//      logInfo(s"[test groupMapTask] groupPartition read, partitionGroupCnt: $partitionGroupCnt, numMappers: $numMappers" +
+//        s"numPartitions: $numPartitions, groupNumPartitions: $groupNumPartitions " +
+//        s"partitionIdList: $partitionIdList, groupPartitionIdList: $groupPartitionIdList")
     }
 
     groupPartitionIdList.foreach { partitionId =>
