@@ -121,8 +121,7 @@ public class CreditStreamManager {
                               threadsPerMountPoint,
                               fileInfo,
                               id -> recycleStream(id),
-                              minBuffersToTriggerRead,
-                              requireSubpartitionId);
+                              minBuffersToTriggerRead);
                 } catch (IOException e) {
                   exception.set(e);
                   return null;

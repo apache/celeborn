@@ -32,6 +32,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.meta.DiskFileInfo;
+import org.apache.celeborn.common.network.protocol.ReadData;
+import org.apache.celeborn.common.network.protocol.RequestMessage;
+import org.apache.celeborn.common.network.protocol.SubPartitionReadData;
 import org.apache.celeborn.service.deploy.worker.memory.BufferRecycler;
 import org.apache.celeborn.service.deploy.worker.memory.RecyclableBuffer;
 import org.apache.celeborn.service.deploy.worker.memory.RecyclableSegmentIdBuffer;
@@ -48,6 +51,8 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
   private final int startPartitionIndex;
 
   private final int endPartitionIndex;
+
+  private final boolean requireSubpartitionId;
 
   @GuardedBy("lock")
   private final Deque<Integer> backlogs = new LinkedList<>();
@@ -81,11 +86,10 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
         fileInfo,
         streamId,
         associatedChannel,
-        recycleStream,
-        requireSubpartitionId);
+        recycleStream);
     this.startPartitionIndex = startPartitionIndex;
     this.endPartitionIndex = endPartitionIndex;
-
+    this.requireSubpartitionId = requireSubpartitionId;
     for (int i = startPartitionIndex; i <= endPartitionIndex; i++) {
       subPartitionLastSegmentIds.put(i, -1);
       subPartitionRequiredSegmentIds.put(i, -1);
@@ -290,6 +294,15 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
       // buffer
       // is in the head of this segment.
       buffersToSend.add(new RecyclableSegmentIdBuffer(subPartitionId, segmentId));
+    }
+  }
+
+  public RequestMessage generateReadDataMessage(
+      long streamId, int subPartitionId, ByteBuf byteBuf) {
+    if (requireSubpartitionId) {
+      return new SubPartitionReadData(streamId, subPartitionId, byteBuf);
+    } else {
+      return new ReadData(streamId, byteBuf);
     }
   }
 

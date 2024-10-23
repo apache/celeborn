@@ -37,6 +37,8 @@ public class SegmentMapPartitionData extends MapPartitionData {
 
   public static final Logger logger = LoggerFactory.getLogger(SegmentMapPartitionData.class);
 
+  private final boolean requireSubpartitionId;
+
   public SegmentMapPartitionData(
       int minReadBuffers,
       int maxReadBuffers,
@@ -54,8 +56,8 @@ public class SegmentMapPartitionData extends MapPartitionData {
         threadsPerMountPoint,
         fileInfo,
         recycleStream,
-        minBuffersToTriggerRead,
-        requireSubpartitionId);
+        minBuffersToTriggerRead);
+    this.requireSubpartitionId = requireSubpartitionId;
   }
 
   @Override

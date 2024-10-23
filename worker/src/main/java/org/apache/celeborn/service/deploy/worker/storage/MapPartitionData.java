@@ -65,10 +65,6 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
   private int minBuffersToTriggerRead;
   private AtomicBoolean hasReadingTask = new AtomicBoolean(false);
 
-  // if requireSubpartitionId is set to true, means that the buffer sent to client
-  // by the worker should be SubpartitionReadData rather than ReadData
-  protected boolean requireSubpartitionId;
-
   public MapPartitionData(
       int minReadBuffers,
       int maxReadBuffers,
@@ -76,8 +72,7 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
       int threadsPerMountPoint,
       DiskFileInfo diskFileInfo,
       Consumer<Long> recycleStream,
-      int minBuffersToTriggerRead,
-      boolean requireSubpartitionId)
+      int minBuffersToTriggerRead)
       throws IOException {
     this.recycleStream = recycleStream;
     this.diskFileInfo = diskFileInfo;
@@ -94,7 +89,6 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
         mapFileMeta.getBufferSize());
 
     this.minBuffersToTriggerRead = minBuffersToTriggerRead;
-    this.requireSubpartitionId = requireSubpartitionId;
 
     readExecutor =
         storageFetcherPool.computeIfAbsent(
@@ -136,8 +130,7 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
             diskFileInfo,
             streamId,
             channel,
-            () -> recycleStream.accept(streamId),
-            requireSubpartitionId);
+            () -> recycleStream.accept(streamId));
     readers.put(streamId, mapPartitionDataReader);
   }
 

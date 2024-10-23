@@ -44,7 +44,6 @@ import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.ReadData;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.RpcRequest;
-import org.apache.celeborn.common.network.protocol.SubPartitionReadData;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.util.NettyUtils;
@@ -106,16 +105,13 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
   protected AtomicInteger numInUseBuffers = new AtomicInteger(0);
   private boolean isOpen = false;
 
-  private boolean requireSubpartitionId;
-
   public MapPartitionDataReader(
       int startPartitionIndex,
       int endPartitionIndex,
       DiskFileInfo fileInfo,
       long streamId,
       Channel associatedChannel,
-      Runnable recycleStream,
-      boolean requireSubpartitionId) {
+      Runnable recycleStream) {
     this.startPartitionIndex = startPartitionIndex;
     this.endPartitionIndex = endPartitionIndex;
 
@@ -130,7 +126,6 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     this.fileInfo = fileInfo;
     this.mapFileMeta = ((MapFileMeta) fileInfo.getFileMeta());
     this.readFinished = false;
-    this.requireSubpartitionId = requireSubpartitionId;
   }
 
   public void open(FileChannel dataFileChannel, FileChannel indexFileChannel, long indexSize)
@@ -248,11 +243,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
 
   public RequestMessage generateReadDataMessage(
       long streamId, int subPartitionId, ByteBuf byteBuf) {
-    if (requireSubpartitionId) {
-      return new SubPartitionReadData(streamId, subPartitionId, byteBuf);
-    } else {
-      return new ReadData(streamId, byteBuf);
-    }
+    return new ReadData(streamId, byteBuf);
   }
 
   protected void sendDataInternal(RecyclableBuffer buffer) {
