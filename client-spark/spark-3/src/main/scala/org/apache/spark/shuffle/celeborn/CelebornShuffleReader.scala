@@ -123,11 +123,10 @@ class CelebornShuffleReader[K, C](
 
     var partCnt = 0
     var groupPartitionIdList = new ArrayBuffer[Int]()
-//    val partitionIdList = ArrayBuffer[Int]() ++ (startPartition until endPartition)
     if (!conf.groupMapTaskEnabled) {
       groupPartitionIdList = ArrayBuffer[Int]() ++ (startPartition until endPartition)
     } else {
-      val numPartitions = handle.dependency.partitioner.numPartitions
+      val numPartitions = dep.partitioner.numPartitions
       val numMappers = handle.numMappers
       val partitionGroupCnt =
         if (conf.groupMapTaskEnabled)
@@ -137,7 +136,6 @@ class CelebornShuffleReader[K, C](
       (startPartition until endPartition).foreach { originalPartitionId =>
         (0 until partitionGroupCnt).foreach { groupCnt =>
           val tmpPartitionId = {
-            // fileGroups.partitionGroups.keySet().size() != numPartitions (for the whole shuffleId)
             originalPartitionId + groupCnt * (groupNumPartitions / partitionGroupCnt)
           }
           groupPartitionIdList += tmpPartitionId

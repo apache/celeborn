@@ -21,6 +21,8 @@ import java.io.IOException
 import java.util.concurrent.{ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
+import scala.collection.mutable.ArrayBuffer
+
 import org.apache.spark.{Aggregator, InterruptibleIterator, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.{FetchFailedException, ShuffleReader}
@@ -88,8 +90,29 @@ class CelebornShuffleReader[K, C](
       }
     }
 
+    var partitionIdList = new ArrayBuffer[Int]()
+    if (!conf.groupMapTaskEnabled) {
+      partitionIdList = ArrayBuffer[Int]() ++ (startPartition until endPartition)
+    } else {
+      val numPartitions = dep.partitioner.numPartitions
+      val numMappers = handle.numMaps
+      val partitionGroupCnt =
+        if (conf.groupMapTaskEnabled)
+          math.ceil(numMappers.toDouble / conf.groupMapTaskGroupSize).toInt
+        else 1
+      val groupNumPartitions = numPartitions * partitionGroupCnt
+      (startPartition until endPartition).foreach { originalPartitionId =>
+        (0 until partitionGroupCnt).foreach { groupCnt =>
+          val tmpPartitionId = {
+            originalPartitionId + groupCnt * (groupNumPartitions / partitionGroupCnt)
+          }
+          partitionIdList += tmpPartitionId
+        }
+      }
+    }
+
     val streams = JavaUtils.newConcurrentHashMap[Integer, CelebornInputStream]()
-    (startPartition until endPartition).map(partitionId => {
+    partitionIdList.foreach(partitionId => {
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
           if (exceptionRef.get() == null) {
@@ -115,7 +138,7 @@ class CelebornShuffleReader[K, C](
       })
     })
 
-    val recordIter = (startPartition until endPartition).iterator.map(partitionId => {
+    val recordIter = partitionIdList.iterator.map(partitionId => {
       if (handle.numMaps > 0) {
         val startFetchWait = System.nanoTime()
         var inputStream: CelebornInputStream = streams.get(partitionId)
