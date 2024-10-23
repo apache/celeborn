@@ -23,8 +23,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.retry.PredefinedRetryPolicies;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
@@ -58,10 +60,16 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
     this.awsCredentials = awsCredentials;
     BasicAWSCredentials basicAWSCredentials =
         new BasicAWSCredentials(awsCredentials.getS3AccessKey(), awsCredentials.getS3SecretKey());
+    ClientConfiguration clientConfig = new ClientConfiguration()
+            .withRetryPolicy(PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(5))
+            .withMaxErrorRetry(5)
+            .withConnectionTimeout(10000)
+            .withRequestTimeout(50000);
     this.s3Client =
         AmazonS3ClientBuilder.standard()
             .withCredentials(new AWSStaticCredentialsProvider(basicAWSCredentials))
             .withRegion(awsCredentials.getS3EndpointRegion())
+            .withClientConfiguration(clientConfig)
             .build();
     this.key = key;
   }
