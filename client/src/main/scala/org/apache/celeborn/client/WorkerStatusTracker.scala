@@ -37,18 +37,15 @@ class WorkerStatusTracker(
     lifecycleManager: LifecycleManager) extends Logging {
   private val excludedWorkerExpireTimeout = conf.clientExcludedWorkerExpireTimeout
   private val workerStatusListeners = ConcurrentHashMap.newKeySet[WorkerStatusListener]()
-  private val appHeartbeatWithAvailableWorkers = conf.appHeartbeatWithAvailableWorkers
+  private val changPartitionWithAvailableWorkers = conf.clientChangPartitionWithAvailableWorkers
 
   val excludedWorkers = new ShuffleFailedWorkers()
   val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
 
-  // availableWorkers only contains the used workers not all availableWorkers
-  // until appHeartbeatWithAvailableWorkers set to true
-  val availableWorkers = ConcurrentHashMap.newKeySet[WorkerInfo]()
-
   // Workers that have already set an endpoint can skip the setupEndpoint process in changePartition when reviving
-  val availableWorkersWithEndpoint: ConcurrentHashMap[WorkerInfo, WorkerInfo] =
-    JavaUtils.newConcurrentHashMap[WorkerInfo, WorkerInfo]()
+  // key: WorkerInfo.toUniqueId value: WorkerInfo
+  val availableWorkersWithEndpoint: ConcurrentHashMap[String, WorkerInfo] =
+    JavaUtils.newConcurrentHashMap[String, WorkerInfo]()
 
   // Workers that may be available but have not been used（without endpoint）
   // availableWorkersWithoutEndpoint is empty until appHeartbeatWithAvailableWorkers set to true
@@ -164,16 +161,14 @@ class WorkerStatusTracker(
   }
 
   private def removeFromAvailableWorkers(worker: WorkerInfo): Unit = {
-    availableWorkers.remove(worker)
-    availableWorkersWithEndpoint.remove(worker)
+    availableWorkersWithEndpoint.remove(worker.toUniqueId())
     availableWorkersWithoutEndpoint.remove(worker)
   }
 
   def updateWorkersWithEndpoint(workers: JHashSet[WorkerInfo]): Unit = {
-    availableWorkers.addAll(workers)
     availableWorkersWithoutEndpoint.removeAll(workers)
     workers.asScala.foreach { workerInfo =>
-      availableWorkersWithEndpoint.put(workerInfo, workerInfo)
+      availableWorkersWithEndpoint.put(workerInfo.toUniqueId(), workerInfo)
     }
   }
 
@@ -222,8 +217,7 @@ class WorkerStatusTracker(
       val retainShuttingWorkersResult = shuttingWorkers.retainAll(res.shuttingWorkers)
       val addShuttingWorkersResult = shuttingWorkers.addAll(res.shuttingWorkers)
 
-      var availableWorkersChanged = false
-      if (appHeartbeatWithAvailableWorkers) {
+      if (changPartitionWithAvailableWorkers) {
         // AvailableWorkers filter Client excludedWorkers and shuttingWorkers.
         // AvailableWorkers already filtered res.excludedWorkers and res.shuttingWorkers.
         val resAvailableWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo](res.availableWorkers)
@@ -240,12 +234,11 @@ class WorkerStatusTracker(
         }
 
         // update availableWorkers
-        val retainAvailableWorkersResult = availableWorkers.retainAll(resAvailableWorkers)
-        val addAvailableWorkersResult = availableWorkers.addAll(resAvailableWorkers)
         availableWorkersWithoutEndpoint.retainAll(resAvailableWorkers)
-        availableWorkersWithEndpoint.keySet().retainAll(resAvailableWorkers)
+        availableWorkersWithEndpoint.keySet().retainAll(
+          resAvailableWorkers.asScala.map(_.toUniqueId()).asJava)
         resAvailableWorkers.asScala.foreach { workerInfo: WorkerInfo =>
-          if (!availableWorkersWithEndpoint.keySet.contains(workerInfo)) {
+          if (!availableWorkersWithEndpoint.keySet.contains(workerInfo.toUniqueId())) {
             availableWorkersWithoutEndpoint.add(workerInfo)
           } else {
             if (availableWorkersWithoutEndpoint.contains(workerInfo)) {
@@ -253,13 +246,6 @@ class WorkerStatusTracker(
             }
           }
         }
-        availableWorkersChanged =
-          availableWorkersChanged || retainAvailableWorkersResult || addAvailableWorkersResult
-      }
-
-      if (availableWorkersChanged) {
-        logInfo(
-          s"AvailableWorkers status changed from application heartbeat response.")
       }
 
       statusChanged =

@@ -19,7 +19,6 @@ license: |
 <!--begin-include-->
 | Key | Default | isDynamic | Description | Since | Deprecated |
 | --- | ------- | --------- | ----------- | ----- | ---------- |
-| celeborn.client.heartbeat.application.availableWorkers.enable | false | false | Whether application heartbeat send availableWorkers. | 0.6.0 | celeborn.application.heartbeat.availableWorkers.enable | 
 | celeborn.cluster.name | default | false | Celeborn cluster name. | 0.5.0 |  | 
 | celeborn.container.info.provider | org.apache.celeborn.server.common.container.DefaultContainerInfoProvider | false | ContainerInfoProvider class name. Default class is `org.apache.celeborn.server.common.container.DefaultContainerInfoProvider`.  | 0.6.0 |  | 
 | celeborn.dynamicConfig.refresh.interval | 120s | false | Interval for refreshing the corresponding dynamic config periodically. | 0.4.0 |  | 

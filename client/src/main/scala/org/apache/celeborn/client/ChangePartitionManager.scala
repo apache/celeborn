@@ -218,6 +218,55 @@ class ChangePartitionManager(
     None
   }
 
+  // remove together to reduce lock time
+  def replySuccess(
+      locations: Array[PartitionLocation],
+      requestsMap: ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]],
+      shuffleId: Int): Unit = {
+    val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
+    locations.map { location =>
+      locksForShuffle(location.getId % locksForShuffle.length).synchronized {
+        if (batchHandleChangePartitionEnabled) {
+          inBatchPartitions.get(shuffleId).remove(location.getId)
+        }
+        // Here one partition id can be remove more than once,
+        // so need to filter null result before reply.
+        location -> Option(requestsMap.remove(location.getId))
+      }
+    }.foreach { case (newLocation, requests) =>
+      requests.map(_.asScala.toList.foreach(req =>
+        req.context.reply(
+          req.partitionId,
+          StatusCode.SUCCESS,
+          Option(newLocation),
+          lifecycleManager.workerStatusTracker.workerAvailable(req.oldPartition))))
+    }
+  }
+
+  // remove together to reduce lock time
+  private def replyFailure(
+      status: StatusCode,
+      changePartitions: Array[ChangePartitionRequest],
+      requestsMap: ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]],
+      shuffleId: Int): Unit = {
+    changePartitions.map { changePartition =>
+      val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
+      locksForShuffle(changePartition.partitionId % locksForShuffle.length).synchronized {
+        if (batchHandleChangePartitionEnabled) {
+          inBatchPartitions.get(shuffleId).remove(changePartition.partitionId)
+        }
+        Option(requestsMap.remove(changePartition.partitionId))
+      }
+    }.foreach { requests =>
+      requests.map(_.asScala.toList.foreach(req =>
+        req.context.reply(
+          req.partitionId,
+          status,
+          None,
+          lifecycleManager.workerStatusTracker.workerAvailable(req.oldPartition))))
+    }
+  }
+
   def handleRequestPartitions(
       shuffleId: Int,
       changePartitions: Array[ChangePartitionRequest],
@@ -239,48 +288,6 @@ class ChangePartitionManager(
       }
     }
 
-    // remove together to reduce lock time
-    def replySuccess(locations: Array[PartitionLocation]): Unit = {
-      val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
-      locations.map { location =>
-        locksForShuffle(location.getId % locksForShuffle.length).synchronized {
-          if (batchHandleChangePartitionEnabled) {
-            inBatchPartitions.get(shuffleId).remove(location.getId)
-          }
-          // Here one partition id can be remove more than once,
-          // so need to filter null result before reply.
-          location -> Option(requestsMap.remove(location.getId))
-        }
-      }.foreach { case (newLocation, requests) =>
-        requests.map(_.asScala.toList.foreach(req =>
-          req.context.reply(
-            req.partitionId,
-            StatusCode.SUCCESS,
-            Option(newLocation),
-            lifecycleManager.workerStatusTracker.workerAvailable(req.oldPartition))))
-      }
-    }
-
-    // remove together to reduce lock time
-    def replyFailure(status: StatusCode): Unit = {
-      changePartitions.map { changePartition =>
-        val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
-        locksForShuffle(changePartition.partitionId % locksForShuffle.length).synchronized {
-          if (batchHandleChangePartitionEnabled) {
-            inBatchPartitions.get(shuffleId).remove(changePartition.partitionId)
-          }
-          Option(requestsMap.remove(changePartition.partitionId))
-        }
-      }.foreach { requests =>
-        requests.map(_.asScala.toList.foreach(req =>
-          req.context.reply(
-            req.partitionId,
-            status,
-            None,
-            lifecycleManager.workerStatusTracker.workerAvailable(req.oldPartition))))
-      }
-    }
-
     var candidates = new util.HashSet[WorkerInfo]()
     if (changPartitionWithAvailableWorkers) {
       // availableWorkers will filter when unAvailableWorkers update, still do filtering here in case
@@ -288,9 +295,10 @@ class ChangePartitionManager(
       candidates.addAll(lifecycleManager
         .workerStatusTracker
         .availableWorkersWithEndpoint
-        .keySet()
+        .values()
         .asScala
-        .filter(lifecycleManager.workerStatusTracker.workerAvailable)
+        .toSet
+        .filter(lifecycleManager.workerStatusTracker.workerAvailable: WorkerInfo => Boolean)
         .asJava)
 
       // SetupEndpoint for those availableWorkers without endpoint
@@ -321,7 +329,7 @@ class ChangePartitionManager(
 
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")
-      replyFailure(StatusCode.SLOT_NOT_AVAILABLE)
+      replyFailure(StatusCode.SLOT_NOT_AVAILABLE, changePartitions, requestsMap, shuffleId)
       return
     }
 
@@ -337,47 +345,43 @@ class ChangePartitionManager(
         newlyAllocatedLocations,
         isSegmentGranularityVisible = isSegmentGranularityVisible)) {
       logError(s"[Update partition] failed for $shuffleId.")
-      replyFailure(StatusCode.RESERVE_SLOTS_FAILED)
+      replyFailure(StatusCode.RESERVE_SLOTS_FAILED, changePartitions, requestsMap, shuffleId)
       return
     }
 
-    val newPrimaryLocations = {
-      newlyAllocatedLocations.asScala.flatMap {
-        case (workInfo, (primaryLocations, replicaLocations)) =>
-          // Add all re-allocated slots to worker snapshots.
-          lifecycleManager.workerSnapshots(shuffleId).asScala
-            .get(workInfo) match {
-            case Some(existingPartitionLocationInfo) =>
-              existingPartitionLocationInfo.addPrimaryPartitions(primaryLocations)
-              lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
-              existingPartitionLocationInfo.addReplicaPartitions(replicaLocations)
-            case None =>
-              val partitionLocationInfo = new ShufflePartitionLocationInfo()
-              partitionLocationInfo.addPrimaryPartitions(primaryLocations)
-              lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
-              partitionLocationInfo.addReplicaPartitions(replicaLocations)
-              lifecycleManager.workerSnapshots(shuffleId).put(workInfo, partitionLocationInfo)
-          }
-          // partition location can be null when call reserveSlotsWithRetry().
-          val locations = (primaryLocations.asScala ++ replicaLocations.asScala.map(_.getPeer))
-            .distinct.filter(_ != null)
-          if (locations.nonEmpty) {
-            val changes = locations.map { partition =>
-              s"(partition ${partition.getId} epoch from ${partition.getEpoch - 1} to ${partition.getEpoch})"
-            }.mkString("[", ", ", "]")
-            logInfo(s"[Update partition] success for " +
-              s"shuffle $shuffleId, succeed partitions: " +
-              s"$changes.")
-          }
+    val newPrimaryLocations = newlyAllocatedLocations.asScala.flatMap {
+      case (workInfo, (primaryLocations, replicaLocations)) =>
+        // Add all re-allocated slots to worker snapshots.
+        lifecycleManager.workerSnapshots(shuffleId).asScala
+          .get(workInfo) match {
+          case Some(existingPartitionLocationInfo) =>
+            existingPartitionLocationInfo.addPrimaryPartitions(primaryLocations)
+            lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
+            existingPartitionLocationInfo.addReplicaPartitions(replicaLocations)
+          case None =>
+            val partitionLocationInfo = new ShufflePartitionLocationInfo()
+            partitionLocationInfo.addPrimaryPartitions(primaryLocations)
+            lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
+            partitionLocationInfo.addReplicaPartitions(replicaLocations)
+            lifecycleManager.workerSnapshots(shuffleId).put(workInfo, partitionLocationInfo)
+        }
+        // partition location can be null when call reserveSlotsWithRetry().
+        val locations = (primaryLocations.asScala ++ replicaLocations.asScala.map(_.getPeer))
+          .distinct.filter(_ != null)
+        if (locations.nonEmpty) {
+          val changes = locations.map { partition =>
+            s"(partition ${partition.getId} epoch from ${partition.getEpoch - 1} to ${partition.getEpoch})"
+          }.mkString("[", ", ", "]")
+          logInfo(s"[Update partition] success for " +
+            s"shuffle $shuffleId, succeed partitions: " +
+            s"$changes.")
+        }
 
-          // TODO: should record the new partition locations and acknowledge the new partitionLocations to downstream task,
-          //  in scenario the downstream task start early before the upstream task.
-          locations
-      }
+        // TODO: should record the new partition locations and acknowledge the new partitionLocations to downstream task,
+        //  in scenario the downstream task start early before the upstream task.
+        locations
     }
-    if (!conf.testClientUpdateAvailableWorker) {
-      replySuccess(newPrimaryLocations.toArray)
-    }
+    replySuccess(newPrimaryLocations.toArray, requestsMap, shuffleId)
   }
 
   private def reallocateChangePartitionRequestSlotsFromCandidates(

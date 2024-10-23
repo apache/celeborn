@@ -47,7 +47,7 @@ class ApplicationHeartbeater(
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
   private val applicationUnregisterEnabled = conf.applicationUnregisterEnabled
-  private val appHeartbeatWithAvailableWorkersEnable = conf.appHeartbeatWithAvailableWorkers
+  private val changPartitionWithAvailableWorkers = conf.clientChangPartitionWithAvailableWorkers
   private val appHeartbeatHandlerThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor(
       "celeborn-client-lifecycle-manager-app-heartbeater")
@@ -70,7 +70,7 @@ class ApplicationHeartbeater(
                 tmpTotalWritten,
                 tmpTotalFileCount,
                 workerStatusTracker.getNeedCheckedWorkers().toList.asJava,
-                appHeartbeatWithAvailableWorkersEnable,
+                changPartitionWithAvailableWorkers,
                 ZERO_UUID,
                 true)
             val response = requestHeartbeat(appHeartbeat)

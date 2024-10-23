@@ -902,8 +902,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
   def dfsExpireDirsTimeoutMS: Long = get(DFS_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
-  def appHeartbeatWithAvailableWorkers: Boolean =
-    get(APPLICATION_HEARTBEAT_WITH_AVAILABLE_WORKERS_ENABLE)
   def applicationUnregisterEnabled: Boolean = get(APPLICATION_UNREGISTER_ENABLED)
 
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
@@ -1324,7 +1322,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushPrimaryDataTimeout: Boolean = get(TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT)
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
-  def testClientUpdateAvailableWorker: Boolean = get(TEST_CLIENT_UPDATE_AVAILABLE_WORKER)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
   def clientFlinkMemoryPerResultPartition: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION)
   def clientFlinkMemoryPerInputGate: Long = get(CLIENT_MEMORY_PER_INPUT_GATE)
@@ -2225,15 +2222,6 @@ object CelebornConf extends Logging {
       .doc("Application heartbeat timeout.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("300s")
-
-  val APPLICATION_HEARTBEAT_WITH_AVAILABLE_WORKERS_ENABLE: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.heartbeat.application.availableWorkers.enable")
-      .withAlternative("celeborn.application.heartbeat.availableWorkers.enable")
-      .categories("master")
-      .version("0.6.0")
-      .doc("Whether application heartbeat send availableWorkers.")
-      .booleanConf
-      .createWithDefault(false)
 
   val HDFS_EXPIRE_DIRS_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.hdfs.expireDirs.timeout")
@@ -4500,16 +4488,6 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val TEST_CLIENT_UPDATE_AVAILABLE_WORKER: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.client.updateAvailableWorker")
-      .withAlternative("celeborn.test.updateAvailableWorker")
-      .internal
-      .categories("test", "client")
-      .doc("skip reply Rpc for test")
-      .version("0.6.0")
-      .booleanConf
-      .createWithDefault(false)
-
   val CLIENT_FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.timeout")
       .withAlternative("celeborn.fetch.timeout")
@@ -4853,8 +4831,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.shuffle.dynamicResourceEnable")
       .categories("client")
       .version("0.6.0")
-      .doc("This configuration requires APPLICATION_HEARTBEAT_WITH_AVAILABLE_WORKERS_ENABLE to be true." +
-        "When enabled, the ChangePartitionManager will obtain candidate workers from the availableWorkers pool “ +" +
+      .doc("When enabled, the ChangePartitionManager will obtain candidate workers from the availableWorkers pool “ +" +
         "during heartbeats when worker resource change.")
       .booleanConf
       .createWithDefault(false)

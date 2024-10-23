@@ -23,7 +23,7 @@ import org.junit.Assert
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.{APPLICATION_HEARTBEAT_WITH_AVAILABLE_WORKERS_ENABLE, CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT}
+import org.apache.celeborn.common.CelebornConf.{CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS, CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT}
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromApplicationResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -32,7 +32,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
   test("handleHeartbeatResponse without availableWorkers") {
     val celebornConf = new CelebornConf()
     celebornConf.set(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, 2000L)
-    celebornConf.set(APPLICATION_HEARTBEAT_WITH_AVAILABLE_WORKERS_ENABLE, false)
+    celebornConf.set(CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS, false)
     val statusTracker = new WorkerStatusTracker(celebornConf, null)
 
     val registerTime = System.currentTimeMillis()
@@ -85,7 +85,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mock("host1")))
 
     // test available workers
-    Assert.assertEquals(statusTracker.availableWorkers.size(), 0)
+    Assert.assertEquals(statusTracker.availableWorkersWithoutEndpoint.size(), 0)
     val response4 = buildResponse(
       Array.empty,
       Array.empty,
@@ -94,8 +94,8 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     statusTracker.handleHeartbeatResponse(response4)
 
     // availableWorkers wont update through heartbeat
-    // when APPLICATION_HEARTBEAT_WITH_AVAILABLE_WORKERS_ENABLE set to false
-    Assert.assertEquals(statusTracker.availableWorkers.size(), 0)
+    // when CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS set to false
+    Assert.assertEquals(statusTracker.availableWorkersWithoutEndpoint.size(), 0)
     // available workers won't overwrite excluded workers
     Assert.assertEquals(statusTracker.excludedWorkers.size(), 2)
     Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host5")))
@@ -105,7 +105,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
   test("handleHeartbeatResponse with availableWorkers") {
     val celebornConf = new CelebornConf()
     celebornConf.set(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, 2000L)
-    celebornConf.set(APPLICATION_HEARTBEAT_WITH_AVAILABLE_WORKERS_ENABLE, true)
+    celebornConf.set(CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS, true)
     val statusTracker = new WorkerStatusTracker(celebornConf, null)
 
     val registerTime = System.currentTimeMillis()
@@ -157,14 +157,15 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mock("host1")))
 
     // test available workers
-    Assert.assertEquals(statusTracker.availableWorkers.size(), 0)
+    Assert.assertEquals(statusTracker.availableWorkersWithoutEndpoint.size(), 0)
     val response4 = buildResponse(
       Array.empty,
       Array.empty,
       Array.empty,
       Array("host5", "host6", "host7", "host8"))
     statusTracker.handleHeartbeatResponse(response4)
-    Assert.assertEquals(statusTracker.availableWorkers.size(), 2)
+
+    Assert.assertEquals(statusTracker.availableWorkersWithoutEndpoint.size(), 2)
     // available workers won't overwrite excluded workers
     Assert.assertEquals(statusTracker.excludedWorkers.size(), 2)
     Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host5")))
@@ -173,10 +174,10 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     // test re heartbeat with available workers
     val response5 = buildResponse(Array.empty, Array.empty, Array.empty, Array("host8", "host9"))
     statusTracker.handleHeartbeatResponse(response5)
-    Assert.assertEquals(statusTracker.availableWorkers.size(), 2)
-    Assert.assertFalse(statusTracker.availableWorkers.contains(mock("host7")))
-    Assert.assertTrue(statusTracker.availableWorkers.contains(mock("host8")))
-    Assert.assertTrue(statusTracker.availableWorkers.contains(mock("host9")))
+    Assert.assertEquals(statusTracker.availableWorkersWithoutEndpoint.size(), 2)
+    Assert.assertFalse(statusTracker.availableWorkersWithoutEndpoint.contains(mock("host7")))
+    Assert.assertTrue(statusTracker.availableWorkersWithoutEndpoint.contains(mock("host8")))
+    Assert.assertTrue(statusTracker.availableWorkersWithoutEndpoint.contains(mock("host9")))
   }
 
   private def buildResponse(
