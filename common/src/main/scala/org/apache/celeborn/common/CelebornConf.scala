@@ -4834,7 +4834,7 @@ object CelebornConf extends Logging {
       .doc("When enabled, the ChangePartitionManager will obtain candidate workers from the availableWorkers pool “ +" +
         "during heartbeats when worker resource change.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val CLIENT_PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.push.stageEnd.timeout")
