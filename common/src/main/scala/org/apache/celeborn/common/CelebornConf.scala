@@ -4757,7 +4757,7 @@ object CelebornConf extends Logging {
       .doc("The group size of map task when grouping map task is enable.")
       .version("0.6.0")
       .intConf
-      .createWithDefault(20)
+      .createWithDefault(100)
 
   val CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.batchHandleChangePartition.enabled")
