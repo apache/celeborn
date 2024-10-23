@@ -19,17 +19,17 @@ package org.apache.celeborn.service.deploy.master.tags
 
 import scala.collection.JavaConverters.seqAsJavaListConverter
 
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import org.scalatest.funsuite.AnyFunSuite
-
-import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.WorkerInfo
+import org.apache.celeborn.server.common.service.config.{ConfigService, DynamicConfigServiceFactory}
 
-class TagsManagerSuite extends AnyFunSuite
-  with BeforeAndAfterAll
-  with BeforeAndAfterEach
-  with Logging {
+
+class TagsManagerSuite extends CelebornFunSuite {
   protected var tagsManager: TagsManager = _
+
+  val TAG1 = "tag1"
+  val TAG2 = "tag2"
 
   val WORKER1 = new WorkerInfo("host1", 111, 112, 113, 114, 115)
   val WORKER2 = new WorkerInfo("host2", 211, 212, 213, 214, 215)
@@ -38,20 +38,16 @@ class TagsManagerSuite extends AnyFunSuite
   val workers = List(WORKER1, WORKER2, WORKER3).asJava
 
   test("test tags manager") {
-    tagsManager = new TagsManager()
+    tagsManager = new TagsManager(Some(null))
 
-    // Tag1
-    val TAG1 = "tag1"
     tagsManager.addTagToWorker(TAG1, WORKER1.toUniqueId())
     tagsManager.addTagToWorker(TAG1, WORKER2.toUniqueId())
 
-    // Tag2
-    val TAG2 = "tag2"
     tagsManager.addTagToWorker(TAG2, WORKER2.toUniqueId())
     tagsManager.addTagToWorker(TAG2, WORKER3.toUniqueId())
 
     {
-      val taggedWorkers = tagsManager.getTaggedWorkers(TAG1, workers)
+      val taggedWorkers = tagsManager.filterTaggedWorkers(TAG1, workers)
       assert(taggedWorkers.size == 2)
       assert(taggedWorkers.contains(WORKER1))
       assert(taggedWorkers.contains(WORKER2))
@@ -59,7 +55,7 @@ class TagsManagerSuite extends AnyFunSuite
     }
 
     {
-      val taggedWorkers = tagsManager.getTaggedWorkers(TAG2, workers)
+      val taggedWorkers = tagsManager.filterTaggedWorkers(TAG2, workers)
       assert(taggedWorkers.size == 2)
       assert(!taggedWorkers.contains(WORKER1))
       assert(taggedWorkers.contains(WORKER2))
@@ -76,7 +72,7 @@ class TagsManagerSuite extends AnyFunSuite
 
     {
       // Test an unknown tag
-      val taggedWorkers = tagsManager.getTaggedWorkers("unknown-tag", workers)
+      val taggedWorkers = tagsManager.filterTaggedWorkers("unknown-tag", workers)
       assert(taggedWorkers.isEmpty)
     }
 
@@ -104,7 +100,7 @@ class TagsManagerSuite extends AnyFunSuite
     {
       // Remove tag from worker
       tagsManager.removeTagFromWorker(TAG1, WORKER2.toUniqueId())
-      val taggedWorkers = tagsManager.getTaggedWorkers(TAG1, workers)
+      val taggedWorkers = tagsManager.filterTaggedWorkers(TAG1, workers)
       assert(taggedWorkers.size == 1)
       assert(taggedWorkers.contains(WORKER1))
       assert(!taggedWorkers.contains(WORKER2))
@@ -114,7 +110,7 @@ class TagsManagerSuite extends AnyFunSuite
     {
       // Remove tag from cluster
       tagsManager.removeTagFromCluster(TAG1)
-      val taggedWorkers = tagsManager.getTaggedWorkers(TAG1, workers)
+      val taggedWorkers = tagsManager.filterTaggedWorkers(TAG1, workers)
       assert(taggedWorkers.isEmpty)
 
       val tags = tagsManager.getTagsForCluster
@@ -124,20 +120,18 @@ class TagsManagerSuite extends AnyFunSuite
   }
 
   test("test tags expression with multiple tags") {
-    tagsManager = new TagsManager()
+    tagsManager = new TagsManager(Some(null))
 
     // Tag1
-    val TAG1 = "tag1"
     tagsManager.addTagToWorker(TAG1, WORKER1.toUniqueId())
     tagsManager.addTagToWorker(TAG1, WORKER2.toUniqueId())
 
     // Tag2
-    val TAG2 = "tag2"
     tagsManager.addTagToWorker(TAG2, WORKER2.toUniqueId())
     tagsManager.addTagToWorker(TAG2, WORKER3.toUniqueId())
 
     {
-      val taggedWorkers = tagsManager.getTaggedWorkers("tag1,tag2", workers)
+      val taggedWorkers = tagsManager.filterTaggedWorkers("tag1,tag2", workers)
       assert(taggedWorkers.size == 1)
       assert(!taggedWorkers.contains(WORKER1))
       assert(taggedWorkers.contains(WORKER2))
@@ -145,8 +139,65 @@ class TagsManagerSuite extends AnyFunSuite
     }
 
     {
-      val taggedWorkers = tagsManager.getTaggedWorkers("tag1,tag3", workers)
+      val taggedWorkers = tagsManager.filterTaggedWorkers("tag1,tag3", workers)
       assert(taggedWorkers.size == 0)
+    }
+  }
+
+  private def getConfigService: ConfigService = {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "FS")
+    conf.set(
+      CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH.key,
+      getTestResourceFile("dynamicConfig-tags.yaml").getPath)
+    DynamicConfigServiceFactory.getConfigService(conf)
+  }
+
+  test("test tags manager with config service") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "FS")
+    conf.set(
+      CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH.key,
+      getTestResourceFile("dynamicConfig-tags.yaml").getPath)
+    val configService = DynamicConfigServiceFactory.getConfigService(conf)
+
+    tagsManager = new TagsManager(Some(configService))
+
+    {
+      val taggedWorkers = tagsManager.filterTaggedWorkers(TAG1, workers)
+      assert(taggedWorkers.size == 2)
+      assert(taggedWorkers.contains(WORKER1))
+      assert(taggedWorkers.contains(WORKER2))
+      assert(!taggedWorkers.contains(WORKER3))
+    }
+
+    {
+      val taggedWorkers = tagsManager.filterTaggedWorkers(TAG2, workers)
+      assert(taggedWorkers.size == 2)
+      assert(!taggedWorkers.contains(WORKER1))
+      assert(taggedWorkers.contains(WORKER2))
+      assert(taggedWorkers.contains(WORKER3))
+    }
+
+    conf.set(
+      CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH.key,
+      getTestResourceFile("dynamicConfig-tags2.yaml").getPath)
+    configService.refreshCache()
+
+    {
+      val taggedWorkers = tagsManager.filterTaggedWorkers(TAG1, workers)
+      assert(taggedWorkers.size == 2)
+      assert(taggedWorkers.contains(WORKER1))
+      assert(taggedWorkers.contains(WORKER2))
+      assert(!taggedWorkers.contains(WORKER3))
+    }
+
+    {
+      val taggedWorkers = tagsManager.filterTaggedWorkers(TAG2, workers)
+      assert(taggedWorkers.size == 1)
+      assert(!taggedWorkers.contains(WORKER1))
+      assert(!taggedWorkers.contains(WORKER2))
+      assert(taggedWorkers.contains(WORKER3))
     }
   }
 }

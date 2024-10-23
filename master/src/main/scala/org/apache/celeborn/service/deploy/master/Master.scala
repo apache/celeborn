@@ -187,7 +187,7 @@ private[celeborn] class Master(
   private val hasS3Storage = conf.hasS3Storage
 
   private val quotaManager = new QuotaManager(conf, configService)
-  private val tagsManager = new TagsManager()
+  private val tagsManager = new TagsManager(Some(configService))
   private val masterResourceConsumptionInterval = conf.masterResourceConsumptionInterval
   private val userResourceConsumptions =
     JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
@@ -879,7 +879,7 @@ private[celeborn] class Master(
 
     var availableWorkers = workersAvailable(requestSlots.excludedWorkerSet)
     if (requestSlots.tagsExpr.nonEmpty) {
-      availableWorkers = tagsManager.getTaggedWorkers(
+      availableWorkers = tagsManager.filterTaggedWorkers(
         requestSlots.tagsExpr,
         availableWorkers)
     }

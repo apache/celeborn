@@ -19,7 +19,7 @@ package org.apache.celeborn.service.deploy.master.tags
 
 import java.util
 import java.util.{Collections, Set => JSet}
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.{ConcurrentHashMap, ConcurrentMap}
 import java.util.function.Predicate
 import java.util.stream.Collectors
 
@@ -28,8 +28,10 @@ import scala.collection.JavaConverters.{asScalaIteratorConverter, mapAsScalaConc
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.util.JavaUtils
+import org.apache.celeborn.server.common.service.config.ConfigService
 
-class TagsManager extends Logging {
+class TagsManager(configService: Option[ConfigService]) extends Logging {
+  private val DEFAULT_TAG_STORE = JavaUtils.newConcurrentHashMap[String, JSet[String]]()
   private val tagStore = JavaUtils.newConcurrentHashMap[String, JSet[String]]()
 
   private val addNewTagFunc =
@@ -38,7 +40,17 @@ class TagsManager extends Logging {
         ConcurrentHashMap.newKeySet[String]()
     }
 
-  def getTaggedWorkers(tagExpr: String, workers: util.List[WorkerInfo]): util.List[WorkerInfo] = {
+  private def getTagStore: ConcurrentMap[String, JSet[String]] = {
+    configService match {
+      case Some(cs) =>
+        // TODO: Make configStore.getTags return ConcurrentMap
+        new ConcurrentHashMap(cs.getSystemConfigFromCache.getTags)
+      case _ =>
+        DEFAULT_TAG_STORE
+    }
+  }
+
+  def filterTaggedWorkers(tagExpr: String, workers: util.List[WorkerInfo]): util.List[WorkerInfo] = {
     val tags = tagExpr.split(",").map(_.trim)
 
     if (tags.isEmpty) {
