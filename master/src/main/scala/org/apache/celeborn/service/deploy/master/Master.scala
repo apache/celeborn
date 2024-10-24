@@ -879,7 +879,7 @@ private[celeborn] class Master(
 
     var availableWorkers = workersAvailable(requestSlots.excludedWorkerSet)
     if (requestSlots.tagsExpr.nonEmpty) {
-      availableWorkers = tagsManager.filterTaggedWorkers(
+      availableWorkers = tagsManager.getTaggedWorkers(
         requestSlots.tagsExpr,
         availableWorkers)
     }

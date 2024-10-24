@@ -19,7 +19,7 @@ package org.apache.celeborn.service.deploy.master.tags
 
 import java.util
 import java.util.{Collections, Set => JSet}
-import java.util.concurrent.{ConcurrentHashMap, ConcurrentMap}
+import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Predicate
 import java.util.stream.Collectors
 
@@ -39,7 +39,7 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
         ConcurrentHashMap.newKeySet[String]()
     }
 
-  private def getTagStore: ConcurrentMap[String, JSet[String]] = {
+  private def getTagStore: ConcurrentHashMap[String, JSet[String]] = {
     configService match {
       case Some(cs) =>
         // TODO: Make configStore.getTags return ConcurrentMap
@@ -49,7 +49,7 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
     }
   }
 
-  def filterTaggedWorkers(
+  def getTaggedWorkers(
       tagExpr: String,
       workers: util.List[WorkerInfo]): util.List[WorkerInfo] = {
     val tags = tagExpr.split(",").map(_.trim)
