@@ -448,6 +448,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/HandleResponse'
 
+  /api/v1/ratis/local/raft_meta_conf:
+    get:
+      tags:
+        - Ratis
+      operationId: getLocalRaftMetaConf
+      description: Get the raft-meta.conf file of the current server.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+    post:
+      tags:
+        - Ratis
+      operationId: generateNewRaftMetaConf
+      description: Generate a new-raft-meta.conf file based on original raft-meta.conf and new peers, which is used to move a raft node to a new node.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatisLocalRaftMetaConfRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
 components:
   schemas:
     ConfigData:
@@ -1026,6 +1059,17 @@ components:
           description: The peer address and priority of the peer.
           additionalProperties:
             type: integer
+
+    RatisLocalRaftMetaConfRequest:
+      type: object
+      properties:
+        peers:
+          type: array
+          description: The new peers to generate a new-raft-meta.conf file with existing peers.
+          items:
+            $ref: '#/components/schemas/RatisPeer'
+      required:
+        - peers
 
     HandleResponse:
       type: object
