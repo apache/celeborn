@@ -56,13 +56,13 @@ class WorkerResource extends ApiRequestContext {
         .map(kv =>
           new WorkerTimestampData().worker(ApiUtils.workerData(kv._1)).timestamp(kv._2)).asJava)
       .excludedWorkers(
-        (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala)
+        (statusSystem.excludedWorkers.asScala ++ statusSystem.getManuallyExcludedWorkerInfos.asScala)
           .map(ApiUtils.workerData).toSeq.asJava)
-      .manualExcludedWorkers(statusSystem.manuallyExcludedWorkers.asScala.map(
+      .manualExcludedWorkers(statusSystem.getManuallyExcludedWorkerInfos.asScala.map(
         ApiUtils.workerData).toSeq.asJava)
-      .shutdownWorkers(statusSystem.shutdownWorkers.asScala.map(
+      .shutdownWorkers(statusSystem.getShutdownWorkerInfos.asScala.map(
         ApiUtils.workerData).toSeq.asJava)
-      .decommissioningWorkers(statusSystem.decommissionWorkers.asScala.map(
+      .decommissioningWorkers(statusSystem.getDecommissionWorkerInfos.asScala.map(
         ApiUtils.workerData).toSeq.asJava)
   }
 

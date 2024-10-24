@@ -423,17 +423,17 @@ public class RatisMasterStatusSystemSuiteJ {
         Arrays.asList(workerInfo1, workerInfo2), Collections.emptyList(), getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(2, STATUSSYSTEM1.manuallyExcludedWorkers.size());
-    Assert.assertEquals(2, STATUSSYSTEM2.manuallyExcludedWorkers.size());
-    Assert.assertEquals(2, STATUSSYSTEM3.manuallyExcludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.getManuallyExcludedWorkerIds().size());
+    Assert.assertEquals(2, STATUSSYSTEM2.getManuallyExcludedWorkerIds().size());
+    Assert.assertEquals(2, STATUSSYSTEM3.getManuallyExcludedWorkerIds().size());
 
     statusSystem.handleWorkerExclude(
         Collections.emptyList(), Collections.singletonList(workerInfo1), getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(1, STATUSSYSTEM1.manuallyExcludedWorkers.size());
-    Assert.assertEquals(1, STATUSSYSTEM2.manuallyExcludedWorkers.size());
-    Assert.assertEquals(1, STATUSSYSTEM3.manuallyExcludedWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.getManuallyExcludedWorkerIds().size());
+    Assert.assertEquals(1, STATUSSYSTEM2.getManuallyExcludedWorkerIds().size());
+    Assert.assertEquals(1, STATUSSYSTEM3.getManuallyExcludedWorkerIds().size());
   }
 
   @Test
@@ -1090,21 +1090,21 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM1.getWorkers().clear();
     STATUSSYSTEM1.appHeartbeatTime.clear();
     STATUSSYSTEM1.excludedWorkers.clear();
-    STATUSSYSTEM1.workerLostEvents.clear();
+    STATUSSYSTEM1.clearWorkerLostEvents();
 
     STATUSSYSTEM2.registeredAppAndShuffles.clear();
     STATUSSYSTEM2.hostnameSet.clear();
     STATUSSYSTEM2.getWorkers().clear();
     STATUSSYSTEM2.appHeartbeatTime.clear();
     STATUSSYSTEM2.excludedWorkers.clear();
-    STATUSSYSTEM2.workerLostEvents.clear();
+    STATUSSYSTEM2.clearWorkerLostEvents();
 
     STATUSSYSTEM3.registeredAppAndShuffles.clear();
     STATUSSYSTEM3.hostnameSet.clear();
     STATUSSYSTEM3.getWorkers().clear();
     STATUSSYSTEM3.appHeartbeatTime.clear();
     STATUSSYSTEM3.excludedWorkers.clear();
-    STATUSSYSTEM3.workerLostEvents.clear();
+    STATUSSYSTEM3.clearWorkerLostEvents();
 
     disks1.clear();
     disks1.put(
@@ -1214,9 +1214,9 @@ public class RatisMasterStatusSystemSuiteJ {
 
     statusSystem.handleReportWorkerUnavailable(failedWorkers, getNewReqeustId());
     Thread.sleep(3000L);
-    Assert.assertEquals(1, STATUSSYSTEM1.shutdownWorkers.size());
-    Assert.assertEquals(1, STATUSSYSTEM2.shutdownWorkers.size());
-    Assert.assertEquals(1, STATUSSYSTEM3.shutdownWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.getShutdownWorkerIds().size());
+    Assert.assertEquals(1, STATUSSYSTEM2.getShutdownWorkerIds().size());
+    Assert.assertEquals(1, STATUSSYSTEM3.getShutdownWorkerIds().size());
     Assert.assertEquals(0, STATUSSYSTEM1.excludedWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM3.excludedWorkers.size());
@@ -1282,9 +1282,9 @@ public class RatisMasterStatusSystemSuiteJ {
     Thread.sleep(3000L);
     Assert.assertEquals(2, STATUSSYSTEM1.getWorkers().size());
 
-    Assert.assertEquals(1, STATUSSYSTEM1.shutdownWorkers.size());
-    Assert.assertEquals(1, STATUSSYSTEM2.shutdownWorkers.size());
-    Assert.assertEquals(1, STATUSSYSTEM3.shutdownWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.getShutdownWorkerIds().size());
+    Assert.assertEquals(1, STATUSSYSTEM2.getShutdownWorkerIds().size());
+    Assert.assertEquals(1, STATUSSYSTEM3.getShutdownWorkerIds().size());
 
     Assert.assertEquals(1, STATUSSYSTEM1.lostWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM2.lostWorkers.size());
@@ -1293,9 +1293,9 @@ public class RatisMasterStatusSystemSuiteJ {
     statusSystem.handleRemoveWorkersUnavailableInfo(unavailableWorkers, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(0, STATUSSYSTEM1.shutdownWorkers.size());
-    Assert.assertEquals(0, STATUSSYSTEM2.shutdownWorkers.size());
-    Assert.assertEquals(0, STATUSSYSTEM3.shutdownWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM1.getShutdownWorkerIds().size());
+    Assert.assertEquals(0, STATUSSYSTEM2.getShutdownWorkerIds().size());
+    Assert.assertEquals(0, STATUSSYSTEM3.getShutdownWorkerIds().size());
 
     Assert.assertEquals(0, STATUSSYSTEM1.lostWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM2.lostWorkers.size());
@@ -1494,9 +1494,9 @@ public class RatisMasterStatusSystemSuiteJ {
 
     statusSystem.handleReportWorkerDecommission(workers, getNewReqeustId());
     Thread.sleep(3000L);
-    Assert.assertEquals(1, STATUSSYSTEM1.decommissionWorkers.size());
-    Assert.assertEquals(1, STATUSSYSTEM2.decommissionWorkers.size());
-    Assert.assertEquals(1, STATUSSYSTEM3.decommissionWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.getDecommissionWorkerIds().size());
+    Assert.assertEquals(1, STATUSSYSTEM2.getDecommissionWorkerIds().size());
+    Assert.assertEquals(1, STATUSSYSTEM3.getDecommissionWorkerIds().size());
     Assert.assertEquals(0, STATUSSYSTEM1.excludedWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM3.excludedWorkers.size());

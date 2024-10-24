@@ -208,11 +208,11 @@ public class DefaultMetaSystemSuiteJ {
 
     statusSystem.handleWorkerExclude(
         Arrays.asList(workerInfo1, workerInfo2), Collections.emptyList(), getNewReqeustId());
-    assertEquals(2, statusSystem.manuallyExcludedWorkers.size());
+    assertEquals(2, statusSystem.getManuallyExcludedWorkerIds().size());
 
     statusSystem.handleWorkerExclude(
         Collections.emptyList(), Collections.singletonList(workerInfo1), getNewReqeustId());
-    assertEquals(1, statusSystem.manuallyExcludedWorkers.size());
+    assertEquals(1, statusSystem.getManuallyExcludedWorkerIds().size());
   }
 
   @Test
@@ -797,7 +797,7 @@ public class DefaultMetaSystemSuiteJ {
             userResourceConsumption1));
 
     statusSystem.handleReportWorkerUnavailable(failedWorkers, getNewReqeustId());
-    assertEquals(1, statusSystem.shutdownWorkers.size());
+    assertEquals(1, statusSystem.getShutdownWorkerIds().size());
     assertTrue(statusSystem.excludedWorkers.isEmpty());
   }
 
@@ -894,7 +894,7 @@ public class DefaultMetaSystemSuiteJ {
             disks1,
             userResourceConsumption1));
     statusSystem.handleReportWorkerDecommission(workers, getNewReqeustId());
-    assertEquals(1, statusSystem.decommissionWorkers.size());
+    assertEquals(1, statusSystem.getDecommissionWorkerIds().size());
     assertTrue(statusSystem.excludedWorkers.isEmpty());
   }
 }
