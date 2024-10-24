@@ -17,11 +17,10 @@
 
 package org.apache.celeborn.client;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -121,6 +120,31 @@ public class ShuffleClientSuiteJ {
   }
 
   @Test
+  public void testPushDataAndInterrupted() throws IOException, InterruptedException {
+    CelebornConf conf = setupEnv(CompressionCodec.NONE, StatusCode.SUCCESS, true);
+    try {
+      shuffleClient.pushData(
+          TEST_SHUFFLE_ID,
+          TEST_ATTEMPT_ID,
+          TEST_ATTEMPT_ID,
+          TEST_REDUCRE_ID,
+          TEST_BUF1,
+          0,
+          TEST_BUF1.length,
+          1,
+          1);
+      Thread.sleep(10 * 1000); // waiting for interrupt
+      fail();
+    } catch (Exception e) {
+      if (e instanceof InterruptedException) {
+        assertTrue(true);
+      } else {
+        fail();
+      }
+    }
+  }
+
+  @Test
   public void testMergeData() throws IOException, InterruptedException {
     for (CompressionCodec codec : CompressionCodec.values()) {
       CelebornConf conf = setupEnv(codec);
@@ -204,6 +228,12 @@ public class ShuffleClientSuiteJ {
   }
 
   private CelebornConf setupEnv(CompressionCodec codec, StatusCode statusCode)
+      throws IOException, InterruptedException {
+    return setupEnv(codec, statusCode, false);
+  }
+
+  private CelebornConf setupEnv(
+      CompressionCodec codec, StatusCode statusCode, boolean interruptWhenPushData)
       throws IOException, InterruptedException {
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.SHUFFLE_COMPRESSION_CODEC().key(), codec.name());
@@ -346,7 +376,16 @@ public class ShuffleClientSuiteJ {
           }
         };
 
-    when(client.pushData(any(), anyLong(), any())).thenAnswer(t -> mockedFuture);
+    if (interruptWhenPushData) {
+      willAnswer(
+              invocation -> {
+                throw new InterruptedException("test");
+              })
+          .given(client)
+          .pushData(any(), anyLong(), any());
+    } else {
+      when(client.pushData(any(), anyLong(), any())).thenAnswer(t -> mockedFuture);
+    }
     when(clientFactory.createClient(
             primaryLocation.getHost(), primaryLocation.getPushPort(), TEST_REDUCRE_ID))
         .thenAnswer(t -> client);
