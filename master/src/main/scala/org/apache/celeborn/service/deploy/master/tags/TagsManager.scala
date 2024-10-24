@@ -22,7 +22,9 @@ import java.util.{Collections, Set => JSet}
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Predicate
 import java.util.stream.Collectors
+
 import scala.collection.JavaConverters.{asScalaIteratorConverter, mapAsScalaConcurrentMapConverter}
+
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.util.JavaUtils
@@ -44,7 +46,7 @@ class TagsManager extends Logging {
       return Collections.emptyList()
     }
 
-    var workersForTags : Option[JSet[String]] = None
+    var workersForTags: Option[JSet[String]] = None
     tags.foreach { tag =>
       val taggedWorkers = tagStore.getOrDefault(tag, Collections.emptySet())
       workersForTags match {
