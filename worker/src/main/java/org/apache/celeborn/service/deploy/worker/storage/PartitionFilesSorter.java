@@ -457,7 +457,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   @VisibleForTesting
   public void updateSortedShuffleFiles(String shuffleKey, String fileId, long fileLength) {
-    sortedShuffleFiles.get(shuffleKey).add(fileId);
+    Set<String> shuffleFiles = sortedShuffleFiles.get(shuffleKey);
+    if (shuffleFiles != null) {
+      shuffleFiles.add(fileId);
+    }
     sortedFileCount.incrementAndGet();
     sortedFilesSize.addAndGet(fileLength);
   }
