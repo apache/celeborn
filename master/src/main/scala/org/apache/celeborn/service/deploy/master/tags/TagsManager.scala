@@ -54,9 +54,10 @@ class TagsManager extends Logging {
       if (workers != null) {
         scheme match {
           case "AND" =>
-            workersForTags.addAll(workers)
-          case "OR" =>
+
             workersForTags.retainAll(workers)
+          case "OR" =>
+            workersForTags.addAll(workers)
           case _ =>
             logWarning(s"Unknown scheme: $scheme")
         }
