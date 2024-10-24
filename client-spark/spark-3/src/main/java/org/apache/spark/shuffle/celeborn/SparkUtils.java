@@ -19,15 +19,20 @@ package org.apache.spark.shuffle.celeborn;
 
 import java.util.concurrent.atomic.LongAdder;
 
+import scala.Option;
+import scala.Some;
 import scala.Tuple2;
 
 import org.apache.spark.BarrierTaskContext;
 import org.apache.spark.MapOutputTrackerMaster;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
+import org.apache.spark.SparkContext$;
 import org.apache.spark.TaskContext;
+import org.apache.spark.scheduler.DAGScheduler;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.scheduler.MapStatus$;
+import org.apache.spark.scheduler.ShuffleMapStage;
 import org.apache.spark.shuffle.ShuffleHandle;
 import org.apache.spark.shuffle.ShuffleReadMetricsReporter;
 import org.apache.spark.shuffle.ShuffleReader;
@@ -266,6 +271,9 @@ public class SparkUtils {
           .orNoop()
           .build();
 
+  private static final DynFields.UnboundField shuffleIdToMapStage_FIELD =
+      DynFields.builder().hiddenImpl(DAGScheduler.class, "shuffleIdToMapStage").build();
+
   public static void unregisterAllMapOutput(
       MapOutputTrackerMaster mapOutputTracker, int shuffleId) {
     if (!UnregisterAllMapAndMergeOutput_METHOD.isNoop()) {
@@ -295,5 +303,20 @@ public class SparkUtils {
           // whatever is the reason for failure, we notify lifecycle manager about the failure
           shuffleClient.reportBarrierTaskFailure(appShuffleId, appShuffleIdentifier);
         });
+  }
+
+  public static void cancelShuffle(int shuffleId, String reason) {
+    if (SparkContext$.MODULE$.getActive().nonEmpty()) {
+      DAGScheduler scheduler = SparkContext$.MODULE$.getActive().get().dagScheduler();
+      scala.collection.mutable.Map<Integer, ShuffleMapStage> shuffleIdToMapStageValue =
+          (scala.collection.mutable.Map<Integer, ShuffleMapStage>)
+              shuffleIdToMapStage_FIELD.bind(scheduler).get();
+      Option<ShuffleMapStage> shuffleMapStage = shuffleIdToMapStageValue.get(shuffleId);
+      if (shuffleMapStage.nonEmpty()) {
+        scheduler.cancelStage(shuffleMapStage.get().id(), new Some<>(reason));
+      }
+    } else {
+      LOG.error("Can not get active SparkContext, skip cancelShuffle.");
+    }
   }
 }
