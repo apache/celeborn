@@ -18,33 +18,19 @@
 package org.apache.celeborn.tests.client
 
 import java.util
-import java.util.{Set => JSet}
-import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters.mapAsScalaMapConverter
-
-import org.mockito.{Mockito, MockitoSugar}
-import org.mockito.ArgumentMatchersSugar.any
-import org.mockito.stubbing.Stubber
 
 import org.apache.celeborn.client.{ChangePartitionManager, ChangePartitionRequest, LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
-import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
-trait MockitoHelper extends MockitoSugar {
-  def doReturn(toBeReturned: Any): Stubber = {
-    Mockito.doReturn(toBeReturned, Nil: _*)
-  }
-}
-
 class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
-  with MiniClusterFeature with MockitoHelper {
-
+  with MiniClusterFeature {
   celebornConf
     .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "false")
     .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
@@ -64,15 +50,11 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val conf = celebornConf.clone
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
       .set(CelebornConf.CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS.key, "true")
+      .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val changePartitionManager: ChangePartitionManager =
       new ChangePartitionManager(conf, lifecycleManager)
-    val mockChangePartitionManager = spy(changePartitionManager)
-    doNothing.when(mockChangePartitionManager).replySuccess(
-      any[Array[PartitionLocation]],
-      any[ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]],
-      any[Int])
     val ids = new util.ArrayList[Integer](10)
     0 until 10 foreach {
       ids.add(_)
@@ -127,7 +109,10 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         -1,
         null,
         None)
-      mockChangePartitionManager.handleRequestPartitions(
+      changePartitionManager.changePartitionRequests.computeIfAbsent(
+        shuffleId,
+        changePartitionManager.rpcContextRegisterFunc)
+      changePartitionManager.handleRequestPartitions(
         shuffleId,
         Array(req),
         lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
@@ -148,15 +133,11 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val conf = celebornConf.clone
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
       .set(CelebornConf.CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS.key, "false")
+      .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val changePartitionManager: ChangePartitionManager =
       new ChangePartitionManager(conf, lifecycleManager)
-    val mockChangePartitionManager = spy(changePartitionManager)
-    doNothing.when(mockChangePartitionManager).replySuccess(
-      any[Array[PartitionLocation]],
-      any[ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]],
-      any[Int])
     val ids = new util.ArrayList[Integer](10)
     0 until 10 foreach {
       ids.add(_)
@@ -213,7 +194,10 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         -1,
         null,
         None)
-      mockChangePartitionManager.handleRequestPartitions(
+      changePartitionManager.changePartitionRequests.computeIfAbsent(
+        shuffleId,
+        changePartitionManager.rpcContextRegisterFunc)
+      changePartitionManager.handleRequestPartitions(
         shuffleId,
         Array(req),
         lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))

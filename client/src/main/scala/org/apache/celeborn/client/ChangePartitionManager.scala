@@ -18,7 +18,7 @@
 package org.apache.celeborn.client
 
 import java.util
-import java.util.{Set => JSet}
+import java.util.{function, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -46,7 +46,8 @@ class ChangePartitionManager(
 
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   // shuffleId -> (partitionId -> set of ChangePartition)
-  private val changePartitionRequests =
+  val changePartitionRequests
+      : ConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]] =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]()
 
   // shuffleId -> locks
@@ -131,7 +132,8 @@ class ChangePartitionManager(
     batchHandleChangePartitionSchedulerThread.foreach(ThreadUtils.shutdown(_))
   }
 
-  private val rpcContextRegisterFunc =
+  val rpcContextRegisterFunc
+      : function.Function[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]] =
     new util.function.Function[
       Int,
       ConcurrentHashMap[Integer, util.Set[ChangePartitionRequest]]]() {
@@ -218,55 +220,6 @@ class ChangePartitionManager(
     None
   }
 
-  // remove together to reduce lock time
-  def replySuccess(
-      locations: Array[PartitionLocation],
-      requestsMap: ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]],
-      shuffleId: Int): Unit = {
-    val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
-    locations.map { location =>
-      locksForShuffle(location.getId % locksForShuffle.length).synchronized {
-        if (batchHandleChangePartitionEnabled) {
-          inBatchPartitions.get(shuffleId).remove(location.getId)
-        }
-        // Here one partition id can be remove more than once,
-        // so need to filter null result before reply.
-        location -> Option(requestsMap.remove(location.getId))
-      }
-    }.foreach { case (newLocation, requests) =>
-      requests.map(_.asScala.toList.foreach(req =>
-        req.context.reply(
-          req.partitionId,
-          StatusCode.SUCCESS,
-          Option(newLocation),
-          lifecycleManager.workerStatusTracker.workerAvailable(req.oldPartition))))
-    }
-  }
-
-  // remove together to reduce lock time
-  private def replyFailure(
-      status: StatusCode,
-      changePartitions: Array[ChangePartitionRequest],
-      requestsMap: ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]],
-      shuffleId: Int): Unit = {
-    changePartitions.map { changePartition =>
-      val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
-      locksForShuffle(changePartition.partitionId % locksForShuffle.length).synchronized {
-        if (batchHandleChangePartitionEnabled) {
-          inBatchPartitions.get(shuffleId).remove(changePartition.partitionId)
-        }
-        Option(requestsMap.remove(changePartition.partitionId))
-      }
-    }.foreach { requests =>
-      requests.map(_.asScala.toList.foreach(req =>
-        req.context.reply(
-          req.partitionId,
-          status,
-          None,
-          lifecycleManager.workerStatusTracker.workerAvailable(req.oldPartition))))
-    }
-  }
-
   def handleRequestPartitions(
       shuffleId: Int,
       changePartitions: Array[ChangePartitionRequest],
@@ -285,6 +238,48 @@ class ChangePartitionManager(
           shuffleId,
           changePartition.oldPartition,
           changePartition.causes.get)
+      }
+    }
+
+    // remove together to reduce lock time
+    def replySuccess(locations: Array[PartitionLocation]): Unit = {
+      val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
+      locations.map { location =>
+        locksForShuffle(location.getId % locksForShuffle.length).synchronized {
+          if (batchHandleChangePartitionEnabled) {
+            inBatchPartitions.get(shuffleId).remove(location.getId)
+          }
+          // Here one partition id can be remove more than once,
+          // so need to filter null result before reply.
+          location -> Option(requestsMap.remove(location.getId))
+        }
+      }.foreach { case (newLocation, requests) =>
+        requests.map(_.asScala.toList.foreach(req =>
+          req.context.reply(
+            req.partitionId,
+            StatusCode.SUCCESS,
+            Option(newLocation),
+            lifecycleManager.workerStatusTracker.workerAvailable(req.oldPartition))))
+      }
+    }
+
+    // remove together to reduce lock time
+    def replyFailure(status: StatusCode): Unit = {
+      changePartitions.map { changePartition =>
+        val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
+        locksForShuffle(changePartition.partitionId % locksForShuffle.length).synchronized {
+          if (batchHandleChangePartitionEnabled) {
+            inBatchPartitions.get(shuffleId).remove(changePartition.partitionId)
+          }
+          Option(requestsMap.remove(changePartition.partitionId))
+        }
+      }.foreach { requests =>
+        requests.map(_.asScala.toList.foreach(req =>
+          req.context.reply(
+            req.partitionId,
+            status,
+            None,
+            lifecycleManager.workerStatusTracker.workerAvailable(req.oldPartition))))
       }
     }
 
@@ -329,7 +324,7 @@ class ChangePartitionManager(
 
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")
-      replyFailure(StatusCode.SLOT_NOT_AVAILABLE, changePartitions, requestsMap, shuffleId)
+      replyFailure(StatusCode.SLOT_NOT_AVAILABLE)
       return
     }
 
@@ -345,7 +340,7 @@ class ChangePartitionManager(
         newlyAllocatedLocations,
         isSegmentGranularityVisible = isSegmentGranularityVisible)) {
       logError(s"[Update partition] failed for $shuffleId.")
-      replyFailure(StatusCode.RESERVE_SLOTS_FAILED, changePartitions, requestsMap, shuffleId)
+      replyFailure(StatusCode.RESERVE_SLOTS_FAILED)
       return
     }
 
@@ -381,7 +376,7 @@ class ChangePartitionManager(
         //  in scenario the downstream task start early before the upstream task.
         locations
     }
-    replySuccess(newPrimaryLocations.toArray, requestsMap, shuffleId)
+    replySuccess(newPrimaryLocations.toArray)
   }
 
   private def reallocateChangePartitionRequestSlotsFromCandidates(
