@@ -407,6 +407,7 @@ private[celeborn] class Master(
           totalWritten,
           fileCount,
           needCheckedWorkerList,
+          needAvailableWorkers,
           requestId,
           shouldResponse) =>
       logDebug(s"Received heartbeat from app $appId")
@@ -419,6 +420,7 @@ private[celeborn] class Master(
           totalWritten,
           fileCount,
           needCheckedWorkerList,
+          needAvailableWorkers,
           requestId,
           shouldResponse))
 
@@ -1113,6 +1115,7 @@ private[celeborn] class Master(
       totalWritten: Long,
       fileCount: Long,
       needCheckedWorkerList: util.List[WorkerInfo],
+      needAvailableWorkers: Boolean,
       requestId: String,
       shouldResponse: Boolean): Unit = {
     statusSystem.handleAppHeartbeat(
@@ -1126,6 +1129,12 @@ private[celeborn] class Master(
     if (shouldResponse) {
       // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
       // during serialization of HeartbeatFromApplicationResponse
+      var availableWorksSentToClient = new util.ArrayList[WorkerInfo]()
+      if (needAvailableWorkers) {
+        availableWorksSentToClient = new util.ArrayList[WorkerInfo](
+          statusSystem.workers.asScala.filter(worker =>
+            statusSystem.isWorkerAvailable(worker)).asJava)
+      }
       var appRelatedShuffles =
         statusSystem.registeredAppAndShuffles.getOrDefault(appId, Collections.emptySet())
       context.reply(HeartbeatFromApplicationResponse(
@@ -1135,6 +1144,7 @@ private[celeborn] class Master(
         needCheckedWorkerList,
         new util.ArrayList[WorkerInfo](
           (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava),
+        availableWorksSentToClient,
         new util.ArrayList(appRelatedShuffles)))
     } else {
       context.reply(OneWayMessageResponse)
