@@ -51,18 +51,18 @@ class WorkerResource extends ApiRequestContext {
   @GET
   def workers: WorkersResponse = {
     new WorkersResponse()
-      .workers(statusSystem.workers.asScala.map(ApiUtils.workerData).toSeq.asJava)
+      .workers(statusSystem.getWorkers.asScala.map(ApiUtils.workerData).toSeq.asJava)
       .lostWorkers(statusSystem.lostWorkers.asScala.toSeq.sortBy(_._2)
         .map(kv =>
           new WorkerTimestampData().worker(ApiUtils.workerData(kv._1)).timestamp(kv._2)).asJava)
       .excludedWorkers(
-        (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala)
+        (statusSystem.excludedWorkers.asScala ++ statusSystem.getManuallyExcludedWorkerInfos.asScala)
           .map(ApiUtils.workerData).toSeq.asJava)
-      .manualExcludedWorkers(statusSystem.manuallyExcludedWorkers.asScala.map(
+      .manualExcludedWorkers(statusSystem.getManuallyExcludedWorkerInfos.asScala.map(
         ApiUtils.workerData).toSeq.asJava)
-      .shutdownWorkers(statusSystem.shutdownWorkers.asScala.map(
+      .shutdownWorkers(statusSystem.getShutdownWorkerInfos.asScala.map(
         ApiUtils.workerData).toSeq.asJava)
-      .decommissioningWorkers(statusSystem.decommissionWorkers.asScala.map(
+      .decommissioningWorkers(statusSystem.getDecommissionWorkerInfos.asScala.map(
         ApiUtils.workerData).toSeq.asJava)
   }
 
@@ -134,7 +134,7 @@ class WorkerResource extends ApiRequestContext {
           s"eventType(${request.getEventType}) and workers(${request.getWorkers}) are required")
       }
       val workers = request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq
-      val (filteredWorkers, unknownWorkers) = workers.partition(statusSystem.workers.contains)
+      val (filteredWorkers, unknownWorkers) = workers.partition(statusSystem.containsWorker)
       if (filteredWorkers.isEmpty) {
         throw new BadRequestException(
           s"None of the workers are known: ${unknownWorkers.map(_.readableAddress).mkString(", ")}")
