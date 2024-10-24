@@ -17,12 +17,12 @@
 -  level: SYSTEM
    config:
      celeborn.test.int.only: 100
-     tags:
-       tag1:
-         - 'host1:111:112:113:114:115'
-         - 'host2:211:212:213:214:215'
-       tag2:
-         - 'host3:311:312:313:314:315'
+   tags:
+     tag1:
+       - 'host1:111:112:113:114'
+       - 'host2:211:212:213:214'
+     tag2:
+       - 'host3:311:312:313:314'
 
 -  tenantId: tenant_01
    level: TENANT

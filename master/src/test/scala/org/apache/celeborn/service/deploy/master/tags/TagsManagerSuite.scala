@@ -24,7 +24,6 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.server.common.service.config.{ConfigService, DynamicConfigServiceFactory}
 
-
 class TagsManagerSuite extends CelebornFunSuite {
   protected var tagsManager: TagsManager = _
 
@@ -38,7 +37,7 @@ class TagsManagerSuite extends CelebornFunSuite {
   val workers = List(WORKER1, WORKER2, WORKER3).asJava
 
   test("test tags manager") {
-    tagsManager = new TagsManager(Some(null))
+    tagsManager = new TagsManager(Option(null))
 
     tagsManager.addTagToWorker(TAG1, WORKER1.toUniqueId())
     tagsManager.addTagToWorker(TAG1, WORKER2.toUniqueId())
@@ -161,7 +160,7 @@ class TagsManagerSuite extends CelebornFunSuite {
       getTestResourceFile("dynamicConfig-tags.yaml").getPath)
     val configService = DynamicConfigServiceFactory.getConfigService(conf)
 
-    tagsManager = new TagsManager(Some(configService))
+    tagsManager = new TagsManager(Option(configService))
 
     {
       val taggedWorkers = tagsManager.filterTaggedWorkers(TAG1, workers)
