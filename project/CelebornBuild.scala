@@ -273,7 +273,7 @@ object CelebornCommonSettings {
     PB.protocVersion := Dependencies.protocVersion,
     // set proto sources path
     Compile / PB.protoSources := Seq(sourceDirectory.value / "main" / "proto"),
-    Compile / PB.targets := Seq(PB.gens.java -> (Compile / sourceManaged).value)
+    Compile / PB.targets := Seq(PB.gens.java(Dependencies.protocVersion) -> (Compile / sourceManaged).value)
   )
 
   lazy val commonUnitTestDependencies = Seq(
