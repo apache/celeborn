@@ -27,7 +27,7 @@ import org.mockito.{Mockito, MockitoSugar}
 import org.mockito.ArgumentMatchersSugar.any
 import org.mockito.stubbing.Stubber
 
-import org.apache.celeborn.client.{ChangePartitionRequest, LifecycleManager, WithShuffleClientSuite}
+import org.apache.celeborn.client.{ChangePartitionManager, ChangePartitionRequest, LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
@@ -66,7 +66,8 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
       .set(CelebornConf.CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS.key, "true")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
-    val changePartitionManager = lifecycleManager.changePartitionManager
+    val changePartitionManager: ChangePartitionManager =
+      new ChangePartitionManager(conf, lifecycleManager)
     val mockChangePartitionManager = spy(changePartitionManager)
     doNothing.when(mockChangePartitionManager).replySuccess(
       any[Array[PartitionLocation]],
@@ -146,9 +147,11 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
+      .set(CelebornConf.CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS.key, "false")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
-    val changePartitionManager = lifecycleManager.changePartitionManager
+    val changePartitionManager: ChangePartitionManager =
+      new ChangePartitionManager(conf, lifecycleManager)
     val mockChangePartitionManager = spy(changePartitionManager)
     doNothing.when(mockChangePartitionManager).replySuccess(
       any[Array[PartitionLocation]],
