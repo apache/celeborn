@@ -265,10 +265,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     fileWriter.incrementPendingWrites()
 
     if (fileWriter.isClosed) {
-      val diskFileInfo = fileWriter.getDiskFileInfo
+      val fileinfo = fileWriter.getCurrentFileInfo
       logWarning(
-        s"[handlePushData] FileWriter is already closed! File path ${diskFileInfo.getFilePath} " +
-          s"length ${diskFileInfo.getFileLength}")
+        s"[handlePushData] FileWriter is already closed! FileInfo ${fileinfo}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
       return
@@ -547,10 +546,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
     val closedFileWriter = fileWriters.find(_.isClosed)
     if (closedFileWriter.isDefined) {
-      val diskFileInfo = closedFileWriter.get.getDiskFileInfo
+      val fileinfo = closedFileWriter.get.getCurrentFileInfo
       logWarning(
-        s"[handlePushMergedData] FileWriter is already closed! File path ${diskFileInfo.getFilePath} " +
-          s"length ${diskFileInfo.getFileLength}")
+        s"[handlePushMergedData] FileWriter is already closed! FileInfo ${fileinfo}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
       fileWriters.foreach(_.decrementPendingWrites())
       return
@@ -825,10 +823,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     fileWriter.incrementPendingWrites()
 
     if (fileWriter.isClosed) {
-      val diskFileInfo = fileWriter.getDiskFileInfo
+      val fileinfo = fileWriter.getCurrentFileInfo
       logWarning(
-        s"[handleMapPartitionPushData] FileWriter is already closed! File path ${diskFileInfo.getFilePath} " +
-          s"length ${diskFileInfo.getFileLength}")
+        s"[handleMapPartitionPushData] FileWriter is already closed! FileInfo ${fileinfo}")
       callback.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
       return
@@ -1030,8 +1027,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
     // During worker shutdown, worker will return HARD_SPLIT for all existed partition.
     // This should before return exception to make current push request revive and retry.
-    val isPartitionSplitEnabled = fileWriter.asInstanceOf[
-      MapPartitionDataWriter].getDiskFileInfo.isPartitionSplitEnabled
+    val isPartitionSplitEnabled = fileWriter.getCurrentFileInfo.isPartitionSplitEnabled
 
     if (shutdown.get() && (messageType == Type.REGION_START || messageType ==
         Type.PUSH_DATA_HAND_SHAKE) && isPartitionSplitEnabled) {
@@ -1249,8 +1245,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
          |diskFull:$diskFull,
          |partitionSplitMinimumSize:$partitionSplitMinimumSize,
          |splitThreshold:${fileWriter.getSplitThreshold},
-         |fileLength:${fileWriter.getDiskFileInfo.getFileLength}
-         |fileName:${fileWriter.getDiskFileInfo.getFilePath}
+         |fileLength:${fileWriter.getCurrentFileInfo.getFileLength}
+         |fileInfo:${fileWriter.getCurrentFileInfo}
          |""".stripMargin)
     if (fileWriter.needHardSplitForMemoryShuffleStorage()) {
       return true
