@@ -80,4 +80,9 @@ public class MemoryFileInfo extends FileInfo {
     logger.info("Memory File Info {} expire, removed {}", this, bufferSize);
     return bufferSize;
   }
+
+  @Override
+  public String getFilePath() {
+    return "";
+  }
 }

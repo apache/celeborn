@@ -106,4 +106,6 @@ public abstract class FileInfo {
       return streams.isEmpty();
     }
   }
+
+  public abstract String getFilePath();
 }
