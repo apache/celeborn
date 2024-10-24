@@ -84,6 +84,7 @@ public class DiskFileInfo extends FileInfo {
     return new File(filePath);
   }
 
+  @Override
   public String getFilePath() {
     return filePath;
   }
@@ -158,10 +159,5 @@ public class DiskFileInfo extends FileInfo {
 
   public boolean isDFS() {
     return Utils.isS3Path(filePath) || Utils.isHdfsPath(filePath);
-  }
-
-  @Override
-  public String toString() {
-    return "DiskFileInfo{" + "filePath='" + filePath + '}';
   }
 }

@@ -267,7 +267,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     if (fileWriter.isClosed) {
       val fileinfo = fileWriter.getCurrentFileInfo
       logWarning(
-        s"[handlePushData] FileWriter is already closed! FileInfo ${fileinfo}")
+        s"[handlePushData] FileWriter is already closed! File path ${fileinfo.getFilePath} " +
+          s"length ${fileinfo.getFileLength}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
       return
@@ -548,7 +549,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     if (closedFileWriter.isDefined) {
       val fileinfo = closedFileWriter.get.getCurrentFileInfo
       logWarning(
-        s"[handlePushMergedData] FileWriter is already closed! FileInfo ${fileinfo}")
+        s"[handlePushMergedData] FileWriter is already closed! File path ${fileinfo.getFilePath} " +
+          s"length ${fileinfo.getFileLength}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
       fileWriters.foreach(_.decrementPendingWrites())
       return
@@ -825,7 +827,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     if (fileWriter.isClosed) {
       val fileinfo = fileWriter.getCurrentFileInfo
       logWarning(
-        s"[handleMapPartitionPushData] FileWriter is already closed! FileInfo ${fileinfo}")
+        s"[handleMapPartitionPushData] FileWriter is already closed! File path ${fileinfo.getFilePath} " +
+          s"length ${fileinfo.getFileLength}")
       callback.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
       return
@@ -1246,7 +1249,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
          |partitionSplitMinimumSize:$partitionSplitMinimumSize,
          |splitThreshold:${fileWriter.getSplitThreshold},
          |fileLength:${fileWriter.getCurrentFileInfo.getFileLength}
-         |fileInfo:${fileWriter.getCurrentFileInfo}
+         |fileName:${fileWriter.getCurrentFileInfo.getFilePath}
          |""".stripMargin)
     if (fileWriter.needHardSplitForMemoryShuffleStorage()) {
       return true
