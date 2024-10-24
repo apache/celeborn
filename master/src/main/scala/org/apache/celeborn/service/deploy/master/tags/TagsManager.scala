@@ -18,20 +18,16 @@
 package org.apache.celeborn.service.deploy.master.tags
 
 import java.util
-import java.util.{Set => JSet}
+import java.util.{Collections, Set => JSet}
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Predicate
 import java.util.stream.Collectors
-
 import scala.collection.JavaConverters.{asScalaIteratorConverter, mapAsScalaConcurrentMapConverter}
-
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.util.JavaUtils
 
 class TagsManager extends Logging {
-  private val scheme = "AND"
-
   private val tagStore = JavaUtils.newConcurrentHashMap[String, JSet[String]]()
 
   private val addNewTagFunc =
@@ -45,32 +41,27 @@ class TagsManager extends Logging {
 
     if (tags.isEmpty) {
       logWarning("No tags provided")
-      return new util.ArrayList[WorkerInfo]()
+      return Collections.emptyList()
     }
 
-    val workersForTags = new util.HashSet[String]()
+    var workersForTags : Option[JSet[String]] = None
     tags.foreach { tag =>
-      val workers = tagStore.get(tag)
-      if (workers != null) {
-        scheme match {
-          case "AND" =>
-
-            workersForTags.retainAll(workers)
-          case "OR" =>
-            workersForTags.addAll(workers)
-          case _ =>
-            logWarning(s"Unknown scheme: $scheme")
-        }
+      val taggedWorkers = tagStore.getOrDefault(tag, Collections.emptySet())
+      workersForTags match {
+        case Some(w) =>
+          w.retainAll(taggedWorkers)
+        case _ =>
+          workersForTags = Some(taggedWorkers)
       }
     }
 
-    if (workersForTags == null) {
-      logWarning(s"No workers for tags: $tagExpr schema: $scheme not found in cluster")
-      return new util.ArrayList[WorkerInfo]()
+    if (workersForTags.isEmpty) {
+      logWarning(s"No workers for tags: $tagExpr found in cluster")
+      return Collections.emptyList()
     }
 
     val workerTagsPredicate = new Predicate[WorkerInfo] {
-      override def test(w: WorkerInfo): Boolean = workersForTags.contains(w.toUniqueId())
+      override def test(w: WorkerInfo): Boolean = workersForTags.get.contains(w.toUniqueId())
     }
     workers.stream().filter(workerTagsPredicate).collect(Collectors.toList())
   }

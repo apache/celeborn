@@ -123,7 +123,7 @@ class TagsManagerSuite extends AnyFunSuite
     }
   }
 
-  test("test tags expression with scheme") {
+  test("test tags expression with multiple tags") {
     tagsManager = new TagsManager()
 
     // Tag1
@@ -137,7 +137,6 @@ class TagsManagerSuite extends AnyFunSuite
     tagsManager.addTagToWorker(TAG2, WORKER3.toUniqueId())
 
     {
-      // Test AND scheme
       val taggedWorkers = tagsManager.getTaggedWorkers("tag1,tag2", workers)
       assert(taggedWorkers.size == 1)
       assert(!taggedWorkers.contains(WORKER1))
@@ -146,12 +145,8 @@ class TagsManagerSuite extends AnyFunSuite
     }
 
     {
-      // Test OR scheme
-      val taggedWorkers = tagsManager.getTaggedWorkers("tag1,tag2", workers)
-      assert(taggedWorkers.size == 3)
-      assert(taggedWorkers.contains(WORKER1))
-      assert(taggedWorkers.contains(WORKER2))
-      assert(taggedWorkers.contains(WORKER3))
+      val taggedWorkers = tagsManager.getTaggedWorkers("tag1,tag3", workers)
+      assert(taggedWorkers.size == 0)
     }
   }
 }
