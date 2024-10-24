@@ -265,10 +265,10 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     fileWriter.incrementPendingWrites()
 
     if (fileWriter.isClosed) {
-      val fileinfo = fileWriter.getCurrentFileInfo
+      val fileInfo = fileWriter.getCurrentFileInfo
       logWarning(
-        s"[handlePushData] FileWriter is already closed! File path ${fileinfo.getFilePath} " +
-          s"length ${fileinfo.getFileLength}")
+        s"[handlePushData] FileWriter is already closed! File path ${fileInfo.getFilePath} " +
+          s"length ${fileInfo.getFileLength}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
       return
@@ -547,10 +547,10 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
     val closedFileWriter = fileWriters.find(_.isClosed)
     if (closedFileWriter.isDefined) {
-      val fileinfo = closedFileWriter.get.getCurrentFileInfo
+      val fileInfo = closedFileWriter.get.getCurrentFileInfo
       logWarning(
-        s"[handlePushMergedData] FileWriter is already closed! File path ${fileinfo.getFilePath} " +
-          s"length ${fileinfo.getFileLength}")
+        s"[handlePushMergedData] FileWriter is already closed! File path ${fileInfo.getFilePath} " +
+          s"length ${fileInfo.getFileLength}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
       fileWriters.foreach(_.decrementPendingWrites())
       return
@@ -825,10 +825,10 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     fileWriter.incrementPendingWrites()
 
     if (fileWriter.isClosed) {
-      val fileinfo = fileWriter.getCurrentFileInfo
+      val fileInfo = fileWriter.getCurrentFileInfo
       logWarning(
-        s"[handleMapPartitionPushData] FileWriter is already closed! File path ${fileinfo.getFilePath} " +
-          s"length ${fileinfo.getFileLength}")
+        s"[handleMapPartitionPushData] FileWriter is already closed! File path ${fileInfo.getFilePath} " +
+          s"length ${fileInfo.getFileLength}")
       callback.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
       return
