@@ -264,8 +264,8 @@ function sbt_build_service {
   echo "Celeborn $VERSION$GITREVSTRING" > "$DIST_DIR/RELEASE"
   echo "Build flags: $@" >> "$DIST_DIR/RELEASE"
 
-  if [[ $@ == *"hadoop-aws"* ]]; then
-     SBT_MAVEN_PROFILES="hadoop-aws"
+  if [[ $@ == *"aws-mpu"* ]]; then
+     export SBT_MAVEN_PROFILES="aws-mpu"
   fi
   BUILD_COMMAND=("$SBT" clean package)
 
