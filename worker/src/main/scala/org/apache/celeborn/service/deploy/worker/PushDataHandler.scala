@@ -79,7 +79,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     replicateThreadPool = worker.replicateThreadPool
     unavailablePeers = worker.unavailablePeers
     replicateClientFactory = worker.replicateClientFactory
-    registered = Some(worker.registered)
     workerInfo = worker.workerInfo
     diskReserveSize = worker.conf.workerDiskReserveSize
     diskReserveRatio = worker.conf.workerDiskReserveRatio
@@ -95,7 +94,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
     testPushPrimaryDataTimeout = worker.conf.testPushPrimaryDataTimeout
     testPushReplicaDataTimeout = worker.conf.testPushReplicaDataTimeout
-
+    registered = Some(worker.registered)
     logInfo(
       s"diskReserveSize ${Utils.bytesToString(diskReserveSize)}, diskReserveRatio ${diskReserveRatio.orNull}")
   }

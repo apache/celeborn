@@ -87,6 +87,10 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       } else {
         processOtherMessages(request);
       }
+    } else {
+      if (request.body() != null) {
+        request.body().release();
+      }
     }
   }
 
