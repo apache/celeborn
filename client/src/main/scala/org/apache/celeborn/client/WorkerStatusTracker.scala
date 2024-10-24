@@ -37,7 +37,7 @@ class WorkerStatusTracker(
     lifecycleManager: LifecycleManager) extends Logging {
   private val excludedWorkerExpireTimeout = conf.clientExcludedWorkerExpireTimeout
   private val workerStatusListeners = ConcurrentHashMap.newKeySet[WorkerStatusListener]()
-  private val changPartitionWithAvailableWorkers = conf.clientChangPartitionWithAvailableWorkers
+  private val heartBeatWithAvailableWorkers = conf.clientShuffleDynamicResourceEnable
 
   val excludedWorkers = new ShuffleFailedWorkers()
   val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
@@ -165,7 +165,7 @@ class WorkerStatusTracker(
     availableWorkersWithoutEndpoint.remove(worker)
   }
 
-  def updateWorkersWithEndpoint(workers: JHashSet[WorkerInfo]): Unit = {
+  def addWorkersWithEndpoint(workers: JHashSet[WorkerInfo]): Unit = {
     availableWorkersWithoutEndpoint.removeAll(workers)
     workers.asScala.foreach { workerInfo =>
       availableWorkersWithEndpoint.put(workerInfo.toUniqueId(), workerInfo)
@@ -217,23 +217,13 @@ class WorkerStatusTracker(
       val retainShuttingWorkersResult = shuttingWorkers.retainAll(res.shuttingWorkers)
       val addShuttingWorkersResult = shuttingWorkers.addAll(res.shuttingWorkers)
 
-      if (changPartitionWithAvailableWorkers) {
+      if (heartBeatWithAvailableWorkers) {
         // AvailableWorkers filter Client excludedWorkers and shuttingWorkers.
         // AvailableWorkers already filtered res.excludedWorkers and res.shuttingWorkers.
         val resAvailableWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo](res.availableWorkers)
-        excludedWorkers.asScala.foreach {
-          case (workerInfo: WorkerInfo, (_, _)) =>
-            if (resAvailableWorkers.contains(workerInfo)) {
-              resAvailableWorkers.remove(workerInfo)
-            }
-        }
-        shuttingWorkers.asScala.foreach { workerInfo: WorkerInfo =>
-          if (resAvailableWorkers.contains(workerInfo)) {
-            resAvailableWorkers.remove(workerInfo)
-          }
-        }
-
         // update availableWorkers
+        // availableWorkers wont filter excludedWorkers.
+        // So before using them we hava to filter excludedWorkers.
         availableWorkersWithoutEndpoint.retainAll(resAvailableWorkers)
         availableWorkersWithEndpoint.keySet().retainAll(
           resAvailableWorkers.asScala.map(_.toUniqueId()).asJava)

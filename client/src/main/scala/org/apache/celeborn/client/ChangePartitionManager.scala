@@ -76,7 +76,7 @@ class ChangePartitionManager(
 
   private val testRetryRevive = conf.testRetryRevive
 
-  private val changPartitionWithAvailableWorkers = conf.clientChangPartitionWithAvailableWorkers
+  private val changPartitionWithAvailableWorkers = conf.clientShuffleDynamicResourceEnable
 
   def start(): Unit = {
     batchHandleChangePartition = batchHandleChangePartitionSchedulerThread.map {
@@ -283,10 +283,9 @@ class ChangePartitionManager(
       }
     }
 
-    var candidates = new util.HashSet[WorkerInfo]()
+    val candidates = new util.HashSet[WorkerInfo]()
     if (changPartitionWithAvailableWorkers) {
-      // availableWorkers will filter when unAvailableWorkers update, still do filtering here in case
-      // recordWorkerFailure not be called.
+      // availableWorkers wont filter excludedWorkers in heartBeat So have to do filtering.
       candidates.addAll(lifecycleManager
         .workerStatusTracker
         .availableWorkersWithEndpoint
@@ -298,7 +297,8 @@ class ChangePartitionManager(
 
       // SetupEndpoint for those availableWorkers without endpoint
       val workersRequireEndpoints = new util.HashSet[WorkerInfo](
-        lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint)
+        lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint.asScala.filter(
+          lifecycleManager.workerStatusTracker.workerAvailable: WorkerInfo => Boolean).asJava)
       val connectFailedWorkers = new ShuffleFailedWorkers()
       lifecycleManager.setupEndpoints(
         workersRequireEndpoints,
@@ -308,7 +308,7 @@ class ChangePartitionManager(
       candidates.addAll(workersRequireEndpoints)
 
       // Update worker status
-      lifecycleManager.workerStatusTracker.updateWorkersWithEndpoint(workersRequireEndpoints)
+      lifecycleManager.workerStatusTracker.addWorkersWithEndpoint(workersRequireEndpoints)
       lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
       lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates)
     } else {
@@ -319,7 +319,7 @@ class ChangePartitionManager(
           .asScala
           .filter(lifecycleManager.workerStatusTracker.workerAvailable)
           .asJava
-      candidates = new util.HashSet(snapshotCandidates)
+      candidates.addAll(snapshotCandidates)
     }
 
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
@@ -347,19 +347,15 @@ class ChangePartitionManager(
     val newPrimaryLocations = newlyAllocatedLocations.asScala.flatMap {
       case (workInfo, (primaryLocations, replicaLocations)) =>
         // Add all re-allocated slots to worker snapshots.
-        lifecycleManager.workerSnapshots(shuffleId).asScala
-          .get(workInfo) match {
-          case Some(existingPartitionLocationInfo) =>
-            existingPartitionLocationInfo.addPrimaryPartitions(primaryLocations)
-            lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
-            existingPartitionLocationInfo.addReplicaPartitions(replicaLocations)
-          case None =>
-            val partitionLocationInfo = new ShufflePartitionLocationInfo()
-            partitionLocationInfo.addPrimaryPartitions(primaryLocations)
-            lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
-            partitionLocationInfo.addReplicaPartitions(replicaLocations)
-            lifecycleManager.workerSnapshots(shuffleId).put(workInfo, partitionLocationInfo)
-        }
+        val partitionLocationInfo = lifecycleManager.workerSnapshots(shuffleId).computeIfAbsent(
+          workInfo,
+          _ => {
+            new ShufflePartitionLocationInfo()
+          })
+        partitionLocationInfo.addPrimaryPartitions(primaryLocations)
+        partitionLocationInfo.addReplicaPartitions(replicaLocations)
+        lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
+
         // partition location can be null when call reserveSlotsWithRetry().
         val locations = (primaryLocations.asScala ++ replicaLocations.asScala.map(_.getPeer))
           .distinct.filter(_ != null)

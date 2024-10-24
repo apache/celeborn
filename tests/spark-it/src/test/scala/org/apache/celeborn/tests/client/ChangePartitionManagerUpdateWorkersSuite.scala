@@ -26,7 +26,7 @@ import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.util.JavaUtils
+import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils}
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
@@ -49,7 +49,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
-      .set(CelebornConf.CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS.key, "true")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLE.key, "true")
       .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
@@ -87,7 +87,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
           allocatedWorkers.put(workerInfo, partitionLocationInfo)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
-      lifecycleManager.workerStatusTracker.updateWorkersWithEndpoint(candidatesWorkers)
+      lifecycleManager.workerStatusTracker.addWorkersWithEndpoint(candidatesWorkers)
     }
     assert(lifecycleManager.workerSnapshots(shuffleId).size() == 1)
     assert(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoint.size() == 1)
@@ -117,13 +117,28 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         Array(req),
         lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
     }
-    logInfo(s"reallocated worker num: ${res.workerResource.keySet().size()}; workerInfo: ${res.workerResource.keySet()}")
     assert(
       lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint.size() + lifecycleManager.workerStatusTracker.availableWorkersWithEndpoint.size() == 3)
 
     assert(lifecycleManager.workerSnapshots(shuffleId).size() > 1)
     assert(
       lifecycleManager.workerStatusTracker.availableWorkersWithEndpoint.size() > 1)
+
+    // shut down workers test
+    val workerInfoList = workerInfos.toList
+    0 until 2 foreach { index =>
+      val (worker, _) = workerInfoList(index)
+      worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
+      worker.rpcEnv.shutdown()
+      // Workers in miniClusterFeature wont update status with master through heartbeat.
+      // So update status manually.
+      masterInfo._1.statusSystem.excludedWorkers.add(worker.workerInfo)
+      workerInfos.remove(worker)
+    }
+
+    Thread.sleep(15000)
+    assert(
+      lifecycleManager.workerStatusTracker.availableWorkersWithEndpoint.size() + lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint.size() == 1)
 
     lifecycleManager.stop()
   }
@@ -132,7 +147,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
-      .set(CelebornConf.CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS.key, "false")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLE.key, "false")
       .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
@@ -145,9 +160,9 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
     assert(res.status == StatusCode.SUCCESS)
 
-    // workerNum is between [1, 3]
+    // workerNum is 1 （after 1 add 2 and stop 2）
     val workerNum = res.workerResource.keySet().size()
-    assert(workerNum >= 1)
+    assert(workerNum == 1)
 
     lifecycleManager.setupEndpoints(
       res.workerResource.keySet(),
@@ -173,16 +188,16 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
           allocatedWorkers.put(workerInfo, partitionLocationInfo)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
-      lifecycleManager.workerStatusTracker.updateWorkersWithEndpoint(candidatesWorkers)
+      lifecycleManager.workerStatusTracker.addWorkersWithEndpoint(candidatesWorkers)
     }
     assert(lifecycleManager.workerSnapshots(shuffleId).size() == workerNum)
     assert(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoint.size() == workerNum)
 
-    // total workerNum is 1 + 2 + 2 = 5 now
+    // total workerNum is 1 + 2 = 3 now
     setUpWorkers(workerConfForAdding, 2)
     // longer than APPLICATION_HEARTBEAT_INTERVAL 10s
     Thread.sleep(15000)
-    assert(workerInfos.size == 5)
+    assert(workerInfos.size == 3)
     assert(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoint.size() == workerNum)
     assert(lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint.size() == 0)
 

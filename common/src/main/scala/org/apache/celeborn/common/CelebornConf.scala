@@ -896,8 +896,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientReserveSlotsRetryWait: Long = get(CLIENT_RESERVE_SLOTS_RETRY_WAIT)
   def clientRequestCommitFilesMaxRetries: Int = get(CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY)
   def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
-  def clientChangPartitionWithAvailableWorkers: Boolean =
-    get(CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS)
+  def clientShuffleDynamicResourceEnable: Boolean =
+    get(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLE)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
   def dfsExpireDirsTimeoutMS: Long = get(DFS_EXPIRE_DIRS_TIMEOUT)
@@ -4827,7 +4827,7 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS: ConfigEntry[Boolean] =
+  val CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLE: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.dynamicResourceEnable")
       .categories("client")
       .version("0.6.0")

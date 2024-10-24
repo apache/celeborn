@@ -23,7 +23,7 @@ import org.junit.Assert
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.{CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS, CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT}
+import org.apache.celeborn.common.CelebornConf.{CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLE}
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromApplicationResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -32,7 +32,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
   test("handleHeartbeatResponse without availableWorkers") {
     val celebornConf = new CelebornConf()
     celebornConf.set(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, 2000L)
-    celebornConf.set(CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS, false)
+    celebornConf.set(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLE, false)
     val statusTracker = new WorkerStatusTracker(celebornConf, null)
 
     val registerTime = System.currentTimeMillis()
@@ -94,7 +94,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     statusTracker.handleHeartbeatResponse(response4)
 
     // availableWorkers wont update through heartbeat
-    // when CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS set to false
+    // when DYNAMIC_RESOURCE_ENABLE set to false
     Assert.assertEquals(statusTracker.availableWorkersWithoutEndpoint.size(), 0)
     // available workers won't overwrite excluded workers
     Assert.assertEquals(statusTracker.excludedWorkers.size(), 2)
@@ -105,7 +105,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
   test("handleHeartbeatResponse with availableWorkers") {
     val celebornConf = new CelebornConf()
     celebornConf.set(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, 2000L)
-    celebornConf.set(CLIENT_CHANGE_PARTITION_WITH_AVAILABLE_WORKERS, true)
+    celebornConf.set(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLE, true)
     val statusTracker = new WorkerStatusTracker(celebornConf, null)
 
     val registerTime = System.currentTimeMillis()
@@ -165,7 +165,9 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
       Array("host5", "host6", "host7", "host8"))
     statusTracker.handleHeartbeatResponse(response4)
 
-    Assert.assertEquals(statusTracker.availableWorkersWithoutEndpoint.size(), 2)
+    // availableWorkers wont update with excludedWorkers
+    // So before using them we hava to filter excludedWorkers
+    Assert.assertEquals(statusTracker.availableWorkersWithoutEndpoint.size(), 4)
     // available workers won't overwrite excluded workers
     Assert.assertEquals(statusTracker.excludedWorkers.size(), 2)
     Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host5")))
