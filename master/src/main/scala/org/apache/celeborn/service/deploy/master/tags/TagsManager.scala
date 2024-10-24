@@ -22,15 +22,16 @@ import java.util.{Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentMap}
 import java.util.function.Predicate
 import java.util.stream.Collectors
+
 import scala.collection.JavaConverters.{asScalaIteratorConverter, mapAsScalaConcurrentMapConverter}
+
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.server.common.service.config.ConfigService
 
 class TagsManager(configService: Option[ConfigService]) extends Logging {
-  private val DEFAULT_TAG_STORE = JavaUtils.newConcurrentHashMap[String, JSet[String]]()
-  private val tagStore = JavaUtils.newConcurrentHashMap[String, JSet[String]]()
+  private val defaultTagStore = JavaUtils.newConcurrentHashMap[String, JSet[String]]()
 
   private val addNewTagFunc =
     new util.function.Function[String, ConcurrentHashMap.KeySetView[String, java.lang.Boolean]]() {
@@ -44,11 +45,13 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
         // TODO: Make configStore.getTags return ConcurrentMap
         new ConcurrentHashMap(cs.getSystemConfigFromCache.getTags)
       case _ =>
-        DEFAULT_TAG_STORE
+        defaultTagStore
     }
   }
 
-  def filterTaggedWorkers(tagExpr: String, workers: util.List[WorkerInfo]): util.List[WorkerInfo] = {
+  def filterTaggedWorkers(
+      tagExpr: String,
+      workers: util.List[WorkerInfo]): util.List[WorkerInfo] = {
     val tags = tagExpr.split(",").map(_.trim)
 
     if (tags.isEmpty) {
@@ -71,13 +74,13 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
   }
 
   def addTagToWorker(tag: String, workerId: String): Unit = {
-    val workers = tagStore.computeIfAbsent(tag, addNewTagFunc)
+    val workers = defaultTagStore.computeIfAbsent(tag, addNewTagFunc)
     logInfo(s"Adding Tag $tag to worker $workerId")
     workers.add(workerId)
   }
 
   def removeTagFromWorker(tag: String, workerId: String): Unit = {
-    val workers = tagStore.get(tag)
+    val workers = defaultTagStore.get(tag)
 
     if (workers != null && workers.contains(workerId)) {
       logInfo(s"Removing Tag $tag from worker $workerId")
@@ -88,11 +91,11 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
   }
 
   def getTagsForWorker(worker: WorkerInfo): Set[String] = {
-    tagStore.asScala.filter(_._2.contains(worker.toUniqueId())).keySet.toSet
+    defaultTagStore.asScala.filter(_._2.contains(worker.toUniqueId())).keySet.toSet
   }
 
   def removeTagFromCluster(tag: String): Unit = {
-    val workers = tagStore.remove(tag)
+    val workers = defaultTagStore.remove(tag)
     if (workers != null) {
       logInfo(s"Removed Tag $tag from cluster with workers ${workers.toArray.mkString(", ")}")
     } else {
@@ -101,6 +104,6 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
   }
 
   def getTagsForCluster: Set[String] = {
-    tagStore.keySet().iterator().asScala.toSet
+    defaultTagStore.keySet().iterator().asScala.toSet
   }
 }

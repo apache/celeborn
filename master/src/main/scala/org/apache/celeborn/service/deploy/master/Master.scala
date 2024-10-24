@@ -187,7 +187,7 @@ private[celeborn] class Master(
   private val hasS3Storage = conf.hasS3Storage
 
   private val quotaManager = new QuotaManager(conf, configService)
-  private val tagsManager = new TagsManager(Some(configService))
+  private val tagsManager = new TagsManager(Option(configService))
   private val masterResourceConsumptionInterval = conf.masterResourceConsumptionInterval
   private val userResourceConsumptions =
     JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
