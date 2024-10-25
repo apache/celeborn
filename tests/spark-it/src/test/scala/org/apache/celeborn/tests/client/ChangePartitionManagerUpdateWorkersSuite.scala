@@ -49,7 +49,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
-      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLE.key, "true")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key, "true")
       .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
@@ -147,7 +147,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
-      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLE.key, "false")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key, "false")
       .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)

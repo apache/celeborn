@@ -23,7 +23,7 @@ import org.junit.Assert
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.{CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLE}
+import org.apache.celeborn.common.CelebornConf.{CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED}
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromApplicationResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -32,7 +32,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
   test("handleHeartbeatResponse without availableWorkers") {
     val celebornConf = new CelebornConf()
     celebornConf.set(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, 2000L)
-    celebornConf.set(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLE, false)
+    celebornConf.set(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED, false)
     val statusTracker = new WorkerStatusTracker(celebornConf, null)
 
     val registerTime = System.currentTimeMillis()
@@ -105,7 +105,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
   test("handleHeartbeatResponse with availableWorkers") {
     val celebornConf = new CelebornConf()
     celebornConf.set(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, 2000L)
-    celebornConf.set(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLE, true)
+    celebornConf.set(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED, true)
     val statusTracker = new WorkerStatusTracker(celebornConf, null)
 
     val registerTime = System.currentTimeMillis()

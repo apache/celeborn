@@ -76,7 +76,7 @@ class ChangePartitionManager(
 
   private val testRetryRevive = conf.testRetryRevive
 
-  private val changPartitionWithAvailableWorkers = conf.clientShuffleDynamicResourceEnable
+  private val clientShuffleDynamicResourceEnabled = conf.clientShuffleDynamicResourceEnabled
 
   def start(): Unit = {
     batchHandleChangePartition = batchHandleChangePartitionSchedulerThread.map {
@@ -198,7 +198,7 @@ class ChangePartitionManager(
             partitionId,
             StatusCode.SUCCESS,
             Some(latestLoc),
-            lifecycleManager.workerStatusTracker.workerAvailable(oldPartition))
+            lifecycleManager.workerStatusTracker.workerAvailableByLocation(oldPartition))
           logDebug(s"[handleRequestPartitionLocation]: For shuffle: $shuffleId," +
             s" old partition: $partitionId-$oldEpoch, new partition: $latestLoc found, return it")
           return
@@ -266,7 +266,7 @@ class ChangePartitionManager(
             req.partitionId,
             StatusCode.SUCCESS,
             Option(newLocation),
-            lifecycleManager.workerStatusTracker.workerAvailable(req.oldPartition))))
+            lifecycleManager.workerStatusTracker.workerAvailableByLocation(req.oldPartition))))
       }
     }
 
@@ -286,12 +286,12 @@ class ChangePartitionManager(
             req.partitionId,
             status,
             None,
-            lifecycleManager.workerStatusTracker.workerAvailable(req.oldPartition))))
+            lifecycleManager.workerStatusTracker.workerAvailableByLocation(req.oldPartition))))
       }
     }
 
     val candidates = new util.HashSet[WorkerInfo]()
-    if (changPartitionWithAvailableWorkers) {
+    if (clientShuffleDynamicResourceEnabled) {
       // availableWorkers wont filter excludedWorkers in heartBeat So have to do filtering.
       candidates.addAll(lifecycleManager
         .workerStatusTracker
@@ -299,13 +299,13 @@ class ChangePartitionManager(
         .values()
         .asScala
         .toSet
-        .filter(lifecycleManager.workerStatusTracker.workerAvailable: WorkerInfo => Boolean)
+        .filter(lifecycleManager.workerStatusTracker.workerAvailable)
         .asJava)
 
       // SetupEndpoint for those availableWorkers without endpoint
       val workersRequireEndpoints = new util.HashSet[WorkerInfo](
         lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint.asScala.filter(
-          lifecycleManager.workerStatusTracker.workerAvailable: WorkerInfo => Boolean).asJava)
+          lifecycleManager.workerStatusTracker.workerAvailable).asJava)
       val connectFailedWorkers = new ShuffleFailedWorkers()
       lifecycleManager.setupEndpoints(
         workersRequireEndpoints,

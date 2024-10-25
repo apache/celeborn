@@ -37,7 +37,7 @@ class WorkerStatusTracker(
     lifecycleManager: LifecycleManager) extends Logging {
   private val excludedWorkerExpireTimeout = conf.clientExcludedWorkerExpireTimeout
   private val workerStatusListeners = ConcurrentHashMap.newKeySet[WorkerStatusListener]()
-  private val heartBeatWithAvailableWorkers = conf.clientShuffleDynamicResourceEnable
+  private val clientShuffleDynamicResourceEnabled = conf.clientShuffleDynamicResourceEnabled
 
   val excludedWorkers = new ShuffleFailedWorkers()
   val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
@@ -71,7 +71,7 @@ class WorkerStatusTracker(
     !excludedWorkers.containsKey(worker) && !shuttingWorkers.contains(worker)
   }
 
-  def workerAvailable(loc: PartitionLocation): Boolean = {
+  def workerAvailableByLocation(loc: PartitionLocation): Boolean = {
     if (loc == null) {
       false
     } else {
@@ -217,7 +217,7 @@ class WorkerStatusTracker(
       val retainShuttingWorkersResult = shuttingWorkers.retainAll(res.shuttingWorkers)
       val addShuttingWorkersResult = shuttingWorkers.addAll(res.shuttingWorkers)
 
-      if (heartBeatWithAvailableWorkers) {
+      if (clientShuffleDynamicResourceEnabled) {
         // AvailableWorkers filter Client excludedWorkers and shuttingWorkers.
         // AvailableWorkers already filtered res.excludedWorkers and res.shuttingWorkers.
         val resAvailableWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo](res.availableWorkers)
