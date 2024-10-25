@@ -456,7 +456,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 getManuallyExcludedWorkerInfos(),
                 getWorkerLostEventWorkerInfos(),
                 appHeartbeatTime,
-                new HashSet(getWorkers()),
+                new HashSet(workersMap.values()),
                 partitionTotalWritten.sum(),
                 partitionTotalFileCount.sum(),
                 appDiskUsageMetric.snapShots(),
@@ -614,7 +614,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         registeredAppAndShuffles.size(),
         excludedWorkers.size(),
         manuallyExcludedWorkers.size());
-    getWorkers().forEach(workerInfo -> LOG.info(workerInfo.toString()));
+    workersMap.values().forEach(workerInfo -> LOG.info(workerInfo.toString()));
     registeredAppAndShuffles.forEach(
         (appId, shuffleId) -> LOG.info("RegisteredShuffle {}-{}", appId, shuffleId));
   }
@@ -705,7 +705,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         "Celeborn cluster estimated partition size changed from {} to {}",
         Utils.bytesToString(oldEstimatedPartitionSize),
         Utils.bytesToString(estimatedPartitionSize));
-    getWorkers().stream()
+    workersMap.values().stream()
         .filter(
             worker -> {
               String workerId = worker.toUniqueId();
