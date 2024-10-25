@@ -62,10 +62,8 @@ class TagsManager extends Logging {
       return Collections.emptyList()
     }
 
-    val workerTagsPredicate = new Predicate[WorkerInfo] {
-      override def test(w: WorkerInfo): Boolean = workersForTags.get.contains(w.toUniqueId())
-    }
-    workers.stream().filter(workerTagsPredicate).collect(Collectors.toList())
+    workers.stream().filter(w => workersForTags.get.contains(w.toUniqueId())).collect(
+      Collectors.toList())
   }
 
   def addTagToWorker(tag: String, workerId: String): Unit = {
