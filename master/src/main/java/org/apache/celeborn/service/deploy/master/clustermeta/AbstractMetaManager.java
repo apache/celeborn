@@ -144,6 +144,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         .collect(Collectors.toSet());
   }
 
+  @VisibleForTesting
+  public void clearManuallyExcludedWorkers() {
+    manuallyExcludedWorkers.clear();
+  }
+
   public Set<String> getShutdownWorkerIds() {
     return Collections.unmodifiableSet(shutdownWorkers);
   }

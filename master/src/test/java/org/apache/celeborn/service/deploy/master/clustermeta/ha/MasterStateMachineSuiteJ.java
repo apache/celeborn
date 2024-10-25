@@ -240,7 +240,7 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
 
     masterStatusSystem.hostnameSet.clear();
     masterStatusSystem.clearExcludedWorkers();
-    masterStatusSystem.getManuallyExcludedWorkerIds().clear();
+    masterStatusSystem.clearManuallyExcludedWorkers();
     masterStatusSystem.clearWorkers();
 
     masterStatusSystem.restoreMetaFromFile(tmpFile);
