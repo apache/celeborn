@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
-import static org.apache.commons.crypto.utils.Utils.checkState;
-
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
@@ -179,10 +177,11 @@ public class CreditStreamManager {
         requiredSegmentId,
         subPartitionId);
     try {
-      if (mapPartitionData != null) {
-        checkState(mapPartitionData instanceof SegmentMapPartitionData);
+      if (mapPartitionData instanceof SegmentMapPartitionData) {
         ((SegmentMapPartitionData) mapPartitionData)
             .notifyRequiredSegmentId(requiredSegmentId, streamId, subPartitionId);
+      } else {
+        logger.warn("Only non-null SegmentMapPartitionData is expected for notifyRequiredSegment.");
       }
     } catch (Throwable e) {
       logger.error(
@@ -205,7 +204,11 @@ public class CreditStreamManager {
   }
 
   public void notifyRequiredSegment(int requiredSegmentId, long streamId, int subPartitionId) {
-    if (!streams.containsKey(streamId)) {
+    StreamState streamState = streams.get(streamId);
+    if (streamState != null) {
+      notifyRequiredSegment(
+          streamState.getMapDataPartition(), requiredSegmentId, streamId, subPartitionId);
+    } else {
       // In flink hybrid shuffle integration strategy, the stream may release in worker before
       // client receive bufferStreamEnd,
       // and the client may send request with old streamId, so ignore non-exist streams.
@@ -214,10 +217,7 @@ public class CreditStreamManager {
           streamId,
           subPartitionId,
           requiredSegmentId);
-      return;
     }
-    MapPartitionData mapPartitionData = streams.get(streamId).getMapDataPartition();
-    notifyRequiredSegment(mapPartitionData, requiredSegmentId, streamId, subPartitionId);
   }
 
   public void connectionTerminated(Channel channel) {

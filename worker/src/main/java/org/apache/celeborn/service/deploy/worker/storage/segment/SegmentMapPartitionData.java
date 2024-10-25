@@ -18,8 +18,6 @@
 
 package org.apache.celeborn.service.deploy.worker.storage.segment;
 
-import static org.apache.commons.crypto.utils.Utils.checkState;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
@@ -74,8 +72,11 @@ public class SegmentMapPartitionData extends MapPartitionData {
   @Override
   protected void openReader(MapPartitionDataReader reader) throws IOException {
     super.openReader(reader);
-    checkState(reader instanceof SegmentMapPartitionDataReader);
-    ((SegmentMapPartitionDataReader) reader).updateSegmentId();
+    if (reader instanceof SegmentMapPartitionDataReader) {
+      ((SegmentMapPartitionDataReader) reader).updateSegmentId();
+    } else {
+      logger.warn("SegmentMapPartitionData#openReader only expects SegmentMapPartitionDataReader.");
+    }
   }
 
   @Override
@@ -85,10 +86,10 @@ public class SegmentMapPartitionData extends MapPartitionData {
 
   public void notifyRequiredSegmentId(int segmentId, long streamId, int subPartitionId) {
     MapPartitionDataReader streamReader = getStreamReader(streamId);
-    if (streamReader == null) {
+    if (!(streamReader instanceof SegmentMapPartitionDataReader)) {
+      logger.warn("notifyRequiredSegmentId only expects non-null SegmentMapPartitionDataReader.");
       return;
     }
-    checkState(streamReader instanceof SegmentMapPartitionDataReader);
     ((SegmentMapPartitionDataReader) streamReader)
         .notifyRequiredSegmentId(segmentId, subPartitionId);
     // After notifying the required segment id, we need to try to send data again.

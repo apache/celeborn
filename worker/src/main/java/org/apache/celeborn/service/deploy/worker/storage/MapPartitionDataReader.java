@@ -250,7 +250,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     final RecyclableBuffer wrappedBuffer = buffer;
     int readableBytes = wrappedBuffer.byteBuf.readableBytes();
     if (logger.isDebugEnabled()) {
-      logger.debug("send data start: {}, {}, {}", streamId, readableBytes, getNumBuffersToSend());
+      logger.debug("send data start: {}, {}", streamId, readableBytes);
     }
 
     RequestMessage readData =
@@ -271,7 +271,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
                   }
                 });
     int currentCredit = credits.decrementAndGet();
-    logger.debug("stream {} credit {}", streamId, currentCredit);
+    logger.debug("Current credit is {} after stream {}", currentCredit, streamId);
   }
 
   protected long getIndexRegionSize() {

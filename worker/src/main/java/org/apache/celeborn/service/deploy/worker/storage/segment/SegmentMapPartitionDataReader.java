@@ -141,7 +141,10 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
         if (buffer == null) {
           break;
         }
-        Preconditions.checkState(!(buffer instanceof RecyclableSegmentIdBuffer));
+        if (buffer instanceof RecyclableSegmentIdBuffer) {
+          logger.warn("Wrong type of buffer, the RecyclableSegmentIdBuffer is not expected.");
+          return;
+        }
         sendDataInternal(buffer);
       }
     }
