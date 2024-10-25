@@ -37,8 +37,6 @@ public class SegmentMapPartitionData extends MapPartitionData {
 
   public static final Logger logger = LoggerFactory.getLogger(SegmentMapPartitionData.class);
 
-  private final boolean requireSubpartitionId;
-
   public SegmentMapPartitionData(
       int minReadBuffers,
       int maxReadBuffers,
@@ -46,8 +44,7 @@ public class SegmentMapPartitionData extends MapPartitionData {
       int threadsPerMountPoint,
       DiskFileInfo fileInfo,
       Consumer<Long> recycleStream,
-      int minBuffersToTriggerRead,
-      boolean requireSubpartitionId)
+      int minBuffersToTriggerRead)
       throws IOException {
     super(
         minReadBuffers,
@@ -57,7 +54,6 @@ public class SegmentMapPartitionData extends MapPartitionData {
         fileInfo,
         recycleStream,
         minBuffersToTriggerRead);
-    this.requireSubpartitionId = requireSubpartitionId;
   }
 
   @Override
@@ -70,8 +66,7 @@ public class SegmentMapPartitionData extends MapPartitionData {
             getDiskFileInfo(),
             streamId,
             channel,
-            () -> recycleStream.accept(streamId),
-            requireSubpartitionId);
+            () -> recycleStream.accept(streamId));
     logger.debug("[{}] add reader with streamId: {}", this, streamId);
     readers.put(streamId, mapDataPartitionReader);
   }

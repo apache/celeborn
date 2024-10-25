@@ -136,7 +136,6 @@ class FetchHandler(
           rpcRequest.requestId,
           isLegacy = false,
           openStream.getReadLocalShuffle,
-          openStream.getRequireSubpartitionId,
           callback)
       case openStreamList: PbOpenStreamList =>
         val shuffleKey = openStreamList.getShuffleKey()
@@ -208,7 +207,6 @@ class FetchHandler(
             isLegacy = true,
             // legacy [[OpenStream]] doesn't support read local shuffle
             readLocalShuffle = false,
-            requireSubpartitionId = false,
             callback)
         case Message.Type.OPEN_STREAM_WITH_CREDIT =>
           val openStreamWithCredit = message.asInstanceOf[OpenStreamWithCredit]
@@ -222,7 +220,6 @@ class FetchHandler(
             rpcRequestId = rpcRequest.requestId,
             isLegacy = true,
             readLocalShuffle = false,
-            requireSubpartitionId = false,
             callback)
         case _ =>
           logError(s"Received an unknown message type id: ${message.`type`.id}")
@@ -344,7 +341,6 @@ class FetchHandler(
       rpcRequestId: Long,
       isLegacy: Boolean,
       readLocalShuffle: Boolean = false,
-      requireSubpartitionId: Boolean = false,
       callback: RpcResponseCallback): Unit = {
     checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
     workerSource.recordAppActiveConnection(client, shuffleKey)
@@ -385,8 +381,7 @@ class FetchHandler(
             initialCredit,
             startIndex,
             endIndex,
-            fileInfo.asInstanceOf[DiskFileInfo],
-            requireSubpartitionId)
+            fileInfo.asInstanceOf[DiskFileInfo])
       }
       workerSource.incCounter(WorkerSource.OPEN_STREAM_SUCCESS_COUNT)
     } catch {

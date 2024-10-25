@@ -85,8 +85,7 @@ public class CreditStreamManager {
       int initialCredit,
       int startSubIndex,
       int endSubIndex,
-      DiskFileInfo fileInfo,
-      boolean requireSubpartitionId)
+      DiskFileInfo fileInfo)
       throws IOException {
     long streamId = nextStreamId.getAndIncrement();
     logger.debug(
@@ -112,8 +111,7 @@ public class CreditStreamManager {
                               threadsPerMountPoint,
                               fileInfo,
                               id -> recycleStream(id),
-                              minBuffersToTriggerRead,
-                              requireSubpartitionId)
+                              minBuffersToTriggerRead)
                           : new MapPartitionData(
                               minReadBuffers,
                               maxReadBuffers,

@@ -32,7 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.meta.DiskFileInfo;
-import org.apache.celeborn.common.network.protocol.ReadData;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.SubPartitionReadData;
 import org.apache.celeborn.service.deploy.worker.memory.BufferRecycler;
@@ -51,8 +50,6 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
   private final int startPartitionIndex;
 
   private final int endPartitionIndex;
-
-  private final boolean requireSubpartitionId;
 
   @GuardedBy("lock")
   private final Deque<Integer> backlogs = new LinkedList<>();
@@ -78,8 +75,7 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
       DiskFileInfo fileInfo,
       long streamId,
       Channel associatedChannel,
-      Runnable recycleStream,
-      boolean requireSubpartitionId) {
+      Runnable recycleStream) {
     super(
         startPartitionIndex,
         endPartitionIndex,
@@ -89,7 +85,6 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
         recycleStream);
     this.startPartitionIndex = startPartitionIndex;
     this.endPartitionIndex = endPartitionIndex;
-    this.requireSubpartitionId = requireSubpartitionId;
     for (int i = startPartitionIndex; i <= endPartitionIndex; i++) {
       subPartitionLastSegmentIds.put(i, -1);
       subPartitionRequiredSegmentIds.put(i, -1);
@@ -299,11 +294,7 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
 
   public RequestMessage generateReadDataMessage(
       long streamId, int subPartitionId, ByteBuf byteBuf) {
-    if (requireSubpartitionId) {
-      return new SubPartitionReadData(streamId, subPartitionId, byteBuf);
-    } else {
-      return new ReadData(streamId, byteBuf);
-    }
+    return new SubPartitionReadData(streamId, subPartitionId, byteBuf);
   }
 
   public void notifyRequiredSegmentId(int segmentId, int subPartitionId) {

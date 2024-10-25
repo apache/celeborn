@@ -85,20 +85,20 @@ public class CreditStreamManagerSuiteJ {
     String shuffleKey = "application_1694674023293_0003-0";
     long registerStream1 =
         creditStreamManager.registerStream(
-            streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo, false);
+            streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo);
     Assert.assertTrue(registerStream1 > 0);
     Assert.assertEquals(1, creditStreamManager.getStreamsCount());
 
     long registerStream2 =
         creditStreamManager.registerStream(
-            streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo, false);
+            streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo);
     Assert.assertNotEquals(registerStream1, registerStream2);
     Assert.assertEquals(2, creditStreamManager.getStreamsCount());
 
     creditStreamManager.registerStream(
-        streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo, false);
+        streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo);
     creditStreamManager.registerStream(
-        streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo, false);
+        streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo);
 
     MapPartitionData mapPartitionData1 =
         creditStreamManager.getStreams().get(registerStream1).getMapDataPartition();
