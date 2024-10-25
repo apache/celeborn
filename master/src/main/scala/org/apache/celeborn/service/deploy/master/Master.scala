@@ -228,9 +228,9 @@ private[celeborn] class Master(
     statusSystem.registeredShuffleCount
   }
   masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.getWorkers.size }
-  masterSource.addGauge(MasterSource.LOST_WORKER_COUNT) { () => statusSystem.lostWorkers.size }
+  masterSource.addGauge(MasterSource.LOST_WORKER_COUNT) { () => statusSystem.getLostWorkerIds.size }
   masterSource.addGauge(MasterSource.EXCLUDED_WORKER_COUNT) { () =>
-    statusSystem.excludedWorkers.size + statusSystem.getManuallyExcludedWorkerIds().size
+    statusSystem.getExcludedWorkerIds.size + statusSystem.getManuallyExcludedWorkerIds().size
   }
   masterSource.addGauge(MasterSource.AVAILABLE_WORKER_COUNT) { () =>
     statusSystem.getWorkers.asScala.count { w =>
@@ -622,7 +622,7 @@ private[celeborn] class Master(
       return
     }
 
-    val unavailableInfoTimeoutWorkers = statusSystem.lostWorkers.asScala.filter {
+    val unavailableInfoTimeoutWorkers = statusSystem.getLostWorkerInfos.asScala.filter {
       case (_, lostTime) => currentTime - lostTime > workerUnavailableInfoExpireTimeoutMs
     }.keySet.toSeq
 
@@ -638,18 +638,18 @@ private[celeborn] class Master(
     if (HAHelper.getAppTimeoutDeadline(statusSystem) > currentTime) {
       return
     }
-    statusSystem.appHeartbeatTime.keySet().asScala.foreach { key =>
-      if (statusSystem.appHeartbeatTime.get(key) < currentTime - appHeartbeatTimeoutMs) {
-        logWarning(s"Application $key timeout, trigger applicationLost event.")
+    statusSystem.appHeartbeatTime.asScala.foreach { case (appId, heartbeatTime) =>
+      if (heartbeatTime < currentTime - appHeartbeatTimeoutMs) {
+        logWarning(s"Application $appId timeout, trigger applicationLost event.")
         val requestId = MasterClient.genRequestId()
-        var res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
+        var res = self.askSync[ApplicationLostResponse](ApplicationLost(appId, requestId))
         var retry = 1
         while (res.status != StatusCode.SUCCESS && retry <= 3) {
-          res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
+          res = self.askSync[ApplicationLostResponse](ApplicationLost(appId, requestId))
           retry += 1
         }
         if (retry > 3) {
-          logWarning(s"Handle ApplicationLost event for $key failed more than 3 times!")
+          logWarning(s"Handle ApplicationLost event for $appId failed more than 3 times!")
         }
       }
     }
@@ -703,7 +703,7 @@ private[celeborn] class Master(
     logDebug(
       s"Shuffle ${expiredShuffleKeys.asScala.mkString("[", " ,", "]")} expired on ${targetWorker.toUniqueId()}.")
 
-    val workerEventInfo = statusSystem.workerEventInfos.get(targetWorker)
+    val workerEventInfo = statusSystem.getWorkerEventInfo(targetWorker)
     if (workerEventInfo == null) {
       context.reply(HeartbeatFromWorkerResponse(
         expiredShuffleKeys,
@@ -1048,7 +1048,7 @@ private[celeborn] class Master(
       failedWorkers: util.List[WorkerInfo],
       requestId: String): Unit = {
     logInfo(s"Receive ReportNodeFailure $failedWorkers, current excluded workers" +
-      s"${statusSystem.excludedWorkers}")
+      s"${statusSystem.getExcludedWorkerIds}")
     statusSystem.handleReportWorkerUnavailable(failedWorkers, requestId)
     context.reply(OneWayMessageResponse)
   }
@@ -1058,7 +1058,7 @@ private[celeborn] class Master(
       workers: util.List[WorkerInfo],
       requestId: String): Unit = {
     logInfo(s"Receive ReportWorkerDecommission $workers, current decommission workers" +
-      s"${statusSystem.excludedWorkers}")
+      s"${statusSystem.getExcludedWorkerIds}")
     statusSystem.handleReportWorkerDecommission(workers, requestId)
     context.reply(OneWayMessageResponse)
   }
@@ -1142,7 +1142,7 @@ private[celeborn] class Master(
       context.reply(HeartbeatFromApplicationResponse(
         StatusCode.SUCCESS,
         new util.ArrayList(
-          (statusSystem.excludedWorkers.asScala ++ statusSystem.getManuallyExcludedWorkerInfos.asScala).asJava),
+          (statusSystem.getExcludedWorkerInfos.asScala ++ statusSystem.getManuallyExcludedWorkerInfos.asScala).asJava),
         needCheckedWorkerList,
         new util.ArrayList[WorkerInfo](
           (statusSystem.getShutdownWorkerInfos.asScala ++ statusSystem.getDecommissionWorkerInfos.asScala).asJava),
@@ -1327,8 +1327,8 @@ private[celeborn] class Master(
   override def getLostWorkers: String = {
     val sb = new StringBuilder
     sb.append("======================= Lost Workers in Master ========================\n")
-    statusSystem.lostWorkers.asScala.toSeq.sortBy(_._2).foreach { case (worker, time) =>
-      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
+    statusSystem.getLostWorkerIds.asScala.toSeq.sortBy(_._2).foreach { case (workerId, time) =>
+      sb.append(s"${workerId.padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
     }
     sb.toString()
   }
@@ -1354,7 +1354,7 @@ private[celeborn] class Master(
   override def getExcludedWorkers: String = {
     val sb = new StringBuilder
     sb.append("===================== Excluded Workers in Master ======================\n")
-    (statusSystem.excludedWorkers.asScala ++ statusSystem.getManuallyExcludedWorkerIds.asScala).foreach {
+    (statusSystem.getExcludedWorkerIds.asScala ++ statusSystem.getManuallyExcludedWorkerIds.asScala).foreach {
       worker => sb.append(s"$worker\n")
     }
     sb.toString()
@@ -1498,7 +1498,7 @@ private[celeborn] class Master(
   override def getWorkerEventInfo(): String = {
     val sb = new StringBuilder
     sb.append("======================= Workers Event in Master ========================\n")
-    statusSystem.workerEventInfos.asScala.foreach { case (worker, workerEventInfo) =>
+    statusSystem.getWorkerEventInfos.asScala.foreach { case (worker, workerEventInfo) =>
       sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}$workerEventInfo\n")
     }
     sb.toString()

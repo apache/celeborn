@@ -52,11 +52,11 @@ class WorkerResource extends ApiRequestContext {
   def workers: WorkersResponse = {
     new WorkersResponse()
       .workers(statusSystem.getWorkers.asScala.map(ApiUtils.workerData).toSeq.asJava)
-      .lostWorkers(statusSystem.lostWorkers.asScala.toSeq.sortBy(_._2)
+      .lostWorkers(statusSystem.getLostWorkerInfos.asScala.toSeq.sortBy(_._2)
         .map(kv =>
           new WorkerTimestampData().worker(ApiUtils.workerData(kv._1)).timestamp(kv._2)).asJava)
       .excludedWorkers(
-        (statusSystem.excludedWorkers.asScala ++ statusSystem.getManuallyExcludedWorkerInfos.asScala)
+        (statusSystem.getExcludedWorkerInfos.asScala ++ statusSystem.getManuallyExcludedWorkerInfos.asScala)
           .map(ApiUtils.workerData).toSeq.asJava)
       .manualExcludedWorkers(statusSystem.getManuallyExcludedWorkerInfos.asScala.map(
         ApiUtils.workerData).toSeq.asJava)
@@ -108,7 +108,7 @@ class WorkerResource extends ApiRequestContext {
   @Path("/events")
   def workerEvents(): WorkerEventsResponse = {
     new WorkerEventsResponse().workerEvents(
-      statusSystem.workerEventInfos.asScala.map { case (worker, event) =>
+      statusSystem.getWorkerEventInfos.asScala.map { case (worker, event) =>
         new WorkerEventData()
           .worker(
             ApiUtils.workerData(worker)).event(

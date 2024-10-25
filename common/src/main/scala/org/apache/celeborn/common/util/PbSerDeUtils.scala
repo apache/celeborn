@@ -461,10 +461,10 @@ object PbSerDeUtils {
       partitionTotalFileCount: java.lang.Long,
       appDiskUsageMetricSnapshots: Array[AppDiskUsageSnapShot],
       currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot,
-      lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long],
+      lostWorkers: java.util.Map[WorkerInfo, java.lang.Long],
       shutdownWorkers: java.util.Set[WorkerInfo],
-      workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo],
-      applicationMetas: ConcurrentHashMap[String, ApplicationMeta],
+      workerEventInfos: java.util.Map[WorkerInfo, WorkerEventInfo],
+      applicationMetas: java.util.Map[String, ApplicationMeta],
       decommissionWorkers: java.util.Set[WorkerInfo]): PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)

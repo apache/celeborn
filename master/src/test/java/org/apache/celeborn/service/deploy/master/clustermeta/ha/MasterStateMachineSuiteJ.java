@@ -205,9 +205,9 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     String host2 = "host2";
     String host3 = "host3";
 
-    masterStatusSystem.excludedWorkers.add(info1);
-    masterStatusSystem.excludedWorkers.add(info2);
-    masterStatusSystem.excludedWorkers.add(info3);
+    masterStatusSystem.addExcludeWorker(info1);
+    masterStatusSystem.addExcludeWorker(info2);
+    masterStatusSystem.addExcludeWorker(info3);
 
     masterStatusSystem.updateWorkerExcludeMeta(
         Arrays.asList(info1, info2), Collections.emptyList());
@@ -239,14 +239,14 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     masterStatusSystem.writeMetaInfoToFile(tmpFile);
 
     masterStatusSystem.hostnameSet.clear();
-    masterStatusSystem.excludedWorkers.clear();
+    masterStatusSystem.clearExcludedWorkers();
     masterStatusSystem.getManuallyExcludedWorkerIds().clear();
     masterStatusSystem.clearWorkers();
 
     masterStatusSystem.restoreMetaFromFile(tmpFile);
 
     Assert.assertEquals(3, masterStatusSystem.getWorkers().size());
-    Assert.assertEquals(3, masterStatusSystem.excludedWorkers.size());
+    Assert.assertEquals(3, masterStatusSystem.getExcludedWorkerIds().size());
     Assert.assertEquals(2, masterStatusSystem.getManuallyExcludedWorkerIds().size());
     Assert.assertEquals(3, masterStatusSystem.hostnameSet.size());
     Assert.assertEquals(
