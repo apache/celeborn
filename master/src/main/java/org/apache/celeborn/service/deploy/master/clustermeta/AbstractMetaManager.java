@@ -628,6 +628,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     registeredAppAndShuffles.clear();
     hostnameSet.clear();
     workersMap.clear();
+    workerInfoPool.clear();
     lostWorkers.clear();
     appHeartbeatTime.clear();
     excludedWorkers.clear();
