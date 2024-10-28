@@ -1110,7 +1110,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             case PartitionType.REDUCE =>
               new ReduceFileMeta(conf.shuffleChunkSize)
             case PartitionType.MAP =>
-              new MapFileMeta()
+              val mapFileMeta = new MapFileMeta()
+              mapFileMeta.setMountPoint(mountPoint)
+              mapFileMeta
             case PartitionType.MAPGROUP =>
               throw new NotImplementedError("Map group is not implemented")
           }
