@@ -156,7 +156,7 @@ public class TransportClientFactory implements Closeable {
             numTries,
             maxClientConnectRetries,
             e.getMessage(),
-            e.getCause());
+            e);
         if (e instanceof InterruptedException) {
           Thread.currentThread().interrupt();
         }

@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.google.common.base.Throwables;
+import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -38,10 +39,17 @@ import org.apache.celeborn.common.network.util.TransportConf;
  * black boxes.
  */
 public class RegistrationSuiteJ extends SaslTestBase {
+  private CelebornConf celebornConf;
+
+  @Before
+  public void before() throws Exception {
+    celebornConf = new CelebornConf();
+    celebornConf.set("celeborn.shuffle.io.maxRetries", "1");
+  }
 
   @Test
   public void testRegistration() throws Throwable {
-    TransportConf conf = new TransportConf("shuffle", new CelebornConf());
+    TransportConf conf = new TransportConf("shuffle", celebornConf);
     RegistrationServerBootstrap serverBootstrap =
         new RegistrationServerBootstrap(conf, new TestSecretRegistry());
     RegistrationClientBootstrap clientBootstrap =
@@ -52,7 +60,7 @@ public class RegistrationSuiteJ extends SaslTestBase {
 
   @Test(expected = IOException.class)
   public void testReRegisterationFails() throws Throwable {
-    TransportConf conf = new TransportConf("shuffle", new CelebornConf());
+    TransportConf conf = new TransportConf("shuffle", celebornConf);
     // The SecretRegistryImpl already has the entry for TEST_USER so re-registering the app should
     // fail.
     RegistrationServerBootstrap serverBootstrap =
@@ -71,7 +79,7 @@ public class RegistrationSuiteJ extends SaslTestBase {
 
   @Test(expected = IOException.class)
   public void testConnectionAuthWithoutRegistrationShouldFail() throws Throwable {
-    TransportConf conf = new TransportConf("shuffle", new CelebornConf());
+    TransportConf conf = new TransportConf("shuffle", celebornConf);
     RegistrationServerBootstrap serverBootstrap =
         new RegistrationServerBootstrap(conf, new TestSecretRegistry());
     SaslClientBootstrap clientBootstrap =
