@@ -662,6 +662,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
   def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
   def clusterName: String = get(CLUSTER_NAME)
+  def masterAvailableCacheExpireTime: Long = get(MASTER_AVAILABLE_WORKER_CACHE_EXPIRE_TIME)
+  def masterAvailableCacheSize: Int = get(MASTER_AVAILABLE_WORKER_CACHE_SIZE)
+  def masterAvailableCacheConcurrencyLevel: Int =
+    get(MASTER_AVAILABLE_WORKER_CACHE_CONCURRENCY_LEVEL)
+  def masterAvailableCacheSharedThreads: Int = get(MASTER_AVAILABLE_WORKER_SHARED_THREADS)
 
   // //////////////////////////////////////////////////////
   //               Address && HA && RATIS                //
@@ -2885,6 +2890,41 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10min")
+
+  val MASTER_AVAILABLE_WORKER_CACHE_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.master.availableWorker.cache.size")
+      .withAlternative("celeborn.availableWorker.cache.size")
+      .categories("client")
+      .version("0.3.0")
+      .doc("The max cache items count for available worker cache.")
+      .intConf
+      .createWithDefault(256)
+
+  val MASTER_AVAILABLE_WORKER_CACHE_CONCURRENCY_LEVEL: ConfigEntry[Int] =
+    buildConf("celeborn.master.availableWorker.cache.concurrencyLevel")
+      .withAlternative("celeborn.availableWorker.cache.concurrencyLevel")
+      .categories("client")
+      .version("0.3.0")
+      .doc("The number of write locks to update availableWorker cache.")
+      .intConf
+      .createWithDefault(32)
+
+  val MASTER_AVAILABLE_WORKER_CACHE_EXPIRE_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.master.availableWorker.cache.expireTime")
+      .withAlternative("celeborn.availableWorker.cache.expireTime")
+      .categories("client")
+      .version("0.3.0")
+      .doc("The time before a cache item is removed.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("15s")
+
+  val MASTER_AVAILABLE_WORKER_SHARED_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.master.availableWorker.shared.threads")
+      .categories("client")
+      .version("0.3.2")
+      .doc("Number of shared availableWorker threads in Master.")
+      .intConf
+      .createWithDefault(16)
 
   val MASTER_RESOURCE_CONSUMPTION_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.master.userResourceConsumption.update.interval")

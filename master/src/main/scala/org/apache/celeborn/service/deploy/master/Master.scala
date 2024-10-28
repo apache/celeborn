@@ -21,7 +21,7 @@ import java.io.IOException
 import java.net.BindException
 import java.util
 import java.util.Collections
-import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{Callable, ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
 
@@ -29,6 +29,7 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
+import com.google.common.cache.{Cache, CacheBuilder}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.ratis.proto.RaftProtos
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole
@@ -220,6 +221,10 @@ private[celeborn] class Master(
     TimeUnit.MILLISECONDS)
   private val slotsAssignPolicy = conf.masterSlotAssignPolicy
 
+  private val workerCacheConcurrencyLevel = conf.masterAvailableCacheConcurrencyLevel
+  private val workerCacheExpireTime = conf.masterAvailableCacheExpireTime
+  private val workerCacheSize = conf.masterAvailableCacheSize
+
   private var hadoopFs: util.Map[StorageInfo.Type, FileSystem] = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
     statusSystem.registeredShuffleCount
@@ -230,9 +235,7 @@ private[celeborn] class Master(
     statusSystem.excludedWorkers.size + statusSystem.manuallyExcludedWorkers.size
   }
   masterSource.addGauge(MasterSource.AVAILABLE_WORKER_COUNT) { () =>
-    statusSystem.workersMap.values().asScala.count { w =>
-      statusSystem.isWorkerAvailable(w)
-    }
+    getWorkerListFromCache(availableWorkersKey).size()
   }
   masterSource.addGauge(MasterSource.SHUTDOWN_WORKER_COUNT) { () =>
     statusSystem.shutdownWorkers.size
@@ -292,6 +295,14 @@ private[celeborn] class Master(
   private val workersAssignedToApp
       : util.concurrent.ConcurrentHashMap[String, util.Set[WorkerInfo]] =
     JavaUtils.newConcurrentHashMap[String, util.Set[WorkerInfo]]()
+
+  private val availableWorkersKey = "availableWorkers"
+  // Cache availableWorkers to reduce the filter computation
+  private val workersCache: Cache[String, util.ArrayList[WorkerInfo]] = CacheBuilder.newBuilder()
+    .concurrencyLevel(workerCacheConcurrencyLevel)
+    .expireAfterAccess(workerCacheExpireTime, TimeUnit.MILLISECONDS)
+    .maximumSize(workerCacheSize)
+    .build().asInstanceOf[Cache[String, util.ArrayList[WorkerInfo]]]
 
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
@@ -1125,9 +1136,7 @@ private[celeborn] class Master(
       // during serialization of HeartbeatFromApplicationResponse
       var availableWorksSentToClient = new util.ArrayList[WorkerInfo]()
       if (needAvailableWorkers) {
-        availableWorksSentToClient = new util.ArrayList[WorkerInfo](
-          statusSystem.workersMap.values().asScala.filter(worker =>
-            statusSystem.isWorkerAvailable(worker)).toList.asJava)
+        availableWorksSentToClient.addAll(getWorkerListFromCache(availableWorkersKey))
       }
       val appRelatedShuffles =
         statusSystem.registeredAppAndShuffles.getOrDefault(appId, Collections.emptySet())
@@ -1246,9 +1255,24 @@ private[celeborn] class Master(
 
   private def workersAvailable(
       tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
-    statusSystem.workersMap.values().asScala.filter { w =>
-      statusSystem.isWorkerAvailable(w) && !tmpExcludedWorkerList.contains(w)
+    getWorkerListFromCache(availableWorkersKey).asScala.filter { w =>
+      !tmpExcludedWorkerList.contains(w)
     }.toList.asJava
+  }
+
+  // get availableWorkers from cache and update if not exist
+  private def getWorkerListFromCache(key: String): util.List[WorkerInfo] = {
+    val workerList = workersCache.get(
+      key,
+      new Callable[util.ArrayList[WorkerInfo]]() {
+        override def call(): util.ArrayList[WorkerInfo] = {
+          val newWorkerList = new util.ArrayList[WorkerInfo](
+            statusSystem.workersMap.values().asScala.filter(worker =>
+              statusSystem.isWorkerAvailable(worker)).asJava)
+          newWorkerList
+        }
+      })
+    workerList
   }
 
   private def handleRequestForApplicationMeta(
