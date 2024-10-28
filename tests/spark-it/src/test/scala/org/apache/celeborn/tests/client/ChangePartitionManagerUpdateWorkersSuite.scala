@@ -132,7 +132,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
       worker.rpcEnv.shutdown()
       // Workers in miniClusterFeature wont update status with master through heartbeat.
       // So update status manually.
-      masterInfo._1.statusSystem.excludedWorkers.add(worker.workerInfo)
+      masterInfo._1.statusSystem.addExcludedWorker(worker.workerInfo)
       workerInfos.remove(worker)
     }
 

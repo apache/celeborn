@@ -213,7 +213,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   @VisibleForTesting
-  public void addExcludeWorker(WorkerInfo workerInfo) {
+  public void addExcludedWorker(WorkerInfo workerInfo) {
     excludedWorkers.add(workerInfo.toUniqueId());
   }
 

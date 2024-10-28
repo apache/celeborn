@@ -205,9 +205,9 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     String host2 = "host2";
     String host3 = "host3";
 
-    masterStatusSystem.addExcludeWorker(info1);
-    masterStatusSystem.addExcludeWorker(info2);
-    masterStatusSystem.addExcludeWorker(info3);
+    masterStatusSystem.addExcludedWorker(info1);
+    masterStatusSystem.addExcludedWorker(info2);
+    masterStatusSystem.addExcludedWorker(info3);
 
     masterStatusSystem.updateWorkerExcludeMeta(
         Arrays.asList(info1, info2), Collections.emptyList());
