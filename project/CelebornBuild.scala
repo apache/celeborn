@@ -762,7 +762,7 @@ object Spark34 extends SparkClientProjects {
   val lz4JavaVersion = "1.8.0"
   val sparkProjectScalaVersion = "2.12.17"
 
-  val sparkVersion = "3.4.3"
+  val sparkVersion = "3.4.4"
   val zstdJniVersion = "1.5.2-5"
 }
 
