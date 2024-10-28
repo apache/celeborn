@@ -265,7 +265,9 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
                       recycleOnError(future.cause());
                     }
                   } finally {
-                    logger.debug("send data end: {}, {}", streamId, readableBytes);
+                    if (logger.isDebugEnabled()) {
+                      logger.debug("send data end: {}, {}", streamId, readableBytes);
+                    }
                     wrappedBuffer.recycle();
                     numInUseBuffers.decrementAndGet();
                   }

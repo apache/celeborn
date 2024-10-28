@@ -116,7 +116,8 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
           RecyclableSegmentIdBuffer recyclableSegmentIdBuffer = (RecyclableSegmentIdBuffer) buffer;
           int subPartitionId = recyclableSegmentIdBuffer.getSubPartitionId();
           int segmentId = recyclableSegmentIdBuffer.getSegmentId();
-          if (segmentId != subPartitionRequiredSegmentIds.get(subPartitionId)) {
+          int requiredSegmentId = subPartitionRequiredSegmentIds.get(subPartitionId);
+          if (segmentId != requiredSegmentId) {
             // If the queued head buffer is not the required segment id, we do not sent it.
             logger.info(
                 "The queued head buffer is not the required segment id, "
@@ -124,7 +125,7 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
                 streamId,
                 subPartitionId,
                 segmentId,
-                subPartitionRequiredSegmentIds.get(subPartitionId),
+                requiredSegmentId,
                 this);
             breakLoop = true;
             break;

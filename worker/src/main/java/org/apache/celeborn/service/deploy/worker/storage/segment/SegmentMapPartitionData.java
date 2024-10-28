@@ -65,7 +65,11 @@ public class SegmentMapPartitionData extends MapPartitionData {
             streamId,
             channel,
             () -> recycleStream.accept(streamId));
-    logger.debug("[{}] add reader with streamId: {}", this, streamId);
+    logger.debug(
+        "Setup data partition reader from {} to {} with streamId {}",
+        startSubIndex,
+        endSubIndex,
+        streamId);
     readers.put(streamId, mapDataPartitionReader);
   }
 
@@ -75,7 +79,7 @@ public class SegmentMapPartitionData extends MapPartitionData {
     if (reader instanceof SegmentMapPartitionDataReader) {
       ((SegmentMapPartitionDataReader) reader).updateSegmentId();
     } else {
-      logger.warn("SegmentMapPartitionData#openReader only expects SegmentMapPartitionDataReader.");
+      logger.warn("openReader only expects SegmentMapPartitionDataReader.");
     }
   }
 
@@ -98,7 +102,7 @@ public class SegmentMapPartitionData extends MapPartitionData {
           try {
             streamReader.sendData();
           } catch (Throwable throwable) {
-            logger.error("Failed to read data.", throwable);
+            logger.error("Failed to send data.", throwable);
           }
         });
   }
