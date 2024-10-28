@@ -47,6 +47,7 @@ class ApplicationHeartbeater(
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
   private val applicationUnregisterEnabled = conf.applicationUnregisterEnabled
+  private val clientShuffleDynamicResourceEnabled = conf.clientShuffleDynamicResourceEnabled
   private val appHeartbeatHandlerThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor(
       "celeborn-client-lifecycle-manager-app-heartbeater")
@@ -69,6 +70,7 @@ class ApplicationHeartbeater(
                 tmpTotalWritten,
                 tmpTotalFileCount,
                 workerStatusTracker.getNeedCheckedWorkers().toList.asJava,
+                clientShuffleDynamicResourceEnabled,
                 ZERO_UUID,
                 true)
             val response = requestHeartbeat(appHeartbeat)
@@ -126,6 +128,7 @@ class ApplicationHeartbeater(
         logError("AskSync HeartbeatFromApplication failed.", e)
         HeartbeatFromApplicationResponse(
           StatusCode.REQUEST_FAILED,
+          List.empty.asJava,
           List.empty.asJava,
           List.empty.asJava,
           List.empty.asJava,
