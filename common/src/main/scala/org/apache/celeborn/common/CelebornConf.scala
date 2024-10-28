@@ -886,6 +886,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def quotaIdentityProviderClass: String = get(QUOTA_IDENTITY_PROVIDER)
   def quotaUserSpecificTenant: String = get(QUOTA_USER_SPECIFIC_TENANT)
   def quotaUserSpecificUserName: String = get(QUOTA_USER_SPECIFIC_USERNAME)
+  def quotaInterruptShuffleEnabled: Boolean = get(QUOTA_INTERRUPT_SHUFFLE_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                      Client                         //
@@ -5332,6 +5333,14 @@ object CelebornConf extends Logging {
       .version("0.5.0")
       .longConf
       .createWithDefault(Long.MaxValue)
+
+  val QUOTA_INTERRUPT_SHUFFLE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.quota.interruptShuffle.enabled")
+      .categories("quota", "master", "client")
+      .version("0.6.0")
+      .doc("Whether to enable interrupt shuffle when quota exceeds.")
+      .booleanConf
+      .createWithDefault(false)
 
   val COLUMNAR_SHUFFLE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.columnarShuffle.enabled")

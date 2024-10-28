@@ -1145,7 +1145,8 @@ private[celeborn] class Master(
         new util.ArrayList[WorkerInfo](
           (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava),
         availableWorksSentToClient,
-        new util.ArrayList(appRelatedShuffles)))
+        new util.ArrayList(appRelatedShuffles),
+        CheckQuotaResponse(isAvailable = true, "")))
     } else {
       context.reply(OneWayMessageResponse)
     }

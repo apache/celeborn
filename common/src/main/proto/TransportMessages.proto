@@ -452,6 +452,7 @@ message PbHeartbeatFromApplicationResponse {
   repeated PbWorkerInfo shuttingWorkers = 4;
   repeated int32 registeredShuffles = 5;
   repeated PbWorkerInfo availableWorkers = 6;
+  PbCheckQuotaResponse checkQuotaResponse = 7;
 }
 
 message PbCheckQuota {

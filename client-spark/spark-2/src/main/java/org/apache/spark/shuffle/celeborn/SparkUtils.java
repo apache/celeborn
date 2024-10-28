@@ -22,14 +22,19 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.LongAdder;
 
+import scala.Option;
+import scala.Some;
 import scala.Tuple2;
 
 import org.apache.spark.BarrierTaskContext;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
+import org.apache.spark.SparkContext$;
 import org.apache.spark.TaskContext;
+import org.apache.spark.scheduler.DAGScheduler;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.scheduler.MapStatus$;
+import org.apache.spark.scheduler.ShuffleMapStage;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
 import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.storage.BlockManagerId;
@@ -39,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.reflect.DynFields;
 
 public class SparkUtils {
   private static final Logger logger = LoggerFactory.getLogger(SparkUtils.class);
@@ -178,5 +184,23 @@ public class SparkUtils {
           // whatever is the reason for failure, we notify lifecycle manager about the failure
           shuffleClient.reportBarrierTaskFailure(appShuffleId, appShuffleIdentifier);
         });
+  }
+
+  private static final DynFields.UnboundField shuffleIdToMapStage_FIELD =
+      DynFields.builder().hiddenImpl(DAGScheduler.class, "shuffleIdToMapStage").build();
+
+  public static void cancelShuffle(int shuffleId, String reason) {
+    if (SparkContext$.MODULE$.getActive().nonEmpty()) {
+      DAGScheduler scheduler = SparkContext$.MODULE$.getActive().get().dagScheduler();
+      scala.collection.mutable.Map<Integer, ShuffleMapStage> shuffleIdToMapStageValue =
+          (scala.collection.mutable.Map<Integer, ShuffleMapStage>)
+              shuffleIdToMapStage_FIELD.bind(scheduler).get();
+      Option<ShuffleMapStage> shuffleMapStage = shuffleIdToMapStageValue.get(shuffleId);
+      if (shuffleMapStage.nonEmpty()) {
+        scheduler.cancelStage(shuffleMapStage.get().id(), new Some<>(reason));
+      }
+    } else {
+      logger.error("Can not get active SparkContext, skip cancelShuffle.");
+    }
   }
 }
