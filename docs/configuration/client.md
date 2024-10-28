@@ -66,7 +66,6 @@ license: |
 | celeborn.client.push.takeTaskMaxWaitAttempts | 1 | false | Max wait times if no task available to push to worker. | 0.3.0 |  | 
 | celeborn.client.push.takeTaskWaitInterval | 50ms | false | Wait interval if no task available to push to worker. | 0.3.0 |  | 
 | celeborn.client.push.timeout | 120s | false | Timeout for a task to push data rpc message. This value should better be more than twice of `celeborn.<module>.push.timeoutCheck.interval` | 0.3.0 | celeborn.push.data.timeout | 
-| celeborn.client.quota.interruptShuffle.enabled | false | false | Whether to enable interrupt shuffle when quota exceeds. | 0.6.0 |  | 
 | celeborn.client.readLocalShuffleFile.enabled | false | false | Enable read local shuffle file for clusters that co-deployed with yarn node manager. | 0.3.1 |  | 
 | celeborn.client.readLocalShuffleFile.threads | 4 | false | Threads count for read local shuffle file. | 0.3.1 |  | 
 | celeborn.client.registerShuffle.maxRetries | 3 | false | Max retry times for client to register shuffle. | 0.3.0 | celeborn.shuffle.register.maxRetries | 
@@ -127,6 +126,7 @@ license: |
 | celeborn.quota.identity.provider | org.apache.celeborn.common.identity.DefaultIdentityProvider | false | IdentityProvider class name. Default class is `org.apache.celeborn.common.identity.DefaultIdentityProvider`. Optional values: org.apache.celeborn.common.identity.HadoopBasedIdentityProvider user name will be obtained by UserGroupInformation.getUserName; org.apache.celeborn.common.identity.DefaultIdentityProvider user name and tenant id are default values or user-specific values. | 0.2.0 |  | 
 | celeborn.quota.identity.user-specific.tenant | default | false | Tenant id if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.DefaultIdentityProvider. | 0.3.0 |  | 
 | celeborn.quota.identity.user-specific.userName | default | false | User name if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.DefaultIdentityProvider. | 0.3.0 |  | 
+| celeborn.quota.interruptShuffle.enabled | false | false | Whether to enable interrupt shuffle when quota exceeds. | 0.6.0 |  | 
 | celeborn.storage.availableTypes | HDD | false | Enabled storages. Available options: MEMORY,HDD,SSD,HDFS. Note: HDD and SSD would be treated as identical. | 0.3.0 | celeborn.storage.activeTypes | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | false | HDFS base directory for Celeborn to store shuffle data. | 0.2.0 |  | 
 | celeborn.storage.s3.access.key | &lt;undefined&gt; | false | S3 access key for Celeborn to store shuffle data. | 0.6.0 |  | 
