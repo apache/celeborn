@@ -18,7 +18,7 @@
 package org.apache.celeborn.service.deploy.master.tags
 
 import java.util
-import java.util.{Set => JSet}
+import java.util.{Collections, Set => JSet}
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Predicate
 import java.util.stream.Collectors
@@ -43,19 +43,27 @@ class TagsManager extends Logging {
 
     if (tags.isEmpty) {
       logWarning("No tags provided")
-      return new util.ArrayList[WorkerInfo]()
+      return Collections.emptyList()
     }
 
-    // TODO: Support multiple tags (CELEBORN-1642)
-    val tag = tags(0)
-    val workersForTag = tagStore.get(tag)
-    if (workersForTag == null) {
-      logWarning(s"Tag $tag not found in cluster")
-      return new util.ArrayList[WorkerInfo]()
+    var workersForTags: Option[JSet[String]] = None
+    tags.foreach { tag =>
+      val taggedWorkers = tagStore.getOrDefault(tag, Collections.emptySet())
+      workersForTags match {
+        case Some(w) =>
+          w.retainAll(taggedWorkers)
+        case _ =>
+          workersForTags = Some(taggedWorkers)
+      }
+    }
+
+    if (workersForTags.isEmpty) {
+      logWarning(s"No workers for tags: $tagExpr found in cluster")
+      return Collections.emptyList()
     }
 
     val workerTagsPredicate = new Predicate[WorkerInfo] {
-      override def test(w: WorkerInfo): Boolean = workersForTag.contains(w.toUniqueId())
+      override def test(w: WorkerInfo): Boolean = workersForTags.get.contains(w.toUniqueId())
     }
     workers.stream().filter(workerTagsPredicate).collect(Collectors.toList())
   }
