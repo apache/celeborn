@@ -77,6 +77,7 @@ class ChangePartitionManager(
   private val testRetryRevive = conf.testRetryRevive
 
   private val clientShuffleDynamicResourceEnabled = conf.clientShuffleDynamicResourceEnabled
+  private val clientShuffleDynamicResourceFactor = conf.clientShuffleDynamicResourceFactor
 
   def start(): Unit = {
     batchHandleChangePartition = batchHandleChangePartitionSchedulerThread.map {
@@ -291,42 +292,48 @@ class ChangePartitionManager(
     }
 
     val candidates = new util.HashSet[WorkerInfo]()
-    if (clientShuffleDynamicResourceEnabled) {
-      // availableWorkers wont filter excludedWorkers in heartBeat So have to do filtering.
-      candidates.addAll(lifecycleManager
-        .workerStatusTracker
-        .availableWorkersWithEndpoint
-        .values()
+
+    val snapshotCandidates =
+      lifecycleManager
+        .workerSnapshots(shuffleId)
+        .keySet()
         .asScala
-        .toSet
         .filter(lifecycleManager.workerStatusTracker.workerAvailable)
-        .asJava)
+        .asJava
+    candidates.addAll(snapshotCandidates)
 
-      // SetupEndpoint for those availableWorkers without endpoint
-      val workersRequireEndpoints = new util.HashSet[WorkerInfo](
-        lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint.asScala.filter(
-          lifecycleManager.workerStatusTracker.workerAvailable).asJava)
-      val connectFailedWorkers = new ShuffleFailedWorkers()
-      lifecycleManager.setupEndpoints(
-        workersRequireEndpoints,
-        shuffleId,
-        connectFailedWorkers)
-      workersRequireEndpoints.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
-      candidates.addAll(workersRequireEndpoints)
-
-      // Update worker status
-      lifecycleManager.workerStatusTracker.addWorkersWithEndpoint(workersRequireEndpoints)
-      lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
-      lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates)
-    } else {
-      val snapshotCandidates =
-        lifecycleManager
-          .workerSnapshots(shuffleId)
-          .keySet()
+    if (clientShuffleDynamicResourceEnabled) {
+      val shuffleAllocatedWorkers = lifecycleManager.workerSnapshots(shuffleId).size()
+      val unavailableWorkerRatio = 1 - (snapshotCandidates.size * 1.0 / shuffleAllocatedWorkers)
+      if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)
+        || (unavailableWorkerRatio >= clientShuffleDynamicResourceFactor)) {
+        // availableWorkers wont filter excludedWorkers in heartBeat So have to do filtering.
+        candidates.addAll(lifecycleManager
+          .workerStatusTracker
+          .availableWorkersWithEndpoint
+          .values()
           .asScala
+          .toSet
           .filter(lifecycleManager.workerStatusTracker.workerAvailable)
-          .asJava
-      candidates.addAll(snapshotCandidates)
+          .asJava)
+
+        // SetupEndpoint for those availableWorkers without endpoint
+        val workersRequireEndpoints = new util.HashSet[WorkerInfo](
+          lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint.asScala.filter(
+            lifecycleManager.workerStatusTracker.workerAvailable).asJava)
+        val connectFailedWorkers = new ShuffleFailedWorkers()
+        lifecycleManager.setupEndpoints(
+          workersRequireEndpoints,
+          shuffleId,
+          connectFailedWorkers)
+        workersRequireEndpoints.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
+        candidates.addAll(workersRequireEndpoints)
+
+        // Update worker status
+        lifecycleManager.workerStatusTracker.addWorkersWithEndpoint(workersRequireEndpoints)
+        lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
+        lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates)
+      }
     }
 
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
