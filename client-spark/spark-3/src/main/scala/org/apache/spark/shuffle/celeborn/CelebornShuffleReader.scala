@@ -119,23 +119,30 @@ class CelebornShuffleReader[K, C](
           partCnt += 1
           val hostPort = location.hostAndFetchPort
           if (!workerRequestMap.containsKey(hostPort)) {
-            val client = shuffleClient.getDataClientFactory().createClient(
-              location.getHost,
-              location.getFetchPort)
-            val pbOpenStreamList = PbOpenStreamList.newBuilder()
-            pbOpenStreamList.setShuffleKey(shuffleKey)
-            workerRequestMap.put(
-              hostPort,
-              (client, new util.ArrayList[PartitionLocation], pbOpenStreamList))
+            try {
+              val client = shuffleClient.getDataClientFactory().createClient(
+                location.getHost,
+                location.getFetchPort)
+              val pbOpenStreamList = PbOpenStreamList.newBuilder()
+              pbOpenStreamList.setShuffleKey(shuffleKey)
+              workerRequestMap.put(
+                hostPort,
+                (client, new util.ArrayList[PartitionLocation], pbOpenStreamList))
+            } catch {
+              case ex: Exception =>
+                logWarning(
+                  s"Failed to create client for $shuffleKey-$partitionId from host: ${location.hostAndFetchPort}")
+            }
           }
           val (_, locArr, pbOpenStreamListBuilder) = workerRequestMap.get(hostPort)
-
-          locArr.add(location)
-          pbOpenStreamListBuilder.addFileName(location.getFileName)
-            .addStartIndex(startMapIndex)
-            .addEndIndex(endMapIndex)
-          pbOpenStreamListBuilder.addReadLocalShuffle(
-            localFetchEnabled && location.getHost.equals(localHostAddress))
+          if (locArr != null) {
+            locArr.add(location)
+            pbOpenStreamListBuilder.addFileName(location.getFileName)
+              .addStartIndex(startMapIndex)
+              .addEndIndex(endMapIndex)
+            pbOpenStreamListBuilder.addReadLocalShuffle(
+              localFetchEnabled && location.getHost.equals(localHostAddress))
+          }
         }
       }
     }
