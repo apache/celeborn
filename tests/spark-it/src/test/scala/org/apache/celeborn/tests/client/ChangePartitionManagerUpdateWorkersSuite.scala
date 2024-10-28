@@ -37,6 +37,9 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+  }
+
+  override def beforeEach(): Unit = {
     val testConf = Map(
       s"${CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key}" -> "3")
     val (master, _) = setupMiniClusterWithRandomPorts(testConf, testConf, workerNum = 1)
@@ -49,8 +52,9 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
-      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key, "true")
       .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key, "true")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR.key, "0")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val changePartitionManager: ChangePartitionManager =
@@ -143,6 +147,88 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     lifecycleManager.stop()
   }
 
+  test("test changePartition with available workers and factor") {
+    val shuffleId = nextShuffleId
+    val conf = celebornConf.clone
+    conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
+      .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key, "true")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR.key, "1")
+
+    val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
+    val changePartitionManager: ChangePartitionManager =
+      new ChangePartitionManager(conf, lifecycleManager)
+    val ids = new util.ArrayList[Integer](10)
+    0 until 10 foreach {
+      ids.add(_)
+    }
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    assert(res.status == StatusCode.SUCCESS)
+
+    // workerNum is 1
+    val workerNum = res.workerResource.keySet().size()
+    assert(workerNum == 1)
+
+    lifecycleManager.setupEndpoints(
+      res.workerResource.keySet(),
+      shuffleId,
+      new ShuffleFailedWorkers())
+
+    val reserveSlotsSuccess = lifecycleManager.reserveSlotsWithRetry(
+      shuffleId,
+      new util.HashSet(res.workerResource.keySet()),
+      res.workerResource,
+      updateEpoch = false)
+
+    val slots = res.workerResource
+    val candidatesWorkers = new util.HashSet(slots.keySet())
+    if (reserveSlotsSuccess) {
+      val allocatedWorkers =
+        JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
+      res.workerResource.asScala.foreach {
+        case (workerInfo, (primaryLocations, replicaLocations)) =>
+          val partitionLocationInfo = new ShufflePartitionLocationInfo()
+          partitionLocationInfo.addPrimaryPartitions(primaryLocations)
+          partitionLocationInfo.addReplicaPartitions(replicaLocations)
+          allocatedWorkers.put(workerInfo, partitionLocationInfo)
+      }
+      lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
+      lifecycleManager.workerStatusTracker.addWorkersWithEndpoint(candidatesWorkers)
+    }
+    assert(lifecycleManager.workerSnapshots(shuffleId).size() == workerNum)
+    assert(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoint.size() == workerNum)
+
+    // total workerNum is 1 + 2 = 3 now
+    setUpWorkers(workerConfForAdding, 2)
+    // longer than APPLICATION_HEARTBEAT_INTERVAL 10s
+    Thread.sleep(15000)
+    assert(workerInfos.size == 3)
+    assert(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoint.size() == workerNum)
+    assert(lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint.size() == 2)
+
+    0 until 10 foreach { partitionId: Int =>
+      val req = ChangePartitionRequest(
+        null,
+        shuffleId,
+        partitionId,
+        -1,
+        null,
+        None)
+      changePartitionManager.changePartitionRequests.computeIfAbsent(
+        shuffleId,
+        changePartitionManager.rpcContextRegisterFunc)
+      changePartitionManager.handleRequestPartitions(
+        shuffleId,
+        Array(req),
+        lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
+    }
+    assert(lifecycleManager.workerSnapshots(shuffleId).size() == workerNum)
+    assert(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoint.size() == workerNum)
+    assert(lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint.size() == 2)
+
+    lifecycleManager.stop()
+  }
+
   test("test changePartition without available workers") {
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
@@ -160,7 +246,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
     assert(res.status == StatusCode.SUCCESS)
 
-    // workerNum is 1 （after 1 add 2 and stop 2）
+    // workerNum is 1
     val workerNum = res.workerResource.keySet().size()
     assert(workerNum == 1)
 
@@ -217,7 +303,6 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         Array(req),
         lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
     }
-    logInfo(s"reallocated worker num: ${res.workerResource.keySet().size()}; workerInfo: ${res.workerResource.keySet()}")
     assert(lifecycleManager.workerSnapshots(shuffleId).size() == workerNum)
     assert(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoint.size() == workerNum)
     assert(lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint.size() == 0)
@@ -225,8 +310,8 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     lifecycleManager.stop()
   }
 
-  override def afterAll(): Unit = {
-    logInfo("all test complete , stop celeborn mini cluster")
+  override def afterEach(): Unit = {
+    logInfo("test complete, stop celeborn mini cluster")
     shutdownMiniCluster()
   }
 }
