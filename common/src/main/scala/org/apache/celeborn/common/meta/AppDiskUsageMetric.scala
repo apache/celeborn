@@ -106,8 +106,8 @@ class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging with Serializa
     val zoneId = ZoneId.systemDefault()
     s"Snapshot " +
       s"start ${LocalDateTime.ofInstant(Instant.ofEpochMilli(startSnapShotTime), zoneId)} " +
-      s"end ${LocalDateTime.ofInstant(Instant.ofEpochMilli(endSnapShotTime), zoneId)}" +
-      s" ${topNItems.filter(_ != null).mkString(", ")}"
+      s"end ${LocalDateTime.ofInstant(Instant.ofEpochMilli(endSnapShotTime), zoneId)}\n" +
+      s"${topNItems.filter(_ != null).mkString("\n")}"
   }
 }
 
@@ -124,12 +124,12 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
   var currentSnapShot: AtomicReference[AppDiskUsageSnapShot] =
     new AtomicReference[AppDiskUsageSnapShot]()
 
-  def update(appDiskUsage: java.util.Map[String, java.lang.Long]): Unit = {
+  def update(appDiskUsage: java.util.Map[String, java.lang.Long], workerCount: Int = 1): Unit = {
     updateExecutor.submit(new Runnable {
       override def run(): Unit = {
         if (currentSnapShot.get() != null) {
           appDiskUsage.asScala.foreach { case (key, usage) =>
-            currentSnapShot.get().updateAppDiskUsage(key, usage)
+            currentSnapShot.get().updateAppDiskUsage(key, usage * workerCount)
           }
         }
       }

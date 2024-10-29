@@ -240,7 +240,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       }
     }
 
-    appDiskUsageMetric.update(estimatedAppDiskUsage);
+    appDiskUsageMetric.update(estimatedAppDiskUsage, workers.size());
     // If using HDFSONLY mode, workers with empty disks should not be put into excluded worker list.
     long unhealthyDiskNum =
         disks.values().stream().filter(s -> !s.status().equals(DiskStatus.HEALTHY)).count();

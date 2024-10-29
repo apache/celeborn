@@ -221,10 +221,10 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     Map<String, Long> appDiskUsage = JavaUtils.newConcurrentHashMap();
     appDiskUsage.put("app-1", 100L);
     appDiskUsage.put("app-2", 200L);
-    masterStatusSystem.appDiskUsageMetric.update(appDiskUsage);
+    masterStatusSystem.appDiskUsageMetric.update(appDiskUsage, masterStatusSystem.workers.size());
     appDiskUsage.put("app-3", 300L);
     appDiskUsage.put("app-1", 200L);
-    masterStatusSystem.appDiskUsageMetric.update(appDiskUsage);
+    masterStatusSystem.appDiskUsageMetric.update(appDiskUsage, masterStatusSystem.workers.size());
     // wait for snapshot updated
     Thread.sleep(3000);
 
