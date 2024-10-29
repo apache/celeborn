@@ -26,6 +26,7 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
+import com.google.common.util.concurrent.SettableFuture;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,11 +85,12 @@ public class CelebornBufferStream {
   public void open(
       Supplier<ByteBuf> bufferSupplier,
       int initialCredit,
-      Consumer<RequestMessage> messageConsumer) {
+      Consumer<RequestMessage> messageConsumer,
+      boolean sync) {
     this.bufferSupplier = bufferSupplier;
     this.initialCredit = initialCredit;
     this.messageConsumer = messageConsumer;
-    moveToNextPartitionIfPossible(0);
+    moveToNextPartitionIfPossible(0, null, sync);
   }
 
   public void addCredit(PbReadAddCredit pbReadAddCredit) {
@@ -198,12 +200,10 @@ public class CelebornBufferStream {
     }
   }
 
-  public void moveToNextPartitionIfPossible(long endedStreamId) {
-    moveToNextPartitionIfPossible(endedStreamId, null);
-  }
-
   public void moveToNextPartitionIfPossible(
-      long endedStreamId, @Nullable BiConsumer<Long, Integer> requiredSegmentIdConsumer) {
+      long endedStreamId,
+      @Nullable BiConsumer<Long, Integer> requiredSegmentIdConsumer,
+      boolean sync) {
     logger.debug(
         "MoveToNextPartitionIfPossible in this:{},  endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
         this,
@@ -218,7 +218,7 @@ public class CelebornBufferStream {
 
     if (currentLocationIndex.get() < locations.length) {
       try {
-        openStreamInternal(requiredSegmentIdConsumer);
+        openStreamInternal(requiredSegmentIdConsumer, sync);
         logger.debug(
             "MoveToNextPartitionIfPossible after openStream this:{},  endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
             this,
@@ -237,7 +237,8 @@ public class CelebornBufferStream {
    * Open the stream, note that if the openReaderFuture is not null, requiredSegmentIdConsumer will
    * be invoked for every subPartition when open stream success.
    */
-  private void openStreamInternal(@Nullable BiConsumer<Long, Integer> requiredSegmentIdConsumer)
+  private void openStreamInternal(
+      @Nullable BiConsumer<Long, Integer> requiredSegmentIdConsumer, boolean sync)
       throws IOException, InterruptedException {
     this.client =
         clientFactory.createClientWithRetry(
@@ -255,6 +256,12 @@ public class CelebornBufferStream {
                 .setInitialCredit(initialCredit)
                 .build()
                 .toByteArray());
+    final SettableFuture<Void> resultFuture;
+    if (sync) {
+      resultFuture = SettableFuture.create();
+    } else {
+      resultFuture = null;
+    }
     client.sendRpc(
         openStream.toByteBuffer(),
         new RpcResponseCallback() {
@@ -301,6 +308,10 @@ public class CelebornBufferStream {
                   shuffleKey,
                   NettyUtils.getRemoteAddress(client.getChannel()));
               messageConsumer.accept(new TransportableError(streamId, e));
+            } finally {
+              if (resultFuture != null) {
+                resultFuture.set(null);
+              }
             }
           }
 
@@ -312,8 +323,19 @@ public class CelebornBufferStream {
                 shuffleKey,
                 NettyUtils.getRemoteAddress(client.getChannel()));
             messageConsumer.accept(new TransportableError(streamId, e));
+            if (resultFuture != null) {
+              resultFuture.set(null);
+            }
           }
         });
+
+    if (sync) {
+      try {
+        resultFuture.get();
+      } catch (Exception e) {
+        throw new IOException("Exception in sendRpcSync to: " + client.getSocketAddress(), e);
+      }
+    }
   }
 
   public TransportClient getClient() {

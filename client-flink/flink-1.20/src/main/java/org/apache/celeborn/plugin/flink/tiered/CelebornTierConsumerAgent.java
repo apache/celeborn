@@ -375,7 +375,7 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
   private boolean openReader(CelebornChannelBufferReader bufferReader) {
     if (!bufferReader.isOpened()) {
       try {
-        bufferReader.open(0);
+        bufferReader.open(0, true);
       } catch (Exception e) {
         // may throw PartitionUnRetryAbleException
         recycleAllResources();
@@ -383,7 +383,8 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
       }
     }
 
-    return bufferReader.isOpened();
+    bufferReader.setOpened(true);
+    return true;
   }
 
   private void initBufferReaders() {
