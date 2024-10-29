@@ -52,6 +52,9 @@ public class DynamicConfigServiceFactory {
 
   @VisibleForTesting
   public static void reset() {
-    _INSTANCE = null;
+    if (_INSTANCE != null) {
+      _INSTANCE.shutdown();
+      _INSTANCE = null;
+    }
   }
 }
