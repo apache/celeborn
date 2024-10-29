@@ -37,6 +37,7 @@ import org.apache.celeborn.common.meta.MapFileMeta;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
+import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapPartitionData;
 
 public class CreditStreamManager {
   private static final Logger logger = LoggerFactory.getLogger(CreditStreamManager.class);
@@ -98,15 +99,25 @@ public class CreditStreamManager {
             (k, v) -> {
               if (v == null) {
                 try {
+                  MapFileMeta fileMeta = (MapFileMeta) fileInfo.getFileMeta();
                   v =
-                      new MapPartitionData(
-                          minReadBuffers,
-                          maxReadBuffers,
-                          storageFetcherPool,
-                          threadsPerMountPoint,
-                          fileInfo,
-                          id -> recycleStream(id),
-                          minBuffersToTriggerRead);
+                      fileMeta.isSegmentGranularityVisible()
+                          ? new SegmentMapPartitionData(
+                              minReadBuffers,
+                              maxReadBuffers,
+                              storageFetcherPool,
+                              threadsPerMountPoint,
+                              fileInfo,
+                              id -> recycleStream(id),
+                              minBuffersToTriggerRead)
+                          : new MapPartitionData(
+                              minReadBuffers,
+                              maxReadBuffers,
+                              storageFetcherPool,
+                              threadsPerMountPoint,
+                              fileInfo,
+                              id -> recycleStream(id),
+                              minBuffersToTriggerRead);
                 } catch (IOException e) {
                   exception.set(e);
                   return null;
@@ -158,9 +169,55 @@ public class CreditStreamManager {
     }
   }
 
+  private void notifyRequiredSegment(
+      MapPartitionData mapPartitionData, int requiredSegmentId, long streamId, int subPartitionId) {
+    logger.debug(
+        "Receive RequiredSegment from client, streamId: {}, requiredSegmentId: {}, subPartitionId: {}",
+        streamId,
+        requiredSegmentId,
+        subPartitionId);
+    try {
+      if (mapPartitionData instanceof SegmentMapPartitionData) {
+        ((SegmentMapPartitionData) mapPartitionData)
+            .notifyRequiredSegmentId(requiredSegmentId, streamId, subPartitionId);
+      } else {
+        logger.warn("Only non-null SegmentMapPartitionData is expected for notifyRequiredSegment.");
+      }
+    } catch (Throwable e) {
+      logger.error(
+          String.format("Fail to notify segmentId %s for stream %s.", requiredSegmentId, streamId),
+          e);
+      throw e;
+    }
+  }
+
   public void addCredit(int numCredit, long streamId) {
+    if (!streams.containsKey(streamId)) {
+      // In flink hybrid shuffle integration strategy, the stream may release in worker before
+      // client receive bufferStreamEnd,
+      // and the client may send request with old streamId, so ignore non-exist streams.
+      logger.warn("Ignore AddCredit from stream {}, numCredit {}.", streamId, numCredit);
+      return;
+    }
     MapPartitionData mapPartitionData = streams.get(streamId).getMapDataPartition();
     addCredit(mapPartitionData, numCredit, streamId);
+  }
+
+  public void notifyRequiredSegment(int requiredSegmentId, long streamId, int subPartitionId) {
+    StreamState streamState = streams.get(streamId);
+    if (streamState != null) {
+      notifyRequiredSegment(
+          streamState.getMapDataPartition(), requiredSegmentId, streamId, subPartitionId);
+    } else {
+      // In flink hybrid shuffle integration strategy, the stream may release in worker before
+      // client receive bufferStreamEnd,
+      // and the client may send request with old streamId, so ignore non-exist streams.
+      logger.warn(
+          "Ignore RequiredSegment from stream {}, subPartition {}, segmentId {}.",
+          streamId,
+          subPartitionId,
+          requiredSegmentId);
+    }
   }
 
   public void connectionTerminated(Channel channel) {

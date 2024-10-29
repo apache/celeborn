@@ -253,7 +253,6 @@ public class CelebornBufferStream {
                 .setStartIndex(subIndexStart)
                 .setEndIndex(subIndexEnd)
                 .setInitialCredit(initialCredit)
-                .setRequireSubpartitionId(true)
                 .build()
                 .toByteArray());
     client.sendRpc(
