@@ -260,12 +260,12 @@ object CelebornCommonSettings {
       }
     },
     licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")),
-      pomExtra :=
-        <url>https://celeborn.apache.org/</url>
-        <scm>
-          <url>git@github.com:apache/celeborn.git</url>
-          <connection>scm:git:git@github.com:apache/celeborn.git</connection>
-        </scm>
+    scmInfo := Some(
+      ScmInfo(
+        url("https://celeborn.apache.org/"),
+          "scm:git:https://github.com/apache/celeborn.git",
+          "scm:git:git@github.com:apache/celeborn.git"))
+
   )
 
   lazy val protoSettings = Seq(
