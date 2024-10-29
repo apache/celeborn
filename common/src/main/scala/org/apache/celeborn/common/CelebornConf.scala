@@ -2037,6 +2037,10 @@ object CelebornConf extends Logging {
       .doc(
         "Max number of times we will try IO exceptions (such as connection timeouts) per request. " +
           "If set to 0, we will not do any retries. " +
+          s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
+          s"it works for shuffle client push and fetch data. " +
+          s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
+          s"it works for replicate client of worker replicating data to peer worker." +
           s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
           s"it works for Flink shuffle client push data.")
       .intConf
@@ -2049,6 +2053,8 @@ object CelebornConf extends Logging {
         "Only relevant if maxIORetries > 0. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
+        s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
+        s"it works for replicate client of worker replicating data to peer worker." +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
         s"it works for Flink shuffle client push data.")
       .version("0.2.0")
