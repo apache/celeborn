@@ -5302,7 +5302,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.quota.tenant.diskBytesWritten")
       .categories("quota")
       .dynamic
-      .doc("Quota dynamic configuration for written disk bytes.")
+      .doc("Quota dynamic configuration for written disk bytes. 0 means that no shuffle submissions are allowed.")
       .version("0.5.0")
       .longConf
       .createWithDefault(Long.MaxValue)
@@ -5311,7 +5311,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.quota.tenant.diskFileCount")
       .categories("quota")
       .dynamic
-      .doc("Quota dynamic configuration for written disk file count.")
+      .doc("Quota dynamic configuration for written disk file count. 0 means that no shuffle submissions are allowed.")
       .version("0.5.0")
       .longConf
       .createWithDefault(Long.MaxValue)
@@ -5320,7 +5320,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.quota.tenant.hdfsBytesWritten")
       .categories("quota")
       .dynamic
-      .doc("Quota dynamic configuration for written hdfs bytes.")
+      .doc("Quota dynamic configuration for written hdfs bytes. 0 means that no shuffle submissions are allowed.")
       .version("0.5.0")
       .longConf
       .createWithDefault(Long.MaxValue)
@@ -5329,7 +5329,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.quota.tenant.hdfsFileCount")
       .categories("quota")
       .dynamic
-      .doc("Quota dynamic configuration for written hdfs file count.")
+      .doc("Quota dynamic configuration for written hdfs file count. 0 means that no shuffle submissions are allowed.")
       .version("0.5.0")
       .longConf
       .createWithDefault(Long.MaxValue)
