@@ -666,7 +666,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def masterAvailableCacheSize: Int = get(MASTER_AVAILABLE_WORKER_CACHE_SIZE)
   def masterAvailableCacheConcurrencyLevel: Int =
     get(MASTER_AVAILABLE_WORKER_CACHE_CONCURRENCY_LEVEL)
-  def masterAvailableCacheSharedThreads: Int = get(MASTER_AVAILABLE_WORKER_SHARED_THREADS)
 
   // //////////////////////////////////////////////////////
   //               Address && HA && RATIS                //
@@ -2917,14 +2916,6 @@ object CelebornConf extends Logging {
       .doc("The time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
-
-  val MASTER_AVAILABLE_WORKER_SHARED_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.master.availableWorker.shared.threads")
-      .categories("client")
-      .version("0.3.2")
-      .doc("Number of shared availableWorker threads in Master.")
-      .intConf
-      .createWithDefault(16)
 
   val MASTER_RESOURCE_CONSUMPTION_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.master.userResourceConsumption.update.interval")

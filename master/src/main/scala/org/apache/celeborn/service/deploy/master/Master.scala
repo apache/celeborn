@@ -225,6 +225,14 @@ private[celeborn] class Master(
   private val workerCacheExpireTime = conf.masterAvailableCacheExpireTime
   private val workerCacheSize = conf.masterAvailableCacheSize
 
+  private val availableWorkersKey = "availableWorkers"
+  // Cache availableWorkers to reduce the filter computation
+  private val workersCache: Cache[String, util.ArrayList[WorkerInfo]] = CacheBuilder.newBuilder()
+    .concurrencyLevel(workerCacheConcurrencyLevel)
+    .expireAfterAccess(workerCacheExpireTime, TimeUnit.MILLISECONDS)
+    .maximumSize(workerCacheSize)
+    .build().asInstanceOf[Cache[String, util.ArrayList[WorkerInfo]]]
+
   private var hadoopFs: util.Map[StorageInfo.Type, FileSystem] = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
     statusSystem.registeredShuffleCount
@@ -295,14 +303,6 @@ private[celeborn] class Master(
   private val workersAssignedToApp
       : util.concurrent.ConcurrentHashMap[String, util.Set[WorkerInfo]] =
     JavaUtils.newConcurrentHashMap[String, util.Set[WorkerInfo]]()
-
-  private val availableWorkersKey = "availableWorkers"
-  // Cache availableWorkers to reduce the filter computation
-  private val workersCache: Cache[String, util.ArrayList[WorkerInfo]] = CacheBuilder.newBuilder()
-    .concurrencyLevel(workerCacheConcurrencyLevel)
-    .expireAfterAccess(workerCacheExpireTime, TimeUnit.MILLISECONDS)
-    .maximumSize(workerCacheSize)
-    .build().asInstanceOf[Cache[String, util.ArrayList[WorkerInfo]]]
 
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
@@ -1260,7 +1260,7 @@ private[celeborn] class Master(
     }.toList.asJava
   }
 
-  // get availableWorkers from cache and update if not exist
+  // get availableWorkers from cache and update if not exist, CacheExpireTime 15s > heartbeat interval 10s
   private def getWorkerListFromCache(key: String): util.List[WorkerInfo] = {
     val workerList = workersCache.get(
       key,
