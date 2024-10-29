@@ -1434,7 +1434,7 @@ object CelebornOpenApi {
 
       (assembly / test) := { },
       (assembly / assemblyJarName) := {
-        s"${moduleName.value}_${scalaBinaryVersion.value}-${version.value}.${artifact.value.extension}"
+        s"${moduleName.value}-${version.value}.${artifact.value.extension}"
       },
       (assembly / logLevel) := Level.Info,
       // Exclude `scala-library` from assembly.
