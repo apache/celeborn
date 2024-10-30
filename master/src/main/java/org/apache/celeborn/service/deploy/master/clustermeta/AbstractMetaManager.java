@@ -85,6 +85,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public double unhealthyDiskRatioThreshold;
   public final LongAdder partitionTotalWritten = new LongAdder();
   public final LongAdder partitionTotalFileCount = new LongAdder();
+  public final LongAdder shuffleTotalFallbackCount = new LongAdder();
   public AppDiskUsageMetric appDiskUsageMetric = null;
 
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
@@ -139,10 +140,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
   }
 
-  public void updateAppHeartbeatMeta(String appId, long time, long totalWritten, long fileCount) {
+  public void updateAppHeartbeatMeta(
+      String appId, long time, long totalWritten, long fileCount, long shuffleFallbackCount) {
     appHeartbeatTime.put(appId, time);
     partitionTotalWritten.add(totalWritten);
     partitionTotalFileCount.add(fileCount);
+    shuffleTotalFallbackCount.add(shuffleFallbackCount);
   }
 
   public void updateAppLostMeta(String appId) {
@@ -316,6 +319,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 new HashSet(workersMap.values()),
                 partitionTotalWritten.sum(),
                 partitionTotalFileCount.sum(),
+                shuffleTotalFallbackCount.sum(),
                 appDiskUsageMetric.snapShots(),
                 appDiskUsageMetric.currentSnapShot().get(),
                 lostWorkers,
@@ -416,6 +420,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
       partitionTotalWritten.add(snapshotMetaInfo.getPartitionTotalWritten());
       partitionTotalFileCount.add(snapshotMetaInfo.getPartitionTotalFileCount());
+      shuffleTotalFallbackCount.add(snapshotMetaInfo.getShuffleTotalFallbackCount());
       appDiskUsageMetric.restoreFromSnapshot(
           snapshotMetaInfo.getAppDiskUsageMetricSnapshotsList().stream()
               .map(PbSerDeUtils::fromPbAppDiskUsageSnapshot)
@@ -457,6 +462,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workerLostEvents.clear();
     partitionTotalWritten.reset();
     partitionTotalFileCount.reset();
+    shuffleTotalFallbackCount.reset();
     workerEventInfos.clear();
     applicationMetas.clear();
   }

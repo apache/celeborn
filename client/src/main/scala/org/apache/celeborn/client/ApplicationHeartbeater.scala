@@ -37,7 +37,7 @@ class ApplicationHeartbeater(
     appId: String,
     conf: CelebornConf,
     masterClient: MasterClient,
-    shuffleMetrics: () => (Long, Long),
+    shuffleMetrics: () => ((Long, Long), Long),
     workerStatusTracker: WorkerStatusTracker,
     registeredShuffles: ConcurrentHashMap.KeySetView[Int, java.lang.Boolean],
     cancelAllActiveStages: String => Unit) extends Logging {
@@ -59,9 +59,10 @@ class ApplicationHeartbeater(
         override def run(): Unit = {
           try {
             require(masterClient != null, "When sending a heartbeat, client shouldn't be null.")
-            val (tmpTotalWritten, tmpTotalFileCount) = shuffleMetrics()
+            val ((tmpTotalWritten, tmpTotalFileCount), tmpShuffleFallbackCount) = shuffleMetrics()
             logInfo("Send app heartbeat with " +
-              s"written: ${Utils.bytesToString(tmpTotalWritten)}, file count: $tmpTotalFileCount")
+              s"written: ${Utils.bytesToString(tmpTotalWritten)}, file count: $tmpTotalFileCount, " +
+              s"shuffle fallback count: $tmpShuffleFallbackCount")
             // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
             // during serialization of HeartbeatFromApplication
             val appHeartbeat =
@@ -69,6 +70,7 @@ class ApplicationHeartbeater(
                 appId,
                 tmpTotalWritten,
                 tmpTotalFileCount,
+                tmpShuffleFallbackCount,
                 workerStatusTracker.getNeedCheckedWorkers().toList.asJava,
                 ZERO_UUID,
                 true)

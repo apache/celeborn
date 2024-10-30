@@ -23,7 +23,7 @@ import java.security.SecureRandom
 import java.util
 import java.util.{function, List => JList}
 import java.util.concurrent._
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
 import java.util.function.{BiConsumer, Consumer}
 
 import scala.collection.JavaConverters._
@@ -84,6 +84,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val unregisterShuffleTime = JavaUtils.newConcurrentHashMap[Int, Long]()
 
   val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
+  val shuffleFallbackCount = new LongAdder()
   // maintain each shuffle's map relation of WorkerInfo and partition location
   val shuffleAllocatedWorkers = new ShuffleAllocatedWorkers
   // shuffle id -> (partitionId -> newest PartitionLocation)
@@ -209,7 +210,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       appUniqueId,
       conf,
       masterClient,
-      () => commitManager.commitMetrics(),
+      () => commitManager.commitMetrics() -> shuffleFallbackCount.sumThenReset(),
       workerStatusTracker,
       registeredShuffle,
       reason => cancelAllActiveStages(reason))
