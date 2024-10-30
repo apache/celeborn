@@ -70,6 +70,7 @@ nav:
       - Monitoring:
         - Overview: monitoring.md
         - Rest API: restapi.md
+        - Celeborn CLI: cli.md
       - Security: security.md
       - Quota Management: quota_management.md
       - Upgrading: upgrading.md
