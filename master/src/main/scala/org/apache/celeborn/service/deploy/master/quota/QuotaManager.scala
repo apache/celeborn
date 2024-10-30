@@ -24,7 +24,7 @@ import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.service.config.ConfigService
 
 class QuotaManager(celebornConf: CelebornConf, configService: ConfigService) extends Logging {
-  val DEFAULT_QUOTA = Quota(
+  private val DEFAULT_QUOTA = Quota(
     celebornConf.get(CelebornConf.QUOTA_DISK_BYTES_WRITTEN),
     celebornConf.get(CelebornConf.QUOTA_DISK_FILE_COUNT),
     celebornConf.get(CelebornConf.QUOTA_HDFS_BYTES_WRITTEN),

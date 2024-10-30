@@ -19,6 +19,8 @@ package org.apache.celeborn.server.common.service.config;
 
 import java.util.ServiceLoader;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.Utils;
 
@@ -46,5 +48,13 @@ public class DynamicConfigServiceFactory {
     }
 
     return _INSTANCE;
+  }
+
+  @VisibleForTesting
+  public static void reset() {
+    if (_INSTANCE != null) {
+      _INSTANCE.shutdown();
+      _INSTANCE = null;
+    }
   }
 }
