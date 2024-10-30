@@ -5336,7 +5336,7 @@ object CelebornConf extends Logging {
 
   val QUOTA_INTERRUPT_SHUFFLE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.quota.interruptShuffle.enabled")
-      .categories("quota", "master", "client")
+      .categories("quota", "client")
       .version("0.6.0")
       .doc("Whether to enable interrupt shuffle when quota exceeds.")
       .booleanConf
