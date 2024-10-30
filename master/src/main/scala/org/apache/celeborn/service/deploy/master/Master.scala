@@ -944,8 +944,10 @@ private[celeborn] class Master(
         .asScala.map { case (worker, slots) => worker.toUniqueId() -> slots }.asJava,
       requestSlots.requestId)
 
-    logInfo(s"Offer slots successfully for $numReducers reducers $numPartitions grouped reducers of $shuffleKey" +
-      s" on ${slots.size()} workers.")
+    logInfo(
+      s"Offer slots successfully for $numReducers reducers $numPartitions grouped reducers of $shuffleKey" +
+        s" on ${slots.size()} workers.")
+    logInfo(s"group nums $numMapTaskGroups")
 
     val workersNotSelected = availableWorkers.asScala.filter(!slots.containsKey(_))
     val offerSlotsExtraSize = Math.min(conf.masterSlotAssignExtraSlots, workersNotSelected.size)
