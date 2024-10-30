@@ -29,7 +29,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.PbReviseLostShufflesResponse
-import org.apache.celeborn.common.protocol.message.ControlMessages.{ApplicationLost, ApplicationLostResponse, HeartbeatFromApplication, HeartbeatFromApplicationResponse, ReviseLostShuffles, ZERO_UUID}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{ApplicationLost, ApplicationLostResponse, CheckQuotaResponse, HeartbeatFromApplication, HeartbeatFromApplicationResponse, ReviseLostShuffles, ZERO_UUID}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
@@ -39,7 +39,8 @@ class ApplicationHeartbeater(
     masterClient: MasterClient,
     shuffleMetrics: () => (Long, Long),
     workerStatusTracker: WorkerStatusTracker,
-    registeredShuffles: ConcurrentHashMap.KeySetView[Int, java.lang.Boolean]) extends Logging {
+    registeredShuffles: ConcurrentHashMap.KeySetView[Int, java.lang.Boolean],
+    cancelAllActiveStages: String => Unit) extends Logging {
 
   private var stopped = false
   private val reviseLostShuffles = conf.reviseLostShufflesEnabled
@@ -77,6 +78,7 @@ class ApplicationHeartbeater(
             if (response.statusCode == StatusCode.SUCCESS) {
               logDebug("Successfully send app heartbeat.")
               workerStatusTracker.handleHeartbeatResponse(response)
+              checkQuotaExceeds(response.checkQuotaResponse)
               // revise shuffle id if there are lost shuffles
               if (reviseLostShuffles) {
                 val masterRecordedShuffleIds = response.registeredShuffles
@@ -132,7 +134,8 @@ class ApplicationHeartbeater(
           List.empty.asJava,
           List.empty.asJava,
           List.empty.asJava,
-          List.empty.asJava)
+          List.empty.asJava,
+          CheckQuotaResponse(isAvailable = true, ""))
     }
   }
 
@@ -146,6 +149,12 @@ class ApplicationHeartbeater(
     } catch {
       case e: Exception =>
         logWarning("AskSync unRegisterApplication failed.", e)
+    }
+  }
+
+  private def checkQuotaExceeds(response: CheckQuotaResponse): Unit = {
+    if (conf.quotaInterruptShuffleEnabled && !response.isAvailable) {
+      cancelAllActiveStages(response.reason)
     }
   }
 
