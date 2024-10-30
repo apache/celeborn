@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.celeborn.common.tags.WorkerTagsMeta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -167,6 +168,15 @@ public abstract class DynamicConfig {
             CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK(),
             Long.TYPE,
             ConfigType.BYTES));
+  }
+
+  public WorkerTagsMeta getWorkerTagsMeta() {
+    return new WorkerTagsMeta(
+            getValue(
+                    CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK().key(),
+                    CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK(),
+                    Class<String>,
+                    ConfigType.STRING));
   }
 
   public Map<String, String> getConfigs() {
