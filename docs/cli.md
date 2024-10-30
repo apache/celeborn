@@ -6,11 +6,11 @@
 ./build/make-distribution.sh
 ```
 
-- Inside the distribution, there should be a new directory called cli-jars. This directory contains all the jars necessary for the Celeborn CLI to work. 
-  - Please note that Celeborn CLI requires version 0.6+ of Celeborn to work since it depends on OpenAPI for API calls.
+- Inside the distribution, there should be a new directory called cli-jars. This directory contains all the jars necessary for the Celeborn CLI to work.
+    - Please note that Celeborn CLI requires version 0.6+ of Celeborn to work since it depends on OpenAPI for API calls.
 
 ## Setup
-- Set JAVA_HOME if not set already on your machine: 
+- Set JAVA_HOME if not set already on your machine:
 ```sh
 export JAVA_HOME=/path/to/java/home
 ```
