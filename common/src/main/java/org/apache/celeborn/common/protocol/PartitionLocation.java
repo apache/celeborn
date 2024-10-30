@@ -65,7 +65,6 @@ public class PartitionLocation implements Serializable {
   private RoaringBitmap mapIdBitMap;
   private transient String _hostPushPort;
   private transient String _hostFetchPort;
-  private int groupId;
 
   public PartitionLocation(PartitionLocation loc) {
     this.id = loc.id;
@@ -81,7 +80,6 @@ public class PartitionLocation implements Serializable {
     this.mapIdBitMap = loc.mapIdBitMap;
     this._hostPushPort = host + ":" + pushPort;
     this._hostFetchPort = host + ":" + fetchPort;
-    this.groupId = loc.groupId;
   }
 
   public PartitionLocation(
@@ -196,14 +194,6 @@ public class PartitionLocation implements Serializable {
 
   public void setFetchPort(int fetchPort) {
     this.fetchPort = fetchPort;
-  }
-
-  public int getGroupId() {
-    return groupId;
-  }
-
-  public void serGroupId(int groupId) {
-    this.groupId = groupId;
   }
 
   public String hostAndPorts() {

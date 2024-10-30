@@ -76,7 +76,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val slotsAssignMaxWorkers = conf.clientSlotAssignMaxWorkers
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   private val pushRackAwareEnabled = conf.clientReserveSlotsRackAwareEnabled
-  private var groupMapTaskEnabled = conf.groupMapTaskEnabled
+  private val groupMapTaskEnabled = conf.groupMapTaskEnabled
   private val groupMapTaskGroupSize = conf.groupMapTaskGroupSize
   private val partitionSplitThreshold = conf.shufflePartitionSplitThreshold
   private val partitionSplitMode = conf.shufflePartitionSplitMode
@@ -102,9 +102,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val shuffleIdGenerator = new AtomicInteger(0)
   // app shuffle id -> whether shuffle is determinate, rerun of a indeterminate shuffle gets different result
   private val appShuffleDeterminateMap = JavaUtils.newConcurrentHashMap[Int, Boolean]()
-
-  // key: mapId, value: mapTaskGroupId
-  val mapTaskGroupMap = JavaUtils.newConcurrentHashMap[Int, Int]()
 
   private val rpcCacheSize = conf.clientRpcCacheSize
   private val rpcCacheConcurrencyLevel = conf.clientRpcCacheConcurrencyLevel
@@ -669,8 +666,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     if (partitionType.getValue.equals(PartitionType.REDUCE.getValue) && groupMapTaskEnabled) {
       groupNumPartitions = numPartitions * numGroupTask
     }
-//    logInfo(s"[test groupMapTask] partitionGroupCnt: ${numGroupTask}, groupNumPartitions: ${groupNumPartitions}, " +
-//      s"numMappers: ${numMappers}, numPartitions: ${numPartitions}")
+
     val ids = new util.ArrayList[Integer](groupNumPartitions)
     (0 until groupNumPartitions).foreach(idx => ids.add(Integer.valueOf(idx)))
     val res = requestMasterRequestSlotsWithRetry(shuffleId, ids, numGroupTask)

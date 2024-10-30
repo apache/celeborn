@@ -965,25 +965,19 @@ public class ShuffleClientImpl extends ShuffleClient {
       return 0;
     }
 
-    //    int numGroupTask = (int) Math.ceil(numMappers * 1.0 / conf.groupMapTaskGroupSize());
-    int groupTaskPartitionId = partitionId;
-    int mapTaskGroupId = 0;
+    int tmpgroupTaskPartitionId = partitionId;
     if (conf.groupMapTaskEnabled()) {
-      mapTaskGroupId = mapId / conf.groupMapTaskGroupSize();
-      groupTaskPartitionId = partitionId + numPartitions * mapTaskGroupId;
+      int mapTaskGroupId = mapId / conf.groupMapTaskGroupSize();
+      tmpgroupTaskPartitionId = partitionId + numPartitions * mapTaskGroupId;
     }
-    final int finalGroupTaskPartitionId = groupTaskPartitionId;
-    PartitionLocation loc = map.get(finalGroupTaskPartitionId);
-
-    //    logger.info("[test groupMapTask] partitionGroupCnt: {} numPartitions: {} mapId: {}
-    // partitionId:{} mapTaskGroupId: {} groupTaskPartitionId:{}", numGroupTask, numPartitions,
-    // mapId, partitionId, mapTaskGroupId, groupTaskPartitionId);
+    final int groupTaskPartitionId = tmpgroupTaskPartitionId;
+    PartitionLocation loc = map.get(groupTaskPartitionId);
 
     if (loc == null) {
       throw new CelebornIOException(
           String.format(
               "Partition location for shuffle %s partition %d groupPartition %d is NULL!",
-              shuffleId, partitionId, finalGroupTaskPartitionId));
+              shuffleId, partitionId, groupTaskPartitionId));
     }
 
     PushState pushState = getPushState(mapKey);
@@ -1037,7 +1031,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   mapId,
                   attemptId,
                   partitionId,
-                  finalGroupTaskPartitionId,
+                  groupTaskPartitionId,
                   nextBatchId);
             }
 
@@ -1051,7 +1045,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       mapId,
                       attemptId,
                       partitionId,
-                      finalGroupTaskPartitionId,
+                      groupTaskPartitionId,
                       nextBatchId);
               pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
             }
@@ -1081,11 +1075,11 @@ public class ShuffleClientImpl extends ShuffleClient {
                       mapId,
                       attemptId,
                       partitionId,
-                      finalGroupTaskPartitionId,
+                      groupTaskPartitionId,
                       nextBatchId);
                   if (!newerPartitionLocationExists(
                       reducePartitionMap.get(shuffleId),
-                      finalGroupTaskPartitionId,
+                      groupTaskPartitionId,
                       latest.getEpoch(),
                       false)) {
                     ReviveRequest reviveRequest =
@@ -1093,7 +1087,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                             shuffleId,
                             mapId,
                             attemptId,
-                            finalGroupTaskPartitionId,
+                            groupTaskPartitionId,
                             latest.getEpoch(),
                             latest,
                             StatusCode.SOFT_SPLIT);
@@ -1110,14 +1104,14 @@ public class ShuffleClientImpl extends ShuffleClient {
                       mapId,
                       attemptId,
                       partitionId,
-                      finalGroupTaskPartitionId,
+                      groupTaskPartitionId,
                       nextBatchId);
                   ReviveRequest reviveRequest =
                       new ReviveRequest(
                           shuffleId,
                           mapId,
                           attemptId,
-                          finalGroupTaskPartitionId,
+                          groupTaskPartitionId,
                           latest.getEpoch(),
                           latest,
                           StatusCode.HARD_SPLIT);
@@ -1146,7 +1140,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       mapId,
                       attemptId,
                       partitionId,
-                      finalGroupTaskPartitionId,
+                      groupTaskPartitionId,
                       nextBatchId);
                   pushState.onCongestControl(latest.hostAndPushPort());
                   pushState.removeBatch(nextBatchId, latest.hostAndPushPort());
@@ -1159,7 +1153,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       mapId,
                       attemptId,
                       partitionId,
-                      finalGroupTaskPartitionId,
+                      groupTaskPartitionId,
                       nextBatchId);
                   pushState.onCongestControl(latest.hostAndPushPort());
                   pushState.removeBatch(nextBatchId, latest.hostAndPushPort());
@@ -1200,7 +1194,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   mapId,
                   attemptId,
                   partitionId,
-                  finalGroupTaskPartitionId,
+                  groupTaskPartitionId,
                   nextBatchId,
                   remainReviveTimes,
                   e);
@@ -1212,7 +1206,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                         shuffleId,
                         mapId,
                         attemptId,
-                        finalGroupTaskPartitionId,
+                        groupTaskPartitionId,
                         latest.getEpoch(),
                         latest,
                         cause);
@@ -1253,7 +1247,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             assert dataClientFactory != null;
             TransportClient client =
                 dataClientFactory.createClient(
-                    loc.getHost(), loc.getPushPort(), finalGroupTaskPartitionId);
+                    loc.getHost(), loc.getPushPort(), groupTaskPartitionId);
             client.pushData(pushData, pushDataTimeout, wrappedCallback);
           } else {
             wrappedCallback.onFailure(
@@ -1269,7 +1263,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             mapId,
             attemptId,
             partitionId,
-            finalGroupTaskPartitionId,
+            groupTaskPartitionId,
             nextBatchId,
             loc,
             e);

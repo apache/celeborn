@@ -108,7 +108,7 @@ class CelebornShuffleReader[K, C](
     val shuffleKey = Utils.makeShuffleKey(handle.appUniqueId, shuffleId)
     var fileGroups: ReduceFileGroups = null
     try {
-      // startPartition is irrelevant
+      // startPartition is irrelevant, for error log print
       fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition)
     } catch {
       case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
@@ -141,9 +141,6 @@ class CelebornShuffleReader[K, C](
           groupPartitionIdList += tmpPartitionId
         }
       }
-//      logInfo(s"[test groupMapTask] groupPartition read, partitionGroupCnt: $partitionGroupCnt, numMappers: $numMappers" +
-//        s"numPartitions: $numPartitions, groupNumPartitions: $groupNumPartitions " +
-//        s"partitionIdList: $partitionIdList, groupPartitionIdList: $groupPartitionIdList")
     }
 
     groupPartitionIdList.foreach { partitionId =>
