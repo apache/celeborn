@@ -847,7 +847,6 @@ message PbPackedPartitionLocations {
   repeated string filePaths = 10;
   repeated int32 availableStorageTypes = 11;
   repeated int32 modes = 12;
-  repeated int32 groupId = 13;
 }
 
 message PbPackedPartitionLocationsPair {
