@@ -17,29 +17,17 @@
 
 package org.apache.celeborn.service.deploy.master.quota
 
-import java.io.File
-
 import org.junit.Assert.assertEquals
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import org.scalatest.funsuite.AnyFunSuite
 
+import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.quota.{Quota, ResourceConsumption}
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.service.config.DynamicConfigServiceFactory
 
-class QuotaManagerSuite extends AnyFunSuite
-  with BeforeAndAfterAll
-  with BeforeAndAfterEach
-  with Logging {
+class QuotaManagerSuite extends CelebornFunSuite {
   protected var quotaManager: QuotaManager = _
-
-  // helper function
-  final protected def getTestResourceFile(file: String): File = {
-    new File(getClass.getClassLoader.getResource(file).getFile)
-  }
 
   override def beforeAll(): Unit = {
     super.beforeAll()

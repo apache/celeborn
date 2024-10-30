@@ -61,7 +61,7 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
 
     var workersForTags: Option[JSet[String]] = None
     tags.foreach { tag =>
-      val taggedWorkers = tagStore.getOrDefault(tag, Collections.emptySet())
+      val taggedWorkers = getTagStore.getOrDefault(tag, Collections.emptySet())
       workersForTags match {
         case Some(w) =>
           w.retainAll(taggedWorkers)

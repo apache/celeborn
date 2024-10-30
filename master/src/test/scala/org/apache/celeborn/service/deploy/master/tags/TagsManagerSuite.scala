@@ -22,19 +22,24 @@ import scala.collection.JavaConverters.seqAsJavaListConverter
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.WorkerInfo
-import org.apache.celeborn.server.common.service.config.{ConfigService, DynamicConfigServiceFactory}
+import org.apache.celeborn.server.common.service.config.DynamicConfigServiceFactory
 
 class TagsManagerSuite extends CelebornFunSuite {
-  protected var tagsManager: TagsManager = _
+  private var tagsManager: TagsManager = _
 
-  val TAG1 = "tag1"
-  val TAG2 = "tag2"
+  private val TAG1 = "tag1"
+  private val TAG2 = "tag2"
 
-  val WORKER1 = new WorkerInfo("host1", 111, 112, 113, 114, 115)
-  val WORKER2 = new WorkerInfo("host2", 211, 212, 213, 214, 215)
-  val WORKER3 = new WorkerInfo("host3", 311, 312, 313, 314, 315)
+  private val WORKER1 = new WorkerInfo("host1", 111, 112, 113, 114, 115)
+  private val WORKER2 = new WorkerInfo("host2", 211, 212, 213, 214, 215)
+  private val WORKER3 = new WorkerInfo("host3", 311, 312, 313, 314, 315)
 
-  val workers = List(WORKER1, WORKER2, WORKER3).asJava
+  private val workers = List(WORKER1, WORKER2, WORKER3).asJava
+
+  override def beforeEach(): Unit = {
+    super.beforeEach()
+    DynamicConfigServiceFactory.reset()
+  }
 
   test("test tags manager") {
     tagsManager = new TagsManager(Option(null))
@@ -119,7 +124,7 @@ class TagsManagerSuite extends CelebornFunSuite {
   }
 
   test("test tags expression with multiple tags") {
-    tagsManager = new TagsManager(Some(null))
+    tagsManager = new TagsManager(Option(null))
 
     // Tag1
     tagsManager.addTagToWorker(TAG1, WORKER1.toUniqueId())
@@ -130,7 +135,7 @@ class TagsManagerSuite extends CelebornFunSuite {
     tagsManager.addTagToWorker(TAG2, WORKER3.toUniqueId())
 
     {
-      val taggedWorkers = tagsManager.filterTaggedWorkers("tag1,tag2", workers)
+      val taggedWorkers = tagsManager.getTaggedWorkers("tag1,tag2", workers)
       assert(taggedWorkers.size == 1)
       assert(!taggedWorkers.contains(WORKER1))
       assert(taggedWorkers.contains(WORKER2))
@@ -138,18 +143,9 @@ class TagsManagerSuite extends CelebornFunSuite {
     }
 
     {
-      val taggedWorkers = tagsManager.filterTaggedWorkers("tag1,tag3", workers)
+      val taggedWorkers = tagsManager.getTaggedWorkers("tag1,tag3", workers)
       assert(taggedWorkers.size == 0)
     }
-  }
-
-  private def getConfigService: ConfigService = {
-    val conf = new CelebornConf()
-    conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "FS")
-    conf.set(
-      CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH.key,
-      getTestResourceFile("dynamicConfig-tags.yaml").getPath)
-    DynamicConfigServiceFactory.getConfigService(conf)
   }
 
   test("test tags manager with config service") {
