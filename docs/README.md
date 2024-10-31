@@ -138,11 +138,24 @@ vi conf/flink-conf.yaml
 cd $FLINK_HOME
 vi conf/config.yaml
 ```
+
+Choose one of flink integration strategies and add the following configuration:
+
+**(Support Flink 1.14 and above versions) Flink Remote Shuffle Service Config**
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
 execution.batch-shuffle-mode: ALL_EXCHANGES_BLOCKING
 ```
 **Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_BLOCKING`.
+
+**(Support Flink 1.20 and above versions) Flink Hybrid Shuffle Config**
+```properties
+shuffle-service-factory.class: org.apache.flink.runtime.io.network.NettyShuffleServiceFactory
+taskmanager.network.hybrid-shuffle.external-remote-tier-factory.class: org.apache.celeborn.plugin.flink.tiered.CelebornTierFactory
+execution.batch-shuffle-mode: ALL_EXCHANGES_HYBRID_FULL
+jobmanager.partition.hybrid.partition-data-consume-constraint: ALL_PRODUCERS_FINISHED
+```
+**Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_HYBRID_FULL`.
 
 Then deploy the example word count job to the running cluster:
 ```shell

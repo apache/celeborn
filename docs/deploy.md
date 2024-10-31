@@ -209,7 +209,11 @@ spark.executor.userClassPathFirst false
 Copy `$CELEBORN_HOME/flink/*.jar` to `$FLINK_HOME/lib/`.
 
 ### Flink Configuration
-To use Celeborn, the following flink configurations should be added.
+Celeborn supports two Flink integration strategies: remote shuffle service (since Flink 1.14) and hybrid shuffle (since Flink 1.20).
+
+To use Celeborn, you can choose one of them and add the following Flink configurations.
+
+#### Flink Remote Shuffle Service Configuration
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
 execution.batch-shuffle-mode: ALL_EXCHANGES_BLOCKING
@@ -231,6 +235,25 @@ taskmanager.network.memory.buffers-per-channel: 0
 taskmanager.memory.task.off-heap.size: 512m
 ```
 **Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_BLOCKING`.
+
+##### Flink Hybrid Shuffle Configuration
+```properties
+shuffle-service-factory.class: org.apache.flink.runtime.io.network.NettyShuffleServiceFactory
+taskmanager.network.hybrid-shuffle.external-remote-tier-factory.class: org.apache.celeborn.plugin.flink.tiered.CelebornTierFactory
+execution.batch-shuffle-mode: ALL_EXCHANGES_HYBRID_FULL
+jobmanager.partition.hybrid.partition-data-consume-constraint: ALL_PRODUCERS_FINISHED
+
+celeborn.master.endpoints: clb-1:9097,clb-2:9097,clb-3:9097
+celeborn.client.shuffle.batchHandleReleasePartition.enabled: true
+celeborn.client.push.maxReqsInFlight: 128
+# Network connections between peers
+celeborn.data.io.numConnectionsPerPeer: 16
+# threads number may vary according to your cluster but do not set to 1
+celeborn.data.io.threads: 32
+celeborn.client.shuffle.batchHandleCommitPartition.threads: 32
+celeborn.rpc.dispatcher.numThreads: 32
+```
+**Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_HYBRID_FULL`.
 
 ## Deploy MapReduce client
 Copy `$CELEBORN_HOME/mr/*.jar` into `mapreduce.application.classpath` and `yarn.application.classpath`.
