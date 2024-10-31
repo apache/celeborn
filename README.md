@@ -311,10 +311,13 @@ spark.executor.userClassPathFirst false
 ```
 
 ### Deploy Flink client
+
+**Important: Only Flink batch jobs are supported for now.**
+
 Copy `$CELEBORN_HOME/flink/*.jar` to `$FLINK_HOME/lib/`.
 
 #### Flink Configuration
-Celeborn supports two Flink integration strategies: remote shuffle service (since Flink 1.14) and hybrid shuffle (since Flink 1.20).
+Celeborn supports two Flink integration strategies: remote shuffle service (since Flink 1.14) and [hybrid shuffle](https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/batch/batch_shuffle/#hybrid-shuffle) (since Flink 1.20).
 
 To use Celeborn, you can choose one of them and add the following Flink configurations.
 
