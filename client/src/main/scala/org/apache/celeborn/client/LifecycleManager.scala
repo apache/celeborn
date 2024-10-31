@@ -661,9 +661,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
 
     // First, request to get allocated slots from Primary
-    val numGroupTask = math.ceil(numMappers.toDouble / groupMapTaskGroupSize).toInt
+    var numGroupTask = 1
     var groupNumPartitions = numPartitions
     if (partitionType.getValue.equals(PartitionType.REDUCE.getValue) && groupMapTaskEnabled) {
+      numGroupTask = math.ceil(numMappers.toDouble / groupMapTaskGroupSize).toInt
       groupNumPartitions = numPartitions * numGroupTask
     }
 
