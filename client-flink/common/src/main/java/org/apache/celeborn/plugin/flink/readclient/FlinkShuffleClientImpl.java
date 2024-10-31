@@ -145,9 +145,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
 
   private void initializeTransportClientFactory() {
     if (null == flinkTransportClientFactory) {
-      flinkTransportClientFactory =
-          new FlinkTransportClientFactory(
-              context, conf.clientFetchMaxRetriesForEachReplica(), createBootstraps());
+      flinkTransportClientFactory = new FlinkTransportClientFactory(context, createBootstraps());
     }
   }
 
