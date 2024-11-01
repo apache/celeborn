@@ -192,9 +192,6 @@ private[celeborn] class Master(
   private val userResourceConsumptions =
     JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
 
-  private def diskReserveSize = conf.workerDiskReserveSize
-  private def diskReserveRatio = conf.workerDiskReserveRatio
-
   private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
   private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
   private val slotsAssignLoadAwareDiskGroupGradient =
