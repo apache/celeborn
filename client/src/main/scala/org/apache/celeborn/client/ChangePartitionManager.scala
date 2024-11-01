@@ -306,10 +306,12 @@ class ChangePartitionManager(
       val shuffleAllocatedWorkers = lifecycleManager.workerSnapshots(shuffleId).size()
       val unavailableWorkerRatio = 1 - (snapshotCandidates.size * 1.0 / shuffleAllocatedWorkers)
       if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)
-        || (unavailableWorkerRatio > clientShuffleDynamicResourceFactor)) {
+        || (unavailableWorkerRatio >= clientShuffleDynamicResourceFactor)) {
+
         val numPartitions = lifecycleManager.latestPartitionLocation.get(shuffleId).size()
         val ids = new util.ArrayList((0 until numPartitions).map(Integer.valueOf).asJava)
         val requestSlotsRes = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+
         requestSlotsRes.status match {
           case StatusCode.REQUEST_FAILED =>
             logInfo(s"ChangePartition requestSlots RPC request failed for $shuffleId!")
@@ -326,7 +328,6 @@ class ChangePartitionManager(
 
         val resAvailableWorkers = requestSlotsRes.workerResource.keySet()
         lifecycleManager.workerStatusTracker.updateAvailableWorkers(resAvailableWorkers)
-
         candidates.addAll(resAvailableWorkers)
 
         // availableWorkers wont filter excludedWorkers in heartBeat So have to do filtering.
