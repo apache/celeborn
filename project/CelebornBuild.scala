@@ -1434,7 +1434,7 @@ object CelebornOpenApi {
 
       (assembly / test) := { },
       (assembly / assemblyJarName) := {
-        s"${moduleName.value}_${scalaBinaryVersion.value}-${version.value}.${artifact.value.extension}"
+        s"${moduleName.value}-${version.value}.${artifact.value.extension}"
       },
       (assembly / logLevel) := Level.Info,
       // Exclude `scala-library` from assembly.
@@ -1481,7 +1481,11 @@ object CelebornOpenApi {
       case _ => MergeStrategy.first
     },
     Compile / packageBin := assembly.value,
-    pomPostProcess := removeDependenciesTransformer
+    pomPostProcess := removeDependenciesTransformer,
+    Compile / doc := {
+      // skip due to doc generation failure for openapi modules, see CELEBORN-1477
+      target.value / "none"
+    }
   )
 }
 

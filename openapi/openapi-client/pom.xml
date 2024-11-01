@@ -25,7 +25,7 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-openapi-client_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-openapi-client</artifactId>
   <packaging>jar</packaging>
   <name>Celeborn OpenAPI Client</name>
 

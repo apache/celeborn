@@ -67,7 +67,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
-      <artifactId>celeborn-openapi-client_${scala.binary.version}</artifactId>
+      <artifactId>celeborn-openapi-client</artifactId>
       <version>${project.version}</version>
       <exclusions>
         <exclusion>
