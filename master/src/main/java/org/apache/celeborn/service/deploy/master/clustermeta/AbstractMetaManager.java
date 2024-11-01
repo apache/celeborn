@@ -551,11 +551,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         "Celeborn cluster estimated partition size changed from {} to {}",
         Utils.bytesToString(oldEstimatedPartitionSize),
         Utils.bytesToString(estimatedPartitionSize));
-    workersMap.values().stream()
-        .filter(
-            worker ->
-                !excludedWorkers.contains(worker) && !manuallyExcludedWorkers.contains(worker))
-        .forEach(workerInfo -> workerInfo.updateDiskMaxSlots(estimatedPartitionSize));
+
+    HashSet<WorkerInfo> workers = new HashSet(workersMap.values());
+    excludedWorkers.forEach(workers::remove);
+    manuallyExcludedWorkers.forEach(workers::remove);
+    workers.forEach(workerInfo -> workerInfo.updateDiskMaxSlots(estimatedPartitionSize));
   }
 
   public boolean isWorkerAvailable(WorkerInfo workerInfo) {
