@@ -117,6 +117,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final Set<String> pushExcludedWorkers = ConcurrentHashMap.newKeySet();
   private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
       JavaUtils.newConcurrentHashMap();
+  private boolean pushReplicateEnabled;
+  private boolean fetchExcludeWorkerOnFailureEnabled;
 
   private final ExecutorService pushDataRetryPool;
 
@@ -180,6 +182,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
     pushExcludeWorkerOnFailureEnabled = conf.clientPushExcludeWorkerOnFailureEnabled();
     shuffleCompressionEnabled = !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
+    pushReplicateEnabled = conf.clientPushReplicateEnabled();
+    fetchExcludeWorkerOnFailureEnabled = conf.clientFetchExcludeWorkerOnFailureEnabled();
     if (conf.clientPushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
@@ -1903,5 +1907,13 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public TransportClientFactory getDataClientFactory() {
     return dataClientFactory;
+  }
+
+  public void excludeFailedFetchLocation(String hostAndFetchPort, Exception e) {
+    if (pushReplicateEnabled
+        && fetchExcludeWorkerOnFailureEnabled
+        && Utils.isCriticalCauseForFetch(e)) {
+      fetchExcludedWorkers.put(hostAndFetchPort, System.currentTimeMillis());
+    }
   }
 }

@@ -299,12 +299,6 @@ public abstract class CelebornInputStream extends InputStream {
       }
     }
 
-    private void excludeFailedLocation(PartitionLocation location, Exception e) {
-      if (pushReplicateEnabled && fetchExcludeWorkerOnFailureEnabled && isCriticalCause(e)) {
-        fetchExcludedWorkers.put(location.hostAndFetchPort(), System.currentTimeMillis());
-      }
-    }
-
     private boolean isExcluded(PartitionLocation location) {
       Long timestamp = fetchExcludedWorkers.get(location.hostAndFetchPort());
       if (timestamp == null) {
@@ -354,7 +348,7 @@ public abstract class CelebornInputStream extends InputStream {
           return createReader(location, pbStreamHandler, fetchChunkRetryCnt, fetchChunkMaxRetry);
         } catch (Exception e) {
           lastException = e;
-          excludeFailedLocation(location, e);
+          shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort(), e);
           fetchChunkRetryCnt++;
           if (location.hasPeer()) {
             // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
@@ -392,7 +386,8 @@ public abstract class CelebornInputStream extends InputStream {
           }
           return currentReader.next();
         } catch (Exception e) {
-          excludeFailedLocation(currentReader.getLocation(), e);
+          shuffleClient.excludeFailedFetchLocation(
+              currentReader.getLocation().hostAndFetchPort(), e);
           fetchChunkRetryCnt++;
           currentReader.close();
           if (fetchChunkRetryCnt == fetchChunkMaxRetry) {
