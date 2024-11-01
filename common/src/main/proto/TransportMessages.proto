@@ -442,7 +442,6 @@ message PbHeartbeatFromApplication {
   string requestId = 4;
   repeated PbWorkerInfo needCheckedWorkerList = 5;
   bool shouldResponse = 6;
-  bool needAvailableWorkers = 7;
 }
 
 message PbHeartbeatFromApplicationResponse {
@@ -451,8 +450,7 @@ message PbHeartbeatFromApplicationResponse {
   repeated PbWorkerInfo unknownWorkers = 3;
   repeated PbWorkerInfo shuttingWorkers = 4;
   repeated int32 registeredShuffles = 5;
-  repeated PbWorkerInfo availableWorkers = 6;
-  PbCheckQuotaResponse checkQuotaResponse = 7;
+  PbCheckQuotaResponse checkQuotaResponse = 6;
 }
 
 message PbCheckQuota {

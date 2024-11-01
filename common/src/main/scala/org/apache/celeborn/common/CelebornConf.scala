@@ -4855,7 +4855,7 @@ object CelebornConf extends Logging {
         s"during heartbeats when worker resources change and ${CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key} set true")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
-      .createWithDefault(0.25)
+      .createWithDefault(0.5)
 
   val CLIENT_PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.push.stageEnd.timeout")
