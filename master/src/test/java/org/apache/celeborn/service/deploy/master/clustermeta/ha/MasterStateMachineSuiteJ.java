@@ -232,20 +232,23 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     AppDiskUsageSnapShot originCurrentSnapshot =
         masterStatusSystem.appDiskUsageMetric.currentSnapShot().get();
 
-    masterStatusSystem.updateWorker(new WorkerInfo(host1, 9095, 9094, 9093, 9092, 9091));
-    masterStatusSystem.updateWorker(new WorkerInfo(host2, 9095, 9094, 9093, 9092, 9091));
-    masterStatusSystem.updateWorker(new WorkerInfo(host3, 9095, 9094, 9093, 9092, 9091));
+    WorkerInfo workerInfo1 = new WorkerInfo(host1, 9095, 9094, 9093, 9092, 9091);
+    WorkerInfo workerInfo2 = new WorkerInfo(host2, 9095, 9094, 9093, 9092, 9091);
+    WorkerInfo workerInfo3 = new WorkerInfo(host3, 9095, 9094, 9093, 9092, 9091);
+    masterStatusSystem.workersMap.put(workerInfo1.toUniqueId(), workerInfo1);
+    masterStatusSystem.workersMap.put(workerInfo2.toUniqueId(), workerInfo2);
+    masterStatusSystem.workersMap.put(workerInfo3.toUniqueId(), workerInfo3);
 
     masterStatusSystem.writeMetaInfoToFile(tmpFile);
 
     masterStatusSystem.hostnameSet.clear();
     masterStatusSystem.excludedWorkers.clear();
     masterStatusSystem.manuallyExcludedWorkers.clear();
-    masterStatusSystem.clearWorkers();
+    masterStatusSystem.workersMap.clear();
 
     masterStatusSystem.restoreMetaFromFile(tmpFile);
 
-    Assert.assertEquals(3, masterStatusSystem.getWorkers().size());
+    Assert.assertEquals(3, masterStatusSystem.workersMap.size());
     Assert.assertEquals(3, masterStatusSystem.excludedWorkers.size());
     Assert.assertEquals(2, masterStatusSystem.manuallyExcludedWorkers.size());
     Assert.assertEquals(3, masterStatusSystem.hostnameSet.size());
@@ -260,7 +263,7 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     Assert.assertArrayEquals(originSnapshots, masterStatusSystem.appDiskUsageMetric.snapShots());
 
     masterStatusSystem.restoreMetaFromFile(tmpFile);
-    Assert.assertEquals(3, masterStatusSystem.getWorkers().size());
+    Assert.assertEquals(3, masterStatusSystem.workersMap.size());
   }
 
   private String getNewReqeustId() {

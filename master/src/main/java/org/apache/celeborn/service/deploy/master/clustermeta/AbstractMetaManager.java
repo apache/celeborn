@@ -27,13 +27,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import scala.Option;
 import scala.Tuple2;
 
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.Node;
 import org.slf4j.Logger;
@@ -66,7 +64,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final Map<String, Set<Integer>> registeredAppAndShuffles =
       JavaUtils.newConcurrentHashMap();
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
-  private final Map<String, WorkerInfo> workersMap = JavaUtils.newConcurrentHashMap();
+  public final Map<String, WorkerInfo> workersMap = JavaUtils.newConcurrentHashMap();
 
   public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = JavaUtils.newConcurrentHashMap();
   public final ConcurrentHashMap<WorkerInfo, WorkerEventInfo> workerEventInfos =
@@ -91,34 +89,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
       JavaUtils.newConcurrentHashMap();
-
-  public Collection<WorkerInfo> getWorkers() {
-    return Collections.unmodifiableCollection(workersMap.values());
-  }
-
-  public <T> T synchronizedWorkers(Supplier<T> s) {
-    synchronized (workersMap) {
-      return s.get();
-    }
-  }
-
-  public boolean containsWorker(WorkerInfo worker) {
-    return workersMap.containsKey(worker.toUniqueId());
-  }
-
-  public WorkerInfo getWorker(WorkerInfo worker) {
-    return workersMap.get(worker.toUniqueId());
-  }
-
-  @VisibleForTesting
-  public void updateWorker(WorkerInfo worker) {
-    workersMap.put(worker.toUniqueId(), worker);
-  }
-
-  @VisibleForTesting
-  public void clearWorkers() {
-    workersMap.clear();
-  }
 
   public void updateRequestSlotsMeta(
       String shuffleKey, String hostName, Map<String, Map<String, Integer>> workerWithAllocations) {
