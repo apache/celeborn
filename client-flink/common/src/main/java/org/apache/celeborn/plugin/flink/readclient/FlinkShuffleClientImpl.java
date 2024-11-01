@@ -199,7 +199,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           shuffleKey,
           partitionLocations,
           subPartitionIndexStart,
-          subPartitionIndexEnd);
+          subPartitionIndexEnd,
+          conf.pushDataTimeoutMs());
     }
   }
 

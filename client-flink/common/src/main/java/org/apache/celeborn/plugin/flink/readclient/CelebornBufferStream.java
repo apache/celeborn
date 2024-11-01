@@ -53,6 +53,7 @@ public class CelebornBufferStream {
   private PartitionLocation[] locations;
   private int subIndexStart;
   private int subIndexEnd;
+  private long pushDataTimeoutMs;
   private TransportClient client;
   private AtomicInteger currentLocationIndex = new AtomicInteger(0);
   private long streamId = 0;
@@ -72,23 +73,26 @@ public class CelebornBufferStream {
       String shuffleKey,
       PartitionLocation[] locations,
       int subIndexStart,
-      int subIndexEnd) {
+      int subIndexEnd,
+      long pushDataTimeoutMs) {
     this.mapShuffleClient = mapShuffleClient;
     this.clientFactory = dataClientFactory;
     this.shuffleKey = shuffleKey;
     this.locations = locations;
     this.subIndexStart = subIndexStart;
     this.subIndexEnd = subIndexEnd;
+    this.pushDataTimeoutMs = pushDataTimeoutMs;
   }
 
   public void open(
       Supplier<ByteBuf> bufferSupplier,
       int initialCredit,
-      Consumer<RequestMessage> messageConsumer) {
+      Consumer<RequestMessage> messageConsumer,
+      boolean sync) {
     this.bufferSupplier = bufferSupplier;
     this.initialCredit = initialCredit;
     this.messageConsumer = messageConsumer;
-    moveToNextPartitionIfPossible(0);
+    moveToNextPartitionIfPossible(0, null, sync);
   }
 
   public void addCredit(PbReadAddCredit pbReadAddCredit) {
@@ -156,12 +160,19 @@ public class CelebornBufferStream {
       String shuffleKey,
       PartitionLocation[] locations,
       int subIndexStart,
-      int subIndexEnd) {
+      int subIndexEnd,
+      long pushDataTimeoutMs) {
     if (locations == null || locations.length == 0) {
       return empty();
     } else {
       return new CelebornBufferStream(
-          client, dataClientFactory, shuffleKey, locations, subIndexStart, subIndexEnd);
+          client,
+          dataClientFactory,
+          shuffleKey,
+          locations,
+          subIndexStart,
+          subIndexEnd,
+          pushDataTimeoutMs);
     }
   }
 
@@ -198,12 +209,10 @@ public class CelebornBufferStream {
     }
   }
 
-  public void moveToNextPartitionIfPossible(long endedStreamId) {
-    moveToNextPartitionIfPossible(endedStreamId, null);
-  }
-
   public void moveToNextPartitionIfPossible(
-      long endedStreamId, @Nullable BiConsumer<Long, Integer> requiredSegmentIdConsumer) {
+      long endedStreamId,
+      @Nullable BiConsumer<Long, Integer> requiredSegmentIdConsumer,
+      boolean sync) {
     logger.debug(
         "MoveToNextPartitionIfPossible in this:{},  endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
         this,
@@ -218,7 +227,7 @@ public class CelebornBufferStream {
 
     if (currentLocationIndex.get() < locations.length) {
       try {
-        openStreamInternal(requiredSegmentIdConsumer);
+        openStreamInternal(requiredSegmentIdConsumer, sync);
         logger.debug(
             "MoveToNextPartitionIfPossible after openStream this:{},  endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
             this,
@@ -237,7 +246,8 @@ public class CelebornBufferStream {
    * Open the stream, note that if the openReaderFuture is not null, requiredSegmentIdConsumer will
    * be invoked for every subPartition when open stream success.
    */
-  private void openStreamInternal(@Nullable BiConsumer<Long, Integer> requiredSegmentIdConsumer)
+  private void openStreamInternal(
+      @Nullable BiConsumer<Long, Integer> requiredSegmentIdConsumer, boolean sync)
       throws IOException, InterruptedException {
     this.client =
         clientFactory.createClientWithRetry(
@@ -255,8 +265,7 @@ public class CelebornBufferStream {
                 .setInitialCredit(initialCredit)
                 .build()
                 .toByteArray());
-    client.sendRpc(
-        openStream.toByteBuffer(),
+    RpcResponseCallback rpcResponseCallback =
         new RpcResponseCallback() {
 
           @Override
@@ -313,7 +322,13 @@ public class CelebornBufferStream {
                 NettyUtils.getRemoteAddress(client.getChannel()));
             messageConsumer.accept(new TransportableError(streamId, e));
           }
-        });
+        };
+
+    if (sync) {
+      client.sendRpcSync(openStream.toByteBuffer(), rpcResponseCallback, pushDataTimeoutMs);
+    } else {
+      client.sendRpc(openStream.toByteBuffer(), rpcResponseCallback);
+    }
   }
 
   public TransportClient getClient() {

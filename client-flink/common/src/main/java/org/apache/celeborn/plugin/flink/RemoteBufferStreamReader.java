@@ -87,7 +87,7 @@ public class RemoteBufferStreamReader extends CreditListener {
           client.readBufferedPartition(
               shuffleId, partitionId, subPartitionIndexStart, subPartitionIndexEnd, false);
       bufferStream.open(
-          RemoteBufferStreamReader.this::requestBuffer, initialCredit, messageConsumer);
+          RemoteBufferStreamReader.this::requestBuffer, initialCredit, messageConsumer, false);
     } catch (Exception e) {
       logger.warn("Failed to open stream and report to flink framework. ", e);
       messageConsumer.accept(new TransportableError(0L, e));
@@ -158,6 +158,6 @@ public class RemoteBufferStreamReader extends CreditListener {
   public void onStreamEnd(BufferStreamEnd streamEnd) {
     long streamId = streamEnd.getStreamId();
     logger.debug("Buffer stream reader get stream end for {}", streamId);
-    bufferStream.moveToNextPartitionIfPossible(streamId);
+    bufferStream.moveToNextPartitionIfPossible(streamId, null, false);
   }
 }
