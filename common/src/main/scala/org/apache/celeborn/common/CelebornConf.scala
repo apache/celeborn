@@ -2894,16 +2894,16 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.availableWorker.cache.size")
       .withAlternative("celeborn.availableWorker.cache.size")
       .categories("client")
-      .version("0.3.0")
+      .version("0.6.0")
       .doc("The max cache items count for available worker cache.")
       .intConf
-      .createWithDefault(256)
+      .createWithDefault(8)
 
   val MASTER_AVAILABLE_WORKER_CACHE_CONCURRENCY_LEVEL: ConfigEntry[Int] =
     buildConf("celeborn.master.availableWorker.cache.concurrencyLevel")
       .withAlternative("celeborn.availableWorker.cache.concurrencyLevel")
       .categories("client")
-      .version("0.3.0")
+      .version("0.6.0")
       .doc("The number of write locks to update availableWorker cache.")
       .intConf
       .createWithDefault(32)
@@ -2912,7 +2912,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.availableWorker.cache.expireTime")
       .withAlternative("celeborn.availableWorker.cache.expireTime")
       .categories("client")
-      .version("0.3.0")
+      .version("0.6.0")
       .doc("The time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
