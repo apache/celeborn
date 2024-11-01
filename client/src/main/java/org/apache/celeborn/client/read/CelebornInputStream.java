@@ -159,8 +159,6 @@ public abstract class CelebornInputStream extends InputStream {
     private final boolean enabledReadLocalShuffle;
     private final String localHostAddress;
 
-    private boolean pushReplicateEnabled;
-    private boolean fetchExcludeWorkerOnFailureEnabled;
     private boolean shuffleCompressionEnabled;
     private long fetchExcludedWorkerExpireTimeout;
     private ConcurrentHashMap<String, Long> fetchExcludedWorkers;
@@ -205,8 +203,6 @@ public abstract class CelebornInputStream extends InputStream {
       this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
       this.enabledReadLocalShuffle = conf.enableReadLocalShuffleFile();
       this.localHostAddress = Utils.localHostName(conf);
-      this.pushReplicateEnabled = conf.clientPushReplicateEnabled();
-      this.fetchExcludeWorkerOnFailureEnabled = conf.clientFetchExcludeWorkerOnFailureEnabled();
       this.shuffleCompressionEnabled =
           !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
