@@ -1127,9 +1127,7 @@ private[celeborn] class Master(
       fileCount,
       System.currentTimeMillis(),
       requestId)
-    val unknownWorkers = needCheckedWorkerList.stream()
-      .filter(w => !statusSystem.containsWorker(w))
-      .collect(Collectors.toList[WorkerInfo]())
+    val unknownWorkers = needCheckedWorkerList.asScala.filterNot(statusSystem.containsWorker).asJava
     if (shouldResponse) {
       // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
       // during serialization of HeartbeatFromApplicationResponse
@@ -1418,7 +1416,7 @@ private[celeborn] class Master(
           ",")} and remove ${removeWorkers.map(_.readableAddress).mkString(",")}.\n")
     }
     val unknownExcludedWorkers =
-      (addWorkers ++ removeWorkers).filter(!statusSystem.containsWorker(_))
+      (addWorkers ++ removeWorkers).filterNot(statusSystem.containsWorker)
     if (unknownExcludedWorkers.nonEmpty) {
       sb.append(
         s"Unknown workers ${unknownExcludedWorkers.map(_.readableAddress).mkString(",")}." +
