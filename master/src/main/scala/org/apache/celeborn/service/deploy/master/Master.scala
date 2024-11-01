@@ -1267,7 +1267,7 @@ private[celeborn] class Master(
       new Callable[util.ArrayList[WorkerInfo]]() {
         override def call(): util.ArrayList[WorkerInfo] = {
           val newWorkerList = new util.ArrayList[WorkerInfo](
-            statusSystem.workersMap.values().asScala.filter(worker =>
+            statusSystem.workersMap.values().asScala.toSet.filter(worker =>
               statusSystem.isWorkerAvailable(worker)).asJava)
           newWorkerList
         }
