@@ -318,10 +318,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
     synchronized (workersMap) {
-      String workerId = workerInfo.toUniqueId();
-      if (!workersMap.containsKey(workerId)) {
-        workersMap.put(workerId, workerInfo);
-      }
+      workersMap.putIfAbsent(workerInfo.toUniqueId(), workerInfo);
       shutdownWorkers.remove(workerInfo);
       lostWorkers.remove(workerInfo);
       excludedWorkers.remove(workerInfo);
