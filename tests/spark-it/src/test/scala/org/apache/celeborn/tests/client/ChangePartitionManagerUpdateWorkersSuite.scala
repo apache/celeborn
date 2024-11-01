@@ -122,8 +122,13 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         Array(req),
         lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
     }
-    assert(lifecycleManager.workerSnapshots(shuffleId).size() > 1)
+    assert(
+      lifecycleManager.workerStatusTracker.availableWorkersWithEndpoint.size() + lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint.size() > 1)
+
+    Thread.sleep(5000)
+
     assert(lifecycleManager.workerStatusTracker.availableWorkersWithEndpoint.size() > 1)
+    assert(lifecycleManager.workerSnapshots(shuffleId).size() > 1)
 
     lifecycleManager.stop()
   }
