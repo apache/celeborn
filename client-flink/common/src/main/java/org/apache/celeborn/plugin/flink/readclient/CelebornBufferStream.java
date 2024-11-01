@@ -26,7 +26,6 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
-import com.google.common.util.concurrent.SettableFuture;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +53,7 @@ public class CelebornBufferStream {
   private PartitionLocation[] locations;
   private int subIndexStart;
   private int subIndexEnd;
+  private long pushDataTimeoutMs;
   private TransportClient client;
   private AtomicInteger currentLocationIndex = new AtomicInteger(0);
   private long streamId = 0;
@@ -73,13 +73,15 @@ public class CelebornBufferStream {
       String shuffleKey,
       PartitionLocation[] locations,
       int subIndexStart,
-      int subIndexEnd) {
+      int subIndexEnd,
+      long pushDataTimeoutMs) {
     this.mapShuffleClient = mapShuffleClient;
     this.clientFactory = dataClientFactory;
     this.shuffleKey = shuffleKey;
     this.locations = locations;
     this.subIndexStart = subIndexStart;
     this.subIndexEnd = subIndexEnd;
+    this.pushDataTimeoutMs = pushDataTimeoutMs;
   }
 
   public void open(
@@ -158,12 +160,19 @@ public class CelebornBufferStream {
       String shuffleKey,
       PartitionLocation[] locations,
       int subIndexStart,
-      int subIndexEnd) {
+      int subIndexEnd,
+      long pushDataTimeoutMs) {
     if (locations == null || locations.length == 0) {
       return empty();
     } else {
       return new CelebornBufferStream(
-          client, dataClientFactory, shuffleKey, locations, subIndexStart, subIndexEnd);
+          client,
+          dataClientFactory,
+          shuffleKey,
+          locations,
+          subIndexStart,
+          subIndexEnd,
+          pushDataTimeoutMs);
     }
   }
 
@@ -256,14 +265,7 @@ public class CelebornBufferStream {
                 .setInitialCredit(initialCredit)
                 .build()
                 .toByteArray());
-    final SettableFuture<Void> resultFuture;
-    if (sync) {
-      resultFuture = SettableFuture.create();
-    } else {
-      resultFuture = null;
-    }
-    client.sendRpc(
-        openStream.toByteBuffer(),
+    RpcResponseCallback rpcResponseCallback =
         new RpcResponseCallback() {
 
           @Override
@@ -308,10 +310,6 @@ public class CelebornBufferStream {
                   shuffleKey,
                   NettyUtils.getRemoteAddress(client.getChannel()));
               messageConsumer.accept(new TransportableError(streamId, e));
-            } finally {
-              if (resultFuture != null) {
-                resultFuture.set(null);
-              }
             }
           }
 
@@ -323,18 +321,13 @@ public class CelebornBufferStream {
                 shuffleKey,
                 NettyUtils.getRemoteAddress(client.getChannel()));
             messageConsumer.accept(new TransportableError(streamId, e));
-            if (resultFuture != null) {
-              resultFuture.set(null);
-            }
           }
-        });
+        };
 
     if (sync) {
-      try {
-        resultFuture.get();
-      } catch (Exception e) {
-        throw new IOException("Exception in sendRpcSync to: " + client.getSocketAddress(), e);
-      }
+      client.sendRpcSync(openStream.toByteBuffer(), rpcResponseCallback, pushDataTimeoutMs);
+    } else {
+      client.sendRpc(openStream.toByteBuffer(), rpcResponseCallback);
     }
   }
 
