@@ -172,7 +172,6 @@ private[celeborn] class Master(
   private var checkForApplicationTimeOutTask: ScheduledFuture[_] = _
   private var checkForUnavailableWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForHDFSRemnantDirsTimeOutTask: ScheduledFuture[_] = _
-  private var checkForS3RemnantDirsTimeOutTask: ScheduledFuture[_] = _
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
 
   // Config constants
@@ -312,7 +311,7 @@ private[celeborn] class Master(
       scheduleCheckTask(appHeartbeatTimeoutMs / 2, CheckForApplicationTimeOut)
 
     if (workerUnavailableInfoExpireTimeoutMs > 0) {
-      scheduleCheckTask(
+      checkForUnavailableWorkerTimeOutTask = scheduleCheckTask(
         workerUnavailableInfoExpireTimeoutMs / 2,
         CheckForWorkerUnavailableInfoTimeout)
     }
@@ -352,9 +351,6 @@ private[celeborn] class Master(
     }
     if (checkForHDFSRemnantDirsTimeOutTask != null) {
       checkForHDFSRemnantDirsTimeOutTask.cancel(true)
-    }
-    if (checkForS3RemnantDirsTimeOutTask != null) {
-      checkForS3RemnantDirsTimeOutTask.cancel(true)
     }
     forwardMessageThread.shutdownNow()
     rackResolver.stop()
