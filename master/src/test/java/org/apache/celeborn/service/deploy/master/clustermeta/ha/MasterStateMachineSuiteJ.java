@@ -231,10 +231,12 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     AppDiskUsageSnapShot[] originSnapshots = masterStatusSystem.appDiskUsageMetric.snapShots();
     AppDiskUsageSnapShot originCurrentSnapshot =
         masterStatusSystem.appDiskUsageMetric.currentSnapShot().get();
-
-    masterStatusSystem.workers.add(new WorkerInfo(host1, 9095, 9094, 9093, 9092, 9091));
-    masterStatusSystem.workers.add(new WorkerInfo(host2, 9095, 9094, 9093, 9092, 9091));
-    masterStatusSystem.workers.add(new WorkerInfo(host3, 9095, 9094, 9093, 9092, 9091));
+    WorkerInfo worker1 = new WorkerInfo(host1, 9095, 9094, 9093, 9092, 9091);
+    WorkerInfo worker2 = new WorkerInfo(host2, 9095, 9094, 9093, 9092, 9091);
+    WorkerInfo worker3 = new WorkerInfo(host3, 9095, 9094, 9093, 9092, 9091);
+    masterStatusSystem.workers.put(worker1.toUniqueId(), worker1);
+    masterStatusSystem.workers.put(worker2.toUniqueId(), worker2);
+    masterStatusSystem.workers.put(worker3.toUniqueId(), worker3);
 
     masterStatusSystem.writeMetaInfoToFile(tmpFile);
 

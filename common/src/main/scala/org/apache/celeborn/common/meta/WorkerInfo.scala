@@ -53,6 +53,11 @@ class WorkerInfo(
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](_userResourceConsumption)
     else null
   var endpoint: RpcEndpointRef = null
+  private lazy val uniqueId = s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
+
+  private lazy val address = s"Host:$host:RpcPort:$rpcPort:PushPort:$pushPort:" +
+    s"FetchPort:$fetchPort:ReplicatePort:$replicatePort" +
+    (if (internalPort > 0) s":InternalPort:$internalPort" else "")
 
   def this(
       host: String,
@@ -93,7 +98,7 @@ class WorkerInfo(
     endpoint.asInstanceOf[NettyRpcEndpointRef].client.isActive
   }
 
-  def usedSlots(): Long = this.synchronized {
+  def usedSlots(): Long = {
     // HDFS or OSS do not treat as a used slot
     diskInfos.asScala.map(_._2.activeSlots).sum
   }
@@ -155,13 +160,11 @@ class WorkerInfo(
   }
 
   def readableAddress(): String = {
-    s"Host:$host:RpcPort:$rpcPort:PushPort:$pushPort:" +
-      s"FetchPort:$fetchPort:ReplicatePort:$replicatePort" +
-      (if (internalPort > 0) s":InternalPort:$internalPort" else "")
+    address
   }
 
   def toUniqueId(): String = {
-    s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
+    uniqueId
   }
 
   def slotAvailable(): Boolean = this.synchronized {

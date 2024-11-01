@@ -189,7 +189,7 @@ public class SlotsAllocator {
     WorkerInfo selectedWorker = workers.get(workerIndex);
     StorageInfo storageInfo;
     int diskIndex = workerDiskIndex.computeIfAbsent(selectedWorker, v -> 0);
-    if (restrictions != null) {
+    if (restrictions != null && !restrictions.isEmpty()) {
       List<UsableDiskInfo> usableDiskInfos = restrictions.get(selectedWorker);
       while (usableDiskInfos.get(diskIndex).usableSlots <= 0) {
         diskIndex = (diskIndex + 1) % usableDiskInfos.size();
@@ -445,7 +445,7 @@ public class SlotsAllocator {
 
   private static boolean haveUsableSlots(
       Map<WorkerInfo, List<UsableDiskInfo>> restrictions, List<WorkerInfo> workers, int index) {
-    return restrictions.get(workers.get(index)).stream().mapToLong(i -> i.usableSlots).sum() > 0;
+    return restrictions.get(workers.get(index)).stream().mapToLong(i -> i.usableSlots).anyMatch(i -> i > 0);
   }
 
   private static boolean satisfyRackAware(

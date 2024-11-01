@@ -670,7 +670,7 @@ private[celeborn] class Master(
       workerStatus: WorkerStatus,
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
-    val registered = statusSystem.workers.asScala.contains(targetWorker)
+    val registered = statusSystem.workers.asScala.contains(targetWorker.toUniqueId())
     if (!registered) {
       logWarning(s"Received heartbeat from unknown worker " +
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
@@ -761,10 +761,7 @@ private[celeborn] class Master(
       -1,
       new util.HashMap[String, DiskInfo](),
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]())
-    val worker: WorkerInfo = statusSystem.workers
-      .asScala
-      .find(_ == targetWorker)
-      .orNull
+    val worker: WorkerInfo = statusSystem.workers.get(targetWorker.toUniqueId())
     if (worker == null) {
       logWarning(s"Unknown worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort" +
         s" for WorkerLost handler!")
@@ -911,7 +908,6 @@ private[celeborn] class Master(
     // offer slots
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
-        statusSystem.workers.synchronized {
           if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE) {
             SlotsAllocator.offerSlotsLoadAware(
               selectedWorkers,
@@ -931,7 +927,6 @@ private[celeborn] class Master(
               requestSlots.shouldRackAware,
               requestSlots.availableStorageTypes)
           }
-        }
       }
 
     if (log.isDebugEnabled()) {
@@ -1125,14 +1120,14 @@ private[celeborn] class Master(
       System.currentTimeMillis(),
       requestId)
     // unknown workers will retain in needCheckedWorkerList
-    needCheckedWorkerList.removeAll(statusSystem.workers)
+    needCheckedWorkerList.removeAll(statusSystem.workers.values())
     if (shouldResponse) {
       // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
       // during serialization of HeartbeatFromApplicationResponse
       var availableWorksSentToClient = new util.ArrayList[WorkerInfo]()
       if (needAvailableWorkers) {
         availableWorksSentToClient = new util.ArrayList[WorkerInfo](
-          statusSystem.workers.asScala.filter(worker =>
+          statusSystem.workers.values().asScala.filter(worker =>
             statusSystem.isWorkerAvailable(worker)).asJava)
       }
       var appRelatedShuffles =
@@ -1218,7 +1213,7 @@ private[celeborn] class Master(
   // TODO: Support calculate topN app resource consumption.
   private def computeUserResourceConsumption(
       userIdentifier: UserIdentifier): ResourceConsumption = {
-    val resourceConsumption = statusSystem.workers.asScala.flatMap {
+    val resourceConsumption = statusSystem.workers.values().asScala.flatMap {
       workerInfo => workerInfo.userResourceConsumption.asScala.get(userIdentifier)
     }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
     resourceConsumption
@@ -1252,7 +1247,7 @@ private[celeborn] class Master(
 
   private def workersAvailable(
       tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
-    statusSystem.workers.asScala.filter { w =>
+    statusSystem.workers.values().asScala.filter { w =>
       statusSystem.isWorkerAvailable(w) && !tmpExcludedWorkerList.contains(w)
     }.toList.asJava
   }
@@ -1285,7 +1280,7 @@ private[celeborn] class Master(
   }
 
   private def getWorkers: String = {
-    statusSystem.workers.asScala.mkString("\n")
+    statusSystem.workers.values().asScala.mkString("\n")
   }
 
   override def handleWorkerEvent(

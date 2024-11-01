@@ -70,7 +70,7 @@ class ApplicationHeartbeater(
                 appId,
                 tmpTotalWritten,
                 tmpTotalFileCount,
-                workerStatusTracker.getNeedCheckedWorkers().toList.asJava,
+                workerStatusTracker.getNeedCheckedWorkers().asJava,
                 clientShuffleDynamicResourceEnabled,
                 ZERO_UUID,
                 true)

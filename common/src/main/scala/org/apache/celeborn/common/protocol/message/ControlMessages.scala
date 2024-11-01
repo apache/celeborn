@@ -412,7 +412,7 @@ object ControlMessages extends Logging {
       appId: String,
       totalWritten: Long,
       fileCount: Long,
-      needCheckedWorkerList: util.List[WorkerInfo],
+      needCheckedWorkerList: util.Set[WorkerInfo],
       needAvailableWorkers: Boolean,
       override var requestId: String = ZERO_UUID,
       shouldResponse: Boolean = false) extends MasterRequestMessage

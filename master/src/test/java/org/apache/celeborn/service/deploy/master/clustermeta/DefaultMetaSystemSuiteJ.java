@@ -382,14 +382,14 @@ public class DefaultMetaSystemSuiteJ {
     Map<String, Integer> allocation = new HashMap<>();
     allocation.put("disk1", 5);
     workersToAllocate.put(
-        statusSystem.workers.stream()
+        statusSystem.workers.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .toUniqueId(),
         allocation);
     workersToAllocate.put(
-        statusSystem.workers.stream()
+        statusSystem.workers.values().stream()
             .filter(w -> w.host().equals(HOSTNAME2))
             .findFirst()
             .get()
@@ -399,7 +399,7 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     assertEquals(
         0,
-        statusSystem.workers.stream()
+        statusSystem.workers.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()

@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import scala.Tuple2;
 
@@ -351,9 +352,9 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(3, STATUSSYSTEM2.workers.size());
     Assert.assertEquals(3, STATUSSYSTEM3.workers.size());
 
-    assertWorkers(STATUSSYSTEM1.workers);
-    assertWorkers(STATUSSYSTEM2.workers);
-    assertWorkers(STATUSSYSTEM3.workers);
+    assertWorkers(STATUSSYSTEM1.workers.values().stream().collect(Collectors.toSet()));
+    assertWorkers(STATUSSYSTEM2.workers.values().stream().collect(Collectors.toSet()));
+    assertWorkers(STATUSSYSTEM3.workers.values().stream().collect(Collectors.toSet()));
   }
 
   private void assertWorkers(Set<WorkerInfo> workerInfos) {
@@ -571,21 +572,21 @@ public class RatisMasterStatusSystemSuiteJ {
 
     Assert.assertEquals(
         0,
-        statusSystem.workers.stream()
+        statusSystem.workers.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
         0,
-        statusSystem.workers.stream()
+        statusSystem.workers.values().stream()
             .filter(w -> w.host().equals(HOSTNAME2))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
         0,
-        statusSystem.workers.stream()
+        statusSystem.workers.values().stream()
             .filter(w -> w.host().equals(HOSTNAME3))
             .findFirst()
             .get()
@@ -640,14 +641,14 @@ public class RatisMasterStatusSystemSuiteJ {
     Map<String, Integer> allocations = new HashMap<>();
     allocations.put("disk1", 5);
     workersToAllocate.put(
-        statusSystem.workers.stream()
+        statusSystem.workers.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .toUniqueId(),
         allocations);
     workersToAllocate.put(
-        statusSystem.workers.stream()
+        statusSystem.workers.values().stream()
             .filter(w -> w.host().equals(HOSTNAME2))
             .findFirst()
             .get()
@@ -661,21 +662,21 @@ public class RatisMasterStatusSystemSuiteJ {
 
     Assert.assertEquals(
         0,
-        STATUSSYSTEM1.workers.stream()
+        STATUSSYSTEM1.workers.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
         0,
-        STATUSSYSTEM2.workers.stream()
+        STATUSSYSTEM2.workers.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
         0,
-        STATUSSYSTEM3.workers.stream()
+        STATUSSYSTEM3.workers.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()

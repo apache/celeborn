@@ -64,8 +64,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final Map<String, Set<Integer>> registeredAppAndShuffles =
       JavaUtils.newConcurrentHashMap();
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
-  public final Set<WorkerInfo> workers = ConcurrentHashMap.newKeySet();
-
+  public final Map<String, WorkerInfo> workers = JavaUtils.newConcurrentHashMap();
   public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = JavaUtils.newConcurrentHashMap();
   public final ConcurrentHashMap<WorkerInfo, WorkerEventInfo> workerEventInfos =
       JavaUtils.newConcurrentHashMap();
@@ -171,7 +170,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workerLostEvents.add(worker);
     // remove worker from workers
     synchronized (workers) {
-      workers.remove(worker);
+      workers.remove(worker.toUniqueId());
       lostWorkers.put(worker, System.currentTimeMillis());
     }
     excludedWorkers.remove(worker);
@@ -183,7 +182,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
     // remove worker from workers
     synchronized (workers) {
-      workers.remove(worker);
+      workers.remove(worker.toUniqueId());
       lostWorkers.put(worker, System.currentTimeMillis());
     }
     excludedWorkers.remove(worker);
@@ -219,16 +218,13 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             host, rpcPort, pushPort, fetchPort, replicatePort, -1, disks, userResourceConsumption);
     AtomicLong availableSlots = new AtomicLong();
     LOG.debug("update worker {}:{} heartbeat {}", host, rpcPort, disks);
-    synchronized (workers) {
-      Optional<WorkerInfo> workerInfo = workers.stream().filter(w -> w.equals(worker)).findFirst();
-      workerInfo.ifPresent(
-          info -> {
-            info.updateThenGetDiskInfos(disks, Option.apply(estimatedPartitionSize));
-            info.updateThenGetUserResourceConsumption(userResourceConsumption);
-            availableSlots.set(info.totalAvailableSlots());
-            info.lastHeartbeat_$eq(time);
-            info.setWorkerStatus(workerStatus);
-          });
+    WorkerInfo info = workers.get(worker.toUniqueId());
+    if (info != null) {
+      info.updateThenGetDiskInfos(disks, Option.apply(estimatedPartitionSize));
+      info.updateThenGetUserResourceConsumption(userResourceConsumption);
+      availableSlots.set(info.totalAvailableSlots());
+      info.lastHeartbeat_$eq(time);
+      info.setWorkerStatus(workerStatus);
     }
 
     WorkerEventInfo workerEventInfo = workerEventInfos.get(worker);
@@ -288,8 +284,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
     synchronized (workers) {
-      if (!workers.contains(workerInfo)) {
-        workers.add(workerInfo);
+      if (!workers.containsKey(workerInfo.toUniqueId())) {
+        workers.put(workerInfo.toUniqueId(), workerInfo);
       }
       shutdownWorkers.remove(workerInfo);
       lostWorkers.remove(workerInfo);
@@ -315,7 +311,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 manuallyExcludedWorkers,
                 workerLostEvents,
                 appHeartbeatTime,
-                workers,
+                workers.values().stream().collect(Collectors.toSet()),
                 partitionTotalWritten.sum(),
                 partitionTotalFileCount.sum(),
                 appDiskUsageMetric.snapShots(),
@@ -381,17 +377,15 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
               .collect(Collectors.toList());
       scala.collection.immutable.Map<String, Node> resolveMap =
           rackResolver.resolveToMap(workerHostList);
-      workers.addAll(
-          workerInfoSet.stream()
-              .peek(
-                  workerInfo -> {
-                    // Reset worker's network location with current master's configuration.
-                    if (NetworkTopology.DEFAULT_RACK.equals(workerInfo.networkLocation())) {
-                      workerInfo.networkLocation_$eq(
+      workerInfoSet.stream().forEach(
+              workerInfo -> {
+                // Reset worker's network location with current master's configuration.
+                if (NetworkTopology.DEFAULT_RACK.equals(workerInfo.networkLocation())) {
+                  workerInfo.networkLocation_$eq(
                           resolveMap.get(workerInfo.host()).get().getNetworkLocation());
-                    }
-                  })
-              .collect(Collectors.toSet()));
+                }
+                workers.put(workerInfo.toUniqueId(), workerInfo);
+              });
 
       snapshotMetaInfo
           .getLostWorkersMap()
@@ -441,7 +435,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         registeredAppAndShuffles.size(),
         excludedWorkers.size(),
         manuallyExcludedWorkers.size());
-    workers.forEach(workerInfo -> LOG.info(workerInfo.toString()));
+    workers.values().forEach(workerInfo -> LOG.info(workerInfo.toString()));
     registeredAppAndShuffles.forEach(
         (appId, shuffleId) -> LOG.info("RegisteredShuffle {}-{}", appId, shuffleId));
   }
@@ -520,11 +514,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         "Celeborn cluster estimated partition size changed from {} to {}",
         Utils.bytesToString(oldEstimatedPartitionSize),
         Utils.bytesToString(estimatedPartitionSize));
-    workers.stream()
-        .filter(
-            worker ->
-                !excludedWorkers.contains(worker) && !manuallyExcludedWorkers.contains(worker))
-        .forEach(workerInfo -> workerInfo.updateDiskMaxSlots(estimatedPartitionSize));
   }
 
   public boolean isWorkerAvailable(WorkerInfo workerInfo) {
