@@ -51,18 +51,18 @@ class WorkerResource extends ApiRequestContext {
   @GET
   def workers: WorkersResponse = {
     new WorkersResponse()
-      .workers(statusSystem.getWorkers.asScala.map(ApiUtils.workerData).toSeq.asJava)
-      .lostWorkers(statusSystem.getLostWorkerInfos.asScala.toSeq.sortBy(_._2)
+      .workers(statusSystem.workers.asScala.map(ApiUtils.workerData).toSeq.asJava)
+      .lostWorkers(statusSystem.lostWorkers.asScala.toSeq.sortBy(_._2)
         .map(kv =>
           new WorkerTimestampData().worker(ApiUtils.workerData(kv._1)).timestamp(kv._2)).asJava)
       .excludedWorkers(
-        (statusSystem.getExcludedWorkerInfos.asScala ++ statusSystem.getManuallyExcludedWorkerInfos.asScala)
+        (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala)
           .map(ApiUtils.workerData).toSeq.asJava)
-      .manualExcludedWorkers(statusSystem.getManuallyExcludedWorkerInfos.asScala.map(
+      .manualExcludedWorkers(statusSystem.manuallyExcludedWorkers.asScala.map(
         ApiUtils.workerData).toSeq.asJava)
-      .shutdownWorkers(statusSystem.getShutdownWorkerInfos.asScala.map(
+      .shutdownWorkers(statusSystem.shutdownWorkers.asScala.map(
         ApiUtils.workerData).toSeq.asJava)
-      .decommissioningWorkers(statusSystem.getDecommissionWorkerInfos.asScala.map(
+      .decommissioningWorkers(statusSystem.decommissionWorkers.asScala.map(
         ApiUtils.workerData).toSeq.asJava)
   }
 
@@ -108,7 +108,7 @@ class WorkerResource extends ApiRequestContext {
   @Path("/events")
   def workerEvents(): WorkerEventsResponse = {
     new WorkerEventsResponse().workerEvents(
-      statusSystem.getWorkerEventInfos.asScala.map { case (worker, event) =>
+      statusSystem.workerEventInfos.asScala.map { case (worker, event) =>
         new WorkerEventData()
           .worker(
             ApiUtils.workerData(worker)).event(
@@ -134,7 +134,7 @@ class WorkerResource extends ApiRequestContext {
           s"eventType(${request.getEventType}) and workers(${request.getWorkers}) are required")
       }
       val workers = request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq
-      val (filteredWorkers, unknownWorkers) = workers.partition(statusSystem.containsWorker)
+      val (filteredWorkers, unknownWorkers) = workers.partition(statusSystem.workers.contains)
       if (filteredWorkers.isEmpty) {
         throw new BadRequestException(
           s"None of the workers are known: ${unknownWorkers.map(_.readableAddress).mkString(", ")}")

@@ -27,13 +27,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import scala.Option;
 import scala.Tuple2;
 
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.Node;
 import org.slf4j.Logger;
@@ -66,19 +64,17 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final Map<String, Set<Integer>> registeredAppAndShuffles =
       JavaUtils.newConcurrentHashMap();
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
-  public final ConcurrentHashMap<String, Long> appHeartbeatTime = JavaUtils.newConcurrentHashMap();
+  public final Set<WorkerInfo> workers = ConcurrentHashMap.newKeySet();
 
-  private final Map<String, WorkerInfo> workersMap = JavaUtils.newConcurrentHashMap();
-  private final ConcurrentHashMap<String, WorkerInfo> workerInfoPool =
+  public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = JavaUtils.newConcurrentHashMap();
+  public final ConcurrentHashMap<WorkerInfo, WorkerEventInfo> workerEventInfos =
       JavaUtils.newConcurrentHashMap();
-  private final ConcurrentHashMap<String, Long> lostWorkers = JavaUtils.newConcurrentHashMap();
-  private final ConcurrentHashMap<String, WorkerEventInfo> workerEventInfos =
-      JavaUtils.newConcurrentHashMap();
-  private final Set<String> excludedWorkers = ConcurrentHashMap.newKeySet();
-  private final Set<String> manuallyExcludedWorkers = ConcurrentHashMap.newKeySet();
-  private final Set<String> shutdownWorkers = ConcurrentHashMap.newKeySet();
-  private final Set<String> decommissionWorkers = ConcurrentHashMap.newKeySet();
-  private final Set<String> workerLostEvents = ConcurrentHashMap.newKeySet();
+  public final ConcurrentHashMap<String, Long> appHeartbeatTime = JavaUtils.newConcurrentHashMap();
+  public final Set<WorkerInfo> excludedWorkers = ConcurrentHashMap.newKeySet();
+  public final Set<WorkerInfo> manuallyExcludedWorkers = ConcurrentHashMap.newKeySet();
+  public final Set<WorkerInfo> shutdownWorkers = ConcurrentHashMap.newKeySet();
+  public final Set<WorkerInfo> decommissionWorkers = ConcurrentHashMap.newKeySet();
+  public final Set<WorkerInfo> workerLostEvents = ConcurrentHashMap.newKeySet();
 
   protected RpcEnv rpcEnv;
   protected CelebornConf conf;
@@ -93,134 +89,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
       JavaUtils.newConcurrentHashMap();
-
-  public Collection<WorkerInfo> getWorkers() {
-    return Collections.unmodifiableCollection(workersMap.values());
-  }
-
-  public <T> T synchronizedWorkers(Supplier<T> s) {
-    synchronized (workersMap) {
-      return s.get();
-    }
-  }
-
-  public boolean containsWorker(WorkerInfo worker) {
-    return workersMap.containsKey(worker.toUniqueId());
-  }
-
-  public WorkerInfo getWorker(WorkerInfo worker) {
-    return workersMap.get(worker.toUniqueId());
-  }
-
-  @VisibleForTesting
-  public void updateWorker(WorkerInfo worker) {
-    workersMap.put(worker.toUniqueId(), worker);
-  }
-
-  @VisibleForTesting
-  public void clearWorkers() {
-    workersMap.clear();
-  }
-
-  private WorkerInfo getFromWorkerInfoPool(String workerUniqueId) {
-    return workerInfoPool.computeIfAbsent(workerUniqueId, id -> WorkerInfo.fromUniqueId(id));
-  }
-
-  private void recycleToWorkerInfoPool(String workerUniqueId, WorkerInfo workerInfo) {
-    workerInfoPool.putIfAbsent(workerUniqueId, workerInfo);
-  }
-
-  private void releaseFromWorkerInfoPool(String workerUniqueId) {
-    workerInfoPool.remove(workerUniqueId);
-  }
-
-  public Set<String> getManuallyExcludedWorkerIds() {
-    return Collections.unmodifiableSet(manuallyExcludedWorkers);
-  }
-
-  public Set<WorkerInfo> getManuallyExcludedWorkerInfos() {
-    return manuallyExcludedWorkers.stream()
-        .map(this::getFromWorkerInfoPool)
-        .collect(Collectors.toSet());
-  }
-
-  @VisibleForTesting
-  public void clearManuallyExcludedWorkers() {
-    manuallyExcludedWorkers.clear();
-  }
-
-  public Set<String> getShutdownWorkerIds() {
-    return Collections.unmodifiableSet(shutdownWorkers);
-  }
-
-  public Set<WorkerInfo> getShutdownWorkerInfos() {
-    return shutdownWorkers.stream().map(this::getFromWorkerInfoPool).collect(Collectors.toSet());
-  }
-
-  public Set<String> getDecommissionWorkerIds() {
-    return Collections.unmodifiableSet(decommissionWorkers);
-  }
-
-  public Set<WorkerInfo> getDecommissionWorkerInfos() {
-    return decommissionWorkers.stream()
-        .map(this::getFromWorkerInfoPool)
-        .collect(Collectors.toSet());
-  }
-
-  public Set<WorkerInfo> getWorkerLostEventWorkerInfos() {
-    return workerLostEvents.stream().map(this::getFromWorkerInfoPool).collect(Collectors.toSet());
-  }
-
-  public boolean containsWorkerLostEvent(WorkerInfo workerInfo) {
-    return workerLostEvents.contains(workerInfo.toUniqueId());
-  }
-
-  public void removeWorkerLostEvent(WorkerInfo workerInfo) {
-    workerLostEvents.remove(workerInfo.toUniqueId());
-  }
-
-  @VisibleForTesting
-  public void clearWorkerLostEvents() {
-    workerLostEvents.clear();
-  }
-
-  public Map<String, Long> getLostWorkerIds() {
-    return Collections.unmodifiableMap(lostWorkers);
-  }
-
-  public Map<WorkerInfo, Long> getLostWorkerInfos() {
-    return lostWorkers.entrySet().stream()
-        .collect(
-            Collectors.toMap(entry -> getFromWorkerInfoPool(entry.getKey()), Map.Entry::getValue));
-  }
-
-  public Map<WorkerInfo, WorkerEventInfo> getWorkerEventInfos() {
-    return workerEventInfos.entrySet().stream()
-        .collect(
-            Collectors.toMap(entry -> getFromWorkerInfoPool(entry.getKey()), Map.Entry::getValue));
-  }
-
-  public WorkerEventInfo getWorkerEventInfo(WorkerInfo workerInfo) {
-    return workerEventInfos.get(workerInfo.toUniqueId());
-  }
-
-  public Set<String> getExcludedWorkerIds() {
-    return Collections.unmodifiableSet(excludedWorkers);
-  }
-
-  public Set<WorkerInfo> getExcludedWorkerInfos() {
-    return excludedWorkers.stream().map(this::getFromWorkerInfoPool).collect(Collectors.toSet());
-  }
-
-  @VisibleForTesting
-  public void addExcludedWorker(WorkerInfo workerInfo) {
-    excludedWorkers.add(workerInfo.toUniqueId());
-  }
-
-  @VisibleForTesting
-  public void clearExcludedWorkers() {
-    excludedWorkers.clear();
-  }
 
   public void updateRequestSlotsMeta(
       String shuffleKey, String hostName, Map<String, Map<String, Integer>> workerWithAllocations) {
@@ -285,13 +153,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   public void updateWorkerExcludeMeta(
       List<WorkerInfo> workersToAdd, List<WorkerInfo> workersToRemove) {
-    workersToAdd.forEach(
-        worker -> {
-          String workerId = worker.toUniqueId();
-          recycleToWorkerInfoPool(workerId, worker);
-          manuallyExcludedWorkers.add(workerId);
-        });
-    workersToRemove.forEach(worker -> manuallyExcludedWorkers.remove(worker.toUniqueId()));
+    manuallyExcludedWorkers.addAll(workersToAdd);
+    workersToRemove.forEach(manuallyExcludedWorkers::remove);
   }
 
   public void reviseLostShuffles(String appId, List<Integer> lostShuffles) {
@@ -305,41 +168,35 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public void updateWorkerLostMeta(
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
     WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
-    String workerId = worker.toUniqueId();
-    recycleToWorkerInfoPool(workerId, worker);
-    workerLostEvents.add(workerId);
+    workerLostEvents.add(worker);
     // remove worker from workers
-    synchronized (workersMap) {
-      workersMap.remove(workerId);
-      lostWorkers.put(workerId, System.currentTimeMillis());
+    synchronized (workers) {
+      workers.remove(worker);
+      lostWorkers.put(worker, System.currentTimeMillis());
     }
-    excludedWorkers.remove(workerId);
-    workerLostEvents.remove(workerId);
+    excludedWorkers.remove(worker);
+    workerLostEvents.remove(worker);
   }
 
   public void updateWorkerRemoveMeta(
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
     WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
-    String workerId = worker.toUniqueId();
-    recycleToWorkerInfoPool(workerId, worker);
     // remove worker from workers
-    synchronized (workersMap) {
-      workersMap.remove(workerId);
-      lostWorkers.put(workerId, System.currentTimeMillis());
+    synchronized (workers) {
+      workers.remove(worker);
+      lostWorkers.put(worker, System.currentTimeMillis());
     }
-    excludedWorkers.remove(workerId);
+    excludedWorkers.remove(worker);
   }
 
   public void removeWorkersUnavailableInfoMeta(List<WorkerInfo> unavailableWorkers) {
-    synchronized (workersMap) {
+    synchronized (workers) {
       for (WorkerInfo workerInfo : unavailableWorkers) {
-        String workerId = workerInfo.toUniqueId();
-        if (lostWorkers.containsKey(workerId)) {
-          lostWorkers.remove(workerId);
-          shutdownWorkers.remove(workerId);
-          workerEventInfos.remove(workerId);
-          decommissionWorkers.remove(workerId);
-          releaseFromWorkerInfoPool(workerId);
+        if (lostWorkers.containsKey(workerInfo)) {
+          lostWorkers.remove(workerInfo);
+          shutdownWorkers.remove(workerInfo);
+          workerEventInfos.remove(workerInfo);
+          decommissionWorkers.remove(workerInfo);
         }
       }
     }
@@ -360,11 +217,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     WorkerInfo worker =
         new WorkerInfo(
             host, rpcPort, pushPort, fetchPort, replicatePort, -1, disks, userResourceConsumption);
-    String workerId = worker.toUniqueId();
     AtomicLong availableSlots = new AtomicLong();
     LOG.debug("update worker {}:{} heartbeat {}", host, rpcPort, disks);
-    synchronized (workersMap) {
-      Optional<WorkerInfo> workerInfo = Optional.ofNullable(workersMap.get(workerId));
+    synchronized (workers) {
+      Optional<WorkerInfo> workerInfo = workers.stream().filter(w -> w.equals(worker)).findFirst();
       workerInfo.ifPresent(
           info -> {
             info.updateThenGetDiskInfos(disks, Option.apply(estimatedPartitionSize));
@@ -375,12 +231,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           });
     }
 
-    WorkerEventInfo workerEventInfo = workerEventInfos.get(workerId);
+    WorkerEventInfo workerEventInfo = workerEventInfos.get(worker);
     if (workerEventInfo != null
         && WorkerStatusUtils.meetFinalState(workerEventInfo, workerStatus)) {
-      workerEventInfos.remove(workerId);
+      workerEventInfos.remove(worker);
       if (workerStatus.getState() == PbWorkerStatus.State.Normal) {
-        shutdownWorkers.remove(workerId);
+        shutdownWorkers.remove(worker);
       }
     }
 
@@ -389,17 +245,16 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     long unhealthyDiskNum =
         disks.values().stream().filter(s -> !s.status().equals(DiskStatus.HEALTHY)).count();
     boolean exceed = unhealthyDiskNum * 1.0 / disks.size() >= unhealthyDiskRatioThreshold;
-    if (!excludedWorkers.contains(workerId)
+    if (!excludedWorkers.contains(worker)
         && (((disks.isEmpty() || exceed) && !conf.hasHDFSStorage() && !conf.hasS3Storage())
             || highWorkload)) {
       LOG.warn(
           "Worker {} (unhealthy disks num: {}) adds to excluded workers", worker, unhealthyDiskNum);
-      recycleToWorkerInfoPool(workerId, worker);
-      excludedWorkers.add(workerId);
+      excludedWorkers.add(worker);
     } else if ((availableSlots.get() > 0 || conf.hasHDFSStorage() || conf.hasS3Storage())
         && !highWorkload) {
       // only unblack if numSlots larger than 0
-      excludedWorkers.remove(workerId);
+      excludedWorkers.remove(worker);
     }
   }
 
@@ -423,7 +278,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             internalPort,
             disks,
             userResourceConsumption);
-    String workerId = workerInfo.toUniqueId();
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
     if (networkLocation != null
         && !networkLocation.isEmpty()
@@ -433,15 +287,15 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       workerInfo.networkLocation_$eq(rackResolver.resolve(host).getNetworkLocation());
     }
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
-    synchronized (workersMap) {
-      if (!workersMap.containsKey(workerId)) {
-        workersMap.put(workerId, workerInfo);
+    synchronized (workers) {
+      if (!workers.contains(workerInfo)) {
+        workers.add(workerInfo);
       }
-      shutdownWorkers.remove(workerId);
-      lostWorkers.remove(workerId);
-      excludedWorkers.remove(workerId);
-      workerEventInfos.remove(workerId);
-      decommissionWorkers.remove(workerId);
+      shutdownWorkers.remove(workerInfo);
+      lostWorkers.remove(workerInfo);
+      excludedWorkers.remove(workerInfo);
+      workerEventInfos.remove(workerInfo);
+      decommissionWorkers.remove(workerInfo);
     }
   }
 
@@ -457,20 +311,20 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 estimatedPartitionSize,
                 registeredAppAndShuffles,
                 hostnameSet,
-                getExcludedWorkerInfos(),
-                getManuallyExcludedWorkerInfos(),
-                getWorkerLostEventWorkerInfos(),
+                excludedWorkers,
+                manuallyExcludedWorkers,
+                workerLostEvents,
                 appHeartbeatTime,
-                new HashSet(workersMap.values()),
+                workers,
                 partitionTotalWritten.sum(),
                 partitionTotalFileCount.sum(),
                 appDiskUsageMetric.snapShots(),
                 appDiskUsageMetric.currentSnapShot().get(),
-                getLostWorkerInfos(),
-                getShutdownWorkerInfos(),
-                getWorkerEventInfos(),
+                lostWorkers,
+                shutdownWorkers,
+                workerEventInfos,
                 applicationMetas,
-                getDecommissionWorkerInfos())
+                decommissionWorkers)
             .toByteArray();
     Files.write(file.toPath(), snapshotBytes);
   }
@@ -495,37 +349,18 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             .add((Integer) appIdShuffleId._2);
       }
       hostnameSet.addAll(snapshotMetaInfo.getHostnameSetList());
-
-      Set<WorkerInfo> excludeWorkerInfos =
+      excludedWorkers.addAll(
           snapshotMetaInfo.getExcludedWorkersList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
-              .collect(Collectors.toSet());
-      excludedWorkers.addAll(
-          excludeWorkerInfos.stream().map(WorkerInfo::toUniqueId).collect(Collectors.toSet()));
-      workerInfoPool.putAll(
-          excludeWorkerInfos.stream().collect(Collectors.toMap(WorkerInfo::toUniqueId, w -> w)));
-
-      Set<WorkerInfo> manuallyExcludedWorkerInfos =
+              .collect(Collectors.toSet()));
+      manuallyExcludedWorkers.addAll(
           snapshotMetaInfo.getManuallyExcludedWorkersList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
-              .collect(Collectors.toSet());
-      manuallyExcludedWorkers.addAll(
-          manuallyExcludedWorkerInfos.stream()
-              .map(WorkerInfo::toUniqueId)
               .collect(Collectors.toSet()));
-      workerInfoPool.putAll(
-          manuallyExcludedWorkerInfos.stream()
-              .collect(Collectors.toMap(WorkerInfo::toUniqueId, w -> w)));
-
-      Set<WorkerInfo> workerLostEventInfos =
+      workerLostEvents.addAll(
           snapshotMetaInfo.getWorkerLostEventsList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
-              .collect(Collectors.toSet());
-      workerLostEvents.addAll(
-          workerLostEventInfos.stream().map(WorkerInfo::toUniqueId).collect(Collectors.toSet()));
-      workerInfoPool.putAll(
-          workerLostEventInfos.stream().collect(Collectors.toMap(WorkerInfo::toUniqueId, w -> w)));
-
+              .collect(Collectors.toSet()));
       appHeartbeatTime.putAll(snapshotMetaInfo.getAppHeartbeatTimeMap());
 
       registeredAppAndShuffles.forEach(
@@ -546,7 +381,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
               .collect(Collectors.toList());
       scala.collection.immutable.Map<String, Node> resolveMap =
           rackResolver.resolveToMap(workerHostList);
-      workersMap.putAll(
+      workers.addAll(
           workerInfoSet.stream()
               .peek(
                   workerInfo -> {
@@ -556,43 +391,30 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                           resolveMap.get(workerInfo.host()).get().getNetworkLocation());
                     }
                   })
-              .collect(Collectors.toMap(WorkerInfo::toUniqueId, w -> w)));
+              .collect(Collectors.toSet()));
 
-      lostWorkers.putAll(snapshotMetaInfo.getLostWorkersMap());
-      workerInfoPool.putAll(
-          lostWorkers.keySet().stream()
-              .map(WorkerInfo::fromUniqueId)
-              .collect(Collectors.toMap(WorkerInfo::toUniqueId, w -> w)));
+      snapshotMetaInfo
+          .getLostWorkersMap()
+          .forEach((key, value) -> lostWorkers.put(WorkerInfo.fromUniqueId(key), value));
 
-      workerEventInfos.putAll(
-          snapshotMetaInfo.getWorkerEventInfosMap().entrySet().stream()
-              .collect(
-                  Collectors.toMap(
-                      entry -> entry.getKey(),
-                      entry -> PbSerDeUtils.fromPbWorkerEventInfo(entry.getValue()))));
-      workerInfoPool.putAll(
-          workerEventInfos.keySet().stream()
-              .map(WorkerInfo::fromUniqueId)
-              .collect(Collectors.toMap(WorkerInfo::toUniqueId, w -> w)));
+      snapshotMetaInfo
+          .getWorkerEventInfosMap()
+          .entrySet()
+          .forEach(
+              entry ->
+                  workerEventInfos.put(
+                      WorkerInfo.fromUniqueId(entry.getKey()),
+                      PbSerDeUtils.fromPbWorkerEventInfo(entry.getValue())));
 
-      Set<WorkerInfo> shutdownWorkerInfos =
+      shutdownWorkers.addAll(
           snapshotMetaInfo.getShutdownWorkersList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
-              .collect(Collectors.toSet());
-      shutdownWorkers.addAll(
-          shutdownWorkerInfos.stream().map(WorkerInfo::toUniqueId).collect(Collectors.toSet()));
-      workerInfoPool.putAll(
-          shutdownWorkerInfos.stream().collect(Collectors.toMap(WorkerInfo::toUniqueId, w -> w)));
+              .collect(Collectors.toSet()));
 
-      Set<WorkerInfo> decommissionWorkerInfos =
+      decommissionWorkers.addAll(
           snapshotMetaInfo.getDecommissionWorkersList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
-              .collect(Collectors.toSet());
-      decommissionWorkers.addAll(
-          decommissionWorkerInfos.stream().map(WorkerInfo::toUniqueId).collect(Collectors.toSet()));
-      workerInfoPool.putAll(
-          decommissionWorkerInfos.stream()
-              .collect(Collectors.toMap(WorkerInfo::toUniqueId, w -> w)));
+              .collect(Collectors.toSet()));
 
       partitionTotalWritten.add(snapshotMetaInfo.getPartitionTotalWritten());
       partitionTotalFileCount.add(snapshotMetaInfo.getPartitionTotalFileCount());
@@ -615,11 +437,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     LOG.info("Successfully restore meta info from snapshot {}", file.getAbsolutePath());
     LOG.info(
         "Worker size: {}, Registered shuffle size: {}. Worker excluded list size: {}. Manually Excluded list size: {}",
-        workersMap.size(),
+        workers.size(),
         registeredAppAndShuffles.size(),
         excludedWorkers.size(),
         manuallyExcludedWorkers.size());
-    workersMap.values().forEach(workerInfo -> LOG.info(workerInfo.toString()));
+    workers.forEach(workerInfo -> LOG.info(workerInfo.toString()));
     registeredAppAndShuffles.forEach(
         (appId, shuffleId) -> LOG.info("RegisteredShuffle {}-{}", appId, shuffleId));
   }
@@ -627,8 +449,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   private void cleanUpState() {
     registeredAppAndShuffles.clear();
     hostnameSet.clear();
-    workersMap.clear();
-    workerInfoPool.clear();
+    workers.clear();
     lostWorkers.clear();
     appHeartbeatTime.clear();
     excludedWorkers.clear();
@@ -643,13 +464,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateMetaByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
-    synchronized (this.workersMap) {
-      failedWorkers.forEach(
-          worker -> {
-            String workerId = worker.toUniqueId();
-            recycleToWorkerInfoPool(workerId, worker);
-            shutdownWorkers.add(workerId);
-          });
+    synchronized (this.workers) {
+      shutdownWorkers.addAll(failedWorkers);
     }
   }
 
@@ -657,17 +473,15 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     long eventTime = System.currentTimeMillis();
     ResourceProtos.WorkerEventType eventType =
         ResourceProtos.WorkerEventType.forNumber(workerEventTypeValue);
-    synchronized (this.workersMap) {
+    synchronized (this.workers) {
       for (WorkerInfo workerInfo : workerInfoList) {
-        String workerId = workerInfo.toUniqueId();
-        WorkerEventInfo workerEventInfo = workerEventInfos.get(workerId);
-        LOG.info("Received worker event: {} for worker: {}", eventType, workerId);
+        WorkerEventInfo workerEventInfo = workerEventInfos.get(workerInfo);
+        LOG.info("Received worker event: {} for worker: {}", eventType, workerInfo.toUniqueId());
         if (workerEventInfo == null || !workerEventInfo.isSameEvent(eventType.getNumber())) {
           if (eventType == ResourceProtos.WorkerEventType.None) {
-            workerEventInfos.remove(workerId);
+            workerEventInfos.remove(workerInfo);
           } else {
-            recycleToWorkerInfoPool(workerId, workerInfo);
-            workerEventInfos.put(workerId, new WorkerEventInfo(eventType.getNumber(), eventTime));
+            workerEventInfos.put(workerInfo, new WorkerEventInfo(eventType.getNumber(), eventTime));
           }
         }
       }
@@ -675,13 +489,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateMetaByReportWorkerDecommission(List<WorkerInfo> workers) {
-    synchronized (this.workersMap) {
-      workers.forEach(
-          worker -> {
-            String workerId = worker.toUniqueId();
-            recycleToWorkerInfoPool(workerId, worker);
-            decommissionWorkers.add(workerId);
-          });
+    synchronized (this.workers) {
+      decommissionWorkers.addAll(workers);
     }
   }
 
@@ -711,23 +520,19 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         "Celeborn cluster estimated partition size changed from {} to {}",
         Utils.bytesToString(oldEstimatedPartitionSize),
         Utils.bytesToString(estimatedPartitionSize));
-    workersMap.values().stream()
+    workers.stream()
         .filter(
-            worker -> {
-              String workerId = worker.toUniqueId();
-              return !excludedWorkers.contains(workerId)
-                  && !manuallyExcludedWorkers.contains(workerId);
-            })
+            worker ->
+                !excludedWorkers.contains(worker) && !manuallyExcludedWorkers.contains(worker))
         .forEach(workerInfo -> workerInfo.updateDiskMaxSlots(estimatedPartitionSize));
   }
 
   public boolean isWorkerAvailable(WorkerInfo workerInfo) {
-    String workerId = workerInfo.toUniqueId();
-    return (workerInfo.getWorkerStatus().getState() == PbWorkerStatus.State.Normal
-            && !workerEventInfos.containsKey(workerId))
-        && !excludedWorkers.contains(workerId)
-        && !shutdownWorkers.contains(workerId)
-        && !manuallyExcludedWorkers.contains(workerId);
+    return !excludedWorkers.contains(workerInfo)
+        && !shutdownWorkers.contains(workerInfo)
+        && !manuallyExcludedWorkers.contains(workerInfo)
+        && (!workerEventInfos.containsKey(workerInfo)
+            && workerInfo.getWorkerStatus().getState() == PbWorkerStatus.State.Normal);
   }
 
   public void updateApplicationMeta(ApplicationMeta applicationMeta) {

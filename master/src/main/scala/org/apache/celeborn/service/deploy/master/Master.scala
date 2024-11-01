@@ -20,10 +20,10 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
-import java.util.{Collections, List => JList, Map => JMap}
+import java.util.Collections
 import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.function.{Supplier, ToLongFunction}
+import java.util.function.ToLongFunction
 
 import scala.collection.JavaConverters._
 import scala.util.Random
@@ -227,25 +227,25 @@ private[celeborn] class Master(
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
     statusSystem.registeredShuffleCount
   }
-  masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.getWorkers.size }
-  masterSource.addGauge(MasterSource.LOST_WORKER_COUNT) { () => statusSystem.getLostWorkerIds.size }
+  masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.workers.size }
+  masterSource.addGauge(MasterSource.LOST_WORKER_COUNT) { () => statusSystem.lostWorkers.size }
   masterSource.addGauge(MasterSource.EXCLUDED_WORKER_COUNT) { () =>
-    statusSystem.getExcludedWorkerIds.size + statusSystem.getManuallyExcludedWorkerIds().size
+    statusSystem.excludedWorkers.size + statusSystem.manuallyExcludedWorkers.size
   }
   masterSource.addGauge(MasterSource.AVAILABLE_WORKER_COUNT) { () =>
-    statusSystem.getWorkers.asScala.count { w =>
+    statusSystem.workers.asScala.count { w =>
       statusSystem.isWorkerAvailable(w)
     }
   }
   masterSource.addGauge(MasterSource.SHUTDOWN_WORKER_COUNT) { () =>
-    statusSystem.getShutdownWorkerIds.size
+    statusSystem.shutdownWorkers.size
   }
   masterSource.addGauge(MasterSource.RUNNING_APPLICATION_COUNT) { () =>
     statusSystem.appHeartbeatTime.size
   }
   masterSource.addGauge(MasterSource.PARTITION_SIZE) { () => statusSystem.estimatedPartitionSize }
   masterSource.addGauge(MasterSource.ACTIVE_SHUFFLE_SIZE) { () =>
-    statusSystem.getWorkers.parallelStream()
+    statusSystem.workers.parallelStream()
       .mapToLong(new ToLongFunction[WorkerInfo]() {
         override def applyAsLong(value: WorkerInfo): Long =
           value.userResourceConsumption.values().parallelStream()
@@ -255,7 +255,7 @@ private[celeborn] class Master(
       }).sum()
   }
   masterSource.addGauge(MasterSource.ACTIVE_SHUFFLE_FILE_COUNT) { () =>
-    statusSystem.getWorkers.parallelStream()
+    statusSystem.workers.parallelStream()
       .mapToLong(new ToLongFunction[WorkerInfo]() {
         override def applyAsLong(value: WorkerInfo): Long =
           value.userResourceConsumption.values().parallelStream()
@@ -266,17 +266,17 @@ private[celeborn] class Master(
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_TOTAL_CAPACITY) { () =>
-    statusSystem.getWorkers.asScala.toList.map(_.totalSpace()).sum
+    statusSystem.workers.asScala.toList.map(_.totalSpace()).sum
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_FREE_CAPACITY) { () =>
-    statusSystem.getWorkers.asScala.toList.map(_.totalActualUsableSpace()).sum
+    statusSystem.workers.asScala.toList.map(_.totalActualUsableSpace()).sum
   }
 
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
 
   masterSource.addGauge(MasterSource.DECOMMISSION_WORKER_COUNT) { () =>
-    statusSystem.getDecommissionWorkerIds.size()
+    statusSystem.decommissionWorkers.size()
   }
 
   private val threadsStarted: AtomicBoolean = new AtomicBoolean(false)
@@ -599,9 +599,9 @@ private[celeborn] class Master(
       return
     }
 
-    statusSystem.getWorkers.asScala.foreach { worker =>
+    statusSystem.workers.asScala.foreach { worker =>
       if (worker.lastHeartbeat < currentTime - workerHeartbeatTimeoutMs
-        && !statusSystem.containsWorkerLostEvent(worker)) {
+        && !statusSystem.workerLostEvents.contains(worker)) {
         logWarning(s"Worker ${worker.readableAddress()} timeout! Trigger WorkerLost event.")
         // trigger WorkerLost event
         self.send(WorkerLost(
@@ -622,7 +622,7 @@ private[celeborn] class Master(
       return
     }
 
-    val unavailableInfoTimeoutWorkers = statusSystem.getLostWorkerInfos.asScala.filter {
+    val unavailableInfoTimeoutWorkers = statusSystem.lostWorkers.asScala.filter {
       case (_, lostTime) => currentTime - lostTime > workerUnavailableInfoExpireTimeoutMs
     }.keySet.toSeq
 
@@ -638,18 +638,18 @@ private[celeborn] class Master(
     if (HAHelper.getAppTimeoutDeadline(statusSystem) > currentTime) {
       return
     }
-    statusSystem.appHeartbeatTime.asScala.foreach { case (appId, heartbeatTime) =>
-      if (heartbeatTime < currentTime - appHeartbeatTimeoutMs) {
-        logWarning(s"Application $appId timeout, trigger applicationLost event.")
+    statusSystem.appHeartbeatTime.keySet().asScala.foreach { key =>
+      if (statusSystem.appHeartbeatTime.get(key) < currentTime - appHeartbeatTimeoutMs) {
+        logWarning(s"Application $key timeout, trigger applicationLost event.")
         val requestId = MasterClient.genRequestId()
-        var res = self.askSync[ApplicationLostResponse](ApplicationLost(appId, requestId))
+        var res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
         var retry = 1
         while (res.status != StatusCode.SUCCESS && retry <= 3) {
-          res = self.askSync[ApplicationLostResponse](ApplicationLost(appId, requestId))
+          res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
           retry += 1
         }
         if (retry > 3) {
-          logWarning(s"Handle ApplicationLost event for $appId failed more than 3 times!")
+          logWarning(s"Handle ApplicationLost event for $key failed more than 3 times!")
         }
       }
     }
@@ -670,7 +670,7 @@ private[celeborn] class Master(
       workerStatus: WorkerStatus,
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
-    val registered = statusSystem.containsWorker(targetWorker)
+    val registered = statusSystem.workers.asScala.contains(targetWorker)
     if (!registered) {
       logWarning(s"Received heartbeat from unknown worker " +
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
@@ -703,7 +703,7 @@ private[celeborn] class Master(
     logDebug(
       s"Shuffle ${expiredShuffleKeys.asScala.mkString("[", " ,", "]")} expired on ${targetWorker.toUniqueId()}.")
 
-    val workerEventInfo = statusSystem.getWorkerEventInfo(targetWorker)
+    val workerEventInfo = statusSystem.workerEventInfos.get(targetWorker)
     if (workerEventInfo == null) {
       context.reply(HeartbeatFromWorkerResponse(
         expiredShuffleKeys,
@@ -761,7 +761,10 @@ private[celeborn] class Master(
       -1,
       new util.HashMap[String, DiskInfo](),
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]())
-    val worker: WorkerInfo = statusSystem.getWorker(targetWorker)
+    val worker: WorkerInfo = statusSystem.workers
+      .asScala
+      .find(_ == targetWorker)
+      .orNull
     if (worker == null) {
       logWarning(s"Unknown worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort" +
         s" for WorkerLost handler!")
@@ -806,7 +809,7 @@ private[celeborn] class Master(
       return
     }
 
-    if (statusSystem.containsWorker(workerToRegister)) {
+    if (statusSystem.workers.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")
       statusSystem.handleRegisterWorker(
@@ -821,10 +824,10 @@ private[celeborn] class Master(
         userResourceConsumption,
         requestId)
       context.reply(RegisterWorkerResponse(true, "Worker in snapshot, re-register."))
-    } else if (statusSystem.containsWorkerLostEvent(workerToRegister)) {
+    } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker $workerToRegister " +
         s"in workerLostEvents.")
-      statusSystem.removeWorkerLostEvent(workerToRegister)
+      statusSystem.workerLostEvents.remove(workerToRegister)
       statusSystem.handleRegisterWorker(
         host,
         rpcPort,
@@ -908,32 +911,27 @@ private[celeborn] class Master(
     // offer slots
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
-        statusSystem.synchronizedWorkers(new Supplier[JMap[
-          WorkerInfo,
-          Tuple2[JList[PartitionLocation], JList[PartitionLocation]]]] {
-          override def get()
-              : JMap[WorkerInfo, (JList[PartitionLocation], JList[PartitionLocation])] = {
-            if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE) {
-              SlotsAllocator.offerSlotsLoadAware(
-                selectedWorkers,
-                requestSlots.partitionIdList,
-                requestSlots.shouldReplicate,
-                requestSlots.shouldRackAware,
-                slotsAssignLoadAwareDiskGroupNum,
-                slotsAssignLoadAwareDiskGroupGradient,
-                loadAwareFlushTimeWeight,
-                loadAwareFetchTimeWeight,
-                requestSlots.availableStorageTypes)
-            } else {
-              SlotsAllocator.offerSlotsRoundRobin(
-                selectedWorkers,
-                requestSlots.partitionIdList,
-                requestSlots.shouldReplicate,
-                requestSlots.shouldRackAware,
-                requestSlots.availableStorageTypes)
-            }
+        statusSystem.workers.synchronized {
+          if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE) {
+            SlotsAllocator.offerSlotsLoadAware(
+              selectedWorkers,
+              requestSlots.partitionIdList,
+              requestSlots.shouldReplicate,
+              requestSlots.shouldRackAware,
+              slotsAssignLoadAwareDiskGroupNum,
+              slotsAssignLoadAwareDiskGroupGradient,
+              loadAwareFlushTimeWeight,
+              loadAwareFetchTimeWeight,
+              requestSlots.availableStorageTypes)
+          } else {
+            SlotsAllocator.offerSlotsRoundRobin(
+              selectedWorkers,
+              requestSlots.partitionIdList,
+              requestSlots.shouldReplicate,
+              requestSlots.shouldRackAware,
+              requestSlots.availableStorageTypes)
           }
-        })
+        }
       }
 
     if (log.isDebugEnabled()) {
@@ -1048,7 +1046,7 @@ private[celeborn] class Master(
       failedWorkers: util.List[WorkerInfo],
       requestId: String): Unit = {
     logInfo(s"Receive ReportNodeFailure $failedWorkers, current excluded workers" +
-      s"${statusSystem.getExcludedWorkerIds}")
+      s"${statusSystem.excludedWorkers}")
     statusSystem.handleReportWorkerUnavailable(failedWorkers, requestId)
     context.reply(OneWayMessageResponse)
   }
@@ -1058,7 +1056,7 @@ private[celeborn] class Master(
       workers: util.List[WorkerInfo],
       requestId: String): Unit = {
     logInfo(s"Receive ReportWorkerDecommission $workers, current decommission workers" +
-      s"${statusSystem.getExcludedWorkerIds}")
+      s"${statusSystem.excludedWorkers}")
     statusSystem.handleReportWorkerDecommission(workers, requestId)
     context.reply(OneWayMessageResponse)
   }
@@ -1127,25 +1125,25 @@ private[celeborn] class Master(
       System.currentTimeMillis(),
       requestId)
     // unknown workers will retain in needCheckedWorkerList
-    needCheckedWorkerList.removeAll(statusSystem.getWorkers)
+    needCheckedWorkerList.removeAll(statusSystem.workers)
     if (shouldResponse) {
       // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
       // during serialization of HeartbeatFromApplicationResponse
       var availableWorksSentToClient = new util.ArrayList[WorkerInfo]()
       if (needAvailableWorkers) {
         availableWorksSentToClient = new util.ArrayList[WorkerInfo](
-          statusSystem.getWorkers.asScala.filter(worker =>
-            statusSystem.isWorkerAvailable(worker)).toList.asJava)
+          statusSystem.workers.asScala.filter(worker =>
+            statusSystem.isWorkerAvailable(worker)).asJava)
       }
       var appRelatedShuffles =
         statusSystem.registeredAppAndShuffles.getOrDefault(appId, Collections.emptySet())
       context.reply(HeartbeatFromApplicationResponse(
         StatusCode.SUCCESS,
         new util.ArrayList(
-          (statusSystem.getExcludedWorkerInfos.asScala ++ statusSystem.getManuallyExcludedWorkerInfos.asScala).asJava),
+          (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).asJava),
         needCheckedWorkerList,
         new util.ArrayList[WorkerInfo](
-          (statusSystem.getShutdownWorkerInfos.asScala ++ statusSystem.getDecommissionWorkerInfos.asScala).asJava),
+          (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava),
         availableWorksSentToClient,
         new util.ArrayList(appRelatedShuffles)))
     } else {
@@ -1219,7 +1217,7 @@ private[celeborn] class Master(
   // TODO: Support calculate topN app resource consumption.
   private def computeUserResourceConsumption(
       userIdentifier: UserIdentifier): ResourceConsumption = {
-    val resourceConsumption = statusSystem.getWorkers.asScala.flatMap {
+    val resourceConsumption = statusSystem.workers.asScala.flatMap {
       workerInfo => workerInfo.userResourceConsumption.asScala.get(userIdentifier)
     }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
     resourceConsumption
@@ -1253,7 +1251,7 @@ private[celeborn] class Master(
 
   private def workersAvailable(
       tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
-    statusSystem.getWorkers.asScala.filter { w =>
+    statusSystem.workers.asScala.filter { w =>
       statusSystem.isWorkerAvailable(w) && !tmpExcludedWorkerList.contains(w)
     }.toList.asJava
   }
@@ -1286,7 +1284,7 @@ private[celeborn] class Master(
   }
 
   private def getWorkers: String = {
-    statusSystem.getWorkers.asScala.mkString("\n")
+    statusSystem.workers.asScala.mkString("\n")
   }
 
   override def handleWorkerEvent(
@@ -1327,8 +1325,8 @@ private[celeborn] class Master(
   override def getLostWorkers: String = {
     val sb = new StringBuilder
     sb.append("======================= Lost Workers in Master ========================\n")
-    statusSystem.getLostWorkerIds.asScala.toSeq.sortBy(_._2).foreach { case (workerId, time) =>
-      sb.append(s"${workerId.padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
+    statusSystem.lostWorkers.asScala.toSeq.sortBy(_._2).foreach { case (worker, time) =>
+      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
     }
     sb.toString()
   }
@@ -1336,8 +1334,8 @@ private[celeborn] class Master(
   override def getShutdownWorkers: String = {
     val sb = new StringBuilder
     sb.append("===================== Shutdown Workers in Master ======================\n")
-    statusSystem.getShutdownWorkerIds.asScala.foreach { worker =>
-      sb.append(s"$worker\n")
+    statusSystem.shutdownWorkers.asScala.foreach { worker =>
+      sb.append(s"${worker.toUniqueId()}\n")
     }
     sb.toString()
   }
@@ -1345,8 +1343,8 @@ private[celeborn] class Master(
   override def getDecommissionWorkers: String = {
     val sb = new StringBuilder
     sb.append("===================== Decommission Workers in Master ======================\n")
-    statusSystem.getDecommissionWorkerIds.asScala.foreach { worker =>
-      sb.append(s"$worker\n")
+    statusSystem.decommissionWorkers.asScala.foreach { worker =>
+      sb.append(s"${worker.toUniqueId()}\n")
     }
     sb.toString()
   }
@@ -1354,8 +1352,8 @@ private[celeborn] class Master(
   override def getExcludedWorkers: String = {
     val sb = new StringBuilder
     sb.append("===================== Excluded Workers in Master ======================\n")
-    (statusSystem.getExcludedWorkerIds.asScala ++ statusSystem.getManuallyExcludedWorkerIds.asScala).foreach {
-      worker => sb.append(s"$worker\n")
+    (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).foreach {
+      worker => sb.append(s"${worker.toUniqueId()}\n")
     }
     sb.toString()
   }
@@ -1415,11 +1413,11 @@ private[celeborn] class Master(
           ",")} and remove ${removeWorkers.map(_.readableAddress).mkString(",")}.\n")
     }
     val unknownExcludedWorkers =
-      (addWorkers ++ removeWorkers).filter(!statusSystem.containsWorker(_))
+      (addWorkers ++ removeWorkers).filter(!statusSystem.workers.contains(_))
     if (unknownExcludedWorkers.nonEmpty) {
       sb.append(
         s"Unknown workers ${unknownExcludedWorkers.map(_.readableAddress).mkString(",")}." +
-          s" Currently total ${statusSystem.getManuallyExcludedWorkerIds.size()}" +
+          s" Currently total ${statusSystem.manuallyExcludedWorkers.size()}" +
           s" workers excluded manually in Master.")
     }
     workerExcludeResponse.getSuccess -> sb.toString()
@@ -1498,7 +1496,7 @@ private[celeborn] class Master(
   override def getWorkerEventInfo(): String = {
     val sb = new StringBuilder
     sb.append("======================= Workers Event in Master ========================\n")
-    statusSystem.getWorkerEventInfos.asScala.foreach { case (worker, workerEventInfo) =>
+    statusSystem.workerEventInfos.asScala.foreach { case (worker, workerEventInfo) =>
       sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}$workerEventInfo\n")
     }
     sb.toString()
