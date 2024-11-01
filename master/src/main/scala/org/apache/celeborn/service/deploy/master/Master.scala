@@ -24,7 +24,6 @@ import java.util.{Collections, List => JList, Map => JMap}
 import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.{Supplier, ToLongFunction}
-import java.util.stream.Collectors
 
 import scala.collection.JavaConverters._
 import scala.util.Random
