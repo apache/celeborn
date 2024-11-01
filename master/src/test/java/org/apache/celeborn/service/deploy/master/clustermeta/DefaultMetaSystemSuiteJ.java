@@ -157,7 +157,7 @@ public class DefaultMetaSystemSuiteJ {
         userResourceConsumption3,
         getNewReqeustId());
 
-    assertEquals(3, statusSystem.workers.size());
+    assertEquals(3, statusSystem.workersMap.size());
   }
 
   @Test
@@ -253,7 +253,7 @@ public class DefaultMetaSystemSuiteJ {
 
     statusSystem.handleWorkerLost(
         HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId());
-    assertEquals(2, statusSystem.workers.size());
+    assertEquals(2, statusSystem.workersMap.size());
   }
 
   private static final String APPID1 = "appId1";
@@ -376,20 +376,20 @@ public class DefaultMetaSystemSuiteJ {
         userResourceConsumption3,
         getNewReqeustId());
 
-    assertEquals(3, statusSystem.workers.size());
+    assertEquals(3, statusSystem.workersMap.size());
 
     Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocation = new HashMap<>();
     allocation.put("disk1", 5);
     workersToAllocate.put(
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .toUniqueId(),
         allocation);
     workersToAllocate.put(
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME2))
             .findFirst()
             .get()
@@ -399,7 +399,7 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     assertEquals(
         0,
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()

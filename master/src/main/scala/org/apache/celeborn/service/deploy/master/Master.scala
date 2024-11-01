@@ -224,13 +224,13 @@ private[celeborn] class Master(
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
     statusSystem.registeredShuffleCount
   }
-  masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.workers.size }
+  masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.workersMap.size }
   masterSource.addGauge(MasterSource.LOST_WORKER_COUNT) { () => statusSystem.lostWorkers.size }
   masterSource.addGauge(MasterSource.EXCLUDED_WORKER_COUNT) { () =>
     statusSystem.excludedWorkers.size + statusSystem.manuallyExcludedWorkers.size
   }
   masterSource.addGauge(MasterSource.AVAILABLE_WORKER_COUNT) { () =>
-    statusSystem.workers.asScala.count { w =>
+    statusSystem.workersMap.values().asScala.count { w =>
       statusSystem.isWorkerAvailable(w)
     }
   }
@@ -242,7 +242,7 @@ private[celeborn] class Master(
   }
   masterSource.addGauge(MasterSource.PARTITION_SIZE) { () => statusSystem.estimatedPartitionSize }
   masterSource.addGauge(MasterSource.ACTIVE_SHUFFLE_SIZE) { () =>
-    statusSystem.workers.parallelStream()
+    statusSystem.workersMap.values().parallelStream()
       .mapToLong(new ToLongFunction[WorkerInfo]() {
         override def applyAsLong(value: WorkerInfo): Long =
           value.userResourceConsumption.values().parallelStream()
@@ -252,7 +252,7 @@ private[celeborn] class Master(
       }).sum()
   }
   masterSource.addGauge(MasterSource.ACTIVE_SHUFFLE_FILE_COUNT) { () =>
-    statusSystem.workers.parallelStream()
+    statusSystem.workersMap.values().parallelStream()
       .mapToLong(new ToLongFunction[WorkerInfo]() {
         override def applyAsLong(value: WorkerInfo): Long =
           value.userResourceConsumption.values().parallelStream()
@@ -263,11 +263,11 @@ private[celeborn] class Master(
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_TOTAL_CAPACITY) { () =>
-    statusSystem.workers.asScala.toList.map(_.totalSpace()).sum
+    statusSystem.workersMap.values().asScala.toList.map(_.totalSpace()).sum
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_FREE_CAPACITY) { () =>
-    statusSystem.workers.asScala.toList.map(_.totalActualUsableSpace()).sum
+    statusSystem.workersMap.values().asScala.toList.map(_.totalActualUsableSpace()).sum
   }
 
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
@@ -596,7 +596,7 @@ private[celeborn] class Master(
       return
     }
 
-    statusSystem.workers.asScala.foreach { worker =>
+    statusSystem.workersMap.values().asScala.foreach { worker =>
       if (worker.lastHeartbeat < currentTime - workerHeartbeatTimeoutMs
         && !statusSystem.workerLostEvents.contains(worker)) {
         logWarning(s"Worker ${worker.readableAddress()} timeout! Trigger WorkerLost event.")
@@ -635,18 +635,18 @@ private[celeborn] class Master(
     if (HAHelper.getAppTimeoutDeadline(statusSystem) > currentTime) {
       return
     }
-    statusSystem.appHeartbeatTime.keySet().asScala.foreach { key =>
-      if (statusSystem.appHeartbeatTime.get(key) < currentTime - appHeartbeatTimeoutMs) {
-        logWarning(s"Application $key timeout, trigger applicationLost event.")
+    statusSystem.appHeartbeatTime.asScala.foreach { case (appId, heartbeatTime) =>
+      if (heartbeatTime < currentTime - appHeartbeatTimeoutMs) {
+        logWarning(s"Application $appId timeout, trigger applicationLost event.")
         val requestId = MasterClient.genRequestId()
-        var res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
+        var res = self.askSync[ApplicationLostResponse](ApplicationLost(appId, requestId))
         var retry = 1
         while (res.status != StatusCode.SUCCESS && retry <= 3) {
-          res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
+          res = self.askSync[ApplicationLostResponse](ApplicationLost(appId, requestId))
           retry += 1
         }
         if (retry > 3) {
-          logWarning(s"Handle ApplicationLost event for $key failed more than 3 times!")
+          logWarning(s"Handle ApplicationLost event for $appId failed more than 3 times!")
         }
       }
     }
@@ -667,7 +667,7 @@ private[celeborn] class Master(
       workerStatus: WorkerStatus,
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
-    val registered = statusSystem.workers.asScala.contains(targetWorker)
+    val registered = statusSystem.workersMap.containsKey(targetWorker.toUniqueId())
     if (!registered) {
       logWarning(s"Received heartbeat from unknown worker " +
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
@@ -758,10 +758,7 @@ private[celeborn] class Master(
       -1,
       new util.HashMap[String, DiskInfo](),
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]())
-    val worker: WorkerInfo = statusSystem.workers
-      .asScala
-      .find(_ == targetWorker)
-      .orNull
+    val worker: WorkerInfo = statusSystem.workersMap.get(targetWorker.toUniqueId())
     if (worker == null) {
       logWarning(s"Unknown worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort" +
         s" for WorkerLost handler!")
@@ -806,7 +803,7 @@ private[celeborn] class Master(
       return
     }
 
-    if (statusSystem.workers.contains(workerToRegister)) {
+    if (statusSystem.workersMap.containsKey(workerToRegister.toUniqueId())) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")
       statusSystem.handleRegisterWorker(
@@ -908,7 +905,7 @@ private[celeborn] class Master(
     // offer slots
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
-        statusSystem.workers.synchronized {
+        statusSystem.workersMap.synchronized {
           if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE) {
             SlotsAllocator.offerSlotsLoadAware(
               selectedWorkers,
@@ -1121,24 +1118,24 @@ private[celeborn] class Master(
       fileCount,
       System.currentTimeMillis(),
       requestId)
-    // unknown workers will retain in needCheckedWorkerList
-    needCheckedWorkerList.removeAll(statusSystem.workers)
+    val unknownWorkers = needCheckedWorkerList.asScala.filterNot(w =>
+      statusSystem.workersMap.containsKey(w.toUniqueId())).asJava
     if (shouldResponse) {
       // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
       // during serialization of HeartbeatFromApplicationResponse
       var availableWorksSentToClient = new util.ArrayList[WorkerInfo]()
       if (needAvailableWorkers) {
         availableWorksSentToClient = new util.ArrayList[WorkerInfo](
-          statusSystem.workers.asScala.filter(worker =>
-            statusSystem.isWorkerAvailable(worker)).asJava)
+          statusSystem.workersMap.values().asScala.filter(worker =>
+            statusSystem.isWorkerAvailable(worker)).toList.asJava)
       }
-      var appRelatedShuffles =
+      val appRelatedShuffles =
         statusSystem.registeredAppAndShuffles.getOrDefault(appId, Collections.emptySet())
       context.reply(HeartbeatFromApplicationResponse(
         StatusCode.SUCCESS,
         new util.ArrayList(
           (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).asJava),
-        needCheckedWorkerList,
+        unknownWorkers,
         new util.ArrayList[WorkerInfo](
           (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava),
         availableWorksSentToClient,
@@ -1215,7 +1212,7 @@ private[celeborn] class Master(
   // TODO: Support calculate topN app resource consumption.
   private def computeUserResourceConsumption(
       userIdentifier: UserIdentifier): ResourceConsumption = {
-    val resourceConsumption = statusSystem.workers.asScala.flatMap {
+    val resourceConsumption = statusSystem.workersMap.values().asScala.flatMap {
       workerInfo => workerInfo.userResourceConsumption.asScala.get(userIdentifier)
     }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
     resourceConsumption
@@ -1249,7 +1246,7 @@ private[celeborn] class Master(
 
   private def workersAvailable(
       tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
-    statusSystem.workers.asScala.filter { w =>
+    statusSystem.workersMap.values().asScala.filter { w =>
       statusSystem.isWorkerAvailable(w) && !tmpExcludedWorkerList.contains(w)
     }.toList.asJava
   }
@@ -1282,7 +1279,7 @@ private[celeborn] class Master(
   }
 
   private def getWorkers: String = {
-    statusSystem.workers.asScala.mkString("\n")
+    statusSystem.workersMap.values().asScala.mkString("\n")
   }
 
   override def handleWorkerEvent(
@@ -1411,7 +1408,8 @@ private[celeborn] class Master(
           ",")} and remove ${removeWorkers.map(_.readableAddress).mkString(",")}.\n")
     }
     val unknownExcludedWorkers =
-      (addWorkers ++ removeWorkers).filter(!statusSystem.workers.contains(_))
+      (addWorkers ++ removeWorkers).filterNot(w =>
+        statusSystem.workersMap.containsKey(w.toUniqueId()))
     if (unknownExcludedWorkers.nonEmpty) {
       sb.append(
         s"Unknown workers ${unknownExcludedWorkers.map(_.readableAddress).mkString(",")}." +

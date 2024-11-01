@@ -347,16 +347,16 @@ public class RatisMasterStatusSystemSuiteJ {
         getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(3, STATUSSYSTEM1.workers.size());
-    Assert.assertEquals(3, STATUSSYSTEM2.workers.size());
-    Assert.assertEquals(3, STATUSSYSTEM3.workers.size());
+    Assert.assertEquals(3, STATUSSYSTEM1.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.workersMap.size());
 
-    assertWorkers(STATUSSYSTEM1.workers);
-    assertWorkers(STATUSSYSTEM2.workers);
-    assertWorkers(STATUSSYSTEM3.workers);
+    assertWorkers(STATUSSYSTEM1.workersMap.values());
+    assertWorkers(STATUSSYSTEM2.workersMap.values());
+    assertWorkers(STATUSSYSTEM3.workersMap.values());
   }
 
-  private void assertWorkers(Set<WorkerInfo> workerInfos) {
+  private void assertWorkers(Collection<WorkerInfo> workerInfos) {
     for (WorkerInfo workerInfo : workerInfos) {
       assertWorker(workerInfo);
     }
@@ -479,9 +479,9 @@ public class RatisMasterStatusSystemSuiteJ {
         HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(2, STATUSSYSTEM1.workers.size());
-    Assert.assertEquals(2, STATUSSYSTEM2.workers.size());
-    Assert.assertEquals(2, STATUSSYSTEM3.workers.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.workersMap.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.workersMap.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.workersMap.size());
   }
 
   @Test
@@ -571,21 +571,21 @@ public class RatisMasterStatusSystemSuiteJ {
 
     Assert.assertEquals(
         0,
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
         0,
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME2))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
         0,
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME3))
             .findFirst()
             .get()
@@ -632,22 +632,22 @@ public class RatisMasterStatusSystemSuiteJ {
         getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(3, STATUSSYSTEM1.workers.size());
-    Assert.assertEquals(3, STATUSSYSTEM2.workers.size());
-    Assert.assertEquals(3, STATUSSYSTEM3.workers.size());
+    Assert.assertEquals(3, STATUSSYSTEM1.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.workersMap.size());
 
     Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocations = new HashMap<>();
     allocations.put("disk1", 5);
     workersToAllocate.put(
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .toUniqueId(),
         allocations);
     workersToAllocate.put(
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME2))
             .findFirst()
             .get()
@@ -661,21 +661,21 @@ public class RatisMasterStatusSystemSuiteJ {
 
     Assert.assertEquals(
         0,
-        STATUSSYSTEM1.workers.stream()
+        STATUSSYSTEM1.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
         0,
-        STATUSSYSTEM2.workers.stream()
+        STATUSSYSTEM2.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
         0,
-        STATUSSYSTEM3.workers.stream()
+        STATUSSYSTEM3.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
@@ -1087,21 +1087,21 @@ public class RatisMasterStatusSystemSuiteJ {
   public void resetStatus() {
     STATUSSYSTEM1.registeredAppAndShuffles.clear();
     STATUSSYSTEM1.hostnameSet.clear();
-    STATUSSYSTEM1.workers.clear();
+    STATUSSYSTEM1.workersMap.clear();
     STATUSSYSTEM1.appHeartbeatTime.clear();
     STATUSSYSTEM1.excludedWorkers.clear();
     STATUSSYSTEM1.workerLostEvents.clear();
 
     STATUSSYSTEM2.registeredAppAndShuffles.clear();
     STATUSSYSTEM2.hostnameSet.clear();
-    STATUSSYSTEM2.workers.clear();
+    STATUSSYSTEM2.workersMap.clear();
     STATUSSYSTEM2.appHeartbeatTime.clear();
     STATUSSYSTEM2.excludedWorkers.clear();
     STATUSSYSTEM2.workerLostEvents.clear();
 
     STATUSSYSTEM3.registeredAppAndShuffles.clear();
     STATUSSYSTEM3.hostnameSet.clear();
-    STATUSSYSTEM3.workers.clear();
+    STATUSSYSTEM3.workersMap.clear();
     STATUSSYSTEM3.appHeartbeatTime.clear();
     STATUSSYSTEM3.excludedWorkers.clear();
     STATUSSYSTEM3.workerLostEvents.clear();
@@ -1280,7 +1280,7 @@ public class RatisMasterStatusSystemSuiteJ {
     statusSystem.handleReportWorkerUnavailable(unavailableWorkers, getNewReqeustId());
 
     Thread.sleep(3000L);
-    Assert.assertEquals(2, STATUSSYSTEM1.workers.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.workersMap.size());
 
     Assert.assertEquals(1, STATUSSYSTEM1.shutdownWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM2.shutdownWorkers.size());
