@@ -24,6 +24,7 @@ import java.util.{Collections, List => JList, Map => JMap}
 import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.{Supplier, ToLongFunction}
+import java.util.stream.Collectors
 
 import scala.collection.JavaConverters._
 import scala.util.Random
@@ -1126,8 +1127,9 @@ private[celeborn] class Master(
       fileCount,
       System.currentTimeMillis(),
       requestId)
-    // unknown workers will retain in needCheckedWorkerList
-    needCheckedWorkerList.removeAll(statusSystem.getWorkers)
+    val unknownWorkers = needCheckedWorkerList.stream()
+      .filter(w => !statusSystem.containsWorker(w))
+      .collect(Collectors.toList[WorkerInfo])
     if (shouldResponse) {
       // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
       // during serialization of HeartbeatFromApplicationResponse
@@ -1143,7 +1145,7 @@ private[celeborn] class Master(
         StatusCode.SUCCESS,
         new util.ArrayList(
           (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).asJava),
-        needCheckedWorkerList,
+        unknownWorkers,
         new util.ArrayList[WorkerInfo](
           (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava),
         availableWorksSentToClient,
