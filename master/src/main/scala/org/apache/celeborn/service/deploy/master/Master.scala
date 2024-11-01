@@ -24,12 +24,15 @@ import java.util.{Collections, List => JList, Map => JMap}
 import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.{Supplier, ToLongFunction}
+
 import scala.collection.JavaConverters._
 import scala.util.Random
+
 import com.google.common.annotations.VisibleForTesting
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.ratis.proto.RaftProtos
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.exception.CelebornException
@@ -909,7 +912,7 @@ private[celeborn] class Master(
           WorkerInfo,
           Tuple2[JList[PartitionLocation], JList[PartitionLocation]]]] {
           override def get()
-          : JMap[WorkerInfo, (JList[PartitionLocation], JList[PartitionLocation])] = {
+              : JMap[WorkerInfo, (JList[PartitionLocation], JList[PartitionLocation])] = {
             if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE) {
               SlotsAllocator.offerSlotsLoadAware(
                 selectedWorkers,
@@ -930,7 +933,7 @@ private[celeborn] class Master(
                 requestSlots.availableStorageTypes)
             }
           }
-      })
+        })
       }
 
     if (log.isDebugEnabled()) {
