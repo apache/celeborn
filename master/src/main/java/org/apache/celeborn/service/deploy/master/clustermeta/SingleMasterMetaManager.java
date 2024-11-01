@@ -92,7 +92,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   @Override
   public void handleWorkerExclude(
       List<WorkerInfo> workersToAdd, List<WorkerInfo> workersToRemove, String requestId) {
-    updateWorkerExcludeMeta(workersToAdd, workersToRemove);
+    updateManuallyExcludedWorkersMeta(workersToAdd, workersToRemove);
   }
 
   @Override

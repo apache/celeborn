@@ -170,7 +170,7 @@ public class MetaHandler {
               addAddresses.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
           List<WorkerInfo> workersToRemove =
               removeAddresses.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
-          metaSystem.updateWorkerExcludeMeta(workersToAdd, workersToRemove);
+          metaSystem.updateManuallyExcludedWorkersMeta(workersToAdd, workersToRemove);
           break;
 
         case WorkerLost:
