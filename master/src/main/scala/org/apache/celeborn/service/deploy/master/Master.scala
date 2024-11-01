@@ -1129,7 +1129,7 @@ private[celeborn] class Master(
       requestId)
     val unknownWorkers = needCheckedWorkerList.stream()
       .filter(w => !statusSystem.containsWorker(w))
-      .collect(Collectors.toList[WorkerInfo])
+      .collect(Collectors.toList[WorkerInfo]())
     if (shouldResponse) {
       // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
       // during serialization of HeartbeatFromApplicationResponse
@@ -1139,7 +1139,7 @@ private[celeborn] class Master(
           statusSystem.getWorkers.asScala.filter(worker =>
             statusSystem.isWorkerAvailable(worker)).toList.asJava)
       }
-      var appRelatedShuffles =
+      val appRelatedShuffles =
         statusSystem.registeredAppAndShuffles.getOrDefault(appId, Collections.emptySet())
       context.reply(HeartbeatFromApplicationResponse(
         StatusCode.SUCCESS,
