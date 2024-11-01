@@ -118,6 +118,9 @@ INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success wit
 ```
 
 ## Start Flink with Celeborn
+
+**Important: Only Flink batch jobs are supported for now.**
+
 #### Copy Celeborn Client to Flink's lib
 Celeborn release binary contains clients for Flink 1.14.x, Flink 1.15.x, Flink 1.17.x, Flink 1.18.x, Flink 1.19.x and Flink 1.20.x, copy the corresponding client jar into Flink's
 `lib/` directory:
@@ -138,11 +141,24 @@ vi conf/flink-conf.yaml
 cd $FLINK_HOME
 vi conf/config.yaml
 ```
+
+Choose one of flink integration strategies and add the following configuration:
+
+**(Support Flink 1.14 and above versions) Flink Remote Shuffle Service Config**
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
 execution.batch-shuffle-mode: ALL_EXCHANGES_BLOCKING
 ```
 **Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_BLOCKING`.
+
+**(Support Flink 1.20 and above versions) Flink [hybrid shuffle](https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/batch/batch_shuffle/#hybrid-shuffle) Config**
+```properties
+shuffle-service-factory.class: org.apache.flink.runtime.io.network.NettyShuffleServiceFactory
+taskmanager.network.hybrid-shuffle.external-remote-tier-factory.class: org.apache.celeborn.plugin.flink.tiered.CelebornTierFactory
+execution.batch-shuffle-mode: ALL_EXCHANGES_HYBRID_FULL
+jobmanager.partition.hybrid.partition-data-consume-constraint: ALL_PRODUCERS_FINISHED
+```
+**Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_HYBRID_FULL`.
 
 Then deploy the example word count job to the running cluster:
 ```shell
