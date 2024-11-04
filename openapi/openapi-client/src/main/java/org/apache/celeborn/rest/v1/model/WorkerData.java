@@ -49,7 +49,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkerData.JSON_PROPERTY_WORKER_REF,
   WorkerData.JSON_PROPERTY_WORKER_STATE,
   WorkerData.JSON_PROPERTY_WORKER_STATE_START_TIME,
-  WorkerData.JSON_PROPERTY_NETWORK_LOCATION
+  WorkerData.JSON_PROPERTY_NETWORK_LOCATION,
+  WorkerData.JSON_PROPERTY_VERSION
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class WorkerData {
@@ -97,6 +98,9 @@ public class WorkerData {
 
   public static final String JSON_PROPERTY_NETWORK_LOCATION = "networkLocation";
   private String networkLocation;
+
+  public static final String JSON_PROPERTY_VERSION = "version";
+  private String version;
 
   public WorkerData() {
   }
@@ -492,6 +496,31 @@ public class WorkerData {
     this.networkLocation = networkLocation;
   }
 
+  public WorkerData version(String version) {
+    
+    this.version = version;
+    return this;
+  }
+
+  /**
+   * The version of the worker.
+   * @return version
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_VERSION)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public String getVersion() {
+    return version;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_VERSION)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setVersion(String version) {
+    this.version = version;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -515,12 +544,13 @@ public class WorkerData {
         Objects.equals(this.workerRef, workerData.workerRef) &&
         Objects.equals(this.workerState, workerData.workerState) &&
         Objects.equals(this.workerStateStartTime, workerData.workerStateStartTime) &&
-        Objects.equals(this.networkLocation, workerData.networkLocation);
+        Objects.equals(this.networkLocation, workerData.networkLocation) &&
+        Objects.equals(this.version, workerData.version);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, slotUsed, lastHeartbeatTimestamp, heartbeatElapsedSeconds, diskInfos, resourceConsumptions, workerRef, workerState, workerStateStartTime, networkLocation);
+    return Objects.hash(host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, slotUsed, lastHeartbeatTimestamp, heartbeatElapsedSeconds, diskInfos, resourceConsumptions, workerRef, workerState, workerStateStartTime, networkLocation, version);
   }
 
   @Override
@@ -542,6 +572,7 @@ public class WorkerData {
     sb.append("    workerState: ").append(toIndentedString(workerState)).append("\n");
     sb.append("    workerStateStartTime: ").append(toIndentedString(workerStateStartTime)).append("\n");
     sb.append("    networkLocation: ").append(toIndentedString(networkLocation)).append("\n");
+    sb.append("    version: ").append(toIndentedString(version)).append("\n");
     sb.append("}");
     return sb.toString();
   }

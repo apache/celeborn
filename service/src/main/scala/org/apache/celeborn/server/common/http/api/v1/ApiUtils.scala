@@ -58,6 +58,7 @@ object ApiUtils {
       .workerState(workerInfo.workerStatus.getState.toString)
       .workerStateStartTime(workerInfo.workerStatus.getStateStartTime)
       .networkLocation(workerInfo.networkLocation)
+      .version(workerInfo.version)
   }
 
   private def workerResourceConsumptions(workerInfo: WorkerInfo)
@@ -120,6 +121,7 @@ object ApiUtils {
         isShutdown && (
           currentStatus.getState == State.InDecommission ||
             currentStatus.getState == State.InDecommissionThenIdle))
+      .version(org.apache.celeborn.common.CELEBORN_VERSION)
   }
 
   def toWorkerInfo(workerId: WorkerId): WorkerInfo = {

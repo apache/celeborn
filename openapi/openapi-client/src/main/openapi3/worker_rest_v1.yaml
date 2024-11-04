@@ -453,6 +453,9 @@ components:
         isDecommissioning:
           type: boolean
           description: The decommission status of the worker.
+        version:
+          type: string
+          description: The version of the worker.
       required:
         - host
         - rpcPort
@@ -555,6 +558,9 @@ components:
         networkLocation:
           type: string
           description: The network location of the worker.
+        version:
+          type: string
+          description: The version of the worker.
       required:
         - host
         - rpcPort
