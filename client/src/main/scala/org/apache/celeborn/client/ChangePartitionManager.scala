@@ -334,7 +334,7 @@ class ChangePartitionManager(
         }
 
         if (requestSlotsRes.status.equals(StatusCode.SUCCESS)) {
-          requestSlotsRes.workerResource.keySet().forEach { workerInfo: WorkerInfo =>
+          requestSlotsRes.workerResource.keySet().asScala.foreach { workerInfo: WorkerInfo =>
             newlyRequestedLocations.computeIfAbsent(workerInfo, lifecycleManager.newLocationFunc)
           }
 
