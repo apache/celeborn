@@ -318,7 +318,6 @@ class ChangePartitionManager(
         ids.addAll(partitionIds)
         // The partition id value is not important here because we're just trying to get the workers to use
         val requestSlotsRes = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
-        newlyRequestedLocations.putAll(requestSlotsRes.workerResource)
 
         requestSlotsRes.status match {
           case StatusCode.REQUEST_FAILED =>
@@ -334,24 +333,28 @@ class ChangePartitionManager(
             throw new UnsupportedOperationException()
         }
 
-        // SetupEndpoint for new Workers
-        val workersRequireEndpoints = new util.HashSet[WorkerInfo](
-          requestSlotsRes.workerResource.keySet()
-            .asScala
-            .filter(lifecycleManager.workerStatusTracker.workerAvailable)
-            .asJava)
+        if (requestSlotsRes.status.equals(StatusCode.SUCCESS)) {
+          newlyRequestedLocations.putAll(requestSlotsRes.workerResource)
 
-        val connectFailedWorkers = new ShuffleFailedWorkers()
-        lifecycleManager.setupEndpoints(
-          workersRequireEndpoints,
-          shuffleId,
-          connectFailedWorkers)
-        workersRequireEndpoints.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
-        candidates.addAll(workersRequireEndpoints)
+          // SetupEndpoint for new Workers
+          val workersRequireEndpoints = new util.HashSet[WorkerInfo](
+            requestSlotsRes.workerResource.keySet()
+              .asScala
+              .filter(lifecycleManager.workerStatusTracker.workerAvailable)
+              .asJava)
 
-        // Update worker status
-        lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
-        lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates)
+          val connectFailedWorkers = new ShuffleFailedWorkers()
+          lifecycleManager.setupEndpoints(
+            workersRequireEndpoints,
+            shuffleId,
+            connectFailedWorkers)
+          workersRequireEndpoints.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
+          candidates.addAll(workersRequireEndpoints)
+
+          // Update worker status
+          lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
+          lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates)
+        }
       }
     }
 
