@@ -308,8 +308,13 @@ class ChangePartitionManager(
       if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)
         || (unavailableWorkerRatio >= clientShuffleDynamicResourceFactor)) {
 
-        val numPartitions = lifecycleManager.latestPartitionLocation.get(shuffleId).size()
-        val ids = new util.ArrayList((0 until numPartitions).map(Integer.valueOf).asJava)
+        // get new available workers for the request partition ids
+        val numPartitions = new util.HashSet[Int]()
+        changePartitions.map { changePartition =>
+          numPartitions.add(changePartition.partitionId)
+        }
+        // The partition id value is not important here because we're just trying to get the workers to use
+        val ids = new util.ArrayList((0 until numPartitions.size()).map(Integer.valueOf).asJava)
         val requestSlotsRes = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
 
         requestSlotsRes.status match {
@@ -326,24 +331,13 @@ class ChangePartitionManager(
             throw new UnsupportedOperationException()
         }
 
-        val resAvailableWorkers = requestSlotsRes.workerResource.keySet()
-        lifecycleManager.workerStatusTracker.updateAvailableWorkers(resAvailableWorkers)
-        candidates.addAll(resAvailableWorkers)
-
-        // availableWorkers wont filter excludedWorkers in heartBeat So have to do filtering.
-        candidates.addAll(lifecycleManager
-          .workerStatusTracker
-          .availableWorkersWithEndpoint
-          .values()
-          .asScala
-          .toSet
-          .filter(lifecycleManager.workerStatusTracker.workerAvailable)
-          .asJava)
-
-        // SetupEndpoint for those availableWorkers without endpoint
+        // SetupEndpoint for new availableWorkers
         val workersRequireEndpoints = new util.HashSet[WorkerInfo](
-          lifecycleManager.workerStatusTracker.availableWorkersWithoutEndpoint.asScala.filter(
-            lifecycleManager.workerStatusTracker.workerAvailable).asJava)
+          requestSlotsRes.workerResource.keySet()
+            .asScala
+            .filter(lifecycleManager.workerStatusTracker.workerAvailable)
+            .asJava)
+
         val connectFailedWorkers = new ShuffleFailedWorkers()
         lifecycleManager.setupEndpoints(
           workersRequireEndpoints,
@@ -353,7 +347,6 @@ class ChangePartitionManager(
         candidates.addAll(workersRequireEndpoints)
 
         // Update worker status
-        lifecycleManager.workerStatusTracker.addWorkersWithEndpoint(workersRequireEndpoints)
         lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
         lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates)
       }
