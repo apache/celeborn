@@ -329,7 +329,7 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
         // In the Flink hybrid shuffle integration strategy, the data buffer sent to the Celeborn
         // workers consists of two components: the Celeborn header and the data buffers.
         // In this scenario, the maximum byte size of the buffer received by the Celeborn worker is
-        // equal to the Flink buffer size plus the size of the Celeborn header.
+        // equal to the sum of the Flink buffer size and the Celeborn header size.
         Optional<PartitionLocation> revivePartition =
             flinkShuffleClient.pushDataHandShake(
                 shuffleId,

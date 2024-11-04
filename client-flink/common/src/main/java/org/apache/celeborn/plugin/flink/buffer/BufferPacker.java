@@ -166,7 +166,8 @@ public class BufferPacker {
         ByteBuf headerBuffer = compositeByteBuf.component(0).unwrap();
         ByteBuf dataBuffer = compositeByteBuf.component(1).unwrap();
         dataBuffer.retain();
-        Utils.checkState(dataBuffer instanceof Buffer, "Illegal buffer type.");
+        Utils.checkState(
+            dataBuffer instanceof Buffer, "Illegal data buffer type for CompositeByteBuf.");
         BufferHeader bufferHeader = BufferUtils.getBufferHeaderFromByteBuf(headerBuffer, 0);
         Buffer slice = ((Buffer) dataBuffer).readOnlySlice(0, bufferHeader.getSize());
         buffers.add(

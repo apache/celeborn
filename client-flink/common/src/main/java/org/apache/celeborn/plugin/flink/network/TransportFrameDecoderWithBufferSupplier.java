@@ -50,7 +50,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
   private int largeBufferHeaderRemainingBytes = -1;
   private boolean isReadingLargeBuffer = false;
   private ByteBuf largeBufferHeaderBuffer;
-  public static int DISABLE_LARGE_BUFFER_SPLIT_SIZE = -1;
+  public static final int DISABLE_LARGE_BUFFER_SPLIT_SIZE = -1;
 
   /**
    * The flink buffer size bytes. If the received buffer size large than this value, means that we
