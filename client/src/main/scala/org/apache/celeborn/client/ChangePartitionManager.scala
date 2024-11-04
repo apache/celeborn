@@ -76,8 +76,8 @@ class ChangePartitionManager(
 
   private val testRetryRevive = conf.testRetryRevive
 
-  private val clientShuffleDynamicResourceEnabled = conf.clientShuffleDynamicResourceEnabled
-  private val clientShuffleDynamicResourceFactor = conf.clientShuffleDynamicResourceFactor
+  private val dynamicResourceEnabled = conf.clientShuffleDynamicResourceEnabled
+  private val dynamicResourceUnavailableFactor = conf.clientShuffleDynamicResourceFactor
 
   def start(): Unit = {
     batchHandleChangePartition = batchHandleChangePartitionSchedulerThread.map {
@@ -292,6 +292,7 @@ class ChangePartitionManager(
     }
 
     val candidates = new util.HashSet[WorkerInfo]()
+    val newlyRequestedLocations = new WorkerResource()
 
     val snapshotCandidates =
       lifecycleManager
@@ -302,20 +303,22 @@ class ChangePartitionManager(
         .asJava
     candidates.addAll(snapshotCandidates)
 
-    if (clientShuffleDynamicResourceEnabled) {
+    if (dynamicResourceEnabled) {
       val shuffleAllocatedWorkers = lifecycleManager.workerSnapshots(shuffleId).size()
       val unavailableWorkerRatio = 1 - (snapshotCandidates.size * 1.0 / shuffleAllocatedWorkers)
       if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)
-        || (unavailableWorkerRatio >= clientShuffleDynamicResourceFactor)) {
+        || (unavailableWorkerRatio >= dynamicResourceUnavailableFactor)) {
 
         // get new available workers for the request partition ids
-        val numPartitions = new util.HashSet[Int]()
+        val partitionIds = new util.HashSet[Integer]()
         changePartitions.map { changePartition =>
-          numPartitions.add(changePartition.partitionId)
+          partitionIds.add(changePartition.partitionId)
         }
+        val ids = new util.ArrayList[Integer]()
+        ids.addAll(partitionIds)
         // The partition id value is not important here because we're just trying to get the workers to use
-        val ids = new util.ArrayList((0 until numPartitions.size()).map(Integer.valueOf).asJava)
         val requestSlotsRes = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+        newlyRequestedLocations.putAll(requestSlotsRes.workerResource)
 
         requestSlotsRes.status match {
           case StatusCode.REQUEST_FAILED =>
@@ -331,7 +334,7 @@ class ChangePartitionManager(
             throw new UnsupportedOperationException()
         }
 
-        // SetupEndpoint for new availableWorkers
+        // SetupEndpoint for new Workers
         val workersRequireEndpoints = new util.HashSet[WorkerInfo](
           requestSlotsRes.workerResource.keySet()
             .asScala
@@ -374,7 +377,9 @@ class ChangePartitionManager(
       return
     }
 
-    val newPrimaryLocations = newlyAllocatedLocations.asScala.flatMap {
+    // newlyRequestedLocations is empty if dynamicResourceEnabled is false
+    newlyRequestedLocations.putAll(newlyAllocatedLocations)
+    val newPrimaryLocations = newlyRequestedLocations.asScala.flatMap {
       case (workInfo, (primaryLocations, replicaLocations)) =>
         // Add all re-allocated slots to worker snapshots.
         val partitionLocationInfo = lifecycleManager.workerSnapshots(shuffleId).computeIfAbsent(

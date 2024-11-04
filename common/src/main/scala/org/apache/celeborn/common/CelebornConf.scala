@@ -4851,8 +4851,8 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.6.0")
       .doc("The ChangePartitionManager will check whether (unavailable workers / shuffle allocated workers) " +
-        "is more than the factor before obtaining candidate workers from the availableWorkers pool " +
-        s"during heartbeats when worker resources change and ${CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key} set true")
+        "is more than the factor before obtaining candidate workers from the requestSlots RPC response" +
+        "when ${CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key} set true")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
       .createWithDefault(0.5)
