@@ -323,7 +323,7 @@ private[celeborn] class Master(
 
   }
 
-  def scheduleCheckTask[T](timeoutMS: Long, message: T): ScheduledFuture[_] = {
+  private def scheduleCheckTask[T](timeoutMS: Long, message: T): ScheduledFuture[_] = {
     forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
@@ -340,18 +340,10 @@ private[celeborn] class Master(
       return
     }
     logInfo("Stopping Celeborn Master.")
-    if (checkForWorkerTimeOutTask != null) {
-      checkForWorkerTimeOutTask.cancel(true)
-    }
-    if (checkForUnavailableWorkerTimeOutTask != null) {
-      checkForUnavailableWorkerTimeOutTask.cancel(true)
-    }
-    if (checkForApplicationTimeOutTask != null) {
-      checkForApplicationTimeOutTask.cancel(true)
-    }
-    if (checkForDFSRemnantDirsTimeOutTask != null) {
-      checkForDFSRemnantDirsTimeOutTask.cancel(true)
-    }
+    Option(checkForWorkerTimeOutTask).foreach(_.cancel(true))
+    Option(checkForUnavailableWorkerTimeOutTask).foreach(_.cancel(true))
+    Option(checkForApplicationTimeOutTask).foreach(_.cancel(true))
+    Option(checkForDFSRemnantDirsTimeOutTask).foreach(_.cancel(true))
     forwardMessageThread.shutdownNow()
     rackResolver.stop()
     if (authEnabled) {
