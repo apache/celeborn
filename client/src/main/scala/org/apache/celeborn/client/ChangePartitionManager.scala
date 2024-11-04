@@ -334,7 +334,9 @@ class ChangePartitionManager(
         }
 
         if (requestSlotsRes.status.equals(StatusCode.SUCCESS)) {
-          newlyRequestedLocations.putAll(requestSlotsRes.workerResource)
+          requestSlotsRes.workerResource.keySet().forEach { workerInfo: WorkerInfo =>
+            newlyRequestedLocations.computeIfAbsent(workerInfo, lifecycleManager.newLocationFunc)
+          }
 
           // SetupEndpoint for new Workers
           val workersRequireEndpoints = new util.HashSet[WorkerInfo](
@@ -382,6 +384,7 @@ class ChangePartitionManager(
 
     // newlyRequestedLocations is empty if dynamicResourceEnabled is false
     newlyRequestedLocations.putAll(newlyAllocatedLocations)
+
     val newPrimaryLocations = newlyRequestedLocations.asScala.flatMap {
       case (workInfo, (primaryLocations, replicaLocations)) =>
         // Add all re-allocated slots to worker snapshots.

@@ -57,7 +57,7 @@ class RetryReviveTest extends AnyFunSuite
   }
 
   test(
-    "celeborn spark integration test - e2e test retry revive with available workers from heartbeat") {
+    "celeborn spark integration test - e2e test retry revive with new allocated workers from RPC") {
     val testConf = Map(
       s"${CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key}" -> "3",
       s"${CelebornConf.MASTER_SLOT_ASSIGN_EXTRA_SLOTS.key}" -> "0")

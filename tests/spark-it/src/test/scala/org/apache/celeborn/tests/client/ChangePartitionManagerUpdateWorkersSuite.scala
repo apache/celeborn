@@ -224,6 +224,110 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     lifecycleManager.stop()
   }
 
+  test("test changePartition with available workers requestSlots failed") {
+    setUpWorkers(workerConfForAdding, 1)
+    // total workers 1 + 1 = 2
+    assert(workerInfos.size == 2)
+    val shuffleId = nextShuffleId
+    val conf = celebornConf.clone
+    conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
+      .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key, "true")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR.key, "0.5")
+
+    val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
+    val changePartitionManager: ChangePartitionManager =
+      new ChangePartitionManager(conf, lifecycleManager)
+    val ids = new util.ArrayList[Integer](10)
+    0 until 10 foreach {
+      ids.add(_)
+    }
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    assert(res.status == StatusCode.SUCCESS)
+    val workerNum = res.workerResource.keySet().size()
+    assert(workerNum == 2)
+
+    lifecycleManager.setupEndpoints(
+      res.workerResource.keySet(),
+      shuffleId,
+      new ShuffleFailedWorkers())
+
+    val reserveSlotsSuccess = lifecycleManager.reserveSlotsWithRetry(
+      shuffleId,
+      new util.HashSet(res.workerResource.keySet()),
+      res.workerResource,
+      updateEpoch = false)
+
+    if (reserveSlotsSuccess) {
+      val allocatedWorkers =
+        JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
+      res.workerResource.asScala.foreach {
+        case (workerInfo, (primaryLocations, replicaLocations)) =>
+          val partitionLocationInfo = new ShufflePartitionLocationInfo()
+          partitionLocationInfo.addPrimaryPartitions(primaryLocations)
+          partitionLocationInfo.addReplicaPartitions(replicaLocations)
+          allocatedWorkers.put(workerInfo, partitionLocationInfo)
+          lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
+      }
+      lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
+    }
+    assert(lifecycleManager.workerSnapshots(shuffleId).size() == workerNum)
+
+    // shut down workers test
+    // total workerNum is 2 - 1 = 1 now
+    val workerInfoList = workerInfos.toList
+    0 until 1 foreach { index =>
+      val (worker, _) = workerInfoList(index)
+      // Workers in miniClusterFeature wont update status with master through heartbeat.
+      // So update status manually.
+      masterInfo._1.statusSystem.excludedWorkers.add(worker.workerInfo)
+
+      val failedWorker = new ShuffleFailedWorkers()
+      failedWorker.put(
+        worker.workerInfo,
+        (StatusCode.RESERVE_SLOTS_FAILED, System.currentTimeMillis()))
+      lifecycleManager.workerStatusTracker.recordWorkerFailure(failedWorker)
+    }
+
+    val tmpSnapshotWorkers =
+      lifecycleManager
+        .workerSnapshots(shuffleId)
+        .keySet()
+        .asScala
+        .filter(lifecycleManager.workerStatusTracker.workerAvailable)
+    assert(tmpSnapshotWorkers.size == 1)
+
+    // do not add another new worker
+    assert(workerInfos.size == 2)
+
+    0 until 10 foreach { partitionId: Int =>
+      val req = ChangePartitionRequest(
+        null,
+        shuffleId,
+        partitionId,
+        -1,
+        null,
+        None)
+      changePartitionManager.changePartitionRequests.computeIfAbsent(
+        shuffleId,
+        changePartitionManager.rpcContextRegisterFunc)
+      changePartitionManager.handleRequestPartitions(
+        shuffleId,
+        Array(req),
+        lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
+    }
+
+    val snapshotCandidates =
+      lifecycleManager
+        .workerSnapshots(shuffleId)
+        .keySet()
+        .asScala
+        .filter(lifecycleManager.workerStatusTracker.workerAvailable)
+
+    assert(snapshotCandidates.size == 1)
+    lifecycleManager.stop()
+  }
+
   test("test changePartition with available workers and factor") {
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
