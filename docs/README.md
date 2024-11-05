@@ -87,7 +87,7 @@ WorkerRef: null
 Celeborn release binary contains clients for Spark 2.x and Spark 3.x, copy the corresponding client jar into Spark's
 `jars/` directory:
 ```shell
-cp $CELEBORN_HOME/spark/<Celeborn Client Jar> $SPARK_HOME/jars/
+cp $CELEBORN_HOME/spark/celeborn-client-spark-<spark.major.version>-shaded_<scala.binary.version>-<celeborn.version>.jar $SPARK_HOME/jars/
 ```
 #### Start spark-shell
 Set `spark.shuffle.manager` to Celeborn's ShuffleManager, and turn off `spark.shuffle.service.enabled`:
@@ -125,7 +125,7 @@ INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success wit
 Celeborn release binary contains clients for Flink 1.14.x, Flink 1.15.x, Flink 1.17.x, Flink 1.18.x, Flink 1.19.x and Flink 1.20.x, copy the corresponding client jar into Flink's
 `lib/` directory:
 ```shell
-cp $CELEBORN_HOME/flink/<Celeborn Client Jar> $FLINK_HOME/lib/
+cp $CELEBORN_HOME/flink/celeborn-client-flink-<flink.version>-shaded_<scala.binary.version>-<celeborn.version>.jar $FLINK_HOME/lib/
 ```
 #### Add Celeborn configuration to Flink's conf
 Set `shuffle-service-factory.class` to Celeborn's ShuffleServiceFactory in Flink configuration file:
@@ -181,8 +181,8 @@ INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success wit
 ### Copy Celeborn Client to MapReduce's classpath
 1. Copy `$CELEBORN_HOME/mr/*.jar` into `mapreduce.application.classpath` and `yarn.application.classpath`.
 ```shell
-cp $CELEBORN_HOME/mr/<Celeborn Client Jar> <mapreduce.application.classpath>
-cp $CELEBORN_HOME/mr/<Celeborn Client Jar> <yarn.application.classpath>
+cp $CELEBORN_HOME/mr/celeborn-client-mr-shaded_<scala.binary.version>-<celeborn.version>.jar <mapreduce.application.classpath>
+cp $CELEBORN_HOME/mr/celeborn-client-mr-shaded_<scala.binary.version>-<celeborn.version>.jar <yarn.application.classpath>
 ```
 2. Restart your yarn cluster.
 ### Add Celeborn configuration to MapReduce's conf
