@@ -120,4 +120,45 @@ final class MasterOptions {
     names = Array("--delete-apps"),
     description = Array("Delete resource of an application."))
   private[master] var deleteApps: Boolean = _
+
+  @Option(
+    names = Array("--transfer-ratis-leader"),
+    description = Array("Transfer the group leader to the specified server. Specify leader via --peerAddress."))
+  private[master] var transferRatisLeader: Boolean = _
+
+  @Option(
+    names = Array("--step-down-ratis-leader"),
+    description = Array("Step down from group leadership."))
+  private[master] var stepDownRatisLeader: Boolean = _
+
+  @Option(
+    names = Array("--pause-leader-election"),
+    description = Array("Pause leader election at the current server."))
+  private[master] var pauseLeaderElection: Boolean = _
+
+  @Option(
+    names = Array("--resume-leader-election"),
+    description = Array("Resume leader election at the current server."))
+  private[master] var resumeLeaderElection: Boolean = _
+
+  @Option(
+    names = Array("--add-ratis-peers"),
+    description = Array("Add new peers to the raft group. Specify peers list via --peers."))
+  private[master] var addRatisPeers: Boolean = _
+
+  @Option(
+    names = Array("--remove-ratis-peers"),
+    description = Array("Remove new peers from the raft group. Specify peers list via --peers."))
+  private[master] var removeRatisPeers: Boolean = _
+
+  @Option(
+    names = Array("--set-ratis-peers-priorities"),
+    description = Array("Set the priority of the peers in the raft group. Specify priorities via --priorities."))
+  private[master] var setRatisPeersPriorities: Boolean = _
+
+  @Option(
+    names = Array("--create-snapshot"),
+    description = Array("Trigger the current server to take snapshot."))
+  private[master] var createSnapshot: Boolean = _
 }
+

@@ -53,6 +53,14 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     if (masterOptions.showThreadDump) log(runShowThreadDump)
     if (masterOptions.reviseLostShuffles) log(reviseLostShuffles)
     if (masterOptions.deleteApps) log(deleteApps)
+    if (masterOptions.transferRatisLeader) log(transferRatisLeader)
+    if (masterOptions.stepDownRatisLeader) log(stepDownRatisLeader)
+    if (masterOptions.pauseLeaderElection) log(pauseLeaderElection)
+    if (masterOptions.resumeLeaderElection) log(resumeLeaderElection)
+    if (masterOptions.addRatisPeers) log(addRatisPeers)
+    if (masterOptions.removeRatisPeers) log(removeRatisPeers)
+    if (masterOptions.setRatisPeersPriorities) log(setRatisPeersPriorities)
+    if (masterOptions.createSnapshot) log(createSnapshot)
     if (masterOptions.addClusterAlias != null && masterOptions.addClusterAlias.nonEmpty)
       runAddClusterAlias
     if (masterOptions.removeClusterAlias != null && masterOptions.removeClusterAlias.nonEmpty)
@@ -237,5 +245,54 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   override private[master] def deleteApps: HandleResponse = {
     val apps = commonOptions.apps
     applicationApi.deleteApps(apps)
+  }
+
+  override private[master] def transferRatisLeader: HandleResponse = {
+    if (ratisOptions.peerAddress.isEmpty || ratisOptions.peerAddress == null) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Peer address in the form of host:ratis_port must be specified. Typically ratis port is 9872.")
+    }
+    val ratisElectionTransferRequest = new RatisElectionTransferRequest()
+    ratisElectionTransferRequest.peerAddress(ratisOptions.peerAddress)
+    ratisApi.transferRatisLeader(ratisElectionTransferRequest)
+  }
+
+  override private[master] def stepDownRatisLeader: HandleResponse = ratisApi.stepDownRatisLeader
+
+  override private[master] def pauseLeaderElection = ratisApi.pauseRatisElection()
+
+  override private[master] def resumeLeaderElection: HandleResponse = ratisApi.resumeRatisElection()
+
+  override private[master] def addRatisPeers: HandleResponse = {
+    ratisApi.addRatisPeer(new RatisPeerAddRequest().peers(getRatisPeers))
+  }
+
+  override private[master] def removeRatisPeers: HandleResponse = {
+    ratisApi.removeRatisPeer(new RatisPeerRemoveRequest().peers(getRatisPeers))
+  }
+
+  override private[master] def setRatisPeersPriorities: HandleResponse = {
+    ratisApi.setRatisPeerPriority(new RatisPeerSetPriorityRequest()
+      .addressPriorities(mapAsJavaMap(getRatisPeerPrioritiesMap)))
+  }
+
+  override private[master] def createSnapshot: HandleResponse = ratisApi.createRatisSnapshot()
+
+  private[master] def getRatisPeers: util.List[RatisPeer] = {
+    parseCliMapping(ratisOptions.peers).map { idToHostPort =>
+      new RatisPeer().id(idToHostPort._1).address(idToHostPort._2)
+    }.asJava
+  }
+
+  private[master] def getRatisPeerPrioritiesMap: Map[String, Int] = {
+    parseCliMapping(ratisOptions.peers).map(e => (e._1, e._2.toInt)).toMap
+  }
+
+  private def parseCliMapping(cliMappingString: String): List[(String, String)] = {
+    cliMappingString.split(",").map { entry =>
+      val parsedEntry = entry.split("=")
+      (parsedEntry(0), parsedEntry(1))
+    }.toList
   }
 }

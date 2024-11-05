@@ -18,14 +18,12 @@
 package org.apache.celeborn.cli.master
 
 import java.util
-
 import picocli.CommandLine.{ArgGroup, Mixin, ParameterException, ParentCommand, Spec}
 import picocli.CommandLine.Model.CommandSpec
-
 import org.apache.celeborn.cli.CelebornCli
 import org.apache.celeborn.cli.common.{CliLogging, CommonOptions}
 import org.apache.celeborn.cli.config.CliConfigManager
-import org.apache.celeborn.rest.v1.master.{ApplicationApi, ConfApi, DefaultApi, MasterApi, ShuffleApi, WorkerApi}
+import org.apache.celeborn.rest.v1.master.{ApplicationApi, ConfApi, DefaultApi, MasterApi, RatisApi, ShuffleApi, WorkerApi}
 import org.apache.celeborn.rest.v1.master.invoker.ApiClient
 import org.apache.celeborn.rest.v1.model._
 
@@ -39,6 +37,9 @@ trait MasterSubcommand extends CliLogging {
 
   @ArgGroup(exclusive = false)
   private[master] var reviseLostShuffleOptions: ReviseLostShuffleOptions = _
+
+  @ArgGroup(exclusive = false)
+  private[master] var ratisOptions: RatisOptions = _
 
   @Mixin
   private[master] var commonOptions: CommonOptions = _
@@ -70,6 +71,8 @@ trait MasterSubcommand extends CliLogging {
   private[master] def masterApi: MasterApi = new MasterApi(apiClient)
   private[master] def shuffleApi: ShuffleApi = new ShuffleApi(apiClient)
   private[master] def workerApi: WorkerApi = new WorkerApi(apiClient)
+
+  private[master] def ratisApi: RatisApi = new RatisApi(apiClient)
 
   private[master] def runShowMastersInfo: MasterInfoResponse
 
@@ -116,5 +119,21 @@ trait MasterSubcommand extends CliLogging {
   private[master] def reviseLostShuffles: HandleResponse
 
   private[master] def deleteApps: HandleResponse
+
+  private[master] def transferRatisLeader: HandleResponse
+
+  private[master] def stepDownRatisLeader: HandleResponse
+
+  private[master] def pauseLeaderElection: HandleResponse
+
+  private[master] def resumeLeaderElection: HandleResponse
+
+  private[master] def addRatisPeers: HandleResponse
+
+  private[master] def removeRatisPeers: HandleResponse
+
+  private[master] def setRatisPeersPriorities: HandleResponse
+
+  private[master] def createSnapshot: HandleResponse
 
 }

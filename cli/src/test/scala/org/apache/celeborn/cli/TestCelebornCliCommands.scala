@@ -273,6 +273,62 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "success: true")
   }
 
+  test("master --transfer-ratis-leader") {
+    val args = prepareMasterArgs() ++ Array(
+      "--transfer-ratis-leader",
+      "--peerAddress",
+      s"${master.masterArgs.host}:9872")
+    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+  }
+
+  test("master --step-down-ratis-leader") {
+    val args = prepareMasterArgs() ++ Array(
+      "--step-down-ratis-leader")
+    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+  }
+
+  test("master --pause-leader-election") {
+    val args = prepareMasterArgs() ++ Array(
+      "--pause-leader-election")
+    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+  }
+
+  test("master --resume-leader-election") {
+    val args = prepareMasterArgs() ++ Array(
+      "--resume-leader-election")
+    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+  }
+
+  test("master --add-ratis-peers") {
+    val args = prepareMasterArgs() ++ Array(
+      "--add-ratis-peers",
+    "--peers",
+    "a=host1:9872")
+    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+  }
+
+  test("master --remove-ratis-peers") {
+    val args = prepareMasterArgs() ++ Array(
+      "--remove-ratis-peers",
+      "--peers",
+      "a=host1:9872")
+    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+  }
+
+  test("master --set-ratis-peers-priorities") {
+    val args = prepareMasterArgs() ++ Array(
+      "--set-ratis-peers-priorities",
+      "--priorities",
+      "host1:9872-0")
+    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+  }
+
+  test("master --create-snapshot") {
+    val args = prepareMasterArgs() ++ Array(
+      "--create-snapshot")
+    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+  }
+
   private def prepareMasterArgs(): Array[String] = {
     Array(
       "master",
