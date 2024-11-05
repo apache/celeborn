@@ -17,7 +17,9 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -45,7 +47,7 @@ public class SendBufferPool {
   // numPartitions -> buffers
   private final LinkedList<byte[][]> buffers;
   private long lastAquireTime;
-  private final LinkedList<LinkedBlockingQueue<PushTask>> pushTaskQueues;
+  private final LinkedHashSet<LinkedBlockingQueue<PushTask>> pushTaskQueues;
 
   private ScheduledExecutorService cleaner =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-client-sendBufferPool-cleaner");
@@ -54,7 +56,7 @@ public class SendBufferPool {
     assert capacity > 0;
     this.capacity = capacity;
     buffers = new LinkedList<>();
-    pushTaskQueues = new LinkedList<>();
+    pushTaskQueues = new LinkedHashSet<>();
 
     lastAquireTime = System.currentTimeMillis();
     cleaner.scheduleWithFixedDelay(
@@ -90,7 +92,7 @@ public class SendBufferPool {
   public synchronized LinkedBlockingQueue<PushTask> acquirePushTaskQueue() {
     lastAquireTime = System.currentTimeMillis();
     if (!pushTaskQueues.isEmpty()) {
-      return pushTaskQueues.removeFirst();
+      return removeFirst(pushTaskQueues);
     }
     return null;
   }
@@ -104,8 +106,18 @@ public class SendBufferPool {
 
   public synchronized void returnPushTaskQueue(LinkedBlockingQueue<PushTask> pushTaskQueue) {
     if (pushTaskQueues.size() == capacity) {
-      pushTaskQueues.removeFirst();
+      removeFirst(pushTaskQueues);
     }
-    pushTaskQueues.addLast(pushTaskQueue);
+    pushTaskQueues.add(pushTaskQueue);
+  }
+
+  private static <T> T removeFirst(Collection<? extends T> c) {
+    Iterator<? extends T> it = c.iterator();
+    if (!it.hasNext()) {
+      return null;
+    }
+    T removed = it.next();
+    it.remove();
+    return removed;
   }
 }
