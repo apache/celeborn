@@ -40,6 +40,7 @@ import org.apache.celeborn.common.exception.{CelebornIOException, PartitionUnRet
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol.{MessageType, PartitionLocation, PbOpenStreamList, PbOpenStreamListResponse, PbStreamHandler}
+import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
 
@@ -135,14 +136,16 @@ class CelebornShuffleReader[K, C](
                   s"Failed to create client for $shuffleKey-$partitionId from host: ${location.hostAndFetchPort}. " +
                     s"Shuffle reader will try its replica if exists.")
             }
-            val (_, locArr, pbOpenStreamListBuilder) = workerRequestMap.get(hostPort)
-            if (locArr != null) {
-              locArr.add(location)
-              pbOpenStreamListBuilder.addFileName(location.getFileName)
-                .addStartIndex(startMapIndex)
-                .addEndIndex(endMapIndex)
-              pbOpenStreamListBuilder.addReadLocalShuffle(
-                localFetchEnabled && location.getHost.equals(localHostAddress))
+            workerRequestMap.get(hostPort) match {
+              case (_, locArr, pbOpenStreamListBuilder) =>
+                locArr.add(location)
+                pbOpenStreamListBuilder.addFileName(location.getFileName)
+                  .addStartIndex(startMapIndex)
+                  .addEndIndex(endMapIndex)
+                pbOpenStreamListBuilder.addReadLocalShuffle(
+                  localFetchEnabled && location.getHost.equals(localHostAddress))
+              case _ =>
+                logDebug(s"Empty client for host ${hostPort}")
             }
           }
         }
