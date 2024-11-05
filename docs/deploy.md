@@ -158,7 +158,7 @@ WorkerRef: null
 Celeborn release binary contains clients for Spark 2.x and Spark 3.x, copy the corresponding client jar into Spark's
 `jars/` directory:
 
-Copy `$CELEBORN_HOME/spark/<celeborn-client-spark-{version} Jar>` to `$SPARK_HOME/jars/`.
+Copy `$CELEBORN_HOME/spark/celeborn-client-spark-<spark.major.version>-shaded_<scala.binary.version>-<celeborn.version>.jar` to `$SPARK_HOME/jars/`.
 
 ### Spark Configuration
 To use Celeborn, the following spark configurations should be added.
@@ -215,7 +215,7 @@ spark.executor.userClassPathFirst false
 Celeborn release binary contains clients for Flink 1.14.x, Flink 1.15.x, Flink 1.17.x, Flink 1.18.x, Flink 1.19.x and Flink 1.20.x, copy the corresponding client jar into Flink's
 `lib/` directory:
 
-Copy `$CELEBORN_HOME/flink/<celeborn-client-flink-{version} Jar>` to `$FLINK_HOME/lib/`.
+Copy `$CELEBORN_HOME/flink/celeborn-client-flink-<flink.version>-shaded_<scala.binary.version>-<celeborn.version>.jar` to `$FLINK_HOME/lib/`.
 
 ### Flink Configuration
 Celeborn supports two Flink integration strategies: remote shuffle service (since Flink 1.14) and [hybrid shuffle](https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/batch/batch_shuffle/#hybrid-shuffle) (since Flink 1.20).
@@ -265,7 +265,8 @@ celeborn.rpc.dispatcher.numThreads: 32
 **Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_HYBRID_FULL`.
 
 ## Deploy MapReduce client
-Copy `$CELEBORN_HOME/mr/<celeborn-client-mr Jar>` into `mapreduce.application.classpath` and `yarn.application.classpath`.
+Copy `$CELEBORN_HOME/mr/celeborn-client-mr-shaded_<scala.binary.version>-<celeborn.version>.jar` into `mapreduce.application.classpath` and `yarn.application.classpath`.
+
 Meanwhile, configure the following settings in YARN and MapReduce config.
 ```bash
 -Dyarn.app.mapreduce.am.job.recovery.enable=false
