@@ -24,14 +24,14 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-spark-3-columnar-shuffle_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-spark-${spark.version}-columnar-shuffle_2.12</artifactId>
   <packaging>jar</packaging>
   <name>Celeborn Client for Spark 3 Columnar Shuffle</name>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
-      <artifactId>celeborn-spark-3-columnar-common_${scala.binary.version}</artifactId>
+      <artifactId>celeborn-spark-${spark.version}-columnar-common_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -49,7 +49,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
-      <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
+      <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
