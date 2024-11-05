@@ -355,7 +355,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             newLoc,
             e);
         if (e instanceof InterruptedException) {
-          Thread.currentThread().interrupt();
+          pushDataRpcResponseCallback.onFailure(e);
         } else {
           pushDataRpcResponseCallback.onFailure(
               new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
@@ -883,9 +883,6 @@ public class ShuffleClientImpl extends ShuffleClient {
 
       return results;
     } catch (Exception e) {
-      if (e instanceof InterruptedException) {
-        Thread.currentThread().interrupt();
-      }
       StringBuilder partitionIds = new StringBuilder();
       StringBuilder epochs = new StringBuilder();
       requests.forEach(
@@ -899,6 +896,9 @@ public class ShuffleClientImpl extends ShuffleClient {
           partitionIds,
           epochs,
           e);
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       return null;
     }
   }
@@ -1161,6 +1161,11 @@ public class ShuffleClientImpl extends ShuffleClient {
               if (pushState.exception.get() != null) {
                 return;
               }
+              if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+                callback.onFailure(e);
+                return;
+              }
               StatusCode cause = getPushDataFailCause(e.getMessage());
               if (remainReviveTimes <= 0) {
                 if (e instanceof CelebornIOException) {
@@ -1243,7 +1248,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             loc,
             e);
         if (e instanceof InterruptedException) {
-          Thread.currentThread().interrupt();
+          wrappedCallback.onFailure(e);
         } else {
           wrappedCallback.onFailure(
               new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
@@ -1520,6 +1525,11 @@ public class ShuffleClientImpl extends ShuffleClient {
             if (pushState.exception.get() != null) {
               return;
             }
+            if (e instanceof InterruptedException) {
+              Thread.currentThread().interrupt();
+              callback.onFailure(e);
+              return;
+            }
             StatusCode cause = getPushDataFailCause(e.getMessage());
             if (remainReviveTimes <= 0) {
               if (e instanceof CelebornIOException) {
@@ -1601,7 +1611,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           addressPair,
           e);
       if (e instanceof InterruptedException) {
-        Thread.currentThread().interrupt();
+        wrappedCallback.onFailure(e);
       } else {
         wrappedCallback.onFailure(
             new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
