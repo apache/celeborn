@@ -171,8 +171,7 @@ private[celeborn] class Master(
   private var checkForWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForApplicationTimeOutTask: ScheduledFuture[_] = _
   private var checkForUnavailableWorkerTimeOutTask: ScheduledFuture[_] = _
-  private var checkForHDFSRemnantDirsTimeOutTask: ScheduledFuture[_] = _
-  private var checkForS3RemnantDirsTimeOutTask: ScheduledFuture[_] = _
+  private var checkForDFSRemnantDirsTimeOutTask: ScheduledFuture[_] = _
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
 
   // Config constants
@@ -309,19 +308,19 @@ private[celeborn] class Master(
       scheduleCheckTask(appHeartbeatTimeoutMs / 2, CheckForApplicationTimeOut)
 
     if (workerUnavailableInfoExpireTimeoutMs > 0) {
-      scheduleCheckTask(
+      checkForUnavailableWorkerTimeOutTask = scheduleCheckTask(
         workerUnavailableInfoExpireTimeoutMs / 2,
         CheckForWorkerUnavailableInfoTimeout)
     }
 
     if (hasHDFSStorage || hasS3Storage) {
-      checkForHDFSRemnantDirsTimeOutTask =
+      checkForDFSRemnantDirsTimeOutTask =
         scheduleCheckTask(dfsExpireDirsTimeoutMS, CheckForDFSExpiredDirsTimeout)
     }
 
   }
 
-  def scheduleCheckTask[T](timeoutMS: Long, message: T): ScheduledFuture[_] = {
+  private def scheduleCheckTask[T](timeoutMS: Long, message: T): ScheduledFuture[_] = {
     forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
@@ -338,21 +337,10 @@ private[celeborn] class Master(
       return
     }
     logInfo("Stopping Celeborn Master.")
-    if (checkForWorkerTimeOutTask != null) {
-      checkForWorkerTimeOutTask.cancel(true)
-    }
-    if (checkForUnavailableWorkerTimeOutTask != null) {
-      checkForUnavailableWorkerTimeOutTask.cancel(true)
-    }
-    if (checkForApplicationTimeOutTask != null) {
-      checkForApplicationTimeOutTask.cancel(true)
-    }
-    if (checkForHDFSRemnantDirsTimeOutTask != null) {
-      checkForHDFSRemnantDirsTimeOutTask.cancel(true)
-    }
-    if (checkForS3RemnantDirsTimeOutTask != null) {
-      checkForS3RemnantDirsTimeOutTask.cancel(true)
-    }
+    Option(checkForWorkerTimeOutTask).foreach(_.cancel(true))
+    Option(checkForUnavailableWorkerTimeOutTask).foreach(_.cancel(true))
+    Option(checkForApplicationTimeOutTask).foreach(_.cancel(true))
+    Option(checkForDFSRemnantDirsTimeOutTask).foreach(_.cancel(true))
     forwardMessageThread.shutdownNow()
     rackResolver.stop()
     if (authEnabled) {
