@@ -57,7 +57,7 @@ class RetryReviveTest extends AnyFunSuite
   }
 
   test(
-    "celeborn spark integration test - e2e test retry revive with available workers from heartbeat") {
+    "celeborn spark integration test - e2e test retry revive with new allocated workers from RPC") {
     val testConf = Map(
       s"${CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key}" -> "3",
       s"${CelebornConf.MASTER_SLOT_ASSIGN_EXTRA_SLOTS.key}" -> "0")
@@ -66,8 +66,8 @@ class RetryReviveTest extends AnyFunSuite
     val sparkConf = new SparkConf()
       .set(s"spark.${CelebornConf.TEST_CLIENT_RETRY_REVIVE.key}", "true")
       .set(s"spark.${CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key}", "3")
-      .set(s"spark.${CelebornConf.CLIENT_SLOT_ASSIGN_MAX_WORKERS.key}", "1")
       .set(s"spark.${CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key}", "true")
+      .set(s"spark.${CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR.key}", "0")
       .set(s"spark.${CelebornConf.MASTER_SLOT_ASSIGN_EXTRA_SLOTS.key}", "0")
       .setAppName("celeborn-demo").setMaster("local[2]")
     val ss = SparkSession.builder()

@@ -40,7 +40,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     statusTracker.excludedWorkers.put(mock("host2"), (StatusCode.WORKER_SHUTDOWN, registerTime))
 
     // test reserve (only statusCode list in handleHeartbeatResponse)
-    val empty = buildResponse(Array.empty, Array.empty, Array.empty, Array.empty)
+    val empty = buildResponse(Array.empty, Array.empty, Array.empty)
     statusTracker.handleHeartbeatResponse(empty)
 
     // only reserve host1
@@ -51,7 +51,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
 
     // add shutdown/excluded worker
     val response1 =
-      buildResponse(Array("host0"), Array("host1", "host3"), Array("host4"), Array.empty)
+      buildResponse(Array("host0"), Array("host1", "host3"), Array("host4"))
     statusTracker.handleHeartbeatResponse(response1)
 
     // test keep Unknown register time
@@ -66,7 +66,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     Assert.assertTrue(statusTracker.shuttingWorkers.contains(mock("host4")))
 
     // test re heartbeat with shutdown workers
-    val response2 = buildResponse(Array.empty, Array.empty, Array("host4"), Array.empty)
+    val response2 = buildResponse(Array.empty, Array.empty, Array("host4"))
     statusTracker.handleHeartbeatResponse(response2)
     Assert.assertTrue(!statusTracker.excludedWorkers.containsKey(mock("host4")))
     Assert.assertTrue(statusTracker.shuttingWorkers.contains(mock("host4")))
@@ -79,124 +79,24 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
 
     // test register time elapsed
     Thread.sleep(3000)
-    val response3 = buildResponse(Array.empty, Array("host5", "host6"), Array.empty, Array.empty)
+    val response3 = buildResponse(Array.empty, Array("host5", "host6"), Array.empty)
     statusTracker.handleHeartbeatResponse(response3)
     Assert.assertEquals(statusTracker.excludedWorkers.size(), 2)
     Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mock("host1")))
-
-    // test available workers
-    Assert.assertEquals(statusTracker.availableWorkersWithoutEndpoint.size(), 0)
-    val response4 = buildResponse(
-      Array.empty,
-      Array.empty,
-      Array.empty,
-      Array("host5", "host6", "host7", "host8"))
-    statusTracker.handleHeartbeatResponse(response4)
-
-    // availableWorkers wont update through heartbeat
-    // when DYNAMIC_RESOURCE_ENABLE set to false
-    Assert.assertEquals(statusTracker.availableWorkersWithoutEndpoint.size(), 0)
-    // available workers won't overwrite excluded workers
-    Assert.assertEquals(statusTracker.excludedWorkers.size(), 2)
-    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host5")))
-    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host6")))
-  }
-
-  test("handleHeartbeatResponse with availableWorkers") {
-    val celebornConf = new CelebornConf()
-    celebornConf.set(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, 2000L)
-    celebornConf.set(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED, true)
-    val statusTracker = new WorkerStatusTracker(celebornConf, null)
-
-    val registerTime = System.currentTimeMillis()
-    statusTracker.excludedWorkers.put(mock("host1"), (StatusCode.WORKER_UNKNOWN, registerTime))
-    statusTracker.excludedWorkers.put(mock("host2"), (StatusCode.WORKER_SHUTDOWN, registerTime))
-
-    // test reserve (only statusCode list in handleHeartbeatResponse)
-    val empty = buildResponse(Array.empty, Array.empty, Array.empty, Array.empty)
-    statusTracker.handleHeartbeatResponse(empty)
-
-    // only reserve host1
-    Assert.assertEquals(
-      statusTracker.excludedWorkers.get(mock("host1")),
-      (StatusCode.WORKER_UNKNOWN, registerTime))
-    Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mock("host2")))
-
-    // add shutdown/excluded worker
-    val response1 =
-      buildResponse(Array("host0"), Array("host1", "host3"), Array("host4"), Array.empty)
-    statusTracker.handleHeartbeatResponse(response1)
-
-    // test keep Unknown register time
-    Assert.assertEquals(
-      statusTracker.excludedWorkers.get(mock("host1")),
-      (StatusCode.WORKER_UNKNOWN, registerTime))
-    // test new added workers
-    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host0")))
-    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host3")))
-    Assert.assertTrue(!statusTracker.excludedWorkers.containsKey(mock("host4")))
-    Assert.assertTrue(statusTracker.shuttingWorkers.contains(mock("host4")))
-
-    // test re heartbeat with shutdown workers
-    val response2 = buildResponse(Array.empty, Array.empty, Array("host4"), Array.empty)
-    statusTracker.handleHeartbeatResponse(response2)
-    Assert.assertTrue(!statusTracker.excludedWorkers.containsKey(mock("host4")))
-    Assert.assertTrue(statusTracker.shuttingWorkers.contains(mock("host4")))
-
-    // test remove
-    val workers = new util.HashSet[WorkerInfo]
-    workers.add(mock("host3"))
-    statusTracker.removeFromExcludedWorkers(workers)
-    Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mock("host3")))
-
-    // test register time elapsed
-    Thread.sleep(3000)
-    val response3 = buildResponse(Array.empty, Array("host5", "host6"), Array.empty, Array.empty)
-    statusTracker.handleHeartbeatResponse(response3)
-    Assert.assertEquals(statusTracker.excludedWorkers.size(), 2)
-    Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mock("host1")))
-
-    // test available workers
-    Assert.assertEquals(statusTracker.availableWorkersWithoutEndpoint.size(), 0)
-    val response4 = buildResponse(
-      Array.empty,
-      Array.empty,
-      Array.empty,
-      Array("host5", "host6", "host7", "host8"))
-    statusTracker.handleHeartbeatResponse(response4)
-
-    // availableWorkers wont update with excludedWorkers
-    // So before using them we hava to filter excludedWorkers
-    Assert.assertEquals(statusTracker.availableWorkersWithoutEndpoint.size(), 4)
-    // available workers won't overwrite excluded workers
-    Assert.assertEquals(statusTracker.excludedWorkers.size(), 2)
-    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host5")))
-    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host6")))
-
-    // test re heartbeat with available workers
-    val response5 = buildResponse(Array.empty, Array.empty, Array.empty, Array("host8", "host9"))
-    statusTracker.handleHeartbeatResponse(response5)
-    Assert.assertEquals(statusTracker.availableWorkersWithoutEndpoint.size(), 2)
-    Assert.assertFalse(statusTracker.availableWorkersWithoutEndpoint.contains(mock("host7")))
-    Assert.assertTrue(statusTracker.availableWorkersWithoutEndpoint.contains(mock("host8")))
-    Assert.assertTrue(statusTracker.availableWorkersWithoutEndpoint.contains(mock("host9")))
   }
 
   private def buildResponse(
       excludedWorkerHosts: Array[String],
       unknownWorkerHosts: Array[String],
-      shuttingWorkerHosts: Array[String],
-      availableWorkerHosts: Array[String]): HeartbeatFromApplicationResponse = {
+      shuttingWorkerHosts: Array[String]): HeartbeatFromApplicationResponse = {
     val excludedWorkers = mockWorkers(excludedWorkerHosts)
     val unknownWorkers = mockWorkers(unknownWorkerHosts)
     val shuttingWorkers = mockWorkers(shuttingWorkerHosts)
-    val availableWorkers = mockWorkers(availableWorkerHosts)
     HeartbeatFromApplicationResponse(
       StatusCode.SUCCESS,
       excludedWorkers,
       unknownWorkers,
       shuttingWorkers,
-      availableWorkers,
       new util.ArrayList[Integer](),
       null)
   }

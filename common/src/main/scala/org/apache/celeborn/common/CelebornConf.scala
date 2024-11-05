@@ -901,6 +901,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
   def clientShuffleDynamicResourceEnabled: Boolean =
     get(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED)
+  def clientShuffleDynamicResourceFactor: Double = get(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
   def dfsExpireDirsTimeoutMS: Long = get(DFS_EXPIRE_DIRS_TIMEOUT)
@@ -4844,6 +4845,17 @@ object CelebornConf extends Logging {
         "during heartbeats when worker resource change.")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR: ConfigEntry[Double] =
+    buildConf("celeborn.client.shuffle.dynamicResourceFactor")
+      .categories("client")
+      .version("0.6.0")
+      .doc("The ChangePartitionManager will check whether (unavailable workers / shuffle allocated workers) " +
+        "is more than the factor before obtaining candidate workers from the requestSlots RPC response" +
+        "when ${CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key} set true")
+      .doubleConf
+      .checkValue(v => v >= 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
+      .createWithDefault(0.5)
 
   val CLIENT_PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.push.stageEnd.timeout")
