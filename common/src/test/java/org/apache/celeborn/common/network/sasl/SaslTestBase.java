@@ -58,6 +58,7 @@ public class SaslTestBase {
   static final String TEST_USER = "appId";
   static final String TEST_SECRET = "secret";
 
+  @SuppressWarnings("Finally")
   void authHelper(
       TransportConf conf,
       TransportServerBootstrap serverBootstrap,

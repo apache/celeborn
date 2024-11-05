@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.client;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -202,13 +203,11 @@ public class MasterClientSuiteJ {
     MasterClient client = new MasterClient(rpcEnv, conf, false);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
-    try {
-      client.askSync(message, HeartbeatFromWorkerResponse.class);
-      fail("It should be exceptions when sending one-way message.");
-    } catch (Throwable t) {
-      assertTrue(t.getCause() instanceof IOException);
-      assertEquals(1, client.getMaxRetries());
-    }
+    Throwable throwable =
+        assertThrows(
+            Throwable.class, () -> client.askSync(message, HeartbeatFromWorkerResponse.class));
+    assertTrue(throwable.getCause() instanceof IOException);
+    assertEquals(1, client.getMaxRetries());
   }
 
   @Test

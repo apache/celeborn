@@ -636,6 +636,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     return pbReportShuffleFetchFailureResponse.getSuccess();
   }
 
+  @Override
   public boolean reportBarrierTaskFailure(int appShuffleId, String appShuffleIdentifier) {
     PbReportBarrierStageAttemptFailure pbReportBarrierStageAttemptFailure =
         PbReportBarrierStageAttemptFailure.newBuilder()

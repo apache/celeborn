@@ -183,6 +183,7 @@ public class DummyShuffleClient extends ShuffleClient {
     return true;
   }
 
+  @Override
   public boolean reportBarrierTaskFailure(int appShuffleId, String appShuffleIdentifier) {
     return true;
   }
