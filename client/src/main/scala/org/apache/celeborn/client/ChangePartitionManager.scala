@@ -310,14 +310,11 @@ class ChangePartitionManager(
         || (unavailableWorkerRatio >= dynamicResourceUnavailableFactor)) {
 
         // get new available workers for the request partition ids
-        val partitionIds = new util.HashSet[Integer]()
-        changePartitions.map { changePartition =>
-          partitionIds.add(changePartition.partitionId)
-        }
-        val ids = new util.ArrayList[Integer]()
-        ids.addAll(partitionIds)
+        val partitionIds = new util.ArrayList[Integer](
+          changePartitions.map(_.partitionId).map(Integer.valueOf).toList.asJava)
         // The partition id value is not important here because we're just trying to get the workers to use
-        val requestSlotsRes = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+        val requestSlotsRes =
+          lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, partitionIds)
 
         requestSlotsRes.status match {
           case StatusCode.REQUEST_FAILED =>
