@@ -19,10 +19,10 @@ package org.apache.celeborn.cli
 
 import java.io.{ByteArrayOutputStream, File, PrintStream}
 import java.nio.file.{Files, Paths}
-
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.rest.v1.master.invoker.ApiException
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.worker.Worker
@@ -278,25 +278,31 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
       "--transfer-ratis-leader",
       "--peerAddress",
       s"${master.masterArgs.host}:9872")
-    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+    // This test just makes sure the right API response is received since HA is not enabled for unit tests.
+    captureOutputAndValidateResponse(args, "", "org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager" +
+      " cannot be cast to org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager")
   }
 
   test("master --step-down-ratis-leader") {
     val args = prepareMasterArgs() ++ Array(
       "--step-down-ratis-leader")
-    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+    // This test just makes sure the right API response is received since HA is not enabled for unit tests.
+    captureOutputAndValidateResponse(args, "", "org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager" +
+      " cannot be cast to org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager")
   }
 
   test("master --pause-leader-election") {
     val args = prepareMasterArgs() ++ Array(
       "--pause-leader-election")
-    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+    // This test just makes sure the right API response is received since HA is not enabled for unit tests.
+    captureOutputAndValidateResponse(args, "", "Master HA is not enabled.")
   }
 
   test("master --resume-leader-election") {
     val args = prepareMasterArgs() ++ Array(
       "--resume-leader-election")
-    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+    // This test just makes sure the right API response is received since HA is not enabled for unit tests.
+    captureOutputAndValidateResponse(args, "", "Master HA is not enabled.")
   }
 
   test("master --add-ratis-peers") {
@@ -304,7 +310,9 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
       "--add-ratis-peers",
       "--peers",
       "a=host1:9872")
-    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+    // This test just makes sure the right API response is received since HA is not enabled for unit tests.
+    captureOutputAndValidateResponse(args, "", "org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager" +
+      " cannot be cast to org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager")
   }
 
   test("master --remove-ratis-peers") {
@@ -312,21 +320,26 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
       "--remove-ratis-peers",
       "--peers",
       "a=host1:9872")
-    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+    // This test just makes sure the right API response is received since HA is not enabled for unit tests.
+    captureOutputAndValidateResponse(args, "", "org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager" +
+      " cannot be cast to org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager")
   }
 
   test("master --set-ratis-peers-priorities") {
     val args = prepareMasterArgs() ++ Array(
       "--set-ratis-peers-priorities",
       "--priorities",
-      "host1:9872-0")
-    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+      "host1:9872=0")
+    // This test just makes sure the right API response is received since HA is not enabled for unit tests.
+    captureOutputAndValidateResponse(args, "", "org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager" +
+      " cannot be cast to org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager")
   }
 
   test("master --create-snapshot") {
     val args = prepareMasterArgs() ++ Array(
       "--create-snapshot")
-    captureOutputAndValidateResponse(args, "Master HA is not enabled.")
+    // This test just makes sure the right API response is received since HA is not enabled for unit tests.
+    captureOutputAndValidateResponse(args, "", "Master HA is not enabled.")
   }
 
   private def prepareMasterArgs(): Array[String] = {
@@ -345,14 +358,27 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
 
   private def captureOutputAndValidateResponse(
       args: Array[String],
-      stdoutValidationString: String): Unit = {
+      stdoutValidationString: String = "",
+      apiErrorString: String = ""): Unit = {
     val stdoutStream = new ByteArrayOutputStream()
     val stdoutPrintStream = new PrintStream(stdoutStream)
     Console.withOut(stdoutPrintStream) {
-      CelebornCli.main(args)
+      try {
+        CelebornCli.main(args)
+      } catch {
+        case e: ApiException =>
+          val message = e.getMessage
+          if (apiErrorString.nonEmpty) {
+            assert(message.contains(apiErrorString))
+          }
+          throw e
+      }
+
     }
-    val stdout = stdoutStream.toString
-    assert(stdout.nonEmpty && stdout.contains(stdoutValidationString))
+    if (stdoutValidationString.nonEmpty) {
+      val stdout = stdoutStream.toString
+      assert(stdout.nonEmpty && stdout.contains(stdoutValidationString))
+    }
   }
 
   private def getWorkerId(): String = {

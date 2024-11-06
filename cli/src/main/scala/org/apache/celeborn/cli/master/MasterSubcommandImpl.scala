@@ -280,20 +280,30 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   override private[master] def createSnapshot: HandleResponse = ratisApi.createRatisSnapshot()
 
   private[master] def getRatisPeers: util.List[RatisPeer] = {
-    parseCliMapping(ratisOptions.peers).map { idToHostPort =>
+    if (ratisOptions.peers == null || ratisOptions.peers.isEmpty) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Peers must be provided for this command via --peers.")
+    }
+    parseCliPeersMapping(ratisOptions.peers).map { idToHostPort =>
       new RatisPeer().id(idToHostPort._1).address(idToHostPort._2)
     }.asJava
   }
 
   private[master] def getRatisPeerPrioritiesMap: util.Map[String, Integer] = {
+    if (ratisOptions.priorities == null || ratisOptions.priorities.isEmpty) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Priorities must be provided for this command via --priorities.")
+    }
     val javaMap: util.Map[String, Integer] = new util.HashMap[String, Integer]()
-    parseCliMapping(ratisOptions.peers).map(e => (e._1, e._2.toInt)).toMap.foreach {
+    parseCliPeersMapping(ratisOptions.priorities).map(e => (e._1, e._2.toInt)).toMap.foreach {
       case (k, v) => javaMap.put(k, Integer.valueOf(v))
     }
     javaMap
   }
 
-  private def parseCliMapping(cliMappingString: String): List[(String, String)] = {
+  private def parseCliPeersMapping(cliMappingString: String): List[(String, String)] = {
     cliMappingString.split(",").map { entry =>
       val parsedEntry = entry.split("=")
       (parsedEntry(0), parsedEntry(1))
