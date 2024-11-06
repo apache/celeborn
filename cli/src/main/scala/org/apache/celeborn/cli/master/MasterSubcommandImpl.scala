@@ -274,7 +274,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
 
   override private[master] def setRatisPeersPriorities: HandleResponse = {
     ratisApi.setRatisPeerPriority(new RatisPeerSetPriorityRequest()
-      .addressPriorities(mapAsJavaMap(getRatisPeerPrioritiesMap)))
+      .addressPriorities(getRatisPeerPrioritiesMap))
   }
 
   override private[master] def createSnapshot: HandleResponse = ratisApi.createRatisSnapshot()
@@ -285,8 +285,12 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     }.asJava
   }
 
-  private[master] def getRatisPeerPrioritiesMap: Map[String, Int] = {
-    parseCliMapping(ratisOptions.peers).map(e => (e._1, e._2.toInt)).toMap
+  private[master] def getRatisPeerPrioritiesMap: util.Map[String, Integer] = {
+    val javaMap: util.Map[String, Integer] = new util.HashMap[String, Integer]()
+    parseCliMapping(ratisOptions.peers).map(e => (e._1, e._2.toInt)).toMap.foreach {
+      case (k, v) => javaMap.put(k, Integer.valueOf(v))
+    }
+    javaMap
   }
 
   private def parseCliMapping(cliMappingString: String): List[(String, String)] = {
