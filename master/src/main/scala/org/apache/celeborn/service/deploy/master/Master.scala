@@ -261,8 +261,8 @@ private[celeborn] class Master(
       }).sum()
   }
 
-  masterSource.addMeter(MasterSource.SHUFFLE_FALLBACK_COUNT) { () =>
-    statusSystem.shuffleTotalFallbackCount.longValue()
+  masterSource.addGauge(MasterSource.SHUFFLE_FALLBACK_COUNT) { () =>
+    statusSystem.shuffleTotalFallbackCount.sum()
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_TOTAL_CAPACITY) { () =>
