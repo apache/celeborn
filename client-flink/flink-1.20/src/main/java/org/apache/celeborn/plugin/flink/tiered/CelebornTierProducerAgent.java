@@ -453,9 +453,9 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
 
       Buffer buffer = originBuffer;
       if (originBuffer.isCompressed()) {
-        // In flink 1.20.0, it will receive a compressed buffer. However, since we need to write
-        // data to this buffer and the compressed buffer is read-only,
-        // we must create a new Buffer object to the wrap origin buffer.
+        // Flink hybrid shuffle will send a compressed buffer to tier. However, since we need to
+        // write data to this buffer and the compressed buffer is read-only, we must create a
+        // new Buffer object to the wrap origin buffer.
         NetworkBuffer networkBuffer =
             new NetworkBuffer(
                 originBuffer.getMemorySegment(),
@@ -465,9 +465,6 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
         networkBuffer.writerIndex(originBuffer.asByteBuf().writerIndex());
         buffer = networkBuffer;
       }
-
-      // TODO: To enhance performance, the flink should pass an no-compressed buffer to producer
-      // agent and we compress the buffer here
 
       // set the buffer meta
       BufferUtils.setCompressedDataWithoutHeader(buffer, originBuffer);
