@@ -261,7 +261,7 @@ private[celeborn] class Master(
       }).sum()
   }
 
-  masterSource.addGauge(MasterSource.SHUFFLE_FALLBACK_COUNT) { () =>
+  masterSource.addMeter(MasterSource.SHUFFLE_FALLBACK_COUNT) { () =>
     statusSystem.shuffleTotalFallbackCount.longValue()
   }
 
