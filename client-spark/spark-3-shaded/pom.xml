@@ -24,14 +24,14 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-client-spark-${spark.version}-shaded_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-client-spark-${spark.version.majorminor}-shaded_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
   <name>Celeborn Shaded Client for Spark 3</name>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
-      <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
+      <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>
@@ -147,7 +147,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-spark-${spark.version}-columnar-shuffle_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-spark-${spark.version.majorminor}-columnar-shuffle_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
@@ -157,7 +157,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-spark-${spark.version}-columnar-shuffle_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-spark-${spark.version.majorminor}-columnar-shuffle_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
@@ -167,7 +167,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-spark-${spark.version}-columnar-shuffle_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-spark-${spark.version.majorminor}-columnar-shuffle_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
@@ -177,7 +177,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-spark-${spark.version}-columnar-shuffle_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-spark-${spark.version.majorminor}-columnar-shuffle_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
@@ -187,7 +187,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-spark-${spark.version}-columnar-shuffle_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-spark-${spark.version.majorminor}-columnar-shuffle_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
