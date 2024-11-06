@@ -318,7 +318,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
           val shuffleKey = parseDbShuffleKey(key)
           try {
-            val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue, cache)
+            val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue, cache, mountPoints)
             logDebug(s"Reload DB: $shuffleKey -> $files")
             diskFileInfos.put(shuffleKey, files)
             committedFileInfos.put(shuffleKey, files)
