@@ -1472,7 +1472,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The rate of shuffle fallbacks.",
+          "description": "The 1-minute rate of shuffle fallbacks.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1550,13 +1550,13 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "rate(metrics_ShuffleFallbackCount_Count{instance=~\"${instance}\"}[1m])",
+              "expr": "metrics_ShuffleFallbackCount_OneMinuteRate{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_ShuffleFallbackCount_Count",
+          "title": "metrics_ShuffleFallbackCount_OneMinuteRate",
           "type": "timeseries"
         }
       ],
