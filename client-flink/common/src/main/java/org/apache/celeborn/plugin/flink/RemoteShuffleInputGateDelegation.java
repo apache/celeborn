@@ -98,6 +98,8 @@ public class RemoteShuffleInputGateDelegation {
   /** Received buffers from remote shuffle worker. It's consumed by upper computing task. */
   private Queue<Pair<Buffer, InputChannelInfo>> receivedBuffers = new LinkedList<>();
 
+  private Map<InputChannelInfo, ResultPartitionID> channelToResultPartitionId;
+
   /** {@link Throwable} when reading failure. */
   private Throwable cause;
 
@@ -171,7 +173,7 @@ public class RemoteShuffleInputGateDelegation {
     this.endSubIndex = endSubIndex;
 
     initShuffleReadClients();
-
+    channelToResultPartitionId = new HashMap<>();
     channelsInfo = createChannelInfos();
     this.numConcurrentReading = numConcurrentReading;
     this.availabilityHelper = availabilityHelper;
@@ -220,7 +222,13 @@ public class RemoteShuffleInputGateDelegation {
 
   private List<InputChannelInfo> createChannelInfos() {
     return IntStream.range(0, gateDescriptor.getShuffleDescriptors().length)
-        .mapToObj(i -> new InputChannelInfo(gateIndex, i))
+        .mapToObj(
+            i -> {
+              InputChannelInfo channelInfo = new InputChannelInfo(gateIndex, i);
+              channelToResultPartitionId.put(
+                  channelInfo, gateDescriptor.getShuffleDescriptors()[i].getResultPartitionID());
+              return channelInfo;
+            })
         .collect(Collectors.toList());
   }
 
@@ -319,13 +327,14 @@ public class RemoteShuffleInputGateDelegation {
     }
   }
 
-  private Buffer decompressBufferIfNeeded(Buffer buffer) throws IOException {
+  private Buffer decompressBufferIfNeeded(Buffer buffer, InputChannelInfo info) throws IOException {
     if (buffer.isCompressed()) {
       try {
         checkState(bufferDecompressor != null, "Buffer decompressor not set.");
         return bufferDecompressor.decompressToIntermediateBuffer(buffer);
       } catch (Throwable t) {
-        throw new IOException("Decompress failure", t);
+        LOG.error("Decompress buffer error: inputChannelInfo: {}", info, t);
+        throw new PartitionNotFoundException(channelToResultPartitionId.get(info));
       } finally {
         buffer.recycleBuffer();
       }
@@ -422,7 +431,7 @@ public class RemoteShuffleInputGateDelegation {
   private Optional<BufferOrEvent> transformBuffer(Buffer buf, InputChannelInfo info)
       throws IOException {
     return Optional.of(
-        new BufferOrEvent(decompressBufferIfNeeded(buf), info, !isFinished(), false));
+        new BufferOrEvent(decompressBufferIfNeeded(buf, info), info, !isFinished(), false));
   }
 
   private Optional<BufferOrEvent> transformEvent(Buffer buffer, InputChannelInfo channelInfo)
