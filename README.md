@@ -312,7 +312,7 @@ spark.executor.userClassPathFirst false
 
 ### Deploy Flink client
 
-**Important: Only Flink batch jobs are supported for now.**
+**Important: Only Flink batch jobs are supported for now. Due to the Shuffle Service in Flink is cluster-granularity, if you want to use Celeborn in a session cluster, it will not be able to submit both streaming and batch job to the same cluster. We plan to get rid of this restriction for Hybrid Shuffle mode in a future release.**
 
 Copy `$CELEBORN_HOME/flink/*.jar` to `$FLINK_HOME/lib/`.
 
