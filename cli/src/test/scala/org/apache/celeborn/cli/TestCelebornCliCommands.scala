@@ -19,6 +19,7 @@ package org.apache.celeborn.cli
 
 import java.io.{ByteArrayOutputStream, File, PrintStream}
 import java.nio.file.{Files, Paths}
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.common.CelebornConf
@@ -279,16 +280,22 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
       "--peerAddress",
       s"${master.masterArgs.host}:9872")
     // This test just makes sure the right API response is received since HA is not enabled for unit tests.
-    captureOutputAndValidateResponse(args, "", "org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager" +
-      " cannot be cast to org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager")
+    captureOutputAndValidateResponse(
+      args,
+      "",
+      "org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager" +
+        " cannot be cast to org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager")
   }
 
   test("master --step-down-ratis-leader") {
     val args = prepareMasterArgs() ++ Array(
       "--step-down-ratis-leader")
     // This test just makes sure the right API response is received since HA is not enabled for unit tests.
-    captureOutputAndValidateResponse(args, "", "org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager" +
-      " cannot be cast to org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager")
+    captureOutputAndValidateResponse(
+      args,
+      "",
+      "org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager" +
+        " cannot be cast to org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager")
   }
 
   test("master --pause-leader-election") {
@@ -311,8 +318,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
       "--peers",
       "a=host1:9872")
     // This test just makes sure the right API response is received since HA is not enabled for unit tests.
-    captureOutputAndValidateResponse(args, "", "org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager" +
-      " cannot be cast to org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager")
+    captureOutputAndValidateResponse(
+      args,
+      "",
+      "org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager" +
+        " cannot be cast to org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager")
   }
 
   test("master --remove-ratis-peers") {
@@ -321,8 +331,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
       "--peers",
       "a=host1:9872")
     // This test just makes sure the right API response is received since HA is not enabled for unit tests.
-    captureOutputAndValidateResponse(args, "", "org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager" +
-      " cannot be cast to org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager")
+    captureOutputAndValidateResponse(
+      args,
+      "",
+      "org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager" +
+        " cannot be cast to org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager")
   }
 
   test("master --set-ratis-peers-priorities") {
@@ -331,8 +344,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
       "--priorities",
       "host1:9872=0")
     // This test just makes sure the right API response is received since HA is not enabled for unit tests.
-    captureOutputAndValidateResponse(args, "", "org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager" +
-      " cannot be cast to org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager")
+    captureOutputAndValidateResponse(
+      args,
+      "",
+      "org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager" +
+        " cannot be cast to org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager")
   }
 
   test("master --create-snapshot") {
