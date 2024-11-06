@@ -19,7 +19,7 @@
 package org.apache.celeborn.service.deploy.worker.storage.segment;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
@@ -38,7 +38,7 @@ public class SegmentMapPartitionData extends MapPartitionData {
   public SegmentMapPartitionData(
       int minReadBuffers,
       int maxReadBuffers,
-      HashMap<String, ExecutorService> storageFetcherPool,
+      ConcurrentHashMap<String, ExecutorService> storageFetcherPool,
       int threadsPerMountPoint,
       DiskFileInfo fileInfo,
       Consumer<Long> recycleStream,
