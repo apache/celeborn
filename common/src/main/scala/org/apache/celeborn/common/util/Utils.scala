@@ -44,7 +44,7 @@ import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.PORT_MAX_RETRY
-import org.apache.celeborn.common.exception.CelebornException
+import org.apache.celeborn.common.exception.{CelebornException, CelebornIOException}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
@@ -1343,4 +1343,16 @@ object Utils extends Logging {
         throw e
     }
   }
+
+  def isCriticalCauseForFetch(e: Exception) = {
+    val rpcTimeout =
+      e.isInstanceOf[IOException] && e.getCause != null && e.getCause.isInstanceOf[TimeoutException]
+    val connectException =
+      e.isInstanceOf[CelebornIOException] && e.getMessage != null && (e.getMessage.startsWith(
+        "Connecting to") || e.getMessage.startsWith("Failed to"))
+    val fetchChunkTimeout = e.isInstanceOf[
+      CelebornIOException] && e.getCause != null && e.getCause.isInstanceOf[IOException]
+    connectException || rpcTimeout || fetchChunkTimeout
+  }
+
 }
