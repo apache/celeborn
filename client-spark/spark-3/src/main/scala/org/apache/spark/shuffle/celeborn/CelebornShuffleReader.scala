@@ -119,23 +119,34 @@ class CelebornShuffleReader[K, C](
           partCnt += 1
           val hostPort = location.hostAndFetchPort
           if (!workerRequestMap.containsKey(hostPort)) {
-            val client = shuffleClient.getDataClientFactory().createClient(
-              location.getHost,
-              location.getFetchPort)
-            val pbOpenStreamList = PbOpenStreamList.newBuilder()
-            pbOpenStreamList.setShuffleKey(shuffleKey)
-            workerRequestMap.put(
-              hostPort,
-              (client, new util.ArrayList[PartitionLocation], pbOpenStreamList))
+            try {
+              val client = shuffleClient.getDataClientFactory().createClient(
+                location.getHost,
+                location.getFetchPort)
+              val pbOpenStreamList = PbOpenStreamList.newBuilder()
+              pbOpenStreamList.setShuffleKey(shuffleKey)
+              workerRequestMap.put(
+                hostPort,
+                (client, new util.ArrayList[PartitionLocation], pbOpenStreamList))
+            } catch {
+              case ex: Exception =>
+                shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort, ex)
+                logWarning(
+                  s"Failed to create client for $shuffleKey-$partitionId from host: ${location.hostAndFetchPort}. " +
+                    s"Shuffle reader will try its replica if exists.")
+            }
           }
-          val (_, locArr, pbOpenStreamListBuilder) = workerRequestMap.get(hostPort)
-
-          locArr.add(location)
-          pbOpenStreamListBuilder.addFileName(location.getFileName)
-            .addStartIndex(startMapIndex)
-            .addEndIndex(endMapIndex)
-          pbOpenStreamListBuilder.addReadLocalShuffle(
-            localFetchEnabled && location.getHost.equals(localHostAddress))
+          workerRequestMap.get(hostPort) match {
+            case (_, locArr, pbOpenStreamListBuilder) =>
+              locArr.add(location)
+              pbOpenStreamListBuilder.addFileName(location.getFileName)
+                .addStartIndex(startMapIndex)
+                .addEndIndex(endMapIndex)
+              pbOpenStreamListBuilder.addReadLocalShuffle(
+                localFetchEnabled && location.getHost.equals(localHostAddress))
+            case _ =>
+              logDebug(s"Empty client for host ${hostPort}")
+          }
         }
       }
     }
