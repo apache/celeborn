@@ -18,8 +18,10 @@
 package org.apache.celeborn.cli.master
 
 import java.util
+
 import picocli.CommandLine.{ArgGroup, Mixin, ParameterException, ParentCommand, Spec}
 import picocli.CommandLine.Model.CommandSpec
+
 import org.apache.celeborn.cli.CelebornCli
 import org.apache.celeborn.cli.common.{CliLogging, CommonOptions}
 import org.apache.celeborn.cli.config.CliConfigManager

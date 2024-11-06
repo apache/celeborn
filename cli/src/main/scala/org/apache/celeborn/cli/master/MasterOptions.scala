@@ -123,7 +123,8 @@ final class MasterOptions {
 
   @Option(
     names = Array("--transfer-ratis-leader"),
-    description = Array("Transfer the group leader to the specified server. Specify leader via --peerAddress."))
+    description =
+      Array("Transfer the group leader to the specified server. Specify leader via --peerAddress."))
   private[master] var transferRatisLeader: Boolean = _
 
   @Option(
@@ -153,7 +154,8 @@ final class MasterOptions {
 
   @Option(
     names = Array("--set-ratis-peers-priorities"),
-    description = Array("Set the priority of the peers in the raft group. Specify priorities via --priorities."))
+    description = Array(
+      "Set the priority of the peers in the raft group. Specify priorities via --priorities."))
   private[master] var setRatisPeersPriorities: Boolean = _
 
   @Option(
@@ -161,4 +163,3 @@ final class MasterOptions {
     description = Array("Trigger the current server to take snapshot."))
   private[master] var createSnapshot: Boolean = _
 }
-

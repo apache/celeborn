@@ -302,8 +302,8 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   test("master --add-ratis-peers") {
     val args = prepareMasterArgs() ++ Array(
       "--add-ratis-peers",
-    "--peers",
-    "a=host1:9872")
+      "--peers",
+      "a=host1:9872")
     captureOutputAndValidateResponse(args, "Master HA is not enabled.")
   }
 
