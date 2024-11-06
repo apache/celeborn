@@ -42,9 +42,9 @@ private[celeborn] class RpcMetricsTracker(
     JavaUtils.newConcurrentHashMap[String, Histogram]
 
   private var maxQueueLength: Long = 0
-  private val slowRpcThreshold: Long = conf.rpcSlowThreshold()
-  private val slowRpcInterval: Long = conf.rpcSlowInterval()
-  private val slowDumpInterval: Long = conf.rpcDumpInterval()
+  private val slowRpcThreshold: Long = conf.rpcSlowThresholdNs()
+  private val slowRpcInterval: Long = conf.rpcSlowIntervalMs()
+  private val rpcDumpInterval: Long = conf.rpcDumpIntervalMs()
   private val lastDumpTime: AtomicLong = new AtomicLong(0)
   private val lastSlowLogTime: AtomicLong = new AtomicLong(0)
   final private val useHistogram =
@@ -92,7 +92,7 @@ private[celeborn] class RpcMetricsTracker(
       }
 
       val lastTime = lastDumpTime.get
-      if (useHistogram && System.currentTimeMillis() - lastTime > slowDumpInterval &&
+      if (useHistogram && System.currentTimeMillis() - lastTime > rpcDumpInterval &&
         lastDumpTime.compareAndSet(lastTime, System.currentTimeMillis())) {
         dump()
       }

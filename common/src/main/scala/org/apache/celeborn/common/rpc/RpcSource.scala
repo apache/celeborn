@@ -29,7 +29,7 @@ class RpcSource(conf: CelebornConf) extends AbstractSource(conf, RpcSource.ROLE_
 
   override def updateTimer(name: String, value: Long): Unit = {
     if (!msgNameSet.contains(name)) {
-      addTimer(name)
+      super.addTimer(name)
       msgNameSet.add(name)
     }
     super.updateTimer(name, value)
