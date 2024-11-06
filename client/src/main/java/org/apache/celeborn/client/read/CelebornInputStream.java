@@ -22,7 +22,6 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.LongAdder;
 
 import scala.Tuple2;
@@ -314,23 +313,6 @@ public abstract class CelebornInputStream extends InputStream {
       } else {
         return true;
       }
-    }
-
-    private boolean isCriticalCause(Exception e) {
-      boolean rpcTimeout =
-          e instanceof IOException
-              && e.getCause() != null
-              && e.getCause() instanceof TimeoutException;
-      boolean connectException =
-          e instanceof CelebornIOException
-              && e.getMessage() != null
-              && (e.getMessage().startsWith("Connecting to")
-                  || e.getMessage().startsWith("Failed to"));
-      boolean fetchChunkTimeout =
-          e instanceof CelebornIOException
-              && e.getCause() != null
-              && e.getCause() instanceof IOException;
-      return connectException || rpcTimeout || fetchChunkTimeout;
     }
 
     private PartitionReader createReaderWithRetry(

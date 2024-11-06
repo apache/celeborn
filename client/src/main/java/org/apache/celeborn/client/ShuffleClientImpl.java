@@ -1910,6 +1910,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     return dataClientFactory;
   }
 
+  @Override
   public void excludeFailedFetchLocation(String hostAndFetchPort, Exception e) {
     if (pushReplicateEnabled
         && fetchExcludeWorkerOnFailureEnabled
