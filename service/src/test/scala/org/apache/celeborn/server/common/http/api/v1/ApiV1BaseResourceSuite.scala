@@ -46,5 +46,6 @@ abstract class ApiV1BaseResourceSuite extends HttpTestHelper {
     val threadStacks = response.readEntity(classOf[ThreadStackResponse]).getThreadStacks.asScala
     assert(threadStacks.nonEmpty)
     assert(threadStacks.exists(_.getBlockedByThreadId == null))
+    assert(threadStacks.exists(_.getLockName != null))
   }
 }
