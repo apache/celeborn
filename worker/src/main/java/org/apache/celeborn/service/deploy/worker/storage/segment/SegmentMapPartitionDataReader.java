@@ -276,7 +276,7 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
       }
       if (segmentId != -1) {
         // For the continuous segments, we use the same backlog
-        Integer subPartitionLastSegmentId = subPartitionLastSegmentIds.get(subPartitionId);
+        int subPartitionLastSegmentId = subPartitionLastSegmentIds.get(subPartitionId);
         if (segmentId == 0
             || (!segmentId.equals(subPartitionLastSegmentId)
                 && !segmentId.equals(subPartitionLastSegmentId + 1))) {
