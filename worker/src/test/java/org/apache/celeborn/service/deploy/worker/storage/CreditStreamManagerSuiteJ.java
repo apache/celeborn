@@ -79,6 +79,7 @@ public class CreditStreamManagerSuiteJ {
         new DiskFileInfo(
             createTemporaryFileWithIndexFile(), new UserIdentifier("default", "default"), conf);
     MapFileMeta mapFileMeta = new MapFileMeta(1024, 10);
+    mapFileMeta.setMountPoint("/tmp");
     diskFileInfo.replaceFileMeta(mapFileMeta);
     Consumer<Long> streamIdConsumer = streamId -> Assert.assertTrue(streamId > 0);
 
