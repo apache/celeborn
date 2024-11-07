@@ -323,7 +323,7 @@ public class ApplicationApi extends BaseApi {
 
   /**
    * 
-   * Revise lost shuffles or delete shuffles of an application.
+   * Revise lost shuffles or deleted shuffles of an application.
    * @param reviseLostShufflesRequest  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
@@ -335,7 +335,7 @@ public class ApplicationApi extends BaseApi {
 
   /**
    * 
-   * Revise lost shuffles or delete shuffles of an application.
+   * Revise lost shuffles or deleted shuffles of an application.
    * @param reviseLostShufflesRequest  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
