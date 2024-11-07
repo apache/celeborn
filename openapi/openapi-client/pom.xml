@@ -81,6 +81,90 @@
   </dependencies>
 
   <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.openapitools</groupId>
+          <artifactId>openapi-generator-maven-plugin</artifactId>
+          <!--
+          please keep the schema definitions consistent between master_rest_v1.yaml and worker_rest_v1.yaml
+          -->
+          <executions>
+            <execution>
+              <id>generate-java-master-rest-v1</id>
+              <goals>
+                <goal>generate</goal>
+              </goals>
+              <phase>generate-sources</phase>
+              <configuration>
+                <inputSpec>${project.basedir}/src/main/openapi3/master_rest_v1.yaml</inputSpec>
+                <output>${project.build.directory}/generated-sources/java</output>
+                <apiPackage>org.apache.celeborn.rest.v1.master</apiPackage>
+                <modelPackage>org.apache.celeborn.rest.v1.model</modelPackage>
+                <invokerPackage>org.apache.celeborn.rest.v1.master.invoker</invokerPackage>
+                <generatorName>java</generatorName>
+                <generateApiTests>false</generateApiTests>
+                <generateModelTests>false</generateModelTests>
+                <groupId>${groupId}</groupId>
+                <artifactId>${artifactId}</artifactId>
+                <artifactVersion>${project.version}</artifactVersion>
+                <addCompileSourceRoot>false</addCompileSourceRoot>
+                <templateDirectory>${project.basedir}/src/main/openapi3/templates</templateDirectory>
+                <cleanupOutput>true</cleanupOutput>
+                <configOptions>
+                  <licenseName>Apache License 2.0</licenseName>
+                  <groupId>${groupId}</groupId>
+                  <artifactId>${artifactId}</artifactId>
+                  <artifactVersion>${project.version}</artifactVersion>
+                  <dateLibrary>java8</dateLibrary>
+                  <useGzipFeature>true</useGzipFeature>
+                  <library>apache-httpclient</library>
+                  <hideGenerationTimestamp>true</hideGenerationTimestamp>
+                  <supportUrlQuery>false</supportUrlQuery>
+                  <annotationLibrary>none</annotationLibrary>
+                  <useEnumCaseInsensitive>true</useEnumCaseInsensitive>
+                </configOptions>
+              </configuration>
+            </execution>
+            <execution>
+              <id>generate-java-worker-rest-v1</id>
+              <goals>
+                <goal>generate</goal>
+              </goals>
+              <phase>generate-sources</phase>
+              <configuration>
+                <inputSpec>${project.basedir}/src/main/openapi3/worker_rest_v1.yaml</inputSpec>
+                <output>${project.build.directory}/generated-sources/java</output>
+                <apiPackage>org.apache.celeborn.rest.v1.worker</apiPackage>
+                <modelPackage>org.apache.celeborn.rest.v1.model</modelPackage>
+                <invokerPackage>org.apache.celeborn.rest.v1.worker.invoker</invokerPackage>
+                <generatorName>java</generatorName>
+                <generateApiTests>false</generateApiTests>
+                <generateModelTests>false</generateModelTests>
+                <groupId>${groupId}</groupId>
+                <artifactId>${artifactId}</artifactId>
+                <artifactVersion>${project.version}</artifactVersion>
+                <addCompileSourceRoot>false</addCompileSourceRoot>
+                <templateDirectory>${project.basedir}/src/main/openapi3/templates</templateDirectory>
+                <configOptions>
+                  <licenseName>Apache License 2.0</licenseName>
+                  <groupId>${groupId}</groupId>
+                  <artifactId>${artifactId}</artifactId>
+                  <artifactVersion>${project.version}</artifactVersion>
+                  <dateLibrary>java8</dateLibrary>
+                  <useGzipFeature>true</useGzipFeature>
+                  <library>apache-httpclient</library>
+                  <hideGenerationTimestamp>true</hideGenerationTimestamp>
+                  <supportUrlQuery>false</supportUrlQuery>
+                  <annotationLibrary>none</annotationLibrary>
+                  <useEnumCaseInsensitive>true</useEnumCaseInsensitive>
+                </configOptions>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </pluginManagement>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -208,82 +292,6 @@
           <plugin>
             <groupId>org.openapitools</groupId>
             <artifactId>openapi-generator-maven-plugin</artifactId>
-            <!--
-            please keep the schema definitions consistent between master_rest_v1.yaml and worker_rest_v1.yaml
-            -->
-            <executions>
-              <execution>
-                <id>generate-java-master-rest-v1</id>
-                <goals>
-                  <goal>generate</goal>
-                </goals>
-                <phase>generate-sources</phase>
-                <configuration>
-                  <inputSpec>${project.basedir}/src/main/openapi3/master_rest_v1.yaml</inputSpec>
-                  <output>${project.build.directory}/generated-sources/java</output>
-                  <apiPackage>org.apache.celeborn.rest.v1.master</apiPackage>
-                  <modelPackage>org.apache.celeborn.rest.v1.model</modelPackage>
-                  <invokerPackage>org.apache.celeborn.rest.v1.master.invoker</invokerPackage>
-                  <generatorName>java</generatorName>
-                  <generateApiTests>false</generateApiTests>
-                  <generateModelTests>false</generateModelTests>
-                  <groupId>${groupId}</groupId>
-                  <artifactId>${artifactId}</artifactId>
-                  <artifactVersion>${project.version}</artifactVersion>
-                  <addCompileSourceRoot>false</addCompileSourceRoot>
-                  <templateDirectory>${project.basedir}/src/main/openapi3/templates</templateDirectory>
-                  <cleanupOutput>true</cleanupOutput>
-                  <configOptions>
-                    <licenseName>Apache License 2.0</licenseName>
-                    <groupId>${groupId}</groupId>
-                    <artifactId>${artifactId}</artifactId>
-                    <artifactVersion>${project.version}</artifactVersion>
-                    <dateLibrary>java8</dateLibrary>
-                    <useGzipFeature>true</useGzipFeature>
-                    <library>apache-httpclient</library>
-                    <hideGenerationTimestamp>true</hideGenerationTimestamp>
-                    <supportUrlQuery>false</supportUrlQuery>
-                    <annotationLibrary>none</annotationLibrary>
-                    <useEnumCaseInsensitive>true</useEnumCaseInsensitive>
-                  </configOptions>
-                </configuration>
-              </execution>
-              <execution>
-                <id>generate-java-worker-rest-v1</id>
-                <goals>
-                  <goal>generate</goal>
-                </goals>
-                <phase>generate-sources</phase>
-                <configuration>
-                  <inputSpec>${project.basedir}/src/main/openapi3/worker_rest_v1.yaml</inputSpec>
-                  <output>${project.build.directory}/generated-sources/java</output>
-                  <apiPackage>org.apache.celeborn.rest.v1.worker</apiPackage>
-                  <modelPackage>org.apache.celeborn.rest.v1.model</modelPackage>
-                  <invokerPackage>org.apache.celeborn.rest.v1.worker.invoker</invokerPackage>
-                  <generatorName>java</generatorName>
-                  <generateApiTests>false</generateApiTests>
-                  <generateModelTests>false</generateModelTests>
-                  <groupId>${groupId}</groupId>
-                  <artifactId>${artifactId}</artifactId>
-                  <artifactVersion>${project.version}</artifactVersion>
-                  <addCompileSourceRoot>false</addCompileSourceRoot>
-                  <templateDirectory>${project.basedir}/src/main/openapi3/templates</templateDirectory>
-                  <configOptions>
-                    <licenseName>Apache License 2.0</licenseName>
-                    <groupId>${groupId}</groupId>
-                    <artifactId>${artifactId}</artifactId>
-                    <artifactVersion>${project.version}</artifactVersion>
-                    <dateLibrary>java8</dateLibrary>
-                    <useGzipFeature>true</useGzipFeature>
-                    <library>apache-httpclient</library>
-                    <hideGenerationTimestamp>true</hideGenerationTimestamp>
-                    <supportUrlQuery>false</supportUrlQuery>
-                    <annotationLibrary>none</annotationLibrary>
-                    <useEnumCaseInsensitive>true</useEnumCaseInsensitive>
-                  </configOptions>
-                </configuration>
-              </execution>
-            </executions>
           </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
@@ -303,6 +311,39 @@
                       <directory>${project.basedir}/target/generated-sources/java/src/main/java</directory>
                     </resource>
                   </resources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>check</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.openapitools</groupId>
+            <artifactId>openapi-generator-maven-plugin</artifactId>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>check-openapi-spec-code</id>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <phase>generate-resources</phase>
+                <configuration>
+                  <target>
+                    <exec executable="diff" failonerror="true">
+                      <arg value="-r"></arg>
+                      <arg value="${project.basedir}/target/generated-sources/java/src/main/java"></arg>
+                      <arg value="${project.basedir}/src/main/java"></arg>
+                    </exec>
+                  </target>
                 </configuration>
               </execution>
             </executions>
