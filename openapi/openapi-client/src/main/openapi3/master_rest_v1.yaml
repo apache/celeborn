@@ -292,7 +292,7 @@ paths:
       tags:
         - Application
       operationId: reviseLostShuffles
-      description: Revise lost shuffles or delete shuffles of an application.
+      description: Revise lost shuffles or deleted shuffles of an application.
       requestBody:
         content:
           application/json:

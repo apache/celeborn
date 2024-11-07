@@ -18,14 +18,12 @@
 package org.apache.celeborn.cli.master
 
 import java.util
-
 import scala.collection.JavaConverters._
-
 import picocli.CommandLine.{Command, ParameterException}
-
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.rest.v1.model._
 import org.apache.celeborn.rest.v1.model.SendWorkerEventRequest.EventTypeEnum
+import org.apache.commons.lang3.StringUtils
 
 @Command(name = "master", mixinStandardHelpOptions = true)
 class MasterSubcommandImpl extends Runnable with MasterSubcommand {
@@ -230,17 +228,25 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
         spec.commandLine(),
         "Only one application id can be provided for this command.")
     }
-    val shuffleIds =
-      Option(reviseLostShuffleOptions.shuffleIds).map(_.split(",").map(_.toInt)).getOrElse(
-        Array.empty[Int])
+    if (StringUtils.isEmpty(reviseLostShuffleOptions.shuffleIds)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Shuffle ids must be provided for this command.")
+    }
+    val shuffleIds = util.Arrays.asList[Integer](reviseLostShuffleOptions.shuffleIds.split(",").map(Integer.valueOf): _*)
     val request =
-      new ReviseLostShufflesRequest().appId(app).shuffleIds(util.Arrays.asList(shuffleIds))
+      new ReviseLostShufflesRequest().appId(app).shuffleIds(shuffleIds)
     applicationApi.reviseLostShuffles(request)
   }
 
   override private[master] def deleteApps: HandleResponse = {
-    val appIds = Option(commonOptions.apps).map(_.split(",")).getOrElse(Array.empty[String])
-    val request = new DeleteAppsRequest().apps(util.Arrays.asList(appIds))
+    if (StringUtils.isEmpty(commonOptions.apps)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "App ids must be provided for this command.")
+    }
+    val appIds = util.Arrays.asList[String](reviseLostShuffleOptions.shuffleIds.split(","): _*)
+    val request = new DeleteAppsRequest().apps(appIds)
     applicationApi.deleteApps(request)
   }
 }

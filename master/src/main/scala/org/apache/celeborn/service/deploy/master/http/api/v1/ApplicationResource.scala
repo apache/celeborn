@@ -59,9 +59,9 @@ class ApplicationResource extends ApiRequestContext {
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Delete resource of an app")
+    description = "Delete resource of apps.")
   @DELETE
-  def deleteApp(request: DeleteAppsRequest): HandleResponse = {
+  def deleteApps(request: DeleteAppsRequest): HandleResponse = {
     val apps = request.getApps.asScala
     apps.foreach(app => statusSystem.deleteApp(app))
     new HandleResponse().success(true).message(s"deleted shuffles of app ${apps}")
@@ -114,12 +114,12 @@ class ApplicationResource extends ApiRequestContext {
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Revise lost shuffles")
+    description = "Revise lost shuffles or deleted shuffles of an application.")
   @POST
   def reviseLostShuffles(request: ReviseLostShufflesRequest): HandleResponse = {
     val appId = request.getAppId
     val shuffleIds = request.getShuffleIds
     statusSystem.reviseLostShuffles(appId, shuffleIds)
-    new HandleResponse().success(true).message("revised lost shuffles done")
+    new HandleResponse().success(true).message(s"revised app:$appId lost shuffles:$shuffleIds done")
   }
 }
