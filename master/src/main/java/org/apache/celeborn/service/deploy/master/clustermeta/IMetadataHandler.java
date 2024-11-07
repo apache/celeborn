@@ -42,7 +42,8 @@ public interface IMetadataHandler {
       String appId,
       long totalWritten,
       long fileCount,
-      long shuffleFallbackCount,
+      long shuffleCount,
+      Map<String, Long> shuffleFallbackCounts,
       long time,
       String requestId);
 

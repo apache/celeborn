@@ -33,6 +33,7 @@ import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
+import org.apache.celeborn.common.util.CollectionUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
@@ -137,16 +138,21 @@ public class MetaHandler {
 
         case AppHeartbeat:
           appId = request.getAppHeartbeatRequest().getAppId();
-          LOG.debug("Handle app heartbeat for {}", appId);
           long time = request.getAppHeartbeatRequest().getTime();
           long totalWritten = request.getAppHeartbeatRequest().getTotalWritten();
           long fileCount = request.getAppHeartbeatRequest().getFileCount();
-          long shuffleFallbackCount = request.getAppHeartbeatRequest().getShuffleFallbackCount();
-          if (shuffleFallbackCount > 0) {
-            LOG.warn("{} shuffle fallbacks in app {}", shuffleFallbackCount, appId);
+          long shuffleCount = request.getAppHeartbeatRequest().getShuffleCount();
+          LOG.debug("Handle app heartbeat for {} with shuffle count {}", appId, shuffleCount);
+          Map<String, Long> shuffleFallbackCounts =
+              request.getAppHeartbeatRequest().getShuffleFallbackCountsMap();
+          if (CollectionUtils.isNotEmpty(shuffleFallbackCounts)) {
+            LOG.warn(
+                "{} shuffle fallbacks in app {}",
+                shuffleFallbackCounts.values().stream().mapToLong(v -> v).sum(),
+                appId);
           }
           metaSystem.updateAppHeartbeatMeta(
-              appId, time, totalWritten, fileCount, shuffleFallbackCount);
+              appId, time, totalWritten, fileCount, shuffleCount, shuffleFallbackCounts);
           break;
 
         case AppLost:

@@ -161,8 +161,8 @@ public class SparkShuffleManager implements ShuffleManager {
     String appId = SparkUtils.appUniqueId(dependency.rdd().context());
     initializeLifecycleManager(appId);
 
+    lifecycleManager.shuffleCount().increment();
     if (fallbackPolicyRunner.applyFallbackPolicies(dependency, lifecycleManager)) {
-      lifecycleManager.shuffleFallbackCount().increment();
       if (conf.getBoolean("spark.dynamicAllocation.enabled", false)
           && !conf.getBoolean("spark.shuffle.service.enabled", false)) {
         logger.error(

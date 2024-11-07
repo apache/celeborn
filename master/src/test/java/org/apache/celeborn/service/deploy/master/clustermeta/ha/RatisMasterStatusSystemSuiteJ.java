@@ -255,6 +255,8 @@ public class RatisMasterStatusSystemSuiteJ {
   private static final String APPID1 = "appId1";
   private static final int SHUFFLEID1 = 1;
   private static final String SHUFFLEKEY1 = APPID1 + "-" + SHUFFLEID1;
+  private static final String POLICY1 = "ShufflePartitionsFallbackPolicy";
+  private static final String POLICY2 = "QuotaFallbackPolicy";
   private static final WorkerStatus workerStatus = WorkerStatus.normalWorkerStatus();
 
   private String getNewReqeustId() {
@@ -946,14 +948,14 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertNotNull(statusSystem);
 
     long dummy = 1235L;
-    statusSystem.handleAppHeartbeat(APPID1, 1, 1, 0, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(APPID1, 1, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
     Thread.sleep(3000L);
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM1.appHeartbeatTime.get(APPID1));
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM2.appHeartbeatTime.get(APPID1));
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM3.appHeartbeatTime.get(APPID1));
 
     String appId2 = "app02";
-    statusSystem.handleAppHeartbeat(appId2, 1, 1, 0, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM1.appHeartbeatTime.get(appId2));
@@ -1315,23 +1317,25 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.initialEstimatedPartitionSize());
 
     Long dummy = 1235L;
-    statusSystem.handleAppHeartbeat(APPID1, 10000000000l, 1, 0, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(
+        APPID1, 10000000000l, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
     String appId2 = "app02";
-    statusSystem.handleAppHeartbeat(appId2, 1, 1, 0, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
 
     // Max size
     statusSystem.handleUpdatePartitionSize();
     Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.maxPartitionSizeToEstimate());
 
-    statusSystem.handleAppHeartbeat(APPID1, 1000000000l, 1, 0, dummy, getNewReqeustId());
-    statusSystem.handleAppHeartbeat(appId2, 1, 1, 0, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(
+        APPID1, 1000000000l, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
 
     // Size between minEstimateSize -> maxEstimateSize
     statusSystem.handleUpdatePartitionSize();
     Assert.assertEquals(statusSystem.estimatedPartitionSize, 500000000);
 
-    statusSystem.handleAppHeartbeat(APPID1, 1000l, 1, 0, dummy, getNewReqeustId());
-    statusSystem.handleAppHeartbeat(appId2, 1000l, 1, 0, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(APPID1, 1000l, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1000l, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
 
     // Min size
     statusSystem.handleUpdatePartitionSize();
@@ -1503,15 +1507,24 @@ public class RatisMasterStatusSystemSuiteJ {
   }
 
   @Test
-  public void testShuffleFallbackCount() {
+  public void testShuffleCountWithFallback() {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
-    statusSystem.shuffleTotalFallbackCount.reset();
+    statusSystem.shuffleTotalCount.reset();
+    statusSystem.shuffleFallbackCounts.clear();
 
     Long dummy = 1235L;
-    statusSystem.handleAppHeartbeat(APPID1, 1000l, 1, 1, dummy, getNewReqeustId());
-    statusSystem.handleAppHeartbeat(APPID1, 1000l, 1, 2, dummy, getNewReqeustId());
+    Map<String, Long> shuffleFallbackCounts = new HashMap<>();
+    shuffleFallbackCounts.put(POLICY1, 1L);
+    statusSystem.handleAppHeartbeat(
+        APPID1, 1000l, 1, 1, shuffleFallbackCounts, dummy, getNewReqeustId());
+    shuffleFallbackCounts.put(POLICY1, 1L);
+    shuffleFallbackCounts.put(POLICY2, 1L);
+    statusSystem.handleAppHeartbeat(
+        APPID1, 1000l, 1, 2, shuffleFallbackCounts, dummy, getNewReqeustId());
 
-    Assert.assertEquals(statusSystem.shuffleTotalFallbackCount.longValue(), 3);
+    Assert.assertEquals(statusSystem.shuffleTotalCount.longValue(), 3);
+    Assert.assertEquals(statusSystem.shuffleFallbackCounts.get(POLICY1).longValue(), 2);
+    Assert.assertEquals(statusSystem.shuffleFallbackCounts.get(POLICY2).longValue(), 1);
   }
 }

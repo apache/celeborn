@@ -44,6 +44,9 @@ object MasterSource {
   val DECOMMISSION_WORKER_COUNT = "DecommissionWorkerCount"
 
   val REGISTERED_SHUFFLE_COUNT = "RegisteredShuffleCount"
+  val SHUFFLE_FALLBACK_COUNT = "ShuffleFallbackCount"
+  // The total count including RegisteredShuffleCount(celeborn shuffle) and ShuffleFallbackCount(spark built-in shuffle).
+  val SHUFFLE_TOTAL_COUNT = "ShuffleTotalCount"
 
   val RUNNING_APPLICATION_COUNT = "RunningApplicationCount"
 
@@ -54,8 +57,6 @@ object MasterSource {
   val ACTIVE_SHUFFLE_SIZE = "ActiveShuffleSize"
 
   val ACTIVE_SHUFFLE_FILE_COUNT = "ActiveShuffleFileCount"
-
-  val SHUFFLE_FALLBACK_COUNT = "ShuffleFallbackCount"
 
   val OFFER_SLOTS_TIME = "OfferSlotsTime"
 

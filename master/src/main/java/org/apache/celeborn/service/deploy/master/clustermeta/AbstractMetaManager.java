@@ -85,7 +85,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public double unhealthyDiskRatioThreshold;
   public final LongAdder partitionTotalWritten = new LongAdder();
   public final LongAdder partitionTotalFileCount = new LongAdder();
-  public final LongAdder shuffleTotalFallbackCount = new LongAdder();
+  public final LongAdder shuffleTotalCount = new LongAdder();
+  public final Map<String, Long> shuffleFallbackCounts = JavaUtils.newConcurrentHashMap();
   public AppDiskUsageMetric appDiskUsageMetric = null;
 
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
@@ -141,11 +142,17 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateAppHeartbeatMeta(
-      String appId, long time, long totalWritten, long fileCount, long shuffleFallbackCount) {
+      String appId,
+      long time,
+      long totalWritten,
+      long fileCount,
+      long shuffleCount,
+      Map<String, Long> shuffleFallbackCounts) {
     appHeartbeatTime.put(appId, time);
     partitionTotalWritten.add(totalWritten);
     partitionTotalFileCount.add(fileCount);
-    shuffleTotalFallbackCount.add(shuffleFallbackCount);
+    shuffleTotalCount.add(shuffleCount);
+    addShuffleFallbackCounts(shuffleFallbackCounts);
   }
 
   public void updateAppLostMeta(String appId) {
@@ -319,7 +326,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 new HashSet(workersMap.values()),
                 partitionTotalWritten.sum(),
                 partitionTotalFileCount.sum(),
-                shuffleTotalFallbackCount.sum(),
+                shuffleTotalCount.sum(),
+                shuffleFallbackCounts,
                 appDiskUsageMetric.snapShots(),
                 appDiskUsageMetric.currentSnapShot().get(),
                 lostWorkers,
@@ -420,7 +428,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
       partitionTotalWritten.add(snapshotMetaInfo.getPartitionTotalWritten());
       partitionTotalFileCount.add(snapshotMetaInfo.getPartitionTotalFileCount());
-      shuffleTotalFallbackCount.add(snapshotMetaInfo.getShuffleTotalFallbackCount());
+      shuffleTotalCount.add(snapshotMetaInfo.getShuffleTotalCount());
+      addShuffleFallbackCounts(snapshotMetaInfo.getShuffleFallbackCountsMap());
       appDiskUsageMetric.restoreFromSnapshot(
           snapshotMetaInfo.getAppDiskUsageMetricSnapshotsList().stream()
               .map(PbSerDeUtils::fromPbAppDiskUsageSnapshot)
@@ -462,7 +471,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workerLostEvents.clear();
     partitionTotalWritten.reset();
     partitionTotalFileCount.reset();
-    shuffleTotalFallbackCount.reset();
+    shuffleTotalCount.reset();
+    shuffleFallbackCounts.clear();
     workerEventInfos.clear();
     applicationMetas.clear();
   }
@@ -549,5 +559,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   public int registeredShuffleCount() {
     return registeredAppAndShuffles.values().stream().mapToInt(Set::size).sum();
+  }
+
+  private void addShuffleFallbackCounts(Map<String, Long> fallbackCounts) {
+    for (String fallbackPolicy : fallbackCounts.keySet()) {
+      shuffleFallbackCounts.compute(
+          fallbackPolicy, (k, v) -> v == null ? fallbackCounts.get(k) : v + fallbackCounts.get(k));
+    }
   }
 }
