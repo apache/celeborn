@@ -525,6 +525,24 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     null
   }
 
+  private def removeFileInfo(shuffleKey: String, fileName: String): FileInfo = {
+    val memoryShuffleMap = memoryFileInfos.get(shuffleKey)
+    if (memoryShuffleMap != null) {
+      return memoryShuffleMap.remove(fileName)
+    }
+
+    val diskShuffleMap = diskFileInfos.get(shuffleKey)
+    if (diskShuffleMap != null) {
+      if (workerGracefulShutdown) {
+        val committedFileInfoMap = committedFileInfos.get(shuffleKey)
+        committedFileInfoMap.remove(fileName)
+      }
+      return diskShuffleMap.remove(fileName)
+    }
+
+    null
+  }
+
   def getFetchTimeMetric(file: File): TimeWindow = {
     if (diskInfos != null) {
       val diskInfo = diskInfos.get(DeviceInfo.getMountPoint(file.getAbsolutePath, diskInfos))
@@ -554,7 +572,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def cleanFile(shuffleKey: String, fileName: String): Unit = {
-    cleanFileInternal(shuffleKey, getFileInfo(shuffleKey, fileName))
+    cleanFileInternal(shuffleKey, removeFileInfo(shuffleKey, fileName))
   }
 
   def cleanFileInternal(shuffleKey: String, fileInfo: FileInfo): Boolean = {
