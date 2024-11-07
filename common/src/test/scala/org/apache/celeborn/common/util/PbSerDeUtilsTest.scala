@@ -27,7 +27,7 @@ import org.apache.hadoop.shaded.org.apache.commons.lang3.RandomStringUtils
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, FileInfo, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.{ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PbPackedWorkerResource, PbWorkerResource, StorageInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -75,9 +75,28 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     new ReduceFileMeta(chunkOffsets2, 123),
     file2.getAbsolutePath,
     6000L)
+  val mapFileInfo1 = new DiskFileInfo(
+    userIdentifier1,
+    true,
+    new MapFileMeta(1024, 10),
+    file1.getAbsolutePath,
+    6000L)
+  val mapFileInfo2 = new DiskFileInfo(
+    userIdentifier2,
+    true,
+    new MapFileMeta(1024, 10),
+    file2.getAbsolutePath,
+    6000L)
   val fileInfoMap = JavaUtils.newConcurrentHashMap[String, DiskFileInfo]()
+  mapFileInfo1.setMountPoint("/mnt")
+  mapFileInfo2.setMountPoint("/mnt")
+
   fileInfoMap.put("file1", fileInfo1)
   fileInfoMap.put("file2", fileInfo2)
+  fileInfoMap.put("mapFile1", mapFileInfo1)
+  fileInfoMap.put("mapFile2", mapFileInfo2)
+  val mountPoints = new util.HashSet[String]
+  mountPoints.add("/mnt")
   val cache = JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
 
   val resourceConsumption1 = ResourceConsumption(1000, 2000, 3000, 4000)
@@ -204,7 +223,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
 
   test("fromAndToPbFileInfoMap") {
     val pbFileInfoMap = PbSerDeUtils.toPbFileInfoMap(fileInfoMap)
-    val restoredFileInfoMap = PbSerDeUtils.fromPbFileInfoMap(pbFileInfoMap, cache)
+    val restoredFileInfoMap = PbSerDeUtils.fromPbFileInfoMap(pbFileInfoMap, cache, mountPoints)
     val restoredFileInfo1 = restoredFileInfoMap.get("file1")
     val restoredFileInfo2 = restoredFileInfoMap.get("file2")
 
@@ -219,6 +238,16 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     assert(restoredFileInfo2.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets.equals(
       fileInfo2.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets))
     assert(restoredFileInfo2.getUserIdentifier.equals(fileInfo2.getUserIdentifier))
+  }
+
+  test("fromAndToPBFileInfoMapMountPoint") {
+    val pbFileInfoMap = PbSerDeUtils.toPbFileInfoMap(fileInfoMap)
+    val restoredFileInfoMap = PbSerDeUtils.fromPbFileInfoMap(pbFileInfoMap, cache, mountPoints)
+    val restoredFileInfo1 = restoredFileInfoMap.get("mapFile1")
+    val restoredFileInfo2 = restoredFileInfoMap.get("mapFile2")
+
+    assert(restoredFileInfo1.getMountPoint.equals(mapFileInfo1.getMountPoint))
+    assert(restoredFileInfo2.getMountPoint.equals(mapFileInfo2.getMountPoint))
   }
 
   test("fromAndToPbUserIdentifier") {
