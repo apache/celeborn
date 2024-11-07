@@ -190,8 +190,12 @@ public abstract class DynamicConfig {
   public WorkerTagsMeta getWorkerTagsMeta() {
     return new WorkerTagsMeta(
         getValue(
-            CelebornConf.CLIENT_TAGS_EXPR().key(),
+            CelebornConf.TAGS_EXPR().key(),
             String.class,
+            ConfigType.STRING),
+        getValue(
+            CelebornConf.TAGS_EXPR().key(),
+            Boolean.TYPE,
             ConfigType.STRING));
   }
 
