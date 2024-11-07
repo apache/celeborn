@@ -55,6 +55,8 @@ object MasterSource {
 
   val ACTIVE_SHUFFLE_FILE_COUNT = "ActiveShuffleFileCount"
 
+  val SHUFFLE_FALLBACK_COUNT = "ShuffleFallbackCount"
+
   val OFFER_SLOTS_TIME = "OfferSlotsTime"
 
   // Capacity

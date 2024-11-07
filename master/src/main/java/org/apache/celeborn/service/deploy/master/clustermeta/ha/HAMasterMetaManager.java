@@ -130,7 +130,12 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleAppHeartbeat(
-      String appId, long totalWritten, long fileCount, long time, String requestId) {
+      String appId,
+      long totalWritten,
+      long fileCount,
+      long shuffleFallbackCount,
+      long time,
+      String requestId) {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
@@ -142,6 +147,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setTime(time)
                       .setTotalWritten(totalWritten)
                       .setFileCount(fileCount)
+                      .setShuffleFallbackCount(shuffleFallbackCount)
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {

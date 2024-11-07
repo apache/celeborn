@@ -412,6 +412,7 @@ object ControlMessages extends Logging {
       appId: String,
       totalWritten: Long,
       fileCount: Long,
+      shuffleFallbackCount: Long,
       needCheckedWorkerList: util.List[WorkerInfo],
       override var requestId: String = ZERO_UUID,
       shouldResponse: Boolean = false) extends MasterRequestMessage
@@ -809,6 +810,7 @@ object ControlMessages extends Logging {
           appId,
           totalWritten,
           fileCount,
+          shuffleFallbackCount,
           needCheckedWorkerList,
           requestId,
           shouldResponse) =>
@@ -817,6 +819,7 @@ object ControlMessages extends Logging {
         .setRequestId(requestId)
         .setTotalWritten(totalWritten)
         .setFileCount(fileCount)
+        .setShuffleFallbackCount(shuffleFallbackCount)
         .addAllNeedCheckedWorkerList(needCheckedWorkerList.asScala.map(
           PbSerDeUtils.toPbWorkerInfo(_, true, true)).toList.asJava)
         .setShouldResponse(shouldResponse)
@@ -1209,6 +1212,7 @@ object ControlMessages extends Logging {
           pbHeartbeatFromApplication.getAppId,
           pbHeartbeatFromApplication.getTotalWritten,
           pbHeartbeatFromApplication.getFileCount,
+          pbHeartbeatFromApplication.getShuffleFallbackCount,
           new util.ArrayList[WorkerInfo](
             pbHeartbeatFromApplication.getNeedCheckedWorkerListList.asScala
               .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava),

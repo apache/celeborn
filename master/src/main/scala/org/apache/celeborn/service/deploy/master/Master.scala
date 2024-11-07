@@ -261,6 +261,10 @@ private[celeborn] class Master(
       }).sum()
   }
 
+  masterSource.addGauge(MasterSource.SHUFFLE_FALLBACK_COUNT) { () =>
+    statusSystem.shuffleTotalFallbackCount.sum()
+  }
+
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_TOTAL_CAPACITY) { () =>
     statusSystem.workersMap.values().asScala.toList.map(_.totalSpace()).sum
   }
@@ -391,6 +395,7 @@ private[celeborn] class Master(
           appId,
           totalWritten,
           fileCount,
+          fallbackShuffles,
           needCheckedWorkerList,
           requestId,
           shouldResponse) =>
@@ -403,6 +408,7 @@ private[celeborn] class Master(
           appId,
           totalWritten,
           fileCount,
+          fallbackShuffles,
           needCheckedWorkerList,
           requestId,
           shouldResponse))
@@ -1094,6 +1100,7 @@ private[celeborn] class Master(
       appId: String,
       totalWritten: Long,
       fileCount: Long,
+      shuffleFallbackCount: Long,
       needCheckedWorkerList: util.List[WorkerInfo],
       requestId: String,
       shouldResponse: Boolean): Unit = {
@@ -1101,6 +1108,7 @@ private[celeborn] class Master(
       appId,
       totalWritten,
       fileCount,
+      shuffleFallbackCount,
       System.currentTimeMillis(),
       requestId)
     val unknownWorkers = needCheckedWorkerList.asScala.filterNot(w =>

@@ -141,7 +141,12 @@ public class MetaHandler {
           long time = request.getAppHeartbeatRequest().getTime();
           long totalWritten = request.getAppHeartbeatRequest().getTotalWritten();
           long fileCount = request.getAppHeartbeatRequest().getFileCount();
-          metaSystem.updateAppHeartbeatMeta(appId, time, totalWritten, fileCount);
+          long shuffleFallbackCount = request.getAppHeartbeatRequest().getShuffleFallbackCount();
+          if (shuffleFallbackCount > 0) {
+            LOG.warn("{} shuffle fallbacks in app {}", shuffleFallbackCount, appId);
+          }
+          metaSystem.updateAppHeartbeatMeta(
+              appId, time, totalWritten, fileCount, shuffleFallbackCount);
           break;
 
         case AppLost:

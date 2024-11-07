@@ -442,6 +442,7 @@ message PbHeartbeatFromApplication {
   string requestId = 4;
   repeated PbWorkerInfo needCheckedWorkerList = 5;
   bool shouldResponse = 6;
+  int64 shuffleFallbackCount = 7;
 }
 
 message PbHeartbeatFromApplicationResponse {
@@ -674,6 +675,7 @@ message PbSnapshotMetaInfo {
   map<string, PbWorkerEventInfo> workerEventInfos = 15;
   map<string, PbApplicationMeta> applicationMetas = 16;
   repeated PbWorkerInfo decommissionWorkers = 17;
+  int64 shuffleTotalFallbackCount = 18;
 }
 
 message PbOpenStream {

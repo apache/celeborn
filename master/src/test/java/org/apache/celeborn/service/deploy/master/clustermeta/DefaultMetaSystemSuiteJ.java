@@ -637,11 +637,11 @@ public class DefaultMetaSystemSuiteJ {
   @Test
   public void testHandleAppHeartbeat() {
     Long dummy = 1235L;
-    statusSystem.handleAppHeartbeat(APPID1, 1, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(APPID1, 1, 1, 0, dummy, getNewReqeustId());
     assertEquals(dummy, statusSystem.appHeartbeatTime.get(APPID1));
 
     String appId2 = "app02";
-    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, 0, dummy, getNewReqeustId());
     assertEquals(dummy, statusSystem.appHeartbeatTime.get(appId2));
 
     assertEquals(2, statusSystem.appHeartbeatTime.size());
@@ -811,23 +811,23 @@ public class DefaultMetaSystemSuiteJ {
     Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.initialEstimatedPartitionSize());
 
     Long dummy = 1235L;
-    statusSystem.handleAppHeartbeat(APPID1, 10000000000l, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(APPID1, 10000000000l, 1, 0, dummy, getNewReqeustId());
     String appId2 = "app02";
-    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, 0, dummy, getNewReqeustId());
 
     // Max size
     statusSystem.handleUpdatePartitionSize();
     Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.maxPartitionSizeToEstimate());
 
-    statusSystem.handleAppHeartbeat(APPID1, 1000000000l, 1, dummy, getNewReqeustId());
-    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(APPID1, 1000000000l, 1, 0, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, 0, dummy, getNewReqeustId());
 
     // Size between minEstimateSize -> maxEstimateSize
     statusSystem.handleUpdatePartitionSize();
     Assert.assertEquals(statusSystem.estimatedPartitionSize, 500000000);
 
-    statusSystem.handleAppHeartbeat(APPID1, 1000l, 1, dummy, getNewReqeustId());
-    statusSystem.handleAppHeartbeat(appId2, 1000l, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(APPID1, 1000l, 1, 0, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1000l, 1, 0, dummy, getNewReqeustId());
 
     // Min size
     statusSystem.handleUpdatePartitionSize();
@@ -896,5 +896,16 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleReportWorkerDecommission(workers, getNewReqeustId());
     assertEquals(1, statusSystem.decommissionWorkers.size());
     assertTrue(statusSystem.excludedWorkers.isEmpty());
+  }
+
+  @Test
+  public void testShuffleFallbackCount() {
+    statusSystem.shuffleTotalFallbackCount.reset();
+
+    Long dummy = 1235L;
+    statusSystem.handleAppHeartbeat(APPID1, 1000l, 1, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(APPID1, 1000l, 1, 2, dummy, getNewReqeustId());
+
+    assertEquals(statusSystem.shuffleTotalFallbackCount.longValue(), 3);
   }
 }
