@@ -26,7 +26,7 @@ import scala.collection.JavaConverters._
 import com.google.protobuf.InvalidProtocolBufferException
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationMeta, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.meta.MapFileMeta.SegmentIndex
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
@@ -163,7 +163,8 @@ object PbSerDeUtils {
   @throws[InvalidProtocolBufferException]
   def fromPbFileInfoMap(
       data: Array[Byte],
-      cache: ConcurrentHashMap[String, UserIdentifier]): ConcurrentHashMap[String, DiskFileInfo] = {
+      cache: ConcurrentHashMap[String, UserIdentifier],
+      mountPoints: util.HashSet[String]): ConcurrentHashMap[String, DiskFileInfo] = {
     val pbFileInfoMap = PbFileInfoMap.parseFrom(data)
     val fileInfoMap = JavaUtils.newConcurrentHashMap[String, DiskFileInfo]
     pbFileInfoMap.getValuesMap.entrySet().asScala.foreach { entry =>
@@ -173,10 +174,16 @@ object PbSerDeUtils {
       val userIdentifierKey = pbUserIdentifier.getTenantId + "-" + pbUserIdentifier.getName
       if (!cache.containsKey(userIdentifierKey)) {
         val fileInfo = fromPbFileInfo(pbFileInfo)
+        if (fileInfo.getFileMeta.isInstanceOf[MapFileMeta]) {
+          fileInfo.setMountPoint(DeviceInfo.getMountPoint(fileInfo.getFilePath, mountPoints))
+        }
         cache.put(userIdentifierKey, fileInfo.getUserIdentifier)
         fileInfoMap.put(fileName, fileInfo)
       } else {
         val fileInfo = fromPbFileInfo(pbFileInfo, cache.get(userIdentifierKey))
+        if (fileInfo.getFileMeta.isInstanceOf[MapFileMeta]) {
+          fileInfo.setMountPoint(DeviceInfo.getMountPoint(fileInfo.getFilePath, mountPoints))
+        }
         fileInfoMap.put(fileName, fileInfo)
       }
     }
