@@ -79,6 +79,23 @@ public abstract class DynamicConfig {
     }
   }
 
+  public <T> T getValue(
+          String configKey,
+          Class<T> finalType,
+          ConfigType configType) {
+    String configValue = configs.get(configKey);
+    T formatValue =
+            configValue != null ? formatValue(configKey, configValue, finalType, configType) : null;
+    if (formatValue == null) {
+      DynamicConfig parentLevelConfig = getParentLevelConfig();
+      return parentLevelConfig != null
+              ? parentLevelConfig.getValue(configKey, finalType, configType)
+              : null;
+    } else {
+      return formatValue;
+    }
+  }
+
   public <T> T formatValue(
       String configKey, String configValue, Class<T> finalType, ConfigType configType) {
     try {
@@ -172,11 +189,10 @@ public abstract class DynamicConfig {
 
   public WorkerTagsMeta getWorkerTagsMeta() {
     return new WorkerTagsMeta(
-            getValue(
-                    CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK().key(),
-                    CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK(),
-                    Class<String>,
-                    ConfigType.STRING));
+        getValue(
+            CelebornConf.CLIENT_TAGS_EXPR().key(),
+            String.class,
+            ConfigType.STRING));
   }
 
   public Map<String, String> getConfigs() {

@@ -1,3 +1,3 @@
 package org.apache.celeborn.common.tags
 
-case class WorkerTagsMeta (useTagExpr: String)
+case class WorkerTagsMeta (tagExpr: String)
