@@ -18,12 +18,15 @@
 package org.apache.celeborn.cli.master
 
 import java.util
+
 import scala.collection.JavaConverters._
+
+import org.apache.commons.lang3.StringUtils
 import picocli.CommandLine.{Command, ParameterException}
+
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.rest.v1.model._
 import org.apache.celeborn.rest.v1.model.SendWorkerEventRequest.EventTypeEnum
-import org.apache.commons.lang3.StringUtils
 
 @Command(name = "master", mixinStandardHelpOptions = true)
 class MasterSubcommandImpl extends Runnable with MasterSubcommand {
@@ -222,18 +225,26 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   private[master] def runShowContainerInfo: ContainerInfo = defaultApi.getContainerInfo
 
   override private[master] def reviseLostShuffles: HandleResponse = {
-    val app = commonOptions.apps
-    if (app.contains(",")) {
+    if (StringUtils.isEmpty(commonOptions.apps)) {
       throw new ParameterException(
         spec.commandLine(),
-        "Only one application id can be provided for this command.")
+        "Application id must be provided for this command.")
     }
     if (StringUtils.isEmpty(reviseLostShuffleOptions.shuffleIds)) {
       throw new ParameterException(
         spec.commandLine(),
         "Shuffle ids must be provided for this command.")
     }
-    val shuffleIds = util.Arrays.asList[Integer](reviseLostShuffleOptions.shuffleIds.split(",").map(Integer.valueOf): _*)
+
+    val app = commonOptions.apps
+    if (app.contains(",")) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Only one application id can be provided for this command.")
+    }
+
+    val shuffleIds = util.Arrays.asList[Integer](
+      reviseLostShuffleOptions.shuffleIds.split(",").map(Integer.valueOf): _*)
     val request =
       new ReviseLostShufflesRequest().appId(app).shuffleIds(shuffleIds)
     applicationApi.reviseLostShuffles(request)
@@ -243,9 +254,9 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     if (StringUtils.isEmpty(commonOptions.apps)) {
       throw new ParameterException(
         spec.commandLine(),
-        "App ids must be provided for this command.")
+        "Applications must be provided for this command.")
     }
-    val appIds = util.Arrays.asList[String](reviseLostShuffleOptions.shuffleIds.split(","): _*)
+    val appIds = util.Arrays.asList[String](commonOptions.apps.split(","): _*)
     val request = new DeleteAppsRequest().apps(appIds)
     applicationApi.deleteApps(request)
   }
