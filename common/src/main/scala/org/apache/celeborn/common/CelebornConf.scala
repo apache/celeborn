@@ -4705,7 +4705,7 @@ object CelebornConf extends Logging {
   val CLIENT_BATCH_HANDLE_CHANGE_PARTITION_BUCKETS: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.batchHandleChangePartition.partitionBuckets")
       .categories("client")
-      .doc("Max number of change partition requests which can be concurrently processed ")
+      .doc("Max number of change partition requests which can be concurrently processed.")
       .version("0.5.0")
       .intConf
       .createWithDefault(256)
@@ -4841,7 +4841,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.shuffle.dynamicResourceEnabled")
       .categories("client")
       .version("0.6.0")
-      .doc("When enabled, the ChangePartitionManager will obtain candidate workers from the availableWorkers pool “ +" +
+      .doc("When enabled, the ChangePartitionManager will obtain candidate workers from the availableWorkers pool " +
         "during heartbeats when worker resource change.")
       .booleanConf
       .createWithDefault(false)
@@ -4851,8 +4851,8 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.6.0")
       .doc("The ChangePartitionManager will check whether (unavailable workers / shuffle allocated workers) " +
-        "is more than the factor before obtaining candidate workers from the requestSlots RPC response" +
-        "when ${CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key} set true")
+        "is more than the factor before obtaining candidate workers from the requestSlots RPC response " +
+        s"when `${CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key}` set true")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
       .createWithDefault(0.5)
