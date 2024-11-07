@@ -1467,14 +1467,6 @@ private[celeborn] class Master(
     }
   }
 
-  override def reviseLostShuffles(appId: String, shuffles: java.util.List[Integer]): Unit = {
-    statusSystem.reviseLostShuffles(appId, shuffles)
-  }
-
-  override def deleteApps(appIds: String): Unit = {
-    appIds.split(",").foreach(id => statusSystem.deleteApp(id))
-  }
-
   override def getWorkerEventInfo(): String = {
     val sb = new StringBuilder
     sb.append("======================= Workers Event in Master ========================\n")

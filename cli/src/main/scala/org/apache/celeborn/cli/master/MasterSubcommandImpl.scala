@@ -230,12 +230,17 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
         spec.commandLine(),
         "Only one application id can be provided for this command.")
     }
-    val shuffleIds = reviseLostShuffleOptions.shuffleIds
-    applicationApi.reviseLostShuffles(app, shuffleIds)
+    val shuffleIds =
+      Option(reviseLostShuffleOptions.shuffleIds).map(_.split(",").map(_.toInt)).getOrElse(
+        Array.empty[Int])
+    val request =
+      new ReviseLostShufflesRequest().appId(app).shuffleIds(util.Arrays.asList(shuffleIds))
+    applicationApi.reviseLostShuffles(request)
   }
 
   override private[master] def deleteApps: HandleResponse = {
-    val apps = commonOptions.apps
-    applicationApi.deleteApps(apps)
+    val appIds = Option(commonOptions.apps).map(_.split(",")).getOrElse(Array.empty[String])
+    val request = new DeleteAppsRequest().apps(util.Arrays.asList(appIds))
+    applicationApi.deleteApps(request)
   }
 }
