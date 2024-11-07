@@ -19,7 +19,6 @@ package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.IOException;
 import java.nio.channels.FileChannel;
-import java.util.HashMap;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -68,7 +67,7 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
   public MapPartitionData(
       int minReadBuffers,
       int maxReadBuffers,
-      HashMap<String, ExecutorService> storageFetcherPool,
+      ConcurrentHashMap<String, ExecutorService> storageFetcherPool,
       int threadsPerMountPoint,
       DiskFileInfo diskFileInfo,
       Consumer<Long> recycleStream,
