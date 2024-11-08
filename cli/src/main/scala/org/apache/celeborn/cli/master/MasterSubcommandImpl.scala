@@ -225,15 +225,10 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   private[master] def runShowContainerInfo: ContainerInfo = defaultApi.getContainerInfo
 
   override private[master] def reviseLostShuffles: HandleResponse = {
-    if (StringUtils.isEmpty(commonOptions.apps)) {
+    if (StringUtils.isAnyBlank(commonOptions.apps, reviseLostShuffleOptions.shuffleIds)) {
       throw new ParameterException(
         spec.commandLine(),
-        "Application id must be provided for this command.")
-    }
-    if (StringUtils.isEmpty(reviseLostShuffleOptions.shuffleIds)) {
-      throw new ParameterException(
-        spec.commandLine(),
-        "Shuffle ids must be provided for this command.")
+        "Application id and Shuffle ids must be provided for this command.")
     }
 
     val app = commonOptions.apps
@@ -251,7 +246,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   }
 
   override private[master] def deleteApps: HandleResponse = {
-    if (StringUtils.isEmpty(commonOptions.apps)) {
+    if (StringUtils.isBlank(commonOptions.apps)) {
       throw new ParameterException(
         spec.commandLine(),
         "Applications must be provided for this command.")
