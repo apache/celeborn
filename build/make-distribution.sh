@@ -185,6 +185,7 @@ function build_spark_client {
       | grep -v "WARNING" \
       | tail -n 1)
   SPARK_MAJOR_VERSION=${SPARK_VERSION%%.*}
+
   # Store the command as an array because $MVN variable might have spaces in it.
   # Normal quoting tricks don't work.
   # See: http://mywiki.wooledge.org/BashFAQ/050
