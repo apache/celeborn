@@ -49,6 +49,23 @@
                 </Delete>
             </DefaultRolloverStrategy>
         </RollingRandomAccessFile>
+        <RollingRandomAccessFile name="restAuditFile" fileName="${env:CELEBORN_LOG_DIR}/audit/rest-audit.log"
+                                 filePattern="${env:CELEBORN_LOG_DIR}/audit/rest-audit.log.%d-%i">
+            <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="200 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="7">
+                <Delete basePath="${env:CELEBORN_LOG_DIR}/audit" maxDepth="1">
+                    <IfFileName glob="rest-audit.log*">
+                        <IfAny>
+                            <IfAccumulatedFileSize exceeds="1 GB"/>
+                            <IfAccumulatedFileCount exceeds="10"/>
+                        </IfAny>
+                    </IfFileName>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingRandomAccessFile>
     </Appenders>
 
     <Loggers>
@@ -66,6 +83,9 @@
         <Logger name="org.apache.ratis.server.RaftServerConfigKeys" level="WARN" additivity="false">
             <!-- <Appender-ref ref="stdout" level="WARN"/>-->
             <Appender-ref ref="file" level="WARN"/>
+        </Logger>
+        <Logger name="org.apache.celeborn.server.common.http.authentication.AuthenticationAuditLogger" level="INFO" additivity="false">
+            <Appender-ref ref="restAuditFile" level="INFO"/>
         </Logger>
     </Loggers>
 </Configuration>
