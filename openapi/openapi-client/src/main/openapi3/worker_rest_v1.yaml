@@ -320,13 +320,6 @@ components:
         inNative:
           type: boolean
           description: Whether the thread is executing native code.
-        isDaemon:
-          type: boolean
-          description: Whether the thread is a daemon thread.
-        priority:
-          type: integer
-          format: int32
-          description: The priority of the thread.
       required:
         - threadId
         - threadName
