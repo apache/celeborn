@@ -87,7 +87,7 @@ WorkerRef: null
 Celeborn release binary contains clients for Spark 2.x and Spark 3.x, copy the corresponding client jar into Spark's
 `jars/` directory:
 ```shell
-cp $CELEBORN_HOME/spark/celeborn-client-spark-<spark.major.version>-shaded_<scala.binary.version>-<celeborn.version>.jar $SPARK_HOME/jars/
+cp $CELEBORN_HOME/spark/celeborn-client-spark-<spark.version>-shaded_<scala.binary.version>-<celeborn.version>.jar $SPARK_HOME/jars/
 ```
 #### Start spark-shell
 Set `spark.shuffle.manager` to Celeborn's ShuffleManager, and turn off `spark.shuffle.service.enabled`:

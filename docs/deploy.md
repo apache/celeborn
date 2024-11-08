@@ -158,7 +158,7 @@ WorkerRef: null
 Celeborn release binary contains clients for Spark 2.x and Spark 3.x, copy the corresponding client jar into Spark's
 `jars/` directory:
 
-Copy `$CELEBORN_HOME/spark/celeborn-client-spark-<spark.major.version>-shaded_<scala.binary.version>-<celeborn.version>.jar` to `$SPARK_HOME/jars/`.
+Copy `$CELEBORN_HOME/spark/celeborn-client-spark-<spark.version>-shaded_<scala.binary.version>-<celeborn.version>.jar` to `$SPARK_HOME/jars/`.
 
 ### Spark Configuration
 To use Celeborn, the following spark configurations should be added.

@@ -31,7 +31,7 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -Pceleborn -DskipTests
 
 Then add the Gluten and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
 
-- Celeborn: `celeborn-client-spark-3.x-shaded_2.12-[celebornVersion].jar`
+- Celeborn: `celeborn-client-spark-3.x.x-shaded_2.12-[celebornVersion].jar`
 - Gluten: `gluten-velox-bundle-spark3.x_2.12-xx-xx-SNAPSHOT.jar` (The bundled Gluten Jar. Make sure -Pceleborn is specified when it is built.)
 
 ## ClickHouse Backend
@@ -48,7 +48,7 @@ mvn clean package -Pbackends-clickhouse -Pspark-3.3 -Pceleborn -DskipTests
 
 Then add the Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
 
-- Celeborn: `celeborn-client-spark-3.x-shaded_2.12-[celebornVersion].jar`
+- Celeborn: `celeborn-client-spark-3.x.x-shaded_2.12-[celebornVersion].jar`
 
 ## Gluten Configuration
 
