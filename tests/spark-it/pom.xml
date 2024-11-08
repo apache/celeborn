@@ -97,13 +97,13 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
           <scope>test</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
           <type>test-jar</type>
           <scope>test</scope>
@@ -115,13 +115,13 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
           <scope>test</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
           <type>test-jar</type>
           <scope>test</scope>
@@ -133,13 +133,13 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
           <scope>test</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
           <type>test-jar</type>
           <scope>test</scope>
@@ -151,13 +151,13 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
           <scope>test</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
           <type>test-jar</type>
           <scope>test</scope>
@@ -169,13 +169,13 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
           <scope>test</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
           <type>test-jar</type>
           <scope>test</scope>
@@ -187,13 +187,13 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
           <scope>test</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
           <type>test-jar</type>
           <scope>test</scope>
@@ -205,13 +205,13 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
           <scope>test</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
+          <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
           <version>${project.version}</version>
           <type>test-jar</type>
           <scope>test</scope>

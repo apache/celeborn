@@ -24,14 +24,14 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-spark-${spark.version.majorminor}-columnar-common_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-spark-${spark.version}-columnar-common_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
   <name>Celeborn Client for Spark 3 Columnar Common</name>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
-      <artifactId>celeborn-client-spark-${spark.version.majorminor}_${scala.binary.version}</artifactId>
+      <artifactId>celeborn-client-spark-${spark.version}_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

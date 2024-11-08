@@ -185,13 +185,10 @@ function build_spark_client {
       | grep -v "WARNING" \
       | tail -n 1)
   SPARK_MAJOR_VERSION=${SPARK_VERSION%%.*}
-  SPARK_MINOR_VERSION=${SPARK_VERSION#*.}
-  SPARK_MINOR_VERSION=${SPARK_MINOR_VERSION%%.*}
-  SPARK_MAJOR_MINOR_VERSION="$SPARK_MAJOR_VERSION.$SPARK_MINOR_VERSION"
   # Store the command as an array because $MVN variable might have spaces in it.
   # Normal quoting tricks don't work.
   # See: http://mywiki.wooledge.org/BashFAQ/050
-  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl :celeborn-client-spark-${SPARK_MAJOR_MINOR_VERSION}-shaded_$SCALA_VERSION -am $@)
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl :celeborn-client-spark-${SPARK_VERSION}-shaded_$SCALA_VERSION -am $@)
 
   # Actually build the jar
   echo -e "\nBuilding with..."
@@ -202,7 +199,7 @@ function build_spark_client {
   mkdir -p "$DIST_DIR/spark"
 
   ## Copy spark client jars
-  cp "$PROJECT_DIR"/client-spark/spark-${SPARK_MAJOR_VERSION}-shaded/target/celeborn-client-spark-${SPARK_MAJOR_MINOR_VERSION}-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/spark/"
+  cp "$PROJECT_DIR"/client-spark/spark-${SPARK_MAJOR_VERSION}-shaded/target/celeborn-client-spark-${SPARK_VERSION}-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/spark/"
 }
 
 function build_flink_client {

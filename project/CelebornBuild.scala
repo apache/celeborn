@@ -890,6 +890,13 @@ trait SparkClientProjects {
       )
   }
 
+  // the output would be something like: celeborn-client-spark-3.3.4-shaded_2.12-0.6.0-SNAPSHOT.jar
+  def sparkClientShadeJarName(
+                               revision: String,
+                               artifact: Artifact,
+                               scalaBinaryVersionString: String): String =
+    s"celeborn-client-spark-$sparkVersion-shaded_$scalaBinaryVersionString" + "-" + revision + "." + artifact.extension
+
   def sparkClientShade: Project = {
     var p = Project(sparkClientShadedProjectName, file(sparkClientShadedProjectPath))
       .dependsOn(sparkClient)
@@ -903,10 +910,10 @@ trait SparkClientProjects {
         commonSettings,
         releaseSettings,
 
-        // align final shaded jar name with maven.
         (assembly / assemblyJarName) := {
-          val extension = artifact.value.extension
-          s"${moduleName.value}_${scalaBinaryVersion.value}-${version.value}.$extension"
+          val revision: String = version.value
+          val artifactValue: Artifact = artifact.value
+          sparkClientShadeJarName(revision, artifactValue, scalaBinaryVersion.value)
         },
 
         (assembly / test) := { },
