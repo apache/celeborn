@@ -139,7 +139,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final ReviveManager reviveManager;
 
-  protected static class ReduceFileGroups {
+  public static class ReduceFileGroups {
     public Map<Integer, Set<PartitionLocation>> partitionGroups;
     public int[] mapAttempts;
     public Set<Integer> partitionIds;
