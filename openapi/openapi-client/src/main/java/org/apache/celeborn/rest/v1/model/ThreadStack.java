@@ -47,9 +47,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   ThreadStack.JSON_PROPERTY_LOCK_NAME,
   ThreadStack.JSON_PROPERTY_LOCK_OWNER_NAME,
   ThreadStack.JSON_PROPERTY_SUSPENDED,
-  ThreadStack.JSON_PROPERTY_IN_NATIVE,
-  ThreadStack.JSON_PROPERTY_IS_DAEMON,
-  ThreadStack.JSON_PROPERTY_PRIORITY
+  ThreadStack.JSON_PROPERTY_IN_NATIVE
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class ThreadStack {
@@ -91,12 +89,6 @@ public class ThreadStack {
 
   public static final String JSON_PROPERTY_IN_NATIVE = "inNative";
   private Boolean inNative;
-
-  public static final String JSON_PROPERTY_IS_DAEMON = "isDaemon";
-  private Boolean isDaemon;
-
-  public static final String JSON_PROPERTY_PRIORITY = "priority";
-  private Integer priority;
 
   public ThreadStack() {
   }
@@ -458,56 +450,6 @@ public class ThreadStack {
     this.inNative = inNative;
   }
 
-  public ThreadStack isDaemon(Boolean isDaemon) {
-    
-    this.isDaemon = isDaemon;
-    return this;
-  }
-
-  /**
-   * Whether the thread is a daemon thread.
-   * @return isDaemon
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_IS_DAEMON)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public Boolean getIsDaemon() {
-    return isDaemon;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_IS_DAEMON)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setIsDaemon(Boolean isDaemon) {
-    this.isDaemon = isDaemon;
-  }
-
-  public ThreadStack priority(Integer priority) {
-    
-    this.priority = priority;
-    return this;
-  }
-
-  /**
-   * The priority of the thread.
-   * @return priority
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_PRIORITY)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public Integer getPriority() {
-    return priority;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_PRIORITY)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setPriority(Integer priority) {
-    this.priority = priority;
-  }
-
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -529,14 +471,12 @@ public class ThreadStack {
         Objects.equals(this.lockName, threadStack.lockName) &&
         Objects.equals(this.lockOwnerName, threadStack.lockOwnerName) &&
         Objects.equals(this.suspended, threadStack.suspended) &&
-        Objects.equals(this.inNative, threadStack.inNative) &&
-        Objects.equals(this.isDaemon, threadStack.isDaemon) &&
-        Objects.equals(this.priority, threadStack.priority);
+        Objects.equals(this.inNative, threadStack.inNative);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(threadId, threadName, threadState, stackTrace, blockedByThreadId, blockedByLock, holdingLocks, synchronizers, monitors, lockName, lockOwnerName, suspended, inNative, isDaemon, priority);
+    return Objects.hash(threadId, threadName, threadState, stackTrace, blockedByThreadId, blockedByLock, holdingLocks, synchronizers, monitors, lockName, lockOwnerName, suspended, inNative);
   }
 
   @Override
@@ -556,8 +496,6 @@ public class ThreadStack {
     sb.append("    lockOwnerName: ").append(toIndentedString(lockOwnerName)).append("\n");
     sb.append("    suspended: ").append(toIndentedString(suspended)).append("\n");
     sb.append("    inNative: ").append(toIndentedString(inNative)).append("\n");
-    sb.append("    isDaemon: ").append(toIndentedString(isDaemon)).append("\n");
-    sb.append("    priority: ").append(toIndentedString(priority)).append("\n");
     sb.append("}");
     return sb.toString();
   }
