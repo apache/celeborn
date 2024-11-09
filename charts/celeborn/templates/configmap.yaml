@@ -128,7 +128,7 @@ data:
                 <Appender-ref ref="stdout" level="WARN" />
                 <Appender-ref ref="file" level="WARN"/>
             </Logger>
-            <Logger name="org.apache.celeborn.server.common.http.authentication.AuthenticationAuditLogger" level="INFO" additivity="false">
+            <Logger name="org.apache.celeborn.server.common.http.RestAuditLogger" level="INFO" additivity="false">
                 <Appender-ref ref="restAuditFile" level="INFO"/>
             </Logger>
         </Loggers>

@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.server.common.http.authentication
+package org.apache.celeborn.server.common.http
 
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.authentication.AuthenticationFilter._
 
-object AuthenticationAuditLogger extends Logging {
+object RestAuditLogger extends Logging {
   final private val AUDIT_BUFFER = new ThreadLocal[StringBuilder]() {
     override protected def initialValue: StringBuilder = new StringBuilder()
   }
