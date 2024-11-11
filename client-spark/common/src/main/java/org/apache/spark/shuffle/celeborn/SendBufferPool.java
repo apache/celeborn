@@ -103,6 +103,9 @@ public class SendBufferPool {
   }
 
   public synchronized void returnPushTaskQueue(LinkedBlockingQueue<PushTask> pushTaskQueue) {
+    if (pushTaskQueue == null) {
+      return;
+    }
     if (pushTaskQueues.size() == capacity) {
       pushTaskQueues.removeFirst();
     }

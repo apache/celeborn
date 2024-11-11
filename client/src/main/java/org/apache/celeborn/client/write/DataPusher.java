@@ -41,7 +41,7 @@ public class DataPusher {
 
   private final long WAIT_TIME_NANOS = TimeUnit.MILLISECONDS.toNanos(500);
 
-  private final LinkedBlockingQueue<PushTask> idleQueue;
+  private LinkedBlockingQueue<PushTask> idleQueue;
   // partition -> PushTask Queue
   private final DataPushQueue dataPushQueue;
   private final ReentrantLock idleLock = new ReentrantLock();
@@ -234,7 +234,9 @@ public class DataPusher {
     return dataPushQueue;
   }
 
-  public LinkedBlockingQueue<PushTask> getIdleQueue() {
-    return idleQueue;
+  public LinkedBlockingQueue<PushTask> getAndResetIdleQueue() {
+    LinkedBlockingQueue<PushTask> queue = idleQueue;
+    idleQueue = null;
+    return queue;
   }
 }
