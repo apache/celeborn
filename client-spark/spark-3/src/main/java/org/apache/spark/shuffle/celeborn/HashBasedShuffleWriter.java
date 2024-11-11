@@ -359,7 +359,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void cleanupPusher() throws IOException {
     try {
       dataPusher.waitOnTermination();
-      sendBufferPool.returnPushTaskQueue(dataPusher.getIdleQueue());
+      sendBufferPool.returnPushTaskQueue(dataPusher.getAndResetIdleQueue());
     } catch (InterruptedException e) {
       TaskInterruptedHelper.throwTaskKillException();
     }
@@ -369,7 +369,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     // here we wait for all the in-flight batches to return which sent by dataPusher thread
     long pushMergedDataTime = System.nanoTime();
     dataPusher.waitOnTermination();
-    sendBufferPool.returnPushTaskQueue(dataPusher.getIdleQueue());
+    sendBufferPool.returnPushTaskQueue(dataPusher.getAndResetIdleQueue());
     shuffleClient.prepareForMergeData(shuffleId, mapId, encodedAttemptId);
     closeWrite();
     shuffleClient.pushMergedData(shuffleId, mapId, encodedAttemptId);
