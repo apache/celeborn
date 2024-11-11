@@ -42,7 +42,7 @@ class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite {
   }
 
   override def beforeAll(): Unit = {
-    val randomMasterPort = Utils.selectRandomPort(1024, 65535)
+    val randomMasterPort = Utils.selectRandomPort(1024, 65534)
     val randomHttpPort = randomMasterPort + 1
     celebornConf.set(CelebornConf.HA_ENABLED.key, "false")
     celebornConf.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR.key, getTmpDir())
