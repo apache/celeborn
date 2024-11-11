@@ -65,7 +65,7 @@ public class RemoteShuffleMasterSuiteJ {
   @Before
   public void setUp() {
     configuration = new Configuration();
-    int startPort = Utils$.MODULE$.selectRandomPort(1024, 65535);
+    int startPort = Utils$.MODULE$.selectRandomInt(1024, 65535);
     configuration.setInteger("celeborn.master.port", startPort);
     configuration.setString("celeborn.master.endpoints", "localhost:" + startPort);
     remoteShuffleMaster = createShuffleMaster(configuration);
