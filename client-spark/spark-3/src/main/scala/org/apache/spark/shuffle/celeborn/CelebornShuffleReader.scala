@@ -270,7 +270,6 @@ class CelebornShuffleReader[K, C](
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
         var inputStream: CelebornInputStream = streams.get(partitionId)
-        // todo bug fix:  inputStream keep null when revive happened
         while (inputStream == null) {
           if (exceptionRef.get() != null) {
             exceptionRef.get() match {
@@ -289,7 +288,7 @@ class CelebornShuffleReader[K, C](
         context.addTaskCompletionListener[Unit](_ => inputStream.close())
 
         // Advance the input creation window
-        if (partitionId + inputStreamCreationWindow < endPartition) {
+        if (partitionId + inputStreamCreationWindow < groupPartitionIdList.size) {
           streamCreatorPool.submit(new Runnable {
             override def run(): Unit = {
               createInputStream(partitionId + inputStreamCreationWindow)
