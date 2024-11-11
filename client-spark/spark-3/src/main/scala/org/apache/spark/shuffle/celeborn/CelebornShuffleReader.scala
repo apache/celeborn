@@ -270,7 +270,7 @@ class CelebornShuffleReader[K, C](
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
         var inputStream: CelebornInputStream = streams.get(partitionId)
-        // todo bug fix:  split后，fetch时inputStream一直为空
+        // todo bug fix:  inputStream keep null when revive happened
         while (inputStream == null) {
           if (exceptionRef.get() != null) {
             exceptionRef.get() match {
