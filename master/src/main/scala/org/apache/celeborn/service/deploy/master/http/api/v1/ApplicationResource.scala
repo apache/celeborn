@@ -120,6 +120,6 @@ class ApplicationResource extends ApiRequestContext {
     val appId = request.getAppId
     val shuffleIds = request.getShuffleIds
     statusSystem.reviseLostShuffles(appId, shuffleIds)
-    new HandleResponse().success(true).message(s"revised app:$appId lost shuffles:$shuffleIds done")
+    new HandleResponse().success(true).message(s"revised app:$appId lost shuffles:$shuffleIds")
   }
 }
