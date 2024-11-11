@@ -235,7 +235,8 @@ public class SlotsAllocatorSuiteJ {
             conf.masterSlotAssignLoadAwareDiskGroupGradient(),
             conf.masterSlotAssignLoadAwareFlushTimeWeight(),
             conf.masterSlotAssignLoadAwareFetchTimeWeight(),
-            StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+            StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+            1);
     if (expectSuccess) {
       if (shouldReplicate) {
         slots.forEach(
@@ -314,7 +315,8 @@ public class SlotsAllocatorSuiteJ {
               0.1,
               0,
               1,
-              StorageInfo.LOCAL_DISK_MASK | availableStorageTypes);
+              StorageInfo.LOCAL_DISK_MASK | availableStorageTypes,
+              1);
     }
     int allocatedPartitionCount = 0;
     for (Map.Entry<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>

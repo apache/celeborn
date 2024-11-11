@@ -666,6 +666,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
   def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
   def clusterName: String = get(CLUSTER_NAME)
+  def groupWorkerResources: Boolean = get(GROUP_WORKER_ENABLED)
 
   // //////////////////////////////////////////////////////
   //               Address && HA && RATIS                //
@@ -4745,6 +4746,16 @@ object CelebornConf extends Logging {
         "Map tasks in Different group will push data into different partition group and reduce task " +
         "will fetch data from partitions in different group." +
         "Otherwise, client just process the shuffle in general Reduce Partition mode.")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefault(true)
+
+  val GROUP_WORKER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.groupWorker.enabled")
+      .withAlternative("celeborn.shuffle.groupWorker.enabled")
+      .categories("master", "worker")
+      .internal
+      .doc("When true, master will group workers and slots are allocated according to different partition groups.")
       .version("0.6.0")
       .booleanConf
       .createWithDefault(true)

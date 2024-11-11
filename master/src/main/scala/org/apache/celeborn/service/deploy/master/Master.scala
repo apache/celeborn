@@ -219,6 +219,7 @@ private[celeborn] class Master(
     estimatedPartitionSizeForEstimationUpdateInterval,
     TimeUnit.MILLISECONDS)
   private val slotsAssignPolicy = conf.masterSlotAssignPolicy
+  private val groupWorkerResources = conf.groupWorkerResources
 
   private var hadoopFs: util.Map[StorageInfo.Type, FileSystem] = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
@@ -860,6 +861,7 @@ private[celeborn] class Master(
     val numMapTaskGroups = requestSlots.numGroupTask
     val numPartitions = requestSlots.partitionIdList.size()
     val numReducers = numPartitions / numMapTaskGroups
+    val numWorkerGroups = if(groupWorkerResources) numMapTaskGroups else 1
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
     var availableWorkers = workersAvailable(requestSlots.excludedWorkerSet)
@@ -907,14 +909,16 @@ private[celeborn] class Master(
               slotsAssignLoadAwareDiskGroupGradient,
               loadAwareFlushTimeWeight,
               loadAwareFetchTimeWeight,
-              requestSlots.availableStorageTypes)
+              requestSlots.availableStorageTypes,
+              numWorkerGroups)
           } else {
             SlotsAllocator.offerSlotsRoundRobin(
               selectedWorkers,
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware,
-              requestSlots.availableStorageTypes)
+              requestSlots.availableStorageTypes,
+              numWorkerGroups)
           }
         }
       }
@@ -945,9 +949,8 @@ private[celeborn] class Master(
       requestSlots.requestId)
 
     logInfo(
-      s"Offer slots successfully for $numReducers reducers $numPartitions grouped reducers of $shuffleKey" +
+      s"Offer slots successfully for $numReducers reducers $numMapTaskGroups group nums $numPartitions grouped reducers of $shuffleKey" +
         s" on ${slots.size()} workers.")
-    logInfo(s"group nums $numMapTaskGroups")
 
     val workersNotSelected = availableWorkers.asScala.filter(!slots.containsKey(_))
     val offerSlotsExtraSize = Math.min(conf.masterSlotAssignExtraSlots, workersNotSelected.size)
