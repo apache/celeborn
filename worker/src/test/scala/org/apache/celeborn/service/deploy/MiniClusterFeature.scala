@@ -28,7 +28,7 @@ import scala.collection.mutable
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
-import org.apache.celeborn.common.util.Utils.selectRandomPort
+import org.apache.celeborn.common.util.Utils.selectRandomInt
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
@@ -56,8 +56,8 @@ trait MiniClusterFeature extends Logging {
     var workers: collection.Set[Worker] = null
     while (!created) {
       try {
-        val randomPort = selectRandomPort(1024, 65535)
-        val randomInternalPort = selectRandomPort(1024, 65535)
+        val randomPort = selectRandomInt(1024, 65535)
+        val randomInternalPort = selectRandomInt(1024, 65535)
         val finalMasterConf = Map(
           s"${CelebornConf.MASTER_HOST.key}" -> "localhost",
           s"${CelebornConf.PORT_MAX_RETRY.key}" -> "0",
@@ -103,7 +103,7 @@ trait MiniClusterFeature extends Logging {
   private def createMaster(map: Map[String, String] = null): Master = {
     val conf = new CelebornConf()
     conf.set(CelebornConf.METRICS_ENABLED.key, "false")
-    val httpPort = selectRandomPort(1024, 65535)
+    val httpPort = selectRandomInt(1024, 65535)
     conf.set(CelebornConf.MASTER_HTTP_PORT.key, s"$httpPort")
     logInfo(s"set ${CelebornConf.MASTER_HTTP_PORT.key} to $httpPort")
     if (map != null) {
@@ -128,7 +128,7 @@ trait MiniClusterFeature extends Logging {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, storageDir)
     conf.set(CelebornConf.WORKER_DISK_MONITOR_ENABLED.key, "false")
     conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
-    conf.set(CelebornConf.WORKER_HTTP_PORT.key, s"${selectRandomPort(1024, 65535)}")
+    conf.set(CelebornConf.WORKER_HTTP_PORT.key, s"${selectRandomInt(1024, 65535)}")
     conf.set("celeborn.fetch.io.threads", "4")
     conf.set("celeborn.push.io.threads", "4")
     if (map != null) {
