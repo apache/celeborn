@@ -466,7 +466,8 @@ object PbSerDeUtils {
       workers: java.util.Set[WorkerInfo],
       partitionTotalWritten: java.lang.Long,
       partitionTotalFileCount: java.lang.Long,
-      shuffleTotalFallbackCount: java.lang.Long,
+      shuffleTotalCount: java.lang.Long,
+      shuffleFallbackCounts: java.util.Map[String, java.lang.Long],
       appDiskUsageMetricSnapshots: Array[AppDiskUsageSnapShot],
       currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot,
       lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long],
@@ -488,7 +489,8 @@ object PbSerDeUtils {
       .addAllWorkers(workers.asScala.map(toPbWorkerInfo(_, true, false)).asJava)
       .setPartitionTotalWritten(partitionTotalWritten)
       .setPartitionTotalFileCount(partitionTotalFileCount)
-      .setShuffleTotalFallbackCount(shuffleTotalFallbackCount)
+      .setShuffleTotalCount(shuffleTotalCount)
+      .putAllShuffleFallbackCounts(shuffleFallbackCounts)
       // appDiskUsageMetricSnapshots can have null values,
       // protobuf repeated value can't support null value in list.
       .addAllAppDiskUsageMetricSnapshots(appDiskUsageMetricSnapshots.filter(_ != null)

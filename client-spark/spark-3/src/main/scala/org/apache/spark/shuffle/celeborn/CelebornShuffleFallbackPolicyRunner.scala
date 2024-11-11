@@ -35,12 +35,24 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
   def applyFallbackPolicies[K, V, C](
       dependency: ShuffleDependency[K, V, C],
       lifecycleManager: LifecycleManager): Boolean = {
-    val needFallback =
-      shuffleFallbackPolicies.exists(_.needFallback(dependency, conf, lifecycleManager))
-    if (needFallback && FallbackPolicy.NEVER.equals(shuffleFallbackPolicy)) {
-      throw new CelebornIOException(
-        "Fallback to spark built-in shuffle implementation is prohibited.")
+    val fallbackPolicy =
+      shuffleFallbackPolicies.find(_.needFallback(dependency, conf, lifecycleManager))
+    if (fallbackPolicy.isDefined) {
+      if (FallbackPolicy.NEVER.equals(shuffleFallbackPolicy)) {
+        throw new CelebornIOException(
+          "Fallback to spark built-in shuffle implementation is prohibited.")
+      } else {
+        lifecycleManager.shuffleFallbackCounts.compute(
+          fallbackPolicy.getClass.getName,
+          (_, v) => {
+            if (v == null) {
+              1L
+            } else {
+              v + 1L
+            }
+          })
+      }
     }
-    needFallback
+    fallbackPolicy.isDefined
   }
 }

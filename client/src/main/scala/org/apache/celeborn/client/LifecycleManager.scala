@@ -84,7 +84,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val unregisterShuffleTime = JavaUtils.newConcurrentHashMap[Int, Long]()
 
   val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
-  val shuffleFallbackCount = new LongAdder()
+  val shuffleCount = new LongAdder()
+  val shuffleFallbackCounts = JavaUtils.newConcurrentHashMap[String, java.lang.Long]()
   // maintain each shuffle's map relation of WorkerInfo and partition location
   val shuffleAllocatedWorkers = new ShuffleAllocatedWorkers
   // shuffle id -> (partitionId -> newest PartitionLocation)
@@ -210,10 +211,20 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       appUniqueId,
       conf,
       masterClient,
-      () => commitManager.commitMetrics() -> shuffleFallbackCount.sumThenReset(),
+      () => {
+        commitManager.commitMetrics() ->
+          (shuffleCount.sumThenReset(), resetShuffleFallbackCounts())
+      },
       workerStatusTracker,
       registeredShuffle,
       reason => cancelAllActiveStages(reason))
+  private def resetShuffleFallbackCounts(): Map[String, java.lang.Long] = {
+    val fallbackCounts = new util.HashMap[String, java.lang.Long]()
+    shuffleFallbackCounts.keys().asScala.foreach { key =>
+      Option(shuffleFallbackCounts.remove(key)).filter(_ > 0).foreach(fallbackCounts.put(key, _))
+    }
+    fallbackCounts.asScala.toMap
+  }
   private val changePartitionManager = new ChangePartitionManager(conf, this)
   private val releasePartitionManager = new ReleasePartitionManager(conf, this)
 

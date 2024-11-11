@@ -120,7 +120,8 @@ message AppHeartbeatRequest {
   required int64 time = 2;
   required int64 totalWritten = 3;
   required int64 fileCount = 4;
-  optional int64 shuffleFallbackCount = 5;
+  optional int64 shuffleCount = 5;
+  map<string, int64> shuffleFallbackCounts = 6;
 }
 
 message AppLostRequest {

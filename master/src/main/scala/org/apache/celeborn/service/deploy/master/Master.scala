@@ -261,8 +261,12 @@ private[celeborn] class Master(
       }).sum()
   }
 
+  masterSource.addGauge(MasterSource.SHUFFLE_TOTAL_COUNT) { () =>
+    statusSystem.shuffleTotalCount.sum()
+  }
+
   masterSource.addGauge(MasterSource.SHUFFLE_FALLBACK_COUNT) { () =>
-    statusSystem.shuffleTotalFallbackCount.sum()
+    statusSystem.shuffleFallbackCounts.values().asScala.map(_.longValue()).sum
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_TOTAL_CAPACITY) { () =>
@@ -395,7 +399,8 @@ private[celeborn] class Master(
           appId,
           totalWritten,
           fileCount,
-          fallbackShuffles,
+          shuffleFallbackCount,
+          shuffleFallbackCounts,
           needCheckedWorkerList,
           requestId,
           shouldResponse) =>
@@ -408,7 +413,8 @@ private[celeborn] class Master(
           appId,
           totalWritten,
           fileCount,
-          fallbackShuffles,
+          shuffleFallbackCount,
+          shuffleFallbackCounts,
           needCheckedWorkerList,
           requestId,
           shouldResponse))
@@ -1095,12 +1101,23 @@ private[celeborn] class Master(
     }
   }
 
+  private def gaugeShuffleFallbackCounts(): Unit = {
+    statusSystem.shuffleFallbackCounts.keySet().asScala.foreach { fallbackPolicy =>
+      masterSource.addGauge(
+        MasterSource.SHUFFLE_FALLBACK_COUNT,
+        Map("fallbackPolicy" -> fallbackPolicy)) { () =>
+        Option(statusSystem.shuffleFallbackCounts.get(fallbackPolicy)).getOrElse(0L)
+      }
+    }
+  }
+
   private def handleHeartbeatFromApplication(
       context: RpcCallContext,
       appId: String,
       totalWritten: Long,
       fileCount: Long,
-      shuffleFallbackCount: Long,
+      shuffleCount: Long,
+      shuffleFallbackCounts: util.Map[String, java.lang.Long],
       needCheckedWorkerList: util.List[WorkerInfo],
       requestId: String,
       shouldResponse: Boolean): Unit = {
@@ -1108,9 +1125,11 @@ private[celeborn] class Master(
       appId,
       totalWritten,
       fileCount,
-      shuffleFallbackCount,
+      shuffleCount,
+      shuffleFallbackCounts,
       System.currentTimeMillis(),
       requestId)
+    gaugeShuffleFallbackCounts()
     val unknownWorkers = needCheckedWorkerList.asScala.filterNot(w =>
       statusSystem.workersMap.containsKey(w.toUniqueId())).asJava
     if (shouldResponse) {
