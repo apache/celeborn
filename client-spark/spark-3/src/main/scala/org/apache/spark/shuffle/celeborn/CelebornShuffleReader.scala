@@ -372,6 +372,7 @@ class CelebornShuffleReader[K, C](
   private def handleFetchExceptions(shuffleId: Int, partitionId: Int, ce: Throwable) = {
     if (throwsFetchFailure &&
       shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
+      logWarning(s"Handle fetch exceptions for ${shuffleId}-${partitionId}", ce)
       throw new FetchFailedException(
         null,
         handle.shuffleId,

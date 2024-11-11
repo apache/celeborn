@@ -68,6 +68,8 @@ class ReducePartitionCommitHandler(
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = JavaUtils.newConcurrentHashMap[Int, Array[Int]]()
   private val stageEndTimeout = conf.clientPushStageEndTimeout
+  private val mockShuffleLost = conf.testMockShuffleLost
+  private val mockShuffleLostShuffle = conf.testMockShuffleLostShuffle
 
   private val rpcCacheSize = conf.clientRpcCacheSize
   private val rpcCacheConcurrencyLevel = conf.clientRpcCacheConcurrencyLevel
@@ -94,7 +96,11 @@ class ReducePartitionCommitHandler(
   }
 
   override def isStageDataLost(shuffleId: Int): Boolean = {
-    dataLostShuffleSet.contains(shuffleId)
+    if (mockShuffleLost) {
+      mockShuffleLostShuffle == shuffleId
+    } else {
+      dataLostShuffleSet.contains(shuffleId)
+    }
   }
 
   override def isPartitionInProcess(shuffleId: Int, partitionId: Int): Boolean = {
