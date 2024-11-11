@@ -44,7 +44,7 @@ object Dependencies {
   val apLoaderVersion = "3.0-8"
   val commonsCompressVersion = "1.4.1"
   val commonsCryptoVersion = "1.0.0"
-  val commonsIoVersion = "2.13.0"
+  val commonsIoVersion = "2.17.0"
   val commonsLoggingVersion = "1.1.3"
   val commonsLang3Version = "3.17.0"
   val findbugsVersion = "1.3.9"
