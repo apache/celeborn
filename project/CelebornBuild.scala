@@ -88,8 +88,8 @@ object Dependencies {
   val bouncycastleVersion = "1.77"
 
   // Versions for proto
-  val protocVersion = "3.21.7"
-  val protoVersion = "3.21.7"
+  val protocVersion = "3.25.5"
+  val protoVersion = "3.25.5"
 
   val apLoader = "me.bechberger" % "ap-loader-all" % apLoaderVersion
   val commonsCompress = "org.apache.commons" % "commons-compress" % commonsCompressVersion
