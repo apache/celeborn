@@ -77,7 +77,7 @@
     -->
     <codahale.metrics.version>4.2.25</codahale.metrics.version>
     <commons-lang3.version>3.17.0</commons-lang3.version>
-    <commons-io.version>2.13.0</commons-io.version>
+    <commons-io.version>2.17.0</commons-io.version>
     <commons-crypto.version>1.0.0</commons-crypto.version>
     <!-- last version to support compilation in java 8. See https://errorprone.info/docs/installation#:~:text=you%20are%20using.-,JDK%208,-Error%20Prone%202.10.0 -->
     <error-prone.version>2.10.0</error-prone.version>
