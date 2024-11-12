@@ -131,7 +131,7 @@ abstract class RpcEnv(config: RpcEnvConfig) {
    * Retrieve the [[RpcEndpointRef]] represented by `addr`. This is a blocking action.
    */
   def setupEndpointRefByAddr(addr: RpcEndpointAddress): RpcEndpointRef = {
-    defaultLookupTimeout.awaitResult(asyncSetupEndpointRefByAddr(addr))
+    defaultLookupTimeout.awaitResult(asyncSetupEndpointRefByAddr(addr), addr.rpcAddress)
   }
 
   /**

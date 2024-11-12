@@ -42,8 +42,12 @@ private[celeborn] class RpcTimeout(val duration: FiniteDuration, val timeoutProp
   extends Serializable {
 
   /** Amends the standard message of TimeoutException to include the description */
-  private def createRpcTimeoutException(te: TimeoutException): RpcTimeoutException = {
-    new RpcTimeoutException(te.getMessage + ". This timeout is controlled by " + timeoutProp, te)
+  private def createRpcTimeoutException(
+      te: TimeoutException,
+      rpcAddress: RpcAddress): RpcTimeoutException = {
+    new RpcTimeoutException(
+      s"${te.getMessage}. This timeout of rpc address $rpcAddress is controlled by $timeoutProp",
+      te)
   }
 
   /**
@@ -54,11 +58,11 @@ private[celeborn] class RpcTimeout(val duration: FiniteDuration, val timeoutProp
    *    val timeout = new RpcTimeout(5 millis, "short timeout")
    *    Future(throw new TimeoutException).recover(timeout.addMessageIfTimeout)
    */
-  def addMessageIfTimeout[T]: PartialFunction[Throwable, T] = {
+  def addMessageIfTimeout[T](rpcAddress: RpcAddress): PartialFunction[Throwable, T] = {
     // The exception has already been converted to a RpcTimeoutException so just raise it
     case rte: RpcTimeoutException => throw rte
     // Any other TimeoutException get converted to a RpcTimeoutException with modified message
-    case te: TimeoutException => throw createRpcTimeoutException(te)
+    case te: TimeoutException => throw createRpcTimeoutException(te, rpcAddress)
   }
 
   /**
@@ -69,10 +73,10 @@ private[celeborn] class RpcTimeout(val duration: FiniteDuration, val timeoutProp
    * @throws RpcTimeoutException if after waiting for the specified time `future`
    *         is still not ready
    */
-  def awaitResult[T](future: Future[T]): T = {
+  def awaitResult[T](future: Future[T], rpcAddress: RpcAddress): T = {
     try {
       ThreadUtils.awaitResult(future, duration)
-    } catch addMessageIfTimeout
+    } catch addMessageIfTimeout(rpcAddress)
   }
 }
 
