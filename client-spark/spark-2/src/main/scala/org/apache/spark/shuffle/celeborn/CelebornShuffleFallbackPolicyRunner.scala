@@ -45,7 +45,7 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
           "Fallback to spark built-in shuffle implementation is prohibited.")
       } else {
         lifecycleManager.shuffleFallbackCounts.compute(
-          fallbackPolicy.getClass.getName,
+          fallbackPolicy.get.getClass.getName,
           new BiFunction[String, java.lang.Long, java.lang.Long] {
             override def apply(k: String, v: java.lang.Long): java.lang.Long = {
               if (v == null) {
