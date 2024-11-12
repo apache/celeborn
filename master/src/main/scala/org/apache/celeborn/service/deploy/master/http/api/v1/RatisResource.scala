@@ -241,7 +241,7 @@ class RatisResource extends ApiRequestContext with Logging {
     val reply = ratisServer.getServer.snapshotManagement(request)
     if (reply.isSuccess) {
       new HandleResponse().success(true).message(
-        s"Successfully create snapshot at ${ratisServer.getLocalAddress}.")
+        s"Successfully create snapshot at ${ratisServer.getLocalAddress}. The latest snapshot index is ${reply.getLogIndex}.")
     } else {
       new HandleResponse().success(false).message(
         s"Failed to create snapshot at ${ratisServer.getLocalAddress}. $reply")
