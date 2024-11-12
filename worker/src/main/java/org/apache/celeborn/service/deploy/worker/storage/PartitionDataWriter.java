@@ -317,7 +317,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
     final int numBytes = data.readableBytes();
     if (isMemoryShuffleFile.get()) {
-      MemoryManager.instance().increaseMemoryFileStorage(numBytes);
+      MemoryManager.instance().incrementMemoryFileStorage(numBytes);
     } else {
       MemoryManager.instance().incrementDiskBuffer(numBytes);
       if (userCongestionControlContext != null) {
