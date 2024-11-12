@@ -625,15 +625,7 @@ private[celeborn] class Master(
       if (heartbeatTime < currentTime - appHeartbeatTimeoutMs) {
         logWarning(s"Application $appId timeout, trigger applicationLost event.")
         val requestId = MasterClient.genRequestId()
-        var res = self.askSync[ApplicationLostResponse](ApplicationLost(appId, requestId))
-        var retry = 1
-        while (res.status != StatusCode.SUCCESS && retry <= 3) {
-          res = self.askSync[ApplicationLostResponse](ApplicationLost(appId, requestId))
-          retry += 1
-        }
-        if (retry > 3) {
-          logWarning(s"Handle ApplicationLost event for $appId failed more than 3 times!")
-        }
+        handleApplicationLost(null, appId, requestId)
       }
     }
   }
@@ -1050,7 +1042,9 @@ private[celeborn] class Master(
         if (hasHDFSStorage || hasS3Storage) {
           checkAndCleanExpiredAppDirsOnDFS(appId)
         }
-        context.reply(ApplicationLostResponse(StatusCode.SUCCESS))
+        if (context != null) {
+          context.reply(ApplicationLostResponse(StatusCode.SUCCESS))
+        }
       }
     })
   }
