@@ -54,6 +54,7 @@ class RetryReviveTest extends AnyFunSuite
       .map { i => (i, Range(1, 1000).mkString(",")) }.groupByKey(4).collect()
     assert(result.size == 1000)
     ss.stop()
+    shutdownMiniCluster()
   }
 
   test(
@@ -77,5 +78,6 @@ class RetryReviveTest extends AnyFunSuite
       .map { i => (i, Range(1, 1000).mkString(",")) }.groupByKey(4).collect()
     assert(result.size == 1000)
     ss.stop()
+    shutdownMiniCluster()
   }
 }
