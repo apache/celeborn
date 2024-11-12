@@ -279,7 +279,7 @@ class CelebornShuffleReader[K, C](
               case e => throw e
             }
           }
-          logInfo(s"[gmt-test] partitionId ${partitionId} inputStream is null, sleeping...")
+          logInfo(s"partitionId ${partitionId} inputStream is null, sleeping...")
           Thread.sleep(50)
           inputStream = streams.get(partitionId)
         }
