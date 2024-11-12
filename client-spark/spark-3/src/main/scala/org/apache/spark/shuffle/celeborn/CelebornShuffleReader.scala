@@ -266,6 +266,7 @@ class CelebornShuffleReader[K, C](
       })
     })
 
+    var curIndex = 0
     val recordIter = groupPartitionIdList.iterator.map(partitionId => {
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
@@ -278,7 +279,7 @@ class CelebornShuffleReader[K, C](
               case e => throw e
             }
           }
-          logInfo("inputStream is null, sleeping...")
+          logInfo(s"[gmt-test] partitionId ${partitionId} inputStream is null, sleeping...")
           Thread.sleep(50)
           inputStream = streams.get(partitionId)
         }
@@ -288,16 +289,19 @@ class CelebornShuffleReader[K, C](
         context.addTaskCompletionListener[Unit](_ => inputStream.close())
 
         // Advance the input creation window
-        if (partitionId + inputStreamCreationWindow < groupPartitionIdList.size) {
+        if (curIndex + inputStreamCreationWindow < groupPartitionIdList.size) {
+          val nextPartitionId = groupPartitionIdList(curIndex + inputStreamCreationWindow)
           streamCreatorPool.submit(new Runnable {
             override def run(): Unit = {
-              createInputStream(partitionId + inputStreamCreationWindow)
+              createInputStream(nextPartitionId)
             }
           })
         }
 
+        curIndex = curIndex + 1
         (partitionId, inputStream)
       } else {
+        curIndex = curIndex + 1
         (partitionId, CelebornInputStream.empty())
       }
     }).filter {
