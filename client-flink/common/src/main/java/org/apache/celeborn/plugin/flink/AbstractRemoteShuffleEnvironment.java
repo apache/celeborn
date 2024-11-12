@@ -22,7 +22,6 @@ import static org.apache.celeborn.plugin.flink.utils.Utils.checkState;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.*;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -129,12 +128,8 @@ public abstract class AbstractRemoteShuffleEnvironment {
         nettyGroup.addGroup(METRIC_GROUP_INPUT));
   }
 
-  public void releasePartitionsLocally(Collection<ResultPartitionID> partitionIds) {
-    throw new FlinkRuntimeException("Not implemented yet.");
-  }
-
   public Collection<ResultPartitionID> getPartitionsOccupyingLocalResources() {
-    return new ArrayList<>();
+    return resultPartitionManager.getUnreleasedPartitions();
   }
 
   @VisibleForTesting
@@ -176,7 +171,8 @@ public abstract class AbstractRemoteShuffleEnvironment {
       IndexedInputGate[] inputGates = new IndexedInputGate[inputGateDescriptors.size()];
       for (int gateIndex = 0; gateIndex < inputGates.length; gateIndex++) {
         InputGateDeploymentDescriptor igdd = inputGateDescriptors.get(gateIndex);
-        IndexedInputGate inputGate = createInputGateInternal(ownerContext, gateIndex, igdd);
+        IndexedInputGate inputGate =
+            createInputGateInternal(ownerContext, producerStateProvider, gateIndex, igdd);
         inputGates[gateIndex] = inputGate;
       }
       return Arrays.asList(inputGates);
@@ -184,5 +180,8 @@ public abstract class AbstractRemoteShuffleEnvironment {
   }
 
   abstract IndexedInputGate createInputGateInternal(
-      ShuffleIOOwnerContext ownerContext, int gateIndex, InputGateDeploymentDescriptor igdd);
+      ShuffleIOOwnerContext ownerContext,
+      PartitionProducerStateProvider producerStateProvider,
+      int gateIndex,
+      InputGateDeploymentDescriptor igdd);
 }

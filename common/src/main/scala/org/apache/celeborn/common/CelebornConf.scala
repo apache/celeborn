@@ -1040,7 +1040,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
   def shuffleForceFallbackEnabled: Boolean = get(SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED)
   def checkWorkerEnabled: Boolean = get(CHECK_WORKER_ENABLED)
-  def shuffleFallbackPolicy: FallbackPolicy = {
+  def sparkShuffleFallbackPolicy: FallbackPolicy = {
     val fallbackPolicyGiven = FallbackPolicy.valueOf(get(SPARK_SHUFFLE_FALLBACK_POLICY))
     if (shuffleForceFallbackEnabled && FallbackPolicy.AUTO.equals(fallbackPolicyGiven)) {
       FallbackPolicy.ALWAYS
@@ -1048,6 +1048,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       fallbackPolicyGiven
     }
   }
+  def flinkShuffleFallbackPolicy: FallbackPolicy =
+    FallbackPolicy.valueOf(get(FLINK_SHUFFLE_FALLBACK_POLICY))
 
   def shuffleFallbackPartitionThreshold: Long = get(SPARK_SHUFFLE_FALLBACK_PARTITION_THRESHOLD)
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
@@ -5089,11 +5091,12 @@ object CelebornConf extends Logging {
       .createWithDefault(true)
 
   val CHECK_WORKER_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.spark.shuffle.checkWorker.enabled")
+    buildConf("celeborn.client.shuffle.checkWorker.enabled")
+      .withAlternative("celeborn.client.spark.shuffle.checkWorker.enabled")
       .categories("client")
       .doc("When true, before registering shuffle, LifecycleManager should check " +
         "if current cluster have available workers, if cluster don't have available " +
-        "workers, fallback to Spark's default shuffle")
+        "workers, fallback to default shuffle.")
       .version("0.5.0")
       .booleanConf
       .createWithDefault(true)
@@ -5138,6 +5141,24 @@ object CelebornConf extends Logging {
         s"is `${FallbackPolicy.AUTO.name}`.")
       .longConf
       .createWithDefault(Int.MaxValue)
+
+  val FLINK_SHUFFLE_FALLBACK_POLICY: ConfigEntry[String] =
+    buildConf("celeborn.client.flink.shuffle.fallback.policy")
+      .categories("client")
+      .version("0.6.0")
+      .doc("Celeborn supports the following kind of fallback policies. " +
+        s"1. ${FallbackPolicy.ALWAYS.name}: always use flink built-in shuffle implementation; " +
+        s"2. ${FallbackPolicy.AUTO.name}: prefer to use celeborn shuffle implementation, and fallback to use flink " +
+        "built-in shuffle implementation based on certain factors, e.g. availability of enough workers and quota; " +
+        s"3. ${FallbackPolicy.NEVER.name}: always use celeborn shuffle implementation, and fail fast when it it is " +
+        "concluded that fallback is required based on factors above.")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set(
+        FallbackPolicy.ALWAYS.name,
+        FallbackPolicy.AUTO.name,
+        FallbackPolicy.NEVER.name))
+      .createWithDefault(FallbackPolicy.AUTO.name)
 
   val CLIENT_PUSH_SORT_MEMORY_THRESHOLD: ConfigEntry[Long] =
     buildConf("celeborn.client.spark.push.sort.memory.threshold")
@@ -5336,7 +5357,7 @@ object CelebornConf extends Logging {
         "When Master side sets to true, the master will enable to check the quota via QuotaManager. " +
           "When Client side sets to true, LifecycleManager will request Master side to check " +
           "whether the current user has enough quota before registration of shuffle. " +
-          "Fallback to the default shuffle service of Spark when Master side checks that " +
+          "Fallback to the default shuffle service when Master side checks that " +
           "there is no enough quota for current user.")
       .version("0.2.0")
       .booleanConf

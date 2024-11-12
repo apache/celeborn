@@ -15,44 +15,47 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle.celeborn;
+package org.apache.celeborn.plugin.flink.fallback;
 
-import org.apache.spark.ShuffleDependency;
+import org.apache.flink.runtime.shuffle.JobShuffleContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.protocol.FallbackPolicy;
+import org.apache.celeborn.common.protocol.message.ControlMessages.CheckQuotaResponse;
 
-public class ForceFallbackPolicy implements ShuffleFallbackPolicy {
+public class QuotaFallbackPolicy implements ShuffleFallbackPolicy {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ForceFallbackPolicy.class);
+  private static final Logger LOG = LoggerFactory.getLogger(QuotaFallbackPolicy.class);
 
-  public static final ForceFallbackPolicy INSTANCE = new ForceFallbackPolicy();
+  public static final QuotaFallbackPolicy INSTANCE = new QuotaFallbackPolicy();
 
   /**
-   * If celeborn.client.spark.shuffle.fallback.policy is ALWAYS, fallback to spark built-in shuffle
+   * If celeborn cluster exceeds current user's quota, fallback to flink built-in shuffle
    * implementation.
    *
-   * @param shuffleDependency The shuffle dependency of Spark.
+   * @param shuffleContext The job shuffle context of Flink.
    * @param celebornConf The configuration of Celeborn.
    * @param lifecycleManager The {@link LifecycleManager} of Celeborn.
-   * @return Return true if celeborn.client.spark.shuffle.fallback.policy is ALWAYS, otherwise
-   *     false.
+   * @return Whether celeborn cluster has no available space for current user.
    */
   @Override
   public boolean needFallback(
-      ShuffleDependency<?, ?, ?> shuffleDependency,
+      JobShuffleContext shuffleContext,
       CelebornConf celebornConf,
       LifecycleManager lifecycleManager) {
-    FallbackPolicy shuffleFallbackPolicy = celebornConf.sparkShuffleFallbackPolicy();
-    if (FallbackPolicy.ALWAYS.equals(shuffleFallbackPolicy)) {
-      LOG.warn(
-          "{} is {}, forcibly fallback to spark built-in shuffle implementation.",
-          CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY().key(),
-          FallbackPolicy.ALWAYS.name());
+    if (!celebornConf.quotaEnabled()) {
+      return false;
     }
-    return FallbackPolicy.ALWAYS.equals(shuffleFallbackPolicy);
+    CheckQuotaResponse response = lifecycleManager.checkQuota();
+    boolean needFallback = !response.isAvailable();
+    if (needFallback) {
+      LOG.warn(
+          "Quota exceeds for current user {}. Because {}",
+          lifecycleManager.getUserIdentifier(),
+          response.reason());
+    }
+    return needFallback;
   }
 }

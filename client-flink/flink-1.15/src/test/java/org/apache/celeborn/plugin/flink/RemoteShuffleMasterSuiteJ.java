@@ -92,9 +92,10 @@ public class RemoteShuffleMasterSuiteJ {
     PartitionDescriptor partitionDescriptor = createPartitionDescriptor(intermediateDataSetID, 0);
     ProducerDescriptor producerDescriptor = createProducerDescriptor();
     RemoteShuffleDescriptor remoteShuffleDescriptor =
-        remoteShuffleMaster
-            .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
-            .get();
+        (RemoteShuffleDescriptor)
+            remoteShuffleMaster
+                .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
+                .get();
     ShuffleResource shuffleResource = remoteShuffleDescriptor.getShuffleResource();
     ShuffleResourceDescriptor mapPartitionShuffleDescriptor =
         shuffleResource.getMapPartitionShuffleDescriptor();
@@ -108,9 +109,10 @@ public class RemoteShuffleMasterSuiteJ {
     // use same dataset id
     partitionDescriptor = createPartitionDescriptor(intermediateDataSetID, 1);
     remoteShuffleDescriptor =
-        remoteShuffleMaster
-            .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
-            .get();
+        (RemoteShuffleDescriptor)
+            remoteShuffleMaster
+                .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
+                .get();
     mapPartitionShuffleDescriptor =
         remoteShuffleDescriptor.getShuffleResource().getMapPartitionShuffleDescriptor();
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getShuffleId());
@@ -119,9 +121,10 @@ public class RemoteShuffleMasterSuiteJ {
     // use another attemptId
     producerDescriptor = createProducerDescriptor();
     remoteShuffleDescriptor =
-        remoteShuffleMaster
-            .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
-            .get();
+        (RemoteShuffleDescriptor)
+            remoteShuffleMaster
+                .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
+                .get();
     mapPartitionShuffleDescriptor =
         remoteShuffleDescriptor.getShuffleResource().getMapPartitionShuffleDescriptor();
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getShuffleId());
@@ -144,15 +147,17 @@ public class RemoteShuffleMasterSuiteJ {
     PartitionDescriptor partitionDescriptor = createPartitionDescriptor(intermediateDataSetID, 0);
     ProducerDescriptor producerDescriptor = createProducerDescriptor();
     RemoteShuffleDescriptor remoteShuffleDescriptor1 =
-        remoteShuffleMaster
-            .registerPartitionWithProducer(jobID1, partitionDescriptor, producerDescriptor)
-            .get();
+        (RemoteShuffleDescriptor)
+            remoteShuffleMaster
+                .registerPartitionWithProducer(jobID1, partitionDescriptor, producerDescriptor)
+                .get();
 
     // use same datasetId but different jobId
     RemoteShuffleDescriptor remoteShuffleDescriptor2 =
-        remoteShuffleMaster
-            .registerPartitionWithProducer(jobID2, partitionDescriptor, producerDescriptor)
-            .get();
+        (RemoteShuffleDescriptor)
+            remoteShuffleMaster
+                .registerPartitionWithProducer(jobID2, partitionDescriptor, producerDescriptor)
+                .get();
 
     Assert.assertEquals(
         remoteShuffleDescriptor1
@@ -253,7 +258,8 @@ public class RemoteShuffleMasterSuiteJ {
                 System.exit(-1);
               }
             },
-            new SimpleResultPartitionAdapter());
+            new SimpleResultPartitionAdapter(),
+            null);
 
     return remoteShuffleMaster;
   }

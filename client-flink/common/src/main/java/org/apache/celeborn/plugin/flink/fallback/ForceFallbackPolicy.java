@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle.celeborn;
+package org.apache.celeborn.plugin.flink.fallback;
 
-import org.apache.spark.ShuffleDependency;
+import org.apache.flink.runtime.shuffle.JobShuffleContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,27 +30,26 @@ public class ForceFallbackPolicy implements ShuffleFallbackPolicy {
   private static final Logger LOG = LoggerFactory.getLogger(ForceFallbackPolicy.class);
 
   public static final ForceFallbackPolicy INSTANCE = new ForceFallbackPolicy();
-
   /**
-   * If celeborn.client.spark.shuffle.fallback.policy is ALWAYS, fallback to spark built-in shuffle
+   * If celeborn.client.flink.shuffle.fallback.policy is ALWAYS, fallback to flink built-in shuffle
    * implementation.
    *
-   * @param shuffleDependency The shuffle dependency of Spark.
+   * @param shuffleContext The job shuffle context of Flink.
    * @param celebornConf The configuration of Celeborn.
    * @param lifecycleManager The {@link LifecycleManager} of Celeborn.
-   * @return Return true if celeborn.client.spark.shuffle.fallback.policy is ALWAYS, otherwise
+   * @return Return true if celeborn.client.flink.shuffle.fallback.policy is ALWAYS, otherwise
    *     false.
    */
   @Override
   public boolean needFallback(
-      ShuffleDependency<?, ?, ?> shuffleDependency,
+      JobShuffleContext shuffleContext,
       CelebornConf celebornConf,
       LifecycleManager lifecycleManager) {
-    FallbackPolicy shuffleFallbackPolicy = celebornConf.sparkShuffleFallbackPolicy();
+    FallbackPolicy shuffleFallbackPolicy = celebornConf.flinkShuffleFallbackPolicy();
     if (FallbackPolicy.ALWAYS.equals(shuffleFallbackPolicy)) {
       LOG.warn(
-          "{} is {}, forcibly fallback to spark built-in shuffle implementation.",
-          CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY().key(),
+          "{} is {}, forcibly fallback to flink built-in shuffle implementation.",
+          CelebornConf.FLINK_SHUFFLE_FALLBACK_POLICY().key(),
           FallbackPolicy.ALWAYS.name());
     }
     return FallbackPolicy.ALWAYS.equals(shuffleFallbackPolicy);
