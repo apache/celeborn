@@ -43,6 +43,15 @@ public class FlinkUtils {
           "remote-shuffle.job.compression.codec");
 
   public static CelebornConf toCelebornConf(Configuration configuration) {
+    if (Boolean.parseBoolean(
+        configuration.getString(
+            CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED().key(),
+            CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED().defaultValueString()))) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Flink does not support replicate shuffle data. Please check the config %s.",
+              CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED().key()));
+    }
     CelebornConf tmpCelebornConf = new CelebornConf();
     Map<String, String> confMap = configuration.toMap();
     for (Map.Entry<String, String> entry : confMap.entrySet()) {
@@ -52,7 +61,10 @@ public class FlinkUtils {
       }
     }
 
-    return tmpCelebornConf;
+    // The default value of this config option is false. If set to true, Celeborn will use local
+    // allocated workers as candidate being checked workers, this is more useful for map partition
+    // to regenerate the lost data. So if not set, set to true as default for flink.
+    return tmpCelebornConf.setIfMissing(CelebornConf.CLIENT_CHECKED_USE_ALLOCATED_WORKERS(), true);
   }
 
   public static String toCelebornAppId(long lifecycleManagerTimestamp, JobID jobID) {

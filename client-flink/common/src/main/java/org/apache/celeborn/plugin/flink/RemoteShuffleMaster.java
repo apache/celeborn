@@ -49,6 +49,7 @@ import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 
 public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescriptor> {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleMaster.class);
+  private final CelebornConf conf;
   private final ShuffleMasterContext shuffleMasterContext;
   // Flink JobId -> Celeborn register shuffleIds
   private final Map<JobID, Set<Integer>> jobShuffleIds = JavaUtils.newConcurrentHashMap();
@@ -64,7 +65,9 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
 
   public RemoteShuffleMaster(
       ShuffleMasterContext shuffleMasterContext, ResultPartitionAdapter resultPartitionDelegation) {
-    checkShuffleConfig(shuffleMasterContext.getConfiguration());
+    Configuration configuration = shuffleMasterContext.getConfiguration();
+    checkShuffleConfig(configuration);
+    this.conf = FlinkUtils.toCelebornConf(configuration);
     this.shuffleMasterContext = shuffleMasterContext;
     this.resultPartitionDelegation = resultPartitionDelegation;
     this.lifecycleManagerTimestamp = System.currentTimeMillis();
@@ -78,16 +81,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
         if (lifecycleManager == null) {
           celebornAppId = FlinkUtils.toCelebornAppId(lifecycleManagerTimestamp, jobID);
           LOG.info("CelebornAppId: {}", celebornAppId);
-          CelebornConf celebornConf =
-              FlinkUtils.toCelebornConf(shuffleMasterContext.getConfiguration());
-          // if not set, set to true as default for flink
-          celebornConf.setIfMissing(CelebornConf.CLIENT_CHECKED_USE_ALLOCATED_WORKERS(), true);
-          lifecycleManager = new LifecycleManager(celebornAppId, celebornConf);
-          if (celebornConf.clientPushReplicateEnabled()) {
-            shuffleMasterContext.onFatalError(
-                new RuntimeException("Currently replicate shuffle data is unsupported for flink."));
-            return;
-          }
+          lifecycleManager = new LifecycleManager(celebornAppId, conf);
           this.shuffleResourceTracker = new ShuffleResourceTracker(executor, lifecycleManager);
         }
       }
@@ -95,10 +89,10 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
 
     Set<Integer> previousShuffleIds = jobShuffleIds.putIfAbsent(jobID, new HashSet<>());
     LOG.info("Register job: {}.", jobID);
-    shuffleResourceTracker.registerJob(context);
     if (previousShuffleIds != null) {
       throw new RuntimeException("Duplicated registration job: " + jobID);
     }
+    shuffleResourceTracker.registerJob(context);
   }
 
   @Override
@@ -212,7 +206,6 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     }
 
     int numResultPartitions = taskInputsOutputsDescriptor.getSubpartitionNums().size();
-    CelebornConf conf = FlinkUtils.toCelebornConf(shuffleMasterContext.getConfiguration());
     long numBytesPerPartition = conf.clientFlinkMemoryPerResultPartition();
     long numBytesForOutput = numBytesPerPartition * numResultPartitions;
 
