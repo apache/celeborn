@@ -448,7 +448,9 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       tryClose.run();
       waitOnNoPending(notifier.numPendingFlushes);
     } finally {
-      returnBuffer(false);
+      if (flushBuffer != null) {
+        flushBuffer = null;
+      }
       try {
         if (channel != null) {
           channel.close();
