@@ -239,6 +239,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApplicationsHeartbeatResponse'
+    delete:
+      tags:
+        - Application
+      operationId: deleteApps
+      description: Delete resource of apps.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteAppsRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
 
   /api/v1/applications/top_disk_usages:
     get:
@@ -270,43 +287,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/HostnamesResponse'
 
-  /api/v1/applications/reviseLostShuffles:
-    get:
+  /api/v1/applications/revise_lost_shuffles:
+    post:
       tags:
         - Application
       operationId: reviseLostShuffles
-      description: Revise lost shuffles or delete shuffles of an application.
-      parameters:
-        - name: app
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: shuffleIds
-          in: query
-          required: false
-          schema:
-            type: string
-      responses:
-        "200":
-          description: The request was successful.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HandleResponse'
-
-  /api/v1/applications/deleteApps:
-    get:
-      tags:
-        - Application
-      operationId: deleteApps
-      description: Delete resource of apps
-      parameters:
-        - name: apps
-          in: query
-          required: false
-          schema:
-            type: string
+      description: Revise lost shuffles or deleted shuffles of an application.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviseLostShufflesRequest'
       responses:
         "200":
           description: The request was successful.
@@ -1092,6 +1083,30 @@ components:
             $ref: '#/components/schemas/RatisPeer'
       required:
         - peers
+
+    DeleteAppsRequest:
+      type: object
+      properties:
+        apps:
+          type: array
+          description: The apps to be deleted.
+          items:
+            type: string
+      required:
+        - apps
+
+    ReviseLostShufflesRequest:
+      type: object
+      properties:
+        appId:
+          type: string
+          description: The application id.
+        shuffleIds:
+          type: array
+          description: The shuffle ids to be revised.
+          items:
+            type: integer
+            format: int32
 
     HandleResponse:
       type: object

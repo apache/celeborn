@@ -21,6 +21,7 @@ import java.util
 
 import scala.collection.JavaConverters._
 
+import org.apache.commons.lang3.StringUtils
 import picocli.CommandLine.{Command, ParameterException}
 
 import org.apache.celeborn.cli.config.CliConfigManager
@@ -224,18 +225,34 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   private[master] def runShowContainerInfo: ContainerInfo = defaultApi.getContainerInfo
 
   override private[master] def reviseLostShuffles: HandleResponse = {
+    if (StringUtils.isAnyBlank(commonOptions.apps, reviseLostShuffleOptions.shuffleIds)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Application id and Shuffle ids must be provided for this command.")
+    }
+
     val app = commonOptions.apps
     if (app.contains(",")) {
       throw new ParameterException(
         spec.commandLine(),
         "Only one application id can be provided for this command.")
     }
-    val shuffleIds = reviseLostShuffleOptions.shuffleIds
-    applicationApi.reviseLostShuffles(app, shuffleIds)
+
+    val shuffleIds = util.Arrays.asList[Integer](
+      reviseLostShuffleOptions.shuffleIds.split(",").map(Integer.valueOf): _*)
+    val request =
+      new ReviseLostShufflesRequest().appId(app).shuffleIds(shuffleIds)
+    applicationApi.reviseLostShuffles(request)
   }
 
   override private[master] def deleteApps: HandleResponse = {
-    val apps = commonOptions.apps
-    applicationApi.deleteApps(apps)
+    if (StringUtils.isBlank(commonOptions.apps)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Applications must be provided for this command.")
+    }
+    val appIds = util.Arrays.asList[String](commonOptions.apps.split(","): _*)
+    val request = new DeleteAppsRequest().apps(appIds)
+    applicationApi.deleteApps(request)
   }
 }

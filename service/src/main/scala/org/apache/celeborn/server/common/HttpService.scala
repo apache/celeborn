@@ -194,10 +194,6 @@ abstract class HttpService extends Service with Logging {
 
   def getWorkerEventInfo(): String = throw new UnsupportedOperationException()
 
-  def reviseLostShuffles(appId: String, shuffles: java.util.List[Integer])
-
-  def deleteApps(appIds: String)
-
   def startHttpServer(): Unit = {
     httpServer = HttpServer(
       serviceName,
