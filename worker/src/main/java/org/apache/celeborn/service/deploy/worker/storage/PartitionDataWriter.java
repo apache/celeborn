@@ -518,7 +518,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       if (!notifier.hasException()) {
         notifier.setException(ioException);
       }
-      returnBuffer(true);
+      destroyBuffer();
       try {
         if (channel != null) {
           channel.close();
@@ -612,17 +612,18 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     }
   }
 
-  protected void returnBuffer(boolean destroy) {
+  protected void destroyBuffer() {
     synchronized (flushLock) {
       if (flushBuffer != null) {
         if (flusher != null) {
           flusher.returnBuffer(flushBuffer, true);
           flushBuffer = null;
         } else {
-          if (destroy) {
-            flushBuffer.removeComponents(0, flushBuffer.numComponents());
-            flushBuffer.release();
+          if (isMemoryShuffleFile.get()) {
+            MemoryManager.instance().releaseMemoryFileStorage(flushBuffer.readableBytes());
           }
+          flushBuffer.removeComponents(0, flushBuffer.numComponents());
+          flushBuffer.release();
         }
       }
     }
