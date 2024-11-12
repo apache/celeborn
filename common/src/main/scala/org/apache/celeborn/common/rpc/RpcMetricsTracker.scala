@@ -106,6 +106,8 @@ private[celeborn] class RpcMetricsTracker(
           legacy.getClass.toString
         case pb: GeneratedMessageV3 =>
           pb.getDescriptorForType.getFullName
+        case _: RpcEndpointVerifier.CheckExistence =>
+          "CheckExistence"
         case _ =>
           "unknown"
       }
