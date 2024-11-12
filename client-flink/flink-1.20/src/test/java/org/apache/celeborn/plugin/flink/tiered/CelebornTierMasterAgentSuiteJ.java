@@ -53,7 +53,7 @@ public class CelebornTierMasterAgentSuiteJ {
   @Before
   public void setUp() {
     Configuration configuration = new Configuration();
-    int startPort = Utils$.MODULE$.selectRandomPort(1024, 65535);
+    int startPort = Utils$.MODULE$.selectRandomInt(1024, 65535);
     configuration.setInteger("celeborn.master.port", startPort);
     configuration.setString("celeborn.master.endpoints", "localhost:" + startPort);
     masterAgent = createMasterAgent(configuration);

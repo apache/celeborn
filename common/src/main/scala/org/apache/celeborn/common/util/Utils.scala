@@ -245,8 +245,15 @@ object Utils extends Logging {
     }
   }
 
-  def selectRandomPort(from: Int, to: Int): Int = {
-    ScalaRandom.nextInt(to - from) + from
+  /**
+   * Select a random integer within the specified range.
+   *
+   * @param from the lower bound of the range (inclusive)
+   * @param until the upper bound of the range (exclusive)
+   * @return a randomly selected integer within the range [from, until)
+   */
+  def selectRandomInt(from: Int, until: Int): Int = {
+    ScalaRandom.nextInt(until - 1 - from) + from
   }
 
   def startServiceOnPort[T](
