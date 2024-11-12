@@ -41,7 +41,7 @@ private[celeborn] class RpcMetricsTracker(
   val histogramMap: ConcurrentMap[String, Histogram] =
     JavaUtils.newConcurrentHashMap[String, Histogram]
 
-  private var maxQueueLength: Long = 0
+  private val maxQueueLength: AtomicLong = new AtomicLong(0)
   private val slowRpcThreshold: Long = conf.rpcSlowThresholdNs()
   private val slowRpcInterval: Long = conf.rpcSlowIntervalMs()
   private val rpcDumpInterval: Long = conf.rpcDumpIntervalMs()
@@ -77,8 +77,8 @@ private[celeborn] class RpcMetricsTracker(
 
   def updateMaxLength(): Unit = {
     val len = queueLengthFunc()
-    if (len > maxQueueLength) {
-      maxQueueLength = len
+    if (len > maxQueueLength.get()) {
+      maxQueueLength.set(len)
     }
   }
 
@@ -148,7 +148,7 @@ private[celeborn] class RpcMetricsTracker(
     val builder = new StringBuilder();
     builder.append(s"RPC statistics for $name").append("\n")
     builder.append(s"current queue size = ${queueLengthFunc()}").append("\n")
-    builder.append(s"max queue length = $maxQueueLength").append("\n")
+    builder.append(s"max queue length = ${maxQueueLength.get()}").append("\n")
     histogramMap.entrySet.asScala.foreach(entry => {
       val histogram = entry.getValue
       val snapshot = histogram.getSnapshot;
