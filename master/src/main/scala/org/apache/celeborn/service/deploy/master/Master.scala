@@ -952,10 +952,9 @@ private[celeborn] class Master(
     logInfo(s"Offer slots successfully for $numReducers reducers of $shuffleKey" +
       s" on ${slots.size()} workers.")
 
-    val workersNotSelectedSize = availableWorkers.size() - slots.size()
-    val offerSlotsExtraSize = Math.min(conf.masterSlotAssignExtraSlots, workersNotSelectedSize)
+    val workersNotSelected = availableWorkers.asScala.filter(!slots.containsKey(_))
+    val offerSlotsExtraSize = Math.min(conf.masterSlotAssignExtraSlots, workersNotSelected.size)
     if (offerSlotsExtraSize > 0) {
-      val workersNotSelected = availableWorkers.asScala.filterNot(slots.containsKey)
       var index = Random.nextInt(workersNotSelected.size)
       (1 to offerSlotsExtraSize).foreach(_ => {
         slots.put(
