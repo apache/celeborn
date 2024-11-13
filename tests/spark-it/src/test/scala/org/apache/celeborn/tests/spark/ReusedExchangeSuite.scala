@@ -37,14 +37,14 @@ class ReusedExchangeSuite extends AnyFunSuite
   Array(true, false).foreach { chunkPrefetch =>
     test(s"[CELEBORN-980] Asynchronously delete original files" +
       s"to fix ReusedExchange bug, chunkPrefetch: $chunkPrefetch") {
-      testReusedExchange(false, false)
+      testReusedExchange(false, chunkPrefetch)
     }
   }
 
   Array(true, false).foreach { chunkPrefetch =>
     test("[CELEBORN-1177] OpenStream should register stream via ChunkStreamManager" +
       s"to close stream for ReusedExchange, chunkPrefetch: $chunkPrefetch") {
-      testReusedExchange(true, false)
+      testReusedExchange(true, chunkPrefetch)
     }
   }
 
