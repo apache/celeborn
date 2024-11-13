@@ -21,15 +21,18 @@ import java.io.IOException
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
+
 import scala.collection.JavaConverters._
+
 import org.apache.spark.{Aggregator, InterruptibleIterator, ShuffleDependency, TaskContext}
 import org.apache.spark.celeborn.ExceptionMakerHelper
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.SerializerInstance
-import org.apache.spark.shuffle.{FetchFailedException, ShuffleReadMetricsReporter, ShuffleReader}
+import org.apache.spark.shuffle.{FetchFailedException, ShuffleReader, ShuffleReadMetricsReporter}
 import org.apache.spark.shuffle.celeborn.CelebornShuffleReader.streamCreatorPool
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
+
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.ShuffleClientImpl.ReduceFileGroups
 import org.apache.celeborn.client.read.{CelebornInputStream, MetricsCallback}
@@ -259,7 +262,8 @@ class CelebornShuffleReader[K, C](
           }
           logInfo(s"partitionId $partitionId inputStream is null, sleeping...")
           if (System.currentTimeMillis() - startTime > maxWaitTime) {
-            throw new CelebornRuntimeException(s"Waiting for inputStream for partitionId $partitionId timed out after $maxWaitTime milliseconds.")
+            throw new CelebornRuntimeException(
+              s"Waiting for inputStream for partitionId $partitionId timed out after $maxWaitTime milliseconds.")
           }
           Thread.sleep(50)
           inputStream = streams.get(partitionId)
