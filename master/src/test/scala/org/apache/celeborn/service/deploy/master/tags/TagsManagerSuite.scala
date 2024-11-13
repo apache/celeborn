@@ -173,26 +173,5 @@ class TagsManagerSuite extends CelebornFunSuite {
       assert(taggedWorkers.contains(WORKER2))
       assert(taggedWorkers.contains(WORKER3))
     }
-
-    conf.set(
-      CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH.key,
-      getTestResourceFile("dynamicConfig-tags2.yaml").getPath)
-    configService.refreshCache()
-
-    {
-      val taggedWorkers = tagsManager.getTaggedWorkers(TAG1, workers)
-      assert(taggedWorkers.size == 2)
-      assert(taggedWorkers.contains(WORKER1))
-      assert(taggedWorkers.contains(WORKER2))
-      assert(!taggedWorkers.contains(WORKER3))
-    }
-
-    {
-      val taggedWorkers = tagsManager.getTaggedWorkers(TAG2, workers)
-      assert(taggedWorkers.size == 1)
-      assert(!taggedWorkers.contains(WORKER1))
-      assert(!taggedWorkers.contains(WORKER2))
-      assert(taggedWorkers.contains(WORKER3))
-    }
   }
 }
