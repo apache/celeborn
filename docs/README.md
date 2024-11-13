@@ -122,7 +122,7 @@ INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success wit
 **Important: Only Flink batch jobs are supported for now.**
 
 #### Copy Celeborn Client to Flink's lib
-Celeborn release binary contains clients for Flink 1.14.x, Flink 1.15.x, Flink 1.17.x, Flink 1.18.x, Flink 1.19.x and Flink 1.20.x, copy the corresponding client jar into Flink's
+Celeborn release binary contains clients for Flink 1.14.x, Flink 1.15.x, Flink 1.16.x, Flink 1.17.x, Flink 1.18.x, Flink 1.19.x and Flink 1.20.x, copy the corresponding client jar into Flink's
 `lib/` directory:
 ```shell
 cp $CELEBORN_HOME/flink/celeborn-client-flink-<flink.version>-shaded_<scala.binary.version>-<celeborn.version>.jar $FLINK_HOME/lib/
@@ -130,7 +130,7 @@ cp $CELEBORN_HOME/flink/celeborn-client-flink-<flink.version>-shaded_<scala.bina
 #### Add Celeborn configuration to Flink's conf
 Set `shuffle-service-factory.class` to Celeborn's ShuffleServiceFactory in Flink configuration file:
 
-- Flink 1.14.x, Flink 1.15.x, Flink 1.17.x, Flink 1.18.x
+- Flink 1.14.x, Flink 1.15.x, Flink 1.16.x, Flink 1.17.x, Flink 1.18.x
 ```shell
 cd $FLINK_HOME
 vi conf/flink-conf.yaml
