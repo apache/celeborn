@@ -17,15 +17,18 @@
 
 package org.apache.celeborn.server.common.service.mpu;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 public interface MultipartUploadHandler {
 
   void startUpload();
 
-  void putPart(InputStream inputStream, Long lengthInBytes, Integer partNumber);
+  void putPart(InputStream inputStream, Integer partNumber, Boolean finalFlush) throws IOException;
 
   void complete();
 
   void abort();
+
+  void close();
 }

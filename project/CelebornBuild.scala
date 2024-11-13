@@ -663,7 +663,7 @@ object CelebornWorker {
     .dependsOn(CelebornClient.client % "test->compile")
     .dependsOn(CelebornMaster.master % "test->compile")
 
-  if (profiles.exists(_.startsWith("aws-mpu"))) {
+  if (profiles.exists(_.startsWith("aws"))) {
     worker = worker.dependsOn(CeleborMPU.celeborMPU)
   }
 

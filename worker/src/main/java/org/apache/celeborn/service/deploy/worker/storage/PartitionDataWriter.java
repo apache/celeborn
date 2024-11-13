@@ -204,8 +204,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
           URI uri = hadoopFs.getUri();
           String bucketName = uri.getHost();
-          int slashIndex = diskFileInfo.getFilePath().indexOf("/");
-          String key = diskFileInfo.getFilePath().substring(slashIndex + 1);
+          int index = diskFileInfo.getFilePath().indexOf(bucketName);
+          String key = diskFileInfo.getFilePath().substring(index + bucketName.length() + 1);
 
           AWSCredentials awsCredentials =
               new AWSCredentials(bucketName, s3AccessKey, s3SecretKey, s3EndpointRegion);
@@ -271,7 +271,13 @@ public abstract class PartitionDataWriter implements DeviceObserver {
             task = new HdfsFlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, false);
           } else if (diskFileInfo.isS3()) {
             task =
-                new S3FlushTask(flushBuffer, notifier, false, s3MultipartUploadHandler, partNumber);
+                new S3FlushTask(
+                    flushBuffer,
+                    notifier,
+                    false,
+                    s3MultipartUploadHandler,
+                    partNumber++,
+                    finalFlush);
           }
           MemoryManager.instance().releaseMemoryFileStorage(numBytes);
           MemoryManager.instance().incrementDiskBuffer(numBytes);
@@ -301,7 +307,12 @@ public abstract class PartitionDataWriter implements DeviceObserver {
             } else if (diskFileInfo.isS3()) {
               task =
                   new S3FlushTask(
-                      flushBuffer, notifier, true, s3MultipartUploadHandler, partNumber);
+                      flushBuffer,
+                      notifier,
+                      true,
+                      s3MultipartUploadHandler,
+                      partNumber++,
+                      finalFlush);
             }
           }
         }
@@ -310,7 +321,6 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         if (task != null) {
           addTask(task);
           flushBuffer = null;
-          partNumber++;
           if (!fromEvict) {
             diskFileInfo.updateBytesFlushed(numBytes);
           }
@@ -340,12 +350,12 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       throw new AlreadyClosedException(msg);
     }
 
-    if (notifier.hasException() && s3MultipartUploadHandler != null) {
-      logger.warn("Abort s3 multipart upload for {}", diskFileInfo.getFilePath());
-      s3MultipartUploadHandler.complete();
-    }
-
     if (notifier.hasException()) {
+      if (s3MultipartUploadHandler != null) {
+        logger.warn("Abort s3 multipart upload for {}", diskFileInfo.getFilePath());
+        s3MultipartUploadHandler.complete();
+        s3MultipartUploadHandler.close();
+      }
       return;
     }
 
@@ -504,6 +514,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       finalClose.run();
       if (s3MultipartUploadHandler != null) {
         s3MultipartUploadHandler.complete();
+        s3MultipartUploadHandler.close();
       }
       // unregister from DeviceMonitor
       if (diskFileInfo != null && !this.diskFileInfo.isDFS()) {

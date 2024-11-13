@@ -264,8 +264,8 @@ function sbt_build_service {
   echo "Celeborn $VERSION$GITREVSTRING" > "$DIST_DIR/RELEASE"
   echo "Build flags: $@" >> "$DIST_DIR/RELEASE"
 
-  if [[ $@ == *"aws-mpu"* ]]; then
-     export SBT_MAVEN_PROFILES="aws-mpu"
+  if [[ $@ == *"aws"* ]]; then
+     export SBT_MAVEN_PROFILES="aws"
   fi
   BUILD_COMMAND=("$SBT" clean package)
 

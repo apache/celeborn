@@ -72,6 +72,7 @@
 
     <!-- use hadoop-3 as default  -->
     <hadoop.version>3.3.6</hadoop.version>
+    <aws.version>1.12.532</aws.version>
     <!--
     If you change codahale.metrics.version, you also need to change
     the link to metrics.dropwizard.io in docs/monitoring.md.
@@ -1341,13 +1342,12 @@
       </dependencies>
     </profile>
     <profile>
-      <id>aws-mpu</id>
+      <id>aws</id>
       <modules>
         <module>multipart-uploader</module>
       </modules>
       <properties>
-        <aws-mpu-deps>true</aws-mpu-deps>
-        <aws.version>1.12.367</aws.version>
+        <aws-deps>true</aws-deps>
       </properties>
     </profile>
     <profile>

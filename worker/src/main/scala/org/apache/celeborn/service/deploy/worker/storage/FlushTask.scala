@@ -68,13 +68,13 @@ private[worker] class S3FlushTask(
     notifier: FlushNotifier,
     keepBuffer: Boolean,
     s3MultipartUploader: MultipartUploadHandler,
-    partNumber: Int)
+    partNumber: Int,
+    finalFlush: Boolean = false)
   extends FlushTask(buffer, notifier, keepBuffer) {
 
   override def flush(): Unit = {
     val bytes = ByteBufUtil.getBytes(buffer)
-    val currentPartSize = java.lang.Long.valueOf(bytes.length.toLong)
     val inputStream = new ByteArrayInputStream(bytes)
-    s3MultipartUploader.putPart(inputStream, currentPartSize, partNumber)
+    s3MultipartUploader.putPart(inputStream, partNumber, finalFlush)
   }
 }
