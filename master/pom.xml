@@ -199,12 +199,7 @@
       </dependencies>
     </profile>
     <profile>
-      <id>aws-mpu</id>
-      <activation>
-        <property>
-          <name>aws-mpu-deps</name>
-        </property>
-      </activation>
+      <id>aws</id>
       <dependencies>
         <dependency>
           <groupId>org.apache.hadoop</groupId>
