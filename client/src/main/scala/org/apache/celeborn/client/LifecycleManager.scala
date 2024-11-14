@@ -441,8 +441,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     case pb: PbReportShuffleFetchFailure =>
       val appShuffleId = pb.getAppShuffleId
       val shuffleId = pb.getShuffleId
-      logDebug(s"Received ReportShuffleFetchFailure request, appShuffleId $appShuffleId shuffleId $shuffleId")
-      handleReportShuffleFetchFailure(context, appShuffleId, shuffleId)
+      val taskId = pb.getTaskId
+      logDebug(s"Received ReportShuffleFetchFailure request, appShuffleId $appShuffleId shuffleId $shuffleId taskId $taskId")
+      handleReportShuffleFetchFailure(context, appShuffleId, shuffleId, taskId)
 
     case pb: PbReportBarrierStageAttemptFailure =>
       val appShuffleId = pb.getAppShuffleId
@@ -931,7 +932,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private def handleReportShuffleFetchFailure(
       context: RpcCallContext,
       appShuffleId: Int,
-      shuffleId: Int): Unit = {
+      shuffleId: Int,
+      taskId: Long): Unit = {
 
     val shuffleIds = shuffleIdMapping.get(appShuffleId)
     if (shuffleIds == null) {
@@ -941,9 +943,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     shuffleIds.synchronized {
       shuffleIds.find(e => e._2._1 == shuffleId) match {
         case Some((appShuffleIdentifier, (shuffleId, true))) =>
-          logInfo(s"handle fetch failure for appShuffleId $appShuffleId shuffleId $shuffleId")
-          ret = invokeAppShuffleTrackerCallback(appShuffleId)
-          shuffleIds.put(appShuffleIdentifier, (shuffleId, false))
+          if (invokeReportTaskShuffleFetchFailurePreCheck(taskId)) {
+            logInfo(s"handle fetch failure for appShuffleId $appShuffleId shuffleId $shuffleId")
+            ret = invokeAppShuffleTrackerCallback(appShuffleId)
+            shuffleIds.put(appShuffleIdentifier, (shuffleId, false))
+          } else {
+            logInfo(
+              s"Ignoring fetch failure from appShuffleIdentifier $appShuffleIdentifier shuffleId $shuffleId taskId $taskId")
+            ret = false
+          }
         case Some((appShuffleIdentifier, (shuffleId, false))) =>
           logInfo(
             s"Ignoring fetch failure from appShuffleIdentifier $appShuffleIdentifier shuffleId $shuffleId, " +
@@ -1003,6 +1011,22 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       case None =>
         throw new UnsupportedOperationException(
           "unexpected! appShuffleTrackerCallback is not registered")
+    }
+  }
+
+  private def invokeReportTaskShuffleFetchFailurePreCheck(taskId: Long): Boolean = {
+    reportTaskShuffleFetchFailurePreCheck match {
+      case Some(precheck) =>
+        try {
+          precheck.apply(taskId)
+        } catch {
+          case t: Throwable =>
+            logError(t.toString)
+            false
+        }
+      case None =>
+        throw new UnsupportedOperationException(
+          "unexpected! reportTaskShuffleFetchFailurePreCheck is not registered")
     }
   }
 
@@ -1764,6 +1788,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   // delegate workerStatusTracker to register listener
   def registerWorkerStatusListener(workerStatusListener: WorkerStatusListener): Unit = {
     workerStatusTracker.registerWorkerStatusListener(workerStatusListener)
+  }
+
+  @volatile private var reportTaskShuffleFetchFailurePreCheck
+      : Option[Function[java.lang.Long, Boolean]] = None
+  def registerReportTaskShuffleFetchFailurePreCheck(preCheck: Function[java.lang.Long, Boolean])
+      : Unit = {
+    reportTaskShuffleFetchFailurePreCheck = Some(preCheck)
   }
 
   @volatile private var appShuffleTrackerCallback: Option[Consumer[Integer]] = None

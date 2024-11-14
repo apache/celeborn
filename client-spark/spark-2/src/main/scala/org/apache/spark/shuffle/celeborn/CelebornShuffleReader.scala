@@ -98,6 +98,7 @@ class CelebornShuffleReader[K, C](
                 shuffleId,
                 partitionId,
                 encodedAttemptId,
+                context.taskAttemptId(),
                 startMapIndex,
                 endMapIndex,
                 metricsCallback)

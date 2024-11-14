@@ -622,11 +622,12 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public boolean reportShuffleFetchFailure(int appShuffleId, int shuffleId) {
+  public boolean reportShuffleFetchFailure(int appShuffleId, int shuffleId, long taskId) {
     PbReportShuffleFetchFailure pbReportShuffleFetchFailure =
         PbReportShuffleFetchFailure.newBuilder()
             .setAppShuffleId(appShuffleId)
             .setShuffleId(shuffleId)
+            .setTaskId(taskId)
             .build();
     PbReportShuffleFetchFailureResponse pbReportShuffleFetchFailureResponse =
         lifecycleManagerRef.askSync(
@@ -1752,6 +1753,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       int appShuffleId,
       int partitionId,
       int attemptNumber,
+      long taskId,
       int startMapIndex,
       int endMapIndex,
       ExceptionMaker exceptionMaker,
@@ -1790,6 +1792,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           streamHandlers,
           mapAttempts,
           attemptNumber,
+          taskId,
           startMapIndex,
           endMapIndex,
           fetchExcludedWorkers,

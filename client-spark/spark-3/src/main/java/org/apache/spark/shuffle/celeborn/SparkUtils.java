@@ -17,6 +17,8 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 
 import scala.Option;
@@ -33,6 +35,9 @@ import org.apache.spark.scheduler.DAGScheduler;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.scheduler.MapStatus$;
 import org.apache.spark.scheduler.ShuffleMapStage;
+import org.apache.spark.scheduler.TaskInfo;
+import org.apache.spark.scheduler.TaskSchedulerImpl;
+import org.apache.spark.scheduler.TaskSetManager;
 import org.apache.spark.shuffle.ShuffleHandle;
 import org.apache.spark.shuffle.ShuffleReadMetricsReporter;
 import org.apache.spark.shuffle.ShuffleReader;
@@ -317,6 +322,49 @@ public class SparkUtils {
       }
     } else {
       LOG.error("Can not get active SparkContext, skip cancelShuffle.");
+    }
+  }
+
+  private static final DynFields.UnboundField<ConcurrentHashMap<Long, TaskSetManager>>
+      TASK_ID_TO_TASK_SET_MANAGER_FIELD =
+          DynFields.builder()
+              .hiddenImpl(TaskSchedulerImpl.class, "taskIdToTaskSetManager")
+              .defaultAlwaysNull()
+              .build();
+  private static final DynFields.UnboundField<HashMap<Long, TaskInfo>> TASK_INFOS_FIELD =
+      DynFields.builder().hiddenImpl(TaskSetManager.class, "taskInfos").defaultAlwaysNull().build();
+
+  public static boolean taskAnotherAttemptRunning(long taskId) {
+    if (SparkContext$.MODULE$.getActive().nonEmpty()) {
+      TaskSchedulerImpl taskScheduler =
+          (TaskSchedulerImpl) SparkContext$.MODULE$.getActive().get().taskScheduler();
+      ConcurrentHashMap<Long, TaskSetManager> taskIdToTaskSetManager =
+          TASK_ID_TO_TASK_SET_MANAGER_FIELD.bind(taskScheduler).get();
+      TaskSetManager taskSetManager = taskIdToTaskSetManager.get(taskId);
+      if (taskSetManager != null) {
+        HashMap<Long, TaskInfo> taskInfos = TASK_INFOS_FIELD.bind(taskSetManager).get();
+        TaskInfo taskInfo = taskInfos.get(taskId);
+        if (taskInfo != null) {
+          return taskSetManager.taskAttempts()[taskInfo.index()].exists(
+              ti -> {
+                if (ti.running() && ti.attemptNumber() != taskInfo.attemptNumber()) {
+                  LOG.info("Another attempt of task {} is running: {}.", taskInfo, ti);
+                  return true;
+                } else {
+                  return false;
+                }
+              });
+        } else {
+          LOG.error("Can not get TaskInfo for taskId: {}", taskId);
+          return false;
+        }
+      } else {
+        LOG.error("Can not get TaskSetManager for taskId: {}", taskId);
+        return false;
+      }
+    } else {
+      LOG.error("Can not get active SparkContext, skip cancelShuffle.");
+      return false;
     }
   }
 }
