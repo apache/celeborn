@@ -528,7 +528,7 @@ public class MemoryManager {
     return memoryFileStorageCounter.sum() < memoryFileStorageThreshold;
   }
 
-  public void increaseMemoryFileStorage(int bytes) {
+  public void incrementMemoryFileStorage(int bytes) {
     memoryFileStorageCounter.add(bytes);
   }
 

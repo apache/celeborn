@@ -456,6 +456,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
   @Test
   public void testEvictAndChunkRead() throws Exception {
     final int threadsNum = 16;
+    final long memoryFileStorageBefore = MemoryManager.instance().getMemoryFileStorageCounter();
     PartitionDataWriter partitionDataWriter =
         new ReducePartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryEvictEnvironment(
@@ -526,6 +527,9 @@ public class MemoryReducePartitionDataWriterSuiteJ {
     result.releaseBuffers();
 
     closeChunkServer();
+
+    assert storageManager.evictedFileCount().get() > 0;
+    assert MemoryManager.instance().getMemoryFileStorageCounter() == memoryFileStorageBefore;
   }
 
   @Test
