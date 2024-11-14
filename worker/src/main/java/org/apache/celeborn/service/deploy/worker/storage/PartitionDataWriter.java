@@ -330,8 +330,9 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         MemoryManager.instance().incrementMemoryFileStorage(numBytes);
       } else {
         MemoryManager.instance().incrementDiskBuffer(numBytes);
-        if (userCongestionControlContext != null) {
-          userCongestionControlContext.updateProduceBytes(numBytes);
+        if (userBufferInfo != null) {
+          userBufferInfo.updateInfo(
+              System.currentTimeMillis(), new BufferStatusHub.BufferStatusNode(numBytes));
         }
       }
 
