@@ -56,16 +56,6 @@ public class SlotsAllocator {
           List<Integer> partitionIds,
           boolean shouldReplicate,
           boolean shouldRackAware,
-          int availableStorageTypes) {
-    return offerSlotsRoundRobin(workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes, 1);
-  }
-
-  public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
-      offerSlotsRoundRobin(
-          List<WorkerInfo> workers,
-          List<Integer> partitionIds,
-          boolean shouldReplicate,
-          boolean shouldRackAware,
           int availableStorageTypes,
           int numWorkerGroups) {
     if (partitionIds.isEmpty()) {
@@ -76,9 +66,11 @@ public class SlotsAllocator {
     }
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots = new HashMap<>();
+    if (workers.size() < numWorkerGroups) {
+      numWorkerGroups = 1;
+    }
     int partitionGroupSize = partitionIds.size() / numWorkerGroups;
     int workerGroupSize = workers.size() / numWorkerGroups;
-
     for (int i = 0; i < numWorkerGroups; i++) {
       List<Integer> groupPartitionIds = partitionIds.subList(partitionGroupSize * i, Math.min(partitionIds.size(), partitionGroupSize * (i + 1)));
       List<WorkerInfo> groupWorkersList = workers.subList(workerGroupSize * i, Math.min(workers.size(), workerGroupSize * (i + 1)));
@@ -145,11 +137,11 @@ public class SlotsAllocator {
     }
     if (StorageInfo.HDFSOnly(availableStorageTypes)) {
       return offerSlotsRoundRobin(
-          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes);
+          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes, numWorkerGroups);
     }
     if (StorageInfo.S3Only(availableStorageTypes)) {
       return offerSlotsRoundRobin(
-          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes);
+          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes, numWorkerGroups);
     }
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots = new HashMap<>();
@@ -190,7 +182,7 @@ public class SlotsAllocator {
                 StringUtils.join(partitionIds, ','),
                 noUsableDisks ? "usable disks" : "available slots");
         return offerSlotsRoundRobin(
-                workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes);
+                workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes, numWorkerGroups);
       }
 
       if (!initialized) {

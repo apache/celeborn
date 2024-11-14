@@ -302,7 +302,7 @@ public class SlotsAllocatorSuiteJ {
       int availableStorageTypes = enableS3 ? StorageInfo.S3_MASK : StorageInfo.HDFS_MASK;
       slots =
           SlotsAllocator.offerSlotsRoundRobin(
-              workers, partitionIds, shouldReplicate, false, availableStorageTypes);
+              workers, partitionIds, shouldReplicate, false, availableStorageTypes, 1);
     } else {
       int availableStorageTypes = enableS3 ? StorageInfo.S3_MASK : StorageInfo.HDFS_MASK;
       slots =
