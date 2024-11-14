@@ -98,7 +98,7 @@ public class SparkShuffleManager implements ShuffleManager {
           appUniqueId = celebornConf.appUniqueIdWithUUIDSuffix(appId);
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
           lifecycleManager.registerCancelShuffleCallback(SparkUtils::cancelShuffle);
-          if (celebornConf.clientFetchThrowsFetchFailure()) {
+          if (celebornConf.clientStageRerunEnabled()) {
             MapOutputTrackerMaster mapOutputTracker =
                 (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();
             lifecycleManager.registerShuffleTrackerCallback(
@@ -135,7 +135,7 @@ public class SparkShuffleManager implements ShuffleManager {
           lifecycleManager.getPort(),
           lifecycleManager.getUserIdentifier(),
           shuffleId,
-          celebornConf.clientFetchThrowsFetchFailure(),
+          celebornConf.clientStageRerunEnabled(),
           numMaps,
           dependency);
     }
@@ -148,8 +148,7 @@ public class SparkShuffleManager implements ShuffleManager {
     }
     // For Spark driver side trigger unregister shuffle.
     if (lifecycleManager != null) {
-      lifecycleManager.unregisterAppShuffle(
-          appShuffleId, celebornConf.clientFetchThrowsFetchFailure());
+      lifecycleManager.unregisterAppShuffle(appShuffleId, celebornConf.clientStageRerunEnabled());
     }
     // For Spark executor side cleanup shuffle related info.
     if (shuffleClient != null) {

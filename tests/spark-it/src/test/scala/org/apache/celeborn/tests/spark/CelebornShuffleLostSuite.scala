@@ -49,7 +49,7 @@ class CelebornShuffleLostSuite extends AnyFunSuite
     sparkSession.stop()
 
     val conf = updateSparkConf(sparkConf, ShuffleMode.HASH)
-    conf.set("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+    conf.set("spark.celeborn.client.spark.stageRerun.enabled", "true")
     conf.set("spark.celeborn.test.client.mockShuffleLost", "true")
 
     val celebornSparkSession = SparkSession.builder()

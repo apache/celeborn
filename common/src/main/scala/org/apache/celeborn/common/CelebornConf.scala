@@ -969,7 +969,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchBufferSize: Int = get(CLIENT_FETCH_BUFFER_SIZE).toInt
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
-  def clientFetchThrowsFetchFailure: Boolean = get(CLIENT_FETCH_THROWS_FETCH_FAILURE)
+  def clientStageRerunEnabled: Boolean = get(CLIENT_STAGE_RERUN_ENABLED)
   def clientFetchExcludeWorkerOnFailureEnabled: Boolean =
     get(CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
   def clientFetchExcludedWorkerExpireTimeout: Long =
@@ -4558,13 +4558,14 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(3)
 
-  val CLIENT_FETCH_THROWS_FETCH_FAILURE: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.spark.fetch.throwsFetchFailure")
+  val CLIENT_STAGE_RERUN_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.stageRerun.enabled")
+      .withAlternative("celeborn.client.spark.fetch.throwsFetchFailure")
       .categories("client")
       .version("0.4.0")
-      .doc("client throws FetchFailedException instead of CelebornIOException")
+      .doc("Whether to enable stage rerun. If true, client throws FetchFailedException instead of CelebornIOException.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.fetch.excludeWorkerOnFailure.enabled")
