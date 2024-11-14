@@ -2044,7 +2044,7 @@ object CelebornConf extends Logging {
           s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
           s"it works for shuffle client push and fetch data. " +
           s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-          s"it works for replicate client of worker replicating data to peer worker." +
+          s"it works for replicate client of worker replicating data to peer worker. " +
           s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
           s"it works for Flink shuffle client push data.")
       .intConf
@@ -2058,7 +2058,7 @@ object CelebornConf extends Logging {
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for replicate client of worker replicating data to peer worker." +
+        s"it works for replicate client of worker replicating data to peer worker. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
         s"it works for Flink shuffle client push data.")
       .version("0.2.0")
@@ -2169,11 +2169,11 @@ object CelebornConf extends Logging {
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for replicate client of worker replicating data to peer worker." +
+        s"it works for replicate client of worker replicating data to peer worker. " +
         "If you are using the \"celeborn.client.heartbeat.interval\", " +
         "please use the new configs for each module according to your needs or " +
         "replace it with \"celeborn.rpc.heartbeat.interval\", " +
-        "\"celeborn.data.heartbeat.interval\" and" +
+        "\"celeborn.data.heartbeat.interval\" and " +
         "\"celeborn.replicate.heartbeat.interval\". ")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
@@ -2196,7 +2196,7 @@ object CelebornConf extends Logging {
   val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.master.endpoints")
       .categories("client", "worker")
-      .doc("Endpoints of master nodes for celeborn clients to connect. Client uses resolver provided by" +
+      .doc("Endpoints of master nodes for celeborn clients to connect. Client uses resolver provided by " +
         s"${MASTER_ENDPOINTS_RESOLVER.key} to resolve the master endpoints. By default Celeborn uses " +
         "`org.apache.celeborn.common.client.StaticMasterEndpointResolver` which take static master endpoints " +
         "as input. Allowed pattern: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. " +
@@ -3375,7 +3375,7 @@ object CelebornConf extends Logging {
   val WORKER_REPLICATE_FAST_FAIL_DURATION: ConfigEntry[Long] =
     buildConf("celeborn.worker.replicate.fastFail.duration")
       .categories("worker")
-      .doc("If a replicate request not replied during the duration, worker will mark the replicate data request as failed." +
+      .doc("If a replicate request not replied during the duration, worker will mark the replicate data request as failed. " +
         "It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.availableTypes`.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
@@ -3845,7 +3845,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.congestionControl.diskBuffer.high.watermark")
       .withAlternative("celeborn.worker.congestionControl.high.watermark")
       .categories("worker")
-      .doc("If the total bytes in disk buffer exceeds this configure, will start to congest" +
+      .doc("If the total bytes in disk buffer exceeds this configure, will start to congest " +
         "users whose produce rate is higher than the potential average consume rate. " +
         "The congestion will stop if the produce rate is lower or equal to the " +
         "average consume rate, or the total pending bytes lower than " +
@@ -4225,7 +4225,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.worker.excluded.expireTimeout")
       .categories("client")
       .version("0.3.0")
-      .doc("Timeout time for LifecycleManager to clear reserved excluded worker. Default to be 1.5 * `celeborn.master.heartbeat.worker.timeout`" +
+      .doc("Timeout time for LifecycleManager to clear reserved excluded worker. Default to be 1.5 * `celeborn.master.heartbeat.worker.timeout` " +
         "to cover worker heartbeat timeout check period")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("180s")
@@ -4235,7 +4235,7 @@ object CelebornConf extends Logging {
       .internal
       .categories("client")
       .version("0.3.0")
-      .doc("When true, Celeborn will use local allocated workers as candidate being checked workers(check the workers" +
+      .doc("When true, Celeborn will use local allocated workers as candidate being checked workers(check the workers " +
         "whether unKnown in master), this may be more useful for map partition to regenerate the lost data), " +
         "otherwise use local black list as candidate being checked workers.")
       .booleanConf
@@ -4441,7 +4441,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.push.limit.inFlight.timeout")
       .withAlternative("celeborn.push.limit.inFlight.timeout")
       .categories("client")
-      .doc("Timeout for netty in-flight requests to be done." +
+      .doc("Timeout for netty in-flight requests to be done. " +
         s"Default value should be `${CLIENT_PUSH_DATA_TIMEOUT.key} * 2`.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
@@ -4577,8 +4577,9 @@ object CelebornConf extends Logging {
   val CLIENT_FETCH_EXCLUDED_WORKER_EXPIRE_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.excludedWorker.expireTimeout")
       .categories("client")
-      .doc("ShuffleClient is a static object, it will be used in the whole lifecycle of Executor," +
-        "We give a expire time for excluded workers to avoid a transient worker issues.")
+      .doc(
+        "ShuffleClient is a static object, it will be used in the whole lifecycle of Executor, " +
+          "We give a expire time for excluded workers to avoid a transient worker issues.")
       .version("0.3.0")
       .fallbackConf(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
 
@@ -5257,7 +5258,7 @@ object CelebornConf extends Logging {
   val METRICS_WORKER_PAUSE_SPENT_TIME_FORCE_APPEND_THRESHOLD: ConfigEntry[Int] =
     buildConf("celeborn.metrics.worker.pauseSpentTime.forceAppend.threshold")
       .categories("metrics")
-      .doc("Force append worker pause spent time even if worker still in pause serving state." +
+      .doc("Force append worker pause spent time even if worker still in pause serving state. " +
         "Help user can find worker pause spent time increase, when worker always been pause state.")
       .intConf
       .createWithDefault(10)
