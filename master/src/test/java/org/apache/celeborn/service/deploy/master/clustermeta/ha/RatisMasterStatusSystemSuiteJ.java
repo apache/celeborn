@@ -353,6 +353,10 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(3, STATUSSYSTEM2.workersMap.size());
     Assert.assertEquals(3, STATUSSYSTEM3.workersMap.size());
 
+    Assert.assertEquals(3, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.availableWorkers.size());
+
     assertWorkers(STATUSSYSTEM1.workersMap.values());
     assertWorkers(STATUSSYSTEM2.workersMap.values());
     assertWorkers(STATUSSYSTEM3.workersMap.values());
@@ -429,6 +433,10 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM2.manuallyExcludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM3.manuallyExcludedWorkers.size());
 
+    Assert.assertEquals(0, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM3.availableWorkers.size());
+
     statusSystem.handleWorkerExclude(
         Collections.emptyList(), Collections.singletonList(workerInfo1), getNewReqeustId());
     Thread.sleep(3000L);
@@ -436,6 +444,10 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM1.manuallyExcludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM2.manuallyExcludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM3.manuallyExcludedWorkers.size());
+
+    Assert.assertEquals(1, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
   }
 
   @Test
@@ -484,6 +496,10 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM1.workersMap.size());
     Assert.assertEquals(2, STATUSSYSTEM2.workersMap.size());
     Assert.assertEquals(2, STATUSSYSTEM3.workersMap.size());
+
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
   }
 
   @Test
@@ -1025,6 +1041,14 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
 
+    Assert.assertEquals(3, STATUSSYSTEM1.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.workersMap.size());
+
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
+
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME2,
         RPCPORT2,
@@ -1044,6 +1068,16 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM3.excludedWorkers.size());
+
+    Assert.assertEquals(3, statusSystem.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM1.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.workersMap.size());
+
+    Assert.assertEquals(1, statusSystem.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME1,
@@ -1065,6 +1099,16 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
 
+    Assert.assertEquals(3, statusSystem.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM1.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.workersMap.size());
+
+    Assert.assertEquals(2, statusSystem.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
+
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME1,
         RPCPORT1,
@@ -1083,6 +1127,16 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM3.excludedWorkers.size());
+
+    Assert.assertEquals(3, statusSystem.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM1.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.workersMap.size());
+
+    Assert.assertEquals(1, statusSystem.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
   }
 
   @Before
@@ -1090,6 +1144,7 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM1.registeredAppAndShuffles.clear();
     STATUSSYSTEM1.hostnameSet.clear();
     STATUSSYSTEM1.workersMap.clear();
+    STATUSSYSTEM1.availableWorkers.clear();
     STATUSSYSTEM1.appHeartbeatTime.clear();
     STATUSSYSTEM1.excludedWorkers.clear();
     STATUSSYSTEM1.workerLostEvents.clear();
@@ -1097,6 +1152,7 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM2.registeredAppAndShuffles.clear();
     STATUSSYSTEM2.hostnameSet.clear();
     STATUSSYSTEM2.workersMap.clear();
+    STATUSSYSTEM2.availableWorkers.clear();
     STATUSSYSTEM2.appHeartbeatTime.clear();
     STATUSSYSTEM2.excludedWorkers.clear();
     STATUSSYSTEM2.workerLostEvents.clear();
@@ -1104,6 +1160,7 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM3.registeredAppAndShuffles.clear();
     STATUSSYSTEM3.hostnameSet.clear();
     STATUSSYSTEM3.workersMap.clear();
+    STATUSSYSTEM3.availableWorkers.clear();
     STATUSSYSTEM3.appHeartbeatTime.clear();
     STATUSSYSTEM3.excludedWorkers.clear();
     STATUSSYSTEM3.workerLostEvents.clear();
@@ -1222,6 +1279,9 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(0, STATUSSYSTEM1.excludedWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM3.excludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
   }
 
   @Test
@@ -1292,6 +1352,10 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM2.lostWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM3.lostWorkers.size());
 
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
+
     statusSystem.handleRemoveWorkersUnavailableInfo(unavailableWorkers, getNewReqeustId());
     Thread.sleep(3000L);
 
@@ -1302,6 +1366,10 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(0, STATUSSYSTEM1.lostWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM2.lostWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM3.lostWorkers.size());
+
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
   }
 
   @Test
@@ -1397,6 +1465,10 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM2.workerEventInfos.size());
     Assert.assertEquals(2, STATUSSYSTEM3.workerEventInfos.size());
 
+    Assert.assertEquals(1, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
+
     Assert.assertTrue(STATUSSYSTEM1.workerEventInfos.containsKey(workerInfo1));
     Assert.assertTrue(STATUSSYSTEM1.workerEventInfos.containsKey(workerInfo2));
 
@@ -1416,6 +1488,10 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(
         WorkerEventType.Decommission,
         STATUSSYSTEM1.workerEventInfos.get(workerInfo2).getEventType());
+
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
   }
 
   @Test
@@ -1504,6 +1580,9 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(0, STATUSSYSTEM1.excludedWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM3.excludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
   }
 
   @Test

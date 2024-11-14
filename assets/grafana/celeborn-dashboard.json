@@ -165,7 +165,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The count of active workers.",
+          "description": "The count of workers in available list.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -243,12 +243,12 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_WorkerCount_Value{instance=~\"${instance}\"}",
+              "expr": "metrics_AvailableWorkerCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
-          "title": "metrics_WorkerCount_Value",
+          "title": "metrics_AvailableWorkerCount_Value",
           "type": "timeseries"
         },
         {
@@ -1287,7 +1287,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The count of workers in available list.",
+          "description": "The count of active workers.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1366,13 +1366,13 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_AvailableWorkerCount_Value{instance=~\"${instance}\"}",
+              "expr": "metrics_WorkerCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_AvailableWorkerCount_Value",
+          "title": "metrics_WorkerCount_Value",
           "type": "timeseries"
         },
         {

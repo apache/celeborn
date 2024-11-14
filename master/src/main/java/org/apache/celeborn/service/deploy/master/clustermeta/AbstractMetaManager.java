@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 import scala.Option;
 import scala.Tuple2;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.Node;
 import org.slf4j.Logger;
@@ -57,6 +58,13 @@ import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.util.WorkerStatusUtils;
 
+/**
+ * Note: Do not update the worker collections directly from outside the metadata manager, especially
+ * {@link #workersMap}, {@link #workerEventInfos}, {@link #shutdownWorkers}, {@link
+ * #excludedWorkers}, {@link #manuallyExcludedWorkers}, {@link #availableWorkers}.
+ *
+ * <p>All updates should be done through the provided methods to ensure consistency.
+ */
 public abstract class AbstractMetaManager implements IMetadataHandler {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractMetaManager.class);
 
@@ -65,6 +73,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       JavaUtils.newConcurrentHashMap();
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
   public final Map<String, WorkerInfo> workersMap = JavaUtils.newConcurrentHashMap();
+  public final Set<WorkerInfo> availableWorkers = ConcurrentHashMap.newKeySet();
 
   public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = JavaUtils.newConcurrentHashMap();
   public final ConcurrentHashMap<WorkerInfo, WorkerEventInfo> workerEventInfos =
@@ -161,10 +170,33 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     applicationMetas.remove(appId);
   }
 
-  public void updateWorkerExcludeMeta(
+  @VisibleForTesting
+  public void updateExcludedWorkersMeta(
       List<WorkerInfo> workersToAdd, List<WorkerInfo> workersToRemove) {
-    manuallyExcludedWorkers.addAll(workersToAdd);
-    workersToRemove.forEach(manuallyExcludedWorkers::remove);
+    workersToAdd.forEach(
+        worker -> {
+          excludedWorkers.add(worker);
+          availableWorkers.remove(worker);
+        });
+    workersToRemove.forEach(
+        worker -> {
+          excludedWorkers.remove(worker);
+          updateAvailableWorkers(worker);
+        });
+  }
+
+  public void updateManuallyExcludedWorkersMeta(
+      List<WorkerInfo> workersToAdd, List<WorkerInfo> workersToRemove) {
+    workersToAdd.forEach(
+        worker -> {
+          manuallyExcludedWorkers.add(worker);
+          availableWorkers.remove(worker);
+        });
+    workersToRemove.forEach(
+        worker -> {
+          manuallyExcludedWorkers.remove(worker);
+          updateAvailableWorkers(worker);
+        });
   }
 
   public void reviseLostShuffles(String appId, List<Integer> lostShuffles) {
@@ -183,6 +215,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     synchronized (workersMap) {
       workersMap.remove(worker.toUniqueId());
       lostWorkers.put(worker, System.currentTimeMillis());
+      availableWorkers.remove(worker);
     }
     excludedWorkers.remove(worker);
     workerLostEvents.remove(worker);
@@ -195,6 +228,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     synchronized (workersMap) {
       workersMap.remove(worker.toUniqueId());
       lostWorkers.put(worker, System.currentTimeMillis());
+      availableWorkers.remove(worker);
     }
     excludedWorkers.remove(worker);
   }
@@ -207,6 +241,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           shutdownWorkers.remove(workerInfo);
           workerEventInfos.remove(workerInfo);
           decommissionWorkers.remove(workerInfo);
+          updateAvailableWorkers(workerInfo);
         }
       }
     }
@@ -266,6 +301,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       // only unblack if numSlots larger than 0
       excludedWorkers.remove(worker);
     }
+
+    // try to update the available workers if the worker status is Normal
+    if (workerStatus.getState() == PbWorkerStatus.State.Normal) {
+      updateAvailableWorkers(worker);
+    }
   }
 
   public void updateRegisterWorkerMeta(
@@ -304,6 +344,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       excludedWorkers.remove(workerInfo);
       workerEventInfos.remove(workerInfo);
       decommissionWorkers.remove(workerInfo);
+      updateAvailableWorkers(workerInfo);
     }
   }
 
@@ -443,6 +484,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           .getApplicationMetasMap()
           .forEach(
               (key, value) -> applicationMetas.put(key, PbSerDeUtils.fromPbApplicationMeta(value)));
+
+      availableWorkers.addAll(
+          workersMap.values().stream()
+              .filter(worker -> isWorkerAvailable(worker))
+              .collect(Collectors.toSet()));
     } catch (Exception e) {
       throw new IOException(e);
     }
@@ -462,6 +508,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     registeredAppAndShuffles.clear();
     hostnameSet.clear();
     workersMap.clear();
+    availableWorkers.clear();
     lostWorkers.clear();
     appHeartbeatTime.clear();
     excludedWorkers.clear();
@@ -480,6 +527,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public void updateMetaByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
     synchronized (this.workersMap) {
       shutdownWorkers.addAll(failedWorkers);
+      availableWorkers.removeAll(failedWorkers);
     }
   }
 
@@ -494,8 +542,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         if (workerEventInfo == null || !workerEventInfo.isSameEvent(eventType.getNumber())) {
           if (eventType == ResourceProtos.WorkerEventType.None) {
             workerEventInfos.remove(workerInfo);
+            updateAvailableWorkers(workerInfo);
           } else {
             workerEventInfos.put(workerInfo, new WorkerEventInfo(eventType.getNumber(), eventTime));
+            availableWorkers.remove(workerInfo);
           }
         }
       }
@@ -505,6 +555,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public void updateMetaByReportWorkerDecommission(List<WorkerInfo> workers) {
     synchronized (this.workersMap) {
       decommissionWorkers.addAll(workers);
+      availableWorkers.removeAll(workers);
     }
   }
 
@@ -541,12 +592,23 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workers.forEach(workerInfo -> workerInfo.updateDiskMaxSlots(estimatedPartitionSize));
   }
 
-  public boolean isWorkerAvailable(WorkerInfo workerInfo) {
+  private boolean isWorkerAvailable(WorkerInfo workerInfo) {
     return (workerInfo.getWorkerStatus().getState() == PbWorkerStatus.State.Normal
             && !workerEventInfos.containsKey(workerInfo))
         && !excludedWorkers.contains(workerInfo)
         && !shutdownWorkers.contains(workerInfo)
         && !manuallyExcludedWorkers.contains(workerInfo);
+  }
+
+  private void updateAvailableWorkers(WorkerInfo worker) {
+    synchronized (workersMap) {
+      Optional<WorkerInfo> workerInfo = Optional.ofNullable(workersMap.get(worker.toUniqueId()));
+      if (workerInfo.map(this::isWorkerAvailable).orElse(false)) {
+        availableWorkers.add(workerInfo.get());
+      } else {
+        availableWorkers.remove(worker);
+      }
+    }
   }
 
   public void updateApplicationMeta(ApplicationMeta applicationMeta) {

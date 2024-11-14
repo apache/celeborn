@@ -160,6 +160,7 @@ public class DefaultMetaSystemSuiteJ {
         getNewReqeustId());
 
     assertEquals(3, statusSystem.workersMap.size());
+    assertEquals(3, statusSystem.availableWorkers.size());
   }
 
   @Test
@@ -211,10 +212,12 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleWorkerExclude(
         Arrays.asList(workerInfo1, workerInfo2), Collections.emptyList(), getNewReqeustId());
     assertEquals(2, statusSystem.manuallyExcludedWorkers.size());
+    assertEquals(0, statusSystem.availableWorkers.size());
 
     statusSystem.handleWorkerExclude(
         Collections.emptyList(), Collections.singletonList(workerInfo1), getNewReqeustId());
     assertEquals(1, statusSystem.manuallyExcludedWorkers.size());
+    assertEquals(1, statusSystem.availableWorkers.size());
   }
 
   @Test
@@ -256,6 +259,7 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleWorkerLost(
         HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId());
     assertEquals(2, statusSystem.workersMap.size());
+    assertEquals(2, statusSystem.availableWorkers.size());
   }
 
   private static final String APPID1 = "appId1";
@@ -700,6 +704,7 @@ public class DefaultMetaSystemSuiteJ {
         getNewReqeustId());
 
     assertEquals(statusSystem.excludedWorkers.size(), 1);
+    assertEquals(statusSystem.availableWorkers.size(), 2);
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME2,
@@ -716,6 +721,7 @@ public class DefaultMetaSystemSuiteJ {
         getNewReqeustId());
 
     assertEquals(statusSystem.excludedWorkers.size(), 2);
+    assertEquals(statusSystem.availableWorkers.size(), 1);
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME3,
@@ -732,6 +738,7 @@ public class DefaultMetaSystemSuiteJ {
         getNewReqeustId());
 
     assertEquals(statusSystem.excludedWorkers.size(), 2);
+    assertEquals(statusSystem.availableWorkers.size(), 1);
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME3,
@@ -748,6 +755,7 @@ public class DefaultMetaSystemSuiteJ {
         getNewReqeustId());
 
     assertEquals(statusSystem.excludedWorkers.size(), 3);
+    assertEquals(statusSystem.availableWorkers.size(), 0);
   }
 
   @Test
@@ -801,6 +809,7 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleReportWorkerUnavailable(failedWorkers, getNewReqeustId());
     assertEquals(1, statusSystem.shutdownWorkers.size());
     assertTrue(statusSystem.excludedWorkers.isEmpty());
+    assertEquals(2, statusSystem.availableWorkers.size());
   }
 
   @Test
@@ -900,6 +909,7 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleReportWorkerDecommission(workers, getNewReqeustId());
     assertEquals(1, statusSystem.decommissionWorkers.size());
     assertTrue(statusSystem.excludedWorkers.isEmpty());
+    assertEquals(2, statusSystem.availableWorkers.size());
   }
 
   @Test

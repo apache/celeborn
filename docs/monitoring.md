@@ -95,7 +95,7 @@ These metrics are exposed by Celeborn master.
     | Metric Name              | Description                                                                       |
     |--------------------------|-----------------------------------------------------------------------------------|
     | RegisteredShuffleCount   | The count of registered shuffle.                                                  |
-    | DeviceCelebornFreeBytes  | The actual usable space of Celeborn for device.                                   |
+    | DeviceCelebornFreeBytes  | The actual usable space of Celeborn available workers for device.                 |
     | DeviceCelebornTotalBytes | The total space of Celeborn for device.                                           |
     | RunningApplicationCount  | The count of running applications.                                                |
     | ActiveShuffleSize        | The active shuffle size of workers.                                               |

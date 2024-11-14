@@ -229,9 +229,7 @@ private[celeborn] class Master(
     statusSystem.excludedWorkers.size + statusSystem.manuallyExcludedWorkers.size
   }
   masterSource.addGauge(MasterSource.AVAILABLE_WORKER_COUNT) { () =>
-    statusSystem.workersMap.values().asScala.count { w =>
-      statusSystem.isWorkerAvailable(w)
-    }
+    statusSystem.availableWorkers.size()
   }
   masterSource.addGauge(MasterSource.SHUTDOWN_WORKER_COUNT) { () =>
     statusSystem.shutdownWorkers.size
@@ -274,7 +272,7 @@ private[celeborn] class Master(
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_FREE_CAPACITY) { () =>
-    statusSystem.workersMap.values().asScala.toList.map(_.totalActualUsableSpace()).sum
+    statusSystem.availableWorkers.asScala.toList.map(_.totalActualUsableSpace()).sum
   }
 
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
@@ -1135,7 +1133,7 @@ private[celeborn] class Master(
     if (shouldResponse) {
       // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
       // during serialization of HeartbeatFromApplicationResponse
-      var appRelatedShuffles =
+      val appRelatedShuffles =
         statusSystem.registeredAppAndShuffles.getOrDefault(appId, Collections.emptySet())
       context.reply(HeartbeatFromApplicationResponse(
         StatusCode.SUCCESS,
@@ -1237,7 +1235,7 @@ private[celeborn] class Master(
   }
 
   private def handleCheckWorkersAvailable(context: RpcCallContext): Unit = {
-    context.reply(CheckWorkersAvailableResponse(!workersAvailable().isEmpty))
+    context.reply(CheckWorkersAvailableResponse(!statusSystem.availableWorkers.isEmpty))
   }
 
   private def handleWorkerEvent(
@@ -1251,9 +1249,13 @@ private[celeborn] class Master(
 
   private def workersAvailable(
       tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
-    statusSystem.workersMap.values().asScala.filter { w =>
-      statusSystem.isWorkerAvailable(w) && !tmpExcludedWorkerList.contains(w)
-    }.toList.asJava
+    if (tmpExcludedWorkerList.isEmpty) {
+      new util.ArrayList[WorkerInfo](statusSystem.availableWorkers)
+    } else {
+      val availableWorkers = new util.HashSet(statusSystem.availableWorkers)
+      tmpExcludedWorkerList.foreach(availableWorkers.remove)
+      new util.ArrayList[WorkerInfo](availableWorkers)
+    }
   }
 
   private def handleRequestForApplicationMeta(

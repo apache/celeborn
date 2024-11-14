@@ -18,6 +18,7 @@
 package org.apache.celeborn.tests.client
 
 import java.util
+import java.util.Collections
 
 import scala.collection.JavaConverters.{asScalaSetConverter, mapAsScalaMapConverter}
 
@@ -175,7 +176,9 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
       val (worker, _) = workerInfoList(index)
       // Workers in miniClusterFeature wont update status with master through heartbeat.
       // So update status manually.
-      masterInfo._1.statusSystem.excludedWorkers.add(worker.workerInfo)
+      masterInfo._1.statusSystem.updateExcludedWorkersMeta(
+        Collections.singletonList(worker.workerInfo),
+        Collections.emptyList())
 
       val failedWorker = new ShuffleFailedWorkers()
       failedWorker.put(
