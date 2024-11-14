@@ -113,6 +113,8 @@ public class TransportMessage implements Serializable {
         return (T) PbSegmentStart.parseFrom(payload);
       case NOTIFY_REQUIRED_SEGMENT_VALUE:
         return (T) PbNotifyRequiredSegment.parseFrom(payload);
+      case PUSH_MERGED_DATA_SPLIT_PARTITION_INFO_VALUE:
+        return (T) PbPushMergedDataSplitPartitionInfo.parseFrom(payload);
       default:
         logger.error("Unexpected type {}", type);
     }

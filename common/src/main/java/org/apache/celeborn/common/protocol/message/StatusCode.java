@@ -17,6 +17,10 @@
 
 package org.apache.celeborn.common.protocol.message;
 
+import java.util.Arrays;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 public enum StatusCode {
   // 1/0 Status
   SUCCESS(0),
@@ -84,7 +88,8 @@ public enum StatusCode {
   PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA(50),
   OPEN_STREAM_FAILED(51),
   SEGMENT_START_FAIL_REPLICA(52),
-  SEGMENT_START_FAIL_PRIMARY(53);
+  SEGMENT_START_FAIL_PRIMARY(53),
+  NO_SPLIT(54);
 
   private final byte value;
 
@@ -95,5 +100,16 @@ public enum StatusCode {
 
   public final byte getValue() {
     return value;
+  }
+
+  private static final Map<Byte, StatusCode> lookup =
+      Arrays.stream(StatusCode.values()).collect(Collectors.toMap(i -> i.getValue(), i -> i));
+
+  public static StatusCode fromValue(byte value) {
+    StatusCode code = lookup.get(value);
+    if (code != null) {
+      return code;
+    }
+    throw new IllegalArgumentException("Unknown status code: " + value);
   }
 }
