@@ -298,15 +298,6 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     }
 
     final int numBytes = data.readableBytes();
-    if (isMemoryShuffleFile.get()) {
-      MemoryManager.instance().increaseMemoryFileStorage(numBytes);
-    } else {
-      MemoryManager.instance().incrementDiskBuffer(numBytes);
-      if (userBufferInfo != null) {
-        userBufferInfo.updateInfo(
-            System.currentTimeMillis(), new BufferStatusHub.BufferStatusNode(numBytes));
-      }
-    }
 
     synchronized (flushLock) {
       if (closed) {
@@ -331,6 +322,16 @@ public abstract class PartitionDataWriter implements DeviceObserver {
               writerContext.getPartitionLocation().getFileName(),
               flushBufferReadableBytes);
           evict(false);
+        }
+      }
+
+      // update the disk buffer or memory file storage after evict
+      if (isMemoryShuffleFile.get()) {
+        MemoryManager.instance().incrementMemoryFileStorage(numBytes);
+      } else {
+        MemoryManager.instance().incrementDiskBuffer(numBytes);
+        if (userCongestionControlContext != null) {
+          userCongestionControlContext.updateProduceBytes(numBytes);
         }
       }
 
