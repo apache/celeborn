@@ -117,6 +117,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final Set<String> pushExcludedWorkers = ConcurrentHashMap.newKeySet();
   private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
       JavaUtils.newConcurrentHashMap();
+  private boolean pushReplicateEnabled;
+  private boolean fetchExcludeWorkerOnFailureEnabled;
 
   private final ExecutorService pushDataRetryPool;
 
@@ -137,7 +139,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final ReviveManager reviveManager;
 
-  protected static class ReduceFileGroups {
+  public static class ReduceFileGroups {
     public Map<Integer, Set<PartitionLocation>> partitionGroups;
     public int[] mapAttempts;
     public Set<Integer> partitionIds;
@@ -180,6 +182,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
     pushExcludeWorkerOnFailureEnabled = conf.clientPushExcludeWorkerOnFailureEnabled();
     shuffleCompressionEnabled = !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
+    pushReplicateEnabled = conf.clientPushReplicateEnabled();
+    fetchExcludeWorkerOnFailureEnabled = conf.clientFetchExcludeWorkerOnFailureEnabled();
     if (conf.clientPushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
@@ -1888,6 +1892,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       cause = StatusCode.PUSH_DATA_PRIMARY_WORKER_EXCLUDED;
     } else if (message.startsWith(StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED.name())) {
       cause = StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND.name())) {
+      cause = StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND;
     } else if (ExceptionUtils.connectFail(message)) {
       // Throw when push to primary worker connection causeException.
       cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY;
@@ -1901,5 +1907,13 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public TransportClientFactory getDataClientFactory() {
     return dataClientFactory;
+  }
+
+  public void excludeFailedFetchLocation(String hostAndFetchPort, Exception e) {
+    if (pushReplicateEnabled
+        && fetchExcludeWorkerOnFailureEnabled
+        && Utils.isCriticalCauseForFetch(e)) {
+      fetchExcludedWorkers.put(hostAndFetchPort, System.currentTimeMillis());
+    }
   }
 }

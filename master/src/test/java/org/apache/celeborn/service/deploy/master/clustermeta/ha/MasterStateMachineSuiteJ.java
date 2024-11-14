@@ -205,12 +205,11 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     String host2 = "host2";
     String host3 = "host3";
 
-    masterStatusSystem.excludedWorkers.add(info1);
-    masterStatusSystem.excludedWorkers.add(info2);
-    masterStatusSystem.excludedWorkers.add(info3);
+    masterStatusSystem.updateExcludedWorkersMeta(
+        Arrays.asList(info1, info2, info3), Collections.emptyList());
 
-    masterStatusSystem.manuallyExcludedWorkers.add(info1);
-    masterStatusSystem.manuallyExcludedWorkers.add(info2);
+    masterStatusSystem.updateManuallyExcludedWorkersMeta(
+        Arrays.asList(info1, info2), Collections.emptyList());
 
     masterStatusSystem.hostnameSet.add(host1);
     masterStatusSystem.hostnameSet.add(host2);
@@ -232,20 +231,25 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     AppDiskUsageSnapShot originCurrentSnapshot =
         masterStatusSystem.appDiskUsageMetric.currentSnapShot().get();
 
-    masterStatusSystem.workers.add(new WorkerInfo(host1, 9095, 9094, 9093, 9092, 9091));
-    masterStatusSystem.workers.add(new WorkerInfo(host2, 9095, 9094, 9093, 9092, 9091));
-    masterStatusSystem.workers.add(new WorkerInfo(host3, 9095, 9094, 9093, 9092, 9091));
+    WorkerInfo workerInfo1 = new WorkerInfo(host1, 9095, 9094, 9093, 9092, 9091);
+    WorkerInfo workerInfo2 = new WorkerInfo(host2, 9095, 9094, 9093, 9092, 9091);
+    WorkerInfo workerInfo3 = new WorkerInfo(host3, 9095, 9094, 9093, 9092, 9091);
+    masterStatusSystem.workersMap.put(workerInfo1.toUniqueId(), workerInfo1);
+    masterStatusSystem.workersMap.put(workerInfo2.toUniqueId(), workerInfo2);
+    masterStatusSystem.workersMap.put(workerInfo3.toUniqueId(), workerInfo3);
 
     masterStatusSystem.writeMetaInfoToFile(tmpFile);
 
     masterStatusSystem.hostnameSet.clear();
     masterStatusSystem.excludedWorkers.clear();
     masterStatusSystem.manuallyExcludedWorkers.clear();
-    masterStatusSystem.workers.clear();
+    masterStatusSystem.workersMap.clear();
+    masterStatusSystem.availableWorkers.clear();
 
     masterStatusSystem.restoreMetaFromFile(tmpFile);
 
-    Assert.assertEquals(3, masterStatusSystem.workers.size());
+    Assert.assertEquals(3, masterStatusSystem.workersMap.size());
+    Assert.assertEquals(3, masterStatusSystem.availableWorkers.size());
     Assert.assertEquals(3, masterStatusSystem.excludedWorkers.size());
     Assert.assertEquals(2, masterStatusSystem.manuallyExcludedWorkers.size());
     Assert.assertEquals(3, masterStatusSystem.hostnameSet.size());
@@ -260,7 +264,7 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     Assert.assertArrayEquals(originSnapshots, masterStatusSystem.appDiskUsageMetric.snapShots());
 
     masterStatusSystem.restoreMetaFromFile(tmpFile);
-    Assert.assertEquals(3, masterStatusSystem.workers.size());
+    Assert.assertEquals(3, masterStatusSystem.workersMap.size());
   }
 
   private String getNewReqeustId() {

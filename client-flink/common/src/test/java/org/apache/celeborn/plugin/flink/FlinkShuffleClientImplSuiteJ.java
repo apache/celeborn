@@ -55,7 +55,7 @@ public class FlinkShuffleClientImplSuiteJ {
     conf = new CelebornConf();
     shuffleClient =
         new FlinkShuffleClientImpl(
-            "APP", "localhost", 1232, System.currentTimeMillis(), conf, null) {
+            "APP", "localhost", 1232, System.currentTimeMillis(), conf, null, -1) {
           @Override
           public void setupLifecycleManagerRef(String host, int port) {}
         };

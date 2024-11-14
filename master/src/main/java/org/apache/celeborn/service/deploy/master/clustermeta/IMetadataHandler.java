@@ -39,12 +39,20 @@ public interface IMetadataHandler {
   void handleBatchUnRegisterShuffles(List<String> shuffleKeys, String requestId);
 
   void handleAppHeartbeat(
-      String appId, long totalWritten, long fileCount, long time, String requestId);
+      String appId,
+      long totalWritten,
+      long fileCount,
+      long shuffleCount,
+      Map<String, Long> shuffleFallbackCounts,
+      long time,
+      String requestId);
 
   void handleAppLost(String appId, String requestId);
 
   void handleWorkerExclude(
       List<WorkerInfo> workersToAdd, List<WorkerInfo> workersToRemove, String requestId);
+
+  void handleReviseLostShuffles(String appId, List<Integer> shuffles, String requestId);
 
   void handleWorkerLost(
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId);

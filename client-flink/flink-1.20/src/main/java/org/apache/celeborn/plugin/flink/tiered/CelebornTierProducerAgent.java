@@ -64,6 +64,7 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
 
   private final int numBuffersPerSegment;
 
+  // The flink buffer size in bytes.
   private final int bufferSizeBytes;
 
   private final int numPartitions;
@@ -325,9 +326,18 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
     try {
       int remainingReviveTimes = maxReviveTimes;
       while (remainingReviveTimes-- > 0 && !hasSentHandshake) {
+        // In the Flink hybrid shuffle integration strategy, the data buffer sent to the Celeborn
+        // workers consists of two components: the Celeborn header and the data buffers.
+        // In this scenario, the maximum byte size of the buffer received by the Celeborn worker is
+        // equal to the sum of the Flink buffer size and the Celeborn header size.
         Optional<PartitionLocation> revivePartition =
             flinkShuffleClient.pushDataHandShake(
-                shuffleId, mapId, attemptId, numSubPartitions, bufferSizeBytes, partitionLocation);
+                shuffleId,
+                mapId,
+                attemptId,
+                numSubPartitions,
+                bufferSizeBytes + BufferUtils.HEADER_LENGTH,
+                partitionLocation);
         // if remainingReviveTimes == 0 and revivePartition.isPresent(), there is no need to send
         // handshake again
         if (revivePartition.isPresent() && remainingReviveTimes > 0) {
@@ -443,9 +453,9 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
 
       Buffer buffer = originBuffer;
       if (originBuffer.isCompressed()) {
-        // In flink 1.20.0, it will receive a compressed buffer. However, since we need to write
-        // data to this buffer and the compressed buffer is read-only,
-        // we must create a new Buffer object to the wrap origin buffer.
+        // Flink hybrid shuffle will send a compressed buffer to tier. However, since we need to
+        // write data to this buffer and the compressed buffer is read-only, we must create a
+        // new Buffer object to the wrap origin buffer.
         NetworkBuffer networkBuffer =
             new NetworkBuffer(
                 originBuffer.getMemorySegment(),
@@ -455,9 +465,6 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
         networkBuffer.writerIndex(originBuffer.asByteBuf().writerIndex());
         buffer = networkBuffer;
       }
-
-      // TODO: To enhance performance, the flink should pass an no-compressed buffer to producer
-      // agent and we compress the buffer here
 
       // set the buffer meta
       BufferUtils.setCompressedDataWithoutHeader(buffer, originBuffer);
@@ -478,7 +485,8 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
           lifecycleManagerPort,
           lifecycleManagerTimestamp,
           celebornConf,
-          null);
+          null,
+          bufferSizeBytes);
     } catch (DriverChangedException e) {
       // would generate a new attempt to retry output gate
       throw new RuntimeException(e.getMessage());

@@ -84,6 +84,7 @@ public class DiskFileInfo extends FileInfo {
     return new File(filePath);
   }
 
+  @Override
   public String getFilePath() {
     return filePath;
   }

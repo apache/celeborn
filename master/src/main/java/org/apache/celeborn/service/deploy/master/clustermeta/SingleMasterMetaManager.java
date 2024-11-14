@@ -47,6 +47,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
     this.conf = conf;
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
+    this.unhealthyDiskRatioThreshold = conf.masterExcludeWorkerUnhealthyDiskRatioThreshold();
     this.appDiskUsageMetric = new AppDiskUsageMetric(conf);
     this.rackResolver = rackResolver;
   }
@@ -72,8 +73,15 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleAppHeartbeat(
-      String appId, long totalWritten, long fileCount, long time, String requestId) {
-    updateAppHeartbeatMeta(appId, time, totalWritten, fileCount);
+      String appId,
+      long totalWritten,
+      long fileCount,
+      long shuffleCount,
+      Map<String, Long> shuffleFallbackCounts,
+      long time,
+      String requestId) {
+    updateAppHeartbeatMeta(
+        appId, time, totalWritten, fileCount, shuffleCount, shuffleFallbackCounts);
   }
 
   @Override
@@ -84,7 +92,12 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   @Override
   public void handleWorkerExclude(
       List<WorkerInfo> workersToAdd, List<WorkerInfo> workersToRemove, String requestId) {
-    updateWorkerExcludeMeta(workersToAdd, workersToRemove);
+    updateManuallyExcludedWorkersMeta(workersToAdd, workersToRemove);
+  }
+
+  @Override
+  public void handleReviseLostShuffles(String appId, List<Integer> shuffles, String requestId) {
+    reviseLostShuffles(appId, shuffles);
   }
 
   @Override

@@ -326,6 +326,48 @@ public class TransportClient implements Closeable {
   }
 
   /**
+   * Synchronously sends an opaque message to the RpcHandler on the server-side, waiting for up to a
+   * specified timeout for a response. The callback will be invoked with the server's response or
+   * upon any failure.
+   */
+  public void sendRpcSync(ByteBuffer message, RpcResponseCallback callback, long timeoutMs)
+      throws IOException {
+    final SettableFuture<Void> result = SettableFuture.create();
+
+    sendRpc(
+        message,
+        new RpcResponseCallback() {
+          @Override
+          public void onSuccess(ByteBuffer response) {
+            try {
+              ByteBuffer copy = ByteBuffer.allocate(response.remaining());
+              copy.put(response);
+              // flip "copy" to make it readable
+              copy.flip();
+              callback.onSuccess(copy);
+              result.set(null);
+            } catch (Throwable t) {
+              logger.warn("Error in responding RPC callback", t);
+              callback.onFailure(t);
+              result.set(null);
+            }
+          }
+
+          @Override
+          public void onFailure(Throwable e) {
+            callback.onFailure(e);
+            result.set(null);
+          }
+        });
+
+    try {
+      result.get(timeoutMs, TimeUnit.MILLISECONDS);
+    } catch (Exception e) {
+      throw new IOException("Exception in sendRpcSync to: " + this.getSocketAddress(), e);
+    }
+  }
+
+  /**
    * Sends an opaque message to the RpcHandler on the server-side. No reply is expected for the
    * message, and no delivery guarantees are made.
    *

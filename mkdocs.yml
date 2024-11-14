@@ -70,11 +70,13 @@ nav:
       - Monitoring:
         - Overview: monitoring.md
         - Rest API: restapi.md
+      - CLI:
+        - Overview: celeborn_cli.md
+        - Ratis Shell: celeborn_ratis_shell.md
       - Security: security.md
       - Quota Management: quota_management.md
       - Upgrading: upgrading.md
       - Decommissioning: decommissioning.md
-      - Ratis Shell: celeborn_ratis_shell.md
       - Cluster Planning: cluster_planning.md
   - Configuration: configuration/index.md
   - Migration Guide: migration.md

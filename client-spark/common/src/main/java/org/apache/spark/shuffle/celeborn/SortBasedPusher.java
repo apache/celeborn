@@ -505,7 +505,7 @@ public class SortBasedPusher extends MemoryConsumer {
     cleanupResources();
     try {
       dataPusher.waitOnTermination();
-      sendBufferPool.returnPushTaskQueue(dataPusher.getIdleQueue());
+      sendBufferPool.returnPushTaskQueue(dataPusher.getAndResetIdleQueue());
     } catch (InterruptedException e) {
       if (throwTaskKilledOnInterruption) {
         TaskInterruptedHelper.throwTaskKillException();

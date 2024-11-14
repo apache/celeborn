@@ -119,7 +119,7 @@ public class RatisMasterStatusSystemSuiteJ {
         String id2 = UUID.randomUUID().toString();
         String id3 = UUID.randomUUID().toString();
 
-        int ratisPort1 = Utils$.MODULE$.selectRandomPort(1024, 65535);
+        int ratisPort1 = Utils$.MODULE$.selectRandomInt(1024, 65535);
         int ratisPort2 = ratisPort1 + 1;
         int ratisPort3 = ratisPort2 + 1;
 
@@ -255,6 +255,8 @@ public class RatisMasterStatusSystemSuiteJ {
   private static final String APPID1 = "appId1";
   private static final int SHUFFLEID1 = 1;
   private static final String SHUFFLEKEY1 = APPID1 + "-" + SHUFFLEID1;
+  private static final String POLICY1 = "ShufflePartitionsFallbackPolicy";
+  private static final String POLICY2 = "QuotaFallbackPolicy";
   private static final WorkerStatus workerStatus = WorkerStatus.normalWorkerStatus();
 
   private String getNewReqeustId() {
@@ -347,16 +349,20 @@ public class RatisMasterStatusSystemSuiteJ {
         getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(3, STATUSSYSTEM1.workers.size());
-    Assert.assertEquals(3, STATUSSYSTEM2.workers.size());
-    Assert.assertEquals(3, STATUSSYSTEM3.workers.size());
+    Assert.assertEquals(3, STATUSSYSTEM1.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.workersMap.size());
 
-    assertWorkers(STATUSSYSTEM1.workers);
-    assertWorkers(STATUSSYSTEM2.workers);
-    assertWorkers(STATUSSYSTEM3.workers);
+    Assert.assertEquals(3, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.availableWorkers.size());
+
+    assertWorkers(STATUSSYSTEM1.workersMap.values());
+    assertWorkers(STATUSSYSTEM2.workersMap.values());
+    assertWorkers(STATUSSYSTEM3.workersMap.values());
   }
 
-  private void assertWorkers(Set<WorkerInfo> workerInfos) {
+  private void assertWorkers(Collection<WorkerInfo> workerInfos) {
     for (WorkerInfo workerInfo : workerInfos) {
       assertWorker(workerInfo);
     }
@@ -427,6 +433,10 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM2.manuallyExcludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM3.manuallyExcludedWorkers.size());
 
+    Assert.assertEquals(0, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM3.availableWorkers.size());
+
     statusSystem.handleWorkerExclude(
         Collections.emptyList(), Collections.singletonList(workerInfo1), getNewReqeustId());
     Thread.sleep(3000L);
@@ -434,6 +444,10 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM1.manuallyExcludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM2.manuallyExcludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM3.manuallyExcludedWorkers.size());
+
+    Assert.assertEquals(1, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
   }
 
   @Test
@@ -479,9 +493,13 @@ public class RatisMasterStatusSystemSuiteJ {
         HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(2, STATUSSYSTEM1.workers.size());
-    Assert.assertEquals(2, STATUSSYSTEM2.workers.size());
-    Assert.assertEquals(2, STATUSSYSTEM3.workers.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.workersMap.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.workersMap.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.workersMap.size());
+
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
   }
 
   @Test
@@ -571,21 +589,21 @@ public class RatisMasterStatusSystemSuiteJ {
 
     Assert.assertEquals(
         0,
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
         0,
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME2))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
         0,
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME3))
             .findFirst()
             .get()
@@ -632,22 +650,22 @@ public class RatisMasterStatusSystemSuiteJ {
         getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(3, STATUSSYSTEM1.workers.size());
-    Assert.assertEquals(3, STATUSSYSTEM2.workers.size());
-    Assert.assertEquals(3, STATUSSYSTEM3.workers.size());
+    Assert.assertEquals(3, STATUSSYSTEM1.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.workersMap.size());
 
     Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocations = new HashMap<>();
     allocations.put("disk1", 5);
     workersToAllocate.put(
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .toUniqueId(),
         allocations);
     workersToAllocate.put(
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME2))
             .findFirst()
             .get()
@@ -661,21 +679,21 @@ public class RatisMasterStatusSystemSuiteJ {
 
     Assert.assertEquals(
         0,
-        STATUSSYSTEM1.workers.stream()
+        STATUSSYSTEM1.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
         0,
-        STATUSSYSTEM2.workers.stream()
+        STATUSSYSTEM2.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
         0,
-        STATUSSYSTEM3.workers.stream()
+        STATUSSYSTEM3.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
@@ -751,16 +769,16 @@ public class RatisMasterStatusSystemSuiteJ {
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(1, STATUSSYSTEM1.registeredShuffle.size());
-    Assert.assertEquals(1, STATUSSYSTEM2.registeredShuffle.size());
-    Assert.assertEquals(1, STATUSSYSTEM3.registeredShuffle.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.registeredAppAndShuffles.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.registeredAppAndShuffles.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.registeredAppAndShuffles.size());
 
     statusSystem.handleAppLost(APPID1, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertTrue(STATUSSYSTEM1.registeredShuffle.isEmpty());
-    Assert.assertTrue(STATUSSYSTEM2.registeredShuffle.isEmpty());
-    Assert.assertTrue(STATUSSYSTEM3.registeredShuffle.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM1.registeredAppAndShuffles.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM2.registeredAppAndShuffles.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM3.registeredAppAndShuffles.isEmpty());
   }
 
   @Test
@@ -832,16 +850,16 @@ public class RatisMasterStatusSystemSuiteJ {
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(1, STATUSSYSTEM1.registeredShuffle.size());
-    Assert.assertEquals(1, STATUSSYSTEM2.registeredShuffle.size());
-    Assert.assertEquals(1, STATUSSYSTEM3.registeredShuffle.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.registeredAppAndShuffles.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.registeredAppAndShuffles.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.registeredAppAndShuffles.size());
 
     statusSystem.handleUnRegisterShuffle(SHUFFLEKEY1, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertTrue(STATUSSYSTEM1.registeredShuffle.isEmpty());
-    Assert.assertTrue(STATUSSYSTEM2.registeredShuffle.isEmpty());
-    Assert.assertTrue(STATUSSYSTEM3.registeredShuffle.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM1.registeredAppAndShuffles.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM2.registeredAppAndShuffles.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM3.registeredAppAndShuffles.isEmpty());
   }
 
   @Test
@@ -919,25 +937,25 @@ public class RatisMasterStatusSystemSuiteJ {
 
     Thread.sleep(3000L);
 
-    Assert.assertEquals(4, STATUSSYSTEM1.registeredShuffle.size());
-    Assert.assertEquals(4, STATUSSYSTEM2.registeredShuffle.size());
-    Assert.assertEquals(4, STATUSSYSTEM3.registeredShuffle.size());
+    Assert.assertEquals(4, STATUSSYSTEM1.registeredShuffleCount());
+    Assert.assertEquals(4, STATUSSYSTEM2.registeredShuffleCount());
+    Assert.assertEquals(4, STATUSSYSTEM3.registeredShuffleCount());
 
     List<String> shuffleKeys1 = new ArrayList<>();
     shuffleKeys1.add(shuffleKeysAll.get(0));
 
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeys1, getNewReqeustId());
     Thread.sleep(3000L);
-    Assert.assertEquals(3, STATUSSYSTEM1.registeredShuffle.size());
-    Assert.assertEquals(3, STATUSSYSTEM2.registeredShuffle.size());
-    Assert.assertEquals(3, STATUSSYSTEM3.registeredShuffle.size());
+    Assert.assertEquals(3, STATUSSYSTEM1.registeredShuffleCount());
+    Assert.assertEquals(3, STATUSSYSTEM2.registeredShuffleCount());
+    Assert.assertEquals(3, STATUSSYSTEM3.registeredShuffleCount());
 
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeysAll, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertTrue(STATUSSYSTEM1.registeredShuffle.isEmpty());
-    Assert.assertTrue(STATUSSYSTEM2.registeredShuffle.isEmpty());
-    Assert.assertTrue(STATUSSYSTEM3.registeredShuffle.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM1.registeredShuffleCount() == 0);
+    Assert.assertTrue(STATUSSYSTEM2.registeredShuffleCount() == 0);
+    Assert.assertTrue(STATUSSYSTEM3.registeredShuffleCount() == 0);
   }
 
   @Test
@@ -946,14 +964,14 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertNotNull(statusSystem);
 
     long dummy = 1235L;
-    statusSystem.handleAppHeartbeat(APPID1, 1, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(APPID1, 1, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
     Thread.sleep(3000L);
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM1.appHeartbeatTime.get(APPID1));
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM2.appHeartbeatTime.get(APPID1));
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM3.appHeartbeatTime.get(APPID1));
 
     String appId2 = "app02";
-    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM1.appHeartbeatTime.get(appId2));
@@ -1023,6 +1041,14 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
 
+    Assert.assertEquals(3, STATUSSYSTEM1.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.workersMap.size());
+
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
+
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME2,
         RPCPORT2,
@@ -1042,6 +1068,16 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM3.excludedWorkers.size());
+
+    Assert.assertEquals(3, statusSystem.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM1.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.workersMap.size());
+
+    Assert.assertEquals(1, statusSystem.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME1,
@@ -1063,6 +1099,16 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
 
+    Assert.assertEquals(3, statusSystem.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM1.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.workersMap.size());
+
+    Assert.assertEquals(2, statusSystem.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
+
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME1,
         RPCPORT1,
@@ -1081,27 +1127,40 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM3.excludedWorkers.size());
+
+    Assert.assertEquals(3, statusSystem.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM1.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM2.workersMap.size());
+    Assert.assertEquals(3, STATUSSYSTEM3.workersMap.size());
+
+    Assert.assertEquals(1, statusSystem.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
   }
 
   @Before
   public void resetStatus() {
-    STATUSSYSTEM1.registeredShuffle.clear();
+    STATUSSYSTEM1.registeredAppAndShuffles.clear();
     STATUSSYSTEM1.hostnameSet.clear();
-    STATUSSYSTEM1.workers.clear();
+    STATUSSYSTEM1.workersMap.clear();
+    STATUSSYSTEM1.availableWorkers.clear();
     STATUSSYSTEM1.appHeartbeatTime.clear();
     STATUSSYSTEM1.excludedWorkers.clear();
     STATUSSYSTEM1.workerLostEvents.clear();
 
-    STATUSSYSTEM2.registeredShuffle.clear();
+    STATUSSYSTEM2.registeredAppAndShuffles.clear();
     STATUSSYSTEM2.hostnameSet.clear();
-    STATUSSYSTEM2.workers.clear();
+    STATUSSYSTEM2.workersMap.clear();
+    STATUSSYSTEM2.availableWorkers.clear();
     STATUSSYSTEM2.appHeartbeatTime.clear();
     STATUSSYSTEM2.excludedWorkers.clear();
     STATUSSYSTEM2.workerLostEvents.clear();
 
-    STATUSSYSTEM3.registeredShuffle.clear();
+    STATUSSYSTEM3.registeredAppAndShuffles.clear();
     STATUSSYSTEM3.hostnameSet.clear();
-    STATUSSYSTEM3.workers.clear();
+    STATUSSYSTEM3.workersMap.clear();
+    STATUSSYSTEM3.availableWorkers.clear();
     STATUSSYSTEM3.appHeartbeatTime.clear();
     STATUSSYSTEM3.excludedWorkers.clear();
     STATUSSYSTEM3.workerLostEvents.clear();
@@ -1220,6 +1279,9 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(0, STATUSSYSTEM1.excludedWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM3.excludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
   }
 
   @Test
@@ -1280,7 +1342,7 @@ public class RatisMasterStatusSystemSuiteJ {
     statusSystem.handleReportWorkerUnavailable(unavailableWorkers, getNewReqeustId());
 
     Thread.sleep(3000L);
-    Assert.assertEquals(2, STATUSSYSTEM1.workers.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.workersMap.size());
 
     Assert.assertEquals(1, STATUSSYSTEM1.shutdownWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM2.shutdownWorkers.size());
@@ -1289,6 +1351,10 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM1.lostWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM2.lostWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM3.lostWorkers.size());
+
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
 
     statusSystem.handleRemoveWorkersUnavailableInfo(unavailableWorkers, getNewReqeustId());
     Thread.sleep(3000L);
@@ -1300,6 +1366,10 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(0, STATUSSYSTEM1.lostWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM2.lostWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM3.lostWorkers.size());
+
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
   }
 
   @Test
@@ -1315,23 +1385,25 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.initialEstimatedPartitionSize());
 
     Long dummy = 1235L;
-    statusSystem.handleAppHeartbeat(APPID1, 10000000000l, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(
+        APPID1, 10000000000l, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
     String appId2 = "app02";
-    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
 
     // Max size
     statusSystem.handleUpdatePartitionSize();
     Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.maxPartitionSizeToEstimate());
 
-    statusSystem.handleAppHeartbeat(APPID1, 1000000000l, 1, dummy, getNewReqeustId());
-    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(
+        APPID1, 1000000000l, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
 
     // Size between minEstimateSize -> maxEstimateSize
     statusSystem.handleUpdatePartitionSize();
     Assert.assertEquals(statusSystem.estimatedPartitionSize, 500000000);
 
-    statusSystem.handleAppHeartbeat(APPID1, 1000l, 1, dummy, getNewReqeustId());
-    statusSystem.handleAppHeartbeat(appId2, 1000l, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(APPID1, 1000l, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1000l, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
 
     // Min size
     statusSystem.handleUpdatePartitionSize();
@@ -1393,6 +1465,10 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM2.workerEventInfos.size());
     Assert.assertEquals(2, STATUSSYSTEM3.workerEventInfos.size());
 
+    Assert.assertEquals(1, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
+
     Assert.assertTrue(STATUSSYSTEM1.workerEventInfos.containsKey(workerInfo1));
     Assert.assertTrue(STATUSSYSTEM1.workerEventInfos.containsKey(workerInfo2));
 
@@ -1412,6 +1488,23 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(
         WorkerEventType.Decommission,
         STATUSSYSTEM1.workerEventInfos.get(workerInfo2).getEventType());
+
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
+  }
+
+  @Test
+  public void testReviseShuffles() throws InterruptedException {
+    AbstractMetaManager statusSystem = pickLeaderStatusSystem();
+    Assert.assertNotNull(statusSystem);
+
+    statusSystem.handleReviseLostShuffles(
+        "app-1", Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8), getNewReqeustId());
+    Thread.sleep(1000l);
+    Assert.assertEquals(STATUSSYSTEM1.registeredShuffleCount(), 8);
+    Assert.assertEquals(STATUSSYSTEM2.registeredShuffleCount(), 8);
+    Assert.assertEquals(STATUSSYSTEM3.registeredShuffleCount(), 8);
   }
 
   @AfterClass
@@ -1487,5 +1580,30 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(0, STATUSSYSTEM1.excludedWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM3.excludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
+  }
+
+  @Test
+  public void testShuffleCountWithFallback() {
+    AbstractMetaManager statusSystem = pickLeaderStatusSystem();
+    Assert.assertNotNull(statusSystem);
+    statusSystem.shuffleTotalCount.reset();
+    statusSystem.shuffleFallbackCounts.clear();
+
+    Long dummy = 1235L;
+    Map<String, Long> shuffleFallbackCounts = new HashMap<>();
+    shuffleFallbackCounts.put(POLICY1, 1L);
+    statusSystem.handleAppHeartbeat(
+        APPID1, 1000l, 1, 1, shuffleFallbackCounts, dummy, getNewReqeustId());
+    shuffleFallbackCounts.put(POLICY1, 1L);
+    shuffleFallbackCounts.put(POLICY2, 1L);
+    statusSystem.handleAppHeartbeat(
+        APPID1, 1000l, 1, 2, shuffleFallbackCounts, dummy, getNewReqeustId());
+
+    Assert.assertEquals(statusSystem.shuffleTotalCount.longValue(), 3);
+    Assert.assertEquals(statusSystem.shuffleFallbackCounts.get(POLICY1).longValue(), 2);
+    Assert.assertEquals(statusSystem.shuffleFallbackCounts.get(POLICY2).longValue(), 1);
   }
 }

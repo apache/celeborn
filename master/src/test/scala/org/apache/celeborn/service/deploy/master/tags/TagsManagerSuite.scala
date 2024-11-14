@@ -19,34 +19,34 @@ package org.apache.celeborn.service.deploy.master.tags
 
 import scala.collection.JavaConverters.seqAsJavaListConverter
 
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import org.scalatest.funsuite.AnyFunSuite
-
-import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.WorkerInfo
+import org.apache.celeborn.server.common.service.config.DynamicConfigServiceFactory
 
-class TagsManagerSuite extends AnyFunSuite
-  with BeforeAndAfterAll
-  with BeforeAndAfterEach
-  with Logging {
-  protected var tagsManager: TagsManager = _
+class TagsManagerSuite extends CelebornFunSuite {
+  private var tagsManager: TagsManager = _
 
-  val WORKER1 = new WorkerInfo("host1", 111, 112, 113, 114, 115)
-  val WORKER2 = new WorkerInfo("host2", 211, 212, 213, 214, 215)
-  val WORKER3 = new WorkerInfo("host3", 311, 312, 313, 314, 315)
+  private val TAG1 = "tag1"
+  private val TAG2 = "tag2"
 
-  val workers = List(WORKER1, WORKER2, WORKER3).asJava
+  private val WORKER1 = new WorkerInfo("host1", 111, 112, 113, 114, 115)
+  private val WORKER2 = new WorkerInfo("host2", 211, 212, 213, 214, 215)
+  private val WORKER3 = new WorkerInfo("host3", 311, 312, 313, 314, 315)
+
+  private val workers = List(WORKER1, WORKER2, WORKER3).asJava
+
+  override def beforeEach(): Unit = {
+    super.beforeEach()
+    DynamicConfigServiceFactory.reset()
+  }
 
   test("test tags manager") {
-    tagsManager = new TagsManager()
+    tagsManager = new TagsManager(Option(null))
 
-    // Tag1
-    val TAG1 = "tag1"
     tagsManager.addTagToWorker(TAG1, WORKER1.toUniqueId())
     tagsManager.addTagToWorker(TAG1, WORKER2.toUniqueId())
 
-    // Tag2
-    val TAG2 = "tag2"
     tagsManager.addTagToWorker(TAG2, WORKER2.toUniqueId())
     tagsManager.addTagToWorker(TAG2, WORKER3.toUniqueId())
 
@@ -120,6 +120,58 @@ class TagsManagerSuite extends AnyFunSuite
       val tags = tagsManager.getTagsForCluster
       assert(tags.size == 1)
       assert(tags.contains(TAG2))
+    }
+  }
+
+  test("test tags expression with multiple tags") {
+    tagsManager = new TagsManager(Option(null))
+
+    // Tag1
+    tagsManager.addTagToWorker(TAG1, WORKER1.toUniqueId())
+    tagsManager.addTagToWorker(TAG1, WORKER2.toUniqueId())
+
+    // Tag2
+    tagsManager.addTagToWorker(TAG2, WORKER2.toUniqueId())
+    tagsManager.addTagToWorker(TAG2, WORKER3.toUniqueId())
+
+    {
+      val taggedWorkers = tagsManager.getTaggedWorkers("tag1,tag2", workers)
+      assert(taggedWorkers.size == 1)
+      assert(!taggedWorkers.contains(WORKER1))
+      assert(taggedWorkers.contains(WORKER2))
+      assert(!taggedWorkers.contains(WORKER3))
+    }
+
+    {
+      val taggedWorkers = tagsManager.getTaggedWorkers("tag1,tag3", workers)
+      assert(taggedWorkers.size == 0)
+    }
+  }
+
+  test("test tags manager with config service") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "FS")
+    conf.set(
+      CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH.key,
+      getTestResourceFile("dynamicConfig-tags.yaml").getPath)
+    val configService = DynamicConfigServiceFactory.getConfigService(conf)
+
+    tagsManager = new TagsManager(Option(configService))
+
+    {
+      val taggedWorkers = tagsManager.getTaggedWorkers(TAG1, workers)
+      assert(taggedWorkers.size == 2)
+      assert(taggedWorkers.contains(WORKER1))
+      assert(taggedWorkers.contains(WORKER2))
+      assert(!taggedWorkers.contains(WORKER3))
+    }
+
+    {
+      val taggedWorkers = tagsManager.getTaggedWorkers(TAG2, workers)
+      assert(taggedWorkers.size == 2)
+      assert(!taggedWorkers.contains(WORKER1))
+      assert(taggedWorkers.contains(WORKER2))
+      assert(taggedWorkers.contains(WORKER3))
     }
   }
 }

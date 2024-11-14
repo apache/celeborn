@@ -44,7 +44,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   ContainerInfo.JSON_PROPERTY_CONTAINER_CLUSTER,
   ContainerInfo.JSON_PROPERTY_CONTAINER_TAGS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.7.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class ContainerInfo {
   public static final String JSON_PROPERTY_CONTAINER_NAME = "containerName";
   private String containerName;

@@ -125,8 +125,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         this.sortedFilesDb = DBProvider.initDB(dbBackend, recoverFile, CURRENT_VERSION);
         reloadAndCleanSortedShuffleFiles(this.sortedFilesDb);
       } catch (Exception e) {
-        logger.error("Failed to reload DB for sorted shuffle files from: " + recoverFile, e);
-        this.sortedFilesDb = null;
+        throw new IllegalStateException(
+            "Failed to reload DB for sorted shuffle files from: " + recoverFile, e);
       }
     } else {
       this.sortedFilesDb = null;
@@ -459,7 +459,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   @VisibleForTesting
   public void updateSortedShuffleFiles(String shuffleKey, String fileId, long fileLength) {
-    sortedShuffleFiles.get(shuffleKey).add(fileId);
+    Set<String> shuffleFiles = sortedShuffleFiles.get(shuffleKey);
+    if (shuffleFiles != null) {
+      shuffleFiles.add(fileId);
+    }
     sortedFileCount.incrementAndGet();
     sortedFilesSize.addAndGet(fileLength);
   }

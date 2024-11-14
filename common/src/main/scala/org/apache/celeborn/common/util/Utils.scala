@@ -44,7 +44,7 @@ import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.PORT_MAX_RETRY
-import org.apache.celeborn.common.exception.CelebornException
+import org.apache.celeborn.common.exception.{CelebornException, CelebornIOException}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
@@ -245,8 +245,15 @@ object Utils extends Logging {
     }
   }
 
-  def selectRandomPort(from: Int, to: Int): Int = {
-    ScalaRandom.nextInt(to - from) + from
+  /**
+   * Select a random integer within the specified range.
+   *
+   * @param from the lower bound of the range (inclusive)
+   * @param until the upper bound of the range (exclusive)
+   * @return a randomly selected integer within the range [from, until)
+   */
+  def selectRandomInt(from: Int, until: Int): Int = {
+    ScalaRandom.nextInt(until - 1 - from) + from
   }
 
   def startServiceOnPort[T](
@@ -766,29 +773,39 @@ object Utils extends Logging {
    * Note: code was initially copied from Apache Spark(v3.5.1).
    */
   private def threadInfoToThreadStackTrace(threadInfo: ThreadInfo): ThreadStackTrace = {
-    val monitors = threadInfo.getLockedMonitors.map(m => m.getLockedStackFrame -> m).toMap
-    val stackTrace = StackTrace(threadInfo.getStackTrace.map { frame =>
-      monitors.get(frame) match {
-        case Some(monitor) =>
-          monitor.getLockedStackFrame.toString + s" => holding ${monitor.lockString}"
-        case None =>
-          frame.toString
-      }
+    val threadState = threadInfo.getThreadState
+    val monitors = threadInfo.getLockedMonitors.map(m => m.getLockedStackDepth -> m.toString).toMap
+    val stackTrace = StackTrace(threadInfo.getStackTrace.zipWithIndex.map { case (frame, idx) =>
+      val locked =
+        if (idx == 0 && threadInfo.getLockInfo != null) {
+          threadState match {
+            case Thread.State.BLOCKED =>
+              s"\t-  blocked on ${threadInfo.getLockInfo}\n"
+            case Thread.State.WAITING | Thread.State.TIMED_WAITING =>
+              s"\t-  waiting on ${threadInfo.getLockInfo}\n"
+            case _ => ""
+          }
+        } else ""
+      val locking = monitors.get(idx).map(mi => s"\t-  locked $mi\n").getOrElse("")
+      s"${frame.toString}\n$locked$locking"
     })
 
-    // use a set to dedup re-entrant locks that are held at multiple places
-    val heldLocks =
-      (threadInfo.getLockedSynchronizers ++ threadInfo.getLockedMonitors).map(_.lockString).toSet
-
+    val synchronizers = threadInfo.getLockedSynchronizers.map(_.toString)
+    val monitorStrs = monitors.values.toSeq
     ThreadStackTrace(
-      threadId = threadInfo.getThreadId,
-      threadName = threadInfo.getThreadName,
-      threadState = threadInfo.getThreadState,
-      stackTrace = stackTrace,
-      blockedByThreadId =
-        if (threadInfo.getLockOwnerId < 0) None else Some(threadInfo.getLockOwnerId),
-      blockedByLock = Option(threadInfo.getLockInfo).map(_.lockString).getOrElse(""),
-      holdingLocks = heldLocks.toSeq)
+      threadInfo.getThreadId,
+      threadInfo.getThreadName,
+      threadState,
+      stackTrace,
+      if (threadInfo.getLockOwnerId < 0) None else Some(threadInfo.getLockOwnerId),
+      Option(threadInfo.getLockInfo).map(_.lockString).getOrElse(""),
+      synchronizers ++ monitorStrs,
+      synchronizers,
+      monitorStrs,
+      Option(threadInfo.getLockName),
+      Option(threadInfo.getLockOwnerName),
+      threadInfo.isSuspended,
+      threadInfo.isInNative)
   }
 
   private def readProcessStdout(process: Process): String = {
@@ -1102,10 +1119,24 @@ object Utils extends Logging {
         StatusCode.WORKER_EXCLUDED
       case 28 =>
         StatusCode.WORKER_UNKNOWN
+      case 29 =>
+        StatusCode.COMMIT_FILE_EXCEPTION
       case 30 =>
         StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED
       case 31 =>
         StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED
+      case 32 =>
+        StatusCode.PUSH_DATA_HANDSHAKE_FAIL_REPLICA
+      case 33 =>
+        StatusCode.PUSH_DATA_HANDSHAKE_FAIL_PRIMARY
+      case 34 =>
+        StatusCode.REGION_START_FAIL_REPLICA
+      case 35 =>
+        StatusCode.REGION_START_FAIL_PRIMARY
+      case 36 =>
+        StatusCode.REGION_FINISH_FAIL_REPLICA
+      case 37 =>
+        StatusCode.REGION_FINISH_FAIL_PRIMARY
       case 38 =>
         StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY
       case 39 =>
@@ -1132,6 +1163,12 @@ object Utils extends Logging {
         StatusCode.COMMIT_FILES_MOCK_FAILURE
       case 50 =>
         StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA
+      case 51 =>
+        StatusCode.OPEN_STREAM_FAILED
+      case 52 =>
+        StatusCode.SEGMENT_START_FAIL_REPLICA
+      case 53 =>
+        StatusCode.SEGMENT_START_FAIL_PRIMARY
       case _ =>
         null
     }
@@ -1323,4 +1360,16 @@ object Utils extends Logging {
         throw e
     }
   }
+
+  def isCriticalCauseForFetch(e: Exception) = {
+    val rpcTimeout =
+      e.isInstanceOf[IOException] && e.getCause != null && e.getCause.isInstanceOf[TimeoutException]
+    val connectException =
+      e.isInstanceOf[CelebornIOException] && e.getMessage != null && (e.getMessage.startsWith(
+        "Connecting to") || e.getMessage.startsWith("Failed to"))
+    val fetchChunkTimeout = e.isInstanceOf[
+      CelebornIOException] && e.getCause != null && e.getCause.isInstanceOf[IOException]
+    connectException || rpcTimeout || fetchChunkTimeout
+  }
+
 }

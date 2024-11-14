@@ -97,6 +97,7 @@ public class SparkShuffleManager implements ShuffleManager {
         if (lifecycleManager == null) {
           appUniqueId = celebornConf.appUniqueIdWithUUIDSuffix(appId);
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
+          lifecycleManager.registerCancelShuffleCallback(SparkUtils::cancelShuffle);
           if (celebornConf.clientFetchThrowsFetchFailure()) {
             MapOutputTrackerMaster mapOutputTracker =
                 (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();
@@ -117,15 +118,17 @@ public class SparkShuffleManager implements ShuffleManager {
     String appId = SparkUtils.appUniqueId(dependency.rdd().context());
     initializeLifecycleManager(appId);
 
-    lifecycleManager.registerAppShuffleDeterminate(
-        shuffleId,
-        !DeterministicLevel.INDETERMINATE().equals(dependency.rdd().getOutputDeterministicLevel()));
-
+    lifecycleManager.shuffleCount().increment();
     if (fallbackPolicyRunner.applyFallbackPolicies(dependency, lifecycleManager)) {
       logger.warn("Fallback to SortShuffleManager!");
       sortShuffleIds.add(shuffleId);
       return sortShuffleManager().registerShuffle(shuffleId, numMaps, dependency);
     } else {
+      lifecycleManager.registerAppShuffleDeterminate(
+          shuffleId,
+          !DeterministicLevel.INDETERMINATE()
+              .equals(dependency.rdd().getOutputDeterministicLevel()));
+
       return new CelebornShuffleHandle<>(
           appUniqueId,
           lifecycleManager.getHost(),

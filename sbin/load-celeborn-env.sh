@@ -44,9 +44,21 @@ if [ -n "${JAVA_HOME}" ]; then
 else
   if [ "$(command -v java)" ]; then
     export JAVA="java"
+    JAVA_HOME=$(java -XshowSettings:properties -version 2>&1 > /dev/null | grep 'java.home' | awk '{print $3}')
   else
     echo "JAVA_HOME is not set" >&2
     exit 1
+  fi
+fi
+
+# Find the java tools.jar
+if [ -f "${JAVA_HOME}/lib/tools.jar" ]; then
+  export JAVA_TOOLS_JAR="${JAVA_HOME}/lib/tools.jar"
+else
+  if [ -f "${JAVA_HOME}/../lib/tools.jar" ]; then
+    export JAVA_TOOLS_JAR="${JAVA_HOME}/../lib/tools.jar"
+  else
+    echo "WARNING: cannot locate tools.jar. Expected to find it in either ${JAVA_HOME}/lib/tools.jar or ${JAVA_HOME}/../lib/tools.jar"
   fi
 fi
 

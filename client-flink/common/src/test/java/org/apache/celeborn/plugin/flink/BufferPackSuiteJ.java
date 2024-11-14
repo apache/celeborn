@@ -26,6 +26,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Queue;
+import java.util.Random;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.flink.core.memory.MemorySegment;
@@ -38,6 +40,7 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.CompositeByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -218,6 +221,27 @@ public class BufferPackSuiteJ {
     checkDataType(unpacked, EVENT_BUFFER, DATA_BUFFER, DATA_BUFFER);
     verifyBuffers(unpacked, 0, 1, 2);
     unpacked.forEach(Buffer::recycleBuffer);
+  }
+
+  @Test
+  public void testUnpackCompositeBuffer() throws Exception {
+    Buffer dataBuffer = bufferPool.requestBuffer();
+    fillBufferWithRandomByte(dataBuffer);
+    ByteBuf bufferHeaderByteBuf = createBufferHeaderByteBuf(BUFFER_SIZE);
+    bufferHeaderByteBuf.retain();
+    CompositeByteBuf compositeByteBuf = Unpooled.compositeBuffer();
+    compositeByteBuf.addComponent(true, bufferHeaderByteBuf);
+    compositeByteBuf.addComponent(true, dataBuffer.asByteBuf());
+
+    Queue<Buffer> unpackedBuffers = BufferPacker.unpack(compositeByteBuf);
+    Assert.assertEquals(1, unpackedBuffers.size());
+    Assert.assertEquals(dataBuffer.readableBytes(), unpackedBuffers.peek().readableBytes());
+    Assert.assertEquals(BUFFER_SIZE, unpackedBuffers.peek().readableBytes());
+    for (int i = 0; i < BUFFER_SIZE; ++i) {
+      Assert.assertEquals(
+          dataBuffer.getMemorySegment().get(i), unpackedBuffers.peek().getMemorySegment().get(i));
+    }
+    dataBuffer.recycleBuffer();
   }
 
   @Test
@@ -402,6 +426,30 @@ public class BufferPackSuiteJ {
       return new BufferPacker(ripeBufferHandler);
     } else {
       return new ReceivedNoHeaderBufferPacker(ripeBufferHandler);
+    }
+  }
+
+  public ByteBuf createBufferHeaderByteBuf(int dataBufferSize) {
+    ByteBuf headerBuf = Unpooled.directBuffer(BufferUtils.HEADER_LENGTH, BufferUtils.HEADER_LENGTH);
+    // write celeborn buffer header (subpartitionid(4) + attemptId(4) + nextBatchId(4) +
+    // compressedsize)
+    headerBuf.writeInt(0);
+    headerBuf.writeInt(0);
+    headerBuf.writeInt(0);
+    headerBuf.writeInt(
+        dataBufferSize + (BufferUtils.HEADER_LENGTH - BufferUtils.HEADER_LENGTH_PREFIX));
+
+    // write flink buffer header (dataType(1) + isCompress(1) + size(4))
+    headerBuf.writeByte(DATA_BUFFER.ordinal());
+    headerBuf.writeBoolean(false);
+    headerBuf.writeInt(dataBufferSize);
+    return headerBuf;
+  }
+
+  public void fillBufferWithRandomByte(Buffer buffer) {
+    Random random = new Random();
+    for (int i = 0; i < buffer.getMaxCapacity(); i++) {
+      buffer.asByteBuf().writeByte(random.nextInt(255));
     }
   }
 }

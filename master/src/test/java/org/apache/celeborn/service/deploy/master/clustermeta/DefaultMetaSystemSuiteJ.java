@@ -83,6 +83,8 @@ public class DefaultMetaSystemSuiteJ {
   private static final int REPLICATEPORT3 = 3114;
   private static final int INTERNALPORT3 = 3115;
   private static final String NETWORK_LOCATION3 = "networkLocation3";
+  private static final String POLICY1 = "ShufflePartitionsFallbackPolicy";
+  private static final String POLICY2 = "QuotaFallbackPolicy";
   private static final Map<String, DiskInfo> disks3 = new HashMap<>();
   private static final Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 =
       new HashMap<>();
@@ -157,7 +159,8 @@ public class DefaultMetaSystemSuiteJ {
         userResourceConsumption3,
         getNewReqeustId());
 
-    assertEquals(3, statusSystem.workers.size());
+    assertEquals(3, statusSystem.workersMap.size());
+    assertEquals(3, statusSystem.availableWorkers.size());
   }
 
   @Test
@@ -209,10 +212,12 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleWorkerExclude(
         Arrays.asList(workerInfo1, workerInfo2), Collections.emptyList(), getNewReqeustId());
     assertEquals(2, statusSystem.manuallyExcludedWorkers.size());
+    assertEquals(0, statusSystem.availableWorkers.size());
 
     statusSystem.handleWorkerExclude(
         Collections.emptyList(), Collections.singletonList(workerInfo1), getNewReqeustId());
     assertEquals(1, statusSystem.manuallyExcludedWorkers.size());
+    assertEquals(1, statusSystem.availableWorkers.size());
   }
 
   @Test
@@ -253,7 +258,8 @@ public class DefaultMetaSystemSuiteJ {
 
     statusSystem.handleWorkerLost(
         HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId());
-    assertEquals(2, statusSystem.workers.size());
+    assertEquals(2, statusSystem.workersMap.size());
+    assertEquals(2, statusSystem.availableWorkers.size());
   }
 
   private static final String APPID1 = "appId1";
@@ -376,20 +382,20 @@ public class DefaultMetaSystemSuiteJ {
         userResourceConsumption3,
         getNewReqeustId());
 
-    assertEquals(3, statusSystem.workers.size());
+    assertEquals(3, statusSystem.workersMap.size());
 
     Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocation = new HashMap<>();
     allocation.put("disk1", 5);
     workersToAllocate.put(
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .toUniqueId(),
         allocation);
     workersToAllocate.put(
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME2))
             .findFirst()
             .get()
@@ -399,7 +405,7 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     assertEquals(
         0,
-        statusSystem.workers.stream()
+        statusSystem.workersMap.values().stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
@@ -472,11 +478,11 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleApplicationMeta(new ApplicationMeta(APPID1, "testSecret"));
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
-    assertEquals(1, statusSystem.registeredShuffle.size());
+    assertEquals(1, statusSystem.registeredAppAndShuffles.size());
     assertEquals(1, statusSystem.applicationMetas.size());
     statusSystem.handleAppLost(APPID1, getNewReqeustId());
 
-    assertTrue(statusSystem.registeredShuffle.isEmpty());
+    assertTrue(statusSystem.registeredAppAndShuffles.isEmpty());
     assertTrue(statusSystem.applicationMetas.isEmpty());
   }
 
@@ -545,11 +551,11 @@ public class DefaultMetaSystemSuiteJ {
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
-    assertEquals(1, statusSystem.registeredShuffle.size());
+    assertEquals(1, statusSystem.registeredAppAndShuffles.size());
 
     statusSystem.handleUnRegisterShuffle(SHUFFLEKEY1, getNewReqeustId());
 
-    assertTrue(statusSystem.registeredShuffle.isEmpty());
+    assertTrue(statusSystem.registeredAppAndShuffles.isEmpty());
   }
 
   @Test
@@ -621,27 +627,27 @@ public class DefaultMetaSystemSuiteJ {
       shuffleKeysAll.add(shuffleKey);
       statusSystem.handleRequestSlots(shuffleKey, HOSTNAME1, workersToAllocate, getNewReqeustId());
     }
-    Assert.assertEquals(4, statusSystem.registeredShuffle.size());
+    Assert.assertEquals(4, statusSystem.registeredShuffleCount());
 
     List<String> shuffleKeys1 = new ArrayList<>();
     shuffleKeys1.add(shuffleKeysAll.get(0));
 
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeys1, getNewReqeustId());
-    Assert.assertEquals(3, statusSystem.registeredShuffle.size());
+    Assert.assertEquals(3, statusSystem.registeredShuffleCount());
 
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeysAll, getNewReqeustId());
 
-    Assert.assertTrue(statusSystem.registeredShuffle.isEmpty());
+    Assert.assertTrue(statusSystem.registeredShuffleCount() == 0);
   }
 
   @Test
   public void testHandleAppHeartbeat() {
     Long dummy = 1235L;
-    statusSystem.handleAppHeartbeat(APPID1, 1, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(APPID1, 1, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
     assertEquals(dummy, statusSystem.appHeartbeatTime.get(APPID1));
 
     String appId2 = "app02";
-    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
     assertEquals(dummy, statusSystem.appHeartbeatTime.get(appId2));
 
     assertEquals(2, statusSystem.appHeartbeatTime.size());
@@ -698,6 +704,7 @@ public class DefaultMetaSystemSuiteJ {
         getNewReqeustId());
 
     assertEquals(statusSystem.excludedWorkers.size(), 1);
+    assertEquals(statusSystem.availableWorkers.size(), 2);
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME2,
@@ -714,6 +721,7 @@ public class DefaultMetaSystemSuiteJ {
         getNewReqeustId());
 
     assertEquals(statusSystem.excludedWorkers.size(), 2);
+    assertEquals(statusSystem.availableWorkers.size(), 1);
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME3,
@@ -730,6 +738,7 @@ public class DefaultMetaSystemSuiteJ {
         getNewReqeustId());
 
     assertEquals(statusSystem.excludedWorkers.size(), 2);
+    assertEquals(statusSystem.availableWorkers.size(), 1);
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME3,
@@ -746,6 +755,7 @@ public class DefaultMetaSystemSuiteJ {
         getNewReqeustId());
 
     assertEquals(statusSystem.excludedWorkers.size(), 3);
+    assertEquals(statusSystem.availableWorkers.size(), 0);
   }
 
   @Test
@@ -799,6 +809,7 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleReportWorkerUnavailable(failedWorkers, getNewReqeustId());
     assertEquals(1, statusSystem.shutdownWorkers.size());
     assertTrue(statusSystem.excludedWorkers.isEmpty());
+    assertEquals(2, statusSystem.availableWorkers.size());
   }
 
   @Test
@@ -811,23 +822,25 @@ public class DefaultMetaSystemSuiteJ {
     Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.initialEstimatedPartitionSize());
 
     Long dummy = 1235L;
-    statusSystem.handleAppHeartbeat(APPID1, 10000000000l, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(
+        APPID1, 10000000000l, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
     String appId2 = "app02";
-    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
 
     // Max size
     statusSystem.handleUpdatePartitionSize();
     Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.maxPartitionSizeToEstimate());
 
-    statusSystem.handleAppHeartbeat(APPID1, 1000000000l, 1, dummy, getNewReqeustId());
-    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(
+        APPID1, 1000000000l, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
 
     // Size between minEstimateSize -> maxEstimateSize
     statusSystem.handleUpdatePartitionSize();
     Assert.assertEquals(statusSystem.estimatedPartitionSize, 500000000);
 
-    statusSystem.handleAppHeartbeat(APPID1, 1000l, 1, dummy, getNewReqeustId());
-    statusSystem.handleAppHeartbeat(appId2, 1000l, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(APPID1, 1000l, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2, 1000l, 1, 0, new HashMap<>(), dummy, getNewReqeustId());
 
     // Min size
     statusSystem.handleUpdatePartitionSize();
@@ -896,5 +909,26 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleReportWorkerDecommission(workers, getNewReqeustId());
     assertEquals(1, statusSystem.decommissionWorkers.size());
     assertTrue(statusSystem.excludedWorkers.isEmpty());
+    assertEquals(2, statusSystem.availableWorkers.size());
+  }
+
+  @Test
+  public void testShuffleCountWithFallback() {
+    statusSystem.shuffleTotalCount.reset();
+    statusSystem.shuffleFallbackCounts.clear();
+
+    Long dummy = 1235L;
+    Map<String, Long> shuffleFallbackCounts = new HashMap<>();
+    shuffleFallbackCounts.put(POLICY1, 1L);
+    statusSystem.handleAppHeartbeat(
+        APPID1, 1000l, 1, 1, shuffleFallbackCounts, dummy, getNewReqeustId());
+    shuffleFallbackCounts.put(POLICY1, 1L);
+    shuffleFallbackCounts.put(POLICY2, 1L);
+    statusSystem.handleAppHeartbeat(
+        APPID1, 1000l, 1, 2, shuffleFallbackCounts, dummy, getNewReqeustId());
+
+    assertEquals(statusSystem.shuffleTotalCount.longValue(), 3);
+    assertEquals(statusSystem.shuffleFallbackCounts.get(POLICY1).longValue(), 2);
+    assertEquals(statusSystem.shuffleFallbackCounts.get(POLICY2).longValue(), 1);
   }
 }

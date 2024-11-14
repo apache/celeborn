@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
+import java.util.Collections
 import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
@@ -170,8 +171,7 @@ private[celeborn] class Master(
   private var checkForWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForApplicationTimeOutTask: ScheduledFuture[_] = _
   private var checkForUnavailableWorkerTimeOutTask: ScheduledFuture[_] = _
-  private var checkForHDFSRemnantDirsTimeOutTask: ScheduledFuture[_] = _
-  private var checkForS3RemnantDirsTimeOutTask: ScheduledFuture[_] = _
+  private var checkForDFSRemnantDirsTimeOutTask: ScheduledFuture[_] = _
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
 
   // Config constants
@@ -186,13 +186,10 @@ private[celeborn] class Master(
   private val hasS3Storage = conf.hasS3Storage
 
   private val quotaManager = new QuotaManager(conf, configService)
-  private val tagsManager = new TagsManager()
+  private val tagsManager = new TagsManager(Option(configService))
   private val masterResourceConsumptionInterval = conf.masterResourceConsumptionInterval
   private val userResourceConsumptions =
     JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
-
-  private def diskReserveSize = conf.workerDiskReserveSize
-  private def diskReserveRatio = conf.workerDiskReserveRatio
 
   private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
   private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
@@ -224,17 +221,15 @@ private[celeborn] class Master(
 
   private var hadoopFs: util.Map[StorageInfo.Type, FileSystem] = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
-    statusSystem.registeredShuffle.size
+    statusSystem.registeredShuffleCount
   }
-  masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.workers.size }
+  masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.workersMap.size }
   masterSource.addGauge(MasterSource.LOST_WORKER_COUNT) { () => statusSystem.lostWorkers.size }
   masterSource.addGauge(MasterSource.EXCLUDED_WORKER_COUNT) { () =>
     statusSystem.excludedWorkers.size + statusSystem.manuallyExcludedWorkers.size
   }
   masterSource.addGauge(MasterSource.AVAILABLE_WORKER_COUNT) { () =>
-    statusSystem.workers.asScala.count { w =>
-      statusSystem.isWorkerAvailable(w)
-    }
+    statusSystem.availableWorkers.size()
   }
   masterSource.addGauge(MasterSource.SHUTDOWN_WORKER_COUNT) { () =>
     statusSystem.shutdownWorkers.size
@@ -244,7 +239,7 @@ private[celeborn] class Master(
   }
   masterSource.addGauge(MasterSource.PARTITION_SIZE) { () => statusSystem.estimatedPartitionSize }
   masterSource.addGauge(MasterSource.ACTIVE_SHUFFLE_SIZE) { () =>
-    statusSystem.workers.parallelStream()
+    statusSystem.workersMap.values().parallelStream()
       .mapToLong(new ToLongFunction[WorkerInfo]() {
         override def applyAsLong(value: WorkerInfo): Long =
           value.userResourceConsumption.values().parallelStream()
@@ -254,7 +249,7 @@ private[celeborn] class Master(
       }).sum()
   }
   masterSource.addGauge(MasterSource.ACTIVE_SHUFFLE_FILE_COUNT) { () =>
-    statusSystem.workers.parallelStream()
+    statusSystem.workersMap.values().parallelStream()
       .mapToLong(new ToLongFunction[WorkerInfo]() {
         override def applyAsLong(value: WorkerInfo): Long =
           value.userResourceConsumption.values().parallelStream()
@@ -264,12 +259,20 @@ private[celeborn] class Master(
       }).sum()
   }
 
+  masterSource.addGauge(MasterSource.SHUFFLE_TOTAL_COUNT) { () =>
+    statusSystem.shuffleTotalCount.sum()
+  }
+
+  masterSource.addGauge(MasterSource.SHUFFLE_FALLBACK_COUNT) { () =>
+    statusSystem.shuffleFallbackCounts.values().asScala.map(_.longValue()).sum
+  }
+
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_TOTAL_CAPACITY) { () =>
-    statusSystem.workers.asScala.toList.map(_.totalSpace()).sum
+    statusSystem.workersMap.values().asScala.toList.map(_.totalSpace()).sum
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_FREE_CAPACITY) { () =>
-    statusSystem.workers.asScala.toList.map(_.totalActualUsableSpace()).sum
+    statusSystem.availableWorkers.asScala.toList.map(_.totalActualUsableSpace()).sum
   }
 
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
@@ -311,19 +314,19 @@ private[celeborn] class Master(
       scheduleCheckTask(appHeartbeatTimeoutMs / 2, CheckForApplicationTimeOut)
 
     if (workerUnavailableInfoExpireTimeoutMs > 0) {
-      scheduleCheckTask(
+      checkForUnavailableWorkerTimeOutTask = scheduleCheckTask(
         workerUnavailableInfoExpireTimeoutMs / 2,
         CheckForWorkerUnavailableInfoTimeout)
     }
 
     if (hasHDFSStorage || hasS3Storage) {
-      checkForHDFSRemnantDirsTimeOutTask =
+      checkForDFSRemnantDirsTimeOutTask =
         scheduleCheckTask(dfsExpireDirsTimeoutMS, CheckForDFSExpiredDirsTimeout)
     }
 
   }
 
-  def scheduleCheckTask[T](timeoutMS: Long, message: T): ScheduledFuture[_] = {
+  private def scheduleCheckTask[T](timeoutMS: Long, message: T): ScheduledFuture[_] = {
     forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
@@ -340,21 +343,10 @@ private[celeborn] class Master(
       return
     }
     logInfo("Stopping Celeborn Master.")
-    if (checkForWorkerTimeOutTask != null) {
-      checkForWorkerTimeOutTask.cancel(true)
-    }
-    if (checkForUnavailableWorkerTimeOutTask != null) {
-      checkForUnavailableWorkerTimeOutTask.cancel(true)
-    }
-    if (checkForApplicationTimeOutTask != null) {
-      checkForApplicationTimeOutTask.cancel(true)
-    }
-    if (checkForHDFSRemnantDirsTimeOutTask != null) {
-      checkForHDFSRemnantDirsTimeOutTask.cancel(true)
-    }
-    if (checkForS3RemnantDirsTimeOutTask != null) {
-      checkForS3RemnantDirsTimeOutTask.cancel(true)
-    }
+    Option(checkForWorkerTimeOutTask).foreach(_.cancel(true))
+    Option(checkForUnavailableWorkerTimeOutTask).foreach(_.cancel(true))
+    Option(checkForApplicationTimeOutTask).foreach(_.cancel(true))
+    Option(checkForDFSRemnantDirsTimeOutTask).foreach(_.cancel(true))
     forwardMessageThread.shutdownNow()
     rackResolver.stop()
     if (authEnabled) {
@@ -405,6 +397,8 @@ private[celeborn] class Master(
           appId,
           totalWritten,
           fileCount,
+          shuffleFallbackCount,
+          shuffleFallbackCounts,
           needCheckedWorkerList,
           requestId,
           shouldResponse) =>
@@ -417,6 +411,8 @@ private[celeborn] class Master(
           appId,
           totalWritten,
           fileCount,
+          shuffleFallbackCount,
+          shuffleFallbackCounts,
           needCheckedWorkerList,
           requestId,
           shouldResponse))
@@ -530,6 +526,11 @@ private[celeborn] class Master(
         context,
         handleWorkerDecommission(context, workers, requestId))
 
+    case pb: PbReviseLostShuffles =>
+      executeWithLeaderChecker(
+        context,
+        handleReviseLostShuffle(context, pb.getAppId, pb.getLostShufflesList, pb.getRequestId))
+
     case pb: PbWorkerExclude =>
       val workersToAdd = new util.ArrayList[WorkerInfo](pb.getWorkersToAddList
         .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
@@ -591,7 +592,7 @@ private[celeborn] class Master(
       return
     }
 
-    statusSystem.workers.asScala.foreach { worker =>
+    statusSystem.workersMap.values().asScala.foreach { worker =>
       if (worker.lastHeartbeat < currentTime - workerHeartbeatTimeoutMs
         && !statusSystem.workerLostEvents.contains(worker)) {
         logWarning(s"Worker ${worker.readableAddress()} timeout! Trigger WorkerLost event.")
@@ -630,18 +631,18 @@ private[celeborn] class Master(
     if (HAHelper.getAppTimeoutDeadline(statusSystem) > currentTime) {
       return
     }
-    statusSystem.appHeartbeatTime.keySet().asScala.foreach { key =>
-      if (statusSystem.appHeartbeatTime.get(key) < currentTime - appHeartbeatTimeoutMs) {
-        logWarning(s"Application $key timeout, trigger applicationLost event.")
+    statusSystem.appHeartbeatTime.asScala.foreach { case (appId, heartbeatTime) =>
+      if (heartbeatTime < currentTime - appHeartbeatTimeoutMs) {
+        logWarning(s"Application $appId timeout, trigger applicationLost event.")
         val requestId = MasterClient.genRequestId()
-        var res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
+        var res = self.askSync[ApplicationLostResponse](ApplicationLost(appId, requestId))
         var retry = 1
         while (res.status != StatusCode.SUCCESS && retry <= 3) {
-          res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
+          res = self.askSync[ApplicationLostResponse](ApplicationLost(appId, requestId))
           retry += 1
         }
         if (retry > 3) {
-          logWarning(s"Handle ApplicationLost event for $key failed more than 3 times!")
+          logWarning(s"Handle ApplicationLost event for $appId failed more than 3 times!")
         }
       }
     }
@@ -662,7 +663,7 @@ private[celeborn] class Master(
       workerStatus: WorkerStatus,
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
-    val registered = statusSystem.workers.asScala.contains(targetWorker)
+    val registered = statusSystem.workersMap.containsKey(targetWorker.toUniqueId())
     if (!registered) {
       logWarning(s"Received heartbeat from unknown worker " +
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
@@ -684,7 +685,11 @@ private[celeborn] class Master(
 
     val expiredShuffleKeys = new util.HashSet[String]
     activeShuffleKeys.asScala.foreach { shuffleKey =>
-      if (!statusSystem.registeredShuffle.contains(shuffleKey)) {
+      val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
+      val shuffleIds = statusSystem.registeredAppAndShuffles.get(appId)
+      if (shuffleIds == null || !shuffleIds.contains(shuffleId)) {
+        logWarning(
+          s"Shuffle $shuffleKey expired on $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
         expiredShuffleKeys.add(shuffleKey)
       }
     }
@@ -701,6 +706,23 @@ private[celeborn] class Master(
         expiredShuffleKeys,
         registered,
         workerEventInfo.getEventType))
+    }
+  }
+
+  private def handleReviseLostShuffle(
+      context: RpcCallContext,
+      appId: String,
+      lostShuffles: java.util.List[Integer],
+      requestId: String) = {
+    try {
+      logInfo(s"Handle lost shuffles for ${appId} ${lostShuffles} ")
+      statusSystem.handleReviseLostShuffles(appId, lostShuffles, requestId);
+      if (context != null) {
+        context.reply(ReviseLostShufflesResponse(true, ""))
+      }
+    } catch {
+      case e: Exception =>
+        context.reply(ReviseLostShufflesResponse(false, e.getMessage))
     }
   }
 
@@ -732,10 +754,7 @@ private[celeborn] class Master(
       -1,
       new util.HashMap[String, DiskInfo](),
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]())
-    val worker: WorkerInfo = statusSystem.workers
-      .asScala
-      .find(_ == targetWorker)
-      .orNull
+    val worker: WorkerInfo = statusSystem.workersMap.get(targetWorker.toUniqueId())
     if (worker == null) {
       logWarning(s"Unknown worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort" +
         s" for WorkerLost handler!")
@@ -780,7 +799,7 @@ private[celeborn] class Master(
       return
     }
 
-    if (statusSystem.workers.contains(workerToRegister)) {
+    if (statusSystem.workersMap.containsKey(workerToRegister.toUniqueId())) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")
       statusSystem.handleRegisterWorker(
@@ -882,7 +901,7 @@ private[celeborn] class Master(
     // offer slots
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
-        statusSystem.workers.synchronized {
+        statusSystem.workersMap.synchronized {
           if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE) {
             SlotsAllocator.offerSlotsLoadAware(
               selectedWorkers,
@@ -1080,11 +1099,23 @@ private[celeborn] class Master(
     }
   }
 
+  private def gaugeShuffleFallbackCounts(): Unit = {
+    statusSystem.shuffleFallbackCounts.keySet().asScala.foreach { fallbackPolicy =>
+      masterSource.addGauge(
+        MasterSource.SHUFFLE_FALLBACK_COUNT,
+        Map("fallbackPolicy" -> fallbackPolicy)) { () =>
+        Option(statusSystem.shuffleFallbackCounts.get(fallbackPolicy)).getOrElse(0L)
+      }
+    }
+  }
+
   private def handleHeartbeatFromApplication(
       context: RpcCallContext,
       appId: String,
       totalWritten: Long,
       fileCount: Long,
+      shuffleCount: Long,
+      shuffleFallbackCounts: util.Map[String, java.lang.Long],
       needCheckedWorkerList: util.List[WorkerInfo],
       requestId: String,
       shouldResponse: Boolean): Unit = {
@@ -1092,20 +1123,27 @@ private[celeborn] class Master(
       appId,
       totalWritten,
       fileCount,
+      shuffleCount,
+      shuffleFallbackCounts,
       System.currentTimeMillis(),
       requestId)
-    // unknown workers will retain in needCheckedWorkerList
-    needCheckedWorkerList.removeAll(statusSystem.workers)
+    gaugeShuffleFallbackCounts()
+    val unknownWorkers = needCheckedWorkerList.asScala.filterNot(w =>
+      statusSystem.workersMap.containsKey(w.toUniqueId())).asJava
     if (shouldResponse) {
       // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
       // during serialization of HeartbeatFromApplicationResponse
+      val appRelatedShuffles =
+        statusSystem.registeredAppAndShuffles.getOrDefault(appId, Collections.emptySet())
       context.reply(HeartbeatFromApplicationResponse(
         StatusCode.SUCCESS,
         new util.ArrayList(
           (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).asJava),
-        needCheckedWorkerList,
+        unknownWorkers,
         new util.ArrayList[WorkerInfo](
-          (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava)))
+          (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava),
+        new util.ArrayList(appRelatedShuffles),
+        CheckQuotaResponse(isAvailable = true, "")))
     } else {
       context.reply(OneWayMessageResponse)
     }
@@ -1177,7 +1215,7 @@ private[celeborn] class Master(
   // TODO: Support calculate topN app resource consumption.
   private def computeUserResourceConsumption(
       userIdentifier: UserIdentifier): ResourceConsumption = {
-    val resourceConsumption = statusSystem.workers.asScala.flatMap {
+    val resourceConsumption = statusSystem.workersMap.values().asScala.flatMap {
       workerInfo => workerInfo.userResourceConsumption.asScala.get(userIdentifier)
     }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
     resourceConsumption
@@ -1197,7 +1235,7 @@ private[celeborn] class Master(
   }
 
   private def handleCheckWorkersAvailable(context: RpcCallContext): Unit = {
-    context.reply(CheckWorkersAvailableResponse(!workersAvailable().isEmpty))
+    context.reply(CheckWorkersAvailableResponse(!statusSystem.availableWorkers.isEmpty))
   }
 
   private def handleWorkerEvent(
@@ -1211,9 +1249,13 @@ private[celeborn] class Master(
 
   private def workersAvailable(
       tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
-    statusSystem.workers.asScala.filter { w =>
-      statusSystem.isWorkerAvailable(w) && !tmpExcludedWorkerList.contains(w)
-    }.toList.asJava
+    if (tmpExcludedWorkerList.isEmpty) {
+      new util.ArrayList[WorkerInfo](statusSystem.availableWorkers)
+    } else {
+      val availableWorkers = new util.HashSet(statusSystem.availableWorkers)
+      tmpExcludedWorkerList.foreach(availableWorkers.remove)
+      new util.ArrayList[WorkerInfo](availableWorkers)
+    }
   }
 
   private def handleRequestForApplicationMeta(
@@ -1244,7 +1286,7 @@ private[celeborn] class Master(
   }
 
   private def getWorkers: String = {
-    statusSystem.workers.asScala.mkString("\n")
+    statusSystem.workersMap.values().asScala.mkString("\n")
   }
 
   override def handleWorkerEvent(
@@ -1339,8 +1381,11 @@ private[celeborn] class Master(
   override def getShuffleList: String = {
     val sb = new StringBuilder
     sb.append("======================= Shuffle Key List ============================\n")
-    statusSystem.registeredShuffle.asScala.foreach { shuffleKey =>
-      sb.append(s"$shuffleKey\n")
+    statusSystem.registeredAppAndShuffles.asScala.foreach { shuffleKey =>
+      val appId = shuffleKey._1
+      shuffleKey._2.asScala.foreach { id =>
+        sb.append(s"$appId-${id}\n")
+      }
     }
     sb.toString()
   }
@@ -1370,7 +1415,8 @@ private[celeborn] class Master(
           ",")} and remove ${removeWorkers.map(_.readableAddress).mkString(",")}.\n")
     }
     val unknownExcludedWorkers =
-      (addWorkers ++ removeWorkers).filter(!statusSystem.workers.contains(_))
+      (addWorkers ++ removeWorkers).filterNot(w =>
+        statusSystem.workersMap.containsKey(w.toUniqueId()))
     if (unknownExcludedWorkers.nonEmpty) {
       sb.append(
         s"Unknown workers ${unknownExcludedWorkers.map(_.readableAddress).mkString(",")}." +

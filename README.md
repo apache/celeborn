@@ -41,7 +41,7 @@ Celeborn Worker's slot count is decided by `total usable disk size / average shu
 Celeborn worker's slot count decreases when a partition is allocated and increments when a partition is freed.
 
 ## Build
-1. Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3/3.4/3.5, Flink 1.14/1.15/1.17/1.18/1.19/1.20 and Hadoop MapReduce 2/3.
+1. Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3/3.4/3.5, Flink 1.14/1.15/1.16/1.17/1.18/1.19/1.20 and Hadoop MapReduce 2/3.
 2. Celeborn tested under Scala 2.11/2.12/2.13 and Java 8/11/17 environment.
 
 Build Celeborn via `make-distribution.sh`:
@@ -64,6 +64,7 @@ Package `apache-celeborn-${project.version}-bin.tgz` will be generated.
 | Spark 3.5  | &#x274C;          | &#10004;          | &#10004;           | &#10004;           | &#10004;          | &#10004;           | &#10004;           |
 | Flink 1.14 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.15 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
+| Flink 1.16 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.17 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.18 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.19 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
@@ -311,10 +312,17 @@ spark.executor.userClassPathFirst false
 ```
 
 ### Deploy Flink client
+
+**Important: Only Flink batch jobs are supported for now. Due to the Shuffle Service in Flink is cluster-granularity, if you want to use Celeborn in a session cluster, it will not be able to submit both streaming and batch job to the same cluster. We plan to get rid of this restriction for Hybrid Shuffle mode in a future release.**
+
 Copy `$CELEBORN_HOME/flink/*.jar` to `$FLINK_HOME/lib/`.
 
 #### Flink Configuration
-To use Celeborn, the following flink configurations should be added.
+Celeborn supports two Flink integration strategies: remote shuffle service (since Flink 1.14) and [hybrid shuffle](https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/batch/batch_shuffle/#hybrid-shuffle) (since Flink 1.20).
+
+To use Celeborn, you can choose one of them and add the following Flink configurations.
+
+##### Flink Remote Shuffle Service Configuration
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
 execution.batch-shuffle-mode: ALL_EXCHANGES_BLOCKING
@@ -336,6 +344,25 @@ taskmanager.network.memory.buffers-per-channel: 0
 taskmanager.memory.task.off-heap.size: 512m
 ```
 **Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_BLOCKING`.
+
+##### Flink Hybrid Shuffle Configuration
+```properties
+shuffle-service-factory.class: org.apache.flink.runtime.io.network.NettyShuffleServiceFactory
+taskmanager.network.hybrid-shuffle.external-remote-tier-factory.class: org.apache.celeborn.plugin.flink.tiered.CelebornTierFactory
+execution.batch-shuffle-mode: ALL_EXCHANGES_HYBRID_FULL
+jobmanager.partition.hybrid.partition-data-consume-constraint: ALL_PRODUCERS_FINISHED
+
+celeborn.master.endpoints: clb-1:9097,clb-2:9097,clb-3:9097
+celeborn.client.shuffle.batchHandleReleasePartition.enabled: true
+celeborn.client.push.maxReqsInFlight: 128
+# Network connections between peers
+celeborn.data.io.numConnectionsPerPeer: 16
+# threads number may vary according to your cluster but do not set to 1
+celeborn.data.io.threads: 32
+celeborn.client.shuffle.batchHandleCommitPartition.threads: 32
+celeborn.rpc.dispatcher.numThreads: 32
+```
+**Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_HYBRID_FULL`.
 
 ### Deploy MapReduce client 
 Copy `$CELEBORN_HOME/mr/*.jar` into `mapreduce.application.classpath` and `yarn.application.classpath`.

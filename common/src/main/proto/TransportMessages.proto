@@ -109,6 +109,8 @@ enum MessageType {
   NOTIFY_REQUIRED_SEGMENT = 86;
   BATCH_UNREGISTER_SHUFFLES = 87;
   BATCH_UNREGISTER_SHUFFLE_RESPONSE= 88;
+  REVISE_LOST_SHUFFLES = 89;
+  REVISE_LOST_SHUFFLES_RESPONSE = 90;
 }
 
 enum StreamType {
@@ -440,6 +442,8 @@ message PbHeartbeatFromApplication {
   string requestId = 4;
   repeated PbWorkerInfo needCheckedWorkerList = 5;
   bool shouldResponse = 6;
+  int64 shuffleCount = 7;
+  map<string, int64> shuffleFallbackCounts = 8;
 }
 
 message PbHeartbeatFromApplicationResponse {
@@ -447,6 +451,8 @@ message PbHeartbeatFromApplicationResponse {
   repeated PbWorkerInfo excludedWorkers = 2;
   repeated PbWorkerInfo unknownWorkers = 3;
   repeated PbWorkerInfo shuttingWorkers = 4;
+  repeated int32 registeredShuffles = 5;
+  PbCheckQuotaResponse checkQuotaResponse = 6;
 }
 
 message PbCheckQuota {
@@ -670,6 +676,8 @@ message PbSnapshotMetaInfo {
   map<string, PbWorkerEventInfo> workerEventInfos = 15;
   map<string, PbApplicationMeta> applicationMetas = 16;
   repeated PbWorkerInfo decommissionWorkers = 17;
+  int64 shuffleTotalCount = 18;
+  map<string, int64> shuffleFallbackCounts = 19;
 }
 
 message PbOpenStream {
@@ -679,7 +687,6 @@ message PbOpenStream {
   int32 endIndex = 4;
   int32 initialCredit = 5;
   bool readLocalShuffle = 6;
-  bool requireSubpartitionId = 7;
 }
 
 message PbStreamHandler {
@@ -855,4 +862,15 @@ message PbPackedWorkerResource {
 message PbReportWorkerDecommission {
   repeated PbWorkerInfo workers = 1;
   string requestId = 2;
+}
+
+message PbReviseLostShuffles{
+  string appId = 1;
+  repeated int32 lostShuffles = 2;
+  string requestId = 3;
+}
+
+message PbReviseLostShufflesResponse{
+  bool success = 1;
+  string message = 2;
 }

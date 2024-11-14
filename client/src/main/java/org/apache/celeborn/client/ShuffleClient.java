@@ -285,4 +285,6 @@ public abstract class ShuffleClient {
   public abstract boolean reportBarrierTaskFailure(int appShuffleId, String appShuffleIdentifier);
 
   public abstract TransportClientFactory getDataClientFactory();
+
+  public abstract void excludeFailedFetchLocation(String hostAndFetchPort, Exception e);
 }

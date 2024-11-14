@@ -27,7 +27,10 @@ import org.apache.celeborn.rest.v1.master.invoker.Pair;
 
 import org.apache.celeborn.rest.v1.model.AppDiskUsageSnapshotsResponse;
 import org.apache.celeborn.rest.v1.model.ApplicationsHeartbeatResponse;
+import org.apache.celeborn.rest.v1.model.DeleteAppsRequest;
+import org.apache.celeborn.rest.v1.model.HandleResponse;
 import org.apache.celeborn.rest.v1.model.HostnamesResponse;
+import org.apache.celeborn.rest.v1.model.ReviseLostShufflesRequest;
 
 
 import java.util.ArrayList;
@@ -46,6 +49,75 @@ public class ApplicationApi extends BaseApi {
 
   public ApplicationApi(ApiClient apiClient) {
     super(apiClient);
+  }
+
+  /**
+   * 
+   * Delete resource of apps.
+   * @param deleteAppsRequest  (optional)
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse deleteApps(DeleteAppsRequest deleteAppsRequest) throws ApiException {
+    return this.deleteApps(deleteAppsRequest, Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * Delete resource of apps.
+   * @param deleteAppsRequest  (optional)
+   * @param additionalHeaders additionalHeaders for this call
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse deleteApps(DeleteAppsRequest deleteAppsRequest, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = deleteAppsRequest;
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/applications";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/json"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      "application/json"
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<HandleResponse> localVarReturnType = new TypeReference<HandleResponse>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "DELETE",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
   }
 
   /**
@@ -249,6 +321,75 @@ public class ApplicationApi extends BaseApi {
     );
   }
 
+  /**
+   * 
+   * Revise lost shuffles or deleted shuffles of an application.
+   * @param reviseLostShufflesRequest  (optional)
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse reviseLostShuffles(ReviseLostShufflesRequest reviseLostShufflesRequest) throws ApiException {
+    return this.reviseLostShuffles(reviseLostShufflesRequest, Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * Revise lost shuffles or deleted shuffles of an application.
+   * @param reviseLostShufflesRequest  (optional)
+   * @param additionalHeaders additionalHeaders for this call
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse reviseLostShuffles(ReviseLostShufflesRequest reviseLostShufflesRequest, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = reviseLostShufflesRequest;
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/applications/revise_lost_shuffles";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/json"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      "application/json"
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<HandleResponse> localVarReturnType = new TypeReference<HandleResponse>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "POST",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
+  }
+
   @Override
   public <T> T invokeAPI(String url, String method, Object request, TypeReference<T> returnType, Map<String, String> additionalHeaders) throws ApiException {
     String localVarPath = url.replace(apiClient.getBaseURL(), "");
@@ -267,7 +408,7 @@ public class ApplicationApi extends BaseApi {
     final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
 
     final String[] localVarContentTypes = {
-      
+      "application/json"
     };
     final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
 

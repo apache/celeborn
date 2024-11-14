@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import javax.ws.rs.{Consumes, GET, Path, Produces}
+import javax.ws.rs.{Consumes, DELETE, GET, Path, POST, Produces}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
@@ -27,7 +27,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 
 import org.apache.celeborn.common.util.Utils
-import org.apache.celeborn.rest.v1.model.{AppDiskUsageData, AppDiskUsageSnapshotData, AppDiskUsageSnapshotsResponse, ApplicationHeartbeatData, ApplicationsHeartbeatResponse, HostnamesResponse}
+import org.apache.celeborn.rest.v1.model.{AppDiskUsageData, AppDiskUsageSnapshotData, AppDiskUsageSnapshotsResponse, ApplicationHeartbeatData, ApplicationsHeartbeatResponse, DeleteAppsRequest, HandleResponse, HostnamesResponse, ReviseLostShufflesRequest}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.master.Master
 
@@ -52,6 +52,19 @@ class ApplicationResource extends ApiRequestContext {
             .appId(appId)
             .lastHeartbeatTimestamp(heartbeat)
         }.toSeq.asJava)
+  }
+
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[HandleResponse]))),
+    description = "Delete resource of apps.")
+  @DELETE
+  def deleteApps(request: DeleteAppsRequest): HandleResponse = {
+    val apps = request.getApps.asScala
+    apps.foreach(app => statusSystem.deleteApp(app))
+    new HandleResponse().success(true).message(s"deleted shuffles of app ${apps}")
   }
 
   @ApiResponse(
@@ -93,5 +106,20 @@ class ApplicationResource extends ApiRequestContext {
   @Path("/hostnames")
   def hostnames(): HostnamesResponse = {
     new HostnamesResponse().hostnames(statusSystem.hostnameSet.asScala.toSeq.asJava)
+  }
+
+  @Path("/revise_lost_shuffles")
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[HandleResponse]))),
+    description = "Revise lost shuffles or deleted shuffles of an application.")
+  @POST
+  def reviseLostShuffles(request: ReviseLostShufflesRequest): HandleResponse = {
+    val appId = request.getAppId
+    val shuffleIds = request.getShuffleIds
+    statusSystem.reviseLostShuffles(appId, shuffleIds)
+    new HandleResponse().success(true).message(s"revised app:$appId lost shuffles:$shuffleIds")
   }
 }

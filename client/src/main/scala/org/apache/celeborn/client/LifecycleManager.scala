@@ -22,9 +22,9 @@ import java.nio.ByteBuffer
 import java.security.SecureRandom
 import java.util
 import java.util.{function, List => JList}
-import java.util.concurrent.{Callable, ConcurrentHashMap, LinkedBlockingQueue, ScheduledFuture, TimeUnit}
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.function.Consumer
+import java.util.concurrent._
+import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
+import java.util.function.{BiConsumer, Consumer}
 
 import scala.collection.JavaConverters._
 import scala.collection.generic.CanBuildFrom
@@ -84,6 +84,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val unregisterShuffleTime = JavaUtils.newConcurrentHashMap[Int, Long]()
 
   val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
+  val shuffleCount = new LongAdder()
+  val shuffleFallbackCounts = JavaUtils.newConcurrentHashMap[String, java.lang.Long]()
   // maintain each shuffle's map relation of WorkerInfo and partition location
   val shuffleAllocatedWorkers = new ShuffleAllocatedWorkers
   // shuffle id -> (partitionId -> newest PartitionLocation)
@@ -209,8 +211,20 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       appUniqueId,
       conf,
       masterClient,
-      () => commitManager.commitMetrics(),
-      workerStatusTracker)
+      () => {
+        commitManager.commitMetrics() ->
+          (shuffleCount.sumThenReset(), resetShuffleFallbackCounts())
+      },
+      workerStatusTracker,
+      registeredShuffle,
+      reason => cancelAllActiveStages(reason))
+  private def resetShuffleFallbackCounts(): Map[String, java.lang.Long] = {
+    val fallbackCounts = new util.HashMap[String, java.lang.Long]()
+    shuffleFallbackCounts.keys().asScala.foreach { key =>
+      Option(shuffleFallbackCounts.remove(key)).filter(_ > 0).foreach(fallbackCounts.put(key, _))
+    }
+    fallbackCounts.asScala.toMap
+  }
   private val changePartitionManager = new ChangePartitionManager(conf, this)
   private val releasePartitionManager = new ReleasePartitionManager(conf, this)
 
@@ -448,11 +462,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   def setupEndpoints(
-      slots: WorkerResource,
+      workers: util.Set[WorkerInfo],
       shuffleId: Int,
       connectFailedWorkers: ShuffleFailedWorkers): Unit = {
     val futures = new util.LinkedList[(Future[RpcEndpointRef], WorkerInfo)]()
-    slots.asScala foreach { case (workerInfo, _) =>
+    workers.asScala foreach { workerInfo =>
       val future = workerRpcEnvInUse.asyncSetupEndpointRefByAddr(RpcEndpointAddress(
         RpcAddress.apply(workerInfo.host, workerInfo.rpcPort),
         WORKER_EP))
@@ -675,8 +689,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val connectFailedWorkers = new ShuffleFailedWorkers()
 
     // Second, for each worker, try to initialize the endpoint.
-    setupEndpoints(slots, shuffleId, connectFailedWorkers)
-
+    setupEndpoints(slots.keySet(), shuffleId, connectFailedWorkers)
     candidatesWorkers.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
     workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
     // If newly allocated from primary and can setup endpoint success, LifecycleManager should remove worker from
@@ -1762,6 +1775,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     appShuffleDeterminateMap.put(appShuffleId, determinate)
   }
 
+  @volatile private var cancelShuffleCallback: Option[BiConsumer[Integer, String]] = None
+  def registerCancelShuffleCallback(callback: BiConsumer[Integer, String]): Unit = {
+    cancelShuffleCallback = Some(callback)
+  }
+
   // Initialize at the end of LifecycleManager construction.
   initialize()
 
@@ -1780,4 +1798,16 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     rnd.nextBytes(secretBytes)
     JavaUtils.bytesToString(ByteBuffer.wrap(secretBytes))
   }
+
+  def cancelAllActiveStages(reason: String): Unit = cancelShuffleCallback match {
+    case Some(c) =>
+      shuffleAllocatedWorkers
+        .asScala
+        .keys
+        .filter(!commitManager.isStageEnd(_))
+        .foreach(c.accept(_, reason))
+
+    case _ =>
+  }
+
 }

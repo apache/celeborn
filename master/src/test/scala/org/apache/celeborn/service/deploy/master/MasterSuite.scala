@@ -41,7 +41,7 @@ class MasterSuite extends AnyFunSuite
 
   test("test single node startup functionality") {
     val conf = new CelebornConf()
-    val randomMasterPort = Utils.selectRandomPort(1024, 65535)
+    val randomMasterPort = Utils.selectRandomInt(1024, 65535)
     val randomHttpPort = randomMasterPort + 1
     conf.set(CelebornConf.HA_ENABLED.key, "false")
     conf.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR.key, getTmpDir())
@@ -104,7 +104,7 @@ class MasterSuite extends AnyFunSuite
 
   test("test master worker host allow and deny pattern") {
     val conf = new CelebornConf()
-    val randomMasterPort = Utils.selectRandomPort(1024, 65535)
+    val randomMasterPort = Utils.selectRandomInt(1024, 65535)
     val randomHttpPort = randomMasterPort + 1
     conf.set(CelebornConf.HA_ENABLED.key, "false")
     conf.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR.key, getTmpDir())

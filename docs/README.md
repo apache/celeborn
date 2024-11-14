@@ -87,7 +87,7 @@ WorkerRef: null
 Celeborn release binary contains clients for Spark 2.x and Spark 3.x, copy the corresponding client jar into Spark's
 `jars/` directory:
 ```shell
-cp $CELEBORN_HOME/spark/<Celeborn Client Jar> $SPARK_HOME/jars/
+cp $CELEBORN_HOME/spark/celeborn-client-spark-<spark.major.version>-shaded_<scala.binary.version>-<celeborn.version>.jar $SPARK_HOME/jars/
 ```
 #### Start spark-shell
 Set `spark.shuffle.manager` to Celeborn's ShuffleManager, and turn off `spark.shuffle.service.enabled`:
@@ -118,16 +118,19 @@ INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success wit
 ```
 
 ## Start Flink with Celeborn
+
+**Important: Only Flink batch jobs are supported for now.**
+
 #### Copy Celeborn Client to Flink's lib
-Celeborn release binary contains clients for Flink 1.14.x, Flink 1.15.x, Flink 1.17.x, Flink 1.18.x, Flink 1.19.x and Flink 1.20.x, copy the corresponding client jar into Flink's
+Celeborn release binary contains clients for Flink 1.14.x, Flink 1.15.x, Flink 1.16.x, Flink 1.17.x, Flink 1.18.x, Flink 1.19.x and Flink 1.20.x, copy the corresponding client jar into Flink's
 `lib/` directory:
 ```shell
-cp $CELEBORN_HOME/flink/<Celeborn Client Jar> $FLINK_HOME/lib/
+cp $CELEBORN_HOME/flink/celeborn-client-flink-<flink.version>-shaded_<scala.binary.version>-<celeborn.version>.jar $FLINK_HOME/lib/
 ```
 #### Add Celeborn configuration to Flink's conf
 Set `shuffle-service-factory.class` to Celeborn's ShuffleServiceFactory in Flink configuration file:
 
-- Flink 1.14.x, Flink 1.15.x, Flink 1.17.x, Flink 1.18.x
+- Flink 1.14.x, Flink 1.15.x, Flink 1.16.x, Flink 1.17.x, Flink 1.18.x
 ```shell
 cd $FLINK_HOME
 vi conf/flink-conf.yaml
@@ -138,11 +141,24 @@ vi conf/flink-conf.yaml
 cd $FLINK_HOME
 vi conf/config.yaml
 ```
+
+Choose one of flink integration strategies and add the following configuration:
+
+**(Support Flink 1.14 and above versions) Flink Remote Shuffle Service Config**
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
 execution.batch-shuffle-mode: ALL_EXCHANGES_BLOCKING
 ```
 **Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_BLOCKING`.
+
+**(Support Flink 1.20 and above versions) Flink [hybrid shuffle](https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/batch/batch_shuffle/#hybrid-shuffle) Config**
+```properties
+shuffle-service-factory.class: org.apache.flink.runtime.io.network.NettyShuffleServiceFactory
+taskmanager.network.hybrid-shuffle.external-remote-tier-factory.class: org.apache.celeborn.plugin.flink.tiered.CelebornTierFactory
+execution.batch-shuffle-mode: ALL_EXCHANGES_HYBRID_FULL
+jobmanager.partition.hybrid.partition-data-consume-constraint: ALL_PRODUCERS_FINISHED
+```
+**Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_HYBRID_FULL`.
 
 Then deploy the example word count job to the running cluster:
 ```shell
@@ -165,8 +181,8 @@ INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success wit
 ### Copy Celeborn Client to MapReduce's classpath
 1. Copy `$CELEBORN_HOME/mr/*.jar` into `mapreduce.application.classpath` and `yarn.application.classpath`.
 ```shell
-cp $CELEBORN_HOME/mr/<Celeborn Client Jar> <mapreduce.application.classpath>
-cp $CELEBORN_HOME/mr/<Celeborn Client Jar> <yarn.application.classpath>
+cp $CELEBORN_HOME/mr/celeborn-client-mr-shaded_<scala.binary.version>-<celeborn.version>.jar <mapreduce.application.classpath>
+cp $CELEBORN_HOME/mr/celeborn-client-mr-shaded_<scala.binary.version>-<celeborn.version>.jar <yarn.application.classpath>
 ```
 2. Restart your yarn cluster.
 ### Add Celeborn configuration to MapReduce's conf

@@ -39,6 +39,9 @@ case class NamedCounter(name: String, counter: Counter, labels: Map[String, Stri
 case class NamedGauge[T](name: String, gauge: Gauge[T], labels: Map[String, String])
   extends MetricLabels
 
+case class NamedMeter(name: String, meter: Meter, labels: Map[String, String])
+  extends MetricLabels
+
 case class NamedHistogram(name: String, histogram: Histogram, labels: Map[String, String])
   extends MetricLabels
 
@@ -79,6 +82,9 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   protected val namedGauges: ConcurrentHashMap[String, NamedGauge[_]] =
     JavaUtils.newConcurrentHashMap[String, NamedGauge[_]]()
 
+  protected val namedMeters: ConcurrentHashMap[String, NamedMeter] =
+    JavaUtils.newConcurrentHashMap[String, NamedMeter]()
+
   def addGauge[T](
       name: String,
       labels: Map[String, String],
@@ -110,6 +116,33 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def addGauge[T](name: String, gauge: Gauge[T]): Unit = {
     addGauge(name, Map.empty[String, String], gauge)
+  }
+
+  def addMeter(
+      name: String,
+      labels: Map[String, String],
+      meter: Meter): Unit = {
+    namedMeters.putIfAbsent(
+      metricNameWithCustomizedLabels(name, labels),
+      NamedMeter(name, meter, labels ++ staticLabels))
+  }
+
+  def addMeter(
+      name: String,
+      labels: JMap[String, String],
+      meter: Meter): Unit = {
+    addMeter(name, labels.asScala.toMap, meter)
+  }
+
+  def addMeter(name: String, labels: Map[String, String] = Map.empty)(f: () => Long): Unit = {
+    addMeter(
+      name,
+      labels,
+      metricRegistry.meter(metricNameWithCustomizedLabels(name, labels), new MeterSupplier(f)))
+  }
+
+  def addMeter(name: String, meter: Meter): Unit = {
+    addMeter(name, Map.empty[String, String], meter)
   }
 
   protected val namedTimers
@@ -150,6 +183,10 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def gauges(): List[NamedGauge[_]] = {
     namedGauges.values().asScala.toList
+  }
+
+  def meters(): List[NamedMeter] = {
+    namedMeters.values().asScala.toList
   }
 
   def histograms(): List[NamedHistogram] = {
@@ -321,6 +358,22 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     updateInnerMetrics(sb.toString())
   }
 
+  def recordMeter(nm: NamedMeter): Unit = {
+    val timestamp = System.currentTimeMillis
+    val sb = new StringBuilder
+    val label = nm.labelString
+    sb.append(s"${normalizeKey(nm.name)}Count$label ${nm.meter.getCount} $timestamp\n")
+    sb.append(s"${normalizeKey(nm.name)}MeanRate$label ${nm.meter.getMeanRate} $timestamp\n")
+    sb.append(
+      s"${normalizeKey(nm.name)}OneMinuteRate$label ${nm.meter.getOneMinuteRate} $timestamp\n")
+    sb.append(
+      s"${normalizeKey(nm.name)}FiveMinuteRate$label ${nm.meter.getFiveMinuteRate} $timestamp\n")
+    sb.append(
+      s"${normalizeKey(nm.name)}FifteenMinuteRate$label ${nm.meter.getFifteenMinuteRate} $timestamp\n")
+
+    updateInnerMetrics(sb.toString())
+  }
+
   def recordHistogram(nh: NamedHistogram): Unit = {
     val timestamp = System.currentTimeMillis
     val sb = new mutable.StringBuilder
@@ -377,6 +430,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     innerMetrics.synchronized {
       counters().foreach(c => recordCounter(c))
       gauges().foreach(g => recordGauge(g))
+      meters().foreach(m => recordMeter(m))
       histograms().foreach(h => {
         recordHistogram(h)
         h.asInstanceOf[CelebornHistogram].reservoir
@@ -400,6 +454,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     metricsCleaner.shutdown()
     namedCounters.clear()
     namedGauges.clear()
+    namedMeters.clear()
     namedTimers.clear()
     innerMetrics.clear()
     metricRegistry.removeMatching(new MetricFilter {
@@ -435,4 +490,8 @@ class TimerSupplier(val slidingWindowSize: Int)
 
 class GaugeSupplier[T](f: () => T) extends MetricRegistry.MetricSupplier[Gauge[_]] {
   override def newMetric(): Gauge[T] = new Gauge[T] { override def getValue: T = f() }
+}
+
+class MeterSupplier(f: () => Long) extends MetricRegistry.MetricSupplier[Meter] {
+  override def newMetric(): Meter = new Meter { override def getCount: Long = f() }
 }

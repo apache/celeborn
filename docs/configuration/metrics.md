@@ -33,5 +33,5 @@ license: |
 | celeborn.metrics.sample.rate | 1.0 | false | It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0]. | 0.2.0 |  | 
 | celeborn.metrics.timer.slidingWindow.size | 4096 | false | The sliding window size of timer metric. | 0.2.0 |  | 
 | celeborn.metrics.worker.app.topResourceConsumption.count | 50 | false | Size for top items about top resource consumption applications list of worker. The top resource consumption is determined by sum of diskBytesWritten and hdfsBytesWritten. The top resource consumption count prevents the total number of metrics from exceeding the metrics capacity. | 0.6.0 |  | 
-| celeborn.metrics.worker.pauseSpentTime.forceAppend.threshold | 10 | false | Force append worker pause spent time even if worker still in pause serving state.Help user can find worker pause spent time increase, when worker always been pause state. |  |  | 
+| celeborn.metrics.worker.pauseSpentTime.forceAppend.threshold | 10 | false | Force append worker pause spent time even if worker still in pause serving state. Help user can find worker pause spent time increase, when worker always been pause state. |  |  | 
 <!--end-include-->

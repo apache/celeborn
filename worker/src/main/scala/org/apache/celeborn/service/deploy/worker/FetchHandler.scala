@@ -37,7 +37,7 @@ import org.apache.celeborn.common.network.client.{RpcResponseCallback, Transport
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
-import org.apache.celeborn.common.protocol.{MessageType, PbBufferStreamEnd, PbChunkFetchRequest, PbOpenStream, PbOpenStreamList, PbOpenStreamListResponse, PbReadAddCredit, PbStreamHandler, PbStreamHandlerOpt, StreamType}
+import org.apache.celeborn.common.protocol.{MessageType, PbBufferStreamEnd, PbChunkFetchRequest, PbNotifyRequiredSegment, PbOpenStream, PbOpenStreamList, PbOpenStreamListResponse, PbReadAddCredit, PbStreamHandler, PbStreamHandlerOpt, StreamType}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
@@ -171,6 +171,12 @@ class FetchHandler(
           bufferStreamEnd.getStreamType)
       case readAddCredit: PbReadAddCredit =>
         handleReadAddCredit(client, readAddCredit.getCredit, readAddCredit.getStreamId)
+      case notifyRequiredSegment: PbNotifyRequiredSegment =>
+        handleNotifyRequiredSegment(
+          client,
+          notifyRequiredSegment.getRequiredSegmentId,
+          notifyRequiredSegment.getStreamId,
+          notifyRequiredSegment.getSubPartitionId)
       case chunkFetchRequest: PbChunkFetchRequest =>
         handleChunkFetchRequest(
           client,
@@ -481,6 +487,23 @@ class FetchHandler(
         client,
         shuffleKey)
       creditStreamManager.addCredit(credit, streamId)
+    }
+  }
+
+  def handleNotifyRequiredSegment(
+      client: TransportClient,
+      requiredSegmentId: Int,
+      streamId: Long,
+      subPartitionId: Int): Unit = {
+    // process NotifyRequiredSegment request here, the MapPartitionDataReader will send data if the segment buffer is available.
+    logDebug(
+      s"Handle NotifyRequiredSegment with streamId: $streamId, requiredSegmentId: $requiredSegmentId")
+    val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)
+    if (shuffleKey != null) {
+      workerSource.recordAppActiveConnection(
+        client,
+        shuffleKey)
+      creditStreamManager.notifyRequiredSegment(requiredSegmentId, streamId, subPartitionId)
     }
   }
 

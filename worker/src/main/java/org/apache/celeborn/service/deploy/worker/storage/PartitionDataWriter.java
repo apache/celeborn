@@ -597,7 +597,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     }
   }
 
-  protected FileInfo getCurrentFileInfo() {
+  public FileInfo getCurrentFileInfo() {
     if (!isMemoryShuffleFile.get()) {
       return diskFileInfo;
     } else {

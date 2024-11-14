@@ -165,7 +165,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The count of active workers.",
+          "description": "The count of workers in available list.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -243,12 +243,12 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_WorkerCount_Value{instance=~\"${instance}\"}",
+              "expr": "metrics_AvailableWorkerCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
-          "title": "metrics_WorkerCount_Value",
+          "title": "metrics_AvailableWorkerCount_Value",
           "type": "timeseries"
         },
         {
@@ -305,7 +305,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -397,7 +397,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -688,7 +688,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -967,7 +967,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -1287,7 +1287,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The count of workers in available list.",
+          "description": "The count of active workers.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1366,13 +1366,13 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_AvailableWorkerCount_Value{instance=~\"${instance}\"}",
+              "expr": "metrics_WorkerCount_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_AvailableWorkerCount_Value",
+          "title": "metrics_WorkerCount_Value",
           "type": "timeseries"
         },
         {
@@ -1465,6 +1465,186 @@
             }
           ],
           "title": "metrics_LostWorkerCount_Value",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "description": "The total count of shuffle including celeborn shuffle and spark built-in shuffle.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 34
+          },
+          "id": 218,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "maxHeight": 600,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "metrics_ShuffleTotalCount_Value{instance=~\"${instance}\"}",
+              "legendFormat": "${baseLegend}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "metrics_ShuffleTotalCount_Value",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "description": "The count of shuffle fallbacks.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 34
+          },
+          "id": 219,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "maxHeight": 600,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "metrics_ShuffleFallbackCount_Value{instance=~\"${instance}\"}",
+              "legendFormat": "${baseLegend}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "metrics_ShuffleFallbackCount_Value",
           "type": "timeseries"
         }
       ],
@@ -2678,6 +2858,100 @@
             }
           ],
           "title": "metrics_UnreleasedShuffleCount_Value",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "default": false,
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 62
+          },
+          "id": 217,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "builder",
+              "expr": "metrics_IsDecommissioningWorker_Value{instance=~\"${instance}\"}",
+              "legendFormat": "${baseLegend}",
+              "instant": false,
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "metrics_IsDecommissioningWorker_Value",
           "type": "timeseries"
         }
       ],
@@ -5323,7 +5597,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -5697,7 +5971,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -5880,7 +6154,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -5972,7 +6246,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -6673,7 +6947,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -6765,7 +7039,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -7466,7 +7740,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -7558,7 +7832,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -8350,7 +8624,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -8907,7 +9181,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -11628,7 +11902,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -11721,7 +11995,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -12013,7 +12287,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -12198,7 +12472,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "decbytes"
             },
             "overrides": []
           },

@@ -129,13 +129,12 @@ public class CelebornChannelBufferReader {
     }
   }
 
-  public void open(int initialCredit) {
+  public void open(int initialCredit, boolean sync) {
     try {
       bufferStream =
           client.readBufferedPartition(
               shuffleId, partitionId, subPartitionIndexStart, subPartitionIndexEnd, true);
-      bufferStream.open(this::requestBuffer, initialCredit, messageConsumer);
-      this.isOpened = bufferStream.isOpened();
+      bufferStream.open(this::requestBuffer, initialCredit, messageConsumer, sync);
     } catch (Exception e) {
       messageConsumer.accept(new TransportableError(0L, e));
       LOG.error("Failed to open reader", e);
@@ -176,6 +175,10 @@ public class CelebornChannelBufferReader {
 
   public boolean isOpened() {
     return isOpened;
+  }
+
+  public void setOpened(boolean opened) {
+    isOpened = opened;
   }
 
   boolean isClosed() {
@@ -306,7 +309,7 @@ public class CelebornChannelBufferReader {
     if (!closed && !CelebornBufferStream.isEmptyStream(bufferStream)) {
       // TOOD: Update the partition locations here if support reading and writing shuffle data
       // simultaneously
-      bufferStream.moveToNextPartitionIfPossible(streamId, this::sendRequireSegmentId);
+      bufferStream.moveToNextPartitionIfPossible(streamId, this::sendRequireSegmentId, true);
     }
   }
 

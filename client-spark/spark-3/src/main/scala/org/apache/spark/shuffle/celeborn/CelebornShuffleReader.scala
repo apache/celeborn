@@ -34,6 +34,7 @@ import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
 
 import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.client.ShuffleClientImpl.ReduceFileGroups
 import org.apache.celeborn.client.read.{CelebornInputStream, MetricsCallback}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.{CelebornIOException, PartitionUnRetryAbleException}
@@ -104,8 +105,16 @@ class CelebornShuffleReader[K, C](
     val localFetchEnabled = conf.enableReadLocalShuffleFile
     val localHostAddress = Utils.localHostName(conf)
     val shuffleKey = Utils.makeShuffleKey(handle.appUniqueId, shuffleId)
-    // startPartition is irrelevant
-    val fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition)
+    var fileGroups: ReduceFileGroups = null
+    try {
+      // startPartition is irrelevant
+      fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition)
+    } catch {
+      case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
+        handleFetchExceptions(shuffleId, 0, ce)
+      case e: Throwable => throw e
+    }
+
     // host-port -> (TransportClient, PartitionLocation Array, PbOpenStreamList)
     val workerRequestMap = new util.HashMap[
       String,
@@ -119,23 +128,34 @@ class CelebornShuffleReader[K, C](
           partCnt += 1
           val hostPort = location.hostAndFetchPort
           if (!workerRequestMap.containsKey(hostPort)) {
-            val client = shuffleClient.getDataClientFactory().createClient(
-              location.getHost,
-              location.getFetchPort)
-            val pbOpenStreamList = PbOpenStreamList.newBuilder()
-            pbOpenStreamList.setShuffleKey(shuffleKey)
-            workerRequestMap.put(
-              hostPort,
-              (client, new util.ArrayList[PartitionLocation], pbOpenStreamList))
+            try {
+              val client = shuffleClient.getDataClientFactory().createClient(
+                location.getHost,
+                location.getFetchPort)
+              val pbOpenStreamList = PbOpenStreamList.newBuilder()
+              pbOpenStreamList.setShuffleKey(shuffleKey)
+              workerRequestMap.put(
+                hostPort,
+                (client, new util.ArrayList[PartitionLocation], pbOpenStreamList))
+            } catch {
+              case ex: Exception =>
+                shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort, ex)
+                logWarning(
+                  s"Failed to create client for $shuffleKey-$partitionId from host: ${location.hostAndFetchPort}. " +
+                    s"Shuffle reader will try its replica if exists.")
+            }
           }
-          val (_, locArr, pbOpenStreamListBuilder) = workerRequestMap.get(hostPort)
-
-          locArr.add(location)
-          pbOpenStreamListBuilder.addFileName(location.getFileName)
-            .addStartIndex(startMapIndex)
-            .addEndIndex(endMapIndex)
-          pbOpenStreamListBuilder.addReadLocalShuffle(
-            localFetchEnabled && location.getHost.equals(localHostAddress))
+          workerRequestMap.get(hostPort) match {
+            case (_, locArr, pbOpenStreamListBuilder) =>
+              locArr.add(location)
+              pbOpenStreamListBuilder.addFileName(location.getFileName)
+                .addStartIndex(startMapIndex)
+                .addEndIndex(endMapIndex)
+              pbOpenStreamListBuilder.addReadLocalShuffle(
+                localFetchEnabled && location.getHost.equals(localHostAddress))
+            case _ =>
+              logDebug(s"Empty client for host ${hostPort}")
+          }
         }
       }
     }
@@ -234,18 +254,7 @@ class CelebornShuffleReader[K, C](
           if (exceptionRef.get() != null) {
             exceptionRef.get() match {
               case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
-                if (throwsFetchFailure &&
-                  shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
-                  throw new FetchFailedException(
-                    null,
-                    handle.shuffleId,
-                    -1,
-                    -1,
-                    partitionId,
-                    SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + shuffleId,
-                    ce)
-                } else
-                  throw ce
+                handleFetchExceptions(handle.shuffleId, partitionId, ce)
               case e => throw e
             }
           }
@@ -280,18 +289,7 @@ class CelebornShuffleReader[K, C](
         iter
       } catch {
         case e @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
-          if (throwsFetchFailure &&
-            shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
-            throw new FetchFailedException(
-              null,
-              handle.shuffleId,
-              -1,
-              -1,
-              partitionId,
-              SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + shuffleId,
-              e)
-          } else
-            throw e
+          handleFetchExceptions(handle.shuffleId, partitionId, e)
       }
     }
 
@@ -369,6 +367,22 @@ class CelebornShuffleReader[K, C](
         // or(and) sorter may have consumed previous interruptible iterator.
         new InterruptibleIterator[Product2[K, C]](context, resultIter)
     }
+  }
+
+  private def handleFetchExceptions(shuffleId: Int, partitionId: Int, ce: Throwable) = {
+    if (throwsFetchFailure &&
+      shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
+      logWarning(s"Handle fetch exceptions for ${shuffleId}-${partitionId}", ce)
+      throw new FetchFailedException(
+        null,
+        handle.shuffleId,
+        -1,
+        -1,
+        partitionId,
+        SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + shuffleId,
+        ce)
+    } else
+      throw ce
   }
 
   def newSerializerInstance(dep: ShuffleDependency[K, _, C]): SerializerInstance = {

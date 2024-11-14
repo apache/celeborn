@@ -53,17 +53,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.util.Utils$;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 
-public class RemoteShuffleMasterTest {
+public class RemoteShuffleMasterSuiteJ {
 
-  private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleMasterTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleMasterSuiteJ.class);
   private RemoteShuffleMaster remoteShuffleMaster;
   private Configuration configuration;
 
   @Before
   public void setUp() {
     configuration = new Configuration();
+    int startPort = Utils$.MODULE$.selectRandomInt(1024, 65535);
+    configuration.setInteger("celeborn.master.port", startPort);
+    configuration.setString("celeborn.master.endpoints", "localhost:" + startPort);
     remoteShuffleMaster = createShuffleMaster(configuration);
   }
 

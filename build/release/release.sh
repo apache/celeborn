@@ -128,7 +128,7 @@ upload_nexus_staging() {
   echo "Deploying celeborn-client-mr-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pmr "clean;celeborn-client-mr-shaded/publishSigned"
 
-  echo "Deploying celeborn-openapi-client_2.12"
+  echo "Deploying celeborn-openapi-client"
   ${PROJECT_DIR}/build/sbt "clean;celeborn-openapi-client/publishSigned"
 
   echo "Deploying celeborn-spi"

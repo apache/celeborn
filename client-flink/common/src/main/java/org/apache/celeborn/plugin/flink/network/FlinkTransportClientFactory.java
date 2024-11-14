@@ -32,57 +32,30 @@ import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientBootstrap;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.util.JavaUtils;
-import org.apache.celeborn.plugin.flink.utils.Utils;
 
 public class FlinkTransportClientFactory extends TransportClientFactory {
 
   public static final Logger logger = LoggerFactory.getLogger(FlinkTransportClientFactory.class);
 
   private ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers;
-  private final int fetchMaxRetries;
+
+  private int bufferSizeBytes;
 
   public FlinkTransportClientFactory(
-      TransportContext context, int fetchMaxRetries, List<TransportClientBootstrap> bootstraps) {
+      TransportContext context, List<TransportClientBootstrap> bootstraps, int bufferSizeBytes) {
     super(context, bootstraps);
     bufferSuppliers = JavaUtils.newConcurrentHashMap();
-    this.fetchMaxRetries = fetchMaxRetries;
     this.pooledAllocator = new UnpooledByteBufAllocator(true);
+    this.bufferSizeBytes = bufferSizeBytes;
   }
 
   public TransportClient createClientWithRetry(String remoteHost, int remotePort)
       throws IOException, InterruptedException {
-    int retryCount = fetchMaxRetries;
-
-    while (retryCount > 0) {
-      try {
-        return createClient(remoteHost, remotePort);
-      } catch (Exception e) {
-        retryCount--;
-        logger.warn(
-            "Retrying ({}/{}) times create client to {}:{}",
-            retryCount,
-            fetchMaxRetries,
-            remoteHost,
-            remotePort,
-            e);
-        if (retryCount == 0) {
-          if (e instanceof InterruptedException || e instanceof IOException) {
-            throw e;
-          } else {
-            Utils.rethrowAsRuntimeException(e);
-          }
-        }
-      }
-    }
-
-    return null;
-  }
-
-  @Override
-  public TransportClient createClient(String remoteHost, int remotePort)
-      throws IOException, InterruptedException {
-    return createClient(
-        remoteHost, remotePort, -1, new TransportFrameDecoderWithBufferSupplier(bufferSuppliers));
+    return retryCreateClient(
+        remoteHost,
+        remotePort,
+        -1,
+        () -> new TransportFrameDecoderWithBufferSupplier(bufferSuppliers, bufferSizeBytes));
   }
 
   public void registerSupplier(long streamId, Supplier<ByteBuf> supplier) {

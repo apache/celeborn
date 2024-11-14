@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +33,7 @@ import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
+import org.apache.celeborn.common.util.CollectionUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
@@ -101,7 +103,16 @@ public class MetaHandler {
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
       Map<String, Long> estimatedAppDiskUsage = new HashMap<>();
       WorkerStatus workerStatus;
+      List<Integer> lostShuffles;
       switch (cmdType) {
+        case ReviseLostShuffles:
+          appId = request.getReviseLostShufflesRequest().getAppId();
+          lostShuffles = request.getReviseLostShufflesRequest().getLostShufflesList();
+          LOG.info(
+              "Handle revise lost shuffles for {} {}", appId, StringUtils.join(lostShuffles, ","));
+          metaSystem.reviseLostShuffles(appId, lostShuffles);
+          break;
+
         case RequestSlots:
           shuffleKey = request.getRequestSlotsRequest().getShuffleKey();
           LOG.debug("Handle request slots for {}", shuffleKey);
@@ -127,11 +138,21 @@ public class MetaHandler {
 
         case AppHeartbeat:
           appId = request.getAppHeartbeatRequest().getAppId();
-          LOG.debug("Handle app heartbeat for {}", appId);
           long time = request.getAppHeartbeatRequest().getTime();
           long totalWritten = request.getAppHeartbeatRequest().getTotalWritten();
           long fileCount = request.getAppHeartbeatRequest().getFileCount();
-          metaSystem.updateAppHeartbeatMeta(appId, time, totalWritten, fileCount);
+          long shuffleCount = request.getAppHeartbeatRequest().getShuffleCount();
+          LOG.debug("Handle app heartbeat for {} with shuffle count {}", appId, shuffleCount);
+          Map<String, Long> shuffleFallbackCounts =
+              request.getAppHeartbeatRequest().getShuffleFallbackCountsMap();
+          if (CollectionUtils.isNotEmpty(shuffleFallbackCounts)) {
+            LOG.warn(
+                "{} shuffle fallbacks in app {}",
+                shuffleFallbackCounts.values().stream().mapToLong(v -> v).sum(),
+                appId);
+          }
+          metaSystem.updateAppHeartbeatMeta(
+              appId, time, totalWritten, fileCount, shuffleCount, shuffleFallbackCounts);
           break;
 
         case AppLost:
@@ -149,7 +170,7 @@ public class MetaHandler {
               addAddresses.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
           List<WorkerInfo> workersToRemove =
               removeAddresses.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
-          metaSystem.updateWorkerExcludeMeta(workersToAdd, workersToRemove);
+          metaSystem.updateManuallyExcludedWorkersMeta(workersToAdd, workersToRemove);
           break;
 
         case WorkerLost:

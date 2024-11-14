@@ -26,7 +26,7 @@ import scala.collection.JavaConverters._
 import com.google.protobuf.InvalidProtocolBufferException
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationMeta, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.meta.MapFileMeta.SegmentIndex
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
@@ -163,7 +163,8 @@ object PbSerDeUtils {
   @throws[InvalidProtocolBufferException]
   def fromPbFileInfoMap(
       data: Array[Byte],
-      cache: ConcurrentHashMap[String, UserIdentifier]): ConcurrentHashMap[String, DiskFileInfo] = {
+      cache: ConcurrentHashMap[String, UserIdentifier],
+      mountPoints: util.HashSet[String]): ConcurrentHashMap[String, DiskFileInfo] = {
     val pbFileInfoMap = PbFileInfoMap.parseFrom(data)
     val fileInfoMap = JavaUtils.newConcurrentHashMap[String, DiskFileInfo]
     pbFileInfoMap.getValuesMap.entrySet().asScala.foreach { entry =>
@@ -173,10 +174,16 @@ object PbSerDeUtils {
       val userIdentifierKey = pbUserIdentifier.getTenantId + "-" + pbUserIdentifier.getName
       if (!cache.containsKey(userIdentifierKey)) {
         val fileInfo = fromPbFileInfo(pbFileInfo)
+        if (fileInfo.getFileMeta.isInstanceOf[MapFileMeta]) {
+          fileInfo.setMountPoint(DeviceInfo.getMountPoint(fileInfo.getFilePath, mountPoints))
+        }
         cache.put(userIdentifierKey, fileInfo.getUserIdentifier)
         fileInfoMap.put(fileName, fileInfo)
       } else {
         val fileInfo = fromPbFileInfo(pbFileInfo, cache.get(userIdentifierKey))
+        if (fileInfo.getFileMeta.isInstanceOf[MapFileMeta]) {
+          fileInfo.setMountPoint(DeviceInfo.getMountPoint(fileInfo.getFilePath, mountPoints))
+        }
         fileInfoMap.put(fileName, fileInfo)
       }
     }
@@ -450,7 +457,7 @@ object PbSerDeUtils {
 
   def toPbSnapshotMetaInfo(
       estimatedPartitionSize: java.lang.Long,
-      registeredShuffle: java.util.Set[String],
+      registeredShuffle: java.util.Map[String, java.util.Set[Integer]],
       hostnameSet: java.util.Set[String],
       excludedWorkers: java.util.Set[WorkerInfo],
       manuallyExcludedWorkers: java.util.Set[WorkerInfo],
@@ -459,6 +466,8 @@ object PbSerDeUtils {
       workers: java.util.Set[WorkerInfo],
       partitionTotalWritten: java.lang.Long,
       partitionTotalFileCount: java.lang.Long,
+      shuffleTotalCount: java.lang.Long,
+      shuffleFallbackCounts: java.util.Map[String, java.lang.Long],
       appDiskUsageMetricSnapshots: Array[AppDiskUsageSnapShot],
       currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot,
       lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long],
@@ -468,7 +477,9 @@ object PbSerDeUtils {
       decommissionWorkers: java.util.Set[WorkerInfo]): PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
-      .addAllRegisteredShuffle(registeredShuffle)
+      .addAllRegisteredShuffle(registeredShuffle.asScala.flatMap { appIdAndShuffleId =>
+        appIdAndShuffleId._2.asScala.map(i => Utils.makeShuffleKey(appIdAndShuffleId._1, i))
+      }.asJava)
       .addAllHostnameSet(hostnameSet)
       .addAllExcludedWorkers(excludedWorkers.asScala.map(toPbWorkerInfo(_, true, false)).asJava)
       .addAllManuallyExcludedWorkers(manuallyExcludedWorkers.asScala
@@ -478,6 +489,8 @@ object PbSerDeUtils {
       .addAllWorkers(workers.asScala.map(toPbWorkerInfo(_, true, false)).asJava)
       .setPartitionTotalWritten(partitionTotalWritten)
       .setPartitionTotalFileCount(partitionTotalFileCount)
+      .setShuffleTotalCount(shuffleTotalCount)
+      .putAllShuffleFallbackCounts(shuffleFallbackCounts)
       // appDiskUsageMetricSnapshots can have null values,
       // protobuf repeated value can't support null value in list.
       .addAllAppDiskUsageMetricSnapshots(appDiskUsageMetricSnapshots.filter(_ != null)

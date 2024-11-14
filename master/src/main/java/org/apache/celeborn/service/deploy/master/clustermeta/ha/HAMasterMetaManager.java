@@ -56,6 +56,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
     this.conf = conf;
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
+    this.unhealthyDiskRatioThreshold = conf.masterExcludeWorkerUnhealthyDiskRatioThreshold();
     this.appDiskUsageMetric = new AppDiskUsageMetric(conf);
     this.rackResolver = rackResolver;
   }
@@ -129,7 +130,13 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleAppHeartbeat(
-      String appId, long totalWritten, long fileCount, long time, String requestId) {
+      String appId,
+      long totalWritten,
+      long fileCount,
+      long shuffleCount,
+      Map<String, Long> shuffleFallbackCounts,
+      long time,
+      String requestId) {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
@@ -141,6 +148,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setTime(time)
                       .setTotalWritten(totalWritten)
                       .setFileCount(fileCount)
+                      .setShuffleCount(shuffleCount)
+                      .putAllShuffleFallbackCounts(shuffleFallbackCounts)
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {
@@ -190,6 +199,25 @@ public class HAMasterMetaManager extends AbstractMetaManager {
           workersToAdd.stream().map(WorkerInfo::toString).collect(Collectors.joining(",")),
           workersToRemove.stream().map(WorkerInfo::toString).collect(Collectors.joining(",")),
           e);
+      throw e;
+    }
+  }
+
+  @Override
+  public void handleReviseLostShuffles(String appId, List<Integer> shuffles, String requestId) {
+    try {
+      ratisServer.submitRequest(
+          ResourceRequest.newBuilder()
+              .setCmdType(Type.ReviseLostShuffles)
+              .setRequestId(requestId)
+              .setReviseLostShufflesRequest(
+                  ResourceProtos.ReviseLostShufflesRequest.newBuilder()
+                      .setAppId(appId)
+                      .addAllLostShuffles(shuffles)
+                      .build())
+              .build());
+    } catch (CelebornRuntimeException e) {
+      LOG.error("Handle revise lost shuffle failed!", e);
       throw e;
     }
   }

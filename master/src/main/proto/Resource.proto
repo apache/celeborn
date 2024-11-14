@@ -41,6 +41,8 @@ enum Type {
   ApplicationMeta = 26;
   ReportWorkerDecommission = 27;
   BatchUnRegisterShuffle = 28;
+
+  ReviseLostShuffles = 29;
 }
 
 enum WorkerEventType {
@@ -75,6 +77,7 @@ message ResourceRequest {
   optional ApplicationMetaRequest applicationMetaRequest = 23;
   optional ReportWorkerDecommissionRequest reportWorkerDecommissionRequest = 24;
   optional BatchUnregisterShuffleRequest batchUnregisterShuffleRequest = 25;
+  optional ReviseLostShufflesRequest reviseLostShufflesRequest = 102;
 }
 
 message DiskInfo {
@@ -117,6 +120,8 @@ message AppHeartbeatRequest {
   required int64 time = 2;
   required int64 totalWritten = 3;
   required int64 fileCount = 4;
+  optional int64 shuffleCount = 5;
+  map<string, int64> shuffleFallbackCounts = 6;
 }
 
 message AppLostRequest {
@@ -242,4 +247,9 @@ message ResourceResponse {
 message ApplicationMetaRequest {
   required string appId = 1;
   optional string secret = 2;
+}
+
+message ReviseLostShufflesRequest {
+  required string appId = 1 ;
+  repeated int32 lostShuffles = 2 ;
 }

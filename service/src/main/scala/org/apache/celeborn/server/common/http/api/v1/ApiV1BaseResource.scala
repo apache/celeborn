@@ -57,6 +57,12 @@ class ApiV1BaseResource extends ApiRequestContext {
             threadStack.blockedByThreadId.getOrElse(null).asInstanceOf[java.lang.Long])
           .blockedByLock(threadStack.blockedByLock)
           .holdingLocks(threadStack.holdingLocks.asJava)
+          .synchronizers(threadStack.synchronizers.asJava)
+          .monitors(threadStack.monitors.asJava)
+          .lockName(threadStack.lockName.orNull)
+          .lockOwnerName(threadStack.lockOwnerName.orNull)
+          .suspended(threadStack.suspended)
+          .inNative(threadStack.inNative)
       }.asJava)
   }
 

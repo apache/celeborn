@@ -80,7 +80,7 @@ if [ ! -d "$CELEBORN_JARS_DIR" ]; then
   echo "You need to build CELEBORN with the target \"package\" before running this program." 1>&2
   exit 1
 else
-  CELEBORN_CLASSPATH="$CELEBORN_CONF_DIR:$HADOOP_CONF_DIR:$CELEBORN_JARS_DIR/*"
+  CELEBORN_CLASSPATH="$CELEBORN_CONF_DIR:$HADOOP_CONF_DIR:$CELEBORN_JARS_DIR/*:$JAVA_TOOLS_JAR"
 fi
 
 # Turn off posix mode since it does not allow process substitution

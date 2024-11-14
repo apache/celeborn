@@ -298,6 +298,28 @@ components:
           description: The locks that the current thread is holding.
           items:
             type: string
+        synchronizers:
+          type: array
+          description: The ownable synchronizers locked by the thread.
+          items:
+            type: string
+        monitors:
+          type: array
+          description: The object monitors locked by the thread.
+          items:
+            type: string
+        lockName:
+          type: string
+          description: The string representation of the object on which the thread is blocked if any.
+        lockOwnerName:
+          type: string
+          description: The name of the thread that owns the object this thread is blocked on.
+        suspended:
+          type: boolean
+          description: Whether the thread is suspended.
+        inNative:
+          type: boolean
+          description: Whether the thread is executing native code.
       required:
         - threadId
         - threadName

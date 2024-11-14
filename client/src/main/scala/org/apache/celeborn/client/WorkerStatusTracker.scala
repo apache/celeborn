@@ -61,7 +61,7 @@ class WorkerStatusTracker(
     !excludedWorkers.containsKey(worker) && !shuttingWorkers.contains(worker)
   }
 
-  def workerAvailable(loc: PartitionLocation): Boolean = {
+  def workerAvailableByLocation(loc: PartitionLocation): Boolean = {
     if (loc == null) {
       false
     } else {
@@ -188,9 +188,12 @@ class WorkerStatusTracker(
           statusChanged = true
         }
       }
-      val retainResult = shuttingWorkers.retainAll(res.shuttingWorkers)
-      val addResult = shuttingWorkers.addAll(res.shuttingWorkers)
-      statusChanged = statusChanged || retainResult || addResult
+
+      val retainShuttingWorkersResult = shuttingWorkers.retainAll(res.shuttingWorkers)
+      val addShuttingWorkersResult = shuttingWorkers.addAll(res.shuttingWorkers)
+
+      statusChanged =
+        statusChanged || retainShuttingWorkersResult || addShuttingWorkersResult
       // Always trigger commit files for shutting down workers from HeartbeatFromApplicationResponse
       // See details in CELEBORN-696
       if (!res.unknownWorkers.isEmpty || !res.shuttingWorkers.isEmpty) {

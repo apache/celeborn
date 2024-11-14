@@ -113,6 +113,18 @@ public class BufferUtils {
     }
   }
 
+  public static BufferHeader getBufferHeaderFromByteBuf(ByteBuf byteBuf, int position) {
+    byteBuf.readerIndex(position);
+    return new BufferHeader(
+        byteBuf.readInt(),
+        byteBuf.readInt(),
+        byteBuf.readInt(),
+        byteBuf.readInt(),
+        Buffer.DataType.values()[byteBuf.readByte()],
+        byteBuf.readBoolean(),
+        byteBuf.readInt());
+  }
+
   public static void reserveNumRequiredBuffers(BufferPool bufferPool, int numRequiredBuffers)
       throws IOException {
     long startTime = System.nanoTime();

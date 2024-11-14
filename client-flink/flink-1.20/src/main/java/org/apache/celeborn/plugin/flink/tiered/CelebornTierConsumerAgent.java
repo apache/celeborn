@@ -117,10 +117,13 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
 
   private TieredStorageMemoryManager memoryManager;
 
+  private final int bufferSizeBytes;
+
   public CelebornTierConsumerAgent(
       CelebornConf conf,
       List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
-      List<TierShuffleDescriptor> shuffleDescriptors) {
+      List<TierShuffleDescriptor> shuffleDescriptors,
+      int bufferSizeBytes) {
     checkArgument(!shuffleDescriptors.isEmpty(), "Wrong shuffle descriptors size.");
     checkArgument(
         tieredStorageConsumerSpecs.size() == shuffleDescriptors.size(),
@@ -132,6 +135,7 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
     this.bufferReaders = new HashMap<>();
     this.receivedBuffers = new HashMap<>();
     this.subPartitionsNeedNotifyAvailable = new HashSet<>();
+    this.bufferSizeBytes = bufferSizeBytes;
     for (TierShuffleDescriptor shuffleDescriptor : shuffleDescriptors) {
       if (shuffleDescriptor instanceof TierShuffleDescriptorImpl) {
         initShuffleClient((TierShuffleDescriptorImpl) shuffleDescriptor);
@@ -326,7 +330,8 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
               shuffleResource.getLifecycleManagerPort(),
               shuffleResource.getLifecycleManagerTimestamp(),
               conf,
-              new UserIdentifier("default", "default"));
+              new UserIdentifier("default", "default"),
+              bufferSizeBytes);
     } catch (DriverChangedException e) {
       throw new RuntimeException(e.getMessage());
     }
@@ -375,7 +380,7 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
   private boolean openReader(CelebornChannelBufferReader bufferReader) {
     if (!bufferReader.isOpened()) {
       try {
-        bufferReader.open(0);
+        bufferReader.open(0, true);
       } catch (Exception e) {
         // may throw PartitionUnRetryAbleException
         recycleAllResources();
@@ -383,7 +388,8 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
       }
     }
 
-    return bufferReader.isOpened();
+    bufferReader.setOpened(true);
+    return true;
   }
 
   private void initBufferReaders() {
