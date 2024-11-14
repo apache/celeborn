@@ -5558,8 +5558,8 @@ object CelebornConf extends Logging {
   val CLIENT_INPUTSTREAM_CREATION_WINDOW: ConfigEntry[Int] =
     buildConf("celeborn.client.inputStream.creation.window")
       .categories("client")
-      .doc(s"Window size that CelebornShuffleReader pre-creates CelebornInputStreams, for coalesced scenario" +
-        s"where multiple Partitions are read")
+      .doc("Window size that CelebornShuffleReader pre-creates CelebornInputStreams, for coalesced scenario " +
+        "where multiple Partitions are read")
       .version("0.6.0")
       .intConf
       .createWithDefault(16)
@@ -5595,7 +5595,7 @@ object CelebornConf extends Logging {
         "Store backend for dynamic config service. The store backend can be specified in two ways:" +
           " - Using the short name of the store backend defined in the implementation of `ConfigStore#getName` " +
           "whose return value can be mapped to the corresponding backend implementation. Available options: FS, DB." +
-          " - Using the service class name of the store backend implementation." +
+          " - Using the service class name of the store backend implementation. " +
           "If not provided, it means that dynamic configuration is disabled.")
       .version("0.4.0")
       .stringConf
