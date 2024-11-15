@@ -41,7 +41,6 @@ import com.amazonaws.services.s3.model.PartSummary;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler;
-import org.apache.celeborn.server.common.service.mpu.bean.AWSCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,22 +49,37 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
 
   private static final Logger logger = LoggerFactory.getLogger(S3MultipartUploadHandler.class);
 
-  private final AWSCredentials awsCredentials;
   private String uploadId;
+
   private AmazonS3 s3Client;
+
   private String key;
 
-  public S3MultipartUploadHandler(AWSCredentials awsCredentials, String key) {
-    this.awsCredentials = awsCredentials;
+  private String bucketName;
+
+  private String s3AccessKey;
+
+  private String s3SecretKey;
+
+  private String s3EndpointRegion;
+
+  private Integer s3MultiplePartUploadMaxRetries;
+
+  public S3MultipartUploadHandler(String bucketName, String s3AccessKey, String s3SecretKey, String s3EndpointRegion, String key, Integer s3MultiplePartUploadMaxRetries) {
+    this.bucketName = bucketName;
+    this.s3AccessKey = s3AccessKey;
+    this.s3SecretKey = s3SecretKey;
+    this.s3EndpointRegion = s3EndpointRegion;
+    this.s3MultiplePartUploadMaxRetries = s3MultiplePartUploadMaxRetries;
     BasicAWSCredentials basicAWSCredentials =
-        new BasicAWSCredentials(awsCredentials.getS3AccessKey(), awsCredentials.getS3SecretKey());
+        new BasicAWSCredentials(s3AccessKey, s3SecretKey);
     ClientConfiguration clientConfig = new ClientConfiguration()
-            .withRetryPolicy(PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(5))
-            .withMaxErrorRetry(5);
+            .withRetryPolicy(PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(s3MultiplePartUploadMaxRetries))
+            .withMaxErrorRetry(s3MultiplePartUploadMaxRetries);
     this.s3Client =
         AmazonS3ClientBuilder.standard()
             .withCredentials(new AWSStaticCredentialsProvider(basicAWSCredentials))
-            .withRegion(awsCredentials.getS3EndpointRegion())
+            .withRegion(s3EndpointRegion)
             .withClientConfiguration(clientConfig)
             .build();
     this.key = key;
@@ -74,34 +88,31 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
   @Override
   public void startUpload() {
     InitiateMultipartUploadRequest initRequest =
-        new InitiateMultipartUploadRequest(awsCredentials.getBucketName(), key);
+        new InitiateMultipartUploadRequest(bucketName, key);
     InitiateMultipartUploadResult initResponse = s3Client.initiateMultipartUpload(initRequest);
     this.uploadId = initResponse.getUploadId();
   }
 
   @Override
   public void putPart(InputStream inputStream, Integer partNumber, Boolean finalFlush) throws IOException {
-    try {
-      int partSize = inputStream.available();
+    try (InputStream inStream = inputStream) {
+      int partSize = inStream.available();
       if (partSize == 0) {
-        logger.warn("key {} uploadId {} part size is 0 for part number {} finalFlush {}", key, uploadId, partNumber, finalFlush);
+        logger.debug("key {} uploadId {} part size is 0 for part number {} finalFlush {}", key, uploadId, partNumber, finalFlush);
         return;
       }
       UploadPartRequest uploadRequest =
-          new UploadPartRequest()
-              .withBucketName(awsCredentials.getBucketName())
-              .withKey(key)
-              .withUploadId(uploadId)
-              .withPartNumber(partNumber)
-              .withInputStream(inputStream)
-              .withPartSize(partSize)
-              .withLastPart(finalFlush);
+              new UploadPartRequest()
+                      .withBucketName(bucketName)
+                      .withKey(key)
+                      .withUploadId(uploadId)
+                      .withPartNumber(partNumber)
+                      .withInputStream(inStream)
+                      .withPartSize(partSize)
+                      .withLastPart(finalFlush);
       s3Client.uploadPart(uploadRequest);
-      logger.warn("key {} uploadId {} part number {} uploaded with size {} finalFlush {}",key, uploadId, partNumber, partSize, finalFlush);
-    } catch (RuntimeException e) {
-      logger.error("Failed to upload part", e);
-      throw e;
-    } catch (IOException e) {
+      logger.debug("key {} uploadId {} part number {} uploaded with size {} finalFlush {}", key, uploadId, partNumber, partSize, finalFlush);
+    } catch (RuntimeException | IOException e) {
       logger.error("Failed to upload part", e);
       throw e;
     }
@@ -110,7 +121,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
   @Override
   public void complete() {
     List<PartETag> partETags = new ArrayList<>();
-    ListPartsRequest listPartsRequest = new ListPartsRequest(awsCredentials.getBucketName(), key, uploadId);
+    ListPartsRequest listPartsRequest = new ListPartsRequest(bucketName, key, uploadId);
     PartListing partListing;
     do {
       partListing = s3Client.listParts(listPartsRequest);
@@ -120,27 +131,27 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
       listPartsRequest.setPartNumberMarker(partListing.getNextPartNumberMarker());
     } while (partListing.isTruncated());
     if (partETags.size() == 0){
-      logger.debug("bucket {} key {} uploadId {} has no parts uploaded, aborting upload", awsCredentials.getBucketName(), key, uploadId);
+      logger.debug("bucket {} key {} uploadId {} has no parts uploaded, aborting upload", bucketName, key, uploadId);
       abort();
-      logger.debug("bucket {} key {} upload completed with size {}", awsCredentials.getBucketName(), key, 0);
+      logger.debug("bucket {} key {} upload completed with size {}", bucketName, key, 0);
       return;
     }
     ProgressListener progressListener = progressEvent -> {
       logger.debug("key {} uploadId {} progress event type {} transferred {} bytes", key, uploadId, progressEvent.getEventType(), progressEvent.getBytesTransferred());
     };
 
-      CompleteMultipartUploadRequest compRequest =
+    CompleteMultipartUploadRequest compRequest =
               new CompleteMultipartUploadRequest(
-                      awsCredentials.getBucketName(), key, uploadId, partETags)
+                      bucketName, key, uploadId, partETags)
                       .withGeneralProgressListener(progressListener);
-      CompleteMultipartUploadResult compResult = s3Client.completeMultipartUpload(compRequest);
-      logger.debug("bucket {} key {} uploadId {} upload completed location is in {} ", awsCredentials.getBucketName(), key, uploadId, compResult.getLocation());
+    CompleteMultipartUploadResult compResult = s3Client.completeMultipartUpload(compRequest);
+    logger.debug("bucket {} key {} uploadId {} upload completed location is in {} ", bucketName, key, uploadId, compResult.getLocation());
   }
 
   @Override
   public void abort() {
     AbortMultipartUploadRequest abortMultipartUploadRequest =
-        new AbortMultipartUploadRequest(awsCredentials.getBucketName(), key, uploadId);
+        new AbortMultipartUploadRequest(bucketName, key, uploadId);
     s3Client.abortMultipartUpload(abortMultipartUploadRequest);
   }
 

@@ -1145,6 +1145,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def s3EndpointRegion: String = get(S3_ENDPOINT_REGION).getOrElse("")
 
+  def s3MultiplePartUploadMaxRetries: Int = get(S3_MPU_MAX_RETRIES)
+
   def s3Dir: String = {
     get(S3_DIR).map {
       s3Dir =>
@@ -3041,6 +3043,14 @@ object CelebornConf extends Logging {
       .doc("S3 endpoint for Celeborn to store shuffle data.")
       .stringConf
       .createOptional
+
+  val S3_MPU_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.storage.s3.mpu.maxRetries")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("S3 MPU upload max retries.")
+      .intConf
+      .createWithDefault(5)
 
   val WORKER_DISK_RESERVE_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.storage.disk.reserve.size")

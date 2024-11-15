@@ -53,7 +53,6 @@ import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler;
-import org.apache.celeborn.server.common.service.mpu.bean.AWSCredentials;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.UserBufferInfo;
@@ -122,6 +121,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   protected int partNumber = 1;
 
+  private final int s3MultiplePartUploadMaxRetries;
+
   public PartitionDataWriter(
       StorageManager storageManager,
       AbstractSource workerSource,
@@ -146,6 +147,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     this.s3FlusherBufferSize = conf.workerS3FlusherBufferSize();
     this.metricsCollectCriticalEnabled = conf.metricsCollectCriticalEnabled();
     this.chunkSize = conf.shuffleChunkSize();
+    this.s3MultiplePartUploadMaxRetries = conf.s3MultiplePartUploadMaxRetries();
 
     Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFileResult =
         storageManager.createFile(writerContext, supportInMemory);
@@ -207,18 +209,25 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           int index = diskFileInfo.getFilePath().indexOf(bucketName);
           String key = diskFileInfo.getFilePath().substring(index + bucketName.length() + 1);
 
-          AWSCredentials awsCredentials =
-              new AWSCredentials(bucketName, s3AccessKey, s3SecretKey, s3EndpointRegion);
           this.s3MultipartUploadHandler =
               (MultipartUploadHandler)
                   DynConstructors.builder()
                       .impl(
                           "org.apache.celeborn.S3MultipartUploadHandler",
-                          awsCredentials.getClass(),
-                          String.class)
+                          String.class,
+                          String.class,
+                          String.class,
+                          String.class,
+                          String.class,
+                          Integer.class)
                       .build()
-                      .newInstance(awsCredentials, key);
-
+                      .newInstance(
+                          bucketName,
+                          s3AccessKey,
+                          s3SecretKey,
+                          s3EndpointRegion,
+                          key,
+                          s3MultiplePartUploadMaxRetries);
           s3MultipartUploadHandler.startUpload();
         }
       } catch (IOException e) {
