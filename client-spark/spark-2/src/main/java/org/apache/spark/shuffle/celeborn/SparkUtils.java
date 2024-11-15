@@ -52,7 +52,7 @@ import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.reflect.DynFields;
 
 public class SparkUtils {
-  private static final Logger logger = LoggerFactory.getLogger(SparkUtils.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SparkUtils.class);
 
   public static final String FETCH_FAILURE_ERROR_MSG = "Celeborn FetchFailure with shuffle id ";
 
@@ -98,7 +98,7 @@ public class SparkUtils {
       field.setAccessible(true);
       return (SQLMetric) field.get(serializer);
     } catch (NoSuchFieldException | IllegalAccessException e) {
-      logger.warn("Failed to get dataSize metric, aqe won`t work properly.");
+      LOG.warn("Failed to get dataSize metric, aqe won`t work properly.");
     }
     return null;
   }
@@ -205,7 +205,7 @@ public class SparkUtils {
         scheduler.cancelStage(shuffleMapStage.get().id(), new Some<>(reason));
       }
     } else {
-      logger.error("Can not get active SparkContext, skip cancelShuffle.");
+      LOG.error("Can not get active SparkContext, skip cancelShuffle.");
     }
   }
 
