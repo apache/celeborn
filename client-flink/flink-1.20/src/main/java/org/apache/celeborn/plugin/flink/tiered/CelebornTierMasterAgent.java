@@ -125,6 +125,10 @@ public class CelebornTierMasterAgent implements TierMasterAgent {
   @Override
   public TierShuffleDescriptor addPartitionAndGetShuffleDescriptor(
       JobID jobID, ResultPartitionID resultPartitionID) {
+    Set<Integer> shuffleIds = jobShuffleIds.get(jobID);
+    if (shuffleIds == null) {
+      throw new RuntimeException("Can not find job in master agent, job: " + jobID);
+    }
     FlinkResultPartitionInfo resultPartitionInfo =
         new FlinkResultPartitionInfo(jobID, resultPartitionID);
     ShuffleResourceDescriptor shuffleResourceDescriptor =
@@ -132,10 +136,6 @@ public class CelebornTierMasterAgent implements TierMasterAgent {
             resultPartitionInfo.getShuffleId(),
             resultPartitionInfo.getTaskId(),
             resultPartitionInfo.getAttemptId());
-    Set<Integer> shuffleIds = jobShuffleIds.get(jobID);
-    if (shuffleIds == null) {
-      throw new RuntimeException("Can not find job in master agent, job: " + jobID);
-    }
     shuffleIds.add(shuffleResourceDescriptor.getShuffleId());
     shuffleResourceTracker.addPartitionResource(
         jobID,
@@ -181,7 +181,9 @@ public class CelebornTierMasterAgent implements TierMasterAgent {
   public void close() {
     try {
       jobShuffleIds.clear();
-      lifecycleManager.stop();
+      if (null != lifecycleManager) {
+        lifecycleManager.stop();
+      }
     } catch (Exception e) {
       LOG.warn("Encounter exception when shutdown: {}", e.getMessage(), e);
     }
