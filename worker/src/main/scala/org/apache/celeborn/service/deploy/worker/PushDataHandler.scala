@@ -1224,8 +1224,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
          |fileName:${fileWriter.getCurrentFileInfo.getFilePath}
          |""".stripMargin)
     if (fileWriter.needHardSplitForMemoryShuffleStorage()) {
+      workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
+      callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+      logInfo(
+        s"Do hardSplit for memory shuffle file fileLength:${fileWriter.getMemoryFileInfo.getFileLength}")
       return true
     }
+
     val diskFileInfo = fileWriter.getDiskFileInfo
     if (diskFileInfo != null) {
       if (workerPartitionSplitEnabled && ((diskFull && diskFileInfo.getFileLength > partitionSplitMinimumSize) ||
