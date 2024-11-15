@@ -143,8 +143,10 @@ public class SparkShuffleManager implements ShuffleManager {
           if (celebornConf.clientFetchThrowsFetchFailure()) {
             MapOutputTrackerMaster mapOutputTracker =
                 (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();
+
             lifecycleManager.registerReportTaskShuffleFetchFailurePreCheck(
                 taskId -> !SparkUtils.taskAnotherAttemptRunning(taskId));
+
             lifecycleManager.registerShuffleTrackerCallback(
                 shuffleId -> SparkUtils.unregisterAllMapOutput(mapOutputTracker, shuffleId));
           }

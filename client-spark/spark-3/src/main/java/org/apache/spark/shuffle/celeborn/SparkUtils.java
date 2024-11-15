@@ -17,7 +17,6 @@
 
 package org.apache.spark.shuffle.celeborn;
 
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -331,8 +330,12 @@ public class SparkUtils {
               .hiddenImpl(TaskSchedulerImpl.class, "taskIdToTaskSetManager")
               .defaultAlwaysNull()
               .build();
-  private static final DynFields.UnboundField<HashMap<Long, TaskInfo>> TASK_INFOS_FIELD =
-      DynFields.builder().hiddenImpl(TaskSetManager.class, "taskInfos").defaultAlwaysNull().build();
+  private static final DynFields.UnboundField<scala.collection.mutable.HashMap<Long, TaskInfo>>
+      TASK_INFOS_FIELD =
+          DynFields.builder()
+              .hiddenImpl(TaskSetManager.class, "taskInfos")
+              .defaultAlwaysNull()
+              .build();
 
   public static boolean taskAnotherAttemptRunning(long taskId) {
     if (SparkContext$.MODULE$.getActive().nonEmpty()) {
@@ -342,9 +345,10 @@ public class SparkUtils {
           TASK_ID_TO_TASK_SET_MANAGER_FIELD.bind(taskScheduler).get();
       TaskSetManager taskSetManager = taskIdToTaskSetManager.get(taskId);
       if (taskSetManager != null) {
-        HashMap<Long, TaskInfo> taskInfos = TASK_INFOS_FIELD.bind(taskSetManager).get();
-        TaskInfo taskInfo = taskInfos.get(taskId);
-        if (taskInfo != null) {
+        scala.Option<TaskInfo> taskInfoOption =
+            TASK_INFOS_FIELD.bind(taskSetManager).get().get(taskId);
+        if (taskInfoOption.isDefined()) {
+          TaskInfo taskInfo = taskInfoOption.get();
           return taskSetManager.taskAttempts()[taskInfo.index()].exists(
               ti -> {
                 if (ti.running() && ti.attemptNumber() != taskInfo.attemptNumber()) {
@@ -363,7 +367,7 @@ public class SparkUtils {
         return false;
       }
     } else {
-      LOG.error("Can not get active SparkContext, skip cancelShuffle.");
+      LOG.error("Can not get active SparkContext, skip checking.");
       return false;
     }
   }

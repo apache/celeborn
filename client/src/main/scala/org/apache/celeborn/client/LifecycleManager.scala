@@ -1024,9 +1024,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             logError(t.toString)
             false
         }
-      case None =>
-        throw new UnsupportedOperationException(
-          "unexpected! reportTaskShuffleFetchFailurePreCheck is not registered")
+      case None => true
     }
   }
 
