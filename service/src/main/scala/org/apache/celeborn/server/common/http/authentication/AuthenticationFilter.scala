@@ -31,6 +31,7 @@ import org.apache.celeborn.common.authentication.HttpAuthSchemes.HttpAuthScheme
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.Service
 import org.apache.celeborn.server.common.http.HttpAuthUtils.AUTHORIZATION_HEADER
+import org.apache.celeborn.server.common.http.RestAuditLogger
 
 class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filter with Logging {
   import AuthenticationFilter._
@@ -133,15 +134,22 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
     val httpRequest = request.asInstanceOf[HttpServletRequest]
     val httpResponse = response.asInstanceOf[HttpServletResponse]
 
+    HTTP_CLIENT_IP_ADDRESS.set(httpRequest.getRemoteAddr)
+    HTTP_PROXY_HEADER_CLIENT_IP_ADDRESS.set(httpRequest.getHeader(proxyClientIpHeader))
+
     if (authSchemeHandlers.isEmpty || BYPASS_API_PATHS.contains(httpRequest.getRequestURI)) {
-      filterChain.doFilter(request, response)
-      return
+      try {
+        filterChain.doFilter(request, response)
+        return
+      } finally {
+        RestAuditLogger.audit(httpRequest, httpResponse)
+        HTTP_CLIENT_IP_ADDRESS.remove()
+        HTTP_PROXY_HEADER_CLIENT_IP_ADDRESS.remove()
+      }
     }
 
     val authorization = httpRequest.getHeader(AUTHORIZATION_HEADER)
     val matchedHandler = getMatchedHandler(authorization).orNull
-    HTTP_CLIENT_IP_ADDRESS.set(httpRequest.getRemoteAddr)
-    HTTP_PROXY_HEADER_CLIENT_IP_ADDRESS.set(httpRequest.getHeader(proxyClientIpHeader))
 
     try {
       if (matchedHandler == null) {
@@ -164,7 +172,7 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
         HTTP_AUTH_TYPE.remove()
         httpResponse.sendError(HttpServletResponse.SC_FORBIDDEN, e.getMessage)
     } finally {
-      AuthenticationAuditLogger.audit(httpRequest, httpResponse)
+      RestAuditLogger.audit(httpRequest, httpResponse)
     }
   }
 
