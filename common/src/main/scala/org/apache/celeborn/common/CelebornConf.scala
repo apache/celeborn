@@ -3534,7 +3534,7 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .doc("Size of buffer used by a S3 flusher.")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("4m")
+      .createWithDefaultString("6m")
 
   val WORKER_WRITER_CLOSE_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.writer.close.timeout")
