@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import org.apache.spark.{BarrierTaskContext, ShuffleDependency, SparkConf, SparkContextHelper, SparkException, TaskContext}
 import org.apache.spark.celeborn.ExceptionMakerHelper
 import org.apache.spark.rdd.RDD
+import org.apache.spark.scheduler.SparkSchedulerHelper
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
 import org.apache.spark.sql.SparkSession
@@ -56,7 +57,8 @@ class CelebornFetchFailureSuite extends AnyFunSuite
     super.createWorker(map, storageDir)
   }
 
-  class ShuffleReaderGetHook(conf: CelebornConf) extends ShuffleManagerHook {
+  class ShuffleReaderGetHook(conf: CelebornConf, speculation: Boolean = false)
+    extends ShuffleManagerHook {
     var executed: AtomicBoolean = new AtomicBoolean(false)
     val lock = new Object
 
@@ -65,6 +67,10 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         startPartition: Int,
         endPartition: Int,
         context: TaskContext): Unit = {
+      val taskIndex = SparkSchedulerHelper.getTaskIndex(context.taskAttemptId())
+      if (speculation && taskIndex == 0) {
+        Thread.sleep(3000) // sleep for speculation
+      }
       if (executed.get() == true) return
 
       lock.synchronized {
@@ -82,17 +88,19 @@ class CelebornFetchFailureSuite extends AnyFunSuite
             val allFiles = workerDirs.map(dir => {
               new File(s"$dir/celeborn-worker/shuffle_data/$appUniqueId/$celebornShuffleId")
             })
-            val datafile = allFiles.filter(_.exists())
-              .flatMap(_.listFiles().iterator).headOption
-            datafile match {
-              case Some(file) => file.delete()
-              case None => throw new RuntimeException("unexpected, there must be some data file" +
-                  s" under ${workerDirs.mkString(",")}")
+            val datafiles = allFiles.filter(_.exists())
+            if (datafiles.nonEmpty) {
+              if (taskIndex == 0) { // only cleanup the data file in the task with index 0
+                datafiles.foreach(_.delete())
+                executed.set(true)
+              }
+            } else {
+              throw new RuntimeException("unexpected, there must be some data file" +
+                s" under ${workerDirs.mkString(",")}")
             }
           }
           case _ => throw new RuntimeException("unexpected, only support RssShuffleHandle here")
         }
-        executed.set(true)
       }
     }
   }
@@ -437,6 +445,61 @@ class CelebornFetchFailureSuite extends AnyFunSuite
     } finally {
       sparkSession.stop()
     }
+  }
+
+  test(s"celeborn spark integration test - do not rerun stage if task another attempt is running") {
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+    val sparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .config("spark.sql.shuffle.partitions", 2)
+      .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+      .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+      .config(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+      .config("spark.speculation", "true")
+      .config("spark.speculation.multiplier", "2")
+      .config("spark.speculation.quantile", "0")
+      .getOrCreate()
+
+    val shuffleMgr = SparkContextHelper.env
+      .shuffleManager
+      .asInstanceOf[TestCelebornShuffleManager]
+    var preventUnnecessaryStageRerun = false
+    val lifecycleManager = shuffleMgr.getLifecycleManager
+    lifecycleManager.registerReportTaskShuffleFetchFailurePreCheck(new java.util.function.Function[
+      java.lang.Long,
+      Boolean] {
+      override def apply(taskId: java.lang.Long): Boolean = {
+        val anotherRunningOrSuccessful = SparkUtils.taskAnotherAttemptRunningOrSuccessful(taskId)
+        if (anotherRunningOrSuccessful) {
+          preventUnnecessaryStageRerun = true
+        }
+        !anotherRunningOrSuccessful
+      }
+    })
+
+    val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
+    val hook = new ShuffleReaderGetHook(celebornConf, speculation = true)
+    TestCelebornShuffleManager.registerReaderGetHook(hook)
+
+    val value = Range(1, 10000).mkString(",")
+    val tuples = sparkSession.sparkContext.parallelize(1 to 10000, 2)
+      .map { i => (i, value) }.groupByKey(2).collect()
+
+    // verify result
+    assert(hook.executed.get() == true)
+    assert(preventUnnecessaryStageRerun)
+    assert(tuples.length == 10000)
+    for (elem <- tuples) {
+      assert(elem._2.mkString(",").equals(value))
+    }
+
+    shuffleMgr.unregisterShuffle(0)
+    assert(lifecycleManager.getUnregisterShuffleTime().containsKey(0))
+    assert(lifecycleManager.getUnregisterShuffleTime().containsKey(1))
+
+    sparkSession.stop()
   }
 
   private def findAppShuffleId(rdd: RDD[_]): Int = {
