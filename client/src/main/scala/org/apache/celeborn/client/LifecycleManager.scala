@@ -1016,9 +1016,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private def invokeReportTaskShuffleFetchFailurePreCheck(taskId: Long): Boolean = {
     reportTaskShuffleFetchFailurePreCheck match {
-      case Some(precheck) =>
+      case Some(preCheck) =>
         try {
-          precheck.apply(taskId)
+          preCheck.apply(taskId)
         } catch {
           case t: Throwable =>
             logError(t.toString)
@@ -1789,9 +1789,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   @volatile private var reportTaskShuffleFetchFailurePreCheck
-      : Option[Function[java.lang.Long, Boolean]] = None
-  def registerReportTaskShuffleFetchFailurePreCheck(preCheck: Function[java.lang.Long, Boolean])
-      : Unit = {
+      : Option[java.util.function.Function[java.lang.Long, Boolean]] = None
+  def registerReportTaskShuffleFetchFailurePreCheck(preCheck: java.util.function.Function[
+    java.lang.Long,
+    Boolean]): Unit = {
     reportTaskShuffleFetchFailurePreCheck = Some(preCheck)
   }
 

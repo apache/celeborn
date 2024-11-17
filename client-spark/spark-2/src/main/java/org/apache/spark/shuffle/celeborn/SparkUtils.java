@@ -20,6 +20,7 @@ package org.apache.spark.shuffle.celeborn;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 
 import scala.Option;
@@ -35,6 +36,9 @@ import org.apache.spark.scheduler.DAGScheduler;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.scheduler.MapStatus$;
 import org.apache.spark.scheduler.ShuffleMapStage;
+import org.apache.spark.scheduler.TaskInfo;
+import org.apache.spark.scheduler.TaskSchedulerImpl;
+import org.apache.spark.scheduler.TaskSetManager;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
 import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.storage.BlockManagerId;
@@ -47,7 +51,7 @@ import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.reflect.DynFields;
 
 public class SparkUtils {
-  private static final Logger logger = LoggerFactory.getLogger(SparkUtils.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SparkUtils.class);
 
   public static final String FETCH_FAILURE_ERROR_MSG = "Celeborn FetchFailure with shuffle id ";
 
@@ -93,7 +97,7 @@ public class SparkUtils {
       field.setAccessible(true);
       return (SQLMetric) field.get(serializer);
     } catch (NoSuchFieldException | IllegalAccessException e) {
-      logger.warn("Failed to get dataSize metric, aqe won`t work properly.");
+      LOG.warn("Failed to get dataSize metric, aqe won`t work properly.");
     }
     return null;
   }
@@ -200,7 +204,58 @@ public class SparkUtils {
         scheduler.cancelStage(shuffleMapStage.get().id(), new Some<>(reason));
       }
     } else {
-      logger.error("Can not get active SparkContext, skip cancelShuffle.");
+      LOG.error("Can not get active SparkContext, skip cancelShuffle.");
+    }
+  }
+
+  private static final DynFields.UnboundField<ConcurrentHashMap<Long, TaskSetManager>>
+      TASK_ID_TO_TASK_SET_MANAGER_FIELD =
+          DynFields.builder()
+              .hiddenImpl(TaskSchedulerImpl.class, "taskIdToTaskSetManager")
+              .defaultAlwaysNull()
+              .build();
+  private static final DynFields.UnboundField<scala.collection.mutable.HashMap<Long, TaskInfo>>
+      TASK_INFOS_FIELD =
+          DynFields.builder()
+              .hiddenImpl(TaskSetManager.class, "taskInfos")
+              .defaultAlwaysNull()
+              .build();
+
+  public static boolean taskAnotherAttemptRunning(long taskId) {
+    if (SparkContext$.MODULE$.getActive().nonEmpty()) {
+      TaskSchedulerImpl taskScheduler =
+          (TaskSchedulerImpl) SparkContext$.MODULE$.getActive().get().taskScheduler();
+      ConcurrentHashMap<Long, TaskSetManager> taskIdToTaskSetManager =
+          TASK_ID_TO_TASK_SET_MANAGER_FIELD.bind(taskScheduler).get();
+      TaskSetManager taskSetManager = taskIdToTaskSetManager.get(taskId);
+      if (taskSetManager != null) {
+        scala.Option<TaskInfo> taskInfoOption =
+            TASK_INFOS_FIELD.bind(taskSetManager).get().get(taskId);
+        if (taskInfoOption.isDefined()) {
+          TaskInfo taskInfo = taskInfoOption.get();
+          return scala.collection.JavaConverters.asJavaCollectionConverter(
+                  taskSetManager.taskAttempts()[taskInfo.index()])
+              .asJavaCollection().stream()
+              .anyMatch(
+                  ti -> {
+                    if (ti.running() && ti.attemptNumber() != taskInfo.attemptNumber()) {
+                      LOG.info("Another attempt of task {} is running: {}.", taskInfo, ti);
+                      return true;
+                    } else {
+                      return false;
+                    }
+                  });
+        } else {
+          LOG.error("Can not get TaskInfo for taskId: {}", taskId);
+          return false;
+        }
+      } else {
+        LOG.error("Can not get TaskSetManager for taskId: {}", taskId);
+        return false;
+      }
+    } else {
+      LOG.error("Can not get active SparkContext, skip checking.");
+      return false;
     }
   }
 }

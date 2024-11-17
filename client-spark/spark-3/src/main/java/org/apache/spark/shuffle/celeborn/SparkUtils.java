@@ -349,15 +349,18 @@ public class SparkUtils {
             TASK_INFOS_FIELD.bind(taskSetManager).get().get(taskId);
         if (taskInfoOption.isDefined()) {
           TaskInfo taskInfo = taskInfoOption.get();
-          return taskSetManager.taskAttempts()[taskInfo.index()].exists(
-              ti -> {
-                if (ti.running() && ti.attemptNumber() != taskInfo.attemptNumber()) {
-                  LOG.info("Another attempt of task {} is running: {}.", taskInfo, ti);
-                  return true;
-                } else {
-                  return false;
-                }
-              });
+          return scala.collection.JavaConverters.asJavaCollectionConverter(
+                  taskSetManager.taskAttempts()[taskInfo.index()])
+              .asJavaCollection().stream()
+              .anyMatch(
+                  ti -> {
+                    if (ti.running() && ti.attemptNumber() != taskInfo.attemptNumber()) {
+                      LOG.info("Another attempt of task {} is running: {}.", taskInfo, ti);
+                      return true;
+                    } else {
+                      return false;
+                    }
+                  });
         } else {
           LOG.error("Can not get TaskInfo for taskId: {}", taskId);
           return false;
