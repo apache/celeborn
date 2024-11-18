@@ -43,7 +43,7 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
     configService match {
       case Some(cs) =>
         // TODO: Make configStore.getTags return ConcurrentMap
-        new ConcurrentHashMap(cs.getSystemConfigFromCache.getTags)
+        JavaUtils.newConcurrentHashMap(cs.getSystemConfigFromCache.getTags)
       case _ =>
         defaultTagStore
     }
