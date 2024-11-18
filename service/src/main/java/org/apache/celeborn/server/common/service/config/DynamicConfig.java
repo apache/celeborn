@@ -21,7 +21,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.celeborn.common.tags.WorkerTagsMeta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +29,7 @@ import org.apache.celeborn.common.internal.config.ConfigEntry;
 import org.apache.celeborn.common.quota.Quota;
 import org.apache.celeborn.common.quota.UserTrafficQuota;
 import org.apache.celeborn.common.quota.WorkerTrafficQuota;
+import org.apache.celeborn.common.tags.WorkerTagsMeta;
 import org.apache.celeborn.common.util.Utils;
 
 /**
@@ -79,22 +79,24 @@ public abstract class DynamicConfig {
     }
   }
 
-  public <T> T getValue(
-          String configKey,
-          Class<T> finalType,
-          ConfigType configType) {
-    String configValue = configs.get(configKey);
-    T formatValue =
-            configValue != null ? formatValue(configKey, configValue, finalType, configType) : null;
-    if (formatValue == null) {
-      DynamicConfig parentLevelConfig = getParentLevelConfig();
-      return parentLevelConfig != null
-              ? parentLevelConfig.getValue(configKey, finalType, configType)
-              : null;
-    } else {
-      return formatValue;
-    }
-  }
+  //  public <T> T getValue(
+  //          String configKey,
+  //          ConfigEntry<Object> configEntry,
+  //          Class<T> finalType,
+  //          ConfigType configType) {
+  //    String configValue = configs.get(configKey);
+  //    T formatValue =
+  //            configValue != null ? formatValue(configKey, configValue, finalType, configType) :
+  // null;
+  //    if (formatValue == null) {
+  //      DynamicConfig parentLevelConfig = getParentLevelConfig();
+  //      return parentLevelConfig != null
+  //              ? parentLevelConfig.getValue(configKey, configEntry, finalType, configType)
+  //              : null;
+  //    } else {
+  //      return formatValue;
+  //    }
+  //  }
 
   public <T> T formatValue(
       String configKey, String configValue, Class<T> finalType, ConfigType configType) {
@@ -191,10 +193,12 @@ public abstract class DynamicConfig {
     return new WorkerTagsMeta(
         getValue(
             CelebornConf.TAGS_EXPR().key(),
+            CelebornConf.TAGS_EXPR(),
             String.class,
             ConfigType.STRING),
         getValue(
-            CelebornConf.TAGS_EXPR().key(),
+            CelebornConf.PREFER_CLIENT_TAGS_EXPR().key(),
+            CelebornConf.PREFER_CLIENT_TAGS_EXPR(),
             Boolean.TYPE,
             ConfigType.STRING));
   }

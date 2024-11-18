@@ -19,7 +19,7 @@ package org.apache.celeborn.common.tags
 
 import org.apache.celeborn.common.internal.Logging
 
-case class WorkerTagsMeta (
+case class WorkerTagsMeta(
     tagsExpr: String,
     clientTagExprEnabled: Boolean) extends Logging {
 

@@ -25,6 +25,7 @@ import java.util.stream.Collectors
 
 import scala.collection.JavaConverters.{asScalaIteratorConverter, mapAsScalaConcurrentMapConverter}
 
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.util.JavaUtils
@@ -50,9 +51,21 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
   }
 
   def getTaggedWorkers(
-      tagExpr: String,
+      userIdentifier: UserIdentifier,
+      clientTagsExpr: String,
       workers: util.List[WorkerInfo]): util.List[WorkerInfo] = {
-    val tags = tagExpr.split(",").map(_.trim)
+
+    val tagsExpr = configService.flatMap { cs =>
+      val config = cs.getTenantUserConfigFromCache(userIdentifier.tenantId, userIdentifier.name)
+      val tagsMeta = config.getWorkerTagsMeta
+      if (tagsMeta.clientTagExprEnabled) {
+        Some(clientTagsExpr)
+      } else {
+        Some(tagsMeta.tagsExpr)
+      }
+    }.getOrElse(clientTagsExpr)
+
+    val tags = tagsExpr.split(",").map(_.trim)
 
     if (tags.isEmpty) {
       logWarning("No tags provided")
@@ -71,7 +84,7 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
     }
 
     if (workersForTags.isEmpty) {
-      logWarning(s"No workers for tags: $tagExpr found in cluster")
+      logWarning(s"No workers for tags: $tagsExpr found in cluster")
       return Collections.emptyList()
     }
 
