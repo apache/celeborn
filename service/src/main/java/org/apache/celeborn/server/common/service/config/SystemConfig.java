@@ -27,19 +27,9 @@ import org.apache.celeborn.server.common.service.model.ClusterTag;
 public class SystemConfig extends DynamicConfig {
   private final CelebornConf celebornConf;
 
-  public SystemConfig(CelebornConf celebornConf, Map<String, String> configs) {
-    this.celebornConf = celebornConf;
-    this.configs.putAll(configs);
-  }
-
   public SystemConfig(CelebornConf celebornConf) {
     this.celebornConf = celebornConf;
     this.configs = new HashMap<>();
-  }
-
-  public SystemConfig(CelebornConf celebornConf, List<ClusterSystemConfig> systemConfigs) {
-    this.celebornConf = celebornConf;
-    systemConfigs.forEach(t -> configs.put(t.getConfigKey(), t.getConfigValue()));
   }
 
   @Override
