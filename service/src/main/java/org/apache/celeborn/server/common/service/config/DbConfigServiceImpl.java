@@ -45,7 +45,9 @@ public class DbConfigServiceImpl extends BaseConfigServiceImpl implements Config
       }
     }
 
-    systemConfigAtomicReference.set(iServiceManager.getSystemConfig());
+    systemConfigAtomicReference.get().setConfigs(iServiceManager.getSystemConfig());
+    systemConfigAtomicReference.get().setTags(iServiceManager.getClusterTags());
+
     tenantConfigAtomicReference.set(
         iServiceManager.getAllTenantConfigs().stream()
             .collect(Collectors.toMap(TenantConfig::getTenantId, Function.identity())));

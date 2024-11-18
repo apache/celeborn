@@ -17,14 +17,12 @@
 
 package org.apache.celeborn.server.common.service.config;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.internal.config.ConfigEntry;
 import org.apache.celeborn.server.common.service.model.ClusterSystemConfig;
+import org.apache.celeborn.server.common.service.model.ClusterTag;
 
 public class SystemConfig extends DynamicConfig {
   private final CelebornConf celebornConf;
@@ -69,8 +67,22 @@ public class SystemConfig extends DynamicConfig {
     this.configs = configs;
   }
 
+  public void setConfigs(List<ClusterSystemConfig> configs) {
+    this.configs = new HashMap<>();
+    for (ClusterSystemConfig c : configs) {
+      this.configs.put(c.getConfigKey(), c.getConfigValue());
+    }
+  }
+
   public void setTags(Map<String, Set<String>> tags) {
     this.tags = tags;
+  }
+
+  public void setTags(List<ClusterTag> tags) {
+    this.tags = new HashMap<>();
+    for (ClusterTag t : tags) {
+      this.tags.putIfAbsent(t.getTag(), new HashSet<>()).add(t.getWorkerId());
+    }
   }
 
   @Override
