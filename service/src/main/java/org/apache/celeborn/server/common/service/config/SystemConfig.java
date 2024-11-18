@@ -58,10 +58,11 @@ public class SystemConfig extends DynamicConfig {
   }
 
   public void setConfigs(List<ClusterSystemConfig> configs) {
-    this.configs = new HashMap<>();
+    Map<String, String> newConfigs = new HashMap<>();
     for (ClusterSystemConfig c : configs) {
       this.configs.put(c.getConfigKey(), c.getConfigValue());
     }
+    this.configs = newConfigs;
   }
 
   public void setTags(Map<String, Set<String>> tags) {
@@ -69,10 +70,11 @@ public class SystemConfig extends DynamicConfig {
   }
 
   public void setTags(List<ClusterTag> tags) {
-    this.tags = new HashMap<>();
+    Map<String, Set<String>> newTags = new HashMap<>();
     for (ClusterTag t : tags) {
       this.tags.putIfAbsent(t.getTag(), new HashSet<>()).add(t.getWorkerId());
     }
+    this.tags = newTags;
   }
 
   @Override
