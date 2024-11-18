@@ -163,6 +163,8 @@ abstract class RpcEnv(config: RpcEnvConfig) {
    * that contains [[RpcEndpointRef]]s, the deserialization codes should be wrapped by this method.
    */
   def deserialize[T](deserializationAction: () => T): T
+
+  def rpcSource(): RpcSource
 }
 
 /**

@@ -55,7 +55,9 @@ class NettyRpcEnv(
     config.transportModule,
     celebornConf.rpcIoThreads.getOrElse(config.numUsableCores))
 
-  private val dispatcher: Dispatcher = new Dispatcher(this)
+  private val source: RpcSource = new RpcSource(celebornConf)
+
+  private val dispatcher: Dispatcher = new Dispatcher(this, source)
 
   private var worker: RpcEndpoint = null
 
@@ -361,6 +363,8 @@ class NettyRpcEnv(
       deserializationAction()
     }
   }
+
+  override def rpcSource(): RpcSource = source
 }
 
 private[celeborn] object NettyRpcEnv extends Logging {

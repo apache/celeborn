@@ -292,6 +292,16 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     }
   }
 
+  def updateTimer(name: String, value: Long): Unit = {
+    updateTimer(name, value, Map.empty[String, String])
+  }
+
+  def updateTimer(metricsName: String, value: Long, labels: Map[String, String]): Unit = {
+    val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, labels)
+    val (namedTimer, _) = namedTimers.get(metricNameWithLabel)
+    namedTimer.timer.update(value, TimeUnit.NANOSECONDS)
+  }
+
   def incCounter(metricsName: String): Unit = {
     incCounter(metricsName, 1)
   }
