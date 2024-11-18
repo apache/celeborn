@@ -4758,7 +4758,7 @@ object CelebornConf extends Logging {
       .doc("When true, master will group workers and slots are allocated according to different partition groups.")
       .version("0.6.0")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val GROUP_MAP_TASK_GROUP_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.groupMapTask.groupSize")

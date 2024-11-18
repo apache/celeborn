@@ -861,7 +861,7 @@ private[celeborn] class Master(
     val numMapTaskGroups = requestSlots.numGroupTask
     val numPartitions = requestSlots.partitionIdList.size()
     val numReducers = numPartitions / numMapTaskGroups
-    val numWorkerGroups = if(groupWorkerResources) numMapTaskGroups else 1
+    val numWorkerGroups = if (groupWorkerResources) numMapTaskGroups else 1
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
     var availableWorkers = workersAvailable(requestSlots.excludedWorkerSet)
