@@ -71,8 +71,13 @@ public class SlotsAllocator {
     }
     int partitionGroupSize = partitionIds.size() / numWorkerGroups;
     int workerGroupSize = workers.size() / numWorkerGroups;
+    // The workers in each group are distributed on different racks as much as possible
+    if (shouldRackAware) {
+      workers = generateRackAwareWorkers(workers);
+    }
     for (int i = 0; i < numWorkerGroups; i++) {
       List<Integer> groupPartitionIds = partitionIds.subList(partitionGroupSize * i, Math.min(partitionIds.size(), partitionGroupSize * (i + 1)));
+
       List<WorkerInfo> groupWorkersList = workers.subList(workerGroupSize * i, Math.min(workers.size(), workerGroupSize * (i + 1)));
 
       Map<WorkerInfo, List<UsableDiskInfo>> slotsRestrictions = new HashMap<>();
@@ -101,13 +106,21 @@ public class SlotsAllocator {
           }
         }
       }
-      slots.putAll(locateSlots(
+
+      Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> groupedSlots = locateSlots(
               groupPartitionIds,
               groupWorkersList,
               slotsRestrictions,
+              workers,
               shouldReplicate,
               shouldRackAware,
-              availableStorageTypes));
+              availableStorageTypes);
+
+      groupedSlots.forEach((workerInfo, tuple2) -> {
+        slots.putIfAbsent(workerInfo, new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
+        slots.get(workerInfo)._1.addAll(tuple2._1);
+        slots.get(workerInfo)._2.addAll(tuple2._2);
+      });
     }
     return slots;
   }
@@ -147,7 +160,10 @@ public class SlotsAllocator {
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots = new HashMap<>();
     int partitionGroupSize = partitionIds.size() / numWorkerGroups;
     int workerGroupSize = workers.size() / numWorkerGroups;
-
+    // The workers in each group are distributed on different racks as much as possible
+    if (shouldRackAware) {
+      workers = generateRackAwareWorkers(workers);
+    }
     for (int index = 0; index < numWorkerGroups; index++) {
       List<Integer> groupPartitionIds = partitionIds.subList(partitionGroupSize * index, Math.min(partitionIds.size(), partitionGroupSize * (index + 1)));
       List<WorkerInfo> groupWorkersList = workers.subList(workerGroupSize * index, Math.min(workers.size(), workerGroupSize * (index + 1)));
@@ -194,13 +210,21 @@ public class SlotsAllocator {
                       placeDisksToGroups(usableDisks, diskGroupCount, flushTimeWeight, fetchTimeWeight),
                       diskToWorkerMap,
                       shouldReplicate ? groupPartitionIds.size() * 2 : groupPartitionIds.size());
-      slots.putAll(locateSlots(
+
+      Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> groupedSlots = locateSlots(
               groupPartitionIds,
               groupWorkersList,
               slotsRestrictions,
+              workers,
               shouldReplicate,
               shouldRackAware,
-              availableStorageTypes));
+              availableStorageTypes);
+
+      groupedSlots.forEach((workerInfo, tuple2) -> {
+        slots.putIfAbsent(workerInfo, new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
+        slots.get(workerInfo)._1.addAll(tuple2._1);
+        slots.get(workerInfo)._2.addAll(tuple2._2);
+      });
     }
     return slots;
   }
@@ -265,16 +289,19 @@ public class SlotsAllocator {
   private static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
       locateSlots(
           List<Integer> partitionIds,
-          List<WorkerInfo> workersList,
+          List<WorkerInfo> groupWorkersList,
           Map<WorkerInfo, List<UsableDiskInfo>> slotRestrictions,
+          List<WorkerInfo> workersList,
           boolean shouldReplicate,
           boolean shouldRackAware,
           int availableStorageTypes) {
 
     List<WorkerInfo> workersFromSlotRestrictions = new ArrayList<>(slotRestrictions.keySet());
+    List<WorkerInfo> groupWorkers = groupWorkersList;
     List<WorkerInfo> workers = workersList;
     if (shouldReplicate && shouldRackAware) {
       workersFromSlotRestrictions = generateRackAwareWorkers(workersFromSlotRestrictions);
+      groupWorkers = generateRackAwareWorkers(groupWorkers);
       workers = generateRackAwareWorkers(workers);
     }
 
@@ -295,11 +322,14 @@ public class SlotsAllocator {
           roundRobin(
               slots,
               remain,
-              workers,
+              groupWorkers,
               null,
               shouldReplicate,
               shouldRackAware,
               availableStorageTypes);
+    }
+    if (!remain.isEmpty()) {
+      remain = roundRobin(slots, remain, groupWorkers, null, shouldReplicate, false, availableStorageTypes);
     }
     if (!remain.isEmpty()) {
       roundRobin(slots, remain, workers, null, shouldReplicate, false, availableStorageTypes);

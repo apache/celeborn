@@ -128,10 +128,7 @@ class CelebornShuffleReader[K, C](
     } else {
       val numPartitions = dep.partitioner.numPartitions
       val numMappers = handle.numMappers
-      val partitionGroupCnt =
-        if (conf.groupMapTaskEnabled)
-          math.ceil(numMappers.toDouble / conf.groupMapTaskGroupSize).toInt
-        else 1
+      val partitionGroupCnt = math.ceil(numMappers.toDouble / conf.groupMapTaskGroupSize).toInt
       val groupNumPartitions = numPartitions * partitionGroupCnt
       (startPartition until endPartition).foreach { originalPartitionId =>
         (0 until partitionGroupCnt).foreach { groupCnt =>
