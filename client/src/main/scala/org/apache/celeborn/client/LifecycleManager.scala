@@ -99,9 +99,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val shuffleIdMapping = JavaUtils.newConcurrentHashMap[
     Int,
     scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)]]()
+
   // shuffle id -> [groupId -> Set[WorkerInfo]]
   val groupedWorkers =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, util.HashSet[WorkerInfo]]]()
+  // partitionId -> groupId
+  val partitionGroupMap = JavaUtils.newConcurrentHashMap[Int, Int]()
 
   private val shuffleIdGenerator = new AtomicInteger(0)
   // app shuffle id -> whether shuffle is determinate, rerun of a indeterminate shuffle gets different result
@@ -683,7 +686,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
 
     val ids = new util.ArrayList[Integer](groupNumPartitions)
-    (0 until groupNumPartitions).foreach(idx => ids.add(Integer.valueOf(idx)))
+    (0 until groupNumPartitions).foreach { idx =>
+      partitionGroupMap.put(idx, idx / numPartitions)
+      ids.add(Integer.valueOf(idx))
+    }
     val res = requestMasterRequestSlotsWithRetry(shuffleId, ids, numGroupTask)
 
     res.status match {
@@ -1524,8 +1530,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val slots = new WorkerResource()
     oldPartitions.foreach { partition =>
       val groupWorkerList =
-        if (groupWorkerResources) groupWorkerMap.get(partition.getId).asScala.filter(
-          workerStatusTracker.workerAvailable).toList
+        if (groupWorkerResources)
+          groupWorkerMap.get(partitionGroupMap.get(partition.getId)).asScala.filter(
+            workerStatusTracker.workerAvailable).toList
         else List()
       allocateFromCandidates(
         partition.getId,

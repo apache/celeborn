@@ -424,8 +424,9 @@ class ChangePartitionManager(
     changePartitionRequests.foreach { partition =>
       val partitionId = partition.partitionId
       val groupWorkerList =
-        if (groupWorkerResources) groupWorkerMap.get(partitionId).asScala.filter(
-          lifecycleManager.workerStatusTracker.workerAvailable).toList
+        if (groupWorkerResources)
+          groupWorkerMap.get(lifecycleManager.partitionGroupMap.get(partitionId)).asScala.filter(
+            lifecycleManager.workerStatusTracker.workerAvailable).toList
         else List()
       lifecycleManager.allocateFromCandidates(
         partitionId,

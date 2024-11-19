@@ -369,10 +369,6 @@ public class SlotsAllocator {
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         new HashMap<>();
 
-    logger.info(
-        "[gmt-test] slotsAllocate restrictions partitionIds: {}, restrict workers: {} ",
-        partitionIds,
-        slotRestrictions.keySet());
     List<Integer> remain =
         roundRobin(
             slots,
@@ -383,10 +379,6 @@ public class SlotsAllocator {
             shouldRackAware,
             availableStorageTypes);
     if (!remain.isEmpty()) {
-      logger.info(
-          "[gmt-test] slotsAllocate groupWorkers partitionIds: {}, group workers: {} ",
-          remain,
-          groupWorkers);
       remain =
           roundRobin(
               slots,
@@ -398,19 +390,11 @@ public class SlotsAllocator {
               availableStorageTypes);
     }
     if (!remain.isEmpty()) {
-      logger.info(
-          "[gmt-test] slotsAllocate groupWorkers no rack partitionIds: {}, group workers: {} ",
-          remain,
-          groupWorkers);
       remain =
           roundRobin(
               slots, remain, groupWorkers, null, shouldReplicate, false, availableStorageTypes);
     }
     if (!remain.isEmpty()) {
-      logger.info(
-          "[gmt-test] slotsAllocate all workers partitionIds: {}, group workers no rack: {} ",
-          remain,
-          workers);
       roundRobin(slots, remain, workers, null, shouldReplicate, false, availableStorageTypes);
     }
     return slots;

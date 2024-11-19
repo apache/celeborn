@@ -36,7 +36,7 @@ class GroupMapTaskTest extends AnyFunSuite
       s"${CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key}" -> "3",
       s"${CelebornConf.GROUP_MAP_TASK_ENABLED.key}" -> "true",
       s"${CelebornConf.GROUP_MAP_TASK_GROUP_SIZE.key}" -> "2")
-    setupMiniClusterWithRandomPorts(testConf)
+    setupMiniClusterWithRandomPorts(testConf, workerNum = 9)
   }
 
   override def beforeEach(): Unit = {
@@ -53,12 +53,13 @@ class GroupMapTaskTest extends AnyFunSuite
       .set(s"spark.${CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key}", "3")
       .set(s"spark.${CelebornConf.GROUP_MAP_TASK_ENABLED.key}", "true")
       .set(s"spark.${CelebornConf.GROUP_MAP_TASK_GROUP_SIZE.key}", "2")
+      .set(s"spark.${CelebornConf.GROUP_WORKER_ENABLED.key}", "true")
       .setAppName("celeborn-demo").setMaster("local[2]")
     val ss = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .getOrCreate()
     val value = Range(1, 1000).mkString(",")
-    val result = ss.sparkContext.parallelize(1 to 1000, 4)
+    val result = ss.sparkContext.parallelize(1 to 1000, 6)
       .map { i => (i, value) }.groupByKey(4).collect()
     assert(result.length == 1000)
     for (elem <- result) {
