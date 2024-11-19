@@ -858,6 +858,7 @@ message PbPackedPartitionLocationsPair {
 message PbPackedWorkerResource {
   PbPackedPartitionLocationsPair locationPairs = 1;
   string networkLocation = 2;
+  int32 groupId = 3;
 }
 
 message PbReportWorkerDecommission {

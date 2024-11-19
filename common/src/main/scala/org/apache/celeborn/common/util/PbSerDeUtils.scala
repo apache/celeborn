@@ -699,8 +699,10 @@ object PbSerDeUtils {
     val slots = new WorkerResource()
     pbWorkerResource.asScala.foreach { case (uniqueId, pbPackedWorkerResource) =>
       val networkLocation = pbPackedWorkerResource.getNetworkLocation
+      val groupId = pbPackedWorkerResource.getGroupId
       val workerInfo = WorkerInfo.fromUniqueId(uniqueId)
       workerInfo.networkLocation = networkLocation
+      workerInfo.groupId = groupId
       val (primaryLocations, replicateLocations) =
         fromPbPackedPartitionLocationsPair(pbPackedWorkerResource.getLocationPairs)
       slots.put(workerInfo, (primaryLocations, replicateLocations))
@@ -715,6 +717,7 @@ object PbSerDeUtils {
         .setLocationPairs(toPbPackedPartitionLocationsPair(
           primaryLocations.asScala.toList ++ replicaLocations.asScala.toList))
         .setNetworkLocation(workerInfo.networkLocation)
+        .setGroupId(workerInfo.groupId)
         .build()
       workerInfo.toUniqueId() -> pbWorkerResource
     }.asJava

@@ -99,6 +99,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val shuffleIdMapping = JavaUtils.newConcurrentHashMap[
     Int,
     scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)]]()
+  // shuffle id -> [groupId -> Set[WorkerInfo]]
+  val groupedWorkers =
+    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, util.HashSet[WorkerInfo]]]()
+
   private val shuffleIdGenerator = new AtomicInteger(0)
   // app shuffle id -> whether shuffle is determinate, rerun of a indeterminate shuffle gets different result
   private val appShuffleDeterminateMap = JavaUtils.newConcurrentHashMap[Int, Boolean]()
@@ -134,6 +138,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     new util.function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]]() {
       override def apply(s: Int): ConcurrentHashMap[Int, PartitionLocation] = {
         JavaUtils.newConcurrentHashMap[Int, PartitionLocation]()
+      }
+    }
+
+  private val updateGroupWorkerFunc =
+    new util.function.Function[Int, util.HashSet[WorkerInfo]] {
+      override def apply(i: Int): util.HashSet[WorkerInfo] = {
+        new util.HashSet[WorkerInfo]()
       }
     }
 
@@ -732,7 +743,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         updateLatestPartitionLocations(shuffleId, primaryLocations)
         partitionLocationInfo.addReplicaPartitions(replicaLocations)
         allocatedWorkers.put(workerInfo, partitionLocationInfo)
+//        val shuffleWorkers = groupedWorkers.computeIfAbsent()
+//        val workerList = shuffleWorkers.computeIfAbsent(workerInfo.getWorkerGroupId(), updateGroupWorkerFunc)
+//        workerList.add(workerInfo)
       }
+
+      logInfo(
+        s"[gmt-test] shuffleId: ${shuffleId}, groupWorker map: ${groupedWorkers.get(shuffleId)}")
+
       shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
       registeredShuffle.add(shuffleId)
       commitManager.registerShuffle(
