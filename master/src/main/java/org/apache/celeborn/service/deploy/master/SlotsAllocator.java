@@ -280,10 +280,10 @@ public class SlotsAllocator {
       if (leftNum > 0) {
         rightIndex = Math.min(numWorkers, index + workerGroupSize + 1);
         groupedWorkers.put(i, new Tuple2<>(index, rightIndex));
-      } else {
-        rightIndex = Math.min(numWorkers, workerGroupSize * (i + 1));
-        groupedWorkers.put(i, new Tuple2<>(index, rightIndex));
         leftNum--;
+      } else {
+        rightIndex = Math.min(numWorkers, index + workerGroupSize);
+        groupedWorkers.put(i, new Tuple2<>(index, rightIndex));
       }
       index = rightIndex;
     }
