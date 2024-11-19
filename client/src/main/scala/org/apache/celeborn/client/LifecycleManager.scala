@@ -757,7 +757,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           groupWorkerMap.computeIfAbsent(workerInfo.getWorkerGroupId(), updateGroupWorkerFunc)
         workerSet.add(workerInfo)
       }
-      logInfo(s"[gmt-test] shuffleId: $shuffleId, groupWorkerMap: $groupWorkerMap")
 
       shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
       groupedWorkers.put(shuffleId, groupWorkerMap)
