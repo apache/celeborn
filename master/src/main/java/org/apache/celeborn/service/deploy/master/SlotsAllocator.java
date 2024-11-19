@@ -89,6 +89,7 @@ public class SlotsAllocator {
 
       Map<WorkerInfo, List<UsableDiskInfo>> slotsRestrictions = new HashMap<>();
       for (WorkerInfo worker : groupWorkersList) {
+        worker.setWorkerGroupId(groupId);
         List<UsableDiskInfo> usableDisks =
             slotsRestrictions.computeIfAbsent(worker, v -> new ArrayList<>());
         for (Map.Entry<String, DiskInfo> diskInfoEntry : worker.diskInfos().entrySet()) {
@@ -124,11 +125,8 @@ public class SlotsAllocator {
               shouldRackAware,
               availableStorageTypes);
 
-      int finalGroupId = groupId;
       groupedSlots.forEach(
           (workerInfo, tuple2) -> {
-            // may cover the previous groupId if locateSlots
-            workerInfo.setWorkerGroupId(finalGroupId);
             slots.putIfAbsent(workerInfo, new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
             slots.get(workerInfo)._1.addAll(tuple2._1);
             slots.get(workerInfo)._2.addAll(tuple2._2);
@@ -199,19 +197,21 @@ public class SlotsAllocator {
       List<DiskInfo> usableDisks = new ArrayList<>();
       Map<DiskInfo, WorkerInfo> diskToWorkerMap = new HashMap<>();
 
-      groupWorkersList.forEach(
-          i ->
-              i.diskInfos()
-                  .forEach(
-                      (key, diskInfo) -> {
-                        diskToWorkerMap.put(diskInfo, i);
-                        if (diskInfo.actualUsableSpace() > 0
-                            && diskInfo.status().equals(DiskStatus.HEALTHY)
-                            && diskInfo.storageType() != StorageInfo.Type.HDFS
-                            && diskInfo.storageType() != StorageInfo.Type.S3) {
-                          usableDisks.add(diskInfo);
-                        }
-                      }));
+      for (WorkerInfo worker : groupWorkersList) {
+        worker.setWorkerGroupId(groupId);
+        worker
+            .diskInfos()
+            .forEach(
+                (key, diskInfo) -> {
+                  diskToWorkerMap.put(diskInfo, worker);
+                  if (diskInfo.actualUsableSpace() > 0
+                      && diskInfo.status().equals(DiskStatus.HEALTHY)
+                      && diskInfo.storageType() != StorageInfo.Type.HDFS
+                      && diskInfo.storageType() != StorageInfo.Type.S3) {
+                    usableDisks.add(diskInfo);
+                  }
+                });
+      }
 
       boolean noUsableDisks =
           usableDisks.isEmpty()
@@ -255,10 +255,8 @@ public class SlotsAllocator {
               shouldRackAware,
               availableStorageTypes);
 
-      int finalGroupId = groupId;
       groupedSlots.forEach(
           (workerInfo, tuple2) -> {
-            workerInfo.setWorkerGroupId(finalGroupId);
             slots.putIfAbsent(workerInfo, new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
             slots.get(workerInfo)._1.addAll(tuple2._1);
             slots.get(workerInfo)._2.addAll(tuple2._2);
@@ -268,6 +266,7 @@ public class SlotsAllocator {
   }
 
   // Group workers like 8 workers for 3 groups: 0,1,2; 3,4,5; 6,7;
+  // return 0: {0, 3}, 1: {3, 6}, 2: {6, 7}
   private static Map<Integer, Tuple2<Integer, Integer>> getGroupedWorkerList(
       int numWorkers, int numWorkerGroups) {
 

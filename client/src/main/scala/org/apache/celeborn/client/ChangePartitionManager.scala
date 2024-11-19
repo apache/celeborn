@@ -79,6 +79,8 @@ class ChangePartitionManager(
   private val dynamicResourceEnabled = conf.clientShuffleDynamicResourceEnabled
   private val dynamicResourceUnavailableFactor = conf.clientShuffleDynamicResourceFactor
 
+  private val groupWorkerResources = conf.groupWorkerResources
+
   def start(): Unit = {
     batchHandleChangePartition = batchHandleChangePartitionSchedulerThread.map {
       // noinspection ConvertExpressionToSAM
@@ -303,8 +305,6 @@ class ChangePartitionManager(
         .asJava
     candidates.addAll(snapshotCandidates)
 
-    val groupWorkersMap = lifecycleManager.groupedWorkers.get(shuffleId)
-
     if (dynamicResourceEnabled) {
       val shuffleAllocatedWorkers = lifecycleManager.workerSnapshots(shuffleId).size()
       val unavailableWorkerRatio = 1 - (snapshotCandidates.size * 1.0 / shuffleAllocatedWorkers)
@@ -365,12 +365,14 @@ class ChangePartitionManager(
       return
     }
 
+    val groupWorkerMap = lifecycleManager.groupedWorkers.get(shuffleId)
+
     // PartitionSplit all contains oldPartition
     val newlyAllocatedLocations =
       reallocateChangePartitionRequestSlotsFromCandidates(
         changePartitions.toList,
         candidates.asScala.toList,
-        groupWorkersMap)
+        groupWorkerMap)
 
     if (!lifecycleManager.reserveSlotsWithRetry(
         shuffleId,
@@ -417,15 +419,20 @@ class ChangePartitionManager(
   private def reallocateChangePartitionRequestSlotsFromCandidates(
       changePartitionRequests: List[ChangePartitionRequest],
       candidates: List[WorkerInfo],
-      groupWorkersMap:  ConcurrentHashMap[Int, util.HashSet[WorkerInfo]]): WorkerResource = {
+      groupWorkerMap: ConcurrentHashMap[Int, util.HashSet[WorkerInfo]]): WorkerResource = {
     val slots = new WorkerResource()
     changePartitionRequests.foreach { partition =>
+      val partitionId = partition.partitionId
+      val groupWorkerList =
+        if (groupWorkerResources) groupWorkerMap.get(partitionId).asScala.filter(
+          lifecycleManager.workerStatusTracker.workerAvailable).toList
+        else List()
       lifecycleManager.allocateFromCandidates(
-        partition.partitionId,
+        partitionId,
         partition.epoch,
         candidates,
         slots,
-        groupWorkersMap)
+        groupWorkerList)
     }
     slots
   }
