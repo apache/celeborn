@@ -337,7 +337,7 @@ public class SparkUtils {
               .defaultAlwaysNull()
               .build();
 
-  public static boolean taskAnotherAttemptRunningOrSuccessful(long taskId) {
+  public static synchronized boolean taskAnotherAttemptRunningOrSuccessful(long taskId) {
     if (SparkContext$.MODULE$.getActive().nonEmpty()) {
       TaskSchedulerImpl taskScheduler =
           (TaskSchedulerImpl) SparkContext$.MODULE$.getActive().get().taskScheduler();
@@ -354,7 +354,7 @@ public class SparkUtils {
               .asJavaCollection().stream()
               .anyMatch(
                   ti -> {
-                    if ((ti.running() || ti.successful())
+                    if ((!ti.finished() || ti.successful())
                         && ti.attemptNumber() != taskInfo.attemptNumber()) {
                       LOG.info("Another attempt of task {} is running: {}.", taskInfo, ti);
                       return true;
