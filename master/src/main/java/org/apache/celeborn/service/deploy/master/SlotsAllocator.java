@@ -127,6 +127,7 @@ public class SlotsAllocator {
       int finalGroupId = groupId;
       groupedSlots.forEach(
           (workerInfo, tuple2) -> {
+            // may cover the previous groupId if locateSlots
             workerInfo.setWorkerGroupId(finalGroupId);
             slots.putIfAbsent(workerInfo, new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
             slots.get(workerInfo)._1.addAll(tuple2._1);

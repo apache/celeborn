@@ -737,21 +737,19 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       // Forth, register shuffle success, update status
       val allocatedWorkers =
         JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
+      val groupWorkerMap = JavaUtils.newConcurrentHashMap[Int, util.HashSet[WorkerInfo]]()
       slots.asScala.foreach { case (workerInfo, (primaryLocations, replicaLocations)) =>
         val partitionLocationInfo = new ShufflePartitionLocationInfo()
         partitionLocationInfo.addPrimaryPartitions(primaryLocations)
         updateLatestPartitionLocations(shuffleId, primaryLocations)
         partitionLocationInfo.addReplicaPartitions(replicaLocations)
         allocatedWorkers.put(workerInfo, partitionLocationInfo)
-//        val shuffleWorkers = groupedWorkers.computeIfAbsent()
-//        val workerList = shuffleWorkers.computeIfAbsent(workerInfo.getWorkerGroupId(), updateGroupWorkerFunc)
-//        workerList.add(workerInfo)
+        val workerSet = groupWorkerMap.computeIfAbsent(workerInfo.getWorkerGroupId(), updateGroupWorkerFunc)
+        workerSet.add(workerInfo)
       }
 
-      logInfo(
-        s"[gmt-test] shuffleId: ${shuffleId}, groupWorker map: ${groupedWorkers.get(shuffleId)}")
-
       shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
+      groupedWorkers.put(shuffleId, groupWorkerMap)
       registeredShuffle.add(shuffleId)
       commitManager.registerShuffle(
         shuffleId,
@@ -1407,14 +1405,18 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             // Only when the LifecycleManager needs to retry reserve slots again, re-allocate slots
             // and put the new allocated slots to the total slots, the re-allocated slots won't be
             // duplicated with existing partition locations.
+            val groupWorkersMap = groupedWorkers.get(shuffleId)
             requestSlots = reallocateSlotsFromCandidates(
               failedPartitionLocations.values.toList,
               retryCandidates.asScala.toList,
+              groupWorkersMap,
               updateEpoch)
             requestSlots.asScala.foreach {
               case (workerInfo, (retryPrimaryLocs, retryReplicaLocs)) =>
-                val (primaryPartitionLocations, replicaPartitionLocations) =
+                val (primaryPartitionLocations, replicaPartitionLocations) = {
                   slots.computeIfAbsent(workerInfo, newLocationFunc)
+                  // todo
+                }
                 primaryPartitionLocations.addAll(retryPrimaryLocs)
                 replicaPartitionLocations.addAll(retryReplicaLocs)
             }
@@ -1453,11 +1455,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
    * @param slots      Current WorkerResource
    */
   def allocateFromCandidates(
-      id: Int,
-      oldEpochId: Int,
-      candidates: List[WorkerInfo],
-      slots: WorkerResource,
-      updateEpoch: Boolean = true): Unit = {
+                              partitionId: Int,
+                              oldEpochId: Int,
+                              candidates: List[WorkerInfo],
+                              slots: WorkerResource,
+                              groupWorkersMap:  ConcurrentHashMap[Int, util.HashSet[WorkerInfo]],
+                              updateEpoch: Boolean = true): Unit = {
 
     def isOnSameRack(primaryIndex: Int, replicaIndex: Int): Boolean = {
       candidates(primaryIndex).networkLocation.equals(candidates(replicaIndex).networkLocation)
@@ -1465,7 +1468,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
     val primaryIndex = Random.nextInt(candidates.size)
     val primaryLocation = new PartitionLocation(
-      id,
+      partitionId,
       if (updateEpoch) oldEpochId + 1 else oldEpochId,
       candidates(primaryIndex).host,
       candidates(primaryIndex).rpcPort,
@@ -1485,7 +1488,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         replicaIndex = (primaryIndex + 1) % candidates.size
       }
       val replicaLocation = new PartitionLocation(
-        id,
+        partitionId,
         if (updateEpoch) oldEpochId + 1 else oldEpochId,
         candidates(replicaIndex).host,
         candidates(replicaIndex).rpcPort,
@@ -1506,10 +1509,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private def reallocateSlotsFromCandidates(
       oldPartitions: List[PartitionLocation],
       candidates: List[WorkerInfo],
+      groupWorkersMap: ConcurrentHashMap[Int, util.HashSet[WorkerInfo]],
       updateEpoch: Boolean = true): WorkerResource = {
     val slots = new WorkerResource()
     oldPartitions.foreach { partition =>
-      allocateFromCandidates(partition.getId, partition.getEpoch, candidates, slots, updateEpoch)
+      allocateFromCandidates(partition.getId, partition.getEpoch, candidates, slots, groupWorkersMap, updateEpoch)
     }
     slots
   }

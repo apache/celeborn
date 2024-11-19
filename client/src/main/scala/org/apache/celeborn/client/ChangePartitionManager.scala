@@ -303,6 +303,8 @@ class ChangePartitionManager(
         .asJava
     candidates.addAll(snapshotCandidates)
 
+    val groupWorkersMap = lifecycleManager.groupedWorkers.get(shuffleId)
+
     if (dynamicResourceEnabled) {
       val shuffleAllocatedWorkers = lifecycleManager.workerSnapshots(shuffleId).size()
       val unavailableWorkerRatio = 1 - (snapshotCandidates.size * 1.0 / shuffleAllocatedWorkers)
@@ -367,7 +369,8 @@ class ChangePartitionManager(
     val newlyAllocatedLocations =
       reallocateChangePartitionRequestSlotsFromCandidates(
         changePartitions.toList,
-        candidates.asScala.toList)
+        candidates.asScala.toList,
+        groupWorkersMap)
 
     if (!lifecycleManager.reserveSlotsWithRetry(
         shuffleId,
@@ -413,14 +416,16 @@ class ChangePartitionManager(
 
   private def reallocateChangePartitionRequestSlotsFromCandidates(
       changePartitionRequests: List[ChangePartitionRequest],
-      candidates: List[WorkerInfo]): WorkerResource = {
+      candidates: List[WorkerInfo],
+      groupWorkersMap:  ConcurrentHashMap[Int, util.HashSet[WorkerInfo]]): WorkerResource = {
     val slots = new WorkerResource()
     changePartitionRequests.foreach { partition =>
       lifecycleManager.allocateFromCandidates(
         partition.partitionId,
         partition.epoch,
         candidates,
-        slots)
+        slots,
+        groupWorkersMap)
     }
     slots
   }
