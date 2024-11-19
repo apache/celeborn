@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.server.common.service.store.db.mapper.ClusterInfoMapper;
 import org.apache.celeborn.server.common.service.store.db.mapper.ClusterSystemConfigMapper;
+import org.apache.celeborn.server.common.service.store.db.mapper.ClusterTagsMapper;
 import org.apache.celeborn.server.common.service.store.db.mapper.ClusterTenantConfigMapper;
 
 public class DBSessionFactory {
@@ -82,6 +83,7 @@ public class DBSessionFactory {
           configuration.addMapper(ClusterInfoMapper.class);
           configuration.addMapper(ClusterSystemConfigMapper.class);
           configuration.addMapper(ClusterTenantConfigMapper.class);
+          configuration.addMapper(ClusterTagsMapper.class);
 
           SqlSessionFactoryBuilder builder = new SqlSessionFactoryBuilder();
           _instance = builder.build(configuration);

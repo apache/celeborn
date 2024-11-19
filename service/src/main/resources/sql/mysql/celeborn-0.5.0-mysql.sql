@@ -54,3 +54,15 @@ CREATE TABLE IF NOT EXISTS celeborn_cluster_tenant_config
     PRIMARY KEY (id),
     UNIQUE KEY `index_unique_tenant_config_key` (`cluster_id`, `tenant_id`, `name`, `config_key`)
 );
+
+CREATE TABLE IF NOT EXISTS celeborn_cluster_tags
+(
+    id         int          NOT NULL AUTO_INCREMENT,
+    cluster_id int          NOT NULL,
+    tag        varchar(255) NOT NULL,
+    worker_id  varchar(255) NOT NULL,
+    gmt_create timestamp    NOT NULL,
+    gmt_modify timestamp    NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY `index_unique_cluster_tag_key` (`cluster_id`, `tag`, `worker_id`)
+);

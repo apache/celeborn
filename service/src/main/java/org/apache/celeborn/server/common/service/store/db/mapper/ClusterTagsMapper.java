@@ -25,7 +25,7 @@ import org.apache.celeborn.server.common.service.model.ClusterTag;
 
 public interface ClusterTagsMapper {
   @Select(
-      "SELECT id, cluster_id, tag, workerId, gmt_create, gmt_modify "
+      "SELECT id, cluster_id, tag, worker_id, gmt_create, gmt_modify "
           + "FROM celeborn_cluster_tags WHERE cluster_id = #{clusterId}")
   List<ClusterTag> getClusterTags(int clusterId);
 }

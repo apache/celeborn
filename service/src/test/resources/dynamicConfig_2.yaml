@@ -17,4 +17,11 @@
 -  level: SYSTEM
    config:
      celeborn.test.int.only: 100
+   tags:
+     tag1:
+       - 'host1:1111'
+       - 'host2:2222'
+     tag3:
+       - 'host3:3333'
+       - 'host4:4444'
 
