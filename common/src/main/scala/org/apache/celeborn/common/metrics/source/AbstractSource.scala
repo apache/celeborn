@@ -175,6 +175,10 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     namedGauges.remove(removeMetric(name, labels))
   }
 
+  def removeGauge(name: String, labelKey: String, labelVal: String): Unit = {
+    removeGauge(name, Map(labelKey -> labelVal) ++ staticLabels)
+  }
+
   def removeMetric(name: String, labels: Map[String, String]): String = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
     metricRegistry.remove(metricNameWithLabel)
