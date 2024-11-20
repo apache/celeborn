@@ -129,7 +129,7 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
     if (allowStates != null && allowStates.contains(state)) {
       logInfo(s"Worker transition status from ${currentWorkerStatus.getState} to $state.")
       currentWorkerStatus = new WorkerStatus(state.getNumber, System.currentTimeMillis())
-      if (worker != null) {
+      if (worker != null & worker.workerInfo != null) {
         worker.workerInfo.setWorkerStatus(currentWorkerStatus)
       }
     } else {
