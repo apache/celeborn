@@ -274,6 +274,7 @@ private[celeborn] class Worker(
   assert(replicatePort > 0, "worker replica bind port should be positive")
 
   storageManager.updateDiskInfos()
+  storageManager.startDeviceMonitor()
 
   // WorkerInfo's diskInfos is a reference to storageManager.diskInfos
   val diskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()

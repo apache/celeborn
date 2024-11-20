@@ -21,7 +21,6 @@ import java.nio.ByteBuffer
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
-import scala.collection.JavaConverters._
 import scala.concurrent.{Await, Promise}
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
@@ -42,7 +41,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMod
 import org.apache.celeborn.common.protocol.PbPartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
-import org.apache.celeborn.common.util.{DiskUtils, ExceptionUtils, Utils}
+import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{HdfsFlusher, LocalFlusher, MapPartitionDataWriter, PartitionDataWriter, S3Flusher, StorageManager}
 import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapPartitionFileWriter
@@ -58,9 +57,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   private var replicateClientFactory: TransportClientFactory = _
   private var registered: Option[AtomicBoolean] = None
   private var workerInfo: WorkerInfo = _
-  private var diskReserveSize: Long = _
-  private var diskReserveRatio: Option[Double] = _
-  private var diskUsableSizes: Map[String, Long] = _
   private var partitionSplitMinimumSize: Long = _
   private var partitionSplitMaximumSize: Long = _
   private var shutdown: AtomicBoolean = _
@@ -80,11 +76,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     unavailablePeers = worker.unavailablePeers
     replicateClientFactory = worker.replicateClientFactory
     workerInfo = worker.workerInfo
-    diskReserveSize = worker.conf.workerDiskReserveSize
-    diskReserveRatio = worker.conf.workerDiskReserveRatio
-    diskUsableSizes = workerInfo.diskInfos.asScala.map { case (mountPoint, diskInfo) =>
-      (mountPoint, DiskUtils.getMinimumUsableSize(diskInfo, diskReserveSize, diskReserveRatio))
-    }.toMap
     partitionSplitMinimumSize = worker.conf.partitionSplitMinimumSize
     partitionSplitMaximumSize = worker.conf.partitionSplitMaximumSize
     storageManager = worker.storageManager
@@ -95,8 +86,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     testPushPrimaryDataTimeout = worker.conf.testPushPrimaryDataTimeout
     testPushReplicaDataTimeout = worker.conf.testPushReplicaDataTimeout
     registered = Some(worker.registered)
-    logInfo(
-      s"diskReserveSize ${Utils.bytesToString(diskReserveSize)}, diskReserveRatio ${diskReserveRatio.orNull}")
   }
 
   override def receive(
@@ -1230,8 +1219,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     }
     val mountPoint = fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint
     val diskInfo = workerInfo.diskInfos.get(mountPoint)
-    val diskFull = diskInfo.status.equals(
-      DiskStatus.HIGH_DISK_USAGE) || diskInfo.actualUsableSpace < diskUsableSizes(mountPoint)
+    val diskFull =
+      diskInfo.status.equals(DiskStatus.HIGH_DISK_USAGE) || diskInfo.actualUsableSpace > 0
     diskFull
   }
 
