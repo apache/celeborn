@@ -50,9 +50,9 @@ public class SystemConfig extends DynamicConfig {
   }
 
   @Override
-  public <T> T getValue(
+  public <T, V> T getValue(
       String configKey,
-      ConfigEntry<Object> configEntry,
+      ConfigEntry<V> configEntry,
       Class<T> finalType,
       ConfigType configType) {
     String configValue = configs.get(configKey);

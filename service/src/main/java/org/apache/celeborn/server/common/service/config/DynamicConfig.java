@@ -61,9 +61,9 @@ public abstract class DynamicConfig {
     }
   }
 
-  public <T> T getValue(
+  public <T, V> T getValue(
       String configKey,
-      ConfigEntry<Object> configEntry,
+      ConfigEntry<V> configEntry,
       Class<T> finalType,
       ConfigType configType) {
     String configValue = configs.get(configKey);
@@ -78,25 +78,6 @@ public abstract class DynamicConfig {
       return formatValue;
     }
   }
-
-  //  public <T> T getValue(
-  //          String configKey,
-  //          ConfigEntry<Object> configEntry,
-  //          Class<T> finalType,
-  //          ConfigType configType) {
-  //    String configValue = configs.get(configKey);
-  //    T formatValue =
-  //            configValue != null ? formatValue(configKey, configValue, finalType, configType) :
-  // null;
-  //    if (formatValue == null) {
-  //      DynamicConfig parentLevelConfig = getParentLevelConfig();
-  //      return parentLevelConfig != null
-  //              ? parentLevelConfig.getValue(configKey, configEntry, finalType, configType)
-  //              : null;
-  //    } else {
-  //      return formatValue;
-  //    }
-  //  }
 
   public <T> T formatValue(
       String configKey, String configValue, Class<T> finalType, ConfigType configType) {
