@@ -22,6 +22,7 @@ import java.util.{function, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.common.CelebornConf
@@ -424,10 +425,15 @@ class ChangePartitionManager(
     changePartitionRequests.foreach { partition =>
       val partitionId = partition.partitionId
       val groupWorkerList =
-        if (groupWorkerResources)
-          groupWorkerMap.get(lifecycleManager.partitionGroupMap.get(partitionId)).asScala.filter(
-            lifecycleManager.workerStatusTracker.workerAvailable).toList
-        else List()
+        if (groupWorkerResources) {
+          val tempWorkerList = new ArrayBuffer[WorkerInfo]()
+          if (lifecycleManager.partitionGroupMap.containsKey(partitionId)) {
+            tempWorkerList ++= groupWorkerMap.get(
+              lifecycleManager.partitionGroupMap.get(partitionId)).asScala.filter(
+              lifecycleManager.workerStatusTracker.workerAvailable).toList
+          }
+          tempWorkerList.toList
+        } else List()
       lifecycleManager.allocateFromCandidates(
         partitionId,
         partition.epoch,
