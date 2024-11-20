@@ -240,6 +240,14 @@ public class RemoteShuffleMasterSuiteJ {
                     .set(
                         ExecutionOptions.BATCH_SHUFFLE_MODE,
                         BatchShuffleMode.ALL_EXCHANGES_PIPELINED)));
+    Configuration configuration = new Configuration();
+    configuration.setString(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED().key(), "true");
+    Assert.assertThrows(
+        String.format(
+            "Flink does not support replicate shuffle data. Please check the config %s.",
+            CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED().key()),
+        IllegalArgumentException.class,
+        () -> createShuffleMaster(configuration));
   }
 
   @After

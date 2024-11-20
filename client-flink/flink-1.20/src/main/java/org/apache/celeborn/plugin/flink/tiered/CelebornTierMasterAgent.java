@@ -87,11 +87,6 @@ public class CelebornTierMasterAgent implements TierMasterAgent {
         if (lifecycleManager == null) {
           celebornAppId = FlinkUtils.toCelebornAppId(lifecycleManagerTimestamp, jobID);
           LOG.info("CelebornAppId: {}", celebornAppId);
-          // The default value of this config option is false. If set to true, Celeborn will use
-          // local allocated workers as candidate being checked workers, this is more useful for
-          // map partition to regenerate the lost data. So if not set, set to true as default for
-          // flink.
-          conf.setIfMissing(CelebornConf.CLIENT_CHECKED_USE_ALLOCATED_WORKERS(), true);
           lifecycleManager = new LifecycleManager(celebornAppId, conf);
           this.shuffleResourceTracker = new ShuffleResourceTracker(executor, lifecycleManager);
         }
