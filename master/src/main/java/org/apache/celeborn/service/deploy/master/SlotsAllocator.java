@@ -57,7 +57,7 @@ public class SlotsAllocator {
           boolean shouldReplicate,
           boolean shouldRackAware,
           int availableStorageTypes,
-          int numWorkerGroups) {
+          int numGroup) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -67,22 +67,25 @@ public class SlotsAllocator {
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         new HashMap<>();
-    if (workers.size() < numWorkerGroups) {
-      numWorkerGroups = 1;
+
+    if (workers.size() < numGroup) {
+      numGroup = 1;
     }
-    int partitionGroupSize = partitionIds.size() / numWorkerGroups;
+    // innerPartitionIds.size() is a multiple of numGroups innerPartitionIds.size =
+    // originalPartitionIds.size * numGroup
+    int numPartitionIdGroup = partitionIds.size() / numGroup;
     Map<Integer, Tuple2<Integer, Integer>> groupedWorkerList =
-        getGroupedWorkerList(workers.size(), numWorkerGroups);
+        getGroupedWorkerList(workers.size(), numGroup);
     // The workers in each group are distributed on different racks as much as possible
     if (shouldRackAware) {
       workers = generateRackAwareWorkers(workers);
     }
 
-    for (int groupId = 0; groupId < numWorkerGroups; groupId++) {
+    for (int groupId = 0; groupId < numGroup; groupId++) {
       List<Integer> groupPartitionIds =
           partitionIds.subList(
-              partitionGroupSize * groupId,
-              Math.min(partitionIds.size(), partitionGroupSize * (groupId + 1)));
+              numPartitionIdGroup * groupId,
+              Math.min(partitionIds.size(), numPartitionIdGroup * (groupId + 1)));
 
       List<WorkerInfo> groupWorkersList =
           workers.subList(groupedWorkerList.get(groupId)._1, groupedWorkerList.get(groupId)._2);
@@ -151,7 +154,7 @@ public class SlotsAllocator {
           double flushTimeWeight,
           double fetchTimeWeight,
           int availableStorageTypes,
-          int numWorkerGroups) {
+          int numGroup) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -160,37 +163,34 @@ public class SlotsAllocator {
     }
     if (StorageInfo.HDFSOnly(availableStorageTypes)) {
       return offerSlotsRoundRobin(
-          workers,
-          partitionIds,
-          shouldReplicate,
-          shouldRackAware,
-          availableStorageTypes,
-          numWorkerGroups);
+          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes, numGroup);
     }
     if (StorageInfo.S3Only(availableStorageTypes)) {
       return offerSlotsRoundRobin(
-          workers,
-          partitionIds,
-          shouldReplicate,
-          shouldRackAware,
-          availableStorageTypes,
-          numWorkerGroups);
+          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes, numGroup);
     }
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         new HashMap<>();
-    int partitionGroupSize = partitionIds.size() / numWorkerGroups;
-    // The workers in each group are distributed on different racks as much as possible
+
+    if (workers.size() < numGroup) {
+      numGroup = 1;
+    }
+    // innerPartitionIds.size() is a multiple of numGroups innerPartitionIds.size =
+    // originalPartitionIds.size * numGroup
+    int numPartitionIdGroup = partitionIds.size() / numGroup;
     Map<Integer, Tuple2<Integer, Integer>> groupedWorkerList =
-        getGroupedWorkerList(workers.size(), numWorkerGroups);
+        getGroupedWorkerList(workers.size(), numGroup);
+    // The workers in each group are distributed on different racks as much as possible
     if (shouldRackAware) {
       workers = generateRackAwareWorkers(workers);
     }
-    for (int groupId = 0; groupId < numWorkerGroups; groupId++) {
+
+    for (int groupId = 0; groupId < numGroup; groupId++) {
       List<Integer> groupPartitionIds =
           partitionIds.subList(
-              partitionGroupSize * groupId,
-              Math.min(partitionIds.size(), partitionGroupSize * (groupId + 1)));
+              numPartitionIdGroup * groupId,
+              Math.min(partitionIds.size(), numPartitionIdGroup * (groupId + 1)));
       List<WorkerInfo> groupWorkersList =
           workers.subList(groupedWorkerList.get(groupId)._1, groupedWorkerList.get(groupId)._2);
 
@@ -232,7 +232,7 @@ public class SlotsAllocator {
             shouldReplicate,
             shouldRackAware,
             availableStorageTypes,
-            numWorkerGroups);
+            numGroup);
       }
 
       if (!initialized) {
@@ -343,9 +343,10 @@ public class SlotsAllocator {
 
   /**
    * Progressive locate slots for all partitions <br>
-   * 1. try to allocate for all partitions under restrictions <br>
-   * 2. allocate remain partitions to all workers <br>
-   * 3. allocate remain partitions to all workers again without considering rack aware <br>
+   * 1. try to allocate for all partitions under restrictions in group <br>
+   * 2. allocate remain partitions to all workers in group <br>
+   * 3. allocate remain partitions to all workers in group again without considering rack aware <br>
+   * 4. allocate remain partitions to all workers again without considering rack aware <br>
    */
   private static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
       locateSlots(

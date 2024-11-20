@@ -677,22 +677,28 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       }
     }
 
-    // First, request to get allocated slots from Primary
-    var numGroupTask = 1
-    var groupNumPartitions = numPartitions
-    if (partitionType.getValue.equals(PartitionType.REDUCE.getValue) && groupMapTaskEnabled) {
-      numGroupTask = math.ceil(numMappers.toDouble / groupMapTaskGroupSize).toInt
-      groupNumPartitions = numPartitions * numGroupTask
+    // Get partitionIds for group map task.PartitionIds wont change and groupNum is 1 if don't group.
+    def getPartitionIds(numPartitions: Int, numMappers: Int): (util.ArrayList[Integer], Int) = {
+      var groupNum = 1
+      var numGroupPartitions = numPartitions
+      if (partitionType.getValue.equals(PartitionType.REDUCE.getValue) && groupMapTaskEnabled) {
+        groupNum = math.ceil(numMappers.toDouble / groupMapTaskGroupSize).toInt
+        numGroupPartitions = numPartitions * groupNum
+      }
+
+      val ids = new util.ArrayList[Integer](numGroupPartitions)
+      (0 until numGroupPartitions).foreach { idx =>
+        if (partitionType.getValue.equals(PartitionType.REDUCE.getValue) && groupWorkerResources) {
+          partitionGroupMap.put(idx, idx / numPartitions)
+        }
+        ids.add(Integer.valueOf(idx))
+      }
+      (ids, groupNum)
     }
 
-    val ids = new util.ArrayList[Integer](groupNumPartitions)
-    (0 until groupNumPartitions).foreach { idx =>
-      if (groupWorkerResources) {
-        partitionGroupMap.put(idx, idx / numPartitions)
-      }
-      ids.add(Integer.valueOf(idx))
-    }
-    val res = requestMasterRequestSlotsWithRetry(shuffleId, ids, numGroupTask)
+    // First, request to get allocated slots from Primary
+    val (partitionIds, groupNum) = getPartitionIds(numPartitions, numMappers)
+    val res = requestMasterRequestSlotsWithRetry(shuffleId, partitionIds, groupNum)
 
     res.status match {
       case StatusCode.REQUEST_FAILED =>
@@ -1702,7 +1708,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   def requestMasterRequestSlotsWithRetry(
       shuffleId: Int,
       ids: util.ArrayList[Integer],
-      numGroupTask: Int = 1): RequestSlotsResponse = {
+      groupNum: Int = 1): RequestSlotsResponse = {
     val excludedWorkerSet =
       if (excludedWorkersFilter) {
         workerStatusTracker.excludedWorkers.asScala.keys.toSet
@@ -1725,7 +1731,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         excludedWorkerSet,
         true,
         clientTagsExpr,
-        numGroupTask)
+        groupNum)
     val res = requestMasterRequestSlots(req)
     if (res.status != StatusCode.SUCCESS) {
       requestMasterRequestSlots(req)
