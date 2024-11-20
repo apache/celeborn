@@ -19,13 +19,17 @@ package org.apache.celeborn.service.deploy.worker
 
 import java.util.concurrent.atomic.AtomicBoolean
 
-import com.google.common.collect.Sets
+import com.google.common.collect.{Maps, Sets}
 import org.junit.Assert
 import org.mockito.MockitoSugar._
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol.{PbWorkerStatus, WorkerEventType}
+import org.apache.celeborn.common.quota.ResourceConsumption
+import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager
 
 class WorkerStatusManagerSuite extends AnyFunSuite {
@@ -36,15 +40,27 @@ class WorkerStatusManagerSuite extends AnyFunSuite {
     worker = mock[Worker]
     val storageManager = mock[StorageManager]
     val shuffleKeys = Sets.newHashSet("test")
+    val workerInfo = new WorkerInfo(
+      "host",
+      0,
+      0,
+      0,
+      0,
+      0,
+      Maps.newHashMap(),
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption])
     when(storageManager.shuffleKeySet()).thenReturn(shuffleKeys)
     when(worker.storageManager).thenReturn(storageManager)
     when(worker.shutdown).thenReturn(new AtomicBoolean())
-
+    when(worker.workerInfo).thenReturn(workerInfo)
     val statusManager = new WorkerStatusManager(conf)
     statusManager.init(worker)
 
     statusManager.doTransition(WorkerEventType.DecommissionThenIdle)
     Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.InDecommissionThenIdle)
+    Assert.assertEquals(
+      worker.workerInfo.getWorkerStatus().getStateValue,
+      PbWorkerStatus.State.InDecommissionThenIdle.getNumber)
 
     // Rerun state Transition
     statusManager.doTransition(WorkerEventType.DecommissionThenIdle)
