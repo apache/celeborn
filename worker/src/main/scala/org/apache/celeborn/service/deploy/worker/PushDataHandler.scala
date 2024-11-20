@@ -1220,7 +1220,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     val mountPoint = fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint
     val diskInfo = workerInfo.diskInfos.get(mountPoint)
     val diskFull =
-      diskInfo.status.equals(DiskStatus.HIGH_DISK_USAGE) || diskInfo.actualUsableSpace > 0
+      diskInfo.status.equals(DiskStatus.HIGH_DISK_USAGE) || diskInfo.actualUsableSpace <= 0
     diskFull
   }
 
