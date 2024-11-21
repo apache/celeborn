@@ -62,10 +62,7 @@ public abstract class DynamicConfig {
   }
 
   public <T, V> T getValue(
-      String configKey,
-      ConfigEntry<V> configEntry,
-      Class<T> finalType,
-      ConfigType configType) {
+      String configKey, ConfigEntry<V> configEntry, Class<T> finalType, ConfigType configType) {
     String configValue = configs.get(configKey);
     T formatValue =
         configValue != null ? formatValue(configKey, configValue, finalType, configType) : null;

@@ -162,6 +162,7 @@ class TagsManagerSuite extends CelebornFunSuite {
     tagsManager = new TagsManager(Option(configService))
 
     {
+      // preferClientTagsExpr: true
       val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG1, workers)
       assert(taggedWorkers.size == 2)
       assert(taggedWorkers.contains(WORKER1))
@@ -170,9 +171,30 @@ class TagsManagerSuite extends CelebornFunSuite {
     }
 
     {
+      // preferClientTagsExpr: true
       val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG2, workers)
       assert(taggedWorkers.size == 2)
       assert(!taggedWorkers.contains(WORKER1))
+      assert(taggedWorkers.contains(WORKER2))
+      assert(taggedWorkers.contains(WORKER3))
+    }
+
+    {
+      // preferClientTagsExpr: false, adminTagsExpr: "tag1"
+      val user = UserIdentifier("tenant_01", "Tom")
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, "tag1,tag2", workers)
+      assert(taggedWorkers.size == 2)
+      assert(taggedWorkers.contains(WORKER1))
+      assert(taggedWorkers.contains(WORKER2))
+      assert(!taggedWorkers.contains(WORKER3))
+    }
+
+    {
+      // preferClientTagsExpr: false, adminTagsExpr: ""
+      val user = UserIdentifier("tenant_01", "Robin")
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, "tag1", workers)
+      assert(taggedWorkers.size == 3)
+      assert(taggedWorkers.contains(WORKER1))
       assert(taggedWorkers.contains(WORKER2))
       assert(taggedWorkers.contains(WORKER3))
     }

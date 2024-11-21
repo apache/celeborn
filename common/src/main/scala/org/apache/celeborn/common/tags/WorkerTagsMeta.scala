@@ -21,12 +21,12 @@ import org.apache.celeborn.common.internal.Logging
 
 case class WorkerTagsMeta(
     tagsExpr: String,
-    clientTagExprEnabled: Boolean) extends Logging {
+    preferClientTagExpr: Boolean) extends Logging {
 
   override def toString: String = {
     s"WorkerTagsMeta[" +
       s"tagsExpr=$tagsExpr, " +
-      s"clientTagExprEnabled=$clientTagExprEnabled" +
+      s"preferClientTagExp=$preferClientTagExpr" +
       s"]"
   }
 }

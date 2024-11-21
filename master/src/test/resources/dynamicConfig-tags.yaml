@@ -32,4 +32,7 @@
    users:
      - name: Jerry
        config:
-         celeborn.test.int.only: 10
+         celeborn.tags.preferClientTagsExpr: true
+     - name: Tom
+       config:
+         celeborn.tags.tagsExpr: 'tag1'

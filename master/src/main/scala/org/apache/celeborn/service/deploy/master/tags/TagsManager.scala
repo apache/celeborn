@@ -58,19 +58,19 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
     val tagsExpr = configService.flatMap { cs =>
       val config = cs.getTenantUserConfigFromCache(userIdentifier.tenantId, userIdentifier.name)
       val tagsMeta = config.getWorkerTagsMeta
-      if (tagsMeta.clientTagExprEnabled) {
+      if (tagsMeta.preferClientTagExpr) {
         Some(clientTagsExpr)
       } else {
         Some(tagsMeta.tagsExpr)
       }
     }.getOrElse(clientTagsExpr)
 
-    val tags = tagsExpr.split(",").map(_.trim)
-
-    if (tags.isEmpty) {
+    if (tagsExpr.isEmpty) {
       logWarning("No tags provided")
-      return Collections.emptyList()
+      return workers
     }
+
+    val tags = tagsExpr.split(",").map(_.trim)
 
     var workersForTags: Option[JSet[String]] = None
     tags.foreach { tag =>

@@ -5978,6 +5978,7 @@ object CelebornConf extends Logging {
       .doc("Expression to filter workers by tags. The expression is a comma-separated list of " +
         "tags. The expression is evaluated as a logical AND of all tags. For example, " +
         "`prod,high-io` filters workers that have both the `prod` and `high-io` tags.")
+      .dynamic
       .stringConf
       .createWithDefault("")
 
@@ -5986,9 +5987,10 @@ object CelebornConf extends Logging {
       .categories("tags", "master")
       .doc("When `true`, prefer the tags expression provided by the client over the tags " +
         "expression provided by the master.")
+      .dynamic
       .version("0.6.0")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val MASTER_EXCLUDE_WORKER_UNHEALTHY_DISK_RATIO_THRESHOLD: ConfigEntry[Double] =
     buildConf("celeborn.master.excludeWorker.unhealthyDiskRatioThreshold")
