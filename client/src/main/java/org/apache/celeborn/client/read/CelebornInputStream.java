@@ -663,7 +663,7 @@ public abstract class CelebornInputStream extends InputStream {
             appShuffleId,
             shuffleId,
             partitionId,
-            currentReader.getLocation(),
+            Optional.ofNullable(currentReader).map(PartitionReader::getLocation).orElse(null),
             e);
         IOException ioe;
         if (e instanceof IOException) {
@@ -691,7 +691,7 @@ public abstract class CelebornInputStream extends InputStream {
             appShuffleId,
             shuffleId,
             partitionId,
-            currentReader.getLocation(),
+            Optional.ofNullable(currentReader).map(PartitionReader::getLocation).orElse(null),
             e);
         throw e;
       }
