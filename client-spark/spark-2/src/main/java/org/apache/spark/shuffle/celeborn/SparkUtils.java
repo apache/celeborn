@@ -235,7 +235,7 @@ public class SparkUtils {
           TaskInfo taskInfo = taskInfoOption.get();
           int taskIndex = taskInfo.index();
           if (taskSetManager.successful()[taskIndex]) {
-            LOG.info("Task {} has been successful.", taskIndex);
+            LOG.info("TaskId={} index={} has been successful.", taskId, taskIndex);
             return true;
           }
           return scala.collection.JavaConverters.asJavaCollectionConverter(
@@ -244,7 +244,7 @@ public class SparkUtils {
               .anyMatch(
                   ti -> {
                     if (!ti.finished() && ti.attemptNumber() != taskInfo.attemptNumber()) {
-                      LOG.info("Another attempt of task {} is running: {}.", taskInfo, ti);
+                      LOG.info("TaskId={} index={} another attempt {} is running.", taskId, taskIndex, ti.attemptNumber());
                       return true;
                     } else {
                       return false;
