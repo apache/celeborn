@@ -80,6 +80,7 @@ function install_build_prerequisites {
     checkinstall \
     git \
     pkg-config \
+    gdb \
     wget
 
   # Install to /usr/local to make it available to all users.
