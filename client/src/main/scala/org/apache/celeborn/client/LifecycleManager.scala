@@ -1425,7 +1425,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             // Only when the LifecycleManager needs to retry reserve slots again, re-allocate slots
             // and put the new allocated slots to the total slots, the re-allocated slots won't be
             // duplicated with existing partition locations.
-            val groupWorkerMap = groupedWorkers.get(shuffleId)
+            val groupWorkerMap = groupedWorkers.getOrDefault(
+              shuffleId,
+              new ConcurrentHashMap[Int, util.HashSet[WorkerInfo]]())
             requestSlots = reallocateSlotsFromCandidates(
               failedPartitionLocations.values.toList,
               retryCandidates.asScala.toList,
@@ -1540,14 +1542,16 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     oldPartitions.foreach { partition =>
       val groupWorkerList =
         if (groupWorkerResources) {
-          val tempWorkerList = new ArrayBuffer[WorkerInfo]()
-          if (partitionGroupMap.containsKey(partition.getId)) {
-            tempWorkerList ++= groupWorkerMap.get(
-              partitionGroupMap.get(partition.getId)).asScala.filter(
-              workerStatusTracker.workerAvailable).toList
+          Option(partitionGroupMap.get(partition.getId)) match {
+            case Some(partitionGroup) =>
+              groupWorkerMap.getOrDefault(partitionGroup, new util.HashSet[WorkerInfo]()).asScala
+                .filter(workerStatusTracker.workerAvailable)
+                .toList
+            case None => List()
           }
-          tempWorkerList.toList
-        } else List()
+        } else {
+          List()
+        }
       allocateFromCandidates(
         partition.getId,
         partition.getEpoch,
