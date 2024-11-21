@@ -254,18 +254,18 @@ object DeviceMonitor extends Logging {
     tryWithTimeoutAndCallback({
       val usage = getDiskUsageInfos(diskInfo)
       // assume no single device capacity exceeds 1EB in this era
-      val minimumUsableSize = DiskUtils.getMinimumUsableSize(
+      val actualReserveSize = DiskUtils.getActualReserveSize(
         diskInfo,
         conf.workerDiskReserveSize,
         conf.workerDiskReserveRatio)
       val highDiskUsage =
-        usage.freeSpace < minimumUsableSize || diskInfo.actualUsableSpace <= 0
+        usage.freeSpace < actualReserveSize || diskInfo.actualUsableSpace <= 0
       if (highDiskUsage) {
         logWarning(s"${diskInfo.mountPoint} usage is above threshold." +
-          s" Disk usage(Report by OS):{total:${Utils.bytesToString(usage.totalSpace)}," +
-          s" free:${Utils.bytesToString(usage.freeSpace)}, used_percent:${usage.usedPercent}} " +
-          s"usage(Report by Celeborn):{" +
-          s"total:${Utils.bytesToString(diskInfo.configuredUsableSpace)}" +
+          s" Disk usage(Report by OS): {total:${Utils.bytesToString(usage.totalSpace)}," +
+          s" free:${Utils.bytesToString(usage.freeSpace)}, used_percent:${usage.usedPercent}}," +
+          s" usage(Report by Celeborn): {" +
+          s" total:${Utils.bytesToString(diskInfo.configuredUsableSpace)}," +
           s" free:${Utils.bytesToString(diskInfo.actualUsableSpace)} }")
       }
       highDiskUsage

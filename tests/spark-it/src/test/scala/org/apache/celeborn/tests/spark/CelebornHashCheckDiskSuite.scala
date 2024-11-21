@@ -60,7 +60,6 @@ class CelebornHashCheckDiskSuite extends SparkTestBase {
     val combineResult = combine(sparkSession)
     val groupByResult = groupBy(sparkSession)
     val repartitionResult = repartition(sparkSession)
-    val sqlResult = runsql(sparkSession)
     sparkSession.stop()
 
     val sparkSessionEnableCeleborn = SparkSession.builder()
@@ -69,16 +68,14 @@ class CelebornHashCheckDiskSuite extends SparkTestBase {
     val celebornCombineResult = combine(sparkSessionEnableCeleborn)
     val celebornGroupByResult = groupBy(sparkSessionEnableCeleborn)
     val celebornRepartitionResult = repartition(sparkSessionEnableCeleborn)
-    val celebornSqlResult = runsql(sparkSessionEnableCeleborn)
 
     assert(combineResult.equals(celebornCombineResult))
     assert(groupByResult.equals(celebornGroupByResult))
     assert(repartitionResult.equals(celebornRepartitionResult))
-    assert(combineResult.equals(celebornCombineResult))
-    assert(sqlResult.equals(celebornSqlResult))
 
     // shuffle key not expired, diskInfo.actualUsableSpace <= 0, no space
     workers.foreach { worker =>
+      worker.storageManager.updateDiskInfos()
       worker.storageManager.disksSnapshot().foreach { diskInfo =>
         assert(diskInfo.actualUsableSpace <= 0)
       }

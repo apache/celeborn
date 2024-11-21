@@ -23,9 +23,9 @@ import org.mockito.stubbing.Stubber
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.{WORKER_GRACEFUL_SHUTDOWN_ENABLED, WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH}
+import org.apache.celeborn.common.CelebornConf.{WORKER_DISK_RESERVE_SIZE, WORKER_GRACEFUL_SHUTDOWN_ENABLED, WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH}
 import org.apache.celeborn.common.meta.DiskInfo
-import org.apache.celeborn.common.util.DiskUtils
+import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 
 trait MockitoHelper extends MockitoSugar {
@@ -36,8 +36,6 @@ trait MockitoHelper extends MockitoSugar {
 
 class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
 
-  val conf = new CelebornConf()
-
   test("[CELEBORN-926] saveAllCommittedFileInfosToDB cause IllegalMonitorStateException") {
     val conf = new CelebornConf().set(WORKER_GRACEFUL_SHUTDOWN_ENABLED, true)
       .set(WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH, "/tmp/recover")
@@ -47,42 +45,67 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
   }
 
   test("updateDiskInfosWithDiskReserveSize") {
+    // reserve size set to 5g
+    val conf = new CelebornConf().set(WORKER_DISK_RESERVE_SIZE, Utils.byteStringAsBytes("5g"))
     val storageManager = new StorageManager(conf, new WorkerSource(conf))
     val spyStorageManager = spy(storageManager)
 
-    val disks = prepareDisks()
-    val diskSetSpace = (80 * 1024 * 1024 * 1024L, 80 * 1024 * 1024 * 1024L)
-    doReturn(disks).when(spyStorageManager).disksSnapshot()
-    doReturn(diskSetSpace).when(spyStorageManager).getFileSystemReportedSpace(any)
+    val diskInfo = new DiskInfo("/mnt/disk1", List.empty, null, conf)
+    diskInfo.setUsableSpace(-1L)
+
+    var diskSetSpace = (0L, 0L)
+    doReturn(List(diskInfo)).when(spyStorageManager).disksSnapshot()
+    doAnswer(diskSetSpace).when(spyStorageManager).getFileSystemReportedSpace(any)
+
+    // disk usable 80g, total 80g, worker config 8EB
+    diskSetSpace = (80 * 1024 * 1024 * 1024L, 80 * 1024 * 1024 * 1024L)
+    diskInfo.configuredUsableSpace = Long.MaxValue
     spyStorageManager.updateDiskInfos()
-    for (disk <- disks) {
-      val minimumReserveSize =
-        DiskUtils.getMinimumUsableSize(
-          disk,
-          conf.workerDiskReserveSize,
-          conf.workerDiskReserveRatio)
-      assert(disk.actualUsableSpace == diskSetSpace._1 - minimumReserveSize)
-    }
-  }
+    assert(diskInfo.actualUsableSpace == 75 * 1024 * 1024 * 1024L)
 
-  def prepareDisks(): List[DiskInfo] = {
-    val diskSetSpaces = Array(
-      90L * 1024 * 1024 * 1024,
-      95L * 1024 * 1024 * 1024,
-      100L * 1024 * 1024 * 1024)
+    // disk usable 80g, total 80g, worker config 50g
+    diskInfo.configuredUsableSpace = 50 * 1024 * 1024 * 1024L
+    diskInfo.setUsableSpace(-1L)
+    spyStorageManager.updateDiskInfos()
+    assert(diskInfo.actualUsableSpace == 50 * 1024 * 1024 * 1024L)
 
-    val diskInfo1 = new DiskInfo("/mnt/disk1", List.empty, null, conf)
-    diskInfo1.configuredUsableSpace = (Long.MaxValue)
-    diskInfo1.setUsableSpace(diskSetSpaces(0))
+    // disk usable 10g, total 80g, worker config 20g
+    diskSetSpace = (10 * 1024 * 1024 * 1024L, 80 * 1024 * 1024 * 1024L)
+    diskInfo.configuredUsableSpace = 20 * 1024 * 1024 * 1024L
+    diskInfo.setUsableSpace(-1L)
+    spyStorageManager.updateDiskInfos()
+    assert(diskInfo.actualUsableSpace == 5 * 1024 * 1024 * 1024L)
 
-    val diskInfo2 = new DiskInfo("/mnt/disk2", List.empty, null, conf)
-    diskInfo2.configuredUsableSpace = (Long.MaxValue)
-    diskInfo2.setUsableSpace(diskSetSpaces(1))
+    // disk usable 10g, total 80g, worker config 5g
+    diskInfo.configuredUsableSpace = 5 * 1024 * 1024 * 1024L
+    diskInfo.setUsableSpace(-1L)
+    spyStorageManager.updateDiskInfos()
+    assert(diskInfo.actualUsableSpace == 5 * 1024 * 1024 * 1024L)
 
-    val diskInfo3 = new DiskInfo("/mnt/disk3", List.empty, null, conf)
-    diskInfo3.configuredUsableSpace = (Long.MaxValue)
-    diskInfo3.setUsableSpace(diskSetSpaces(2))
+    // disk usable 5g, total 80g, worker config 20g
+    diskSetSpace = (5 * 1024 * 1024 * 1024L, 80 * 1024 * 1024 * 1024L)
+    diskInfo.configuredUsableSpace = 20 * 1024 * 1024 * 1024L
+    diskInfo.setUsableSpace(-1L)
+    spyStorageManager.updateDiskInfos()
+    assert(diskInfo.actualUsableSpace == 0L)
 
-    List(diskInfo1, diskInfo2, diskInfo3)
+    // disk usable 5g, total 80g, worker config 5g
+    diskInfo.configuredUsableSpace = 5 * 1024 * 1024 * 1024L
+    diskInfo.setUsableSpace(-1L)
+    spyStorageManager.updateDiskInfos()
+    assert(diskInfo.actualUsableSpace == 0L)
+
+    // disk usable 1g, total 80g, worker config 20g
+    diskSetSpace = (1 * 1024 * 1024 * 1024L, 80 * 1024 * 1024 * 1024L)
+    diskInfo.configuredUsableSpace = 20 * 1024 * 1024 * 1024L
+    diskInfo.setUsableSpace(-1L)
+    spyStorageManager.updateDiskInfos()
+    assert(diskInfo.actualUsableSpace == 0L)
+
+    // disk usable 1g, total 80g, worker config 5g
+    diskInfo.configuredUsableSpace = 5 * 1024 * 1024 * 1024L
+    diskInfo.setUsableSpace(-1L)
+    spyStorageManager.updateDiskInfos()
+    assert(diskInfo.actualUsableSpace == 0L)
   }
 }

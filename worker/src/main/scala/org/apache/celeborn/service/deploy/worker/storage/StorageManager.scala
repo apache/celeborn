@@ -148,8 +148,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     (flushers, totalThread)
   }
 
-  deviceMonitor.startCheck()
-
   val hdfsDir = conf.hdfsDir
   val hdfsPermission = new FsPermission("755")
   val (hdfsFlusher, _totalHdfsFlusherThread) =
@@ -820,15 +818,17 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           try {
             val (fileSystemReportedUsableSpace, fileSystemReportedTotalSpace) =
               getFileSystemReportedSpace(diskInfo.mountPoint)
+            val actualReserveSize =
+              DiskUtils.getActualReserveSize(diskInfo, diskReserveSize, diskReserveRatio)
             val workingDirUsableSpace =
-              Math.min(diskInfo.configuredUsableSpace - totalUsage, fileSystemReportedUsableSpace)
-            val minimumReserveSize =
-              DiskUtils.getMinimumUsableSize(diskInfo, diskReserveSize, diskReserveRatio)
-            val usableSpace = Math.max(workingDirUsableSpace - minimumReserveSize, 0)
+              Math.min(
+                diskInfo.configuredUsableSpace - totalUsage,
+                fileSystemReportedUsableSpace - actualReserveSize)
+            val usableSpace = Math.max(workingDirUsableSpace, 0)
             logDebug(
-              s"Update diskInfo:${diskInfo.mountPoint} workingDirUsableSpace:$workingDirUsableSpace fileMeta:$fileSystemReportedUsableSpace" +
-                s"conf:${diskInfo.configuredUsableSpace} totalUsage:$totalUsage totalSpace:$fileSystemReportedTotalSpace" +
-                s"minimumReserveSize:$minimumReserveSize usableSpace:$usableSpace")
+              s"Update diskInfo:${diskInfo.mountPoint} workingDirUsableSpace:$workingDirUsableSpace fileMeta:$fileSystemReportedUsableSpace " +
+                s"configuredUsableSpace:${diskInfo.configuredUsableSpace} totalUsage:$totalUsage totalSpace:$fileSystemReportedTotalSpace " +
+                s"actualReserveSize:$actualReserveSize usableSpace:$usableSpace")
             diskInfo.setUsableSpace(usableSpace)
             diskInfo.setTotalSpace(fileSystemReportedTotalSpace)
           } catch {
@@ -1079,6 +1079,11 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
     throw exception
   }
+
+  def startDeviceMonitor(): Unit = {
+    deviceMonitor.startCheck()
+  }
+
 }
 
 object StorageManager {

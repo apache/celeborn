@@ -27,28 +27,28 @@ import org.apache.celeborn.common.meta.DiskInfo
 object DiskUtils {
 
   /**
-   * Gets the minimum usable size for each disk, which size is the max space between the reserved space
-   * and the space calculate via reserved ratio.
+   * Get the actual size that the disk needs to reserve. It will take the larger value between
+   * the configured fixed reserved size and the size calculated by the reserved ratio.
    *
-   * @param diskInfo The reserved disk info.
-   * @param diskReserveSize The reserved space for each disk.
-   * @param diskReserveRatio The reserved ratio for each disk.
-   * @return the minimum usable space.
+   * @param diskInfo The disk info being calculated.
+   * @param diskReserveSize The configured fixed reserved size space for the disk.
+   * @param diskReserveRatio The configured reserved ratio for the disk.
+   * @return the actual size (in bytes) that the disk needs to reserve.
    */
-  def getMinimumUsableSize(
+  def getActualReserveSize(
       diskInfo: DiskInfo,
       diskReserveSize: Long,
       diskReserveRatio: Option[Double]): Long = {
-    var minimumUsableSize = diskReserveSize
+    var actualReserveSize = diskReserveSize
     if (diskReserveRatio.isDefined) {
       try {
         val totalSpace = Files.getFileStore(Paths.get(diskInfo.mountPoint)).getTotalSpace
-        minimumUsableSize =
-          BigDecimal(totalSpace * diskReserveRatio.get).longValue.max(minimumUsableSize)
+        actualReserveSize =
+          BigDecimal(totalSpace * diskReserveRatio.get).longValue.max(actualReserveSize)
       } catch {
         case _: Exception => // Do nothing
       }
     }
-    minimumUsableSize
+    actualReserveSize
   }
 }
