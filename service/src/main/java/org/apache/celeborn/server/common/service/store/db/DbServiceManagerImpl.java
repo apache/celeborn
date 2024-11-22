@@ -33,14 +33,15 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.server.common.service.config.ConfigLevel;
 import org.apache.celeborn.server.common.service.config.ConfigService;
-import org.apache.celeborn.server.common.service.config.SystemConfig;
 import org.apache.celeborn.server.common.service.config.TenantConfig;
 import org.apache.celeborn.server.common.service.model.ClusterInfo;
 import org.apache.celeborn.server.common.service.model.ClusterSystemConfig;
+import org.apache.celeborn.server.common.service.model.ClusterTag;
 import org.apache.celeborn.server.common.service.model.ClusterTenantConfig;
 import org.apache.celeborn.server.common.service.store.IServiceManager;
 import org.apache.celeborn.server.common.service.store.db.mapper.ClusterInfoMapper;
 import org.apache.celeborn.server.common.service.store.db.mapper.ClusterSystemConfigMapper;
+import org.apache.celeborn.server.common.service.store.db.mapper.ClusterTagsMapper;
 import org.apache.celeborn.server.common.service.store.db.mapper.ClusterTenantConfigMapper;
 import org.apache.celeborn.server.common.service.utils.JsonUtils;
 
@@ -143,11 +144,10 @@ public class DbServiceManagerImpl implements IServiceManager {
   }
 
   @Override
-  public SystemConfig getSystemConfig() {
+  public List<ClusterSystemConfig> getSystemConfig() {
     try (SqlSession sqlSession = sqlSessionFactory.openSession()) {
       ClusterSystemConfigMapper mapper = sqlSession.getMapper(ClusterSystemConfigMapper.class);
-      List<ClusterSystemConfig> clusterSystemConfig = mapper.getClusterSystemConfig(clusterId);
-      return new SystemConfig(celebornConf, clusterSystemConfig);
+      return mapper.getClusterSystemConfig(clusterId);
     }
   }
 
@@ -163,5 +163,12 @@ public class DbServiceManagerImpl implements IServiceManager {
     clusterInfo.setEndpoint(endpoint);
 
     return clusterInfo;
+  }
+
+  public List<ClusterTag> getClusterTags() {
+    try (SqlSession sqlSession = sqlSessionFactory.openSession()) {
+      ClusterTagsMapper mapper = sqlSession.getMapper(ClusterTagsMapper.class);
+      return mapper.getClusterTags(clusterId);
+    }
   }
 }

@@ -45,3 +45,9 @@ VALUES
     ( 14, 1, 'tenant_id1', 'TENANT', '', 'celeborn.client.push.queue.capacity', '1024', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
     ( 15, 1, 'tenant_id1', 'TENANT_USER', 'Jerry', 'celeborn.client.push.buffer.initial.size', '1k', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
     ( 16, 1, 'tenant_id1', 'TENANT_USER', 'Jerry', 'celeborn.client.push.buffer.initial.size.user.only', '512k', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' );
+INSERT INTO `celeborn_cluster_tags` ( `id`, `cluster_id`, `tag`, `worker_id`, `gmt_create`, `gmt_modify` )
+VALUES
+    ( 1, 1, 'tag1', 'host1:1111', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 2, 1, 'tag1', 'host2:2222', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 3, 1, 'tag2', 'host3:3333', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 4, 1, 'tag2', 'host4:4444', '2023-08-26 22:08:30', '2023-08-26 22:08:30' );

@@ -23,6 +23,13 @@
      celeborn.test.timeoutMs.only: 100s
      celeborn.test.enabled.only: false
      celeborn.test.int.only: 10
+   tags:
+     tag1:
+       - 'host1:1111'
+       - 'host2:2222'
+     tag2:
+       - 'host3:3333'
+       - 'host4:4444'
 
 -  tenantId: tenant_id
    level: TENANT

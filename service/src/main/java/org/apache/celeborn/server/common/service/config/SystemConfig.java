@@ -17,31 +17,19 @@
 
 package org.apache.celeborn.server.common.service.config;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.internal.config.ConfigEntry;
 import org.apache.celeborn.server.common.service.model.ClusterSystemConfig;
+import org.apache.celeborn.server.common.service.model.ClusterTag;
 
 public class SystemConfig extends DynamicConfig {
   private final CelebornConf celebornConf;
 
-  public SystemConfig(CelebornConf celebornConf, Map<String, String> configs) {
-    this.celebornConf = celebornConf;
-    this.configs.putAll(configs);
-  }
-
   public SystemConfig(CelebornConf celebornConf) {
     this.celebornConf = celebornConf;
     this.configs = new HashMap<>();
-  }
-
-  public SystemConfig(CelebornConf celebornConf, List<ClusterSystemConfig> systemConfigs) {
-    this.celebornConf = celebornConf;
-    systemConfigs.forEach(t -> configs.put(t.getConfigKey(), t.getConfigValue()));
   }
 
   @Override
@@ -69,8 +57,24 @@ public class SystemConfig extends DynamicConfig {
     this.configs = configs;
   }
 
+  public void setConfigs(List<ClusterSystemConfig> configs) {
+    Map<String, String> newConfigs = new HashMap<>();
+    for (ClusterSystemConfig c : configs) {
+      newConfigs.put(c.getConfigKey(), c.getConfigValue());
+    }
+    this.configs = newConfigs;
+  }
+
   public void setTags(Map<String, Set<String>> tags) {
     this.tags = tags;
+  }
+
+  public void setTags(List<ClusterTag> tags) {
+    Map<String, Set<String>> newTags = new HashMap<>();
+    for (ClusterTag t : tags) {
+      newTags.computeIfAbsent(t.getTag(), k -> new HashSet<>()).add(t.getWorkerId());
+    }
+    this.tags = newTags;
   }
 
   @Override

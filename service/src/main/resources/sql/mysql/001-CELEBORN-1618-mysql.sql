@@ -15,26 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.server.common.service.store;
-
-import java.util.List;
-
-import org.apache.celeborn.server.common.service.config.TenantConfig;
-import org.apache.celeborn.server.common.service.model.ClusterInfo;
-import org.apache.celeborn.server.common.service.model.ClusterSystemConfig;
-import org.apache.celeborn.server.common.service.model.ClusterTag;
-
-public interface IServiceManager {
-
-  int createCluster(ClusterInfo clusterInfo);
-
-  ClusterInfo getClusterInfo(String clusterName);
-
-  List<TenantConfig> getAllTenantConfigs();
-
-  List<TenantConfig> getAllTenantUserConfigs();
-
-  List<ClusterSystemConfig> getSystemConfig();
-
-  List<ClusterTag> getClusterTags();
-}
+CREATE TABLE IF NOT EXISTS celeborn_cluster_tags
+(
+    id         int          NOT NULL AUTO_INCREMENT,
+    cluster_id int          NOT NULL,
+    tag        varchar(255) NOT NULL,
+    worker_id  varchar(255) NOT NULL,
+    gmt_create timestamp    NOT NULL,
+    gmt_modify timestamp    NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY `index_unique_cluster_tag_key` (`cluster_id`, `tag`, `worker_id`)
+);

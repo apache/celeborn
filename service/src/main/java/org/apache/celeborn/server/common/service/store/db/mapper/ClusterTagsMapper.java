@@ -15,26 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.server.common.service.store;
+package org.apache.celeborn.server.common.service.store.db.mapper;
 
 import java.util.List;
 
-import org.apache.celeborn.server.common.service.config.TenantConfig;
-import org.apache.celeborn.server.common.service.model.ClusterInfo;
-import org.apache.celeborn.server.common.service.model.ClusterSystemConfig;
+import org.apache.ibatis.annotations.Select;
+
 import org.apache.celeborn.server.common.service.model.ClusterTag;
 
-public interface IServiceManager {
-
-  int createCluster(ClusterInfo clusterInfo);
-
-  ClusterInfo getClusterInfo(String clusterName);
-
-  List<TenantConfig> getAllTenantConfigs();
-
-  List<TenantConfig> getAllTenantUserConfigs();
-
-  List<ClusterSystemConfig> getSystemConfig();
-
-  List<ClusterTag> getClusterTags();
+public interface ClusterTagsMapper {
+  @Select(
+      "SELECT id, cluster_id, tag, worker_id, gmt_create, gmt_modify "
+          + "FROM celeborn_cluster_tags WHERE cluster_id = #{clusterId}")
+  List<ClusterTag> getClusterTags(int clusterId);
 }

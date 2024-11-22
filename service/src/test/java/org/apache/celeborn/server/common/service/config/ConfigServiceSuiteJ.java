@@ -19,6 +19,7 @@ package org.apache.celeborn.server.common.service.config;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -49,8 +50,8 @@ public class ConfigServiceSuiteJ {
     CelebornConf celebornConf = new CelebornConf();
     celebornConf.set(
         CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_JDBC_URL(),
-        "jdbc:h2:mem:test;MODE=MYSQL;INIT=RUNSCRIPT FROM 'classpath:celeborn-0.5.0-h2.sql'\\;"
-            + "RUNSCRIPT FROM 'classpath:celeborn-0.5.0-h2-ut-data.sql';DB_CLOSE_DELAY=-1;");
+        "jdbc:h2:mem:test;MODE=MYSQL;INIT=RUNSCRIPT FROM 'classpath:celeborn-0.6.0-h2.sql'\\;"
+            + "RUNSCRIPT FROM 'classpath:celeborn-0.6.0-h2-ut-data.sql';DB_CLOSE_DELAY=-1;");
     celebornConf.set(
         CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME(), "org.h2.Driver");
     celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_MAXIMUM_POOL_SIZE(), "1");
@@ -58,20 +59,22 @@ public class ConfigServiceSuiteJ {
     verifySystemConfig(configService);
     verifyTenantConfig(configService);
     verifyTenantUserConfig(configService);
+    verifyTags(configService);
 
     SqlSessionFactory sqlSessionFactory = DBSessionFactory.get(celebornConf);
     try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) {
-      sqlSession
-          .getConnection()
-          .createStatement()
-          .execute(
-              "UPDATE celeborn_cluster_system_config SET config_value = 100 WHERE config_key='celeborn.test.int.only'");
+      Statement statement = sqlSession.getConnection().createStatement();
+
+      statement.execute(
+          "UPDATE celeborn_cluster_system_config SET config_value = 100 WHERE config_key='celeborn.test.int.only'");
+      statement.execute("UPDATE celeborn_cluster_tags SET tag = 'tag3' WHERE tag='tag2'");
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }
 
     configService.refreshCache();
     verifyConfigChanged(configService);
+    verifyTagsChanged(configService);
     verifyServiceManager(
         ((DbConfigServiceImpl) configService).getServiceManager(),
         celebornConf,
@@ -88,12 +91,15 @@ public class ConfigServiceSuiteJ {
     verifySystemConfig(configService);
     verifyTenantConfig(configService);
     verifyTenantUserConfig(configService);
+    verifyTags(configService);
+
     // change -> refresh config
     file = getClass().getResource("/dynamicConfig_2.yaml").getFile();
     celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), file);
     configService.refreshCache();
 
     verifyConfigChanged(configService);
+    verifyTagsChanged(configService);
   }
 
   @After
@@ -311,25 +317,7 @@ public class ConfigServiceSuiteJ {
     Assert.assertEquals(gmtTime, clusterInfo.getGmtModify());
   }
 
-  @Test
-  public void testTags() throws IOException {
-    CelebornConf celebornConf = new CelebornConf();
-    String file = getClass().getResource("/dynamicConfig_tags.yaml").getFile();
-    celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), file);
-    celebornConf.set(CelebornConf.DYNAMIC_CONFIG_REFRESH_INTERVAL(), 5L);
-    configService = new FsConfigServiceImpl(celebornConf);
-
-    verifyTags(configService);
-
-    // change -> refresh config
-    file = getClass().getResource("/dynamicConfig_tags2.yaml").getFile();
-    celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), file);
-    configService.refreshCache();
-
-    verifyModifiedTags(configService);
-  }
-
-  public void verifyTags(ConfigService configService) {
+  private void verifyTags(ConfigService configService) {
     SystemConfig systemConfig = configService.getSystemConfigFromCache();
     Map<String, Set<String>> tags = systemConfig.getTags();
 
@@ -349,25 +337,27 @@ public class ConfigServiceSuiteJ {
     verifyTenantAndUserTagsAsNull(configService);
   }
 
-  public void verifyModifiedTags(ConfigService configService) {
+  private void verifyTagsChanged(ConfigService configService) {
     System.out.println("Tags changed");
 
     SystemConfig systemConfig = configService.getSystemConfigFromCache();
     Map<String, Set<String>> tags = systemConfig.getTags();
 
     Set<String> tag1 = tags.getOrDefault("tag1", new HashSet<>());
-    Assert.assertEquals(tag1.size(), 1);
+    Assert.assertEquals(tag1.size(), 2);
     Assert.assertTrue(tag1.contains("host1:1111"));
+    Assert.assertTrue(tag1.contains("host2:2222"));
 
     Set<String> tag2 = tags.getOrDefault("tag2", new HashSet<>());
     Assert.assertEquals(tag2.size(), 0);
 
     Set<String> tag3 = tags.getOrDefault("tag3", new HashSet<>());
-    Assert.assertEquals(tag3.size(), 1);
-    Assert.assertTrue(tag3.contains("host5:5555"));
+    Assert.assertEquals(tag3.size(), 2);
+    Assert.assertTrue(tag3.contains("host3:3333"));
+    Assert.assertTrue(tag3.contains("host4:4444"));
   }
 
-  public void verifyTenantAndUserTagsAsNull(ConfigService configService) {
+  private void verifyTenantAndUserTagsAsNull(ConfigService configService) {
     TenantConfig tenantConfig = configService.getRawTenantConfigFromCache("tenant_id1");
     Assert.assertNull(tenantConfig.getTags());
 

@@ -15,26 +15,6 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.server.common.service.store;
-
-import java.util.List;
-
-import org.apache.celeborn.server.common.service.config.TenantConfig;
-import org.apache.celeborn.server.common.service.model.ClusterInfo;
-import org.apache.celeborn.server.common.service.model.ClusterSystemConfig;
-import org.apache.celeborn.server.common.service.model.ClusterTag;
-
-public interface IServiceManager {
-
-  int createCluster(ClusterInfo clusterInfo);
-
-  ClusterInfo getClusterInfo(String clusterName);
-
-  List<TenantConfig> getAllTenantConfigs();
-
-  List<TenantConfig> getAllTenantUserConfigs();
-
-  List<ClusterSystemConfig> getSystemConfig();
-
-  List<ClusterTag> getClusterTags();
-}
+SELECT '< Upgrading config store schema from 0.5.0 to 0.6.0 >' AS ' ';
+SOURCE 001-CELEBORN-1618-mysql.sql;
+SELECT '< Finished upgrading config store schema from 0.5.0 to 0.6.0 >' AS ' ';
