@@ -209,25 +209,5 @@
         </dependency>
       </dependencies>
     </profile>
-    <profile>
-      <id>hadoop-aws</id>
-      <activation>
-        <property>
-          <name>hadoop-aws-deps</name>
-        </property>
-      </activation>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-aws</artifactId>
-          <version>${hadoop.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>com.amazonaws</groupId>
-          <artifactId>aws-java-sdk-bundle</artifactId>
-          <version>${aws.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
   </profiles>
 </project>

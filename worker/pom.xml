@@ -141,4 +141,17 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>aws</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.celeborn</groupId>
+          <artifactId>celeborn-multipart-uploader_${scala.binary.version}</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 </project>

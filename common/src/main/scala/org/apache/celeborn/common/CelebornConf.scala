@@ -1147,7 +1147,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def s3SecretKey: String = get(S3_SECRET_KEY).getOrElse("")
 
-  def s3Endpoint: String = get(S3_ENDPOINT).getOrElse("")
+  def s3EndpointRegion: String = get(S3_ENDPOINT_REGION).getOrElse("")
+
+  def s3MultiplePartUploadMaxRetries: Int = get(S3_MPU_MAX_RETRIES)
 
   def s3Dir: String = {
     get(S3_DIR).map {
@@ -3062,13 +3064,21 @@ object CelebornConf extends Logging {
       .stringConf
       .createOptional
 
-  val S3_ENDPOINT: OptionalConfigEntry[String] =
-    buildConf("celeborn.storage.s3.endpoint")
+  val S3_ENDPOINT_REGION: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.s3.endpoint.region")
       .categories("worker", "master", "client")
       .version("0.6.0")
       .doc("S3 endpoint for Celeborn to store shuffle data.")
       .stringConf
       .createOptional
+
+  val S3_MPU_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.storage.s3.mpu.maxRetries")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("S3 MPU upload max retries.")
+      .intConf
+      .createWithDefault(5)
 
   val WORKER_DISK_RESERVE_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.storage.disk.reserve.size")
@@ -3552,7 +3562,7 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .doc("Size of buffer used by a S3 flusher.")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("4m")
+      .createWithDefaultString("6m")
 
   val WORKER_WRITER_CLOSE_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.writer.close.timeout")

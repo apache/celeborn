@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +33,7 @@ import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
@@ -49,6 +51,8 @@ import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.FileChannelUtils;
+import org.apache.celeborn.reflect.DynConstructors;
+import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.UserBufferInfo;
@@ -113,6 +117,12 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   private UserCongestionControlContext userCongestionControlContext = null;
 
+  protected MultipartUploadHandler s3MultipartUploadHandler;
+
+  protected int partNumber = 1;
+
+  private final int s3MultiplePartUploadMaxRetries;
+
   public PartitionDataWriter(
       StorageManager storageManager,
       AbstractSource workerSource,
@@ -137,6 +147,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     this.s3FlusherBufferSize = conf.workerS3FlusherBufferSize();
     this.metricsCollectCriticalEnabled = conf.metricsCollectCriticalEnabled();
     this.chunkSize = conf.shuffleChunkSize();
+    this.s3MultiplePartUploadMaxRetries = conf.s3MultiplePartUploadMaxRetries();
 
     Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFileResult =
         storageManager.createFile(writerContext, supportInMemory);
@@ -187,6 +198,38 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       // If we reuse DFS output stream, we will exhaust the memory soon.
       try {
         hadoopFs.create(this.diskFileInfo.getDfsPath(), true).close();
+        if (diskFileInfo.isS3()) {
+          Configuration configuration = hadoopFs.getConf();
+          String s3AccessKey = configuration.get("fs.s3a.access.key");
+          String s3SecretKey = configuration.get("fs.s3a.secret.key");
+          String s3EndpointRegion = configuration.get("fs.s3a.endpoint.region");
+
+          URI uri = hadoopFs.getUri();
+          String bucketName = uri.getHost();
+          int index = diskFileInfo.getFilePath().indexOf(bucketName);
+          String key = diskFileInfo.getFilePath().substring(index + bucketName.length() + 1);
+
+          this.s3MultipartUploadHandler =
+              (MultipartUploadHandler)
+                  DynConstructors.builder()
+                      .impl(
+                          "org.apache.celeborn.S3MultipartUploadHandler",
+                          String.class,
+                          String.class,
+                          String.class,
+                          String.class,
+                          String.class,
+                          Integer.class)
+                      .build()
+                      .newInstance(
+                          bucketName,
+                          s3AccessKey,
+                          s3SecretKey,
+                          s3EndpointRegion,
+                          key,
+                          s3MultiplePartUploadMaxRetries);
+          s3MultipartUploadHandler.startUpload();
+        }
       } catch (IOException e) {
         try {
           // If create file failed, wait 10 ms and retry
@@ -236,7 +279,14 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           } else if (diskFileInfo.isHdfs()) {
             task = new HdfsFlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, false);
           } else if (diskFileInfo.isS3()) {
-            task = new S3FlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, false);
+            task =
+                new S3FlushTask(
+                    flushBuffer,
+                    notifier,
+                    false,
+                    s3MultipartUploadHandler,
+                    partNumber++,
+                    finalFlush);
           }
           MemoryManager.instance().releaseMemoryFileStorage(numBytes);
           MemoryManager.instance().incrementDiskBuffer(numBytes);
@@ -264,7 +314,14 @@ public abstract class PartitionDataWriter implements DeviceObserver {
             } else if (diskFileInfo.isHdfs()) {
               task = new HdfsFlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, true);
             } else if (diskFileInfo.isS3()) {
-              task = new S3FlushTask(flushBuffer, diskFileInfo.getDfsPath(), notifier, true);
+              task =
+                  new S3FlushTask(
+                      flushBuffer,
+                      notifier,
+                      true,
+                      s3MultipartUploadHandler,
+                      partNumber++,
+                      finalFlush);
             }
           }
         }
@@ -303,6 +360,11 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     }
 
     if (notifier.hasException()) {
+      if (s3MultipartUploadHandler != null) {
+        logger.warn("Abort s3 multipart upload for {}", diskFileInfo.getFilePath());
+        s3MultipartUploadHandler.complete();
+        s3MultipartUploadHandler.close();
+      }
       return;
     }
 
@@ -461,7 +523,10 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       }
 
       finalClose.run();
-
+      if (s3MultipartUploadHandler != null) {
+        s3MultipartUploadHandler.complete();
+        s3MultipartUploadHandler.close();
+      }
       // unregister from DeviceMonitor
       if (diskFileInfo != null && !this.diskFileInfo.isDFS()) {
         logger.debug("file info {} unregister from device monitor", diskFileInfo);

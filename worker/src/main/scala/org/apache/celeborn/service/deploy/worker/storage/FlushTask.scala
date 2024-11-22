@@ -17,13 +17,14 @@
 
 package org.apache.celeborn.service.deploy.worker.storage
 
+import java.io.ByteArrayInputStream
 import java.nio.channels.FileChannel
 
 import io.netty.buffer.{ByteBufUtil, CompositeByteBuf}
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.IOUtils
 
 import org.apache.celeborn.common.protocol.StorageInfo.Type
+import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler
 
 abstract private[worker] class FlushTask(
     val buffer: CompositeByteBuf,
@@ -64,29 +65,16 @@ private[worker] class HdfsFlushTask(
 
 private[worker] class S3FlushTask(
     buffer: CompositeByteBuf,
-    val path: Path,
     notifier: FlushNotifier,
-    keepBuffer: Boolean) extends FlushTask(buffer, notifier, keepBuffer) {
+    keepBuffer: Boolean,
+    s3MultipartUploader: MultipartUploadHandler,
+    partNumber: Int,
+    finalFlush: Boolean = false)
+  extends FlushTask(buffer, notifier, keepBuffer) {
+
   override def flush(): Unit = {
-    val hadoopFs = StorageManager.hadoopFs.get(Type.S3)
-    if (hadoopFs.exists(path)) {
-      val conf = hadoopFs.getConf
-      val tempPath = new Path(path.getParent, path.getName + ".tmp")
-      val outputStream = hadoopFs.create(tempPath, true, 256 * 1024)
-      val inputStream = hadoopFs.open(path)
-      try {
-        IOUtils.copyBytes(inputStream, outputStream, conf, false)
-      } finally {
-        inputStream.close()
-      }
-      outputStream.write(ByteBufUtil.getBytes(buffer))
-      outputStream.close()
-      hadoopFs.delete(path, false)
-      hadoopFs.rename(tempPath, path)
-    } else {
-      val s3Stream = hadoopFs.create(path, true, 256 * 1024)
-      s3Stream.write(ByteBufUtil.getBytes(buffer))
-      s3Stream.close()
-    }
+    val bytes = ByteBufUtil.getBytes(buffer)
+    val inputStream = new ByteArrayInputStream(bytes)
+    s3MultipartUploader.putPart(inputStream, partNumber, finalFlush)
   }
 }

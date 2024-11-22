@@ -38,6 +38,7 @@
     <module>service</module>
     <module>master</module>
     <module>worker</module>
+    <module>web</module>
     <module>cli</module>
   </modules>
 
@@ -71,6 +72,7 @@
 
     <!-- use hadoop-3 as default  -->
     <hadoop.version>3.3.6</hadoop.version>
+    <aws.version>1.12.532</aws.version>
     <!--
     If you change codahale.metrics.version, you also need to change
     the link to metrics.dropwizard.io in docs/monitoring.md.
@@ -1342,23 +1344,13 @@
       </dependencies>
     </profile>
     <profile>
-      <id>hadoop-aws</id>
+      <id>aws</id>
+      <modules>
+        <module>multipart-uploader</module>
+      </modules>
       <properties>
-        <hadoop-aws-deps>true</hadoop-aws-deps>
-        <aws.version>1.12.367</aws.version>
+        <aws-deps>true</aws-deps>
       </properties>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-aws</artifactId>
-          <version>${hadoop.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>com.amazonaws</groupId>
-          <artifactId>aws-java-sdk-bundle</artifactId>
-          <version>${aws.version}</version>
-        </dependency>
-      </dependencies>
     </profile>
     <profile>
       <id>spark-2.4</id>
