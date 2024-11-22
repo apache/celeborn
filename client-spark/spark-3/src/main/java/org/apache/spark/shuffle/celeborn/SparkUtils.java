@@ -17,8 +17,12 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.stream.Collectors;
 
 import scala.Option;
 import scala.Some;
@@ -337,57 +341,79 @@ public class SparkUtils {
               .defaultAlwaysNull()
               .build();
 
-  public static synchronized boolean taskAnotherAttemptRunningOrSuccessful(long taskId) {
+  protected static TaskSetManager getTaskSetManager(long taskId) {
     if (SparkContext$.MODULE$.getActive().nonEmpty()) {
       TaskSchedulerImpl taskScheduler =
           (TaskSchedulerImpl) SparkContext$.MODULE$.getActive().get().taskScheduler();
       ConcurrentHashMap<Long, TaskSetManager> taskIdToTaskSetManager =
           TASK_ID_TO_TASK_SET_MANAGER_FIELD.bind(taskScheduler).get();
-      TaskSetManager taskSetManager = taskIdToTaskSetManager.get(taskId);
-      if (taskSetManager != null) {
-        int stageId = taskSetManager.stageId();
-        scala.Option<TaskInfo> taskInfoOption =
-            TASK_INFOS_FIELD.bind(taskSetManager).get().get(taskId);
-        if (taskInfoOption.isDefined()) {
-          TaskInfo taskInfo = taskInfoOption.get();
-          int taskIndex = taskInfo.index();
-          if (taskSetManager.successful()[taskIndex]) {
-            LOG.info(
-                "StageId={} index={} taskId={} attempt={} another attempt has been successful.",
-                stageId,
-                taskIndex,
-                taskId,
-                taskInfo.attemptNumber());
-            return true;
-          }
-          return scala.collection.JavaConverters.asJavaCollectionConverter(
-                  taskSetManager.taskAttempts()[taskIndex])
-              .asJavaCollection().stream()
-              .anyMatch(
-                  ti -> {
-                    if (!ti.finished() && ti.attemptNumber() != taskInfo.attemptNumber()) {
-                      LOG.info(
-                          "StageId={} index={} taskId={} attempt={} another attempt {} is running.",
-                          stageId,
-                          taskIndex,
-                          taskId,
-                          taskInfo.attemptNumber(),
-                          ti.attemptNumber());
-                      return true;
-                    } else {
-                      return false;
-                    }
-                  });
-        } else {
-          LOG.error("Can not get TaskInfo for taskId: {}", taskId);
-          return false;
-        }
+      return taskIdToTaskSetManager.get(taskId);
+    } else {
+      LOG.error("Can not get active SparkContext.");
+      return null;
+    }
+  }
+
+  protected static List<TaskInfo> getTaskAttempts(TaskSetManager taskSetManager, long taskId) {
+    if (taskSetManager != null) {
+      scala.Option<TaskInfo> taskInfoOption =
+          TASK_INFOS_FIELD.bind(taskSetManager).get().get(taskId);
+      if (taskInfoOption.isDefined()) {
+        int taskIndex = taskInfoOption.get().index();
+        return scala.collection.JavaConverters.asJavaCollectionConverter(
+                taskSetManager.taskAttempts()[taskIndex])
+            .asJavaCollection().stream()
+            .collect(Collectors.toList());
       } else {
-        LOG.error("Can not get TaskSetManager for taskId: {}", taskId);
+        LOG.error("Can not get TaskInfo for taskId: {}", taskId);
+        return Collections.emptyList();
+      }
+    } else {
+      LOG.error("Can not get TaskSetManager for taskId: {}", taskId);
+      return Collections.emptyList();
+    }
+  }
+
+  public static synchronized boolean taskAnotherAttemptRunningOrSuccessful(long taskId) {
+    TaskSetManager taskSetManager = getTaskSetManager(taskId);
+    if (taskSetManager != null) {
+      int stageId = taskSetManager.stageId();
+      List<TaskInfo> taskAttempts = getTaskAttempts(taskSetManager, taskId);
+      Optional<TaskInfo> taskInfoOpt =
+          taskAttempts.stream().filter(ti -> ti.taskId() == taskId).findFirst();
+      if (taskInfoOpt.isPresent()) {
+        TaskInfo taskInfo = taskInfoOpt.get();
+        int taskIndex = taskInfo.index();
+        for (TaskInfo ti : taskAttempts) {
+          if (ti.taskId() != taskId) {
+            if (ti.successful()) {
+              LOG.info(
+                  "StageId={} index={} taskId={} attempt={} another attempt {} is finished.",
+                  stageId,
+                  taskIndex,
+                  taskId,
+                  taskInfo.attemptNumber(),
+                  ti.attemptNumber());
+              return true;
+            } else if (ti.running()) {
+              LOG.info(
+                  "StageId={} index={} taskId={} attempt={} another attempt {} is running.",
+                  stageId,
+                  taskIndex,
+                  taskId,
+                  taskInfo.attemptNumber(),
+                  ti.attemptNumber());
+              return true;
+            }
+          }
+        }
+        return false;
+      } else {
+        LOG.error("Can not get TaskInfo for taskId: {}", taskId);
         return false;
       }
     } else {
-      LOG.error("Can not get active SparkContext, skip checking.");
+      LOG.error("Can not get TaskSetManager for taskId: {}", taskId);
       return false;
     }
   }
