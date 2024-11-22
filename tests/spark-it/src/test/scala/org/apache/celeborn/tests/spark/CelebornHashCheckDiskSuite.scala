@@ -38,9 +38,8 @@ class CelebornHashCheckDiskSuite extends SparkTestBase {
       CelebornConf.APPLICATION_HEARTBEAT_TIMEOUT.key -> "10s")
     val workerConf = Map(
       CelebornConf.WORKER_STORAGE_DIRS.key -> "/tmp:capacity=1000",
-      CelebornConf.WORKER_HEARTBEAT_TIMEOUT.key -> "10s",
       CelebornConf.WORKER_DISK_RESERVE_SIZE.key -> "0G")
-    workers = setupMiniClusterWithRandomPorts(masterConf, workerConf)._2
+    workers = setupMiniClusterWithRandomPorts(masterConf, workerConf, 2)._2
   }
 
   override def beforeEach(): Unit = {
