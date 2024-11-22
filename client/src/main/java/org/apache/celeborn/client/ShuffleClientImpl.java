@@ -636,6 +636,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     return pbReportShuffleFetchFailureResponse.getSuccess();
   }
 
+  @Override
   public boolean reportBarrierTaskFailure(int appShuffleId, String appShuffleIdentifier) {
     PbReportBarrierStageAttemptFailure pbReportBarrierStageAttemptFailure =
         PbReportBarrierStageAttemptFailure.newBuilder()
@@ -1909,6 +1910,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     return dataClientFactory;
   }
 
+  @Override
   public void excludeFailedFetchLocation(String hostAndFetchPort, Exception e) {
     if (pushReplicateEnabled
         && fetchExcludeWorkerOnFailureEnabled

@@ -276,9 +276,10 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
       }
       if (segmentId != -1) {
         // For the continuous segments, we use the same backlog
+        int subPartitionLastSegmentId = subPartitionLastSegmentIds.get(subPartitionId);
         if (segmentId == 0
-            || !segmentId.equals(subPartitionLastSegmentIds.get(subPartitionId))
-                && segmentId != (subPartitionLastSegmentIds.get(subPartitionId) + 1)) {
+            || (!segmentId.equals(subPartitionLastSegmentId)
+                && !segmentId.equals(subPartitionLastSegmentId + 1))) {
           addNewBacklog();
         }
         subPartitionLastSegmentIds.put(subPartitionId, segmentId);
@@ -296,6 +297,7 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
     }
   }
 
+  @Override
   public RequestMessage generateReadDataMessage(
       long streamId, int subPartitionId, ByteBuf byteBuf) {
     return new SubPartitionReadData(streamId, subPartitionId, byteBuf);

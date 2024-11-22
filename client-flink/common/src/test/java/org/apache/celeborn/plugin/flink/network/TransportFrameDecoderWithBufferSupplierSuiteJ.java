@@ -140,17 +140,12 @@ public class TransportFrameDecoderWithBufferSupplierSuiteJ {
     int bufferSizeBytes = 10 * 1024;
     ConcurrentHashMap<Long, Supplier<org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf>>
         supplier = JavaUtils.newConcurrentHashMap();
-    List<org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf> buffers = new ArrayList<>();
 
     supplier.put(
         0L,
-        () -> {
-          org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf buffer =
-              org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled.buffer(
-                  bufferSizeBytes, bufferSizeBytes);
-          buffers.add(buffer);
-          return buffer;
-        });
+        () ->
+            org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled.buffer(
+                bufferSizeBytes, bufferSizeBytes));
 
     TransportFrameDecoderWithBufferSupplier decoder =
         new TransportFrameDecoderWithBufferSupplier(
