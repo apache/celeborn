@@ -37,3 +37,14 @@ cd scripts
 bash setup-ubuntu.sh
 ```
 Other platforms are not supported yet, and you could use the container above as your dev environment.
+
+## Compile
+Currently, the modules are under development. 
+You could compile the code within the dev container by
+```
+cd celeborn/cpp
+mkdir -p build && cd build
+cmake ..
+make
+```
+

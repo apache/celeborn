@@ -1,0 +1,14 @@
+@PACKAGE_INIT@
+
+set_and_check(CELEBORN_INCLUDE_DIR "@PACKAGE_INCLUDE_INSTALL_DIR@")
+set_and_check(CELEBORN_CMAKE_DIR "@PACKAGE_CMAKE_INSTALL_DIR@")
+
+if (NOT TARGET celeborn::celeborn)
+  include("${CELEBORN_CMAKE_DIR}/celeborn-targets.cmake")
+endif()
+
+set(CELEBORN_LIBRARIES celeborn::celeborn)
+
+if (NOT celeborn_FIND_QUIETLY)
+  message(STATUS "Found celeborn: ${PACKAGE_PREFIX_DIR}")
+endif()
