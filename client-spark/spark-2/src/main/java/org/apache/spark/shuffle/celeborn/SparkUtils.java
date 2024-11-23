@@ -228,9 +228,9 @@ public class SparkUtils {
   protected static TaskSetManager getTaskSetManager(long taskId) {
     if (SparkContext$.MODULE$.getActive().nonEmpty()) {
       TaskSchedulerImpl taskScheduler =
-              (TaskSchedulerImpl) SparkContext$.MODULE$.getActive().get().taskScheduler();
+          (TaskSchedulerImpl) SparkContext$.MODULE$.getActive().get().taskScheduler();
       ConcurrentHashMap<Long, TaskSetManager> taskIdToTaskSetManager =
-              TASK_ID_TO_TASK_SET_MANAGER_FIELD.bind(taskScheduler).get();
+          TASK_ID_TO_TASK_SET_MANAGER_FIELD.bind(taskScheduler).get();
       return taskIdToTaskSetManager.get(taskId);
     } else {
       LOG.error("Can not get active SparkContext.");
@@ -241,13 +241,13 @@ public class SparkUtils {
   protected static List<TaskInfo> getTaskAttempts(TaskSetManager taskSetManager, long taskId) {
     if (taskSetManager != null) {
       scala.Option<TaskInfo> taskInfoOption =
-              TASK_INFOS_FIELD.bind(taskSetManager).get().get(taskId);
+          TASK_INFOS_FIELD.bind(taskSetManager).get().get(taskId);
       if (taskInfoOption.isDefined()) {
         int taskIndex = taskInfoOption.get().index();
         return scala.collection.JavaConverters.asJavaCollectionConverter(
-                        taskSetManager.taskAttempts()[taskIndex])
-                .asJavaCollection().stream()
-                .collect(Collectors.toList());
+                taskSetManager.taskAttempts()[taskIndex])
+            .asJavaCollection().stream()
+            .collect(Collectors.toList());
       } else {
         LOG.error("Can not get TaskInfo for taskId: {}", taskId);
         return Collections.emptyList();
@@ -264,7 +264,7 @@ public class SparkUtils {
       int stageId = taskSetManager.stageId();
       List<TaskInfo> taskAttempts = getTaskAttempts(taskSetManager, taskId);
       Optional<TaskInfo> taskInfoOpt =
-              taskAttempts.stream().filter(ti -> ti.taskId() == taskId).findFirst();
+          taskAttempts.stream().filter(ti -> ti.taskId() == taskId).findFirst();
       if (taskInfoOpt.isPresent()) {
         TaskInfo taskInfo = taskInfoOpt.get();
         int taskIndex = taskInfo.index();
@@ -272,21 +272,21 @@ public class SparkUtils {
           if (ti.taskId() != taskId) {
             if (ti.successful()) {
               LOG.info(
-                      "StageId={} index={} taskId={} attempt={} another attempt {} is finished.",
-                      stageId,
-                      taskIndex,
-                      taskId,
-                      taskInfo.attemptNumber(),
-                      ti.attemptNumber());
+                  "StageId={} index={} taskId={} attempt={} another attempt {} is finished.",
+                  stageId,
+                  taskIndex,
+                  taskId,
+                  taskInfo.attemptNumber(),
+                  ti.attemptNumber());
               return true;
             } else if (ti.running()) {
               LOG.info(
-                      "StageId={} index={} taskId={} attempt={} another attempt {} is running.",
-                      stageId,
-                      taskIndex,
-                      taskId,
-                      taskInfo.attemptNumber(),
-                      ti.attemptNumber());
+                  "StageId={} index={} taskId={} attempt={} another attempt {} is running.",
+                  stageId,
+                  taskIndex,
+                  taskId,
+                  taskInfo.attemptNumber(),
+                  ti.attemptNumber());
               return true;
             }
           }
