@@ -278,6 +278,11 @@ private[celeborn] class Inbox(
         // We should disable concurrent here. Then when RpcEndpoint.onStop is called, it's the only
         // thread that is processing messages. So `RpcEndpoint.onStop` can release its resources
         // safely.
+        // we need to have this check in case that inbox has been full and we have no way to
+        // put OnStop leading the deadlock when shutting down
+        if (capacity > 0 && messageCount.get() >= capacity) {
+          messages.clear()
+        }
         enableConcurrent = false
         stopped = true
         addMessage(OnStop)
