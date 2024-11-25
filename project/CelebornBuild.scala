@@ -50,7 +50,7 @@ object Dependencies {
   val findbugsVersion = "1.3.9"
   val guavaVersion = "33.1.0-jre"
   val hadoopVersion = "3.3.6"
-  val awsVersion = "1.12.367"
+  val awsS3Version = "1.12.367"
   val junitInterfaceVersion = "0.13.3"
   // don't forget update `junitInterfaceVersion` when we upgrade junit
   val junitVersion = "4.13.2"
@@ -117,8 +117,9 @@ object Dependencies {
     ExclusionRule("jline", "jline"),
     ExclusionRule("log4j", "log4j"),
     ExclusionRule("org.slf4j", "slf4j-log4j12"))
-  val hadoopAws = "org.apache.hadoop" % "hadoop-aws" % hadoopVersion
-  val awsClient = "com.amazonaws" % "aws-java-sdk-bundle" % awsVersion
+  val hadoopAws = "org.apache.hadoop" % "hadoop-aws" % hadoopVersion excludeAll (
+    ExclusionRule("com.amazonaws", "aws-java-sdk-bundle"))
+  val awsS3 = "com.amazonaws" % "aws-java-sdk-s3" % awsS3Version
   val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion
   val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion excludeAll (
     ExclusionRule("com.rabbitmq", "amqp-client"))
@@ -497,7 +498,7 @@ object CelebornSpi {
 
 object CeleborMPU {
 
-  lazy val hadoopAwsDependencies = Seq(Dependencies.hadoopAws, Dependencies.awsClient)
+  lazy val hadoopAwsDependencies = Seq(Dependencies.hadoopAws, Dependencies.awsS3)
 
   lazy val celeborMPU = Project("celeborn-multipart-uploader", file("multipart-uploader"))
     .dependsOn(CelebornService.service % "test->test;compile->compile")

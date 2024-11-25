@@ -19,7 +19,9 @@ HikariCP/4.0.3//HikariCP-4.0.3.jar
 RoaringBitmap/1.0.6//RoaringBitmap-1.0.6.jar
 aopalliance-repackaged/2.6.1//aopalliance-repackaged-2.6.1.jar
 ap-loader-all/3.0-8//ap-loader-all-3.0-8.jar
-aws-java-sdk-bundle/1.12.367//aws-java-sdk-bundle-1.12.367.jar
+aws-java-sdk-core/1.12.367//aws-java-sdk-core-1.12.532.jar
+aws-java-sdk-kms/1.12.367//aws-java-sdk-kms-1.12.532.jar
+aws-java-sdk-s3/1.12.367//aws-java-sdk-s3-1.12.532.jar
 classgraph/4.8.138//classgraph-4.8.138.jar
 commons-cli/1.5.0//commons-cli-1.5.0.jar
 commons-crypto/1.0.0//commons-crypto-1.0.0.jar
