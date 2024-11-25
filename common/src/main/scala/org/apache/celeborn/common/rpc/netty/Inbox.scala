@@ -275,16 +275,18 @@ private[celeborn] class Inbox(
       // The following codes should be in `synchronized` so that we can make sure "OnStop" is the last
       // message
       if (!stopped) {
-        // We should disable concurrent here. Then when RpcEndpoint.onStop is called, it's the only
-        // thread that is processing messages. So `RpcEndpoint.onStop` can release its resources
-        // safely.
         // we need to have this check in case that inbox has been full and we have no way to
         // put OnStop leading the deadlock when shutting down
         if (capacity > 0 && messageCount.get() >= capacity) {
           messages.clear()
+          messageCount.set(0)
         }
+        // We should disable concurrent here. Then when RpcEndpoint.onStop is called, it's the only
+        // thread that is processing messages. So `RpcEndpoint.onStop` can release its resources
+        // safely.
         enableConcurrent = false
         stopped = true
+        waitOnFull()
         addMessage(OnStop)
         metrics.dump()
         // Note: The concurrent events in messages will be processed one by one.
