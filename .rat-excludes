@@ -37,3 +37,4 @@ build/scala-*/**
 build/sbt-config/**
 **/benchmarks/**
 **/node_modules/**
+cpp/cmake/FindSodium.cmake

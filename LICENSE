@@ -256,3 +256,18 @@ Remote Shuffle Service for Flink
 ./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/DataBuffer.java
 ./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/SortBasedDataBuffer.java
 ./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/TransferBufferPool.java
+
+Meta Velox
+./cpp/scripts/setup-ubuntu.sh
+./cpp/scripts/setup-helper-functions.sh
+./cpp/celeborn/utils/ProcessBase.h
+./cpp/celeborn/utils/ProcessBase.cpp
+
+
+------------------------------------------------------------------------------------
+This product bundles various third-party components under the CC0 license.
+This section summarizes those components.
+
+
+--------------------------------------
+./cpp/cmake/FindSodium.cmake
