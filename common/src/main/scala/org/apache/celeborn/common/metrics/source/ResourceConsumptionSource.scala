@@ -23,6 +23,9 @@ import org.apache.celeborn.common.internal.Logging
 class ResourceConsumptionSource(conf: CelebornConf, role: String)
   extends AbstractSource(conf, role) with Logging {
   override val sourceName = "ResourceConsumption"
+
+  // start cleaner thread
+  startCleaner()
 }
 
 object ResourceConsumptionSource {

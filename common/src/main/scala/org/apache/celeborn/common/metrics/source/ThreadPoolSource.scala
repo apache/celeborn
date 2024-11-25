@@ -149,6 +149,9 @@ class ThreadPoolSource(
         }
       })
   }
+
+  // start cleaner thread
+  startCleaner()
 }
 
 object ThreadPoolSource {
