@@ -29,10 +29,9 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{AppDiskUsageSnapShot, DiskInfo, WorkerInfo}
 import org.apache.celeborn.common.quota.ResourceConsumption
-import org.apache.celeborn.service.deploy.master.clustermeta.AppDiskUsageMetricManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager
 
-class AppDiskUsageMetricSuite extends AnyFunSuite
+class AppDiskUsageMetricManagerSuite extends AnyFunSuite
   with BeforeAndAfterAll
   with BeforeAndAfterEach
   with Logging {

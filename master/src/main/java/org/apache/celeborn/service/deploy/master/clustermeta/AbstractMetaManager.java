@@ -56,6 +56,7 @@ import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.util.WorkerStatusUtils;
+import org.apache.celeborn.service.deploy.master.AppDiskUsageMetricManager;
 
 /**
  * Note: Do not update the worker collections directly from outside the metadata manager, especially

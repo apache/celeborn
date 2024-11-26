@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master.clustermeta
+package org.apache.celeborn.service.deploy.master
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -26,6 +26,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.AppDiskUsageSnapShot
 import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager
 
 class AppDiskUsageMetricManager(conf: CelebornConf, metaManager: AbstractMetaManager)
   extends Logging {
