@@ -79,7 +79,7 @@ class ApplicationResource extends ApiRequestContext {
   def topDiskUsedApplications(): AppDiskUsageSnapshotsResponse = {
     new AppDiskUsageSnapshotsResponse()
       .snapshots(
-        statusSystem.appDiskUsageMetric.topSnapshots().map { snapshot =>
+        statusSystem.appDiskUsageMetricManager.topSnapshots().map { snapshot =>
           new AppDiskUsageSnapshotData()
             .start(
               snapshot.startSnapShotTime)

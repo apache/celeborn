@@ -28,7 +28,6 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.AppDiskUsageMetric;
 import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
@@ -37,6 +36,7 @@ import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
+import org.apache.celeborn.service.deploy.master.clustermeta.AppDiskUsageMetricManager;
 import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceRequest;
@@ -57,7 +57,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
     this.unhealthyDiskRatioThreshold = conf.masterExcludeWorkerUnhealthyDiskRatioThreshold();
-    this.appDiskUsageMetric = new AppDiskUsageMetric(conf);
+    this.appDiskUsageMetricManager = new AppDiskUsageMetricManager(conf, this);
     this.rackResolver = rackResolver;
   }
 

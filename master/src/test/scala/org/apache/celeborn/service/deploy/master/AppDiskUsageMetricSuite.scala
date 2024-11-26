@@ -25,8 +25,12 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{AppDiskUsageMetric, AppDiskUsageSnapShot, WorkerInfo}
+import org.apache.celeborn.common.meta.{AppDiskUsageSnapShot, DiskInfo, WorkerInfo}
+import org.apache.celeborn.common.quota.ResourceConsumption
+import org.apache.celeborn.service.deploy.master.clustermeta.AppDiskUsageMetricManager
+import org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager
 
 class AppDiskUsageMetricSuite extends AnyFunSuite
   with BeforeAndAfterAll
@@ -85,7 +89,15 @@ class AppDiskUsageMetricSuite extends AnyFunSuite
     val conf = new CelebornConf()
     conf.set(CelebornConf.METRICS_APP_TOP_DISK_USAGE_WINDOW_SIZE.key, "5")
     conf.set(CelebornConf.METRICS_APP_TOP_DISK_USAGE_INTERVAL.key, "2s")
-    val usageMetric = new AppDiskUsageMetric(conf)
+    val masterStatusSystem = new HAMasterMetaManager(null, conf)
+    val usageMetric = new AppDiskUsageMetricManager(conf, masterStatusSystem)
+
+    masterStatusSystem.appHeartbeatTime.put("app1", System.currentTimeMillis())
+    masterStatusSystem.appHeartbeatTime.put("app2", System.currentTimeMillis())
+    masterStatusSystem.appHeartbeatTime.put("app3", System.currentTimeMillis())
+    masterStatusSystem.appHeartbeatTime.put("app4", System.currentTimeMillis())
+    masterStatusSystem.appHeartbeatTime.put("app5", System.currentTimeMillis())
+    masterStatusSystem.appHeartbeatTime.put("app6", System.currentTimeMillis())
 
     val map1 = new util.HashMap[String, java.lang.Long]()
     map1.put("app1", 2874371)
@@ -94,7 +106,18 @@ class AppDiskUsageMetricSuite extends AnyFunSuite
     map1.put("app4", 23465463)
     map1.put("app5", 132456)
     map1.put("app6", 6535635)
-    usageMetric.update(map1)
+    val workerInfo = new WorkerInfo(
+      "host1",
+      1,
+      2,
+      3,
+      4,
+      5,
+      new util.HashMap[String, DiskInfo](),
+      new util.HashMap[UserIdentifier, ResourceConsumption](),
+      map1)
+    masterStatusSystem.workersMap.put(workerInfo.toUniqueId(), workerInfo)
+    usageMetric.update()
     println(usageMetric.summary())
     Thread.sleep(2000)
 
@@ -105,7 +128,8 @@ class AppDiskUsageMetricSuite extends AnyFunSuite
     map1.put("app4", 2345637)
     map1.put("app5", 4534)
     map1.put("app6", 5357)
-    usageMetric.update(map1)
+    workerInfo.updateThenGetAppDiskUsage(map1)
+    usageMetric.update()
     println(usageMetric.summary())
     Thread.sleep(2000)
 
@@ -116,7 +140,8 @@ class AppDiskUsageMetricSuite extends AnyFunSuite
     map1.put("app4", 35245268)
     map1.put("app5", 45367)
     map1.put("app6", 64345)
-    usageMetric.update(map1)
+    workerInfo.updateThenGetAppDiskUsage(map1)
+    usageMetric.update()
     println(usageMetric.summary())
     Thread.sleep(2500)
     println(usageMetric.summary())

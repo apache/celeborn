@@ -215,21 +215,28 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     masterStatusSystem.hostnameSet.add(host2);
     masterStatusSystem.hostnameSet.add(host3);
 
+    masterStatusSystem.appHeartbeatTime.put("app-1", System.currentTimeMillis());
+    masterStatusSystem.appHeartbeatTime.put("app-2", System.currentTimeMillis());
     // Wait for update snapshot
     Thread.sleep(60000);
     Map<String, Long> appDiskUsage = JavaUtils.newConcurrentHashMap();
     appDiskUsage.put("app-1", 100L);
     appDiskUsage.put("app-2", 200L);
-    masterStatusSystem.appDiskUsageMetric.update(appDiskUsage);
+    WorkerInfo appUsageTestWorker =
+        new WorkerInfo("host4", 1, 2, 3, 4, 5, disks1, userResourceConsumption1, appDiskUsage);
+    masterStatusSystem.workersMap.put(appUsageTestWorker.toUniqueId(), appUsageTestWorker);
+    masterStatusSystem.appDiskUsageMetricManager.update();
     appDiskUsage.put("app-3", 300L);
     appDiskUsage.put("app-1", 200L);
-    masterStatusSystem.appDiskUsageMetric.update(appDiskUsage);
-    // wait for snapshot updated
-    Thread.sleep(3000);
+    appUsageTestWorker.updateThenGetAppDiskUsage(appDiskUsage);
+    masterStatusSystem.workersMap.put(appUsageTestWorker.toUniqueId(), appUsageTestWorker);
+    masterStatusSystem.appDiskUsageMetricManager.update();
+    masterStatusSystem.workersMap.remove(appUsageTestWorker.toUniqueId());
 
-    AppDiskUsageSnapShot[] originSnapshots = masterStatusSystem.appDiskUsageMetric.snapShots();
+    AppDiskUsageSnapShot[] originSnapshots =
+        masterStatusSystem.appDiskUsageMetricManager.snapShots();
     AppDiskUsageSnapShot originCurrentSnapshot =
-        masterStatusSystem.appDiskUsageMetric.currentSnapShot().get();
+        masterStatusSystem.appDiskUsageMetricManager.currentSnapShot().get();
 
     WorkerInfo workerInfo1 = new WorkerInfo(host1, 9095, 9094, 9093, 9092, 9091);
     WorkerInfo workerInfo2 = new WorkerInfo(host2, 9095, 9094, 9093, 9092, 9091);
@@ -255,13 +262,15 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     Assert.assertEquals(3, masterStatusSystem.hostnameSet.size());
     Assert.assertEquals(
         conf.metricsAppTopDiskUsageWindowSize(),
-        masterStatusSystem.appDiskUsageMetric.snapShots().length);
+        masterStatusSystem.appDiskUsageMetricManager.snapShots().length);
     Assert.assertEquals(
         conf.metricsAppTopDiskUsageCount(),
-        masterStatusSystem.appDiskUsageMetric.currentSnapShot().get().topNItems().length);
+        masterStatusSystem.appDiskUsageMetricManager.currentSnapShot().get().topNItems().length);
     Assert.assertEquals(
-        originCurrentSnapshot, masterStatusSystem.appDiskUsageMetric.currentSnapShot().get());
-    Assert.assertArrayEquals(originSnapshots, masterStatusSystem.appDiskUsageMetric.snapShots());
+        originCurrentSnapshot,
+        masterStatusSystem.appDiskUsageMetricManager.currentSnapShot().get());
+    Assert.assertArrayEquals(
+        originSnapshots, masterStatusSystem.appDiskUsageMetricManager.snapShots());
 
     masterStatusSystem.restoreMetaFromFile(tmpFile);
     Assert.assertEquals(3, masterStatusSystem.workersMap.size());

@@ -40,7 +40,8 @@ class WorkerInfo(
     val replicatePort: Int,
     val internalPort: Int,
     _diskInfos: util.Map[String, DiskInfo],
-    _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) extends Serializable
+    _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
+    _appDiskUsage: util.Map[String, java.lang.Long]) extends Serializable
   with Logging {
   var networkLocation = NetworkTopology.DEFAULT_RACK
   var lastHeartbeat: Long = 0
@@ -51,6 +52,9 @@ class WorkerInfo(
   val userResourceConsumption =
     if (_userResourceConsumption != null)
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](_userResourceConsumption)
+    else null
+  val appDiskUsage =
+    if (_appDiskUsage != null) JavaUtils.newConcurrentHashMap[String, java.lang.Long](_appDiskUsage)
     else null
   var endpoint: RpcEndpointRef = null
 
@@ -68,7 +72,8 @@ class WorkerInfo(
       replicatePort,
       -1,
       new util.HashMap[String, DiskInfo](),
-      new util.HashMap[UserIdentifier, ResourceConsumption]())
+      new util.HashMap[UserIdentifier, ResourceConsumption](),
+      new util.HashMap[String, java.lang.Long]())
   }
 
   def this(
@@ -86,7 +91,29 @@ class WorkerInfo(
       replicatePort,
       internalPort,
       new util.HashMap[String, DiskInfo](),
-      new util.HashMap[UserIdentifier, ResourceConsumption]())
+      new util.HashMap[UserIdentifier, ResourceConsumption](),
+      new util.HashMap[String, java.lang.Long]())
+  }
+
+  def this(
+      host: String,
+      rpcPort: Int,
+      pushPort: Int,
+      fetchPort: Int,
+      replicatePort: Int,
+      internalPort: Int,
+      diskInfo: util.Map[String, DiskInfo],
+      resourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) = {
+    this(
+      host,
+      rpcPort,
+      pushPort,
+      fetchPort,
+      replicatePort,
+      internalPort,
+      diskInfo,
+      resourceConsumption,
+      new util.HashMap[String, java.lang.Long]())
   }
 
   def isActive: Boolean = {
@@ -138,6 +165,10 @@ class WorkerInfo(
       applicationIdSet.addAll(diskInfo.getApplicationIdSet())
     }
     applicationIdSet
+  }
+
+  def getAppDiskUsage(appId: String): java.lang.Long = {
+    Option(appDiskUsage).map(_.getOrDefault(appId, 0L)).getOrElse(0L)
   }
 
   def hasSameInfoWith(other: WorkerInfo): Boolean = {
@@ -245,6 +276,13 @@ class WorkerInfo(
     }
     userResourceConsumption.putAll(resourceConsumptions)
     userResourceConsumption
+  }
+
+  def updateThenGetAppDiskUsage(appDiskUsage: util.Map[String, java.lang.Long])
+      : util.Map[String, java.lang.Long] = {
+    this.appDiskUsage.clear()
+    this.appDiskUsage.putAll(appDiskUsage)
+    this.appDiskUsage
   }
 
   override def toString: String = {
