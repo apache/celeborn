@@ -419,7 +419,7 @@ If you meet any questions, feel free to file a 🔗[Jira Ticket](https://issues.
 | IM       | Contact Info                                                                                                                              | 
 |:---------|:------------------------------------------------------------------------------------------------------------------------------------------|
 | Slack    | 🔗[Slack](https://join.slack.com/t/apachecelebor-kw08030/shared_invite/zt-1ju3hd5j8-4Z5keMdzpcVMspe4UJzF4Q)                               | 
-| DingTalk | 🔗[DingTalk](https://qr.dingtalk.com/action/joingroup?code=v1,k1,2OYn0jXy0SceP8CbLqiZUkFIOVtNOhtWbsi1oAUy9hw=&_dt_no_comment=1&origin=11) | 
+| DingTalk | 🔗[DingTalk](https://qr.dingtalk.com/action/joingroup?code=v1,k1,nwNy7QRmMOseP8CbLqiZUhBtrbZrBaKo2L4eD8FC7zA=&_dt_no_comment=1&origin=11) | 
 
 
 ### How to Contribute
