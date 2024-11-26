@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -13,28 +12,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+@PACKAGE_INIT@
 
-**/.*/**
-**/*.json
-**/*.prefs
-**/*.log
-**/*.md
-**/*.iml
-**/*.svg
-**/target/**
-**/out/**
-**/spark-warehouse/**
-**/metastore_db/**
-**/licenses/LICENSE*
-**/licenses-binary/LICENSE*
-**/dependency-reduced-pom.xml
-**/scalastyle-output.xml
-NOTICE*
-assets/**
-build/apache-maven-*/**
-build/scala-*/**
-build/sbt-config/**
-**/benchmarks/**
-**/node_modules/**
-cpp/cmake/FindSodium.cmake
+set_and_check(CELEBORN_INCLUDE_DIR "@PACKAGE_INCLUDE_INSTALL_DIR@")
+set_and_check(CELEBORN_CMAKE_DIR "@PACKAGE_CMAKE_INSTALL_DIR@")
+
+if (NOT TARGET celeborn::celeborn)
+  include("${CELEBORN_CMAKE_DIR}/celeborn-targets.cmake")
+endif()
+
+set(CELEBORN_LIBRARIES celeborn::celeborn)
+
+if (NOT celeborn_FIND_QUIETLY)
+  message(STATUS "Found celeborn: ${PACKAGE_PREFIX_DIR}")
+endif()
