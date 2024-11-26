@@ -775,24 +775,26 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
           case _: NeverReply =>
         }
       })
+    val rpcAddress = rpcEndpointRef.address
 
     val longTimeout = new RpcTimeout(1.second, "celeborn.rpc.long.timeout")
     val shortTimeout = new RpcTimeout(10.milliseconds, "celeborn.rpc.short.timeout")
 
     // Ask with immediate response, should complete successfully
     val fut1 = rpcEndpointRef.ask[String]("hello", longTimeout)
-    val reply1 = longTimeout.awaitResult(fut1)
+    val reply1 = longTimeout.awaitResult(fut1, rpcAddress)
     assert("hello" === reply1)
 
     // Ask with a delayed response and wait for response immediately that should timeout
     val fut2 = rpcEndpointRef.ask[String](NeverReply("doh"), shortTimeout)
     val reply2 =
       intercept[RpcTimeoutException] {
-        shortTimeout.awaitResult(fut2)
+        shortTimeout.awaitResult(fut2, rpcAddress)
       }.getMessage
 
     // RpcTimeout.awaitResult should have added the property to the TimeoutException message
-    assert(reply2.contains(shortTimeout.timeoutProp))
+    assert(reply2.contains(
+      s"This timeout of rpc address $rpcAddress is controlled by ${shortTimeout.timeoutProp}"))
 
     // Ask with delayed response and allow the Future to timeout before ThreadUtils.awaitResult
     val fut3 = rpcEndpointRef.ask[String](NeverReply("goodbye"), shortTimeout)
@@ -808,13 +810,14 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
 
     // When the future timed out, the recover callback should have used
     // RpcTimeout.addMessageIfTimeout to add the property to the TimeoutException message
-    assert(reply3.contains(shortTimeout.timeoutProp))
+    assert(reply3.contains(
+      s"This timeout of rpc address $rpcAddress is controlled by ${shortTimeout.timeoutProp}"))
 
     // Use RpcTimeout.awaitResult to process Future, since it has already failed with
     // RpcTimeoutException, the same RpcTimeoutException should be thrown
     val reply4 =
       intercept[RpcTimeoutException] {
-        shortTimeout.awaitResult(fut3)
+        shortTimeout.awaitResult(fut3, rpcAddress)
       }.getMessage
 
     // Ensure description is not in message twice after addMessageIfTimeout and awaitResult
