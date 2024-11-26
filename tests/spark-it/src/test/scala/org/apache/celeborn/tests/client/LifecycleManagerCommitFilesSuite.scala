@@ -27,8 +27,6 @@ import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl, WithShuf
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.client.commit.CommitFilesParam
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.protocol.CompressionCodec
-import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.MiniClusterFeature
@@ -170,7 +168,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
     assert(res.status == StatusCode.SUCCESS)
     assert(res.workerResource.keySet().size() == 3)
 
-    lifecycleManager.setupEndpoints(res.workerResource, shuffleId, new ShuffleFailedWorkers())
+    lifecycleManager.setupEndpoints(res.workerResource.keySet, shuffleId, new ShuffleFailedWorkers())
 
     lifecycleManager.reserveSlotsWithRetry(
       shuffleId,
@@ -178,7 +176,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       res.workerResource,
       updateEpoch = false)
 
-    lifecycleManager.commitManager.registerShuffle(shuffleId, 1)
+    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
 
     val buffer = "hello world".getBytes(StandardCharsets.UTF_8)
 
