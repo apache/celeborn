@@ -77,8 +77,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val diskReserveSize = conf.workerDiskReserveSize
   val diskReserveRatio = conf.workerDiskReserveRatio
 
-  val topDiskUsageCount = conf.metricsAppTopDiskUsageCount
-
   // (deviceName -> deviceInfo) and (mount point -> diskInfo)
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =

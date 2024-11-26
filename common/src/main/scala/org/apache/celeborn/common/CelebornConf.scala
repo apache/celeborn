@@ -874,9 +874,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsCapacity: Int = get(METRICS_CAPACITY)
   def metricsExtraLabels: Map[String, String] =
     get(METRICS_EXTRA_LABELS).map(Utils.parseMetricLabels).toMap
-  def metricsAppTopDiskUsageCount: Int = get(METRICS_APP_TOP_DISK_USAGE_COUNT)
-  def metricsAppTopDiskUsageWindowSize: Int = get(METRICS_APP_TOP_DISK_USAGE_WINDOW_SIZE)
-  def metricsAppTopDiskUsageInterval: Long = get(METRICS_APP_TOP_DISK_USAGE_INTERVAL)
   def metricsWorkerAppTopResourceConsumptionCount: Int =
     get(METRICS_WORKER_APP_TOP_RESOURCE_CONSUMPTION_COUNT)
   def metricsWorkerForceAppendPauseSpentTimeThreshold: Int =
@@ -5259,30 +5256,6 @@ object CelebornConf extends Logging {
         labels => labels.map(_ => Try(Utils.parseMetricLabels(_))).forall(_.isSuccess),
         "Allowed pattern is: `<label1_key>:<label1_value>[,<label2_key>:<label2_value>]*`")
       .createWithDefault(Seq.empty)
-
-  val METRICS_APP_TOP_DISK_USAGE_COUNT: ConfigEntry[Int] =
-    buildConf("celeborn.metrics.app.topDiskUsage.count")
-      .categories("metrics")
-      .doc("Size for top items about top disk usage applications list.")
-      .version("0.2.0")
-      .intConf
-      .createWithDefault(50)
-
-  val METRICS_APP_TOP_DISK_USAGE_WINDOW_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.metrics.app.topDiskUsage.windowSize")
-      .categories("metrics")
-      .doc("Window size about top disk usage application list.")
-      .version("0.2.0")
-      .intConf
-      .createWithDefault(24)
-
-  val METRICS_APP_TOP_DISK_USAGE_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.metrics.app.topDiskUsage.interval")
-      .categories("metrics")
-      .doc("Time length for a window about top disk usage application list.")
-      .version("0.2.0")
-      .timeConf(TimeUnit.SECONDS)
-      .createWithDefaultString("10min")
 
   val METRICS_WORKER_APP_TOP_RESOURCE_CONSUMPTION_COUNT: ConfigEntry[Int] =
     buildConf("celeborn.metrics.worker.app.topResourceConsumption.count")
