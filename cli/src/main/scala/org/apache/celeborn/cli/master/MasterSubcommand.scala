@@ -77,8 +77,6 @@ trait MasterSubcommand extends CliLogging {
 
   private[master] def runShowClusterShuffles: ShufflesResponse
 
-  private[master] def runShowTopDiskUsedApps: AppDiskUsageSnapshotsResponse
-
   private[master] def runExcludeWorkers: HandleResponse
 
   private[master] def runRemoveExcludedWorkers: HandleResponse

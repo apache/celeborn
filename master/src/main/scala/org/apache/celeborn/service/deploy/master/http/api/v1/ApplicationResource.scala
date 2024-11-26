@@ -71,34 +71,6 @@ class ApplicationResource extends ApiRequestContext {
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[AppDiskUsageSnapshotsResponse]))),
-    description =
-      "List the top disk usage application ids. It will return the top disk usage application ids for the cluster.")
-  @GET
-  @Path("/top_disk_usages")
-  def topDiskUsedApplications(): AppDiskUsageSnapshotsResponse = {
-    new AppDiskUsageSnapshotsResponse()
-      .snapshots(
-        statusSystem.appDiskUsageMetric.topSnapshots().map { snapshot =>
-          new AppDiskUsageSnapshotData()
-            .start(
-              snapshot.startSnapShotTime)
-            .end(
-              snapshot.endSnapShotTime)
-            .topNItems(
-              snapshot.topNItems.filter(_ != null).map { usage =>
-                new AppDiskUsageData()
-                  .appId(usage.appId)
-                  .estimatedUsage(usage.estimatedUsage)
-                  .estimatedUsageStr(Utils.bytesToString(usage.estimatedUsage))
-              }.toSeq.asJava)
-        }.asJava)
-  }
-
-  @ApiResponse(
-    responseCode = "200",
-    content = Array(new Content(
-      mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[HostnamesResponse]))),
     description =
       "List all running application's LifecycleManager's hostnames of the cluster.")

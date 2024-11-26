@@ -84,11 +84,6 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "ShufflesResponse")
   }
 
-  test("worker --show-top-disk-used-apps") {
-    val args = prepareWorkerArgs() :+ "--show-top-disk-used-apps"
-    captureOutputAndValidateResponse(args, "AppDiskUsagesResponse")
-  }
-
   test("worker --show-partition-location-info") {
     val args = prepareWorkerArgs() :+ "--show-partition-location-info"
     captureOutputAndValidateResponse(args, "ShufflePartitionsResponse")
@@ -149,11 +144,6 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   test("master --show-cluster-shuffles") {
     val args = prepareMasterArgs() :+ "--show-cluster-shuffles"
     captureOutputAndValidateResponse(args, "ShufflesResponse")
-  }
-
-  test("master --show-top-disk-used-apps") {
-    val args = prepareMasterArgs() :+ "--show-top-disk-used-apps"
-    captureOutputAndValidateResponse(args, "AppDiskUsageSnapshotsResponse")
   }
 
   test("master --show-worker-event-info") {

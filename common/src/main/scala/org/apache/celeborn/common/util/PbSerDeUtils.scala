@@ -449,8 +449,6 @@ object PbSerDeUtils {
       .setPartitionTotalFileCount(partitionTotalFileCount)
       .setShuffleTotalCount(shuffleTotalCount)
       .putAllShuffleFallbackCounts(shuffleFallbackCounts)
-      // appDiskUsageMetricSnapshots can have null values,
-      // protobuf repeated value can't support null value in list.
       .putAllLostWorkers(lostWorkers.asScala.map {
         case (worker: WorkerInfo, time: java.lang.Long) => (worker.toUniqueId(), time)
       }.asJava)

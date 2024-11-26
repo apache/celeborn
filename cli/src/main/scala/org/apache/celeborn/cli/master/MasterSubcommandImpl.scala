@@ -67,9 +67,6 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
 
   private[master] def runShowClusterShuffles: ShufflesResponse = shuffleApi.getShuffles
 
-  private[master] def runShowTopDiskUsedApps: AppDiskUsageSnapshotsResponse =
-    applicationApi.getApplicationsDiskUsageSnapshots
-
   private[master] def runExcludeWorkers: HandleResponse = {
     val workerIds = getWorkerIds
     val excludeWorkerRequest = new ExcludeWorkerRequest().add(workerIds)

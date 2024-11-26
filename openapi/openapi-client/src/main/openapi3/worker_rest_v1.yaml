@@ -202,22 +202,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApplicationsResponse'
 
-  /api/v1/applications/top_disk_usages:
-    get:
-      tags:
-        - Application
-      operationId: getApplicationsDiskUsage
-      description: |
-        List the top disk usage application ids.
-        It will return the top disk usage application ids for the cluster.
-      responses:
-        "200":
-          description: The request was successful.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AppDiskUsagesResponse'
-
 components:
   schemas:
     ConfigData:
@@ -356,33 +340,6 @@ components:
             type: string
       required:
         - applications
-
-    AppDiskUsageData:
-      type: object
-      properties:
-        appId:
-          type: string
-          description: The id of the application.
-        estimatedUsage:
-          type: integer
-          format: int64
-          description: The application disk usage.
-        estimatedUsageStr:
-          type: string
-          description: The application disk usage in string type.
-      required:
-        - appId
-        - estimatedUsage
-        - estimatedUsageStr
-
-    AppDiskUsagesResponse:
-      type: object
-      properties:
-        appDiskUsages:
-          type: array
-          description: The application disk usages.
-          items:
-            $ref: '#/components/schemas/AppDiskUsageData'
 
     WorkerInfoResponse:
       type: object
