@@ -35,18 +35,14 @@ import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class PushMergedDataSplitSuite extends AnyFunSuite
   with Logging with MiniClusterFeature with BeforeAndAfterAll {
-  val masterPort = 19097
 
+  var masterEndpoint = ""
   override def beforeAll(): Unit = {
-    val masterConf = Map(
-      "celeborn.master.host" -> "localhost",
-      "celeborn.master.port" -> masterPort.toString)
-    val workerConf = Map(
-      "celeborn.master.endpoints" -> s"localhost:$masterPort",
-      "celeborn.worker.flusher.buffer.size" -> "0")
+    val conf = Map("celeborn.worker.flusher.buffer.size" -> "0")
 
     logInfo("test initialized , setup Celeborn mini cluster")
-    super.setUpMiniCluster(masterConf, workerConf, 2)
+    val (master, _) = setupMiniClusterWithRandomPorts(conf, conf, 2)
+    masterEndpoint = master.conf.get(CelebornConf.MASTER_ENDPOINTS.key)
   }
 
   override def afterAll(): Unit = {
@@ -65,7 +61,7 @@ class PushMergedDataSplitSuite extends AnyFunSuite
       splitMode =>
         val APP = s"app-${System.currentTimeMillis()}"
         val clientConf = new CelebornConf()
-          .set(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$masterPort")
+          .set(CelebornConf.MASTER_ENDPOINTS.key, masterEndpoint)
           .set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "1")
           .set(CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD.key, "5K")
           .set(CelebornConf.SHUFFLE_PARTITION_SPLIT_MODE.key, splitMode)
