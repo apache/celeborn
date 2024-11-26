@@ -50,7 +50,7 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
       "celeborn.master.host" -> "localhost",
       "celeborn.master.port" -> "9097")
     val workerConf = Map("celeborn.master.endpoints" -> "localhost:9097")
-    workers = setUpMiniCluster(masterConf, workerConf)._2
+    workers = setupMiniClusterWithRandomPorts(masterConf, workerConf)._2
   }
 
   override def afterAll(): Unit = {
