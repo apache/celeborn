@@ -151,7 +151,7 @@ public class MasterClient {
       try {
         endpointRef = getOrSetupRpcEndpointRef(currentMasterIdx);
         Future<T> future = endpointRef.ask(message, rpcTimeout, ClassTag$.MODULE$.apply(clz));
-        return rpcTimeout.awaitResult(future);
+        return rpcTimeout.awaitResult(future, endpointRef.address());
       } catch (Throwable e) {
         throwable = e;
         shouldRetry = shouldRetry(endpointRef, throwable);
