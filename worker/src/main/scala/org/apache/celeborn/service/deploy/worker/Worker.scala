@@ -72,7 +72,7 @@ private[celeborn] class Worker(
   override val metricsSystem: MetricsSystem =
     MetricsSystem.createMetricsSystem(serviceName, conf)
   val workerSource = new WorkerSource(conf)
-  private val resourceConsumptionSource =
+  val resourceConsumptionSource =
     new ResourceConsumptionSource(conf, Role.WORKER)
   private val threadPoolSource = ThreadPoolSource(conf, Role.WORKER)
   metricsSystem.registerSource(workerSource)
@@ -674,26 +674,27 @@ private[celeborn] class Worker(
     userResourceConsumptions
   }
 
-  private def handleTopResourceConsumption(userResourceConsumptions: util.Map[
+  def handleTopResourceConsumption(userResourceConsumptions: util.Map[
     UserIdentifier,
     ResourceConsumption]): Unit = {
     // Remove application top resource consumption gauges to refresh top resource consumption metrics.
     removeAppResourceConsumption(topApplicationUserIdentifiers.keySet().asScala)
     // Top resource consumption is determined by diskBytesWritten+hdfsBytesWritten.
-    userResourceConsumptions.asScala.filter(userResourceConsumption =>
-      CollectionUtils.isNotEmpty(userResourceConsumption._2.subResourceConsumptions))
-      .flatMap(userResourceConsumption =>
-        userResourceConsumption._2.subResourceConsumptions.asScala.map(subResourceConsumption =>
-          (subResourceConsumption._1, (userResourceConsumption._1, subResourceConsumption._2))))
-      .toSeq
-      .sortBy(resourceConsumption =>
-        resourceConsumption._2._2.diskBytesWritten + resourceConsumption._2._2.hdfsBytesWritten)
+    userResourceConsumptions.asScala.filter { case (_, resourceConsumption) =>
+      CollectionUtils.isNotEmpty(resourceConsumption.subResourceConsumptions)
+    }.flatMap { case (userIdentifier, resourceConsumption) =>
+      resourceConsumption.subResourceConsumptions.asScala.map { case (appId, appConsumption) =>
+        (appId, userIdentifier, appConsumption)
+      }
+    }.toSeq
+      .sortBy { case (_, _, appConsumption) =>
+        appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten
+      }
       .reverse
-      .take(topResourceConsumptionCount).foreach { topResourceConsumption =>
-        val applicationId = topResourceConsumption._1
-        val userIdentifier = topResourceConsumption._2._1
-        topApplicationUserIdentifiers.put(applicationId, userIdentifier)
-        gaugeResourceConsumption(userIdentifier, applicationId, topResourceConsumption._2._2)
+      .take(topResourceConsumptionCount).foreach {
+        case (appId, userIdentifier, appConsumption) =>
+          topApplicationUserIdentifiers.put(appId, userIdentifier)
+          gaugeResourceConsumption(userIdentifier, appId, appConsumption)
       }
   }
 
@@ -784,10 +785,18 @@ private[celeborn] class Worker(
   }
 
   private def removeAppResourceConsumption(resourceConsumptionLabel: Map[String, String]): Unit = {
-    workerSource.removeGauge(ResourceConsumptionSource.DISK_FILE_COUNT, resourceConsumptionLabel)
-    workerSource.removeGauge(ResourceConsumptionSource.DISK_BYTES_WRITTEN, resourceConsumptionLabel)
-    workerSource.removeGauge(ResourceConsumptionSource.HDFS_FILE_COUNT, resourceConsumptionLabel)
-    workerSource.removeGauge(ResourceConsumptionSource.HDFS_BYTES_WRITTEN, resourceConsumptionLabel)
+    resourceConsumptionSource.removeGauge(
+      ResourceConsumptionSource.DISK_FILE_COUNT,
+      resourceConsumptionLabel)
+    resourceConsumptionSource.removeGauge(
+      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
+      resourceConsumptionLabel)
+    resourceConsumptionSource.removeGauge(
+      ResourceConsumptionSource.HDFS_FILE_COUNT,
+      resourceConsumptionLabel)
+    resourceConsumptionSource.removeGauge(
+      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+      resourceConsumptionLabel)
   }
 
   private def removeAppActiveConnection(applicationIds: JHashSet[String]): Unit = {
