@@ -1,8 +1,8 @@
 diff --git a/core/src/main/scala/org/apache/spark/MapOutputTracker.scala b/core/src/main/scala/org/apache/spark/MapOutputTracker.scala
-index b1974948430..0dc92ec44a8 100644
+index e469c9989f2..245d9b3b9de 100644
 --- a/core/src/main/scala/org/apache/spark/MapOutputTracker.scala
 +++ b/core/src/main/scala/org/apache/spark/MapOutputTracker.scala
-@@ -696,6 +696,8 @@ private[spark] class MapOutputTrackerMaster(
+@@ -661,6 +661,8 @@ private[spark] class MapOutputTrackerMaster(
      pool
    }
  
@@ -11,7 +11,7 @@ index b1974948430..0dc92ec44a8 100644
    // Make sure that we aren't going to exceed the max RPC message size by making sure
    // we use broadcast to send large map output statuses.
    if (minSizeForBroadcast > maxRpcMessageSize) {
-@@ -886,6 +888,7 @@ private[spark] class MapOutputTrackerMaster(
+@@ -839,6 +841,7 @@ private[spark] class MapOutputTrackerMaster(
          shuffleStatus.invalidateSerializedMergeOutputStatusCache()
        }
      }
@@ -20,10 +20,10 @@ index b1974948430..0dc92ec44a8 100644
  
    /**
 diff --git a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
-index bd2823bcac1..5d81b9de5b6 100644
+index b950c07f3d8..e9e10bb647f 100644
 --- a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
 +++ b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
-@@ -1404,7 +1404,10 @@ private[spark] class DAGScheduler(
+@@ -1369,7 +1369,10 @@ private[spark] class DAGScheduler(
      // The operation here can make sure for the partially completed intermediate stage,
      // `findMissingPartitions()` returns all partitions every time.
      stage match {
@@ -35,7 +35,7 @@ index bd2823bcac1..5d81b9de5b6 100644
          mapOutputTracker.unregisterAllMapAndMergeOutput(sms.shuffleDep.shuffleId)
          sms.shuffleDep.newShuffleMergeState()
        case _ =>
-@@ -1851,7 +1854,8 @@ private[spark] class DAGScheduler(
+@@ -1780,7 +1783,8 @@ private[spark] class DAGScheduler(
            failedStage.failedAttemptIds.add(task.stageAttemptId)
            val shouldAbortStage =
              failedStage.failedAttemptIds.size >= maxConsecutiveStageAttempts ||
@@ -46,12 +46,12 @@ index bd2823bcac1..5d81b9de5b6 100644
            // It is likely that we receive multiple FetchFailed for a single stage (because we have
            // multiple tasks running concurrently on different executors). In that case, it is
 diff --git a/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala b/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala
-index af03ad9a4cb..7a3ee9ebfaf 100644
+index 6bc8ba4eebb..2e7d87c96eb 100644
 --- a/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala
 +++ b/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala
-@@ -3784,6 +3784,12 @@ object SQLConf {
-     .booleanConf
-     .createWithDefault(false)
+@@ -3431,6 +3431,12 @@ object SQLConf {
+       .booleanConf
+       .createWithDefault(false)
  
 +  val CELEBORN_CLIENT_ADAPTIVE_OPTIMIZE_SKEWED_PARTITION_READ =
 +    buildConf("spark.celeborn.client.adaptive.optimizeSkewedPartitionRead.enabled")
@@ -62,9 +62,9 @@ index af03ad9a4cb..7a3ee9ebfaf 100644
    /**
     * Holds information about keys that have been deprecated.
     *
-@@ -4549,6 +4555,9 @@ class SQLConf extends Serializable with Logging {
-   def histogramNumericPropagateInputType: Boolean =
-     getConf(SQLConf.HISTOGRAM_NUMERIC_PROPAGATE_INPUT_TYPE)
+@@ -4154,6 +4160,9 @@ class SQLConf extends Serializable with Logging {
+ 
+   def legacyParquetNanosAsLong: Boolean = getConf(SQLConf.LEGACY_PARQUET_NANOS_AS_LONG)
  
 +  def celebornClientAdaptiveOptimizeSkewedPartitionReadEnabled: Boolean =
 +    getConf(SQLConf.CELEBORN_CLIENT_ADAPTIVE_OPTIMIZE_SKEWED_PARTITION_READ)
@@ -114,28 +114,27 @@ index 00000000000..3dc60678461
 +
 +}
 diff --git a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/OptimizeSkewInRebalancePartitions.scala b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/OptimizeSkewInRebalancePartitions.scala
-index b34ab3e380b..cb0ed9d05a4 100644
+index 1752907a9a5..2a0fe20c104 100644
 --- a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/OptimizeSkewInRebalancePartitions.scala
 +++ b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/OptimizeSkewInRebalancePartitions.scala
-@@ -47,14 +47,15 @@ object OptimizeSkewInRebalancePartitions extends AQEShuffleReadRule {
+@@ -50,12 +50,13 @@ object OptimizeSkewInRebalancePartitions extends AQEShuffleReadRule {
    private def optimizeSkewedPartitions(
        shuffleId: Int,
        bytesByPartitionId: Array[Long],
 -      targetSize: Long): Seq[ShufflePartitionSpec] = {
 +      targetSize: Long,
 +      isCelebornShuffle: Boolean = false): Seq[ShufflePartitionSpec] = {
-     val smallPartitionFactor =
-       conf.getConf(SQLConf.ADAPTIVE_REBALANCE_PARTITIONS_SMALL_PARTITION_FACTOR)
      bytesByPartitionId.indices.flatMap { reduceIndex =>
        val bytes = bytesByPartitionId(reduceIndex)
        if (bytes > targetSize) {
-         val newPartitionSpec = ShufflePartitionsUtil.createSkewPartitionSpecs(
--          shuffleId, reduceIndex, targetSize, smallPartitionFactor)
-+          shuffleId, reduceIndex, targetSize, smallPartitionFactor, isCelebornShuffle)
+-        val newPartitionSpec =
+-          ShufflePartitionsUtil.createSkewPartitionSpecs(shuffleId, reduceIndex, targetSize)
++        val newPartitionSpec = ShufflePartitionsUtil.createSkewPartitionSpecs(
++          shuffleId, reduceIndex, targetSize, isCelebornShuffle)
          if (newPartitionSpec.isEmpty) {
            CoalescedPartitionSpec(reduceIndex, reduceIndex + 1, bytes) :: Nil
          } else {
-@@ -76,8 +77,9 @@ object OptimizeSkewInRebalancePartitions extends AQEShuffleReadRule {
+@@ -77,8 +78,9 @@ object OptimizeSkewInRebalancePartitions extends AQEShuffleReadRule {
        return shuffle
      }
  
@@ -147,10 +146,10 @@ index b34ab3e380b..cb0ed9d05a4 100644
      if (newPartitionsSpec.length == mapStats.get.bytesByPartitionId.length) {
        shuffle
 diff --git a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/OptimizeSkewedJoin.scala b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/OptimizeSkewedJoin.scala
-index d4a173bb9cc..21ef335e064 100644
+index 88abe68197b..150699a84a3 100644
 --- a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/OptimizeSkewedJoin.scala
 +++ b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/OptimizeSkewedJoin.scala
-@@ -152,8 +152,10 @@ case class OptimizeSkewedJoin(ensureRequirements: EnsureRequirements)
+@@ -157,8 +157,10 @@ object OptimizeSkewedJoin extends AQEShuffleReadRule {
          Seq(CoalescedPartitionSpec(partitionIndex, partitionIndex + 1, rightSize))
  
        val leftParts = if (isLeftSkew) {
@@ -162,7 +161,7 @@ index d4a173bb9cc..21ef335e064 100644
          if (skewSpecs.isDefined) {
            logDebug(s"Left side partition $partitionIndex " +
              s"(${FileUtils.byteCountToDisplaySize(leftSize)}) is skewed, " +
-@@ -166,8 +168,10 @@ case class OptimizeSkewedJoin(ensureRequirements: EnsureRequirements)
+@@ -171,8 +173,10 @@ object OptimizeSkewedJoin extends AQEShuffleReadRule {
        }
  
        val rightParts = if (isRightSkew) {
@@ -175,21 +174,27 @@ index d4a173bb9cc..21ef335e064 100644
            logDebug(s"Right side partition $partitionIndex " +
              s"(${FileUtils.byteCountToDisplaySize(rightSize)}) is skewed, " +
 diff --git a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
-index af689db3379..9d9f9c994b9 100644
+index 3609548f374..f7c6d5dda90 100644
 --- a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
 +++ b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
-@@ -380,13 +380,27 @@ object ShufflePartitionsUtil extends Logging {
+@@ -22,6 +22,7 @@ import scala.collection.mutable.ArrayBuffer
+ import org.apache.spark.{MapOutputStatistics, MapOutputTrackerMaster, SparkEnv}
+ import org.apache.spark.internal.Logging
+ import org.apache.spark.sql.execution.{CoalescedPartitionSpec, PartialReducerPartitionSpec, ShufflePartitionSpec}
++import org.apache.spark.sql.internal.SQLConf
+ 
+ object ShufflePartitionsUtil extends Logging {
+   final val SMALL_PARTITION_FACTOR = 0.2
+@@ -376,11 +377,25 @@ object ShufflePartitionsUtil extends Logging {
+   def createSkewPartitionSpecs(
        shuffleId: Int,
        reducerId: Int,
-       targetSize: Long,
--      smallPartitionFactor: Double = SMALL_PARTITION_FACTOR)
-+      smallPartitionFactor: Double = SMALL_PARTITION_FACTOR,
-+      isCelebornShuffle: Boolean = false)
-   : Option[Seq[PartialReducerPartitionSpec]] = {
+-      targetSize: Long): Option[Seq[PartialReducerPartitionSpec]] = {
++      targetSize: Long,
++      isCelebornShuffle: Boolean = false): Option[Seq[PartialReducerPartitionSpec]] = {
      val mapPartitionSizes = getMapSizesForReduceId(shuffleId, reducerId)
      if (mapPartitionSizes.exists(_ < 0)) return None
-     val mapStartIndices = splitSizeListByTargetSize(
-       mapPartitionSizes, targetSize, smallPartitionFactor)
+     val mapStartIndices = splitSizeListByTargetSize(mapPartitionSizes, targetSize)
      if (mapStartIndices.length > 1) {
 +      val isCelebornClientAdaptiveOptimizeSkewedPartitionReadEnabled =
 +        SparkEnv.get.conf.get("spark.shuffle.manager", "sort").contains("celeborn") &&
@@ -207,11 +212,18 @@ index af689db3379..9d9f9c994b9 100644
        Some(mapStartIndices.indices.map { i =>
          val startMapIndex = mapStartIndices(i)
          val endMapIndex = if (i == mapStartIndices.length - 1) {
-@@ -400,7 +414,14 @@ object ShufflePartitionsUtil extends Logging {
-           dataSize += mapPartitionSizes(mapIndex)
-           mapIndex += 1
+@@ -388,8 +403,20 @@ object ShufflePartitionsUtil extends Logging {
+         } else {
+           mapStartIndices(i + 1)
          }
+-        val dataSize = startMapIndex.until(endMapIndex).map(mapPartitionSizes(_)).sum
 -        PartialReducerPartitionSpec(reducerId, startMapIndex, endMapIndex, dataSize)
++        var dataSize = 0L
++        var mapIndex = startMapIndex
++        while (mapIndex < endMapIndex) {
++          dataSize += mapPartitionSizes(mapIndex)
++          mapIndex += 1
++        }
 +        if (isCelebornClientAdaptiveOptimizeSkewedPartitionReadEnabled) {
 +          // These `dataSize` variables may not be accurate as they only represent the sum of
 +          // `dataSize` when the Celeborn optimize skewed partition read feature is enabled.
