@@ -18,13 +18,15 @@
 package org.apache.celeborn.common
 
 import java.io.{File, IOException}
-import java.util.{Collections, Locale, UUID, Collection => JCollection, HashMap => JHashMap, Map => JMap}
+import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Locale, Map => JMap, UUID}
 import java.util.concurrent.TimeUnit
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.util.Try
 import scala.util.matching.Regex
+
 import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, HadoopBasedIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
