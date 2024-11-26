@@ -5973,7 +5973,7 @@ object CelebornConf extends Logging {
 
   val TAGS_EXPR: ConfigEntry[String] =
     buildConf("celeborn.tags.tagsExpr")
-      .categories("tags", "master", "client")
+      .categories("master", "client")
       .version("0.6.0")
       .doc("Expression to filter workers by tags. The expression is a comma-separated list of " +
         "tags. The expression is evaluated as a logical AND of all tags. For example, " +
@@ -5984,7 +5984,7 @@ object CelebornConf extends Logging {
 
   val PREFER_CLIENT_TAGS_EXPR: ConfigEntry[Boolean] =
     buildConf("celeborn.tags.preferClientTagsExpr")
-      .categories("tags", "master")
+      .categories("master")
       .doc("When `true`, prefer the tags expression provided by the client over the tags " +
         "expression provided by the master.")
       .dynamic
