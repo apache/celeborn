@@ -239,7 +239,10 @@ class WorkerInfo(
   def updateThenGetUserResourceConsumption(resourceConsumptions: util.Map[
     UserIdentifier,
     ResourceConsumption]): util.Map[UserIdentifier, ResourceConsumption] = {
-    userResourceConsumption.clear()
+    userResourceConsumption.keys().asScala.filterNot(resourceConsumptions.containsKey).foreach {
+      identifier =>
+        userResourceConsumption.put(identifier, ResourceConsumption(0, 0, 0, 0))
+    }
     userResourceConsumption.putAll(resourceConsumptions)
     userResourceConsumption
   }
