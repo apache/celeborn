@@ -38,11 +38,8 @@ public class SystemConfig extends DynamicConfig {
   }
 
   @Override
-  public <T> T getValue(
-      String configKey,
-      ConfigEntry<Object> configEntry,
-      Class<T> finalType,
-      ConfigType configType) {
+  public <T, V> T getValue(
+      String configKey, ConfigEntry<V> configEntry, Class<T> finalType, ConfigType configType) {
     String configValue = configs.get(configKey);
     T formatValue =
         configValue != null ? formatValue(configKey, configValue, finalType, configType) : null;

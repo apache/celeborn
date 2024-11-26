@@ -21,6 +21,7 @@ import scala.collection.JavaConverters.seqAsJavaListConverter
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.server.common.service.config.DynamicConfigServiceFactory
 
@@ -35,6 +36,8 @@ class TagsManagerSuite extends CelebornFunSuite {
   private val WORKER3 = new WorkerInfo("host3", 311, 312, 313, 314, 315)
 
   private val workers = List(WORKER1, WORKER2, WORKER3).asJava
+
+  private val user = UserIdentifier("tenant_01", "Jerry")
 
   override def beforeEach(): Unit = {
     super.beforeEach()
@@ -51,7 +54,7 @@ class TagsManagerSuite extends CelebornFunSuite {
     tagsManager.addTagToWorker(TAG2, WORKER3.toUniqueId())
 
     {
-      val taggedWorkers = tagsManager.getTaggedWorkers(TAG1, workers)
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG1, workers)
       assert(taggedWorkers.size == 2)
       assert(taggedWorkers.contains(WORKER1))
       assert(taggedWorkers.contains(WORKER2))
@@ -59,7 +62,7 @@ class TagsManagerSuite extends CelebornFunSuite {
     }
 
     {
-      val taggedWorkers = tagsManager.getTaggedWorkers(TAG2, workers)
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG2, workers)
       assert(taggedWorkers.size == 2)
       assert(!taggedWorkers.contains(WORKER1))
       assert(taggedWorkers.contains(WORKER2))
@@ -76,7 +79,7 @@ class TagsManagerSuite extends CelebornFunSuite {
 
     {
       // Test an unknown tag
-      val taggedWorkers = tagsManager.getTaggedWorkers("unknown-tag", workers)
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, "unknown-tag", workers)
       assert(taggedWorkers.isEmpty)
     }
 
@@ -104,7 +107,7 @@ class TagsManagerSuite extends CelebornFunSuite {
     {
       // Remove tag from worker
       tagsManager.removeTagFromWorker(TAG1, WORKER2.toUniqueId())
-      val taggedWorkers = tagsManager.getTaggedWorkers(TAG1, workers)
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG1, workers)
       assert(taggedWorkers.size == 1)
       assert(taggedWorkers.contains(WORKER1))
       assert(!taggedWorkers.contains(WORKER2))
@@ -114,7 +117,7 @@ class TagsManagerSuite extends CelebornFunSuite {
     {
       // Remove tag from cluster
       tagsManager.removeTagFromCluster(TAG1)
-      val taggedWorkers = tagsManager.getTaggedWorkers(TAG1, workers)
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG1, workers)
       assert(taggedWorkers.isEmpty)
 
       val tags = tagsManager.getTagsForCluster
@@ -135,7 +138,7 @@ class TagsManagerSuite extends CelebornFunSuite {
     tagsManager.addTagToWorker(TAG2, WORKER3.toUniqueId())
 
     {
-      val taggedWorkers = tagsManager.getTaggedWorkers("tag1,tag2", workers)
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, "tag1,tag2", workers)
       assert(taggedWorkers.size == 1)
       assert(!taggedWorkers.contains(WORKER1))
       assert(taggedWorkers.contains(WORKER2))
@@ -143,7 +146,7 @@ class TagsManagerSuite extends CelebornFunSuite {
     }
 
     {
-      val taggedWorkers = tagsManager.getTaggedWorkers("tag1,tag3", workers)
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, "tag1,tag3", workers)
       assert(taggedWorkers.size == 0)
     }
   }
@@ -159,7 +162,8 @@ class TagsManagerSuite extends CelebornFunSuite {
     tagsManager = new TagsManager(Option(configService))
 
     {
-      val taggedWorkers = tagsManager.getTaggedWorkers(TAG1, workers)
+      // preferClientTagsExpr: true
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG1, workers)
       assert(taggedWorkers.size == 2)
       assert(taggedWorkers.contains(WORKER1))
       assert(taggedWorkers.contains(WORKER2))
@@ -167,9 +171,30 @@ class TagsManagerSuite extends CelebornFunSuite {
     }
 
     {
-      val taggedWorkers = tagsManager.getTaggedWorkers(TAG2, workers)
+      // preferClientTagsExpr: true
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG2, workers)
       assert(taggedWorkers.size == 2)
       assert(!taggedWorkers.contains(WORKER1))
+      assert(taggedWorkers.contains(WORKER2))
+      assert(taggedWorkers.contains(WORKER3))
+    }
+
+    {
+      // preferClientTagsExpr: false, adminTagsExpr: "tag1"
+      val user = UserIdentifier("tenant_01", "Tom")
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, "tag1,tag2", workers)
+      assert(taggedWorkers.size == 2)
+      assert(taggedWorkers.contains(WORKER1))
+      assert(taggedWorkers.contains(WORKER2))
+      assert(!taggedWorkers.contains(WORKER3))
+    }
+
+    {
+      // preferClientTagsExpr: false, adminTagsExpr: ""
+      val user = UserIdentifier("tenant_01", "Robin")
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, "tag1", workers)
+      assert(taggedWorkers.size == 3)
+      assert(taggedWorkers.contains(WORKER1))
       assert(taggedWorkers.contains(WORKER2))
       assert(taggedWorkers.contains(WORKER3))
     }

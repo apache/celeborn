@@ -29,6 +29,7 @@ import org.apache.celeborn.common.internal.config.ConfigEntry;
 import org.apache.celeborn.common.quota.Quota;
 import org.apache.celeborn.common.quota.UserTrafficQuota;
 import org.apache.celeborn.common.quota.WorkerTrafficQuota;
+import org.apache.celeborn.common.tags.WorkerTagsMeta;
 import org.apache.celeborn.common.util.Utils;
 
 /**
@@ -60,11 +61,8 @@ public abstract class DynamicConfig {
     }
   }
 
-  public <T> T getValue(
-      String configKey,
-      ConfigEntry<Object> configEntry,
-      Class<T> finalType,
-      ConfigType configType) {
+  public <T, V> T getValue(
+      String configKey, ConfigEntry<V> configEntry, Class<T> finalType, ConfigType configType) {
     String configValue = configs.get(configKey);
     T formatValue =
         configValue != null ? formatValue(configKey, configValue, finalType, configType) : null;
@@ -167,6 +165,20 @@ public abstract class DynamicConfig {
             CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK(),
             Long.TYPE,
             ConfigType.BYTES));
+  }
+
+  public WorkerTagsMeta getWorkerTagsMeta() {
+    return new WorkerTagsMeta(
+        getValue(
+            CelebornConf.TAGS_EXPR().key(),
+            CelebornConf.TAGS_EXPR(),
+            String.class,
+            ConfigType.STRING),
+        getValue(
+            CelebornConf.PREFER_CLIENT_TAGS_EXPR().key(),
+            CelebornConf.PREFER_CLIENT_TAGS_EXPR(),
+            Boolean.TYPE,
+            ConfigType.STRING));
   }
 
   public Map<String, String> getConfigs() {

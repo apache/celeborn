@@ -1347,7 +1347,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientChunkPrefetchEnabled = get(CLIENT_CHUNK_PREFETCH_ENABLED)
   def clientInputStreamCreationWindow = get(CLIENT_INPUTSTREAM_CREATION_WINDOW)
 
-  def clientTagsExpr: String = get(CLIENT_TAGS_EXPR)
+  def tagsExpr: String = get(TAGS_EXPR)
+  def preferClientTagsExpr: Boolean = get(PREFER_CLIENT_TAGS_EXPR)
 
   // //////////////////////////////////////////////////////
   //                    kerberos                         //
@@ -5980,15 +5981,26 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val CLIENT_TAGS_EXPR: ConfigEntry[String] =
-    buildConf("celeborn.client.tagsExpr")
-      .categories("client")
+  val TAGS_EXPR: ConfigEntry[String] =
+    buildConf("celeborn.tags.tagsExpr")
+      .categories("master", "client")
       .version("0.6.0")
       .doc("Expression to filter workers by tags. The expression is a comma-separated list of " +
         "tags. The expression is evaluated as a logical AND of all tags. For example, " +
         "`prod,high-io` filters workers that have both the `prod` and `high-io` tags.")
+      .dynamic
       .stringConf
       .createWithDefault("")
+
+  val PREFER_CLIENT_TAGS_EXPR: ConfigEntry[Boolean] =
+    buildConf("celeborn.tags.preferClientTagsExpr")
+      .categories("master")
+      .doc("When `true`, prefer the tags expression provided by the client over the tags " +
+        "expression provided by the master.")
+      .dynamic
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefault(false)
 
   val MASTER_EXCLUDE_WORKER_UNHEALTHY_DISK_RATIO_THRESHOLD: ConfigEntry[Double] =
     buildConf("celeborn.master.excludeWorker.unhealthyDiskRatioThreshold")
