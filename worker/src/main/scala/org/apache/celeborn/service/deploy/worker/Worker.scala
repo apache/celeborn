@@ -680,20 +680,21 @@ private[celeborn] class Worker(
     // Remove application top resource consumption gauges to refresh top resource consumption metrics.
     removeAppResourceConsumption(topApplicationUserIdentifiers.keySet().asScala)
     // Top resource consumption is determined by diskBytesWritten+hdfsBytesWritten.
-    userResourceConsumptions.asScala.filter(userResourceConsumption =>
-      CollectionUtils.isNotEmpty(userResourceConsumption._2.subResourceConsumptions))
-      .flatMap(userResourceConsumption =>
-        userResourceConsumption._2.subResourceConsumptions.asScala.map(subResourceConsumption =>
-          (subResourceConsumption._1, (userResourceConsumption._1, subResourceConsumption._2))))
-      .toSeq
-      .sortBy(resourceConsumption =>
-        resourceConsumption._2._2.diskBytesWritten + resourceConsumption._2._2.hdfsBytesWritten)
+    userResourceConsumptions.asScala.filter { case (_, resourceConsumption) =>
+      CollectionUtils.isNotEmpty(resourceConsumption.subResourceConsumptions)
+    }.flatMap { case (userIdentifier, resourceConsumption) =>
+      resourceConsumption.subResourceConsumptions.asScala.map { case (appId, subConsumption) =>
+        (appId, userIdentifier, subConsumption)
+      }
+    }.toSeq
+      .sortBy { case (_, _, subConsumption) =>
+        subConsumption.diskBytesWritten + subConsumption.hdfsBytesWritten
+      }
       .reverse
-      .take(topResourceConsumptionCount).foreach { topResourceConsumption =>
-        val applicationId = topResourceConsumption._1
-        val userIdentifier = topResourceConsumption._2._1
-        topApplicationUserIdentifiers.put(applicationId, userIdentifier)
-        gaugeResourceConsumption(userIdentifier, applicationId, topResourceConsumption._2._2)
+      .take(topResourceConsumptionCount).foreach {
+        case (appId, userIdentifier, resourceConsumption) =>
+          topApplicationUserIdentifiers.put(appId, userIdentifier)
+          gaugeResourceConsumption(userIdentifier, appId, resourceConsumption)
       }
   }
 
