@@ -677,8 +677,8 @@ private[celeborn] class Worker(
   private def handleTopResourceConsumption(userResourceConsumptions: util.Map[
     UserIdentifier,
     ResourceConsumption]): Unit = {
-    val newTopApplicationIds = new JHashSet[String]()
-
+    // Remove application top resource consumption gauges to refresh top resource consumption metrics.
+    removeAppResourceConsumption(topApplicationUserIdentifiers.keySet().asScala)
     // Top resource consumption is determined by diskBytesWritten+hdfsBytesWritten.
     userResourceConsumptions.asScala.filter { case (_, resourceConsumption) =>
       CollectionUtils.isNotEmpty(resourceConsumption.subResourceConsumptions)
@@ -693,14 +693,9 @@ private[celeborn] class Worker(
       .reverse
       .take(topResourceConsumptionCount).foreach {
         case (appId, userIdentifier, appConsumption) =>
-          newTopApplicationIds.add(appId)
           topApplicationUserIdentifiers.put(appId, userIdentifier)
           gaugeResourceConsumption(userIdentifier, appId, appConsumption)
       }
-
-    // Remove the resource consumption of the application that is not in the new top list.
-    removeAppResourceConsumption(
-      topApplicationUserIdentifiers.keySet().asScala -- newTopApplicationIds.asScala)
   }
 
   private def gaugeResourceConsumption(
