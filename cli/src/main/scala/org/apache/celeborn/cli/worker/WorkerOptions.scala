@@ -35,11 +35,6 @@ final class WorkerOptions {
   private[worker] var showShufflesOnWorker: Boolean = _
 
   @Option(
-    names = Array("--show-top-disk-used-apps"),
-    description = Array("Show top disk used applications"))
-  private[worker] var showTopDiskUsedApps: Boolean = _
-
-  @Option(
     names = Array("--show-partition-location-info"),
     description = Array("Show partition location information"))
   private[worker] var showPartitionLocationInfo: Boolean = _

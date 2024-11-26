@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.worker.http.api.v1
 import javax.servlet.http.HttpServletResponse
 import javax.ws.rs.core.MediaType
 
-import org.apache.celeborn.rest.v1.model.{AppDiskUsagesResponse, ApplicationsResponse, ShufflePartitionsResponse, ShufflesResponse, UnAvailablePeersResponse, WorkerInfoResponse}
+import org.apache.celeborn.rest.v1.model.{ApplicationsResponse, ShufflePartitionsResponse, ShufflesResponse, UnAvailablePeersResponse, WorkerInfoResponse}
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.api.v1.ApiV1BaseResourceSuite
 import org.apache.celeborn.service.deploy.MiniClusterFeature
@@ -60,11 +60,6 @@ class ApiV1WorkerResourceSuite extends ApiV1BaseResourceSuite with MiniClusterFe
     var response = webTarget.path("applications").request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
     assert(response.readEntity(classOf[ApplicationsResponse]).getApplications.isEmpty)
-
-    response =
-      webTarget.path("applications/top_disk_usages").request(MediaType.APPLICATION_JSON).get()
-    assert(HttpServletResponse.SC_OK == response.getStatus)
-    assert(response.readEntity(classOf[AppDiskUsagesResponse]).getAppDiskUsages.isEmpty)
   }
 
   test("worker resource") {

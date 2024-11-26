@@ -1045,14 +1045,10 @@ object ControlMessages extends Logging {
 
       case HEARTBEAT_FROM_WORKER_VALUE =>
         val pbHeartbeatFromWorker = PbHeartbeatFromWorker.parseFrom(message.getPayload)
-        val estimatedAppDiskUsage = new util.HashMap[String, java.lang.Long]()
         val userResourceConsumption = PbSerDeUtils.fromPbUserResourceConsumption(
           pbHeartbeatFromWorker.getUserResourceConsumptionMap)
         val pbDisks =
           pbHeartbeatFromWorker.getDisksList.asScala.toSeq.map(PbSerDeUtils.fromPbDiskInfo)
-        if (!pbHeartbeatFromWorker.getEstimatedAppDiskUsageMap.isEmpty) {
-          estimatedAppDiskUsage.putAll(pbHeartbeatFromWorker.getEstimatedAppDiskUsageMap)
-        }
         val activeShuffleKeys = new util.HashSet[String]()
         if (!pbHeartbeatFromWorker.getActiveShuffleKeysList.isEmpty) {
           activeShuffleKeys.addAll(pbHeartbeatFromWorker.getActiveShuffleKeysList)
@@ -1069,7 +1065,6 @@ object ControlMessages extends Logging {
           pbDisks,
           userResourceConsumption,
           activeShuffleKeys,
-          estimatedAppDiskUsage,
           pbHeartbeatFromWorker.getHighWorkload,
           workerStatus,
           pbHeartbeatFromWorker.getRequestId)

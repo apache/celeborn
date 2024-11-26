@@ -67,7 +67,6 @@ abstract class ApiV1WorkerOpenapiClientSuite extends CelebornFunSuite with MiniC
   test("worker: application api") {
     val api = new ApplicationApi(workerApiClient)
     assert(api.getApplicationList.getApplications.isEmpty)
-    assert(api.getApplicationsDiskUsage.getAppDiskUsages.isEmpty)
   }
 
   test("worker: shuffle api") {

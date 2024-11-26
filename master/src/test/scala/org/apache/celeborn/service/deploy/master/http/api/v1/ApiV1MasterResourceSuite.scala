@@ -25,7 +25,7 @@ import javax.ws.rs.core.MediaType
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.util.{CelebornExitKind, ThreadUtils, Utils}
-import org.apache.celeborn.rest.v1.model.{AppDiskUsageSnapshotsResponse, ApplicationsResponse, ExcludeWorkerRequest, HandleResponse, HostnamesResponse, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, ShufflesResponse, WorkerEventsResponse, WorkerId, WorkersResponse}
+import org.apache.celeborn.rest.v1.model.{ApplicationsResponse, ExcludeWorkerRequest, HandleResponse, HostnamesResponse, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, ShufflesResponse, WorkerEventsResponse, WorkerId, WorkersResponse}
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.api.v1.ApiV1BaseResourceSuite
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
@@ -80,11 +80,6 @@ class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite {
     var response = webTarget.path("applications").request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
     assert(response.readEntity(classOf[ApplicationsResponse]).getApplications.isEmpty)
-
-    response =
-      webTarget.path("applications/top_disk_usages").request(MediaType.APPLICATION_JSON).get()
-    assert(HttpServletResponse.SC_OK == response.getStatus)
-    assert(response.readEntity(classOf[AppDiskUsageSnapshotsResponse]).getSnapshots.isEmpty)
 
     response = webTarget.path("applications/hostnames").request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)

@@ -30,11 +30,6 @@ final class MasterOptions {
   @Option(names = Array("--show-cluster-shuffles"), description = Array("Show cluster shuffles"))
   private[master] var showClusterShuffles: Boolean = _
 
-  @Option(
-    names = Array("--show-top-disk-used-apps"),
-    description = Array("Show top disk used apps"))
-  private[master] var showTopDiskUsedApps: Boolean = _
-
   @Option(names = Array("--exclude-worker"), description = Array("Exclude workers by ID"))
   private[master] var excludeWorkers: Boolean = _
 

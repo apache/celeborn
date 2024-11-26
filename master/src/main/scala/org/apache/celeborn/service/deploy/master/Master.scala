@@ -1381,13 +1381,6 @@ private[celeborn] class Master(
     sb.toString()
   }
 
-  override def listTopDiskUseApps: String = {
-    val sb = new StringBuilder
-    sb.append("================== Top Disk Usage Applications =======================\n")
-    sb.append(statusSystem.appDiskUsageMetric.summary())
-    sb.toString()
-  }
-
   override def exclude(
       addWorkers: Seq[WorkerInfo],
       removeWorkers: Seq[WorkerInfo]): HandleResponse = {

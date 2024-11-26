@@ -556,19 +556,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     hashSet
   }
 
-  def topAppDiskUsage(reportToMaster: Boolean = false): util.Map[String, Long] = {
-    val topCount = if (reportToMaster) topDiskUsageCount * 2 else topDiskUsageCount
-    diskFileInfos.asScala.map { keyedWriters =>
-      {
-        keyedWriters._1 -> keyedWriters._2.values().asScala.map(_.getFileLength).sum
-      }
-    }.toList.map { case (shuffleKey, usage) =>
-      Utils.splitShuffleKey(shuffleKey)._1 -> usage
-    }.groupBy(_._1).map { case (key, values) =>
-      key -> values.map(_._2).sum
-    }.toSeq.sortBy(_._2).reverse.take(topCount).toMap.asJava
-  }
-
   def cleanFile(shuffleKey: String, fileName: String): Unit = {
     cleanFileInternal(shuffleKey, removeFileInfo(shuffleKey, fileName))
   }

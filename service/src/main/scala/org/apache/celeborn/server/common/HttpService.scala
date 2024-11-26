@@ -158,8 +158,6 @@ abstract class HttpService extends Service with Logging {
 
   def getApplicationList: String
 
-  def listTopDiskUseApps: String
-
   def getMasterGroupInfo: String = throw new UnsupportedOperationException()
 
   def getLostWorkers: String = throw new UnsupportedOperationException()
