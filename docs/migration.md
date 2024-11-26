@@ -42,7 +42,6 @@ license: |
     | GET /listDynamicConfigs  | GET /api/v1/conf/dynamic                 |                                                  |
     | GET /threadDump          | GET /api/v1/thread_dump                  |                                                  |
     | GET /applications        | GET /api/v1/applications                 |                                                  |
-    | GET /listTopDiskUsedApps | GET /api/v1/applications/top_disk_usages |                                                  |
     | GET /hostnames           | GET /api/v1/applications/hostnames       |                                                  |
     | GET /shuffle             | GET /api/v1/shuffles                     |                                                  |
     | GET /masterGroupInfo     | GET /api/v1/masters                      |                                                  |
@@ -64,7 +63,6 @@ license: |
     | GET /listDynamicConfigs        | GET /api/v1/conf/dynamic                 |                                             |
     | GET /threadDump                | GET /api/v1/thread_dump                  |                                             |
     | GET /applications              | GET /api/v1/applications                 |                                             |
-    | GET /listTopDiskUsedApps       | GET /api/v1/applications/top_disk_usages |                                             |
     | GET /shuffle                   | GET /api/v1/shuffles                     |                                             |
     | GET /listPartitionLocationInfo | GET /api/v1/shuffles/partitions          |                                             |
     | GET /workerInfo                | GET /api/v1/workers                      |                                             |
@@ -73,6 +71,8 @@ license: |
     | GET /isShutdown                | GET /api/v1/workers                      | get the isShutdown field in response        |
     | GET /unavailablePeers          | GET /api/v1/workers/unavailable_peers    |                                             |
     | POST /exit                     | POST /api/v1/workers/exit                |                                             |
+
+- Since 0.6.0, the RESTful api `/listTopDiskUsedApps` both in Master and Worker has been removed.
 
 ## Upgrading from 0.5.0 to 0.5.1
 
