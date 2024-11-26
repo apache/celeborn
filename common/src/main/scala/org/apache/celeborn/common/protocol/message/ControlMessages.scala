@@ -118,7 +118,6 @@ object ControlMessages extends Logging {
       disks: Seq[DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       activeShuffleKeys: util.Set[String],
-      estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
       highWorkload: Boolean,
       workerStatus: WorkerStatus,
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
@@ -612,7 +611,6 @@ object ControlMessages extends Logging {
           disks,
           userResourceConsumption,
           activeShuffleKeys,
-          estimatedAppDiskUsage,
           highWorkload,
           workerStatus,
           requestId) =>
@@ -628,7 +626,6 @@ object ControlMessages extends Logging {
         .putAllUserResourceConsumption(pbUserResourceConsumption)
         .setReplicatePort(replicatePort)
         .addAllActiveShuffleKeys(activeShuffleKeys)
-        .putAllEstimatedAppDiskUsage(estimatedAppDiskUsage)
         .setHighWorkload(highWorkload)
         .setWorkerStatus(PbSerDeUtils.toPbWorkerStatus(workerStatus))
         .setRequestId(requestId)

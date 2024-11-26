@@ -494,7 +494,6 @@ private[celeborn] class Master(
           disks,
           userResourceConsumption,
           activeShuffleKey,
-          estimatedAppDiskUsage,
           highWorkload,
           workerStatus,
           requestId) =>
@@ -512,7 +511,6 @@ private[celeborn] class Master(
           disks,
           userResourceConsumption,
           activeShuffleKey,
-          estimatedAppDiskUsage,
           highWorkload,
           workerStatus,
           requestId))
@@ -651,7 +649,6 @@ private[celeborn] class Master(
       disks: Seq[DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       activeShuffleKeys: util.Set[String],
-      estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
       highWorkload: Boolean,
       workerStatus: WorkerStatus,
       requestId: String): Unit = {
@@ -669,7 +666,6 @@ private[celeborn] class Master(
         replicatePort,
         disks.map { disk => disk.mountPoint -> disk }.toMap.asJava,
         userResourceConsumption,
-        estimatedAppDiskUsage,
         System.currentTimeMillis(),
         highWorkload,
         workerStatus,

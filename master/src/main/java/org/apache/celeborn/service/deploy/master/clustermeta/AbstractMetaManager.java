@@ -25,7 +25,6 @@ import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
@@ -40,8 +39,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.AppDiskUsageMetric;
-import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
 import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.DiskStatus;
@@ -96,7 +93,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final LongAdder partitionTotalFileCount = new LongAdder();
   public final LongAdder shuffleTotalCount = new LongAdder();
   public final Map<String, Long> shuffleFallbackCounts = JavaUtils.newConcurrentHashMap();
-  public AppDiskUsageMetric appDiskUsageMetric = null;
 
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
       JavaUtils.newConcurrentHashMap();
@@ -255,7 +251,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int replicatePort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
-      Map<String, Long> estimatedAppDiskUsage,
       long time,
       WorkerStatus workerStatus,
       boolean highWorkload) {
@@ -285,7 +280,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       }
     }
 
-    appDiskUsageMetric.update(estimatedAppDiskUsage);
     // If using HDFSONLY mode, workers with empty disks should not be put into excluded worker list.
     long unhealthyDiskNum =
         disks.values().stream().filter(s -> !s.status().equals(DiskStatus.HEALTHY)).count();
@@ -369,8 +363,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 partitionTotalFileCount.sum(),
                 shuffleTotalCount.sum(),
                 shuffleFallbackCounts,
-                appDiskUsageMetric.snapShots(),
-                appDiskUsageMetric.currentSnapShot().get(),
                 lostWorkers,
                 shutdownWorkers,
                 workerEventInfos,
@@ -471,14 +463,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       partitionTotalFileCount.add(snapshotMetaInfo.getPartitionTotalFileCount());
       shuffleTotalCount.add(snapshotMetaInfo.getShuffleTotalCount());
       addShuffleFallbackCounts(snapshotMetaInfo.getShuffleFallbackCountsMap());
-      appDiskUsageMetric.restoreFromSnapshot(
-          snapshotMetaInfo.getAppDiskUsageMetricSnapshotsList().stream()
-              .map(PbSerDeUtils::fromPbAppDiskUsageSnapshot)
-              .toArray(AppDiskUsageSnapShot[]::new));
-      appDiskUsageMetric.currentSnapShot_$eq(
-          new AtomicReference<AppDiskUsageSnapShot>(
-              PbSerDeUtils.fromPbAppDiskUsageSnapshot(
-                  snapshotMetaInfo.getCurrentAppDiskUsageMetricsSnapshot())));
 
       snapshotMetaInfo
           .getApplicationMetasMap()

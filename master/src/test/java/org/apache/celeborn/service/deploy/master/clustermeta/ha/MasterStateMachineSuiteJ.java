@@ -38,7 +38,6 @@ import org.mockito.Mockito;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
@@ -215,22 +214,6 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     masterStatusSystem.hostnameSet.add(host2);
     masterStatusSystem.hostnameSet.add(host3);
 
-    // Wait for update snapshot
-    Thread.sleep(60000);
-    Map<String, Long> appDiskUsage = JavaUtils.newConcurrentHashMap();
-    appDiskUsage.put("app-1", 100L);
-    appDiskUsage.put("app-2", 200L);
-    masterStatusSystem.appDiskUsageMetric.update(appDiskUsage);
-    appDiskUsage.put("app-3", 300L);
-    appDiskUsage.put("app-1", 200L);
-    masterStatusSystem.appDiskUsageMetric.update(appDiskUsage);
-    // wait for snapshot updated
-    Thread.sleep(3000);
-
-    AppDiskUsageSnapShot[] originSnapshots = masterStatusSystem.appDiskUsageMetric.snapShots();
-    AppDiskUsageSnapShot originCurrentSnapshot =
-        masterStatusSystem.appDiskUsageMetric.currentSnapShot().get();
-
     WorkerInfo workerInfo1 = new WorkerInfo(host1, 9095, 9094, 9093, 9092, 9091);
     WorkerInfo workerInfo2 = new WorkerInfo(host2, 9095, 9094, 9093, 9092, 9091);
     WorkerInfo workerInfo3 = new WorkerInfo(host3, 9095, 9094, 9093, 9092, 9091);
@@ -253,15 +236,6 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     Assert.assertEquals(3, masterStatusSystem.excludedWorkers.size());
     Assert.assertEquals(2, masterStatusSystem.manuallyExcludedWorkers.size());
     Assert.assertEquals(3, masterStatusSystem.hostnameSet.size());
-    Assert.assertEquals(
-        conf.metricsAppTopDiskUsageWindowSize(),
-        masterStatusSystem.appDiskUsageMetric.snapShots().length);
-    Assert.assertEquals(
-        conf.metricsAppTopDiskUsageCount(),
-        masterStatusSystem.appDiskUsageMetric.currentSnapShot().get().topNItems().length);
-    Assert.assertEquals(
-        originCurrentSnapshot, masterStatusSystem.appDiskUsageMetric.currentSnapShot().get());
-    Assert.assertArrayEquals(originSnapshots, masterStatusSystem.appDiskUsageMetric.snapShots());
 
     masterStatusSystem.restoreMetaFromFile(tmpFile);
     Assert.assertEquals(3, masterStatusSystem.workersMap.size());
