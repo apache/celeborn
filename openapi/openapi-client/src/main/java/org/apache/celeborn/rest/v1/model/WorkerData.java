@@ -27,6 +27,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.celeborn.rest.v1.model.WorkerResourceConsumption;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -82,7 +83,7 @@ public class WorkerData {
   private Map<String, String> diskInfos = new HashMap<>();
 
   public static final String JSON_PROPERTY_RESOURCE_CONSUMPTION = "resourceConsumption";
-  private Map<String, String> resourceConsumption = new HashMap<>();
+  private Map<String, WorkerResourceConsumption> resourceConsumption = new HashMap<>();
 
   public static final String JSON_PROPERTY_WORKER_REF = "workerRef";
   private String workerRef;
@@ -354,13 +355,13 @@ public class WorkerData {
     this.diskInfos = diskInfos;
   }
 
-  public WorkerData resourceConsumption(Map<String, String> resourceConsumption) {
+  public WorkerData resourceConsumption(Map<String, WorkerResourceConsumption> resourceConsumption) {
     
     this.resourceConsumption = resourceConsumption;
     return this;
   }
 
-  public WorkerData putResourceConsumptionItem(String key, String resourceConsumptionItem) {
+  public WorkerData putResourceConsumptionItem(String key, WorkerResourceConsumption resourceConsumptionItem) {
     if (this.resourceConsumption == null) {
       this.resourceConsumption = new HashMap<>();
     }
@@ -369,21 +370,21 @@ public class WorkerData {
   }
 
   /**
-   * A map of identifier and resource consumption.
+   * A map of user identifier and resource consumption.
    * @return resourceConsumption
    */
   @javax.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_RESOURCE_CONSUMPTION)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
-  public Map<String, String> getResourceConsumption() {
+  public Map<String, WorkerResourceConsumption> getResourceConsumption() {
     return resourceConsumption;
   }
 
 
   @JsonProperty(JSON_PROPERTY_RESOURCE_CONSUMPTION)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setResourceConsumption(Map<String, String> resourceConsumption) {
+  public void setResourceConsumption(Map<String, WorkerResourceConsumption> resourceConsumption) {
     this.resourceConsumption = resourceConsumption;
   }
 

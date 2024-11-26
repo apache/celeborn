@@ -27,6 +27,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.celeborn.rest.v1.model.WorkerResourceConsumption;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -85,7 +86,7 @@ public class WorkerInfoResponse {
   private Map<String, String> diskInfos = new HashMap<>();
 
   public static final String JSON_PROPERTY_RESOURCE_CONSUMPTION = "resourceConsumption";
-  private Map<String, String> resourceConsumption = new HashMap<>();
+  private Map<String, WorkerResourceConsumption> resourceConsumption = new HashMap<>();
 
   public static final String JSON_PROPERTY_WORKER_REF = "workerRef";
   private String workerRef;
@@ -366,13 +367,13 @@ public class WorkerInfoResponse {
     this.diskInfos = diskInfos;
   }
 
-  public WorkerInfoResponse resourceConsumption(Map<String, String> resourceConsumption) {
+  public WorkerInfoResponse resourceConsumption(Map<String, WorkerResourceConsumption> resourceConsumption) {
     
     this.resourceConsumption = resourceConsumption;
     return this;
   }
 
-  public WorkerInfoResponse putResourceConsumptionItem(String key, String resourceConsumptionItem) {
+  public WorkerInfoResponse putResourceConsumptionItem(String key, WorkerResourceConsumption resourceConsumptionItem) {
     if (this.resourceConsumption == null) {
       this.resourceConsumption = new HashMap<>();
     }
@@ -388,14 +389,14 @@ public class WorkerInfoResponse {
   @JsonProperty(JSON_PROPERTY_RESOURCE_CONSUMPTION)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
-  public Map<String, String> getResourceConsumption() {
+  public Map<String, WorkerResourceConsumption> getResourceConsumption() {
     return resourceConsumption;
   }
 
 
   @JsonProperty(JSON_PROPERTY_RESOURCE_CONSUMPTION)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setResourceConsumption(Map<String, String> resourceConsumption) {
+  public void setResourceConsumption(Map<String, WorkerResourceConsumption> resourceConsumption) {
     this.resourceConsumption = resourceConsumption;
   }
 
