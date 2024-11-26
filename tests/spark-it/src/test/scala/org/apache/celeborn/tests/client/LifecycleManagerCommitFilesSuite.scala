@@ -168,7 +168,10 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
     assert(res.status == StatusCode.SUCCESS)
     assert(res.workerResource.keySet().size() == 3)
 
-    lifecycleManager.setupEndpoints(res.workerResource.keySet, shuffleId, new ShuffleFailedWorkers())
+    lifecycleManager.setupEndpoints(
+      res.workerResource.keySet,
+      shuffleId,
+      new ShuffleFailedWorkers())
 
     lifecycleManager.reserveSlotsWithRetry(
       shuffleId,
