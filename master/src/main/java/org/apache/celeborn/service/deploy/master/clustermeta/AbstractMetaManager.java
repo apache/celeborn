@@ -278,7 +278,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           info -> {
             info.updateThenGetDiskInfos(disks, Option.apply(estimatedPartitionSize));
             info.updateThenGetUserResourceConsumption(userResourceConsumption);
-            info.updateThenGetAppDiskUsage(estimatedAppDiskUsage);
+            info.updateThenGetTopAppDiskUsage(estimatedAppDiskUsage);
             availableSlots.set(info.totalAvailableSlots());
             info.lastHeartbeat_$eq(time);
             info.setWorkerStatus(workerStatus);

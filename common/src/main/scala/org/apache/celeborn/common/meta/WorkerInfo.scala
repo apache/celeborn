@@ -41,7 +41,7 @@ class WorkerInfo(
     val internalPort: Int,
     _diskInfos: util.Map[String, DiskInfo],
     _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
-    _appDiskUsage: util.Map[String, java.lang.Long]) extends Serializable
+    _topAppDiskUsage: util.Map[String, java.lang.Long]) extends Serializable
   with Logging {
   var networkLocation = NetworkTopology.DEFAULT_RACK
   var lastHeartbeat: Long = 0
@@ -53,8 +53,9 @@ class WorkerInfo(
     if (_userResourceConsumption != null)
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](_userResourceConsumption)
     else null
-  val appDiskUsage =
-    if (_appDiskUsage != null) JavaUtils.newConcurrentHashMap[String, java.lang.Long](_appDiskUsage)
+  val topAppDiskUsage =
+    if (_topAppDiskUsage != null)
+      JavaUtils.newConcurrentHashMap[String, java.lang.Long](_topAppDiskUsage)
     else null
   var endpoint: RpcEndpointRef = null
 
@@ -168,7 +169,7 @@ class WorkerInfo(
   }
 
   def getAppDiskUsage(appId: String): java.lang.Long = {
-    Option(appDiskUsage).map(_.getOrDefault(appId, 0L)).getOrElse(0L)
+    Option(topAppDiskUsage).map(_.getOrDefault(appId, 0L)).getOrElse(0L)
   }
 
   def hasSameInfoWith(other: WorkerInfo): Boolean = {
@@ -278,11 +279,11 @@ class WorkerInfo(
     userResourceConsumption
   }
 
-  def updateThenGetAppDiskUsage(appDiskUsage: util.Map[String, java.lang.Long])
+  def updateThenGetTopAppDiskUsage(topAppDiskUsage: util.Map[String, java.lang.Long])
       : util.Map[String, java.lang.Long] = {
-    this.appDiskUsage.clear()
-    this.appDiskUsage.putAll(appDiskUsage)
-    this.appDiskUsage
+    this.topAppDiskUsage.clear()
+    this.topAppDiskUsage.putAll(topAppDiskUsage)
+    this.topAppDiskUsage
   }
 
   override def toString: String = {

@@ -228,7 +228,7 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     masterStatusSystem.appDiskUsageMetricManager.update();
     appDiskUsage.put("app-3", 300L);
     appDiskUsage.put("app-1", 200L);
-    appUsageTestWorker.updateThenGetAppDiskUsage(appDiskUsage);
+    appUsageTestWorker.updateThenGetTopAppDiskUsage(appDiskUsage);
     masterStatusSystem.workersMap.put(appUsageTestWorker.toUniqueId(), appUsageTestWorker);
     masterStatusSystem.appDiskUsageMetricManager.update();
     masterStatusSystem.workersMap.remove(appUsageTestWorker.toUniqueId());
