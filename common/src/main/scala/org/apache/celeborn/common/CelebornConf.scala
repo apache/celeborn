@@ -18,17 +18,15 @@
 package org.apache.celeborn.common
 
 import java.io.{File, IOException}
-import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Locale, Map => JMap, UUID}
+import java.util.{Collections, Locale, UUID, Collection => JCollection, HashMap => JHashMap, Map => JMap}
 import java.util.concurrent.TimeUnit
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.util.Try
 import scala.util.matching.Regex
-
 import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
-import org.apache.celeborn.common.identity.{DefaultIdentityProvider, IdentityProvider}
+import org.apache.celeborn.common.identity.{DefaultIdentityProvider, HadoopBasedIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
 import org.apache.celeborn.common.network.util.ByteUnit
@@ -884,10 +882,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                      Quota                         //
   // //////////////////////////////////////////////////////
   def quotaEnabled: Boolean = get(QUOTA_ENABLED)
-  def quotaIdentityProviderClass: String = get(QUOTA_IDENTITY_PROVIDER)
-  def quotaUserSpecificTenant: String = get(QUOTA_USER_SPECIFIC_TENANT)
-  def quotaUserSpecificUserName: String = get(QUOTA_USER_SPECIFIC_USERNAME)
   def quotaInterruptShuffleEnabled: Boolean = get(QUOTA_INTERRUPT_SHUFFLE_ENABLED)
+
+  // //////////////////////////////////////////////////////
+  //                      Identity                       //
+  // //////////////////////////////////////////////////////
+  def identityProviderClass: String = get(IDENTITY_PROVIDER)
+  def userSpecificTenant: String = get(USER_SPECIFIC_TENANT)
+  def userSpecificUserName: String = get(USER_SPECIFIC_USERNAME)
 
   // //////////////////////////////////////////////////////
   //                      Client                         //
@@ -1589,7 +1591,19 @@ object CelebornConf extends Logging {
       DeprecatedConfig(
         "celeborn.worker.congestionControl.high.watermark",
         "0.6.0",
-        "Please use celeborn.worker.congestionControl.diskBuffer.high.watermark"))
+        "Please use celeborn.worker.congestionControl.diskBuffer.high.watermark"),
+      DeprecatedConfig(
+        "celeborn.quota.identity.provider",
+        "0.6.0",
+        "Please use celeborn.identity.provider"),
+      DeprecatedConfig(
+        "celeborn.quota.identity.user-specific.tenant",
+        "0.6.0",
+        "Please use celeborn.identity.user-specific.tenant"),
+      DeprecatedConfig(
+        "celeborn.quota.identity.user-specific.userName",
+        "0.6.0",
+        "Please use celeborn.identity.user-specific.userName"))
 
     Map(configs.map { cfg => (cfg.key -> cfg) }: _*)
   }
@@ -5324,6 +5338,37 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
+  val IDENTITY_PROVIDER: ConfigEntry[String] =
+    buildConf("celeborn.identity.provider")
+      .withAlternative("celeborn.quota.identity.provider")
+      .categories("client")
+      .doc(s"IdentityProvider class name. Default class is " +
+        s"`${classOf[DefaultIdentityProvider].getName}`. " +
+        s"Optional values: " +
+        s"${classOf[HadoopBasedIdentityProvider].getName} user name will be obtained by UserGroupInformation.getUserName; " +
+        s"${classOf[DefaultIdentityProvider].getName} user name and tenant id are default values or user-specific values.")
+      .version("0.6.0")
+      .stringConf
+      .createWithDefault(classOf[DefaultIdentityProvider].getName)
+
+  val USER_SPECIFIC_TENANT: ConfigEntry[String] =
+    buildConf("celeborn.identity.user-specific.tenant")
+      .withAlternative("celeborn.quota.identity.user-specific.tenant")
+      .categories("client")
+      .doc(s"Tenant id if ${IDENTITY_PROVIDER.key} is ${classOf[DefaultIdentityProvider].getName}.")
+      .version("0.6.0")
+      .stringConf
+      .createWithDefault(IdentityProvider.DEFAULT_TENANT_ID)
+
+  val USER_SPECIFIC_USERNAME: ConfigEntry[String] =
+    buildConf("celeborn.identity.user-specific.userName")
+      .withAlternative("celeborn.quota.identity.user-specific.userName")
+      .categories("client")
+      .doc(s"User name if ${IDENTITY_PROVIDER.key} is ${classOf[DefaultIdentityProvider].getName}.")
+      .version("0.6.0")
+      .stringConf
+      .createWithDefault(IdentityProvider.DEFAULT_USERNAME)
+
   val QUOTA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.quota.enabled")
       .categories("quota", "master", "client")
@@ -5337,18 +5382,6 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val QUOTA_IDENTITY_PROVIDER: ConfigEntry[String] =
-    buildConf("celeborn.quota.identity.provider")
-      .categories("quota", "client")
-      .doc(s"IdentityProvider class name. Default class is " +
-        s"`${classOf[DefaultIdentityProvider].getName}`. " +
-        s"Optional values: " +
-        s"org.apache.celeborn.common.identity.HadoopBasedIdentityProvider user name will be obtained by UserGroupInformation.getUserName; " +
-        s"org.apache.celeborn.common.identity.DefaultIdentityProvider user name and tenant id are default values or user-specific values.")
-      .version("0.2.0")
-      .stringConf
-      .createWithDefault(classOf[DefaultIdentityProvider].getName)
-
   val CONTAINER_INFO_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.container.info.provider")
       .categories("master", "worker")
@@ -5357,22 +5390,6 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .stringConf
       .createWithDefault("org.apache.celeborn.server.common.container.DefaultContainerInfoProvider")
-
-  val QUOTA_USER_SPECIFIC_TENANT: ConfigEntry[String] =
-    buildConf("celeborn.quota.identity.user-specific.tenant")
-      .categories("quota", "client")
-      .doc(s"Tenant id if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.DefaultIdentityProvider.")
-      .version("0.3.0")
-      .stringConf
-      .createWithDefault(IdentityProvider.DEFAULT_TENANT_ID)
-
-  val QUOTA_USER_SPECIFIC_USERNAME: ConfigEntry[String] =
-    buildConf("celeborn.quota.identity.user-specific.userName")
-      .categories("quota", "client")
-      .doc(s"User name if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.DefaultIdentityProvider.")
-      .version("0.3.0")
-      .stringConf
-      .createWithDefault(IdentityProvider.DEFAULT_USERNAME)
 
   val QUOTA_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
     buildConf("celeborn.quota.tenant.diskBytesWritten")
