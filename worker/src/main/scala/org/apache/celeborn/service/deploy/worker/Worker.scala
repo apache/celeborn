@@ -677,8 +677,6 @@ private[celeborn] class Worker(
   private def handleTopResourceConsumption(userResourceConsumptions: util.Map[
     UserIdentifier,
     ResourceConsumption]): Unit = {
-    // Remove application top resource consumption gauges to refresh top resource consumption metrics.
-    removeAppResourceConsumption(topApplicationUserIdentifiers.keySet().asScala)
     // Top resource consumption is determined by diskBytesWritten+hdfsBytesWritten.
     userResourceConsumptions.asScala.filter(userResourceConsumption =>
       CollectionUtils.isNotEmpty(userResourceConsumption._2.subResourceConsumptions))
