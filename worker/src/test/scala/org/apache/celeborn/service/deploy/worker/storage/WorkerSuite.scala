@@ -32,6 +32,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
+import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, ThreadUtils}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 
@@ -121,5 +122,27 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
       }
     }
     Assert.assertEquals(1, allWriters.size())
+  }
+
+  test("handle top resource consumption") {
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
+    worker = new Worker(conf, workerArgs)
+    val userIdentifier = new UserIdentifier("default", "celeborn")
+    worker.handleTopResourceConsumption(Map(userIdentifier -> ResourceConsumption(
+      1024,
+      1,
+      0,
+      0,
+      Map("app1" -> ResourceConsumption(1024, 1, 0, 0)).asJava)).asJava)
+    assert(worker.resourceConsumptionSource.gauges().size == 4)
+    worker.handleTopResourceConsumption(Map(userIdentifier -> ResourceConsumption(
+      1024,
+      1,
+      0,
+      0,
+      Map("app2" -> ResourceConsumption(1024, 1, 0, 0)).asJava)).asJava)
+    assert(worker.resourceConsumptionSource.gauges().size == 4)
+    worker.handleTopResourceConsumption(Map.empty[UserIdentifier, ResourceConsumption].asJava)
+    assert(worker.resourceConsumptionSource.gauges().size == 0)
   }
 }

@@ -72,7 +72,7 @@ private[celeborn] class Worker(
   override val metricsSystem: MetricsSystem =
     MetricsSystem.createMetricsSystem(serviceName, conf)
   val workerSource = new WorkerSource(conf)
-  private val resourceConsumptionSource =
+  val resourceConsumptionSource =
     new ResourceConsumptionSource(conf, Role.WORKER)
   private val threadPoolSource = ThreadPoolSource(conf, Role.WORKER)
   metricsSystem.registerSource(workerSource)
@@ -674,7 +674,7 @@ private[celeborn] class Worker(
     userResourceConsumptions
   }
 
-  private def handleTopResourceConsumption(userResourceConsumptions: util.Map[
+  def handleTopResourceConsumption(userResourceConsumptions: util.Map[
     UserIdentifier,
     ResourceConsumption]): Unit = {
     // Remove application top resource consumption gauges to refresh top resource consumption metrics.
@@ -785,10 +785,18 @@ private[celeborn] class Worker(
   }
 
   private def removeAppResourceConsumption(resourceConsumptionLabel: Map[String, String]): Unit = {
-    resourceConsumptionSource.removeGauge(ResourceConsumptionSource.DISK_FILE_COUNT, resourceConsumptionLabel)
-    resourceConsumptionSource.removeGauge(ResourceConsumptionSource.DISK_BYTES_WRITTEN, resourceConsumptionLabel)
-    resourceConsumptionSource.removeGauge(ResourceConsumptionSource.HDFS_FILE_COUNT, resourceConsumptionLabel)
-    resourceConsumptionSource.removeGauge(ResourceConsumptionSource.HDFS_BYTES_WRITTEN, resourceConsumptionLabel)
+    resourceConsumptionSource.removeGauge(
+      ResourceConsumptionSource.DISK_FILE_COUNT,
+      resourceConsumptionLabel)
+    resourceConsumptionSource.removeGauge(
+      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
+      resourceConsumptionLabel)
+    resourceConsumptionSource.removeGauge(
+      ResourceConsumptionSource.HDFS_FILE_COUNT,
+      resourceConsumptionLabel)
+    resourceConsumptionSource.removeGauge(
+      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+      resourceConsumptionLabel)
   }
 
   private def removeAppActiveConnection(applicationIds: JHashSet[String]): Unit = {
