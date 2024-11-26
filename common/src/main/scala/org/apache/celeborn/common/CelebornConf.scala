@@ -1347,6 +1347,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientChunkPrefetchEnabled = get(CLIENT_CHUNK_PREFETCH_ENABLED)
   def clientInputStreamCreationWindow = get(CLIENT_INPUTSTREAM_CREATION_WINDOW)
 
+  def tagsEnabled: Boolean = get(TAGS_ENABLED)
   def tagsExpr: String = get(TAGS_EXPR)
   def preferClientTagsExpr: Boolean = get(PREFER_CLIENT_TAGS_EXPR)
 
@@ -5980,6 +5981,14 @@ object CelebornConf extends Logging {
       .doc("When `true`, log the CelebornConf for debugging purposes.")
       .booleanConf
       .createWithDefault(false)
+
+  val TAGS_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.tags.enabled")
+      .categories("master")
+      .doc("Whether to enable tags for workers.")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefault(true)
 
   val TAGS_EXPR: ConfigEntry[String] =
     buildConf("celeborn.tags.tagsExpr")
