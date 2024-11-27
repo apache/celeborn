@@ -382,7 +382,7 @@ public class WorkerInfoResponse {
   }
 
   /**
-   * A map of identifier and resource consumption.
+   * A map of user identifier and resource consumption.
    * @return resourceConsumption
    */
   @javax.annotation.Nullable
