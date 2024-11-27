@@ -14,10 +14,10 @@
 # limitations under the License.
 
 diff --git a/core/src/main/scala/org/apache/spark/MapOutputTracker.scala b/core/src/main/scala/org/apache/spark/MapOutputTracker.scala
-index fade0b86dd8..3290d9fdf23 100644
+index b1974948430..0dc92ec44a8 100644
 --- a/core/src/main/scala/org/apache/spark/MapOutputTracker.scala
 +++ b/core/src/main/scala/org/apache/spark/MapOutputTracker.scala
-@@ -697,6 +697,8 @@ private[spark] class MapOutputTrackerMaster(
+@@ -696,6 +696,8 @@ private[spark] class MapOutputTrackerMaster(
      pool
    }
  
@@ -26,7 +26,7 @@ index fade0b86dd8..3290d9fdf23 100644
    // Make sure that we aren't going to exceed the max RPC message size by making sure
    // we use broadcast to send large map output statuses.
    if (minSizeForBroadcast > maxRpcMessageSize) {
-@@ -887,6 +889,7 @@ private[spark] class MapOutputTrackerMaster(
+@@ -886,6 +888,7 @@ private[spark] class MapOutputTrackerMaster(
          shuffleStatus.invalidateSerializedMergeOutputStatusCache()
        }
      }
@@ -35,10 +35,10 @@ index fade0b86dd8..3290d9fdf23 100644
  
    /**
 diff --git a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
-index 26be8c72bbc..c3e1d98c06f 100644
+index bd2823bcac1..4f40becadc7 100644
 --- a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
 +++ b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
-@@ -1435,7 +1435,10 @@ private[spark] class DAGScheduler(
+@@ -1404,7 +1404,10 @@ private[spark] class DAGScheduler(
      // The operation here can make sure for the partially completed intermediate stage,
      // `findMissingPartitions()` returns all partitions every time.
      stage match {
@@ -50,23 +50,22 @@ index 26be8c72bbc..c3e1d98c06f 100644
          mapOutputTracker.unregisterAllMapAndMergeOutput(sms.shuffleDep.shuffleId)
          sms.shuffleDep.newShuffleMergeState()
        case _ =>
-@@ -1897,7 +1900,8 @@ private[spark] class DAGScheduler(
- 
+@@ -1851,7 +1854,7 @@ private[spark] class DAGScheduler(
+           failedStage.failedAttemptIds.add(task.stageAttemptId)
            val shouldAbortStage =
              failedStage.failedAttemptIds.size >= maxConsecutiveStageAttempts ||
 -            disallowStageRetryForTest
-+            disallowStageRetryForTest || (failedStage.isInstanceOf[ResultStage]
-+              && mapOutputTracker.skewShuffleIds.contains(shuffleId))
++            disallowStageRetryForTest || mapOutputTracker.skewShuffleIds.contains(shuffleId)
  
            // It is likely that we receive multiple FetchFailed for a single stage (because we have
            // multiple tasks running concurrently on different executors). In that case, it is
 diff --git a/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala b/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala
-index be9a7c82828..195fdffd501 100644
+index af03ad9a4cb..6c36fb96d58 100644
 --- a/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala
 +++ b/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala
-@@ -4208,6 +4208,12 @@ object SQLConf {
-       .booleanConf
-       .createWithDefault(false)
+@@ -3784,6 +3784,19 @@ object SQLConf {
+     .booleanConf
+     .createWithDefault(false)
  
 +  val CELEBORN_CLIENT_ADAPTIVE_OPTIMIZE_SKEWED_PARTITION_READ =
 +    buildConf("spark.celeborn.client.adaptive.optimizeSkewedPartitionRead.enabled")
@@ -74,15 +73,24 @@ index be9a7c82828..195fdffd501 100644
 +      .booleanConf
 +      .createWithDefault(false)
 +
++  val CELEBORN_STAGE_RERUN_ENABLED =
++    buildConf("spark.celeborn.client.spark.stageRerun.enabled")
++      .withAlternative("spark.celeborn.client.spark.fetch.throwsFetchFailure")
++      .version("3.0.0")
++      .booleanConf
++      .createWithDefault(false)
++
    /**
     * Holds information about keys that have been deprecated.
     *
-@@ -5040,6 +5046,9 @@ class SQLConf extends Serializable with Logging {
-     getConf(SQLConf.LEGACY_NEGATIVE_INDEX_IN_ARRAY_INSERT)
-   }
+@@ -4549,6 +4562,11 @@ class SQLConf extends Serializable with Logging {
+   def histogramNumericPropagateInputType: Boolean =
+     getConf(SQLConf.HISTOGRAM_NUMERIC_PROPAGATE_INPUT_TYPE)
  
 +  def celebornClientAdaptiveOptimizeSkewedPartitionReadEnabled: Boolean =
 +    getConf(SQLConf.CELEBORN_CLIENT_ADAPTIVE_OPTIMIZE_SKEWED_PARTITION_READ)
++
++  def celebornStageRerunEnabled: Boolean = getConf(SQLConf.CELEBORN_STAGE_RERUN_ENABLED)
 +
    /** ********************** SQLConf functionality methods ************ */
  
@@ -162,7 +170,7 @@ index b34ab3e380b..cb0ed9d05a4 100644
      if (newPartitionsSpec.length == mapStats.get.bytesByPartitionId.length) {
        shuffle
 diff --git a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/OptimizeSkewedJoin.scala b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/OptimizeSkewedJoin.scala
-index 37cdea084d8..4694a06919e 100644
+index d4a173bb9cc..21ef335e064 100644
 --- a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/OptimizeSkewedJoin.scala
 +++ b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/OptimizeSkewedJoin.scala
 @@ -152,8 +152,10 @@ case class OptimizeSkewedJoin(ensureRequirements: EnsureRequirements)
@@ -190,7 +198,7 @@ index 37cdea084d8..4694a06919e 100644
            logDebug(s"Right side partition $partitionIndex " +
              s"(${FileUtils.byteCountToDisplaySize(rightSize)}) is skewed, " +
 diff --git a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
-index dbed66683b0..c017c6d1229 100644
+index af689db3379..529097549ba 100644
 --- a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
 +++ b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
 @@ -22,6 +22,7 @@ import scala.collection.mutable.ArrayBuffer
@@ -201,14 +209,14 @@ index dbed66683b0..c017c6d1229 100644
  
  object ShufflePartitionsUtil extends Logging {
    final val SMALL_PARTITION_FACTOR = 0.2
-@@ -380,13 +381,27 @@ object ShufflePartitionsUtil extends Logging {
+@@ -380,13 +381,23 @@ object ShufflePartitionsUtil extends Logging {
        shuffleId: Int,
        reducerId: Int,
        targetSize: Long,
 -      smallPartitionFactor: Double = SMALL_PARTITION_FACTOR)
+-  : Option[Seq[PartialReducerPartitionSpec]] = {
 +      smallPartitionFactor: Double = SMALL_PARTITION_FACTOR,
-+      isCelebornShuffle: Boolean = false)
-   : Option[Seq[PartialReducerPartitionSpec]] = {
++      isCelebornShuffle: Boolean = false): Option[Seq[PartialReducerPartitionSpec]] = {
      val mapPartitionSizes = getMapSizesForReduceId(shuffleId, reducerId)
      if (mapPartitionSizes.exists(_ < 0)) return None
      val mapStartIndices = splitSizeListByTargetSize(
@@ -218,10 +226,7 @@ index dbed66683b0..c017c6d1229 100644
 +        SparkEnv.get.conf.get("spark.shuffle.manager", "sort").contains("celeborn") &&
 +          SQLConf.get.celebornClientAdaptiveOptimizeSkewedPartitionReadEnabled && isCelebornShuffle
 +
-+      val throwsFetchFailure = SparkEnv.get
-+        .conf
-+        .get("spark.celeborn.client.spark.fetch.throwsFetchFailure", "false")
-+        .toBoolean
++      val throwsFetchFailure = SQLConf.get.celebornStageRerunEnabled
 +      if (throwsFetchFailure && isCelebornClientAdaptiveOptimizeSkewedPartitionReadEnabled) {
 +        logInfo(s"Celeborn shuffle retry enabled and shuffle $shuffleId is skewed")
 +        val mapOutputTracker = SparkEnv.get.mapOutputTracker.asInstanceOf[MapOutputTrackerMaster]
@@ -230,11 +235,12 @@ index dbed66683b0..c017c6d1229 100644
        Some(mapStartIndices.indices.map { i =>
          val startMapIndex = mapStartIndices(i)
          val endMapIndex = if (i == mapStartIndices.length - 1) {
-@@ -400,7 +415,14 @@ object ShufflePartitionsUtil extends Logging {
+@@ -400,7 +411,15 @@ object ShufflePartitionsUtil extends Logging {
            dataSize += mapPartitionSizes(mapIndex)
            mapIndex += 1
          }
 -        PartialReducerPartitionSpec(reducerId, startMapIndex, endMapIndex, dataSize)
++
 +        if (isCelebornClientAdaptiveOptimizeSkewedPartitionReadEnabled) {
 +          // These `dataSize` variables may not be accurate as they only represent the sum of
 +          // `dataSize` when the Celeborn optimize skewed partition read feature is enabled.
