@@ -35,7 +35,7 @@ index e469c9989f2..245d9b3b9de 100644
  
    /**
 diff --git a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
-index b950c07f3d8..e9e10bb647f 100644
+index b950c07f3d8..d081b4642c9 100644
 --- a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
 +++ b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
 @@ -1369,7 +1369,10 @@ private[spark] class DAGScheduler(
@@ -50,21 +50,20 @@ index b950c07f3d8..e9e10bb647f 100644
          mapOutputTracker.unregisterAllMapAndMergeOutput(sms.shuffleDep.shuffleId)
          sms.shuffleDep.newShuffleMergeState()
        case _ =>
-@@ -1780,7 +1783,8 @@ private[spark] class DAGScheduler(
+@@ -1780,7 +1783,7 @@ private[spark] class DAGScheduler(
            failedStage.failedAttemptIds.add(task.stageAttemptId)
            val shouldAbortStage =
              failedStage.failedAttemptIds.size >= maxConsecutiveStageAttempts ||
 -            disallowStageRetryForTest
-+            disallowStageRetryForTest || (failedStage.isInstanceOf[ResultStage]
-+              && mapOutputTracker.skewShuffleIds.contains(shuffleId))
++            disallowStageRetryForTest || mapOutputTracker.skewShuffleIds.contains(shuffleId)
  
            // It is likely that we receive multiple FetchFailed for a single stage (because we have
            // multiple tasks running concurrently on different executors). In that case, it is
 diff --git a/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala b/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala
-index 6bc8ba4eebb..2e7d87c96eb 100644
+index 6bc8ba4eebb..44db30dbaec 100644
 --- a/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala
 +++ b/sql/catalyst/src/main/scala/org/apache/spark/sql/internal/SQLConf.scala
-@@ -3431,6 +3431,12 @@ object SQLConf {
+@@ -3431,6 +3431,19 @@ object SQLConf {
        .booleanConf
        .createWithDefault(false)
  
@@ -74,15 +73,24 @@ index 6bc8ba4eebb..2e7d87c96eb 100644
 +      .booleanConf
 +      .createWithDefault(false)
 +
++  val CELEBORN_STAGE_RERUN_ENABLED =
++    buildConf("spark.celeborn.client.spark.stageRerun.enabled")
++      .withAlternative("spark.celeborn.client.spark.fetch.throwsFetchFailure")
++      .version("3.0.0")
++      .booleanConf
++      .createWithDefault(false)
++
    /**
     * Holds information about keys that have been deprecated.
     *
-@@ -4154,6 +4160,9 @@ class SQLConf extends Serializable with Logging {
+@@ -4154,6 +4167,11 @@ class SQLConf extends Serializable with Logging {
  
    def legacyParquetNanosAsLong: Boolean = getConf(SQLConf.LEGACY_PARQUET_NANOS_AS_LONG)
  
 +  def celebornClientAdaptiveOptimizeSkewedPartitionReadEnabled: Boolean =
 +    getConf(SQLConf.CELEBORN_CLIENT_ADAPTIVE_OPTIMIZE_SKEWED_PARTITION_READ)
++
++  def celebornStageRerunEnabled: Boolean = getConf(SQLConf.CELEBORN_STAGE_RERUN_ENABLED)
 +
    /** ********************** SQLConf functionality methods ************ */
  
@@ -189,7 +197,7 @@ index 88abe68197b..150699a84a3 100644
            logDebug(s"Right side partition $partitionIndex " +
              s"(${FileUtils.byteCountToDisplaySize(rightSize)}) is skewed, " +
 diff --git a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
-index 3609548f374..f7c6d5dda90 100644
+index 3609548f374..59c80198f19 100644
 --- a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
 +++ b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/ShufflePartitionsUtil.scala
 @@ -22,6 +22,7 @@ import scala.collection.mutable.ArrayBuffer
@@ -200,7 +208,7 @@ index 3609548f374..f7c6d5dda90 100644
  
  object ShufflePartitionsUtil extends Logging {
    final val SMALL_PARTITION_FACTOR = 0.2
-@@ -376,11 +377,25 @@ object ShufflePartitionsUtil extends Logging {
+@@ -376,11 +377,22 @@ object ShufflePartitionsUtil extends Logging {
    def createSkewPartitionSpecs(
        shuffleId: Int,
        reducerId: Int,
@@ -215,10 +223,7 @@ index 3609548f374..f7c6d5dda90 100644
 +        SparkEnv.get.conf.get("spark.shuffle.manager", "sort").contains("celeborn") &&
 +          SQLConf.get.celebornClientAdaptiveOptimizeSkewedPartitionReadEnabled && isCelebornShuffle
 +
-+      val throwsFetchFailure = SparkEnv.get
-+        .conf
-+        .get("spark.celeborn.client.spark.fetch.throwsFetchFailure", "false")
-+        .toBoolean
++      val throwsFetchFailure = SQLConf.get.celebornStageRerunEnabled
 +      if (throwsFetchFailure && isCelebornClientAdaptiveOptimizeSkewedPartitionReadEnabled) {
 +        logInfo(s"Celeborn shuffle retry enabled and shuffle $shuffleId is skewed")
 +        val mapOutputTracker = SparkEnv.get.mapOutputTracker.asInstanceOf[MapOutputTrackerMaster]
@@ -227,7 +232,7 @@ index 3609548f374..f7c6d5dda90 100644
        Some(mapStartIndices.indices.map { i =>
          val startMapIndex = mapStartIndices(i)
          val endMapIndex = if (i == mapStartIndices.length - 1) {
-@@ -388,8 +403,20 @@ object ShufflePartitionsUtil extends Logging {
+@@ -388,8 +400,20 @@ object ShufflePartitionsUtil extends Logging {
          } else {
            mapStartIndices(i + 1)
          }
