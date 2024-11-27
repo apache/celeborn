@@ -17,17 +17,29 @@
 
 package org.apache.celeborn.plugin.flink;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
+import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.plugin.flink.netty.NettyShuffleEnvironmentWrapper;
 
 /**
  * The implementation of {@link ShuffleEnvironment} based on the remote shuffle service, providing
@@ -41,22 +53,33 @@ public class RemoteShuffleEnvironment extends AbstractRemoteShuffleEnvironment
 
   private final RemoteShuffleInputGateFactory inputGateFactory;
 
+  private final NettyShuffleEnvironmentWrapper shuffleEnvironmentWrapper;
+
+  private final ConcurrentHashMap.KeySetView<IntermediateDataSetID, Boolean> nettyResultIds =
+      ConcurrentHashMap.newKeySet();
+
+  private final ConcurrentHashMap.KeySetView<IntermediateResultPartitionID, Boolean>
+      nettyResultPartitionIds = ConcurrentHashMap.newKeySet();
+
   /**
    * @param networkBufferPool Network buffer pool for shuffle read and shuffle write.
    * @param resultPartitionManager A trivial {@link ResultPartitionManager}.
    * @param resultPartitionFactory Factory class to create {@link RemoteShuffleResultPartition}.
    * @param inputGateFactory Factory class to create {@link RemoteShuffleInputGate}.
+   * @param shuffleEnvironmentWrapper Wrapper class to create {@link NettyShuffleEnvironment}.
    */
   public RemoteShuffleEnvironment(
       NetworkBufferPool networkBufferPool,
       ResultPartitionManager resultPartitionManager,
       RemoteShuffleResultPartitionFactory resultPartitionFactory,
       RemoteShuffleInputGateFactory inputGateFactory,
-      CelebornConf conf) {
+      CelebornConf conf,
+      NettyShuffleEnvironmentWrapper shuffleEnvironmentWrapper) {
 
     super(networkBufferPool, resultPartitionManager, conf);
     this.resultPartitionFactory = resultPartitionFactory;
     this.inputGateFactory = inputGateFactory;
+    this.shuffleEnvironmentWrapper = shuffleEnvironmentWrapper;
   }
 
   @Override
@@ -65,14 +88,48 @@ public class RemoteShuffleEnvironment extends AbstractRemoteShuffleEnvironment
       int index,
       ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor,
       CelebornConf conf) {
-    return resultPartitionFactory.create(
-        ownerContext.getOwnerName(), index, resultPartitionDeploymentDescriptor, conf);
+    if (resultPartitionDeploymentDescriptor.getShuffleDescriptor()
+        instanceof RemoteShuffleDescriptor) {
+      return resultPartitionFactory.create(
+          ownerContext.getOwnerName(), index, resultPartitionDeploymentDescriptor, conf);
+    } else {
+      nettyResultIds.add(resultPartitionDeploymentDescriptor.getResultId());
+      nettyResultPartitionIds.add(resultPartitionDeploymentDescriptor.getPartitionId());
+      return shuffleEnvironmentWrapper
+          .nettyResultPartitionFactory()
+          .create(ownerContext.getOwnerName(), index, resultPartitionDeploymentDescriptor);
+    }
   }
 
   @Override
   IndexedInputGate createInputGateInternal(
-      ShuffleIOOwnerContext ownerContext, int gateIndex, InputGateDeploymentDescriptor igdd) {
-    return inputGateFactory.create(ownerContext.getOwnerName(), gateIndex, igdd);
+      ShuffleIOOwnerContext ownerContext,
+      PartitionProducerStateProvider producerStateProvider,
+      int gateIndex,
+      InputGateDeploymentDescriptor igdd) {
+    return nettyResultIds.contains(igdd.getConsumedResultId())
+        ? shuffleEnvironmentWrapper
+            .nettyInputGateFactory()
+            .create(
+                ownerContext,
+                gateIndex,
+                igdd,
+                producerStateProvider,
+                new InputChannelMetrics(
+                    ownerContext.getInputGroup(), ownerContext.getParentGroup()))
+        : inputGateFactory.create(ownerContext.getOwnerName(), gateIndex, igdd);
+  }
+
+  public void releasePartitionsLocally(Collection<ResultPartitionID> partitionIds) {
+    List<ResultPartitionID> resultPartitionIds =
+        partitionIds.stream()
+            .filter(partitionId -> nettyResultPartitionIds.contains(partitionId.getPartitionId()))
+            .collect(Collectors.toList());
+    if (!resultPartitionIds.isEmpty()) {
+      shuffleEnvironmentWrapper
+          .nettyShuffleEnvironment()
+          .releasePartitionsLocally(resultPartitionIds);
+    }
   }
 
   @VisibleForTesting

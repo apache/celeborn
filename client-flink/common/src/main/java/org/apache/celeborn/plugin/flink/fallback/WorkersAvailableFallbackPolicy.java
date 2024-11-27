@@ -15,44 +15,45 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle.celeborn;
+package org.apache.celeborn.plugin.flink.fallback;
 
-import org.apache.spark.ShuffleDependency;
+import org.apache.flink.runtime.shuffle.JobShuffleContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.protocol.FallbackPolicy;
 
-public class ForceFallbackPolicy implements ShuffleFallbackPolicy {
+public class WorkersAvailableFallbackPolicy implements ShuffleFallbackPolicy {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ForceFallbackPolicy.class);
+  private static final Logger LOG = LoggerFactory.getLogger(WorkersAvailableFallbackPolicy.class);
 
-  public static final ForceFallbackPolicy INSTANCE = new ForceFallbackPolicy();
+  public static final WorkersAvailableFallbackPolicy INSTANCE =
+      new WorkersAvailableFallbackPolicy();
 
   /**
-   * If celeborn.client.spark.shuffle.fallback.policy is ALWAYS, fallback to spark built-in shuffle
+   * If celeborn cluster has no available workers, fallback to flink built-in shuffle
    * implementation.
    *
-   * @param shuffleDependency The shuffle dependency of Spark.
+   * @param shuffleContext The job shuffle context of Flink.
    * @param celebornConf The configuration of Celeborn.
    * @param lifecycleManager The {@link LifecycleManager} of Celeborn.
-   * @return Return true if celeborn.client.spark.shuffle.fallback.policy is ALWAYS, otherwise
-   *     false.
+   * @return Whether celeborn cluster has no available workers.
    */
   @Override
   public boolean needFallback(
-      ShuffleDependency<?, ?, ?> shuffleDependency,
+      JobShuffleContext shuffleContext,
       CelebornConf celebornConf,
       LifecycleManager lifecycleManager) {
-    FallbackPolicy shuffleFallbackPolicy = celebornConf.sparkShuffleFallbackPolicy();
-    if (FallbackPolicy.ALWAYS.equals(shuffleFallbackPolicy)) {
-      LOG.warn(
-          "{} is {}, forcibly fallback to spark built-in shuffle implementation.",
-          CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY().key(),
-          FallbackPolicy.ALWAYS.name());
+    if (!celebornConf.checkWorkerEnabled()) {
+      return false;
     }
-    return FallbackPolicy.ALWAYS.equals(shuffleFallbackPolicy);
+    boolean needFallback = !lifecycleManager.checkWorkersAvailable().getAvailable();
+    if (needFallback) {
+      LOG.warn(
+          "No celeborn workers available for current user {}.",
+          lifecycleManager.getUserIdentifier());
+    }
+    return needFallback;
   }
 }

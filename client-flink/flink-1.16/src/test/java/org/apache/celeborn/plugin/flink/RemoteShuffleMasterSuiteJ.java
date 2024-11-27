@@ -34,6 +34,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphID;
+import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -53,6 +54,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.protocol.FallbackPolicy;
 import org.apache.celeborn.common.util.Utils$;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 
@@ -89,6 +91,19 @@ public class RemoteShuffleMasterSuiteJ {
   }
 
   @Test
+  public void testRegisterJobWithForceFallbackPolicy() {
+    configuration.setString(
+        CelebornConf.FLINK_SHUFFLE_FALLBACK_POLICY().key(), FallbackPolicy.ALWAYS.name());
+    remoteShuffleMaster = createShuffleMaster(configuration, new NettyShuffleServiceFactory());
+    JobID jobID = JobID.generate();
+    JobShuffleContext jobShuffleContext = createJobShuffleContext(jobID);
+    remoteShuffleMaster.registerJob(jobShuffleContext);
+    Assert.assertTrue(remoteShuffleMaster.nettyJobIds().contains(jobID));
+    remoteShuffleMaster.unregisterJob(jobShuffleContext.getJobId());
+    Assert.assertTrue(remoteShuffleMaster.nettyJobIds().isEmpty());
+  }
+
+  @Test
   public void testRegisterPartitionWithProducer()
       throws UnknownHostException, ExecutionException, InterruptedException {
     JobID jobID = JobID.generate();
@@ -99,9 +114,10 @@ public class RemoteShuffleMasterSuiteJ {
     PartitionDescriptor partitionDescriptor = createPartitionDescriptor(intermediateDataSetID, 0);
     ProducerDescriptor producerDescriptor = createProducerDescriptor();
     RemoteShuffleDescriptor remoteShuffleDescriptor =
-        remoteShuffleMaster
-            .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
-            .get();
+        (RemoteShuffleDescriptor)
+            remoteShuffleMaster
+                .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
+                .get();
     ShuffleResource shuffleResource = remoteShuffleDescriptor.getShuffleResource();
     ShuffleResourceDescriptor mapPartitionShuffleDescriptor =
         shuffleResource.getMapPartitionShuffleDescriptor();
@@ -115,9 +131,10 @@ public class RemoteShuffleMasterSuiteJ {
     // use same dataset id
     partitionDescriptor = createPartitionDescriptor(intermediateDataSetID, 1);
     remoteShuffleDescriptor =
-        remoteShuffleMaster
-            .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
-            .get();
+        (RemoteShuffleDescriptor)
+            remoteShuffleMaster
+                .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
+                .get();
     mapPartitionShuffleDescriptor =
         remoteShuffleDescriptor.getShuffleResource().getMapPartitionShuffleDescriptor();
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getShuffleId());
@@ -126,9 +143,10 @@ public class RemoteShuffleMasterSuiteJ {
     // use another attemptId
     producerDescriptor = createProducerDescriptor();
     remoteShuffleDescriptor =
-        remoteShuffleMaster
-            .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
-            .get();
+        (RemoteShuffleDescriptor)
+            remoteShuffleMaster
+                .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
+                .get();
     mapPartitionShuffleDescriptor =
         remoteShuffleDescriptor.getShuffleResource().getMapPartitionShuffleDescriptor();
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getShuffleId());
@@ -151,15 +169,17 @@ public class RemoteShuffleMasterSuiteJ {
     PartitionDescriptor partitionDescriptor = createPartitionDescriptor(intermediateDataSetID, 0);
     ProducerDescriptor producerDescriptor = createProducerDescriptor();
     RemoteShuffleDescriptor remoteShuffleDescriptor1 =
-        remoteShuffleMaster
-            .registerPartitionWithProducer(jobID1, partitionDescriptor, producerDescriptor)
-            .get();
+        (RemoteShuffleDescriptor)
+            remoteShuffleMaster
+                .registerPartitionWithProducer(jobID1, partitionDescriptor, producerDescriptor)
+                .get();
 
     // use same datasetId but different jobId
     RemoteShuffleDescriptor remoteShuffleDescriptor2 =
-        remoteShuffleMaster
-            .registerPartitionWithProducer(jobID2, partitionDescriptor, producerDescriptor)
-            .get();
+        (RemoteShuffleDescriptor)
+            remoteShuffleMaster
+                .registerPartitionWithProducer(jobID2, partitionDescriptor, producerDescriptor)
+                .get();
 
     Assert.assertEquals(
         remoteShuffleDescriptor1
@@ -250,6 +270,11 @@ public class RemoteShuffleMasterSuiteJ {
   }
 
   public RemoteShuffleMaster createShuffleMaster(Configuration configuration) {
+    return createShuffleMaster(configuration, null);
+  }
+
+  public RemoteShuffleMaster createShuffleMaster(
+      Configuration configuration, NettyShuffleServiceFactory nettyShuffleServiceFactory) {
     remoteShuffleMaster =
         new RemoteShuffleMaster(
             new ShuffleMasterContext() {
@@ -263,7 +288,8 @@ public class RemoteShuffleMasterSuiteJ {
                 System.exit(-1);
               }
             },
-            new SimpleResultPartitionAdapter());
+            new SimpleResultPartitionAdapter(),
+            nettyShuffleServiceFactory);
 
     return remoteShuffleMaster;
   }

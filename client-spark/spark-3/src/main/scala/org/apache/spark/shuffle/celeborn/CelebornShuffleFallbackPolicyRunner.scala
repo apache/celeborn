@@ -28,7 +28,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.FallbackPolicy
 
 class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
-  private val shuffleFallbackPolicy = conf.shuffleFallbackPolicy
+  private val shuffleFallbackPolicy = conf.sparkShuffleFallbackPolicy
   private val shuffleFallbackPolicies =
     ShuffleFallbackPolicyFactory.getShuffleFallbackPolicies.asScala
 

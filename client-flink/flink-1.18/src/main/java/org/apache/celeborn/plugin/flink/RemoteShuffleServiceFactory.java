@@ -17,22 +17,29 @@
 
 package org.apache.celeborn.plugin.flink;
 
+import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
 
+import org.apache.celeborn.plugin.flink.netty.NettyShuffleEnvironmentWrapper;
+
 public class RemoteShuffleServiceFactory extends AbstractRemoteShuffleServiceFactory
-    implements ShuffleServiceFactory<
-        RemoteShuffleDescriptor, ResultPartitionWriter, IndexedInputGate> {
+    implements ShuffleServiceFactory<ShuffleDescriptor, ResultPartitionWriter, IndexedInputGate> {
+
+  private final NettyShuffleServiceFactory nettyShuffleServiceFactory =
+      new NettyShuffleServiceFactory();
 
   @Override
-  public ShuffleMaster<RemoteShuffleDescriptor> createShuffleMaster(
+  public ShuffleMaster<ShuffleDescriptor> createShuffleMaster(
       ShuffleMasterContext shuffleMasterContext) {
-    return new RemoteShuffleMaster(shuffleMasterContext, new SimpleResultPartitionAdapter());
+    return new RemoteShuffleMaster(
+        shuffleMasterContext, new SimpleResultPartitionAdapter(), nettyShuffleServiceFactory);
   }
 
   @Override
@@ -55,6 +62,7 @@ public class RemoteShuffleServiceFactory extends AbstractRemoteShuffleServiceFac
         parameters.resultPartitionManager,
         resultPartitionFactory,
         inputGateFactory,
-        parameters.celebornConf);
+        parameters.celebornConf,
+        new NettyShuffleEnvironmentWrapper(nettyShuffleServiceFactory, shuffleEnvironmentContext));
   }
 }

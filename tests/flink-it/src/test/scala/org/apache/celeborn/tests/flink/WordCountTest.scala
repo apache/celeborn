@@ -32,6 +32,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.{AUTH_ENABLED, INTERNAL_PORT_ENABLED}
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.protocol.FallbackPolicy
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.worker.Worker
 
@@ -65,6 +66,14 @@ abstract class WordCountTestBase extends AnyFunSuite with Logging with MiniClust
   }
 
   test(getClass.getName + ": celeborn flink integration test - word count") {
+    testWordCount(FallbackPolicy.AUTO)
+  }
+
+  test(getClass.getName + ": celeborn flink integration test with fallback - word count") {
+    testWordCount(FallbackPolicy.ALWAYS)
+  }
+
+  private def testWordCount(fallbackPolicy: FallbackPolicy): Unit = {
     // set up execution environment
     val configuration = new Configuration
     val parallelism = 8
@@ -72,6 +81,7 @@ abstract class WordCountTestBase extends AnyFunSuite with Logging with MiniClust
       "shuffle-service-factory.class",
       "org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory")
     configuration.setString("celeborn.master.endpoints", s"localhost:$port")
+    configuration.setString("celeborn.client.flink.shuffle.fallback.policy", fallbackPolicy.name())
     configuration.setString("execution.batch-shuffle-mode", "ALL_EXCHANGES_BLOCKING")
     configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
     configuration.setString("taskmanager.memory.network.min", "1024m")
