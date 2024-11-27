@@ -262,6 +262,8 @@ Meta Velox
 ./cpp/scripts/setup-helper-functions.sh
 ./cpp/celeborn/utils/ProcessBase.h
 ./cpp/celeborn/utils/ProcessBase.cpp
+./cpp/celeborn/utils/StackTrace.h
+./cpp/celeborn/utils/StackTrace.cpp
 
 
 ------------------------------------------------------------------------------------
