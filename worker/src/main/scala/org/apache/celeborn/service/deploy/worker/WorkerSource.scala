@@ -84,7 +84,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
 
   def getCounterCount(metricsName: String): Long = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, Map.empty)
-    namedCounters.get(metricNameWithLabel).counter.getCount
+    namedCounters.get(metricNameWithLabel)._2.counter.getCount
   }
 
   def connectionActive(client: TransportClient): Unit = {

@@ -18,7 +18,7 @@
 package org.apache.celeborn.common.metrics.source
 
 import java.util.{Map => JMap}
-import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, ScheduledExecutorService, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -105,8 +105,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     // filter out non-number type gauges
     if (gauge.getValue.isInstanceOf[Number]) {
       namedGauges.putIfAbsent(
-        metricNameWithCustomizedLabels(name, labels),
-        NamedGauge(name, gauge, labels ++ staticLabels))
+        metricNameWithCustomizedLabels(name, labels), NamedGauge(name, gauge, labels ++ staticLabels))
     } else {
       logWarning(
         s"Add gauge $name failed, the value type ${gauge.getValue.getClass} is not a number")
