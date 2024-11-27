@@ -53,7 +53,7 @@ object ApiUtils {
       .heartbeatElapsedSeconds(TimeUnit.MILLISECONDS.toSeconds(
         System.currentTimeMillis() - workerInfo.lastHeartbeat))
       .diskInfos(diskInfos.asJava)
-      .resourceConsumption(workerResourceConsumptions(workerInfo))
+      .resourceConsumptions(workerResourceConsumptions(workerInfo))
       .workerRef(Option(workerInfo.endpoint).map(_.toString).orNull)
       .workerState(workerInfo.workerStatus.getState.toString)
       .workerStateStartTime(workerInfo.workerStatus.getStateStartTime)
@@ -109,7 +109,7 @@ object ApiUtils {
       .lastHeartbeatTimestamp(workerData.getLastHeartbeatTimestamp)
       .heartbeatElapsedSeconds(workerData.getHeartbeatElapsedSeconds)
       .diskInfos(workerData.getDiskInfos)
-      .resourceConsumption(workerData.getResourceConsumption)
+      .resourceConsumptions(workerData.getResourceConsumptions)
       .workerRef(workerData.getWorkerRef)
       .workerState(currentStatus.getState.toString)
       .workerStateStartTime(currentStatus.getStateStartTime)

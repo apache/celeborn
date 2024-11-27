@@ -427,7 +427,7 @@ components:
           description: A map of disk name and disk info.
           additionalProperties:
             type: string
-        resourceConsumption:
+        resourceConsumptions:
           type: object
           description: A map of user identifier and resource consumption.
           additionalProperties:
@@ -535,7 +535,7 @@ components:
           description: A map of disk name and disk info.
           additionalProperties:
             type: string
-        resourceConsumption:
+        resourceConsumptions:
           type: object
           description: A map of user identifier and resource consumption.
           additionalProperties:
