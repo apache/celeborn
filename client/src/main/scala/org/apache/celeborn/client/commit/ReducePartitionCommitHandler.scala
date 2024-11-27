@@ -26,7 +26,7 @@ import scala.collection.mutable
 
 import com.google.common.cache.{Cache, CacheBuilder}
 
-import org.apache.celeborn.client.{ShuffleCommittedInfo, WorkerStatusTracker}
+import org.apache.celeborn.client.{ClientUtils, ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.common.CelebornConf
@@ -251,7 +251,7 @@ class ReducePartitionCommitHandler(
       if (attempts(mapId) < 0) {
         attempts(mapId) = attemptId
         // Mapper with this attemptId finished, also check all other mapper finished or not.
-        (true, areAllMapperAttemptsFinished(attempts))
+        (true, ClientUtils.areAllMapperAttemptsFinished(attempts))
       } else {
         // Mapper with another attemptId finished, skip this request
         (false, false)
@@ -335,16 +335,5 @@ class ReducePartitionCommitHandler(
     }
 
     (timeout <= 0, stageEndTimeout - timeout)
-  }
-
-  private def areAllMapperAttemptsFinished(attempts: Array[Int]): Boolean = {
-    var i = attempts.length - 1
-    while (i >= 0) {
-      if (attempts(i) < 0) {
-        return false
-      }
-      i -= 1
-    }
-    true
   }
 }
