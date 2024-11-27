@@ -40,14 +40,6 @@ object ApiUtils {
           disk -> diskInfo.toString()
         }.toMap -> workerInfo.usedSlots()
       }
-    val userResourceConsumption =
-      if (workerInfo.userResourceConsumption == null) {
-        Map.empty[String, String]
-      } else {
-        workerInfo.userResourceConsumption.asScala.map { case (user, resourceConsumption) =>
-          user.toString -> resourceConsumption.toString()
-        }.toMap
-      }
 
     new WorkerData()
       .host(workerInfo.host)
@@ -70,30 +62,32 @@ object ApiUtils {
   private def workerResourceConsumptions(workerInfo: WorkerInfo)
       : JMap[String, WorkerResourceConsumption] = {
     val workerResourceConsumptions = new util.HashMap[String, WorkerResourceConsumption]()
-    workerInfo.userResourceConsumption.asScala.foreach {
-      case (userIdentifier, resourceConsumption) =>
-        val workerConsumption = new WorkerResourceConsumption()
-          .diskBytesWritten(resourceConsumption.diskBytesWritten)
-          .diskFileCount(resourceConsumption.diskFileCount)
-          .hdfsBytesWritten(resourceConsumption.hdfsBytesWritten)
-          .hdfsFileCount(resourceConsumption.hdfsFileCount)
+    if (CollectionUtils.isNotEmpty(workerInfo.userResourceConsumption)) {
+      workerInfo.userResourceConsumption.asScala.foreach {
+        case (userIdentifier, resourceConsumption) =>
+          val workerConsumption = new WorkerResourceConsumption()
+            .diskBytesWritten(resourceConsumption.diskBytesWritten)
+            .diskFileCount(resourceConsumption.diskFileCount)
+            .hdfsBytesWritten(resourceConsumption.hdfsBytesWritten)
+            .hdfsFileCount(resourceConsumption.hdfsFileCount)
 
-        if (CollectionUtils.isNotEmpty(resourceConsumption.subResourceConsumptions)) {
-          val subConsumptions = new util.HashMap[String, WorkerResourceConsumption]()
-          resourceConsumption.subResourceConsumptions.asScala.foreach {
-            case (subIdentifier, subConsumption) =>
-              subConsumptions.put(
-                subIdentifier,
-                new WorkerResourceConsumption()
-                  .diskBytesWritten(subConsumption.diskBytesWritten)
-                  .diskFileCount(subConsumption.diskFileCount)
-                  .hdfsBytesWritten(subConsumption.hdfsBytesWritten)
-                  .hdfsFileCount(subConsumption.hdfsFileCount))
+          if (CollectionUtils.isNotEmpty(resourceConsumption.subResourceConsumptions)) {
+            val subConsumptions = new util.HashMap[String, WorkerResourceConsumption]()
+            resourceConsumption.subResourceConsumptions.asScala.foreach {
+              case (subIdentifier, subConsumption) =>
+                subConsumptions.put(
+                  subIdentifier,
+                  new WorkerResourceConsumption()
+                    .diskBytesWritten(subConsumption.diskBytesWritten)
+                    .diskFileCount(subConsumption.diskFileCount)
+                    .hdfsBytesWritten(subConsumption.hdfsBytesWritten)
+                    .hdfsFileCount(subConsumption.hdfsFileCount))
+            }
+            workerConsumption.subResourceConsumption(subConsumptions)
           }
-          workerConsumption.subResourceConsumption(subConsumptions)
-        }
 
-        workerResourceConsumptions.put(userIdentifier.toString, workerConsumption)
+          workerResourceConsumptions.put(userIdentifier.toString, workerConsumption)
+      }
     }
     workerResourceConsumptions
   }
