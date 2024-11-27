@@ -264,6 +264,9 @@ Meta Velox
 ./cpp/celeborn/utils/ProcessBase.cpp
 ./cpp/celeborn/utils/StackTrace.h
 ./cpp/celeborn/utils/StackTrace.cpp
+./cpp/celeborn/utils/CelebornException.h
+./cpp/celeborn/utils/CelebornException.cpp
+./cpp/celeborn/utils/flags.cpp
 
 
 ------------------------------------------------------------------------------------
