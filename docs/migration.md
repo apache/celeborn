@@ -72,7 +72,10 @@ license: |
     | GET /unavailablePeers          | GET /api/v1/workers/unavailable_peers    |                                             |
     | POST /exit                     | POST /api/v1/workers/exit                |                                             |
 
-- Since 0.6.0, the RESTful api `/listTopDiskUsedApps` both in Master and Worker has been removed.
+- Since 0.6.0, the RESTful api `/listTopDiskUsedApps` both in Master and Worker has been removed. Please use the following PromQL query instead.
+  ```text
+  topK(50, sum by (applicationId) (metrics_diskBytesWritten_Value{role="worker", applicationId!=""}))
+  ```
 
 ## Upgrading from 0.5.0 to 0.5.1
 
