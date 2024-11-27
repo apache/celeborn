@@ -371,8 +371,8 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornService.service,
       CelebornWorker.worker,
       CelebornMaster.master,
-      CelebornCli.cli,
-      CeleborMPU.celeborMPU) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules ++ maybeWebModules
+      CelebornCli.cli
+      ) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules ++ maybeWebModules ++ maybeCelebornMPUModule
   }
 
   // ThisBuild / parallelExecution := false
@@ -400,6 +400,14 @@ object Utils {
       }
       profiles
   }
+
+  val celeborMPUProject = profiles.filter(_.startsWith("aws")).headOption match {
+    case Some("aws") => Some(CeleborMPU.celeborMPU)
+    case _ => None
+  }
+
+  lazy val maybeCelebornMPUModule: Seq[Project] = celeborMPUProject.map(Seq(_)).getOrElse(Seq.empty)
+
   val SPARK_VERSION = profiles.filter(_.startsWith("spark")).headOption
 
   lazy val sparkClientProjects = SPARK_VERSION match {
