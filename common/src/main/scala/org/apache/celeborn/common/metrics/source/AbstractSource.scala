@@ -17,8 +17,8 @@
 
 package org.apache.celeborn.common.metrics.source
 
-import java.util.{Map => JMap}
-import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, ScheduledExecutorService, TimeUnit}
+import java.util.{ArrayDeque => JArrayQueue, Map => JMap}
+import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -49,6 +49,8 @@ case class NamedTimer(name: String, timer: Timer, labels: Map[String, String]) e
 
 abstract class AbstractSource(conf: CelebornConf, role: String)
   extends Source with Logging {
+  import AbstractSource.INNER_METRICS
+
   override val metricRegistry = new MetricRegistry()
 
   val metricsSlidingWindowSize: Int = conf.metricsSlidingWindowSize
@@ -58,8 +60,6 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   val metricsCollectCriticalEnabled: Boolean = conf.metricsCollectCriticalEnabled
 
   val metricsCapacity: Int = conf.metricsCapacity
-
-  val innerMetrics: ConcurrentLinkedQueue[String] = new ConcurrentLinkedQueue[String]()
 
   val timerSupplier = new TimerSupplier(metricsSlidingWindowSize)
 
@@ -348,12 +348,11 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   private def updateInnerMetrics(str: String): Unit = {
-    innerMetrics.synchronized {
-      if (innerMetrics.size() >= metricsCapacity) {
-        innerMetrics.remove()
-      }
-      innerMetrics.offer(str)
+    val innerMetrics = INNER_METRICS.get()
+    if (innerMetrics.size() >= metricsCapacity) {
+      innerMetrics.remove()
     }
+    innerMetrics.offer(str)
   }
 
   def recordCounter(nc: NamedCounter): Unit = {
@@ -440,27 +439,26 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   override def getMetrics(): String = {
-    innerMetrics.synchronized {
-      counters().foreach(c => recordCounter(c))
-      gauges().foreach(g => recordGauge(g))
-      meters().foreach(m => recordMeter(m))
-      histograms().foreach(h => {
-        recordHistogram(h)
-        h.asInstanceOf[CelebornHistogram].reservoir
-          .asInstanceOf[ResettableSlidingWindowReservoir].reset()
-      })
-      timers().foreach(t => {
-        recordTimer(t)
-        t.timer.asInstanceOf[CelebornTimer].reservoir
-          .asInstanceOf[ResettableSlidingWindowReservoir].reset()
-      })
-      val sb = new mutable.StringBuilder
-      while (!innerMetrics.isEmpty) {
-        sb.append(innerMetrics.poll())
-      }
-      innerMetrics.clear()
-      sb.toString()
+    val innerMetrics = INNER_METRICS.get()
+    counters().foreach(c => recordCounter(c))
+    gauges().foreach(g => recordGauge(g))
+    meters().foreach(m => recordMeter(m))
+    histograms().foreach(h => {
+      recordHistogram(h)
+      h.asInstanceOf[CelebornHistogram].reservoir
+        .asInstanceOf[ResettableSlidingWindowReservoir].reset()
+    })
+    timers().foreach(t => {
+      recordTimer(t)
+      t.timer.asInstanceOf[CelebornTimer].reservoir
+        .asInstanceOf[ResettableSlidingWindowReservoir].reset()
+    })
+    val sb = new mutable.StringBuilder
+    while (!innerMetrics.isEmpty) {
+      sb.append(innerMetrics.poll())
     }
+    INNER_METRICS.remove()
+    sb.toString()
   }
 
   override def destroy(): Unit = {
@@ -469,7 +467,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     namedGauges.clear()
     namedMeters.clear()
     namedTimers.clear()
-    innerMetrics.clear()
+    INNER_METRICS.remove()
     metricRegistry.removeMatching(new MetricFilter {
       override def matches(s: String, metric: Metric): Boolean = true
     })
@@ -490,6 +488,14 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       metricsName + staticLabelsString
     } else {
       metricsName + MetricLabels.labelString(labels ++ staticLabels)
+    }
+  }
+}
+
+object AbstractSource {
+  final private val INNER_METRICS = new ThreadLocal[JArrayQueue[String]]() {
+    override protected def initialValue: JArrayQueue[String] = {
+      new JArrayQueue[String]()
     }
   }
 }
