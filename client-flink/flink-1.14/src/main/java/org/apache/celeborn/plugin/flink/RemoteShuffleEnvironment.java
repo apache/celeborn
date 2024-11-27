@@ -26,24 +26,20 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
-import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
-import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
-import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.reflect.DynFields;
+import org.apache.celeborn.plugin.flink.netty.NettyShuffleEnvironmentWrapper;
 
 /**
  * The implementation of {@link ShuffleEnvironment} based on the remote shuffle service, providing
@@ -57,9 +53,7 @@ public class RemoteShuffleEnvironment extends AbstractRemoteShuffleEnvironment
 
   private final RemoteShuffleInputGateFactory inputGateFactory;
 
-  private final NettyShuffleServiceFactory nettyShuffleServiceFactory;
-
-  private final ShuffleEnvironmentContext shuffleEnvironmentContext;
+  private final NettyShuffleEnvironmentWrapper shuffleEnvironmentWrapper;
 
   private final ConcurrentHashMap.KeySetView<IntermediateDataSetID, Boolean> nettyResultIds =
       ConcurrentHashMap.newKeySet();
@@ -67,32 +61,12 @@ public class RemoteShuffleEnvironment extends AbstractRemoteShuffleEnvironment
   private final ConcurrentHashMap.KeySetView<IntermediateResultPartitionID, Boolean>
       nettyResultPartitionIds = ConcurrentHashMap.newKeySet();
 
-  private volatile NettyShuffleEnvironment nettyShuffleEnvironment;
-
-  private volatile ResultPartitionFactory nettyResultPartitionFactory;
-
-  private volatile SingleInputGateFactory nettyInputGateFactory;
-
-  private static final DynFields.UnboundField<ResultPartitionFactory>
-      RESULT_PARTITION_FACTORY_FIELD =
-          DynFields.builder()
-              .hiddenImpl(NettyShuffleEnvironment.class, "resultPartitionFactory")
-              .defaultAlwaysNull()
-              .build();
-
-  private static final DynFields.UnboundField<SingleInputGateFactory> INPUT_GATE_FACTORY_FIELD =
-      DynFields.builder()
-          .hiddenImpl(NettyShuffleEnvironment.class, "singleInputGateFactory")
-          .defaultAlwaysNull()
-          .build();
-
   /**
    * @param networkBufferPool Network buffer pool for shuffle read and shuffle write.
    * @param resultPartitionManager A trivial {@link ResultPartitionManager}.
    * @param resultPartitionFactory Factory class to create {@link RemoteShuffleResultPartition}.
    * @param inputGateFactory Factory class to create {@link RemoteShuffleInputGate}.
-   * @param nettyShuffleServiceFactory Factory class to create {@link NettyShuffleEnvironment}.
-   * @param shuffleEnvironmentContext Environment context of shuffle.
+   * @param shuffleEnvironmentWrapper Wrapper class to create {@link NettyShuffleEnvironment}.
    */
   public RemoteShuffleEnvironment(
       NetworkBufferPool networkBufferPool,
@@ -100,13 +74,11 @@ public class RemoteShuffleEnvironment extends AbstractRemoteShuffleEnvironment
       RemoteShuffleResultPartitionFactory resultPartitionFactory,
       RemoteShuffleInputGateFactory inputGateFactory,
       CelebornConf conf,
-      NettyShuffleServiceFactory nettyShuffleServiceFactory,
-      ShuffleEnvironmentContext shuffleEnvironmentContext) {
+      NettyShuffleEnvironmentWrapper shuffleEnvironmentWrapper) {
     super(networkBufferPool, resultPartitionManager, conf);
     this.resultPartitionFactory = resultPartitionFactory;
     this.inputGateFactory = inputGateFactory;
-    this.nettyShuffleServiceFactory = nettyShuffleServiceFactory;
-    this.shuffleEnvironmentContext = shuffleEnvironmentContext;
+    this.shuffleEnvironmentWrapper = shuffleEnvironmentWrapper;
   }
 
   @Override
@@ -122,7 +94,8 @@ public class RemoteShuffleEnvironment extends AbstractRemoteShuffleEnvironment
     } else {
       nettyResultIds.add(resultPartitionDeploymentDescriptor.getResultId());
       nettyResultPartitionIds.add(resultPartitionDeploymentDescriptor.getPartitionId());
-      return nettyResultPartitionFactory()
+      return shuffleEnvironmentWrapper
+          .nettyResultPartitionFactory()
           .create(ownerContext.getOwnerName(), index, resultPartitionDeploymentDescriptor);
     }
   }
@@ -134,7 +107,8 @@ public class RemoteShuffleEnvironment extends AbstractRemoteShuffleEnvironment
       int gateIndex,
       InputGateDeploymentDescriptor igdd) {
     return nettyResultIds.contains(igdd.getConsumedResultId())
-        ? nettyInputGateFactory()
+        ? shuffleEnvironmentWrapper
+            .nettyInputGateFactory()
             .create(
                 ownerContext.getOwnerName(),
                 gateIndex,
@@ -151,47 +125,14 @@ public class RemoteShuffleEnvironment extends AbstractRemoteShuffleEnvironment
             .filter(partitionId -> nettyResultPartitionIds.contains(partitionId.getPartitionId()))
             .collect(Collectors.toList());
     if (!resultPartitionIds.isEmpty()) {
-      nettyShuffleEnvironment().releasePartitionsLocally(resultPartitionIds);
+      shuffleEnvironmentWrapper
+          .nettyShuffleEnvironment()
+          .releasePartitionsLocally(resultPartitionIds);
     }
   }
 
   @VisibleForTesting
   RemoteShuffleResultPartitionFactory getResultPartitionFactory() {
     return resultPartitionFactory;
-  }
-
-  private NettyShuffleEnvironment nettyShuffleEnvironment() {
-    if (nettyShuffleEnvironment == null) {
-      synchronized (this) {
-        if (nettyShuffleEnvironment == null) {
-          nettyShuffleEnvironment =
-              nettyShuffleServiceFactory.createShuffleEnvironment(shuffleEnvironmentContext);
-        }
-      }
-    }
-    return nettyShuffleEnvironment;
-  }
-
-  private ResultPartitionFactory nettyResultPartitionFactory() {
-    if (nettyResultPartitionFactory == null) {
-      synchronized (this) {
-        if (nettyResultPartitionFactory == null) {
-          nettyResultPartitionFactory =
-              RESULT_PARTITION_FACTORY_FIELD.bind(nettyShuffleEnvironment()).get();
-        }
-      }
-    }
-    return nettyResultPartitionFactory;
-  }
-
-  private SingleInputGateFactory nettyInputGateFactory() {
-    if (nettyInputGateFactory == null) {
-      synchronized (this) {
-        if (nettyInputGateFactory == null) {
-          nettyInputGateFactory = INPUT_GATE_FACTORY_FIELD.bind(nettyShuffleEnvironment()).get();
-        }
-      }
-    }
-    return nettyInputGateFactory;
   }
 }

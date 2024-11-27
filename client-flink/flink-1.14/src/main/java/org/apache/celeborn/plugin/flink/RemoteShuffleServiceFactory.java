@@ -22,6 +22,8 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.shuffle.*;
 
+import org.apache.celeborn.plugin.flink.netty.NettyShuffleEnvironmentWrapper;
+
 public class RemoteShuffleServiceFactory extends AbstractRemoteShuffleServiceFactory
     implements ShuffleServiceFactory<ShuffleDescriptor, ResultPartitionWriter, IndexedInputGate> {
 
@@ -56,7 +58,6 @@ public class RemoteShuffleServiceFactory extends AbstractRemoteShuffleServiceFac
         resultPartitionFactory,
         inputGateFactory,
         parameters.celebornConf,
-        nettyShuffleServiceFactory,
-        shuffleEnvironmentContext);
+        new NettyShuffleEnvironmentWrapper(nettyShuffleServiceFactory, shuffleEnvironmentContext));
   }
 }
