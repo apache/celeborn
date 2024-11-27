@@ -32,13 +32,14 @@ SBT_ENABLED="false"
 REPLACE="false"
 CHECK="false"
 MODULE=""
+PROFILE="aws"
 
 DEP_PR=""
 DEP=""
 
 function mvn_build_classpath() {
-  $MVN -P$MODULE clean install -DskipTests -am -pl $MVN_MODULES
-  $MVN -P$MODULE dependency:build-classpath -am -pl $MVN_MODULES | \
+  $MVN -P$MODULE,$PROFILE clean install -DskipTests -am -pl $MVN_MODULES
+  $MVN -P$MODULE,$PROFILE dependency:build-classpath -am -pl $MVN_MODULES | \
     grep -A1 "Dependencies classpath:" | \
     grep -v "^--$" | \
     grep -v "Dependencies classpath:" | \
