@@ -245,10 +245,10 @@ class ReducePartitionCommitHandler(
       if (attempts(mapId) < 0) {
         attempts(mapId) = attemptId
         // Mapper with this attemptId finished, also check all other mapper finished or not.
-        (true, !attempts.exists(_ < 0))
+        (true, areAllMapperAttemptsFinished(attempts))
       } else {
         // Mapper with another attemptId finished, skip this request
-        (false, !attempts.exists(_ < 0))
+        (false, false)
       }
     }
   }
@@ -325,5 +325,16 @@ class ReducePartitionCommitHandler(
     }
 
     (timeout <= 0, stageEndTimeout - timeout)
+  }
+
+  private def areAllMapperAttemptsFinished(attempts: Array[Int]): Boolean = {
+    var i = attempts.length - 1
+    while (i >= 0) {
+      if (attempts(i) < 0) {
+        return false
+      }
+      i -= 1
+    }
+    true
   }
 }
