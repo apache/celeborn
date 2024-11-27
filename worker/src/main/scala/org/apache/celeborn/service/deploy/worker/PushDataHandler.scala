@@ -573,7 +573,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         }
     }
 
-    val unWritableIndexes = pushMergedDataCallback.getHardSplitIndexes
+    val hardSplitIndexes = pushMergedDataCallback.getHardSplitIndexes
     val writePromise = Promise[Array[StatusCode]]()
     // for primary, send data to replica
     if (doReplicate) {
@@ -620,11 +620,11 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               Try(Await.result(writePromise.future, Duration.Inf)) match {
                 case Success(result) =>
                   var index = 0
-                  var indexOfUnWritableIndexes = 0
+                  val hardSplitIterator = hardSplitIndexes.iterator
+                  var currentHardSplitIndex = nextValueOrElse(hardSplitIterator, -1)
                   while (index < result.length) {
-                    if (indexOfUnWritableIndexes < unWritableIndexes.length &&
-                      index == unWritableIndexes(indexOfUnWritableIndexes)) {
-                      indexOfUnWritableIndexes += 1
+                    if (index == currentHardSplitIndex) {
+                      currentHardSplitIndex = nextValueOrElse(hardSplitIterator, -1)
                     } else {
                       if (result(index) != StatusCode.SUCCESS) {
                         pushMergedDataCallback.addSplitPartition(index, result(index))
@@ -716,7 +716,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         isPrimary,
         Some(batchOffsets),
         writePromise,
-        unWritableIndexes)
+        hardSplitIndexes)
     } else {
       // The codes here could be executed if
       // 1. the client doesn't enable push data to the replica, the primary worker could hit here
@@ -728,15 +728,15 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         isPrimary,
         Some(batchOffsets),
         writePromise,
-        unWritableIndexes)
+        hardSplitIndexes)
       Try(Await.result(writePromise.future, Duration.Inf)) match {
         case Success(result) =>
           var index = 0
-          var indexOfUnWritableIndexes = 0
+          val hardSplitIterator = hardSplitIndexes.iterator
+          var currentHardSplitIndex = nextValueOrElse(hardSplitIterator, -1)
           while (index < result.length) {
-            if (indexOfUnWritableIndexes < unWritableIndexes.length &&
-              index == unWritableIndexes(indexOfUnWritableIndexes)) {
-              indexOfUnWritableIndexes += 1
+            if (index == currentHardSplitIndex) {
+              currentHardSplitIndex = nextValueOrElse(hardSplitIterator, -1)
             } else {
               if (result(index) != StatusCode.SUCCESS) {
                 pushMergedDataCallback.addSplitPartition(index, result(index))
@@ -1455,7 +1455,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       isPrimary: Boolean,
       batchOffsets: Option[Array[Int]],
       writePromise: Promise[Array[StatusCode]],
-      unWritableIndexes: Array[Int] = Array.empty[Int]): Unit = {
+      hardSplitIndexes: Array[Int] = Array.empty[Int]): Unit = {
     val length = fileWriters.length
     val result = new Array[StatusCode](length)
     def writeData(
@@ -1496,12 +1496,12 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     batchOffsets match {
       case Some(batchOffsets) =>
         var index = 0
-        var indexOfUnWritableIndexes = 0
+        val hardSplitIterator = hardSplitIndexes.iterator
+        var currentHardSplitIndex = nextValueOrElse(hardSplitIterator, -1)
         var fileWriter: PartitionDataWriter = null
         while (index < fileWriters.length) {
-          if (indexOfUnWritableIndexes < unWritableIndexes.length &&
-            index == unWritableIndexes(indexOfUnWritableIndexes)) {
-            indexOfUnWritableIndexes += 1
+          if (index == currentHardSplitIndex) {
+            currentHardSplitIndex = nextValueOrElse(hardSplitIterator, -1)
           } else {
             fileWriter = fileWriters(index)
             if (!writePromise.isCompleted) {
@@ -1526,6 +1526,14 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     if (!writePromise.isCompleted) {
       workerSource.incCounter(WorkerSource.WRITE_DATA_SUCCESS_COUNT)
       writePromise.success(result)
+    }
+  }
+
+  private def nextValueOrElse(iterator: Iterator[Int], defaultValue: Int): Int = {
+    if (iterator.hasNext) {
+      iterator.next()
+    } else {
+      defaultValue
     }
   }
 
