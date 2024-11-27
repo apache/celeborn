@@ -59,7 +59,7 @@ function mvn_build_classpath() {
 function sbt_build_client_classpath() {
   PATTERN="$SBT_PROJECT / Runtime / managedClasspath"
   deps=$(
-    $SBT -P$MODULE "clean; export Runtime/managedClasspath" | \
+    $SBT -P$MODULE,$PROFILE "clean; export Runtime/managedClasspath" | \
       awk -v pat="$PATTERN" '$0 ~ pat { found=1 } found { print }' | \
       awk 'NR==2' | \
       tr ":" "\n"
