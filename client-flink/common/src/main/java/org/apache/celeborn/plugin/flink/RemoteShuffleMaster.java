@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
@@ -314,5 +315,10 @@ public class RemoteShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
       }
     }
     return nettyShuffleMaster;
+  }
+
+  @VisibleForTesting
+  public ConcurrentHashMap.KeySetView<JobID, Boolean> nettyJobIds() {
+    return nettyJobIds;
   }
 }

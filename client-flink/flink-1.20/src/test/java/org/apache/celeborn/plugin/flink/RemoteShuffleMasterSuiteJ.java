@@ -36,6 +36,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphID;
+import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -56,6 +57,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.protocol.FallbackPolicy;
 import org.apache.celeborn.common.util.Utils$;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 
@@ -89,6 +91,19 @@ public class RemoteShuffleMasterSuiteJ {
     // unRegister job
     remoteShuffleMaster.unregisterJob(jobShuffleContext.getJobId());
     remoteShuffleMaster.registerJob(jobShuffleContext);
+  }
+
+  @Test
+  public void testRegisterJobWithForceFallbackPolicy() {
+    configuration.setString(
+        CelebornConf.FLINK_SHUFFLE_FALLBACK_POLICY().key(), FallbackPolicy.ALWAYS.name());
+    remoteShuffleMaster = createShuffleMaster(configuration, new NettyShuffleServiceFactory());
+    JobID jobID = JobID.generate();
+    JobShuffleContext jobShuffleContext = createJobShuffleContext(jobID);
+    remoteShuffleMaster.registerJob(jobShuffleContext);
+    Assert.assertTrue(remoteShuffleMaster.nettyJobIds().contains(jobID));
+    remoteShuffleMaster.unregisterJob(jobShuffleContext.getJobId());
+    Assert.assertTrue(remoteShuffleMaster.nettyJobIds().isEmpty());
   }
 
   @Test
@@ -270,6 +285,11 @@ public class RemoteShuffleMasterSuiteJ {
   }
 
   public RemoteShuffleMaster createShuffleMaster(Configuration configuration) {
+    return createShuffleMaster(configuration, null);
+  }
+
+  public RemoteShuffleMaster createShuffleMaster(
+      Configuration configuration, NettyShuffleServiceFactory nettyShuffleServiceFactory) {
     remoteShuffleMaster =
         new RemoteShuffleMaster(
             new ShuffleMasterContext() {
@@ -284,7 +304,7 @@ public class RemoteShuffleMasterSuiteJ {
               }
             },
             new SimpleResultPartitionAdapter(),
-            null);
+            nettyShuffleServiceFactory);
 
     return remoteShuffleMaster;
   }
