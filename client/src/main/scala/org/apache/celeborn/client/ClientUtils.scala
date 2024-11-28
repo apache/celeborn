@@ -18,6 +18,7 @@
 package org.apache.celeborn.client
 
 object ClientUtils {
+
   /**
    * Check if all the mapper attempts are finished. If any of the attempts is not finished, return false.
    * This method checks the attempts array in reverse order, which can be faster if the unfinished attempts
