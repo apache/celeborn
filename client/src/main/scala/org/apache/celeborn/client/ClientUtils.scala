@@ -24,7 +24,7 @@ object ClientUtils {
    * This method checks the attempts array in reverse order, which can be faster if the unfinished attempts
    * are more likely to be towards the end of the array.
    *
-   * @param attempts The mapper attempts.
+   * @param attempts The mapper finished attemptId array. An attempt ID of -1 indicates that the mapper is not finished.
    * @return True if all mapper attempts are finished, false otherwise.
    */
   def areAllMapperAttemptsFinished(attempts: Array[Int]): Boolean = {
