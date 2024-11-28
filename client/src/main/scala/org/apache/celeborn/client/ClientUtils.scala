@@ -18,6 +18,14 @@
 package org.apache.celeborn.client
 
 object ClientUtils {
+  /**
+   * Check if all the mapper attempts are finished. If any of the attempts is not finished, return false.
+   * This method checks the attempts array in reverse order, which can be faster if the unfinished attempts
+   * are more likely to be towards the end of the array.
+   *
+   * @param attempts The mapper attempts.
+   * @return True if all mapper attempts are finished, false otherwise.
+   */
   def areAllMapperAttemptsFinished(attempts: Array[Int]): Boolean = {
     var i = attempts.length - 1
     while (i >= 0) {
