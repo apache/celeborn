@@ -542,35 +542,38 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       return
     }
 
-    fileWriters.zipWithIndex.foreach {
-      case (fileWriter, index) =>
-        if (fileWriter == null) {
-          if (!pushMergedDataCallback.isHardSplitPartition(index)) {
-            pushMergedDataCallback.onFailure(
-              new CelebornIOException(s"Partition $index's fileWriter not found," +
-                s" but it hasn't been identified in the previous validation step."))
-            return
-          }
-        } else if (fileWriter.isClosed) {
-          val fileInfo = fileWriter.getCurrentFileInfo
+    var fileWriterIndex = 0
+    val totalFileWriters = fileWriters.length
+    while (fileWriterIndex < totalFileWriters) {
+      val fileWriter = fileWriters(fileWriterIndex)
+      if (fileWriter == null) {
+        if (!pushMergedDataCallback.isHardSplitPartition(fileWriterIndex)) {
+          pushMergedDataCallback.onFailure(
+            new CelebornIOException(s"Partition $fileWriterIndex's fileWriter not found," +
+              s" but it hasn't been identified in the previous validation step."))
+          return
+        }
+      } else if (fileWriter.isClosed) {
+        val fileInfo = fileWriter.getCurrentFileInfo
+        logWarning(
+          s"[handlePushMergedData] FileWriter is already closed! File path ${fileInfo.getFilePath} " +
+            s"length ${fileInfo.getFileLength}")
+        pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.HARD_SPLIT)
+      } else {
+        val splitStatus = checkDiskFullAndSplit(fileWriter, isPrimary)
+        if (splitStatus == StatusCode.HARD_SPLIT) {
           logWarning(
-            s"[handlePushMergedData] FileWriter is already closed! File path ${fileInfo.getFilePath} " +
-              s"length ${fileInfo.getFileLength}")
-          pushMergedDataCallback.addSplitPartition(index, StatusCode.HARD_SPLIT)
-        } else {
-          val splitStatus = checkDiskFullAndSplit(fileWriter, isPrimary)
-          if (splitStatus == StatusCode.HARD_SPLIT) {
-            logWarning(
-              s"return hard split for disk full with shuffle $shuffleKey map $mapId attempt $attemptId")
-            workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
-            pushMergedDataCallback.addSplitPartition(index, StatusCode.HARD_SPLIT)
-          } else if (splitStatus == StatusCode.SOFT_SPLIT) {
-            pushMergedDataCallback.addSplitPartition(index, StatusCode.SOFT_SPLIT)
-          }
+            s"return hard split for disk full with shuffle $shuffleKey map $mapId attempt $attemptId")
+          workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
+          pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.HARD_SPLIT)
+        } else if (splitStatus == StatusCode.SOFT_SPLIT) {
+          pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.SOFT_SPLIT)
         }
-        if (!pushMergedDataCallback.isHardSplitPartition(index)) {
-          fileWriter.incrementPendingWrites()
-        }
+      }
+      if (!pushMergedDataCallback.isHardSplitPartition(fileWriterIndex)) {
+        fileWriter.incrementPendingWrites()
+      }
+      fileWriterIndex += 1
     }
 
     val hardSplitIndexes = pushMergedDataCallback.getHardSplitIndexes
@@ -620,15 +623,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               Try(Await.result(writePromise.future, Duration.Inf)) match {
                 case Success(result) =>
                   var index = 0
-                  val hardSplitIterator = hardSplitIndexes.iterator
-                  var currentHardSplitIndex = nextValueOrElse(hardSplitIterator, -1)
                   while (index < result.length) {
-                    if (index == currentHardSplitIndex) {
-                      currentHardSplitIndex = nextValueOrElse(hardSplitIterator, -1)
-                    } else {
-                      if (result(index) != StatusCode.SUCCESS) {
-                        pushMergedDataCallback.addSplitPartition(index, result(index))
-                      }
+                    if (result(index) == StatusCode.HARD_SPLIT) {
+                      pushMergedDataCallback.addSplitPartition(index, result(index))
                     }
                     index += 1
                   }
@@ -732,15 +729,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       Try(Await.result(writePromise.future, Duration.Inf)) match {
         case Success(result) =>
           var index = 0
-          val hardSplitIterator = hardSplitIndexes.iterator
-          var currentHardSplitIndex = nextValueOrElse(hardSplitIterator, -1)
           while (index < result.length) {
-            if (index == currentHardSplitIndex) {
-              currentHardSplitIndex = nextValueOrElse(hardSplitIterator, -1)
-            } else {
-              if (result(index) != StatusCode.SUCCESS) {
-                pushMergedDataCallback.addSplitPartition(index, result(index))
-              }
+            if (result(index) == StatusCode.HARD_SPLIT) {
+              pushMergedDataCallback.addSplitPartition(index, result(index))
             }
             index += 1
           }
@@ -990,7 +981,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       // to do
       Try(Await.result(writePromise.future, Duration.Inf)) match {
         case Success(result) =>
-          if (result.exists(_ != StatusCode.SUCCESS)) {
+          if (allDataWrittenSuccessfully(result)) {
             wrappedCallback.onFailure(new CelebornIOException("Write data failed!"))
           } else {
             wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
@@ -1000,7 +991,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     } else {
       Try(Await.result(writePromise.future, Duration.Inf)) match {
         case Success(result) =>
-          if (result.exists(_ != StatusCode.SUCCESS)) {
+          if (allDataWrittenSuccessfully(result)) {
             wrappedCallback.onFailure(new CelebornIOException("Write data failed!"))
           } else {
             wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
@@ -1535,6 +1526,18 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     } else {
       defaultValue
     }
+  }
+
+  private def allDataWrittenSuccessfully(result: Array[StatusCode]): Boolean = {
+    var i = 0
+    val length = result.length
+    while (i < length) {
+      if (result(i) != StatusCode.SUCCESS) {
+        return false
+      }
+      i += 1
+    }
+    true
   }
 
   /**
