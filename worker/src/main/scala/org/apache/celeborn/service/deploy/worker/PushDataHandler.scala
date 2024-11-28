@@ -981,7 +981,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       // to do
       Try(Await.result(writePromise.future, Duration.Inf)) match {
         case Success(result) =>
-          if (allDataWrittenSuccessfully(result)) {
+          if (result(0) != StatusCode.SUCCESS) {
             wrappedCallback.onFailure(new CelebornIOException("Write data failed!"))
           } else {
             wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
@@ -991,7 +991,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     } else {
       Try(Await.result(writePromise.future, Duration.Inf)) match {
         case Success(result) =>
-          if (allDataWrittenSuccessfully(result)) {
+          if (result(0) != StatusCode.SUCCESS) {
             wrappedCallback.onFailure(new CelebornIOException("Write data failed!"))
           } else {
             wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
@@ -1526,18 +1526,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     } else {
       defaultValue
     }
-  }
-
-  private def allDataWrittenSuccessfully(result: Array[StatusCode]): Boolean = {
-    var i = 0
-    val length = result.length
-    while (i < length) {
-      if (result(i) != StatusCode.SUCCESS) {
-        return false
-      }
-      i += 1
-    }
-    true
   }
 
   /**
