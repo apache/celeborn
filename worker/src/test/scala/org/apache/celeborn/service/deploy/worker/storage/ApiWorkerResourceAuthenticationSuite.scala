@@ -17,27 +17,25 @@
 
 package org.apache.celeborn.service.deploy.worker.storage
 
-import org.apache.celeborn.common.util.CelebornExitKind
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.ApiBaseResourceAuthenticationSuite
-import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
+import org.apache.celeborn.service.deploy.MiniClusterFeature
+import org.apache.celeborn.service.deploy.worker.Worker
 
-class ApiWorkerResourceAuthenticationSuite extends ApiBaseResourceAuthenticationSuite {
+class ApiWorkerResourceAuthenticationSuite extends ApiBaseResourceAuthenticationSuite
+  with MiniClusterFeature {
   private var worker: Worker = _
   override protected def httpService: HttpService = worker
 
   override def beforeAll(): Unit = {
-    val workerArgs = new WorkerArguments(Array(), celebornConf)
-    worker = new Worker(celebornConf, workerArgs)
-    worker.metricsSystem.start()
-    worker.startHttpServer()
+    val (_, w) =
+      setupMiniClusterWithRandomPorts(workerConf = celebornConf.getAll.toMap, workerNum = 1)
+    worker = w.head
     super.beforeAll()
   }
 
   override def afterAll(): Unit = {
     super.afterAll()
-    worker.metricsSystem.stop()
-    worker.rpcEnv.shutdown()
-    worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
+    shutdownMiniCluster()
   }
 }
