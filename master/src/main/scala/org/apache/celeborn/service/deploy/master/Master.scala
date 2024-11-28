@@ -857,7 +857,7 @@ private[celeborn] class Master(
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
     var availableWorkers = workersAvailable(requestSlots.excludedWorkerSet)
-    if (requestSlots.tagsExpr.nonEmpty) {
+    if (conf.tagsEnabled) {
       availableWorkers = tagsManager.getTaggedWorkers(
         requestSlots.userIdentifier,
         requestSlots.tagsExpr,
