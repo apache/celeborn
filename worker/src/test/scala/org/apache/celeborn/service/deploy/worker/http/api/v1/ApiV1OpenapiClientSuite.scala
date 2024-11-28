@@ -52,7 +52,6 @@ class ApiV1OpenapiClientSuite extends ApiV1WorkerOpenapiClientSuite {
     val api = new ApplicationApi(masterApiClient)
     assert(api.getApplications.getApplications.isEmpty)
     assert(api.getApplicationHostNames.getHostnames.isEmpty)
-    assert(api.getApplicationsDiskUsageSnapshots.getSnapshots.isEmpty)
   }
 
   test("master: master api") {

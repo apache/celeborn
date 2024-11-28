@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker.http.api.v1
 
-import javax.ws.rs.{Consumes, GET, Path, Produces}
+import javax.ws.rs.{Consumes, GET, Produces}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
@@ -26,8 +26,7 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 
-import org.apache.celeborn.common.util.Utils
-import org.apache.celeborn.rest.v1.model.{AppDiskUsageData, AppDiskUsagesResponse, ApplicationsResponse}
+import org.apache.celeborn.rest.v1.model.ApplicationsResponse
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.worker.Worker
 
@@ -36,7 +35,6 @@ import org.apache.celeborn.service.deploy.worker.Worker
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class ApplicationResource extends ApiRequestContext {
   private def worker = httpService.asInstanceOf[Worker]
-  private def storageManager = worker.storageManager
 
   @ApiResponse(
     responseCode = "200",
@@ -49,26 +47,5 @@ class ApplicationResource extends ApiRequestContext {
   def applications(): ApplicationsResponse = {
     new ApplicationsResponse()
       .applications(worker.workerInfo.getApplicationIdSet.asScala.toSeq.asJava)
-  }
-
-  @ApiResponse(
-    responseCode = "200",
-    content = Array(new Content(
-      mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[AppDiskUsagesResponse]))),
-    description =
-      "List the top disk usage application ids. It will return the top disk usage application ids for the cluster.")
-  @GET
-  @Path("/top_disk_usages")
-  def topDiskUsedApplications(): AppDiskUsagesResponse = {
-    new AppDiskUsagesResponse()
-      .appDiskUsages(
-        storageManager.topAppDiskUsage().asScala.map { case (appId, diskUsage) =>
-          new AppDiskUsageData()
-            .appId(appId)
-            .estimatedUsage(diskUsage)
-            .estimatedUsageStr(Utils.bytesToString(diskUsage))
-        }.toSeq.asJava)
-
   }
 }

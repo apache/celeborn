@@ -26,8 +26,7 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 
-import org.apache.celeborn.common.util.Utils
-import org.apache.celeborn.rest.v1.model.{AppDiskUsageData, AppDiskUsageSnapshotData, AppDiskUsageSnapshotsResponse, ApplicationHeartbeatData, ApplicationsHeartbeatResponse, DeleteAppsRequest, HandleResponse, HostnamesResponse, ReviseLostShufflesRequest}
+import org.apache.celeborn.rest.v1.model.{ApplicationHeartbeatData, ApplicationsHeartbeatResponse, DeleteAppsRequest, HandleResponse, HostnamesResponse, ReviseLostShufflesRequest}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.master.Master
 
@@ -65,34 +64,6 @@ class ApplicationResource extends ApiRequestContext {
     val apps = request.getApps.asScala
     apps.foreach(app => statusSystem.deleteApp(app))
     new HandleResponse().success(true).message(s"deleted shuffles of app ${apps}")
-  }
-
-  @ApiResponse(
-    responseCode = "200",
-    content = Array(new Content(
-      mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[AppDiskUsageSnapshotsResponse]))),
-    description =
-      "List the top disk usage application ids. It will return the top disk usage application ids for the cluster.")
-  @GET
-  @Path("/top_disk_usages")
-  def topDiskUsedApplications(): AppDiskUsageSnapshotsResponse = {
-    new AppDiskUsageSnapshotsResponse()
-      .snapshots(
-        statusSystem.appDiskUsageMetric.topSnapshots().map { snapshot =>
-          new AppDiskUsageSnapshotData()
-            .start(
-              snapshot.startSnapShotTime)
-            .end(
-              snapshot.endSnapShotTime)
-            .topNItems(
-              snapshot.topNItems.filter(_ != null).map { usage =>
-                new AppDiskUsageData()
-                  .appId(usage.appId)
-                  .estimatedUsage(usage.estimatedUsage)
-                  .estimatedUsageStr(Utils.bytesToString(usage.estimatedUsage))
-              }.toSeq.asJava)
-        }.asJava)
   }
 
   @ApiResponse(

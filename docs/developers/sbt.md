@@ -203,16 +203,16 @@ If you’d like to run just a single Java test in the `SlotsAllocatorSuiteJ`, e.
 > testOnly *SlotsAllocatorSuiteJ -- *SlotsAllocatorSuiteJ.testAllocateSlotsForSinglePartitionId
 ```
 
-If you’d like to run just a single Scala test in the `AppDiskUsageMetricSuite`, e.g., a test that includes "app usage snapshot" in the name, you run the following command in the sbt console:
+If you’d like to run just a single Scala test in the `MasterSuite`, e.g., a test that includes "test single node startup functionality" in the name, you run the following command in the sbt console:
 
 ```
-> testOnly *AppDiskUsageMetricSuite -- -z "app usage snapshot"
+> testOnly *MasterSuite -- -z "test single node startup functionality"
 ```
 
 If you’d prefer, you can run all of these commands on the command line (but this will be slower than running tests using an open console). To do this, you need to surround `testOnly` and the following arguments in quotes:
 
 ```
-$ ./build/sbt "celeborn-master/testOnly *AppDiskUsageMetricSuite -- -z \"app usage snapshot\""
+$ ./build/sbt "celeborn-master/testOnly *MasterSuite -- -z \"test single node startup functionality\""
 ```
 For more about how to run individual tests with sbt, see the [sbt documentation](https://www.scala-sbt.org/1.x/docs/Testing.html) and [JUnit Interface](https://github.com/sbt/junit-interface/#junit-interface).
 

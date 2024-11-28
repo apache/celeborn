@@ -257,22 +257,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HandleResponse'
 
-  /api/v1/applications/top_disk_usages:
-    get:
-      tags:
-        - Application
-      operationId: getApplicationsDiskUsageSnapshots
-      description: |
-        List the top disk usage application ids.
-        It will return the top disk usage application ids for the cluster.
-      responses:
-        "200":
-          description: The request was successful.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AppDiskUsageSnapshotsResponse'
-
   /api/v1/applications/hostnames:
     get:
       tags:
@@ -635,51 +619,6 @@ components:
             type: string
       required:
         - hostnames
-
-    AppDiskUsageData:
-      type: object
-      properties:
-        appId:
-          type: string
-          description: The id of the application.
-        estimatedUsage:
-          type: integer
-          format: int64
-          description: The application disk usage.
-        estimatedUsageStr:
-          type: string
-          description: The application disk usage in string type.
-      required:
-        - appId
-        - estimatedUsage
-        - estimatedUsageStr
-
-
-    AppDiskUsageSnapshotData:
-      type: object
-      properties:
-        start:
-          type: integer
-          format: int64
-          description: The start timestamp of the snapshot.
-        end:
-          type: integer
-          format: int64
-          description: The end timestamp of the snapshot.
-        topNItems:
-          type: array
-          description: The top N app disk usages.
-          items:
-            $ref: '#/components/schemas/AppDiskUsageData'
-
-    AppDiskUsageSnapshotsResponse:
-      type: object
-      properties:
-        snapshots:
-          type: array
-          description: The disk usage snapshots.
-          items:
-            $ref: '#/components/schemas/AppDiskUsageSnapshotData'
 
     MasterLeader:
       type: object

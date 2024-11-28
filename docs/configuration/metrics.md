@@ -19,9 +19,6 @@ license: |
 <!--begin-include-->
 | Key | Default | isDynamic | Description | Since | Deprecated |
 | --- | ------- | --------- | ----------- | ----- | ---------- |
-| celeborn.metrics.app.topDiskUsage.count | 50 | false | Size for top items about top disk usage applications list. | 0.2.0 |  | 
-| celeborn.metrics.app.topDiskUsage.interval | 10min | false | Time length for a window about top disk usage application list. | 0.2.0 |  | 
-| celeborn.metrics.app.topDiskUsage.windowSize | 24 | false | Window size about top disk usage application list. | 0.2.0 |  | 
 | celeborn.metrics.capacity | 4096 | false | The maximum number of metrics which a source can use to generate output strings. | 0.2.0 |  | 
 | celeborn.metrics.collectPerfCritical.enabled | false | false | It controls whether to collect metrics which may affect performance. When enable, Celeborn collects them. | 0.2.0 |  | 
 | celeborn.metrics.conf | &lt;undefined&gt; | false | Custom metrics configuration file path. Default use `metrics.properties` in classpath. | 0.3.0 |  | 

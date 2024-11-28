@@ -101,7 +101,6 @@ public class MetaHandler {
       int replicatePort;
       Map<String, DiskInfo> diskInfos;
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
-      Map<String, Long> estimatedAppDiskUsage = new HashMap<>();
       WorkerStatus workerStatus;
       List<Integer> lostShuffles;
       switch (cmdType) {
@@ -203,8 +202,6 @@ public class MetaHandler {
           userResourceConsumption =
               MetaUtil.fromPbUserResourceConsumption(
                   request.getWorkerHeartbeatRequest().getUserResourceConsumptionMap());
-          estimatedAppDiskUsage.putAll(
-              request.getWorkerHeartbeatRequest().getEstimatedAppDiskUsageMap());
           replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
           boolean highWorkload = request.getWorkerHeartbeatRequest().getHighWorkload();
           if (request.getWorkerHeartbeatRequest().hasWorkerStatus()) {
@@ -231,7 +228,6 @@ public class MetaHandler {
               replicatePort,
               diskInfos,
               userResourceConsumption,
-              estimatedAppDiskUsage,
               request.getWorkerHeartbeatRequest().getTime(),
               workerStatus,
               highWorkload);

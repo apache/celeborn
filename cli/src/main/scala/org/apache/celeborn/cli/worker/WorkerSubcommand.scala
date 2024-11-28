@@ -62,8 +62,6 @@ trait WorkerSubcommand extends CliLogging {
 
   private[worker] def runShowShufflesOnWorker: ShufflesResponse
 
-  private[worker] def runShowTopDiskUsedApps: AppDiskUsagesResponse
-
   private[worker] def runShowPartitionLocationInfo: ShufflePartitionsResponse
 
   private[worker] def runShowUnavailablePeers: UnAvailablePeersResponse

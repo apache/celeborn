@@ -34,7 +34,6 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     if (masterOptions.showMastersInfo) log(runShowMastersInfo)
     if (masterOptions.showClusterApps) log(runShowClusterApps)
     if (masterOptions.showClusterShuffles) log(runShowClusterShuffles)
-    if (masterOptions.showTopDiskUsedApps) log(runShowTopDiskUsedApps)
     if (masterOptions.excludeWorkers) log(runExcludeWorkers)
     if (masterOptions.removeExcludedWorkers) log(runRemoveExcludedWorkers)
     if (masterOptions.removeWorkersUnavailableInfo) log(runRemoveWorkersUnavailableInfo)
@@ -66,9 +65,6 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     applicationApi.getApplications
 
   private[master] def runShowClusterShuffles: ShufflesResponse = shuffleApi.getShuffles
-
-  private[master] def runShowTopDiskUsedApps: AppDiskUsageSnapshotsResponse =
-    applicationApi.getApplicationsDiskUsageSnapshots
 
   private[master] def runExcludeWorkers: HandleResponse = {
     val workerIds = getWorkerIds

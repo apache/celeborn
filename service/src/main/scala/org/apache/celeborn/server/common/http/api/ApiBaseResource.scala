@@ -113,17 +113,4 @@ private[api] class ApiBaseResource extends ApiRequestContext {
   def applications(): String = {
     httpService.getApplicationList
   }
-
-  @Path("listTopDiskUsedApps")
-  @ApiResponse(
-    responseCode = "200",
-    content = Array(new Content(
-      mediaType = MediaType.TEXT_PLAIN)),
-    description =
-      "For MASTER: List the top disk usage application ids. It will return the top disk usage application ids for the cluster.\n" +
-        "For WORKER: List the top disk usage application ids. It only return application ids running in that worker.")
-  @GET
-  def listTopDiskUsedApps(): String = {
-    httpService.listTopDiskUseApps
-  }
 }

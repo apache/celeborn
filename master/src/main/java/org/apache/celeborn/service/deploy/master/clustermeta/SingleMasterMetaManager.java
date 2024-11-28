@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.AppDiskUsageMetric;
 import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
@@ -48,7 +47,6 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
     this.unhealthyDiskRatioThreshold = conf.masterExcludeWorkerUnhealthyDiskRatioThreshold();
-    this.appDiskUsageMetric = new AppDiskUsageMetric(conf);
     this.rackResolver = rackResolver;
   }
 
@@ -121,7 +119,6 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int replicatePort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
-      Map<String, Long> estimatedAppDiskUsage,
       long time,
       boolean highWorkload,
       WorkerStatus workerStatus,
@@ -134,7 +131,6 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
         replicatePort,
         disks,
         userResourceConsumption,
-        estimatedAppDiskUsage,
         time,
         workerStatus,
         highWorkload);

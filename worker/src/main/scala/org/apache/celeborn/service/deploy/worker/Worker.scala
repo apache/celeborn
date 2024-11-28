@@ -18,9 +18,8 @@
 package org.apache.celeborn.service.deploy.worker
 
 import java.io.File
-import java.lang.{Long => JLong}
 import java.util
-import java.util.{HashMap => JHashMap, HashSet => JHashSet, Locale, Map => JMap, UUID}
+import java.util.{HashSet => JHashSet, Locale, Map => JMap, UUID}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
@@ -456,12 +455,8 @@ private[celeborn] class Worker(
 
   private def heartbeatToMaster(): Unit = {
     val activeShuffleKeys = new JHashSet[String]()
-    val estimatedAppDiskUsage = new JHashMap[String, JLong]()
     activeShuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     activeShuffleKeys.addAll(storageManager.shuffleKeySet())
-    storageManager.topAppDiskUsage(true).asScala.foreach { case (shuffleId, usage) =>
-      estimatedAppDiskUsage.put(shuffleId, usage)
-    }
     storageManager.updateDiskInfos()
     val diskInfos =
       workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
@@ -478,7 +473,6 @@ private[celeborn] class Worker(
         diskInfos,
         handleResourceConsumption(),
         activeShuffleKeys,
-        estimatedAppDiskUsage,
         highWorkload,
         workerStatusManager.currentWorkerStatus),
       classOf[HeartbeatFromWorkerResponse])
@@ -849,15 +843,6 @@ private[celeborn] class Worker(
     val sb = new StringBuilder
     sb.append("========================= Worker Registered ==========================\n")
     sb.append(registered.get()).append("\n")
-    sb.toString()
-  }
-
-  override def listTopDiskUseApps: String = {
-    val sb = new StringBuilder
-    sb.append("================== Top Disk Usage Applications =======================\n")
-    storageManager.topAppDiskUsage().asScala.foreach { case (appId, usage) =>
-      sb.append(s"Application $appId used ${Utils.bytesToString(usage)}\n")
-    }
     sb.toString()
   }
 

@@ -158,7 +158,7 @@ message WorkerHeartbeatRequest {
   map<string, DiskInfo> disks = 6;
   required int64 time = 7;
   map<string, ResourceConsumption> userResourceConsumption = 8;
-  map<string, int64> estimatedAppDiskUsage = 9;
+  map<string, int64> estimatedAppDiskUsage = 9; // deprecated
   required bool highWorkload = 10;
   optional WorkerStatus workerStatus = 11;
 }

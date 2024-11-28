@@ -29,7 +29,6 @@ class WorkerSubcommandImpl extends Runnable with WorkerSubcommand {
     if (workerOptions.showWorkerInfo) log(runShowWorkerInfo)
     if (workerOptions.showAppsOnWorker) log(runShowAppsOnWorker)
     if (workerOptions.showShufflesOnWorker) log(runShowShufflesOnWorker)
-    if (workerOptions.showTopDiskUsedApps) log(runShowTopDiskUsedApps)
     if (workerOptions.showPartitionLocationInfo) log(runShowPartitionLocationInfo)
     if (workerOptions.showUnavailablePeers) log(runShowUnavailablePeers)
     if (workerOptions.isShutdown) log(runIsShutdown)
@@ -47,9 +46,6 @@ class WorkerSubcommandImpl extends Runnable with WorkerSubcommand {
   private[worker] def runShowAppsOnWorker: ApplicationsResponse = applicationApi.getApplicationList
 
   private[worker] def runShowShufflesOnWorker: ShufflesResponse = shuffleApi.getShuffles
-
-  private[worker] def runShowTopDiskUsedApps: AppDiskUsagesResponse =
-    applicationApi.getApplicationsDiskUsage
 
   private[worker] def runShowPartitionLocationInfo: ShufflePartitionsResponse =
     shuffleApi.getShufflePartitions

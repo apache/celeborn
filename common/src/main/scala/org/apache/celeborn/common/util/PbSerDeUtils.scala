@@ -19,14 +19,13 @@ package org.apache.celeborn.common.util
 
 import java.util
 import java.util.concurrent.ConcurrentHashMap
-import java.util.function.IntFunction
 
 import scala.collection.JavaConverters._
 
 import com.google.protobuf.InvalidProtocolBufferException
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.{ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.meta.MapFileMeta.SegmentIndex
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
@@ -416,45 +415,6 @@ object PbSerDeUtils {
     }.asJava
   }
 
-  def fromPbAppDiskUsage(pbAppDiskUsage: PbAppDiskUsage): AppDiskUsage = {
-    AppDiskUsage(pbAppDiskUsage.getAppId, pbAppDiskUsage.getEstimatedUsage)
-  }
-
-  def toPbAppDiskUsage(appDiskUsage: AppDiskUsage): PbAppDiskUsage = {
-    PbAppDiskUsage.newBuilder()
-      .setAppId(appDiskUsage.appId)
-      .setEstimatedUsage(appDiskUsage.estimatedUsage)
-      .build()
-  }
-
-  def fromPbAppDiskUsageSnapshot(
-      pbAppDiskUsageSnapShot: PbAppDiskUsageSnapshot): AppDiskUsageSnapShot = {
-    val snapShot = new AppDiskUsageSnapShot(pbAppDiskUsageSnapShot.getTopItemCount)
-    snapShot.startSnapShotTime = pbAppDiskUsageSnapShot.getStartSnapShotTime
-    snapShot.endSnapShotTime = pbAppDiskUsageSnapShot.getEndSnapshotTime
-    snapShot.restoreFromSnapshot(
-      pbAppDiskUsageSnapShot
-        .getTopNItemsList
-        .asScala
-        .map(fromPbAppDiskUsage)
-        .asJava
-        .stream()
-        .toArray(new IntFunction[Array[AppDiskUsage]]() {
-          override def apply(value: Int): Array[AppDiskUsage] = new Array[AppDiskUsage](value)
-        }))
-    snapShot
-  }
-
-  def toPbAppDiskUsageSnapshot(snapshots: AppDiskUsageSnapShot): PbAppDiskUsageSnapshot = {
-    PbAppDiskUsageSnapshot.newBuilder()
-      .setTopItemCount(snapshots.topItemCount)
-      .setStartSnapShotTime(snapshots.startSnapShotTime)
-      .setEndSnapshotTime(snapshots.endSnapShotTime)
-      // topNItems some value could be null
-      .addAllTopNItems(snapshots.topNItems.filter(_ != null).map(toPbAppDiskUsage).toList.asJava)
-      .build()
-  }
-
   def toPbSnapshotMetaInfo(
       estimatedPartitionSize: java.lang.Long,
       registeredShuffle: java.util.Map[String, java.util.Set[Integer]],
@@ -468,8 +428,6 @@ object PbSerDeUtils {
       partitionTotalFileCount: java.lang.Long,
       shuffleTotalCount: java.lang.Long,
       shuffleFallbackCounts: java.util.Map[String, java.lang.Long],
-      appDiskUsageMetricSnapshots: Array[AppDiskUsageSnapShot],
-      currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot,
       lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long],
       shutdownWorkers: java.util.Set[WorkerInfo],
       workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo],
@@ -491,10 +449,6 @@ object PbSerDeUtils {
       .setPartitionTotalFileCount(partitionTotalFileCount)
       .setShuffleTotalCount(shuffleTotalCount)
       .putAllShuffleFallbackCounts(shuffleFallbackCounts)
-      // appDiskUsageMetricSnapshots can have null values,
-      // protobuf repeated value can't support null value in list.
-      .addAllAppDiskUsageMetricSnapshots(appDiskUsageMetricSnapshots.filter(_ != null)
-        .map(toPbAppDiskUsageSnapshot).toList.asJava)
       .putAllLostWorkers(lostWorkers.asScala.map {
         case (worker: WorkerInfo, time: java.lang.Long) => (worker.toUniqueId(), time)
       }.asJava)
@@ -506,10 +460,6 @@ object PbSerDeUtils {
       .addAllDecommissionWorkers(decommissionWorkers.asScala.map(
         toPbWorkerInfo(_, true, false)).asJava)
 
-    if (currentAppDiskUsageMetricsSnapshot != null) {
-      builder.setCurrentAppDiskUsageMetricsSnapshot(
-        toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))
-    }
     val pbApplicationMetas = applicationMetas.asScala.map {
       case (appId, applicationMeta) => (appId, toPbApplicationMeta(applicationMeta))
     }.asJava

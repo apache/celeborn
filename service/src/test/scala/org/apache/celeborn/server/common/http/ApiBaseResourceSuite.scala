@@ -68,11 +68,6 @@ abstract class ApiBaseResourceSuite extends HttpTestHelper {
     assert(HttpServletResponse.SC_OK == response.getStatus)
   }
 
-  test("listTopDiskUsedApps") {
-    val response = webTarget.path("listTopDiskUsedApps").request(MediaType.TEXT_PLAIN).get()
-    assert(HttpServletResponse.SC_OK == response.getStatus)
-  }
-
   test("swagger") {
     Seq("swagger", "docs", "help").foreach { path =>
       val response = webTarget.path(path).request(MediaType.TEXT_HTML).get()

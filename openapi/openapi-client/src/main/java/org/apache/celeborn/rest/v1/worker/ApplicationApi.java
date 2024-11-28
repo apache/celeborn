@@ -25,7 +25,6 @@ import org.apache.celeborn.rest.v1.worker.invoker.BaseApi;
 import org.apache.celeborn.rest.v1.worker.invoker.Configuration;
 import org.apache.celeborn.rest.v1.worker.invoker.Pair;
 
-import org.apache.celeborn.rest.v1.model.AppDiskUsagesResponse;
 import org.apache.celeborn.rest.v1.model.ApplicationsResponse;
 
 
@@ -97,73 +96,6 @@ public class ApplicationApi extends BaseApi {
     String[] localVarAuthNames = new String[] { "basic" };
 
     TypeReference<ApplicationsResponse> localVarReturnType = new TypeReference<ApplicationsResponse>() {};
-    return apiClient.invokeAPI(
-        localVarPath,
-        "GET",
-        localVarQueryParams,
-        localVarCollectionQueryParams,
-        localVarQueryStringJoiner.toString(),
-        localVarPostBody,
-        localVarHeaderParams,
-        localVarCookieParams,
-        localVarFormParams,
-        localVarAccept,
-        localVarContentType,
-        localVarAuthNames,
-        localVarReturnType
-    );
-  }
-
-  /**
-   * 
-   * List the top disk usage application ids. It will return the top disk usage application ids for the cluster. 
-   * @return AppDiskUsagesResponse
-   * @throws ApiException if fails to make API call
-   */
-  public AppDiskUsagesResponse getApplicationsDiskUsage() throws ApiException {
-    return this.getApplicationsDiskUsage(Collections.emptyMap());
-  }
-
-
-  /**
-   * 
-   * List the top disk usage application ids. It will return the top disk usage application ids for the cluster. 
-   * @param additionalHeaders additionalHeaders for this call
-   * @return AppDiskUsagesResponse
-   * @throws ApiException if fails to make API call
-   */
-  public AppDiskUsagesResponse getApplicationsDiskUsage(Map<String, String> additionalHeaders) throws ApiException {
-    Object localVarPostBody = null;
-    
-    // create path and map variables
-    String localVarPath = "/api/v1/applications/top_disk_usages";
-
-    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
-    String localVarQueryParameterBaseName;
-    List<Pair> localVarQueryParams = new ArrayList<Pair>();
-    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
-    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
-    Map<String, String> localVarCookieParams = new HashMap<String, String>();
-    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
-
-    
-    localVarHeaderParams.putAll(additionalHeaders);
-
-    
-    
-    final String[] localVarAccepts = {
-      "application/json"
-    };
-    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
-
-    final String[] localVarContentTypes = {
-      
-    };
-    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
-
-    String[] localVarAuthNames = new String[] { "basic" };
-
-    TypeReference<AppDiskUsagesResponse> localVarReturnType = new TypeReference<AppDiskUsagesResponse>() {};
     return apiClient.invokeAPI(
         localVarPath,
         "GET",
