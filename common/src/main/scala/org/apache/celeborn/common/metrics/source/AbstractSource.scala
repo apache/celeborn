@@ -21,8 +21,8 @@ import java.lang
 import java.util.{Map => JMap}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, TimeUnit}
 
+import scala.collection.{breakOut, mutable}
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
@@ -35,10 +35,18 @@ import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 
-case class NamedCounter(name: String, counter: Counter, labels: Map[String, String])
+case class NamedCounter(
+    name: String,
+    counter: Counter,
+    labels: Map[String, String],
+    isApp: Boolean = false)
   extends MetricLabels
 
-case class NamedGauge[T](name: String, gauge: Gauge[T], labels: Map[String, String])
+case class NamedGauge[T](
+    name: String,
+    gauge: Gauge[T],
+    labels: Map[String, String],
+    isApp: Boolean = false)
   extends MetricLabels
 
 case class NamedMeter(name: String, meter: Meter, labels: Map[String, String])
@@ -77,6 +85,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   val staticLabels: Map[String, String] = conf.metricsExtraLabels + roleLabel ++ instanceLabel
   val staticLabelsString: String = MetricLabels.labelString(staticLabels)
 
+  val metricsAppEnabled: Boolean = conf.metricsAppEnabled
+
   val applicationLabel = "applicationId"
 
   val timerMetrics: ConcurrentLinkedQueue[String] = new ConcurrentLinkedQueue[String]()
@@ -102,7 +112,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   def addGauge[T](
       name: String,
       labels: Map[String, String],
-      gauge: Gauge[T]): Unit = {
+      gauge: Gauge[T],
+      isAppMetrics: Boolean): Unit = {
     // filter out non-number type gauges
     if (gauge.getValue.isInstanceOf[Number]) {
       namedGauges.putIfAbsent(
@@ -115,16 +126,27 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def addGauge[T](
       name: String,
+      labels: Map[String, String],
+      gauge: Gauge[T]): Unit = {
+    addGauge(name, labels, gauge, false)
+  }
+
+  def addGauge[T](
+      name: String,
       labels: JMap[String, String],
       gauge: Gauge[T]): Unit = {
     addGauge(name, labels.asScala.toMap, gauge)
   }
 
-  def addGauge[T](name: String, labels: Map[String, String] = Map.empty)(f: () => T): Unit = {
+  def addGauge[T](
+      name: String,
+      labels: Map[String, String] = Map.empty,
+      isAppMetrics: Boolean = false)(f: () => T): Unit = {
     addGauge(
       name,
       labels,
-      metricRegistry.gauge(metricNameWithCustomizedLabels(name, labels), new GaugeSupplier[T](f)))
+      metricRegistry.gauge(metricNameWithCustomizedLabels(name, labels), new GaugeSupplier[T](f)),
+      isAppMetrics)
   }
 
   def addGauge[T](name: String, gauge: Gauge[T]): Unit = {
@@ -176,11 +198,15 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def addCounter(name: String): Unit = addCounter(name, Map.empty[String, String])
 
-  def addCounter(name: String, labels: Map[String, String]): Unit = {
+  def addCounter(name: String, labels: Map[String, String], isAppMetrics: Boolean = false): Unit = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
     namedCounters.putIfAbsent(
       metricNameWithLabel,
-      NamedCounter(name, metricRegistry.counter(metricNameWithLabel), labels ++ staticLabels))
+      NamedCounter(
+        name,
+        metricRegistry.counter(metricNameWithLabel),
+        labels ++ staticLabels,
+        isAppMetrics))
   }
 
   def counters(): List[NamedCounter] = {
@@ -457,12 +483,18 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   override def getMetrics(): String = {
     var leftMetricsNum = metricsCapacity
     val sb = new mutable.StringBuilder
-    leftMetricsNum = fillInnerMetricsSnapshot(getAndClearTimerMetrics(), leftMetricsNum, sb)
-    leftMetricsNum = fillInnerMetricsSnapshot(timers(), leftMetricsNum, sb)
-    leftMetricsNum = fillInnerMetricsSnapshot(histograms(), leftMetricsNum, sb)
-    leftMetricsNum = fillInnerMetricsSnapshot(meters(), leftMetricsNum, sb)
-    leftMetricsNum = fillInnerMetricsSnapshot(gauges(), leftMetricsNum, sb)
-    leftMetricsNum = fillInnerMetricsSnapshot(counters(), leftMetricsNum, sb)
+    val appMetricsSnapshot = ArrayBuffer[String]()
+    leftMetricsNum = fillInnerMetricsSnapshot(getAndClearTimerMetrics(), leftMetricsNum, sb, appMetricsSnapshot)
+    leftMetricsNum = fillInnerMetricsSnapshot(timers(), leftMetricsNum, sb, appMetricsSnapshot)
+    leftMetricsNum = fillInnerMetricsSnapshot(histograms(), leftMetricsNum, sb, appMetricsSnapshot)
+    leftMetricsNum = fillInnerMetricsSnapshot(meters(), leftMetricsNum, sb, appMetricsSnapshot)
+    leftMetricsNum = fillInnerMetricsSnapshot(gauges(), leftMetricsNum, sb, appMetricsSnapshot)
+    leftMetricsNum = fillInnerMetricsSnapshot(counters(), leftMetricsNum, sb, appMetricsSnapshot)
+    if (leftMetricsNum > 0 && metricsAppEnabled) {
+      appMetricsSnapshot.toList.take(leftMetricsNum).foreach { appMetrics =>
+        sb.append(appMetrics)
+      }
+    }
     if (leftMetricsNum <= 0) {
       logWarning(
         s"The number of metrics exceed the output metrics strings capacity! All metrics Num: $getAllMetricsNum")
@@ -473,7 +505,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   private def fillInnerMetricsSnapshot(
       metricList: List[AnyRef],
       leftNum: Int,
-      sb: mutable.StringBuilder): Int = {
+      sb: mutable.StringBuilder,
+      appMetricsSnapshot: ArrayBuffer[String]): Int = {
     if (leftNum <= 0) {
       return 0
     }
@@ -495,8 +528,42 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
           .asInstanceOf[ResettableSlidingWindowReservoir].reset()
       case s =>
         sb.append(s.toString)
+    var addNum = 0
+    val appCount0Metrics = ArrayBuffer[String]()
+    for (m <- metricList) {
+      if (addNum >= leftNum) breakOut
+      m match {
+        case c: NamedCounter =>
+          val counterMetric = getCounterMetrics(c)
+          if (c.isApp) {
+            if (c.counter.getCount > 0) {
+              appMetricsSnapshot += counterMetric
+            } else {
+              appCount0Metrics += counterMetric
+            }
+          } else sb.append(counterMetric)
+        case g: NamedGauge[_] =>
+          val gaugeMetric = getGaugeMetrics(g)
+          if (g.isApp) {
+            appMetricsSnapshot += gaugeMetric
+          } else sb.append(gaugeMetric)
+        case m: NamedMeter =>
+          sb.append(getMeterMetrics(m))
+        case h: NamedHistogram =>
+          sb.append(getHistogramMetrics(h))
+          h.asInstanceOf[CelebornHistogram].reservoir
+            .asInstanceOf[ResettableSlidingWindowReservoir].reset()
+        case t: NamedTimer =>
+          sb.append(getTimerMetrics(t))
+          t.timer.asInstanceOf[CelebornTimer].reservoir
+            .asInstanceOf[ResettableSlidingWindowReservoir].reset()
+        case s =>
+          sb.append(s.toString)
+      }
+      addNum = addNum + 1
     }
-    leftNum - addList.size
+    appMetricsSnapshot ++= appCount0Metrics
+    leftNum - addNum
   }
 
   override def destroy(): Unit = {
