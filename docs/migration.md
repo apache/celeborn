@@ -108,6 +108,8 @@ license: |
 
 - Since 0.5.0, Celeborn worker REST API `/exit` uses POST method and the parameter `type` uses form parameter instead.
 
+- Since 0.5.0, Celeborn master and worker REST API `/shuffles` is renamed as `/shuffle`, and will be deprecated since 0.6.0.
+
 ## Upgrading from 0.4.0 to 0.4.1
 
 - Since 0.4.1, Celeborn master adds a limit to the estimated partition size used for computing worker slots. 
