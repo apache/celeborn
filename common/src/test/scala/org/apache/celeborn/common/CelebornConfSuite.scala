@@ -430,6 +430,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     conf.unset("celeborn.worker.storage.storagePolicy.createFilePolicy")
     val createFilePolicy3 = conf.workerStoragePolicyCreateFilePolicy
     assert(List("MEMORY", "HDD", "SSD", "HDFS", "OSS") == createFilePolicy3.get)
+
     try {
       conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "ABC")
       val createFilePolicy4 = conf.workerStoragePolicyCreateFilePolicy
@@ -452,6 +453,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     conf.unset("celeborn.worker.storage.storagePolicy.evictPolicy")
     val evictPolicy3 = conf.workerStoragePolicyEvictFilePolicy
     assert(Map("MEMORY" -> List("SSD", "HDD", "HDFS", "OSS")) == evictPolicy3.get)
+    
     try {
       conf.set("celeborn.worker.storage.storagePolicy.evictPolicy", "ABC")
       conf.workerStoragePolicyEvictFilePolicy
