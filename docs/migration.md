@@ -79,7 +79,7 @@ license: |
 
 ## Upgrading from 0.5.1 to 0.5.2
 
-- Since 0.5.2, Celeborn master REST API `/shuffles` is renamed as `/shuffle`, and will be deprecated since 0.6.0. 
+- Since 0.5.2, Celeborn master and worker REST API `/shuffles` is renamed as `/shuffle`, and will be deprecated since 0.6.0. 
 
 ## Upgrading from 0.5.0 to 0.5.1
 
@@ -111,8 +111,6 @@ license: |
 - Since 0.5.0, Celeborn master REST API `/exclude` uses POST method and the parameters `add` and `remove` use form parameters instead.
 
 - Since 0.5.0, Celeborn worker REST API `/exit` uses POST method and the parameter `type` uses form parameter instead.
-
-- Since 0.5.0, Celeborn Master and Worker support swagger UI for RESTful API, you can access the swagger UI at `http://<host>:<port>/swagger`.
 
 ## Upgrading from 0.4.0 to 0.4.1
 
