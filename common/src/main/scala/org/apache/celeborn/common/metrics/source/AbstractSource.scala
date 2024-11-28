@@ -17,9 +17,9 @@
 
 package org.apache.celeborn.common.metrics.source
 
+import java.{lang, util}
 import java.util.{Map => JMap}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, TimeUnit}
-import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -79,27 +79,25 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   val applicationLabel = "applicationId"
 
-  val atomicSortNum = new AtomicInteger(0)
+  val timerMetricsMap: ConcurrentHashMap.KeySetView[String, lang.Boolean] =
+    ConcurrentHashMap.newKeySet[String]()
 
-  val timerMetricsMap: ConcurrentHashMap[String, Int] =
-    JavaUtils.newConcurrentHashMap[String, Int]()
-
-  protected val namedGauges: ConcurrentHashMap[String, (Int, NamedGauge[_])] =
-    JavaUtils.newConcurrentHashMap[String, (Int, NamedGauge[_])]()
+  protected val namedGauges: ConcurrentHashMap[String, NamedGauge[_]] =
+    JavaUtils.newConcurrentHashMap[String, NamedGauge[_]]()
 
   protected val namedTimers
-      : ConcurrentHashMap[String, (Int, NamedTimer, ConcurrentHashMap[String, Long])] =
-    JavaUtils.newConcurrentHashMap[String, (Int, NamedTimer, ConcurrentHashMap[String, Long])]()
+      : ConcurrentHashMap[String, (NamedTimer, ConcurrentHashMap[String, Long])] =
+    JavaUtils.newConcurrentHashMap[String, (NamedTimer, ConcurrentHashMap[String, Long])]()
 
-  protected val namedCounters: ConcurrentHashMap[String, (Int, NamedCounter)] =
-    JavaUtils.newConcurrentHashMap[String, (Int, NamedCounter)]()
+  protected val namedCounters: ConcurrentHashMap[String, NamedCounter] =
+    JavaUtils.newConcurrentHashMap[String, NamedCounter]()
 
-  protected val namedMeters: ConcurrentHashMap[String, (Int, NamedMeter)] =
-    JavaUtils.newConcurrentHashMap[String, (Int, NamedMeter)]()
+  protected val namedMeters: ConcurrentHashMap[String, NamedMeter] =
+    JavaUtils.newConcurrentHashMap[String, NamedMeter]()
 
   def addTimerMetricsMap(namedTimer: NamedTimer): Unit = {
     val timerMetrics = getTimerMetrics(namedTimer)
-    timerMetricsMap.putIfAbsent(timerMetrics, atomicSortNum.getAndIncrement())
+    timerMetricsMap.add(timerMetrics)
   }
 
   def addGauge[T](
@@ -110,7 +108,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     if (gauge.getValue.isInstanceOf[Number]) {
       namedGauges.putIfAbsent(
         metricNameWithCustomizedLabels(name, labels),
-        (atomicSortNum.getAndIncrement(), NamedGauge(name, gauge, labels ++ staticLabels)))
+        NamedGauge(name, gauge, labels ++ staticLabels))
     } else {
       logWarning(
         s"Add gauge $name failed, the value type ${gauge.getValue.getClass} is not a number")
@@ -141,7 +139,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       meter: Meter): Unit = {
     namedMeters.putIfAbsent(
       metricNameWithCustomizedLabels(name, labels),
-      (atomicSortNum.getAndIncrement(), NamedMeter(name, meter, labels ++ staticLabels)))
+      NamedMeter(name, meter, labels ++ staticLabels))
   }
 
   def addMeter(
@@ -174,7 +172,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
           metricRegistry.timer(metricNameWithLabel, timerSupplier),
           labels ++ staticLabels)
         val values = JavaUtils.newConcurrentHashMap[String, Long]()
-        (atomicSortNum.getAndIncrement(), namedTimer, values)
+        (namedTimer, values)
       })
   }
 
@@ -184,21 +182,19 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
     namedCounters.putIfAbsent(
       metricNameWithLabel,
-      (
-        atomicSortNum.getAndIncrement(),
-        NamedCounter(name, metricRegistry.counter(metricNameWithLabel), labels ++ staticLabels)))
+      NamedCounter(name, metricRegistry.counter(metricNameWithLabel), labels ++ staticLabels))
   }
 
   def counters(): List[NamedCounter] = {
-    namedCounters.values().asScala.toList.sortBy(_._1).map(_._2)
+    namedCounters.values().asScala.toList
   }
 
   def gauges(): List[NamedGauge[_]] = {
-    namedGauges.values().asScala.toList.sortBy(_._1).map(_._2)
+    namedGauges.values().asScala.toList
   }
 
   def meters(): List[NamedMeter] = {
-    namedMeters.values().asScala.toList.sortBy(_._1).map(_._2)
+    namedMeters.values().asScala.toList
   }
 
   def histograms(): List[NamedHistogram] = {
@@ -206,11 +202,11 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   def timers(): List[NamedTimer] = {
-    namedTimers.values().asScala.toList.sortBy(_._1).map(_._2)
+    namedTimers.values().asScala.toList.map(_._1)
   }
 
   def timerMetrics(): List[String] = {
-    timerMetricsMap.asScala.toList.sortBy(_._2).map(_._1)
+    timerMetricsMap.asScala.toList
   }
 
   def gaugeExists(name: String, labels: Map[String, String]): Boolean = {
@@ -283,7 +279,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, labels)
     val pair = namedTimers.get(metricNameWithLabel)
     if (pair != null) {
-      pair._3.put(key, System.nanoTime())
+      pair._2.put(key, System.nanoTime())
     } else {
       logWarning(s"Metric $metricNameWithLabel not found!")
     }
@@ -292,7 +288,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   protected def doStopTimer(metricsName: String, key: String, labels: Map[String, String]): Unit = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, labels)
     try {
-      val (_, namedTimer, map) = namedTimers.get(metricNameWithLabel)
+      val (namedTimer, map) = namedTimers.get(metricNameWithLabel)
       val startTime = Option(map.remove(key))
       startTime match {
         case Some(t) =>
@@ -317,7 +313,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     if (!namedTimers.containsKey(metricNameWithLabel)) {
       addTimer(metricsName, labels)
     }
-    val (_, namedTimer, _) = namedTimers.get(metricNameWithLabel)
+    val (namedTimer, _) = namedTimers.get(metricNameWithLabel)
     namedTimer.timer.update(value, TimeUnit.NANOSECONDS)
   }
 
@@ -331,7 +327,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def incCounter(metricsName: String, incV: Long, labels: Map[String, String]): Unit = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, labels)
-    val (_, counter) = namedCounters.get(metricNameWithLabel)
+    val counter = namedCounters.get(metricNameWithLabel)
     if (counter != null) {
       counter.counter.inc(incV)
     } else {
@@ -357,7 +353,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   protected def startCleaner(): Unit = {
     val cleanTask: Runnable = new Runnable {
       override def run(): Unit = Utils.tryLogNonFatalError {
-        namedTimers.values.asScala.toArray.map(_._3).foreach(clearOldValues)
+        namedTimers.values.asScala.toArray.map(_._2).foreach(clearOldValues)
       }
     }
     metricsCleaner.scheduleWithFixedDelay(cleanTask, 10, 10, TimeUnit.MINUTES)
@@ -496,7 +492,6 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     namedMeters.clear()
     namedTimers.clear()
     timerMetricsMap.clear()
-    atomicSortNum.set(0)
     metricRegistry.removeMatching(new MetricFilter {
       override def matches(s: String, metric: Metric): Boolean = true
     })
