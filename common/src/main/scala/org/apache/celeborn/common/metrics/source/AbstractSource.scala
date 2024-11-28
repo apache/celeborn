@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common.metrics.source
 
+import java.{lang, util}
 import java.util.{Map => JMap}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, TimeUnit}
 
