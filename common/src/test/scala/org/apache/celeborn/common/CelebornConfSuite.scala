@@ -219,9 +219,16 @@ class CelebornConfSuite extends CelebornFunSuite {
     conf.set("celeborn.storage.availableTypes", "SSD,HDD")
     assert(conf.workerCommitThreads === 32)
 
-    conf.set("celeborn.storage.availableTypes", "HDFS")
+    conf.set("celeborn.storage.availableTypes", "S3")
     conf.set("celeborn.storage.s3.dir", "s3a:///xxx")
-    assert(conf.workerCommitThreads === 128)
+    assert(conf.workerCommitThreads === 32)
+  }
+
+  test("Test commit buffer size") {
+    val conf = new CelebornConf()
+    conf.set("celeborn.storage.availableTypes", "S3")
+    conf.set("celeborn.storage.s3.dir", "s3a:///xxx")
+    assert(conf.workerS3FlusherBufferSize === 6291456)
   }
 
   test("Test available storage types") {
