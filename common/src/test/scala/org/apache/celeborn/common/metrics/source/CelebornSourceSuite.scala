@@ -49,6 +49,8 @@ class CelebornSourceSuite extends CelebornFunSuite {
     mockSource.stopTimer("Timer1", "key1")
     mockSource.stopTimer("Timer2", "key2", user3)
 
+    mockSource.timerMetricsMap.add("testTimerMetricsMap")
+
     val res = mockSource.getMetrics()
     var extraLabelsStr = extraLabels
     if (extraLabels.nonEmpty) {
@@ -65,8 +67,9 @@ class CelebornSourceSuite extends CelebornFunSuite {
     val exp5 = s"""metrics_Timer1_Count{${extraLabelsStr}${instanceLabelStr}role="$role"} 1"""
     val exp6 =
       s"""metrics_Timer2_Count{${extraLabelsStr}${instanceLabelStr}role="$role",user="user3"} 1"""
+    val exp7 = "testTimerMetricsMap"
 
-    val expList = List[String](exp1, exp2, exp3, exp4, exp5, exp6)
+    val expList = List[String](exp1, exp2, exp3, exp4, exp5, exp6, exp7)
     (res, expList)
   }
 
@@ -111,7 +114,7 @@ class CelebornSourceSuite extends CelebornFunSuite {
     conf.set(CelebornConf.METRICS_APP_ENABLED.key, "false")
     conf.set(CelebornConf.METRICS_CAPACITY.key, "6")
     val (res1, exps1) = createAbstractSource(conf, "")
-    List[Int](0, 4, 5).foreach { i =>
+    List[Int](0, 4, 5, 6).foreach { i =>
       assert(res1.contains(exps1(i)))
     }
     List[Int](1, 2, 3).foreach { i =>
@@ -120,9 +123,9 @@ class CelebornSourceSuite extends CelebornFunSuite {
 
     // app metrics will fall behind when it reaches capacity
     conf.set(CelebornConf.METRICS_APP_ENABLED.key, "true")
-    conf.set(CelebornConf.METRICS_CAPACITY.key, "3")
+    conf.set(CelebornConf.METRICS_CAPACITY.key, "4")
     val (res2, exps2) = createAbstractSource(conf, "")
-    List[Int](0, 4, 5).foreach { i =>
+    List[Int](0, 4, 5, 6).foreach { i =>
       assert(res2.contains(exps2(i)))
     }
     List[Int](1, 2, 3).foreach { i =>
@@ -131,9 +134,9 @@ class CelebornSourceSuite extends CelebornFunSuite {
 
     // app metrics count0 will fall behind
     conf.set(CelebornConf.METRICS_APP_ENABLED.key, "true")
-    conf.set(CelebornConf.METRICS_CAPACITY.key, "5")
+    conf.set(CelebornConf.METRICS_CAPACITY.key, "6")
     val (res3, exps3) = createAbstractSource(conf, "")
-    List[Int](0, 4, 5, 1, 2).foreach { i =>
+    List[Int](0, 4, 5, 6, 1, 2).foreach { i =>
       assert(res3.contains(exps3(i)))
     }
     List[Int](3).foreach { i =>
