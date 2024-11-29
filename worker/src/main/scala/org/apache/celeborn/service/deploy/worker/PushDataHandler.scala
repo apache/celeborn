@@ -868,12 +868,10 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     def onSuccess(status: StatusCode): Unit = {
       val splitPartitionIndexes = new util.ArrayList[Integer]()
       val statusCodes = new util.ArrayList[Integer]()
-      var i = 0
       splitPartitionStatuses.foreach {
         case (partitionIndex, statusCode) =>
           splitPartitionIndexes.add(partitionIndex)
           statusCodes.add(statusCode)
-          i += 1
       }
       val reason: Byte =
         if (splitPartitionStatuses.isEmpty || status == StatusCode.MAP_ENDED) {
