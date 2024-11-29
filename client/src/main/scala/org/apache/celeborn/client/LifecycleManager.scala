@@ -832,8 +832,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       return
     }
 
-    def isAllMaptaskEnd(shuffleId: Int): Boolean = {
-      !commitManager.getMapperAttempts(shuffleId).exists(_ < 0)
+    def areAllMapTasksEnd(shuffleId: Int): Boolean = {
+      ClientUtils.areAllMapperAttemptsFinished(commitManager.getMapperAttempts(shuffleId))
     }
 
     shuffleIds.synchronized {
@@ -882,7 +882,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         }
       } else {
         shuffleIds.values.filter(v => v._2).map(v => v._1).toSeq.reverse.find(
-          isAllMaptaskEnd) match {
+          areAllMapTasksEnd) match {
           case Some(shuffleId) =>
             val pbGetShuffleIdResponse = {
               logDebug(
