@@ -460,7 +460,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     val sb = new mutable.StringBuilder
     metricsSnapshot.foreach(metric => sb.append(metric))
     if (leftMetricsNum <= 0) {
-      logWarning(s"The number of metrics exceed the output metrics strings capacity! All metrics Num: $getAllMetricsNum")
+      logWarning(
+        s"The number of metrics exceed the output metrics strings capacity! All metrics Num: $getAllMetricsNum")
     }
     sb.toString()
   }
