@@ -39,11 +39,10 @@ import com.amazonaws.services.s3.model.PartETag;
 import com.amazonaws.services.s3.model.PartListing;
 import com.amazonaws.services.s3.model.PartSummary;
 import com.amazonaws.services.s3.model.UploadPartRequest;
-
-import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler;
 
 public class S3MultipartUploadHandler implements MultipartUploadHandler {
 
@@ -65,16 +64,24 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
 
   private Integer s3MultiplePartUploadMaxRetries;
 
-  public S3MultipartUploadHandler(String bucketName, String s3AccessKey, String s3SecretKey, String s3EndpointRegion, String key, Integer s3MultiplePartUploadMaxRetries) {
+  public S3MultipartUploadHandler(
+      String bucketName,
+      String s3AccessKey,
+      String s3SecretKey,
+      String s3EndpointRegion,
+      String key,
+      Integer s3MultiplePartUploadMaxRetries) {
     this.bucketName = bucketName;
     this.s3AccessKey = s3AccessKey;
     this.s3SecretKey = s3SecretKey;
     this.s3EndpointRegion = s3EndpointRegion;
     this.s3MultiplePartUploadMaxRetries = s3MultiplePartUploadMaxRetries;
-    BasicAWSCredentials basicAWSCredentials =
-        new BasicAWSCredentials(s3AccessKey, s3SecretKey);
-    ClientConfiguration clientConfig = new ClientConfiguration()
-            .withRetryPolicy(PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(s3MultiplePartUploadMaxRetries))
+    BasicAWSCredentials basicAWSCredentials = new BasicAWSCredentials(s3AccessKey, s3SecretKey);
+    ClientConfiguration clientConfig =
+        new ClientConfiguration()
+            .withRetryPolicy(
+                PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(
+                    s3MultiplePartUploadMaxRetries))
             .withMaxErrorRetry(s3MultiplePartUploadMaxRetries);
     this.s3Client =
         AmazonS3ClientBuilder.standard()
@@ -94,24 +101,36 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
   }
 
   @Override
-  public void putPart(InputStream inputStream, Integer partNumber, Boolean finalFlush) throws IOException {
+  public void putPart(InputStream inputStream, Integer partNumber, Boolean finalFlush)
+      throws IOException {
     try (InputStream inStream = inputStream) {
       int partSize = inStream.available();
       if (partSize == 0) {
-        logger.debug("key {} uploadId {} part size is 0 for part number {} finalFlush {}", key, uploadId, partNumber, finalFlush);
+        logger.debug(
+            "key {} uploadId {} part size is 0 for part number {} finalFlush {}",
+            key,
+            uploadId,
+            partNumber,
+            finalFlush);
         return;
       }
       UploadPartRequest uploadRequest =
-              new UploadPartRequest()
-                      .withBucketName(bucketName)
-                      .withKey(key)
-                      .withUploadId(uploadId)
-                      .withPartNumber(partNumber)
-                      .withInputStream(inStream)
-                      .withPartSize(partSize)
-                      .withLastPart(finalFlush);
+          new UploadPartRequest()
+              .withBucketName(bucketName)
+              .withKey(key)
+              .withUploadId(uploadId)
+              .withPartNumber(partNumber)
+              .withInputStream(inStream)
+              .withPartSize(partSize)
+              .withLastPart(finalFlush);
       s3Client.uploadPart(uploadRequest);
-      logger.debug("key {} uploadId {} part number {} uploaded with size {} finalFlush {}", key, uploadId, partNumber, partSize, finalFlush);
+      logger.debug(
+          "key {} uploadId {} part number {} uploaded with size {} finalFlush {}",
+          key,
+          uploadId,
+          partNumber,
+          partSize,
+          finalFlush);
     } catch (RuntimeException | IOException e) {
       logger.error("Failed to upload part", e);
       throw e;
@@ -130,22 +149,36 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
       }
       listPartsRequest.setPartNumberMarker(partListing.getNextPartNumberMarker());
     } while (partListing.isTruncated());
-    if (partETags.size() == 0){
-      logger.debug("bucket {} key {} uploadId {} has no parts uploaded, aborting upload", bucketName, key, uploadId);
+    if (partETags.size() == 0) {
+      logger.debug(
+          "bucket {} key {} uploadId {} has no parts uploaded, aborting upload",
+          bucketName,
+          key,
+          uploadId);
       abort();
       logger.debug("bucket {} key {} upload completed with size {}", bucketName, key, 0);
       return;
     }
-    ProgressListener progressListener = progressEvent -> {
-      logger.debug("key {} uploadId {} progress event type {} transferred {} bytes", key, uploadId, progressEvent.getEventType(), progressEvent.getBytesTransferred());
-    };
+    ProgressListener progressListener =
+        progressEvent -> {
+          logger.debug(
+              "key {} uploadId {} progress event type {} transferred {} bytes",
+              key,
+              uploadId,
+              progressEvent.getEventType(),
+              progressEvent.getBytesTransferred());
+        };
 
     CompleteMultipartUploadRequest compRequest =
-              new CompleteMultipartUploadRequest(
-                      bucketName, key, uploadId, partETags)
-                      .withGeneralProgressListener(progressListener);
+        new CompleteMultipartUploadRequest(bucketName, key, uploadId, partETags)
+            .withGeneralProgressListener(progressListener);
     CompleteMultipartUploadResult compResult = s3Client.completeMultipartUpload(compRequest);
-    logger.debug("bucket {} key {} uploadId {} upload completed location is in {} ", bucketName, key, uploadId, compResult.getLocation());
+    logger.debug(
+        "bucket {} key {} uploadId {} upload completed location is in {} ",
+        bucketName,
+        key,
+        uploadId,
+        compResult.getLocation());
   }
 
   @Override
