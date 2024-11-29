@@ -21,8 +21,8 @@ import java.lang
 import java.util.{Map => JMap}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, TimeUnit}
 
-import scala.collection.{breakOut, mutable}
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
@@ -530,8 +530,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
         sb.append(s.toString)
     var addNum = 0
     val appCount0Metrics = ArrayBuffer[String]()
-    for (m <- metricList) {
-      if (addNum >= leftNum) breakOut
+    for (m <- metricList if addNum < leftNum) {
       var strMetrics = ""
       var isApp = false
       m match {
