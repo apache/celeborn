@@ -532,35 +532,42 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     val appCount0Metrics = ArrayBuffer[String]()
     for (m <- metricList) {
       if (addNum >= leftNum) breakOut
+      var strMetrics = ""
+      var isApp = false
       m match {
         case c: NamedCounter =>
-          val counterMetric = getCounterMetrics(c)
+          strMetrics = getCounterMetrics(c)
           if (c.isApp) {
+            isApp = true
             if (c.counter.getCount > 0) {
-              appMetricsSnapshot += counterMetric
+              appMetricsSnapshot += strMetrics
             } else {
-              appCount0Metrics += counterMetric
+              appCount0Metrics += strMetrics
             }
-          } else sb.append(counterMetric)
+          }
         case g: NamedGauge[_] =>
-          val gaugeMetric = getGaugeMetrics(g)
+          strMetrics = getGaugeMetrics(g)
           if (g.isApp) {
-            appMetricsSnapshot += gaugeMetric
-          } else sb.append(gaugeMetric)
+            appMetricsSnapshot += strMetrics
+            isApp = true
+          }
         case m: NamedMeter =>
-          sb.append(getMeterMetrics(m))
+          strMetrics = getMeterMetrics(m)
         case h: NamedHistogram =>
-          sb.append(getHistogramMetrics(h))
+          strMetrics = getHistogramMetrics(h)
           h.asInstanceOf[CelebornHistogram].reservoir
             .asInstanceOf[ResettableSlidingWindowReservoir].reset()
         case t: NamedTimer =>
-          sb.append(getTimerMetrics(t))
+          strMetrics = getTimerMetrics(t)
           t.timer.asInstanceOf[CelebornTimer].reservoir
             .asInstanceOf[ResettableSlidingWindowReservoir].reset()
         case s =>
-          sb.append(s.toString)
+          strMetrics = s.toString
       }
-      addNum = addNum + 1
+      if (!isApp) {
+        sb.append(strMetrics)
+        addNum = addNum + 1
+      }
     }
     appMetricsSnapshot ++= appCount0Metrics
     leftNum - addNum
