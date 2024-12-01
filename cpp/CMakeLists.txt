@@ -19,6 +19,7 @@ if (NOT DEFINED PACKAGE_VERSION)
 endif ()
 
 project("celeborn" VERSION ${PACKAGE_VERSION} LANGUAGES CXX C)
+enable_testing()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -139,5 +140,15 @@ include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
 
 include_directories(SYSTEM celeborn)
 include_directories(.)
+
+option(CELEBORN_BUILD_TESTS "CELEBORN_BUILD_TESTS" ON)
+if(CELEBORN_BUILD_TESTS)
+    ### TODO: we use prebuilt gtest prebuilt package here. A better way is
+    ###  to use source package, but the setting would be more complicated.
+    ###  Maybe we could change the method later.
+    find_package(GTest CONFIG REQUIRED)
+    # Include after project() but before add_subdirectory().
+    include(CTest)
+endif()
 
 add_subdirectory(celeborn)
