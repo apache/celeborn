@@ -39,7 +39,7 @@ export COMPILER_FLAGS
 NPROC=$(getconf _NPROCESSORS_ONLN)
 BUILD_DUCKDB="${BUILD_DUCKDB:-true}"
 export CMAKE_BUILD_TYPE=Release
-SUDO="${SUDO:-"${SUDO} --preserve-env"}"
+SUDO="${SUDO:-"sudo --preserve-env"}"
 USE_CLANG="${USE_CLANG:-false}"
 export INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
 DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)/deps-download}
