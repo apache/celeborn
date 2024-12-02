@@ -1173,15 +1173,17 @@ private[celeborn] class Master(
       resourceConsumptionLabel) { () =>
       computeResourceConsumption(userIdentifier, applicationId).diskBytesWritten
     }
-    resourceConsumptionSource.addGauge(
-      ResourceConsumptionSource.HDFS_FILE_COUNT,
-      resourceConsumptionLabel) { () =>
-      computeResourceConsumption(userIdentifier, applicationId).hdfsFileCount
-    }
-    resourceConsumptionSource.addGauge(
-      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
-      resourceConsumptionLabel) { () =>
-      computeResourceConsumption(userIdentifier, applicationId).hdfsBytesWritten
+    if (hasHDFSStorage) {
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.HDFS_FILE_COUNT,
+        resourceConsumptionLabel) { () =>
+        computeResourceConsumption(userIdentifier, applicationId).hdfsFileCount
+      }
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+        resourceConsumptionLabel) { () =>
+        computeResourceConsumption(userIdentifier, applicationId).hdfsBytesWritten
+      }
     }
   }
 

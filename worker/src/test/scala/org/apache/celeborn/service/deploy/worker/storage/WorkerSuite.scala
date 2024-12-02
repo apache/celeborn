@@ -134,15 +134,31 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
       0,
       0,
       Map("app1" -> ResourceConsumption(1024, 1, 0, 0)).asJava)).asJava)
-    assert(worker.resourceConsumptionSource.gauges().size == 4)
+    assert(worker.resourceConsumptionSource.gauges().size == 2)
     worker.handleTopResourceConsumption(Map(userIdentifier -> ResourceConsumption(
       1024,
       1,
       0,
       0,
       Map("app2" -> ResourceConsumption(1024, 1, 0, 0)).asJava)).asJava)
-    assert(worker.resourceConsumptionSource.gauges().size == 4)
+    assert(worker.resourceConsumptionSource.gauges().size == 2)
     worker.handleTopResourceConsumption(Map.empty[UserIdentifier, ResourceConsumption].asJava)
     assert(worker.resourceConsumptionSource.gauges().size == 0)
+  }
+
+  test("only gauge hdfs metrics if HDFS storage enabled") {
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
+    conf.set(CelebornConf.ACTIVE_STORAGE_TYPES.key, "HDD,HDFS")
+    conf.set(CelebornConf.HDFS_DIR.key, "hdfs://localhost:9000/test")
+
+    worker = new Worker(conf, workerArgs)
+    val userIdentifier = new UserIdentifier("default", "celeborn")
+    worker.handleTopResourceConsumption(Map(userIdentifier -> ResourceConsumption(
+      1024,
+      1,
+      0,
+      0,
+      Map("app1" -> ResourceConsumption(1024, 1, 0, 0)).asJava)).asJava)
+    assert(worker.resourceConsumptionSource.gauges().size == 4)
   }
 }

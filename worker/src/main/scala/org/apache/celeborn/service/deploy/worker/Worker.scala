@@ -89,6 +89,8 @@ private[celeborn] class Worker(
   private val authEnabled = conf.authEnabled
   private val secretRegistry = new WorkerSecretRegistryImpl(conf.workerApplicationRegistryCacheSize)
 
+  private val hasHDFSStorage = conf.hasHDFSStorage
+
   if (conf.logCelebornConfEnabled) {
     logInfo(getConf)
   }
@@ -709,15 +711,17 @@ private[celeborn] class Worker(
       resourceConsumptionLabel) { () =>
       computeResourceConsumption(userIdentifier, resourceConsumption).diskBytesWritten
     }
-    resourceConsumptionSource.addGauge(
-      ResourceConsumptionSource.HDFS_FILE_COUNT,
-      resourceConsumptionLabel) { () =>
-      computeResourceConsumption(userIdentifier, resourceConsumption).hdfsFileCount
-    }
-    resourceConsumptionSource.addGauge(
-      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
-      resourceConsumptionLabel) { () =>
-      computeResourceConsumption(userIdentifier, resourceConsumption).hdfsBytesWritten
+    if (hasHDFSStorage) {
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.HDFS_FILE_COUNT,
+        resourceConsumptionLabel) { () =>
+        computeResourceConsumption(userIdentifier, resourceConsumption).hdfsFileCount
+      }
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+        resourceConsumptionLabel) { () =>
+        computeResourceConsumption(userIdentifier, resourceConsumption).hdfsBytesWritten
+      }
     }
   }
 
@@ -785,12 +789,14 @@ private[celeborn] class Worker(
     resourceConsumptionSource.removeGauge(
       ResourceConsumptionSource.DISK_BYTES_WRITTEN,
       resourceConsumptionLabel)
-    resourceConsumptionSource.removeGauge(
-      ResourceConsumptionSource.HDFS_FILE_COUNT,
-      resourceConsumptionLabel)
-    resourceConsumptionSource.removeGauge(
-      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
-      resourceConsumptionLabel)
+    if (hasHDFSStorage) {
+      resourceConsumptionSource.removeGauge(
+        ResourceConsumptionSource.HDFS_FILE_COUNT,
+        resourceConsumptionLabel)
+      resourceConsumptionSource.removeGauge(
+        ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+        resourceConsumptionLabel)
+    }
   }
 
   private def removeAppActiveConnection(applicationIds: JHashSet[String]): Unit = {
