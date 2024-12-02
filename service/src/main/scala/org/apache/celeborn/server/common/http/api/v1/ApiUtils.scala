@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.server.common.http.api.v1
 
+import java.util
+import java.util.{Map => JMap}
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
@@ -24,6 +26,7 @@ import scala.collection.JavaConverters._
 import org.apache.celeborn.common.meta.{WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.protocol.{PartitionLocation, StorageInfo}
 import org.apache.celeborn.common.protocol.PbWorkerStatus.State
+import org.apache.celeborn.common.util.CollectionUtils
 import org.apache.celeborn.rest.v1.model._
 import org.apache.celeborn.rest.v1.model.PartitionLocationData.{ModeEnum, StorageEnum}
 
@@ -36,14 +39,6 @@ object ApiUtils {
         workerInfo.diskInfos.asScala.map { case (disk, diskInfo) =>
           disk -> diskInfo.toString()
         }.toMap -> workerInfo.usedSlots()
-      }
-    val userResourceConsumption =
-      if (workerInfo.userResourceConsumption == null) {
-        Map.empty[String, String]
-      } else {
-        workerInfo.userResourceConsumption.asScala.map { case (user, resourceConsumption) =>
-          user.toString -> resourceConsumption.toString()
-        }.toMap
       }
 
     new WorkerData()
@@ -58,10 +53,43 @@ object ApiUtils {
       .heartbeatElapsedSeconds(TimeUnit.MILLISECONDS.toSeconds(
         System.currentTimeMillis() - workerInfo.lastHeartbeat))
       .diskInfos(diskInfos.asJava)
-      .resourceConsumption(userResourceConsumption.asJava)
+      .resourceConsumptions(workerResourceConsumptions(workerInfo))
       .workerRef(Option(workerInfo.endpoint).map(_.toString).orNull)
       .workerState(workerInfo.workerStatus.getState.toString)
       .workerStateStartTime(workerInfo.workerStatus.getStateStartTime)
+  }
+
+  private def workerResourceConsumptions(workerInfo: WorkerInfo)
+      : JMap[String, WorkerResourceConsumption] = {
+    val workerResourceConsumptions = new util.HashMap[String, WorkerResourceConsumption]()
+    if (CollectionUtils.isNotEmpty(workerInfo.userResourceConsumption)) {
+      workerInfo.userResourceConsumption.asScala.foreach {
+        case (userIdentifier, resourceConsumption) =>
+          val workerConsumption = new WorkerResourceConsumption()
+            .diskBytesWritten(resourceConsumption.diskBytesWritten)
+            .diskFileCount(resourceConsumption.diskFileCount)
+            .hdfsBytesWritten(resourceConsumption.hdfsBytesWritten)
+            .hdfsFileCount(resourceConsumption.hdfsFileCount)
+
+          if (CollectionUtils.isNotEmpty(resourceConsumption.subResourceConsumptions)) {
+            val subConsumptions = new util.HashMap[String, WorkerResourceConsumption]()
+            resourceConsumption.subResourceConsumptions.asScala.foreach {
+              case (subIdentifier, subConsumption) =>
+                subConsumptions.put(
+                  subIdentifier,
+                  new WorkerResourceConsumption()
+                    .diskBytesWritten(subConsumption.diskBytesWritten)
+                    .diskFileCount(subConsumption.diskFileCount)
+                    .hdfsBytesWritten(subConsumption.hdfsBytesWritten)
+                    .hdfsFileCount(subConsumption.hdfsFileCount))
+            }
+            workerConsumption.subResourceConsumption(subConsumptions)
+          }
+
+          workerResourceConsumptions.put(userIdentifier.toString, workerConsumption)
+      }
+    }
+    workerResourceConsumptions
   }
 
   def workerInfoResponse(
@@ -81,7 +109,7 @@ object ApiUtils {
       .lastHeartbeatTimestamp(workerData.getLastHeartbeatTimestamp)
       .heartbeatElapsedSeconds(workerData.getHeartbeatElapsedSeconds)
       .diskInfos(workerData.getDiskInfos)
-      .resourceConsumption(workerData.getResourceConsumption)
+      .resourceConsumptions(workerData.getResourceConsumptions)
       .workerRef(workerData.getWorkerRef)
       .workerState(currentStatus.getState.toString)
       .workerStateStartTime(currentStatus.getStateStartTime)

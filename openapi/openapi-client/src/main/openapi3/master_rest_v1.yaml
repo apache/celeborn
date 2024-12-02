@@ -781,11 +781,11 @@ components:
           description: A map of disk name and disk info.
           additionalProperties:
             type: string
-        resourceConsumption:
+        resourceConsumptions:
           type: object
-          description: A map of identifier and resource consumption.
+          description: A map of user identifier and resource consumption.
           additionalProperties:
-            type: string
+            $ref: '#/components/schemas/WorkerResourceConsumption'
         workerRef:
           type: string
           description: The reference of the worker.
@@ -802,6 +802,26 @@ components:
         - pushPort
         - fetchPort
         - replicatePort
+
+    WorkerResourceConsumption:
+      type: object
+      properties:
+        diskBytesWritten:
+          type: integer
+          format: int64
+        diskFileCount:
+          type: integer
+          format: int64
+        hdfsBytesWritten:
+          type: integer
+          format: int64
+        hdfsFileCount:
+          type: integer
+          format: int64
+        subResourceConsumption:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/WorkerResourceConsumption'
 
     WorkerTimestampData:
       type: object

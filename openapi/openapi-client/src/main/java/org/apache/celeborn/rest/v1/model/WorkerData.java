@@ -27,6 +27,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.celeborn.rest.v1.model.WorkerResourceConsumption;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -44,7 +45,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkerData.JSON_PROPERTY_LAST_HEARTBEAT_TIMESTAMP,
   WorkerData.JSON_PROPERTY_HEARTBEAT_ELAPSED_SECONDS,
   WorkerData.JSON_PROPERTY_DISK_INFOS,
-  WorkerData.JSON_PROPERTY_RESOURCE_CONSUMPTION,
+  WorkerData.JSON_PROPERTY_RESOURCE_CONSUMPTIONS,
   WorkerData.JSON_PROPERTY_WORKER_REF,
   WorkerData.JSON_PROPERTY_WORKER_STATE,
   WorkerData.JSON_PROPERTY_WORKER_STATE_START_TIME
@@ -81,8 +82,8 @@ public class WorkerData {
   public static final String JSON_PROPERTY_DISK_INFOS = "diskInfos";
   private Map<String, String> diskInfos = new HashMap<>();
 
-  public static final String JSON_PROPERTY_RESOURCE_CONSUMPTION = "resourceConsumption";
-  private Map<String, String> resourceConsumption = new HashMap<>();
+  public static final String JSON_PROPERTY_RESOURCE_CONSUMPTIONS = "resourceConsumptions";
+  private Map<String, WorkerResourceConsumption> resourceConsumptions = new HashMap<>();
 
   public static final String JSON_PROPERTY_WORKER_REF = "workerRef";
   private String workerRef;
@@ -354,37 +355,37 @@ public class WorkerData {
     this.diskInfos = diskInfos;
   }
 
-  public WorkerData resourceConsumption(Map<String, String> resourceConsumption) {
+  public WorkerData resourceConsumptions(Map<String, WorkerResourceConsumption> resourceConsumptions) {
     
-    this.resourceConsumption = resourceConsumption;
+    this.resourceConsumptions = resourceConsumptions;
     return this;
   }
 
-  public WorkerData putResourceConsumptionItem(String key, String resourceConsumptionItem) {
-    if (this.resourceConsumption == null) {
-      this.resourceConsumption = new HashMap<>();
+  public WorkerData putResourceConsumptionsItem(String key, WorkerResourceConsumption resourceConsumptionsItem) {
+    if (this.resourceConsumptions == null) {
+      this.resourceConsumptions = new HashMap<>();
     }
-    this.resourceConsumption.put(key, resourceConsumptionItem);
+    this.resourceConsumptions.put(key, resourceConsumptionsItem);
     return this;
   }
 
   /**
-   * A map of identifier and resource consumption.
-   * @return resourceConsumption
+   * A map of user identifier and resource consumption.
+   * @return resourceConsumptions
    */
   @javax.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_RESOURCE_CONSUMPTION)
+  @JsonProperty(JSON_PROPERTY_RESOURCE_CONSUMPTIONS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
-  public Map<String, String> getResourceConsumption() {
-    return resourceConsumption;
+  public Map<String, WorkerResourceConsumption> getResourceConsumptions() {
+    return resourceConsumptions;
   }
 
 
-  @JsonProperty(JSON_PROPERTY_RESOURCE_CONSUMPTION)
+  @JsonProperty(JSON_PROPERTY_RESOURCE_CONSUMPTIONS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setResourceConsumption(Map<String, String> resourceConsumption) {
-    this.resourceConsumption = resourceConsumption;
+  public void setResourceConsumptions(Map<String, WorkerResourceConsumption> resourceConsumptions) {
+    this.resourceConsumptions = resourceConsumptions;
   }
 
   public WorkerData workerRef(String workerRef) {
@@ -481,7 +482,7 @@ public class WorkerData {
         Objects.equals(this.lastHeartbeatTimestamp, workerData.lastHeartbeatTimestamp) &&
         Objects.equals(this.heartbeatElapsedSeconds, workerData.heartbeatElapsedSeconds) &&
         Objects.equals(this.diskInfos, workerData.diskInfos) &&
-        Objects.equals(this.resourceConsumption, workerData.resourceConsumption) &&
+        Objects.equals(this.resourceConsumptions, workerData.resourceConsumptions) &&
         Objects.equals(this.workerRef, workerData.workerRef) &&
         Objects.equals(this.workerState, workerData.workerState) &&
         Objects.equals(this.workerStateStartTime, workerData.workerStateStartTime);
@@ -489,7 +490,7 @@ public class WorkerData {
 
   @Override
   public int hashCode() {
-    return Objects.hash(host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, slotUsed, lastHeartbeatTimestamp, heartbeatElapsedSeconds, diskInfos, resourceConsumption, workerRef, workerState, workerStateStartTime);
+    return Objects.hash(host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, slotUsed, lastHeartbeatTimestamp, heartbeatElapsedSeconds, diskInfos, resourceConsumptions, workerRef, workerState, workerStateStartTime);
   }
 
   @Override
@@ -506,7 +507,7 @@ public class WorkerData {
     sb.append("    lastHeartbeatTimestamp: ").append(toIndentedString(lastHeartbeatTimestamp)).append("\n");
     sb.append("    heartbeatElapsedSeconds: ").append(toIndentedString(heartbeatElapsedSeconds)).append("\n");
     sb.append("    diskInfos: ").append(toIndentedString(diskInfos)).append("\n");
-    sb.append("    resourceConsumption: ").append(toIndentedString(resourceConsumption)).append("\n");
+    sb.append("    resourceConsumptions: ").append(toIndentedString(resourceConsumptions)).append("\n");
     sb.append("    workerRef: ").append(toIndentedString(workerRef)).append("\n");
     sb.append("    workerState: ").append(toIndentedString(workerState)).append("\n");
     sb.append("    workerStateStartTime: ").append(toIndentedString(workerStateStartTime)).append("\n");
