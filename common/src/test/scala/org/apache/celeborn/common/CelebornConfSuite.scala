@@ -204,6 +204,10 @@ class CelebornConfSuite extends CelebornFunSuite {
 
     conf.set("celeborn.storage.availableTypes", "SSD,HDD")
     assert(!conf.workerBaseDirs.isEmpty)
+
+    conf.set("celeborn.storage.availableTypes", "S3")
+    conf.set("celeborn.storage.s3.dir", "s3a:///xxx")
+    assert(conf.workerBaseDirs.isEmpty)
   }
 
   test("Test commit file threads") {
@@ -214,6 +218,17 @@ class CelebornConfSuite extends CelebornFunSuite {
 
     conf.set("celeborn.storage.availableTypes", "SSD,HDD")
     assert(conf.workerCommitThreads === 32)
+
+    conf.set("celeborn.storage.availableTypes", "S3")
+    conf.set("celeborn.storage.s3.dir", "s3a:///xxx")
+    assert(conf.workerCommitThreads === 32)
+  }
+
+  test("Test commit buffer size") {
+    val conf = new CelebornConf()
+    conf.set("celeborn.storage.availableTypes", "S3")
+    conf.set("celeborn.storage.s3.dir", "s3a:///xxx")
+    assert(conf.workerS3FlusherBufferSize === 6291456)
   }
 
   test("Test available storage types") {
@@ -229,6 +244,9 @@ class CelebornConfSuite extends CelebornFunSuite {
 
     conf.set("celeborn.storage.availableTypes", "HDFS")
     assert(conf.availableStorageTypes == StorageInfo.HDFS_MASK)
+
+    conf.set("celeborn.storage.availableTypes", "S3")
+    assert(conf.availableStorageTypes == StorageInfo.S3_MASK)
   }
 
   test("Test role rpcDispatcherNumThreads") {
@@ -396,6 +414,11 @@ class CelebornConfSuite extends CelebornFunSuite {
 
   test("Test storage policy case 1") {
     val conf = new CelebornConf()
+
+    conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "MEMORY,S3")
+    val createFilePolicy = conf.workerStoragePolicyCreateFilePolicy
+    assert(List("MEMORY", "S3") == createFilePolicy.get)
+
     conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "MEMORY,SSD")
     val createFilePolicy1 = conf.workerStoragePolicyCreateFilePolicy
     assert(List("MEMORY", "SSD") == createFilePolicy1.get)
