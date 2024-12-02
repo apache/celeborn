@@ -658,14 +658,13 @@ private[celeborn] class Worker(
   }
 
   private def handleResourceConsumption(): util.Map[UserIdentifier, ResourceConsumption] = {
-    val resourceConsumptionSnapshot = storageManager.userResourceConsumptionSnapshot()
-    val userResourceConsumptions =
-      workerInfo.updateThenGetUserResourceConsumption(resourceConsumptionSnapshot.asJava)
-    resourceConsumptionSnapshot.foreach { case (userIdentifier, _) =>
+    val resourceConsumptionSnapshot = storageManager.userResourceConsumptionSnapshot().asJava
+    workerInfo.updateThenGetUserResourceConsumption(resourceConsumptionSnapshot)
+    resourceConsumptionSnapshot.asScala.foreach { case (userIdentifier, _) =>
       gaugeResourceConsumption(userIdentifier)
     }
-    handleTopResourceConsumption(userResourceConsumptions)
-    userResourceConsumptions
+    handleTopResourceConsumption(resourceConsumptionSnapshot)
+    resourceConsumptionSnapshot
   }
 
   def handleTopResourceConsumption(userResourceConsumptions: util.Map[
