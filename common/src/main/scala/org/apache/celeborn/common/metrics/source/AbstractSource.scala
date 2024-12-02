@@ -17,13 +17,11 @@
 
 package org.apache.celeborn.common.metrics.source
 
-import java.lang
 import java.util.{Map => JMap}
-import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, ScheduledExecutorService, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 import com.codahale.metrics._
@@ -79,8 +77,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   val applicationLabel = "applicationId"
 
-  val timerMetricsMap: ConcurrentHashMap.KeySetView[String, lang.Boolean] =
-    ConcurrentHashMap.newKeySet[String]()
+  val timerMetricsMap: ConcurrentLinkedQueue[String] = new ConcurrentLinkedQueue[String]()
 
   protected val namedGauges: ConcurrentHashMap[String, NamedGauge[_]] =
     JavaUtils.newConcurrentHashMap[String, NamedGauge[_]]()
@@ -450,15 +447,14 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   override def getMetrics(): String = {
     var leftMetricsNum = metricsCapacity
-    val metricsSnapshot = ArrayBuffer[String]()
-    leftMetricsNum = fillInnerMetricsSnapshot(timerMetrics(), leftMetricsNum, metricsSnapshot)
-    leftMetricsNum = fillInnerMetricsSnapshot(timers(), leftMetricsNum, metricsSnapshot)
-    leftMetricsNum = fillInnerMetricsSnapshot(histograms(), leftMetricsNum, metricsSnapshot)
-    leftMetricsNum = fillInnerMetricsSnapshot(meters(), leftMetricsNum, metricsSnapshot)
-    leftMetricsNum = fillInnerMetricsSnapshot(gauges(), leftMetricsNum, metricsSnapshot)
-    leftMetricsNum = fillInnerMetricsSnapshot(counters(), leftMetricsNum, metricsSnapshot)
     val sb = new mutable.StringBuilder
-    metricsSnapshot.foreach(metric => sb.append(metric))
+    leftMetricsNum = fillInnerMetricsSnapshot(timerMetrics(), leftMetricsNum, sb)
+    leftMetricsNum = fillInnerMetricsSnapshot(timers(), leftMetricsNum, sb)
+    leftMetricsNum = fillInnerMetricsSnapshot(histograms(), leftMetricsNum, sb)
+    leftMetricsNum = fillInnerMetricsSnapshot(meters(), leftMetricsNum, sb)
+    leftMetricsNum = fillInnerMetricsSnapshot(gauges(), leftMetricsNum, sb)
+    leftMetricsNum = fillInnerMetricsSnapshot(counters(), leftMetricsNum, sb)
+
     if (leftMetricsNum <= 0) {
       logWarning(
         s"The number of metrics exceed the output metrics strings capacity! All metrics Num: $getAllMetricsNum")
@@ -469,28 +465,28 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   private def fillInnerMetricsSnapshot(
       metricList: List[AnyRef],
       leftNum: Int,
-      metricsSnapshot: ArrayBuffer[String]): Int = {
+      sb: mutable.StringBuilder): Int = {
     if (leftNum <= 0) {
       return 0
     }
     val addList = metricList.take(leftNum)
     addList.foreach {
       case c: NamedCounter =>
-        metricsSnapshot += getCounterMetrics(c)
+        sb.append(getCounterMetrics(c))
       case g: NamedGauge[_] =>
-        metricsSnapshot += getGaugeMetrics(g)
+        sb.append(getGaugeMetrics(g))
       case m: NamedMeter =>
-        metricsSnapshot += getMeterMetrics(m)
+        sb.append(getMeterMetrics(m))
       case h: NamedHistogram =>
-        metricsSnapshot += getHistogramMetrics(h)
+        sb.append(getHistogramMetrics(h))
         h.asInstanceOf[CelebornHistogram].reservoir
           .asInstanceOf[ResettableSlidingWindowReservoir].reset()
       case t: NamedTimer =>
-        metricsSnapshot += getTimerMetrics(t)
+        sb.append(getTimerMetrics(t))
         t.timer.asInstanceOf[CelebornTimer].reservoir
           .asInstanceOf[ResettableSlidingWindowReservoir].reset()
       case s =>
-        metricsSnapshot += s.toString
+        sb.append(s.toString)
     }
     leftNum - addList.size
   }
