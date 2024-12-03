@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.tez.dag.app.runtime.library.sort;
+package org.apache.tez.runtime.library.sort;
 
 import java.io.IOException;
 import java.io.OutputStream;
