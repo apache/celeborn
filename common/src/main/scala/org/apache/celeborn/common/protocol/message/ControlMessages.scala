@@ -1271,7 +1271,7 @@ object ControlMessages extends Logging {
         val pbReserveSlots = PbReserveSlots.parseFrom(message.getPayload)
         val userIdentifier = PbSerDeUtils.fromPbUserIdentifier(pbReserveSlots.getUserIdentifier)
         val (primaryLocations, replicateLocations) =
-          if (pbReserveSlots.getPrimaryLocationsList.isEmpty) {
+          if (pbReserveSlots.getPrimaryLocationsList.isEmpty && pbReserveSlots.getReplicaLocationsList.isEmpty) {
             PbSerDeUtils.fromPbPackedPartitionLocationsPair(
               pbReserveSlots.getPartitionLocationsPair)
           } else {
