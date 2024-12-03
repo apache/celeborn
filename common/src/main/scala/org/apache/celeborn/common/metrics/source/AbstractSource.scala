@@ -22,6 +22,7 @@ import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, Scheduled
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 import com.codahale.metrics._
@@ -204,9 +205,13 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def getAndClearTimerMetrics(): List[String] = {
     timerMetrics.synchronized {
-      val timerList = timerMetrics.asScala.toList
-      timerMetrics.clear()
-      timerList
+      var timerMetricsSize = timerMetrics.size()
+      val timerMetricsList = ArrayBuffer[String]()
+      while (timerMetricsSize > 0) {
+        timerMetricsList.append(timerMetrics.poll())
+        timerMetricsSize = timerMetricsSize - 1
+      }
+      timerMetricsList.toList
     }
   }
 
