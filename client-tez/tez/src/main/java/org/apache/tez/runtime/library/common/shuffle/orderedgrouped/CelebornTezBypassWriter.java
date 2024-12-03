@@ -58,7 +58,7 @@ public class CelebornTezBypassWriter {
   }
 
   public static void write(final FetchedInput fetchedInput, byte[] buffer) throws IOException {
-    LOG.info(
+    LOG.debug(
         "CelebornTezBypassWriter write mapOutput, type:{}, buffer length:{}",
         fetchedInput.getType(),
         buffer.length);
