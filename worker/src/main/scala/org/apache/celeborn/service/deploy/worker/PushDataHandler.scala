@@ -553,25 +553,27 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               s" but it hasn't been identified in the previous validation step."))
           return
         }
-      } else if (fileWriter.isClosed) {
-        val fileInfo = fileWriter.getCurrentFileInfo
-        logWarning(
-          s"[handlePushMergedData] FileWriter is already closed! File path ${fileInfo.getFilePath} " +
-            s"length ${fileInfo.getFileLength}")
-        pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.HARD_SPLIT)
       } else {
-        val splitStatus = checkDiskFullAndSplit(fileWriter, isPrimary)
-        if (splitStatus == StatusCode.HARD_SPLIT) {
+        if (fileWriter.isClosed) {
+          val fileInfo = fileWriter.getCurrentFileInfo
           logWarning(
-            s"return hard split for disk full with shuffle $shuffleKey map $mapId attempt $attemptId")
-          workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
+            s"[handlePushMergedData] FileWriter is already closed! File path ${fileInfo.getFilePath} " +
+              s"length ${fileInfo.getFileLength}")
           pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.HARD_SPLIT)
-        } else if (splitStatus == StatusCode.SOFT_SPLIT) {
-          pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.SOFT_SPLIT)
+        } else {
+          val splitStatus = checkDiskFullAndSplit(fileWriter, isPrimary)
+          if (splitStatus == StatusCode.HARD_SPLIT) {
+            logWarning(
+              s"return hard split for disk full with shuffle $shuffleKey map $mapId attempt $attemptId")
+            workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
+            pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.HARD_SPLIT)
+          } else if (splitStatus == StatusCode.SOFT_SPLIT) {
+            pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.SOFT_SPLIT)
+          }
         }
-      }
-      if (!pushMergedDataCallback.isHardSplitPartition(fileWriterIndex)) {
-        fileWriter.incrementPendingWrites()
+        if (!pushMergedDataCallback.isHardSplitPartition(fileWriterIndex)) {
+          fileWriter.incrementPendingWrites()
+        }
       }
       fileWriterIndex += 1
     }
@@ -847,8 +849,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       }
       for (i <- 0 until replicaPartitionIndexes.size()) {
         val index = replicaPartitionIndexes.get(i)
-        // if primary and replica have the same index, use the primary's status code
-        if (!splitPartitionStatuses.contains(index)) {
+        // The priority of HARD_SPLIT is higher than that of SOFT_SPLIT.
+        if (!isHardSplitPartition(index)) {
           splitPartitionStatuses.put(index, replicaStatusCodes.get(i).byteValue())
         }
       }
