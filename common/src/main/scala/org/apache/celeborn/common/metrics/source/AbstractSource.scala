@@ -202,8 +202,12 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     namedTimers.values().asScala.toList.map(_._1)
   }
 
-  def timerMetricsList(): List[String] = {
-    timerMetrics.asScala.toList
+  def getAndClearTimerMetrics(): List[String] = {
+    timerMetrics.synchronized {
+      val timerList = timerMetrics.asScala.toList
+      timerMetrics.clear()
+      timerList
+    }
   }
 
   def gaugeExists(name: String, labels: Map[String, String]): Boolean = {
@@ -448,7 +452,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   override def getMetrics(): String = {
     var leftMetricsNum = metricsCapacity
     val sb = new mutable.StringBuilder
-    leftMetricsNum = fillInnerMetricsSnapshot(timerMetricsList(), leftMetricsNum, sb)
+    leftMetricsNum = fillInnerMetricsSnapshot(getAndClearTimerMetrics(), leftMetricsNum, sb)
     leftMetricsNum = fillInnerMetricsSnapshot(timers(), leftMetricsNum, sb)
     leftMetricsNum = fillInnerMetricsSnapshot(histograms(), leftMetricsNum, sb)
     leftMetricsNum = fillInnerMetricsSnapshot(meters(), leftMetricsNum, sb)
@@ -458,7 +462,6 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       logWarning(
         s"The number of metrics exceed the output metrics strings capacity! All metrics Num: $getAllMetricsNum")
     }
-    timerMetrics.clear()
     sb.toString()
   }
 
