@@ -77,7 +77,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   val applicationLabel = "applicationId"
 
-  val timerMetricsMap: ConcurrentLinkedQueue[String] = new ConcurrentLinkedQueue[String]()
+  val timerMetrics: ConcurrentLinkedQueue[String] = new ConcurrentLinkedQueue[String]()
 
   protected val namedGauges: ConcurrentHashMap[String, NamedGauge[_]] =
     JavaUtils.newConcurrentHashMap[String, NamedGauge[_]]()
@@ -92,9 +92,9 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   protected val namedMeters: ConcurrentHashMap[String, NamedMeter] =
     JavaUtils.newConcurrentHashMap[String, NamedMeter]()
 
-  def addTimerMetricsMap(namedTimer: NamedTimer): Unit = {
-    val timerMetrics = getTimerMetrics(namedTimer)
-    timerMetricsMap.add(timerMetrics)
+  def addTimerMetrics(namedTimer: NamedTimer): Unit = {
+    val timerMetricsString = getTimerMetrics(namedTimer)
+    timerMetrics.add(timerMetricsString)
   }
 
   def addGauge[T](
@@ -202,8 +202,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     namedTimers.values().asScala.toList.map(_._1)
   }
 
-  def timerMetrics(): List[String] = {
-    timerMetricsMap.asScala.toList
+  def timerMetricsList(): List[String] = {
+    timerMetrics.asScala.toList
   }
 
   def gaugeExists(name: String, labels: Map[String, String]): Boolean = {
@@ -291,7 +291,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
         case Some(t) =>
           namedTimer.timer.update(System.nanoTime() - t, TimeUnit.NANOSECONDS)
           if (namedTimer.timer.getCount % metricsSlidingWindowSize == 0) {
-            addTimerMetricsMap(namedTimer)
+            addTimerMetrics(namedTimer)
           }
         case None =>
       }
@@ -437,7 +437,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   def getAllMetricsNum: Int = {
-    val sum = timerMetricsMap.size() +
+    val sum = timerMetrics.size() +
       namedTimers.size() +
       namedMeters.size() +
       namedGauges.size() +
@@ -448,17 +448,17 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   override def getMetrics(): String = {
     var leftMetricsNum = metricsCapacity
     val sb = new mutable.StringBuilder
-    leftMetricsNum = fillInnerMetricsSnapshot(timerMetrics(), leftMetricsNum, sb)
+    leftMetricsNum = fillInnerMetricsSnapshot(timerMetricsList(), leftMetricsNum, sb)
     leftMetricsNum = fillInnerMetricsSnapshot(timers(), leftMetricsNum, sb)
     leftMetricsNum = fillInnerMetricsSnapshot(histograms(), leftMetricsNum, sb)
     leftMetricsNum = fillInnerMetricsSnapshot(meters(), leftMetricsNum, sb)
     leftMetricsNum = fillInnerMetricsSnapshot(gauges(), leftMetricsNum, sb)
     leftMetricsNum = fillInnerMetricsSnapshot(counters(), leftMetricsNum, sb)
-
     if (leftMetricsNum <= 0) {
       logWarning(
         s"The number of metrics exceed the output metrics strings capacity! All metrics Num: $getAllMetricsNum")
     }
+    timerMetrics.clear()
     sb.toString()
   }
 
@@ -497,7 +497,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     namedGauges.clear()
     namedMeters.clear()
     namedTimers.clear()
-    timerMetricsMap.clear()
+    timerMetrics.clear()
     metricRegistry.removeMatching(new MetricFilter {
       override def matches(s: String, metric: Metric): Boolean = true
     })
