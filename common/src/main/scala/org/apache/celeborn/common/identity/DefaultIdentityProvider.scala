@@ -23,7 +23,7 @@ class DefaultIdentityProvider extends IdentityProvider {
   override def provide(): UserIdentifier = {
     val conf = new CelebornConf()
     UserIdentifier(
-      conf.quotaUserSpecificTenant,
-      conf.quotaUserSpecificUserName)
+      conf.userSpecificTenant,
+      conf.userSpecificUserName)
   }
 }

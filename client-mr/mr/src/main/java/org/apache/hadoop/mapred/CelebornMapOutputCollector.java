@@ -66,8 +66,7 @@ public class CelebornMapOutputCollector<K extends Object, V extends Object>
         applicationAttemptId,
         IOBufferSize);
     UserIdentifier userIdentifier =
-        new UserIdentifier(
-            celebornConf.quotaUserSpecificTenant(), celebornConf.quotaUserSpecificUserName());
+        new UserIdentifier(celebornConf.userSpecificTenant(), celebornConf.userSpecificUserName());
 
     final float spiller = jobConf.getFloat(JobContext.MAP_SORT_SPILL_PERCENT, (float) 0.8);
     int pushSize = (int) ((IOBufferSize << 20) * spiller);

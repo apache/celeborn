@@ -30,6 +30,6 @@ object IdentityProvider extends Logging {
   val DEFAULT_USERNAME = "default"
 
   def instantiate(conf: CelebornConf): IdentityProvider = {
-    Utils.instantiate[IdentityProvider](conf.quotaIdentityProviderClass)
+    Utils.instantiate[IdentityProvider](conf.identityProviderClass)
   }
 }

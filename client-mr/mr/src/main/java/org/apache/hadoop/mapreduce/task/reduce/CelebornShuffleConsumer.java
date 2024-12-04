@@ -80,7 +80,7 @@ public class CelebornShuffleConsumer<K, V>
             lmPort,
             celebornConf,
             new UserIdentifier(
-                celebornConf.quotaUserSpecificTenant(), celebornConf.quotaUserSpecificUserName()));
+                celebornConf.userSpecificTenant(), celebornConf.userSpecificUserName()));
     this.merger =
         new MergeManagerImpl<>(
             reduceId,
