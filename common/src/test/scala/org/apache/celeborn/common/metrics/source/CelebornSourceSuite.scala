@@ -49,7 +49,7 @@ class CelebornSourceSuite extends CelebornFunSuite {
     mockSource.stopTimer("Timer1", "key1")
     mockSource.stopTimer("Timer2", "key2", user3)
 
-    mockSource.timerMetricsMap.add("testTimerMetricsMap")
+    mockSource.timerMetrics.add("testTimerMetricsMap")
 
     val res = mockSource.getMetrics()
     var extraLabelsStr = extraLabels
@@ -142,5 +142,23 @@ class CelebornSourceSuite extends CelebornFunSuite {
     List[Int](3).foreach { i =>
       assert(!res3.contains(exps3(i)))
     }
+  }
+
+  test("test getAndClearTimerMetrics in timerMetrics") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.METRICS_CAPACITY.key, "6")
+    val role = "mock"
+    val mockSource = new AbstractSource(conf, role) {
+      override def sourceName: String = "mockSource"
+    }
+    val exp1 = "testTimerMetrics1"
+    val exp2 = "testTimerMetrics2"
+    mockSource.timerMetrics.add(exp1)
+    val res1 = mockSource.getMetrics()
+    mockSource.timerMetrics.add(exp2)
+    val res2 = mockSource.getMetrics()
+
+    assert(res1.contains(exp1) && !res1.contains(exp2))
+    assert(res2.contains(exp2) && !res2.contains(exp1))
   }
 }

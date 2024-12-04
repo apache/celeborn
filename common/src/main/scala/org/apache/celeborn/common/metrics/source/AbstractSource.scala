@@ -17,9 +17,8 @@
 
 package org.apache.celeborn.common.metrics.source
 
-import java.lang
 import java.util.{Map => JMap}
-import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, ScheduledExecutorService, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -117,7 +116,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     // filter out non-number type gauges
     if (gauge.getValue.isInstanceOf[Number]) {
       namedGauges.putIfAbsent(
-        metricNameWithCustomizedLabels(name, labels), NamedGauge(name, gauge, labels ++ staticLabels))
+        metricNameWithCustomizedLabels(name, labels),
+        NamedGauge(name, gauge, labels ++ staticLabels, isAppMetrics))
     } else {
       logWarning(
         s"Add gauge $name failed, the value type ${gauge.getValue.getClass} is not a number")
@@ -484,7 +484,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     var leftMetricsNum = metricsCapacity
     val sb = new mutable.StringBuilder
     val appMetricsSnapshot = ArrayBuffer[String]()
-    leftMetricsNum = fillInnerMetricsSnapshot(getAndClearTimerMetrics(), leftMetricsNum, sb, appMetricsSnapshot)
+    leftMetricsNum =
+      fillInnerMetricsSnapshot(getAndClearTimerMetrics(), leftMetricsNum, sb, appMetricsSnapshot)
     leftMetricsNum = fillInnerMetricsSnapshot(timers(), leftMetricsNum, sb, appMetricsSnapshot)
     leftMetricsNum = fillInnerMetricsSnapshot(histograms(), leftMetricsNum, sb, appMetricsSnapshot)
     leftMetricsNum = fillInnerMetricsSnapshot(meters(), leftMetricsNum, sb, appMetricsSnapshot)
@@ -510,24 +511,6 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     if (leftNum <= 0) {
       return 0
     }
-    val addList = metricList.take(leftNum)
-    addList.foreach {
-      case c: NamedCounter =>
-        sb.append(getCounterMetrics(c))
-      case g: NamedGauge[_] =>
-        sb.append(getGaugeMetrics(g))
-      case m: NamedMeter =>
-        sb.append(getMeterMetrics(m))
-      case h: NamedHistogram =>
-        sb.append(getHistogramMetrics(h))
-        h.asInstanceOf[CelebornHistogram].reservoir
-          .asInstanceOf[ResettableSlidingWindowReservoir].reset()
-      case t: NamedTimer =>
-        sb.append(getTimerMetrics(t))
-        t.timer.asInstanceOf[CelebornTimer].reservoir
-          .asInstanceOf[ResettableSlidingWindowReservoir].reset()
-      case s =>
-        sb.append(s.toString)
     var addNum = 0
     val appCount0Metrics = ArrayBuffer[String]()
     for (m <- metricList if addNum < leftNum) {
