@@ -511,9 +511,9 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     if (leftNum <= 0) {
       return 0
     }
-    var addNum = 0
+    var nonAppMetricsAddNum = 0
     val appCount0Metrics = ArrayBuffer[String]()
-    for (m <- metricList if addNum < leftNum) {
+    for (m <- metricList if nonAppMetricsAddNum < leftNum) {
       var strMetrics = ""
       var isApp = false
       var isCount0 = false
@@ -546,10 +546,9 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       }
       if (!isApp) {
         sb.append(strMetrics)
-        addNum = addNum + 1
+        nonAppMetricsAddNum = nonAppMetricsAddNum + 1
       } else {
-        val leftAppMetricsNum = leftNum - addNum - appMetricsSnapshot.size
-        if (leftAppMetricsNum > 0) {
+        if (leftNum - nonAppMetricsAddNum - appMetricsSnapshot.size > 0) {
           if (isCount0) {
             appCount0Metrics += strMetrics
           } else {
@@ -558,8 +557,11 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
         }
       }
     }
-    appMetricsSnapshot ++= appCount0Metrics
-    leftNum - addNum
+    val leftAppMetricsNum = leftNum - nonAppMetricsAddNum - appMetricsSnapshot.size
+    if (appCount0Metrics.nonEmpty && leftAppMetricsNum > 0) {
+      appMetricsSnapshot ++= appCount0Metrics.toList.take(leftAppMetricsNum)
+    }
+    leftNum - nonAppMetricsAddNum
   }
 
   override def destroy(): Unit = {
