@@ -516,21 +516,19 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     for (m <- metricList if addNum < leftNum) {
       var strMetrics = ""
       var isApp = false
+      var isCount0 = false
       m match {
         case c: NamedCounter =>
           strMetrics = getCounterMetrics(c)
           if (c.isApp) {
             isApp = true
-            if (c.counter.getCount > 0) {
-              appMetricsSnapshot += strMetrics
-            } else {
-              appCount0Metrics += strMetrics
+            if (c.counter.getCount <= 0) {
+              isCount0 = true
             }
           }
         case g: NamedGauge[_] =>
           strMetrics = getGaugeMetrics(g)
           if (g.isApp) {
-            appMetricsSnapshot += strMetrics
             isApp = true
           }
         case m: NamedMeter =>
@@ -549,6 +547,15 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       if (!isApp) {
         sb.append(strMetrics)
         addNum = addNum + 1
+      } else {
+        val leftAppMetricsNum = leftNum - addNum - appMetricsSnapshot.size
+        if (leftAppMetricsNum > 0) {
+          if (isCount0) {
+            appCount0Metrics += strMetrics
+          } else {
+            appMetricsSnapshot += strMetrics
+          }
+        }
       }
     }
     appMetricsSnapshot ++= appCount0Metrics
