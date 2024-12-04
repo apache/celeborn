@@ -14,7 +14,7 @@ docker run \
     -w /celeborn \
     -it --rm \
     --name celeborn-cpp-dev-container \
-    holylow/celeborn-cpp-dev:0.1 \
+    holylow/celeborn-cpp-dev:0.2 \
     /bin/bash
 ```
 
@@ -38,13 +38,14 @@ bash setup-ubuntu.sh
 ```
 Other platforms are not supported yet, and you could use the container above as your dev environment.
 
-## Compile
+## Compile and test
 Currently, the modules are under development. 
-You could compile the code within the dev container by
+You could compile the code and run the tests within the dev container by
 ```
 cd celeborn/cpp
 mkdir -p build && cd build
 cmake ..
 make
+ctest
 ```
 

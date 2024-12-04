@@ -65,6 +65,21 @@ BOOST_VERSION="boost-1.84.0"
 ARROW_VERSION="15.0.0"
 STEMMER_VERSION="2.2.0"
 
+# Install gtest library package for tests.
+function install_gtest {
+  ${SUDO} apt-get install -y libgtest-dev cmake
+  mkdir -p $HOME/build
+  pushd $HOME/build
+  ${SUDO} cmake /usr/src/googletest/googletest
+  ${SUDO} make
+  ${SUDO} cp lib/libgtest* /usr/lib/
+  popd
+  ${SUDO} rm -rf $HOME/build
+  ${SUDO} mkdir /usr/local/lib/googletest
+  ${SUDO} ln -s /usr/lib/libgtest.a /usr/local/lib/googletest/libgtest.a
+  ${SUDO} ln -s /usr/lib/libgtest_main.a /usr/local/lib/googletest/libgtest_main.a
+}
+
 # Install packages required for build.
 function install_build_prerequisites {
   ${SUDO} apt update
@@ -82,6 +97,8 @@ function install_build_prerequisites {
     pkg-config \
     gdb \
     wget
+    
+  install_gtest
 
   # Install to /usr/local to make it available to all users.
   ${SUDO} pip3 install cmake==3.28.3
@@ -140,8 +157,8 @@ function install_protobuf {
     cd ${DEPENDENCY_DIR}/protobuf
     ./configure CXXFLAGS="-fPIC" --prefix=${INSTALL_PREFIX}
     make "-j${NPROC}"
-    sudo make install
-    sudo ldconfig
+    ${SUDO} make install
+    ${SUDO} ldconfig
   )
 }
 
