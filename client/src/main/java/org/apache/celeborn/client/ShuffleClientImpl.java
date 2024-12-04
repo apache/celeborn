@@ -390,13 +390,13 @@ public class ShuffleClientImpl extends ShuffleClient {
       int mapId,
       int attemptId,
       ArrayList<DataBatches.DataBatch> batches,
+      StatusCode cause,
       Integer oldGroupedBatchId,
       ReviveRequest[] reviveRequests,
       int remainReviveTimes,
       long reviveResponseDueTime) {
     HashMap<Pair<String, String>, DataBatches> newDataBatchesMap = new HashMap<>();
     ArrayList<DataBatches.DataBatch> reviveFailedBatchesMap = new ArrayList<>();
-    List<StatusCode> reviveFailedBatchesCauses = new ArrayList<>();
 
     long reviveWaitTime = reviveResponseDueTime - System.currentTimeMillis();
     final long delta = 50;
@@ -422,7 +422,6 @@ public class ShuffleClientImpl extends ShuffleClient {
         } else {
           if (remainReviveTimes > 0) {
             reviveFailedBatchesMap.add(batch);
-            reviveFailedBatchesCauses.add(request.cause);
           } else {
             String errorMsg =
                 String.format(
@@ -433,7 +432,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 new CelebornIOException(
                     errorMsg,
                     new CelebornIOException(
-                        request.cause
+                        cause
                             + " then revive but "
                             + request.reviveStatus
                             + "("
@@ -459,7 +458,6 @@ public class ShuffleClientImpl extends ShuffleClient {
       DataBatches.DataBatch batch = batches.get(i);
       if (remainReviveTimes > 0) {
         reviveFailedBatchesMap.add(batch);
-        reviveFailedBatchesCauses.add(request.cause);
       } else {
         String errorMsg =
             String.format(
@@ -470,7 +468,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             new CelebornIOException(
                 errorMsg,
                 new CelebornIOException(
-                    request.cause
+                    cause
                         + " then revive but "
                         + request.reviveStatus
                         + "("
@@ -496,8 +494,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       pushState.removeBatch(oldGroupedBatchId, batches.get(0).loc.hostAndPushPort());
     } else {
       ReviveRequest[] requests =
-          addAndGetReviveRequests(
-              shuffleId, mapId, attemptId, reviveFailedBatchesMap, StatusCode.HARD_SPLIT);
+          addAndGetReviveRequests(shuffleId, mapId, attemptId, reviveFailedBatchesMap, cause);
       pushDataRetryPool.submit(
           () ->
               submitRetryPushMergedData(
@@ -506,6 +503,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   mapId,
                   attemptId,
                   reviveFailedBatchesMap,
+                  cause,
                   oldGroupedBatchId,
                   requests,
                   remainReviveTimes - 1,
@@ -1443,54 +1441,72 @@ public class ShuffleClientImpl extends ShuffleClient {
           public void onSuccess(ByteBuffer response) {
             byte reason = response.get();
             if (reason == StatusCode.HARD_SPLIT.getValue()) {
-              PbPushMergedDataSplitPartitionInfo partitionInfo;
-              try {
-                partitionInfo = TransportMessage.fromByteBuffer(response).getParsedPayload();
-              } catch (CelebornIOException | InvalidProtocolBufferException e) {
-                callback.onFailure(
-                    new CelebornIOException("parse pushMergedData response failed", e));
-                return;
-              }
-              List<Integer> splitPartitionIndexes = partitionInfo.getSplitPartitionIndexesList();
-              List<Integer> statusCodeList = partitionInfo.getStatusCodesList();
-              ArrayList<DataBatches.DataBatch> batchesNeedResubmit = new ArrayList<>();
-              StringBuilder dataBatchReviveInfos = new StringBuilder();
-              for (int i = 0; i < splitPartitionIndexes.size(); i++) {
-                int partitionIndex = splitPartitionIndexes.get(i);
-                int batchId = batches.get(partitionIndex).batchId;
-                dataBatchReviveInfos.append(
-                    String.format(
-                        "(batchId=%d, partitionId=%d, cause=%s)",
-                        batchId,
-                        partitionIds[partitionIndex],
-                        StatusCode.fromValue(statusCodeList.get(i).byteValue())));
-                if (statusCodeList.get(i) == StatusCode.SOFT_SPLIT.getValue()) {
-                  PartitionLocation loc = batches.get(i).loc;
-                  if (!newerPartitionLocationExists(
-                      reducePartitionMap.get(shuffleId), loc.getId(), loc.getEpoch(), false)) {
-                    ReviveRequest reviveRequest =
-                        new ReviveRequest(
-                            shuffleId,
-                            mapId,
-                            attemptId,
-                            loc.getId(),
-                            loc.getEpoch(),
-                            loc,
-                            StatusCode.SOFT_SPLIT);
-                    reviveManager.addRequest(reviveRequest);
-                  }
-                } else {
-                  batchesNeedResubmit.add(batches.get(partitionIndex));
+              ArrayList<DataBatches.DataBatch> batchesNeedResubmit;
+              if (response.remaining() > 0) {
+                batchesNeedResubmit = new ArrayList<>();
+                PbPushMergedDataSplitPartitionInfo partitionInfo;
+                try {
+                  partitionInfo = TransportMessage.fromByteBuffer(response).getParsedPayload();
+                } catch (CelebornIOException | InvalidProtocolBufferException e) {
+                  callback.onFailure(
+                      new CelebornIOException("parse pushMergedData response failed", e));
+                  return;
                 }
+                List<Integer> splitPartitionIndexes = partitionInfo.getSplitPartitionIndexesList();
+                List<Integer> statusCodeList = partitionInfo.getStatusCodesList();
+                StringBuilder dataBatchReviveInfos = new StringBuilder();
+                for (int i = 0; i < splitPartitionIndexes.size(); i++) {
+                  int partitionIndex = splitPartitionIndexes.get(i);
+                  int batchId = batches.get(partitionIndex).batchId;
+                  dataBatchReviveInfos.append(
+                      String.format(
+                          "(batchId=%d, partitionId=%d, cause=%s)",
+                          batchId,
+                          partitionIds[partitionIndex],
+                          StatusCode.fromValue(statusCodeList.get(i).byteValue())));
+                  if (statusCodeList.get(i) == StatusCode.SOFT_SPLIT.getValue()) {
+                    PartitionLocation loc = batches.get(i).loc;
+                    if (!newerPartitionLocationExists(
+                        reducePartitionMap.get(shuffleId), loc.getId(), loc.getEpoch(), false)) {
+                      ReviveRequest reviveRequest =
+                          new ReviveRequest(
+                              shuffleId,
+                              mapId,
+                              attemptId,
+                              loc.getId(),
+                              loc.getEpoch(),
+                              loc,
+                              StatusCode.SOFT_SPLIT);
+                      reviveManager.addRequest(reviveRequest);
+                    }
+                  } else {
+                    batchesNeedResubmit.add(batches.get(partitionIndex));
+                  }
+                }
+                logger.info(
+                    "Push merged data to {} partial success required for shuffle {} map {} attempt {} groupedBatch {}. split batches {}.",
+                    addressPair,
+                    shuffleId,
+                    mapId,
+                    attemptId,
+                    groupedBatchId,
+                    dataBatchReviveInfos);
+              } else {
+                // Workers that do not incorporate changes from [CELEBORN-1721]
+                // will respond with a status of HARD_SPLIT,
+                // but will not include a PbPushMergedDataSplitPartitionInfo.
+                // For backward compatibility, all batches must be resubmitted.
+                batchesNeedResubmit = batches;
+                logger.info(
+                    "Push merged data to {} hard split required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
+                    addressPair,
+                    shuffleId,
+                    mapId,
+                    attemptId,
+                    Arrays.toString(partitionIds),
+                    groupedBatchId,
+                    Arrays.toString(batchIds));
               }
-              logger.info(
-                  "Push merged data to {} partial success required for shuffle {} map {} attempt {} groupedBatch {}. split batches {}.",
-                  addressPair,
-                  shuffleId,
-                  mapId,
-                  attemptId,
-                  groupedBatchId,
-                  dataBatchReviveInfos);
               if (batchesNeedResubmit.isEmpty()) {
                 pushState.onSuccess(hostPort);
                 callback.onSuccess(ByteBuffer.wrap(new byte[] {StatusCode.SOFT_SPLIT.getValue()}));
@@ -1506,6 +1522,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                             mapId,
                             attemptId,
                             batchesNeedResubmit,
+                            StatusCode.HARD_SPLIT,
                             groupedBatchId,
                             requests,
                             remainReviveTimes,
@@ -1583,6 +1600,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                           mapId,
                           attemptId,
                           batches,
+                          cause,
                           groupedBatchId,
                           requests,
                           remainReviveTimes - 1,

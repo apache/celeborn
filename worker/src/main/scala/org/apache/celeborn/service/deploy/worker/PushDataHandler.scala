@@ -607,20 +607,36 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           val wrappedCallback = new RpcResponseCallback() {
             override def onSuccess(response: ByteBuffer): Unit = {
               val replicaReason = response.get()
-              try {
-                val pushMergedDataResponse: PbPushMergedDataSplitPartitionInfo =
-                  TransportMessage.fromByteBuffer(
-                    response).getParsedPayload[PbPushMergedDataSplitPartitionInfo]()
-                pushMergedDataCallback.unionReplicaSplitPartitions(
-                  pushMergedDataResponse.getSplitPartitionIndexesList,
-                  pushMergedDataResponse.getStatusCodesList)
-              } catch {
-                case e: CelebornIOException =>
-                  pushMergedDataCallback.onFailure(e)
+              if (replicaReason == StatusCode.HARD_SPLIT.getValue) {
+                if (response.remaining() > 0) {
+                  try {
+                    val pushMergedDataResponse: PbPushMergedDataSplitPartitionInfo =
+                      TransportMessage.fromByteBuffer(
+                        response).getParsedPayload[PbPushMergedDataSplitPartitionInfo]()
+                    pushMergedDataCallback.unionReplicaSplitPartitions(
+                      pushMergedDataResponse.getSplitPartitionIndexesList,
+                      pushMergedDataResponse.getStatusCodesList)
+                  } catch {
+                    case e: CelebornIOException =>
+                      pushMergedDataCallback.onFailure(e)
+                      return
+                    case e: IllegalArgumentException =>
+                      pushMergedDataCallback.onFailure(new CelebornIOException(e))
+                      return
+                  }
+                } else {
+                  // During the rolling upgrade of the worker cluster, it is possible for the primary worker
+                  // to be upgraded to a new version that includes the changes from [CELEBORN-1721], while
+                  // the replica worker is still running on an older version that does not have these changes.
+                  // In this scenario, the replica may return a response with a status of HARD_SPLIT, but
+                  // will not provide a PbPushMergedDataSplitPartitionInfo.
+                  logWarning(
+                    s"The response status from the replica (shuffle $shuffleKey map $mapId attempt $attemptId) is HARD_SPLIT, but no PbPushMergedDataSplitPartitionInfo is present.")
+                  partitionIdToLocations.indices.foreach(index =>
+                    pushMergedDataCallback.addSplitPartition(index, StatusCode.HARD_SPLIT))
+                  pushMergedDataCallback.onSuccess(StatusCode.HARD_SPLIT)
                   return
-                case e: IllegalArgumentException =>
-                  pushMergedDataCallback.onFailure(new CelebornIOException(e))
-                  return
+                }
               }
               Try(Await.result(writePromise.future, Duration.Inf)) match {
                 case Success(result) =>
@@ -875,24 +891,23 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           splitPartitionIndexes.add(partitionIndex)
           statusCodes.add(statusCode)
       }
-      val reason: Byte =
-        if (splitPartitionStatuses.isEmpty || status == StatusCode.MAP_ENDED) {
-          status.getValue
-        } else {
-          StatusCode.HARD_SPLIT.getValue
-        }
-      val pushMergedDataInfo = PbPushMergedDataSplitPartitionInfo.newBuilder()
-        .addAllSplitPartitionIndexes(splitPartitionIndexes)
-        .addAllStatusCodes(statusCodes)
-        .build()
-      val pushMergedDataInfoByteBuffer = Utils.toTransportMessage(pushMergedDataInfo)
-        .asInstanceOf[TransportMessage]
-        .toByteBuffer
-      val response = ByteBuffer.allocate(1 + pushMergedDataInfoByteBuffer.remaining())
-      response.put(reason)
-      response.put(pushMergedDataInfoByteBuffer)
-      response.flip()
-      callback.onSuccess(response)
+      if (splitPartitionStatuses.isEmpty || status == StatusCode.MAP_ENDED) {
+        callback.onSuccess(
+          ByteBuffer.wrap(Array[Byte](status.getValue)))
+      } else {
+        val pushMergedDataInfo = PbPushMergedDataSplitPartitionInfo.newBuilder()
+          .addAllSplitPartitionIndexes(splitPartitionIndexes)
+          .addAllStatusCodes(statusCodes)
+          .build()
+        val pushMergedDataInfoByteBuffer = Utils.toTransportMessage(pushMergedDataInfo)
+          .asInstanceOf[TransportMessage]
+          .toByteBuffer
+        val response = ByteBuffer.allocate(1 + pushMergedDataInfoByteBuffer.remaining())
+        response.put(StatusCode.HARD_SPLIT.getValue)
+        response.put(pushMergedDataInfoByteBuffer)
+        response.flip()
+        callback.onSuccess(response)
+      }
     }
 
     def onFailure(exception: Throwable): Unit = {
