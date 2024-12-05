@@ -742,7 +742,12 @@ private[celeborn] class Worker(
     synchronized {
       val expiredApplicationIds = new JHashSet[String]()
       expiredShuffleKeys.asScala.foreach { shuffleKey =>
-        partitionLocationInfo.removeShuffle(shuffleKey)
+        partitionLocationInfo.removeShuffle(shuffleKey).foreach { loc =>
+          val fileWriter = loc.asInstanceOf[WorkingPartition].getFileWriter
+          if (!fileWriter.isClosed) {
+            fileWriter.close()
+          }
+        }
         shufflePartitionType.remove(shuffleKey)
         shufflePushDataTimeout.remove(shuffleKey)
         shuffleMapperAttempts.remove(shuffleKey)
