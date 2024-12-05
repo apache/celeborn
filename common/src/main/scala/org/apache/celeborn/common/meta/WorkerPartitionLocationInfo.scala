@@ -98,8 +98,10 @@ class WorkerPartitionLocationInfo extends Logging {
   }
 
   def removeShuffle(shuffleKey: String): List[PartitionLocation] = {
-    primaryPartitionLocations.remove(shuffleKey).values().asScala.toList ++
-      replicaPartitionLocations.remove(shuffleKey).values().asScala.toList
+    Option(primaryPartitionLocations.remove(shuffleKey))
+      .map(_.values().asScala.toList).getOrElse(List.empty) ++
+      Option(replicaPartitionLocations.remove(shuffleKey))
+        .map(_.values().asScala.toList).getOrElse(List.empty)
   }
 
   def removePrimaryPartitions(
