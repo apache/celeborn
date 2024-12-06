@@ -30,6 +30,7 @@ import scala.reflect.ClassTag$;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import org.apache.commons.lang3.StringUtils;
@@ -51,6 +52,7 @@ import org.apache.celeborn.common.network.client.TransportClientBootstrap;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.PushData;
 import org.apache.celeborn.common.network.protocol.PushMergedData;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.sasl.SaslClientBootstrap;
 import org.apache.celeborn.common.network.sasl.SaslCredentials;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
@@ -1438,9 +1440,64 @@ public class ShuffleClientImpl extends ShuffleClient {
         new RpcResponseCallback() {
           @Override
           public void onSuccess(ByteBuffer response) {
-            if (response.remaining() > 0) {
-              byte reason = response.get();
-              if (reason == StatusCode.HARD_SPLIT.getValue()) {
+            byte reason = response.get();
+            if (reason == StatusCode.HARD_SPLIT.getValue()) {
+              ArrayList<DataBatches.DataBatch> batchesNeedResubmit;
+              if (response.remaining() > 0) {
+                batchesNeedResubmit = new ArrayList<>();
+                PbPushMergedDataSplitPartitionInfo partitionInfo;
+                try {
+                  partitionInfo = TransportMessage.fromByteBuffer(response).getParsedPayload();
+                } catch (CelebornIOException | InvalidProtocolBufferException e) {
+                  callback.onFailure(
+                      new CelebornIOException("parse pushMergedData response failed", e));
+                  return;
+                }
+                List<Integer> splitPartitionIndexes = partitionInfo.getSplitPartitionIndexesList();
+                List<Integer> statusCodeList = partitionInfo.getStatusCodesList();
+                StringBuilder dataBatchReviveInfos = new StringBuilder();
+                for (int i = 0; i < splitPartitionIndexes.size(); i++) {
+                  int partitionIndex = splitPartitionIndexes.get(i);
+                  int batchId = batches.get(partitionIndex).batchId;
+                  dataBatchReviveInfos.append(
+                      String.format(
+                          "(batchId=%d, partitionId=%d, cause=%s)",
+                          batchId,
+                          partitionIds[partitionIndex],
+                          StatusCode.fromValue(statusCodeList.get(i).byteValue())));
+                  if (statusCodeList.get(i) == StatusCode.SOFT_SPLIT.getValue()) {
+                    PartitionLocation loc = batches.get(i).loc;
+                    if (!newerPartitionLocationExists(
+                        reducePartitionMap.get(shuffleId), loc.getId(), loc.getEpoch(), false)) {
+                      ReviveRequest reviveRequest =
+                          new ReviveRequest(
+                              shuffleId,
+                              mapId,
+                              attemptId,
+                              loc.getId(),
+                              loc.getEpoch(),
+                              loc,
+                              StatusCode.SOFT_SPLIT);
+                      reviveManager.addRequest(reviveRequest);
+                    }
+                  } else {
+                    batchesNeedResubmit.add(batches.get(partitionIndex));
+                  }
+                }
+                logger.info(
+                    "Push merged data to {} partial success required for shuffle {} map {} attempt {} groupedBatch {}. split batches {}.",
+                    addressPair,
+                    shuffleId,
+                    mapId,
+                    attemptId,
+                    groupedBatchId,
+                    dataBatchReviveInfos);
+              } else {
+                // Workers that do not incorporate changes from [CELEBORN-1721]
+                // will respond with a status of HARD_SPLIT,
+                // but will not include a PbPushMergedDataSplitPartitionInfo.
+                // For backward compatibility, all batches must be resubmitted.
+                batchesNeedResubmit = batches;
                 logger.info(
                     "Push merged data to {} hard split required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
                     addressPair,
@@ -1450,10 +1507,14 @@ public class ShuffleClientImpl extends ShuffleClient {
                     Arrays.toString(partitionIds),
                     groupedBatchId,
                     Arrays.toString(batchIds));
-
+              }
+              if (batchesNeedResubmit.isEmpty()) {
+                pushState.onSuccess(hostPort);
+                callback.onSuccess(ByteBuffer.wrap(new byte[] {StatusCode.SOFT_SPLIT.getValue()}));
+              } else {
                 ReviveRequest[] requests =
                     addAndGetReviveRequests(
-                        shuffleId, mapId, attemptId, batches, StatusCode.HARD_SPLIT);
+                        shuffleId, mapId, attemptId, batchesNeedResubmit, StatusCode.HARD_SPLIT);
                 pushDataRetryPool.submit(
                     () ->
                         submitRetryPushMergedData(
@@ -1461,7 +1522,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                             shuffleId,
                             mapId,
                             attemptId,
-                            batches,
+                            batchesNeedResubmit,
                             StatusCode.HARD_SPLIT,
                             groupedBatchId,
                             requests,
@@ -1470,39 +1531,37 @@ public class ShuffleClientImpl extends ShuffleClient {
                                 + conf.clientRpcRequestPartitionLocationAskTimeout()
                                     .duration()
                                     .toMillis()));
-              } else if (reason == StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue()) {
-                logger.debug(
-                    "Push merged data to {} primary congestion required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
-                    addressPair,
-                    shuffleId,
-                    mapId,
-                    attemptId,
-                    Arrays.toString(partitionIds),
-                    groupedBatchId,
-                    Arrays.toString(batchIds));
-                pushState.onCongestControl(hostPort);
-                callback.onSuccess(response);
-              } else if (reason == StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue()) {
-                logger.debug(
-                    "Push merged data to {} replica congestion required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
-                    addressPair,
-                    shuffleId,
-                    mapId,
-                    attemptId,
-                    Arrays.toString(partitionIds),
-                    groupedBatchId,
-                    Arrays.toString(batchIds));
-                pushState.onCongestControl(hostPort);
-                callback.onSuccess(response);
-              } else {
-                // StageEnd.
-                response.rewind();
-                pushState.onSuccess(hostPort);
-                callback.onSuccess(response);
               }
-            } else {
-              pushState.onSuccess(hostPort);
+            } else if (reason == StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue()) {
+              logger.debug(
+                  "Push merged data to {} primary congestion required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
+                  addressPair,
+                  shuffleId,
+                  mapId,
+                  attemptId,
+                  Arrays.toString(partitionIds),
+                  groupedBatchId,
+                  Arrays.toString(batchIds));
+              pushState.onCongestControl(hostPort);
               callback.onSuccess(response);
+            } else if (reason == StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue()) {
+              logger.debug(
+                  "Push merged data to {} replica congestion required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
+                  addressPair,
+                  shuffleId,
+                  mapId,
+                  attemptId,
+                  Arrays.toString(partitionIds),
+                  groupedBatchId,
+                  Arrays.toString(batchIds));
+              pushState.onCongestControl(hostPort);
+              callback.onSuccess(response);
+            } else if (reason == StatusCode.MAP_ENDED.getValue()) {
+              pushState.onSuccess(hostPort);
+              callback.onSuccess(ByteBuffer.wrap(new byte[] {StatusCode.MAP_ENDED.getValue()}));
+            } else { // success
+              pushState.onSuccess(hostPort);
+              callback.onSuccess(ByteBuffer.wrap(new byte[] {StatusCode.SUCCESS.getValue()}));
             }
           }
 

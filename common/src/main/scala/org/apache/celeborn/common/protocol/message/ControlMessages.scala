@@ -602,6 +602,9 @@ object ControlMessages extends Logging {
         MessageType.REPORT_BARRIER_STAGE_ATTEMPT_FAILURE_RESPONSE,
         pb.toByteArray)
 
+    case pb: PbPushMergedDataSplitPartitionInfo =>
+      new TransportMessage(MessageType.PUSH_MERGED_DATA_SPLIT_PARTITION_INFO, pb.toByteArray)
+
     case HeartbeatFromWorker(
           host,
           rpcPort,
@@ -1400,6 +1403,9 @@ object ControlMessages extends Logging {
 
       case REPORT_BARRIER_STAGE_ATTEMPT_FAILURE_RESPONSE_VALUE =>
         PbReportBarrierStageAttemptFailureResponse.parseFrom(message.getPayload)
+
+      case PUSH_MERGED_DATA_SPLIT_PARTITION_INFO_VALUE =>
+        PbPushMergedDataSplitPartitionInfo.parseFrom(message.getPayload)
     }
   }
 }

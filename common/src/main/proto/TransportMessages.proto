@@ -111,6 +111,7 @@ enum MessageType {
   BATCH_UNREGISTER_SHUFFLE_RESPONSE= 88;
   REVISE_LOST_SHUFFLES = 89;
   REVISE_LOST_SHUFFLES_RESPONSE = 90;
+  PUSH_MERGED_DATA_SPLIT_PARTITION_INFO = 91;
 }
 
 enum StreamType {
@@ -875,4 +876,9 @@ message PbReviseLostShuffles{
 message PbReviseLostShufflesResponse{
   bool success = 1;
   string message = 2;
+}
+
+message PbPushMergedDataSplitPartitionInfo {
+  repeated int32 splitPartitionIndexes = 1;
+  repeated int32 statusCodes = 2;
 }
