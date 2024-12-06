@@ -310,6 +310,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |UserResourceConsumption: empty
            |WorkerRef: null
            |NetworkLocation: /default-rack
+           |GroupId: -1
            |""".stripMargin
 
       val exp2 =
@@ -326,6 +327,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
           |UserResourceConsumption: empty
           |WorkerRef: null
           |NetworkLocation: /1
+          |GroupId: -1
           |""".stripMargin
       val exp3 =
         s"""
@@ -341,6 +343,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |UserResourceConsumption: empty
            |WorkerRef: null
            |NetworkLocation: /default-rack
+           |GroupId: -1
            |""".stripMargin
       val exp4 =
         s"""
@@ -360,6 +363,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1, subResourceConsumptions: (application_1697697127390_2171854 -> ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1, subResourceConsumptions: empty)))
            |WorkerRef: null
            |NetworkLocation: /default-rack
+           |GroupId: -1
            |""".stripMargin
 
       assertEquals(

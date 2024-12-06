@@ -219,6 +219,7 @@ private[celeborn] class Master(
     estimatedPartitionSizeForEstimationUpdateInterval,
     TimeUnit.MILLISECONDS)
   private val slotsAssignPolicy = conf.masterSlotAssignPolicy
+  private val groupWorkerResources = conf.groupWorkerResources
 
   private var hadoopFs: util.Map[StorageInfo.Type, FileSystem] = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
@@ -454,7 +455,7 @@ private[celeborn] class Master(
       // keep it for compatible reason
       context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
 
-    case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _, _, _) =>
+    case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       checkAuth(context, applicationId)
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
@@ -853,7 +854,10 @@ private[celeborn] class Master(
   }
 
   def handleRequestSlots(context: RpcCallContext, requestSlots: RequestSlots): Unit = {
-    val numReducers = requestSlots.partitionIdList.size()
+    val numMapTaskGroups = requestSlots.numGroupTask
+    val numPartitions = requestSlots.partitionIdList.size()
+    val numReducers = numPartitions / numMapTaskGroups
+    val numWorkerGroups = if (groupWorkerResources) numMapTaskGroups else 1
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
     var availableWorkers = workersAvailable(requestSlots.excludedWorkerSet)
@@ -902,14 +906,16 @@ private[celeborn] class Master(
               slotsAssignLoadAwareDiskGroupGradient,
               loadAwareFlushTimeWeight,
               loadAwareFetchTimeWeight,
-              requestSlots.availableStorageTypes)
+              requestSlots.availableStorageTypes,
+              numWorkerGroups)
           } else {
             SlotsAllocator.offerSlotsRoundRobin(
               selectedWorkers,
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware,
-              requestSlots.availableStorageTypes)
+              requestSlots.availableStorageTypes,
+              numWorkerGroups)
           }
         }
       }
@@ -939,8 +945,9 @@ private[celeborn] class Master(
         .asScala.map { case (worker, slots) => worker.toUniqueId() -> slots }.asJava,
       requestSlots.requestId)
 
-    logInfo(s"Offer slots successfully for $numReducers reducers of $shuffleKey" +
-      s" on ${slots.size()} workers.")
+    logInfo(
+      s"Offer slots successfully for $numReducers reducers $numMapTaskGroups group nums $numPartitions grouped reducers of $shuffleKey" +
+        s" on ${slots.size()} workers.")
 
     val workersNotSelected = availableWorkers.asScala.filter(!slots.containsKey(_))
     val offerSlotsExtraSize = Math.min(conf.masterSlotAssignExtraSlots, workersNotSelected.size)
