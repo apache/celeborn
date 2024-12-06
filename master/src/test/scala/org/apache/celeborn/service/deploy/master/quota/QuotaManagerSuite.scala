@@ -33,9 +33,11 @@ import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.metrics.source.ResourceConsumptionSource
 import org.apache.celeborn.common.protocol.message.ControlMessages.CheckQuotaResponse
 import org.apache.celeborn.common.quota.{ResourceConsumption, StorageQuota}
+import org.apache.celeborn.common.rpc.RpcEnv
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
 import org.apache.celeborn.server.common.service.config.{ConfigService, DynamicConfigServiceFactory, FsConfigServiceImpl}
 import org.apache.celeborn.service.deploy.master.MasterSource
+import org.apache.celeborn.service.deploy.master.clustermeta.{AbstractMetaManager, SingleMasterMetaManager}
 
 class QuotaManagerSuite extends CelebornFunSuite
   with BeforeAndAfterAll
@@ -51,6 +53,10 @@ class QuotaManagerSuite extends CelebornFunSuite
     10002,
     10003,
     10004)
+
+  var statusSystem: AbstractMetaManager = _
+
+  var rpcEnv: RpcEnv = _
 
   val workerToResourceConsumptions =
     JavaUtils.newConcurrentHashMap[String, util.Map[UserIdentifier, ResourceConsumption]]()
@@ -68,12 +74,25 @@ class QuotaManagerSuite extends CelebornFunSuite
     DynamicConfigServiceFactory.reset()
     configService = DynamicConfigServiceFactory.getConfigService(conf)
 
+    rpcEnv = RpcEnv.create(
+      "test-rpc",
+      "rpc",
+      "localhost",
+      9001,
+      conf,
+      None)
+    statusSystem = new SingleMasterMetaManager(rpcEnv, conf)
+    statusSystem.availableWorkers.add(worker)
     quotaManager = new QuotaManager(
-      workerToResourceConsumptions,
+      statusSystem,
       new MasterSource(conf),
       resourceConsumptionSource,
       conf,
       configService)
+  }
+
+  override def afterAll(): Unit = {
+    rpcEnv.shutdown()
   }
 
   test("test celeborn quota conf") {
@@ -415,8 +434,17 @@ class QuotaManagerSuite extends CelebornFunSuite
     conf1.set(
       CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH.key,
       getTestResourceFile("dynamicConfig-quota-2.yaml").getPath)
+    val rpcEnv = RpcEnv.create(
+      "test-rpc",
+      "rpc",
+      "localhost",
+      9002,
+      conf,
+      None)
+    val statusSystem1 = new SingleMasterMetaManager(rpcEnv, conf)
+    statusSystem1.availableWorkers.add(worker)
     val quotaManager1 = new QuotaManager(
-      workerToResourceConsumptions,
+      statusSystem1,
       new MasterSource(conf1),
       resourceConsumptionSource,
       conf1,
@@ -514,8 +542,17 @@ class QuotaManagerSuite extends CelebornFunSuite
     conf1.set(
       CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH.key,
       getTestResourceFile("dynamicConfig-quota-3.yaml").getPath)
+    val rpcEnv = RpcEnv.create(
+      "test-rpc",
+      "rpc",
+      "localhost",
+      9003,
+      conf,
+      None)
+    val statusSystem1 = new SingleMasterMetaManager(rpcEnv, conf)
+    statusSystem1.availableWorkers.add(worker)
     val quotaManager1 = new QuotaManager(
-      workerToResourceConsumptions,
+      statusSystem1,
       new MasterSource(conf1),
       resourceConsumptionSource,
       conf1,

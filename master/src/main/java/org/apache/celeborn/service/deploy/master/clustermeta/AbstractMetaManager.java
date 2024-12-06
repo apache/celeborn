@@ -610,4 +610,19 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           fallbackPolicy, (k, v) -> v == null ? fallbackCounts.get(k) : v + fallbackCounts.get(k));
     }
   }
+
+  public void updateWorkerResourceConsumptions(
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      Map<UserIdentifier, ResourceConsumption> resourceConsumptions) {
+    WorkerInfo worker =
+        new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, -1, null, null);
+    synchronized (workersMap) {
+      Optional<WorkerInfo> workerInfo = Optional.ofNullable(workersMap.get(worker.toUniqueId()));
+      workerInfo.ifPresent(info -> info.updateThenGetUserResourceConsumption(resourceConsumptions));
+    }
+  }
 }

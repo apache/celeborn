@@ -186,11 +186,8 @@ private[celeborn] class Master(
   private val hasHDFSStorage = conf.hasHDFSStorage
   private val hasS3Storage = conf.hasS3Storage
 
-  // workerUniqueId -> ResourceConsumption
-  private val workerToResourceConsumptions =
-    JavaUtils.newConcurrentHashMap[String, util.Map[UserIdentifier, ResourceConsumption]]()
   private val quotaManager = new QuotaManager(
-    workerToResourceConsumptions,
+    statusSystem,
     masterSource,
     resourceConsumptionSource,
     conf,
@@ -675,9 +672,15 @@ private[celeborn] class Master(
         highWorkload,
         workerStatus,
         requestId)
+      statusSystem.updateWorkerResourceConsumptions(
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        userResourceConsumption)
     }
 
-    workerToResourceConsumptions.put(targetWorker.toUniqueId(), userResourceConsumption)
     val expiredShuffleKeys = new util.HashSet[String]
     activeShuffleKeys.asScala.foreach { shuffleKey =>
       val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
