@@ -141,6 +141,23 @@ include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
 include_directories(SYSTEM celeborn)
 include_directories(.)
 
+## TODO: to avoid the file location dependency problem caused by protobuf_cpp_generate,
+## we hardcode the protoc procedure here. Maybe we could find a more elegant way to fix
+## this later...
+set(ProtoFile "${CMAKE_CURRENT_SOURCE_DIR}/celeborn/proto/TransportMessagesCpp.proto")
+set(ProtoGenHeader "${CMAKE_BINARY_DIR}/celeborn/proto/TransportMessagesCpp.pb.h")
+set(ProtoGenSource "${CMAKE_BINARY_DIR}/celeborn/proto/TransportMessagesCpp.pb.cc")
+add_custom_command(
+        OUTPUT ${ProtoGenSource} ${ProtoGenHeader}
+        COMMAND mkdir -p ${CMAKE_BINARY_DIR}/celeborn/proto
+        COMMAND protoc --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/celeborn/proto --cpp_out=${CMAKE_BINARY_DIR}/celeborn/proto ${ProtoFile}
+        DEPENDS ${ProtoFile}
+        VERBATIM)
+add_custom_target(
+        generate_proto_source
+        DEPENDS
+        ${ProtoGenSource} ${ProtoGenHeader})
+
 option(CELEBORN_BUILD_TESTS "CELEBORN_BUILD_TESTS" ON)
 if(CELEBORN_BUILD_TESTS)
     ### TODO: we use prebuilt gtest prebuilt package here. A better way is
