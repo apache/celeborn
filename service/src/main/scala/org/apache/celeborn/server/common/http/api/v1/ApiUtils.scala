@@ -63,28 +63,28 @@ object ApiUtils {
       : JMap[String, WorkerResourceConsumption] = {
     val workerResourceConsumptions = new util.HashMap[String, WorkerResourceConsumption]()
     if (CollectionUtils.isNotEmpty(workerInfo.userResourceConsumption)) {
-      workerInfo.userResourceConsumption.asScala.foreach {
+      // filter out user resource consumption with empty sub resource consumptions
+      workerInfo.userResourceConsumption.asScala.filter(ur =>
+        CollectionUtils.isNotEmpty(ur._2.subResourceConsumptions)).foreach {
         case (userIdentifier, resourceConsumption) =>
+          val subConsumptions = new util.HashMap[String, WorkerResourceConsumption]()
+          resourceConsumption.subResourceConsumptions.asScala.foreach {
+            case (subIdentifier, subConsumption) =>
+              subConsumptions.put(
+                subIdentifier,
+                new WorkerResourceConsumption()
+                  .diskBytesWritten(subConsumption.diskBytesWritten)
+                  .diskFileCount(subConsumption.diskFileCount)
+                  .hdfsBytesWritten(subConsumption.hdfsBytesWritten)
+                  .hdfsFileCount(subConsumption.hdfsFileCount))
+          }
+
           val workerConsumption = new WorkerResourceConsumption()
             .diskBytesWritten(resourceConsumption.diskBytesWritten)
             .diskFileCount(resourceConsumption.diskFileCount)
             .hdfsBytesWritten(resourceConsumption.hdfsBytesWritten)
             .hdfsFileCount(resourceConsumption.hdfsFileCount)
-
-          if (CollectionUtils.isNotEmpty(resourceConsumption.subResourceConsumptions)) {
-            val subConsumptions = new util.HashMap[String, WorkerResourceConsumption]()
-            resourceConsumption.subResourceConsumptions.asScala.foreach {
-              case (subIdentifier, subConsumption) =>
-                subConsumptions.put(
-                  subIdentifier,
-                  new WorkerResourceConsumption()
-                    .diskBytesWritten(subConsumption.diskBytesWritten)
-                    .diskFileCount(subConsumption.diskFileCount)
-                    .hdfsBytesWritten(subConsumption.hdfsBytesWritten)
-                    .hdfsFileCount(subConsumption.hdfsFileCount))
-            }
-            workerConsumption.subResourceConsumption(subConsumptions)
-          }
+            .subResourceConsumption(subConsumptions)
 
           workerResourceConsumptions.put(userIdentifier.toString, workerConsumption)
       }
