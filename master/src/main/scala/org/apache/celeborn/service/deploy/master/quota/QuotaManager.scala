@@ -69,8 +69,15 @@ class QuotaManager(
   }
 
   def checkUserQuotaStatus(userIdentifier: UserIdentifier): CheckQuotaResponse = {
+    val tenantStatus = tenantQuotaStatus.getOrDefault(userIdentifier.tenantId, QuotaStatus())
     val userStatus = userQuotaStatus.getOrDefault(userIdentifier, QuotaStatus())
-    CheckQuotaResponse(!userStatus.exceed, userStatus.exceedReason)
+    if (userStatus.exceed) {
+      CheckQuotaResponse(false, userStatus.exceedReason)
+    } else if (tenantStatus.exceed) {
+      CheckQuotaResponse(false, tenantStatus.exceedReason)
+    } else {
+      CheckQuotaResponse(!clusterQuotaStatus.exceed, clusterQuotaStatus.exceedReason)
+    }
   }
 
   def checkApplicationQuotaStatus(applicationId: String): CheckQuotaResponse = {

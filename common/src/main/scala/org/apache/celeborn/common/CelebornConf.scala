@@ -6049,7 +6049,7 @@ object CelebornConf extends Logging {
       .dynamic
       .doc("Cluster level quota dynamic configuration for written disk file count.")
       .version("0.6.0")
-      .longConf
+      .bytesConf(ByteUnit.BYTE)
       .createWithDefault(Long.MaxValue)
 
   val QUOTA_CLUSTER_HDFS_BYTES_WRITTEN: ConfigEntry[Long] =
@@ -6067,7 +6067,7 @@ object CelebornConf extends Logging {
       .dynamic
       .doc("Cluster level quota dynamic configuration for written hdfs file count.")
       .version("0.6.0")
-      .longConf
+      .bytesConf(ByteUnit.BYTE)
       .createWithDefault(Long.MaxValue)
 
   val QUOTA_USER_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
@@ -6085,7 +6085,7 @@ object CelebornConf extends Logging {
       .dynamic
       .doc("User level quota dynamic configuration for written disk file count.")
       .version("0.6.0")
-      .longConf
+      .bytesConf(ByteUnit.BYTE)
       .createWithDefault(Long.MaxValue)
 
   val QUOTA_USER_HDFS_BYTES_WRITTEN: ConfigEntry[Long] =
@@ -6103,6 +6103,6 @@ object CelebornConf extends Logging {
       .dynamic
       .doc("User level quota dynamic configuration for written hdfs file count.")
       .version("0.6.0")
-      .longConf
+      .bytesConf(ByteUnit.BYTE)
       .createWithDefault(Long.MaxValue)
 }

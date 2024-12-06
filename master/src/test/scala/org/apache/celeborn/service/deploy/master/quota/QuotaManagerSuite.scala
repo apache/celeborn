@@ -268,7 +268,10 @@ class QuotaManagerSuite extends CelebornFunSuite
     res2 = checkApplicationQuota(user, "app1")
     res3 = checkApplicationQuota(user, "app2")
 
-    assert(res1 == succeed)
+    assert(res1 == CheckQuotaResponse(
+      false,
+      "Interrupt application caused by the cluster storage usage reach threshold. " +
+        "DISK_BYTES_WRITTEN(50.0 GiB) exceeds quota(20.0 GiB). "))
     assert(res2 == CheckQuotaResponse(
       false,
       "Interrupt application caused by the cluster storage usage reach threshold. " +
@@ -392,11 +395,7 @@ class QuotaManagerSuite extends CelebornFunSuite
         s"""metrics_hdfsFileCount_Value{name="user$i",role="Master",tenantId="default"}"""))
       assert(res.contains(
         s"""metrics_hdfsBytesWritten_Value{name="user$i",role="Master",tenantId="default"}"""))
-      if (i < 100) {
-        assertFalse(quotaManager.checkUserQuotaStatus(user).isAvailable)
-      } else {
-        assertTrue(quotaManager.checkUserQuotaStatus(user).isAvailable)
-      }
+      assertFalse(quotaManager.checkUserQuotaStatus(user).isAvailable)
       (0 until 1000).foreach {
         index =>
           val appId = s"$user$i app$index"

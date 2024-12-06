@@ -540,6 +540,7 @@ private[celeborn] class Master(
         .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
       val workersToRemove = new util.ArrayList[WorkerInfo](pb.getWorkersToRemoveList
         .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
+
       executeWithLeaderChecker(
         context,
         handleWorkerExclude(
