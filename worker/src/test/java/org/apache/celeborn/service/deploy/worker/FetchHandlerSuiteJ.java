@@ -91,7 +91,7 @@ public class FetchHandlerSuiteJ {
               .BATCH_HEADER_SIZE; // 256k - PushDataHeaderUtils.BATCH_HEADER_SIZE byte
 
   public FileInfo prepare(int batchCountPerMap) throws IOException {
-    byte[] batchHeader = new byte[16];
+    byte[] batchHeader = new byte[PushDataHeaderUtils.BATCH_HEADER_SIZE];
     File shuffleFile = File.createTempFile("celeborn", UUID.randomUUID().toString());
 
     DiskFileInfo fileInfo = new DiskFileInfo(shuffleFile, userIdentifier, conf);

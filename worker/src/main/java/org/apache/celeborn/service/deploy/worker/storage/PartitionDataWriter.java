@@ -293,14 +293,15 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           // read flush buffer to generate correct chunk offsets
           // data header layout (mapId, attemptId, nextBatchId, length)
           if (numBytes > chunkSize) {
-            ByteBuffer headerBuf = ByteBuffer.allocate(16);
+            ByteBuffer headerBuf = ByteBuffer.allocate(PushDataHeaderUtils.BATCH_HEADER_SIZE);
             while (dupBuf.isReadable()) {
               headerBuf.rewind();
               dupBuf.readBytes(headerBuf);
               byte[] batchHeader = headerBuf.array();
               int compressedSize = PushDataHeaderUtils.getLength(batchHeader);
               dupBuf.skipBytes(compressedSize);
-              diskFileInfo.updateBytesFlushed(compressedSize + 16);
+              diskFileInfo.updateBytesFlushed(
+                  compressedSize + PushDataHeaderUtils.BATCH_HEADER_SIZE);
             }
             dupBuf.release();
           } else {
