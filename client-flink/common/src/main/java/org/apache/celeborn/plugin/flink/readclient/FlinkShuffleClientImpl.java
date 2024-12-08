@@ -61,10 +61,7 @@ import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
-import org.apache.celeborn.common.util.CollectionUtils;
-import org.apache.celeborn.common.util.JavaUtils;
-import org.apache.celeborn.common.util.PbSerDeUtils;
-import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.util.*;
 import org.apache.celeborn.common.write.PushState;
 import org.apache.celeborn.plugin.flink.network.FlinkTransportClientFactory;
 import org.apache.celeborn.plugin.flink.network.ReadClientHandler;
@@ -79,6 +76,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   private ConcurrentHashMap<String, TransportClient> currentClient =
       JavaUtils.newConcurrentHashMap();
   private long driverTimestamp;
+  private final int BATCH_HEADER_SIZE = 4 * 4;
 
   private final TransportContext context;
 
