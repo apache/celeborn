@@ -1354,6 +1354,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def tagsExpr: String = get(TAGS_EXPR)
   def preferClientTagsExpr: Boolean = get(PREFER_CLIENT_TAGS_EXPR)
 
+  def useTagsQL: Boolean = get(USE_TAGS_QL)
+
   // //////////////////////////////////////////////////////
   //                    kerberos                         //
   // //////////////////////////////////////////////////////
@@ -6021,6 +6023,14 @@ object CelebornConf extends Logging {
         "expression provided by the master.")
       .dynamic
       .version("0.6.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val USE_TAGS_QL: ConfigEntry[Boolean] =
+    buildConf("celeborn.tags.useTagsQL")
+      .categories("master")
+      .version("0.6.0")
+      .doc("Whether to use tagsQL for tags expression.")
       .booleanConf
       .createWithDefault(false)
 

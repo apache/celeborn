@@ -94,4 +94,5 @@ license: |
 | celeborn.tags.enabled | true | false | Whether to enable tags for workers. | 0.6.0 |  | 
 | celeborn.tags.preferClientTagsExpr | false | true | When `true`, prefer the tags expression provided by the client over the tags expression provided by the master. | 0.6.0 |  | 
 | celeborn.tags.tagsExpr |  | true | Expression to filter workers by tags. The expression is a comma-separated list of tags. The expression is evaluated as a logical AND of all tags. For example, `prod,high-io` filters workers that have both the `prod` and `high-io` tags. | 0.6.0 |  | 
+| celeborn.tags.useTagsQL | false | false | Whether to use tagsQL for tags expression. | 0.6.0 |  | 
 <!--end-include-->
