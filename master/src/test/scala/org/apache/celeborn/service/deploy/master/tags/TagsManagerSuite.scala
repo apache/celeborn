@@ -45,7 +45,7 @@ class TagsManagerSuite extends CelebornFunSuite {
   }
 
   test("test tags manager") {
-    tagsManager = new TagsManager(Option(null))
+    tagsManager = new TagsManager(new CelebornConf(), Option(null))
 
     tagsManager.addTagToWorker(TAG1, WORKER1.toUniqueId())
     tagsManager.addTagToWorker(TAG1, WORKER2.toUniqueId())
@@ -127,7 +127,7 @@ class TagsManagerSuite extends CelebornFunSuite {
   }
 
   test("test tags expression with multiple tags") {
-    tagsManager = new TagsManager(Option(null))
+    tagsManager = new TagsManager(new CelebornConf(), Option(null))
 
     // Tag1
     tagsManager.addTagToWorker(TAG1, WORKER1.toUniqueId())
@@ -159,7 +159,7 @@ class TagsManagerSuite extends CelebornFunSuite {
       getTestResourceFile("dynamicConfig-tags.yaml").getPath)
     val configService = DynamicConfigServiceFactory.getConfigService(conf)
 
-    tagsManager = new TagsManager(Option(configService))
+    tagsManager = new TagsManager(new CelebornConf(), Option(configService))
 
     {
       // preferClientTagsExpr: true

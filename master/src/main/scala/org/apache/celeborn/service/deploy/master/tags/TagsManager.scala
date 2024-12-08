@@ -18,20 +18,21 @@
 package org.apache.celeborn.service.deploy.master.tags
 
 import java.util
-import java.util.{Collections, Set => JSet}
+import java.util.{Set => JSet}
 import java.util.concurrent.ConcurrentHashMap
-import java.util.function.Predicate
-import java.util.stream.Collectors
 
 import scala.collection.JavaConverters.{asScalaIteratorConverter, mapAsScalaConcurrentMapConverter}
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.server.common.service.config.ConfigService
+import org.apache.celeborn.service.deploy.master.tags.ql.TagsQLFilter
 
-class TagsManager(configService: Option[ConfigService]) extends Logging {
+class TagsManager(celebornConf: CelebornConf, configService: Option[ConfigService])
+  extends Logging {
   private val defaultTagStore = JavaUtils.newConcurrentHashMap[String, JSet[String]]()
 
   private val addNewTagFunc =
@@ -70,28 +71,19 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
       return workers
     }
 
-    val tags = tagsExpr.split(",").map(_.trim)
-
-    var workersForTags: Option[JSet[String]] = None
-    tags.foreach { tag =>
-      val taggedWorkers = getTagStore.getOrDefault(tag, Collections.emptySet())
-      workersForTags match {
-        case Some(w) =>
-          w.retainAll(taggedWorkers)
-        case _ =>
-          workersForTags = Some(taggedWorkers)
+    val tagsFilter =
+      if (celebornConf.useTagsQL) {
+        new TagsQLFilter(getTagStore)
+      } else {
+        new DefaultTagsFilter(getTagStore)
       }
+    val taggedWorkers = tagsFilter.filter(tagsExpr, workers)
+
+    if (taggedWorkers.isEmpty) {
+      logWarning(s"No workers for tagsExpr: $tagsExpr found in cluster")
     }
 
-    if (workersForTags.isEmpty) {
-      logWarning(s"No workers for tags: $tagsExpr found in cluster")
-      return Collections.emptyList()
-    }
-
-    val workerTagsPredicate = new Predicate[WorkerInfo] {
-      override def test(w: WorkerInfo): Boolean = workersForTags.get.contains(w.toUniqueId())
-    }
-    workers.stream().filter(workerTagsPredicate).collect(Collectors.toList())
+    taggedWorkers
   }
 
   def addTagToWorker(tag: String, workerId: String): Unit = {
