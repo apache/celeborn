@@ -112,7 +112,7 @@ class CelebornSourceSuite extends CelebornFunSuite {
 
     // metrics won't contain appMetrics
     conf.set(CelebornConf.METRICS_APP_ENABLED.key, "false")
-    conf.set(CelebornConf.METRICS_CAPACITY.key, "6")
+    conf.set(CelebornConf.METRICS_CAPACITY.key, "7")
     val (res1, exps1) = createAbstractSource(conf, "")
     List[Int](0, 4, 5, 6).foreach { i =>
       assert(res1.contains(exps1(i)))
@@ -121,27 +121,11 @@ class CelebornSourceSuite extends CelebornFunSuite {
       assert(!res1.contains(exps1(i)))
     }
 
-    // app metrics will fall behind when it reaches capacity
+    // metrics contain appMetrics
     conf.set(CelebornConf.METRICS_APP_ENABLED.key, "true")
-    conf.set(CelebornConf.METRICS_CAPACITY.key, "4")
+    conf.set(CelebornConf.METRICS_CAPACITY.key, "7")
     val (res2, exps2) = createAbstractSource(conf, "")
-    List[Int](0, 4, 5, 6).foreach { i =>
-      assert(res2.contains(exps2(i)))
-    }
-    List[Int](1, 2, 3).foreach { i =>
-      assert(!res2.contains(exps2(i)))
-    }
-
-    // app metrics count0 will fall behind
-    conf.set(CelebornConf.METRICS_APP_ENABLED.key, "true")
-    conf.set(CelebornConf.METRICS_CAPACITY.key, "6")
-    val (res3, exps3) = createAbstractSource(conf, "")
-    List[Int](0, 4, 5, 6, 1, 2).foreach { i =>
-      assert(res3.contains(exps3(i)))
-    }
-    List[Int](3).foreach { i =>
-      assert(!res3.contains(exps3(i)))
-    }
+    checkMetricsRes(res2, exps2)
   }
 
   test("test getAndClearTimerMetrics in timerMetrics") {
