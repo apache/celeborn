@@ -61,10 +61,7 @@ import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
-import org.apache.celeborn.common.util.CollectionUtils;
-import org.apache.celeborn.common.util.JavaUtils;
-import org.apache.celeborn.common.util.PbSerDeUtils;
-import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.util.*;
 import org.apache.celeborn.common.write.PushState;
 import org.apache.celeborn.plugin.flink.network.FlinkTransportClientFactory;
 import org.apache.celeborn.plugin.flink.network.ReadClientHandler;
@@ -325,7 +322,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     data.writeInt(partitionId);
     data.writeInt(attemptId);
     data.writeInt(nextBatchId);
-    data.writeInt(totalLength - BATCH_HEADER_SIZE);
+    data.writeInt(totalLength - PushDataHeaderUtils.BATCH_HEADER_SIZE);
     data.resetWriterIndex();
     logger.debug(
         "Do push data byteBuf size {} for app {} shuffle {} map {} attempt {} reduce {} batch {}.",

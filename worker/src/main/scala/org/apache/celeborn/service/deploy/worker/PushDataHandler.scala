@@ -42,8 +42,7 @@ import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, PbPushDataHandShake, PbPushMergedDataSplitPartitionInfo, PbRegionFinish, PbRegionStart, PbSegmentStart}
 import org.apache.celeborn.common.protocol.PbPartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.unsafe.Platform
-import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
+import org.apache.celeborn.common.util.{ExceptionUtils, PushDataHeaderUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{HdfsFlusher, LocalFlusher, MapPartitionDataWriter, PartitionDataWriter, S3Flusher, StorageManager}
 import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapPartitionFileWriter
@@ -803,8 +802,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     // header: mapId attemptId batchId compressedTotalSize
     val header = new Array[Byte](8)
     body.getBytes(body.readerIndex(), header)
-    val mapId = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET)
-    val attemptId = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET + 4)
+    val mapId = PushDataHeaderUtils.getMapId(header)
+    val attemptId = PushDataHeaderUtils.getAttemptId(header)
     (mapId, attemptId)
   }
 
@@ -1470,7 +1469,19 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         shuffleKey: String,
         index: Int): Unit = {
       try {
-        fileWriter.write(body)
+        val header = new Array[Byte](PushDataHeaderUtils.BATCH_HEADER_SIZE)
+        body.getBytes(body.readerIndex(), header)
+        val verifyChecksum = PushDataHeaderUtils.hasChecksumFlag(header)
+        if (verifyChecksum) {
+          if (!PushDataHeaderUtils.checkHeaderChecksum32(header)) {
+            writePromise.failure(new CelebornIOException(StatusCode.PUSH_DATA_CHECKSUM_FAIL))
+            fileWriter.decrementPendingWrites()
+          } else {
+            fileWriter.write(body)
+          }
+        } else {
+          fileWriter.write(body)
+        }
         result(index) = StatusCode.SUCCESS
       } catch {
         case e: Exception =>
