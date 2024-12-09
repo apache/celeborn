@@ -26,6 +26,8 @@ import io.netty.handler.codec.MessageToMessageEncoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.metrics.source.AbstractSource;
+
 /**
  * Encoder used by the server side to encode server-to-client responses. This encoder is stateless
  * so it is safe to be shared by multiple threads.
@@ -36,6 +38,8 @@ public final class MessageEncoder extends MessageToMessageEncoder<Message> {
   private static final Logger logger = LoggerFactory.getLogger(MessageEncoder.class);
 
   public static final MessageEncoder INSTANCE = new MessageEncoder();
+
+  public AbstractSource source;
 
   private MessageEncoder() {}
 
@@ -85,9 +89,13 @@ public final class MessageEncoder extends MessageToMessageEncoder<Message> {
     if (body != null) {
       // We transfer ownership of the reference on in.body() to MessageWithHeader.
       // This reference will be freed when MessageWithHeader.deallocate() is called.
-      out.add(new MessageWithHeader(in.body(), header, body, bodyLength));
+      out.add(new MessageWithHeader(in.body(), header, body, bodyLength, source));
     } else {
       out.add(header);
     }
+  }
+
+  public void setSource(AbstractSource source) {
+    this.source = source;
   }
 }
