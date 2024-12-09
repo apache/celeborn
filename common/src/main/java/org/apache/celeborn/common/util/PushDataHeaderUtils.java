@@ -85,7 +85,7 @@ public class PushDataHeaderUtils {
   }
 
   public static int getLength(byte[] data) {
-    if (!hasChecksumFlag(data)) {
+    if (hasChecksumFlag(data)) {
       return Platform.getInt(data, LENGTH_OFFSET) - 4;
     } else {
       return Platform.getInt(data, LENGTH_OFFSET);

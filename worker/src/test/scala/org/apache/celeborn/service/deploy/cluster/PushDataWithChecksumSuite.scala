@@ -103,15 +103,13 @@ class PushDataWithChecksumSuite extends AnyFunSuite
       nettyBuffer)
     val callback = new RpcResponseCallback() {
       override def onSuccess(response: ByteBuffer): Unit = {
-        assert(false, "push data should fail")
+        fail("push data should fail")
       }
 
       override def onFailure(e: Throwable): Unit = {
-        if (e.getMessage == StatusCode.PUSH_DATA_CHECKSUM_FAIL.toString) {
-          assert(true)
-        } else {
-          assert(false, "push data should fail for checksum error, but get " + e.getMessage)
-        }
+        assert(
+          e.getMessage == StatusCode.PUSH_DATA_CHECKSUM_FAIL.toString,
+          "push data should fail for checksum error, but get " + e.getMessage)
       }
     }
     val pushDataTimeout = 120 * 1000
