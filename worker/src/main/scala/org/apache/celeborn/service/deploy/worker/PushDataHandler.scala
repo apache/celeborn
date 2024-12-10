@@ -1473,7 +1473,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         fileWriter.write(body)
         result(index) = StatusCode.SUCCESS
       } catch {
-        case e: Exception =>
+        case e: Throwable =>
           if (e.isInstanceOf[AlreadyClosedException]) {
             val (mapId, attemptId) = getMapAttempt(body)
             val endedAttempt =
