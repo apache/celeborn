@@ -144,6 +144,9 @@ public class SparkShuffleManager implements ShuffleManager {
             MapOutputTrackerMaster mapOutputTracker =
                 (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();
 
+            lifecycleManager.registerReportTaskShuffleFetchFailurePreCheck(
+                taskId -> !SparkUtils.taskAnotherAttemptRunningOrSuccessful(taskId));
+
             lifecycleManager.registerShuffleTrackerCallback(
                 shuffleId -> SparkUtils.unregisterAllMapOutput(mapOutputTracker, shuffleId));
           }
