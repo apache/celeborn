@@ -1158,10 +1158,21 @@ object ControlMessages extends Logging {
           .parseFrom(message.getPayload)
         val fileGroup = pbGetReducerFileGroupResponse.getFileGroupsMap.asScala.map {
           case (partitionId, fileGroup) =>
+            val locationsSet: java.util.Set[PartitionLocation] =
+              new util.LinkedHashSet[PartitionLocation]()
+
+            // In PbGetReducerFileGroupResponse, location with same
+            // uniqueId will not be put into the location set
+            // check out the logic @org.apache.celeborn.client.commit.CommitHandler.parallelCommitFiles
+            // This is why we should join the primary location list and replica location list
+
+            val (pris, reps) = PbSerDeUtils.fromPbPackedPartitionLocationsPair(
+              fileGroup.getPartitionLocationsPair)
+            locationsSet.addAll(pris)
+            locationsSet.addAll(reps)
             (
               partitionId,
-              PbSerDeUtils.fromPbPackedPartitionLocationsPair(
-                fileGroup.getPartitionLocationsPair)._1.asScala.toSet.asJava)
+              locationsSet)
         }.asJava
 
         val attempts = pbGetReducerFileGroupResponse.getAttemptsList.asScala.map(_.toInt).toArray
