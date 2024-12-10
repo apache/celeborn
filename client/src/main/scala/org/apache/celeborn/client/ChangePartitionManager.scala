@@ -79,6 +79,8 @@ class ChangePartitionManager(
   private val dynamicResourceEnabled = conf.clientShuffleDynamicResourceEnabled
   private val dynamicResourceUnavailableFactor = conf.clientShuffleDynamicResourceFactor
 
+  private val groupWorkerResources = conf.groupWorkerResources
+
   def start(): Unit = {
     batchHandleChangePartition = batchHandleChangePartitionSchedulerThread.map {
       // noinspection ConvertExpressionToSAM
@@ -363,11 +365,16 @@ class ChangePartitionManager(
       return
     }
 
+    val groupWorkerMap = lifecycleManager.groupedWorkers.getOrDefault(
+      shuffleId,
+      new ConcurrentHashMap[Int, util.HashSet[WorkerInfo]]())
+
     // PartitionSplit all contains oldPartition
     val newlyAllocatedLocations =
       reallocateChangePartitionRequestSlotsFromCandidates(
         changePartitions.toList,
-        candidates.asScala.toList)
+        candidates.asScala.toList,
+        groupWorkerMap)
 
     if (!lifecycleManager.reserveSlotsWithRetry(
         shuffleId,
@@ -413,14 +420,29 @@ class ChangePartitionManager(
 
   private def reallocateChangePartitionRequestSlotsFromCandidates(
       changePartitionRequests: List[ChangePartitionRequest],
-      candidates: List[WorkerInfo]): WorkerResource = {
+      candidates: List[WorkerInfo],
+      groupWorkerMap: ConcurrentHashMap[Int, util.HashSet[WorkerInfo]]): WorkerResource = {
     val slots = new WorkerResource()
     changePartitionRequests.foreach { partition =>
+      val partitionId = partition.partitionId
+      val groupWorkerList =
+        if (groupWorkerResources) {
+          Option(lifecycleManager.partitionGroupMap.get(partitionId)) match {
+            case Some(partitionGroup) =>
+              groupWorkerMap.getOrDefault(partitionGroup, new util.HashSet[WorkerInfo]()).asScala
+                .filter(lifecycleManager.workerStatusTracker.workerAvailable)
+                .toList
+            case None => List()
+          }
+        } else {
+          List()
+        }
       lifecycleManager.allocateFromCandidates(
-        partition.partitionId,
+        partitionId,
         partition.epoch,
         candidates,
-        slots)
+        slots,
+        groupWorkerList)
     }
     slots
   }
