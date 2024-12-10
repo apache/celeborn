@@ -49,8 +49,8 @@ import org.apache.celeborn.common.meta.MemoryFileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.StorageInfo;
-import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.FileChannelUtils;
+import org.apache.celeborn.common.util.PushDataHeaderUtils;
 import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
@@ -293,14 +293,15 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           // read flush buffer to generate correct chunk offsets
           // data header layout (mapId, attemptId, nextBatchId, length)
           if (numBytes > chunkSize) {
-            ByteBuffer headerBuf = ByteBuffer.allocate(16);
+            ByteBuffer headerBuf = ByteBuffer.allocate(PushDataHeaderUtils.BATCH_HEADER_SIZE);
             while (dupBuf.isReadable()) {
               headerBuf.rewind();
               dupBuf.readBytes(headerBuf);
               byte[] batchHeader = headerBuf.array();
-              int compressedSize = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12);
+              int compressedSize = PushDataHeaderUtils.getLength(batchHeader);
               dupBuf.skipBytes(compressedSize);
-              diskFileInfo.updateBytesFlushed(compressedSize + 16);
+              diskFileInfo.updateBytesFlushed(
+                  compressedSize + PushDataHeaderUtils.BATCH_HEADER_SIZE);
             }
             dupBuf.release();
           } else {
@@ -374,7 +375,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       data.markReaderIndex();
       data.readBytes(header);
       data.resetReaderIndex();
-      mapId = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET);
+      mapId = PushDataHeaderUtils.getMapId(header);
     }
 
     final int numBytes = data.readableBytes();
