@@ -44,6 +44,14 @@ public class ExceptionUtils {
     }
   }
 
+  public static IOException wrapThrowableToIOException(Throwable throwable) {
+    if (throwable instanceof IOException) {
+      return (IOException) throwable;
+    } else {
+      return new IOException(throwable.getMessage(), throwable);
+    }
+  }
+
   public static String stringifyException(Throwable exception) {
     if (exception == null) {
       return "(null)";
