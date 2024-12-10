@@ -1158,10 +1158,15 @@ object ControlMessages extends Logging {
           .parseFrom(message.getPayload)
         val fileGroup = pbGetReducerFileGroupResponse.getFileGroupsMap.asScala.map {
           case (partitionId, fileGroup) =>
+            val locationsSet: java.util.Set[PartitionLocation] =
+              new util.LinkedHashSet[PartitionLocation]()
+            val (pris, reps) = PbSerDeUtils.fromPbPackedPartitionLocationsPair(
+              fileGroup.getPartitionLocationsPair)
+            locationsSet.addAll(pris)
+            locationsSet.addAll(reps)
             (
               partitionId,
-              PbSerDeUtils.fromPbPackedPartitionLocationsPair(
-                fileGroup.getPartitionLocationsPair)._1.asScala.toSet.asJava)
+              locationsSet)
         }.asJava
 
         val attempts = pbGetReducerFileGroupResponse.getAttemptsList.asScala.map(_.toInt).toArray
