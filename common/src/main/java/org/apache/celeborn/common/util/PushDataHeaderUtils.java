@@ -84,12 +84,21 @@ public class PushDataHeaderUtils {
     return batchIdWithoutChecksumFlag(Platform.getInt(data, BATCH_ID_OFFSET));
   }
 
-  public static int getLength(byte[] data) {
+  public static int getChecksumLength(byte[] data) {
     if (hasChecksumFlag(data)) {
-      return Platform.getInt(data, LENGTH_OFFSET) - 4;
+      return 4;
     } else {
-      return Platform.getInt(data, LENGTH_OFFSET);
+      return 0;
     }
+  }
+
+  public static int getDataLength(byte[] data) {
+    return Platform.getInt(data, LENGTH_OFFSET) - getChecksumLength(data);
+  }
+
+  // lengthWithChecksumLength = Platform.getInt(data, LENGTH_OFFSET)
+  public static int getTotalLengthWithHeader(byte[] data) {
+    return BATCH_HEADER_SIZE_WITHOUT_CHECKSUM + Platform.getInt(data, LENGTH_OFFSET);
   }
 
   public static int computeHeaderChecksum32(byte[] data) {

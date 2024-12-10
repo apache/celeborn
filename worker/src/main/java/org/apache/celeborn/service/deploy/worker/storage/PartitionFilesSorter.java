@@ -310,22 +310,24 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         int originWriterIndex = originBuffer.writerIndex();
         int bufLength = originBuffer.readableBytes();
         int index = 0;
-        ByteBuffer headerBuf = ByteBuffer.allocate(PushDataHeaderUtils.BATCH_HEADER_SIZE);
+        ByteBuffer headerWithoutChecksumBuf =
+            ByteBuffer.allocate(PushDataHeaderUtils.BATCH_HEADER_SIZE_WITHOUT_CHECKSUM);
 
         while (index != bufLength) {
-          headerBuf.rewind();
+          headerWithoutChecksumBuf.rewind();
           originBuffer.readerIndex(index);
-          originBuffer.readBytes(headerBuf);
-          byte[] batchHeader = headerBuf.array();
-          int mapId = PushDataHeaderUtils.getMapId(batchHeader);
-          int compressedSize = PushDataHeaderUtils.getLength(batchHeader);
+          originBuffer.readBytes(headerWithoutChecksumBuf);
+          byte[] batchHeaderWithoutChecksum = headerWithoutChecksumBuf.array();
+          int mapId = PushDataHeaderUtils.getMapId(batchHeaderWithoutChecksum);
+          int totalLengthWithHeader =
+              PushDataHeaderUtils.getTotalLengthWithHeader(batchHeaderWithoutChecksum);
           ShuffleBlockInfo shuffleBlockInfo = new ShuffleBlockInfo();
           shuffleBlockInfo.offset = index;
-          shuffleBlockInfo.length = compressedSize + PushDataHeaderUtils.BATCH_HEADER_SIZE;
+          shuffleBlockInfo.length = totalLengthWithHeader;
           List<ShuffleBlockInfo> singleMapIdShuffleBlockList =
               blocksMap.computeIfAbsent(mapId, v -> new ArrayList<>());
           singleMapIdShuffleBlockList.add(shuffleBlockInfo);
-          index += compressedSize + PushDataHeaderUtils.BATCH_HEADER_SIZE;
+          index += totalLengthWithHeader;
         }
         originBuffer.setIndex(originReaderIndex, originWriterIndex);
 
@@ -706,29 +708,33 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         Map<Integer, List<ShuffleBlockInfo>> originShuffleBlockInfos = new TreeMap<>();
         Map<Integer, List<ShuffleBlockInfo>> sortedBlockInfoMap = new HashMap<>();
 
-        ByteBuffer headerBuf = ByteBuffer.allocate(PushDataHeaderUtils.BATCH_HEADER_SIZE);
+        ByteBuffer headerWithoutChecksumBuf =
+            ByteBuffer.allocate(PushDataHeaderUtils.BATCH_HEADER_SIZE_WITHOUT_CHECKSUM);
         ByteBuffer paddingBuf =
             isPrefetch ? ByteBuffer.allocateDirect((int) reservedMemoryPerPartition) : null;
 
         long index = 0;
         while (index != originFileLen) {
           long blockStartIndex = index;
-          readBufferFully(headerBuf);
-          byte[] batchHeader = headerBuf.array();
-          headerBuf.rewind();
+          readBufferFully(headerWithoutChecksumBuf);
+          byte[] batchHeaderWithoutChecksum = headerWithoutChecksumBuf.array();
+          headerWithoutChecksumBuf.rewind();
 
-          int mapId = PushDataHeaderUtils.getMapId(batchHeader);
-          final int compressedSize = PushDataHeaderUtils.getLength(batchHeader);
+          int mapId = PushDataHeaderUtils.getMapId(batchHeaderWithoutChecksum);
+          int totalLengthWithHeader =
+              PushDataHeaderUtils.getTotalLengthWithHeader(batchHeaderWithoutChecksum);
 
           List<ShuffleBlockInfo> singleMapIdShuffleBlockList =
               originShuffleBlockInfos.computeIfAbsent(mapId, v -> new ArrayList<>());
           ShuffleBlockInfo blockInfo = new ShuffleBlockInfo();
           blockInfo.offset = blockStartIndex;
-          blockInfo.length = compressedSize + PushDataHeaderUtils.BATCH_HEADER_SIZE;
+          blockInfo.length = totalLengthWithHeader;
           singleMapIdShuffleBlockList.add(blockInfo);
 
-          index += compressedSize + PushDataHeaderUtils.BATCH_HEADER_SIZE;
-          readBufferBySize(paddingBuf, compressedSize);
+          index += blockInfo.length;
+          readBufferBySize(
+              paddingBuf,
+              totalLengthWithHeader - PushDataHeaderUtils.BATCH_HEADER_SIZE_WITHOUT_CHECKSUM);
         }
 
         long fileIndex = 0;

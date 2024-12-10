@@ -42,6 +42,7 @@ import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, PbPushDataHandShake, PbPushMergedDataSplitPartitionInfo, PbRegionFinish, PbRegionStart, PbSegmentStart}
 import org.apache.celeborn.common.protocol.PbPartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.StatusCode
+import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.{ExceptionUtils, PushDataHeaderUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{HdfsFlusher, LocalFlusher, MapPartitionDataWriter, PartitionDataWriter, S3Flusher, StorageManager}
@@ -1469,11 +1470,16 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         shuffleKey: String,
         index: Int): Unit = {
       try {
-        val header = new Array[Byte](PushDataHeaderUtils.BATCH_HEADER_SIZE)
+        val header = new Array[Byte](PushDataHeaderUtils.BATCH_HEADER_SIZE_WITHOUT_CHECKSUM)
         body.getBytes(body.readerIndex(), header)
-        val verifyChecksum = PushDataHeaderUtils.hasChecksumFlag(header)
-        if (verifyChecksum) {
-          if (!PushDataHeaderUtils.checkHeaderChecksum32(header)) {
+        if (PushDataHeaderUtils.hasChecksumFlag(header)) {
+          val checksumBytes = new Array[Byte](4)
+          body.getBytes(
+            body.readerIndex() + PushDataHeaderUtils.BATCH_HEADER_SIZE_WITHOUT_CHECKSUM,
+            checksumBytes)
+          val expectedChecksum = Platform.getInt(checksumBytes, Platform.BYTE_ARRAY_OFFSET)
+          val currentChecksum = PushDataHeaderUtils.computeHeaderChecksum32(header)
+          if (currentChecksum != expectedChecksum) {
             writePromise.failure(new CelebornIOException(StatusCode.PUSH_DATA_CHECKSUM_FAIL))
             fileWriter.decrementPendingWrites()
           } else {

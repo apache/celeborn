@@ -592,7 +592,7 @@ public abstract class CelebornInputStream extends InputStream {
           int mapId = PushDataHeaderUtils.getMapId(sizeBuf);
           int attemptId = PushDataHeaderUtils.getAttemptId(sizeBuf);
           int batchId = PushDataHeaderUtils.getBatchId(sizeBuf);
-          int size = PushDataHeaderUtils.getLength(sizeBuf);
+          int size = PushDataHeaderUtils.getDataLength(sizeBuf);
 
           if (shuffleCompressionEnabled) {
             if (size > compressedBuf.length) {
