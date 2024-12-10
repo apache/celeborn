@@ -473,7 +473,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     testSerializationPerformance(100)
   }
 
-  test("GetReduceFileGroup with primary location lost") {
+  test("GetReduceFileGroup with primary and replica locations") {
     val shuffleMap: util.Map[Integer, util.Set[PartitionLocation]] =
       JavaUtils.newConcurrentHashMap()
     val locationSet = new util.LinkedHashSet[PartitionLocation]()
@@ -501,8 +501,68 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
 
     val locations = fromTransportGetReducerFileGroup.fileGroup.get(1)
     locations.asScala.foreach(p => uniqueIds.remove(p.getUniqueId))
-    // this means all locations are passed correctly
     assert(uniqueIds.isEmpty)
   }
 
+  test("GetReduceFileGroup with primary location only") {
+    val shuffleMap: util.Map[Integer, util.Set[PartitionLocation]] =
+      JavaUtils.newConcurrentHashMap()
+    val locationSet = new util.LinkedHashSet[PartitionLocation]()
+    val uniqueIds = mutable.Set("0-0", "1-0", "2-0", "3-0", "4-0")
+    locationSet.add(new PartitionLocation(0, 0, "h", 1, 1, 1, 1, Mode.PRIMARY))
+    locationSet.add(new PartitionLocation(1, 0, "h", 1, 1, 1, 1, Mode.PRIMARY))
+    locationSet.add(new PartitionLocation(2, 0, "h", 1, 1, 1, 1, Mode.PRIMARY))
+    locationSet.add(new PartitionLocation(3, 0, "h", 1, 1, 1, 1, Mode.PRIMARY))
+    locationSet.add(new PartitionLocation(4, 0, "h", 1, 1, 1, 1, Mode.PRIMARY))
+    shuffleMap.put(1, locationSet)
+    val attempts = Array.fill(10)(10)
+    val succeedPartitions = Array.fill(10)(10).map(java.lang.Integer.valueOf).toSet.asJava
+
+    val GetReducerFileGroupResponseMsg = GetReducerFileGroupResponse(
+      StatusCode.SUCCESS,
+      shuffleMap,
+      attempts,
+      succeedPartitions)
+
+    val transportGetReducerFileGroup =
+      ControlMessages.toTransportMessage(GetReducerFileGroupResponseMsg)
+    val fromTransportGetReducerFileGroup: GetReducerFileGroupResponse =
+      ControlMessages.fromTransportMessage(
+        transportGetReducerFileGroup).asInstanceOf[GetReducerFileGroupResponse]
+
+    val locations = fromTransportGetReducerFileGroup.fileGroup.get(1)
+    locations.asScala.foreach(p => uniqueIds.remove(p.getUniqueId))
+    assert(uniqueIds.isEmpty)
+  }
+
+  test("GetReduceFileGroup with replica location only") {
+    val shuffleMap: util.Map[Integer, util.Set[PartitionLocation]] =
+      JavaUtils.newConcurrentHashMap()
+    val locationSet = new util.LinkedHashSet[PartitionLocation]()
+    val uniqueIds = mutable.Set("0-0", "1-0", "2-0", "3-0", "4-0")
+    locationSet.add(new PartitionLocation(0, 0, "h", 1, 1, 1, 1, Mode.REPLICA))
+    locationSet.add(new PartitionLocation(1, 0, "h", 1, 1, 1, 1, Mode.REPLICA))
+    locationSet.add(new PartitionLocation(2, 0, "h", 1, 1, 1, 1, Mode.REPLICA))
+    locationSet.add(new PartitionLocation(3, 0, "h", 1, 1, 1, 1, Mode.REPLICA))
+    locationSet.add(new PartitionLocation(4, 0, "h", 1, 1, 1, 1, Mode.REPLICA))
+    shuffleMap.put(1, locationSet)
+    val attempts = Array.fill(10)(10)
+    val succeedPartitions = Array.fill(10)(10).map(java.lang.Integer.valueOf).toSet.asJava
+
+    val GetReducerFileGroupResponseMsg = GetReducerFileGroupResponse(
+      StatusCode.SUCCESS,
+      shuffleMap,
+      attempts,
+      succeedPartitions)
+
+    val transportGetReducerFileGroup =
+      ControlMessages.toTransportMessage(GetReducerFileGroupResponseMsg)
+    val fromTransportGetReducerFileGroup: GetReducerFileGroupResponse =
+      ControlMessages.fromTransportMessage(
+        transportGetReducerFileGroup).asInstanceOf[GetReducerFileGroupResponse]
+
+    val locations = fromTransportGetReducerFileGroup.fileGroup.get(1)
+    locations.asScala.foreach(p => uniqueIds.remove(p.getUniqueId))
+    assert(uniqueIds.isEmpty)
+  }
 }
