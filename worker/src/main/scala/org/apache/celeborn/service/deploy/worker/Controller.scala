@@ -453,16 +453,11 @@ private[deploy] class Controller(
     }
 
     // Update shuffleMapperAttempts
-    shuffleMapperAttempts.putIfAbsent(shuffleKey, new AtomicIntegerArray(mapAttempts))
-    val attempts = shuffleMapperAttempts.get(shuffleKey)
-    if (mapAttempts.exists(_ != -1)) {
-      attempts.synchronized {
-        0 until attempts.length() foreach (idx => {
-          if (mapAttempts(idx) != -1 && attempts.get(idx) == -1) {
-            attempts.set(idx, mapAttempts(idx))
-          }
-        })
-      }
+    val shuffleMapAttempts = shuffleMapperAttempts.get(shuffleKey)
+    if (shuffleMapAttempts == null) {
+      shuffleMapperAttempts.putIfAbsent(shuffleKey, new AtomicIntegerArray(mapAttempts))
+    } else {
+      updateShuffleMapperAttempts(mapAttempts, shuffleMapAttempts)
     }
 
     // Use ConcurrentSet to avoid excessive lock contention.
@@ -730,6 +725,25 @@ private[deploy] class Controller(
           StatusCode.PARTIAL_SUCCESS,
           failedPrimaries,
           failedReplicas))
+    }
+  }
+
+  private def updateShuffleMapperAttempts(
+      mapAttempts: Array[Int],
+      shuffleMapperAttempts: AtomicIntegerArray): Unit = {
+    var mapIdx = 0
+    while (mapIdx < mapAttempts.length) {
+      if (mapAttempts(mapIdx) != -1) {
+        shuffleMapperAttempts.synchronized {
+          mapIdx until shuffleMapperAttempts.length() foreach (idx => {
+            if (mapAttempts(idx) != -1 && shuffleMapperAttempts.get(idx) == -1) {
+              shuffleMapperAttempts.set(idx, mapAttempts(idx))
+            }
+          })
+        }
+        return
+      }
+      mapIdx += 1
     }
   }
 }
