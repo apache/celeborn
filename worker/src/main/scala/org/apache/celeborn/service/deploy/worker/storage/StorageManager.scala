@@ -531,7 +531,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     if (diskShuffleMap != null) {
       if (workerGracefulShutdown) {
         val committedFileInfoMap = committedFileInfos.get(shuffleKey)
-        committedFileInfoMap.remove(fileName)
+        if (committedFileInfoMap != null) {
+          committedFileInfoMap.remove(fileName)
+        }
       }
       return diskShuffleMap.remove(fileName)
     }
