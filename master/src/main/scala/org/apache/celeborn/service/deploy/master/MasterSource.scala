@@ -63,4 +63,6 @@ object MasterSource {
   // Capacity
   val DEVICE_CELEBORN_FREE_CAPACITY = "DeviceCelebornFreeBytes"
   val DEVICE_CELEBORN_TOTAL_CAPACITY = "DeviceCelebornTotalBytes"
+
+  val UPDATE_RESOURCE_CONSUMPTION_TIME = "UpdateResourceConsumptionTime"
 }
