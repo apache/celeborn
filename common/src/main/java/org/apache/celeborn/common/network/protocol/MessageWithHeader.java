@@ -20,6 +20,7 @@ package org.apache.celeborn.common.network.protocol;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -28,6 +29,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.FileRegion;
 import io.netty.util.ReferenceCountUtil;
 
+import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.util.AbstractFileRegion;
 
@@ -44,7 +46,7 @@ class MessageWithHeader extends AbstractFileRegion {
   private final Object body;
   private final long bodyLength;
   private long totalBytesTransferred;
-
+  private AbstractSource source;
   /**
    * When the write buffer size is larger than this limit, I/O will be done in chunks of this size.
    * The size should not be too large as it will waste underlying memory copy. e.g. If network
@@ -76,6 +78,16 @@ class MessageWithHeader extends AbstractFileRegion {
     this.headerLength = header.readableBytes();
     this.body = body;
     this.bodyLength = bodyLength;
+  }
+
+  MessageWithHeader(
+      @Nullable ManagedBuffer managedBuffer,
+      ByteBuf header,
+      Object body,
+      long bodyLength,
+      AbstractSource source) {
+    this(managedBuffer, header, body, bodyLength);
+    this.source = source;
   }
 
   @Override
@@ -116,7 +128,16 @@ class MessageWithHeader extends AbstractFileRegion {
     // Bytes written for body in this call.
     long writtenBody = 0;
     if (body instanceof FileRegion) {
+      String key = "";
+      if (source != null) {
+        key = UUID.randomUUID().toString();
+        source.startTimer("FetchChunkTransferTime", key);
+      }
       writtenBody = ((FileRegion) body).transferTo(target, totalBytesTransferred - headerLength);
+      if (source != null) {
+        source.stopTimer("FetchChunkTransferTime", key);
+        source.updateHistogram("FetchChunkTransferSize", writtenBody);
+      }
     } else if (body instanceof ByteBuf) {
       writtenBody = copyByteBuf((ByteBuf) body, target);
     }
