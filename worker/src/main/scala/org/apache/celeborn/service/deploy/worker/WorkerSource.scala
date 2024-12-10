@@ -79,8 +79,11 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   addTimer(OPEN_STREAM_TIME)
   addTimer(TAKE_BUFFER_TIME)
   addTimer(SORT_TIME)
+  addTimer(FETCH_CHUNK_TRANSFER_TIME)
 
   addTimer(CLEAN_EXPIRED_SHUFFLE_KEYS_TIME)
+
+  addHistogram(FETCH_CHUNK_TRANSFER_SIZE)
 
   def getCounterCount(metricsName: String): Long = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, Map.empty)
@@ -137,6 +140,8 @@ object WorkerSource {
   val OPEN_STREAM_FAIL_COUNT = "OpenStreamFailCount"
   val FETCH_CHUNK_SUCCESS_COUNT = "FetchChunkSuccessCount"
   val FETCH_CHUNK_FAIL_COUNT = "FetchChunkFailCount"
+  val FETCH_CHUNK_TRANSFER_SIZE = "FetchChunkTransferSize"
+  val FETCH_CHUNK_TRANSFER_TIME = "FetchChunkTransferTime"
 
   // push data
   val PRIMARY_PUSH_DATA_TIME = "PrimaryPushDataTime"

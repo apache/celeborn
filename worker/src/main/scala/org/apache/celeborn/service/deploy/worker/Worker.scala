@@ -259,7 +259,8 @@ private[celeborn] class Worker(
         fetchHandler,
         closeIdleConnections,
         conf.workerFetchHeartbeatEnabled,
-        workerSource)
+        workerSource,
+        conf.metricsCollectCriticalEnabled)
     (
       transportContext,
       transportContext.createServer(conf.workerFetchPort, getServerBootstraps(transportConf)))
