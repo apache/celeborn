@@ -281,7 +281,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         peer.getFetchPort,
         peer.getReplicatePort)
       if (unavailablePeers.containsKey(peerWorker)) {
-        // pushData.body().release()
         fileWriter.decrementPendingWrites()
         workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
         logError(
