@@ -78,6 +78,7 @@ nav:
       - Upgrading: upgrading.md
       - Decommissioning: decommissioning.md
       - Cluster Planning: cluster_planning.md
+      - Worker Tags: worker_tags.md
   - Configuration: configuration/index.md
   - Migration Guide: migration.md
   - Developers Doc:
