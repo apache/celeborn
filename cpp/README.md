@@ -5,6 +5,13 @@ We provide several methods to setup dev environment for CelebornCpp.
 Note that currently the scripts only take care of the cpp-related dependencies, 
 and java dependencies are not included.
 
+### Clone the project
+We should clone the project as:
+```
+# the option `--config core.symlinks=true` is to make sure that the softlink works
+git clone git@github.com:apache/celeborn.git --config core.symlinks=true
+```
+
 ### Use container with prebuilt image
 We provide a pre-built image ready to be pulled and used so you could launch a container directly:
 ```
