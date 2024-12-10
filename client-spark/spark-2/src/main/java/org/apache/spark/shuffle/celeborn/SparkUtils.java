@@ -20,7 +20,12 @@ package org.apache.spark.shuffle.celeborn;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.stream.Collectors;
 
 import scala.Option;
 import scala.Some;
@@ -35,6 +40,9 @@ import org.apache.spark.scheduler.DAGScheduler;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.scheduler.MapStatus$;
 import org.apache.spark.scheduler.ShuffleMapStage;
+import org.apache.spark.scheduler.TaskInfo;
+import org.apache.spark.scheduler.TaskSchedulerImpl;
+import org.apache.spark.scheduler.TaskSetManager;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
 import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.storage.BlockManagerId;
@@ -47,7 +55,7 @@ import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.reflect.DynFields;
 
 public class SparkUtils {
-  private static final Logger logger = LoggerFactory.getLogger(SparkUtils.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SparkUtils.class);
 
   public static final String FETCH_FAILURE_ERROR_MSG = "Celeborn FetchFailure with shuffle id ";
 
@@ -93,7 +101,7 @@ public class SparkUtils {
       field.setAccessible(true);
       return (SQLMetric) field.get(serializer);
     } catch (NoSuchFieldException | IllegalAccessException e) {
-      logger.warn("Failed to get dataSize metric, aqe won`t work properly.");
+      LOG.warn("Failed to get dataSize metric, aqe won`t work properly.");
     }
     return null;
   }
@@ -200,7 +208,97 @@ public class SparkUtils {
         scheduler.cancelStage(shuffleMapStage.get().id(), new Some<>(reason));
       }
     } else {
-      logger.error("Can not get active SparkContext, skip cancelShuffle.");
+      LOG.error("Can not get active SparkContext, skip cancelShuffle.");
+    }
+  }
+
+  private static final DynFields.UnboundField<ConcurrentHashMap<Long, TaskSetManager>>
+      TASK_ID_TO_TASK_SET_MANAGER_FIELD =
+          DynFields.builder()
+              .hiddenImpl(TaskSchedulerImpl.class, "taskIdToTaskSetManager")
+              .defaultAlwaysNull()
+              .build();
+  private static final DynFields.UnboundField<scala.collection.mutable.HashMap<Long, TaskInfo>>
+      TASK_INFOS_FIELD =
+          DynFields.builder()
+              .hiddenImpl(TaskSetManager.class, "taskInfos")
+              .defaultAlwaysNull()
+              .build();
+
+  protected static TaskSetManager getTaskSetManager(long taskId) {
+    if (SparkContext$.MODULE$.getActive().nonEmpty()) {
+      TaskSchedulerImpl taskScheduler =
+          (TaskSchedulerImpl) SparkContext$.MODULE$.getActive().get().taskScheduler();
+      ConcurrentHashMap<Long, TaskSetManager> taskIdToTaskSetManager =
+          TASK_ID_TO_TASK_SET_MANAGER_FIELD.bind(taskScheduler).get();
+      return taskIdToTaskSetManager.get(taskId);
+    } else {
+      LOG.error("Can not get active SparkContext.");
+      return null;
+    }
+  }
+
+  protected static List<TaskInfo> getTaskAttempts(TaskSetManager taskSetManager, long taskId) {
+    if (taskSetManager != null) {
+      scala.Option<TaskInfo> taskInfoOption =
+          TASK_INFOS_FIELD.bind(taskSetManager).get().get(taskId);
+      if (taskInfoOption.isDefined()) {
+        int taskIndex = taskInfoOption.get().index();
+        return scala.collection.JavaConverters.asJavaCollectionConverter(
+                taskSetManager.taskAttempts()[taskIndex])
+            .asJavaCollection().stream()
+            .collect(Collectors.toList());
+      } else {
+        LOG.error("Can not get TaskInfo for taskId: {}", taskId);
+        return Collections.emptyList();
+      }
+    } else {
+      LOG.error("Can not get TaskSetManager for taskId: {}", taskId);
+      return Collections.emptyList();
+    }
+  }
+
+  public static synchronized boolean taskAnotherAttemptRunningOrSuccessful(long taskId) {
+    TaskSetManager taskSetManager = getTaskSetManager(taskId);
+    if (taskSetManager != null) {
+      int stageId = taskSetManager.stageId();
+      List<TaskInfo> taskAttempts = getTaskAttempts(taskSetManager, taskId);
+      Optional<TaskInfo> taskInfoOpt =
+          taskAttempts.stream().filter(ti -> ti.taskId() == taskId).findFirst();
+      if (taskInfoOpt.isPresent()) {
+        TaskInfo taskInfo = taskInfoOpt.get();
+        int taskIndex = taskInfo.index();
+        for (TaskInfo ti : taskAttempts) {
+          if (ti.taskId() != taskId) {
+            if (ti.successful()) {
+              LOG.info(
+                  "StageId={} index={} taskId={} attempt={} another attempt {} is finished.",
+                  stageId,
+                  taskIndex,
+                  taskId,
+                  taskInfo.attemptNumber(),
+                  ti.attemptNumber());
+              return true;
+            } else if (ti.running()) {
+              LOG.info(
+                  "StageId={} index={} taskId={} attempt={} another attempt {} is running.",
+                  stageId,
+                  taskIndex,
+                  taskId,
+                  taskInfo.attemptNumber(),
+                  ti.attemptNumber());
+              return true;
+            }
+          }
+        }
+        return false;
+      } else {
+        LOG.error("Can not get TaskInfo for taskId: {}", taskId);
+        return false;
+      }
+    } else {
+      LOG.error("Can not get TaskSetManager for taskId: {}", taskId);
+      return false;
     }
   }
 }

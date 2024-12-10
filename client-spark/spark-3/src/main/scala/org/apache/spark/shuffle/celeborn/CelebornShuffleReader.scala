@@ -215,6 +215,7 @@ class CelebornShuffleReader[K, C](
             handle.shuffleId,
             partitionId,
             encodedAttemptId,
+            context.taskAttemptId(),
             startMapIndex,
             endMapIndex,
             if (throwsFetchFailure) ExceptionMakerHelper.SHUFFLE_FETCH_FAILURE_EXCEPTION_MAKER
@@ -371,7 +372,10 @@ class CelebornShuffleReader[K, C](
 
   private def handleFetchExceptions(shuffleId: Int, partitionId: Int, ce: Throwable) = {
     if (throwsFetchFailure &&
-      shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
+      shuffleClient.reportShuffleFetchFailure(
+        handle.shuffleId,
+        shuffleId,
+        context.taskAttemptId())) {
       logWarning(s"Handle fetch exceptions for ${shuffleId}-${partitionId}", ce)
       throw new FetchFailedException(
         null,
