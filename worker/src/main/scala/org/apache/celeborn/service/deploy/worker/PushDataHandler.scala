@@ -43,7 +43,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMod
 import org.apache.celeborn.common.protocol.PbPartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
-import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
+import org.apache.celeborn.common.util.{ExceptionUtils, PushDataHeaderUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{HdfsFlusher, LocalFlusher, MapPartitionDataWriter, PartitionDataWriter, S3Flusher, StorageManager}
 import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapPartitionFileWriter
@@ -803,8 +803,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     // header: mapId attemptId batchId compressedTotalSize
     val header = new Array[Byte](8)
     body.getBytes(body.readerIndex(), header)
-    val mapId = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET)
-    val attemptId = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET + 4)
+    val mapId = PushDataHeaderUtils.getMapId(header)
+    val attemptId = PushDataHeaderUtils.getAttemptId(header)
     (mapId, attemptId)
   }
 
@@ -1470,7 +1470,24 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         shuffleKey: String,
         index: Int): Unit = {
       try {
-        fileWriter.write(body)
+        val header = new Array[Byte](PushDataHeaderUtils.BATCH_HEADER_SIZE_WITHOUT_CHECKSUM)
+        body.getBytes(body.readerIndex(), header)
+        if (PushDataHeaderUtils.hasChecksumFlag(header)) {
+          val checksumBytes = new Array[Byte](4)
+          body.getBytes(
+            body.readerIndex() + PushDataHeaderUtils.BATCH_HEADER_SIZE_WITHOUT_CHECKSUM,
+            checksumBytes)
+          val expectedChecksum = Platform.getInt(checksumBytes, Platform.BYTE_ARRAY_OFFSET)
+          val currentChecksum = PushDataHeaderUtils.computeHeaderChecksum32(header)
+          if (currentChecksum != expectedChecksum) {
+            writePromise.failure(new CelebornIOException(StatusCode.PUSH_DATA_CHECKSUM_FAIL))
+            fileWriter.decrementPendingWrites()
+          } else {
+            fileWriter.write(body)
+          }
+        } else {
+          fileWriter.write(body)
+        }
         result(index) = StatusCode.SUCCESS
       } catch {
         case e: Throwable =>

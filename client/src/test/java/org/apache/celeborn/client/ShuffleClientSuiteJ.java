@@ -47,6 +47,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.message.ControlMessages.*;
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
+import org.apache.celeborn.common.util.PushDataHeaderUtils;
 
 public class ShuffleClientSuiteJ {
 
@@ -90,7 +91,6 @@ public class ShuffleClientSuiteJ {
           PartitionLocation.Mode.REPLICA);
 
   private static final byte[] TEST_BUF1 = "hello world".getBytes(StandardCharsets.UTF_8);
-  private final int BATCH_HEADER_SIZE = 4 * 4;
 
   @Test
   public void testPushData() throws IOException, InterruptedException {
@@ -110,12 +110,12 @@ public class ShuffleClientSuiteJ {
               1);
 
       if (codec.equals(CompressionCodec.NONE)) {
-        assertEquals(TEST_BUF1.length + BATCH_HEADER_SIZE, pushDataLen);
+        assertEquals(TEST_BUF1.length + PushDataHeaderUtils.BATCH_HEADER_SIZE, pushDataLen);
       } else {
         Compressor compressor = Compressor.getCompressor(conf);
         compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
         final int compressedTotalSize = compressor.getCompressedTotalSize();
-        assertEquals(compressedTotalSize + BATCH_HEADER_SIZE, pushDataLen);
+        assertEquals(compressedTotalSize + PushDataHeaderUtils.BATCH_HEADER_SIZE, pushDataLen);
       }
     }
   }
@@ -138,12 +138,12 @@ public class ShuffleClientSuiteJ {
               1);
 
       if (codec.equals(CompressionCodec.NONE)) {
-        assertEquals(TEST_BUF1.length + BATCH_HEADER_SIZE, mergeSize);
+        assertEquals(TEST_BUF1.length + PushDataHeaderUtils.BATCH_HEADER_SIZE, mergeSize);
       } else {
         Compressor compressor = Compressor.getCompressor(conf);
         compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
         final int compressedTotalSize = compressor.getCompressedTotalSize();
-        assertEquals(compressedTotalSize + BATCH_HEADER_SIZE, mergeSize);
+        assertEquals(compressedTotalSize + PushDataHeaderUtils.BATCH_HEADER_SIZE, mergeSize);
       }
 
       byte[] buf1k = RandomStringUtils.random(4000).getBytes(StandardCharsets.UTF_8);
@@ -160,12 +160,12 @@ public class ShuffleClientSuiteJ {
               1);
 
       if (codec.equals(CompressionCodec.NONE)) {
-        assertEquals(buf1k.length + BATCH_HEADER_SIZE, largeMergeSize);
+        assertEquals(buf1k.length + PushDataHeaderUtils.BATCH_HEADER_SIZE, largeMergeSize);
       } else {
         Compressor compressor = Compressor.getCompressor(conf);
         compressor.compress(buf1k, 0, buf1k.length);
         final int compressedTotalSize = compressor.getCompressedTotalSize();
-        assertEquals(compressedTotalSize + BATCH_HEADER_SIZE, largeMergeSize);
+        assertEquals(compressedTotalSize + PushDataHeaderUtils.BATCH_HEADER_SIZE, largeMergeSize);
       }
     }
   }
