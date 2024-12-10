@@ -226,12 +226,14 @@ trait MiniClusterFeature extends Logging {
           {
             if (workers(i) == null) {
               throw new IllegalStateException(s"worker $i hasn't been initialized")
-            } else {
+            } else if (!workerInfos.contains(workers(i))) {
               workerInfos.put(workers(i), threads(i))
+            }
+            if (!workers(i).registered.get()) {
+              throw new IllegalStateException(s"worker $i hasn't been registered")
             }
           }
         }
-        workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
         allWorkersStarted = true
       } catch {
         case ex: Throwable =>
