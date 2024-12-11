@@ -119,7 +119,9 @@ public class TransportContext implements Closeable {
       AbstractSource source,
       boolean collectFetchChunkDetailMetrics) {
     this(conf, msgHandler, closeIdleConnections, null, enableHeartbeat, source);
-    ENCODER.setSource(source);
+    if (collectFetchChunkDetailMetrics) {
+      ENCODER.setSource(source);
+    }
   }
 
   public TransportContext(

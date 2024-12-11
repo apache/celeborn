@@ -4972,7 +4972,7 @@
                   "options": {
                     "mode": "exclude",
                     "names": [
-                      "metrics_ActiveChunkStreamCount_Value {__name__=\"metrics_ActiveChunkStreamCount_Value\", exported_instance=\"10.230.216.22:9096\", instance=\"core-1-3:9096\", job=\"RSS\", role=\"worker\"}"
+                      "metrics_ActiveChunkStreamCount_Value {__name__=\"metrics_ActiveChunkStreamCount_Value\", role=\"worker\"}"
                     ],
                     "prefix": "All except:",
                     "readOnly": true
