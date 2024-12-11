@@ -19,12 +19,9 @@ package org.apache.celeborn.common.rpc
 
 import java.util.concurrent.ConcurrentMap
 import java.util.concurrent.atomic.AtomicLong
-
 import scala.collection.JavaConverters._
-
 import com.codahale.metrics.{Histogram, UniformReservoir}
 import com.google.protobuf.GeneratedMessageV3
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.RpcNameConstants
@@ -53,9 +50,9 @@ private[celeborn] class RpcMetricsTracker(
     } else {
       false
     }
-  final private val QUEUE_LENGTH_METRIC = s"${name}_${RpcSource.QUEUE_LENGTH}"
-  final private val QUEUE_TIME_METRIC = s"${name}_${RpcSource.QUEUE_TIME}"
-  final private val PROCESS_TIME_METRIC = s"${name}_${RpcSource.PROCESS_TIME}"
+  final private val QUEUE_LENGTH_METRIC = rpcSource.queueLengthMetric(name)
+  final private val QUEUE_TIME_METRIC = rpcSource.queueTimeMetric(name)
+  final private val PROCESS_TIME_METRIC = rpcSource.processTimeMetric(name)
 
   private var queueLengthFunc: () => Long = _
 
