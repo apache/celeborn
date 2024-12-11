@@ -53,19 +53,17 @@ private[celeborn] class RpcMetricsTracker(
     } else {
       false
     }
-  final private val QUEUE_LENGTH_METRIC = rpcSource.queueLengthMetric(name)
-  final private val QUEUE_TIME_METRIC = rpcSource.queueTimeMetric(name)
-  final private val PROCESS_TIME_METRIC = rpcSource.processTimeMetric(name)
+  final private val NAME_LABEL = Map("name" -> name)
 
   private var queueLengthFunc: () => Long = _
 
   def init(lengthFunc: () => Long): Unit = {
     queueLengthFunc = lengthFunc
     if (name != null) {
-      rpcSource.addGauge(QUEUE_LENGTH_METRIC)(queueLengthFunc)
+      rpcSource.addGauge(RpcSource.QUEUE_LENGTH, NAME_LABEL)(queueLengthFunc)
 
-      rpcSource.addTimer(QUEUE_TIME_METRIC)
-      rpcSource.addTimer(PROCESS_TIME_METRIC)
+      rpcSource.addTimer(RpcSource.QUEUE_TIME, NAME_LABEL)
+      rpcSource.addTimer(RpcSource.PROCESS_TIME, NAME_LABEL)
     }
   }
 
@@ -115,12 +113,12 @@ private[celeborn] class RpcMetricsTracker(
     val msgName = messageName(message)
 
     if (useHistogram) {
-      updateHistogram(QUEUE_TIME_METRIC, queueTime)
-      updateHistogram(PROCESS_TIME_METRIC, processTime)
+      updateHistogram(RpcSource.QUEUE_TIME, queueTime)
+      updateHistogram(RpcSource.PROCESS_TIME, processTime)
       updateHistogram(msgName, processTime)
     } else {
-      rpcSource.updateTimer(QUEUE_TIME_METRIC, queueTime)
-      rpcSource.updateTimer(PROCESS_TIME_METRIC, processTime)
+      rpcSource.updateTimer(RpcSource.QUEUE_TIME, queueTime, NAME_LABEL)
+      rpcSource.updateTimer(RpcSource.PROCESS_TIME, processTime, NAME_LABEL)
       rpcSource.updateTimer(msgName, processTime)
     }
   }

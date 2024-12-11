@@ -42,7 +42,7 @@ abstract class Service extends Logging {
 
   def stop(exitKind: Int): Unit = {}
 
-  // Set the metrics source instance for the service
+  // Initialize the metrics source instance for the service
   serviceName match {
     case Service.MASTER =>
       Source.SOURCE_INSTANCE = s"${Utils.localHostName(conf)}:${conf.masterHttpPort}"
