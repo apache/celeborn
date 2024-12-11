@@ -20,6 +20,8 @@ package org.apache.celeborn.server.common
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.MetricsSystem
+import org.apache.celeborn.common.metrics.source.Source
+import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.service.config.{ConfigService, DynamicConfigServiceFactory}
 
 abstract class Service extends Logging {
@@ -39,6 +41,15 @@ abstract class Service extends Logging {
   }
 
   def stop(exitKind: Int): Unit = {}
+
+  // Set the metrics source instance for the service
+  serviceName match {
+    case Service.MASTER =>
+      Source.SOURCE_INSTANCE = s"${Utils.localHostName(conf)}:${conf.masterHttpPort}"
+    case Service.WORKER =>
+      Source.SOURCE_INSTANCE = s"${Utils.localHostName(conf)}:${conf.workerHttpPort}"
+    case _ =>
+  }
 }
 
 object Service {

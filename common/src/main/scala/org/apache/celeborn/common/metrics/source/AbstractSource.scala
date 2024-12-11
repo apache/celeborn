@@ -68,13 +68,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-metrics-cleaner")
 
   val roleLabel: (String, String) = "role" -> role
-  val instanceLabel: Map[String, String] = role match {
-    case Role.MASTER =>
-      Map("instance" -> s"${Utils.localHostName(conf)}:${conf.masterHttpPort}")
-    case Role.WORKER =>
-      Map("instance" -> s"${Utils.localHostName(conf)}:${conf.workerHttpPort}")
-    case _ => Map.empty
-  }
+  val instanceLabel: Map[String, String] = Option(Source.SOURCE_INSTANCE).map("instance" -> _).toMap
   val staticLabels: Map[String, String] = conf.metricsExtraLabels + roleLabel ++ instanceLabel
   val staticLabelsString: String = MetricLabels.labelString(staticLabels)
 
