@@ -21,29 +21,13 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.source.{AbstractSource, Role}
 
 class RpcSource(conf: CelebornConf) extends AbstractSource(conf, Role.RPC) {
-  import RpcSource._
-
   override def sourceName: String = Role.RPC
 
   startCleaner()
-
-  def queueLengthMetric(name: String): String = {
-    metricNameWithCustomizedLabels(QUEUE_LENGTH, Map(NAME_LABEL -> name))
-  }
-
-  def queueTimeMetric(name: String): String = {
-    metricNameWithCustomizedLabels(QUEUE_TIME, Map(NAME_LABEL -> name))
-  }
-
-  def processTimeMetric(name: String): String = {
-    metricNameWithCustomizedLabels(PROCESS_TIME, Map(NAME_LABEL -> name))
-  }
 }
 
 object RpcSource {
-  private val QUEUE_LENGTH = "RpcQueueLength"
-  private val QUEUE_TIME = "RpcQueueTime"
-  private val PROCESS_TIME = "RpcProcessTime"
-
-  private val NAME_LABEL = "name"
+  val QUEUE_LENGTH = "RpcQueueLength"
+  val QUEUE_TIME = "RpcQueueTime"
+  val PROCESS_TIME = "RpcProcessTime"
 }
