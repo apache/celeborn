@@ -18,17 +18,15 @@
 package org.apache.celeborn.common.rpc
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.metrics.source.AbstractSource
+import org.apache.celeborn.common.metrics.source.{AbstractSource, Role}
 
-class RpcSource(conf: CelebornConf) extends AbstractSource(conf, RpcSource.ROLE_RPC) {
-  override def sourceName: String = RpcSource.ROLE_RPC
+class RpcSource(conf: CelebornConf) extends AbstractSource(conf, Role.RPC) {
+  override def sourceName: String = Role.RPC
 
   startCleaner()
 }
 
 object RpcSource {
-  val ROLE_RPC = "RPC"
-
   val QUEUE_LENGTH = "QueueLength"
   val QUEUE_TIME = "QueueTime"
   val PROCESS_TIME = "ProcessTime"
