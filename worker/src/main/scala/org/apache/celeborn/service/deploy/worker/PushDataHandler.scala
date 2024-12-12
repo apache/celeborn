@@ -337,28 +337,25 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             }
 
             override def onFailure(e: Throwable): Unit = {
-              Try(Await.result(writePromise.future, Duration.Inf)) match {
-                case _ =>
-                  logError(s"PushData replication failed for partitionLocation: $location", e)
-                  // 1. Throw PUSH_DATA_WRITE_FAIL_REPLICA by replica peer worker
-                  // 2. Throw PUSH_DATA_TIMEOUT_REPLICA by TransportResponseHandler
-                  // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
-                  if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
-                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
-                    callbackWithTimer.onFailure(e)
-                  } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
-                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
-                    callbackWithTimer.onFailure(e)
-                  } else if (ExceptionUtils.connectFail(e.getMessage)) {
-                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
-                    callbackWithTimer.onFailure(
-                      new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
-                  } else {
-                    workerSource.incCounter(
-                      WorkerSource.REPLICATE_DATA_FAIL_NON_CRITICAL_CAUSE_COUNT)
-                    callbackWithTimer.onFailure(
-                      new CelebornIOException(StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA))
-                  }
+              logError(s"PushData replication failed for partitionLocation: $location", e)
+              // 1. Throw PUSH_DATA_WRITE_FAIL_REPLICA by replica peer worker
+              // 2. Throw PUSH_DATA_TIMEOUT_REPLICA by TransportResponseHandler
+              // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
+              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
+                callbackWithTimer.onFailure(e)
+              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
+                callbackWithTimer.onFailure(e)
+              } else if (ExceptionUtils.connectFail(e.getMessage)) {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
+                callbackWithTimer.onFailure(
+                  new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
+              } else {
+                workerSource.incCounter(
+                  WorkerSource.REPLICATE_DATA_FAIL_NON_CRITICAL_CAUSE_COUNT)
+                callbackWithTimer.onFailure(
+                  new CelebornIOException(StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA))
               }
             }
           }
@@ -680,28 +677,25 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             }
 
             override def onFailure(e: Throwable): Unit = {
-              Try(Await.result(writePromise.future, Duration.Inf)) match {
-                case _ =>
-                  logError(s"PushMergedData replicate failed for partitionLocation: $location", e)
-                  // 1. Throw PUSH_DATA_WRITE_FAIL_REPLICA by replica peer worker
-                  // 2. Throw PUSH_DATA_TIMEOUT_REPLICA by TransportResponseHandler
-                  // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
-                  if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
-                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
-                    pushMergedDataCallback.onFailure(e)
-                  } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
-                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
-                    pushMergedDataCallback.onFailure(e)
-                  } else if (ExceptionUtils.connectFail(e.getMessage)) {
-                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
-                    pushMergedDataCallback.onFailure(
-                      new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
-                  } else {
-                    workerSource.incCounter(
-                      WorkerSource.REPLICATE_DATA_FAIL_NON_CRITICAL_CAUSE_COUNT)
-                    pushMergedDataCallback.onFailure(
-                      new CelebornIOException(StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA))
-                  }
+              logError(s"PushMergedData replicate failed for partitionLocation: $location", e)
+              // 1. Throw PUSH_DATA_WRITE_FAIL_REPLICA by replica peer worker
+              // 2. Throw PUSH_DATA_TIMEOUT_REPLICA by TransportResponseHandler
+              // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
+              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
+                pushMergedDataCallback.onFailure(e)
+              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
+                pushMergedDataCallback.onFailure(e)
+              } else if (ExceptionUtils.connectFail(e.getMessage)) {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
+                pushMergedDataCallback.onFailure(
+                  new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
+              } else {
+                workerSource.incCounter(
+                  WorkerSource.REPLICATE_DATA_FAIL_NON_CRITICAL_CAUSE_COUNT)
+                pushMergedDataCallback.onFailure(
+                  new CelebornIOException(StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA))
               }
             }
           }
