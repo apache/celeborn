@@ -29,6 +29,8 @@ license: |
 
 - Since 0.6.0, Celeborn changed the default value of `celeborn.client.spark.fetch.throwsFetchFailure` from `false` to `true`, which means Celeborn will enable spark stage rerun at default.
 
+- Since 0.6.0, Celeborn changed the default value of `celeborn.<module>.io.mode` from `NIO` to whether epoll mode is available, which means Celeborn will regard `EPOLL` as the default IO mode for the available epoll mode.
+
 - Since 0.6.0, Celeborn has introduced a new RESTful API namespace: /api/v1, which uses the application/json media type for requests and responses.
    The `celeborn-openapi-client` SDK is also available to help users interact with the new RESTful APIs.
    The legacy RESTful APIs have been deprecated and will be removed in future releases.

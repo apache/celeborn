@@ -30,6 +30,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.socket.SocketChannel;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
@@ -100,6 +101,7 @@ public class TransportServer implements Closeable {
             .channel(NettyUtils.getServerChannelClass(ioMode))
             .option(ChannelOption.ALLOCATOR, allocator)
             .option(ChannelOption.SO_REUSEADDR, !SystemUtils.IS_OS_WINDOWS)
+            .option(EpollChannelOption.SO_REUSEPORT, IOMode.EPOLL.equals(ioMode))
             .childOption(ChannelOption.TCP_NODELAY, true)
             .childOption(ChannelOption.SO_KEEPALIVE, true)
             .childOption(ChannelOption.ALLOCATOR, allocator);
