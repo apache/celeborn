@@ -163,7 +163,7 @@ public class CelebornUnorderedKVInput extends AbstractLogicalInput {
               port,
               celebornConf,
               new UserIdentifier(
-                  celebornConf.quotaUserSpecificTenant(), celebornConf.quotaUserSpecificUserName()),
+                  celebornConf.userSpecificTenant(), celebornConf.userSpecificUserName()),
               null);
 
       this.shuffleManager =

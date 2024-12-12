@@ -102,7 +102,7 @@ public class CelebornOrderedPartitionedKVOutput extends OrderedPartitionedKVOutp
             host,
             port,
             new UserIdentifier(
-                celebornConf.quotaUserSpecificTenant(), celebornConf.quotaUserSpecificUserName()));
+                celebornConf.userSpecificTenant(), celebornConf.userSpecificUserName()));
 
     return Collections.emptyList();
   }

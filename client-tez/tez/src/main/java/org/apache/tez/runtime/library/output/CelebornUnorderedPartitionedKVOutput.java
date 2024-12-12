@@ -131,8 +131,7 @@ public class CelebornUnorderedPartitionedKVOutput extends AbstractLogicalOutput 
               host,
               port,
               new UserIdentifier(
-                  celebornConf.quotaUserSpecificTenant(),
-                  celebornConf.quotaUserSpecificUserName()));
+                  celebornConf.userSpecificTenant(), celebornConf.userSpecificUserName()));
       this.kvWriter =
           new CelebornUnorderedPartitionedKVWriter(
               getContext(),

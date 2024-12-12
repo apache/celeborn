@@ -58,6 +58,24 @@ import org.apache.tez.dag.app.dag.impl.Edge;
 import org.apache.tez.dag.history.utils.DAGUtils;
 import org.apache.tez.dag.library.vertexmanager.ShuffleVertexManager;
 import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
+import org.apache.tez.runtime.library.input.CelebornConcatenatedMergedKeyValueInput;
+import org.apache.tez.runtime.library.input.CelebornConcatenatedMergedKeyValuesInput;
+import org.apache.tez.runtime.library.input.CelebornOrderedGroupedInputLegacy;
+import org.apache.tez.runtime.library.input.CelebornOrderedGroupedKVInput;
+import org.apache.tez.runtime.library.input.CelebornOrderedGroupedMergedKVInput;
+import org.apache.tez.runtime.library.input.CelebornUnorderedKVInput;
+import org.apache.tez.runtime.library.input.ConcatenatedMergedKeyValueInput;
+import org.apache.tez.runtime.library.input.ConcatenatedMergedKeyValuesInput;
+import org.apache.tez.runtime.library.input.OrderedGroupedInputLegacy;
+import org.apache.tez.runtime.library.input.OrderedGroupedKVInput;
+import org.apache.tez.runtime.library.input.OrderedGroupedMergedKVInput;
+import org.apache.tez.runtime.library.input.UnorderedKVInput;
+import org.apache.tez.runtime.library.output.CelebornOrderedPartitionedKVOutput;
+import org.apache.tez.runtime.library.output.CelebornUnorderedKVOutput;
+import org.apache.tez.runtime.library.output.CelebornUnorderedPartitionedKVOutput;
+import org.apache.tez.runtime.library.output.OrderedPartitionedKVOutput;
+import org.apache.tez.runtime.library.output.UnorderedKVOutput;
+import org.apache.tez.runtime.library.output.UnorderedPartitionedKVOutput;
 import org.apache.tez.state.OnStateChangedCallback;
 import org.apache.tez.state.StateMachineTez;
 import org.codehaus.jettison.json.JSONException;
@@ -234,13 +252,71 @@ public class CelebornDagAppMaster extends DAGAppMaster {
 
   // tez-runtime-library may be shaded, so we need to use reflection to get the class name
   private static String getNewOutputClassName(String oldClassName) {
-    // todo
-    return "";
+    if (OrderedPartitionedKVOutput.class.getName().contains(oldClassName)) {
+      Logger.info(
+          "Output class name will transient from {} to {}",
+          oldClassName,
+          CelebornOrderedPartitionedKVOutput.class.getName());
+      return CelebornOrderedPartitionedKVOutput.class.getName();
+    } else if (UnorderedPartitionedKVOutput.class.getName().contains(oldClassName)) {
+      Logger.info(
+          "Output class name will transient from {} to {}",
+          oldClassName,
+          CelebornUnorderedPartitionedKVOutput.class.getName());
+      return CelebornUnorderedPartitionedKVOutput.class.getName();
+    } else if (UnorderedKVOutput.class.getName().contains(oldClassName)) {
+      Logger.info(
+          "Output class name will transient from {} to {}",
+          oldClassName,
+          CelebornUnorderedKVOutput.class.getName());
+      return CelebornUnorderedKVOutput.class.getName();
+    } else {
+      Logger.warn("Unexpected kv output class name {}.", oldClassName);
+      return oldClassName;
+    }
   }
 
   private static String getNewInputClassName(String oldClassName) {
-    // todo
-    return "";
+    if (OrderedGroupedKVInput.class.getName().contains(oldClassName)) {
+      Logger.info(
+          "Input class name will transient from {} to {}",
+          oldClassName,
+          CelebornOrderedGroupedKVInput.class.getName());
+      return CelebornOrderedGroupedKVInput.class.getName();
+    } else if (OrderedGroupedMergedKVInput.class.getName().contains(oldClassName)) {
+      Logger.info(
+          "Input class name will transient from {} to {}",
+          oldClassName,
+          CelebornOrderedGroupedMergedKVInput.class.getName());
+      return CelebornOrderedGroupedMergedKVInput.class.getName();
+    } else if (OrderedGroupedInputLegacy.class.getName().contains(oldClassName)) {
+      Logger.info(
+          "Input class name will transient from {} to {}",
+          oldClassName,
+          CelebornOrderedGroupedInputLegacy.class.getName());
+      return CelebornOrderedGroupedInputLegacy.class.getName();
+    } else if (UnorderedKVInput.class.getName().contains(oldClassName)) {
+      Logger.info(
+          "Input class name will transient from {} to {}",
+          oldClassName,
+          CelebornUnorderedKVInput.class.getName());
+      return CelebornUnorderedKVInput.class.getName();
+    } else if (ConcatenatedMergedKeyValueInput.class.getName().contains(oldClassName)) {
+      Logger.info(
+          "Input class name will transient from {} to {}",
+          oldClassName,
+          CelebornConcatenatedMergedKeyValueInput.class.getName());
+      return CelebornConcatenatedMergedKeyValueInput.class.getName();
+    } else if (ConcatenatedMergedKeyValuesInput.class.getName().contains(oldClassName)) {
+      Logger.info(
+          "Input class name will transient from {} to {}",
+          oldClassName,
+          CelebornConcatenatedMergedKeyValuesInput.class.getName());
+      return CelebornConcatenatedMergedKeyValuesInput.class.getName();
+    } else {
+      Logger.info("Unexpected kv input class name {}.", oldClassName);
+      return oldClassName;
+    }
   }
 
   @Override
