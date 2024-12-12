@@ -111,7 +111,7 @@ public class FlinkShuffleClientImplSuiteJ {
   @Test
   public void testPushDataByteBufFail() throws IOException {
     ByteBuf byteBuf = Unpooled.wrappedBuffer(TEST_BUF1);
-    when(client.pushData(any(), anyLong(), any(), any(), any()))
+    when(client.pushData(any(), anyLong(), any(), any()))
         .thenAnswer(
             t -> {
               RpcResponseCallback rpcResponseCallback = t.getArgument(1, RpcResponseCallback.class);
