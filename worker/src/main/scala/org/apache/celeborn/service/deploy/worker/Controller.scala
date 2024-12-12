@@ -542,7 +542,7 @@ private[deploy] class Controller(
               s"${emptyFilePrimaryIds.size()} empty primary partitions ${emptyFilePrimaryIds.asScala.mkString(",")}, " +
               s"${failedPrimaryIds.size()} failed primary partitions, " +
               s"${committedReplicaIds.size()} committed replica partitions, " +
-              s"${emptyFileReplicaIds.size()} empty replica partitions ${emptyFileReplicaIds.asScala.mkString(",")} , " +
+              s"${emptyFileReplicaIds.size()} empty replica partitions ${emptyFileReplicaIds.asScala.mkString(",")}, " +
               s"${failedReplicaIds.size()} failed replica partitions.")
           CommitFilesResponse(
             StatusCode.SUCCESS,

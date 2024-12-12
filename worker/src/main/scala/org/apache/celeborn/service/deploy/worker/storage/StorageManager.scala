@@ -1049,8 +1049,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         if (diskInfo != null && diskInfo.status.equals(DiskStatus.HEALTHY)) {
           diskInfo.dirs
         } else {
-          logDebug(s"Disk unavailable for $suggestedMountPoint, return all healthy" +
-            s" working dirs. diskInfo $diskInfo")
+          if (suggestedMountPoint.isEmpty) {
+            logDebug(s"Location suggestedMountPoint is not set, return all healthy working dirs.")
+          } else {
+            logInfo(s"Disk(${diskInfo.mountPoint}) unavailable for $suggestedMountPoint, return all healthy" +
+              s" working dirs.")
+          }
           healthyWorkingDirs()
         }
       if (dirs.isEmpty && hdfsFlusher.isEmpty && s3Flusher.isEmpty) {
