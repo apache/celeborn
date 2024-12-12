@@ -63,7 +63,7 @@ jobs:
       with:
         distribution: zulu
         java-version: 8
-        check-latest: false
+        check-latest: true
     - name: SBT Check dependency list
       run: |
         ./dev/dependencies.sh --sbt --module ${{ matrix.module }} --check
@@ -98,7 +98,7 @@ jobs:
         distribution: zulu
         java-version: 8
         cache: maven
-        check-latest: false
+        check-latest: true
     - name: Maven Check dependency list
       run: |
         ./dev/dependencies.sh --module ${{ matrix.module }} --check

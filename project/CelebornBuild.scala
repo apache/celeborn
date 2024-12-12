@@ -813,7 +813,7 @@ object Spark35 extends SparkClientProjects {
 object Spark40 extends SparkClientProjects {
 
   val sparkClientProjectPath = "client-spark/spark-3-4"
-  val sparkClientProjectName = "celeborn-client-spark-3"
+  val sparkClientProjectName = "celeborn-client-spark-4"
   val sparkClientShadedProjectPath = "client-spark/spark-4-shaded"
   val sparkClientShadedProjectName = "celeborn-client-spark-4-shaded"
 
