@@ -236,6 +236,7 @@ public class TransportClient implements Closeable {
     if (logger.isTraceEnabled()) {
       logger.trace("Pushing merged data to {}", NettyUtils.getRemoteAddress(channel));
     }
+
     long requestId = requestId();
     long dueTime = System.currentTimeMillis() + pushDataTimeout;
     PushRequestInfo info = new PushRequestInfo(dueTime, callback);
