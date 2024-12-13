@@ -54,7 +54,7 @@ public class CelebornShuffle extends Shuffle {
             port,
             celebornConf,
             new UserIdentifier(
-                celebornConf.quotaUserSpecificTenant(), celebornConf.quotaUserSpecificUserName()),
+                celebornConf.userSpecificTenant(), celebornConf.userSpecificUserName()),
             null);
 
     long startTime = (long) getParentPrivateField(this, "startTime");

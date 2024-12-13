@@ -1803,6 +1803,7 @@
       <id>tez</id>
       <modules>
         <module>client-tez/tez</module>
+        <module>tests/tez-it</module>
       </modules>
       <properties>
         <tez.version>0.10.3</tez.version>
