@@ -52,3 +52,29 @@ tests:
       - equal:
           path: spec.ports[0].targetPort
           value: 9097
+  - it: Should create NodePort service for each master replica
+    set:
+      masterReplicas: 3
+      additionalNodePortServicePerReplica:
+        enabled: true
+        port: 9097
+        nodePortStartRange: 30100
+    asserts:
+      - documentSelector:
+          path: metadata.name
+          value: celeborn-master-svc-0
+        equal:
+          path: spec.ports[0].nodePort
+          value: 30100
+      - documentSelector:
+          path: metadata.name
+          value: celeborn-master-svc-1
+        equal:
+          path: spec.ports[0].nodePort
+          value: 30101
+      - documentSelector:
+          path: metadata.name
+          value: celeborn-master-svc-2
+        equal:
+          path: spec.ports[0].nodePort
+          value: 30102

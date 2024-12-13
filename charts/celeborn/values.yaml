@@ -49,6 +49,18 @@ service:
   type: ClusterIP
   # -- Specifies service port
   port: 9097
+  # -- Specifies service annotations
+  annotations: {}
+
+# -- Specifies whether to create additional NodePort service for each master replica
+additionalNodePortServicePerReplica:
+  enabled: false
+  # -- Specifies service port
+  port: 9097
+  # -- Specifies nodeport start range
+  nodePortStartRange: 30000
+  # -- when using NodePort service type, you can specify map of annotations for each master replica
+  annotations: {}
 
 cluster:
   # -- Specifies Kubernetes cluster name
