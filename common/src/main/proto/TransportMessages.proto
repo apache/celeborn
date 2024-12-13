@@ -354,6 +354,15 @@ message PbMapperEnd {
   int32 attemptId = 3;
   int32 numMappers = 4;
   int32 partitionId = 5;
+  repeated PbPushFailedBatch pushFailedBatches = 6;
+}
+
+message PbPushFailedBatch {
+  int32 mapId = 1;
+  int32 attemptId = 2;
+  int32 batchId = 3;
+  int32 epoch = 4;
+  int32 reduceId =5;
 }
 
 message PbMapperEndResponse {
@@ -375,6 +384,8 @@ message PbGetReducerFileGroupResponse {
 
   // only map partition mode has succeed partitionIds
   repeated int32 partitionIds = 4;
+
+  repeated PbPushFailedBatch pushFailedBatches = 5;
 }
 
 message PbGetShuffleId {
@@ -691,6 +702,8 @@ message PbOpenStream {
   int32 endIndex = 4;
   int32 initialCredit = 5;
   bool readLocalShuffle = 6;
+  bool requireSubpartitionId = 7;
+  bool shuffleDataNeedSort = 8;
 }
 
 message PbStreamHandler {

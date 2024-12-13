@@ -222,6 +222,7 @@ class CelebornShuffleReader[K, C](
             else null,
             locations,
             streamHandlers,
+            fileGroups.pushFailedBatchSet,
             fileGroups.mapAttempts,
             metricsCallback)
           streams.put(partitionId, inputStream)

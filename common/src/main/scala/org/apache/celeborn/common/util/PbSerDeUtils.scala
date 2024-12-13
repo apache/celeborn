@@ -32,6 +32,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{CollectionUtils => localCollectionUtils}
+import org.apache.celeborn.common.write.PushFailedBatch
 
 object PbSerDeUtils {
 
@@ -668,6 +669,26 @@ object PbSerDeUtils {
         .build()
       workerInfo.toUniqueId -> pbWorkerResource
     }.asJava
+  }
+
+  def toPbPushFailedBatch(pushFailedBatch: PushFailedBatch): PbPushFailedBatch = {
+    val builder = PbPushFailedBatch.newBuilder()
+      .setMapId(pushFailedBatch.getMapId)
+      .setAttemptId(pushFailedBatch.getAttemptId)
+      .setBatchId(pushFailedBatch.getBatchId)
+      .setReduceId(pushFailedBatch.getReduceId)
+      .setEpoch(pushFailedBatch.getEpoch)
+
+    builder.build()
+  }
+
+  def fromPbPushFailedBatch(pbPushFailedBatch: PbPushFailedBatch): PushFailedBatch = {
+    new PushFailedBatch(
+      pbPushFailedBatch.getMapId,
+      pbPushFailedBatch.getAttemptId,
+      pbPushFailedBatch.getBatchId,
+      pbPushFailedBatch.getReduceId,
+      pbPushFailedBatch.getEpoch)
   }
 
 }

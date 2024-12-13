@@ -68,6 +68,10 @@ public class StorageInfo implements Serializable {
 
   public int availableStorageTypes = 0;
 
+  public long fileSize;
+
+  public int numChunks;
+
   public StorageInfo() {}
 
   public StorageInfo(Type type, boolean isFinal, String filePath) {
@@ -117,6 +121,22 @@ public class StorageInfo implements Serializable {
 
   public String getFilePath() {
     return filePath;
+  }
+
+  public void setNumChunks(int numChunks) {
+    this.numChunks = numChunks;
+  }
+
+  public int getNumChunks() {
+    return this.numChunks;
+  }
+
+  public void setFileSize(long fileSize) {
+    this.fileSize = fileSize;
+  }
+
+  public long getFileSize() {
+    return fileSize;
   }
 
   @Override

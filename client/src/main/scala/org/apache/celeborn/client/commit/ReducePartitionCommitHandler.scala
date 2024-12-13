@@ -38,6 +38,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 import org.apache.celeborn.common.util.JavaUtils
+import org.apache.celeborn.common.write.PushFailedBatch
 
 /**
  * This commit handler is for ReducePartition ShuffleType, which means that a Reduce Partition contains all data
@@ -240,6 +241,7 @@ class ReducePartitionCommitHandler(
       attemptId: Int,
       numMappers: Int,
       partitionId: Int,
+      pushFailedBatches: util.Set[PushFailedBatch],
       recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean) = {
     shuffleMapperAttempts.synchronized {
       if (getMapperAttempts(shuffleId) == null) {
@@ -250,6 +252,14 @@ class ReducePartitionCommitHandler(
       val attempts = shuffleMapperAttempts.get(shuffleId)
       if (attempts(mapId) < 0) {
         attempts(mapId) = attemptId
+        if (null != pushFailedBatches && !pushFailedBatches.isEmpty) {
+          val pushFailedBatchesMap = shufflePushFailedBatches.computeIfAbsent(
+            shuffleId,
+            _ => {
+              JavaUtils.newConcurrentHashMap[Integer, util.Set[PushFailedBatch]]()
+            })
+          pushFailedBatchesMap.put(mapId, pushFailedBatches)
+        }
         // Mapper with this attemptId finished, also check all other mapper finished or not.
         (true, ClientUtils.areAllMapperAttemptsFinished(attempts))
       } else {
@@ -301,7 +311,12 @@ class ReducePartitionCommitHandler(
               val returnedMsg = GetReducerFileGroupResponse(
                 StatusCode.SUCCESS,
                 reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
-                getMapperAttempts(shuffleId))
+                getMapperAttempts(shuffleId),
+                pushFailedBatches =
+                  shufflePushFailedBatches.getOrDefault(
+                    shuffleId,
+                    JavaUtils.newConcurrentHashMap()).values().asScala.flatMap(x =>
+                    x.asScala.toSet[PushFailedBatch]).toSet.asJava)
               context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
             }
           })

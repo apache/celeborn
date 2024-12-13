@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
+import com.google.common.collect.Sets
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
@@ -40,6 +41,7 @@ import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.common.write.PushFailedBatch
 
 case class ShuffleCommittedInfo(
     // partition id -> unique partition ids
@@ -215,13 +217,15 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
       mapId: Int,
       attemptId: Int,
       numMappers: Int,
-      partitionId: Int = -1): (Boolean, Boolean) = {
+      partitionId: Int = -1,
+      pushFailedBatches: util.Set[PushFailedBatch] = Sets.newHashSet()): (Boolean, Boolean) = {
     getCommitHandler(shuffleId).finishMapperAttempt(
       shuffleId,
       mapId,
       attemptId,
       numMappers,
       partitionId,
+      pushFailedBatches,
       r => lifecycleManager.workerStatusTracker.recordWorkerFailure(r))
   }
 

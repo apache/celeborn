@@ -126,6 +126,7 @@ public class WorkerPartitionReader implements PartitionReader {
                   .setFileName(location.getFileName())
                   .setStartIndex(startMapIndex)
                   .setEndIndex(endMapIndex)
+                  .setShuffleDataNeedSort(conf.clientPushFailureTrackingEnabled())
                   .build()
                   .toByteArray());
       ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
