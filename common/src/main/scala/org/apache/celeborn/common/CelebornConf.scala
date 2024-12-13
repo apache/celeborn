@@ -1920,7 +1920,7 @@ object CelebornConf extends Logging {
   val NETWORK_IO_MODE: ConfigEntry[String] =
     buildConf("celeborn.<module>.io.mode")
       .categories("network")
-      .doc("Netty EventLoopGroup backend, available options: NIO, EPOLL. The default IO mode is EPOLL for the available epoll mode.")
+      .doc("Netty EventLoopGroup backend, available options: NIO, EPOLL. If epoll mode is available, the default IO mode is EPOLL; otherwise, the default is NIO.")
       .stringConf
       .transform(_.toUpperCase)
       .checkValues(Set(IOMode.NIO.name(), IOMode.EPOLL.name()))

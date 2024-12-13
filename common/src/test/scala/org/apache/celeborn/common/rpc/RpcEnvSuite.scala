@@ -25,7 +25,6 @@ import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
-import io.netty.channel.epoll.Epoll
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{mock, never, verify}
 import org.scalatest.concurrent.Eventually._
@@ -669,15 +668,9 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
   test("port conflict") {
     val anotherEnv = createRpcEnv(createCelebornConf(), "remote", env.address.port)
     try {
-      if (Epoll.isAvailable) {
-        assert(
-          anotherEnv.address.port == env.address.port,
-          s"new port = ${anotherEnv.address.port}, env port = ${env.address.port}")
-      } else {
-        assert(
-          anotherEnv.address.port != env.address.port,
-          s"new port = ${anotherEnv.address.port}, env port = ${env.address.port}")
-      }
+      assert(
+        anotherEnv.address.port != env.address.port,
+        s"new port = ${anotherEnv.address.port}, env port = ${env.address.port}")
     } finally {
       anotherEnv.shutdown()
       anotherEnv.awaitTermination()
