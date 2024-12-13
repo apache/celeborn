@@ -352,8 +352,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                 callbackWithTimer.onFailure(
                   new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
               } else {
-                workerSource.incCounter(
-                  WorkerSource.REPLICATE_DATA_FAIL_NON_CRITICAL_CAUSE_COUNT)
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_FAIL_NON_CRITICAL_CAUSE_COUNT)
                 callbackWithTimer.onFailure(
                   new CelebornIOException(StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA))
               }
@@ -375,7 +374,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               logError(
                 s"PushData replication failed during connecting peer for partitionLocation: $location",
                 e)
-              wrappedCallback.onFailure(
+              callbackWithTimer.onFailure(
                 new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
           }
         }
@@ -592,7 +591,12 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         peer.getFetchPort,
         peer.getReplicatePort)
       if (unavailablePeers.containsKey(peerWorker)) {
-        fileWriters.foreach(_.decrementPendingWrites())
+        for (fileWriterIndex <- 0 until totalFileWriters) {
+          if (fileWriters(fileWriterIndex) != null &&
+            !pushMergedDataCallback.isHardSplitPartition(fileWriterIndex)) {
+            fileWriters(fileWriterIndex).decrementPendingWrites()
+          }
+        }
         workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
         logError(
           s"PushMergedData replication failed caused by unavailable peer for partitionLocation: $location")
@@ -692,8 +696,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                 pushMergedDataCallback.onFailure(
                   new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
               } else {
-                workerSource.incCounter(
-                  WorkerSource.REPLICATE_DATA_FAIL_NON_CRITICAL_CAUSE_COUNT)
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_FAIL_NON_CRITICAL_CAUSE_COUNT)
                 pushMergedDataCallback.onFailure(
                   new CelebornIOException(StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA))
               }
@@ -720,7 +723,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               logError(
                 s"PushMergedData replication failed during connecting peer for partitionLocation: $location",
                 e)
-              wrappedCallback.onFailure(
+              pushMergedDataCallback.onFailure(
                 new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
           }
         }
