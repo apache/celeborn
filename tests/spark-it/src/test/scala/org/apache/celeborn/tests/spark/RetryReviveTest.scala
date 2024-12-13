@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.tests.spark
 
+import scala.util.Random
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
@@ -80,9 +82,8 @@ class RetryReviveTest extends AnyFunSuite
     ss.stop()
   }
 
-  test("celeborn spark integration test - test failed worker") {
+  test("celeborn spark integration test - revive test replicate enabled when workers are randomly killed") {
     setupMiniClusterWithRandomPorts()
-    logInfo("[test] setupCluster time")
     ShuffleClient.reset()
     val sparkConf = new SparkConf()
       .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "true")
@@ -91,22 +92,22 @@ class RetryReviveTest extends AnyFunSuite
     val ss = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .getOrCreate()
-    killer()
-    val result = ss.sparkContext.parallelize(1 to 10000, 5)
-      .map { i => (i, Range(1, 10000).mkString(",")) }.groupByKey(20).collect()
-    logInfo("[test] finish work time")
-    assert(result.length == 10000)
-    val value = Range(1, 10000).mkString(",")
-    for (elem <- result) {
-      assert(elem._2.mkString(",").equals(value))
-    }
+
+    val startTime = System.currentTimeMillis()
+    val result = ss.sparkContext.parallelize(1 to 800, 100)
+      .flatMap(_ => (1 to 15000).iterator.map(num => num)).repartition(100).count()
+    val taskTime = System.currentTimeMillis() - startTime
+    val random = new Random()
+    val workerKillTime = random.nextInt(taskTime.toInt)
+    workerKiller(workerKillTime)
+    val result1 = ss.sparkContext.parallelize(1 to 800, 100)
+      .flatMap(_ => (1 to 15000).iterator.map(num => num)).repartition(100).count()
+    assert(result1 == result)
     ss.stop()
   }
 
-  test("celeborn spark integration test - test failed worker1") {
+  test("celeborn spark integration test - revive test replicate enabled when workers are randomly killed in write time") {
     setupMiniClusterWithRandomPorts()
-    Thread.sleep(5000)
-    logInfo("[test] setupCluster time")
     ShuffleClient.reset()
     val sparkConf = new SparkConf()
       .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "true")
@@ -115,12 +116,17 @@ class RetryReviveTest extends AnyFunSuite
     val ss = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .getOrCreate()
-    killer()
-    val result = ss.sparkContext.parallelize(1 to 800, 5)
-      .flatMap( _ => (1 to 1500).iterator.map(num => num)).repartition(20).count()
-    logInfo("[test] finish work time")
-    assert(result == 1200000)
+
+    val startTime = System.currentTimeMillis()
+    val result = ss.sparkContext.parallelize(1 to 1000, 100)
+      .flatMap(_ => (1 to 15000).iterator.map(num => num)).repartition(100).count()
+    val taskTime = System.currentTimeMillis() - startTime
+    val writeTime = taskTime * 0.35
+    logInfo(s"[test] taskTime: $taskTime, writeTime: $writeTime")
+    workerKiller(writeTime.toInt)
+    val result1 = ss.sparkContext.parallelize(1 to 1000, 100)
+      .flatMap(_ => (1 to 15000).iterator.map(num => num)).repartition(100).count()
+    assert(result1 == result)
     ss.stop()
   }
-
 }

@@ -279,20 +279,14 @@ trait MiniClusterFeature extends Logging {
     (setUpMaster(masterConf), setUpWorkers(workerConf, workerNum))
   }
 
-  def shutdownWorker(ind: Int): Unit = {
-    val workerInfo = workerInfos.toList(ind)
-    workerInfo._1.stop(CelebornExitKind.EXIT_IMMEDIATELY)
-    workerInfo._1.rpcEnv.shutdown()
-    workerInfo._2.interrupt()
-  }
-
-  def killer(): Unit = {
+  def workerKiller(sleepTime: Int): Unit = {
     testKillWorker = true
     val killerThread = new RunnerWrap({
-      Thread.sleep(2000)
-      logInfo("[test] start killing time")
-      shutdownWorker(0)
-      logInfo("[test] finish killing time")
+      Thread.sleep(sleepTime)
+      val workerInfo = workerInfos.toList(0)
+      workerInfo._1.stop(CelebornExitKind.EXIT_IMMEDIATELY)
+      workerInfo._1.rpcEnv.shutdown()
+      workerInfo._2.interrupt()
     })
     killerThread.start()
   }
