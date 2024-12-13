@@ -26,7 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.{ClassTagExtensions, DefaultScalaModule}
 import org.eclipse.jetty.servlet.ServletContextHandler
 
-import org.apache.celeborn.common.metrics.{CelebornHistogram, CelebornTimer, ResettableSlidingWindowReservoir}
+import org.apache.celeborn.common.metrics.{CelebornTimer, ResettableSlidingWindowReservoir}
 import org.apache.celeborn.common.metrics.source._
 import org.apache.celeborn.server.common.http.HttpUtils
 import org.apache.celeborn.server.common.http.HttpUtils.ServletParams
