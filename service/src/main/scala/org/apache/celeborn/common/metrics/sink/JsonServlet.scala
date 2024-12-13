@@ -89,8 +89,6 @@ class JsonServlet(
     absSource.gauges().foreach(g => recordGauge(absSource, g, metricDatas))
     absSource.histograms().foreach(h => {
       recordHistogram(absSource, h, metricDatas)
-      h.asInstanceOf[CelebornHistogram].reservoir
-        .asInstanceOf[ResettableSlidingWindowReservoir].reset()
     })
     absSource.timers().foreach(t => {
       recordTimer(absSource, t, metricDatas)
