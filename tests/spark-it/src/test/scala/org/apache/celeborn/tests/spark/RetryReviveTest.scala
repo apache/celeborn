@@ -79,4 +79,48 @@ class RetryReviveTest extends AnyFunSuite
     assert(result.size == 1000)
     ss.stop()
   }
+
+  test("celeborn spark integration test - test failed worker") {
+    setupMiniClusterWithRandomPorts()
+    logInfo("[test] setupCluster time")
+    ShuffleClient.reset()
+    val sparkConf = new SparkConf()
+      .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "true")
+      .set(s"spark.${CelebornConf.CLIENT_STAGE_RERUN_ENABLED.key}", "false")
+      .setAppName("celeborn-demo").setMaster("local[2]")
+    val ss = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .getOrCreate()
+    killer()
+    val result = ss.sparkContext.parallelize(1 to 10000, 5)
+      .map { i => (i, Range(1, 10000).mkString(",")) }.groupByKey(20).collect()
+    logInfo("[test] finish work time")
+    assert(result.length == 10000)
+    val value = Range(1, 10000).mkString(",")
+    for (elem <- result) {
+      assert(elem._2.mkString(",").equals(value))
+    }
+    ss.stop()
+  }
+
+  test("celeborn spark integration test - test failed worker1") {
+    setupMiniClusterWithRandomPorts()
+    Thread.sleep(5000)
+    logInfo("[test] setupCluster time")
+    ShuffleClient.reset()
+    val sparkConf = new SparkConf()
+      .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "true")
+      .set(s"spark.${CelebornConf.CLIENT_STAGE_RERUN_ENABLED.key}", "false")
+      .setAppName("celeborn-demo").setMaster("local[2]")
+    val ss = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .getOrCreate()
+    killer()
+    val result = ss.sparkContext.parallelize(1 to 800, 5)
+      .flatMap( _ => (1 to 1500).iterator.map(num => num)).repartition(20).count()
+    logInfo("[test] finish work time")
+    assert(result == 1200000)
+    ss.stop()
+  }
+
 }

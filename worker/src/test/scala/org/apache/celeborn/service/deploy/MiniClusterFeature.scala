@@ -37,6 +37,7 @@ trait MiniClusterFeature extends Logging {
   var masterInfo: (Master, Thread) = _
   val workerInfos = new mutable.HashMap[Worker, Thread]()
   var workerConfForAdding: Map[String, String] = _
+  var testKillWorker: Boolean = false
 
   val maxRetries = 4
   val masterWaitingTimeoutMs = TimeUnit.SECONDS.toMillis(60)
@@ -276,6 +277,24 @@ trait MiniClusterFeature extends Logging {
       workerConf: Map[String, String] = null,
       workerNum: Int = 3): (Master, collection.Set[Worker]) = {
     (setUpMaster(masterConf), setUpWorkers(workerConf, workerNum))
+  }
+
+  def shutdownWorker(ind: Int): Unit = {
+    val workerInfo = workerInfos.toList(ind)
+    workerInfo._1.stop(CelebornExitKind.EXIT_IMMEDIATELY)
+    workerInfo._1.rpcEnv.shutdown()
+    workerInfo._2.interrupt()
+  }
+
+  def killer(): Unit = {
+    testKillWorker = true
+    val killerThread = new RunnerWrap({
+      Thread.sleep(2000)
+      logInfo("[test] start killing time")
+      shutdownWorker(0)
+      logInfo("[test] finish killing time")
+    })
+    killerThread.start()
   }
 
   def shutdownMiniCluster(): Unit = {
