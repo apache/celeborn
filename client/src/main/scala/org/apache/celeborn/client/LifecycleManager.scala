@@ -57,11 +57,14 @@ import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Ut
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
 import org.apache.celeborn.common.util.Utils.UNKNOWN_APP_SHUFFLE_ID
+import org.apache.celeborn.common.write.PushFailedBatch
 
 object LifecycleManager {
   // shuffle id -> partition id -> partition locations
   type ShuffleFileGroups =
     ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[PartitionLocation]]]
+  type ShufflePushFailedBatches =
+    ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[PushFailedBatch]]]
   type ShuffleAllocatedWorkers =
     ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]]
   type ShuffleFailedWorkers = ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]
@@ -400,13 +403,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         oldPartition,
         isSegmentGranularityVisible = commitManager.isSegmentGranularityVisible(shuffleId))
 
-    case MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId) =>
+    case MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId, pushFailedBatch) =>
       logTrace(s"Received MapperEnd TaskEnd request, " +
         s"${Utils.makeMapKey(shuffleId, mapId, attemptId)}")
       val partitionType = getPartitionType(shuffleId)
       partitionType match {
         case PartitionType.REDUCE =>
-          handleMapperEnd(context, shuffleId, mapId, attemptId, numMappers)
+          handleMapperEnd(context, shuffleId, mapId, attemptId, numMappers, pushFailedBatch)
         case PartitionType.MAP =>
           handleMapPartitionEnd(
             context,
@@ -797,10 +800,16 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       shuffleId: Int,
       mapId: Int,
       attemptId: Int,
-      numMappers: Int): Unit = {
+      numMappers: Int,
+      pushFailedBatches: util.Set[PushFailedBatch]): Unit = {
 
     val (mapperAttemptFinishedSuccess, allMapperFinished) =
-      commitManager.finishMapperAttempt(shuffleId, mapId, attemptId, numMappers)
+      commitManager.finishMapperAttempt(
+        shuffleId,
+        mapId,
+        attemptId,
+        numMappers,
+        pushFailedBatches = pushFailedBatches)
     if (mapperAttemptFinishedSuccess && allMapperFinished) {
       // last mapper finished. call mapper end
       logInfo(s"Last MapperEnd, call StageEnd with shuffleKey:" +
