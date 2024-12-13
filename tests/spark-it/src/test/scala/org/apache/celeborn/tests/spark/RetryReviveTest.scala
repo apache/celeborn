@@ -122,7 +122,6 @@ class RetryReviveTest extends AnyFunSuite
       .flatMap(_ => (1 to 15000).iterator.map(num => num)).repartition(100).count()
     val taskTime = System.currentTimeMillis() - startTime
     val writeTime = taskTime * 0.35
-    logInfo(s"[test] taskTime: $taskTime, writeTime: $writeTime")
     workerKiller(writeTime.toInt)
     val result1 = ss.sparkContext.parallelize(1 to 1000, 100)
       .flatMap(_ => (1 to 15000).iterator.map(num => num)).repartition(100).count()
