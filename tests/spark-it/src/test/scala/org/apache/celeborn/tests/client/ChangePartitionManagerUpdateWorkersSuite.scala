@@ -20,12 +20,12 @@ package org.apache.celeborn.tests.client
 import java.util
 import java.util.Collections
 
-import scala.collection.JavaConverters.{asScalaSetConverter, mapAsScalaMapConverter}
+import scala.collection.JavaConverters.mapAsScalaMapConverter
 
 import org.apache.celeborn.client.{ChangePartitionManager, ChangePartitionRequest, LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.ShufflePartitionLocationInfo
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.service.deploy.MiniClusterFeature

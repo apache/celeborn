@@ -314,13 +314,14 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     override def notifyChangedWorkersStatus(workersStatus: WorkersStatus): Unit = {
       if (workersStatus.shutdownWorkers != null) {
         lifecycleManager.shuffleAllocatedWorkers.asScala.foreach {
-          case (shuffleId, workerToPartitionLocationInfos) =>
+          case (shuffleId, workerIdToPartitionLocationInfos) =>
             if (!isStageEndOrInProcess(shuffleId)) {
               val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
               val needCommitPartitionLocations = new util.HashSet[PartitionLocation]()
 
               workersStatus.shutdownWorkers.asScala.foreach { worker =>
-                val partitionLocationInfos = workerToPartitionLocationInfos.get(worker)
+                val partitionLocationInfos =
+                  workerIdToPartitionLocationInfos.get(worker.toUniqueId())
                 if (partitionLocationInfos != null) {
                   logWarning(s"Worker ${worker.toUniqueId()} shutdown, " +
                     s"commit all it's partition locations for shuffle $shuffleId.")
