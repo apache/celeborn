@@ -46,18 +46,15 @@ public class ShuffleResourceTrackerSuiteJ {
     LifecycleManager lifecycleManager = Mockito.mock(LifecycleManager.class);
     ScheduledThreadPoolExecutor executor = Mockito.mock(ScheduledThreadPoolExecutor.class);
 
-    ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map =
-        JavaUtils.newConcurrentHashMap();
+    ConcurrentHashMap<String, ShufflePartitionLocationInfo> map = JavaUtils.newConcurrentHashMap();
     WorkerInfo workerInfo = new WorkerInfo("mock", -1, -1, -1, -1);
-    map.put(workerInfo, mockShufflePartitionLocationInfo(workerInfo));
+    map.put(workerInfo.toUniqueId(), mockShufflePartitionLocationInfo(workerInfo));
 
-    ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map2 =
-        JavaUtils.newConcurrentHashMap();
-    map2.put(workerInfo, mockShufflePartitionLocationInfo(workerInfo));
+    ConcurrentHashMap<String, ShufflePartitionLocationInfo> map2 = JavaUtils.newConcurrentHashMap();
+    map2.put(workerInfo.toUniqueId(), mockShufflePartitionLocationInfo(workerInfo));
 
-    ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map3 =
-        JavaUtils.newConcurrentHashMap();
-    map3.put(workerInfo, mockShufflePartitionLocationInfo(workerInfo));
+    ConcurrentHashMap<String, ShufflePartitionLocationInfo> map3 = JavaUtils.newConcurrentHashMap();
+    map3.put(workerInfo.toUniqueId(), mockShufflePartitionLocationInfo(workerInfo));
 
     Mockito.when(lifecycleManager.workerSnapshots(Mockito.anyInt())).thenReturn(map, map2, map3);
 

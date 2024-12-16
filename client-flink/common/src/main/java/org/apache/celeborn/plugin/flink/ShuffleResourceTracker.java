@@ -92,12 +92,12 @@ public class ShuffleResourceTracker implements WorkerStatusListener {
             int shuffleId = mapEntry.getKey();
             if (!mapEntry.getValue().isEmpty()) {
               for (WorkerInfo unknownWorker : unknownWorkers) {
-                Map<WorkerInfo, ShufflePartitionLocationInfo> shuffleAllocateInfo =
+                Map<String, ShufflePartitionLocationInfo> shuffleAllocateInfo =
                     lifecycleManager.workerSnapshots(shuffleId);
                 // shuffleResourceListener may release when the shuffle is ended
                 if (shuffleAllocateInfo != null) {
                   ShufflePartitionLocationInfo shufflePartitionLocationInfo =
-                      shuffleAllocateInfo.get(unknownWorker);
+                      shuffleAllocateInfo.get(unknownWorker.toUniqueId());
                   if (shufflePartitionLocationInfo != null) {
                     // TODO if we support partition replica for map partition we need refactor this
                     //  Currently we only untrack primary partitions for map partition
