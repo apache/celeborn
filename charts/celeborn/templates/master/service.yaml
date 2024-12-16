@@ -15,6 +15,37 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */ -}}
 
+{{ if .Values.additionalNodePortServicePerReplica.enabled }}
+{{ range  $i, $e := until (int .Values.masterReplicas) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "celeborn.masterServiceName" $ }}-{{ $i }}
+  labels:
+    {{- include "celeborn.labels" $ | nindent 4 }}
+  annotations:
+    {{- include "celeborn.masterMetricsAnnotation" $ | nindent 4 }}
+    {{- with index $.Values.additionalNodePortServicePerReplica.annotations (printf "master-replica-%d" $i) }}
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+    {{- end }}
+spec:
+  selector:
+    {{- include "celeborn.selectorLabels" $ | nindent 4 }}
+    app.kubernetes.io/role: master
+    apps.kubernetes.io/pod-index: "{{ $i }}"
+  ports:
+  - port: {{ $.Values.additionalNodePortServicePerReplica.port }}
+    targetPort: {{ $.Values.additionalNodePortServicePerReplica.port }}
+    nodePort: {{ add $.Values.additionalNodePortServicePerReplica.nodePortStartRange $i }}
+    protocol: TCP
+    name: celeborn-master
+  type: NodePort
+{{ end -}}
+{{ end -}}
+---
 apiVersion: v1
 kind: Service
 metadata:
