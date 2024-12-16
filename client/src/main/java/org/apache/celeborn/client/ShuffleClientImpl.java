@@ -360,8 +360,12 @@ public class ShuffleClientImpl extends ShuffleClient {
             batchId,
             newLoc,
             e);
-        pushDataRpcResponseCallback.onFailure(
-            new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
+        if (e instanceof InterruptedException) {
+          pushDataRpcResponseCallback.onFailure(e);
+        } else {
+          pushDataRpcResponseCallback.onFailure(
+              new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
+        }
       }
     }
   }
@@ -698,6 +702,9 @@ public class ShuffleClientImpl extends ShuffleClient {
               numRetries - 1);
         }
       } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         logger.error(
             "Exception raised while registering shuffle {} with {} mapper and {} partitions.",
             shuffleId,
@@ -896,6 +903,9 @@ public class ShuffleClientImpl extends ShuffleClient {
           partitionIds,
           epochs,
           e);
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       return null;
     }
   }
@@ -1158,6 +1168,11 @@ public class ShuffleClientImpl extends ShuffleClient {
               if (pushState.exception.get() != null) {
                 return;
               }
+              if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+                callback.onFailure(e);
+                return;
+              }
               StatusCode cause = getPushDataFailCause(e.getMessage());
               if (remainReviveTimes <= 0) {
                 if (e instanceof CelebornIOException) {
@@ -1239,8 +1254,12 @@ public class ShuffleClientImpl extends ShuffleClient {
             nextBatchId,
             loc,
             e);
-        wrappedCallback.onFailure(
-            new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
+        if (e instanceof InterruptedException) {
+          wrappedCallback.onFailure(e);
+        } else {
+          wrappedCallback.onFailure(
+              new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
+        }
       }
     } else {
       // add batch data
@@ -1570,6 +1589,11 @@ public class ShuffleClientImpl extends ShuffleClient {
             if (pushState.exception.get() != null) {
               return;
             }
+            if (e instanceof InterruptedException) {
+              Thread.currentThread().interrupt();
+              callback.onFailure(e);
+              return;
+            }
             StatusCode cause = getPushDataFailCause(e.getMessage());
             if (remainReviveTimes <= 0) {
               if (e instanceof CelebornIOException) {
@@ -1650,8 +1674,12 @@ public class ShuffleClientImpl extends ShuffleClient {
           Arrays.toString(batchIds),
           addressPair,
           e);
-      wrappedCallback.onFailure(
-          new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
+      if (e instanceof InterruptedException) {
+        wrappedCallback.onFailure(e);
+      } else {
+        wrappedCallback.onFailure(
+            new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
+      }
     }
   }
 
@@ -1764,6 +1792,9 @@ public class ShuffleClientImpl extends ShuffleClient {
           }
         }
       } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         logger.error("Exception raised while call GetReducerFileGroup for {}.", shuffleId, e);
         exceptionMsg = e.getMessage();
       }
