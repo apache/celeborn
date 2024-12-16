@@ -93,7 +93,8 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
         worker.controller.shuffleCommitInfos.get(Utils.makeShuffleKey(APP, shuffleId))
       if (commitInfoList != null) {
         commitInfoList.values().asScala.foreach { commitInfo =>
-          commitInfo.status == CommitInfo.COMMIT_INPROCESS || commitInfo.status == CommitInfo.COMMIT_FINISHED
+          assert(
+            commitInfo.status == CommitInfo.COMMIT_INPROCESS || commitInfo.status == CommitInfo.COMMIT_FINISHED)
         }
       }
     }
@@ -148,7 +149,8 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
         worker.controller.shuffleCommitInfos.get(Utils.makeShuffleKey(APP, shuffleId))
       if (commitInfoList != null) {
         commitInfoList.values().asScala.foreach { commitInfo =>
-          commitInfo.status == CommitInfo.COMMIT_INPROCESS || commitInfo.status == CommitInfo.COMMIT_FINISHED
+          assert(
+            commitInfo.status == CommitInfo.COMMIT_INPROCESS || commitInfo.status == CommitInfo.COMMIT_FINISHED)
         }
       }
     }
