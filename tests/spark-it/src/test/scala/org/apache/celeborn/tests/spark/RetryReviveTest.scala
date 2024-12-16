@@ -37,6 +37,7 @@ class RetryReviveTest extends AnyFunSuite
   override def beforeEach(): Unit = {}
 
   override def afterEach(): Unit = {
+    shutdownMiniCluster()
     System.gc()
   }
 
