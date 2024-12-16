@@ -49,15 +49,15 @@ public class ShuffleResourceTrackerSuiteJ {
     ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map =
         JavaUtils.newConcurrentHashMap();
     WorkerInfo workerInfo = new WorkerInfo("mock", -1, -1, -1, -1);
-    map.put(workerInfo, mockShufflePartitionLocationInfo());
+    map.put(workerInfo, mockShufflePartitionLocationInfo(workerInfo));
 
     ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map2 =
         JavaUtils.newConcurrentHashMap();
-    map2.put(workerInfo, mockShufflePartitionLocationInfo());
+    map2.put(workerInfo, mockShufflePartitionLocationInfo(workerInfo));
 
     ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map3 =
         JavaUtils.newConcurrentHashMap();
-    map3.put(workerInfo, mockShufflePartitionLocationInfo());
+    map3.put(workerInfo, mockShufflePartitionLocationInfo(workerInfo));
 
     Mockito.when(lifecycleManager.workerSnapshots(Mockito.anyInt())).thenReturn(map, map2, map3);
 
@@ -102,8 +102,9 @@ public class ShuffleResourceTrackerSuiteJ {
             .isEmpty());
   }
 
-  public ShufflePartitionLocationInfo mockShufflePartitionLocationInfo() {
-    ShufflePartitionLocationInfo shufflePartitionLocationInfo = new ShufflePartitionLocationInfo();
+  public ShufflePartitionLocationInfo mockShufflePartitionLocationInfo(WorkerInfo workerInfo) {
+    ShufflePartitionLocationInfo shufflePartitionLocationInfo =
+        new ShufflePartitionLocationInfo(workerInfo);
 
     List<PartitionLocation> primaryLocations = new ArrayList<>();
     primaryLocations.add(mockShufflePartitionLocationInfo(1));
