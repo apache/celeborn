@@ -619,7 +619,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           }
         }
         handlePushMergedDataConnectionFail(pushMergedDataCallback, location)
-        callbackWithTimer.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
         return
       }
       pushMergedData.body().retain()
