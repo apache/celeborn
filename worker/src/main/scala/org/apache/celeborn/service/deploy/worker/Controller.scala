@@ -453,12 +453,8 @@ private[deploy] class Controller(
     }
 
     // Update shuffleMapperAttempts
-    val shuffleMapAttempts = shuffleMapperAttempts.get(shuffleKey)
-    if (shuffleMapAttempts == null) {
-      shuffleMapperAttempts.putIfAbsent(shuffleKey, new AtomicIntegerArray(mapAttempts))
-    } else {
-      updateShuffleMapperAttempts(mapAttempts, shuffleMapAttempts)
-    }
+    shuffleMapperAttempts.putIfAbsent(shuffleKey, new AtomicIntegerArray(mapAttempts))
+    updateShuffleMapperAttempts(mapAttempts, shuffleMapperAttempts.get(shuffleKey))
 
     // Use ConcurrentSet to avoid excessive lock contention.
     val committedPrimaryIds = ConcurrentHashMap.newKeySet[String]()
