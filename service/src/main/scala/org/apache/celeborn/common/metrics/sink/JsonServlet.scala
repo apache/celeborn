@@ -26,7 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.{ClassTagExtensions, DefaultScalaModule}
 import org.eclipse.jetty.servlet.ServletContextHandler
 
-import org.apache.celeborn.common.metrics.{CelebornHistogram, CelebornTimer, ResettableSlidingWindowReservoir}
+import org.apache.celeborn.common.metrics.{CelebornTimer, ResettableSlidingWindowReservoir}
 import org.apache.celeborn.common.metrics.source._
 import org.apache.celeborn.server.common.http.HttpUtils
 import org.apache.celeborn.server.common.http.HttpUtils.ServletParams
@@ -89,8 +89,6 @@ class JsonServlet(
     absSource.gauges().foreach(g => recordGauge(absSource, g, metricDatas))
     absSource.histograms().foreach(h => {
       recordHistogram(absSource, h, metricDatas)
-      h.asInstanceOf[CelebornHistogram].reservoir
-        .asInstanceOf[ResettableSlidingWindowReservoir].reset()
     })
     absSource.timers().foreach(t => {
       recordTimer(absSource, t, metricDatas)

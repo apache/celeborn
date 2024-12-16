@@ -112,6 +112,19 @@ public class TransportContext implements Closeable {
   }
 
   public TransportContext(
+      TransportConf conf,
+      BaseMessageHandler msgHandler,
+      boolean closeIdleConnections,
+      boolean enableHeartbeat,
+      AbstractSource source,
+      boolean collectFetchChunkDetailMetrics) {
+    this(conf, msgHandler, closeIdleConnections, null, enableHeartbeat, source);
+    if (collectFetchChunkDetailMetrics) {
+      ENCODER.setSource(source);
+    }
+  }
+
+  public TransportContext(
       TransportConf conf, BaseMessageHandler msgHandler, boolean closeIdleConnections) {
     this(conf, msgHandler, closeIdleConnections, null, false, null);
   }

@@ -22,6 +22,22 @@ import org.apache.celeborn.common.CelebornConf
 
 class CelebornSourceSuite extends CelebornFunSuite {
 
+  test("test histogram") {
+    val conf = new CelebornConf()
+
+    val mockSource = new AbstractSource(conf, Role.WORKER) {
+      override def sourceName: String = "mockSource"
+    }
+    val histogram = "abc"
+    mockSource.addHistogram(histogram)
+    for (i <- 1 to 100) {
+      mockSource.updateHistogram(histogram, 10)
+    }
+    val res = mockSource.getMetrics()
+
+    assert(res.contains("metrics_abc_Count"))
+  }
+
   test("test getMetrics with customized label") {
     val conf = new CelebornConf()
     createAbstractSourceAndCheck(conf, "", Role.MASTER)
