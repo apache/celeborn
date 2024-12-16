@@ -181,10 +181,22 @@ class WorkerPartitionLocationInfo extends Logging {
   }
 
   def toStringSimplified: String = {
+    val primaryLocationStr = new StringBuilder
+    for ((shuffleKey, locations) <- primaryPartitionLocations.asScala) {
+      if (!locations.isEmpty) {
+        primaryLocationStr.append(s"($shuffleKey: ${locations.keySet()}) ")
+      }
+    }
+    val replicaLocationStr = new StringBuilder
+    for ((shuffleKey, locations) <- replicaPartitionLocations.asScala) {
+      if (!locations.isEmpty) {
+        replicaLocationStr.append(s"($shuffleKey: ${locations.keySet()}) ")
+      }
+    }
     s"""
        | Partition Location Info:
-       | primary: ${primaryPartitionLocations.values().asScala.map(_.keySet().asScala)}
-       | replica: ${replicaPartitionLocations.values().asScala.map(_.keySet().asScala)}
+       | primary: $primaryLocationStr
+       | replica: $replicaLocationStr
        |""".stripMargin
   }
 

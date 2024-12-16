@@ -217,7 +217,7 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
     val numThreads = nettyEnv.celebornConf.rpcDispatcherNumThreads(availableCores, role)
 
     val pool = ThreadUtils.newDaemonFixedThreadPool(numThreads, "celeborn-dispatcher")
-    logInfo(s"Dispatcher numThreads: $numThreads")
+    logInfo(s"Celeborn dispatcher numThreads: $numThreads")
     for (i <- 0 until numThreads) {
       pool.execute(new MessageLoop)
     }

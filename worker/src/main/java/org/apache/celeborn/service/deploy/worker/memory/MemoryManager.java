@@ -272,8 +272,8 @@ public class MemoryManager {
             + "max direct memory: {}, pause push memory: {}, "
             + "pause replication memory: {},  "
             + "read buffer memory limit: {} target: {}, "
-            + "memory shuffle storage limit: {}，"
-            + "resume memory ratio: {},",
+            + "memory shuffle storage limit: {}, "
+            + "resume memory ratio: {}",
         Utils.bytesToString(maxDirectMemory),
         Utils.bytesToString(pausePushDataThreshold),
         Utils.bytesToString(pauseReplicateThreshold),
