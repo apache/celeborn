@@ -282,17 +282,18 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         peer.getReplicatePort)
       if (unavailablePeers.containsKey(peerWorker)) {
         fileWriter.decrementPendingWrites()
-        workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
-        logError(
-          s"PushData replication failed caused by unavailable peer for partitionLocation: $location")
-        callbackWithTimer.onFailure(
-          new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
+        handlePushDataConnectionFail(callbackWithTimer, location)
         return
       }
 
       pushData.body().retain()
       replicateThreadPool.submit(new Runnable {
         override def run(): Unit = {
+          if (unavailablePeers.containsKey(peerWorker)) {
+            pushData.body().release()
+            handlePushDataConnectionFail(callbackWithTimer, location)
+            return
+          }
           // Handle the response from replica
           val wrappedCallback = new RpcResponseCallback() {
             override def onSuccess(response: ByteBuffer): Unit = {
@@ -422,6 +423,26 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         case Failure(e) => callbackWithTimer.onFailure(e)
       }
     }
+  }
+
+  def handlePushDataConnectionFail(
+      callbackWithTimer: RpcResponseCallback,
+      location: PartitionLocation): Unit = {
+    workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
+    logError(
+      s"PushData replication failed caused by unavailable peer for partitionLocation: $location")
+    callbackWithTimer.onFailure(
+      new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
+  }
+
+  def handlePushMergedDataConnectionFail(
+      pushMergedDataCallback: PushMergedDataCallback,
+      location: PartitionLocation): Unit = {
+    workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
+    logError(
+      s"PushMergedData replication failed caused by unavailable peer for partitionLocation: $location")
+    pushMergedDataCallback.onFailure(
+      new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
   }
 
   def handlePushMergedData(
@@ -597,16 +618,18 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             fileWriters(fileWriterIndex).decrementPendingWrites()
           }
         }
-        workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
-        logError(
-          s"PushMergedData replication failed caused by unavailable peer for partitionLocation: $location")
-        pushMergedDataCallback.onFailure(
-          new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
+        handlePushMergedDataConnectionFail(pushMergedDataCallback, location)
+        callbackWithTimer.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
         return
       }
       pushMergedData.body().retain()
       replicateThreadPool.submit(new Runnable {
         override def run(): Unit = {
+          if (unavailablePeers.containsKey(peerWorker)) {
+            pushMergedData.body().release()
+            handlePushMergedDataConnectionFail(pushMergedDataCallback, location)
+            return
+          }
           // Handle the response from replica
           val wrappedCallback = new RpcResponseCallback() {
             override def onSuccess(response: ByteBuffer): Unit = {
