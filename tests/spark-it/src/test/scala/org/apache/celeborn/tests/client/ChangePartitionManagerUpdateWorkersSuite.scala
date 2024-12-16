@@ -81,13 +81,13 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
 
     if (reserveSlotsSuccess) {
       val allocatedWorkers =
-        JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
+        JavaUtils.newConcurrentHashMap[String, ShufflePartitionLocationInfo]()
       res.workerResource.asScala.foreach {
         case (workerInfo, (primaryLocations, replicaLocations)) =>
           val partitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
-          allocatedWorkers.put(workerInfo, partitionLocationInfo)
+          allocatedWorkers.put(workerInfo.toUniqueId(), partitionLocationInfo)
           lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
@@ -156,13 +156,13 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
 
     if (reserveSlotsSuccess) {
       val allocatedWorkers =
-        JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
+        JavaUtils.newConcurrentHashMap[String, ShufflePartitionLocationInfo]()
       res.workerResource.asScala.foreach {
         case (workerInfo, (primaryLocations, replicaLocations)) =>
           val partitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
-          allocatedWorkers.put(workerInfo, partitionLocationInfo)
+          allocatedWorkers.put(workerInfo.toUniqueId(), partitionLocationInfo)
           lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
@@ -190,8 +190,9 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val tmpSnapshotWorkers =
       lifecycleManager
         .workerSnapshots(shuffleId)
-        .keySet()
         .asScala
+        .values
+        .map(_.workerInfo)
         .filter(lifecycleManager.workerStatusTracker.workerAvailable)
     assert(tmpSnapshotWorkers.size == 1)
 
@@ -219,8 +220,9 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val snapshotCandidates =
       lifecycleManager
         .workerSnapshots(shuffleId)
-        .keySet()
         .asScala
+        .values
+        .map(_.workerInfo)
         .filter(lifecycleManager.workerStatusTracker.workerAvailable)
 
     assert(snapshotCandidates.size == 2)
@@ -262,13 +264,13 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
 
     if (reserveSlotsSuccess) {
       val allocatedWorkers =
-        JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
+        JavaUtils.newConcurrentHashMap[String, ShufflePartitionLocationInfo]()
       res.workerResource.asScala.foreach {
         case (workerInfo, (primaryLocations, replicaLocations)) =>
           val partitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
-          allocatedWorkers.put(workerInfo, partitionLocationInfo)
+          allocatedWorkers.put(workerInfo.toUniqueId(), partitionLocationInfo)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }
@@ -333,13 +335,13 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
 
     if (reserveSlotsSuccess) {
       val allocatedWorkers =
-        JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
+        JavaUtils.newConcurrentHashMap[String, ShufflePartitionLocationInfo]()
       res.workerResource.asScala.foreach {
         case (workerInfo, (primaryLocations, replicaLocations)) =>
           val partitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
-          allocatedWorkers.put(workerInfo, partitionLocationInfo)
+          allocatedWorkers.put(workerInfo.toUniqueId(), partitionLocationInfo)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }

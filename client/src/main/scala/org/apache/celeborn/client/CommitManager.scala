@@ -122,7 +122,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
                               lifecycleManager.shuffleAllocatedWorkers
                                 .get(shuffleId)
                                 .asScala
-                                .get(worker)
+                                .get(worker.toUniqueId())
                                 .get
                                 .workerInfo
                             val primaryIds =

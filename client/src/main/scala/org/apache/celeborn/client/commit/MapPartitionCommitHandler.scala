@@ -122,7 +122,7 @@ class MapPartitionCommitHandler(
 
   private def handleFinalPartitionCommitFiles(
       shuffleId: Int,
-      allocatedWorkers: util.Map[WorkerInfo, ShufflePartitionLocationInfo],
+      allocatedWorkers: util.Map[String, ShufflePartitionLocationInfo],
       partitionId: Int): (Boolean, ShuffleFailedWorkers) = {
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
     // commit files

@@ -391,7 +391,7 @@ abstract class CommitHandler(
 
   def parallelCommitFiles(
       shuffleId: Int,
-      allocatedWorkers: util.Map[WorkerInfo, ShufflePartitionLocationInfo],
+      allocatedWorkers: util.Map[String, ShufflePartitionLocationInfo],
       partitionIdOpt: Option[Int] = None): CommitResult = {
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
     val primaryPartMap = JavaUtils.newConcurrentHashMap[String, PartitionLocation]
@@ -406,7 +406,8 @@ abstract class CommitHandler(
     val workerPartitionLocations = allocatedWorkers.asScala.filter(!_._2.isEmpty)
 
     val params = new ArrayBuffer[CommitFilesParam](workerPartitionLocations.size)
-    workerPartitionLocations.foreach { case (worker, partitionLocationInfo) =>
+    workerPartitionLocations.foreach { case (_, partitionLocationInfo) =>
+      val worker = partitionLocationInfo.workerInfo
       val primaryParts =
         partitionLocationInfo.getPrimaryPartitions(partitionIdOpt)
       val replicaParts = partitionLocationInfo.getReplicaPartitions(partitionIdOpt)
