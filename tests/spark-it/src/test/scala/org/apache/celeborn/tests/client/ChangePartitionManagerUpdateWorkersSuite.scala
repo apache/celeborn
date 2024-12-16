@@ -84,7 +84,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
       res.workerResource.asScala.foreach {
         case (workerInfo, (primaryLocations, replicaLocations)) =>
-          val partitionLocationInfo = new ShufflePartitionLocationInfo()
+          val partitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
           allocatedWorkers.put(workerInfo, partitionLocationInfo)
@@ -159,7 +159,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
       res.workerResource.asScala.foreach {
         case (workerInfo, (primaryLocations, replicaLocations)) =>
-          val partitionLocationInfo = new ShufflePartitionLocationInfo()
+          val partitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
           allocatedWorkers.put(workerInfo, partitionLocationInfo)
@@ -265,7 +265,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
       res.workerResource.asScala.foreach {
         case (workerInfo, (primaryLocations, replicaLocations)) =>
-          val partitionLocationInfo = new ShufflePartitionLocationInfo()
+          val partitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
           allocatedWorkers.put(workerInfo, partitionLocationInfo)
@@ -336,7 +336,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
       res.workerResource.asScala.foreach {
         case (workerInfo, (primaryLocations, replicaLocations)) =>
-          val partitionLocationInfo = new ShufflePartitionLocationInfo()
+          val partitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
           allocatedWorkers.put(workerInfo, partitionLocationInfo)

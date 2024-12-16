@@ -157,7 +157,7 @@ class ChangePartitionManager(
   private val updateWorkerSnapshotsFunc =
     new util.function.Function[WorkerInfo, ShufflePartitionLocationInfo] {
       override def apply(w: WorkerInfo): ShufflePartitionLocationInfo = {
-        new ShufflePartitionLocationInfo()
+        new ShufflePartitionLocationInfo(w)
       }
     }
 

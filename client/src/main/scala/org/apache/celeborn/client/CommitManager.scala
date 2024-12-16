@@ -114,23 +114,17 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
 
                     if (workerToRequests.nonEmpty) {
                       val commitFilesFailedWorkers = new ShuffleFailedWorkers()
-                      val workerInfoSnapshots =
-                        lifecycleManager.shuffleAllocatedWorkers.get(shuffleId).keySet().asScala
-                          .map(worker => worker.toUniqueId() -> worker).toMap
-                      def getWorkerInfo(worker: WorkerInfo): WorkerInfo = {
-                        workerInfoSnapshots.get(worker.toUniqueId()).getOrElse(
-                          lifecycleManager.shuffleAllocatedWorkers
-                            .get(shuffleId)
-                            .asScala
-                            .find(_._1.equals(worker))
-                            .get
-                            ._1)
-                      }
                       try {
                         val params = new ArrayBuffer[CommitFilesParam](workerToRequests.size)
                         workerToRequests.foreach {
                           case (worker, requests) =>
-                            val workerInfo = getWorkerInfo(worker)
+                            val workerInfo =
+                              lifecycleManager.shuffleAllocatedWorkers
+                                .get(shuffleId)
+                                .asScala
+                                .get(worker)
+                                .get
+                                .workerInfo
                             val primaryIds =
                               requests
                                 .filter(_.getMode == PartitionLocation.Mode.PRIMARY)

@@ -718,7 +718,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val allocatedWorkers =
         JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
       slots.asScala.foreach { case (workerInfo, (primaryLocations, replicaLocations)) =>
-        val partitionLocationInfo = new ShufflePartitionLocationInfo()
+        val partitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
         partitionLocationInfo.addPrimaryPartitions(primaryLocations)
         updateLatestPartitionLocations(shuffleId, primaryLocations)
         partitionLocationInfo.addReplicaPartitions(replicaLocations)
