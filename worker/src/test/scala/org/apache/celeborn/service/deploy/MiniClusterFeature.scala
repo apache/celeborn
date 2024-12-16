@@ -36,8 +36,9 @@ trait MiniClusterFeature extends Logging {
 
   var masterInfo: (Master, Thread) = _
   val workerInfos = new mutable.HashMap[Worker, Thread]()
+  val indToWorkerInfos = new mutable.HashMap[Int, (Worker, Thread)]()
   var workerConfForAdding: Map[String, String] = _
-  var testKillWorker: Boolean = false
+  var testKillWorker: Int = -1
 
   val maxRetries = 4
   val masterWaitingTimeoutMs = TimeUnit.SECONDS.toMillis(60)
@@ -251,6 +252,7 @@ trait MiniClusterFeature extends Logging {
               throw new IllegalStateException(s"worker $i hasn't been initialized")
             } else if (!workerInfos.contains(workers(i))) {
               workerInfos.put(workers(i), threads(i))
+              indToWorkerInfos.put(i, (workers(i), threads(i)))
             }
             if (!workers(i).registered.get()) {
               throw new IllegalStateException(s"worker $i hasn't been registered")
@@ -279,14 +281,23 @@ trait MiniClusterFeature extends Logging {
     (setUpMaster(masterConf), setUpWorkers(workerConf, workerNum))
   }
 
-  def workerKiller(sleepTime: Int): Unit = {
-    testKillWorker = true
+  def workerKiller(sleepTime: Int, workerNum: Int = 3): Unit = {
+    var ind = 0
+    var workerInfo = indToWorkerInfos.get(ind)
+    while (workerInfo.isEmpty && (ind + 1 < workerNum)) {
+      ind += 1
+      workerInfo = indToWorkerInfos.get(ind)
+    }
+    if (workerInfo.nonEmpty && ind < workerNum) {
+      testKillWorker = ind
+    }
     val killerThread = new RunnerWrap({
       Thread.sleep(sleepTime)
-      val workerInfo = workerInfos.toList(0)
-      workerInfo._1.stop(CelebornExitKind.EXIT_IMMEDIATELY)
-      workerInfo._1.rpcEnv.shutdown()
-      workerInfo._2.interrupt()
+      if (testKillWorker != -1) {
+        workerInfo.get._1.stop(CelebornExitKind.EXIT_IMMEDIATELY)
+        workerInfo.get._1.rpcEnv.shutdown()
+        workerInfo.get._2.interrupt()
+      }
     })
     killerThread.start()
   }
