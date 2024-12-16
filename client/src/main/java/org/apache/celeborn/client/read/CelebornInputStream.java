@@ -414,9 +414,6 @@ public abstract class CelebornInputStream extends InputStream {
         throws IOException, InterruptedException {
       if (!location.hasPeer()) {
         logger.debug("Partition {} has only one partition replica.", location);
-      } else if (pbStreamHandler == null && attemptNumber % 2 == 1) {
-        location = location.getPeer();
-        logger.debug("Read peer {} for attempt {}.", location, attemptNumber);
       }
       logger.debug("Create reader for location {}", location);
 
