@@ -224,7 +224,7 @@ trait MiniClusterFeature extends Logging {
             worker.initialize()
           } catch {
             case ex: Exception =>
-              if (testKillWorker != (i - 1)) {
+              if (testKillWorker._1 != (i - 1)) {
                 if (workers(i - 1) != null) {
                   workers(i - 1).shutdownGracefully()
                 }
