@@ -18,10 +18,10 @@
 package org.apache.celeborn.common.rpc
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.metrics.source.{AbstractSource, Role}
+import org.apache.celeborn.common.metrics.source.AbstractSource
 
-class RpcSource(conf: CelebornConf) extends AbstractSource(conf, Role.RPC) {
-  override def sourceName: String = Role.RPC
+class RpcSource(conf: CelebornConf, role: String) extends AbstractSource(conf, role) {
+  override def sourceName: String = "RPC"
 
   startCleaner()
 }

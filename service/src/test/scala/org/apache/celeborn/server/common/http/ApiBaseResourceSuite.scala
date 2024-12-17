@@ -21,7 +21,6 @@ import javax.servlet.http.HttpServletResponse
 import javax.ws.rs.core.MediaType
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.metrics.source.Source
 import org.apache.celeborn.common.network.TestHelper
 
 abstract class ApiBaseResourceSuite extends HttpTestHelper {
@@ -88,14 +87,13 @@ abstract class ApiBaseResourceSuite extends HttpTestHelper {
     var response = webTarget.path("metrics/prometheus").request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
     val metricLines = response.readEntity(classOf[String]).split("\n")
-    assert(Source.SOURCE_INSTANCE != null)
     Seq(
       "metrics_jvm_memory_heap_max_Value",
       "metrics_RpcQueueLength_Value",
       "metrics_RpcQueueTime_Max",
       "metrics_RpcProcessTime_Max").foreach { metric =>
       assert(metricLines.exists(l =>
-        l.contains(metric) && l.contains(s"""instance="${Source.SOURCE_INSTANCE}"""")))
+        l.contains(metric) && l.contains(s"""instance="${httpService.connectionUrl}"""")))
     }
 
     response = webTarget.path("metrics/json").request(MediaType.APPLICATION_JSON).get()

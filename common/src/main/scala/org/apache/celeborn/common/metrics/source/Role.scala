@@ -20,5 +20,5 @@ package org.apache.celeborn.common.metrics.source
 object Role {
   val MASTER = "master"
   val WORKER = "worker"
-  val RPC = "rpc"
+  val CLIENT = "client"
 }

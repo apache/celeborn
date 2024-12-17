@@ -29,7 +29,3 @@ trait Source {
   def getMetrics: String
   def destroy(): Unit
 }
-
-object Source {
-  var SOURCE_INSTANCE: String = _
-}
