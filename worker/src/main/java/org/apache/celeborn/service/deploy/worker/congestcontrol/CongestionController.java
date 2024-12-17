@@ -285,6 +285,10 @@ public class CongestionController {
     }
   }
 
+  public Boolean isOverHighWatermark() {
+    return overHighWatermark.get();
+  }
+
   public void close() {
     logger.info("Closing {}", this.getClass().getSimpleName());
     this.removeUserExecutorService.shutdownNow();
