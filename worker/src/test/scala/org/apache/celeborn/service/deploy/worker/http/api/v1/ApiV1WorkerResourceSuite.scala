@@ -32,7 +32,7 @@ class ApiV1WorkerResourceSuite extends ApiV1BaseResourceSuite with MiniClusterFe
 
   override def beforeAll(): Unit = {
     logInfo("test initialized, setup celeborn mini cluster")
-    val (m, w) =
+    val (_, w) =
       setupMiniClusterWithRandomPorts(workerConf = celebornConf.getAll.toMap, workerNum = 1)
     worker = w.head
     super.beforeAll()

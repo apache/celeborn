@@ -18,7 +18,7 @@
 package org.apache.celeborn.service.deploy
 
 import java.io.IOException
-import java.net.BindException
+import java.net.{BindException, InetSocketAddress, Socket}
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
@@ -28,7 +28,6 @@ import scala.collection.mutable
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
-import org.apache.celeborn.common.util.Utils.selectRandomInt
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
@@ -39,10 +38,37 @@ trait MiniClusterFeature extends Logging {
   val workerInfos = new mutable.HashMap[Worker, Thread]()
   var workerConfForAdding: Map[String, String] = _
 
+  val maxRetries = 4
+  val masterWaitingTimeoutMs = TimeUnit.SECONDS.toMillis(60)
+  val workersWaitingTimeoutMs = TimeUnit.SECONDS.toMillis(60)
+
   class RunnerWrap[T](code: => T) extends Thread {
 
     override def run(): Unit = {
       Utils.tryLogNonFatalError(code)
+    }
+  }
+
+  val usedPorts = new java.util.HashSet[Integer]()
+  def portBounded(port: Int): Boolean = {
+    val socket = new Socket()
+    try {
+      socket.connect(new InetSocketAddress("localhost", port), 100)
+      true
+    } catch {
+      case _: IOException => false
+    } finally {
+      socket.close()
+    }
+  }
+  def selectRandomPort(): Int = synchronized {
+    val port = Utils.selectRandomInt(1024, 65535)
+    val portUsed = usedPorts.contains(port) || portBounded(port)
+    usedPorts.add(port)
+    if (portUsed) {
+      selectRandomPort()
+    } else {
+      port
     }
   }
 
@@ -56,8 +82,8 @@ trait MiniClusterFeature extends Logging {
     var workers: collection.Set[Worker] = null
     while (!created) {
       try {
-        val randomPort = selectRandomInt(1024, 65535)
-        val randomInternalPort = selectRandomInt(1024, 65535)
+        val randomPort = selectRandomPort()
+        val randomInternalPort = selectRandomPort()
         val finalMasterConf = Map(
           s"${CelebornConf.MASTER_HOST.key}" -> "localhost",
           s"${CelebornConf.PORT_MAX_RETRY.key}" -> "0",
@@ -84,7 +110,7 @@ trait MiniClusterFeature extends Logging {
               _.isInstanceOf[BindException]) =>
           logError(s"failed to setup mini cluster, retrying (retry count: $retryCount)", e)
           retryCount += 1
-          if (retryCount == 3) {
+          if (retryCount == maxRetries) {
             logError("failed to setup mini cluster, reached the max retry count", e)
             throw e
           }
@@ -103,7 +129,7 @@ trait MiniClusterFeature extends Logging {
   private def createMaster(map: Map[String, String] = null): Master = {
     val conf = new CelebornConf()
     conf.set(CelebornConf.METRICS_ENABLED.key, "false")
-    val httpPort = selectRandomInt(1024, 65535)
+    val httpPort = selectRandomPort()
     conf.set(CelebornConf.MASTER_HTTP_PORT.key, s"$httpPort")
     logInfo(s"set ${CelebornConf.MASTER_HTTP_PORT.key} to $httpPort")
     if (map != null) {
@@ -128,7 +154,7 @@ trait MiniClusterFeature extends Logging {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, storageDir)
     conf.set(CelebornConf.WORKER_DISK_MONITOR_ENABLED.key, "false")
     conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
-    conf.set(CelebornConf.WORKER_HTTP_PORT.key, s"${selectRandomInt(1024, 65535)}")
+    conf.set(CelebornConf.WORKER_HTTP_PORT.key, s"${selectRandomPort()}")
     conf.set("celeborn.fetch.io.threads", "4")
     conf.set("celeborn.push.io.threads", "4")
     if (map != null) {
@@ -151,7 +177,6 @@ trait MiniClusterFeature extends Logging {
   }
 
   def setUpMaster(masterConf: Map[String, String] = null): Master = {
-    val timeout = 30000
     val master = createMaster(masterConf)
     val masterStartedSignal = Array(false)
     val masterThread = new RunnerWrap({
@@ -167,13 +192,13 @@ trait MiniClusterFeature extends Logging {
     masterThread.start()
     masterInfo = (master, masterThread)
     var masterStartWaitingTime = 0
-    Thread.sleep(5000)
     while (!masterStartedSignal.head) {
       logInfo("waiting for master node starting")
-      masterStartWaitingTime += 5000
-      if (masterStartWaitingTime >= timeout) {
+      if (masterStartWaitingTime >= masterWaitingTimeoutMs) {
         throw new BindException("cannot start master rpc endpoint")
       }
+      Thread.sleep(5000)
+      masterStartWaitingTime += 5000
     }
     master
   }
@@ -181,7 +206,6 @@ trait MiniClusterFeature extends Logging {
   def setUpWorkers(
       workerConf: Map[String, String] = null,
       workerNum: Int = 3): collection.Set[Worker] = {
-    val timeout = 30000
     val workers = new Array[Worker](workerNum)
     val flagUpdateLock = new ReentrantLock()
     val threads = (1 to workerNum).map { i =>
@@ -204,11 +228,9 @@ trait MiniClusterFeature extends Logging {
               workerStarted = false
               workerStartRetry += 1
               logError(s"cannot start worker $i, retrying: ", ex)
-              if (workerStartRetry == 3) {
+              if (workerStartRetry == maxRetries) {
                 logError(s"cannot start worker $i, reached to max retrying", ex)
                 throw ex
-              } else {
-                TimeUnit.SECONDS.sleep(Math.pow(2, workerStartRetry).toLong)
               }
           }
         }
@@ -238,12 +260,12 @@ trait MiniClusterFeature extends Logging {
       } catch {
         case ex: Throwable =>
           logError("all workers haven't been started retrying", ex)
-          Thread.sleep(5000)
-          workersWaitingTime += 5000
-          if (workersWaitingTime >= timeout) {
-            logError(s"cannot start all workers after $timeout ms", ex)
+          if (workersWaitingTime >= workersWaitingTimeoutMs) {
+            logError(s"cannot start all workers after $workersWaitingTimeoutMs ms", ex)
             throw ex
           }
+          Thread.sleep(5000)
+          workersWaitingTime += 5000
       }
     }
     workerInfos.keySet
@@ -278,5 +300,7 @@ trait MiniClusterFeature extends Logging {
     workerInfos.clear()
     masterInfo._2.interrupt()
     MemoryManager.reset()
+
+    usedPorts.clear()
   }
 }
