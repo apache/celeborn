@@ -328,8 +328,7 @@ object Utils extends Logging {
         }
         isBindCollision(e.getCause)
       case e: NativeIoException =>
-        (e.getMessage != null && e.getMessage.startsWith("bind() failed: ")) ||
-          isBindCollision(e.getCause)
+        e.getMessage != null && e.getMessage.startsWith("bind")
       case e: Exception => isBindCollision(e.getCause)
       case _ => false
     }

@@ -27,11 +27,13 @@ import scala.concurrent.duration._
 import scala.util.Try
 import scala.util.matching.Regex
 
+import io.netty.channel.epoll.Epoll
+
 import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, HadoopBasedIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
-import org.apache.celeborn.common.network.util.ByteUnit
+import org.apache.celeborn.common.network.util.{ByteUnit, IOMode}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
@@ -1918,11 +1920,12 @@ object CelebornConf extends Logging {
   val NETWORK_IO_MODE: ConfigEntry[String] =
     buildConf("celeborn.<module>.io.mode")
       .categories("network")
-      .doc("Netty EventLoopGroup backend, available options: NIO, EPOLL.")
+      .doc("Netty EventLoopGroup backend, available options: NIO, EPOLL. If epoll mode is available, the default IO mode is EPOLL; otherwise, the default is NIO.")
       .stringConf
       .transform(_.toUpperCase)
-      .checkValues(Set("NIO", "EPOLL"))
-      .createWithDefault("NIO")
+      .checkValues(Set(IOMode.NIO.name(), IOMode.EPOLL.name()))
+      .createWithDefaultFunction(() =>
+        if (Epoll.isAvailable) IOMode.EPOLL.name() else IOMode.NIO.name())
 
   val NETWORK_IO_PREFER_DIRECT_BUFS: ConfigEntry[Boolean] =
     buildConf("celeborn.<module>.io.preferDirectBufs")
