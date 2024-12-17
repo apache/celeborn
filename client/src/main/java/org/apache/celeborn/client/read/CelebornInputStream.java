@@ -332,6 +332,11 @@ public abstract class CelebornInputStream extends InputStream {
     }
 
     private PartitionReader createReaderWithRetry(PartitionLocation location) throws IOException {
+      // For the first time, the location will be selected according to attemptNumber
+      if (fetchChunkRetryCnt == 0 && attemptNumber % 2 == 1 && location.hasPeer()) {
+        location = location.getPeer();
+        logger.debug("Read peer {} for attempt {}.", location, attemptNumber);
+      }
       Exception lastException = null;
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
@@ -423,12 +428,6 @@ public abstract class CelebornInputStream extends InputStream {
     private PartitionReader createReader(
         PartitionLocation location, int fetchChunkRetryCnt, int fetchChunkMaxRetry)
         throws IOException, InterruptedException {
-      if (!location.hasPeer()) {
-        logger.debug("Partition {} has only one partition replica.", location);
-      } else if (attemptNumber % 2 == 1) {
-        location = location.getPeer();
-        logger.debug("Read peer {} for attempt {}.", location, attemptNumber);
-      }
       logger.debug("Create reader for location {}", location);
 
       StorageInfo storageInfo = location.getStorageInfo();
