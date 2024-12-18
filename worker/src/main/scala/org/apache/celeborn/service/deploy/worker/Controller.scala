@@ -21,11 +21,12 @@ import java.io.IOException
 import java.util.{ArrayList => jArrayList, HashMap => jHashMap, List => jList, Set => jSet}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray, AtomicReference}
+import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-import io.netty.util.{HashedWheelTimer, Timeout}
+import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -593,49 +594,53 @@ private[deploy] class Controller(
       val result = new AtomicReference[CompletableFuture[Unit]]()
 
       val timeout = timer.newTimeout(
-        (_: Timeout) => {
-          if (result.get() != null) {
-            future.cancel(true)
-            tasks.foreach { task =>
-              task.cancel(true)
+        new TimerTask {
+          override def run(timeout: Timeout): Unit = {
+            if (result.get() != null) {
+              future.cancel(true)
+              tasks.foreach { task =>
+                task.cancel(true)
+              }
+              logWarning(s"After waiting $shuffleCommitTimeout ms, cancel all commit file jobs.")
             }
-            logWarning(s"After waiting $shuffleCommitTimeout ms, cancel all commit file jobs.")
           }
         },
         shuffleCommitTimeout,
         TimeUnit.MILLISECONDS)
 
       result.set(future.handleAsync(
-        (_: Void, t: Throwable) => {
-          if (null != t) {
-            t match {
-              case _: CancellationException =>
-                logWarning("While handling commitFiles, canceled.")
-              case ee: ExecutionException =>
-                logError("While handling commitFiles, ExecutionException raised.", ee)
-              case ie: InterruptedException =>
-                logWarning("While handling commitFiles, interrupted.")
-                Thread.currentThread().interrupt()
-                throw ie
-              case _: TimeoutException =>
-                logWarning(s"While handling commitFiles, timeout after $shuffleCommitTimeout ms.")
-              case throwable: Throwable =>
-                logError("While handling commitFiles, exception occurs.", throwable)
-            }
-            commitInfo.synchronized {
-              commitInfo.response = CommitFilesResponse(
-                StatusCode.COMMIT_FILE_EXCEPTION,
-                List.empty.asJava,
-                List.empty.asJava,
-                primaryIds,
-                replicaIds)
+        new BiFunction[Void, Throwable, Unit] {
+          override def apply(v: Void, t: Throwable): Unit = {
+            if (null != t) {
+              t match {
+                case _: CancellationException =>
+                  logWarning("While handling commitFiles, canceled.")
+                case ee: ExecutionException =>
+                  logError("While handling commitFiles, ExecutionException raised.", ee)
+                case ie: InterruptedException =>
+                  logWarning("While handling commitFiles, interrupted.")
+                  Thread.currentThread().interrupt()
+                  throw ie
+                case _: TimeoutException =>
+                  logWarning(s"While handling commitFiles, timeout after $shuffleCommitTimeout ms.")
+                case throwable: Throwable =>
+                  logError("While handling commitFiles, exception occurs.", throwable)
+              }
+              commitInfo.synchronized {
+                commitInfo.response = CommitFilesResponse(
+                  StatusCode.COMMIT_FILE_EXCEPTION,
+                  List.empty.asJava,
+                  List.empty.asJava,
+                  primaryIds,
+                  replicaIds)
 
-              commitInfo.status = CommitInfo.COMMIT_FINISHED
+                commitInfo.status = CommitInfo.COMMIT_FINISHED
+              }
+            } else {
+              // finish, cancel timeout job first.
+              timeout.cancel()
+              reply()
             }
-          } else {
-            // finish, cancel timeout job first.
-            timeout.cancel()
-            reply()
           }
         },
         asyncReplyPool
