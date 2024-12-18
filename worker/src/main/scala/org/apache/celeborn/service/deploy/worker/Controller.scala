@@ -21,11 +21,11 @@ import java.io.IOException
 import java.util.{ArrayList => jArrayList, HashMap => jHashMap, List => jList, Set => jSet}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray, AtomicReference}
-import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
-import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
+import io.netty.util.{HashedWheelTimer, Timeout}
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -288,8 +288,10 @@ private[deploy] class Controller(
       committedStorageInfos: ConcurrentHashMap[String, StorageInfo],
       committedMapIdBitMap: ConcurrentHashMap[String, RoaringBitmap],
       partitionSizeList: LinkedBlockingQueue[Long],
-      isPrimary: Boolean = true): CompletableFuture[Void] = {
+      isPrimary: Boolean = true)
+      : (CompletableFuture[Void], ArrayBuffer[CompletableFuture[Void]]) = {
     var future: CompletableFuture[Void] = null
+    val tasks = ArrayBuffer[CompletableFuture[Void]]()
 
     if (uniqueIds != null) {
       uniqueIds.asScala.foreach { uniqueId =>
@@ -344,10 +346,10 @@ private[deploy] class Controller(
         } else {
           future = CompletableFuture.allOf(future, task)
         }
+        tasks.append(task)
       }
     }
-
-    future
+    (future, tasks)
   }
 
   private def waitMapPartitionRegionFinished(
@@ -499,15 +501,17 @@ private[deploy] class Controller(
       false)
 
     val future =
-      if (primaryFuture != null && replicaFuture != null) {
-        CompletableFuture.allOf(primaryFuture, replicaFuture)
-      } else if (primaryFuture != null) {
-        primaryFuture
-      } else if (replicaFuture != null) {
-        replicaFuture
+      if (primaryFuture._1 != null && replicaFuture._1 != null) {
+        CompletableFuture.allOf(primaryFuture._1, replicaFuture._1)
+      } else if (primaryFuture._1 != null) {
+        primaryFuture._1
+      } else if (replicaFuture._1 != null) {
+        replicaFuture._1
       } else {
         null
       }
+
+    val tasks = primaryFuture._2 ++ replicaFuture._2
 
     def reply(): Unit = {
       // release slots before reply.
@@ -589,50 +593,49 @@ private[deploy] class Controller(
       val result = new AtomicReference[CompletableFuture[Unit]]()
 
       val timeout = timer.newTimeout(
-        new TimerTask {
-          override def run(timeout: Timeout): Unit = {
-            if (result.get() != null) {
-              result.get().cancel(true)
-              logWarning(s"After waiting $shuffleCommitTimeout ms, cancel all commit file jobs.")
+        (_: Timeout) => {
+          if (result.get() != null) {
+            future.cancel(true)
+            tasks.foreach { task =>
+              task.cancel(true)
             }
+            logWarning(s"After waiting $shuffleCommitTimeout ms, cancel all commit file jobs.")
           }
         },
         shuffleCommitTimeout,
         TimeUnit.MILLISECONDS)
 
       result.set(future.handleAsync(
-        new BiFunction[Void, Throwable, Unit] {
-          override def apply(v: Void, t: Throwable): Unit = {
-            if (null != t) {
-              t match {
-                case _: CancellationException =>
-                  logWarning("While handling commitFiles, canceled.")
-                case ee: ExecutionException =>
-                  logError("While handling commitFiles, ExecutionException raised.", ee)
-                case ie: InterruptedException =>
-                  logWarning("While handling commitFiles, interrupted.")
-                  Thread.currentThread().interrupt()
-                  throw ie
-                case _: TimeoutException =>
-                  logWarning(s"While handling commitFiles, timeout after $shuffleCommitTimeout ms.")
-                case throwable: Throwable =>
-                  logError("While handling commitFiles, exception occurs.", throwable)
-              }
-              commitInfo.synchronized {
-                commitInfo.response = CommitFilesResponse(
-                  StatusCode.COMMIT_FILE_EXCEPTION,
-                  List.empty.asJava,
-                  List.empty.asJava,
-                  primaryIds,
-                  replicaIds)
-
-                commitInfo.status = CommitInfo.COMMIT_FINISHED
-              }
-            } else {
-              // finish, cancel timeout job first.
-              timeout.cancel()
-              reply()
+        (_: Void, t: Throwable) => {
+          if (null != t) {
+            t match {
+              case _: CancellationException =>
+                logWarning("While handling commitFiles, canceled.")
+              case ee: ExecutionException =>
+                logError("While handling commitFiles, ExecutionException raised.", ee)
+              case ie: InterruptedException =>
+                logWarning("While handling commitFiles, interrupted.")
+                Thread.currentThread().interrupt()
+                throw ie
+              case _: TimeoutException =>
+                logWarning(s"While handling commitFiles, timeout after $shuffleCommitTimeout ms.")
+              case throwable: Throwable =>
+                logError("While handling commitFiles, exception occurs.", throwable)
             }
+            commitInfo.synchronized {
+              commitInfo.response = CommitFilesResponse(
+                StatusCode.COMMIT_FILE_EXCEPTION,
+                List.empty.asJava,
+                List.empty.asJava,
+                primaryIds,
+                replicaIds)
+
+              commitInfo.status = CommitInfo.COMMIT_FINISHED
+            }
+          } else {
+            // finish, cancel timeout job first.
+            timeout.cancel()
+            reply()
           }
         },
         asyncReplyPool
