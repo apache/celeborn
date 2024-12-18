@@ -447,7 +447,8 @@ private[celeborn] class Worker(
   }
 
   private def highWorkload: Boolean = {
-    (memoryManager.currentServingState,
+    (
+      memoryManager.currentServingState,
       Option(CongestionController.instance()),
       conf.workerActiveConnectionMax) match {
       case (_, Some(instance), _) if instance.isOverHighWatermark => true
