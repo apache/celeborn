@@ -292,9 +292,7 @@ private[deploy] class Controller(
       partitionSizeList: LinkedBlockingQueue[Long],
       isPrimary: Boolean = true)
       : (CompletableFuture[Void], ArrayBuffer[CompletableFuture[Void]]) = {
-    var future: CompletableFuture[Void] = null
     val tasks = ArrayBuffer[CompletableFuture[Void]]()
-
     if (uniqueIds != null) {
       uniqueIds.asScala.foreach { uniqueId =>
         val task = CompletableFuture.runAsync(
@@ -337,7 +335,6 @@ private[deploy] class Controller(
                 if (mockCommitFilesFailure) {
                   Thread.sleep(10)
                 }
-                logInfo(s"[test] pending threads: ${commitThreadPool.getQueue.size()}, mockFail: $mockCommitFilesFailure")
               } catch {
                 case e: IOException =>
                   logError(s"Commit file for $shuffleKey $uniqueId failed.", e)
@@ -346,15 +343,11 @@ private[deploy] class Controller(
             }
           },
           commitThreadPool)
-
-        if (future == null) {
-          future = task
-        } else {
-          future = CompletableFuture.allOf(future, task)
-        }
         tasks.append(task)
       }
     }
+    val future: CompletableFuture[Void] =
+      if (tasks.isEmpty) null else CompletableFuture.allOf(tasks: _*)
     (future, tasks)
   }
 
