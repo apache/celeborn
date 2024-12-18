@@ -347,7 +347,7 @@ private[deploy] class Controller(
       }
     }
     val future: CompletableFuture[Void] =
-      if (tasks.isEmpty) null else CompletableFuture.allOf(tasks: _*)
+      if (tasks.isEmpty) null else CompletableFuture.allOf(tasks.toSeq: _*)
     (future, tasks)
   }
 
