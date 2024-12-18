@@ -39,13 +39,13 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-  }
-
-  test("test commit files without mocking failure") {
     val (master, _) = setupMiniClusterWithRandomPorts()
     celebornConf.set(
       CelebornConf.MASTER_ENDPOINTS.key,
       master.conf.get(CelebornConf.MASTER_ENDPOINTS.key))
+  }
+
+  test("test commit files without mocking failure") {
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
     conf.set(CelebornConf.TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE.key, "false")
@@ -102,10 +102,6 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
   }
 
   test("test commit files with mocking failure") {
-    val (master, _) = setupMiniClusterWithRandomPorts()
-    celebornConf.set(
-      CelebornConf.MASTER_ENDPOINTS.key,
-      master.conf.get(CelebornConf.MASTER_ENDPOINTS.key))
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
     conf.set(CelebornConf.TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE.key, "true")
@@ -163,6 +159,9 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
   }
 
   test("test commit files timeout failure") {
+    if (workerInfos.nonEmpty) {
+      shutdownMiniCluster()
+    }
     celebornConf
       .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "false")
     val workerConf0 = Map(
@@ -227,7 +226,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
     lifecycleManager.stop()
   }
 
-  override def afterEach(): Unit = {
+  override def afterAll(): Unit = {
     logInfo("test complete , stop celeborn mini cluster")
     shutdownMiniCluster()
   }

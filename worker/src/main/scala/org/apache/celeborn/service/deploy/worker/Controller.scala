@@ -478,7 +478,7 @@ private[deploy] class Controller(
     val committedMapIdBitMap = JavaUtils.newConcurrentHashMap[String, RoaringBitmap]()
     val partitionSizeList = new LinkedBlockingQueue[Long]()
 
-    val primaryFuture =
+    val (primaryFuture, primaryTasks) =
       commitFiles(
         shuffleKey,
         primaryIds,
@@ -488,7 +488,7 @@ private[deploy] class Controller(
         committedPrimaryStorageInfos,
         committedMapIdBitMap,
         partitionSizeList)
-    val replicaFuture = commitFiles(
+    val (replicaFuture, replicaTasks) = commitFiles(
       shuffleKey,
       replicaIds,
       committedReplicaIds,
@@ -500,17 +500,17 @@ private[deploy] class Controller(
       false)
 
     val future =
-      if (primaryFuture._1 != null && replicaFuture._1 != null) {
-        CompletableFuture.allOf(primaryFuture._1, replicaFuture._1)
-      } else if (primaryFuture._1 != null) {
-        primaryFuture._1
-      } else if (replicaFuture._1 != null) {
-        replicaFuture._1
+      if (primaryFuture != null && replicaFuture != null) {
+        CompletableFuture.allOf(primaryFuture, replicaFuture)
+      } else if (primaryFuture != null) {
+        primaryFuture
+      } else if (replicaFuture != null) {
+        replicaFuture
       } else {
         null
       }
 
-    val tasks = primaryFuture._2 ++ replicaFuture._2
+    val tasks = primaryTasks ++ replicaTasks
 
     def reply(): Unit = {
       // release slots before reply.
