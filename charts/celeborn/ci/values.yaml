@@ -140,4 +140,3 @@ serviceAccount:
   create: false
   # -- Specifies the name of the service account
   name: default
-
