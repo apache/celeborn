@@ -39,13 +39,13 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+  }
+
+  test("test commit files without mocking failure") {
     val (master, _) = setupMiniClusterWithRandomPorts()
     celebornConf.set(
       CelebornConf.MASTER_ENDPOINTS.key,
       master.conf.get(CelebornConf.MASTER_ENDPOINTS.key))
-  }
-
-  test("test commit files without mocking failure") {
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
     conf.set(CelebornConf.TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE.key, "false")
@@ -102,6 +102,10 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
   }
 
   test("test commit files with mocking failure") {
+    val (master, _) = setupMiniClusterWithRandomPorts()
+    celebornConf.set(
+      CelebornConf.MASTER_ENDPOINTS.key,
+      master.conf.get(CelebornConf.MASTER_ENDPOINTS.key))
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
     conf.set(CelebornConf.TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE.key, "true")
@@ -158,8 +162,73 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
     lifecycleManager.stop()
   }
 
-  override def afterAll(): Unit = {
-    logInfo("all test complete , stop celeborn mini cluster")
+  test("test commit files timeout failure") {
+    celebornConf
+      .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "false")
+    val workerConf0 = Map(
+      s"${CelebornConf.WORKER_SHUFFLE_COMMIT_TIMEOUT.key}" -> "100",
+      s"${CelebornConf.WORKER_COMMIT_THREADS.key}" -> "1",
+      s"${CelebornConf.TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE.key}" -> "true")
+    val (master, _) = setupMiniClusterWithRandomPorts(workerConf = workerConf0)
+    celebornConf.set(
+      CelebornConf.MASTER_ENDPOINTS.key,
+      master.conf.get(CelebornConf.MASTER_ENDPOINTS.key))
+
+    val shuffleId = nextShuffleId
+    val conf = celebornConf.clone
+    conf.set(CelebornConf.TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE.key, "true")
+    val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
+    val ids = new util.ArrayList[Integer](1000)
+    0 until 1000 foreach {
+      ids.add(_)
+    }
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    assert(res.status == StatusCode.SUCCESS)
+
+    lifecycleManager.setupEndpoints(
+      res.workerResource.keySet(),
+      shuffleId,
+      new ShuffleFailedWorkers())
+
+    lifecycleManager.reserveSlotsWithRetry(
+      shuffleId,
+      new util.HashSet(res.workerResource.keySet()),
+      res.workerResource,
+      updateEpoch = false)
+
+    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
+    0 until 1000 foreach { partitionId =>
+      lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
+    }
+
+    val commitHandler = lifecycleManager.commitManager.getCommitHandler(shuffleId)
+    val params = new ArrayBuffer[CommitFilesParam](res.workerResource.size())
+    res.workerResource.asScala.foreach { case (workerInfo, (primaryIds, replicaIds)) =>
+      params += (CommitFilesParam(
+        workerInfo,
+        primaryIds.asScala.map(_.getUniqueId).toList.asJava,
+        replicaIds.asScala.map(_.getUniqueId).toList.asJava))
+    }
+    commitHandler.doParallelCommitFiles(
+      shuffleId,
+      lifecycleManager.commitManager.committedPartitionInfo.get(shuffleId),
+      params,
+      new ShuffleFailedWorkers)
+
+    workerInfos.keySet.foreach { worker =>
+      val commitInfoList =
+        worker.controller.shuffleCommitInfos.get(Utils.makeShuffleKey(APP, shuffleId))
+      if (commitInfoList != null) {
+        commitInfoList.values().asScala.foreach { commitInfo =>
+          assert(commitInfo.status == CommitInfo.COMMIT_FINISHED)
+        }
+      }
+    }
+    lifecycleManager.stop()
+  }
+
+  override def afterEach(): Unit = {
+    logInfo("test complete , stop celeborn mini cluster")
     shutdownMiniCluster()
   }
 }

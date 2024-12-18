@@ -63,6 +63,7 @@ private[deploy] class Controller(
   val minPartitionSizeToEstimate = conf.minPartitionSizeToEstimate
   var shutdown: AtomicBoolean = _
   val defaultPushdataTimeout = conf.pushDataTimeoutMs
+  val mockCommitFilesFailure = conf.testMockCommitFilesFailure
 
   def init(worker: Worker): Unit = {
     storageManager = worker.storageManager
@@ -333,6 +334,10 @@ private[deploy] class Controller(
                 } else {
                   emptyFileIds.add(uniqueId)
                 }
+                if (mockCommitFilesFailure) {
+                  Thread.sleep(10)
+                }
+                logInfo(s"[test] pending threads: ${commitThreadPool.getQueue.size()}, mockFail: $mockCommitFilesFailure")
               } catch {
                 case e: IOException =>
                   logError(s"Commit file for $shuffleKey $uniqueId failed.", e)
