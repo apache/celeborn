@@ -227,7 +227,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
   }
 
   override def afterAll(): Unit = {
-    logInfo("test complete , stop celeborn mini cluster")
+    logInfo("all test complete , stop celeborn mini cluster")
     shutdownMiniCluster()
   }
 }
