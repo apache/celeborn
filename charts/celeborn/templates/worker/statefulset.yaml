@@ -39,6 +39,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
+      serviceAccountName:  {{ include "celeborn.serviceAccountName" . }}
       initContainers:
       {{- $dirs := .Values.volumes.worker }}
       {{- if eq "hostPath" (index $dirs 0).type }}
