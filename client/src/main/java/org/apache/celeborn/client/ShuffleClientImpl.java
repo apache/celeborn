@@ -81,7 +81,6 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final int registerShuffleMaxRetries;
   private final long registerShuffleRetryWaitMs;
-  private final long lifecycleManagerRpcTimeoutRetryWaitMs;
   private final int maxReviveTimes;
   private final boolean testRetryRevive;
   private final int pushBufferMaxSize;
@@ -180,7 +179,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     this.userIdentifier = userIdentifier;
     registerShuffleMaxRetries = conf.clientRegisterShuffleMaxRetry();
     registerShuffleRetryWaitMs = conf.clientRegisterShuffleRetryWaitMs();
-    lifecycleManagerRpcTimeoutRetryWaitMs = conf.clientCallLifecycleManagerRetryWaitMs();
     maxReviveTimes = conf.clientPushMaxReviveTimes();
     testRetryRevive = conf.testRetryRevive();
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
@@ -1970,7 +1968,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               numRetries);
           try {
             Random random = new Random();
-            int waitTimeBound = (int) lifecycleManagerRpcTimeoutRetryWaitMs;
+            int waitTimeBound = (int) conf.clientCallLifecycleManagerRetryWaitMs();
             long retryWaitMs = random.nextInt(waitTimeBound);
             TimeUnit.MILLISECONDS.sleep(retryWaitMs);
           } catch (InterruptedException e) {
