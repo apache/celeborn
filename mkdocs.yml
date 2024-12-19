@@ -95,6 +95,7 @@ nav:
         - Overview: developers/client.md
         - LifecycleManager: developers/lifecyclemanager.md
         - ShuffleClient: developers/shuffleclient.md
+        - JavaColumnarShuffle: developers/java-columnar-shuffle.md
       - Configuration: developers/configuration.md
       - Fault Tolerant: developers/faulttolerant.md
       - Worker Exclusion: developers/workerexclusion.md
