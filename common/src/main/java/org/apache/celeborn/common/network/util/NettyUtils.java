@@ -168,7 +168,7 @@ public class NettyUtils {
       String poolName;
       Map<String, String> labels = new HashMap<>();
       if (conf.getCelebornConf().networkMemoryAllocatorAllowCache()) {
-        poolName = allowCache ? "shared-pool" : "non-shared-pool";
+        poolName = allowCache ? "netty-shared-pool" : "netty-non-shared-pool";
       } else {
         poolName = conf.getModuleName();
         int index = allocatorsIndex.compute(poolName, (k, v) -> v == null ? 0 : v + 1);
