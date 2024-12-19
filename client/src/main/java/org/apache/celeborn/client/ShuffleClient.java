@@ -67,7 +67,7 @@ public abstract class ShuffleClient {
       String driverHost,
       int port,
       CelebornConf conf,
-      UserIdentifier userIdentifier) throws CelebornIOException {
+      UserIdentifier userIdentifier) {
     return ShuffleClient.get(appUniqueId, driverHost, port, conf, userIdentifier, null);
   }
 
@@ -77,7 +77,7 @@ public abstract class ShuffleClient {
       int port,
       CelebornConf conf,
       UserIdentifier userIdentifier,
-      byte[] extension) throws CelebornIOException {
+      byte[] extension) {
     if (null == _instance || !initialized) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {

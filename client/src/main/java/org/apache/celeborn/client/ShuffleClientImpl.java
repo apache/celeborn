@@ -1747,56 +1747,53 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   protected Tuple3<ReduceFileGroups, String, Exception> loadFileGroupInternal(
       int shuffleId, boolean isSegmentGranularityVisible) {
-      long getReducerFileGroupStartTime = System.nanoTime();
-      String exceptionMsg = null;
-      Exception exception = null;
-      if (lifecycleManagerRef != null) {
+    long getReducerFileGroupStartTime = System.nanoTime();
+    String exceptionMsg = null;
+    Exception exception = null;
+    if (lifecycleManagerRef != null) {
       try {
-          GetReducerFileGroup getReducerFileGroup =
-              new GetReducerFileGroup(shuffleId, isSegmentGranularityVisible);
-          GetReducerFileGroupResponse response =
-                  callLifecycleManagerWithRetry(
-                          () ->
-                                  lifecycleManagerRef.askSync(
-                                          getReducerFileGroup,
-                                          conf.clientRpcGetReducerFileGroupAskTimeout(),
-                                          ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class)));
-          switch (response.status()) {
-            case SUCCESS:
-              logger.info(
-                  "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
-                  shuffleId,
-                  TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
-                  response.fileGroup().size());
-              return Tuple3.apply(
-                  new ReduceFileGroups(
-                      response.fileGroup(), response.attempts(), response.partitionIds()),
-                  null,
-                  null);
-            case SHUFFLE_NOT_REGISTERED:
-              logger.warn(
-                  "Request {} return {} for {}.",
-                  getReducerFileGroup,
-                  response.status(),
-                  shuffleId);
-              // return empty result
-              return Tuple3.apply(
-                  new ReduceFileGroups(
-                      response.fileGroup(), response.attempts(), response.partitionIds()),
-                  null,
-                  null);
-            case STAGE_END_TIME_OUT:
-              break;
-            case SHUFFLE_DATA_LOST:
-              exceptionMsg =
-                  String.format(
-                      "Request %s return %s for %s.",
-                      getReducerFileGroup, response.status(), shuffleId);
-              logger.warn(exceptionMsg);
-              break;
-            default: // fall out
-          }
-        } catch (Exception e) {
+        GetReducerFileGroup getReducerFileGroup =
+            new GetReducerFileGroup(shuffleId, isSegmentGranularityVisible);
+        GetReducerFileGroupResponse response =
+            callLifecycleManagerWithRetry(
+                () ->
+                    lifecycleManagerRef.askSync(
+                        getReducerFileGroup,
+                        conf.clientRpcGetReducerFileGroupAskTimeout(),
+                        ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class)));
+        switch (response.status()) {
+          case SUCCESS:
+            logger.info(
+                "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
+                shuffleId,
+                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
+                response.fileGroup().size());
+            return Tuple3.apply(
+                new ReduceFileGroups(
+                    response.fileGroup(), response.attempts(), response.partitionIds()),
+                null,
+                null);
+          case SHUFFLE_NOT_REGISTERED:
+            logger.warn(
+                "Request {} return {} for {}.", getReducerFileGroup, response.status(), shuffleId);
+            // return empty result
+            return Tuple3.apply(
+                new ReduceFileGroups(
+                    response.fileGroup(), response.attempts(), response.partitionIds()),
+                null,
+                null);
+          case STAGE_END_TIME_OUT:
+            break;
+          case SHUFFLE_DATA_LOST:
+            exceptionMsg =
+                String.format(
+                    "Request %s return %s for %s.",
+                    getReducerFileGroup, response.status(), shuffleId);
+            logger.warn(exceptionMsg);
+            break;
+          default: // fall out
+        }
+      } catch (Exception e) {
         if (e instanceof InterruptedException) {
           Thread.currentThread().interrupt();
         }
@@ -1940,44 +1937,44 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public void setupLifecycleManagerRef(String host, int port) {
     logger.info("setupLifecycleManagerRef: host = {}, port = {}", host, port);
-      lifecycleManagerRef =
-              callLifecycleManagerWithRetry(
-                      () ->
-                              rpcEnv.setupEndpointRef(
-                                      new RpcAddress(host, port), RpcNameConstants.LIFECYCLE_MANAGER_EP));
+    lifecycleManagerRef =
+        callLifecycleManagerWithRetry(
+            () ->
+                rpcEnv.setupEndpointRef(
+                    new RpcAddress(host, port), RpcNameConstants.LIFECYCLE_MANAGER_EP));
     initDataClientFactoryIfNeeded();
   }
 
-    public <T> T callLifecycleManagerWithRetry(Callable<T> callable) {
-        return callLifecycleManagerWithRetry(callable, 3);
-    }
+  public <T> T callLifecycleManagerWithRetry(Callable<T> callable) {
+    return callLifecycleManagerWithRetry(callable, 3);
+  }
 
-    public <T> T callLifecycleManagerWithRetry(Callable<T> callable, int numRetries) {
-        T result;
-        while (numRetries > 0) {
-            numRetries--;
-            try {
-                result = callable.call();
-                return result;
-            } catch (Exception error) {
-                if (error instanceof RpcTimeoutException && numRetries > 0) {
-                    logger.warn(
-                            "RpcTimeout while calling LifecycleManager, left retry times: {}", numRetries);
-                    try {
-                        Random random = new Random();
-                        long retryWaitMs = random.nextInt(500);
-                        TimeUnit.MILLISECONDS.sleep(retryWaitMs);
-                    } catch (InterruptedException e) {
-                        break;
-                    }
-                } else {
-                    logger.error("Exception raised while calling LifecycleManager");
-                    break;
-                }
-            }
+  public <T> T callLifecycleManagerWithRetry(Callable<T> callable, int numRetries) {
+    T result;
+    while (numRetries > 0) {
+      numRetries--;
+      try {
+        result = callable.call();
+        return result;
+      } catch (Exception error) {
+        if (error instanceof RpcTimeoutException && numRetries > 0) {
+          logger.warn(
+              "RpcTimeout while calling LifecycleManager, left retry times: {}", numRetries);
+          try {
+            Random random = new Random();
+            long retryWaitMs = random.nextInt(500);
+            TimeUnit.MILLISECONDS.sleep(retryWaitMs);
+          } catch (InterruptedException e) {
+            break;
+          }
+        } else {
+          logger.error("Exception raised while calling LifecycleManager");
+          break;
         }
-        return null;
+      }
     }
+    return null;
+  }
 
   @Override
   public void setupLifecycleManagerRef(RpcEndpointRef endpointRef) {
