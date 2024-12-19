@@ -172,10 +172,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
     val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
     assert(res.status == StatusCode.SUCCESS)
 
-    lifecycleManager.setupEndpoints(
-      res.workerResource.keySet(),
-      shuffleId,
-      new ShuffleFailedWorkers())
+    lifecycleManager.setupEndpoints(res.workerResource, shuffleId, new ShuffleFailedWorkers())
 
     lifecycleManager.reserveSlotsWithRetry(
       shuffleId,
@@ -183,7 +180,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       res.workerResource,
       updateEpoch = false)
 
-    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
+    lifecycleManager.commitManager.registerShuffle(shuffleId, 1)
     0 until 1000 foreach { partitionId =>
       lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
     }
