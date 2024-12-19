@@ -613,9 +613,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         peer.getReplicatePort)
       if (unavailablePeers.containsKey(peerWorker)) {
         for (fileWriterIndex <- 0 until totalFileWriters) {
-          if (fileWriters(fileWriterIndex) != null &&
-            !pushMergedDataCallback.isHardSplitPartition(fileWriterIndex)) {
-            fileWriters(fileWriterIndex).decrementPendingWrites()
+          val fileWriter = fileWriters(fileWriterIndex)
+          if (fileWriter != null && !pushMergedDataCallback.isHardSplitPartition(fileWriterIndex)) {
+            fileWriter.decrementPendingWrites()
           }
         }
         handlePushMergedDataConnectionFail(pushMergedDataCallback, location)
