@@ -132,7 +132,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, tmpDiskInfos, workerSource)
 
   val storageBufferAllocator: PooledByteBufAllocator =
-    NettyUtils.getPooledByteBufAllocator(new TransportConf("StorageManager", conf), null, true)
+    NettyUtils.getPooledByteBufAllocator(
+      new TransportConf("StorageManager", conf),
+      workerSource,
+      true)
 
   // (mountPoint -> LocalFlusher)
   private val (
