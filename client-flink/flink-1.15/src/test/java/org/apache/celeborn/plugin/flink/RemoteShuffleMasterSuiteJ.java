@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.FallbackPolicy;
 import org.apache.celeborn.common.util.Utils$;
+import org.apache.celeborn.plugin.flink.fallback.ForceFallbackPolicy;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 
 public class RemoteShuffleMasterSuiteJ {
@@ -91,9 +92,9 @@ public class RemoteShuffleMasterSuiteJ {
     JobID jobID = JobID.generate();
     JobShuffleContext jobShuffleContext = createJobShuffleContext(jobID);
     remoteShuffleMaster.registerJob(jobShuffleContext);
-    Assert.assertTrue(remoteShuffleMaster.nettyJobIds().contains(jobID));
+    Assert.assertTrue(remoteShuffleMaster.jobFallbackPolicies().containsKey(jobID));
     remoteShuffleMaster.unregisterJob(jobShuffleContext.getJobId());
-    Assert.assertTrue(remoteShuffleMaster.nettyJobIds().isEmpty());
+    Assert.assertTrue(remoteShuffleMaster.jobFallbackPolicies().isEmpty());
   }
 
   @Test
@@ -111,6 +112,7 @@ public class RemoteShuffleMasterSuiteJ {
             remoteShuffleMaster
                 .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
                 .get();
+    Assert.assertEquals(1, remoteShuffleMaster.lifecycleManager().shuffleCount().sum());
     ShuffleResource shuffleResource = remoteShuffleDescriptor.getShuffleResource();
     ShuffleResourceDescriptor mapPartitionShuffleDescriptor =
         shuffleResource.getMapPartitionShuffleDescriptor();
@@ -128,6 +130,7 @@ public class RemoteShuffleMasterSuiteJ {
             remoteShuffleMaster
                 .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
                 .get();
+    Assert.assertEquals(2, remoteShuffleMaster.lifecycleManager().shuffleCount().sum());
     mapPartitionShuffleDescriptor =
         remoteShuffleDescriptor.getShuffleResource().getMapPartitionShuffleDescriptor();
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getShuffleId());
@@ -140,11 +143,38 @@ public class RemoteShuffleMasterSuiteJ {
             remoteShuffleMaster
                 .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
                 .get();
+    Assert.assertEquals(3, remoteShuffleMaster.lifecycleManager().shuffleCount().sum());
     mapPartitionShuffleDescriptor =
         remoteShuffleDescriptor.getShuffleResource().getMapPartitionShuffleDescriptor();
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getShuffleId());
     Assert.assertEquals(1, mapPartitionShuffleDescriptor.getAttemptId());
     Assert.assertEquals(1, mapPartitionShuffleDescriptor.getMapId());
+  }
+
+  @Test
+  public void testRegisterPartitionWithProducerForForceFallbackPolicy()
+      throws UnknownHostException, ExecutionException, InterruptedException {
+    configuration.setString(
+        CelebornConf.FLINK_SHUFFLE_FALLBACK_POLICY().key(), FallbackPolicy.ALWAYS.name());
+    remoteShuffleMaster = createShuffleMaster(configuration, new NettyShuffleServiceFactory());
+    JobID jobID = JobID.generate();
+    JobShuffleContext jobShuffleContext = createJobShuffleContext(jobID);
+    remoteShuffleMaster.registerJob(jobShuffleContext);
+
+    IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
+    PartitionDescriptor partitionDescriptor = createPartitionDescriptor(intermediateDataSetID, 0);
+    ProducerDescriptor producerDescriptor = createProducerDescriptor();
+    ShuffleDescriptor shuffleDescriptor =
+        remoteShuffleMaster
+            .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
+            .get();
+    Assert.assertTrue(shuffleDescriptor instanceof NettyShuffleDescriptor);
+    Assert.assertEquals(1, remoteShuffleMaster.lifecycleManager().shuffleCount().sum());
+    Map<String, Long> shuffleFallbackCounts =
+        remoteShuffleMaster.lifecycleManager().shuffleFallbackCounts();
+    Assert.assertEquals(1, shuffleFallbackCounts.size());
+    Assert.assertEquals(
+        1L, shuffleFallbackCounts.get(ForceFallbackPolicy.class.getName()).longValue());
   }
 
   @Test
