@@ -12,7 +12,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-add_subdirectory(utils)
-add_subdirectory(proto)
-add_subdirectory(memory)
-add_subdirectory(conf)
+
+add_executable(celeborn_conf_test BaseConfTest.cpp)
+
+add_test(NAME celeborn_conf_test COMMAND celeborn_conf_test)
+
+target_link_libraries(
+        celeborn_conf_test
+        PRIVATE
+        conf
+        ${FOLLY_WITH_DEPENDENCIES}
+        ${GLOG}
+        ${GFLAGS_LIBRARIES}
+        GTest::gtest
+        GTest::gmock
+        GTest::gtest_main)
