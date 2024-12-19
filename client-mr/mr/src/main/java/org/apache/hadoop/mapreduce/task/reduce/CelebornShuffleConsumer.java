@@ -29,6 +29,7 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.client.read.MetricsCallback;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.reflect.DynMethods;
@@ -73,14 +74,18 @@ public class CelebornShuffleConsumer<K, V>
     int lmPort = Integer.parseInt(celebornJobConf.get(HadoopUtils.MR_CELEBORN_LM_PORT));
     logger.info("Reducer initialized with celeborn {} {} {}", appId, lmHost, lmPort);
     CelebornConf celebornConf = HadoopUtils.fromYarnConf(mrJobConf);
-    shuffleClient =
-        ShuffleClient.get(
-            appId,
-            lmHost,
-            lmPort,
-            celebornConf,
-            new UserIdentifier(
-                celebornConf.userSpecificTenant(), celebornConf.userSpecificUserName()));
+    try {
+      shuffleClient =
+          ShuffleClient.get(
+              appId,
+              lmHost,
+              lmPort,
+              celebornConf,
+              new UserIdentifier(
+                  celebornConf.userSpecificTenant(), celebornConf.userSpecificUserName()));
+    } catch (CelebornIOException e) {
+      reportException(e);
+    }
     this.merger =
         new MergeManagerImpl<>(
             reduceId,
