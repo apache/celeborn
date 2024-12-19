@@ -438,10 +438,14 @@ private[celeborn] class Worker(
   }
 
   private def highWorkload: Boolean = {
-    (memoryManager.currentServingState, conf.workerActiveConnectionMax) match {
-      case (ServingState.PUSH_AND_REPLICATE_PAUSED, _) => true
-      case (ServingState.PUSH_PAUSED, _) => true
-      case (_, Some(activeConnectionMax)) =>
+    (
+      memoryManager.currentServingState(),
+      Option(CongestionController.instance()),
+      conf.workerActiveConnectionMax) match {
+      case (_, Some(instance), _) if instance.isOverHighWatermark => true
+      case (ServingState.PUSH_AND_REPLICATE_PAUSED, _, _) => true
+      case (ServingState.PUSH_PAUSED, _, _) => true
+      case (_, _, Some(activeConnectionMax)) =>
         workerSource.getCounterCount(ACTIVE_CONNECTION_COUNT) >= activeConnectionMax
       case _ => false
     }
