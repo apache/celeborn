@@ -671,7 +671,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     StatusCode lastFailedStatusCode = null;
     while (numRetries > 0) {
       try {
-        PbRegisterShuffleResponse response = callLifecycleManagerWithRetry(callable);
+        PbRegisterShuffleResponse response =
+            callLifecycleManagerWithTimeoutRetry(callable, "registerShuffle");
         StatusCode respStatus = Utils.toStatusCode(response.getStatus());
         if (StatusCode.SUCCESS.equals(respStatus)) {
           ConcurrentHashMap<Integer, PartitionLocation> result = JavaUtils.newConcurrentHashMap();
@@ -1707,14 +1708,17 @@ public class ShuffleClientImpl extends ShuffleClient {
     try {
       limitZeroInFlight(mapKey, pushState);
       MapperEndResponse response =
-          callLifecycleManagerWithRetry(
+          callLifecycleManagerWithTimeoutRetry(
               () ->
                   lifecycleManagerRef.askSync(
                       new MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId),
-                      ClassTag$.MODULE$.apply(MapperEndResponse.class)));
+                      ClassTag$.MODULE$.apply(MapperEndResponse.class)),
+              "mapperEnd");
       if (response.status() != StatusCode.SUCCESS) {
         throw new CelebornIOException("MapperEnd failed! StatusCode: " + response.status());
       }
+    } catch (Exception e) {
+      throw new CelebornIOException("MapperEnd failed!", e);
     } finally {
       pushStates.remove(mapKey);
     }
@@ -1753,12 +1757,13 @@ public class ShuffleClientImpl extends ShuffleClient {
         GetReducerFileGroup getReducerFileGroup =
             new GetReducerFileGroup(shuffleId, isSegmentGranularityVisible);
         GetReducerFileGroupResponse response =
-            callLifecycleManagerWithRetry(
+            callLifecycleManagerWithTimeoutRetry(
                 () ->
                     lifecycleManagerRef.askSync(
                         getReducerFileGroup,
                         conf.clientRpcGetReducerFileGroupAskTimeout(),
-                        ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class)));
+                        ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class)),
+                "getReducerFileGroup");
         switch (response.status()) {
           case SUCCESS:
             logger.info(
@@ -1932,22 +1937,26 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public void setupLifecycleManagerRef(String host, int port) {
+  public void setupLifecycleManagerRef(String host, int port) throws CelebornIOException {
     logger.info("setupLifecycleManagerRef: host = {}, port = {}", host, port);
-    lifecycleManagerRef =
-        callLifecycleManagerWithRetry(
-            () ->
-                rpcEnv.setupEndpointRef(
-                    new RpcAddress(host, port), RpcNameConstants.LIFECYCLE_MANAGER_EP));
+    try {
+      lifecycleManagerRef =
+          callLifecycleManagerWithTimeoutRetry(
+              () ->
+                  rpcEnv.setupEndpointRef(
+                      new RpcAddress(host, port), RpcNameConstants.LIFECYCLE_MANAGER_EP),
+              "setupLifecycleManagerRef");
+    } catch (Exception e) {
+      logger.error("setupLifecycleManagerRef failed, host = {}, port = {}", host, port);
+      throw new CelebornIOException("setupLifecycleManagerRef failed", e);
+    }
     initDataClientFactoryIfNeeded();
   }
 
-  public <T> T callLifecycleManagerWithRetry(Callable<T> callable) {
-    return callLifecycleManagerWithRetry(callable, 3);
-  }
-
-  public <T> T callLifecycleManagerWithRetry(Callable<T> callable, int numRetries) {
+  public <T> T callLifecycleManagerWithTimeoutRetry(Callable<T> callable, String name)
+      throws Exception {
     T result;
+    int numRetries = 3;
     while (numRetries > 0) {
       numRetries--;
       try {
@@ -1956,18 +1965,24 @@ public class ShuffleClientImpl extends ShuffleClient {
       } catch (Exception error) {
         if (error instanceof RpcTimeoutException && numRetries > 0) {
           logger.warn(
-              "RpcTimeout while calling LifecycleManager, left retry times: {}", numRetries);
+              "RpcTimeout while {} calling LifecycleManager, left retry times: {}",
+              name,
+              numRetries);
           try {
             Random random = new Random();
             int waitTimeBound = (int) lifecycleManagerRpcTimeoutRetryWaitMs;
             long retryWaitMs = random.nextInt(waitTimeBound);
             TimeUnit.MILLISECONDS.sleep(retryWaitMs);
           } catch (InterruptedException e) {
+            logger.warn("retry wait interrupted", e);
             break;
           }
         } else {
-          logger.error("Exception raised while calling LifecycleManager");
-          break;
+          logger.error(
+              "Exception raised while {} calling LifecycleManager, tried {} times",
+              name,
+              3 - numRetries);
+          throw error;
         }
       }
     }
