@@ -79,6 +79,28 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
+Create the name of the role to use
+*/}}
+{{- define "celeborn.roleName" -}}
+{{- if .Values.rbac.create }}
+{{- default (include "celeborn.fullname" .) .Values.rbac.roleName }}
+{{- else }}
+{{- default "default" .Values.rbac.roleName }}
+{{- end }}
+{{- end }}
+
+{{/*
+Create the name of the roleBinding to use
+*/}}
+{{- define "celeborn.roleBindingName" -}}
+{{- if .Values.rbac.create }}
+{{- default (include "celeborn.fullname" .) .Values.rbac.roleBindingName }}
+{{- else }}
+{{- default "default" .Values.rbac.roleBindingName }}
+{{- end }}
+{{- end }}
+
+{{/*
 Create the name of configmap to use
 */}}
 {{- define "celeborn.configMapName" -}}
