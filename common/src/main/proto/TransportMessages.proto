@@ -289,6 +289,7 @@ message PbRequestSlots {
   repeated PbWorkerInfo excludedWorkerSet = 12;
   bool packed = 13;
   string tagsExpr = 14;
+  int32 numGroupTask = 15;
 }
 
 message PbSlotInfo {
@@ -860,6 +861,7 @@ message PbPackedPartitionLocationsPair {
 message PbPackedWorkerResource {
   PbPackedPartitionLocationsPair locationPairs = 1;
   string networkLocation = 2;
+  int32 groupId = 3;
 }
 
 message PbReportWorkerDecommission {
