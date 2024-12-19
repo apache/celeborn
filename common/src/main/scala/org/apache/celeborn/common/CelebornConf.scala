@@ -907,8 +907,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientCloseIdleConnections: Boolean = get(CLIENT_CLOSE_IDLE_CONNECTIONS)
   def clientRegisterShuffleMaxRetry: Int = get(CLIENT_REGISTER_SHUFFLE_MAX_RETRIES)
   def clientRegisterShuffleRetryWaitMs: Long = get(CLIENT_REGISTER_SHUFFLE_RETRY_WAIT)
-  def clientMapEndRetryWaitMs: Long = get(CLIENT_MAP_END_RETRY_WAIT)
-  def clientLoadFileGroupRetryWaitMs: Long = get(CLIENT_LOAD_FILE_GROUP_RETRY_WAIT)
+  def clientCallLifecycleManagerRetryWaitMs: Long = get(CLIENT_CALL_LIFECYCLEMANAGER_RETRY_WAIT)
   def clientReserveSlotsRackAwareEnabled: Boolean = get(CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED)
   def clientReserveSlotsMaxRetries: Int = get(CLIENT_RESERVE_SLOTS_MAX_RETRIES)
   def clientReserveSlotsRetryWait: Long = get(CLIENT_RESERVE_SLOTS_RETRY_WAIT)
@@ -4940,23 +4939,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
 
-  val CLIENT_LOAD_FILE_GROUP_RETRY_WAIT: ConfigEntry[Long] =
-    buildConf("celeborn.client.loadFileGroup.retryWait")
-      .withAlternative("celeborn.shuffle.loadFileGroup.retryWait")
+  val CLIENT_CALL_LIFECYCLEMANAGER_RETRY_WAIT: ConfigEntry[Long] =
+    buildConf("celeborn.client.callLifecycleManager.retryWait")
+      .withAlternative("celeborn.shuffle.callLifecycleManager.retryWait")
       .categories("client")
       .version("0.6.0")
-      .doc("Wait time before next retry if loadFileGroup failed.")
+      .doc("Wait time before next retry if call LifecycleManager failed.")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("3s")
-
-  val CLIENT_MAP_END_RETRY_WAIT: ConfigEntry[Long] =
-    buildConf("celeborn.client.mapEnd.retryWait")
-      .withAlternative("celeborn.shuffle.mapEnd.retryWait")
-      .categories("client")
-      .version("0.6.0")
-      .doc("Wait time before next retry if mapEnd failed.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("3s")
+      .createWithDefaultString("1s")
 
   val CLIENT_RESERVE_SLOTS_MAX_RETRIES: ConfigEntry[Int] =
     buildConf("celeborn.client.reserveSlots.maxRetries")
