@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.common.network.util;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

@@ -36,7 +36,6 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.meta.MemoryFileInfo;
 import org.apache.celeborn.common.meta.ReduceFileMeta;
-import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
