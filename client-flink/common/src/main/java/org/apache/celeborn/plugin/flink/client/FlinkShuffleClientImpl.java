@@ -169,7 +169,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       long driverTimestamp,
       CelebornConf conf,
       UserIdentifier userIdentifier,
-      int bufferSizeBytes) throws CelebornIOException {
+      int bufferSizeBytes)
+      throws CelebornIOException {
     super(appUniqueId, conf, userIdentifier);
     this.bufferSizeBytes = bufferSizeBytes;
     String module = TransportModuleConstants.DATA_MODULE;
