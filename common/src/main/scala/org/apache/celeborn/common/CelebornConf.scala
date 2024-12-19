@@ -1333,7 +1333,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def testFetchFailure: Boolean = get(TEST_CLIENT_FETCH_FAILURE)
   def testMockDestroySlotsFailure: Boolean = get(TEST_CLIENT_MOCK_DESTROY_SLOTS_FAILURE)
-  def testMockCommitFilesFailure: Boolean = get(TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE)
+  def testMockCommitFilesFailure: Boolean = get(TEST_MOCK_COMMIT_FILES_FAILURE)
   def testMockShuffleLost: Boolean = get(TEST_CLIENT_MOCK_SHUFFLE_LOST)
   def testMockShuffleLostShuffle: Int = get(TEST_CLIENT_MOCK_SHUFFLE_LOST_SHUFFLE)
   def testPushPrimaryDataTimeout: Boolean = get(TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT)
@@ -4308,10 +4308,10 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.client.mockCommitFilesFailure")
+  val TEST_MOCK_COMMIT_FILES_FAILURE: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.mockCommitFilesFailure")
       .internal
-      .categories("test", "client")
+      .categories("test", "client", "worker")
       .doc("Fail commit files request for test")
       .version("0.3.2")
       .booleanConf
