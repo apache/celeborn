@@ -44,6 +44,7 @@ import org.apache.celeborn.client.read.MetricsCallback;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.metrics.source.Role;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
@@ -201,6 +202,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             Utils.localHostName(conf),
             0,
             conf,
+            Role.CLIENT(),
             scala.None$.empty());
 
     String module = TransportModuleConstants.DATA_MODULE;

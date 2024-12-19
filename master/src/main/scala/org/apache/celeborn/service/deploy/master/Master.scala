@@ -101,6 +101,7 @@ private[celeborn] class Master(
         masterArgs.port,
         conf,
         Math.max(64, Runtime.getRuntime.availableProcessors()),
+        Role.MASTER,
         None,
         None)
     } else {
@@ -118,6 +119,7 @@ private[celeborn] class Master(
         masterArgs.port,
         conf,
         Math.max(64, Runtime.getRuntime.availableProcessors()),
+        Role.MASTER,
         Some(externalSecurityContext),
         None)
     }
@@ -137,6 +139,7 @@ private[celeborn] class Master(
         masterArgs.internalPort,
         conf,
         Math.max(64, Runtime.getRuntime.availableProcessors()),
+        Role.MASTER,
         None,
         None)
     }

@@ -31,6 +31,7 @@ import org.junit.Assert.{assertEquals, assertNotEquals, assertNotNull}
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.metrics.source.Role
 import org.apache.celeborn.common.protocol.TransportModuleConstants
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpointAddress, RpcEnv}
@@ -283,6 +284,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
         12345,
         conf,
         64,
+        Role.WORKER,
         None,
         None)
       val worker4 = new WorkerInfo(

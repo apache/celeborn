@@ -86,7 +86,15 @@ abstract class ApiBaseResourceSuite extends HttpTestHelper {
   test("metrics") {
     var response = webTarget.path("metrics/prometheus").request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
-    assert(response.readEntity(classOf[String]).contains("metrics_jvm_memory_heap_max_Value"))
+    val metricLines = response.readEntity(classOf[String]).split("\n")
+    Seq(
+      "metrics_jvm_memory_heap_max_Value",
+      "metrics_RpcQueueLength_Value",
+      "metrics_RpcQueueTime_Max",
+      "metrics_RpcProcessTime_Max").foreach { metric =>
+      assert(metricLines.exists(l =>
+        l.contains(metric) && l.contains(s"""instance="${httpService.connectionUrl}"""")))
+    }
 
     response = webTarget.path("metrics/json").request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
