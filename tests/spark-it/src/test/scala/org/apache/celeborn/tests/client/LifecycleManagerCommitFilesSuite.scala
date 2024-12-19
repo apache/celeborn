@@ -221,6 +221,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       if (commitInfoList != null) {
         commitInfoList.values().asScala.foreach { commitInfo =>
           assert(commitInfo.status == CommitInfo.COMMIT_FINISHED)
+          assert(commitInfo.response.status == StatusCode.COMMIT_FILE_EXCEPTION)
         }
       }
     }
