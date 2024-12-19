@@ -48,7 +48,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
   test("test commit files without mocking failure") {
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
-    conf.set(CelebornConf.TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE.key, "false")
+    conf.set(CelebornConf.TEST_MOCK_COMMIT_FILES_FAILURE.key, "false")
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val ids = new util.ArrayList[Integer](10)
     0 until 10 foreach {
@@ -104,7 +104,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
   test("test commit files with mocking failure") {
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
-    conf.set(CelebornConf.TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE.key, "true")
+    conf.set(CelebornConf.TEST_MOCK_COMMIT_FILES_FAILURE.key, "true")
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val ids = new util.ArrayList[Integer](10)
     0 until 10 foreach {
@@ -158,7 +158,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
     lifecycleManager.stop()
   }
 
-  test("test commit files timeout failure") {
+  test("test commit files with timeout failure") {
     if (workerInfos.nonEmpty) {
       shutdownMiniCluster()
     }
@@ -167,7 +167,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
     val workerConf0 = Map(
       s"${CelebornConf.WORKER_SHUFFLE_COMMIT_TIMEOUT.key}" -> "100",
       s"${CelebornConf.WORKER_COMMIT_THREADS.key}" -> "1",
-      s"${CelebornConf.TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE.key}" -> "true")
+      s"${CelebornConf.TEST_MOCK_COMMIT_FILES_FAILURE.key}" -> "true")
     val (master, _) = setupMiniClusterWithRandomPorts(workerConf = workerConf0)
     celebornConf.set(
       CelebornConf.MASTER_ENDPOINTS.key,
@@ -175,7 +175,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
 
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
-    conf.set(CelebornConf.TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE.key, "true")
+    conf.set(CelebornConf.TEST_MOCK_COMMIT_FILES_FAILURE.key, "true")
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val ids = new util.ArrayList[Integer](1000)
     0 until 1000 foreach {
@@ -217,6 +217,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
     workerInfos.keySet.foreach { worker =>
       val commitInfoList =
         worker.controller.shuffleCommitInfos.get(Utils.makeShuffleKey(APP, shuffleId))
+      assert(worker.controller.commitThreadPool.getQueue.size() == 0)
       if (commitInfoList != null) {
         commitInfoList.values().asScala.foreach { commitInfo =>
           assert(commitInfo.status == CommitInfo.COMMIT_FINISHED)
