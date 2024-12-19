@@ -33,7 +33,7 @@ class CelebornSourceSuite extends CelebornFunSuite {
     for (i <- 1 to 100) {
       mockSource.updateHistogram(histogram, 10)
     }
-    val res = mockSource.getMetrics()
+    val res = mockSource.getMetrics
 
     assert(res.contains("metrics_abc_Count"))
   }
