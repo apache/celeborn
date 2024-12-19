@@ -129,14 +129,6 @@ public class NettyUtils {
     if (_sharedPooledByteBufAllocator[index] == null) {
       _sharedPooledByteBufAllocator[index] =
           createPooledByteBufAllocator(true, allowCache, conf.networkAllocatorArenas());
-      if (source != null) {
-        new NettyMemoryMetrics(
-            _sharedPooledByteBufAllocator[index],
-            "shared-pool-" + index,
-            conf.networkAllocatorVerboseMetric(),
-            source,
-            Collections.emptyMap());
-      }
     }
     return _sharedPooledByteBufAllocator[index];
   }
