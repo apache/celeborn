@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray, AtomicRef
 import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import org.roaringbitmap.RoaringBitmap
@@ -61,6 +62,7 @@ private[deploy] class Controller(
   val minPartitionSizeToEstimate = conf.minPartitionSizeToEstimate
   var shutdown: AtomicBoolean = _
   val defaultPushdataTimeout = conf.pushDataTimeoutMs
+  val mockCommitFilesFailure = conf.testMockCommitFilesFailure
 
   def init(worker: Worker): Unit = {
     storageManager = worker.storageManager
@@ -278,9 +280,9 @@ private[deploy] class Controller(
       committedStorageInfos: ConcurrentHashMap[String, StorageInfo],
       committedMapIdBitMap: ConcurrentHashMap[String, RoaringBitmap],
       partitionSizeList: LinkedBlockingQueue[Long],
-      isPrimary: Boolean = true): CompletableFuture[Void] = {
-    var future: CompletableFuture[Void] = null
-
+      isPrimary: Boolean = true)
+      : (CompletableFuture[Void], ArrayBuffer[CompletableFuture[Void]]) = {
+    val tasks = ArrayBuffer[CompletableFuture[Void]]()
     if (uniqueIds != null) {
       uniqueIds.asScala.foreach { uniqueId =>
         val task = CompletableFuture.runAsync(
@@ -320,6 +322,9 @@ private[deploy] class Controller(
                 } else {
                   emptyFileIds.add(uniqueId)
                 }
+                if (mockCommitFilesFailure) {
+                  Thread.sleep(10)
+                }
               } catch {
                 case e: IOException =>
                   logError(s"Commit file for $shuffleKey $uniqueId failed.", e)
@@ -328,16 +333,12 @@ private[deploy] class Controller(
             }
           },
           commitThreadPool)
-
-        if (future == null) {
-          future = task
-        } else {
-          future = CompletableFuture.allOf(future, task)
-        }
+        tasks.append(task)
       }
     }
-
-    future
+    val future: CompletableFuture[Void] =
+      if (tasks.isEmpty) null else CompletableFuture.allOf(tasks.toSeq: _*)
+    (future, tasks)
   }
 
   private def waitMapPartitionRegionFinished(fileWriter: FileWriter, waitTimeout: Long): Unit = {
@@ -467,7 +468,7 @@ private[deploy] class Controller(
     val committedMapIdBitMap = JavaUtils.newConcurrentHashMap[String, RoaringBitmap]()
     val partitionSizeList = new LinkedBlockingQueue[Long]()
 
-    val primaryFuture =
+    val (primaryFuture, primaryTasks) =
       commitFiles(
         shuffleKey,
         primaryIds,
@@ -477,7 +478,7 @@ private[deploy] class Controller(
         committedPrimaryStorageInfos,
         committedMapIdBitMap,
         partitionSizeList)
-    val replicaFuture = commitFiles(
+    val (replicaFuture, replicaTasks) = commitFiles(
       shuffleKey,
       replicaIds,
       committedReplicaIds,
@@ -498,6 +499,8 @@ private[deploy] class Controller(
       } else {
         null
       }
+
+    val tasks = primaryTasks ++ replicaTasks
 
     def reply(): Unit = {
       // release slots before reply.
@@ -582,7 +585,10 @@ private[deploy] class Controller(
         new TimerTask {
           override def run(timeout: Timeout): Unit = {
             if (result.get() != null) {
-              result.get().cancel(true)
+              future.cancel(true)
+              tasks.foreach { task =>
+                task.cancel(true)
+              }
               logWarning(s"After waiting $shuffleCommitTimeout ms, cancel all commit file jobs.")
             }
           }
