@@ -59,9 +59,8 @@ public class MemoryPartitionFilesSorterSuiteJ {
     byte[] batchHeader = new byte[16];
     fileInfo = new MemoryFileInfo(userIdentifier, true, new ReduceFileMeta(8 * 1024 * 1024));
 
-    AbstractSource source = Mockito.mock(AbstractSource.class);
     PooledByteBufAllocator allocator =
-        NettyUtils.getSharedPooledByteBufAllocator(new CelebornConf(), source, false);
+        NettyUtils.getSharedPooledByteBufAllocator(new CelebornConf(), false);
     CompositeByteBuf buffer = allocator.compositeBuffer();
     fileInfo.setBuffer(buffer);
 

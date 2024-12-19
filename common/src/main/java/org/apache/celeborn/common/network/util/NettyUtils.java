@@ -124,7 +124,7 @@ public class NettyUtils {
    * parameter value.
    */
   public static synchronized PooledByteBufAllocator getSharedPooledByteBufAllocator(
-      CelebornConf conf, AbstractSource source, boolean allowCache) {
+      CelebornConf conf, boolean allowCache) {
     final int index = allowCache ? 0 : 1;
     if (_sharedPooledByteBufAllocator[index] == null) {
       _sharedPooledByteBufAllocator[index] =
@@ -145,7 +145,6 @@ public class NettyUtils {
       allocator =
           getSharedPooledByteBufAllocator(
               conf.getCelebornConf(),
-              source,
               allowCache && conf.getCelebornConf().networkMemoryAllocatorAllowCache());
     } else {
       int arenas;
