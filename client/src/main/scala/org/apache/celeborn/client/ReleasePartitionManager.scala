@@ -24,7 +24,7 @@ import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.ShufflePartitionLocationInfo
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
@@ -69,13 +69,12 @@ class ReleasePartitionManager(
                         }
 
                         lifecycleManager.workerSnapshots(shuffleId).asScala.foreach {
-                          case (workerInfo, partitionLocationInfo) =>
+                          case (_, partitionLocationInfo) =>
                             val destroyResource = new WorkerResource
                             unReleasePartitionIds.asScala.foreach {
                               partitionId =>
                                 addDestroyResource(
                                   destroyResource,
-                                  workerInfo,
                                   partitionLocationInfo,
                                   partitionId)
                             }
@@ -119,8 +118,8 @@ class ReleasePartitionManager(
     } else {
       val destroyResource = new WorkerResource
       lifecycleManager.workerSnapshots(shuffleId).asScala.foreach {
-        case (workerInfo, partitionLocationInfo) =>
-          addDestroyResource(destroyResource, workerInfo, partitionLocationInfo, partitionId)
+        case (_, partitionLocationInfo) =>
+          addDestroyResource(destroyResource, partitionLocationInfo, partitionId)
       }
 
       if (!destroyResource.isEmpty) {
@@ -133,21 +132,20 @@ class ReleasePartitionManager(
 
   private def addDestroyResource(
       workerResource: WorkerResource,
-      workerInfo: WorkerInfo,
       partitionLocationInfo: ShufflePartitionLocationInfo,
       partitionId: Int): Unit = {
     if (partitionLocationInfo.containsPartition(partitionId)) {
       val primaryLocations = partitionLocationInfo.removePrimaryPartitions(partitionId)
       if (primaryLocations != null && !primaryLocations.isEmpty) {
         workerResource.computeIfAbsent(
-          workerInfo,
+          partitionLocationInfo.workerInfo,
           lifecycleManager.newLocationFunc)._1.addAll(primaryLocations)
       }
 
       val replicaLocations = partitionLocationInfo.removeReplicaPartitions(partitionId)
       if (replicaLocations != null && !replicaLocations.isEmpty) {
         workerResource.computeIfAbsent(
-          workerInfo,
+          partitionLocationInfo.workerInfo,
           lifecycleManager.newLocationFunc)._2.addAll(replicaLocations)
       }
     }
