@@ -148,27 +148,30 @@ public class NettyUtils {
 
   public static PooledByteBufAllocator getPooledByteBufAllocator(
       TransportConf conf, AbstractSource source, boolean allowCache, int coreNum) {
+    PooledByteBufAllocator allocator;
     if (conf.getCelebornConf().networkShareMemoryAllocator()) {
-      return getSharedPooledByteBufAllocator(
-          conf.getCelebornConf(),
-          source,
-          allowCache && conf.getCelebornConf().networkMemoryAllocatorAllowCache());
-    }
-    int arenas;
-    if (coreNum != 0) {
-      arenas = coreNum;
+      allocator =
+          getSharedPooledByteBufAllocator(
+              conf.getCelebornConf(),
+              source,
+              allowCache && conf.getCelebornConf().networkMemoryAllocatorAllowCache());
     } else {
-      arenas = conf.getCelebornConf().networkAllocatorArenas();
+      int arenas;
+      if (coreNum != 0) {
+        arenas = coreNum;
+      } else {
+        arenas = conf.getCelebornConf().networkAllocatorArenas();
+      }
+      allocator = createPooledByteBufAllocator(conf.preferDirectBufs(), allowCache, arenas);
     }
-    PooledByteBufAllocator allocator =
-        createPooledByteBufAllocator(conf.preferDirectBufs(), allowCache, arenas);
     if (source != null) {
-      String poolName = "default-netty-pool";
+      String poolName;
       Map<String, String> labels = new HashMap<>();
-      String moduleName = conf.getModuleName();
-      if (!moduleName.isEmpty()) {
-        poolName = moduleName;
-        int index = allocatorsIndex.compute(moduleName, (k, v) -> v == null ? 0 : v + 1);
+      if (conf.getCelebornConf().networkMemoryAllocatorAllowCache()) {
+        poolName = allowCache ? "shared-pool" : "non-shared-pool";
+      } else {
+        poolName = conf.getModuleName();
+        int index = allocatorsIndex.compute(poolName, (k, v) -> v == null ? 0 : v + 1);
         labels.put("allocatorIndex", String.valueOf(index));
       }
       new NettyMemoryMetrics(
