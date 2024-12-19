@@ -253,3 +253,12 @@ serviceAccount:
   create: false
   # -- Specifies the name of the service account
   name: default
+
+rbac:
+  create: true
+  roleName: default
+  roleBindingName: default
+  rules:
+    - apiGroups: [""]
+      resources: ["pods"]
+      verbs: ["create", "list", "delete"]
