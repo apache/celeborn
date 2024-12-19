@@ -1781,7 +1781,6 @@ public class ShuffleClientImpl extends ShuffleClient {
                 null,
                 null);
           case STAGE_END_TIME_OUT:
-            break;
           case SHUFFLE_DATA_LOST:
             exceptionMsg =
                 String.format(
