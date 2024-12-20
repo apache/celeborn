@@ -32,7 +32,7 @@ public class ShuffleFallbackPolicyRunner {
   private static final List<ShuffleFallbackPolicy> FALLBACK_POLICIES =
       ShuffleFallbackPolicyFactory.getShuffleFallbackPolicies();
 
-  public static boolean applyFallbackPolicies(
+  public static Optional<ShuffleFallbackPolicy> getActivatedFallbackPolicy(
       JobShuffleContext shuffleContext,
       CelebornConf celebornConf,
       LifecycleManager lifecycleManager)
@@ -44,11 +44,11 @@ public class ShuffleFallbackPolicyRunner {
                     shuffleFallbackPolicy.needFallback(
                         shuffleContext, celebornConf, lifecycleManager))
             .findFirst();
-    boolean needFallback = fallbackPolicy.isPresent();
-    if (needFallback && FallbackPolicy.NEVER.equals(celebornConf.flinkShuffleFallbackPolicy())) {
+    if (fallbackPolicy.isPresent()
+        && FallbackPolicy.NEVER.equals(celebornConf.flinkShuffleFallbackPolicy())) {
       throw new CelebornIOException(
           "Fallback to flink built-in shuffle implementation is prohibited.");
     }
-    return needFallback;
+    return fallbackPolicy;
   }
 }
