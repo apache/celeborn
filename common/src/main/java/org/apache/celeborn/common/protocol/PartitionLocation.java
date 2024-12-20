@@ -290,7 +290,7 @@ public class PartitionLocation implements Serializable {
     result = 31 * result + host.hashCode();
     result = 31 * result + rpcPort;
     result = 31 * result + pushPort;
-    result = 31 * result + replicatePort;
+    result = 31 * result + fetchPort;
     return result;
   }
 
