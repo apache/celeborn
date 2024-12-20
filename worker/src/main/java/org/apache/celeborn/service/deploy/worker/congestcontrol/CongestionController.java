@@ -202,7 +202,7 @@ public class CongestionController {
   }
 
   public long getTotalPendingBytes() {
-    return MemoryManager.instance().getMemoryUsage();
+    return MemoryManager.instance().getAllocatedMemory();
   }
 
   public void trimMemoryUsage() {
