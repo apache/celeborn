@@ -32,7 +32,7 @@ public class ShuffleFallbackPolicyRunner {
   private static final List<ShuffleFallbackPolicy> FALLBACK_POLICIES =
       ShuffleFallbackPolicyFactory.getShuffleFallbackPolicies();
 
-  public static Optional<ShuffleFallbackPolicy> applyFallbackPolicies(
+  public static Optional<ShuffleFallbackPolicy> getActivatedFallbackPolicy(
       JobShuffleContext shuffleContext,
       CelebornConf celebornConf,
       LifecycleManager lifecycleManager)

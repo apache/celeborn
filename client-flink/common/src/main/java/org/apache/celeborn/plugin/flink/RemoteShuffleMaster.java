@@ -110,7 +110,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
     try {
       if (nettyShuffleServiceFactory != null) {
         Optional<ShuffleFallbackPolicy> shuffleFallbackPolicy =
-            ShuffleFallbackPolicyRunner.applyFallbackPolicies(context, conf, lifecycleManager);
+            ShuffleFallbackPolicyRunner.getActivatedFallbackPolicy(context, conf, lifecycleManager);
         if (shuffleFallbackPolicy.isPresent()) {
           LOG.warn("Fallback to vanilla Flink NettyShuffleMaster for job: {}.", jobID);
           jobFallbackPolicies.put(jobID, shuffleFallbackPolicy.get().getClass().getName());
