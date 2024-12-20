@@ -20,10 +20,7 @@ package org.apache.celeborn.client;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import scala.Tuple2;
 import scala.reflect.ClassTag$;
@@ -63,6 +60,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcEnv;
+import org.apache.celeborn.common.rpc.RpcTimeoutException;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.*;
 import org.apache.celeborn.common.write.DataBatches;
@@ -667,7 +665,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     StatusCode lastFailedStatusCode = null;
     while (numRetries > 0) {
       try {
-        PbRegisterShuffleResponse response = callable.call();
+        PbRegisterShuffleResponse response =
+            callLifecycleManagerWithTimeoutRetry(callable, "registerShuffle");
         StatusCode respStatus = Utils.toStatusCode(response.getStatus());
         if (StatusCode.SUCCESS.equals(respStatus)) {
           ConcurrentHashMap<Integer, PartitionLocation> result = JavaUtils.newConcurrentHashMap();
@@ -1700,17 +1699,20 @@ public class ShuffleClientImpl extends ShuffleClient {
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = getPushState(mapKey);
-
     try {
       limitZeroInFlight(mapKey, pushState);
-
       MapperEndResponse response =
-          lifecycleManagerRef.askSync(
-              new MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId),
-              ClassTag$.MODULE$.apply(MapperEndResponse.class));
+          callLifecycleManagerWithTimeoutRetry(
+              () ->
+                  lifecycleManagerRef.askSync(
+                      new MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId),
+                      ClassTag$.MODULE$.apply(MapperEndResponse.class)),
+              "mapperEnd");
       if (response.status() != StatusCode.SUCCESS) {
         throw new CelebornIOException("MapperEnd failed! StatusCode: " + response.status());
       }
+    } catch (Exception e) {
+      throw new CelebornIOException("MapperEnd failed!", e);
     } finally {
       pushStates.remove(mapKey);
     }
@@ -1741,55 +1743,48 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   protected Tuple2<ReduceFileGroups, String> loadFileGroupInternal(
       int shuffleId, boolean isSegmentGranularityVisible) {
-    {
-      long getReducerFileGroupStartTime = System.nanoTime();
-      String exceptionMsg = null;
+    long getReducerFileGroupStartTime = System.nanoTime();
+    String exceptionMsg = null;
+    if (lifecycleManagerRef != null) {
       try {
-        if (lifecycleManagerRef == null) {
-          exceptionMsg = "Driver endpoint is null!";
-          logger.warn(exceptionMsg);
-        } else {
-          GetReducerFileGroup getReducerFileGroup =
-              new GetReducerFileGroup(shuffleId, isSegmentGranularityVisible);
-
-          GetReducerFileGroupResponse response =
-              lifecycleManagerRef.askSync(
-                  getReducerFileGroup,
-                  conf.clientRpcGetReducerFileGroupAskTimeout(),
-                  ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
-
-          switch (response.status()) {
-            case SUCCESS:
-              logger.info(
-                  "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
-                  shuffleId,
-                  TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
-                  response.fileGroup().size());
-              return Tuple2.apply(
-                  new ReduceFileGroups(
-                      response.fileGroup(), response.attempts(), response.partitionIds()),
-                  null);
-            case SHUFFLE_NOT_REGISTERED:
-              logger.warn(
-                  "Request {} return {} for {}.",
-                  getReducerFileGroup,
-                  response.status(),
-                  shuffleId);
-              // return empty result
-              return Tuple2.apply(
-                  new ReduceFileGroups(
-                      response.fileGroup(), response.attempts(), response.partitionIds()),
-                  null);
-            case STAGE_END_TIME_OUT:
-            case SHUFFLE_DATA_LOST:
-              exceptionMsg =
-                  String.format(
-                      "Request %s return %s for %s.",
-                      getReducerFileGroup, response.status(), shuffleId);
-              logger.warn(exceptionMsg);
-              break;
-            default: // fall out
-          }
+        GetReducerFileGroup getReducerFileGroup =
+            new GetReducerFileGroup(shuffleId, isSegmentGranularityVisible);
+        GetReducerFileGroupResponse response =
+            callLifecycleManagerWithTimeoutRetry(
+                () ->
+                    lifecycleManagerRef.askSync(
+                        getReducerFileGroup,
+                        conf.clientRpcGetReducerFileGroupAskTimeout(),
+                        ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class)),
+                "getReducerFileGroup");
+        switch (response.status()) {
+          case SUCCESS:
+            logger.info(
+                "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
+                shuffleId,
+                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
+                response.fileGroup().size());
+            return Tuple2.apply(
+                new ReduceFileGroups(
+                    response.fileGroup(), response.attempts(), response.partitionIds()),
+                null);
+          case SHUFFLE_NOT_REGISTERED:
+            logger.warn(
+                "Request {} return {} for {}.", getReducerFileGroup, response.status(), shuffleId);
+            // return empty result
+            return Tuple2.apply(
+                new ReduceFileGroups(
+                    response.fileGroup(), response.attempts(), response.partitionIds()),
+                null);
+          case STAGE_END_TIME_OUT:
+          case SHUFFLE_DATA_LOST:
+            exceptionMsg =
+                String.format(
+                    "Request %s return %s for %s.",
+                    getReducerFileGroup, response.status(), shuffleId);
+            logger.warn(exceptionMsg);
+            break;
+          default: // fall out
         }
       } catch (Exception e) {
         if (e instanceof InterruptedException) {
@@ -1798,8 +1793,11 @@ public class ShuffleClientImpl extends ShuffleClient {
         logger.error("Exception raised while call GetReducerFileGroup for {}.", shuffleId, e);
         exceptionMsg = e.getMessage();
       }
-      return Tuple2.apply(null, exceptionMsg);
+    } else {
+      exceptionMsg = "Driver endpoint is null!";
+      logger.warn(exceptionMsg);
     }
+    return Tuple2.apply(null, exceptionMsg);
   }
 
   @Override
@@ -1926,11 +1924,56 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public void setupLifecycleManagerRef(String host, int port) {
+  public void setupLifecycleManagerRef(String host, int port) throws CelebornIOException {
     logger.info("setupLifecycleManagerRef: host = {}, port = {}", host, port);
-    lifecycleManagerRef =
-        rpcEnv.setupEndpointRef(new RpcAddress(host, port), RpcNameConstants.LIFECYCLE_MANAGER_EP);
+    try {
+      lifecycleManagerRef =
+          callLifecycleManagerWithTimeoutRetry(
+              () ->
+                  rpcEnv.setupEndpointRef(
+                      new RpcAddress(host, port), RpcNameConstants.LIFECYCLE_MANAGER_EP),
+              "setupLifecycleManagerRef");
+    } catch (Exception e) {
+      logger.error("setupLifecycleManagerRef failed, host = {}, port = {}", host, port);
+      throw new CelebornIOException("setupLifecycleManagerRef failed", e);
+    }
     initDataClientFactoryIfNeeded();
+  }
+
+  public <T> T callLifecycleManagerWithTimeoutRetry(Callable<T> callable, String name)
+      throws Exception {
+    T result;
+    int numRetries = 3;
+    while (numRetries > 0) {
+      numRetries--;
+      try {
+        result = callable.call();
+        return result;
+      } catch (Exception error) {
+        if (error instanceof RpcTimeoutException && numRetries > 0) {
+          logger.warn(
+              "RpcTimeout while {} calling LifecycleManager, left retry times: {}",
+              name,
+              numRetries);
+          try {
+            Random random = new Random();
+            int waitTimeBound = (int) conf.clientCallLifecycleManagerRetryWaitMs();
+            long retryWaitMs = random.nextInt(waitTimeBound);
+            TimeUnit.MILLISECONDS.sleep(retryWaitMs);
+          } catch (InterruptedException e) {
+            logger.warn("retry wait interrupted", e);
+            break;
+          }
+        } else {
+          logger.error(
+              "Exception raised while {} calling LifecycleManager, tried {} times",
+              name,
+              3 - numRetries);
+          throw error;
+        }
+      }
+    }
+    return null;
   }
 
   @Override
