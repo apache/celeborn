@@ -42,7 +42,7 @@ class ReadBufferDispactherSuite extends CelebornFunSuite {
       })
 
     val conf = new CelebornConf()
-    val readBufferDispatcher = new ReadBufferDispatcher(mockedMemoryManager, conf)
+    val readBufferDispatcher = new ReadBufferDispatcher(mockedMemoryManager, conf, null)
     val requestFuture = new CompletableFuture[Void]()
 
     val request = new ReadBufferRequest(
@@ -67,7 +67,7 @@ class ReadBufferDispactherSuite extends CelebornFunSuite {
     val mockedMemoryManager = mock(classOf[MemoryManager])
     val conf = new CelebornConf()
     conf.set("celeborn.worker.readBufferDispatcherThreadWatchdog.checkInterval", "100ms")
-    val readBufferDispatcher = new ReadBufferDispatcher(mockedMemoryManager, conf)
+    val readBufferDispatcher = new ReadBufferDispatcher(mockedMemoryManager, conf, null)
     val threadId1 = readBufferDispatcher.dispatcherThread.get().getId
     readBufferDispatcher.stopFlag = true
     Thread.sleep(1500)
