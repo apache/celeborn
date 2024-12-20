@@ -374,7 +374,7 @@ public class SparkUtils {
     }
   }
 
-  public static synchronized boolean taskAnotherAttemptRunningOrSuccessful(long taskId) {
+  public static boolean taskAnotherAttemptRunningOrSuccessful(long taskId) {
     TaskSetManager taskSetManager = getTaskSetManager(taskId);
     if (taskSetManager != null) {
       int stageId = taskSetManager.stageId();
@@ -388,7 +388,7 @@ public class SparkUtils {
           if (ti.taskId() != taskId) {
             if (ti.successful()) {
               LOG.info(
-                  "StageId={} index={} taskId={} attempt={} another attempt {} is finished.",
+                  "StageId={} index={} taskId={} attempt={} another attempt {} is successful.",
                   stageId,
                   taskIndex,
                   taskId,
