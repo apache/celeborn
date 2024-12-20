@@ -24,6 +24,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -296,6 +297,11 @@ public class CongestionController {
     this.userBufferStatuses.clear();
     this.consumedBufferStatusHub.clear();
     this.producedBufferStatusHub.clear();
+  }
+
+  @VisibleForTesting
+  public void shutDownCheckService() {
+    this.checkService.shutdownNow();
   }
 
   public static synchronized void destroy() {
