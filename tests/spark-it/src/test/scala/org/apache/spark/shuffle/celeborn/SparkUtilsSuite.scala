@@ -55,6 +55,7 @@ class SparkUtilsSuite extends AnyFunSuite {
         assert(taskSetManager != null)
         assert(SparkUtils.getTaskAttempts(taskSetManager, taskId).size() == 1)
         assert(!SparkUtils.taskAnotherAttemptRunningOrSuccessful(taskId))
+        SparkUtils.reportedStageShuffleFetchFailureTasks.clear();
       }
 
       jobThread.interrupt()

@@ -20,8 +20,10 @@ package org.apache.spark.shuffle.celeborn;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
@@ -258,6 +260,14 @@ public class SparkUtils {
     }
   }
 
+  public static Map<Integer, List<TaskInfo>> reportedStageShuffleFetchFailureTasks =
+      JavaUtils.newConcurrentHashMap();
+
+  /**
+   * Only check for the shuffle fetch failure task whether another attempt is running or successful.
+   * If task another attempt has reported fetch failure, return false. If another attempt is running
+   * or successful, return true. Otherwise, return false.
+   */
   public static boolean taskAnotherAttemptRunningOrSuccessful(long taskId) {
     TaskSetManager taskSetManager = getTaskSetManager(taskId);
     if (taskSetManager != null) {
@@ -267,6 +277,23 @@ public class SparkUtils {
           taskAttempts.stream().filter(ti -> ti.taskId() == taskId).findFirst();
       if (taskInfoOpt.isPresent()) {
         TaskInfo taskInfo = taskInfoOpt.get();
+
+        List<TaskInfo> reportedStageTasks =
+            reportedStageShuffleFetchFailureTasks.computeIfAbsent(stageId, k -> new ArrayList<>());
+        for (TaskInfo reportedTi : reportedStageTasks) {
+          if (taskInfo.index() == reportedTi.index()) {
+            LOG.info(
+                "StageId={} index={} taskId={} attempt={} another attempt {} already reported fetch failure.",
+                stageId,
+                taskInfo.index(),
+                taskId,
+                taskInfo.attemptNumber(),
+                reportedTi.attemptNumber());
+            return false;
+          }
+        }
+        reportedStageTasks.add(taskInfo);
+
         int taskIndex = taskInfo.index();
         for (TaskInfo ti : taskAttempts) {
           if (ti.taskId() != taskId) {
