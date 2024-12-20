@@ -56,46 +56,86 @@ public class SlotsAllocator {
           List<Integer> partitionIds,
           boolean shouldReplicate,
           boolean shouldRackAware,
-          int availableStorageTypes) {
+          int availableStorageTypes,
+          int numGroup) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
     }
     if (workers.size() < 2 && shouldReplicate) {
       return new HashMap<>();
     }
-    Map<WorkerInfo, List<UsableDiskInfo>> slotsRestrictions = new HashMap<>();
-    for (WorkerInfo worker : workers) {
-      List<UsableDiskInfo> usableDisks =
-          slotsRestrictions.computeIfAbsent(worker, v -> new ArrayList<>());
-      for (Map.Entry<String, DiskInfo> diskInfoEntry : worker.diskInfos().entrySet()) {
-        if (diskInfoEntry.getValue().status().equals(DiskStatus.HEALTHY)) {
-          if (StorageInfo.localDiskAvailable(availableStorageTypes)
-              && diskInfoEntry.getValue().storageType() != StorageInfo.Type.HDFS
-              && diskInfoEntry.getValue().storageType() != StorageInfo.Type.S3) {
-            usableDisks.add(
-                new UsableDiskInfo(
-                    diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
-          } else if (StorageInfo.HDFSAvailable(availableStorageTypes)
-              && diskInfoEntry.getValue().storageType() == StorageInfo.Type.HDFS) {
-            usableDisks.add(
-                new UsableDiskInfo(
-                    diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
-          } else if (StorageInfo.S3Available(availableStorageTypes)
-              && diskInfoEntry.getValue().storageType() == StorageInfo.Type.S3) {
-            usableDisks.add(
-                new UsableDiskInfo(
-                    diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
+
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
+        new HashMap<>();
+
+    if (workers.size() < numGroup) {
+      numGroup = 1;
+    }
+    // innerPartitionIds.size() is a multiple of numGroups innerPartitionIds.size =
+    // originalPartitionIds.size * numGroup
+    int numPartitionIdGroup = partitionIds.size() / numGroup;
+    Map<Integer, Tuple2<Integer, Integer>> groupedWorkerList =
+        getGroupedWorkerList(workers.size(), numGroup);
+    // The workers in each group are distributed on different racks as much as possible
+    if (shouldRackAware) {
+      workers = generateRackAwareWorkers(workers);
+    }
+
+    for (int groupId = 0; groupId < numGroup; groupId++) {
+      List<Integer> groupPartitionIds =
+          partitionIds.subList(
+              numPartitionIdGroup * groupId,
+              Math.min(partitionIds.size(), numPartitionIdGroup * (groupId + 1)));
+
+      List<WorkerInfo> groupWorkersList =
+          workers.subList(groupedWorkerList.get(groupId)._1, groupedWorkerList.get(groupId)._2);
+
+      Map<WorkerInfo, List<UsableDiskInfo>> slotsRestrictions = new HashMap<>();
+      for (WorkerInfo worker : groupWorkersList) {
+        worker.setWorkerGroupId(groupId);
+        List<UsableDiskInfo> usableDisks =
+            slotsRestrictions.computeIfAbsent(worker, v -> new ArrayList<>());
+        for (Map.Entry<String, DiskInfo> diskInfoEntry : worker.diskInfos().entrySet()) {
+          if (diskInfoEntry.getValue().status().equals(DiskStatus.HEALTHY)) {
+            if (StorageInfo.localDiskAvailable(availableStorageTypes)
+                && diskInfoEntry.getValue().storageType() != StorageInfo.Type.HDFS
+                && diskInfoEntry.getValue().storageType() != StorageInfo.Type.S3) {
+              usableDisks.add(
+                  new UsableDiskInfo(
+                      diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
+            } else if (StorageInfo.HDFSAvailable(availableStorageTypes)
+                && diskInfoEntry.getValue().storageType() == StorageInfo.Type.HDFS) {
+              usableDisks.add(
+                  new UsableDiskInfo(
+                      diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
+            } else if (StorageInfo.S3Available(availableStorageTypes)
+                && diskInfoEntry.getValue().storageType() == StorageInfo.Type.S3) {
+              usableDisks.add(
+                  new UsableDiskInfo(
+                      diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
+            }
           }
         }
       }
+
+      Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> groupedSlots =
+          locateSlots(
+              groupPartitionIds,
+              groupWorkersList,
+              slotsRestrictions,
+              workers,
+              shouldReplicate,
+              shouldRackAware,
+              availableStorageTypes);
+
+      groupedSlots.forEach(
+          (workerInfo, tuple2) -> {
+            slots.putIfAbsent(workerInfo, new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
+            slots.get(workerInfo)._1.addAll(tuple2._1);
+            slots.get(workerInfo)._2.addAll(tuple2._2);
+          });
     }
-    return locateSlots(
-        partitionIds,
-        workers,
-        slotsRestrictions,
-        shouldReplicate,
-        shouldRackAware,
-        availableStorageTypes);
+    return slots;
   }
 
   /**
@@ -113,7 +153,8 @@ public class SlotsAllocator {
           double diskGroupGradient,
           double flushTimeWeight,
           double fetchTimeWeight,
-          int availableStorageTypes) {
+          int availableStorageTypes,
+          int numGroup) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -122,62 +163,131 @@ public class SlotsAllocator {
     }
     if (StorageInfo.HDFSOnly(availableStorageTypes)) {
       return offerSlotsRoundRobin(
-          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes);
+          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes, numGroup);
     }
     if (StorageInfo.S3Only(availableStorageTypes)) {
       return offerSlotsRoundRobin(
-          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes);
+          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes, numGroup);
     }
 
-    List<DiskInfo> usableDisks = new ArrayList<>();
-    Map<DiskInfo, WorkerInfo> diskToWorkerMap = new HashMap<>();
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
+        new HashMap<>();
 
-    workers.forEach(
-        i ->
-            i.diskInfos()
-                .forEach(
-                    (key, diskInfo) -> {
-                      diskToWorkerMap.put(diskInfo, i);
-                      if (diskInfo.actualUsableSpace() > 0
-                          && diskInfo.status().equals(DiskStatus.HEALTHY)
-                          && diskInfo.storageType() != StorageInfo.Type.HDFS
-                          && diskInfo.storageType() != StorageInfo.Type.S3) {
-                        usableDisks.add(diskInfo);
-                      }
-                    }));
-
-    boolean noUsableDisks =
-        usableDisks.isEmpty()
-            || (shouldReplicate
-                && (usableDisks.size() == 1
-                    || usableDisks.stream().map(diskToWorkerMap::get).distinct().count() <= 1));
-    boolean noAvailableSlots = usableDisks.stream().mapToLong(DiskInfo::availableSlots).sum() <= 0;
-
-    if (noUsableDisks || noAvailableSlots) {
-      logger.warn(
-          "offer slots for {} fallback to roundrobin because there is no {}",
-          StringUtils.join(partitionIds, ','),
-          noUsableDisks ? "usable disks" : "available slots");
-      return offerSlotsRoundRobin(
-          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes);
+    if (workers.size() < numGroup) {
+      numGroup = 1;
+    }
+    // innerPartitionIds.size() is a multiple of numGroups innerPartitionIds.size =
+    // originalPartitionIds.size * numGroup
+    int numPartitionIdGroup = partitionIds.size() / numGroup;
+    Map<Integer, Tuple2<Integer, Integer>> groupedWorkerList =
+        getGroupedWorkerList(workers.size(), numGroup);
+    // The workers in each group are distributed on different racks as much as possible
+    if (shouldRackAware) {
+      workers = generateRackAwareWorkers(workers);
     }
 
-    if (!initialized) {
-      initLoadAwareAlgorithm(diskGroupCount, diskGroupGradient);
-    }
+    for (int groupId = 0; groupId < numGroup; groupId++) {
+      List<Integer> groupPartitionIds =
+          partitionIds.subList(
+              numPartitionIdGroup * groupId,
+              Math.min(partitionIds.size(), numPartitionIdGroup * (groupId + 1)));
+      List<WorkerInfo> groupWorkersList =
+          workers.subList(groupedWorkerList.get(groupId)._1, groupedWorkerList.get(groupId)._2);
 
-    Map<WorkerInfo, List<UsableDiskInfo>> slotsRestrictions =
-        getSlotsRestrictionsByLoadAwareAlgorithm(
-            placeDisksToGroups(usableDisks, diskGroupCount, flushTimeWeight, fetchTimeWeight),
-            diskToWorkerMap,
-            shouldReplicate ? partitionIds.size() * 2 : partitionIds.size());
-    return locateSlots(
-        partitionIds,
-        workers,
-        slotsRestrictions,
-        shouldReplicate,
-        shouldRackAware,
-        availableStorageTypes);
+      List<DiskInfo> usableDisks = new ArrayList<>();
+      Map<DiskInfo, WorkerInfo> diskToWorkerMap = new HashMap<>();
+
+      for (WorkerInfo worker : groupWorkersList) {
+        worker.setWorkerGroupId(groupId);
+        worker
+            .diskInfos()
+            .forEach(
+                (key, diskInfo) -> {
+                  diskToWorkerMap.put(diskInfo, worker);
+                  if (diskInfo.actualUsableSpace() > 0
+                      && diskInfo.status().equals(DiskStatus.HEALTHY)
+                      && diskInfo.storageType() != StorageInfo.Type.HDFS
+                      && diskInfo.storageType() != StorageInfo.Type.S3) {
+                    usableDisks.add(diskInfo);
+                  }
+                });
+      }
+
+      boolean noUsableDisks =
+          usableDisks.isEmpty()
+              || (shouldReplicate
+                  && (usableDisks.size() == 1
+                      || usableDisks.stream().map(diskToWorkerMap::get).distinct().count() <= 1));
+      boolean noAvailableSlots =
+          usableDisks.stream().mapToLong(DiskInfo::availableSlots).sum() <= 0;
+
+      if (noUsableDisks || noAvailableSlots) {
+        logger.warn(
+            "offer slots for {} fallback to roundRobin because there is no {}",
+            StringUtils.join(partitionIds, ','),
+            noUsableDisks ? "usable disks" : "available slots");
+        return offerSlotsRoundRobin(
+            workers,
+            partitionIds,
+            shouldReplicate,
+            shouldRackAware,
+            availableStorageTypes,
+            numGroup);
+      }
+
+      if (!initialized) {
+        initLoadAwareAlgorithm(diskGroupCount, diskGroupGradient);
+      }
+
+      Map<WorkerInfo, List<UsableDiskInfo>> slotsRestrictions =
+          getSlotsRestrictionsByLoadAwareAlgorithm(
+              placeDisksToGroups(usableDisks, diskGroupCount, flushTimeWeight, fetchTimeWeight),
+              diskToWorkerMap,
+              shouldReplicate ? groupPartitionIds.size() * 2 : groupPartitionIds.size());
+
+      Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> groupedSlots =
+          locateSlots(
+              groupPartitionIds,
+              groupWorkersList,
+              slotsRestrictions,
+              workers,
+              shouldReplicate,
+              shouldRackAware,
+              availableStorageTypes);
+
+      groupedSlots.forEach(
+          (workerInfo, tuple2) -> {
+            slots.putIfAbsent(workerInfo, new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
+            slots.get(workerInfo)._1.addAll(tuple2._1);
+            slots.get(workerInfo)._2.addAll(tuple2._2);
+          });
+    }
+    return slots;
+  }
+
+  // Group workers like 8 workers for 3 groups: 0,1,2; 3,4,5; 6,7;
+  // return 0: {0, 3}, 1: {3, 6}, 2: {6, 7}
+  private static Map<Integer, Tuple2<Integer, Integer>> getGroupedWorkerList(
+      int numWorkers, int numWorkerGroups) {
+
+    int workerGroupSize = numWorkers / numWorkerGroups;
+    int leftNum = numWorkers - workerGroupSize * numWorkerGroups;
+    Map<Integer, Tuple2<Integer, Integer>> groupedWorkers = new HashMap<>();
+    int index = 0;
+    for (int i = 0; i < numWorkerGroups; i++) {
+      if (index >= numWorkers) break;
+      int rightIndex;
+      if (leftNum > 0) {
+        rightIndex = Math.min(numWorkers, index + workerGroupSize + 1);
+        groupedWorkers.put(i, new Tuple2<>(index, rightIndex));
+        leftNum--;
+      } else {
+        rightIndex = Math.min(numWorkers, index + workerGroupSize);
+        groupedWorkers.put(i, new Tuple2<>(index, rightIndex));
+      }
+      index = rightIndex;
+    }
+    return groupedWorkers;
   }
 
   private static StorageInfo getStorageInfo(
@@ -233,23 +343,27 @@ public class SlotsAllocator {
 
   /**
    * Progressive locate slots for all partitions <br>
-   * 1. try to allocate for all partitions under restrictions <br>
-   * 2. allocate remain partitions to all workers <br>
-   * 3. allocate remain partitions to all workers again without considering rack aware <br>
+   * 1. try to allocate for all partitions under restrictions in group <br>
+   * 2. allocate remain partitions to all workers in group <br>
+   * 3. allocate remain partitions to all workers in group again without considering rack aware <br>
+   * 4. allocate remain partitions to all workers again without considering rack aware <br>
    */
   private static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
       locateSlots(
           List<Integer> partitionIds,
-          List<WorkerInfo> workersList,
+          List<WorkerInfo> groupWorkersList,
           Map<WorkerInfo, List<UsableDiskInfo>> slotRestrictions,
+          List<WorkerInfo> workersList,
           boolean shouldReplicate,
           boolean shouldRackAware,
           int availableStorageTypes) {
 
     List<WorkerInfo> workersFromSlotRestrictions = new ArrayList<>(slotRestrictions.keySet());
+    List<WorkerInfo> groupWorkers = groupWorkersList;
     List<WorkerInfo> workers = workersList;
     if (shouldReplicate && shouldRackAware) {
       workersFromSlotRestrictions = generateRackAwareWorkers(workersFromSlotRestrictions);
+      groupWorkers = generateRackAwareWorkers(groupWorkers);
       workers = generateRackAwareWorkers(workers);
     }
 
@@ -270,11 +384,16 @@ public class SlotsAllocator {
           roundRobin(
               slots,
               remain,
-              workers,
+              groupWorkers,
               null,
               shouldReplicate,
               shouldRackAware,
               availableStorageTypes);
+    }
+    if (!remain.isEmpty()) {
+      remain =
+          roundRobin(
+              slots, remain, groupWorkers, null, shouldReplicate, false, availableStorageTypes);
     }
     if (!remain.isEmpty()) {
       roundRobin(slots, remain, workers, null, shouldReplicate, false, availableStorageTypes);

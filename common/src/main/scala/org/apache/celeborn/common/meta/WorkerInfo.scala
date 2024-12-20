@@ -54,6 +54,8 @@ class WorkerInfo(
     else null
   var endpoint: RpcEndpointRef = null
 
+  var groupId: Int = -1
+
   def this(
       host: String,
       rpcPort: Int,
@@ -180,6 +182,14 @@ class WorkerInfo(
     this.workerStatus = workerStatus;
   }
 
+  def getWorkerGroupId(): Int = {
+    groupId
+  }
+
+  def setWorkerGroupId(id: Int): Unit = {
+    this.groupId = id
+  }
+
   def updateDiskMaxSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
     diskInfos.asScala.foreach { case (_, disk) =>
       disk.maxSlots_$eq(disk.actualUsableSpace / estimatedPartitionSize)
@@ -281,6 +291,7 @@ class WorkerInfo(
        |WorkerRef: $endpoint
        |WorkerStatus: $workerStatus
        |NetworkLocation: $networkLocation
+       |GroupId: $groupId
        |""".stripMargin
   }
 
