@@ -1021,7 +1021,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           preCheck.apply(taskId)
         } catch {
           case t: Throwable =>
-            logError(t.toString)
+            logError(s"Error preChecking the shuffle fetch failure reported by task: $taskId", t)
             false
         }
       case None => true
