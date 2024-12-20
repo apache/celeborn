@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.common.network.util;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -124,19 +123,11 @@ public class NettyUtils {
    * parameter value.
    */
   public static synchronized PooledByteBufAllocator getSharedPooledByteBufAllocator(
-      CelebornConf conf, AbstractSource source, boolean allowCache) {
+      CelebornConf conf, boolean allowCache) {
     final int index = allowCache ? 0 : 1;
     if (_sharedPooledByteBufAllocator[index] == null) {
       _sharedPooledByteBufAllocator[index] =
           createPooledByteBufAllocator(true, allowCache, conf.networkAllocatorArenas());
-      if (source != null) {
-        new NettyMemoryMetrics(
-            _sharedPooledByteBufAllocator[index],
-            "shared-pool-" + index,
-            conf.networkAllocatorVerboseMetric(),
-            source,
-            Collections.emptyMap());
-      }
     }
     return _sharedPooledByteBufAllocator[index];
   }
@@ -148,27 +139,29 @@ public class NettyUtils {
 
   public static PooledByteBufAllocator getPooledByteBufAllocator(
       TransportConf conf, AbstractSource source, boolean allowCache, int coreNum) {
+    PooledByteBufAllocator allocator;
     if (conf.getCelebornConf().networkShareMemoryAllocator()) {
-      return getSharedPooledByteBufAllocator(
-          conf.getCelebornConf(),
-          source,
-          allowCache && conf.getCelebornConf().networkMemoryAllocatorAllowCache());
-    }
-    int arenas;
-    if (coreNum != 0) {
-      arenas = coreNum;
+      allocator =
+          getSharedPooledByteBufAllocator(
+              conf.getCelebornConf(),
+              allowCache && conf.getCelebornConf().networkMemoryAllocatorAllowCache());
     } else {
-      arenas = conf.getCelebornConf().networkAllocatorArenas();
+      int arenas;
+      if (coreNum != 0) {
+        arenas = coreNum;
+      } else {
+        arenas = conf.getCelebornConf().networkAllocatorArenas();
+      }
+      allocator = createPooledByteBufAllocator(conf.preferDirectBufs(), allowCache, arenas);
     }
-    PooledByteBufAllocator allocator =
-        createPooledByteBufAllocator(conf.preferDirectBufs(), allowCache, arenas);
     if (source != null) {
-      String poolName = "default-netty-pool";
+      String poolName;
       Map<String, String> labels = new HashMap<>();
-      String moduleName = conf.getModuleName();
-      if (!moduleName.isEmpty()) {
-        poolName = moduleName;
-        int index = allocatorsIndex.compute(moduleName, (k, v) -> v == null ? 0 : v + 1);
+      if (conf.getCelebornConf().networkMemoryAllocatorAllowCache()) {
+        poolName = allowCache ? "netty-shared-cache-pool" : "netty-shared-non-cache-pool";
+      } else {
+        poolName = conf.getModuleName();
+        int index = allocatorsIndex.compute(poolName, (k, v) -> v == null ? 0 : v + 1);
         labels.put("allocatorIndex", String.valueOf(index));
       }
       new NettyMemoryMetrics(
