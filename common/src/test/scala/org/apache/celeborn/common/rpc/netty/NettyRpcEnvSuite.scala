@@ -26,6 +26,7 @@ import org.scalatest.concurrent.{Signaler, ThreadSignaler, TimeLimits}
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
+import org.apache.celeborn.common.metrics.source.Role
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.protocol.TransportModuleConstants
 import org.apache.celeborn.common.rpc._
@@ -49,6 +50,7 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
       "localhost",
       port,
       0,
+      Role.CLIENT,
       None,
       None)
     new NettyRpcEnvFactory().create(config)
@@ -73,6 +75,7 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
       "example.com",
       0,
       0,
+      Role.CLIENT,
       None,
       None)
     val env = new NettyRpcEnvFactory().create(config)
@@ -123,6 +126,7 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
       "localhost",
       0,
       numUsableCores,
+      Role.CLIENT,
       None,
       None)
     val anotherEnv = new NettyRpcEnvFactory().create(config)
