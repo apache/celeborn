@@ -149,4 +149,3 @@ rbac:
     - apiGroups: [""]
       resources: ["pods"]
       verbs: ["create", "list", "delete"]
-
