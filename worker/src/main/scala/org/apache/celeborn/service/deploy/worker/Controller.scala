@@ -731,11 +731,13 @@ private[deploy] class Controller(
     while (mapIdx < mapAttempts.length) {
       if (mapAttempts(mapIdx) != -1) {
         shuffleMapperAttempts.synchronized {
-          mapIdx until shuffleMapperAttempts.length() foreach (idx => {
+          var idx = mapIdx
+          while (idx < shuffleMapperAttempts.length()) {
             if (mapAttempts(idx) != -1 && shuffleMapperAttempts.get(idx) == -1) {
               shuffleMapperAttempts.set(idx, mapAttempts(idx))
             }
-          })
+            idx += 1
+          }
         }
         return
       }
