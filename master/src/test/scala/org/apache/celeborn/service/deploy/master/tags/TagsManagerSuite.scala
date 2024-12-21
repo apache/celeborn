@@ -47,11 +47,11 @@ class TagsManagerSuite extends CelebornFunSuite {
   test("test tags manager") {
     tagsManager = new TagsManager(Option(null))
 
-    tagsManager.addTagToWorker(TAG1, WORKER1.toUniqueId())
-    tagsManager.addTagToWorker(TAG1, WORKER2.toUniqueId())
+    tagsManager.addTagToWorker(TAG1, WORKER1.toUniqueId)
+    tagsManager.addTagToWorker(TAG1, WORKER2.toUniqueId)
 
-    tagsManager.addTagToWorker(TAG2, WORKER2.toUniqueId())
-    tagsManager.addTagToWorker(TAG2, WORKER3.toUniqueId())
+    tagsManager.addTagToWorker(TAG2, WORKER2.toUniqueId)
+    tagsManager.addTagToWorker(TAG2, WORKER3.toUniqueId)
 
     {
       val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG1, workers)
@@ -106,7 +106,7 @@ class TagsManagerSuite extends CelebornFunSuite {
 
     {
       // Remove tag from worker
-      tagsManager.removeTagFromWorker(TAG1, WORKER2.toUniqueId())
+      tagsManager.removeTagFromWorker(TAG1, WORKER2.toUniqueId)
       val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG1, workers)
       assert(taggedWorkers.size == 1)
       assert(taggedWorkers.contains(WORKER1))
@@ -130,12 +130,12 @@ class TagsManagerSuite extends CelebornFunSuite {
     tagsManager = new TagsManager(Option(null))
 
     // Tag1
-    tagsManager.addTagToWorker(TAG1, WORKER1.toUniqueId())
-    tagsManager.addTagToWorker(TAG1, WORKER2.toUniqueId())
+    tagsManager.addTagToWorker(TAG1, WORKER1.toUniqueId)
+    tagsManager.addTagToWorker(TAG1, WORKER2.toUniqueId)
 
     // Tag2
-    tagsManager.addTagToWorker(TAG2, WORKER2.toUniqueId())
-    tagsManager.addTagToWorker(TAG2, WORKER3.toUniqueId())
+    tagsManager.addTagToWorker(TAG2, WORKER2.toUniqueId)
+    tagsManager.addTagToWorker(TAG2, WORKER3.toUniqueId)
 
     {
       val taggedWorkers = tagsManager.getTaggedWorkers(user, "tag1,tag2", workers)

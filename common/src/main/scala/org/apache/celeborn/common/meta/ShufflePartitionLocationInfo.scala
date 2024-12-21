@@ -25,7 +25,7 @@ import scala.collection.mutable.ArrayBuffer
 
 import org.apache.celeborn.common.protocol.PartitionLocation
 
-class ShufflePartitionLocationInfo {
+class ShufflePartitionLocationInfo(val workerInfo: WorkerInfo) {
   type PartitionInfo = ConcurrentHashMap[Int, util.Set[PartitionLocation]]
 
   private val primaryPartitionLocations = new PartitionInfo

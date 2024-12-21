@@ -135,7 +135,7 @@ class WorkerResource extends ApiRequestContext {
       }
       val workers = request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq
       val (filteredWorkers, unknownWorkers) =
-        workers.partition(w => statusSystem.workersMap.containsKey(w.toUniqueId()))
+        workers.partition(w => statusSystem.workersMap.containsKey(w.toUniqueId))
       if (filteredWorkers.isEmpty) {
         throw new BadRequestException(
           s"None of the workers are known: ${unknownWorkers.map(_.readableAddress).mkString(", ")}")

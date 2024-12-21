@@ -31,7 +31,7 @@ import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.ShufflePartitionLocationInfo
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -167,7 +167,7 @@ class ReducePartitionCommitHandler(
 
   private def handleFinalCommitFiles(
       shuffleId: Int,
-      allocatedWorkers: util.Map[WorkerInfo, ShufflePartitionLocationInfo])
+      allocatedWorkers: util.Map[String, ShufflePartitionLocationInfo])
       : (Boolean, ShuffleFailedWorkers) = {
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
 

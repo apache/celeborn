@@ -77,8 +77,8 @@ class WorkerStatusTracker(
 
     def excludeWorker(partition: PartitionLocation, statusCode: StatusCode): Unit = {
       val tmpWorker = partition.getWorker
-      val worker =
-        lifecycleManager.workerSnapshots(shuffleId).keySet().asScala.find(_.equals(tmpWorker))
+      val worker = lifecycleManager.workerSnapshots(shuffleId).asScala.get(
+        tmpWorker.toUniqueId).map(_.workerInfo)
       if (worker.isDefined) {
         failedWorker.put(worker.get, (statusCode, System.currentTimeMillis()))
       }
