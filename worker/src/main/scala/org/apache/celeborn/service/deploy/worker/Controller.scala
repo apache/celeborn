@@ -728,11 +728,13 @@ private[deploy] class Controller(
       mapAttempts: Array[Int],
       shuffleMapperAttempts: AtomicIntegerArray): Unit = {
     var mapIdx = 0
-    while (mapIdx < mapAttempts.length) {
+    val mapAttemptsLen = mapAttempts.length
+    while (mapIdx < mapAttemptsLen) {
       if (mapAttempts(mapIdx) != -1) {
         shuffleMapperAttempts.synchronized {
           var idx = mapIdx
-          while (idx < shuffleMapperAttempts.length()) {
+          val len = shuffleMapperAttempts.length()
+          while (idx < len) {
             if (mapAttempts(idx) != -1 && shuffleMapperAttempts.get(idx) == -1) {
               shuffleMapperAttempts.set(idx, mapAttempts(idx))
             }
