@@ -381,7 +381,7 @@ class ChangePartitionManager(
       case (workInfo, (primaryLocations, replicaLocations)) =>
         // Add all re-allocated slots to worker snapshots.
         val partitionLocationInfo = lifecycleManager.workerSnapshots(shuffleId).computeIfAbsent(
-          workInfo.toUniqueId(),
+          workInfo.toUniqueId,
           new util.function.Function[String, ShufflePartitionLocationInfo] {
             override def apply(workerId: String): ShufflePartitionLocationInfo = {
               new ShufflePartitionLocationInfo(workInfo)

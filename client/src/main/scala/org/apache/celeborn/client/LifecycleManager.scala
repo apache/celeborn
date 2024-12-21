@@ -722,7 +722,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         partitionLocationInfo.addPrimaryPartitions(primaryLocations)
         updateLatestPartitionLocations(shuffleId, primaryLocations)
         partitionLocationInfo.addReplicaPartitions(replicaLocations)
-        allocatedWorkers.put(workerInfo.toUniqueId(), partitionLocationInfo)
+        allocatedWorkers.put(workerInfo.toUniqueId, partitionLocationInfo)
       }
       shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
       registeredShuffle.add(shuffleId)
@@ -1246,7 +1246,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                   WORKER_EP)
               } else {
                 logInfo(
-                  s"${destroyWorkerInfo.toUniqueId()} is unavailable, set destroyWorkerInfo to null")
+                  s"${destroyWorkerInfo.toUniqueId} is unavailable, set destroyWorkerInfo to null")
                 destroyWorkerInfo = null
               }
             } catch {

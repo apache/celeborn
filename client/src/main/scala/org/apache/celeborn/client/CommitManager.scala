@@ -121,7 +121,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
                             val workerInfo =
                               lifecycleManager.shuffleAllocatedWorkers
                                 .get(shuffleId)
-                                .get(worker.toUniqueId())
+                                .get(worker.toUniqueId)
                                 .workerInfo
                             val primaryIds =
                               requests
@@ -319,9 +319,9 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
 
               workersStatus.shutdownWorkers.asScala.foreach { worker =>
                 val partitionLocationInfos =
-                  workerIdToPartitionLocationInfos.get(worker.toUniqueId())
+                  workerIdToPartitionLocationInfos.get(worker.toUniqueId)
                 if (partitionLocationInfos != null) {
-                  logWarning(s"Worker ${worker.toUniqueId()} shutdown, " +
+                  logWarning(s"Worker ${worker.toUniqueId} shutdown, " +
                     s"commit all it's partition locations for shuffle $shuffleId.")
                   needCommitPartitionLocations.addAll(partitionLocationInfos.getPrimaryPartitions())
                   needCommitPartitionLocations.addAll(partitionLocationInfos.getReplicaPartitions())

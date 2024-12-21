@@ -351,7 +351,7 @@ private[celeborn] class Worker(
 
   private var jvmQuake: JVMQuake = _
   if (conf.workerJvmQuakeEnabled) {
-    jvmQuake = JVMQuake.create(conf, workerInfo.toUniqueId().replace(":", "-"))
+    jvmQuake = JVMQuake.create(conf, workerInfo.toUniqueId.replace(":", "-"))
     jvmQuake.start()
   }
 
@@ -857,7 +857,7 @@ private[celeborn] class Worker(
     val sb = new StringBuilder
     sb.append("==================== Unavailable Peers of Worker =====================\n")
     unavailablePeers.asScala.foreach { case (peer, time) =>
-      sb.append(s"${peer.toUniqueId().padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
+      sb.append(s"${peer.toUniqueId.padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
     }
     sb.toString()
   }

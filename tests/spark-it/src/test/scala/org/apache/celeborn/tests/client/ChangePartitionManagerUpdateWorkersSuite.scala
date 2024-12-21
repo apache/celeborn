@@ -87,7 +87,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
           val partitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
-          allocatedWorkers.put(workerInfo.toUniqueId(), partitionLocationInfo)
+          allocatedWorkers.put(workerInfo.toUniqueId, partitionLocationInfo)
           lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
@@ -162,7 +162,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
           val partitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
-          allocatedWorkers.put(workerInfo.toUniqueId(), partitionLocationInfo)
+          allocatedWorkers.put(workerInfo.toUniqueId, partitionLocationInfo)
           lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
@@ -270,7 +270,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
           val partitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
-          allocatedWorkers.put(workerInfo.toUniqueId(), partitionLocationInfo)
+          allocatedWorkers.put(workerInfo.toUniqueId, partitionLocationInfo)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }
@@ -341,7 +341,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
           val partitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
-          allocatedWorkers.put(workerInfo.toUniqueId(), partitionLocationInfo)
+          allocatedWorkers.put(workerInfo.toUniqueId, partitionLocationInfo)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }

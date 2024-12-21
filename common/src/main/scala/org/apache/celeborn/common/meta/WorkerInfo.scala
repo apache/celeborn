@@ -160,9 +160,7 @@ class WorkerInfo(
       (if (internalPort > 0) s":InternalPort:$internalPort" else "")
   }
 
-  def toUniqueId(): String = {
-    s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
-  }
+  lazy val toUniqueId = s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
 
   def slotAvailable(): Boolean = this.synchronized {
     diskInfos.asScala.exists { case (_, disk) => (disk.maxSlots - disk.activeSlots) > 0 }

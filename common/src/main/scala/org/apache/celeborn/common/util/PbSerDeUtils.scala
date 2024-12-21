@@ -411,7 +411,7 @@ object PbSerDeUtils {
         .addAllReplicaPartitions(replicaPartitions)
         .setNetworkLocation(workerInfo.networkLocation)
         .build()
-      workerInfo.toUniqueId() -> pbWorkerResource
+      workerInfo.toUniqueId -> pbWorkerResource
     }.asJava
   }
 
@@ -450,12 +450,12 @@ object PbSerDeUtils {
       .setShuffleTotalCount(shuffleTotalCount)
       .putAllShuffleFallbackCounts(shuffleFallbackCounts)
       .putAllLostWorkers(lostWorkers.asScala.map {
-        case (worker: WorkerInfo, time: java.lang.Long) => (worker.toUniqueId(), time)
+        case (worker: WorkerInfo, time: java.lang.Long) => (worker.toUniqueId, time)
       }.asJava)
       .addAllShutdownWorkers(shutdownWorkers.asScala.map(toPbWorkerInfo(_, true, false)).asJava)
       .putAllWorkerEventInfos(workerEventInfos.asScala.map {
         case (worker, workerEventInfo) =>
-          (worker.toUniqueId(), PbSerDeUtils.toPbWorkerEventInfo(workerEventInfo))
+          (worker.toUniqueId, PbSerDeUtils.toPbWorkerEventInfo(workerEventInfo))
       }.asJava)
       .addAllDecommissionWorkers(decommissionWorkers.asScala.map(
         toPbWorkerInfo(_, true, false)).asJava)
@@ -510,7 +510,7 @@ object PbSerDeUtils {
       location: PartitionLocation): PbPackedPartitionLocations.Builder = {
     pbPackedLocationsBuilder.addIds(location.getId)
     pbPackedLocationsBuilder.addEpoches(location.getEpoch)
-    pbPackedLocationsBuilder.addWorkerIds(workerIdIndex(location.getWorker.toUniqueId()))
+    pbPackedLocationsBuilder.addWorkerIds(workerIdIndex(location.getWorker.toUniqueId))
     pbPackedLocationsBuilder.addMapIdBitMap(
       Utils.roaringBitmapToByteString(location.getMapIdBitMap))
     pbPackedLocationsBuilder.addTypes(location.getStorageInfo.getType.getValue)
@@ -536,7 +536,7 @@ object PbSerDeUtils {
 
     val allLocations = (inputLocations ++ implicateLocations)
     val workerIdList = new util.ArrayList[String](
-      allLocations.map(_.getWorker.toUniqueId()).toSet.asJava)
+      allLocations.map(_.getWorker.toUniqueId).toSet.asJava)
     val workerIdIndex = workerIdList.asScala.zipWithIndex.toMap
     val mountPointsList = new util.ArrayList[String](
       allLocations.map(
@@ -666,7 +666,7 @@ object PbSerDeUtils {
           primaryLocations.asScala.toList ++ replicaLocations.asScala.toList))
         .setNetworkLocation(workerInfo.networkLocation)
         .build()
-      workerInfo.toUniqueId() -> pbWorkerResource
+      workerInfo.toUniqueId -> pbWorkerResource
     }.asJava
   }
 
