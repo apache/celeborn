@@ -23,8 +23,11 @@
 # - CELEBORN_WORKER_JAVA_OPTS
 # - CELEBORN_PID_DIR
 # - CELEBORN_LOG_DIR
+# - CELEBORN_SSH_OPTS, ssh opts for `start-all` and `stop-all` operations
+# - CELEBORN_SLEEP, Waiting time for `start-all` and `stop-all` operations (e.g. 5, 5s, 5m)
 # - CELEBORN_PREFER_JEMALLOC, to enable jemalloc memory allocator
 # - CELEBORN_JEMALLOC_PATH, to set jemalloc library path
+# - CELEBORN_NO_DAEMONIZE, set `true` to run the proposed command in the foreground
 
 # Example:
 # CELEBORN_MASTER_MEMORY=2g
@@ -34,5 +37,8 @@
 # CELEBORN_MASTER_JAVA_OPTS="-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-master.out -Dio.netty.leakDetectionLevel=advanced"
 # CELEBORN_PID_DIR="$CELEBORN_HOME/pids"
 # CELEBORN_LOG_DIR="$CELEBORN_HOME/logs"
+# CELEBORN_SLEEP="5s"
+# CELEBORN_SSH_OPTS="-o StrictHostKeyChecking=no"
 # CELEBORN_PREFER_JEMALLOC="true"
 # CELEBORN_JEMALLOC_PATH="/path/to/libjemalloc.so"
+# CELEBORN_NO_DAEMONIZE="true"
