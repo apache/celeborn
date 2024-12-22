@@ -75,9 +75,9 @@ public abstract class CelebornInputStream extends InputStream {
     } else {
       // if startMapIndex > endMapIndex, means partition is skew partition.
       // locations will split to sub-partitions with startMapIndex size.
-      boolean splitSkewPartitionWithoutMapRange =
-          conf.clientAdaptiveOptimizeSkewedPartitionReadEnabled() && startMapIndex > endMapIndex;
-      if (splitSkewPartitionWithoutMapRange) {
+      boolean readSkewPartitionWithoutMapRange =
+          readSkewPartitionWithoutMapRange(conf, startMapIndex, endMapIndex);
+      if (readSkewPartitionWithoutMapRange) {
         return new CelebornInputStreamImpl(
             conf,
             clientFactory,
@@ -95,7 +95,7 @@ public abstract class CelebornInputStream extends InputStream {
             shuffleId,
             partitionId,
             exceptionMaker,
-            splitSkewPartitionWithoutMapRange,
+            true,
             metricsCallback);
       } else {
         return new CelebornInputStreamImpl(
@@ -117,7 +117,7 @@ public abstract class CelebornInputStream extends InputStream {
             shuffleId,
             partitionId,
             exceptionMaker,
-            splitSkewPartitionWithoutMapRange,
+            false,
             metricsCallback);
       }
     }
@@ -125,6 +125,11 @@ public abstract class CelebornInputStream extends InputStream {
 
   public static CelebornInputStream empty() {
     return emptyInputStream;
+  }
+
+  public static boolean readSkewPartitionWithoutMapRange(
+      CelebornConf conf, int startMapIndex, int endMapIndex) {
+    return conf.clientAdaptiveOptimizeSkewedPartitionReadEnabled() && startMapIndex > endMapIndex;
   }
 
   private static final CelebornInputStream emptyInputStream =
@@ -209,7 +214,7 @@ public abstract class CelebornInputStream extends InputStream {
     private ExceptionMaker exceptionMaker;
     private boolean closed = false;
 
-    private final boolean splitSkewPartitionWithoutMapRange;
+    private final boolean readSkewPartitionWithoutMapRange;
 
     CelebornInputStreamImpl(
         CelebornConf conf,
@@ -273,7 +278,7 @@ public abstract class CelebornInputStream extends InputStream {
         int shuffleId,
         int partitionId,
         ExceptionMaker exceptionMaker,
-        boolean splitSkewPartitionWithoutMapRange,
+        boolean readSkewPartitionWithoutMapRange,
         MetricsCallback metricsCallback)
         throws IOException {
       this.conf = conf;
@@ -296,7 +301,7 @@ public abstract class CelebornInputStream extends InputStream {
           !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.failedBatches = failedBatchSet;
-      this.splitSkewPartitionWithoutMapRange = splitSkewPartitionWithoutMapRange;
+      this.readSkewPartitionWithoutMapRange = readSkewPartitionWithoutMapRange;
       this.fetchExcludedWorkers = fetchExcludedWorkers;
 
       if (conf.clientPushReplicateEnabled()) {
@@ -346,9 +351,9 @@ public abstract class CelebornInputStream extends InputStream {
       }
       PartitionLocation currentLocation = locations.get(fileIndex);
       // if pushShuffleFailureTrackingEnabled is true, should not skip location
-      while ((splitSkewPartitionWithoutMapRange
+      while ((readSkewPartitionWithoutMapRange
               && !partitionLocationToChunkRange.containsKey(currentLocation.getUniqueId()))
-          || (!splitSkewPartitionWithoutMapRange
+          || (!readSkewPartitionWithoutMapRange
               && skipLocation(startMapIndex, endMapIndex, currentLocation))) {
         skipCount.increment();
         fileIndex++;
@@ -414,7 +419,10 @@ public abstract class CelebornInputStream extends InputStream {
     private PartitionReader createReaderWithRetry(
         PartitionLocation location, PbStreamHandler pbStreamHandler) throws IOException {
       // For the first time, the location will be selected according to attemptNumber
-      if (fetchChunkRetryCnt == 0 && attemptNumber % 2 == 1 && location.hasPeer()) {
+      if (fetchChunkRetryCnt == 0
+          && attemptNumber % 2 == 1
+          && location.hasPeer()
+          && !readSkewPartitionWithoutMapRange) {
         location = location.getPeer();
         logger.debug("Read peer {} for attempt {}.", location, attemptNumber);
       }
@@ -429,7 +437,7 @@ public abstract class CelebornInputStream extends InputStream {
           lastException = e;
           shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort(), e);
           fetchChunkRetryCnt++;
-          if (location.hasPeer()) {
+          if (location.hasPeer() && !readSkewPartitionWithoutMapRange) {
             // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
             // so sleep before next try.
             if (fetchChunkRetryCnt % 2 == 0) {
@@ -478,7 +486,7 @@ public abstract class CelebornInputStream extends InputStream {
                     + currentReader.getLocation(),
                 e);
           } else {
-            if (currentReader.getLocation().hasPeer()) {
+            if (currentReader.getLocation().hasPeer() && !readSkewPartitionWithoutMapRange) {
               logger.warn(
                   "Fetch chunk failed {}/{} times for location {}, change to peer",
                   fetchChunkRetryCnt,
@@ -715,7 +723,7 @@ public abstract class CelebornInputStream extends InputStream {
 
           // de-duplicate
           if (attemptId == attempts[mapId]) {
-            if (splitSkewPartitionWithoutMapRange) {
+            if (readSkewPartitionWithoutMapRange) {
               Set<PushFailedBatch> failedBatchSet =
                   this.failedBatches.get(currentReader.getLocation().getUniqueId());
               if (null != failedBatchSet) {
