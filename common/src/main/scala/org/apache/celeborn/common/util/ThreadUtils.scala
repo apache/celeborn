@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common.util
 
+import java.lang.{StringBuilder => JStringBuilder}
 import java.util.concurrent._
 import java.util.concurrent.{ForkJoinPool => SForkJoinPool, ForkJoinWorkerThread => SForkJoinWorkerThread}
 import java.util.concurrent.locks.ReentrantLock
@@ -444,7 +445,7 @@ case class ThreadStackTrace(
    * TODO(SPARK-44896): Also considering adding information os_prio, cpu, elapsed, tid, nid, etc., from the jstack tool
    */
   override def toString: String = {
-    val sb = new StringBuilder(
+    val sb = new JStringBuilder(
       s""""$threadName" Id=$threadId $threadState""")
     lockName.foreach(lock => sb.append(s" on $lock"))
     lockOwnerName.foreach {

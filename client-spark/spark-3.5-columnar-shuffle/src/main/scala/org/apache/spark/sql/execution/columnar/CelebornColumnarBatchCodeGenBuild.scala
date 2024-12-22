@@ -18,9 +18,8 @@
 package org.apache.spark.sql.execution.columnar
 
 import java.io.ByteArrayOutputStream
+import java.lang.{StringBuilder => JStringBuilder}
 import java.nio.ByteBuffer
-
-import scala.collection.mutable
 
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodeAndComment, CodeFormatter, CodeGenerator}
@@ -92,14 +91,14 @@ class CelebornColumnarBatchCodeGenBuild {
    *         code to build column bytes, code to write row to columnBuilder)
    */
   def genCode(schema: StructType, batchSize: Int): (
-      mutable.StringBuilder,
-      mutable.StringBuilder,
-      mutable.StringBuilder,
-      mutable.StringBuilder) = {
-    val initCode = new mutable.StringBuilder()
-    val buildCode = new mutable.StringBuilder()
-    val writeCode = new mutable.StringBuilder()
-    val writeRowCode = new mutable.StringBuilder()
+      JStringBuilder,
+      JStringBuilder,
+      JStringBuilder,
+      JStringBuilder) = {
+    val initCode = new JStringBuilder()
+    val buildCode = new JStringBuilder()
+    val writeCode = new JStringBuilder()
+    val writeRowCode = new JStringBuilder()
     for (index <- schema.indices) {
       schema.fields(index).dataType match {
         case ByteType =>

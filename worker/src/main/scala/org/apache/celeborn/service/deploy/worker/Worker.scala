@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.worker
 
 import java.io.File
+import java.lang.{StringBuilder => JStringBuilder}
 import java.util
 import java.util.{HashSet => JHashSet, Locale, Map => JMap, UUID}
 import java.util.concurrent._
@@ -808,14 +809,14 @@ private[celeborn] class Worker(
   }
 
   override def getWorkerInfo: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("====================== WorkerInfo of Worker ===========================\n")
     sb.append(workerInfo.toString()).append("\n")
     sb.toString()
   }
 
   override def getApplicationList: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("================= LifecycleManager Application List ======================\n")
     workerInfo.getApplicationIdSet.asScala.foreach { appId =>
       sb.append(s"$appId\n")
@@ -824,7 +825,7 @@ private[celeborn] class Worker(
   }
 
   override def getShuffleList: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("======================= Shuffle Key List ============================\n")
     storageManager.shuffleKeySet().asScala.foreach { shuffleKey =>
       sb.append(s"$shuffleKey\n")
@@ -833,14 +834,14 @@ private[celeborn] class Worker(
   }
 
   override def isShutdown: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("========================= Worker Shutdown ==========================\n")
     sb.append(shutdown.get()).append("\n")
     sb.toString()
   }
 
   override def isDecommissioning: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("========================= Worker Decommission ==========================\n")
     sb.append(
       shutdown.get() && (workerStatusManager.currentWorkerStatus.getState == State.InDecommission ||
@@ -850,21 +851,21 @@ private[celeborn] class Worker(
   }
 
   override def isRegistered: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("========================= Worker Registered ==========================\n")
     sb.append(registered.get()).append("\n")
     sb.toString()
   }
 
   override def listPartitionLocationInfo: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("==================== Partition Location Info =========================\n")
     sb.append(partitionLocationInfo.toString).append("\n")
     sb.toString()
   }
 
   override def getUnavailablePeers: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("==================== Unavailable Peers of Worker =====================\n")
     unavailablePeers.asScala.foreach { case (peer, time) =>
       sb.append(s"${peer.toUniqueId().padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
@@ -886,7 +887,7 @@ private[celeborn] class Worker(
       case _ =>
         workerStatusManager.doTransition(workerStatusManager.exitEventType)
     }
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("============================ Exit Worker =============================\n")
     sb.append(s"Exit worker by $exitType triggered: \n")
     sb.append(workerInfo.toString()).append("\n")

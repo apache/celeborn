@@ -17,14 +17,15 @@
 
 package org.apache.celeborn.server.common.http
 
+import java.lang.{StringBuilder => JStringBuilder}
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.authentication.AuthenticationFilter._
 
 object RestAuditLogger extends Logging {
-  final private val AUDIT_BUFFER = new ThreadLocal[StringBuilder]() {
-    override protected def initialValue: StringBuilder = new StringBuilder()
+  final private val AUDIT_BUFFER = new ThreadLocal[JStringBuilder]() {
+    override protected def initialValue: JStringBuilder = new JStringBuilder()
   }
 
   def audit(request: HttpServletRequest, response: HttpServletResponse): Unit = {

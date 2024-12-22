@@ -17,11 +17,11 @@
 
 package org.apache.celeborn.common.metrics.source
 
+import java.lang.{StringBuilder => JStringBuilder}
 import java.util.{Map => JMap}
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, ScheduledExecutorService, TimeUnit}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
@@ -407,7 +407,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def getGaugeMetrics(ng: NamedGauge[_]): String = {
     val timestamp = System.currentTimeMillis
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     val label = ng.labelString
     sb.append(s"${normalizeKey(ng.name)}Value$label ${ng.gauge.getValue} $timestamp\n")
     sb.toString()
@@ -415,7 +415,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def getMeterMetrics(nm: NamedMeter): String = {
     val timestamp = System.currentTimeMillis
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     val label = nm.labelString
     sb.append(s"${normalizeKey(nm.name)}Count$label ${nm.meter.getCount} $timestamp\n")
     sb.append(s"${normalizeKey(nm.name)}MeanRate$label ${nm.meter.getMeanRate} $timestamp\n")
@@ -430,7 +430,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def getHistogramMetrics(nh: NamedHistogram): String = {
     val timestamp = System.currentTimeMillis
-    val sb = new mutable.StringBuilder
+    val sb = new JStringBuilder
     val snapshot = nh.histogram.getSnapshot
     val prefix = normalizeKey(nh.name)
     val label = nh.labelString
@@ -455,7 +455,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def getTimerMetrics(nt: NamedTimer): String = {
     val timestamp = System.currentTimeMillis
-    val sb = new mutable.StringBuilder
+    val sb = new JStringBuilder
     val snapshot = nt.timer.getSnapshot
     val prefix = normalizeKey(nt.name)
     val label = nt.labelString
@@ -489,7 +489,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   override def getMetrics(): String = {
     var leftMetricsNum = metricsCapacity
-    val sb = new mutable.StringBuilder
+    val sb = new JStringBuilder
     leftMetricsNum = fillInnerMetricsSnapshot(getAndClearTimerMetrics(), leftMetricsNum, sb)
     leftMetricsNum = fillInnerMetricsSnapshot(timers(), leftMetricsNum, sb)
     leftMetricsNum = fillInnerMetricsSnapshot(histograms(), leftMetricsNum, sb)
@@ -506,7 +506,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   private def fillInnerMetricsSnapshot(
       metricList: List[AnyRef],
       leftNum: Int,
-      sb: mutable.StringBuilder): Int = {
+      sb: JStringBuilder): Int = {
     if (leftNum <= 0) {
       return 0
     }

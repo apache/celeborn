@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.master
 
 import java.io.IOException
+import java.lang.{StringBuilder => JStringBuilder}
 import java.net.BindException
 import java.util
 import java.util.Collections
@@ -1273,7 +1274,7 @@ private[celeborn] class Master(
   }
 
   override def getMasterGroupInfo: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("====================== Master Group INFO ==============================\n")
     sb.append(getMasterGroupInfoInternal)
     sb.toString()
@@ -1286,7 +1287,7 @@ private[celeborn] class Master(
   override def handleWorkerEvent(
       workerEventType: WorkerEventType,
       workers: Seq[WorkerInfo]): HandleResponse = {
-    val sb = new StringBuilder()
+    val sb = new JStringBuilder()
     try {
       val workerEventResponse = self.askSync[PbWorkerEventResponse](WorkerEventRequest(
         workers.asJava,
@@ -1312,14 +1313,14 @@ private[celeborn] class Master(
   }
 
   override def getWorkerInfo: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("====================== Workers Info in Master =========================\n")
     sb.append(getWorkers)
     sb.toString()
   }
 
   override def getLostWorkers: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("======================= Lost Workers in Master ========================\n")
     statusSystem.lostWorkers.asScala.toSeq.sortBy(_._2).foreach { case (worker, time) =>
       sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
@@ -1328,7 +1329,7 @@ private[celeborn] class Master(
   }
 
   override def getShutdownWorkers: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("===================== Shutdown Workers in Master ======================\n")
     statusSystem.shutdownWorkers.asScala.foreach { worker =>
       sb.append(s"${worker.toUniqueId()}\n")
@@ -1337,7 +1338,7 @@ private[celeborn] class Master(
   }
 
   override def getDecommissionWorkers: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("===================== Decommission Workers in Master ======================\n")
     statusSystem.decommissionWorkers.asScala.foreach { worker =>
       sb.append(s"${worker.toUniqueId()}\n")
@@ -1346,7 +1347,7 @@ private[celeborn] class Master(
   }
 
   override def getExcludedWorkers: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("===================== Excluded Workers in Master ======================\n")
     (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).foreach {
       worker => sb.append(s"${worker.toUniqueId()}\n")
@@ -1355,7 +1356,7 @@ private[celeborn] class Master(
   }
 
   override def getHostnameList: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("================= LifecycleManager Hostname List ======================\n")
     statusSystem.hostnameSet.asScala.foreach { host =>
       sb.append(s"$host\n")
@@ -1364,7 +1365,7 @@ private[celeborn] class Master(
   }
 
   override def getApplicationList: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("================= LifecycleManager Application List ======================\n")
     statusSystem.appHeartbeatTime.asScala.toSeq.sortBy(_._2).foreach { case (appId, time) =>
       sb.append(s"${appId.padTo(40, " ").mkString}${Utils.formatTimestamp(time)}\n")
@@ -1373,7 +1374,7 @@ private[celeborn] class Master(
   }
 
   override def getShuffleList: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("======================= Shuffle Key List ============================\n")
     statusSystem.registeredAppAndShuffles.asScala.foreach { shuffleKey =>
       val appId = shuffleKey._1
@@ -1387,7 +1388,7 @@ private[celeborn] class Master(
   override def exclude(
       addWorkers: Seq[WorkerInfo],
       removeWorkers: Seq[WorkerInfo]): HandleResponse = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     val workerExcludeResponse = self.askSync[PbWorkerExcludeResponse](WorkerExclude(
       addWorkers.asJava,
       removeWorkers.asJava,
@@ -1443,7 +1444,7 @@ private[celeborn] class Master(
 
   private def getMasterGroupInfoInternal: String = {
     if (conf.haEnabled) {
-      val sb = new StringBuilder
+      val sb = new JStringBuilder
       val groupInfo = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getGroupInfo
       sb.append(s"group id: ${groupInfo.getGroup.getGroupId.getUuid}\n")
 
@@ -1476,7 +1477,7 @@ private[celeborn] class Master(
   }
 
   override def getWorkerEventInfo(): String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("======================= Workers Event in Master ========================\n")
     statusSystem.workerEventInfos.asScala.foreach { case (worker, workerEventInfo) =>
       sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}$workerEventInfo\n")

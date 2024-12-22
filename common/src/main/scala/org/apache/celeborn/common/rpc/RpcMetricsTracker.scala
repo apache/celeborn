@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common.rpc
 
+import java.lang.{StringBuilder => JStringBuilder}
 import java.util.concurrent.ConcurrentMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -145,7 +146,7 @@ private[celeborn] class RpcMetricsTracker(
     if (!useHistogram)
       return
 
-    val builder = new StringBuilder();
+    val builder = new JStringBuilder();
     builder.append(s"RPC statistics for $name").append("\n")
     builder.append(s"current queue size = ${queueLengthFunc()}").append("\n")
     builder.append(s"max queue length = ${maxQueueLength.get()}").append("\n")

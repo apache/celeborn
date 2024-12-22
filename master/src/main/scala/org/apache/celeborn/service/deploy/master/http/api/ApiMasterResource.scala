@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master.http.api
 
+import java.lang.{StringBuilder => JStringBuilder}
 import javax.ws.rs.{FormParam, GET, Path, POST}
 import javax.ws.rs.core.MediaType
 
@@ -108,7 +109,7 @@ class ApiMasterResource extends ApiRequestContext {
   def exclude(
       @FormParam("add") addWorkers: String,
       @FormParam("remove") removeWorkers: String): String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("============================ Add/Remove Excluded Workers  Manually =============================\n")
     val workersToAdd =
       normalizeParam(addWorkers).split(",").filter(_.nonEmpty).map(WorkerInfo.fromUniqueId).toList
@@ -130,7 +131,7 @@ class ApiMasterResource extends ApiRequestContext {
   def sendWorkerEvent(
       @FormParam("type") eventType: String,
       @FormParam("workers") workers: String): String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     if (StringUtils.isEmpty(eventType) || StringUtils.isEmpty(workers)) {
       return sb.append(
         s"handle eventType failed as eventType: $eventType or workers: $workers has empty value").toString()

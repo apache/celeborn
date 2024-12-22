@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.util
 
 import java.io._
+import java.lang.{StringBuilder => JStringBuilder}
 import java.lang.management.{LockInfo, ManagementFactory, MonitorInfo, ThreadInfo}
 import java.math.{MathContext, RoundingMode}
 import java.net._
@@ -860,7 +861,7 @@ object Utils extends Logging {
       extraEnvironment: Map[String, String] = Map.empty,
       redirectStderr: Boolean = true): String = {
     val process = executeCommand(command, workingDir, extraEnvironment, redirectStderr)
-    val output = new StringBuilder
+    val output = new JStringBuilder
     val threadName = "read stdout for " + command.head
 
     def appendToOutput(s: String): Unit = output.append(s).append("\n")

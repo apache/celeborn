@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common.meta
 
+import java.lang.{StringBuilder => JStringBuilder}
 import java.util
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.BiFunction
@@ -181,13 +182,13 @@ class WorkerPartitionLocationInfo extends Logging {
   }
 
   def toStringSimplified: String = {
-    val primaryLocationStr = new StringBuilder
+    val primaryLocationStr = new JStringBuilder
     for ((shuffleKey, locations) <- primaryPartitionLocations.asScala) {
       if (!locations.isEmpty) {
         primaryLocationStr.append(s"($shuffleKey: ${locations.keySet()}) ")
       }
     }
-    val replicaLocationStr = new StringBuilder
+    val replicaLocationStr = new JStringBuilder
     for ((shuffleKey, locations) <- replicaPartitionLocations.asScala) {
       if (!locations.isEmpty) {
         replicaLocationStr.append(s"($shuffleKey: ${locations.keySet()}) ")

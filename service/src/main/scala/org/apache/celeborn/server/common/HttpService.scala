@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.server.common
 
+import java.lang.{StringBuilder => JStringBuilder}
 import java.util
 import javax.servlet.DispatcherType
 
@@ -40,7 +41,7 @@ abstract class HttpService extends Service with Logging {
   private var httpServer: HttpServer = _
 
   def getConf: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append("=========================== Configuration ============================\n")
     if (conf.getAll.nonEmpty) {
       val redactedConf = Utils.redact(conf, conf.getAll)
@@ -59,7 +60,7 @@ abstract class HttpService extends Service with Logging {
     if (configService == null) {
       s"Dynamic configuration is disabled. Please check whether to config `${CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND.key}`."
     } else {
-      val sb = new StringBuilder
+      val sb = new JStringBuilder
       sb.append("=========================== Dynamic Configuration ============================\n")
       if (level.isEmpty) {
         sb.append(dynamicConfigs(tenant, name))
@@ -77,7 +78,7 @@ abstract class HttpService extends Service with Logging {
   }
 
   private def dynamicConfigs(level: String, tenant: String, name: String): String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append(
       s"=========================== Level: $level ============================\n")
     if (ConfigLevel.SYSTEM.name().equalsIgnoreCase(level)) {
@@ -130,7 +131,7 @@ abstract class HttpService extends Service with Logging {
   }
 
   private def configs(configs: util.Map[String, String]): String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     val configMap = configs.asScala
     if (configMap.nonEmpty) {
       val maxKeyLength = configMap.keys.map(_.length).max
@@ -147,7 +148,7 @@ abstract class HttpService extends Service with Logging {
   def getWorkerInfo: String
 
   def getThreadDump: String = {
-    val sb = new StringBuilder
+    val sb = new JStringBuilder
     sb.append(
       s"========================= ${serviceName.capitalize} ThreadDump ==========================\n")
     sb.append(Utils.getThreadDump().mkString("\n")).append("\n")

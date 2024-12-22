@@ -382,7 +382,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
   }
 
   def generateRandomIPv4Address: String = {
-    val ipAddress = new StringBuilder
+    val ipAddress = new java.lang.StringBuilder
     for (i <- 0 until 4) {
       ipAddress.append(Random.nextInt(256))
       if (i < 3) ipAddress.append(".")
