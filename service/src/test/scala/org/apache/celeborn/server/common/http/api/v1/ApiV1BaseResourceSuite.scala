@@ -19,11 +19,12 @@ package org.apache.celeborn.server.common.http.api.v1
 
 import java.net.URI
 import javax.servlet.http.HttpServletResponse
+import javax.ws.rs.client.Entity
 import javax.ws.rs.core.{MediaType, UriBuilder}
 
 import scala.collection.JavaConverters._
 
-import org.apache.celeborn.rest.v1.model.{ConfResponse, ThreadStackResponse}
+import org.apache.celeborn.rest.v1.model.{ConfResponse, LoggerInfo, ThreadStackResponse}
 import org.apache.celeborn.server.common.http.HttpTestHelper
 
 abstract class ApiV1BaseResourceSuite extends HttpTestHelper {
@@ -38,6 +39,44 @@ abstract class ApiV1BaseResourceSuite extends HttpTestHelper {
     response = webTarget.path("conf/dynamic").request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_SERVICE_UNAVAILABLE == response.getStatus)
     assert(response.readEntity(classOf[String]).contains("Dynamic configuration is disabled."))
+  }
+
+  test("logger resource") {
+    val loggerName = this.getClass.getName
+
+    // set logger level to INFO as initial state
+    val response = webTarget.path("logger").request(MediaType.APPLICATION_JSON).post(Entity.entity(
+      new LoggerInfo().name(loggerName).level("INFO"),
+      MediaType.APPLICATION_JSON))
+    assert(HttpServletResponse.SC_OK == response.getStatus)
+
+    // check logger level is INFO
+    val response1 = webTarget.path("logger")
+      .queryParam("name", loggerName)
+      .request(MediaType.APPLICATION_JSON).get()
+    assert(HttpServletResponse.SC_OK == response.getStatus)
+    val loggerInfo = response1.readEntity(classOf[LoggerInfo])
+    assert(loggerName == loggerInfo.getName)
+    assert(loggerInfo.getLevel == "INFO")
+    assert(log.isInfoEnabled)
+    assert(!log.isDebugEnabled)
+
+    // set logger level to DEBUG
+    val response2 = webTarget.path("logger").request(MediaType.APPLICATION_JSON).post(Entity.entity(
+      new LoggerInfo().name(loggerName).level("DEBUG"),
+      MediaType.APPLICATION_JSON))
+    assert(HttpServletResponse.SC_OK == response2.getStatus)
+
+    // check logger level is DEBUG
+    val response3 = webTarget.path("logger")
+      .queryParam("name", loggerName)
+      .request(MediaType.APPLICATION_JSON).get()
+    assert(HttpServletResponse.SC_OK == response.getStatus)
+    val loggerInfo2 = response3.readEntity(classOf[LoggerInfo])
+    assert(loggerName == loggerInfo2.getName)
+    assert(loggerInfo2.getLevel == "DEBUG")
+    assert(log.isInfoEnabled)
+    assert(log.isDebugEnabled)
   }
 
   test("thread_dump") {

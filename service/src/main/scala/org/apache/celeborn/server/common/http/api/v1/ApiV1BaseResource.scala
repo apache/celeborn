@@ -35,6 +35,9 @@ class ApiV1BaseResource extends ApiRequestContext {
   @Path("conf")
   def conf: Class[ConfResource] = classOf[ConfResource]
 
+  @Path("logger")
+  def logger: Class[LoggerResource] = classOf[LoggerResource]
+
   @Path("/thread_dump")
   @ApiResponse(
     responseCode = "200",

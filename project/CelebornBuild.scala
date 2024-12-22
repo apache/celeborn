@@ -135,6 +135,8 @@ object Dependencies {
     "org.fusesource.leveldbjni"
   }
   val leveldbJniAll = leveldbJniGroup % "leveldbjni-all" % leveldbJniVersion
+  val log4jApi = "org.apache.logging.log4j" % "log4j-api" % log4j2Version
+  val log4jCore = "org.apache.logging.log4j" % "log4j-core" % log4j2Version
   val log4j12Api = "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version
   val log4jSlf4jImpl = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version
   val lz4Java = "org.lz4" % "lz4-java" % lz4JavaVersion
@@ -629,6 +631,8 @@ object CelebornService {
         Dependencies.jettyServer,
         Dependencies.jettyServlet,
         Dependencies.jettyProxy,
+        Dependencies.log4jApi,
+        Dependencies.log4jCore,
         Dependencies.log4jSlf4jImpl % "test",
         Dependencies.log4j12Api % "test",
         Dependencies.h2 % "test",

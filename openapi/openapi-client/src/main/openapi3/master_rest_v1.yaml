@@ -456,6 +456,44 @@ paths:
                 type: string
                 format: binary
 
+  /api/v1/logger:
+    get:
+      tags:
+        - Logger
+      operationId: getLogger
+      description: Get the logger level.
+      parameters:
+        - name: name
+          in: query
+          description: The logger name.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoggerInfo'
+    post:
+      tags:
+        - Logger
+      operationId: setLogger
+      description: Set the logger level.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoggerInfo'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
 components:
   schemas:
     ConfigData:
@@ -1066,6 +1104,19 @@ components:
           items:
             type: integer
             format: int32
+
+    LoggerInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The logger name.
+        level:
+          type: string
+          description: The logger level.
+      required:
+        - name
+        - level
 
     HandleResponse:
       type: object
