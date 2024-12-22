@@ -529,7 +529,7 @@ components:
         hdfsFileCount:
           type: integer
           format: int64
-        subResourceConsumption:
+        subResourceConsumptions:
           type: object
           additionalProperties:
             $ref: '#/components/schemas/WorkerResourceConsumption'
