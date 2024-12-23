@@ -461,12 +461,12 @@ paths:
       tags:
         - Logger
       operationId: getLogger
-      description: Get the logger level.
+      description: Get the logger level, return all loggers if no name specified.
       parameters:
         - name: name
           in: query
           description: The logger name.
-          required: true
+          required: false
           schema:
             type: string
       responses:

@@ -207,12 +207,12 @@ paths:
       tags:
         - Logger
       operationId: getLogger
-      description: Get the logger level for the class.
+      description: Get the logger level, return all loggers if no name specified.
       parameters:
         - name: name
           in: query
           description: The logger name.
-          required: true
+          required: false
           schema:
             type: string
       responses:
@@ -226,7 +226,7 @@ paths:
       tags:
         - Logger
       operationId: setLogger
-      description: Set the logger level for the class.
+      description: Set the logger level.
       requestBody:
         content:
           application/json:

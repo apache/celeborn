@@ -84,7 +84,8 @@ abstract class ApiV1BaseResourceSuite extends HttpTestHelper {
     assert(HttpServletResponse.SC_OK == response4.getStatus)
     val loggers = response4.readEntity(classOf[LoggerInfos]).getLoggers.asScala
     assert(loggers.exists(l => l.getName == loggerName && l.getLevel == "DEBUG"))
-    assert(loggers.size > 1)
+    // root logger
+    assert(loggers.exists(l => l.getName == "" && l.getLevel == "INFO"))
   }
 
   test("thread_dump") {

@@ -43,7 +43,7 @@ class LoggerResource extends ApiRequestContext {
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[LoggerInfo]))),
-    description = "Get the logger level.")
+    description = "Get the logger level, return all loggers if no name specified.")
   @GET
   def getLoggerLevel(@QueryParam("name") name: String): LoggerInfos = {
     if (StringUtils.isNotBlank(name)) {
@@ -51,8 +51,8 @@ class LoggerResource extends ApiRequestContext {
         new LoggerInfo().name(name).level(LogManager.getLogger(name).getLevel.toString))
     } else {
       val loggerContext = LogManager.getContext(false).asInstanceOf[LoggerContext]
-      val loggers = loggerContext.getLoggers.asScala.map { logger =>
-        new LoggerInfo().name(logger.getName).level(logger.getLevel.toString)
+      val loggers = loggerContext.getConfiguration.getLoggers.values().asScala.map { loggerConfig =>
+        new LoggerInfo().name(loggerConfig.getName).level(loggerConfig.getLevel.toString)
       }.toSeq.sortBy(_.getName).asJava
       new LoggerInfos().loggers(loggers)
     }

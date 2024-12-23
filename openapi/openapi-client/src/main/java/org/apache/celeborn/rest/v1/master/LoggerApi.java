@@ -50,8 +50,8 @@ public class LoggerApi extends BaseApi {
 
   /**
    * 
-   * Get the logger level.
-   * @param name The logger name. (required)
+   * Get the logger level, return all loggers if no name specified.
+   * @param name The logger name. (optional)
    * @return LoggerInfos
    * @throws ApiException if fails to make API call
    */
@@ -62,19 +62,14 @@ public class LoggerApi extends BaseApi {
 
   /**
    * 
-   * Get the logger level.
-   * @param name The logger name. (required)
+   * Get the logger level, return all loggers if no name specified.
+   * @param name The logger name. (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return LoggerInfos
    * @throws ApiException if fails to make API call
    */
   public LoggerInfos getLogger(String name, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = null;
-    
-    // verify the required parameter 'name' is set
-    if (name == null) {
-      throw new ApiException(400, "Missing the required parameter 'name' when calling getLogger");
-    }
     
     // create path and map variables
     String localVarPath = "/api/v1/loggers";
