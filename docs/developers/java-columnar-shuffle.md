@@ -24,7 +24,9 @@ Celeborn presents a Java Columnar Shuffle designed to enhance performance and ef
 
 ## Benefits
 
-- **High Compression Rate**: By organizing data into a columnar format, this feature significantly increases the compression ratio, reducing the disk space required for Shuffle data.
+- **High Compression Rate**: By organizing data into a columnar format, this feature significantly increases the compression ratio, reducing the disk space required for Shuffle data. 
+However, enabling this optimization incurs overhead for row-to-column and column-to-row transformations. If disk space is a higher priority, it is recommended to enable this feature.
+If performance is a higher priority, it is advisable to weigh the trade-offs.
 
 ## Configuration
 
