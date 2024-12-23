@@ -46,7 +46,8 @@ class ShufflePartitionLocationInfoSuite extends CelebornFunSuite {
     replicaLocations.add(partitionLocationReplica00)
     replicaLocations.add(partitionLocationReplica10)
 
-    val shufflePartitionLocationInfo = new ShufflePartitionLocationInfo
+    val workerInfo = new WorkerInfo("localhost", 1, 2, 3, 4)
+    val shufflePartitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
     shufflePartitionLocationInfo.addPrimaryPartitions(primaryLocations)
     shufflePartitionLocationInfo.addReplicaPartitions(replicaLocations)
 
