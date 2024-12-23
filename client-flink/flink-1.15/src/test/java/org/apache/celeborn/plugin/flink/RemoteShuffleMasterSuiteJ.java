@@ -64,6 +64,7 @@ public class RemoteShuffleMasterSuiteJ {
     int startPort = Utils$.MODULE$.selectRandomInt(1024, 65535);
     configuration.setInteger("celeborn.master.port", startPort);
     configuration.setString("celeborn.master.endpoints", "localhost:" + startPort);
+    configuration.setString("celeborn.client.application.heartbeatInterval", "60s");
     remoteShuffleMaster = createShuffleMaster(configuration);
   }
 
