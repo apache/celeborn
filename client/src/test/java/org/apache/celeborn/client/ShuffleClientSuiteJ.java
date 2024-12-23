@@ -26,12 +26,18 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import org.apache.celeborn.common.CommitMetadata;
+import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.write.PushState;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 
@@ -115,6 +121,116 @@ public class ShuffleClientSuiteJ {
         compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
         final int compressedTotalSize = compressor.getCompressedTotalSize();
         assertEquals(compressedTotalSize + BATCH_HEADER_SIZE, pushDataLen);
+      }
+
+      // Verify commit metadata is empty when integrity check is disabled
+      String mapKey = Utils.makeMapKey(TEST_SHUFFLE_ID, TEST_ATTEMPT_ID, TEST_ATTEMPT_ID);
+      PushState pushState = shuffleClient.getPushState(mapKey);
+
+      assertNotNull(pushState);
+      assertNotNull(pushState.getCommitMetadataMap());
+      assertTrue(pushState.getCommitMetadataMap().isEmpty());
+    }
+  }
+
+  @Test
+  public void testPushDataWithIntegrityCheck() throws IOException, InterruptedException {
+    for (CompressionCodec codec : CompressionCodec.values()) {
+      CelebornConf conf = setupEnv(codec, StatusCode.SUCCESS, true);
+
+      int pushDataLen =
+          shuffleClient.pushData(
+              TEST_SHUFFLE_ID,
+              TEST_ATTEMPT_ID,
+              TEST_ATTEMPT_ID,
+              TEST_REDUCRE_ID,
+              TEST_BUF1,
+              0,
+              TEST_BUF1.length,
+              1,
+              1);
+
+      if (codec.equals(CompressionCodec.NONE)) {
+        assertEquals(TEST_BUF1.length + BATCH_HEADER_SIZE, pushDataLen);
+      } else {
+        Compressor compressor = Compressor.getCompressor(conf);
+        compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
+        final int compressedTotalSize = compressor.getCompressedTotalSize();
+        assertEquals(compressedTotalSize + BATCH_HEADER_SIZE, pushDataLen);
+
+        // Verify commit metadata is correct when integrity check is enabled
+        String mapKey = Utils.makeMapKey(TEST_SHUFFLE_ID, TEST_ATTEMPT_ID, TEST_ATTEMPT_ID);
+        PushState pushState = shuffleClient.getPushState(mapKey);
+        assertNotNull(pushState);
+
+        Map<Integer, CommitMetadata> commitMetadataMap = pushState.getCommitMetadataMap();
+        assertNotNull(commitMetadataMap);
+
+        assertEquals(commitMetadataMap.size(), 1);
+
+        CommitMetadata commitMetadata = pushState.getCommitMetadataMap().get(0);
+        assertNotNull(commitMetadata);
+
+        assertEquals(commitMetadata.getBytes(), 11);
+        assertEquals(commitMetadata.getChecksum(), 222957957);
+      }
+    }
+  }
+
+  @Test
+  public void testSendCommitMetadataWithIntegrityCheck() throws IOException, InterruptedException {
+    for (CompressionCodec codec : CompressionCodec.values()) {
+      CelebornConf conf = setupEnv(codec, StatusCode.SUCCESS, true);
+
+      int pushDataLen =
+          shuffleClient.pushData(
+              TEST_SHUFFLE_ID,
+              TEST_ATTEMPT_ID,
+              TEST_ATTEMPT_ID,
+              TEST_REDUCRE_ID,
+              TEST_BUF1,
+              0,
+              TEST_BUF1.length,
+              1,
+              1);
+
+      int commitBytesSent = shuffleClient.mapperEnd(TEST_SHUFFLE_ID, TEST_ATTEMPT_ID, TEST_ATTEMPT_ID, 1, 1);
+      if (codec.equals(CompressionCodec.NONE)) {
+        assertEquals(TEST_BUF1.length + BATCH_HEADER_SIZE, pushDataLen);
+        assertEquals(0, commitBytesSent);
+      } else {
+        Compressor compressor = Compressor.getCompressor(conf);
+        CommitMetadata commitMetadata = new CommitMetadata( 222957957, 11);
+        ByteBuf byteBuf = Unpooled.buffer();
+        commitMetadata.encode(byteBuf);
+        compressor.compress(byteBuf.array(), 0, byteBuf.readableBytes());
+
+        final int compressedTotalSize = compressor.getCompressedTotalSize();
+
+        assertEquals(BATCH_HEADER_SIZE + compressedTotalSize, commitBytesSent);
+      }
+    }
+  }
+
+  @Test
+  public void testSendCommitMetadataWithIntegrityCheckIncludingEmptyPartitions() throws IOException, InterruptedException {
+    for (CompressionCodec codec : CompressionCodec.values()) {
+      CelebornConf conf = setupEnv(codec, StatusCode.SUCCESS, true);
+
+      int commitBytesSent = shuffleClient.mapperEnd(TEST_SHUFFLE_ID, TEST_ATTEMPT_ID, TEST_ATTEMPT_ID, 1, 1);
+      if (codec.equals(CompressionCodec.NONE)) {
+        assertEquals(0, commitBytesSent);
+      } else {
+        Compressor compressor = Compressor.getCompressor(conf);
+        CommitMetadata commitMetadata = new CommitMetadata(0, 0);
+        ByteBuf byteBuf = Unpooled.buffer();
+        commitMetadata.encode(byteBuf);
+        compressor.compress(byteBuf.array(), 0, byteBuf.readableBytes());
+        final int compressedTotalSize = compressor.getCompressedTotalSize();
+
+
+        int sizeOfOneMetadataPacket = BATCH_HEADER_SIZE + compressedTotalSize;
+        assertEquals(sizeOfOneMetadataPacket, commitBytesSent);
       }
     }
   }
@@ -229,16 +345,17 @@ public class ShuffleClientSuiteJ {
 
   private CelebornConf setupEnv(CompressionCodec codec, StatusCode statusCode)
       throws IOException, InterruptedException {
-    return setupEnv(codec, statusCode, false);
+    return setupEnv(codec, statusCode, false, false);
   }
 
   private CelebornConf setupEnv(
-      CompressionCodec codec, StatusCode statusCode, boolean interruptWhenPushData)
+      CompressionCodec codec, StatusCode statusCode, boolean interruptWhenPushData, boolean integrityChecksEnabled)
       throws IOException, InterruptedException {
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.SHUFFLE_COMPRESSION_CODEC().key(), codec.name());
     conf.set(CelebornConf.CLIENT_PUSH_RETRY_THREADS().key(), "1");
     conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "1K");
+    conf.set(CelebornConf.CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED().key(), Boolean.toString(integrityCheckEnabled));
     shuffleClient =
         new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
 

@@ -1349,6 +1349,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_RESULT_PARTITION_SUPPORT_FLOATING_BUFFER)
   def clientFlinkDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
   def clientShuffleMapPartitionSplitEnabled = get(CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED)
+  def clientShuffleIntegrityCheckEnabled = get(CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED)
   def clientChunkPrefetchEnabled = get(CLIENT_CHUNK_PREFETCH_ENABLED)
   def clientInputStreamCreationWindow = get(CLIENT_INPUTSTREAM_CREATION_WINDOW)
 
@@ -5604,6 +5605,14 @@ object CelebornConf extends Logging {
       .version("0.3.1")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.integrityCheck.enabled")
+      .categories("client", "shuffle")
+      .version("0.5.0")
+      .doc("When `true`, enables end-to-end integrity checks.")
+      .booleanConf
+      .createWithDefault(true)
 
   val CLIENT_CHUNK_PREFETCH_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.chunk.prefetch.enabled")

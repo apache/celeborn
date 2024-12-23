@@ -108,12 +108,16 @@ public class DummyShuffleClient extends ShuffleClient {
   public void pushMergedData(int shuffleId, int mapId, int attemptId) {}
 
   @Override
-  public void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers) {}
+  public int mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions) {
+    return 0;
+  }
 
   @Override
-  public void mapPartitionMapperEnd(
-      int shuffleId, int mapId, int attemptId, int numMappers, int partitionId)
-      throws IOException {}
+  public int mapPartitionMapperEnd(
+      int shuffleId, int mapId, int attemptId, int numMappers, int partitionId, int numPartitions)
+      throws IOException {
+    return 0;
+  }
 
   @Override
   public void cleanup(int shuffleId, int mapId, int attemptId) {}

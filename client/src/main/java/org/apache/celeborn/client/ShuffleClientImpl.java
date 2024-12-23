@@ -25,6 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import io.netty.buffer.ByteBuf;
+import org.apache.celeborn.common.CommitMetadata;
 import scala.Tuple2;
 import scala.reflect.ClassTag$;
 
@@ -116,6 +118,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final boolean pushExcludeWorkerOnFailureEnabled;
   private final boolean shuffleCompressionEnabled;
+  private final boolean shuffleIntegrityCheckEnabled;
+
   private final Set<String> pushExcludedWorkers = ConcurrentHashMap.newKeySet();
   private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
       JavaUtils.newConcurrentHashMap();
@@ -1683,23 +1687,58 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
   }
 
-  @Override
-  public void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers)
+  private int sendCommitMetadataBatchForAllPartitions(
+      int shuffleId, int mapId, int attemptId, PushState pushState, int numMappers, int numPartitions)
       throws IOException {
-    mapEndInternal(shuffleId, mapId, attemptId, numMappers, -1);
+    // This check should not be required, but added as a safeguard since we already check at callsites, but added as a safeguard.
+    if (!shuffleIntegrityCheckEnabled) {
+      logger.info("shuffleIntegrityCheck disabled. Not sending any commit metadata.");
+      return 0;
+    }
+
+    Map<Integer, CommitMetadata> metadataMap = pushState.getCommitMetadataMap();
+
+    if (!shuffleCompressionEnabled) {
+      logger.info("ShuffleCompression disabled. Not sending any metadata either");
+      return 0;
+    }
+
+    int bytes = 0;
+
+    for (int partitionId = 0; partitionId < numPartitions; partitionId++) {
+      CommitMetadata metadata = metadataMap.getOrDefault(partitionId, new CommitMetadata());
+      ByteBuf metadataBuffer = Unpooled.buffer();
+      metadata.encode(metadataBuffer);
+
+      logger.debug("CommitMetadata{} for partition {}", metadata, partitionId);
+      byte[] metadataBytes = new byte[metadataBuffer.readableBytes()];
+      metadataBuffer.readBytes(metadataBytes);
+
+      bytes += pushOrMergeData(shuffleId, mapId, attemptId, partitionId, metadataBytes, 0, metadataBytes.length,
+          numMappers, numPartitions, true, true);
+    }
+
+    return bytes;
   }
 
   @Override
-  public void mapPartitionMapperEnd(
-      int shuffleId, int mapId, int attemptId, int numMappers, int partitionId) throws IOException {
-    mapEndInternal(shuffleId, mapId, attemptId, numMappers, partitionId);
+  public int mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
+      throws IOException {
+    return mapEndInternal(shuffleId, mapId, attemptId, numMappers, -1, numPartitions);
   }
 
-  private void mapEndInternal(
-      int shuffleId, int mapId, int attemptId, int numMappers, Integer partitionId)
+  @Override
+  public int mapPartitionMapperEnd(
+      int shuffleId, int mapId, int attemptId, int numMappers, int partitionId, int numPartitions) throws IOException {
+    return mapEndInternal(shuffleId, mapId, attemptId, numMappers, partitionId, numPartitions);
+  }
+
+  private int mapEndInternal(
+      int shuffleId, int mapId, int attemptId, int numMappers, Integer partitionId, int numPartitions)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = getPushState(mapKey);
+    int bytesWritten = sendCommitMetadataBatchForAllPartitions(shuffleId, mapId, attemptId, pushState, numMappers, numPartitions);
 
     try {
       limitZeroInFlight(mapKey, pushState);
@@ -1714,6 +1753,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     } finally {
       pushStates.remove(mapKey);
     }
+    return bytesWritten;
   }
 
   @Override

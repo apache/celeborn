@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.celeborn.common.CommitMetadata;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -32,6 +33,7 @@ public class PushState {
   private final int pushBufferMaxSize;
   public AtomicReference<IOException> exception = new AtomicReference<>();
   private final InFlightRequestTracker inFlightRequestTracker;
+  private final ConcurrentHashMap<Integer, CommitMetadata> commitMetadataMap = new ConcurrentHashMap<>();
 
   public PushState(CelebornConf conf) {
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
@@ -87,5 +89,9 @@ public class PushState {
 
   public int remainingAllowPushes(String hostAndPushPort) {
     return inFlightRequestTracker.remainingAllowPushes(hostAndPushPort);
+  }
+
+  public ConcurrentHashMap<Integer, CommitMetadata> getCommitMetadataMap() {
+    return commitMetadataMap;
   }
 }

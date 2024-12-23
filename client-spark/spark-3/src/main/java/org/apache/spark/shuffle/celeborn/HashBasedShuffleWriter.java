@@ -377,7 +377,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     updateRecordsWrittenMetrics();
 
     long waitStartTime = System.nanoTime();
-    shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers);
+    int bytesWritten = shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numMappers);
+    writeMetrics.incBytesWritten(bytesWritten);
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
 
     BlockManagerId bmId = SparkEnv.get().blockManager().shuffleServerId();

@@ -113,11 +113,18 @@ public abstract class CelebornInputStream extends InputStream {
         public int partitionsRead() {
           return 0;
         }
+
+        @Override
+        public Map<String, CommitMetadata> getExpectedCommitMetadata() {
+          return Map.of();
+        }
       };
 
   public abstract int totalPartitionsToRead();
 
   public abstract int partitionsRead();
+
+  public abstract Map<String, CommitMetadata> getExpectedCommitMetadata();
 
   private static final class CelebornInputStreamImpl extends CelebornInputStream {
     private static final Random RAND = new Random();
@@ -157,8 +164,10 @@ public abstract class CelebornInputStream extends InputStream {
     private final boolean rangeReadFilter;
     private final boolean enabledReadLocalShuffle;
     private final String localHostAddress;
+    private final Map<String, CommitMetadata> expectedCommitMetadataMap = new HashMap<>();
 
     private boolean shuffleCompressionEnabled;
+    private boolean shuffleIntegrityCheckEnabled;
     private long fetchExcludedWorkerExpireTimeout;
     private ConcurrentHashMap<String, Long> fetchExcludedWorkers;
 
@@ -169,6 +178,8 @@ public abstract class CelebornInputStream extends InputStream {
     private int partitionId;
     private ExceptionMaker exceptionMaker;
     private boolean closed = false;
+    private final CommitMetadata aggregatedExpectedCommitMetadata = new CommitMetadata();
+    private final CommitMetadata aggregatedActualCommitMetadata = new CommitMetadata();
 
     CelebornInputStreamImpl(
         CelebornConf conf,
@@ -204,6 +215,7 @@ public abstract class CelebornInputStream extends InputStream {
       this.localHostAddress = Utils.localHostName(conf);
       this.shuffleCompressionEnabled =
           !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
+      this.shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled();
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.fetchExcludedWorkers = fetchExcludedWorkers;
 
@@ -528,6 +540,12 @@ public abstract class CelebornInputStream extends InputStream {
           ShuffleClient.printReadStats(logger);
         }
 
+        if (shuffleCompressionEnabled && shuffleIntegrityCheckEnabled) {
+          validateIntegrity();
+        } else {
+          logger.info("Skipping e2e validation checks since shuffleCompression or shuffleIntegrityCheck is disabled");
+        }
+
         compressedBuf = null;
         rawDataBuf = null;
         batchesRead = null;
@@ -537,6 +555,32 @@ public abstract class CelebornInputStream extends InputStream {
         fetchExcludedWorkers = null;
 
         closed = true;
+      }
+    }
+
+    void validateIntegrity() {
+      boolean isCommitMetadataEqual = CommitMetadata.checkCommitMetadata(aggregatedExpectedCommitMetadata, aggregatedActualCommitMetadata);
+      if (!isCommitMetadataEqual) {
+        String errorMessage = "Mismatched commit metadata -> Expected CommitMetadata: %s, Actual CommitMetadata: %s";
+        RuntimeException runtimeException = new RuntimeException(String.format(errorMessage, aggregatedExpectedCommitMetadata, aggregatedActualCommitMetadata));
+        logger.error("failed equals check", runtimeException);
+        throw runtimeException;
+      } else {
+        logger.info("Matched commit metadata -> Expected CommitMetadata: {}, Actual CommitMetadata: {}",
+            aggregatedExpectedCommitMetadata, aggregatedActualCommitMetadata);
+      }
+
+      List<String> missingKeys = CommitMetadata.checkMissingCommitMetadatas(startMapIndex, endMapIndex, attempts, shuffleId, expectedCommitMetadataMap);
+      boolean isCommitMetadataComplete = missingKeys.isEmpty();
+      if (!isCommitMetadataComplete) {
+        for (String key : missingKeys) {
+          logger.error("Commit metadata missing for key = {}, partition = {}", key, partitionId);
+        }
+        String errorMessage = String.format(
+            "Missing %d commit metadata out of %d", missingKeys.size(), expectedCommitMetadataMap.size());
+        throw new RuntimeException(errorMessage);
+      } else {
+        logger.info("Commit metadata is complete: Size {}", expectedCommitMetadataMap.size());
       }
     }
 
@@ -615,19 +659,58 @@ public abstract class CelebornInputStream extends InputStream {
             if (!batchSet.contains(batchId)) {
               batchSet.add(batchId);
               callback.incBytesRead(BATCH_HEADER_SIZE + size);
-              if (shuffleCompressionEnabled) {
-                // decompress data
-                int originalLength = decompressor.getOriginalLen(compressedBuf);
-                if (rawDataBuf.length < originalLength) {
-                  rawDataBuf = new byte[originalLength];
+
+              // Handling when integrity checks are disabled.
+              if (!shuffleIntegrityCheckEnabled) {
+                if (shuffleCompressionEnabled) {
+                  // decompress data
+                  int originalLength = decompressor.getOriginalLen(compressedBuf);
+                  if (rawDataBuf.length < originalLength) {
+                    rawDataBuf = new byte[originalLength];
+                  }
+                  limit = decompressor.decompress(compressedBuf, rawDataBuf, 0);
+                } else {
+                  limit = size;
                 }
-                limit = decompressor.decompress(compressedBuf, rawDataBuf, 0);
-              } else {
-                limit = size;
+
+                position = 0;
+                hasData = true;
+                break;
               }
-              position = 0;
-              hasData = true;
-              break;
+
+              // Handling when integrity checks are enabled.
+              String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+              if (batchId == ShuffleClient.METADATA_BATCH_ID) {
+                if (!shuffleCompressionEnabled) {
+                  throw new RuntimeException("Unexpected commit metadata when shuffleCompression is disabled");
+                }
+                int originalLength = decompressor.getOriginalLen(compressedBuf);
+                var rawMetadataBuf = new byte[originalLength];
+                decompressor.decompress(compressedBuf, rawMetadataBuf, 0);
+
+                CommitMetadata commitMetadata =
+                  convertRawMetadataToMapAttemptCommitMetadata(rawMetadataBuf);
+                logger.debug("partition {} converted CommitMetadata{} for map id {} attempt Id {} input stream {} ",
+                        partitionId, commitMetadata, mapId, attemptId, this.hashCode());
+
+                expectedCommitMetadataMap.put(mapKey, commitMetadata);
+                aggregatedExpectedCommitMetadata.addCommitData(commitMetadata);
+              } else {
+                if (shuffleCompressionEnabled) {
+                  // decompress data
+                  int originalLength = decompressor.getOriginalLen(compressedBuf);
+                  if (rawDataBuf.length < originalLength) {
+                    rawDataBuf = new byte[originalLength];
+                  }
+                  limit = decompressor.decompress(compressedBuf, rawDataBuf, 0);
+                  aggregatedActualCommitMetadata.addDataWithOffsetAndLength(rawDataBuf, 0, limit);
+                } else {
+                  limit = size;
+                }
+                position = 0;
+                hasData = true;
+                break;
+              }
             } else {
               logger.debug(
                   "Skip duplicated batch: mapId {}, attemptId {}, batchId {}.",
@@ -679,6 +762,10 @@ public abstract class CelebornInputStream extends InputStream {
       }
     }
 
+    private CommitMetadata convertRawMetadataToMapAttemptCommitMetadata(byte[] rawMetadataBuf) {
+      return CommitMetadata.decode(Unpooled.wrappedBuffer(rawMetadataBuf));
+    }
+
     @Override
     public int totalPartitionsToRead() {
       return locations.size();
@@ -687,6 +774,11 @@ public abstract class CelebornInputStream extends InputStream {
     @Override
     public int partitionsRead() {
       return fileIndex;
+    }
+
+    @Override
+    public Map<String, CommitMetadata> getExpectedCommitMetadata() {
+      return expectedCommitMetadataMap;
     }
   }
 }
