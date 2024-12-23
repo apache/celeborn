@@ -35,6 +35,7 @@ import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.client.ClientUtils;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.compress.Decompressor;
 import org.apache.celeborn.common.CelebornConf;
@@ -76,7 +77,7 @@ public abstract class CelebornInputStream extends InputStream {
       // if startMapIndex > endMapIndex, means partition is skew partition.
       // locations will split to sub-partitions with startMapIndex size.
       boolean readSkewPartitionWithoutMapRange =
-          readSkewPartitionWithoutMapRange(conf, startMapIndex, endMapIndex);
+          ClientUtils.readSkewPartitionWithoutMapRange(conf, startMapIndex, endMapIndex);
       if (readSkewPartitionWithoutMapRange) {
         return new CelebornInputStreamImpl(
             conf,
@@ -125,11 +126,6 @@ public abstract class CelebornInputStream extends InputStream {
 
   public static CelebornInputStream empty() {
     return emptyInputStream;
-  }
-
-  public static boolean readSkewPartitionWithoutMapRange(
-      CelebornConf conf, int startMapIndex, int endMapIndex) {
-    return conf.clientAdaptiveOptimizeSkewedPartitionReadEnabled() && startMapIndex > endMapIndex;
   }
 
   private static final CelebornInputStream emptyInputStream =
