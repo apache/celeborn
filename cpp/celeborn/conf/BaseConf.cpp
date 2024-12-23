@@ -26,7 +26,7 @@ namespace fs = std::experimental::filesystem;
 #endif
 
 #include "celeborn/conf/BaseConf.h"
-// #include "celeborn/utils/CelebornUtils.h"
+#include "celeborn/utils/CelebornUtils.h"
 
 namespace celeborn {
 namespace core {
