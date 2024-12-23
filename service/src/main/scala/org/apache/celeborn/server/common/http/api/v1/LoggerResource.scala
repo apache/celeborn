@@ -20,13 +20,17 @@ package org.apache.celeborn.server.common.http.api.v1
 import javax.ws.rs.{Consumes, GET, POST, Produces, QueryParam}
 import javax.ws.rs.core.MediaType
 
+import scala.collection.JavaConverters._
+
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.apache.commons.lang3.StringUtils
 import org.apache.logging.log4j.{Level, LogManager}
+import org.apache.logging.log4j.core.LoggerContext
 import org.apache.logging.log4j.core.config.Configurator
 
-import org.apache.celeborn.rest.v1.model.{HandleResponse, LoggerInfo}
+import org.apache.celeborn.rest.v1.model.{HandleResponse, LoggerInfo, LoggerInfos}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 
 @Tag(name = "Logger")
@@ -41,8 +45,17 @@ class LoggerResource extends ApiRequestContext {
       schema = new Schema(implementation = classOf[LoggerInfo]))),
     description = "Get the logger level.")
   @GET
-  def getLoggerLevel(@QueryParam("name") name: String): LoggerInfo = {
-    new LoggerInfo().name(name).level(LogManager.getLogger(name).getLevel.toString)
+  def getLoggerLevel(@QueryParam("name") name: String): LoggerInfos = {
+    if (StringUtils.isNotBlank(name)) {
+      new LoggerInfos().addLoggersItem(
+        new LoggerInfo().name(name).level(LogManager.getLogger(name).getLevel.toString))
+    } else {
+      val loggerContext = LogManager.getContext(false).asInstanceOf[LoggerContext]
+      val loggers = loggerContext.getLoggers.asScala.map { logger =>
+        new LoggerInfo().name(logger.getName).level(logger.getLevel.toString)
+      }
+      new LoggerInfos().loggers(loggers.toSeq.asJava)
+    }
   }
 
   @ApiResponse(

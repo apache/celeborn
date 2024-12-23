@@ -456,7 +456,7 @@ paths:
                 type: string
                 format: binary
 
-  /api/v1/logger:
+  /api/v1/loggers:
     get:
       tags:
         - Logger
@@ -475,7 +475,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoggerInfo'
+                $ref: '#/components/schemas/LoggerInfos'
     post:
       tags:
         - Logger
@@ -1117,6 +1117,15 @@ components:
       required:
         - name
         - level
+
+    LoggerInfos:
+      type: object
+      properties:
+        loggers:
+          type: array
+          description: The logger infos.
+          items:
+            $ref: '#/components/schemas/LoggerInfo'
 
     HandleResponse:
       type: object

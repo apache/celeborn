@@ -24,7 +24,7 @@ import javax.ws.rs.core.{MediaType, UriBuilder}
 
 import scala.collection.JavaConverters._
 
-import org.apache.celeborn.rest.v1.model.{ConfResponse, LoggerInfo, ThreadStackResponse}
+import org.apache.celeborn.rest.v1.model.{ConfResponse, LoggerInfo, LoggerInfos, ThreadStackResponse}
 import org.apache.celeborn.server.common.http.HttpTestHelper
 
 abstract class ApiV1BaseResourceSuite extends HttpTestHelper {
@@ -45,38 +45,46 @@ abstract class ApiV1BaseResourceSuite extends HttpTestHelper {
     val loggerName = this.getClass.getName
 
     // set logger level to INFO as initial state
-    val response = webTarget.path("logger").request(MediaType.APPLICATION_JSON).post(Entity.entity(
+    val response = webTarget.path("loggers").request(MediaType.APPLICATION_JSON).post(Entity.entity(
       new LoggerInfo().name(loggerName).level("INFO"),
       MediaType.APPLICATION_JSON))
     assert(HttpServletResponse.SC_OK == response.getStatus)
 
     // check logger level is INFO
-    val response1 = webTarget.path("logger")
+    val response1 = webTarget.path("loggers")
       .queryParam("name", loggerName)
       .request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
-    val loggerInfo = response1.readEntity(classOf[LoggerInfo])
+    val loggerInfo = response1.readEntity(classOf[LoggerInfos]).getLoggers.get(0)
     assert(loggerName == loggerInfo.getName)
     assert(loggerInfo.getLevel == "INFO")
     assert(log.isInfoEnabled)
     assert(!log.isDebugEnabled)
 
     // set logger level to DEBUG
-    val response2 = webTarget.path("logger").request(MediaType.APPLICATION_JSON).post(Entity.entity(
-      new LoggerInfo().name(loggerName).level("DEBUG"),
-      MediaType.APPLICATION_JSON))
+    val response2 =
+      webTarget.path("loggers").request(MediaType.APPLICATION_JSON).post(Entity.entity(
+        new LoggerInfo().name(loggerName).level("DEBUG"),
+        MediaType.APPLICATION_JSON))
     assert(HttpServletResponse.SC_OK == response2.getStatus)
 
     // check logger level is DEBUG
-    val response3 = webTarget.path("logger")
+    val response3 = webTarget.path("loggers")
       .queryParam("name", loggerName)
       .request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
-    val loggerInfo2 = response3.readEntity(classOf[LoggerInfo])
+    val loggerInfo2 = response3.readEntity(classOf[LoggerInfos]).getLoggers.get(0)
     assert(loggerName == loggerInfo2.getName)
     assert(loggerInfo2.getLevel == "DEBUG")
     assert(log.isInfoEnabled)
     assert(log.isDebugEnabled)
+
+    // check all loggers
+    val response4 = webTarget.path("loggers").request(MediaType.APPLICATION_JSON).get()
+    assert(HttpServletResponse.SC_OK == response4.getStatus)
+    val loggers = response4.readEntity(classOf[LoggerInfos]).getLoggers.asScala
+    assert(loggers.exists(l => l.getName == loggerName && l.getLevel == "DEBUG"))
+    assert(loggers.size > 1)
   }
 
   test("thread_dump") {

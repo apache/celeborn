@@ -27,6 +27,7 @@ import org.apache.celeborn.rest.v1.master.invoker.Pair;
 
 import org.apache.celeborn.rest.v1.model.HandleResponse;
 import org.apache.celeborn.rest.v1.model.LoggerInfo;
+import org.apache.celeborn.rest.v1.model.LoggerInfos;
 
 
 import java.util.ArrayList;
@@ -51,10 +52,10 @@ public class LoggerApi extends BaseApi {
    * 
    * Get the logger level.
    * @param name The logger name. (required)
-   * @return LoggerInfo
+   * @return LoggerInfos
    * @throws ApiException if fails to make API call
    */
-  public LoggerInfo getLogger(String name) throws ApiException {
+  public LoggerInfos getLogger(String name) throws ApiException {
     return this.getLogger(name, Collections.emptyMap());
   }
 
@@ -64,10 +65,10 @@ public class LoggerApi extends BaseApi {
    * Get the logger level.
    * @param name The logger name. (required)
    * @param additionalHeaders additionalHeaders for this call
-   * @return LoggerInfo
+   * @return LoggerInfos
    * @throws ApiException if fails to make API call
    */
-  public LoggerInfo getLogger(String name, Map<String, String> additionalHeaders) throws ApiException {
+  public LoggerInfos getLogger(String name, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = null;
     
     // verify the required parameter 'name' is set
@@ -76,7 +77,7 @@ public class LoggerApi extends BaseApi {
     }
     
     // create path and map variables
-    String localVarPath = "/api/v1/logger";
+    String localVarPath = "/api/v1/loggers";
 
     StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
     String localVarQueryParameterBaseName;
@@ -104,7 +105,7 @@ public class LoggerApi extends BaseApi {
 
     String[] localVarAuthNames = new String[] { "basic" };
 
-    TypeReference<LoggerInfo> localVarReturnType = new TypeReference<LoggerInfo>() {};
+    TypeReference<LoggerInfos> localVarReturnType = new TypeReference<LoggerInfos>() {};
     return apiClient.invokeAPI(
         localVarPath,
         "GET",
@@ -146,7 +147,7 @@ public class LoggerApi extends BaseApi {
     Object localVarPostBody = loggerInfo;
     
     // create path and map variables
-    String localVarPath = "/api/v1/logger";
+    String localVarPath = "/api/v1/loggers";
 
     StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
     String localVarQueryParameterBaseName;
