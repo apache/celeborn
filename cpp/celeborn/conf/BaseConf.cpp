@@ -26,7 +26,7 @@ namespace fs = std::experimental::filesystem;
 #endif
 
 #include "celeborn/conf/BaseConf.h"
-#include "celeborn/utils/CelebornUtils.h"
+// #include "celeborn/utils/CelebornUtils.h"
 
 namespace celeborn {
 namespace core {
@@ -152,7 +152,8 @@ void BaseConf::initialize(const std::string& filePath) {
   filePath_ = filePath;
   checkRegisteredProperties(values);
 
-  bool mutableConfig{false};
+  // Use mutableConfig by default.
+  bool mutableConfig{true};
   auto it = values.find(std::string(kMutableConfig));
   if (it != values.end()) {
     mutableConfig = folly::to<bool>(it->second);

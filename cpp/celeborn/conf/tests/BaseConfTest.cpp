@@ -145,7 +145,7 @@ TEST(BaseConfTest, registerToConfInitedWithMutableConfigFile) {
   lines.push_back(kv0_0);
   lines.push_back("  ");
 
-  // Explicitly declare the config as mutable.
+  // Explicitly declare the config as mutable. . The default is true as well.
   lines.push_back(std::string(BaseConf::kMutableConfig) + " = true");
   const std::string filename = "/tmp/test.conf";
   writeToFile(filename, lines);
@@ -182,7 +182,7 @@ TEST(BaseConfTest, registerToConfInitedWithImmutableConfigFile) {
   lines.push_back(kv0_0);
   lines.push_back("  ");
 
-  // Explicitly declare the config as mutable. The default is false as well.
+  // Explicitly declare the config as immutable.
   lines.push_back(std::string(BaseConf::kMutableConfig) + " = false");
   const std::string filename = "/tmp/test.conf";
   writeToFile(filename, lines);
