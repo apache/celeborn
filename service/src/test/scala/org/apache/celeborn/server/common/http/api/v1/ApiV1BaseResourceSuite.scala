@@ -86,6 +86,29 @@ abstract class ApiV1BaseResourceSuite extends HttpTestHelper {
     assert(loggers.exists(l => l.getName == loggerName && l.getLevel == "DEBUG"))
     // root logger
     assert(loggers.exists(l => l.getName == "" && l.getLevel == "INFO"))
+
+    // update root logger level
+    val response5 =
+      webTarget.path("loggers").request(MediaType.APPLICATION_JSON).post(Entity.entity(
+        new LoggerInfo().name("").level("DEBUG"),
+        MediaType.APPLICATION_JSON))
+    assert(HttpServletResponse.SC_OK == response5.getStatus)
+
+    // check root logger level is DEBUG
+    val response6 = webTarget.path("loggers")
+      .queryParam("name", "")
+      .request(MediaType.APPLICATION_JSON).get()
+    assert(HttpServletResponse.SC_OK == response6.getStatus)
+    val loggerInfo3 = response6.readEntity(classOf[LoggerInfos]).getLoggers.get(0)
+    assert("" == loggerInfo3.getName)
+    assert(loggerInfo3.getLevel == "DEBUG")
+
+    // reset root logger level to INFO
+    val response7 =
+      webTarget.path("loggers").request(MediaType.APPLICATION_JSON).post(Entity.entity(
+        new LoggerInfo().name("").level("INFO"),
+        MediaType.APPLICATION_JSON))
+    assert(HttpServletResponse.SC_OK == response7.getStatus)
   }
 
   test("thread_dump") {

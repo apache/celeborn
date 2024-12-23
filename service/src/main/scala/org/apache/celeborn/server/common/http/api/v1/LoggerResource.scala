@@ -25,7 +25,6 @@ import scala.collection.JavaConverters._
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
-import org.apache.commons.lang3.StringUtils
 import org.apache.logging.log4j.{Level, LogManager}
 import org.apache.logging.log4j.core.LoggerContext
 import org.apache.logging.log4j.core.config.Configurator
@@ -46,7 +45,7 @@ class LoggerResource extends ApiRequestContext {
     description = "Get the logger level, return all loggers if no name specified.")
   @GET
   def getLoggerLevel(@QueryParam("name") name: String): LoggerInfos = {
-    if (StringUtils.isNotBlank(name)) {
+    if (null != name) {
       new LoggerInfos().addLoggersItem(
         new LoggerInfo().name(name).level(LogManager.getLogger(name).getLevel.toString))
     } else {
@@ -72,6 +71,6 @@ class LoggerResource extends ApiRequestContext {
     val newLevel = Level.toLevel(request.getLevel)
     Configurator.setLevel(loggerName, newLevel)
     new HandleResponse().success(true).message(
-      s"Set logger $loggerName level from $originalLevel to $newLevel")
+      s"Set logger `$loggerName` level from `$originalLevel` to `$newLevel`.`")
   }
 }
