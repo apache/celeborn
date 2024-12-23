@@ -292,8 +292,8 @@ public class CongestionController {
 
   public void close() {
     logger.info("Closing {}", this.getClass().getSimpleName());
-    this.removeUserExecutorService.shutdownNow();
-    this.checkService.shutdownNow();
+    ThreadUtils.shutdown(this.removeUserExecutorService);
+    ThreadUtils.shutdown(this.checkService);
     this.userBufferStatuses.clear();
     this.consumedBufferStatusHub.clear();
     this.producedBufferStatusHub.clear();
@@ -301,7 +301,7 @@ public class CongestionController {
 
   @VisibleForTesting
   public void shutDownCheckService() {
-    this.checkService.shutdownNow();
+    ThreadUtils.shutdown(this.checkService);
   }
 
   public static synchronized void destroy() {
