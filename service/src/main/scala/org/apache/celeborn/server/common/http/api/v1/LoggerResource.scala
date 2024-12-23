@@ -53,8 +53,8 @@ class LoggerResource extends ApiRequestContext {
       val loggerContext = LogManager.getContext(false).asInstanceOf[LoggerContext]
       val loggers = loggerContext.getLoggers.asScala.map { logger =>
         new LoggerInfo().name(logger.getName).level(logger.getLevel.toString)
-      }
-      new LoggerInfos().loggers(loggers.toSeq.asJava)
+      }.toSeq.sortBy(_.getName).asJava
+      new LoggerInfos().loggers(loggers)
     }
   }
 
