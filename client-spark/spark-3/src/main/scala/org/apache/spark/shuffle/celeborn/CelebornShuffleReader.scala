@@ -34,7 +34,7 @@ import org.apache.spark.shuffle.celeborn.CelebornShuffleReader.streamCreatorPool
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
 
-import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.client.{ClientUtils, ShuffleClient}
 import org.apache.celeborn.client.ShuffleClientImpl.ReduceFileGroups
 import org.apache.celeborn.client.read.{CelebornInputStream, MetricsCallback}
 import org.apache.celeborn.common.CelebornConf
@@ -130,7 +130,7 @@ class CelebornShuffleReader[K, C](
     // if startMapIndex > endMapIndex, means partition is skew partition.
     // locations will split to sub-partitions with startMapIndex size.
     val splitSkewPartitionWithoutMapRange =
-      conf.clientAdaptiveOptimizeSkewedPartitionReadEnabled && startMapIndex > endMapIndex
+      ClientUtils.readSkewPartitionWithoutMapRange(conf, startMapIndex, endMapIndex)
 
     (startPartition until endPartition).foreach { partitionId =>
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
@@ -154,7 +154,7 @@ class CelebornShuffleReader[K, C](
         locations.asScala.foreach { location =>
           partCnt += 1
           val hostPort = location.hostAndFetchPort
-          if (!workerRequestMap.containsKey(hostPort)) {
+          if (!workerRequestMap.containsKey(hostPort))
             try {
               val client = shuffleClient.getDataClientFactory().createClient(
                 location.getHost,
@@ -171,7 +171,6 @@ class CelebornShuffleReader[K, C](
                   s"Failed to create client for $shuffleKey-$partitionId from host: ${location.hostAndFetchPort}. " +
                     s"Shuffle reader will try its replica if exists.")
             }
-          }
           workerRequestMap.get(hostPort) match {
             case (_, locArr, pbOpenStreamListBuilder) =>
               locArr.add(location)
