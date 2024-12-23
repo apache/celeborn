@@ -270,6 +270,8 @@ Meta Velox
 ./cpp/celeborn/utils/Exceptions.cpp
 ./cpp/celeborn/utils/flags.cpp
 ./cpp/celeborn/utils/tests/ExceptionTest.cpp
+./cpp/celeborn/conf/BaseConf.h
+./cpp/celeborn/conf/BaseConf.cpp
 
 ------------------------------------------------------------------------------------
 This product bundles various third-party components under the CC0 license.
