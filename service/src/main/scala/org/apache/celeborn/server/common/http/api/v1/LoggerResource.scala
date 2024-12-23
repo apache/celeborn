@@ -17,11 +17,12 @@
 
 package org.apache.celeborn.server.common.http.api.v1
 
-import javax.ws.rs.{Consumes, GET, POST, Produces, QueryParam}
+import javax.ws.rs.{Consumes, DefaultValue, GET, POST, Produces, QueryParam}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
 
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -44,16 +45,27 @@ class LoggerResource extends ApiRequestContext {
       schema = new Schema(implementation = classOf[LoggerInfo]))),
     description = "Get the logger level, return all loggers if no name specified.")
   @GET
-  def getLoggerLevel(@QueryParam("name") name: String): LoggerInfos = {
+  def getLoggerLevel(
+      @QueryParam("name") name: String,
+      @QueryParam("all") @DefaultValue("false") @Parameter(description =
+        "Return all logger instances if true, otherwise return all configured loggers.") all: Boolean)
+      : LoggerInfos = {
     if (null != name) {
       new LoggerInfos().addLoggersItem(
         new LoggerInfo().name(name).level(LogManager.getLogger(name).getLevel.toString))
     } else {
       val loggerContext = LogManager.getContext(false).asInstanceOf[LoggerContext]
-      val loggers = loggerContext.getConfiguration.getLoggers.values().asScala.map { loggerConfig =>
-        new LoggerInfo().name(loggerConfig.getName).level(loggerConfig.getLevel.toString)
-      }.toSeq.sortBy(_.getName).asJava
-      new LoggerInfos().loggers(loggers)
+      val loggers =
+        if (all) {
+          loggerContext.getLoggers.asScala.map { logger =>
+            new LoggerInfo().name(logger.getName).level(logger.getLevel.toString)
+          }.toSeq
+        } else {
+          loggerContext.getConfiguration.getLoggers.values().asScala.map { loggerConfig =>
+            new LoggerInfo().name(loggerConfig.getName).level(loggerConfig.getLevel.toString)
+          }.toSeq
+        }
+      new LoggerInfos().loggers(loggers.sortBy(_.getName).asJava)
     }
   }
 

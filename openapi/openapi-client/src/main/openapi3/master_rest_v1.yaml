@@ -469,6 +469,13 @@ paths:
           required: false
           schema:
             type: string
+        - name: all
+          in: query
+          description: Return all logger instances if true, otherwise return all configured loggers.
+          required: false
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           description: The request was successful.

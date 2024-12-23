@@ -79,36 +79,45 @@ abstract class ApiV1BaseResourceSuite extends HttpTestHelper {
     assert(log.isInfoEnabled)
     assert(log.isDebugEnabled)
 
-    // check all loggers
-    val response4 = webTarget.path("loggers").request(MediaType.APPLICATION_JSON).get()
+    // check all configured loggers
+    val response4 =
+      webTarget.path("loggers").queryParam("all", "false").request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response4.getStatus)
-    val loggers = response4.readEntity(classOf[LoggerInfos]).getLoggers.asScala
-    assert(loggers.exists(l => l.getName == loggerName && l.getLevel == "DEBUG"))
+    val configuredLoggers = response4.readEntity(classOf[LoggerInfos]).getLoggers.asScala
+    assert(configuredLoggers.exists(l => l.getName == loggerName && l.getLevel == "DEBUG"))
     // root logger
-    assert(loggers.exists(l => l.getName == "" && l.getLevel == "INFO"))
+    assert(configuredLoggers.exists(l => l.getName == "" && l.getLevel == "INFO"))
+
+    // check all loggers
+    val response5 =
+      webTarget.path("loggers").queryParam("all", "true").request(MediaType.APPLICATION_JSON).get()
+    assert(HttpServletResponse.SC_OK == response5.getStatus)
+    val allLoggers = response5.readEntity(classOf[LoggerInfos]).getLoggers.asScala
+    assert(configuredLoggers.exists(l => l.getName == loggerName && l.getLevel == "DEBUG"))
+    assert(allLoggers.size > configuredLoggers.size)
 
     // update root logger level
-    val response5 =
+    val response6 =
       webTarget.path("loggers").request(MediaType.APPLICATION_JSON).post(Entity.entity(
         new LoggerInfo().name("").level("DEBUG"),
         MediaType.APPLICATION_JSON))
-    assert(HttpServletResponse.SC_OK == response5.getStatus)
+    assert(HttpServletResponse.SC_OK == response6.getStatus)
 
     // check root logger level is DEBUG
-    val response6 = webTarget.path("loggers")
+    val response7 = webTarget.path("loggers")
       .queryParam("name", "")
       .request(MediaType.APPLICATION_JSON).get()
-    assert(HttpServletResponse.SC_OK == response6.getStatus)
-    val loggerInfo3 = response6.readEntity(classOf[LoggerInfos]).getLoggers.get(0)
+    assert(HttpServletResponse.SC_OK == response7.getStatus)
+    val loggerInfo3 = response7.readEntity(classOf[LoggerInfos]).getLoggers.get(0)
     assert("" == loggerInfo3.getName)
     assert(loggerInfo3.getLevel == "DEBUG")
 
     // reset root logger level to INFO
-    val response7 =
+    val response8 =
       webTarget.path("loggers").request(MediaType.APPLICATION_JSON).post(Entity.entity(
         new LoggerInfo().name("").level("INFO"),
         MediaType.APPLICATION_JSON))
-    assert(HttpServletResponse.SC_OK == response7.getStatus)
+    assert(HttpServletResponse.SC_OK == response8.getStatus)
   }
 
   test("thread_dump") {

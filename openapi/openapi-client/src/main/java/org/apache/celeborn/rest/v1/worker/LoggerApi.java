@@ -52,11 +52,12 @@ public class LoggerApi extends BaseApi {
    * 
    * Get the logger level, return all loggers if no name specified.
    * @param name The logger name. (optional)
+   * @param all Return all logger instances if true, otherwise return all configured loggers. (optional, default to false)
    * @return LoggerInfos
    * @throws ApiException if fails to make API call
    */
-  public LoggerInfos getLogger(String name) throws ApiException {
-    return this.getLogger(name, Collections.emptyMap());
+  public LoggerInfos getLogger(String name, Boolean all) throws ApiException {
+    return this.getLogger(name, all, Collections.emptyMap());
   }
 
 
@@ -64,11 +65,12 @@ public class LoggerApi extends BaseApi {
    * 
    * Get the logger level, return all loggers if no name specified.
    * @param name The logger name. (optional)
+   * @param all Return all logger instances if true, otherwise return all configured loggers. (optional, default to false)
    * @param additionalHeaders additionalHeaders for this call
    * @return LoggerInfos
    * @throws ApiException if fails to make API call
    */
-  public LoggerInfos getLogger(String name, Map<String, String> additionalHeaders) throws ApiException {
+  public LoggerInfos getLogger(String name, Boolean all, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = null;
     
     // create path and map variables
@@ -83,6 +85,7 @@ public class LoggerApi extends BaseApi {
     Map<String, Object> localVarFormParams = new HashMap<String, Object>();
 
     localVarQueryParams.addAll(apiClient.parameterToPair("name", name));
+    localVarQueryParams.addAll(apiClient.parameterToPair("all", all));
     
     localVarHeaderParams.putAll(additionalHeaders);
 
