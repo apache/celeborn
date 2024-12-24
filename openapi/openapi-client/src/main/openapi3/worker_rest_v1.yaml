@@ -202,6 +202,51 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApplicationsResponse'
 
+  /api/v1/loggers:
+    get:
+      tags:
+        - Logger
+      operationId: getLogger
+      description: Get the logger level, return all loggers if no name specified.
+      parameters:
+        - name: name
+          in: query
+          description: The logger name.
+          required: false
+          schema:
+            type: string
+        - name: all
+          in: query
+          description: Return all logger instances if true, otherwise return all configured loggers.
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoggerInfos'
+    post:
+      tags:
+        - Logger
+      operationId: setLogger
+      description: Set the logger level.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoggerInfo'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
 components:
   schemas:
     ConfigData:
@@ -650,6 +695,28 @@ components:
             - GRACEFUL
             - IMMEDIATELY
             - NONE
+
+    LoggerInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The logger name.
+        level:
+          type: string
+          description: The logger level.
+      required:
+        - name
+        - level
+
+    LoggerInfos:
+      type: object
+      properties:
+        loggers:
+          type: array
+          description: The logger infos.
+          items:
+            $ref: '#/components/schemas/LoggerInfo'
 
     HandleResponse:
       type: object
