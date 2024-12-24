@@ -43,8 +43,6 @@ jobs:
           cache: 'maven'
           check-latest: false
       - run: |
-          build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,flink-1.14
-          build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,flink-1.15
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,flink-1.16
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,flink-1.17
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,flink-1.18

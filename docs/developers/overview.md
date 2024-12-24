@@ -89,7 +89,7 @@ Celeborn's primary components(i.e. Master, Worker, Client) are engine irrelevant
 and easy to implement plugins for various engines.
 
 Currently, Celeborn officially supports [Spark](https://spark.apache.org/)(both Spark 2.x and Spark 3.x),
-[Flink](https://flink.apache.org/)(1.14/1.15/1.16/1.17/1.18/1.19), and
+[Flink](https://flink.apache.org/)(1.16/1.17/1.18/1.19), and
 [Gluten](https://github.com/apache/incubator-gluten). Also, developers are integrating Celeborn with other engines,
 for example [MR3](https://mr3docs.datamonad.com/docs/mr3/).
 

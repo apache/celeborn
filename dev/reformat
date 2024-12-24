@@ -23,8 +23,6 @@ PROJECT_DIR="$(cd "`dirname "$0"`/.."; pwd)"
 if [ "$1" == "--web" ]; then
   ${PROJECT_DIR}/build/mvn clean install -pl web
 else
-  ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.14
-  ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.15
   ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.16
   ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.17
   ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.18

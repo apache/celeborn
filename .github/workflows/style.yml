@@ -47,8 +47,6 @@ jobs:
           cache: 'maven'
           check-latest: false
       - run: |
-          build/mvn spotless:check -Pgoogle-mirror,flink-1.14
-          build/mvn spotless:check -Pgoogle-mirror,flink-1.15
           build/mvn spotless:check -Pgoogle-mirror,flink-1.16
           build/mvn spotless:check -Pgoogle-mirror,flink-1.17
           build/mvn spotless:check -Pgoogle-mirror,flink-1.18

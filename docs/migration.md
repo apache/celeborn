@@ -79,6 +79,8 @@ license: |
   topK(50, sum by (applicationId) (metrics_diskBytesWritten_Value{role="worker", applicationId!=""}))
   ```
 
+- Since 0.6.0, the out-of-dated Flink 1.14 and Flink 1.15 have been removed from the official support list.
+
 ## Upgrading from 0.5.0 to 0.5.1
 
 - Since 0.5.1, Celeborn master REST API `/exclude` request uses media type `application/x-www-form-urlencoded` instead of `text/plain`.
