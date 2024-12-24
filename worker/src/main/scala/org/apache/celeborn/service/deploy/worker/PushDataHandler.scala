@@ -690,7 +690,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                           pushMergedDataCallback.onSuccess(StatusCode.SUCCESS)
                         }
                       }
-                    case None =>
+                    case _ =>
                       if (replicaReason == StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue) {
                         pushMergedDataCallback.onSuccess(
                           StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED)
@@ -791,7 +791,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               } else {
                 pushMergedDataCallback.onSuccess(StatusCode.SUCCESS)
               }
-            case None =>
+            case _ =>
               pushMergedDataCallback.onSuccess(StatusCode.SUCCESS)
           }
         case Failure(e) => pushMergedDataCallback.onFailure(e)

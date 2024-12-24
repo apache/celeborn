@@ -19,14 +19,12 @@ package org.apache.spark.shuffle.celeborn;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
-import org.apache.spark.scheduler.DAGScheduler;
 
 public class SparkCommonUtils {
   public static void validateAttemptConfig(SparkConf conf) throws IllegalArgumentException {
+    int DEFAULT_MAX_CONSECUTIVE_STAGE_ATTEMPTS = 4;
     int maxStageAttempts =
-        conf.getInt(
-            "spark.stage.maxConsecutiveAttempts",
-            DAGScheduler.DEFAULT_MAX_CONSECUTIVE_STAGE_ATTEMPTS());
+        conf.getInt("spark.stage.maxConsecutiveAttempts", DEFAULT_MAX_CONSECUTIVE_STAGE_ATTEMPTS);
     // In Spark 2, the parameter is referred to as MAX_TASK_FAILURES, while in Spark 3, it has been
     // changed to TASK_MAX_FAILURES. The default value for both is consistently set to 4.
     int maxTaskAttempts = conf.getInt("spark.task.maxFailures", 4);
