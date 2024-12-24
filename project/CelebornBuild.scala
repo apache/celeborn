@@ -91,6 +91,11 @@ object Dependencies {
   val protocVersion = "3.25.5"
   val protoVersion = "3.25.5"
 
+  // Tez
+  val tezVersion = "0.9.1"
+
+  val apLoader = "me.bechberger" % "ap-loader-all" % apLoaderVersion
+
   val apLoader = "me.bechberger" % "ap-loader-all" % apLoaderVersion
   val commonsCompress = "org.apache.commons" % "commons-compress" % commonsCompressVersion
   val commonsCrypto = "org.apache.commons" % "commons-crypto" % commonsCryptoVersion excludeAll(
@@ -205,6 +210,55 @@ object Dependencies {
   val scalatestMockito = "org.mockito" %% "mockito-scala-scalatest" % scalatestMockitoVersion
   val scalatest = "org.scalatest" %% "scalatest" % scalatestVersion
   val h2 = "com.h2database" % "h2" % h2Version
+  val jerseyTestFrameworkCore = "org.glassfish.jersey.test-framework" % "jersey-test-framework-core" % jerseyVersion
+  val jerseyTestFrameworkProviderJetty = "org.glassfish.jersey.test-framework.providers" % "jersey-test-framework-provider-jetty" % jerseyVersion excludeAll(
+    ExclusionRule("org.eclipse.jetty", "jetty-util"),
+    ExclusionRule("org.eclipse.jetty", "jetty-continuation"))
+
+  // SSL support
+  val bouncycastleBcprovJdk18on = "org.bouncycastle" % "bcprov-jdk18on" % bouncycastleVersion % "test"
+  val bouncycastleBcpkixJdk18on = "org.bouncycastle" % "bcpkix-jdk18on" % bouncycastleVersion % "test"
+
+  // Tez support
+  val tezCommon = "org.apache.tez" % "tez-common" % tezVersion excludeAll(
+    ExclusionRule("org.apache.hadoop", "hadoop-annotations"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-api"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-common")
+  )
+  val tezRuntimeLibrary = "org.apache.tez" % "tez-runtime-library" % tezVersion excludeAll(
+    ExclusionRule("org.apache.hadoop", "hadoop-annotations"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-api"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-common")
+  )
+  val tezRuntimeInternals = "org.apache.tez" % "tez-runtime-internals" % tezVersion excludeAll(
+    ExclusionRule("org.apache.hadoop", "hadoop-annotations"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-api"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-common"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-client"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-server-common"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-server-web-proxy")
+  )
+  val tezDag = "org.apache.tez" % "tez-dag" % tezVersion excludeAll(
+    ExclusionRule("org.apache.hadoop", "hadoop-annotations"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-api"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-common"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-client"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-server-common"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-server-web-proxy")
+  )
+  val tezApi = "org.apache.tez" % "tez-api" % tezVersion excludeAll(
+    ExclusionRule("org.apache.hadoop", "hadoop-annotations"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-api"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-common"),
+    ExclusionRule("org.apache.hadoop", "hadoop-auth"),
+    ExclusionRule("org.apache.hadoop", "hadoop-hdfs"),
+    ExclusionRule("org.apache.hadoop", "hadoop-yarn-client")
+  )
+  val hadoopCommon = "org.apache.hadoop" % "hadoop-common" % hadoopVersion excludeAll(
+    ExclusionRule("com.sun.jersey", "jersey-json"),
+    ExclusionRule("org.apache.httpcomponents", "httpclient"),
+    ExclusionRule("org.slf4j", "slf4j-log4j12")
+  )
   val jerseyTestFrameworkCore = "org.glassfish.jersey.test-framework" % "jersey-test-framework-core" % jerseyVersion
   val jerseyTestFrameworkProviderJetty = "org.glassfish.jersey.test-framework.providers" % "jersey-test-framework-provider-jetty" % jerseyVersion excludeAll(
     ExclusionRule("org.eclipse.jetty", "jetty-util"),
@@ -375,7 +429,7 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornWorker.worker,
       CelebornMaster.master,
       CelebornCli.cli
-      ) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules ++ maybeWebModules ++ maybeCelebornMPUModule
+      ) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules ++ maybeWebModules ++ maybeCelebornMPUModule ++ maybeTezClientModules
   }
 
   // ThisBuild / parallelExecution := false
@@ -449,6 +503,15 @@ object Utils {
   }
 
   lazy val maybeMRClientModules: Seq[Project] = mrClientProjects.map(_.modules).getOrElse(Seq.empty)
+
+  val TEZ_VERSION = profiles.filter(_.startsWith("tez")).headOption
+
+  lazy val tezClientProjects = TEZ_VERSION match {
+    case Some("tez") => Some(TezClientProjects)
+    case _ => None
+  }
+
+  lazy val maybeTezClientModules: Seq[Project] = tezClientProjects.map(_.modules).getOrElse(Seq.empty)
 
   val WEB_VERSION = profiles.filter(_.startsWith("web")).headOption
 
@@ -1574,4 +1637,288 @@ object WebProjects {
   def modules: Seq[Project] = {
     Seq(web)
   }
+}
+
+////////////////////////////////////////////////////////
+//                   Tez Client                        //
+////////////////////////////////////////////////////////
+object TezClientProjects {
+
+  def tezClient: Project = {
+    Project("celeborn-client-tez", file("client-tez/tez"))
+      .dependsOn(CelebornCommon.common, CelebornClient.client)
+      .settings(
+        commonSettings,
+        libraryDependencies ++= Seq(
+          Dependencies.tezCommon,
+          Dependencies.tezRuntimeLibrary,
+          Dependencies.tezRuntimeInternals,
+          Dependencies.tezDag,
+          Dependencies.tezApi,
+          Dependencies.hadoopCommon
+        ) ++ commonUnitTestDependencies,
+        dependencyOverrides += Dependencies.commonsCompress
+      )
+  }
+
+  def tezIt: Project = {
+    Project("celeborn-tez-it", file("tests/tez-it"))
+      // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
+      .dependsOn(CelebornCommon.common % "test->test;compile->compile")
+      .dependsOn(CelebornClient.client % "test->test;compile->compile")
+      .dependsOn(CelebornMaster.master % "test->test;compile->compile")
+      .dependsOn(CelebornWorker.worker % "test->test;compile->compile")
+      .dependsOn(tezClient % "test->test;compile->compile")
+      .settings(
+        commonSettings,
+        copyDepsSettings,
+        libraryDependencies ++= Seq(
+        ) ++ commonUnitTestDependencies
+      )
+  }
+
+  def tezClientShade: Project = {
+    Project("celeborn-client-tez-shaded", file("client-tez/tez-shaded"))
+      .dependsOn(tezClient)
+      .disablePlugins(AddMetaInfLicenseFiles)
+      .settings(
+        commonSettings,
+        releaseSettings,
+
+        // align final shaded jar name with maven.
+        (assembly / assemblyJarName) := {
+          val extension = artifact.value.extension
+          s"${moduleName.value}_${scalaBinaryVersion.value}-${version.value}.$extension"
+        },
+
+        (assembly / test) := {},
+
+        (assembly / logLevel) := Level.Info,
+
+        // include `scala-library` from assembly.
+        (assembly / assemblyPackageScala / assembleArtifact) := true,
+
+        (assembly / assemblyExcludedJars) := {
+          val cp = (assembly / fullClasspath).value
+          cp filter { v =>
+            val name = v.data.getName
+            !(name.startsWith("celeborn-") ||
+              name.startsWith("protobuf-java-") ||
+              name.startsWith("guava-") ||
+              name.startsWith("failureaccess-") ||
+              name.startsWith("netty-") ||
+              name.startsWith("commons-lang3-") ||
+              name.startsWith("RoaringBitmap-") ||
+              name.startsWith("lz4-java-") ||
+              name.startsWith("zstd-jni-") ||
+              name.startsWith("scala-library-"))
+          }
+        },
+
+        (assembly / assemblyShadeRules) := Seq(
+          ShadeRule.rename("com.google.protobuf.**" -> "org.apache.celeborn.shaded.com.google.protobuf.@1").inAll,
+          ShadeRule.rename("com.google.common.**" -> "org.apache.celeborn.shaded.com.google.common.@1").inAll,
+          ShadeRule.rename("io.netty.**" -> "org.apache.celeborn.shaded.io.netty.@1").inAll,
+          ShadeRule.rename("org.apache.commons.**" -> "org.apache.celeborn.shaded.org.apache.commons.@1").inAll,
+          ShadeRule.rename("org.roaringbitmap.**" -> "org.apache.celeborn.shaded.org.roaringbitmap.@1").inAll
+        ),
+
+        (assembly / assemblyMergeStrategy) := {
+          case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+          // For netty-3.x.y.Final.jar
+          case m if m.startsWith("META-INF/license/") => MergeStrategy.discard
+          // the LicenseAndNoticeMergeStrategy always picks the license/notice file from the current project
+          case m@("META-INF/LICENSE" | "META-INF/NOTICE") => CustomMergeStrategy("LicenseAndNoticeMergeStrategy") { conflicts =>
+            val entry = conflicts.head
+            val projectLicenseFile = (Compile / resourceDirectory).value / entry.target
+            val stream = () => new java.io.BufferedInputStream(new java.io.FileInputStream(projectLicenseFile))
+            Right(Vector(JarEntry(entry.target, stream)))
+          }
+          case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
+          // Drop all proto files that are not needed as artifacts of the build.
+          case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
+          case m if m.toLowerCase(Locale.ROOT).startsWith("meta-inf/native-image") => MergeStrategy.discard
+          // Drop netty jnilib
+          case m if m.toLowerCase(Locale.ROOT).endsWith(".jnilib") => MergeStrategy.discard
+          // rename netty native lib
+          case "META-INF/native/libnetty_transport_native_epoll_x86_64.so" => CustomMergeStrategy.rename(_ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_x86_64.so")
+          case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename(_ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so")
+          case _ => MergeStrategy.first
+        },
+
+        Compile / packageBin := assembly.value,
+        pomPostProcess := removeDependenciesTransformer
+      )
+  }
+
+  def modules: Seq[Project] = {
+    Seq(tezClient, tezIt, tezGroup, tezClientShade)
+  }
+
+  // for test only, don't use this group for any other projects
+  lazy val tezGroup = (project withId "celeborn-tez-group").aggregate(tezClient, tezIt)
+
+  val copyDeps = TaskKey[Unit]("copyDeps", "Copies needed dependencies to the build directory.")
+  val destPath = (Compile / crossTarget) {
+    _ / "mapreduce_lib"
+  }
+
+  lazy val copyDepsSettings = Seq(
+    copyDeps := {
+      val dest = destPath.value
+      if (!dest.isDirectory() && !dest.mkdirs()) {
+        throw new java.io.IOException("Failed to create jars directory.")
+      }
+
+      (Compile / dependencyClasspath).value.map(_.data)
+        .filter { jar => jar.isFile() }
+        .foreach { jar =>
+          val destJar = new File(dest, jar.getName())
+          if (destJar.isFile()) {
+            destJar.delete()
+          }
+          Files.copy(jar.toPath(), destJar.toPath())
+        }
+    },
+    (Test / compile) := {
+      copyDeps.value
+      (Test / compile).value
+    }
+  )
+}
+
+
+object CelebornOpenApi {
+  val openApiSpecDir = "openapi/openapi-client/src/main/openapi3"
+  val openApiMasterInternalOutputDir = "openapi/openapi-client/target/master/generated-sources/java"
+  val openApiWorkerInternalOutputDir = "openapi/openapi-client/target/worker/generated-sources/java"
+  val openApiClientOutputDir = "openapi/openapi-client/src/main/java"
+
+  val generate = TaskKey[Unit]("generate", "generate openapi client code")
+
+  val commonOpenApiClientGenerateSettings = Seq(
+    openApiGeneratorName := "java",
+    openApiGenerateApiTests := SettingDisabled,
+    openApiGenerateModelTests := SettingDisabled,
+    openApiModelPackage := "org.apache.celeborn.rest.v1.model",
+    openApiAdditionalProperties := Map(
+      "dateLibrary" -> "java8",
+      "useGzipFeature" -> "true",
+      "library" -> "apache-httpclient",
+      "hideGenerationTimestamp" -> "true",
+      "supportUrlQuery" -> "false",
+      "annotationLibrary" -> "none",
+      "templateDir" -> s"$openApiSpecDir/templates",
+    )
+  )
+
+  lazy val openApiClientMasterGenerate = Project("celeborn-openapi-client-master-generate", file("openapi/openapi-client/target/master"))
+    .enablePlugins(OpenApiGeneratorPlugin)
+    .settings(
+      commonSettings,
+      openApiInputSpec := (file(openApiSpecDir) / "master_rest_v1.yaml").toString,
+      openApiOutputDir := openApiMasterInternalOutputDir,
+      openApiApiPackage := "org.apache.celeborn.rest.v1.master",
+      openApiInvokerPackage := "org.apache.celeborn.rest.v1.master.invoker",
+      commonOpenApiClientGenerateSettings
+    )
+
+  lazy val openApiClientWorkerGenerate = Project("celeborn-openapi-client-worker-generate", file("openapi/openapi-client/target/worker"))
+    .enablePlugins(OpenApiGeneratorPlugin)
+    .settings(
+      commonSettings,
+      openApiInputSpec := (file(openApiSpecDir) / "worker_rest_v1.yaml").toString,
+      openApiOutputDir := openApiWorkerInternalOutputDir,
+      openApiApiPackage := "org.apache.celeborn.rest.v1.worker",
+      openApiInvokerPackage := "org.apache.celeborn.rest.v1.worker.invoker",
+      commonOpenApiClientGenerateSettings
+    )
+
+  lazy val openApiClient = Project("celeborn-openapi-client", file("openapi/openapi-client"))
+    .settings (
+      commonSettings,
+      releaseSettings,
+      libraryDependencies ++= Seq(
+        Dependencies.jacksonAnnotations,
+        Dependencies.jacksonCore,
+        Dependencies.jacksonDatabind,
+        Dependencies.jacksonDataTypeJsr310,
+        Dependencies.jacksonJaxrsJsonProvider,
+        Dependencies.findbugsJsr305,
+        Dependencies.javaxAnnotationApi,
+        Dependencies.httpClient5,
+        Dependencies.httpCore5,
+        Dependencies.httpCore5H2,
+        Dependencies.openApiToolsJacksonBindNullable,
+        Dependencies.slf4jApi
+      ),
+
+      generate := {
+        (openApiClientMasterGenerate / Compile / openApiGenerate).value
+        (openApiClientWorkerGenerate / Compile / openApiGenerate).value
+
+        streams.value.log.info("Cleaning up openapi generate output directory: " + openApiClientOutputDir)
+        val dstDir = file(openApiClientOutputDir)
+        IO.delete(dstDir)
+
+        val masterSrcDir = file(openApiMasterInternalOutputDir) / "src" / "main" / "java"
+        streams.value.log.info(s"Copying openapi generated master sources from $masterSrcDir to $dstDir")
+        IO.copyDirectory(masterSrcDir, dstDir)
+
+        val workerSrcDir = file(openApiWorkerInternalOutputDir) / "src" / "main" / "java"
+        streams.value.log.info(s"Copying openapi generated worker sources from $workerSrcDir to $dstDir")
+        IO.copyDirectory(workerSrcDir, dstDir)
+      },
+
+      (assembly / test) := { },
+      (assembly / assemblyJarName) := {
+        s"${moduleName.value}_${scalaBinaryVersion.value}-${version.value}.${artifact.value.extension}"
+      },
+      (assembly / logLevel) := Level.Info,
+      // Exclude `scala-library` from assembly.
+      (assembly / assemblyPackageScala / assembleArtifact) := false,
+      (assembly / assemblyExcludedJars) := {
+        val cp = (assembly / fullClasspath).value
+        cp filter { v =>
+          val name = v.data.getName
+          !(name.startsWith("celeborn-") ||
+            name.startsWith("jackson-annotations-") ||
+            name.startsWith("jackson-core-") ||
+            name.startsWith("jackson-databind-") ||
+            name.startsWith("jackson-datatype-jsr310-") ||
+            name.startsWith("jackson-jaxrs-json-provider-") ||
+            name.startsWith("jsr305-") ||
+            name.startsWith("jakarta.annotation-api-") ||
+            name.startsWith("httpclient5-") ||
+            name.startsWith("httpcore5-") ||
+            name.startsWith("httpcore5-h2-") ||
+            name.startsWith("jackson-databind-nullable-") ||
+            name.startsWith("slf4j-api-"))
+        }
+      },
+
+      (assembly / assemblyShadeRules) := Seq(
+        ShadeRule.rename("org.openapitools.**" -> "org.apache.celeborn.shaded.org.openapitools.@1").inAll,
+        ShadeRule.rename("javax.annotation.**" -> "org.apache.celeborn.shaded.javax.annotation.@1").inAll,
+        ShadeRule.rename("com.fasterxml.jackson.**" -> "org.apache.celeborn.shaded.com.fasterxml.jackson.@1").inAll,
+        ShadeRule.rename("jakarta.validation.**" -> "org.apache.celeborn.shaded.jakarta.validation.@1").inAll,
+        ShadeRule.rename("javax.validation.**" -> "org.apache.celeborn.shaded.javax.validation.@1").inAll,
+        ShadeRule.rename("javax.ws.rs.ext.**" -> "org.apache.celeborn.shaded.javax.ws.rs.ext.@1").inAll,
+        ShadeRule.rename("org.apache.hc.**" -> "org.apache.celeborn.shaded.org.apache.hc.@1").inAll,
+        ShadeRule.rename("org.slf4j.**" -> "org.apache.celeborn.shaded.org.slf4j.@1").inAll
+      ),
+
+      (assembly / assemblyMergeStrategy) := {
+        case m if m.toLowerCase(Locale.ROOT).endsWith("license") => MergeStrategy.discard
+        case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+        case m if m.toLowerCase(Locale.ROOT).endsWith("meta-inf/dependencies") => MergeStrategy.discard
+        case m if m.toLowerCase(Locale.ROOT).endsWith("module-info.class") => MergeStrategy.discard
+        case m if m.toLowerCase(Locale.ROOT).endsWith("mozilla/public-suffix-list.txt") => MergeStrategy.discard
+        case m if m.toLowerCase(Locale.ROOT).endsWith("notice") => MergeStrategy.discard
+        case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
+        case _ => MergeStrategy.first
+      },
+      Compile / packageBin := assembly.value,
+      pomPostProcess := removeDependenciesTransformer
+    )
 }
