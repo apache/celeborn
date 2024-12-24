@@ -77,7 +77,7 @@ class WorkerResource extends ApiRequestContext {
       schema = new Schema(
         implementation = classOf[HandleResponse]))),
     description =
-      "Trigger this worker to exit. Legal exit types are 'Decommission', 'Graceful' and 'Immediately'.")
+      "Trigger this worker to exit. Legal exit types are 'DECOMMISSION', 'GRACEFUL' and 'IMMEDIATELY'.")
   @POST
   @Path("exit")
   def exit(request: WorkerExitRequest): HandleResponse = {

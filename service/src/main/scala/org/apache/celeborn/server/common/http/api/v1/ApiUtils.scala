@@ -84,7 +84,7 @@ object ApiUtils {
             .diskFileCount(resourceConsumption.diskFileCount)
             .hdfsBytesWritten(resourceConsumption.hdfsBytesWritten)
             .hdfsFileCount(resourceConsumption.hdfsFileCount)
-            .subResourceConsumption(subConsumptions)
+            .subResourceConsumptions(subConsumptions)
 
           workerResourceConsumptions.put(userIdentifier.toString, workerConsumption)
       }
