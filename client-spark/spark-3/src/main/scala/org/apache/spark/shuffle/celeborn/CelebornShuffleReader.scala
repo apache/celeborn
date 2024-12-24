@@ -18,12 +18,13 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
-import java.util
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.JavaConverters._
 
+import org.apache.commons.lang3.tuple.Pair
 import org.apache.spark.{Aggregator, InterruptibleIterator, ShuffleDependency, TaskContext}
 import org.apache.spark.celeborn.ExceptionMakerHelper
 import org.apache.spark.internal.Logging
@@ -33,7 +34,7 @@ import org.apache.spark.shuffle.celeborn.CelebornShuffleReader.streamCreatorPool
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
 
-import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.client.{ClientUtils, ShuffleClient}
 import org.apache.celeborn.client.ShuffleClientImpl.ReduceFileGroups
 import org.apache.celeborn.client.read.{CelebornInputStream, MetricsCallback}
 import org.apache.celeborn.common.CelebornConf
@@ -116,18 +117,44 @@ class CelebornShuffleReader[K, C](
     }
 
     // host-port -> (TransportClient, PartitionLocation Array, PbOpenStreamList)
-    val workerRequestMap = new util.HashMap[
+    val workerRequestMap = new JHashMap[
       String,
-      (TransportClient, util.ArrayList[PartitionLocation], PbOpenStreamList.Builder)]()
+      (TransportClient, JArrayList[PartitionLocation], PbOpenStreamList.Builder)]()
+    // partitionId -> (partition uniqueId -> chunkRange pair)
+    val partitionId2ChunkRange = new JHashMap[Int, JMap[String, Pair[Integer, Integer]]]()
+
+    val partitionId2PartitionLocations = new JHashMap[Int, JSet[PartitionLocation]]()
 
     var partCnt = 0
 
+    // if startMapIndex > endMapIndex, means partition is skew partition.
+    // locations will split to sub-partitions with startMapIndex size.
+    val splitSkewPartitionWithoutMapRange =
+      ClientUtils.readSkewPartitionWithoutMapRange(conf, startMapIndex, endMapIndex)
+
     (startPartition until endPartition).foreach { partitionId =>
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
-        fileGroups.partitionGroups.get(partitionId).asScala.foreach { location =>
+        var locations = fileGroups.partitionGroups.get(partitionId)
+        if (splitSkewPartitionWithoutMapRange) {
+          val partitionLocation2ChunkRange = CelebornPartitionUtil.splitSkewedPartitionLocations(
+            new JArrayList(locations),
+            startMapIndex,
+            endMapIndex)
+          partitionId2ChunkRange.put(partitionId, partitionLocation2ChunkRange)
+          // filter locations avoid OPEN_STREAM when split skew partition without map range
+          val filterLocations = locations.asScala
+            .filter { location =>
+              null != partitionLocation2ChunkRange &&
+              partitionLocation2ChunkRange.containsKey(location.getUniqueId)
+            }
+          locations = filterLocations.asJava
+          partitionId2PartitionLocations.put(partitionId, locations)
+        }
+
+        locations.asScala.foreach { location =>
           partCnt += 1
           val hostPort = location.hostAndFetchPort
-          if (!workerRequestMap.containsKey(hostPort)) {
+          if (!workerRequestMap.containsKey(hostPort))
             try {
               val client = shuffleClient.getDataClientFactory().createClient(
                 location.getHost,
@@ -136,7 +163,7 @@ class CelebornShuffleReader[K, C](
               pbOpenStreamList.setShuffleKey(shuffleKey)
               workerRequestMap.put(
                 hostPort,
-                (client, new util.ArrayList[PartitionLocation], pbOpenStreamList))
+                (client, new JArrayList[PartitionLocation], pbOpenStreamList))
             } catch {
               case ex: Exception =>
                 shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort, ex)
@@ -144,7 +171,6 @@ class CelebornShuffleReader[K, C](
                   s"Failed to create client for $shuffleKey-$partitionId from host: ${location.hostAndFetchPort}. " +
                     s"Shuffle reader will try its replica if exists.")
             }
-          }
           workerRequestMap.get(hostPort) match {
             case (_, locArr, pbOpenStreamListBuilder) =>
               locArr.add(location)
@@ -197,13 +223,22 @@ class CelebornShuffleReader[K, C](
 
     def createInputStream(partitionId: Int): Unit = {
       val locations =
-        if (fileGroups.partitionGroups.containsKey(partitionId)) {
-          new util.ArrayList(fileGroups.partitionGroups.get(partitionId))
-        } else new util.ArrayList[PartitionLocation]()
+        if (splitSkewPartitionWithoutMapRange) {
+          partitionId2PartitionLocations.get(partitionId)
+        } else {
+          fileGroups.partitionGroups.get(partitionId)
+        }
+
+      val locationList =
+        if (null == locations) {
+          new JArrayList[PartitionLocation]()
+        } else {
+          new JArrayList[PartitionLocation](locations)
+        }
       val streamHandlers =
         if (locations != null) {
-          val streamHandlerArr = new util.ArrayList[PbStreamHandler](locations.size())
-          locations.asScala.foreach { loc =>
+          val streamHandlerArr = new JArrayList[PbStreamHandler](locationList.size)
+          locationList.asScala.foreach { loc =>
             streamHandlerArr.add(locationStreamHandlerMap.get(loc))
           }
           streamHandlerArr
@@ -219,8 +254,10 @@ class CelebornShuffleReader[K, C](
             endMapIndex,
             if (throwsFetchFailure) ExceptionMakerHelper.SHUFFLE_FETCH_FAILURE_EXCEPTION_MAKER
             else null,
-            locations,
+            locationList,
             streamHandlers,
+            fileGroups.pushFailedBatches,
+            partitionId2ChunkRange.get(partitionId),
             fileGroups.mapAttempts,
             metricsCallback)
           streams.put(partitionId, inputStream)
@@ -388,7 +425,6 @@ class CelebornShuffleReader[K, C](
   def newSerializerInstance(dep: ShuffleDependency[K, _, C]): SerializerInstance = {
     dep.serializer.newInstance()
   }
-
 }
 
 object CelebornShuffleReader {
