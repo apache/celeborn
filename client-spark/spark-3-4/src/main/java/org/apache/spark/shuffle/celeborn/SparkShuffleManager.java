@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
+import scala.Option;
+
 import org.apache.spark.*;
 import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
@@ -82,6 +84,8 @@ public class SparkShuffleManager implements ShuffleManager {
   private volatile SortShuffleManager _sortShuffleManager;
   private final ConcurrentHashMap.KeySetView<Integer, Boolean> sortShuffleIds =
       ConcurrentHashMap.newKeySet();
+  private final ConcurrentHashMap.KeySetView<String, Boolean> fallbackApps =
+      ConcurrentHashMap.newKeySet();
   private final CelebornShuffleFallbackPolicyRunner fallbackPolicyRunner;
 
   private long sendBufferPoolCheckInterval;
@@ -139,6 +143,7 @@ public class SparkShuffleManager implements ShuffleManager {
         if (lifecycleManager == null) {
           appUniqueId = celebornConf.appUniqueIdWithUUIDSuffix(appId);
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
+          lifecycleManager.applicationCount().increment();
           lifecycleManager.registerCancelShuffleCallback(SparkUtils::cancelShuffle);
           if (celebornConf.clientStageRerunEnabled()) {
             MapOutputTrackerMaster mapOutputTracker =
@@ -162,7 +167,9 @@ public class SparkShuffleManager implements ShuffleManager {
     initializeLifecycleManager(appId);
 
     lifecycleManager.shuffleCount().increment();
-    if (fallbackPolicyRunner.applyFallbackPolicies(dependency, lifecycleManager)) {
+    Option<ShuffleFallbackPolicy> fallbackPolicyOpt =
+        fallbackPolicyRunner.getActivatedFallbackPolicy(dependency, lifecycleManager);
+    if (fallbackPolicyOpt.isDefined()) {
       if (conf.getBoolean("spark.dynamicAllocation.enabled", false)
           && !conf.getBoolean("spark.shuffle.service.enabled", false)) {
         logger.error(
@@ -174,6 +181,14 @@ public class SparkShuffleManager implements ShuffleManager {
         logger.warn("Fallback to vanilla Spark SortShuffleManager for shuffle: {}", shuffleId);
       }
       sortShuffleIds.add(shuffleId);
+      String shuffleFallbackPolicy = fallbackPolicyOpt.get().getClass().getName();
+      lifecycleManager.computeFallbackCounts(
+          lifecycleManager.shuffleFallbackCounts(), shuffleFallbackPolicy);
+      if (!fallbackApps.contains(appId)) {
+        fallbackApps.add(appId);
+        lifecycleManager.computeFallbackCounts(
+            lifecycleManager.applicationFallbackCounts(), shuffleFallbackPolicy);
+      }
       return sortShuffleManager().registerShuffle(shuffleId, dependency);
     } else {
       lifecycleManager.registerAppShuffleDeterminate(

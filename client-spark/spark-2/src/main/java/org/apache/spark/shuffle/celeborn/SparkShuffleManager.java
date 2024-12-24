@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import scala.Int;
+import scala.Option;
 
 import org.apache.spark.*;
 import org.apache.spark.internal.config.package$;
@@ -57,6 +58,8 @@ public class SparkShuffleManager implements ShuffleManager {
   private ShuffleClient shuffleClient;
   private volatile SortShuffleManager _sortShuffleManager;
   private final ConcurrentHashMap.KeySetView<Integer, Boolean> sortShuffleIds =
+      ConcurrentHashMap.newKeySet();
+  private final ConcurrentHashMap.KeySetView<String, Boolean> fallbackApps =
       ConcurrentHashMap.newKeySet();
   private final CelebornShuffleFallbackPolicyRunner fallbackPolicyRunner;
 
@@ -97,6 +100,7 @@ public class SparkShuffleManager implements ShuffleManager {
         if (lifecycleManager == null) {
           appUniqueId = celebornConf.appUniqueIdWithUUIDSuffix(appId);
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
+          lifecycleManager.applicationCount().increment();
           lifecycleManager.registerCancelShuffleCallback(SparkUtils::cancelShuffle);
           if (celebornConf.clientStageRerunEnabled()) {
             MapOutputTrackerMaster mapOutputTracker =
@@ -119,9 +123,19 @@ public class SparkShuffleManager implements ShuffleManager {
     initializeLifecycleManager(appId);
 
     lifecycleManager.shuffleCount().increment();
-    if (fallbackPolicyRunner.applyFallbackPolicies(dependency, lifecycleManager)) {
+    Option<ShuffleFallbackPolicy> fallbackPolicyOpt =
+        fallbackPolicyRunner.getActivatedFallbackPolicy(dependency, lifecycleManager);
+    if (fallbackPolicyOpt.isDefined()) {
       logger.warn("Fallback to SortShuffleManager!");
       sortShuffleIds.add(shuffleId);
+      String shuffleFallbackPolicy = fallbackPolicyOpt.get().getClass().getName();
+      lifecycleManager.computeFallbackCounts(
+          lifecycleManager.shuffleFallbackCounts(), shuffleFallbackPolicy);
+      if (!fallbackApps.contains(appId)) {
+        fallbackApps.add(appId);
+        lifecycleManager.computeFallbackCounts(
+            lifecycleManager.applicationFallbackCounts(), shuffleFallbackPolicy);
+      }
       return sortShuffleManager().registerShuffle(shuffleId, numMaps, dependency);
     } else {
       lifecycleManager.registerAppShuffleDeterminate(
