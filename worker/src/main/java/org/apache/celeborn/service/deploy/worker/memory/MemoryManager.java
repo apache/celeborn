@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
@@ -290,7 +291,7 @@ public class MemoryManager {
   }
 
   public ServingState currentServingState() {
-    long memoryUsage = getMemoryUsage();
+    long memoryUsage = getAllocatedMemory();
     // pause replicate threshold always greater than pause push data threshold
     // so when trigger pause replicate, pause both push and replicate
     if (memoryUsage > pauseReplicateThreshold) {
@@ -432,6 +433,16 @@ public class MemoryManager {
 
   public long getMemoryUsage() {
     return getNettyUsedDirectMemory() + sortMemoryCounter.get();
+  }
+
+  public long getAllocatedMemory() {
+    return getNettyPinnedDirectMemory() + sortMemoryCounter.get();
+  }
+
+  public long getNettyPinnedDirectMemory() {
+    return NettyUtils.getAllPooledByteBufAllocators().stream()
+        .mapToLong(PooledByteBufAllocator::pinnedDirectMemory)
+        .sum();
   }
 
   public AtomicLong getSortMemoryCounter() {

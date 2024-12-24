@@ -17,8 +17,10 @@
 
 package org.apache.celeborn.common.network.util;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadFactory;
@@ -46,6 +48,9 @@ public class NettyUtils {
       new PooledByteBufAllocator[2];
   private static ConcurrentHashMap<String, Integer> allocatorsIndex =
       JavaUtils.newConcurrentHashMap();
+
+  private static final List<PooledByteBufAllocator> pooledByteBufAllocators = new ArrayList<>();
+
   /** Creates a new ThreadFactory which prefixes each thread with the given name. */
   public static ThreadFactory createThreadFactory(String threadPoolPrefix) {
     return new DefaultThreadFactory(threadPoolPrefix, true);
@@ -129,6 +134,7 @@ public class NettyUtils {
     if (_sharedPooledByteBufAllocator[index] == null) {
       _sharedPooledByteBufAllocator[index] =
           createPooledByteBufAllocator(true, allowCache, conf.networkAllocatorArenas());
+      pooledByteBufAllocators.add(_sharedPooledByteBufAllocator[index]);
       if (source != null) {
         new NettyMemoryMetrics(
             _sharedPooledByteBufAllocator[index],
@@ -162,6 +168,7 @@ public class NettyUtils {
     }
     PooledByteBufAllocator allocator =
         createPooledByteBufAllocator(conf.preferDirectBufs(), allowCache, arenas);
+    pooledByteBufAllocators.add(allocator);
     if (source != null) {
       String poolName = "default-netty-pool";
       Map<String, String> labels = new HashMap<>();
@@ -179,5 +186,9 @@ public class NettyUtils {
           labels);
     }
     return allocator;
+  }
+
+  public static List<PooledByteBufAllocator> getAllPooledByteBufAllocators() {
+    return pooledByteBufAllocators;
   }
 }
