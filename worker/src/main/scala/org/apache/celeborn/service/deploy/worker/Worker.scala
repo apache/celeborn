@@ -104,6 +104,7 @@ private[celeborn] class Worker(
         workerArgs.port,
         conf,
         Math.min(64, Math.max(4, Runtime.getRuntime.availableProcessors())),
+        Role.WORKER,
         None,
         Some(workerSource))
     } else {
@@ -121,6 +122,7 @@ private[celeborn] class Worker(
         workerArgs.port,
         conf,
         Math.max(64, Runtime.getRuntime.availableProcessors()),
+        Role.WORKER,
         Some(externalSecurityContext),
         Some(workerSource))
     }
@@ -137,6 +139,7 @@ private[celeborn] class Worker(
         workerArgs.internalPort,
         conf,
         Math.min(64, Math.max(4, Runtime.getRuntime.availableProcessors())),
+        Role.WORKER,
         None,
         Some(workerSource))
     }

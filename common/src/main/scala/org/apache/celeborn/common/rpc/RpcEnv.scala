@@ -39,8 +39,9 @@ object RpcEnv {
       host: String,
       port: Int,
       conf: CelebornConf,
+      role: String,
       securityContext: Option[RpcSecurityContext]): RpcEnv = {
-    create(name, transportModule, host, host, port, conf, 0, securityContext)
+    create(name, transportModule, host, host, port, conf, 0, role, securityContext)
   }
 
   def create(
@@ -50,6 +51,7 @@ object RpcEnv {
       port: Int,
       conf: CelebornConf,
       numUsableCores: Int,
+      role: String,
       securityContext: Option[RpcSecurityContext],
       source: Option[AbstractSource]): RpcEnv = {
     val bindAddress =
@@ -63,6 +65,7 @@ object RpcEnv {
       port,
       conf,
       numUsableCores,
+      role,
       securityContext,
       source)
   }
@@ -75,6 +78,7 @@ object RpcEnv {
       port: Int,
       conf: CelebornConf,
       numUsableCores: Int,
+      role: String,
       securityContext: Option[RpcSecurityContext] = None,
       source: Option[AbstractSource] = None): RpcEnv = {
     val config =
@@ -86,6 +90,7 @@ object RpcEnv {
         advertiseAddress,
         port,
         numUsableCores,
+        role,
         securityContext,
         source)
     new NettyRpcEnvFactory().create(config)
@@ -222,6 +227,7 @@ private[celeborn] case class RpcEnvConfig(
     advertiseAddress: String,
     port: Int,
     numUsableCores: Int,
+    role: String,
     securityContext: Option[RpcSecurityContext],
     source: Option[AbstractSource]) {
   assert(RpcEnvConfig.VALID_TRANSPORT_MODULES.contains(transportModule))
