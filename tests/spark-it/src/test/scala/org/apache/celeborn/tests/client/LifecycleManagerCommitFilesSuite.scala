@@ -155,11 +155,16 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
     }
     celebornConf
       .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "false")
+    val masterConf = Map(
+      "celeborn.master.host" -> "localhost",
+      "celeborn.master.port" -> masterPort.toString,
+      "celeborn.master.endpoints" -> s"localhost:$masterPort")
     val workerConf0 = Map(
       s"${CelebornConf.WORKER_SHUFFLE_COMMIT_TIMEOUT.key}" -> "100",
       s"${CelebornConf.WORKER_COMMIT_THREADS.key}" -> "1",
-      s"${CelebornConf.TEST_MOCK_COMMIT_FILES_FAILURE.key}" -> "true")
-    val (master, _) = setupMiniClusterWithRandomPorts(workerConf = workerConf0)
+      s"${CelebornConf.TEST_MOCK_COMMIT_FILES_FAILURE.key}" -> "true",
+      "celeborn.master.endpoints" -> s"localhost:$masterPort")
+    val (master, _) = setUpMiniCluster(masterConf = masterConf, workerConf = workerConf0)
     celebornConf.set(
       CelebornConf.MASTER_ENDPOINTS.key,
       master.conf.get(CelebornConf.MASTER_ENDPOINTS.key))
@@ -176,7 +181,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
     assert(res.status == StatusCode.SUCCESS)
 
     lifecycleManager.setupEndpoints(
-      res.workerResource.keySet(),
+      res.workerResource,
       shuffleId,
       new ShuffleFailedWorkers())
 
@@ -186,7 +191,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       res.workerResource,
       updateEpoch = false)
 
-    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
+    lifecycleManager.commitManager.registerShuffle(shuffleId, 1)
     0 until 1000 foreach { partitionId =>
       lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
     }
