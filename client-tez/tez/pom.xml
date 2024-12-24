@@ -195,4 +195,109 @@
     </dependency>
   </dependencies>
 
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <configuration>
+          <relocations>
+            <relocation>
+              <pattern>com.google.protobuf</pattern>
+              <shadedPattern>${shading.prefix}.com.google.protobuf</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>com.google.common</pattern>
+              <shadedPattern>${shading.prefix}.com.google.common</shadedPattern>
+              <excludes>
+                <exclude>com.google.common.util.concurrent.*</exclude>
+              </excludes>
+            </relocation>
+            <relocation>
+              <pattern>io.netty</pattern>
+              <shadedPattern>${shading.prefix}.io.netty</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>org.apache.commons</pattern>
+              <shadedPattern>${shading.prefix}.org.apache.commons</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>org.roaringbitmap</pattern>
+              <shadedPattern>${shading.prefix}.org.roaringbitmap</shadedPattern>
+            </relocation>
+          </relocations>
+          <artifactSet>
+            <includes>
+              <include>org.apache.celeborn:*</include>
+              <include>com.google.protobuf:protobuf-java</include>
+              <include>com.google.guava:guava</include>
+              <include>com.google.guava:failureaccess</include>
+              <include>io.netty:*</include>
+              <include>org.apache.commons:commons-lang3</include>
+              <include>org.roaringbitmap:RoaringBitmap</include>
+              <include>org.scala-lang:scala-library</include>
+              <include>org.scala-lang:scala-reflect</include>
+              <include>org.lz4:lz4-java</include>
+            </includes>
+          </artifactSet>
+          <filters>
+            <filter>
+              <artifact>*:*</artifact>
+              <excludes>
+                <exclude>**/*.proto</exclude>
+                <exclude>META-INF/*.SF</exclude>
+                <exclude>META-INF/*.DSA</exclude>
+                <exclude>META-INF/*.RSA</exclude>
+                <exclude>**/log4j.properties</exclude>
+                <exclude>META-INF/LICENSE.txt</exclude>
+                <exclude>META-INF/NOTICE.txt</exclude>
+                <exclude>LICENSE.txt</exclude>
+                <exclude>NOTICE.txt</exclude>
+              </excludes>
+            </filter>
+          </filters>
+          <transformers>
+            <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"></transformer>
+          </transformers>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>${maven.plugin.antrun.version}</version>
+        <executions>
+          <execution>
+            <id>rename-native-library</id>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <phase>package</phase>
+            <configuration>
+              <target>
+                <echo message="unpacking netty jar"></echo>
+                <unzip dest="${project.build.directory}/unpacked/" src="${project.build.directory}/${artifactId}-${version}.jar"></unzip>
+                <echo message="renaming native epoll library"></echo>
+                <move includeemptydirs="false" todir="${project.build.directory}/unpacked/META-INF/native">
+                  <fileset dir="${project.build.directory}/unpacked/META-INF/native"></fileset>
+                  <mapper from="libnetty_transport_native_epoll_x86_64.so" to="liborg_apache_celeborn_shaded_netty_transport_native_epoll_x86_64.so" type="glob"></mapper>
+                </move>
+                <move includeemptydirs="false" todir="${project.build.directory}/unpacked/META-INF/native">
+                  <fileset dir="${project.build.directory}/unpacked/META-INF/native"></fileset>
+                  <mapper from="libnetty_transport_native_epoll_aarch_64.so" to="liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so" type="glob"></mapper>
+                </move>
+                <echo message="deleting native kqueue library"></echo>
+                <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_transport_native_kqueue_x86_64.jnilib"></delete>
+                <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_transport_native_kqueue_aarch_64.jnilib"></delete>
+                <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_resolver_dns_native_macos_aarch_64.jnilib"></delete>
+                <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_resolver_dns_native_macos_x86_64.jnilib"></delete>
+                <echo message="repackaging netty jar"></echo>
+                <jar basedir="${project.build.directory}/unpacked" destfile="${project.build.directory}/${artifactId}-${version}.jar"></jar>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
 </project>
