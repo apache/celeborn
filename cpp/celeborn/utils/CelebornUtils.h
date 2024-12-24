@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <chrono>
+
 #include "celeborn/utils/Exceptions.h"
 
 namespace celeborn {
@@ -27,4 +29,13 @@ namespace celeborn {
 #define CELEBORN_SHUTDOWN_LOG_PREFIX "[CELEBORN_SHUTDOWN] "
 #define CELEBORN_SHUTDOWN_LOG(severity) \
   LOG(severity) << CELEBORN_SHUTDOWN_LOG_PREFIX
+
+
+using Duration = std::chrono::duration<double>;
+using Timeout = std::chrono::milliseconds;
+inline Timeout toTimeout(Duration duration) {
+  return std::chrono::duration_cast<Timeout>(duration);
+
+}
 } // namespace celeborn
+

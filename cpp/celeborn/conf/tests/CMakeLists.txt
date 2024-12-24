@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_executable(celeborn_conf_test BaseConfTest.cpp)
+add_executable(celeborn_conf_test BaseConfTest.cpp CelebornConfTest.cpp)
 
 add_test(NAME celeborn_conf_test COMMAND celeborn_conf_test)
 
