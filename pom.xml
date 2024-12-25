@@ -125,6 +125,8 @@
     <httpclient5.version>5.3.1</httpclient5.version>
     <httpcore5.version>5.2.4</httpcore5.version>
 
+    <fastjson2.version>2.0.53</fastjson2.version>
+
     <!-- org.fusesource.leveldbjni will be used except on arm64 platform. -->
     <leveldbjni.group>org.fusesource.leveldbjni</leveldbjni.group>
 
@@ -621,6 +623,12 @@
         <groupId>org.webjars</groupId>
         <artifactId>swagger-ui</artifactId>
         <version>${swagger-ui.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.alibaba.fastjson2</groupId>
+        <artifactId>fastjson2</artifactId>
+        <version>${fastjson2.version}</version>
       </dependency>
 
       <dependency>
@@ -1931,6 +1939,13 @@
           </dependency>
         </dependencies>
       </dependencyManagement>
+    </profile>
+
+    <profile>
+      <id>verifier</id>
+      <modules>
+        <module>verifier</module>
+      </modules>
     </profile>
 
     <profile>

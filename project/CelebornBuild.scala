@@ -94,6 +94,9 @@ object Dependencies {
   // Tez
   val tezVersion = "0.10.2"
 
+  // For verifier support
+  val fastjson2Version = "2.0.53"
+
   val apLoader = "me.bechberger" % "ap-loader-all" % apLoaderVersion
   val commonsCompress = "org.apache.commons" % "commons-compress" % commonsCompressVersion
   val commonsCrypto = "org.apache.commons" % "commons-crypto" % commonsCryptoVersion excludeAll(
@@ -259,6 +262,9 @@ object Dependencies {
   )
 
   val picocli = "info.picocli" % "picocli" % picocliVersion
+
+  // Verifier support
+  val fastjson2 = "com.alibaba.fastjson2" % "fastjson2" % fastjson2Version
 }
 
 object CelebornCommonSettings {
@@ -425,7 +431,8 @@ object CelebornBuild extends sbt.internal.BuildDef {
       maybeMRClientModules ++
       maybeWebModules ++
       maybeCelebornMPUModule ++
-      maybeTezClientModules
+      maybeTezClientModules ++
+      maybeVerifierModules
   }
 
   // ThisBuild / parallelExecution := false
@@ -516,6 +523,15 @@ object Utils {
   }
 
   lazy val maybeWebModules: Seq[Project] = webProjects.map(_.modules).getOrElse(Seq.empty)
+
+  val VERIFIER_VERSION = profiles.filter(_.startsWith("verifier")).headOption
+
+  lazy val verifierProjects = VERIFIER_VERSION match {
+    case Some("verifier") => Some(VerifierProjects)
+    case _ => None
+  }
+
+  lazy val maybeVerifierModules: Seq[Project] = verifierProjects.map(_.modules).getOrElse(Seq.empty)
 
   def defaultScalaVersion(): String = {
     // 1. Inherit the scala version of the spark project
@@ -1776,4 +1792,23 @@ object TezClientProjects {
       (Test / compile).value
     }
   )
+}
+
+////////////////////////////////////////////////////////
+//                   Verifier                         //
+////////////////////////////////////////////////////////
+object VerifierProjects {
+
+  def verifier: Project = {
+    Project("celeborn-verifier", file("verifier"))
+      .dependsOn(CelebornCommon.common)
+      .settings(
+        commonSettings,
+        libraryDependencies ++= Seq(Dependencies.fastjson2)
+      )
+  }
+
+  def modules: Seq[Project] = {
+    Seq(verifier)
+  }
 }

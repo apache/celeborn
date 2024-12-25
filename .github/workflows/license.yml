@@ -51,6 +51,7 @@ jobs:
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,spark-2.4
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,spark-3.3
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,mr
+          build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,verifier
       - name: Upload rat report
         if: failure()
         uses: actions/upload-artifact@v4
