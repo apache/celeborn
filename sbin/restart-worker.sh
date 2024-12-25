@@ -58,4 +58,4 @@ if [ "$WORKER_INSTANCE" = "" ]; then
   WORKER_INSTANCE=1
 fi
 
-"${CELEBORN_HOME}/sbin/celeborn-daemon.sh" restart org.apache.celeborn.service.deploy.worker.Worker "$WORKER_INSTANCE"
+"${CELEBORN_HOME}/sbin/celeborn-daemon.sh" --config $CELEBORN_CONF_DIR restart org.apache.celeborn.service.deploy.worker.Worker "$WORKER_INSTANCE"
