@@ -129,7 +129,7 @@ Duration toDuration(const std::string& str) {
 const std::unordered_map<std::string, folly::Optional<std::string>>
     CelebornConf::kDefaultProperties = {
         STR_PROP(kRpcLookupTimeout, "30s"),
-        STR_PROP(kClientRpcGetReducerFileGroupRpcAskTimeout, "240s"),
+        STR_PROP(kClientRpcGetReducerFileGroupRpcAskTimeout, "30s"),
         STR_PROP(kNetworkConnectTimeout, "10s"),
         STR_PROP(kClientFetchTimeout, "600s"),
         NUM_PROP(kNetworkIoNumConnectionsPerPeer, "1"),
