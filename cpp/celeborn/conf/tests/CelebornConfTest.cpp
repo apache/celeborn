@@ -39,7 +39,7 @@ void writeToFile(
 
 void testDefaultValues(CelebornConf* conf) {
   EXPECT_EQ(conf->rpcLookupTimeout(), SECOND(30));
-  EXPECT_EQ(conf->clientRpcGetReducerFileGroupRpcAskTimeout(), SECOND(30));
+  EXPECT_EQ(conf->clientRpcGetReducerFileGroupRpcAskTimeout(), SECOND(60));
   EXPECT_EQ(conf->networkConnectTimeout(), SECOND(10));
   EXPECT_EQ(conf->clientFetchTimeout(), SECOND(600));
   EXPECT_EQ(conf->networkIoNumConnectionsPerPeer(), 1);
@@ -90,7 +90,7 @@ TEST(CelebornConfTest, readFromFile) {
   EXPECT_EQ(conf->rpcLookupTimeout(), SECOND(10));
   EXPECT_EQ(conf->networkIoNumConnectionsPerPeer(), 10);
   // The unspecified configs should have default values.
-  EXPECT_EQ(conf->clientRpcGetReducerFileGroupRpcAskTimeout(), SECOND(30));
+  EXPECT_EQ(conf->clientRpcGetReducerFileGroupRpcAskTimeout(), SECOND(60));
   EXPECT_EQ(conf->networkConnectTimeout(), SECOND(10));
 
   // The registerProperty could rewrite the configs.
