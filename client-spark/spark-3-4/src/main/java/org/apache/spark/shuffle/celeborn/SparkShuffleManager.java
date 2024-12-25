@@ -84,6 +84,8 @@ public class SparkShuffleManager implements ShuffleManager {
   private volatile SortShuffleManager _sortShuffleManager;
   private final ConcurrentHashMap.KeySetView<Integer, Boolean> sortShuffleIds =
       ConcurrentHashMap.newKeySet();
+  private final ConcurrentHashMap.KeySetView<String, Boolean> registeredApps =
+      ConcurrentHashMap.newKeySet();
   private final ConcurrentHashMap.KeySetView<String, Boolean> fallbackApps =
       ConcurrentHashMap.newKeySet();
   private final CelebornShuffleFallbackPolicyRunner fallbackPolicyRunner;
@@ -143,7 +145,6 @@ public class SparkShuffleManager implements ShuffleManager {
         if (lifecycleManager == null) {
           appUniqueId = celebornConf.appUniqueIdWithUUIDSuffix(appId);
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
-          lifecycleManager.applicationCount().increment();
           lifecycleManager.registerCancelShuffleCallback(SparkUtils::cancelShuffle);
           if (celebornConf.clientStageRerunEnabled()) {
             MapOutputTrackerMaster mapOutputTracker =
@@ -166,6 +167,10 @@ public class SparkShuffleManager implements ShuffleManager {
     String appId = SparkUtils.appUniqueId(dependency.rdd().context());
     initializeLifecycleManager(appId);
 
+    if (!registeredApps.contains(appId)) {
+      registeredApps.add(appId);
+      lifecycleManager.applicationCount().increment();
+    }
     lifecycleManager.shuffleCount().increment();
     Option<ShuffleFallbackPolicy> fallbackPolicyOpt =
         fallbackPolicyRunner.getActivatedFallbackPolicy(dependency, lifecycleManager);
@@ -231,6 +236,9 @@ public class SparkShuffleManager implements ShuffleManager {
 
   @Override
   public void stop() {
+    sortShuffleIds.clear();
+    registeredApps.clear();
+    fallbackApps.clear();
     if (shuffleClient != null) {
       shuffleClient.shutdown();
       ShuffleClient.reset();

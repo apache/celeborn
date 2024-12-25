@@ -102,12 +102,12 @@ public class RemoteShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
           celebornAppId = FlinkUtils.toCelebornAppId(lifecycleManagerTimestamp, jobID);
           LOG.info("CelebornAppId: {}", celebornAppId);
           lifecycleManager = new LifecycleManager(celebornAppId, conf);
-          lifecycleManager.applicationCount().increment();
           this.shuffleResourceTracker = new ShuffleResourceTracker(executor, lifecycleManager);
         }
       }
     }
 
+    lifecycleManager.applicationCount().increment();
     try {
       if (nettyShuffleServiceFactory != null) {
         Optional<ShuffleFallbackPolicy> shuffleFallbackPolicy =
