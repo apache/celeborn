@@ -166,6 +166,11 @@ run_command() {
 }
 
 start_celeborn() {
+    if [ ! -d "$CELEBORN_CONF_DIR" ]
+    then
+      echo "ERROR : CELEBORN_CONF_DIR: $CELEBORN_CONF_DIR is not a directory"
+      exit 1
+    fi
     run_command class "$@"
 }
 
