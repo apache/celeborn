@@ -17,6 +17,8 @@
 
 package org.apache.spark.shuffle.celeborn
 
+import scala.collection.JavaConverters._
+
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.TaskSchedulerImpl
 import org.apache.spark.sql.SparkSession
@@ -54,13 +56,19 @@ class SparkUtilsSuite extends AnyFunSuite
         "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
       .getOrCreate()
 
+    val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
+    val hook = new ShuffleReaderFetchFailureGetHook(celebornConf)
+    TestCelebornShuffleManager.registerReaderGetHook(hook)
+
     try {
       val sc = sparkSession.sparkContext
       val jobThread = new Thread {
         override def run(): Unit = {
           try {
-            sc.parallelize(1 to 100, 2)
-              .repartition(1)
+            val value = Range(1, 10000).mkString(",")
+            sc.parallelize(1 to 10000, 2)
+              .map { i => (i, value) }
+              .groupByKey(10)
               .mapPartitions { iter =>
                 Thread.sleep(3000)
                 iter
@@ -73,13 +81,15 @@ class SparkUtilsSuite extends AnyFunSuite
       jobThread.start()
 
       val taskScheduler = sc.taskScheduler.asInstanceOf[TaskSchedulerImpl]
-      eventually(timeout(3.seconds), interval(100.milliseconds)) {
-        val taskId = 0
-        val taskSetManager = SparkUtils.getTaskSetManager(taskScheduler, taskId)
+      eventually(timeout(30.seconds), interval(0.milliseconds)) {
+        assert(hook.executed.get() == true)
+        val reportedTaskId =
+          SparkUtils.reportedStageShuffleFetchFailureTaskIds.values().asScala.flatMap(
+            _.asScala).head
+        val taskSetManager = SparkUtils.getTaskSetManager(taskScheduler, reportedTaskId)
         assert(taskSetManager != null)
-        assert(SparkUtils.getTaskAttempts(taskSetManager, taskId)._2.size() == 1)
-        assert(!SparkUtils.taskAnotherAttemptRunningOrSuccessful(taskId))
-        assert(SparkUtils.reportedStageShuffleFetchFailureTaskIds.size() == 1)
+        assert(SparkUtils.getTaskAttempts(taskSetManager, reportedTaskId)._2.size() == 1)
+        assert(!SparkUtils.taskAnotherAttemptRunningOrSuccessful(reportedTaskId))
       }
 
       sparkSession.sparkContext.cancelAllJobs()
