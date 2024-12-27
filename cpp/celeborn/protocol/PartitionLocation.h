@@ -36,12 +36,14 @@ struct StorageInfo {
     SSD = 2,
     HDFS = 3,
     OSS = 4,
+    S3 = 5,
   };
 
   static const int MEMORY_MASK = 0b1;
   static const int LOCAL_DISK_MASK = 0b10;
   static const int HDFS_MASK = 0b100;
   static const int OSS_MASK = 0b1000;
+  static const int S3_MASK = 0b10000;
   static const int ALL_TYPES_AVAILABLE_MASK = 0;
 
   Type type{MEMORY};
