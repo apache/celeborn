@@ -45,62 +45,64 @@ class SparkUtilsSuite extends AnyFunSuite
   }
 
   test("check if fetch failure task another attempt is running or successful") {
-    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
-    val sparkSession = SparkSession.builder()
-      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
-      .config("spark.sql.shuffle.partitions", 2)
-      .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
-      .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
-      .config(
-        "spark.shuffle.manager",
-        "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
-      .getOrCreate()
+    if (Spark3OrNewer) {
+      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+      val sparkSession = SparkSession.builder()
+        .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+        .config("spark.sql.shuffle.partitions", 2)
+        .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+        .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+        .config(
+          "spark.shuffle.manager",
+          "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+        .getOrCreate()
 
-    val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
-    val hook = new ShuffleReaderFetchFailureGetHook(celebornConf)
-    TestCelebornShuffleManager.registerReaderGetHook(hook)
+      val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
+      val hook = new ShuffleReaderFetchFailureGetHook(celebornConf)
+      TestCelebornShuffleManager.registerReaderGetHook(hook)
 
-    try {
-      val sc = sparkSession.sparkContext
-      val jobThread = new Thread {
-        override def run(): Unit = {
-          try {
-            val value = Range(1, 10000).mkString(",")
-            sc.parallelize(1 to 10000, 2)
-              .map { i => (i, value) }
-              .groupByKey(10)
-              .mapPartitions { iter =>
-                Thread.sleep(3000)
-                iter
-              }.collect()
-          } catch {
-            case _: InterruptedException =>
+      try {
+        val sc = sparkSession.sparkContext
+        val jobThread = new Thread {
+          override def run(): Unit = {
+            try {
+              val value = Range(1, 10000).mkString(",")
+              sc.parallelize(1 to 10000, 2)
+                .map { i => (i, value) }
+                .groupByKey(10)
+                .mapPartitions { iter =>
+                  Thread.sleep(3000)
+                  iter
+                }.collect()
+            } catch {
+              case _: InterruptedException =>
+            }
           }
         }
+        jobThread.start()
+
+        val taskScheduler = sc.taskScheduler.asInstanceOf[TaskSchedulerImpl]
+        eventually(timeout(30.seconds), interval(0.milliseconds)) {
+          assert(hook.executed.get() == true)
+          val reportedTaskId =
+            SparkUtils.reportedStageShuffleFetchFailureTaskIds.values().asScala.flatMap(
+              _.asScala).head
+          val taskSetManager = SparkUtils.getTaskSetManager(taskScheduler, reportedTaskId)
+          assert(taskSetManager != null)
+          assert(SparkUtils.getTaskAttempts(taskSetManager, reportedTaskId)._2.size() == 1)
+          assert(!SparkUtils.taskAnotherAttemptRunningOrSuccessful(reportedTaskId))
+        }
+
+        sparkSession.sparkContext.cancelAllJobs()
+
+        jobThread.interrupt()
+
+        eventually(timeout(3.seconds), interval(100.milliseconds)) {
+          assert(SparkUtils.reportedStageShuffleFetchFailureTaskIds.size() == 0)
+        }
+      } finally {
+        sparkSession.stop()
       }
-      jobThread.start()
-
-      val taskScheduler = sc.taskScheduler.asInstanceOf[TaskSchedulerImpl]
-      eventually(timeout(30.seconds), interval(0.milliseconds)) {
-        assert(hook.executed.get() == true)
-        val reportedTaskId =
-          SparkUtils.reportedStageShuffleFetchFailureTaskIds.values().asScala.flatMap(
-            _.asScala).head
-        val taskSetManager = SparkUtils.getTaskSetManager(taskScheduler, reportedTaskId)
-        assert(taskSetManager != null)
-        assert(SparkUtils.getTaskAttempts(taskSetManager, reportedTaskId)._2.size() == 1)
-        assert(!SparkUtils.taskAnotherAttemptRunningOrSuccessful(reportedTaskId))
-      }
-
-      sparkSession.sparkContext.cancelAllJobs()
-
-      jobThread.interrupt()
-
-      eventually(timeout(3.seconds), interval(100.milliseconds)) {
-        assert(SparkUtils.reportedStageShuffleFetchFailureTaskIds.size() == 0)
-      }
-    } finally {
-      sparkSession.stop()
     }
   }
 }
