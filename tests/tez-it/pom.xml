@@ -94,7 +94,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
-      <artifactId>celeborn-client-tez_${scala.binary.version}</artifactId>
+      <artifactId>celeborn-client-tez-shaded_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
       <exclusions>

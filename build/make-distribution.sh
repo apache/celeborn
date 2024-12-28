@@ -253,7 +253,7 @@ function build_tez_client {
         | grep -v "INFO" \
         | grep -v "WARNING" \
         | tail -n 1)
-  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl :celeborn-client-tez_${SCALA_VERSION} -am $@)
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl :celeborn-client-tez-shaded_${SCALA_VERSION} -am $@)
 
     # Actually build the jar
     echo -e "\nBuilding with..."
@@ -263,7 +263,7 @@ function build_tez_client {
 
     ## flink spark client jars
     mkdir -p "$DIST_DIR/tez"
-    cp "$PROJECT_DIR"/client-tez/tez/target/celeborn-client-tez_${SCALA_VERSION}-$VERSION.jar "$DIST_DIR/tez/"
+    cp "$PROJECT_DIR"/client-tez/tez-shaded/target/celeborn-client-tez-shaded_${SCALA_VERSION}-$VERSION.jar "$DIST_DIR/tez/"
 }
 
 

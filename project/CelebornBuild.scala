@@ -92,7 +92,7 @@ object Dependencies {
   val protoVersion = "3.25.5"
 
   // Tez
-  val tezVersion = "0.9.1"
+  val tezVersion = "0.10.2"
 
   val apLoader = "me.bechberger" % "ap-loader-all" % apLoaderVersion
   val commonsCompress = "org.apache.commons" % "commons-compress" % commonsCompressVersion
@@ -419,7 +419,12 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornWorker.worker,
       CelebornMaster.master,
       CelebornCli.cli
-      ) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules ++ maybeWebModules ++ maybeCelebornMPUModule ++ maybeTezClientModules
+    ) ++ maybeSparkClientModules ++
+      maybeFlinkClientModules ++
+      maybeMRClientModules ++
+      maybeWebModules ++
+      maybeCelebornMPUModule ++
+      maybeTezClientModules
   }
 
   // ThisBuild / parallelExecution := false
