@@ -19,7 +19,9 @@ package org.apache.celeborn.server.common.http.api.v1
 
 import javax.ws.rs.{Consumes, DefaultValue, GET, POST, Produces, QueryParam}
 import javax.ws.rs.core.MediaType
+
 import scala.collection.JavaConverters._
+
 import io.swagger.v3.oas.annotations.{Operation, Parameter}
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -27,6 +29,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import org.apache.logging.log4j.{Level, LogManager}
 import org.apache.logging.log4j.core.LoggerContext
 import org.apache.logging.log4j.core.config.Configurator
+
 import org.apache.celeborn.rest.v1.model.{HandleResponse, LoggerInfo, LoggerInfos}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 

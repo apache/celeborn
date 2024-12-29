@@ -17,15 +17,17 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import io.swagger.v3.oas.annotations.Operation
-
 import java.util
 import javax.ws.rs.{Consumes, GET, Produces}
 import javax.ws.rs.core.MediaType
+
 import scala.collection.JavaConverters._
+
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
+
 import org.apache.celeborn.rest.v1.model.ShufflesResponse
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.master.Master

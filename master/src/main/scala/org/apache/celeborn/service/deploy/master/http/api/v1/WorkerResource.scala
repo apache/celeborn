@@ -17,14 +17,16 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import io.swagger.v3.oas.annotations.Operation
-
-import javax.ws.rs.{BadRequestException, Consumes, GET, POST, Path, Produces}
+import javax.ws.rs.{BadRequestException, Consumes, GET, Path, POST, Produces}
 import javax.ws.rs.core.MediaType
+
 import scala.collection.JavaConverters._
+
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
+
 import org.apache.celeborn.common.protocol.WorkerEventType
 import org.apache.celeborn.rest.v1.model._
 import org.apache.celeborn.rest.v1.model.SendWorkerEventRequest.EventTypeEnum

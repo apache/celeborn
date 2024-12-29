@@ -17,14 +17,16 @@
 
 package org.apache.celeborn.service.deploy.worker.http.api.v1
 
-import io.swagger.v3.oas.annotations.Operation
-
 import javax.ws.rs.{Consumes, GET, Path, Produces}
 import javax.ws.rs.core.MediaType
+
 import scala.collection.JavaConverters._
+
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
+
 import org.apache.celeborn.rest.v1.model.{ShufflePartitionsResponse, ShufflesResponse}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.server.common.http.api.v1.ApiUtils
@@ -50,7 +52,8 @@ class ShuffleResource extends ApiRequestContext {
 
   }
 
-  @Operation(description = "List all the living shuffle PartitionLocation information in the worker.")
+  @Operation(description =
+    "List all the living shuffle PartitionLocation information in the worker.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(

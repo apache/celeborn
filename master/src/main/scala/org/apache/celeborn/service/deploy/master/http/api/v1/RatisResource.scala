@@ -17,13 +17,14 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import io.swagger.v3.oas.annotations.Operation
-
 import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
-import javax.ws.rs.{BadRequestException, Consumes, GET, NotFoundException, POST, Path, Produces}
+import javax.ws.rs.{BadRequestException, Consumes, GET, NotFoundException, Path, POST, Produces}
 import javax.ws.rs.core.{MediaType, Response}
+
 import scala.collection.JavaConverters._
+
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -33,6 +34,7 @@ import org.apache.ratis.protocol.{LeaderElectionManagementRequest, RaftClientRep
 import org.apache.ratis.rpc.CallId
 import org.apache.ratis.server.storage.RaftStorageDirectory
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.rest.v1.model.{HandleResponse, RatisElectionTransferRequest, RatisLocalRaftMetaConfRequest, RatisPeerAddRequest, RatisPeerRemoveRequest, RatisPeerSetPriorityRequest}

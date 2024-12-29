@@ -17,18 +17,20 @@
 
 package org.apache.celeborn.server.common.http.api.v1
 
-import io.swagger.v3.oas.annotations.Operation
-
 import javax.ws.rs.{Consumes, GET, Path, Produces, QueryParam, ServiceUnavailableException}
 import javax.ws.rs.core.MediaType
+
 import scala.collection.JavaConverters._
+
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.apache.commons.lang3.StringUtils
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.util.Utils
-import org.apache.celeborn.rest.v1.model.{ConfResponse, ConfigData, DynamicConfig, DynamicConfigResponse}
+import org.apache.celeborn.rest.v1.model.{ConfigData, ConfResponse, DynamicConfig, DynamicConfigResponse}
 import org.apache.celeborn.rest.v1.model.DynamicConfig.LevelEnum
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.server.common.service.config.ConfigLevel
