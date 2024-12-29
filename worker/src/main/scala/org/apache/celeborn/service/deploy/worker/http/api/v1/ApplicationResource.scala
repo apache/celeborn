@@ -17,15 +17,14 @@
 
 package org.apache.celeborn.service.deploy.worker.http.api.v1
 
+import io.swagger.v3.oas.annotations.Operation
+
 import javax.ws.rs.{Consumes, GET, Produces}
 import javax.ws.rs.core.MediaType
-
 import scala.collection.JavaConverters._
-
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
-
 import org.apache.celeborn.rest.v1.model.ApplicationsResponse
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.worker.Worker
@@ -36,13 +35,13 @@ import org.apache.celeborn.service.deploy.worker.Worker
 class ApplicationResource extends ApiRequestContext {
   private def worker = httpService.asInstanceOf[Worker]
 
+  @Operation(description =
+    "List all running application's ids of the worker. It only return application ids running in that worker.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[ApplicationsResponse]))),
-    description =
-      "List all running application's ids of the worker. It only return application ids running in that worker.")
+      schema = new Schema(implementation = classOf[ApplicationsResponse]))))
   @GET
   def applications(): ApplicationsResponse = {
     new ApplicationsResponse()

@@ -19,17 +19,14 @@ package org.apache.celeborn.server.common.http.api.v1
 
 import javax.ws.rs.{Consumes, DefaultValue, GET, POST, Produces, QueryParam}
 import javax.ws.rs.core.MediaType
-
 import scala.collection.JavaConverters._
-
-import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.{Operation, Parameter}
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.apache.logging.log4j.{Level, LogManager}
 import org.apache.logging.log4j.core.LoggerContext
 import org.apache.logging.log4j.core.config.Configurator
-
 import org.apache.celeborn.rest.v1.model.{HandleResponse, LoggerInfo, LoggerInfos}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 
@@ -38,12 +35,12 @@ import org.apache.celeborn.server.common.http.api.ApiRequestContext
 @Consumes(Array(MediaType.APPLICATION_JSON))
 class LoggerResource extends ApiRequestContext {
 
+  @Operation(description = "Get the logger level, return all loggers if no name specified.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[LoggerInfo]))),
-    description = "Get the logger level, return all loggers if no name specified.")
+      schema = new Schema(implementation = classOf[LoggerInfo]))))
   @GET
   def getLoggerLevel(
       @QueryParam("name") name: String,
@@ -69,12 +66,12 @@ class LoggerResource extends ApiRequestContext {
     }
   }
 
+  @Operation(description = "Set the logger level.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Set the logger level.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   def setLoggerLevel(request: LoggerInfo): HandleResponse = {
     val loggerName = request.getName

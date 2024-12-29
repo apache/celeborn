@@ -17,13 +17,13 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
+import io.swagger.v3.oas.annotations.Operation
+
 import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
-import javax.ws.rs.{BadRequestException, Consumes, GET, NotFoundException, Path, POST, Produces}
+import javax.ws.rs.{BadRequestException, Consumes, GET, NotFoundException, POST, Path, Produces}
 import javax.ws.rs.core.{MediaType, Response}
-
 import scala.collection.JavaConverters._
-
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -33,7 +33,6 @@ import org.apache.ratis.protocol.{LeaderElectionManagementRequest, RaftClientRep
 import org.apache.ratis.rpc.CallId
 import org.apache.ratis.server.storage.RaftStorageDirectory
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.rest.v1.model.{HandleResponse, RatisElectionTransferRequest, RatisLocalRaftMetaConfRequest, RatisPeerAddRequest, RatisPeerRemoveRequest, RatisPeerSetPriorityRequest}
@@ -48,12 +47,12 @@ class RatisResource extends ApiRequestContext with Logging {
   private def master = httpService.asInstanceOf[Master]
   private def ratisServer = master.statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer
 
+  @Operation(description = "Transfer the group leader to the specified server.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Transfer the group leader to the specified server.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("/election/transfer")
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -62,12 +61,12 @@ class RatisResource extends ApiRequestContext with Logging {
       transferLeadership(request.getPeerAddress)
     }
 
+  @Operation(description = "Make the group leader step down its leadership.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Make the group leader step down its leadership.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("/election/step_down")
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -75,13 +74,13 @@ class RatisResource extends ApiRequestContext with Logging {
     transferLeadership(null)
   }
 
+  @Operation(description = "Pause leader election at the current server." +
+    " Then, the current server would not start a leader election.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Pause leader election at the current server." +
-      " Then, the current server would not start a leader election.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("/election/pause")
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -89,12 +88,12 @@ class RatisResource extends ApiRequestContext with Logging {
     applyElectionOp(new LeaderElectionManagementRequest.Pause)
   }
 
+  @Operation(description = "Resume leader election at the current server.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Resume leader election at the current server.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("/election/resume")
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -102,12 +101,12 @@ class RatisResource extends ApiRequestContext with Logging {
     applyElectionOp(new LeaderElectionManagementRequest.Resume)
   }
 
+  @Operation(description = "Add new peers to the raft group.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Add new peers to the raft group.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("/peer/add")
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -148,12 +147,12 @@ class RatisResource extends ApiRequestContext with Logging {
       }
     }
 
+  @Operation(description = "Remove peers from the raft group.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Remove peers from the raft group.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("/peer/remove")
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -186,12 +185,12 @@ class RatisResource extends ApiRequestContext with Logging {
       }
     }
 
+  @Operation(description = "Set the priority of the peers in the raft group.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Set the priority of the peers in the raft group.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("/peer/set_priority")
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -222,12 +221,12 @@ class RatisResource extends ApiRequestContext with Logging {
       }
     }
 
+  @Operation(description = "Trigger the current server to take snapshot.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Trigger the current server to take snapshot.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("/snapshot/create")
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -248,12 +247,12 @@ class RatisResource extends ApiRequestContext with Logging {
     }
   }
 
+  @Operation(description = "Get the raft-meta.conf file of the current server.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_OCTET_STREAM,
-      schema = new Schema(implementation = classOf[Response]))),
-    description = "Get the raft-meta.conf file of the current server.")
+      schema = new Schema(implementation = classOf[Response]))))
   @GET
   @Path("/local/raft_meta_conf")
   @Produces(Array(MediaType.APPLICATION_OCTET_STREAM))
@@ -273,13 +272,13 @@ class RatisResource extends ApiRequestContext with Logging {
       .build()
   }
 
+  @Operation(description = "Generate a new-raft-meta.conf file based on original raft-meta.conf" +
+    " and new peers, which is used to move a raft node to a new node.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_OCTET_STREAM,
-      schema = new Schema(implementation = classOf[Response]))),
-    description = "Generate a new-raft-meta.conf file based on original raft-meta.conf" +
-      " and new peers, which is used to move a raft node to a new node.")
+      schema = new Schema(implementation = classOf[Response]))))
   @POST
   @Path("/local/raft_meta_conf")
   @Produces(Array(MediaType.APPLICATION_OCTET_STREAM))

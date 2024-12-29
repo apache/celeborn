@@ -17,15 +17,14 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import javax.ws.rs.{BadRequestException, Consumes, GET, Path, POST, Produces}
+import io.swagger.v3.oas.annotations.Operation
+
+import javax.ws.rs.{BadRequestException, Consumes, GET, POST, Path, Produces}
 import javax.ws.rs.core.MediaType
-
 import scala.collection.JavaConverters._
-
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
-
 import org.apache.celeborn.common.protocol.WorkerEventType
 import org.apache.celeborn.rest.v1.model._
 import org.apache.celeborn.rest.v1.model.SendWorkerEventRequest.EventTypeEnum
@@ -41,13 +40,13 @@ class WorkerResource extends ApiRequestContext {
   private def master: Master = httpService.asInstanceOf[Master]
   private def statusSystem = master.statusSystem
 
+  @Operation(description =
+    "List worker information of the service. It will list all registered workers' information.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[WorkersResponse]))),
-    description =
-      "List worker information of the service. It will list all registered workers' information.")
+      schema = new Schema(implementation = classOf[WorkersResponse]))))
   @GET
   def workers: WorkersResponse = {
     new WorkersResponse()
@@ -66,13 +65,13 @@ class WorkerResource extends ApiRequestContext {
         ApiUtils.workerData).toSeq.asJava)
   }
 
+  @Operation(description =
+    "Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description =
-      "Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("/exclude")
   def excludeWorker(request: ExcludeWorkerRequest): HandleResponse = ensureMasterIsLeader(master) {
@@ -82,12 +81,12 @@ class WorkerResource extends ApiRequestContext {
     new HandleResponse().success(success).message(msg)
   }
 
+  @Operation(description = "Remove the workers unavailable info from the master.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Remove the workers unavailable info from the master.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("/remove_unavailable")
   def removeWorkersUnavailableInfo(request: RemoveWorkersUnavailableInfoRequest): HandleResponse =
@@ -97,13 +96,13 @@ class WorkerResource extends ApiRequestContext {
       new HandleResponse().success(success).message(msg)
     }
 
+  @Operation(description = "List all worker event infos of the master.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(
-        implementation = classOf[WorkerEventsResponse]))),
-    description = "List all worker event infos of the master.")
+        implementation = classOf[WorkerEventsResponse]))))
   @GET
   @Path("/events")
   def workerEvents(): WorkerEventsResponse = {
@@ -118,13 +117,13 @@ class WorkerResource extends ApiRequestContext {
       }.toSeq.asJava)
   }
 
+  @Operation(description =
+    "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description =
-      "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("/events")
   def sendWorkerEvents(request: SendWorkerEventRequest): HandleResponse =
