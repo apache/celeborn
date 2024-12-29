@@ -1650,7 +1650,8 @@ object TezClientProjects {
           Dependencies.tezRuntimeInternals,
           Dependencies.tezDag,
           Dependencies.tezApi,
-          Dependencies.hadoopCommon
+          Dependencies.hadoopCommon,
+          Dependencies.slf4jApi,
         ) ++ commonUnitTestDependencies,
         dependencyOverrides += Dependencies.commonsCompress
       )
