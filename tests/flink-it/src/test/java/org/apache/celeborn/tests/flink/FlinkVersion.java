@@ -23,8 +23,6 @@ import org.apache.flink.annotation.Public;
 /** All supported flink versions. */
 @Public
 public enum FlinkVersion {
-  v1_14("1.14"),
-  v1_15("1.15"),
   v1_16("1.16"),
   v1_17("1.17"),
   v1_18("1.18"),
@@ -39,10 +37,6 @@ public enum FlinkVersion {
 
   public static FlinkVersion fromVersionStr(String versionStr) {
     switch (versionStr) {
-      case "1.14":
-        return v1_14;
-      case "1.15":
-        return v1_15;
       case "1.16":
         return v1_16;
       case "1.17":

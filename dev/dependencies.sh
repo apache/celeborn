@@ -172,14 +172,6 @@ case "$MODULE" in
     MVN_MODULES="client-spark/spark-3-4"
     SBT_PROJECT="celeborn-client-spark-3"
     ;;
-  "flink-1.14")
-    MVN_MODULES="client-flink/flink-1.14"
-    SBT_PROJECT="celeborn-client-flink-1_14"
-    ;;
-  "flink-1.15")
-    MVN_MODULES="client-flink/flink-1.15"
-    SBT_PROJECT="celeborn-client-flink-1_15"
-    ;;
   "flink-1.16")
     MVN_MODULES="client-flink/flink-1.16"
     SBT_PROJECT="celeborn-client-flink-1_16"

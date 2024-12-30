@@ -66,7 +66,7 @@
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.version>3.9.9</maven.version>
 
-    <flink.version>1.14.6</flink.version>
+    <flink.version>1.20.0</flink.version>
     <spark.version>3.3.4</spark.version>
 
     <!-- use hadoop-3 as default  -->
@@ -1661,45 +1661,6 @@
           </plugin>
         </plugins>
       </build>
-    </profile>
-
-    <profile>
-      <id>flink-1.14</id>
-      <modules>
-        <module>client-flink/common</module>
-        <module>client-flink/flink-1.14</module>
-        <module>client-flink/flink-1.14-shaded</module>
-        <module>tests/flink-it</module>
-      </modules>
-      <properties>
-        <flink.version>1.14.6</flink.version>
-        <scala.binary.version>2.12</scala.binary.version>
-        <celeborn.flink.plugin.artifact>celeborn-client-flink-1.14_${scala.binary.version}</celeborn.flink.plugin.artifact>
-        <flink.streaming.artifact>flink-streaming-java_${scala.binary.version}</flink.streaming.artifact>
-        <flink.clients.artifact>flink-clients_${scala.binary.version}</flink.clients.artifact>
-        <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
-        <flink.runtime.web.artifact>flink-runtime-web_${scala.binary.version}</flink.runtime.web.artifact>
-      </properties>
-    </profile>
-
-    <profile>
-      <id>flink-1.15</id>
-      <modules>
-        <module>client-flink/common</module>
-        <module>client-flink/flink-1.15</module>
-        <module>client-flink/flink-1.15-shaded</module>
-        <module>tests/flink-it</module>
-      </modules>
-      <properties>
-        <flink.version>1.15.4</flink.version>
-        <flink.binary.version>1.15</flink.binary.version>
-        <scala.binary.version>2.12</scala.binary.version>
-        <celeborn.flink.plugin.artifact>celeborn-client-flink-1.15_${scala.binary.version}</celeborn.flink.plugin.artifact>
-        <flink.streaming.artifact>flink-streaming-java</flink.streaming.artifact>
-        <flink.clients.artifact>flink-clients</flink.clients.artifact>
-        <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
-        <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
-      </properties>
     </profile>
 
     <profile>

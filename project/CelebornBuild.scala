@@ -480,8 +480,6 @@ object Utils {
   val FLINK_VERSION = profiles.filter(_.startsWith("flink")).headOption
 
   lazy val flinkClientProjects = FLINK_VERSION match {
-    case Some("flink-1.14") => Some(Flink114)
-    case Some("flink-1.15") => Some(Flink115)
     case Some("flink-1.16") => Some(Flink116)
     case Some("flink-1.17") => Some(Flink117)
     case Some("flink-1.18") => Some(Flink118)
@@ -1077,30 +1075,6 @@ trait SparkClientProjects {
 //                   Flink Client                     //
 ////////////////////////////////////////////////////////
 
-object Flink114 extends FlinkClientProjects {
-  val flinkVersion = "1.14.6"
-
-  // note that SBT does not allow using the period symbol (.) in project names.
-  val flinkClientProjectPath = "client-flink/flink-1.14"
-  val flinkClientProjectName = "celeborn-client-flink-1_14"
-  val flinkClientShadedProjectPath: String = "client-flink/flink-1.14-shaded"
-  val flinkClientShadedProjectName: String = "celeborn-client-flink-1_14-shaded"
-
-  override lazy val flinkStreamingDependency: ModuleID = "org.apache.flink" %% "flink-streaming-java" % flinkVersion % "test"
-  override lazy val flinkClientsDependency: ModuleID = "org.apache.flink" %% "flink-clients" % flinkVersion % "test"
-  override lazy val flinkRuntimeWebDependency: ModuleID = "org.apache.flink" %% "flink-runtime-web" % flinkVersion % "test"
-}
-
-object Flink115 extends FlinkClientProjects {
-  val flinkVersion = "1.15.4"
-
-  // note that SBT does not allow using the period symbol (.) in project names.
-  val flinkClientProjectPath = "client-flink/flink-1.15"
-  val flinkClientProjectName = "celeborn-client-flink-1_15"
-  val flinkClientShadedProjectPath: String = "client-flink/flink-1.15-shaded"
-  val flinkClientShadedProjectName: String = "celeborn-client-flink-1_15-shaded"
-}
-
 object Flink116 extends FlinkClientProjects {
   val flinkVersion = "1.16.3"
 
@@ -1176,8 +1150,6 @@ trait FlinkClientProjects {
   //   1.19.1 -> 1.19
   //   1.18.1 -> 1.18
   //   1.17.2 -> 1.17
-  //   1.15.4 -> 1.15
-  //   1.14.6 -> 1.14
   lazy val flinkMajorVersion: String = flinkVersion.split("\\.").take(2).reduce(_ + "." + _)
 
   // the output would be something like: celeborn-client-flink-1.17-shaded_2.12-0.4.0-SNAPSHOT.jar
