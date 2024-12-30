@@ -18,7 +18,7 @@
 
 package org.apache.celeborn.plugin.flink;
 
-import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerShuffleMetrics;
+import static org.apache.celeborn.plugin.flink.metric.RemoteShuffleMetricFactory.registerShuffleMetrics;
 
 import java.time.Duration;
 
