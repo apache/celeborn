@@ -2883,7 +2883,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Extra slots number when master assign slots.")
       .intConf
-      .createWithDefault(2)
+      .createWithDefault(400)
 
   val MASTER_SLOT_ASSIGN_MAX_WORKERS: ConfigEntry[Int] =
     buildConf("celeborn.master.slot.assign.maxWorkers")
