@@ -243,7 +243,7 @@ function build_mr_client {
 
     "${BUILD_COMMAND[@]}"
 
-    ## flink spark client jars
+    ## build mr client jars
     mkdir -p "$DIST_DIR/mr"
     cp "$PROJECT_DIR"/client-mr/mr-shaded/target/celeborn-client-mr-shaded_${SCALA_VERSION}-$VERSION.jar "$DIST_DIR/mr/"
 }
@@ -261,7 +261,7 @@ function build_tez_client {
 
     "${BUILD_COMMAND[@]}"
 
-    ## flink spark client jars
+    ## build tez client jars
     mkdir -p "$DIST_DIR/tez"
     cp "$PROJECT_DIR"/client-tez/tez-shaded/target/celeborn-client-tez-shaded_${SCALA_VERSION}-$VERSION.jar "$DIST_DIR/tez/"
 }
