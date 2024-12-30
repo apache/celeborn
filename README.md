@@ -378,6 +378,25 @@ Meanwhile, configure the following settings in YARN and MapReduce config.
 **Note**: `MRAppMasterWithCeleborn` supports setting `mapreduce.celeborn.master.endpoints` via environment variable `CELEBORN_MASTER_ENDPOINTS`.
 Meanwhile, `MRAppMasterWithCeleborn` disables `yarn.app.mapreduce.am.job.recovery.enable` and sets `mapreduce.job.reduce.slowstart.completedmaps` to 1 by default.
 
+
+### Deploy Tez client
+Copy `$CELEBORN_HOME/tez/*.jar` into `mapreduce.application.classpath` and `yarn.application.classpath`.
+Meanwhile, configure the following settings in hive-site config and append `org.apache.tez.dag.app.CelebornDagAppMaster` to your `tez.am.launch.cmd-opts` in the `tez-site.xml`  
+```properties
+tez.celeborn.master.endpoints <master-1-1>:9097
+```
+**Note**: `CelebornDagAppMaster` supports setting `tez.celeborn.master.endpoints` via environment variable `CELEBORN_MASTER_ENDPOINTS`.
+Meanwhile, `CelebornDagAppMaster` will override following configs in tez-site.xml.
+
+| config item                                              | override value |
+|----------------------------------------------------------|----------------|
+| tez.shuffle-vertex-manager.min-src-fraction              | 1.0f           |
+| tez.shuffle-vertex-manager.max-src-fraction              | 1.0f           |
+| tez.runtime.transfer.data-via-events.enabled             | false          |
+| tez.runtime.transfer.data-via-events.support.in-mem.file | false          |
+| tez.runtime.pipelined-shuffle.enabled                    | false          |
+| tez.am.node-unhealthy-reschedule-tasks                   | false          |
+
 ### Best Practice
 If you want to set up a production-ready Celeborn cluster, your cluster should have at least 3 masters and at least 4 workers.
 Masters and works can be deployed on the same node but should not deploy multiple masters or workers on the same node.

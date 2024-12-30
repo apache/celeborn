@@ -1822,10 +1822,11 @@
       <id>tez</id>
       <modules>
         <module>client-tez/tez</module>
+        <module>client-tez/tez-shaded</module>
         <module>tests/tez-it</module>
       </modules>
       <properties>
-        <tez.version>0.10.3</tez.version>
+        <tez.version>0.10.2</tez.version>
       </properties>
       <dependencyManagement>
         <dependencies>
