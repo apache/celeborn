@@ -13,7 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_executable(celeborn_protocol_test PartitionLocationTest.cpp)
+add_executable(
+        celeborn_protocol_test
+        PartitionLocationTest.cpp
+        TransportMessageTest.cpp)
 
 add_test(NAME celeborn_protocol_test COMMAND celeborn_protocol_test)
 
