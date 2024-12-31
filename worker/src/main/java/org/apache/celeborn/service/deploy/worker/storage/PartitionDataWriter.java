@@ -31,8 +31,8 @@ import scala.Tuple4;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.roaringbitmap.RoaringBitmap;
@@ -102,7 +102,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   protected final long memoryFileStorageMaxFileSize;
   protected AtomicBoolean isMemoryShuffleFile = new AtomicBoolean();
   protected final String filename;
-  protected PooledByteBufAllocator pooledByteBufAllocator;
+  protected ByteBufAllocator allocator;
   private final PartitionDataWriterContext writerContext;
   private final long localFlusherBufferSize;
   private final long hdfsFlusherBufferSize;
@@ -155,7 +155,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     // Reduce partition data writers support memory storage now
     if (supportInMemory && createFileResult._1() != null) {
       this.memoryFileInfo = createFileResult._1();
-      this.pooledByteBufAllocator = storageManager.storageBufferAllocator();
+      this.allocator = storageManager.storageBufferAllocator();
       this.isMemoryShuffleFile.set(true);
       storageManager.registerMemoryPartitionWriter(this, createFileResult._1());
     } else if (createFileResult._2() != null) {
@@ -669,7 +669,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         flushBuffer = flusher.takeBuffer();
       } else {
         if (flushBuffer == null) {
-          flushBuffer = pooledByteBufAllocator.compositeBuffer(Integer.MAX_VALUE);
+          flushBuffer = allocator.compositeBuffer(Integer.MAX_VALUE);
         }
       }
     }

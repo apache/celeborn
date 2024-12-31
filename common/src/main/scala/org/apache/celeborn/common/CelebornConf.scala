@@ -603,6 +603,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def networkMemoryAllocatorAllowCache: Boolean =
     get(NETWORK_MEMORY_ALLOCATOR_ALLOW_CACHE)
 
+  def networkMemoryAllocatorPooled: Boolean =
+    get(NETWORK_MEMORY_ALLOCATOR_POOLED)
+
   def networkAllocatorArenas: Int = get(NETWORK_MEMORY_ALLOCATOR_ARENAS).getOrElse(Math.max(
     Runtime.getRuntime.availableProcessors(),
     2))
@@ -1781,6 +1784,17 @@ object CelebornConf extends Logging {
       .doc("When false, globally disable thread-local cache in the shared PooledByteBufAllocator.")
       .booleanConf
       .createWithDefault(false)
+
+  val NETWORK_MEMORY_ALLOCATOR_POOLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.network.memory.allocator.pooled")
+      .categories("network")
+      .internal
+      .version("0.6.0")
+      .doc("If disabled, always use UnpooledByteBufAllocator for aggressive memory reclamation, " +
+        "this is helpful for cases that worker has high memory usage even after triming. " +
+        "Disabling would cause performace degression and higher CPU usage.")
+      .booleanConf
+      .createWithDefault(true)
 
   val NETWORK_MEMORY_ALLOCATOR_SHARE: ConfigEntry[Boolean] =
     buildConf("celeborn.network.memory.allocator.share")

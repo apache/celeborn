@@ -93,7 +93,7 @@ public class TransportClientFactory implements Closeable {
   private final int sendBuf;
   private final Class<? extends Channel> socketChannelClass;
   private EventLoopGroup workerGroup;
-  protected ByteBufAllocator pooledAllocator;
+  protected ByteBufAllocator allocator;
   private final int maxClientConnectRetries;
   private final int maxClientConnectRetryWaitTimeMs;
 
@@ -115,9 +115,8 @@ public class TransportClientFactory implements Closeable {
     logger.info("Module {} mode {} threads {}", conf.getModuleName(), ioMode, conf.clientThreads());
     this.workerGroup =
         NettyUtils.createEventLoop(ioMode, conf.clientThreads(), conf.getModuleName() + "-client");
-    this.pooledAllocator =
-        NettyUtils.getPooledByteBufAllocator(
-            conf, context.getSource(), false, conf.clientThreads());
+    this.allocator =
+        NettyUtils.getByteBufAllocator(conf, context.getSource(), false, conf.clientThreads());
     this.maxClientConnectRetries = conf.maxIORetries();
     this.maxClientConnectRetryWaitTimeMs = conf.ioRetryWaitTimeMs();
   }
@@ -268,7 +267,7 @@ public class TransportClientFactory implements Closeable {
         .option(ChannelOption.TCP_NODELAY, true)
         .option(ChannelOption.SO_KEEPALIVE, true)
         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeoutMs)
-        .option(ChannelOption.ALLOCATOR, pooledAllocator);
+        .option(ChannelOption.ALLOCATOR, allocator);
 
     if (receiveBuf > 0) {
       bootstrap.option(ChannelOption.SO_RCVBUF, receiveBuf);
