@@ -51,8 +51,7 @@ public abstract class AbstractRemoteShuffleServiceFactory
   @Override
   public ShuffleMaster<ShuffleDescriptor> createShuffleMaster(
       ShuffleMasterContext shuffleMasterContext) {
-    return new RemoteShuffleMaster(
-        shuffleMasterContext, new SimpleResultPartitionAdapter(), nettyShuffleServiceFactory);
+    return new RemoteShuffleMaster(shuffleMasterContext, nettyShuffleServiceFactory);
   }
 
   @Override

@@ -74,20 +74,17 @@ public class RemoteShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
   private final ScheduledExecutorService executor =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor(
           "celeborn-client-remote-shuffle-master-executor");
-  private final ResultPartitionAdapter resultPartitionDelegation;
   private final long lifecycleManagerTimestamp;
   private final NettyShuffleServiceFactory nettyShuffleServiceFactory;
   private volatile NettyShuffleMaster nettyShuffleMaster;
 
   public RemoteShuffleMaster(
       ShuffleMasterContext shuffleMasterContext,
-      ResultPartitionAdapter resultPartitionDelegation,
       @Nullable NettyShuffleServiceFactory nettyShuffleServiceFactory) {
     Configuration configuration = shuffleMasterContext.getConfiguration();
     checkShuffleConfig(configuration);
     this.conf = FlinkUtils.toCelebornConf(configuration);
     this.shuffleMasterContext = shuffleMasterContext;
-    this.resultPartitionDelegation = resultPartitionDelegation;
     this.lifecycleManagerTimestamp = System.currentTimeMillis();
     this.nettyShuffleServiceFactory = nettyShuffleServiceFactory;
   }
@@ -253,8 +250,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
       TaskInputsOutputsDescriptor taskInputsOutputsDescriptor) {
     for (ResultPartitionType partitionType :
         taskInputsOutputsDescriptor.getPartitionTypes().values()) {
-      boolean isBlockingShuffle =
-          resultPartitionDelegation.isBlockingResultPartition(partitionType);
+      boolean isBlockingShuffle = partitionType.isBlockingOrBlockingPersistentResultPartition();
       if (!isBlockingShuffle) {
         throw new RuntimeException(
             "Blocking result partition type expected but found " + partitionType);

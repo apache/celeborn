@@ -321,7 +321,6 @@ public class RemoteShuffleMasterSuiteJ {
                 System.exit(-1);
               }
             },
-            new SimpleResultPartitionAdapter(),
             nettyShuffleServiceFactory);
 
     return remoteShuffleMaster;
