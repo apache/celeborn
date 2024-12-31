@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
-/** Factory class to create {@link RemoteShuffleResultPartition}. */
+/** Factory class to create {@link AbstractRemoteShuffleResultPartition}. */
 public abstract class AbstractRemoteShuffleResultPartitionFactory {
 
   private static final Logger LOG =

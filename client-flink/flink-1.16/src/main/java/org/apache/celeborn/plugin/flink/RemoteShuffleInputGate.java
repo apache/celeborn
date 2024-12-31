@@ -20,9 +20,7 @@ package org.apache.celeborn.plugin.flink;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.flink.core.memory.MemorySegment;
@@ -35,16 +33,13 @@ import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.SubpartitionIndexRange;
-import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
-import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
@@ -53,16 +48,13 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.util.CloseableIterator;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.celeborn.common.CelebornConf;
 
 /** A {@link IndexedInputGate} which ingest data from remote shuffle workers. */
-public class RemoteShuffleInputGate extends IndexedInputGate {
-
-  private final RemoteShuffleInputGateDelegation inputGateDelegation;
+public class RemoteShuffleInputGate extends AbstractRemoteShuffleInputGate {
 
   public RemoteShuffleInputGate(
       CelebornConf celebornConf,
@@ -72,138 +64,19 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
       BufferDecompressor bufferDecompressor,
       int numConcurrentReading) {
-
-    inputGateDelegation =
-        new RemoteShuffleInputGateDelegation(
-            celebornConf,
-            taskName,
-            gateIndex,
-            gateDescriptor,
-            bufferPoolFactory,
-            bufferDecompressor,
-            numConcurrentReading,
-            availabilityHelper,
-            gateDescriptor.getConsumedSubpartitionIndexRange().getStartIndex(),
-            gateDescriptor.getConsumedSubpartitionIndexRange().getEndIndex());
-  }
-
-  /** Setup gate and build network connections. */
-  @Override
-  public void setup() throws IOException {
-    inputGateDelegation.setup();
-  }
-
-  /** Index of the gate of the corresponding computing task. */
-  @Override
-  public int getGateIndex() {
-    return inputGateDelegation.getGateIndex();
-  }
-
-  /** Get number of input channels. A channel is a data flow from one shuffle worker. */
-  @Override
-  public int getNumberOfInputChannels() {
-    return inputGateDelegation.getBufferReaders().size();
-  }
-
-  /** Whether reading is finished -- all channels are finished and cached buffers are drained. */
-  @Override
-  public boolean isFinished() {
-    return inputGateDelegation.isFinished();
-  }
-
-  @Override
-  public Optional<BufferOrEvent> getNext() {
-    throw new UnsupportedOperationException("Not implemented (DataSet API is not supported).");
-  }
-
-  /** Poll a received {@link BufferOrEvent}. */
-  @Override
-  public Optional<BufferOrEvent> pollNext() throws IOException {
-    return inputGateDelegation.pollNext();
-  }
-
-  /** Close all reading channels inside this {@link RemoteShuffleInputGate}. */
-  @Override
-  public void close() throws Exception {
-    inputGateDelegation.close();
-  }
-
-  /** Get {@link InputChannelInfo}s of this {@link RemoteShuffleInputGate}. */
-  @Override
-  public List<InputChannelInfo> getChannelInfos() {
-    return inputGateDelegation.getChannelsInfo();
-  }
-
-  @Override
-  public void requestPartitions() {
-    // do-nothing
-  }
-
-  @Override
-  public void checkpointStarted(CheckpointBarrier barrier) {
-    // do-nothing.
-  }
-
-  @Override
-  public void checkpointStopped(long cancelledCheckpointId) {
-    // do-nothing.
-  }
-
-  @Override
-  public void triggerDebloating() {
-    // do-nothing.
-  }
-
-  @Override
-  public List<InputChannelInfo> getUnfinishedChannels() {
-    return Collections.emptyList();
-  }
-
-  @Override
-  public EndOfDataStatus hasReceivedEndOfData() {
-    if (inputGateDelegation.getPendingEndOfDataEvents() > 0) {
-      return EndOfDataStatus.NOT_END_OF_DATA;
-    } else {
-      // Keep compatibility with streaming mode.
-      return EndOfDataStatus.DRAINED;
-    }
-  }
-
-  @Override
-  public void finishReadRecoveredState() {
-    // do-nothing.
+    super(
+        celebornConf,
+        taskName,
+        gateIndex,
+        gateDescriptor,
+        bufferPoolFactory,
+        bufferDecompressor,
+        numConcurrentReading);
   }
 
   @Override
   public InputChannel getChannel(int channelIndex) {
     return new FakedRemoteInputChannel(channelIndex);
-  }
-
-  @Override
-  public void sendTaskEvent(TaskEvent event) {
-    throw new FlinkRuntimeException("Method should not be called.");
-  }
-
-  @Override
-  public void resumeConsumption(InputChannelInfo channelInfo) {
-    throw new FlinkRuntimeException("Method should not be called.");
-  }
-
-  @Override
-  public void acknowledgeAllRecordsProcessed(InputChannelInfo inputChannelInfo) {}
-
-  @Override
-  public CompletableFuture<Void> getStateConsumedFuture() {
-    return CompletableFuture.completedFuture(null);
-  }
-
-  @Override
-  public String toString() {
-    return String.format(
-        "ReadGate [owning task: %s, gate index: %d, descriptor: %s]",
-        inputGateDelegation.getTaskName(),
-        inputGateDelegation.getGateIndex(),
-        inputGateDelegation.getGateDescriptor().toString());
   }
 
   /** Accommodation for the incompleteness of Flink pluggable shuffle service. */
