@@ -26,16 +26,39 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
+import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 
-public class AbstractRemoteShuffleServiceFactory {
-  public static int calculateNumberOfNetworkBuffers(MemorySize memorySize, int bufferSize) {
+public abstract class AbstractRemoteShuffleServiceFactory
+    implements ShuffleServiceFactory<ShuffleDescriptor, ResultPartitionWriter, IndexedInputGate> {
+
+  public final NettyShuffleServiceFactory nettyShuffleServiceFactory =
+      new NettyShuffleServiceFactory();
+
+  @Override
+  public ShuffleMaster<ShuffleDescriptor> createShuffleMaster(
+      ShuffleMasterContext shuffleMasterContext) {
+    return new RemoteShuffleMaster(shuffleMasterContext, nettyShuffleServiceFactory);
+  }
+
+  @Override
+  public abstract ShuffleEnvironment<ResultPartitionWriter, IndexedInputGate>
+      createShuffleEnvironment(ShuffleEnvironmentContext shuffleEnvironmentContext);
+
+  private int calculateNumberOfNetworkBuffers(MemorySize memorySize, int bufferSize) {
     long numBuffersLong = memorySize.getBytes() / bufferSize;
     if (numBuffersLong > Integer.MAX_VALUE) {
       throw new IllegalArgumentException(
@@ -46,7 +69,7 @@ public class AbstractRemoteShuffleServiceFactory {
     return (int) numBuffersLong;
   }
 
-  protected static AbstractRemoteShuffleServiceParameters initializePreCreateShuffleEnvironment(
+  protected AbstractRemoteShuffleServiceParameters initializePreCreateShuffleEnvironment(
       ShuffleEnvironmentContext shuffleEnvironmentContext) {
     Configuration configuration = shuffleEnvironmentContext.getConfiguration();
     int bufferSize = ConfigurationParserUtils.getPageSize(configuration);

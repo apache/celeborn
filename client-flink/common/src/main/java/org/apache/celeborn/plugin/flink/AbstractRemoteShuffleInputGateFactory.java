@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
-/** Factory class to create RemoteShuffleInputGate. */
+/** Factory class to create {@link AbstractRemoteShuffleInputGate}. */
 public abstract class AbstractRemoteShuffleInputGateFactory {
 
   public static final int MIN_BUFFERS_PER_GATE = 16;
