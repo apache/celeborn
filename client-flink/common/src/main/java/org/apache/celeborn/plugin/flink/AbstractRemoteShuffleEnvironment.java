@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.plugin.flink;
 
+import static org.apache.celeborn.plugin.flink.metric.RemoteShuffleMetricFactory.createShuffleIOOwnerMetricGroup;
 import static org.apache.celeborn.plugin.flink.utils.Utils.checkNotNull;
 import static org.apache.celeborn.plugin.flink.utils.Utils.checkState;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.*;
@@ -119,13 +120,13 @@ public abstract class AbstractRemoteShuffleEnvironment {
 
   public ShuffleIOOwnerContext createShuffleIOOwnerContext(
       String ownerName, ExecutionAttemptID executionAttemptID, MetricGroup parentGroup) {
-    MetricGroup nettyGroup = createShuffleIOOwnerMetricGroup(checkNotNull(parentGroup));
+    MetricGroup remoteGroup = createShuffleIOOwnerMetricGroup(checkNotNull(parentGroup));
     return new ShuffleIOOwnerContext(
         checkNotNull(ownerName),
         checkNotNull(executionAttemptID),
         parentGroup,
-        nettyGroup.addGroup(METRIC_GROUP_OUTPUT),
-        nettyGroup.addGroup(METRIC_GROUP_INPUT));
+        remoteGroup.addGroup(METRIC_GROUP_OUTPUT),
+        remoteGroup.addGroup(METRIC_GROUP_INPUT));
   }
 
   public Collection<ResultPartitionID> getPartitionsOccupyingLocalResources() {
