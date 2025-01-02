@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.master.http.api
 import javax.ws.rs.{FormParam, GET, Path, POST}
 import javax.ws.rs.core.MediaType
 
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -34,76 +35,77 @@ import org.apache.celeborn.server.common.http.api.ApiRequestContext
 class ApiMasterResource extends ApiRequestContext {
 
   @Path("/masterGroupInfo")
+  @Operation(description =
+    "List master group information of the service. It will list all master's LEADER, FOLLOWER information.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
-      mediaType = MediaType.TEXT_PLAIN)),
-    description =
-      "List master group information of the service. It will list all master's LEADER, FOLLOWER information.")
+      mediaType = MediaType.TEXT_PLAIN)))
   @GET
   def masterGroupInfo: String = httpService.getMasterGroupInfo
 
   @Path("/lostWorkers")
+  @Operation(description = "List all lost workers of the master.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
-      mediaType = MediaType.TEXT_PLAIN)),
-    description = "List all lost workers of the master.")
+      mediaType = MediaType.TEXT_PLAIN)))
   @GET
   def lostWorkers: String = httpService.getLostWorkers
 
   @Path("/excludedWorkers")
+  @Operation(description = "List all excluded workers of the master.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
-      mediaType = MediaType.TEXT_PLAIN)),
-    description = "List all excluded workers of the master.")
+      mediaType = MediaType.TEXT_PLAIN)))
   @GET
   def excludedWorkers: String = httpService.getExcludedWorkers
 
   @Path("/shutdownWorkers")
+  @Operation(description = "List all shutdown workers of the master.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
-      mediaType = MediaType.TEXT_PLAIN)),
-    description = "List all shutdown workers of the master.")
+      mediaType = MediaType.TEXT_PLAIN)))
   @GET
   def shutdownWorkers: String = httpService.getShutdownWorkers
 
   @Path("/decommissionWorkers")
+  @Operation(description = "List all decommission workers of the master.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
-      mediaType = MediaType.TEXT_PLAIN)),
-    description = "List all decommission workers of the master.")
+      mediaType = MediaType.TEXT_PLAIN)))
   @GET
   def decommissionWorkers: String = httpService.getDecommissionWorkers
 
   @Path("/hostnames")
+  @Operation(description =
+    "List all running application's LifecycleManager's hostnames of the cluster.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
-      mediaType = MediaType.TEXT_PLAIN)),
-    description = "List all running application's LifecycleManager's hostnames of the cluster.")
+      mediaType = MediaType.TEXT_PLAIN)))
   @GET
   def hostnames: String = httpService.getHostnameList
 
   @Path("/workerEventInfo")
+  @Operation(description = "List all worker event infos of the master.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
-      mediaType = MediaType.TEXT_PLAIN)),
-    description = "List all worker event infos of the master.")
+      mediaType = MediaType.TEXT_PLAIN)))
   @GET
   def workerEventInfo: String = httpService.getWorkerEventInfo()
 
   @Path("/exclude")
+  @Operation(description =
+    "Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove, which value is separated by commas.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
-      mediaType = MediaType.APPLICATION_FORM_URLENCODED)),
-    description =
-      "Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove, which value is separated by commas.")
+      mediaType = MediaType.APPLICATION_FORM_URLENCODED)))
   @POST
   def exclude(
       @FormParam("add") addWorkers: String,
@@ -120,12 +122,12 @@ class ApiMasterResource extends ApiRequestContext {
   }
 
   @Path("/sendWorkerEvent")
+  @Operation(description =
+    "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission', and the parameter workers is separated by commas.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
-      mediaType = MediaType.APPLICATION_FORM_URLENCODED)),
-    description =
-      "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission', and the parameter workers is separated by commas.")
+      mediaType = MediaType.APPLICATION_FORM_URLENCODED)))
   @POST
   def sendWorkerEvent(
       @FormParam("type") eventType: String,

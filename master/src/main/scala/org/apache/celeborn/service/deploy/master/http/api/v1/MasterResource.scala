@@ -22,6 +22,7 @@ import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
 
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -38,13 +39,13 @@ import org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaMana
 class MasterResource extends ApiRequestContext {
   private def master = httpService.asInstanceOf[Master]
 
+  @Operation(description =
+    "List master group information of the service. It will list all master's LEADER, FOLLOWER information.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[MasterInfoResponse]))),
-    description =
-      "List master group information of the service. It will list all master's LEADER, FOLLOWER information.")
+      schema = new Schema(implementation = classOf[MasterInfoResponse]))))
   @GET
   def masterGroupInfo: MasterInfoResponse = {
     if (master.conf.haEnabled) {
