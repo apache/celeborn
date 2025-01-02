@@ -539,7 +539,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcDumpIntervalMs(): Long = get(RPC_SUMMARY_DUMP_INTERVAL)
 
   def networkIoMode(module: String): String = {
-    getTransportConf(module, NETWORK_IO_MODE)
+    get(
+      NETWORK_IO_MODE.key.replace("<module>", module),
+      if (Epoll.isAvailable) IOMode.EPOLL.name() else IOMode.NIO.name())
   }
 
   def networkIoPreferDirectBufs(module: String): Boolean = {
@@ -1931,15 +1933,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
-  val NETWORK_IO_MODE: ConfigEntry[String] =
+  val NETWORK_IO_MODE: OptionalConfigEntry[String] =
     buildConf("celeborn.<module>.io.mode")
       .categories("network")
       .doc("Netty EventLoopGroup backend, available options: NIO, EPOLL. If epoll mode is available, the default IO mode is EPOLL; otherwise, the default is NIO.")
       .stringConf
       .transform(_.toUpperCase)
       .checkValues(Set(IOMode.NIO.name(), IOMode.EPOLL.name()))
-      .createWithDefaultFunction(() =>
-        if (Epoll.isAvailable) IOMode.EPOLL.name() else IOMode.NIO.name())
+      .createOptional
 
   val NETWORK_IO_PREFER_DIRECT_BUFS: ConfigEntry[Boolean] =
     buildConf("celeborn.<module>.io.preferDirectBufs")
