@@ -25,8 +25,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -60,8 +60,8 @@ public class MemoryPartitionFilesSorterSuiteJ {
     fileInfo = new MemoryFileInfo(userIdentifier, true, new ReduceFileMeta(8 * 1024 * 1024));
 
     AbstractSource source = Mockito.mock(AbstractSource.class);
-    PooledByteBufAllocator allocator =
-        NettyUtils.getSharedPooledByteBufAllocator(new CelebornConf(), source, false);
+    ByteBufAllocator allocator =
+        NettyUtils.getSharedByteBufAllocator(new CelebornConf(), source, false);
     CompositeByteBuf buffer = allocator.compositeBuffer();
     fileInfo.setBuffer(buffer);
 

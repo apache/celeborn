@@ -124,8 +124,7 @@ public class PartitionDataWriterSuiteUtils {
             source,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             1,
-            NettyUtils.getPooledByteBufAllocator(
-                new TransportConf("test", celebornConf), null, true),
+            NettyUtils.getByteBufAllocator(new TransportConf("test", celebornConf), null, true),
             256,
             "disk1",
             StorageInfo.Type.HDD,

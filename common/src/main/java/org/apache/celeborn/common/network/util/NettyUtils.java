@@ -23,7 +23,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadFactory;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
@@ -42,9 +44,8 @@ import org.apache.celeborn.common.util.JavaUtils;
 
 /** Utilities for creating various Netty constructs based on whether we're using EPOLL or NIO. */
 public class NettyUtils {
-  private static final PooledByteBufAllocator[] _sharedPooledByteBufAllocator =
-      new PooledByteBufAllocator[2];
-  private static ConcurrentHashMap<String, Integer> allocatorsIndex =
+  private static final ByteBufAllocator[] _sharedByteBufAllocator = new ByteBufAllocator[2];
+  private static final ConcurrentHashMap<String, Integer> allocatorsIndex =
       JavaUtils.newConcurrentHashMap();
   /** Creates a new ThreadFactory which prefixes each thread with the given name. */
   public static ThreadFactory createThreadFactory(String threadPoolPrefix) {
@@ -98,58 +99,69 @@ public class NettyUtils {
   }
 
   /**
-   * Create a pooled ByteBuf allocator but disables the thread-local cache. Thread-local caches are
-   * disabled for TransportClients because the ByteBufs are allocated by the event loop thread, but
-   * released by the executor thread rather than the event loop thread. Those thread-local caches
-   * actually delay the recycling of buffers, leading to larger memory usage.
+   * Create a ByteBufAllocator that respects the parameters
+   *
+   * @param pooled If true, create a PooledByteBufAllocator, otherwise UnpooledByteBufAllocator
+   * @param allowDirectBufs If true and platform supports, allocate ByteBuf in direct memory,
+   *     otherwise in heap memory.
+   * @param allowCache If true, enable thread-local cache, it only take effect for
+   *     PooledByteBufAllocator.
+   * @param numCores Number of heap/direct arenas, 0 means use number of cpu cores, it only take
+   *     effect for PooledByteBufAllocator.
    */
-  private static PooledByteBufAllocator createPooledByteBufAllocator(
-      boolean allowDirectBufs, boolean allowCache, int numCores) {
-    if (numCores == 0) {
-      numCores = Runtime.getRuntime().availableProcessors();
+  private static ByteBufAllocator createByteBufAllocator(
+      boolean pooled, boolean allowDirectBufs, boolean allowCache, int numCores) {
+    if (pooled) {
+      if (numCores == 0) {
+        numCores = Runtime.getRuntime().availableProcessors();
+      }
+      return new PooledByteBufAllocator(
+          allowDirectBufs && PlatformDependent.directBufferPreferred(),
+          Math.min(PooledByteBufAllocator.defaultNumHeapArena(), numCores),
+          Math.min(PooledByteBufAllocator.defaultNumDirectArena(), allowDirectBufs ? numCores : 0),
+          PooledByteBufAllocator.defaultPageSize(),
+          PooledByteBufAllocator.defaultMaxOrder(),
+          allowCache ? PooledByteBufAllocator.defaultSmallCacheSize() : 0,
+          allowCache ? PooledByteBufAllocator.defaultNormalCacheSize() : 0,
+          allowCache && PooledByteBufAllocator.defaultUseCacheForAllThreads());
+    } else {
+      return new UnpooledByteBufAllocator(
+          allowDirectBufs && PlatformDependent.directBufferPreferred());
     }
-    return new PooledByteBufAllocator(
-        allowDirectBufs && PlatformDependent.directBufferPreferred(),
-        Math.min(PooledByteBufAllocator.defaultNumHeapArena(), numCores),
-        Math.min(PooledByteBufAllocator.defaultNumDirectArena(), allowDirectBufs ? numCores : 0),
-        PooledByteBufAllocator.defaultPageSize(),
-        PooledByteBufAllocator.defaultMaxOrder(),
-        allowCache ? PooledByteBufAllocator.defaultSmallCacheSize() : 0,
-        allowCache ? PooledByteBufAllocator.defaultNormalCacheSize() : 0,
-        allowCache && PooledByteBufAllocator.defaultUseCacheForAllThreads());
   }
 
   /**
    * Returns the lazily created shared pooled ByteBuf allocator for the specified allowCache
    * parameter value.
    */
-  public static synchronized PooledByteBufAllocator getSharedPooledByteBufAllocator(
+  public static synchronized ByteBufAllocator getSharedByteBufAllocator(
       CelebornConf conf, AbstractSource source, boolean allowCache) {
     final int index = allowCache ? 0 : 1;
-    if (_sharedPooledByteBufAllocator[index] == null) {
-      _sharedPooledByteBufAllocator[index] =
-          createPooledByteBufAllocator(true, allowCache, conf.networkAllocatorArenas());
+    if (_sharedByteBufAllocator[index] == null) {
+      _sharedByteBufAllocator[index] =
+          createByteBufAllocator(
+              conf.networkMemoryAllocatorPooled(), true, allowCache, conf.networkAllocatorArenas());
       if (source != null) {
         new NettyMemoryMetrics(
-            _sharedPooledByteBufAllocator[index],
+            _sharedByteBufAllocator[index],
             "shared-pool-" + index,
             conf.networkAllocatorVerboseMetric(),
             source,
             Collections.emptyMap());
       }
     }
-    return _sharedPooledByteBufAllocator[index];
+    return _sharedByteBufAllocator[index];
   }
 
-  public static PooledByteBufAllocator getPooledByteBufAllocator(
+  public static ByteBufAllocator getByteBufAllocator(
       TransportConf conf, AbstractSource source, boolean allowCache) {
-    return getPooledByteBufAllocator(conf, source, allowCache, 0);
+    return getByteBufAllocator(conf, source, allowCache, 0);
   }
 
-  public static PooledByteBufAllocator getPooledByteBufAllocator(
+  public static ByteBufAllocator getByteBufAllocator(
       TransportConf conf, AbstractSource source, boolean allowCache, int coreNum) {
     if (conf.getCelebornConf().networkShareMemoryAllocator()) {
-      return getSharedPooledByteBufAllocator(
+      return getSharedByteBufAllocator(
           conf.getCelebornConf(),
           source,
           allowCache && conf.getCelebornConf().networkMemoryAllocatorAllowCache());
@@ -160,8 +172,12 @@ public class NettyUtils {
     } else {
       arenas = conf.getCelebornConf().networkAllocatorArenas();
     }
-    PooledByteBufAllocator allocator =
-        createPooledByteBufAllocator(conf.preferDirectBufs(), allowCache, arenas);
+    ByteBufAllocator allocator =
+        createByteBufAllocator(
+            conf.getCelebornConf().networkMemoryAllocatorPooled(),
+            conf.preferDirectBufs(),
+            allowCache,
+            arenas);
     if (source != null) {
       String poolName = "default-netty-pool";
       Map<String, String> labels = new HashMap<>();

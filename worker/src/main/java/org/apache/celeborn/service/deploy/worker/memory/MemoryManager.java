@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.LongAdder;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.internal.PlatformDependent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -546,7 +546,7 @@ public class MemoryManager {
     readBufferDispatcher.close();
   }
 
-  public PooledByteBufAllocator getStoragePooledByteBufAllocator() {
+  public ByteBufAllocator getStorageByteBufAllocator() {
     return storageManager.storageBufferAllocator();
   }
 

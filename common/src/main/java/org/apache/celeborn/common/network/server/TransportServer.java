@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -91,8 +91,8 @@ public class TransportServer implements Closeable {
     EventLoopGroup workerGroup =
         NettyUtils.createEventLoop(ioMode, conf.serverThreads(), conf.getModuleName() + "-server");
 
-    PooledByteBufAllocator allocator =
-        NettyUtils.getPooledByteBufAllocator(conf, source, true, conf.serverThreads());
+    ByteBufAllocator allocator =
+        NettyUtils.getByteBufAllocator(conf, source, true, conf.serverThreads());
 
     bootstrap =
         new ServerBootstrap()

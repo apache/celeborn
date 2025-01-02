@@ -29,7 +29,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
 import com.google.common.annotations.VisibleForTesting
-import io.netty.buffer.PooledByteBufAllocator
+import io.netty.buffer.{ByteBufAllocator, PooledByteBufAllocator}
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
@@ -131,8 +131,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   private val deviceMonitor =
     DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, tmpDiskInfos, workerSource)
 
-  val storageBufferAllocator: PooledByteBufAllocator =
-    NettyUtils.getPooledByteBufAllocator(new TransportConf("StorageManager", conf), null, true)
+  val storageBufferAllocator: ByteBufAllocator =
+    NettyUtils.getByteBufAllocator(new TransportConf("StorageManager", conf), null, true)
 
   // (mountPoint -> LocalFlusher)
   private val (
