@@ -172,7 +172,7 @@ paths:
       operationId: workerExit
       description: |
         Trigger this worker to exit.
-        Legal exit types are 'Decommission', 'Graceful' and 'Immediately'.
+        Legal exit types are 'DECOMMISSION', 'GRACEFUL' and 'IMMEDIATELY'.
       requestBody:
         content:
           application/json:
@@ -574,7 +574,7 @@ components:
         hdfsFileCount:
           type: integer
           format: int64
-        subResourceConsumption:
+        subResourceConsumptions:
           type: object
           additionalProperties:
             $ref: '#/components/schemas/WorkerResourceConsumption'

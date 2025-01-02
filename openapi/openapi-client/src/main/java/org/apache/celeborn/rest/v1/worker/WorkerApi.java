@@ -185,7 +185,7 @@ public class WorkerApi extends BaseApi {
 
   /**
    * 
-   * Trigger this worker to exit. Legal exit types are &#39;Decommission&#39;, &#39;Graceful&#39; and &#39;Immediately&#39;. 
+   * Trigger this worker to exit. Legal exit types are &#39;DECOMMISSION&#39;, &#39;GRACEFUL&#39; and &#39;IMMEDIATELY&#39;. 
    * @param workerExitRequest  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
@@ -197,7 +197,7 @@ public class WorkerApi extends BaseApi {
 
   /**
    * 
-   * Trigger this worker to exit. Legal exit types are &#39;Decommission&#39;, &#39;Graceful&#39; and &#39;Immediately&#39;. 
+   * Trigger this worker to exit. Legal exit types are &#39;DECOMMISSION&#39;, &#39;GRACEFUL&#39; and &#39;IMMEDIATELY&#39;. 
    * @param workerExitRequest  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse

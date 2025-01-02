@@ -38,7 +38,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkerResourceConsumption.JSON_PROPERTY_DISK_FILE_COUNT,
   WorkerResourceConsumption.JSON_PROPERTY_HDFS_BYTES_WRITTEN,
   WorkerResourceConsumption.JSON_PROPERTY_HDFS_FILE_COUNT,
-  WorkerResourceConsumption.JSON_PROPERTY_SUB_RESOURCE_CONSUMPTION
+  WorkerResourceConsumption.JSON_PROPERTY_SUB_RESOURCE_CONSUMPTIONS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class WorkerResourceConsumption {
@@ -54,8 +54,8 @@ public class WorkerResourceConsumption {
   public static final String JSON_PROPERTY_HDFS_FILE_COUNT = "hdfsFileCount";
   private Long hdfsFileCount;
 
-  public static final String JSON_PROPERTY_SUB_RESOURCE_CONSUMPTION = "subResourceConsumption";
-  private Map<String, WorkerResourceConsumption> subResourceConsumption = new HashMap<>();
+  public static final String JSON_PROPERTY_SUB_RESOURCE_CONSUMPTIONS = "subResourceConsumptions";
+  private Map<String, WorkerResourceConsumption> subResourceConsumptions = new HashMap<>();
 
   public WorkerResourceConsumption() {
   }
@@ -160,37 +160,37 @@ public class WorkerResourceConsumption {
     this.hdfsFileCount = hdfsFileCount;
   }
 
-  public WorkerResourceConsumption subResourceConsumption(Map<String, WorkerResourceConsumption> subResourceConsumption) {
+  public WorkerResourceConsumption subResourceConsumptions(Map<String, WorkerResourceConsumption> subResourceConsumptions) {
     
-    this.subResourceConsumption = subResourceConsumption;
+    this.subResourceConsumptions = subResourceConsumptions;
     return this;
   }
 
-  public WorkerResourceConsumption putSubResourceConsumptionItem(String key, WorkerResourceConsumption subResourceConsumptionItem) {
-    if (this.subResourceConsumption == null) {
-      this.subResourceConsumption = new HashMap<>();
+  public WorkerResourceConsumption putSubResourceConsumptionsItem(String key, WorkerResourceConsumption subResourceConsumptionsItem) {
+    if (this.subResourceConsumptions == null) {
+      this.subResourceConsumptions = new HashMap<>();
     }
-    this.subResourceConsumption.put(key, subResourceConsumptionItem);
+    this.subResourceConsumptions.put(key, subResourceConsumptionsItem);
     return this;
   }
 
   /**
-   * Get subResourceConsumption
-   * @return subResourceConsumption
+   * Get subResourceConsumptions
+   * @return subResourceConsumptions
    */
   @javax.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_SUB_RESOURCE_CONSUMPTION)
+  @JsonProperty(JSON_PROPERTY_SUB_RESOURCE_CONSUMPTIONS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
-  public Map<String, WorkerResourceConsumption> getSubResourceConsumption() {
-    return subResourceConsumption;
+  public Map<String, WorkerResourceConsumption> getSubResourceConsumptions() {
+    return subResourceConsumptions;
   }
 
 
-  @JsonProperty(JSON_PROPERTY_SUB_RESOURCE_CONSUMPTION)
+  @JsonProperty(JSON_PROPERTY_SUB_RESOURCE_CONSUMPTIONS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSubResourceConsumption(Map<String, WorkerResourceConsumption> subResourceConsumption) {
-    this.subResourceConsumption = subResourceConsumption;
+  public void setSubResourceConsumptions(Map<String, WorkerResourceConsumption> subResourceConsumptions) {
+    this.subResourceConsumptions = subResourceConsumptions;
   }
 
   @Override
@@ -206,12 +206,12 @@ public class WorkerResourceConsumption {
         Objects.equals(this.diskFileCount, workerResourceConsumption.diskFileCount) &&
         Objects.equals(this.hdfsBytesWritten, workerResourceConsumption.hdfsBytesWritten) &&
         Objects.equals(this.hdfsFileCount, workerResourceConsumption.hdfsFileCount) &&
-        Objects.equals(this.subResourceConsumption, workerResourceConsumption.subResourceConsumption);
+        Objects.equals(this.subResourceConsumptions, workerResourceConsumption.subResourceConsumptions);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(diskBytesWritten, diskFileCount, hdfsBytesWritten, hdfsFileCount, subResourceConsumption);
+    return Objects.hash(diskBytesWritten, diskFileCount, hdfsBytesWritten, hdfsFileCount, subResourceConsumptions);
   }
 
   @Override
@@ -222,7 +222,7 @@ public class WorkerResourceConsumption {
     sb.append("    diskFileCount: ").append(toIndentedString(diskFileCount)).append("\n");
     sb.append("    hdfsBytesWritten: ").append(toIndentedString(hdfsBytesWritten)).append("\n");
     sb.append("    hdfsFileCount: ").append(toIndentedString(hdfsFileCount)).append("\n");
-    sb.append("    subResourceConsumption: ").append(toIndentedString(subResourceConsumption)).append("\n");
+    sb.append("    subResourceConsumptions: ").append(toIndentedString(subResourceConsumptions)).append("\n");
     sb.append("}");
     return sb.toString();
   }
