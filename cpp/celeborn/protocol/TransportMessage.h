@@ -24,6 +24,7 @@
 #include "celeborn/proto/TransportMessagesCpp.pb.h"
 
 namespace celeborn {
+namespace protocol {
 class TransportMessage {
  public:
   TransportMessage(MessageType type, std::string&& payload);
@@ -45,4 +46,5 @@ class TransportMessage {
   int messageTypeValue_;
   std::string payload_;
 };
+} // namespace protocol
 } // namespace celeborn

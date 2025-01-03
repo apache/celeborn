@@ -19,6 +19,7 @@
 #include "celeborn/utils/Exceptions.h"
 
 namespace celeborn {
+namespace protocol {
 TransportMessage::TransportMessage(MessageType type, std::string&& payload)
     : type_(type), payload_(std::move(payload)) {
   messageTypeValue_ = type;
@@ -44,4 +45,5 @@ std::unique_ptr<ReadOnlyByteBuffer> TransportMessage::toReadOnlyByteBuffer()
   CELEBORN_CHECK_EQ(buffer->size(), bufSize);
   return ByteBuffer::toReadOnly(std::move(buffer));
 }
+} // namespace protocol
 } // namespace celeborn

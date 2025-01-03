@@ -21,6 +21,7 @@
 #include "celeborn/protocol/TransportMessage.h"
 
 using namespace celeborn;
+using namespace celeborn::protocol;
 
 TEST(TransportMessageTest, constructFromPayload) {
   const std::string payload = "payload";
