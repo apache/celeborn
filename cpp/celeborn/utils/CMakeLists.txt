@@ -14,13 +14,15 @@
 # limitations under the License.
 add_library(
         utils
-        ProcessBase.cpp StackTrace.cpp CelebornException.cpp Exceptions.cpp flags.cpp)
+        STATIC
+        ProcessBase.cpp
+        StackTrace.cpp
+        CelebornException.cpp
+        Exceptions.cpp
+        flags.cpp)
 
 target_link_libraries(
         utils
-        ${WANGLE}
-        ${FIZZ}
-        ${LIBSODIUM_LIBRARY}
         ${FOLLY_WITH_DEPENDENCIES}
         ${GLOG}
         ${GFLAGS_LIBRARIES}

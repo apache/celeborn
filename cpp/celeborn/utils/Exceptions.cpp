@@ -18,9 +18,13 @@
 
 #include "celeborn/utils/Exceptions.h"
 
-namespace celeborn::detail {
+namespace celeborn {
+namespace utils {
+namespace detail {
 
-CELEBORN_DEFINE_CHECK_FAIL_TEMPLATES(::celeborn::CelebornRuntimeError);
-CELEBORN_DEFINE_CHECK_FAIL_TEMPLATES(::celeborn::CelebornUserError);
+CELEBORN_DEFINE_CHECK_FAIL_TEMPLATES(::celeborn::utils::CelebornRuntimeError);
+CELEBORN_DEFINE_CHECK_FAIL_TEMPLATES(::celeborn::utils::CelebornUserError);
 
-} // namespace celeborn::detail
+} // namespace detail
+} // namespace utils
+} // namespace celeborn

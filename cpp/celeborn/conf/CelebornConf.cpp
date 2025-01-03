@@ -20,6 +20,8 @@
 #include "celeborn/conf/CelebornConf.h"
 
 namespace celeborn {
+namespace conf {
+using Duration = utils::Duration;
 namespace {
 
 // folly::to<> does not generate 'true' and 'false', so we do it ourselves.
@@ -167,21 +169,21 @@ void CelebornConf::registerProperty(
 }
 
 Timeout CelebornConf::rpcLookupTimeout() const {
-  return toTimeout(toDuration(optionalProperty(kRpcLookupTimeout).value()));
+  return utils::toTimeout(toDuration(optionalProperty(kRpcLookupTimeout).value()));
 }
 
 Timeout CelebornConf::clientRpcGetReducerFileGroupRpcAskTimeout() const {
-  return toTimeout(toDuration(
+  return utils::toTimeout(toDuration(
       optionalProperty(kClientRpcGetReducerFileGroupRpcAskTimeout).value()));
 }
 
 Timeout CelebornConf::networkConnectTimeout() const {
-  return toTimeout(
+  return utils::toTimeout(
       toDuration(optionalProperty(kNetworkConnectTimeout).value()));
 }
 
 Timeout CelebornConf::clientFetchTimeout() const {
-  return toTimeout(toDuration(optionalProperty(kClientFetchTimeout).value()));
+  return utils::toTimeout(toDuration(optionalProperty(kClientFetchTimeout).value()));
 }
 
 int CelebornConf::networkIoNumConnectionsPerPeer() const {
@@ -195,4 +197,5 @@ int CelebornConf::networkIoClientThreads() const {
 int CelebornConf::clientFetchMaxReqsInFlight() const {
   return std::stoi(optionalProperty(kClientFetchMaxReqsInFlight).value());
 }
+} // namespace conf
 } // namespace celeborn

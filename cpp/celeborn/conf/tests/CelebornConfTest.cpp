@@ -20,7 +20,9 @@
 
 #include "celeborn/conf/CelebornConf.h"
 
-using namespace celeborn;
+using namespace celeborn::conf;
+
+using CelebornUserError = celeborn::utils::CelebornUserError;
 using SECOND = std::chrono::seconds;
 using MILLISENCOND = std::chrono::milliseconds;
 

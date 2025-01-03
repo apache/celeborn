@@ -21,6 +21,8 @@
 #include "celeborn/utils/CelebornUtils.h"
 
 namespace celeborn {
+using Timeout = utils::Timeout;
+namespace conf {
 /***
  * steps to add a new config:
  * === in CelebornConf.h:
@@ -82,4 +84,5 @@ class CelebornConf : public BaseConf {
 
   int clientFetchMaxReqsInFlight() const;
 };
+} // namespace conf
 } // namespace celeborn

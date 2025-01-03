@@ -21,6 +21,7 @@
 #include <folly/io/IOBuf.h>
 
 namespace celeborn {
+namespace memory {
 class ReadOnlyByteBuffer;
 class WriteOnlyByteBuffer;
 
@@ -177,4 +178,5 @@ class WriteOnlyByteBuffer : public ByteBuffer {
  private:
   std::unique_ptr<folly::io::Appender> appender_;
 };
+} // namespace memory
 } // namespace celeborn

@@ -20,7 +20,7 @@
 #include "celeborn/proto/TransportMessagesCpp.pb.h"
 #include "celeborn/protocol/PartitionLocation.h"
 
-using namespace celeborn;
+using namespace celeborn::protocol;
 
 std::unique_ptr<PbStorageInfo> generateStorageInfoPb() {
   auto pbStorageInfo = std::make_unique<PbStorageInfo>();

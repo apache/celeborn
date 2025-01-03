@@ -23,7 +23,8 @@
 #include <string>
 #include <vector>
 
-namespace celeborn::utils {
+namespace celeborn {
+namespace utils {
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -90,4 +91,5 @@ class StackTrace {
 };
 
 ///////////////////////////////////////////////////////////////////////////////
-} // namespace celeborn::utils
+} // namespace utils
+} // namespace celeborn

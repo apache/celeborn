@@ -19,7 +19,7 @@
 
 #include "celeborn/memory/ByteBuffer.h"
 
-using namespace celeborn;
+using namespace celeborn::memory;
 
 namespace {
 template <typename T>

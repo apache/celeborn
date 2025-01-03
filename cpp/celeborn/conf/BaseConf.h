@@ -30,6 +30,7 @@
 #include "celeborn/utils/Exceptions.h"
 
 namespace celeborn {
+namespace conf {
 
 class Config {
  public:
@@ -260,4 +261,5 @@ class BaseConf {
       registeredProps_;
 };
 
+} // namespace conf
 } // namespace celeborn

@@ -20,7 +20,6 @@
 #include "celeborn/proto/TransportMessagesCpp.pb.h"
 #include "celeborn/protocol/TransportMessage.h"
 
-using namespace celeborn;
 using namespace celeborn::protocol;
 
 TEST(TransportMessageTest, constructFromPayload) {

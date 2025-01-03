@@ -23,6 +23,7 @@
 #include "celeborn/utils/Exceptions.h"
 
 namespace celeborn {
+namespace protocol {
 struct StorageInfo {
   static std::unique_ptr<StorageInfo> fromPb(const PbStorageInfo& pb);
 
@@ -92,4 +93,5 @@ struct PartitionLocation {
   static std::unique_ptr<PartitionLocation> fromPbWithoutPeer(
       const PbPartitionLocation& pb);
 };
+} // namespace protocol
 } // namespace celeborn

@@ -22,7 +22,7 @@
 
 #include "celeborn/utils/Exceptions.h"
 
-using namespace celeborn;
+using namespace celeborn::utils;
 
 struct Counter {
   mutable int counter = 0;
@@ -109,11 +109,12 @@ void testExceptionTraceCollectionControl(bool userException, bool enabled) {
           false);
     }
   } catch (CelebornException& e) {
-    SCOPED_TRACE(fmt::format(
-        "enabled: {}, user flag: {}, sys flag: {}",
-        enabled,
-        FLAGS_celeborn_exception_user_stacktrace_enabled,
-        FLAGS_celeborn_exception_system_stacktrace_enabled));
+    SCOPED_TRACE(
+        fmt::format(
+            "enabled: {}, user flag: {}, sys flag: {}",
+            enabled,
+            FLAGS_celeborn_exception_user_stacktrace_enabled,
+            FLAGS_celeborn_exception_system_stacktrace_enabled));
     ASSERT_EQ(
         userException, e.exceptionType() == CelebornException::Type::kUser);
     ASSERT_EQ(enabled, e.stackTrace() != nullptr);
@@ -174,12 +175,13 @@ void testExceptionTraceCollectionRateControl(
             false);
       }
     } catch (CelebornException& e) {
-      SCOPED_TRACE(fmt::format(
-          "userException: {}, hasRateLimit: {}, user limit: {}ms, sys limit: {}ms",
-          userException,
-          hasRateLimit,
-          FLAGS_celeborn_exception_user_stacktrace_rate_limit_ms,
-          FLAGS_celeborn_exception_system_stacktrace_rate_limit_ms));
+      SCOPED_TRACE(
+          fmt::format(
+              "userException: {}, hasRateLimit: {}, user limit: {}ms, sys limit: {}ms",
+              userException,
+              hasRateLimit,
+              FLAGS_celeborn_exception_user_stacktrace_rate_limit_ms,
+              FLAGS_celeborn_exception_system_stacktrace_rate_limit_ms));
       ASSERT_EQ(
           userException, e.exceptionType() == CelebornException::Type::kUser);
       ASSERT_EQ(!hasRateLimit || ((iter % 2) == 0), e.stackTrace() != nullptr);
@@ -583,35 +585,36 @@ TEST(ExceptionTest, context) {
     int* callCount;
   };
 
-  auto messageFunction = [](celeborn::CelebornException::Type exceptionType,
-                            void* untypedArg) {
-    auto arg = static_cast<MessageFunctionArg*>(untypedArg);
-    ++(*arg->callCount);
-    switch (exceptionType) {
-      case celeborn::CelebornException::Type::kUser:
-        return fmt::format("User error: {}", arg->message);
-      case celeborn::CelebornException::Type::kSystem:
-        return fmt::format("System error: {}", arg->message);
-      default:
-        return fmt::format("Unexpected error type: {}", arg->message);
-    }
-  };
+  auto messageFunction =
+      [](celeborn::utils::CelebornException::Type exceptionType,
+         void* untypedArg) {
+        auto arg = static_cast<MessageFunctionArg*>(untypedArg);
+        ++(*arg->callCount);
+        switch (exceptionType) {
+          case celeborn::utils::CelebornException::Type::kUser:
+            return fmt::format("User error: {}", arg->message);
+          case celeborn::utils::CelebornException::Type::kSystem:
+            return fmt::format("System error: {}", arg->message);
+          default:
+            return fmt::format("Unexpected error type: {}", arg->message);
+        }
+      };
 
   {
     // Create multi-layer contexts with top level marked as essential.
     MessageFunctionArg topLevelTroubleshootingAid{
         "Top-level troubleshooting aid.", &callCount};
-    celeborn::ExceptionContextSetter additionalContext(
+    celeborn::utils::ExceptionContextSetter additionalContext(
         {.messageFunc = messageFunction, .arg = &topLevelTroubleshootingAid});
 
     MessageFunctionArg midLevelTroubleshootingAid{
         "Mid-level troubleshooting aid.", &callCount};
-    celeborn::ExceptionContextSetter midLevelContext(
+    celeborn::utils::ExceptionContextSetter midLevelContext(
         {messageFunction, &midLevelTroubleshootingAid});
 
     MessageFunctionArg innerLevelTroubleshootingAid{
         "Inner-level troubleshooting aid.", &callCount};
-    celeborn::ExceptionContextSetter innerLevelContext(
+    celeborn::utils::ExceptionContextSetter innerLevelContext(
         {messageFunction, &innerLevelTroubleshootingAid});
 
     verifyCelebornException(
@@ -650,17 +653,17 @@ TEST(ExceptionTest, context) {
     // Create multi-layer contexts with none marked as essential.
     MessageFunctionArg topLevelTroubleshootingAid{
         "Top-level troubleshooting aid.", &callCount};
-    celeborn::ExceptionContextSetter additionalContext(
+    celeborn::utils::ExceptionContextSetter additionalContext(
         {.messageFunc = messageFunction, .arg = &topLevelTroubleshootingAid});
 
     MessageFunctionArg midLevelTroubleshootingAid{
         "Mid-level troubleshooting aid.", &callCount};
-    celeborn::ExceptionContextSetter midLevelContext(
+    celeborn::utils::ExceptionContextSetter midLevelContext(
         {.messageFunc = messageFunction, .arg = &midLevelTroubleshootingAid});
 
     MessageFunctionArg innerLevelTroubleshootingAid{
         "Inner-level troubleshooting aid.", &callCount};
-    celeborn::ExceptionContextSetter innerLevelContext(
+    celeborn::utils::ExceptionContextSetter innerLevelContext(
         {messageFunction, &innerLevelTroubleshootingAid});
 
     verifyCelebornException(
@@ -701,7 +704,8 @@ TEST(ExceptionTest, context) {
     // Create a single layer of context. Context and top-level context are
     // expected to be the same.
     MessageFunctionArg debuggingInfo{"Debugging info.", &callCount};
-    celeborn::ExceptionContextSetter context({messageFunction, &debuggingInfo});
+    celeborn::utils::ExceptionContextSetter context(
+        {messageFunction, &debuggingInfo});
 
     verifyCelebornException(
         [&]() { CELEBORN_CHECK_EQ(1, 3); },
@@ -752,7 +756,7 @@ TEST(ExceptionTest, context) {
 
   // With message function throwing an exception.
   auto throwingMessageFunction =
-      [](celeborn::CelebornException::Type /*exceptionType*/,
+      [](celeborn::utils::CelebornException::Type /*exceptionType*/,
          void* untypedArg) -> std::string {
     auto arg = static_cast<MessageFunctionArg*>(untypedArg);
     ++(*arg->callCount);
@@ -760,7 +764,7 @@ TEST(ExceptionTest, context) {
   };
   {
     MessageFunctionArg debuggingInfo{"Debugging info.", &callCount};
-    celeborn::ExceptionContextSetter context(
+    celeborn::utils::ExceptionContextSetter context(
         {throwingMessageFunction, &debuggingInfo});
 
     verifyCelebornException(
@@ -832,21 +836,23 @@ TEST(ExceptionTest, wrappedException) {
 }
 
 TEST(ExceptionTest, wrappedExceptionWithContext) {
-  auto messageFunction = [](celeborn::CelebornException::Type exceptionType,
-                            void* untypedArg) {
-    auto data = static_cast<char*>(untypedArg);
-    switch (exceptionType) {
-      case celeborn::CelebornException::Type::kUser:
-        return fmt::format("User error: {}", data);
-      case celeborn::CelebornException::Type::kSystem:
-        return fmt::format("System error: {}", data);
-      default:
-        return fmt::format("Unexpected error type: {}", data);
-    }
-  };
+  auto messageFunction =
+      [](celeborn::utils::CelebornException::Type exceptionType,
+         void* untypedArg) {
+        auto data = static_cast<char*>(untypedArg);
+        switch (exceptionType) {
+          case celeborn::utils::CelebornException::Type::kUser:
+            return fmt::format("User error: {}", data);
+          case celeborn::utils::CelebornException::Type::kSystem:
+            return fmt::format("System error: {}", data);
+          default:
+            return fmt::format("Unexpected error type: {}", data);
+        }
+      };
 
   std::string data = "lakes";
-  celeborn::ExceptionContextSetter context({messageFunction, data.data()});
+  celeborn::utils::ExceptionContextSetter context(
+      {messageFunction, data.data()});
 
   try {
     throw std::invalid_argument("This is a test.");
@@ -873,7 +879,7 @@ TEST(ExceptionTest, wrappedExceptionWithContext) {
   }
 
   std::string innerData = "mountains";
-  celeborn::ExceptionContextSetter innerContext(
+  celeborn::utils::ExceptionContextSetter innerContext(
       {messageFunction, innerData.data()});
 
   try {

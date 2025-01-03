@@ -19,7 +19,9 @@
 
 #include "celeborn/conf/BaseConf.h"
 
-using namespace celeborn;
+using namespace celeborn::conf;
+
+using CelebornUserError = celeborn::utils::CelebornUserError;
 
 // As the BaseConf's construction is protected, we expose it explicitly.
 class TestedBaseConf : public BaseConf {};
@@ -30,16 +32,16 @@ void testInsertToConf(TestedBaseConf* conf, bool isMutable = true) {
   const std::string key1 = "key1";
   const std::string val1 = "val1";
   // Before insert.
-  EXPECT_THROW(conf->requiredProperty(key1), celeborn::CelebornUserError);
+  EXPECT_THROW(conf->requiredProperty(key1), CelebornUserError);
   EXPECT_EQ(conf->optionalProperty(key1), ValueType());
 
   // Insert.
-  EXPECT_THROW(conf->setValue(key1, val1), celeborn::CelebornUserError);
+  EXPECT_THROW(conf->setValue(key1, val1), CelebornUserError);
   EXPECT_TRUE(conf->registerProperty(key1, ValueType(val1)));
 
   // After insert.
   EXPECT_FALSE(conf->registerProperty(key1, ValueType(val1)));
-  EXPECT_THROW(conf->requiredProperty(key1), celeborn::CelebornUserError);
+  EXPECT_THROW(conf->requiredProperty(key1), CelebornUserError);
   EXPECT_EQ(conf->optionalProperty(key1), ValueType(val1));
 
   // Update.
@@ -47,7 +49,7 @@ void testInsertToConf(TestedBaseConf* conf, bool isMutable = true) {
   if (isMutable) {
     EXPECT_EQ(conf->setValue(key1, val1_1), ValueType(val1));
   } else {
-    EXPECT_THROW(conf->setValue(key1, val1_1), celeborn::CelebornUserError);
+    EXPECT_THROW(conf->setValue(key1, val1_1), CelebornUserError);
   }
 }
 
@@ -62,7 +64,7 @@ void testInitedConf(
 
   // Test insert to init config.
   const std::string val_1 = "val_1_random";
-  EXPECT_THROW(conf->setValue(key, val_1), celeborn::CelebornUserError);
+  EXPECT_THROW(conf->setValue(key, val_1), CelebornUserError);
   EXPECT_TRUE(conf->registerProperty(key, val_1));
   // The init config has highest priority.
   EXPECT_EQ(conf->optionalProperty(key), val);
@@ -75,7 +77,7 @@ void testInitedConf(
     EXPECT_EQ(conf->optionalProperty(key), ValueType(val_1));
   } else {
     // Insert with setValue() would not work!
-    EXPECT_THROW(conf->setValue(key, val_1), celeborn::CelebornUserError);
+    EXPECT_THROW(conf->setValue(key, val_1), CelebornUserError);
   }
 }
 
@@ -154,7 +156,7 @@ TEST(BaseConfTest, registerToConfInitedWithMutableConfigFile) {
 
   // The annotated kv would not be recorded.
   EXPECT_THROW(
-      conf->requiredProperty(annotatedKey), celeborn::CelebornUserError);
+      conf->requiredProperty(annotatedKey), CelebornUserError);
   // Test init.
   testInitedConf(conf.get(), true, key0, val0);
 
@@ -191,7 +193,7 @@ TEST(BaseConfTest, registerToConfInitedWithImmutableConfigFile) {
 
   // The annotated kv would not be recorded.
   EXPECT_THROW(
-      conf->requiredProperty(annotatedKey), celeborn::CelebornUserError);
+      conf->requiredProperty(annotatedKey), CelebornUserError);
   // Test init.
   testInitedConf(conf.get(), false, key0, val0);
 
