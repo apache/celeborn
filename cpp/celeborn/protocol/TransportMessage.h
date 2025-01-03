@@ -29,9 +29,9 @@ class TransportMessage {
  public:
   TransportMessage(MessageType type, std::string&& payload);
 
-  TransportMessage(std::unique_ptr<ReadOnlyByteBuffer> buf);
+  TransportMessage(std::unique_ptr<memory::ReadOnlyByteBuffer> buf);
 
-  std::unique_ptr<ReadOnlyByteBuffer> toReadOnlyByteBuffer() const;
+  std::unique_ptr<memory::ReadOnlyByteBuffer> toReadOnlyByteBuffer() const;
 
   MessageType type() const {
     return type_;

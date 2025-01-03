@@ -37,6 +37,7 @@ DECLARE_int32(celeborn_exception_user_stacktrace_rate_limit_ms);
 DECLARE_int32(celeborn_exception_system_stacktrace_rate_limit_ms);
 
 namespace celeborn {
+namespace utils {
 
 namespace error_source {
 using namespace folly::string_literals;
@@ -412,4 +413,5 @@ class ExceptionContextSetter {
  private:
   ExceptionContext prev_;
 };
+} // namespace utils
 } // namespace celeborn

@@ -29,6 +29,7 @@ namespace fs = std::experimental::filesystem;
 #include "celeborn/utils/CelebornUtils.h"
 
 namespace celeborn {
+namespace conf {
 namespace core {
 
 folly::Optional<std::string> MemConfig::get(const std::string& key) const {
@@ -225,4 +226,5 @@ void BaseConf::checkRegisteredProperties(
         << str;
   }
 }
+} // namespace conf
 } // namespace celeborn

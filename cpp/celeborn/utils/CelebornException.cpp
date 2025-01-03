@@ -24,6 +24,7 @@
 #include <exception>
 
 namespace celeborn {
+namespace utils {
 
 std::exception_ptr toCelebornException(const std::exception_ptr& exceptionPtr) {
   try {
@@ -278,4 +279,5 @@ const char* CelebornException::State::what() const noexcept {
   }
 }
 
+} // namespace utils
 } // namespace celeborn

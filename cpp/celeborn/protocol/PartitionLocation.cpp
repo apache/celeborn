@@ -22,6 +22,7 @@
 #include "celeborn/utils/Exceptions.h"
 
 namespace celeborn {
+namespace protocol {
 std::unique_ptr<StorageInfo> StorageInfo::fromPb(const PbStorageInfo& pb) {
   auto result = std::make_unique<StorageInfo>();
   result->type = static_cast<Type>(pb.type());
@@ -88,4 +89,5 @@ StatusCode toStatusCode(int32_t code) {
   CELEBORN_CHECK(code <= StatusCode::TAIL);
   return static_cast<StatusCode>(code);
 }
+} // namespace protocol
 } // namespace celeborn
