@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.util.ThreadUtils;
@@ -47,12 +48,13 @@ public class ReadBufferDispatcher {
   @VisibleForTesting public volatile boolean stopFlag = false;
   @VisibleForTesting public final AtomicReference<Thread> dispatcherThread;
 
-  public ReadBufferDispatcher(MemoryManager memoryManager, CelebornConf conf) {
+  public ReadBufferDispatcher(
+      MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
     readBufferAllocationWait = conf.readBufferAllocationWait();
     long checkThreadInterval = conf.readBufferDispatcherCheckThreadInterval();
     // readBuffer is not a module name, it's a placeholder.
     readBufferAllocator =
-        NettyUtils.getByteBufAllocator(new TransportConf("readBuffer", conf), null, true);
+        NettyUtils.getByteBufAllocator(new TransportConf("readBuffer", conf), source, true);
     this.memoryManager = memoryManager;
     dispatcherThread =
         new AtomicReference<>(

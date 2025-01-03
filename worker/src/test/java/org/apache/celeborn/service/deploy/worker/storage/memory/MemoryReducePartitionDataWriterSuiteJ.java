@@ -108,7 +108,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
     Mockito.when(storageManager.evictedFileCount()).thenAnswer(a -> evictCount);
     Mockito.when(storageManager.localOrDfsStorageAvailable()).thenAnswer(a -> true);
     Mockito.when(storageManager.storageBufferAllocator()).thenAnswer(a -> allocator);
-    MemoryManager.initialize(conf, storageManager);
+    MemoryManager.initialize(conf, storageManager, null);
   }
 
   public static void setupChunkServer(FileInfo info) throws IOException {
