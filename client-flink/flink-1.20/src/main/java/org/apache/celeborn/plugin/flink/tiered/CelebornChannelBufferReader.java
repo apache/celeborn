@@ -42,9 +42,9 @@ import org.apache.celeborn.common.protocol.PbNotifyRequiredSegment;
 import org.apache.celeborn.common.protocol.PbReadAddCredit;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.plugin.flink.ShuffleResourceDescriptor;
+import org.apache.celeborn.plugin.flink.client.CelebornBufferStream;
+import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl;
 import org.apache.celeborn.plugin.flink.protocol.SubPartitionReadData;
-import org.apache.celeborn.plugin.flink.readclient.CelebornBufferStream;
-import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
 
 /**
  * Wrap the {@link CelebornBufferStream}, utilize in flink hybrid shuffle integration strategy now.

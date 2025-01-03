@@ -32,7 +32,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
+import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl;
 
 public class RemoteShuffleOutputGateSuiteJ {
   private final RemoteShuffleOutputGate remoteShuffleOutputGate =

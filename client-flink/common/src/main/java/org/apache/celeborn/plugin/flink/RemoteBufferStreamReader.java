@@ -31,9 +31,9 @@ import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.PbReadAddCredit;
 import org.apache.celeborn.plugin.flink.buffer.CreditListener;
 import org.apache.celeborn.plugin.flink.buffer.TransferBufferPool;
+import org.apache.celeborn.plugin.flink.client.CelebornBufferStream;
+import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
-import org.apache.celeborn.plugin.flink.readclient.CelebornBufferStream;
-import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
 
 public class RemoteBufferStreamReader extends CreditListener {
   private static Logger logger = LoggerFactory.getLogger(RemoteBufferStreamReader.class);
