@@ -115,7 +115,7 @@ public class MemoryPartitionFilesSorterSuiteJ {
 
     StorageManager storageManager = Mockito.mock(StorageManager.class);
     Mockito.when(storageManager.storageBufferAllocator()).thenAnswer(a -> allocator);
-    MemoryManager.initialize(conf, storageManager);
+    MemoryManager.initialize(conf, storageManager, null);
     partitionDataWriter = Mockito.mock(PartitionDataWriter.class);
     when(partitionDataWriter.getMemoryFileInfo()).thenAnswer(i -> fileInfo);
 

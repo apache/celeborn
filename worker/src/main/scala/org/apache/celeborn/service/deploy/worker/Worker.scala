@@ -180,7 +180,7 @@ private[celeborn] class Worker(
 
   val storageManager = new StorageManager(conf, workerSource)
 
-  val memoryManager: MemoryManager = MemoryManager.initialize(conf, storageManager)
+  val memoryManager: MemoryManager = MemoryManager.initialize(conf, storageManager, workerSource)
   memoryManager.registerMemoryListener(storageManager)
 
   val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
