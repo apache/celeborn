@@ -22,7 +22,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl
+import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl
 import org.apache.celeborn.service.deploy.{HeartbeatFeature, MiniClusterFeature}
 
 class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature with HeartbeatFeature

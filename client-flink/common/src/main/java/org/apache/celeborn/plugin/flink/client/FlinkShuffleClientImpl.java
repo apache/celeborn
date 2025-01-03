@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.plugin.flink.readclient;
+package org.apache.celeborn.plugin.flink.client;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

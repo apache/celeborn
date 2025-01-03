@@ -37,7 +37,7 @@ import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.message.StatusCode;
-import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
+import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl;
 
 public class FlinkShuffleClientImplSuiteJ {
   static int BufferSize = 64;

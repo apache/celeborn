@@ -63,7 +63,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.plugin.flink.RemoteShuffleResource;
 import org.apache.celeborn.plugin.flink.ShuffleResourceDescriptor;
 import org.apache.celeborn.plugin.flink.buffer.ReceivedNoHeaderBufferPacker;
-import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
+import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl;
 
 public class CelebornTierConsumerAgent implements TierConsumerAgent {
 
