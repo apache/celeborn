@@ -22,6 +22,7 @@
 #include "celeborn/utils/Exceptions.h"
 
 namespace celeborn {
+namespace utils {
 #define CELEBORN_STARTUP_LOG_PREFIX "[CELEBORN_STARTUP] "
 #define CELEBORN_STARTUP_LOG(severity) \
   LOG(severity) << CELEBORN_STARTUP_LOG_PREFIX
@@ -37,5 +38,5 @@ inline Timeout toTimeout(Duration duration) {
   return std::chrono::duration_cast<Timeout>(duration);
 
 }
+} // namespace utils
 } // namespace celeborn
-

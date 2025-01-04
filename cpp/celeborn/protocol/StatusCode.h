@@ -17,7 +17,7 @@
 
 #pragma once
 
-namespace celeborn {
+namespace celeborn::protocol {
 enum StatusCode {
   // 1/0 Status
   SUCCESS = 0,
@@ -92,4 +92,4 @@ enum StatusCode {
 };
 
 StatusCode toStatusCode(int32_t code);
-} // namespace celeborn
+} // namespace celeborn::protocol

@@ -25,7 +25,8 @@ TransportMessage::TransportMessage(MessageType type, std::string&& payload)
   messageTypeValue_ = type;
 }
 
-TransportMessage::TransportMessage(std::unique_ptr<ReadOnlyByteBuffer> buf) {
+TransportMessage::TransportMessage(
+    std::unique_ptr<memory::ReadOnlyByteBuffer> buf) {
   int messageTypeValue = buf->read<int32_t>();
   int payloadLen = buf->read<int32_t>();
   CELEBORN_CHECK_EQ(buf->remainingSize(), payloadLen);
@@ -35,15 +36,15 @@ TransportMessage::TransportMessage(std::unique_ptr<ReadOnlyByteBuffer> buf) {
   payload_ = buf->readToString(payloadLen);
 }
 
-std::unique_ptr<ReadOnlyByteBuffer> TransportMessage::toReadOnlyByteBuffer()
-    const {
+std::unique_ptr<memory::ReadOnlyByteBuffer>
+TransportMessage::toReadOnlyByteBuffer() const {
   int bufSize = payload_.size() + 4 + 4;
-  auto buffer = ByteBuffer::createWriteOnly(bufSize);
+  auto buffer = memory::ByteBuffer::createWriteOnly(bufSize);
   buffer->write<int>(messageTypeValue_);
   buffer->write<int>(payload_.size());
   buffer->writeFromString(payload_);
   CELEBORN_CHECK_EQ(buffer->size(), bufSize);
-  return ByteBuffer::toReadOnly(std::move(buffer));
+  return memory::ByteBuffer::toReadOnly(std::move(buffer));
 }
 } // namespace protocol
 } // namespace celeborn

@@ -41,7 +41,8 @@
 #include <folly/fibers/FiberManager.h> // @manual
 #endif
 
-namespace celeborn::utils {
+namespace celeborn {
+namespace utils {
 
 StackTrace::StackTrace(int32_t skipFrames) {
   create(skipFrames);
@@ -189,4 +190,5 @@ std::string StackTrace::demangle(const char* mangled) {
   return folly::demangle(mangled).toStdString();
 }
 
-} // namespace celeborn::utils
+} // namespace utils
+} // namespace celeborn
