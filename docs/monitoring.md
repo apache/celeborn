@@ -217,6 +217,7 @@ These metrics are exposed by Celeborn worker.
     | SortTime                               | The time for a worker to sort a shuffle file.                                                                   |
     | SortMemory                             | The memory used by sorting shuffle files.                                                                       |
     | SortingFiles                           | The count of sorting shuffle files.                                                                             |
+    | PendingSortTaks                        | The count of sort tasks waiting to be submitted to FileSorterExecutors.                                         |
     | SortedFiles                            | The count of sorted shuffle files.                                                                              |
     | SortedFileSize                         | The count of sorted shuffle files 's total size.                                                                |
     | DiskBuffer                             | The memory occupied by pushData and pushMergedData which should be written to disk.                             |

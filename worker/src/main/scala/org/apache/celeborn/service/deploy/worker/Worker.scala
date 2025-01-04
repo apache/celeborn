@@ -370,6 +370,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.SORT_MEMORY) { () =>
     memoryManager.getSortMemoryCounter.get()
   }
+  workerSource.addGauge(WorkerSource.PENDING_SORT_TASKS) { () =>
+    partitionsSorter.getPendingSortTaskCount
+  }
   workerSource.addGauge(WorkerSource.SORTING_FILES) { () =>
     partitionsSorter.getSortingCount
   }

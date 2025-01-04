@@ -177,8 +177,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         });
   }
 
-  public int getSortingCount() {
+  public int getPendingSortTaskCount() {
     return shuffleSortTaskDeque.size();
+  }
+
+  public int getSortingCount() {
+    return sortingShuffleFiles.values().stream().map(Set::size).reduce(Integer::sum).orElse(0);
   }
 
   public int getSortedCount() {
