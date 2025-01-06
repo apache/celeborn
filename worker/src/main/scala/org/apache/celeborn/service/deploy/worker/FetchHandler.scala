@@ -511,7 +511,7 @@ class FetchHandler(
       client: TransportClient,
       streamChunkSlice: StreamChunkSlice,
       req: RequestMessage): Unit = {
-    val remoteAddr = NettyUtils.getRemoteAddress(client.getChannel)
+    lazy val remoteAddr = NettyUtils.getRemoteAddress(client.getChannel)
     logDebug(s"Received req from ${remoteAddr}" +
       s" to fetch block $streamChunkSlice")
 
