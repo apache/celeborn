@@ -53,6 +53,37 @@ std::unique_ptr<const PartitionLocation> PartitionLocation::fromPb(
   return std::move(result);
 }
 
+
+std::unique_ptr<PartitionLocation> PartitionLocation::fromPackedPb(
+    const PbPackedPartitionLocations& pb,
+    int idx) {
+  auto& workerIdStr = pb.workeridsset(pb.workerids(idx));
+  auto workerIdParts = utils::parseColonSeparatedHostPorts(workerIdStr, 4);
+  std::string filePath = pb.filepaths(idx);
+  if (!filePath.empty()) {
+    filePath = pb.mountpointsset(pb.mountpoints(idx)) + pb.filepaths(idx);
+  }
+
+  auto result = std::make_unique<PartitionLocation>();
+  result->id = pb.ids(idx);
+  result->epoch = pb.epoches(idx);
+  result->host = workerIdParts[0];
+  result->rpcPort = utils::strv2val<int>(workerIdParts[1]);
+  result->pushPort = utils::strv2val<int>(workerIdParts[2]);
+  result->fetchPort = utils::strv2val<int>(workerIdParts[3]);
+  result->replicatePort = utils::strv2val<int>(workerIdParts[4]);
+  result->mode = static_cast<Mode>(pb.modes(idx));
+  result->replicaPeer = nullptr;
+  result->storageInfo = std::make_unique<StorageInfo>();
+  result->storageInfo->type = static_cast<StorageInfo::Type>(pb.types(idx));
+  result->storageInfo->mountPoint = pb.mountpointsset(pb.mountpoints(idx));
+  result->storageInfo->finalResult = pb.finalresult(idx);
+  result->storageInfo->filePath = filePath;
+  result->storageInfo->availableStorageTypes = pb.availablestoragetypes(idx);
+
+  return std::move(result);
+}
+
 PartitionLocation::PartitionLocation(const PartitionLocation& other)
     : id(other.id),
       epoch(other.epoch),

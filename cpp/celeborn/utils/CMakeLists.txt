@@ -19,7 +19,8 @@ add_library(
         StackTrace.cpp
         CelebornException.cpp
         Exceptions.cpp
-        flags.cpp)
+        flags.cpp
+        CelebornUtils.cpp)
 
 target_link_libraries(
         utils
