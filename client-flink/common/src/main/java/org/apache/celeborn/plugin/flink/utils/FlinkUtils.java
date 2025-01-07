@@ -32,8 +32,6 @@ public class FlinkUtils {
   private static final JobID ZERO_JOB_ID = new JobID(0, 0);
   public static final Set<String> pluginConfNames =
       ImmutableSet.of(
-          "remote-shuffle.job.min.memory-per-partition",
-          "remote-shuffle.job.min.memory-per-gate",
           "remote-shuffle.job.concurrent-readings-per-gate",
           "remote-shuffle.job.memory-per-partition",
           "remote-shuffle.job.memory-per-gate",
