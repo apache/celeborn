@@ -206,6 +206,7 @@ These metrics are exposed by Celeborn worker.
     | PausePushDataAndReplicateTime          | The time for a worker to stop receiving pushData from clients and other workers because of back pressure.       |
     | PausePushData                          | The count for a worker to stop receiving pushData from clients because of back pressure.                        |
     | PausePushDataAndReplicate              | The count for a worker to stop receiving pushData from clients and other workers because of back pressure.      |
+    | PartitionFileSizeBytes                 | The size of partition files committed in current worker.                                                        |
     | TakeBufferTime                         | The time for a worker to take out a buffer from a disk flusher.                                                 |
     | FlushDataTime                          | The time for a worker to write a buffer which is 256KB by default to storage.                                   |
     | CommitFilesTime                        | The time for a worker to flush buffers and close files related to specified shuffle.                            |

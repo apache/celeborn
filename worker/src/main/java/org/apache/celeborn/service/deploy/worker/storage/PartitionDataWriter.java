@@ -549,8 +549,10 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       }
     }
     if (diskFileInfo != null) {
+      source.updateHistogram(WorkerSource.PARTITION_FILE_SIZE(), diskFileInfo.getFileLength());
       return diskFileInfo.getFileLength();
     } else {
+      source.updateHistogram(WorkerSource.PARTITION_FILE_SIZE(), memoryFileInfo.getFileLength());
       return memoryFileInfo.getFileLength();
     }
   }
