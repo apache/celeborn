@@ -1059,7 +1059,9 @@ public class ShuffleClientImpl extends ShuffleClient {
             @Override
             public void updateLatestPartition(PartitionLocation newloc) {
               pushState.addBatch(nextBatchId, newloc.hostAndPushPort());
-              pushState.removeBatch(nextBatchId, this.latest.hostAndPushPort());
+              if (!newloc.hostAndPushPort().equals(this.latest.hostAndPushPort())) {
+                pushState.removeBatch(nextBatchId, this.latest.hostAndPushPort());
+              }
               this.latest = newloc;
             }
 
