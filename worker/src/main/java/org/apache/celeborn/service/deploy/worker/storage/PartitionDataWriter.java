@@ -426,7 +426,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     }
 
     try {
-      waitOnNoPending(numPendingWrites);
+      waitOnNoPending(numPendingWrites, false);
       closed = true;
 
       synchronized (flushLock) {
@@ -439,7 +439,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       }
 
       tryClose.run();
-      waitOnNoPending(notifier.numPendingFlushes);
+      waitOnNoPending(notifier.numPendingFlushes, true);
     } finally {
       returnBuffer(false);
       try {
@@ -496,7 +496,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       if (memoryFileInfo != null) {
         evictInternal();
         if (isClosed()) {
-          waitOnNoPending(notifier.numPendingFlushes);
+          waitOnNoPending(notifier.numPendingFlushes, true);
           storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), diskFileInfo);
         }
       }
@@ -551,7 +551,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     }
   }
 
-  protected void waitOnNoPending(AtomicInteger counter) throws IOException {
+  protected void waitOnNoPending(AtomicInteger counter, boolean failWhenTimeout)
+      throws IOException {
     long waitTime = writerCloseTimeoutMs;
     while (counter.get() > 0 && waitTime > 0) {
       try {
@@ -564,7 +565,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       }
       waitTime -= WAIT_INTERVAL_MS;
     }
-    if (counter.get() > 0) {
+    if (counter.get() > 0 && failWhenTimeout) {
       IOException ioe = new IOException("Wait pending actions timeout, Counter: " + counter.get());
       notifier.setException(ioe);
       throw ioe;
