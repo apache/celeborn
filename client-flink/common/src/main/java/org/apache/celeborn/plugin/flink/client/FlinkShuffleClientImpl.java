@@ -160,6 +160,10 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     if (readClientHandler != null) {
       readClientHandler.close();
     }
+    for (TransportClient client : currentClient.values()) {
+      client.close();
+    }
+    currentClient.clear();
   }
 
   public FlinkShuffleClientImpl(
@@ -685,8 +689,9 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   public void cleanup(int shuffleId, int mapId, int attemptId) {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     super.cleanup(shuffleId, mapId, attemptId);
-    if (currentClient != null) {
-      currentClient.remove(mapKey);
+    TransportClient client = currentClient.remove(mapKey);
+    if (client != null) {
+      client.close();
     }
   }
 
