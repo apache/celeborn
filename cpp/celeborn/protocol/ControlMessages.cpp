@@ -43,47 +43,42 @@ GetReducerFileGroupResponse::fromTransportMessage(
   auto fileGroups = pbGetReducerFileGroupResponse->filegroups();
   for (auto& kv : fileGroups) {
     auto& fileGroup = response->fileGroups[kv.first];
-    // Legacy mode: the locations are valid, so use it.
-    if (kv.second.locations().size() > 0) {
-      for (const auto& location : kv.second.locations()) {
-        fileGroup.insert(PartitionLocation::fromPb(location));
-      }
-    }
+    // Legacy mode is deprecated.
+    CELEBORN_CHECK_EQ(
+        kv.second.locations().size(),
+        0,
+        "legecy PartitionLocation pb is deprecated");
     // Packed mode: must use packedPartitionLocations.
-    else {
-      auto& pbPackedPartitionLocationsPair = kv.second.partitionlocationspair();
-      int inputLocationSize =
-          pbPackedPartitionLocationsPair.inputlocationsize();
-      auto& pbPackedPartitionLocations =
-          pbPackedPartitionLocationsPair.locations();
-      std::vector<std::unique_ptr<PartitionLocation>> partialLocations;
-      auto& pbIds = pbPackedPartitionLocations.ids();
-      for (int idx = 0; idx < pbIds.size(); idx++) {
-        partialLocations.push_back(
-            PartitionLocation::fromPackedPb(pbPackedPartitionLocations, idx));
+    auto& pbPackedPartitionLocationsPair = kv.second.partitionlocationspair();
+    int inputLocationSize = pbPackedPartitionLocationsPair.inputlocationsize();
+    auto& pbPackedPartitionLocations =
+        pbPackedPartitionLocationsPair.locations();
+    std::vector<std::unique_ptr<PartitionLocation>> partialLocations;
+    auto& pbIds = pbPackedPartitionLocations.ids();
+    for (int idx = 0; idx < pbIds.size(); idx++) {
+      partialLocations.push_back(
+          PartitionLocation::fromPackedPb(pbPackedPartitionLocations, idx));
+    }
+    for (int idx = 0; idx < inputLocationSize; idx++) {
+      auto replicaIdx = pbPackedPartitionLocationsPair.peerindexes(idx);
+      // has peer
+      if (replicaIdx != INT_MAX) {
+        CELEBORN_CHECK_GE(replicaIdx, inputLocationSize);
+        CELEBORN_CHECK_LT(replicaIdx, partialLocations.size());
+        auto location = std::move(partialLocations[idx]);
+        auto peerLocation = std::move(partialLocations[replicaIdx]);
+        // make sure the location is primary and peer location is replica
+        if (location->mode == PartitionLocation::Mode::REPLICA) {
+          std::swap(location, peerLocation);
+        }
+        CELEBORN_CHECK(location->mode == PartitionLocation::Mode::PRIMARY);
+        CELEBORN_CHECK(peerLocation->mode == PartitionLocation::Mode::REPLICA);
+        location->replicaPeer = std::move(peerLocation);
+        fileGroup.insert(std::move(location));
       }
-      for (int idx = 0; idx < inputLocationSize; idx++) {
-        auto replicaIdx = pbPackedPartitionLocationsPair.peerindexes(idx);
-        // has peer
-        if (replicaIdx != INT_MAX) {
-          CELEBORN_CHECK_GE(replicaIdx, inputLocationSize);
-          CELEBORN_CHECK_LT(replicaIdx, partialLocations.size());
-          auto location = std::move(partialLocations[idx]);
-          auto peerLocation = std::move(partialLocations[replicaIdx]);
-          // make sure the location is primary and peer location is replica
-          if (location->mode == PartitionLocation::Mode::REPLICA) {
-            std::swap(location, peerLocation);
-          }
-          CELEBORN_CHECK(location->mode == PartitionLocation::Mode::PRIMARY);
-          CELEBORN_CHECK(
-              peerLocation->mode == PartitionLocation::Mode::REPLICA);
-          location->replicaPeer = std::move(peerLocation);
-          fileGroup.insert(std::move(location));
-        }
-        // has no peer
-        else {
-          fileGroup.insert(std::move(partialLocations[idx]));
-        }
+      // has no peer
+      else {
+        fileGroup.insert(std::move(partialLocations[idx]));
       }
     }
   }

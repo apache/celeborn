@@ -26,26 +26,6 @@ using namespace celeborn;
 using namespace celeborn::protocol;
 
 namespace {
-void setBasicPartitionLocationPb(PbPartitionLocation* pbPartitionLocation) {
-  pbPartitionLocation->set_id(1);
-  pbPartitionLocation->set_epoch(101);
-  pbPartitionLocation->set_host("test_host");
-  pbPartitionLocation->set_rpcport(1001);
-  pbPartitionLocation->set_pushport(1002);
-  pbPartitionLocation->set_fetchport(1003);
-  pbPartitionLocation->set_replicateport(1004);
-}
-
-void verifyBasicPartitionLocation(const PartitionLocation* partitionLocation) {
-  EXPECT_EQ(partitionLocation->id, 1);
-  EXPECT_EQ(partitionLocation->epoch, 101);
-  EXPECT_EQ(partitionLocation->host, "test_host");
-  EXPECT_EQ(partitionLocation->rpcPort, 1001);
-  EXPECT_EQ(partitionLocation->pushPort, 1002);
-  EXPECT_EQ(partitionLocation->fetchPort, 1003);
-  EXPECT_EQ(partitionLocation->replicatePort, 1004);
-}
-
 void generatePackedPartitionLocationPb(
     PbPackedPartitionLocations& pbPackedPartitionLocations,
     int idx,
@@ -94,7 +74,7 @@ TEST(ControlMessagesTest, getReducerFileGroup) {
   EXPECT_EQ(pbGetReducerFileGroup->shuffleid(), 1000);
 }
 
-TEST(ControlMessagesTest, getReducerFileGroupResponseLegacyMode) {
+TEST(ControlMessagesTest, getReducerFileGroupResponseLegacyModeDeprecated) {
   PbGetReducerFileGroupResponse pbGetReducerFileGroupResponse;
   pbGetReducerFileGroupResponse.set_status(1);
   for (int i = 0; i < 4; i++) {
@@ -105,31 +85,17 @@ TEST(ControlMessagesTest, getReducerFileGroupResponseLegacyMode) {
   }
   auto id2FileGroups = pbGetReducerFileGroupResponse.mutable_filegroups();
   PbFileGroup pbFileGroup;
-  auto location = pbFileGroup.add_locations();
-  setBasicPartitionLocationPb(location);
+  pbFileGroup.add_locations();
   id2FileGroups->insert({0, pbFileGroup});
 
   TransportMessage transportMessage(
       GET_REDUCER_FILE_GROUP_RESPONSE,
       pbGetReducerFileGroupResponse.SerializeAsString());
-  auto getReducerFileGroupResponse =
-      GetReducerFileGroupResponse::fromTransportMessage(transportMessage);
-  EXPECT_EQ(getReducerFileGroupResponse->status, 1);
-  EXPECT_EQ(getReducerFileGroupResponse->attempts.size(), 4);
-  for (int i = 0; i < 4; i++) {
-    EXPECT_EQ(getReducerFileGroupResponse->attempts[i], i);
-  }
-  EXPECT_EQ(getReducerFileGroupResponse->partitionIds.size(), 6);
-  for (int i = 0; i < 6; i++) {
-    EXPECT_EQ(getReducerFileGroupResponse->partitionIds.count(i), 1);
-  }
-  EXPECT_EQ(getReducerFileGroupResponse->fileGroups.size(), 1);
-  const auto& partitionLocations = getReducerFileGroupResponse->fileGroups[0];
-  EXPECT_EQ(partitionLocations.size(), 1);
-  verifyBasicPartitionLocation(partitionLocations.begin()->get());
+  EXPECT_THROW(
+      GetReducerFileGroupResponse::fromTransportMessage(transportMessage),
+      utils::CelebornRuntimeError);
 }
 
-// todo...
 TEST(ControlMessagesTest, getReducerFileGroupResponsePackedMode) {
   PbGetReducerFileGroupResponse pbGetReducerFileGroupResponse;
   pbGetReducerFileGroupResponse.set_status(1);
