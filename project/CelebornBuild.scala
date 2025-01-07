@@ -881,7 +881,7 @@ object Spark40 extends SparkClientProjects {
   val sparkProjectScalaVersion = "2.13.11"
 
   val sparkVersion = "4.0.0-preview2"
-  val zstdJniVersion = "1.5.5-6"
+  val zstdJniVersion = "1.5.6-5"
   val scalaBinaryVersion = "2.13"
 
   override val sparkColumnarShuffleVersion: String = "4"
