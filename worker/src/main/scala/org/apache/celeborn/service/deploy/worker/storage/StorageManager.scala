@@ -997,7 +997,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         new ReduceFileMeta(conf.shuffleChunkSize)
       case PartitionType.MAP =>
         new MapFileMeta()
-      case PartitionType.MAPGROUP =>
+      case PartitionType.MAPGROUP | PartitionType.MAP_SEGMENT =>
         throw new NotImplementedError("Map group is not implemented")
     }
     val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
@@ -1107,7 +1107,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               val mapFileMeta = new MapFileMeta()
               mapFileMeta.setMountPoint(mountPoint)
               mapFileMeta
-            case PartitionType.MAPGROUP =>
+            case PartitionType.MAPGROUP | PartitionType.MAP_SEGMENT =>
               throw new NotImplementedError("Map group is not implemented")
           }
           val diskFileInfo = new DiskFileInfo(

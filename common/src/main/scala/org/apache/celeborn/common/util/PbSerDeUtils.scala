@@ -112,7 +112,7 @@ object PbSerDeUtils {
         // writer always closed as this is committed file info.
         fileMeta.setIsWriterClosed(true)
         fileMeta
-      case PartitionType.MAPGROUP =>
+      case PartitionType.MAPGROUP | PartitionType.MAP_SEGMENT =>
         throw new NotImplementedError("Map group is not implemented")
     }
     new DiskFileInfo(

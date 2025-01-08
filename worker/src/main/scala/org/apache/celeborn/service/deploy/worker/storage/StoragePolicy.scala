@@ -63,7 +63,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
 
     def getPartitionMetahandler(fileInfo: FileInfo, storageInfoType: StorageInfo.Type) = {
       partitionType match {
-        case PartitionType.REDUCE | PartitionType.MAPGROUP =>
+        case PartitionType.REDUCE =>
           new ReducePartitionMetaHandler(partitionDataWriterContext.isRangeReadFilter, fileInfo)
         case PartitionType.MAP =>
           if (partitionDataWriterContext.isSegmentGranularityVisible) {
@@ -73,6 +73,8 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
               fileInfo.asInstanceOf[DiskFileInfo],
               notifier)
           }
+        case PartitionType.MAPGROUP | PartitionType.MAP_SEGMENT =>
+          ???
       }
     }
 
