@@ -16,7 +16,8 @@ add_library(
         protocol
         STATIC
         PartitionLocation.cpp
-        TransportMessage.cpp)
+        TransportMessage.cpp
+        ControlMessages.cpp)
 
 target_include_directories(protocol PUBLIC ${CMAKE_BINARY_DIR})
 

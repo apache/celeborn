@@ -80,6 +80,10 @@ struct PartitionLocation {
   static std::unique_ptr<const PartitionLocation> fromPb(
       const PbPartitionLocation& pb);
 
+  static std::unique_ptr<PartitionLocation> fromPackedPb(
+      const PbPackedPartitionLocations& pb,
+      int idx);
+
   PartitionLocation() = default;
 
   PartitionLocation(const PartitionLocation& other);
