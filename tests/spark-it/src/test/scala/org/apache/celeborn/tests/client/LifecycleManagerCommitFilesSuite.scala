@@ -148,7 +148,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       val commitInfoList =
         worker.controller.shuffleCommitInfos.get(Utils.makeShuffleKey(APP, shuffleId))
       if (commitInfoList != null) {
-        commitInfoList.values().asScala.foreach { commitInfo=>
+        commitInfoList.values().asScala.foreach { commitInfo =>
           assert(
             commitInfo.status == CommitInfo.COMMIT_INPROCESS || commitInfo.status == CommitInfo.COMMIT_FINISHED)
         }
