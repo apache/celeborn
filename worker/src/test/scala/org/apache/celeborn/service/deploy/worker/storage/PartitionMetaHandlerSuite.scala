@@ -143,31 +143,31 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
 
     val handler1 = new ReducePartitionMetaHandler(true, diskFileInfo)
     handler1.beforeWrite(generateSparkFormatData(byteBufAllocator, 0))
-    handler1.afterFlush(false, 1024)
+    handler1.afterFlush(1024)
     handler1.beforeWrite(generateSparkFormatData(byteBufAllocator, 1))
-    handler1.afterFlush(false, 1024)
+    handler1.afterFlush(1024)
     handler1.beforeWrite(generateSparkFormatData(byteBufAllocator, 2))
-    handler1.afterFlush(false, 1024)
+    handler1.afterFlush(1024)
     handler1.beforeWrite(generateSparkFormatData(byteBufAllocator, 3))
-    handler1.afterFlush(false, 1024)
+    handler1.afterFlush(1024)
     handler1.beforeWrite(generateSparkFormatData(byteBufAllocator, 4))
-    handler1.afterFlush(false, 1024)
+    handler1.afterFlush(1024)
 
     assert(handler1.mapIdBitMap.get.getCardinality === 5)
 
     assert(diskFileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getNumChunks === 0)
 
     handler1.beforeWrite(generateSparkFormatData(byteBufAllocator, 5))
-    handler1.afterFlush(false, 1024)
+    handler1.afterFlush(1024)
     handler1.beforeWrite(generateSparkFormatData(byteBufAllocator, 6))
-    handler1.afterFlush(false, 1024)
+    handler1.afterFlush(1024)
     handler1.beforeWrite(generateSparkFormatData(byteBufAllocator, 7))
-    handler1.afterFlush(false, 1024)
+    handler1.afterFlush(1024)
 
     assert(diskFileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getNumChunks === 1)
 
     handler1.beforeWrite(generateSparkFormatData(byteBufAllocator, 8))
-    handler1.afterFlush(false, 1024)
+    handler1.afterFlush(1024)
     handler1.afterClose()
 
     assert(diskFileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getNumChunks == 2)
