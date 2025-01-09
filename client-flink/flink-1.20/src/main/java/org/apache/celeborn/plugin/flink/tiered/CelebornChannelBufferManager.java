@@ -80,6 +80,7 @@ public class CelebornChannelBufferManager implements BufferListener, BufferRecyc
         bufferQueue.add(buffer);
         isBufferUsed = true;
         numBuffers = 1 + tryRequestBuffers();
+        decreaseRequiredCredits(numBuffers);
       }
       bufferReader.notifyAvailableCredits(numBuffers);
     } catch (Throwable t) {
