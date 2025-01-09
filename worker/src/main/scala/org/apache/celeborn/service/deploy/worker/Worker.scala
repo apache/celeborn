@@ -308,12 +308,11 @@ private[celeborn] class Worker(
     JavaUtils.newConcurrentHashMap[String, Long]
   val partitionLocationInfo = new WorkerPartitionLocationInfo
 
-  val shuffleCommitInfos
-      : ConcurrentHashMap[String, ConcurrentHashMap[Long, (CommitInfo, RpcCallContext)]] =
-    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, (CommitInfo, RpcCallContext)]]()
+  val shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]] =
+    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
 
-  val shuffleCommitTime: ConcurrentHashMap[String, ConcurrentHashMap[Long, Int]] =
-    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, Int]]()
+  val shuffleCommitTime: ConcurrentHashMap[String, ConcurrentHashMap[Long, (Int, RpcCallContext)]] =
+    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, (Int, RpcCallContext)]]()
 
   private val masterClient = new MasterClient(internalRpcEnvInUse, conf, true)
   secretRegistry.initialize(masterClient)
