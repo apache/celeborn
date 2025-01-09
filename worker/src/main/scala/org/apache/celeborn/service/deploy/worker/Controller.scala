@@ -746,8 +746,8 @@ private[deploy] class Controller(
     val delta = 100
     val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
 
-    shuffleCommitTime.forEach(
-      (shuffleKey: String, epochWaitTimeMap: ConcurrentHashMap[Long, (Int, RpcCallContext)]) => {
+    shuffleCommitTime.asScala.foreach {
+      case (shuffleKey, epochWaitTimeMap) =>
         epochWaitTimeMap.synchronized {
           epochWaitTimeMap.asScala.foreach { case (epoch, (waitTime, context)) =>
             val commitInfo = shuffleCommitInfos.get(shuffleKey).get(epoch)
@@ -775,7 +775,7 @@ private[deploy] class Controller(
             }
           }
         }
-      })
+    }
   }
 
   private def updateShuffleMapperAttempts(
