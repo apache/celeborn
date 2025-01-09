@@ -78,8 +78,10 @@ private[deploy] class Controller(
     partitionLocationInfo = worker.partitionLocationInfo
     timer = worker.timer
     commitThreadPool = worker.commitThreadPool
-    commitFinishedChecker = worker.commitFinishedChecker
+    asyncReplyPool = worker.asyncReplyPool
+    shutdown = worker.shutdown
 
+    commitFinishedChecker = worker.commitFinishedChecker
     commitFinishedChecker.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = {
@@ -89,9 +91,6 @@ private[deploy] class Controller(
       0,
       100,
       TimeUnit.MILLISECONDS)
-
-    asyncReplyPool = worker.asyncReplyPool
-    shutdown = worker.shutdown
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
