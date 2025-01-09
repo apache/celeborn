@@ -119,5 +119,5 @@ TEST(MessageDecoderTest, decodeBigEndian) {
 }
 
 TEST(MessageDecoderTest, decodeLittleEndian) {
-  testDecodeWithEndian(true);
+  testDecodeWithEndian(false);
 }
