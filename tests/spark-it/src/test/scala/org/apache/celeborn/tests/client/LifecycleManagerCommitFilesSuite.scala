@@ -92,7 +92,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       val commitInfoList =
         worker.controller.shuffleCommitInfos.get(Utils.makeShuffleKey(APP, shuffleId))
       if (commitInfoList != null) {
-        commitInfoList.values().asScala.foreach { case (commitInfo, _) =>
+        commitInfoList.values().asScala.foreach { commitInfo =>
           assert(
             commitInfo.status == CommitInfo.COMMIT_INPROCESS || commitInfo.status == CommitInfo.COMMIT_FINISHED)
         }
@@ -148,7 +148,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       val commitInfoList =
         worker.controller.shuffleCommitInfos.get(Utils.makeShuffleKey(APP, shuffleId))
       if (commitInfoList != null) {
-        commitInfoList.values().asScala.foreach { case (commitInfo, _) =>
+        commitInfoList.values().asScala.foreach { commitInfo=>
           assert(
             commitInfo.status == CommitInfo.COMMIT_INPROCESS || commitInfo.status == CommitInfo.COMMIT_FINISHED)
         }
@@ -219,7 +219,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
         worker.controller.shuffleCommitInfos.get(Utils.makeShuffleKey(APP, shuffleId))
       assert(worker.controller.commitThreadPool.getQueue.size() == 0)
       if (commitInfoList != null) {
-        commitInfoList.values().asScala.foreach { case (commitInfo, _) =>
+        commitInfoList.values().asScala.foreach { commitInfo =>
           assert(commitInfo.status == CommitInfo.COMMIT_FINISHED)
           assert(commitInfo.response.status == StatusCode.COMMIT_FILE_EXCEPTION)
         }
