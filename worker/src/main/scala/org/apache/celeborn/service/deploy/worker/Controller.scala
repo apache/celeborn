@@ -745,26 +745,27 @@ private[deploy] class Controller(
     val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
 
     shuffleCommitTime.synchronized {
-      shuffleCommitTime.forEach((shuffleKey: String, commitTimesMap:  ConcurrentHashMap[Long, Int]) => {
-        commitTimesMap.forEach((epoch: Long, waitTime: Int) => {
-          if (waitTime * delta >= shuffleCommitTimeout) {
-            val (tempResponse, context) = shuffleCommitInfos.get(shuffleKey).get(epoch)
-            val replyResponse = CommitFilesResponse(
-              StatusCode.COMMIT_FILE_EXCEPTION,
-              List.empty.asJava,
-              List.empty.asJava,
-              tempResponse.response.failedPrimaryIds,
-              tempResponse.response.failedReplicaIds)
-            shuffleCommitInfos.get(shuffleKey).put(
-              epoch,
-              (new CommitInfo(replyResponse, CommitInfo.COMMIT_FINISHED), context))
-            context.reply(replyResponse)
-            commitTimesMap.remove(epoch)
-          } else {
-            shuffleCommitTime.get(shuffleKey).put(epoch, waitTime + 1)
-          }
+      shuffleCommitTime.forEach(
+        (shuffleKey: String, commitTimesMap: ConcurrentHashMap[Long, Int]) => {
+          commitTimesMap.forEach((epoch: Long, waitTime: Int) => {
+            if (waitTime * delta >= shuffleCommitTimeout) {
+              val (tempResponse, context) = shuffleCommitInfos.get(shuffleKey).get(epoch)
+              val replyResponse = CommitFilesResponse(
+                StatusCode.COMMIT_FILE_EXCEPTION,
+                List.empty.asJava,
+                List.empty.asJava,
+                tempResponse.response.failedPrimaryIds,
+                tempResponse.response.failedReplicaIds)
+              shuffleCommitInfos.get(shuffleKey).put(
+                epoch,
+                (new CommitInfo(replyResponse, CommitInfo.COMMIT_FINISHED), context))
+              context.reply(replyResponse)
+              commitTimesMap.remove(epoch)
+            } else {
+              shuffleCommitTime.get(shuffleKey).put(epoch, waitTime + 1)
+            }
+          })
         })
-      })
     }
   }
 
