@@ -15,11 +15,9 @@
 
 add_executable(
         celeborn_network_test
-        MessageDecoderTest.cpp)
+        FrameDecoderTest.cpp)
 
 add_test(NAME celeborn_network_test COMMAND celeborn_network_test)
-
-#target_include_directories(network PUBLIC ${CMAKE_BINARY_DIR})
 
 target_link_libraries(
         celeborn_network_test

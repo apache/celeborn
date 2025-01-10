@@ -36,9 +36,9 @@ namespace network {
  *   #frameLength = #headerLength + #encodedLength + #bodyLength.
  */
 
-class MessageDecoder : public wangle::ByteToByteDecoder {
+class FrameDecoder : public wangle::ByteToByteDecoder {
  public:
-  MessageDecoder(bool networkByteOrder = true)
+  FrameDecoder(bool networkByteOrder = true)
       : networkByteOrder_(networkByteOrder) {}
 
   bool decode(

@@ -17,7 +17,7 @@
 
 #include <gtest/gtest.h>
 
-#include "celeborn/network/MessageDecoder.h"
+#include "celeborn/network/FrameDecoder.h"
 
 using namespace celeborn::network;
 
@@ -73,7 +73,7 @@ void testDecodeWithEndian(bool isBigEndian) {
   }
 
   size_t dummy;
-  MessageDecoder decoder(isBigEndian);
+  FrameDecoder decoder(isBigEndian);
   folly::IOBufQueue::Options option;
   option.cacheChainLength = true;
   folly::IOBufQueue queue(option);
@@ -114,10 +114,10 @@ void testDecodeWithEndian(bool isBigEndian) {
   EXPECT_EQ(cursor->readFixedString(bodyLength), bodyContent);
 }
 
-TEST(MessageDecoderTest, decodeBigEndian) {
+TEST(FrameDecoderTest, decodeBigEndian) {
   testDecodeWithEndian(true);
 }
 
-TEST(MessageDecoderTest, decodeLittleEndian) {
+TEST(FrameDecoderTest, decodeLittleEndian) {
   testDecodeWithEndian(false);
 }
