@@ -82,8 +82,6 @@ spec:
             echo "waiting for master"; 
             sleep 2;
           done && exec /opt/celeborn/sbin/start-master.sh
-        resources:
-          {{- toYaml .Values.resources.master | nindent 10 }}
         ports:
         - containerPort: {{ .Values.service.port }}
         - containerPort: {{ get .Values.celeborn "celeborn.master.http.port" | default 9098 }}
