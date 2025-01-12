@@ -3858,7 +3858,7 @@ object CelebornConf extends Logging {
       .doc("If direct memory usage is less than this limit, worker will resume.")
       .version("0.2.0")
       .doubleConf
-      .createWithDefault(0.7)
+      .createWithDefault(0.3)
 
   val WORKER_MEMORY_FILE_STORAGE_MAX_FILE_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.memoryFileStorage.maxFileSize")

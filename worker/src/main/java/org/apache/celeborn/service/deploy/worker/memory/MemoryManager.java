@@ -30,12 +30,14 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.internal.PlatformDependent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
+import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
@@ -93,6 +95,7 @@ public class MemoryManager {
   private long memoryFileStorageThreshold;
   private final LongAdder memoryFileStorageCounter = new LongAdder();
   private final StorageManager storageManager;
+  private boolean networkMemoryAllocatorPooled;
 
   @VisibleForTesting
   public static MemoryManager initialize(CelebornConf conf) {
@@ -159,6 +162,7 @@ public class MemoryManager {
     readBufferThreshold = (long) (maxDirectMemory * readBufferRatio);
     readBufferTarget = (long) (readBufferThreshold * readBufferTargetRatio);
     memoryFileStorageThreshold = (long) (maxDirectMemory * memoryFileStorageRatio);
+    networkMemoryAllocatorPooled = conf.networkMemoryAllocatorPooled();
 
     checkService.scheduleWithFixedDelay(
         () -> {
@@ -293,6 +297,18 @@ public class MemoryManager {
 
   public ServingState currentServingState() {
     long memoryUsage = getMemoryUsage();
+    long allocatedMemory;
+    if (networkMemoryAllocatorPooled) {
+      allocatedMemory = getAllocatedMemory();
+    } else {
+      allocatedMemory = memoryUsage;
+    }
+    // trigger resume
+    // CELEBORN-1792: resume should use pinnedDirectMemory instead of usedDirectMemory
+    if (allocatedMemory / (double) (maxDirectMemory) < resumeRatio) {
+      isPaused = false;
+      return ServingState.NONE_PAUSED;
+    }
     // pause replicate threshold always greater than pause push data threshold
     // so when trigger pause replicate, pause both push and replicate
     if (memoryUsage > pauseReplicateThreshold) {
@@ -303,11 +319,6 @@ public class MemoryManager {
     if (memoryUsage > pausePushDataThreshold) {
       isPaused = true;
       return ServingState.PUSH_PAUSED;
-    }
-    // trigger resume
-    if (memoryUsage / (double) (maxDirectMemory) < resumeRatio) {
-      isPaused = false;
-      return ServingState.NONE_PAUSED;
     }
     // if isPaused and not trigger resume, then return pause push
     // wait for trigger resumeThreshold to resume state
@@ -434,6 +445,16 @@ public class MemoryManager {
 
   public long getMemoryUsage() {
     return getNettyUsedDirectMemory() + sortMemoryCounter.get();
+  }
+
+  public long getAllocatedMemory() {
+    return getNettyPinnedDirectMemory() + sortMemoryCounter.get();
+  }
+
+  public long getNettyPinnedDirectMemory() {
+    return NettyUtils.getAllPooledByteBufAllocators().stream()
+        .mapToLong(PooledByteBufAllocator::pinnedDirectMemory)
+        .sum();
   }
 
   public AtomicLong getSortMemoryCounter() {
