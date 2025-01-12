@@ -37,7 +37,7 @@ trait MemorySparkTestBase extends AnyFunSuite
     val workerConfs =
       Map(
         "celeborn.worker.directMemoryRatioForMemoryFileStorage" -> "0.2",
-        "celeborn.worker.directMemoryRatioToResume" -> "0.4",)
+        "celeborn.worker.directMemoryRatioToResume" -> "0.4")
     setupMiniClusterWithRandomPorts(workerConf = workerConfs, workerNum = 5)
   }
 
