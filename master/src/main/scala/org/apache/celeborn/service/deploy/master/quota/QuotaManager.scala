@@ -20,6 +20,7 @@ import java.util.{Map => JMap}
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
@@ -190,6 +191,7 @@ class QuotaManager(
     masterSource.sample(UPDATE_RESOURCE_CONSUMPTION_TIME, this.getClass.getSimpleName, Map.empty) {
       val clusterQuota = getClusterStorageQuota
       var clusterResourceConsumption = ResourceConsumption(0, 0, 0, 0)
+      val activeUsers = mutable.Set[UserIdentifier]()
 
       val tenantResourceConsumption =
         statusSystem.availableWorkers.asScala.flatMap { workerInfo =>
@@ -199,6 +201,7 @@ class QuotaManager(
           val userResourceConsumption =
             tenantConsumptionList.groupBy(_._1).map {
               case (userIdentifier, userConsumptionList) =>
+                activeUsers.add(userIdentifier)
                 // Step 1: Compute user consumption and set quota status.
                 val resourceConsumptionList = userConsumptionList.map(_._2).toSeq
                 val resourceConsumption = computeUserResourceConsumption(resourceConsumptionList)
@@ -257,6 +260,9 @@ class QuotaManager(
             (None, tenantConsumptionList.map(_._2).toSeq)
           }
         }
+
+      // Clear expired users/tenant quota status
+      clearQuotaStatus(activeUsers)
 
       // Expire cluster level exceeded app except already expired app
       clusterQuotaStatus = checkClusterQuotaSpace(clusterResourceConsumption)
@@ -330,5 +336,18 @@ class QuotaManager(
     resourceConsumptionSource.addGauge(HDFS_BYTES_WRITTEN, userIdentifier.toMap) { () =>
       getResourceConsumption(userIdentifier).hdfsBytesWritten
     }
+  }
+
+  private def clearQuotaStatus(activeUsers: mutable.Set[UserIdentifier]): Unit = {
+    userQuotaStatus
+      .keySet()
+      .asScala
+      .diff(activeUsers)
+      .foreach(userQuotaStatus.remove)
+    tenantQuotaStatus
+      .keySet()
+      .asScala
+      .diff(activeUsers.map(_.tenantId).toSet)
+      .foreach(tenantQuotaStatus.remove)
   }
 }

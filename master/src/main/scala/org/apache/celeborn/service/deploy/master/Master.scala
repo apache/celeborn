@@ -1058,6 +1058,7 @@ private[celeborn] class Master(
       override def run(): Unit = {
         workersAssignedToApp.remove(appId)
         statusSystem.handleAppLost(appId, requestId)
+        quotaManager.handleAppLost(appId)
         logInfo(s"Removed application $appId")
         if (hasHDFSStorage || hasS3Storage) {
           checkAndCleanExpiredAppDirsOnDFS(appId)
