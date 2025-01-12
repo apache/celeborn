@@ -34,7 +34,10 @@ trait MemorySparkTestBase extends AnyFunSuite
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup Celeborn mini cluster")
-    val workerConfs = Map("celeborn.worker.directMemoryRatioForMemoryFileStorage" -> "0.2")
+    val workerConfs =
+      Map(
+        "celeborn.worker.directMemoryRatioForMemoryFileStorage" -> "0.2",
+        "celeborn.worker.directMemoryRatioToResume" -> "0.4",)
     setupMiniClusterWithRandomPorts(workerConf = workerConfs, workerNum = 5)
   }
 
