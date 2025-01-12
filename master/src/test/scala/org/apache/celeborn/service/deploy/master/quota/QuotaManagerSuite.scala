@@ -80,6 +80,7 @@ class QuotaManagerSuite extends CelebornFunSuite
       "localhost",
       9001,
       conf,
+      "master",
       None)
     statusSystem = new SingleMasterMetaManager(rpcEnv, conf)
     statusSystem.availableWorkers.add(worker)
@@ -341,7 +342,7 @@ class QuotaManagerSuite extends CelebornFunSuite
     val duration = System.currentTimeMillis() - start
     print(s"duration=$duration")
 
-    val res = resourceConsumptionSource.getMetrics()
+    val res = resourceConsumptionSource.getMetrics
     for (i <- 0 until 1000) {
       val user = UserIdentifier("default", s"user$i")
       assert(res.contains(
@@ -403,7 +404,7 @@ class QuotaManagerSuite extends CelebornFunSuite
     val duration = System.currentTimeMillis() - start
     print(s"duration=$duration")
 
-    val res = resourceConsumptionSource.getMetrics()
+    val res = resourceConsumptionSource.getMetrics
     for (i <- 0 until 1000) {
       val user = UserIdentifier("default", s"user$i")
       assert(res.contains(
@@ -440,6 +441,7 @@ class QuotaManagerSuite extends CelebornFunSuite
       "localhost",
       9002,
       conf,
+      "master",
       None)
     val statusSystem1 = new SingleMasterMetaManager(rpcEnv, conf)
     statusSystem1.availableWorkers.add(worker)
@@ -548,6 +550,7 @@ class QuotaManagerSuite extends CelebornFunSuite
       "localhost",
       9003,
       conf,
+      "master",
       None)
     val statusSystem1 = new SingleMasterMetaManager(rpcEnv, conf)
     statusSystem1.availableWorkers.add(worker)
@@ -676,7 +679,7 @@ class QuotaManagerSuite extends CelebornFunSuite
       userIdentifier: UserIdentifier,
       resourceConsumption: ResourceConsumption): Unit = {
     worker.userResourceConsumption.put(userIdentifier, resourceConsumption)
-    workerToResourceConsumptions.put(worker.toUniqueId(), worker.userResourceConsumption)
+    workerToResourceConsumptions.put(worker.toUniqueId, worker.userResourceConsumption)
   }
 
   def clearUserConsumption(): Unit = {
