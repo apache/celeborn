@@ -285,6 +285,8 @@ private[celeborn] class Master(
     statusSystem.decommissionWorkers.size()
   }
 
+  masterSource.addGauge(MasterSource.MASTER_COMMIT_INDEX) { () => getMasterRaftCommitIndex }
+
   private val threadsStarted: AtomicBoolean = new AtomicBoolean(false)
   rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
   // Visible for testing
@@ -1475,6 +1477,28 @@ private[celeborn] class Master(
       sb.toString()
     } else {
       "HA is not enabled"
+    }
+  }
+
+  private def getMasterRaftCommitIndex: Long = {
+    if (conf.haEnabled) {
+      val ratisServer = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getServer
+      if (ratisServer == null) {
+        0
+      } else {
+        val raftPeerProto = ratisServer.getPeer.getRaftPeerProto
+        val groupInfo = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getGroupInfo
+        val commitInfos = groupInfo.getCommitInfos
+        var commitIndex: Long = 0
+        commitInfos.asScala.foreach { commitInfo =>
+          if (commitInfo.getServer.equals(raftPeerProto)) {
+            commitIndex = commitInfo.getCommitIndex
+          }
+        }
+        commitIndex
+      }
+    } else {
+      0
     }
   }
 
