@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
@@ -285,7 +286,9 @@ private[celeborn] class Master(
     statusSystem.decommissionWorkers.size()
   }
 
-  masterSource.addGauge(MasterSource.MASTER_COMMIT_INDEX) { () => getMasterRaftCommitIndex }
+  masterSource.addGauge(MasterSource.MASTER_COMMIT_INDEX) { () => getMasterRaftCommitIndex._1 }
+
+  masterSource.addGauge(MasterSource.MASTER_COMMIT_INDEX_DIFF) { () => getMasterRaftCommitIndex._2 }
 
   private val threadsStarted: AtomicBoolean = new AtomicBoolean(false)
   rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
@@ -1480,25 +1483,35 @@ private[celeborn] class Master(
     }
   }
 
-  private def getMasterRaftCommitIndex: Long = {
+  private def getMasterRaftCommitIndex: (Long, Long) = {
     if (conf.haEnabled) {
       val ratisServer = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getServer
       if (ratisServer == null) {
-        0
+        (0, 0)
       } else {
-        val raftPeerProto = ratisServer.getPeer.getRaftPeerProto
+        val peerProtoId = ratisServer.getPeer.getRaftPeerProto.getId.toStringUtf8
         val groupInfo = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getGroupInfo
         val commitInfos = groupInfo.getCommitInfos
         var commitIndex: Long = 0
+        var minIndex = Long.MaxValue
+        var maxIndex: Long = 0
         commitInfos.asScala.foreach { commitInfo =>
-          if (commitInfo.getServer.equals(raftPeerProto)) {
-            commitIndex = commitInfo.getCommitIndex
+          val indexPeerProtoId = commitInfo.getServer.getId.toStringUtf8
+          val peerCommitIndex = commitInfo.getCommitIndex
+          if (indexPeerProtoId.equals(peerProtoId)) {
+            commitIndex = peerCommitIndex
+          }
+          if (minIndex > peerCommitIndex) {
+            minIndex = peerCommitIndex
+          }
+          if (maxIndex < peerCommitIndex) {
+            maxIndex = peerCommitIndex
           }
         }
-        commitIndex
+        (commitIndex, Math.max(0, maxIndex - minIndex))
       }
     } else {
-      0
+      (0, 0)
     }
   }
 

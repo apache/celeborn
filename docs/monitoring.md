@@ -110,6 +110,7 @@ These metrics are exposed by Celeborn master.
     | DecommissionWorkerCount  | The count of workers in decommission list.                                        |
     | IsActiveMaster           | Whether the current master is active.                                             |
     | MasterCommitIndex        | The commit index of the current master in HA mode.                                |
+    | MasterCommitIndexDiff    | The difference value of commit index of the masters in HA mode.                   |
     | PartitionSize            | The size of estimated shuffle partition.                                          |
     | OfferSlotsTime           | The time for masters to handle `RequestSlots` request when registering shuffle.   |
 
