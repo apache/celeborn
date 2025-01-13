@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker.storage
+package org.apache.celeborn.service.deploy.worker
 
 import java.io.File
 import java.nio.file.{Files, Paths}
@@ -32,9 +32,12 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
+import org.apache.celeborn.common.protocol.message.ControlMessages.CommitFilesResponse
+import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.quota.ResourceConsumption
+import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, ThreadUtils}
-import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
+import org.apache.celeborn.service.deploy.worker.storage.PartitionDataWriter
 
 class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
   private var worker: Worker = _
@@ -160,5 +163,90 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
       0,
       Map("app1" -> ResourceConsumption(1024, 1, 0, 0)).asJava)).asJava)
     assert(worker.resourceConsumptionSource.gauges().size == 4)
+  }
+
+  test("test checkCommitTimeout in controller") {
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
+    conf.set(CelebornConf.WORKER_SHUFFLE_COMMIT_TIMEOUT.key, "200")
+    worker = new Worker(conf, workerArgs)
+    val controller = worker.controller
+    controller.init(worker)
+    val shuffleCommitInfos = controller.shuffleCommitInfos
+    val shuffleCommitTime = controller.shuffleCommitTime
+    ThreadUtils.shutdown(worker.controller.commitFinishedChecker)
+    shuffleCommitInfos.clear()
+    shuffleCommitTime.clear()
+
+    val shuffleKey = "1"
+    val context = mock[RpcCallContext]
+    shuffleCommitInfos.putIfAbsent(
+      shuffleKey,
+      JavaUtils.newConcurrentHashMap[Long, CommitInfo]())
+    val epochCommitMap = shuffleCommitInfos.get(shuffleKey)
+    val primaryIds = List("0", "1", "2", "3")
+    val replicaIds = List("4", "5", "6", "7")
+    val epoch0: Long = 0
+    val epoch1: Long = 1
+
+    // update an INPROCESS commitInfo
+    val response0 = CommitFilesResponse(
+      null,
+      List.empty.asJava,
+      List.empty.asJava,
+      primaryIds.asJava,
+      replicaIds.asJava)
+    epochCommitMap.putIfAbsent(epoch0, new CommitInfo(response0, CommitInfo.COMMIT_INPROCESS))
+
+    // update an FINISHED commitInfo
+    val response1 = CommitFilesResponse(
+      null,
+      List.empty.asJava,
+      List.empty.asJava,
+      primaryIds.asJava,
+      replicaIds.asJava)
+    epochCommitMap.putIfAbsent(epoch1, new CommitInfo(response1, CommitInfo.COMMIT_INPROCESS))
+
+    val commitInfo0 = epochCommitMap.get(epoch0)
+    commitInfo0.synchronized {
+      shuffleCommitTime.putIfAbsent(
+        shuffleKey,
+        JavaUtils.newConcurrentHashMap[Long, (Int, RpcCallContext)]())
+      val epochWaitTimeMap = shuffleCommitTime.get(shuffleKey)
+      epochWaitTimeMap.putIfAbsent(epoch0, (0, context))
+    }
+
+    val commitInfo1 = epochCommitMap.get(epoch1)
+    commitInfo1.synchronized {
+      shuffleCommitTime.putIfAbsent(
+        shuffleKey,
+        JavaUtils.newConcurrentHashMap[Long, (Int, RpcCallContext)]())
+      val epochWaitTimeMap = shuffleCommitTime.get(shuffleKey)
+      epochWaitTimeMap.putIfAbsent(epoch1, (0, context))
+    }
+
+    assert(shuffleCommitTime.get(shuffleKey).get(epoch0)._1 == 0)
+    assert(epochCommitMap.get(epoch0).status == CommitInfo.COMMIT_INPROCESS)
+    assert(shuffleCommitTime.get(shuffleKey).get(epoch1)._1 == 0)
+    assert(epochCommitMap.get(epoch1).status == CommitInfo.COMMIT_INPROCESS)
+
+    // update status of epoch1 to FINISHED
+    epochCommitMap.get(epoch1).status = CommitInfo.COMMIT_FINISHED
+    assert(epochCommitMap.get(epoch1).status == CommitInfo.COMMIT_FINISHED)
+
+    controller.checkCommitTimeout(shuffleCommitTime)
+    assert(shuffleCommitTime.get(shuffleKey).get(epoch0)._1 == 1)
+    assert(epochCommitMap.get(epoch0).status == CommitInfo.COMMIT_INPROCESS)
+
+    // FINISHED status of epoch1 will be removed from shuffleCommitTime
+    assert(shuffleCommitTime.get(shuffleKey).get(epoch1) == null)
+
+    // timeout after 200 ms(The third check will time out)
+    controller.checkCommitTimeout(shuffleCommitTime)
+    controller.checkCommitTimeout(shuffleCommitTime)
+    // remove epoch in shuffleCommitTime when timeout
+    assert(shuffleCommitTime.get(shuffleKey).get(epoch0) == null)
+    assert(epochCommitMap.get(epoch0).status == CommitInfo.COMMIT_FINISHED)
+    assert(epochCommitMap.get(epoch0).response.status == StatusCode.COMMIT_FILE_EXCEPTION)
+
   }
 }
