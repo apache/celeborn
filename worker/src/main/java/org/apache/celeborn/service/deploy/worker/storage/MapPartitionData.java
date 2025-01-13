@@ -23,12 +23,10 @@ import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import org.apache.commons.io.IOUtils;
@@ -39,6 +37,7 @@ import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.MapFileMeta;
 import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
 import org.apache.celeborn.service.deploy.worker.memory.BufferRecycler;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
@@ -93,15 +92,10 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
         storageFetcherPool.computeIfAbsent(
             mapFileMeta.getMountPoint(),
             k ->
-                Executors.newFixedThreadPool(
+                ThreadUtils.newFixedThreadPool(
                     threadsPerMountPoint,
-                    new ThreadFactoryBuilder()
-                        .setNameFormat(mapFileMeta.getMountPoint() + "-reader-thread-%d")
-                        .setUncaughtExceptionHandler(
-                            (t1, t2) -> {
-                              logger.warn("StorageFetcherPool thread:{}:{}", t1, t2);
-                            })
-                        .build()));
+                    String.format("worker-map-partition-%s-reader", mapFileMeta.getMountPoint()),
+                    false));
     this.dataFileChanel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getFilePath());
     this.indexChannel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getIndexPath());
     this.indexSize = indexChannel.size();
