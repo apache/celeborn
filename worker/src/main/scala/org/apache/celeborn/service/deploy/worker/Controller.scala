@@ -748,25 +748,25 @@ private[deploy] class Controller(
         epochWaitTimeMap.asScala.foreach { case (epoch, (waitTime, context)) =>
           val commitInfo = shuffleCommitInfos.get(shuffleKey).get(epoch)
           commitInfo.synchronized {
-            if (waitTime * delta < shuffleCommitTimeout) {
-              if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
-                context.reply(commitInfo.response)
-                epochWaitTimeMap.remove(epoch)
-              } else {
-                shuffleCommitTime.get(shuffleKey).put(epoch, (waitTime + 1, context))
-              }
-            } else {
-              val replyResponse = CommitFilesResponse(
-                StatusCode.COMMIT_FILE_EXCEPTION,
-                List.empty.asJava,
-                List.empty.asJava,
-                commitInfo.response.failedPrimaryIds,
-                commitInfo.response.failedReplicaIds)
-              shuffleCommitInfos.get(shuffleKey).put(
-                epoch,
-                new CommitInfo(replyResponse, CommitInfo.COMMIT_FINISHED))
-              context.reply(replyResponse)
+            if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
+              context.reply(commitInfo.response)
               epochWaitTimeMap.remove(epoch)
+            } else {
+              if (waitTime * delta < shuffleCommitTimeout) {
+                shuffleCommitTime.get(shuffleKey).put(epoch, (waitTime + 1, context))
+              } else {
+                val replyResponse = CommitFilesResponse(
+                  StatusCode.COMMIT_FILE_EXCEPTION,
+                  List.empty.asJava,
+                  List.empty.asJava,
+                  commitInfo.response.failedPrimaryIds,
+                  commitInfo.response.failedReplicaIds)
+                shuffleCommitInfos.get(shuffleKey).put(
+                  epoch,
+                  new CommitInfo(replyResponse, CommitInfo.COMMIT_FINISHED))
+                context.reply(replyResponse)
+                epochWaitTimeMap.remove(epoch)
+              }
             }
           }
         }

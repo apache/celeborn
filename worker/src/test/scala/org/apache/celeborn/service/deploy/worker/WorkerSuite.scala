@@ -187,6 +187,7 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
     val replicaIds = List("4", "5", "6", "7")
     val epoch0: Long = 0
     val epoch1: Long = 1
+    val epoch2: Long = 2
 
     // update an INPROCESS commitInfo
     val response0 = CommitFilesResponse(
@@ -197,15 +198,6 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
       replicaIds.asJava)
     epochCommitMap.putIfAbsent(epoch0, new CommitInfo(response0, CommitInfo.COMMIT_INPROCESS))
 
-    // update an FINISHED commitInfo
-    val response1 = CommitFilesResponse(
-      null,
-      List.empty.asJava,
-      List.empty.asJava,
-      primaryIds.asJava,
-      replicaIds.asJava)
-    epochCommitMap.putIfAbsent(epoch1, new CommitInfo(response1, CommitInfo.COMMIT_INPROCESS))
-
     val commitInfo0 = epochCommitMap.get(epoch0)
     commitInfo0.synchronized {
       shuffleCommitTime.putIfAbsent(
@@ -214,6 +206,15 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
       val epochWaitTimeMap = shuffleCommitTime.get(shuffleKey)
       epochWaitTimeMap.putIfAbsent(epoch0, (0, context))
     }
+
+    // update an INPROCESS commitInfo
+    val response1 = CommitFilesResponse(
+      null,
+      List.empty.asJava,
+      List.empty.asJava,
+      primaryIds.asJava,
+      replicaIds.asJava)
+    epochCommitMap.putIfAbsent(epoch1, new CommitInfo(response1, CommitInfo.COMMIT_INPROCESS))
 
     val commitInfo1 = epochCommitMap.get(epoch1)
     commitInfo1.synchronized {
@@ -224,15 +225,37 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
       epochWaitTimeMap.putIfAbsent(epoch1, (0, context))
     }
 
+    // update an FINISHED commitInfo
+    val response2 = CommitFilesResponse(
+      StatusCode.SUCCESS,
+      primaryIds.asJava,
+      replicaIds.asJava,
+      List.empty.asJava,
+      List.empty.asJava)
+    epochCommitMap.putIfAbsent(epoch2, new CommitInfo(response2, CommitInfo.COMMIT_FINISHED))
+
+    val commitInfo2 = epochCommitMap.get(epoch2)
+    commitInfo2.synchronized {
+      shuffleCommitTime.putIfAbsent(
+        shuffleKey,
+        JavaUtils.newConcurrentHashMap[Long, (Int, RpcCallContext)]())
+      val epochWaitTimeMap = shuffleCommitTime.get(shuffleKey)
+      // epoch2 is already timeout
+      epochWaitTimeMap.putIfAbsent(epoch2, (3, context))
+    }
+
     assert(shuffleCommitTime.get(shuffleKey).get(epoch0)._1 == 0)
     assert(epochCommitMap.get(epoch0).status == CommitInfo.COMMIT_INPROCESS)
     assert(shuffleCommitTime.get(shuffleKey).get(epoch1)._1 == 0)
     assert(epochCommitMap.get(epoch1).status == CommitInfo.COMMIT_INPROCESS)
+    assert(shuffleCommitTime.get(shuffleKey).get(epoch2)._1 == 3)
+    assert(epochCommitMap.get(epoch2).status == CommitInfo.COMMIT_FINISHED)
 
     // update status of epoch1 to FINISHED
     epochCommitMap.get(epoch1).status = CommitInfo.COMMIT_FINISHED
     assert(epochCommitMap.get(epoch1).status == CommitInfo.COMMIT_FINISHED)
 
+    // first timeout check
     controller.checkCommitTimeout(shuffleCommitTime)
     assert(shuffleCommitTime.get(shuffleKey).get(epoch0)._1 == 1)
     assert(epochCommitMap.get(epoch0).status == CommitInfo.COMMIT_INPROCESS)
@@ -240,13 +263,17 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
     // FINISHED status of epoch1 will be removed from shuffleCommitTime
     assert(shuffleCommitTime.get(shuffleKey).get(epoch1) == null)
 
+    // timeout but SUCCESS epoch2 can reply
+    assert(shuffleCommitTime.get(shuffleKey).get(epoch2) == null)
+    assert(epochCommitMap.get(epoch2).response.status == StatusCode.SUCCESS)
+
     // timeout after 200 ms(The third check will time out)
     controller.checkCommitTimeout(shuffleCommitTime)
     controller.checkCommitTimeout(shuffleCommitTime)
-    // remove epoch in shuffleCommitTime when timeout
+
+    // remove epoch0 in shuffleCommitTime when timeout
     assert(shuffleCommitTime.get(shuffleKey).get(epoch0) == null)
     assert(epochCommitMap.get(epoch0).status == CommitInfo.COMMIT_FINISHED)
     assert(epochCommitMap.get(epoch0).response.status == StatusCode.COMMIT_FILE_EXCEPTION)
-
   }
 }
