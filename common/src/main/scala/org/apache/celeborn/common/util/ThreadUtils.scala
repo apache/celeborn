@@ -126,7 +126,7 @@ object ThreadUtils {
   }
 
   /**
-   * Create a thread factory that names threads with a prefix and also sets the threads to daemon.
+   * Create a thread factory that generates threads with a specified name prefix and daemon setting.
    */
   def namedThreadFactory(threadNamePrefix: String, daemon: Boolean): ThreadFactory = {
     new ThreadFactoryBuilder()
