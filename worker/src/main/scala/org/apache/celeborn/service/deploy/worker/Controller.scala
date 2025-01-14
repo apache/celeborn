@@ -52,7 +52,9 @@ private[deploy] class Controller(
   var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
   // shuffleKey -> (epoch -> CommitInfo)
   var shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]] = _
-  var shuffleCommitTime: ConcurrentHashMap[String, ConcurrentHashMap[Long, (Int, RpcCallContext)]] =
+  // shuffleKey -> (epoch -> (commitWaitTimestamp, RpcContext))
+  var shuffleCommitTime
+      : ConcurrentHashMap[String, ConcurrentHashMap[Long, (Long, RpcCallContext)]] =
     _
   var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
   var shufflePushDataTimeout: ConcurrentHashMap[String, Long] = _
@@ -67,6 +69,7 @@ private[deploy] class Controller(
   val defaultPushdataTimeout = conf.pushDataTimeoutMs
   val mockCommitFilesFailure = conf.testMockCommitFilesFailure
   val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
+  val workerCommitFilesCheckInterval = conf.workerCommitFilesCheckInterval
 
   def init(worker: Worker): Unit = {
     storageManager = worker.storageManager
@@ -90,7 +93,7 @@ private[deploy] class Controller(
         }
       },
       0,
-      100,
+      workerCommitFilesCheckInterval,
       TimeUnit.MILLISECONDS)
   }
 
@@ -450,9 +453,10 @@ private[deploy] class Controller(
         // Read and write security of epoch in epochWaitTimeMap is guaranteed by commitInfo's lock
         shuffleCommitTime.putIfAbsent(
           shuffleKey,
-          JavaUtils.newConcurrentHashMap[Long, (Int, RpcCallContext)]())
+          JavaUtils.newConcurrentHashMap[Long, (Long, RpcCallContext)]())
         val epochWaitTimeMap = shuffleCommitTime.get(shuffleKey)
-        epochWaitTimeMap.putIfAbsent(epoch, (0, context))
+        val WaitTimestamp = System.currentTimeMillis()
+        epochWaitTimeMap.putIfAbsent(epoch, (WaitTimestamp, context))
         return
       } else {
         logInfo(s"Start commitFiles for $shuffleKey")
@@ -740,32 +744,41 @@ private[deploy] class Controller(
 
   def checkCommitTimeout(shuffleCommitTime: ConcurrentHashMap[
     String,
-    ConcurrentHashMap[Long, (Int, RpcCallContext)]]): Unit = {
-    val delta = 100
+    ConcurrentHashMap[Long, (Long, RpcCallContext)]]): Unit = {
 
     shuffleCommitTime.asScala.foreach {
       case (shuffleKey, epochWaitTimeMap) =>
+        val nullCommitIndoResponse = CommitFilesResponse(
+          StatusCode.COMMIT_FILE_EXCEPTION,
+          List.empty.asJava,
+          List.empty.asJava,
+          List.empty.asJava,
+          List.empty.asJava)
         epochWaitTimeMap.asScala.foreach { case (epoch, (waitTime, context)) =>
           val commitInfo = shuffleCommitInfos.get(shuffleKey).get(epoch)
-          commitInfo.synchronized {
-            if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
-              context.reply(commitInfo.response)
-              epochWaitTimeMap.remove(epoch)
-            } else {
-              if (waitTime * delta < shuffleCommitTimeout) {
-                shuffleCommitTime.get(shuffleKey).put(epoch, (waitTime + 1, context))
-              } else {
-                val replyResponse = CommitFilesResponse(
-                  StatusCode.COMMIT_FILE_EXCEPTION,
-                  List.empty.asJava,
-                  List.empty.asJava,
-                  commitInfo.response.failedPrimaryIds,
-                  commitInfo.response.failedReplicaIds)
-                shuffleCommitInfos.get(shuffleKey).put(
-                  epoch,
-                  new CommitInfo(replyResponse, CommitInfo.COMMIT_FINISHED))
-                context.reply(replyResponse)
+          if (commitInfo == null) {
+            epochWaitTimeMap.remove(epoch)
+            context.reply(nullCommitIndoResponse)
+          } else {
+            commitInfo.synchronized {
+              if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
+                context.reply(commitInfo.response)
                 epochWaitTimeMap.remove(epoch)
+              } else {
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - waitTime >= shuffleCommitTimeout) {
+                  val replyResponse = CommitFilesResponse(
+                    StatusCode.COMMIT_FILE_EXCEPTION,
+                    List.empty.asJava,
+                    List.empty.asJava,
+                    commitInfo.response.failedPrimaryIds,
+                    commitInfo.response.failedReplicaIds)
+                  shuffleCommitInfos.get(shuffleKey).put(
+                    epoch,
+                    new CommitInfo(replyResponse, CommitInfo.COMMIT_FINISHED))
+                  context.reply(replyResponse)
+                  epochWaitTimeMap.remove(epoch)
+                }
               }
             }
           }

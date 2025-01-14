@@ -311,8 +311,9 @@ private[celeborn] class Worker(
   val shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]] =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
 
-  val shuffleCommitTime: ConcurrentHashMap[String, ConcurrentHashMap[Long, (Int, RpcCallContext)]] =
-    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, (Int, RpcCallContext)]]()
+  val shuffleCommitTime
+      : ConcurrentHashMap[String, ConcurrentHashMap[Long, (Long, RpcCallContext)]] =
+    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, (Long, RpcCallContext)]]()
 
   private val masterClient = new MasterClient(internalRpcEnvInUse, conf, true)
   secretRegistry.initialize(masterClient)

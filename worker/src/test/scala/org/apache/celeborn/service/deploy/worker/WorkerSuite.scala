@@ -167,7 +167,7 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
 
   test("test checkCommitTimeout in controller") {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
-    conf.set(CelebornConf.WORKER_SHUFFLE_COMMIT_TIMEOUT.key, "200")
+    conf.set(CelebornConf.WORKER_SHUFFLE_COMMIT_TIMEOUT.key, "1000")
     worker = new Worker(conf, workerArgs)
     val controller = worker.controller
     controller.init(worker)
@@ -188,6 +188,7 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
     val epoch0: Long = 0
     val epoch1: Long = 1
     val epoch2: Long = 2
+    val startWaitTime = System.currentTimeMillis()
 
     // update an INPROCESS commitInfo
     val response0 = CommitFilesResponse(
@@ -202,9 +203,9 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
     commitInfo0.synchronized {
       shuffleCommitTime.putIfAbsent(
         shuffleKey,
-        JavaUtils.newConcurrentHashMap[Long, (Int, RpcCallContext)]())
+        JavaUtils.newConcurrentHashMap[Long, (Long, RpcCallContext)]())
       val epochWaitTimeMap = shuffleCommitTime.get(shuffleKey)
-      epochWaitTimeMap.putIfAbsent(epoch0, (0, context))
+      epochWaitTimeMap.putIfAbsent(epoch0, (startWaitTime, context))
     }
 
     // update an INPROCESS commitInfo
@@ -220,9 +221,9 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
     commitInfo1.synchronized {
       shuffleCommitTime.putIfAbsent(
         shuffleKey,
-        JavaUtils.newConcurrentHashMap[Long, (Int, RpcCallContext)]())
+        JavaUtils.newConcurrentHashMap[Long, (Long, RpcCallContext)]())
       val epochWaitTimeMap = shuffleCommitTime.get(shuffleKey)
-      epochWaitTimeMap.putIfAbsent(epoch1, (0, context))
+      epochWaitTimeMap.putIfAbsent(epoch1, (startWaitTime, context))
     }
 
     // update an FINISHED commitInfo
@@ -238,17 +239,17 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
     commitInfo2.synchronized {
       shuffleCommitTime.putIfAbsent(
         shuffleKey,
-        JavaUtils.newConcurrentHashMap[Long, (Int, RpcCallContext)]())
+        JavaUtils.newConcurrentHashMap[Long, (Long, RpcCallContext)]())
       val epochWaitTimeMap = shuffleCommitTime.get(shuffleKey)
       // epoch2 is already timeout
-      epochWaitTimeMap.putIfAbsent(epoch2, (3, context))
+      epochWaitTimeMap.putIfAbsent(epoch2, (startWaitTime, context))
     }
 
-    assert(shuffleCommitTime.get(shuffleKey).get(epoch0)._1 == 0)
+    assert(shuffleCommitTime.get(shuffleKey).get(epoch0)._1 == startWaitTime)
     assert(epochCommitMap.get(epoch0).status == CommitInfo.COMMIT_INPROCESS)
-    assert(shuffleCommitTime.get(shuffleKey).get(epoch1)._1 == 0)
+    assert(shuffleCommitTime.get(shuffleKey).get(epoch1)._1 == startWaitTime)
     assert(epochCommitMap.get(epoch1).status == CommitInfo.COMMIT_INPROCESS)
-    assert(shuffleCommitTime.get(shuffleKey).get(epoch2)._1 == 3)
+    assert(shuffleCommitTime.get(shuffleKey).get(epoch2)._1 == startWaitTime)
     assert(epochCommitMap.get(epoch2).status == CommitInfo.COMMIT_FINISHED)
 
     // update status of epoch1 to FINISHED
@@ -257,23 +258,22 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
 
     // first timeout check
     controller.checkCommitTimeout(shuffleCommitTime)
-    assert(shuffleCommitTime.get(shuffleKey).get(epoch0)._1 == 1)
     assert(epochCommitMap.get(epoch0).status == CommitInfo.COMMIT_INPROCESS)
 
     // FINISHED status of epoch1 will be removed from shuffleCommitTime
     assert(shuffleCommitTime.get(shuffleKey).get(epoch1) == null)
 
-    // timeout but SUCCESS epoch2 can reply
-    assert(shuffleCommitTime.get(shuffleKey).get(epoch2) == null)
-    assert(epochCommitMap.get(epoch2).response.status == StatusCode.SUCCESS)
-
-    // timeout after 200 ms(The third check will time out)
-    controller.checkCommitTimeout(shuffleCommitTime)
+    // timeout after 1000 ms
+    Thread.sleep(2000)
     controller.checkCommitTimeout(shuffleCommitTime)
 
     // remove epoch0 in shuffleCommitTime when timeout
     assert(shuffleCommitTime.get(shuffleKey).get(epoch0) == null)
     assert(epochCommitMap.get(epoch0).status == CommitInfo.COMMIT_FINISHED)
     assert(epochCommitMap.get(epoch0).response.status == StatusCode.COMMIT_FILE_EXCEPTION)
+
+    // timeout but SUCCESS epoch2 can reply
+    assert(shuffleCommitTime.get(shuffleKey).get(epoch2) == null)
+    assert(epochCommitMap.get(epoch2).response.status == StatusCode.SUCCESS)
   }
 }
