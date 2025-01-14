@@ -1366,13 +1366,13 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_MasterCommitIndex_Value{instance=~\"${instance}\"}",
+              "expr": "metrics_RatisCommitIndex_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_MasterCommitIndex_Value",
+          "title": "metrics_RatisCommitIndex_Value",
           "type": "timeseries"
         },
         {
@@ -1459,13 +1459,13 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_MasterCommitIndexDiff_Value{instance=~\"${instance}\"}",
+              "expr": "metrics_RatisCommitIndexDiff_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_MasterCommitIndexDiff_Value",
+          "title": "metrics_RatisCommitIndexDiff_Value",
           "type": "timeseries"
         },
         {

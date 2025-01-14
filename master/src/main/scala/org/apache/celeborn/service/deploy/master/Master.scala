@@ -286,9 +286,12 @@ private[celeborn] class Master(
     statusSystem.decommissionWorkers.size()
   }
 
-  masterSource.addGauge(MasterSource.MASTER_COMMIT_INDEX) { () => getMasterRaftCommitIndex._1 }
-
-  masterSource.addGauge(MasterSource.MASTER_COMMIT_INDEX_DIFF) { () => getMasterRaftCommitIndex._2 }
+  if (conf.haEnabled) {
+    masterSource.addGauge(MasterSource.RATIS_COMMIT_INDEX) { () => getMasterRatisCommitIndex._1 }
+    masterSource.addGauge(MasterSource.RATIS_COMMIT_INDEX_DIFF) { () =>
+      getMasterRatisCommitIndex._2
+    }
+  }
 
   private val threadsStarted: AtomicBoolean = new AtomicBoolean(false)
   rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
@@ -1483,7 +1486,7 @@ private[celeborn] class Master(
     }
   }
 
-  private def getMasterRaftCommitIndex: (Long, Long) = {
+  private def getMasterRatisCommitIndex: (Long, Long) = {
     if (conf.haEnabled) {
       val ratisServer = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getServer
       if (ratisServer == null) {
