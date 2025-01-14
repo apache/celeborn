@@ -38,7 +38,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMod
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionDataWriter, PartitionDataWriter, StorageManager}
 
 private[deploy] class Controller(
