@@ -64,9 +64,6 @@ public class MemoryManager {
   private final ScheduledExecutorService reportService =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-memory-manager-reporter");
 
-  private final ScheduledExecutorService pinnedMemoryCheckService =
-      ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-pinned-memory-manager-checker");
-
   private final ExecutorService actionService =
       ThreadUtils.newDaemonSingleThreadExecutor("worker-memory-manager-actor");
 
@@ -99,6 +96,8 @@ public class MemoryManager {
   private long memoryFileStorageThreshold;
   private final LongAdder memoryFileStorageCounter = new LongAdder();
   private final StorageManager storageManager;
+  private long pinnedMemoryCheckInterval;
+  private long pinnedMemoryNextCheckTime = 0L;
 
   @VisibleForTesting
   public static MemoryManager initialize(CelebornConf conf) {
@@ -132,7 +131,7 @@ public class MemoryManager {
     double readBufferRatio = conf.workerDirectMemoryRatioForReadBuffer();
     double memoryFileStorageRatio = conf.workerDirectMemoryRatioForMemoryFilesStorage();
     long checkInterval = conf.workerDirectMemoryPressureCheckIntervalMs();
-    long pinnedMemoryCheckInterval = conf.workerPinnedMemoryCheckIntervalMs();
+    this.pinnedMemoryCheckInterval = conf.workerPinnedMemoryCheckIntervalMs();
     long reportInterval = conf.workerDirectMemoryReportIntervalSecond();
     double readBufferTargetRatio = conf.readBufferTargetRatio();
     long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
@@ -198,20 +197,6 @@ public class MemoryManager {
         reportInterval,
         reportInterval,
         TimeUnit.SECONDS);
-
-    if (conf.networkMemoryAllocatorPooled()) {
-      pinnedMemoryCheckService.scheduleWithFixedDelay(
-          () -> {
-            try {
-              checkPinnedMemory();
-            } catch (Exception e) {
-              logger.error("Pinned memory tracker check error", e);
-            }
-          },
-          pinnedMemoryCheckInterval,
-          pinnedMemoryCheckInterval,
-          TimeUnit.MILLISECONDS);
-    }
 
     if (readBufferThreshold > 0) {
       // if read buffer threshold is zero means that there will be no map data partitions
@@ -394,6 +379,8 @@ public class MemoryManager {
         }
         resumePush();
     }
+
+    checkPinnedMemory();
   }
 
   public void trimAllListeners() {
@@ -566,7 +553,6 @@ public class MemoryManager {
   public void close() {
     checkService.shutdown();
     reportService.shutdown();
-    pinnedMemoryCheckService.shutdown();
     readBufferTargetUpdateService.shutdown();
     memoryPressureListeners.clear();
     actionService.shutdown();
@@ -585,7 +571,8 @@ public class MemoryManager {
 
   private void checkPinnedMemory() {
     // CELEBORN-1792: resume should use pinnedDirectMemory instead of usedDirectMemory
-    if (getAllocatedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
+    if (System.currentTimeMillis() >= pinnedMemoryNextCheckTime
+        && getAllocatedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
       switch (servingState) {
         case PUSH_AND_REPLICATE_PAUSED:
           trimAllListeners();
@@ -597,6 +584,7 @@ public class MemoryManager {
           resumePush();
           break;
       }
+      pinnedMemoryNextCheckTime += pinnedMemoryCheckInterval;
     }
   }
 
