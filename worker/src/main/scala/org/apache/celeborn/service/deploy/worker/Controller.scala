@@ -748,36 +748,33 @@ private[deploy] class Controller(
 
     shuffleCommitTime.asScala.foreach {
       case (shuffleKey, epochWaitTimeMap) =>
-        val nullCommitIndoResponse = CommitFilesResponse(
-          StatusCode.COMMIT_FILE_EXCEPTION,
-          List.empty.asJava,
-          List.empty.asJava,
-          List.empty.asJava,
-          List.empty.asJava)
-        epochWaitTimeMap.asScala.foreach { case (epoch, (waitTime, context)) =>
-          val commitInfo = shuffleCommitInfos.get(shuffleKey).get(epoch)
-          if (commitInfo == null) {
-            epochWaitTimeMap.remove(epoch)
-            context.reply(nullCommitIndoResponse)
-          } else {
-            commitInfo.synchronized {
-              if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
-                context.reply(commitInfo.response)
-                epochWaitTimeMap.remove(epoch)
-              } else {
-                val currentTime = System.currentTimeMillis()
-                if (currentTime - waitTime >= shuffleCommitTimeout) {
-                  val replyResponse = CommitFilesResponse(
-                    StatusCode.COMMIT_FILE_EXCEPTION,
-                    List.empty.asJava,
-                    List.empty.asJava,
-                    commitInfo.response.failedPrimaryIds,
-                    commitInfo.response.failedReplicaIds)
-                  shuffleCommitInfos.get(shuffleKey).put(
-                    epoch,
-                    new CommitInfo(replyResponse, CommitInfo.COMMIT_FINISHED))
-                  context.reply(replyResponse)
+        if (!shuffleCommitInfos.containsKey(shuffleKey)) {
+          shuffleCommitTime.remove(shuffleKey)
+        } else {
+          epochWaitTimeMap.asScala.foreach { case (epoch, (waitTime, context)) =>
+            val commitInfo = shuffleCommitInfos.get(shuffleKey).get(epoch)
+            if (commitInfo == null) {
+              epochWaitTimeMap.remove(epoch)
+            } else {
+              commitInfo.synchronized {
+                if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
+                  context.reply(commitInfo.response)
                   epochWaitTimeMap.remove(epoch)
+                } else {
+                  val currentTime = System.currentTimeMillis()
+                  if (currentTime - waitTime >= shuffleCommitTimeout) {
+                    val replyResponse = CommitFilesResponse(
+                      StatusCode.COMMIT_FILE_EXCEPTION,
+                      List.empty.asJava,
+                      List.empty.asJava,
+                      commitInfo.response.failedPrimaryIds,
+                      commitInfo.response.failedReplicaIds)
+                    shuffleCommitInfos.get(shuffleKey).put(
+                      epoch,
+                      new CommitInfo(replyResponse, CommitInfo.COMMIT_FINISHED))
+                    context.reply(replyResponse)
+                    epochWaitTimeMap.remove(epoch)
+                  }
                 }
               }
             }
