@@ -15,7 +15,8 @@
 
 add_executable(
         celeborn_network_test
-        FrameDecoderTest.cpp)
+        FrameDecoderTest.cpp
+        MessageTest.cpp)
 
 add_test(NAME celeborn_network_test COMMAND celeborn_network_test)
 
@@ -25,6 +26,7 @@ target_link_libraries(
         memory
         proto
         protocol
+        network
         utils
         ${WANGLE}
         ${FIZZ}
