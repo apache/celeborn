@@ -25,6 +25,7 @@ target_link_libraries(
         protocol
         memory
         proto
+        utils
         ${FOLLY_WITH_DEPENDENCIES}
         ${GLOG}
         ${GFLAGS_LIBRARIES}
