@@ -22,6 +22,7 @@ import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
 
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -40,12 +41,12 @@ import org.apache.celeborn.server.common.service.config.ConfigLevel
 private[api] class ConfResource extends ApiRequestContext {
   private def configService = httpService.configService
 
+  @Operation(description = "List the conf setting")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[ConfResponse]))),
-    description = "List the conf setting")
+      schema = new Schema(implementation = classOf[ConfResponse]))))
   @GET
   def conf: ConfResponse = {
     new ConfResponse()
@@ -55,16 +56,16 @@ private[api] class ConfResource extends ApiRequestContext {
         }.asJava)
   }
 
+  @Operation(description = "List the dynamic configs. " +
+    "The parameter level specifies the config level of dynamic configs. " +
+    "The parameter tenant specifies the tenant id of TENANT or TENANT_USER level. " +
+    "The parameter name specifies the user name of TENANT_USER level. " +
+    "Meanwhile, either none or all of the parameter tenant and name are specified for TENANT_USER level.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[DynamicConfigResponse]))),
-    description = "List the dynamic configs. " +
-      "The parameter level specifies the config level of dynamic configs. " +
-      "The parameter tenant specifies the tenant id of TENANT or TENANT_USER level. " +
-      "The parameter name specifies the user name of TENANT_USER level. " +
-      "Meanwhile, either none or all of the parameter tenant and name are specified for TENANT_USER level.")
+      schema = new Schema(implementation = classOf[DynamicConfigResponse]))))
   @GET
   @Path("/dynamic")
   def dynamicConf(

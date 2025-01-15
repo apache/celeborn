@@ -22,6 +22,7 @@ import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
 
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -37,13 +38,13 @@ import org.apache.celeborn.service.deploy.worker.Worker
 class ShuffleResource extends ApiRequestContext {
   private def worker = httpService.asInstanceOf[Worker]
 
+  @Operation(description =
+    "List all the running shuffle keys of the worker. It only return keys of shuffles running in that worker.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[ShufflesResponse]))),
-    description =
-      "List all the running shuffle keys of the worker. It only return keys of shuffles running in that worker.")
+      schema = new Schema(implementation = classOf[ShufflesResponse]))))
   @GET
   def shuffles(): ShufflesResponse = {
     new ShufflesResponse()
@@ -51,13 +52,14 @@ class ShuffleResource extends ApiRequestContext {
 
   }
 
+  @Operation(description =
+    "List all the living shuffle PartitionLocation information in the worker.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(
-        implementation = classOf[ShufflePartitionsResponse]))),
-    description = "List all the living shuffle PartitionLocation information in the worker.")
+        implementation = classOf[ShufflePartitionsResponse]))))
   @GET
   @Path("/partitions")
   def partitions(): ShufflePartitionsResponse = {
