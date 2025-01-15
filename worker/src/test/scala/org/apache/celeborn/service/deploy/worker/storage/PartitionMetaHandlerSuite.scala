@@ -28,40 +28,9 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{DiskFileInfo, MapFileMeta, ReduceFileMeta}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.unsafe.Platform
+import org.apache.celeborn.service.deploy.worker.storage.WriterUtils.{generateFlinkFormatData, generateSparkFormatData}
 
 class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
-
-  private def generateFlinkFormatData(
-      byteBufAllocator: UnpooledByteBufAllocator,
-      partitionId: Int) = {
-    val dataBuf = byteBufAllocator.buffer(1024)
-    // partitionId attemptId batchId size
-    dataBuf.writeInt(partitionId)
-    dataBuf.writeInt(0)
-    dataBuf.writeInt(0)
-    dataBuf.writeInt(1008)
-    for (i <- 1 to 1008) {
-      dataBuf.writeByte(1)
-    }
-    assert(1024 === dataBuf.readableBytes())
-    dataBuf
-  }
-
-  private def generateSparkFormatData(
-      byteBufAllocator: UnpooledByteBufAllocator,
-      attemptId: Int) = {
-    val dataBuf = byteBufAllocator.buffer(1024)
-    val arr = new Array[Byte](1024)
-    // mapId attemptId batchId size
-    Platform.putInt(arr, Platform.BYTE_ARRAY_OFFSET, attemptId)
-    Platform.putInt(arr, Platform.BYTE_ARRAY_OFFSET + 4, 0)
-    Platform.putInt(arr, Platform.BYTE_ARRAY_OFFSET + 8, 0)
-    Platform.putInt(arr, Platform.BYTE_ARRAY_OFFSET + 12, 1008)
-
-    dataBuf.writeBytes(arr)
-    assert(1024 === dataBuf.readableBytes())
-    dataBuf
-  }
 
   test("test map partition meta handler") {
     val byteBufAllocator = UnpooledByteBufAllocator.DEFAULT
