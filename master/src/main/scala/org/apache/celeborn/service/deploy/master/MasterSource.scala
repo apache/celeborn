@@ -60,6 +60,10 @@ object MasterSource {
 
   val OFFER_SLOTS_TIME = "OfferSlotsTime"
 
+  val RATIS_COMMIT_INDEX = "RatisCommitIndex"
+
+  val RATIS_COMMIT_INDEX_DIFF = "RatisCommitIndexDiff"
+
   // Capacity
   val DEVICE_CELEBORN_FREE_CAPACITY = "DeviceCelebornFreeBytes"
   val DEVICE_CELEBORN_TOTAL_CAPACITY = "DeviceCelebornTotalBytes"
