@@ -456,7 +456,7 @@ private[deploy] class Controller(
           JavaUtils.newConcurrentHashMap[Long, (Long, RpcCallContext)]())
         val epochWaitTimeMap = shuffleCommitTime.get(shuffleKey)
         val WaitTimestamp = System.currentTimeMillis()
-        epochWaitTimeMap.putIfAbsent(epoch, (WaitTimestamp, context))
+        epochWaitTimeMap.put(epoch, (WaitTimestamp, context))
         return
       } else {
         logInfo(s"Start commitFiles for $shuffleKey")
@@ -746,40 +746,52 @@ private[deploy] class Controller(
     String,
     ConcurrentHashMap[Long, (Long, RpcCallContext)]]): Unit = {
 
-    shuffleCommitTime.asScala.foreach {
-      case (shuffleKey, epochWaitTimeMap) =>
-        if (!shuffleCommitInfos.containsKey(shuffleKey)) {
-          shuffleCommitTime.remove(shuffleKey)
-        } else {
-          epochWaitTimeMap.asScala.foreach { case (epoch, (waitTime, context)) =>
-            val commitInfo = shuffleCommitInfos.get(shuffleKey).get(epoch)
-            if (commitInfo == null) {
-              epochWaitTimeMap.remove(epoch)
-            } else {
-              commitInfo.synchronized {
-                if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
-                  context.reply(commitInfo.response)
-                  epochWaitTimeMap.remove(epoch)
-                } else {
-                  val currentTime = System.currentTimeMillis()
-                  if (currentTime - waitTime >= shuffleCommitTimeout) {
-                    val replyResponse = CommitFilesResponse(
-                      StatusCode.COMMIT_FILE_EXCEPTION,
-                      List.empty.asJava,
-                      List.empty.asJava,
-                      commitInfo.response.failedPrimaryIds,
-                      commitInfo.response.failedReplicaIds)
-                    shuffleCommitInfos.get(shuffleKey).put(
-                      epoch,
-                      new CommitInfo(replyResponse, CommitInfo.COMMIT_FINISHED))
-                    context.reply(replyResponse)
-                    epochWaitTimeMap.remove(epoch)
-                  }
+    val commitTimeIterator = shuffleCommitTime.entrySet().iterator()
+    while (commitTimeIterator.hasNext) {
+      val timeMapEntry = commitTimeIterator.next()
+      val shuffleKey = timeMapEntry.getKey
+      val epochWaitTimeMap = timeMapEntry.getValue
+      val epochIterator = epochWaitTimeMap.entrySet().iterator()
+
+      while (epochIterator.hasNext && shuffleCommitInfos.containsKey(shuffleKey)) {
+        val epochWaitTimeEntry = epochIterator.next()
+        val epoch = epochWaitTimeEntry.getKey
+        val (waitTime, context) = epochWaitTimeEntry.getValue
+        val commitInfo = shuffleCommitInfos.get(shuffleKey).get(epoch)
+        if (commitInfo != null) {
+          try {
+            commitInfo.synchronized {
+              if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
+                context.reply(commitInfo.response)
+                epochIterator.remove()
+              } else {
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - waitTime >= shuffleCommitTimeout) {
+                  val replyResponse = CommitFilesResponse(
+                    StatusCode.COMMIT_FILE_EXCEPTION,
+                    List.empty.asJava,
+                    List.empty.asJava,
+                    commitInfo.response.failedPrimaryIds,
+                    commitInfo.response.failedReplicaIds)
+                  shuffleCommitInfos.get(shuffleKey).put(
+                    epoch,
+                    new CommitInfo(replyResponse, CommitInfo.COMMIT_FINISHED))
+                  context.reply(replyResponse)
+                  epochIterator.remove()
                 }
               }
             }
+          } catch {
+            case error: Exception =>
+              logError(
+                s"Exception occurs when checkCommitTimeout for shuffleKey-epoch:$shuffleKey-$epoch, error: $error")
           }
         }
+      }
+      if (!shuffleCommitInfos.containsKey(shuffleKey)) {
+        logWarning(s"Shuffle $shuffleKey commit expired when checkCommitTimeout.")
+        commitTimeIterator.remove()
+      }
     }
   }
 

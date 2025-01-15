@@ -21,12 +21,14 @@ import java.io.File
 import java.nio.file.{Files, Paths}
 import java.util
 import java.util.{HashSet => JHashSet}
+import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 import org.junit.Assert
 import org.mockito.MockitoSugar._
-import org.scalatest.BeforeAndAfterEach
+import org.scalatest.{shortstacks, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
@@ -275,5 +277,64 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
     // timeout but SUCCESS epoch2 can reply
     assert(shuffleCommitTime.get(shuffleKey).get(epoch2) == null)
     assert(epochCommitMap.get(epoch2).response.status == StatusCode.SUCCESS)
+  }
+
+  test("test check") {
+    val shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, Long]] =
+      JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, Long]]()
+
+    val shuffleCommitTime: ConcurrentHashMap[String, ConcurrentHashMap[Long, Long]] =
+      JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, Long]]()
+
+    shuffleCommitInfos.put("1", JavaUtils.newConcurrentHashMap[Long, Long]())
+    val epochCommitMap1 = shuffleCommitInfos.get("1")
+    epochCommitMap1.put(1L, 1L)
+
+    shuffleCommitInfos.put("2", JavaUtils.newConcurrentHashMap[Long, Long]())
+    val epochCommitMap2 = shuffleCommitInfos.get("2")
+    epochCommitMap2.put(2L, 2L)
+
+    shuffleCommitInfos.put("3", JavaUtils.newConcurrentHashMap[Long, Long]())
+    val epochCommitMap3 = shuffleCommitInfos.get("3")
+    epochCommitMap3.put(3L, 3L)
+
+    shuffleCommitTime.put("1", JavaUtils.newConcurrentHashMap[Long, Long]())
+    val commitTimeMap1 = shuffleCommitTime.get("1")
+    commitTimeMap1.put(1L, 1L)
+
+    shuffleCommitTime.put("2", JavaUtils.newConcurrentHashMap[Long, Long]())
+    val commitTimeMap2 = shuffleCommitTime.get("2")
+    commitTimeMap2.put(2L, 2L)
+    commitTimeMap2.put(4L, 4L)
+
+    shuffleCommitTime.put("3", JavaUtils.newConcurrentHashMap[Long, Long]())
+    val commitTimeMap3 = shuffleCommitTime.get("3")
+    commitTimeMap3.put(3L, 3L)
+
+    assert(shuffleCommitInfos.size() == 3)
+
+    val commitTimeIterator = shuffleCommitTime.entrySet().iterator()
+    val testList = new ArrayBuffer[Long]()
+    val res = ArrayBuffer[Long](1L, 3L)
+    while (commitTimeIterator.hasNext) {
+      val timeMapEntry = commitTimeIterator.next()
+      val shuffleKey = timeMapEntry.getKey
+      val epochWaitTimeMap = timeMapEntry.getValue
+      val epochIterator = epochWaitTimeMap.entrySet().iterator()
+
+      shuffleCommitInfos.remove("2")
+      while (epochIterator.hasNext && shuffleCommitInfos.containsKey(shuffleKey)) {
+        val epochWaitTimeEntry = epochIterator.next()
+        val epoch = epochWaitTimeEntry.getKey
+        val value = epochWaitTimeEntry.getValue
+        testList.append(epoch)
+      }
+      if (!shuffleCommitInfos.containsKey(shuffleKey)) {
+        commitTimeIterator.remove()
+      }
+    }
+    assert(testList.equals(res))
+    assert(shuffleCommitTime.size() == 2)
+
   }
 }
