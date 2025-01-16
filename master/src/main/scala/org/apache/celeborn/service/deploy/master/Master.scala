@@ -287,9 +287,8 @@ private[celeborn] class Master(
   }
 
   if (conf.haEnabled) {
-    masterSource.addGauge(MasterSource.RATIS_COMMIT_INDEX) { () => getMasterRatisCommitIndex._1 }
-    masterSource.addGauge(MasterSource.RATIS_COMMIT_INDEX_DIFF) { () =>
-      getMasterRatisCommitIndex._2
+    masterSource.addGauge(MasterSource.RATIS_APPLY_COMPLETED_INDEX_DIFF) { () =>
+      getRatisApplyCompletedIndex
     }
   }
 
@@ -1486,35 +1485,18 @@ private[celeborn] class Master(
     }
   }
 
-  private def getMasterRatisCommitIndex: (Long, Long) = {
+  private def getRatisApplyCompletedIndex: Long = {
     if (conf.haEnabled) {
-      val ratisServer = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getServer
-      if (ratisServer == null) {
-        (0, 0)
+      val ratisServer = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer
+      if (ratisServer != null) {
+        val stateMachine = ratisServer.getMasterStateMachine
+        val lastAppliedIndex = stateMachine.getLastAppliedTermIndex.getIndex
+        lastAppliedIndex
       } else {
-        val peerProtoId = ratisServer.getPeer.getRaftPeerProto.getId.toStringUtf8
-        val groupInfo = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getGroupInfo
-        val commitInfos = groupInfo.getCommitInfos
-        var commitIndex: Long = 0
-        var minIndex = Long.MaxValue
-        var maxIndex: Long = 0
-        commitInfos.asScala.foreach { commitInfo =>
-          val indexPeerProtoId = commitInfo.getServer.getId.toStringUtf8
-          val peerCommitIndex = commitInfo.getCommitIndex
-          if (indexPeerProtoId.equals(peerProtoId)) {
-            commitIndex = peerCommitIndex
-          }
-          if (minIndex > peerCommitIndex) {
-            minIndex = peerCommitIndex
-          }
-          if (maxIndex < peerCommitIndex) {
-            maxIndex = peerCommitIndex
-          }
-        }
-        (commitIndex, Math.max(0, maxIndex - minIndex))
+        0
       }
     } else {
-      (0, 0)
+      0
     }
   }
 
