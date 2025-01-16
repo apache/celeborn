@@ -455,8 +455,8 @@ private[deploy] class Controller(
           shuffleKey,
           JavaUtils.newConcurrentHashMap[Long, (Long, RpcCallContext)]())
         val epochWaitTimeMap = shuffleCommitTime.get(shuffleKey)
-        val WaitTimestamp = System.currentTimeMillis()
-        epochWaitTimeMap.put(epoch, (WaitTimestamp, context))
+        val commitStartWaitTime = System.currentTimeMillis()
+        epochWaitTimeMap.put(epoch, (commitStartWaitTime, context))
         return
       } else {
         logInfo(s"Start commitFiles for $shuffleKey")
@@ -746,6 +746,7 @@ private[deploy] class Controller(
     String,
     ConcurrentHashMap[Long, (Long, RpcCallContext)]]): Unit = {
 
+    val currentTime = System.currentTimeMillis()
     val commitTimeIterator = shuffleCommitTime.entrySet().iterator()
     while (commitTimeIterator.hasNext) {
       val timeMapEntry = commitTimeIterator.next()
@@ -756,7 +757,7 @@ private[deploy] class Controller(
       while (epochIterator.hasNext && shuffleCommitInfos.containsKey(shuffleKey)) {
         val epochWaitTimeEntry = epochIterator.next()
         val epoch = epochWaitTimeEntry.getKey
-        val (waitTime, context) = epochWaitTimeEntry.getValue
+        val (commitStartWaitTime, context) = epochWaitTimeEntry.getValue
         try {
           val commitInfo = shuffleCommitInfos.get(shuffleKey).get(epoch)
           if (commitInfo != null) {
@@ -765,8 +766,7 @@ private[deploy] class Controller(
                 context.reply(commitInfo.response)
                 epochIterator.remove()
               } else {
-                val currentTime = System.currentTimeMillis()
-                if (currentTime - waitTime >= shuffleCommitTimeout) {
+                if (currentTime - commitStartWaitTime >= shuffleCommitTimeout) {
                   val replyResponse = CommitFilesResponse(
                     StatusCode.COMMIT_FILE_EXCEPTION,
                     List.empty.asJava,
