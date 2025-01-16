@@ -760,25 +760,23 @@ private[deploy] class Controller(
         val (commitStartWaitTime, context) = epochWaitTimeEntry.getValue
         try {
           val commitInfo = shuffleCommitInfos.get(shuffleKey).get(epoch)
-          if (commitInfo != null) {
-            commitInfo.synchronized {
-              if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
-                context.reply(commitInfo.response)
+          commitInfo.synchronized {
+            if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
+              context.reply(commitInfo.response)
+              epochIterator.remove()
+            } else {
+              if (currentTime - commitStartWaitTime >= shuffleCommitTimeout) {
+                val replyResponse = CommitFilesResponse(
+                  StatusCode.COMMIT_FILE_EXCEPTION,
+                  List.empty.asJava,
+                  List.empty.asJava,
+                  commitInfo.response.failedPrimaryIds,
+                  commitInfo.response.failedReplicaIds)
+                shuffleCommitInfos.get(shuffleKey).put(
+                  epoch,
+                  new CommitInfo(replyResponse, CommitInfo.COMMIT_FINISHED))
+                context.reply(replyResponse)
                 epochIterator.remove()
-              } else {
-                if (currentTime - commitStartWaitTime >= shuffleCommitTimeout) {
-                  val replyResponse = CommitFilesResponse(
-                    StatusCode.COMMIT_FILE_EXCEPTION,
-                    List.empty.asJava,
-                    List.empty.asJava,
-                    commitInfo.response.failedPrimaryIds,
-                    commitInfo.response.failedReplicaIds)
-                  shuffleCommitInfos.get(shuffleKey).put(
-                    epoch,
-                    new CommitInfo(replyResponse, CommitInfo.COMMIT_FINISHED))
-                  context.reply(replyResponse)
-                  epochIterator.remove()
-                }
               }
             }
           }
