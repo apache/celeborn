@@ -81,6 +81,7 @@ private[celeborn] class Master(
 
   private val bindPreferIP: Boolean = conf.bindPreferIP
   private val authEnabled = conf.authEnabled
+  private val haEnabled = conf.haEnabled
   private val secretRegistry = new MasterSecretRegistryImpl()
   private val sendApplicationMetaThreads = conf.masterSendApplicationMetaThreads
   // Send ApplicationMeta to workers
@@ -146,7 +147,7 @@ private[celeborn] class Master(
 
   private val rackResolver = new CelebornRackResolver(conf)
   private[celeborn] val statusSystem =
-    if (conf.haEnabled) {
+    if (haEnabled) {
       val sys = new HAMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
       val handler = new MetaHandler(sys)
       try {
@@ -285,7 +286,7 @@ private[celeborn] class Master(
     statusSystem.decommissionWorkers.size()
   }
 
-  if (conf.haEnabled) {
+  if (haEnabled) {
     masterSource.addGauge(MasterSource.RATIS_APPLY_COMPLETED_INDEX) { () =>
       getRatisApplyCompletedIndex
     }
@@ -1438,7 +1439,7 @@ private[celeborn] class Master(
   private[master] def isMasterActive: Int = {
     // use int rather than bool for better monitoring on dashboard
     val isActive =
-      if (conf.haEnabled) {
+      if (haEnabled) {
         if (statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.isLeader) {
           1
         } else {
@@ -1451,7 +1452,7 @@ private[celeborn] class Master(
   }
 
   private def getMasterGroupInfoInternal: String = {
-    if (conf.haEnabled) {
+    if (haEnabled) {
       val sb = new StringBuilder
       val groupInfo = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getGroupInfo
       sb.append(s"group id: ${groupInfo.getGroup.getGroupId.getUuid}\n")
@@ -1485,11 +1486,9 @@ private[celeborn] class Master(
   }
 
   private def getRatisApplyCompletedIndex: Long = {
-    if (conf.haEnabled) {
-      val ratisServer = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer
-      if (ratisServer != null) {
-        ratisServer.getMasterStateMachine.getLastAppliedTermIndex.getIndex
-      }
+    val ratisServer = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer
+    if (ratisServer != null) {
+      ratisServer.getMasterStateMachine.getLastAppliedTermIndex.getIndex
     }
     0
   }
