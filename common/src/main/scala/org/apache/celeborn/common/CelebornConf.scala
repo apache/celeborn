@@ -1341,6 +1341,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testMockCommitFilesFailure: Boolean = get(TEST_MOCK_COMMIT_FILES_FAILURE)
   def testMockShuffleLost: Boolean = get(TEST_CLIENT_MOCK_SHUFFLE_LOST)
   def testMockShuffleLostShuffle: Int = get(TEST_CLIENT_MOCK_SHUFFLE_LOST_SHUFFLE)
+  def testMockShuffleReader: Boolean = get(TEST_CLIENT_MOCK_SHUFFLE_READER)
   def testPushPrimaryDataTimeout: Boolean = get(TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT)
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
@@ -4351,6 +4352,16 @@ object CelebornConf extends Logging {
       .internal
       .intConf
       .createWithDefault(0)
+
+  val TEST_CLIENT_MOCK_SHUFFLE_READER: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.client.mockShuffleReader")
+      .internal
+      .categories("test", "client")
+      .doc("Mock shuffle reader for shuffle")
+      .version("0.5.3")
+      .internal
+      .booleanConf
+      .createWithDefault(false)
 
   val CLIENT_PUSH_REPLICATE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.push.replicate.enabled")
