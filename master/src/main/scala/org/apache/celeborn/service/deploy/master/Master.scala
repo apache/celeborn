@@ -1488,15 +1488,10 @@ private[celeborn] class Master(
     if (conf.haEnabled) {
       val ratisServer = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer
       if (ratisServer != null) {
-        val stateMachine = ratisServer.getMasterStateMachine
-        val lastAppliedIndex = stateMachine.getLastAppliedTermIndex.getIndex
-        lastAppliedIndex
-      } else {
-        0
+        ratisServer.getMasterStateMachine.getLastAppliedTermIndex.getIndex
       }
-    } else {
-      0
     }
+    0
   }
 
   override def getWorkerEventInfo(): String = {
