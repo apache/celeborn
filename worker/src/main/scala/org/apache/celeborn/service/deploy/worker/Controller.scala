@@ -757,9 +757,9 @@ private[deploy] class Controller(
         val epochWaitTimeEntry = epochIterator.next()
         val epoch = epochWaitTimeEntry.getKey
         val (waitTime, context) = epochWaitTimeEntry.getValue
-        val commitInfo = shuffleCommitInfos.get(shuffleKey).get(epoch)
-        if (commitInfo != null) {
-          try {
+        try {
+          val commitInfo = shuffleCommitInfos.get(shuffleKey).get(epoch)
+          if (commitInfo != null) {
             commitInfo.synchronized {
               if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
                 context.reply(commitInfo.response)
@@ -781,11 +781,12 @@ private[deploy] class Controller(
                 }
               }
             }
-          } catch {
-            case error: Exception =>
-              logError(
-                s"Exception occurs when checkCommitTimeout for shuffleKey-epoch:$shuffleKey-$epoch, error: $error")
           }
+        } catch {
+          case error: Exception =>
+            epochIterator.remove()
+            logWarning(
+              s"Exception occurs when checkCommitTimeout for shuffleKey-epoch:$shuffleKey-$epoch, error: $error")
         }
       }
       if (!shuffleCommitInfos.containsKey(shuffleKey)) {
