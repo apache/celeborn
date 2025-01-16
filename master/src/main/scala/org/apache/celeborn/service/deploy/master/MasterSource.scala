@@ -60,7 +60,7 @@ object MasterSource {
 
   val OFFER_SLOTS_TIME = "OfferSlotsTime"
 
-  val RATIS_APPLY_COMPLETED_INDEX_DIFF = "RatisApplyCompletedIndexDiff"
+  val RATIS_APPLY_COMPLETED_INDEX = "RatisApplyCompletedIndex"
 
   // Capacity
   val DEVICE_CELEBORN_FREE_CAPACITY = "DeviceCelebornFreeBytes"

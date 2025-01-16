@@ -287,7 +287,7 @@ private[celeborn] class Master(
   }
 
   if (conf.haEnabled) {
-    masterSource.addGauge(MasterSource.RATIS_APPLY_COMPLETED_INDEX_DIFF) { () =>
+    masterSource.addGauge(MasterSource.RATIS_APPLY_COMPLETED_INDEX) { () =>
       getRatisApplyCompletedIndex
     }
   }
