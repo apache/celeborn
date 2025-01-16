@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
