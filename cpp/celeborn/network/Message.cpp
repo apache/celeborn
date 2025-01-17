@@ -68,7 +68,7 @@ Message::Type Message::decodeType(uint8_t typeId) {
   }
 }
 
-std::atomic<long> Message::currRequestId_ = 1000;
+std::atomic<long> Message::currRequestId_ = 0;
 
 std::unique_ptr<memory::ReadOnlyByteBuffer> Message::encode() const {
   int bodyLength = body_->remainingSize();
