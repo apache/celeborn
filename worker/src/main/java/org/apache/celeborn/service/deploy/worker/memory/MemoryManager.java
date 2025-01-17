@@ -301,14 +301,24 @@ public class MemoryManager {
 
   public ServingState currentServingState() {
     long memoryUsage = getMemoryUsage();
+    boolean resumeByPinnedMemory = canResumeByPinnedMemory();
     // pause replicate threshold always greater than pause push data threshold
     // so when trigger pause replicate, pause both push and replicate
     if (memoryUsage > pauseReplicateThreshold) {
+      if (resumeByPinnedMemory) {
+        resumeReplicate();
+        resumePush();
+        trimAllListeners();
+      }
       isPaused = true;
       return ServingState.PUSH_AND_REPLICATE_PAUSED;
     }
     // trigger pause only push
     if (memoryUsage > pausePushDataThreshold) {
+      if (resumeByPinnedMemory) {
+        resumePush();
+        trimAllListeners();
+      }
       isPaused = true;
       return ServingState.PUSH_PAUSED;
     }
