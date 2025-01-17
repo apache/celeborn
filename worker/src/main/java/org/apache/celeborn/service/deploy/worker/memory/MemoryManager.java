@@ -343,32 +343,47 @@ public class MemoryManager {
     logger.info("Serving state transformed from {} to {}", lastState, servingState);
     switch (servingState) {
       case PUSH_PAUSED:
-        pausePushDataCounter.increment();
-        if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
-          logger.info("Trigger action: RESUME REPLICATE");
-          resumeReplicate();
-        } else if (lastState == ServingState.NONE_PAUSED) {
-          logger.info("Trigger action: PAUSE PUSH");
-          pausePushDataStartTime = System.currentTimeMillis();
-          memoryPressureListeners.forEach(
-              memoryPressureListener ->
-                  memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
+        if (canResumeByPinnedMemory()) {
+          logger.info(
+              "Serving State is PUSH_PAUSED, but resume by lower pinned memory {}",
+              getAllocatedMemory());
+          resumePush();
+        } else {
+          pausePushDataCounter.increment();
+          if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
+            logger.info("Trigger action: RESUME REPLICATE");
+            resumeReplicate();
+          } else if (lastState == ServingState.NONE_PAUSED) {
+            logger.info("Trigger action: PAUSE PUSH");
+            pausePushDataStartTime = System.currentTimeMillis();
+            memoryPressureListeners.forEach(
+                memoryPressureListener ->
+                    memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
+          }
         }
         trimAllListeners();
         break;
       case PUSH_AND_REPLICATE_PAUSED:
-        pausePushDataAndReplicateCounter.increment();
-        if (lastState == ServingState.NONE_PAUSED) {
-          logger.info("Trigger action: PAUSE PUSH");
-          pausePushDataAndReplicateStartTime = System.currentTimeMillis();
+        if (canResumeByPinnedMemory()) {
+          logger.info(
+              "Serving State is PUSH_AND_REPLICATE_PAUSED, but resume by lower pinned memory {}",
+              getAllocatedMemory());
+          resumeReplicate();
+          resumePush();
+        } else {
+          pausePushDataAndReplicateCounter.increment();
+          if (lastState == ServingState.NONE_PAUSED) {
+            logger.info("Trigger action: PAUSE PUSH");
+            pausePushDataAndReplicateStartTime = System.currentTimeMillis();
+            memoryPressureListeners.forEach(
+                memoryPressureListener ->
+                    memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
+          }
+          logger.info("Trigger action: PAUSE REPLICATE");
           memoryPressureListeners.forEach(
               memoryPressureListener ->
-                  memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
+                  memoryPressureListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
         }
-        logger.info("Trigger action: PAUSE REPLICATE");
-        memoryPressureListeners.forEach(
-            memoryPressureListener ->
-                memoryPressureListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
         trimAllListeners();
         break;
       case NONE_PAUSED:
@@ -379,8 +394,6 @@ public class MemoryManager {
         }
         resumePush();
     }
-
-    checkPinnedMemory();
   }
 
   public void trimAllListeners() {
@@ -569,22 +582,13 @@ public class MemoryManager {
     _INSTANCE = null;
   }
 
-  private void checkPinnedMemory() {
-    // CELEBORN-1792: resume should use pinnedDirectMemory instead of usedDirectMemory
+  private boolean canResumeByPinnedMemory() {
     if (System.currentTimeMillis() >= pinnedMemoryNextCheckTime
         && getAllocatedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
-      switch (servingState) {
-        case PUSH_AND_REPLICATE_PAUSED:
-          trimAllListeners();
-          resumeReplicate();
-          resumePush();
-          break;
-        case PUSH_PAUSED:
-          trimAllListeners();
-          resumePush();
-          break;
-      }
       pinnedMemoryNextCheckTime += pinnedMemoryCheckInterval;
+      return true;
+    } else {
+      return false;
     }
   }
 
