@@ -772,9 +772,8 @@ private[deploy] class Controller(
                   List.empty.asJava,
                   commitInfo.response.failedPrimaryIds,
                   commitInfo.response.failedReplicaIds)
-                shuffleCommitInfos.get(shuffleKey).put(
-                  epoch,
-                  new CommitInfo(replyResponse, CommitInfo.COMMIT_FINISHED))
+                commitInfo.status = CommitInfo.COMMIT_FINISHED
+                commitInfo.response = replyResponse
                 context.reply(replyResponse)
                 epochIterator.remove()
               }
