@@ -346,7 +346,7 @@ public class MemoryManager {
         if (canResumeByPinnedMemory()) {
           logger.info(
               "Serving State is PUSH_PAUSED, but resume by lower pinned memory {}",
-              getAllocatedMemory());
+              getNettyPinnedDirectMemory());
           resumePush();
         } else {
           pausePushDataCounter.increment();
