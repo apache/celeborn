@@ -1731,7 +1731,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_RatisCommitIndex_Value{instance=~\"${instance}\"}",
+              "expr": "metrics_RatisApplyCompletedIndex_Value{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -1745,7 +1745,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The difference value of commit index of the masters in HA mode.",
+          "description": "The difference value of ApplyCompletedIndex of the masters in HA mode.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1825,7 +1825,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "max(metrics_RatisCommitIndex_Value{instance=~\"${instance}\"}) - min(metrics_RatisCommitIndex_Value{instance=~\"${instance}\"})",
+              "expr": "max(metrics_RatisApplyCompletedIndex_Value{instance=~\"${instance}\"}) - min(metrics_RatisApplyCompletedIndex_Value{instance=~\"${instance}\"})",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"

@@ -1489,8 +1489,9 @@ private[celeborn] class Master(
     val ratisServer = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer
     if (ratisServer != null) {
       ratisServer.getMasterStateMachine.getLastAppliedTermIndex.getIndex
+    } else {
+      0
     }
-    0
   }
 
   override def getWorkerEventInfo(): String = {
