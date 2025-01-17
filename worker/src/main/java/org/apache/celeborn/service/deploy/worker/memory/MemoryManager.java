@@ -96,6 +96,7 @@ public class MemoryManager {
   private long memoryFileStorageThreshold;
   private final LongAdder memoryFileStorageCounter = new LongAdder();
   private final StorageManager storageManager;
+  private boolean pinnedMemoryCheckEnabled;
   private long pinnedMemoryCheckInterval;
   private long pinnedMemoryNextCheckTime = 0L;
 
@@ -131,6 +132,7 @@ public class MemoryManager {
     double readBufferRatio = conf.workerDirectMemoryRatioForReadBuffer();
     double memoryFileStorageRatio = conf.workerDirectMemoryRatioForMemoryFilesStorage();
     long checkInterval = conf.workerDirectMemoryPressureCheckIntervalMs();
+    this.pinnedMemoryCheckEnabled = conf.workerPinnedMemoryCheckEnabled();
     this.pinnedMemoryCheckInterval = conf.workerPinnedMemoryCheckIntervalMs();
     long reportInterval = conf.workerDirectMemoryReportIntervalSecond();
     double readBufferTargetRatio = conf.readBufferTargetRatio();
@@ -301,24 +303,14 @@ public class MemoryManager {
 
   public ServingState currentServingState() {
     long memoryUsage = getMemoryUsage();
-    boolean resumeByPinnedMemory = canResumeByPinnedMemory();
     // pause replicate threshold always greater than pause push data threshold
     // so when trigger pause replicate, pause both push and replicate
     if (memoryUsage > pauseReplicateThreshold) {
-      if (resumeByPinnedMemory) {
-        resumeReplicate();
-        resumePush();
-        trimAllListeners();
-      }
       isPaused = true;
       return ServingState.PUSH_AND_REPLICATE_PAUSED;
     }
     // trigger pause only push
     if (memoryUsage > pausePushDataThreshold) {
-      if (resumeByPinnedMemory) {
-        resumePush();
-        trimAllListeners();
-      }
       isPaused = true;
       return ServingState.PUSH_PAUSED;
     }
@@ -338,6 +330,9 @@ public class MemoryManager {
     servingState = currentServingState();
     if (lastState == servingState) {
       if (servingState != ServingState.NONE_PAUSED) {
+        if (canResumeByPinnedMemory()) {
+          resumeByPinnedMemory(servingState);
+        }
         logger.debug("Trigger action: TRIM");
         trimCounter += 1;
         // force to append pause spent time even we are in pause state
@@ -354,10 +349,7 @@ public class MemoryManager {
     switch (servingState) {
       case PUSH_PAUSED:
         if (canResumeByPinnedMemory()) {
-          logger.info(
-              "Serving State is PUSH_PAUSED, but resume by lower pinned memory {}",
-              getNettyPinnedDirectMemory());
-          resumePush();
+          resumeByPinnedMemory(servingState);
         } else {
           pausePushDataCounter.increment();
           if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
@@ -375,11 +367,7 @@ public class MemoryManager {
         break;
       case PUSH_AND_REPLICATE_PAUSED:
         if (canResumeByPinnedMemory()) {
-          logger.info(
-              "Serving State is PUSH_AND_REPLICATE_PAUSED, but resume by lower pinned memory {}",
-              getAllocatedMemory());
-          resumeReplicate();
-          resumePush();
+          resumeByPinnedMemory(servingState);
         } else {
           pausePushDataAndReplicateCounter.increment();
           if (lastState == ServingState.NONE_PAUSED) {
@@ -592,8 +580,25 @@ public class MemoryManager {
     _INSTANCE = null;
   }
 
+  private void resumeByPinnedMemory(ServingState servingState) {
+    switch (servingState) {
+      case PUSH_AND_REPLICATE_PAUSED:
+        logger.info(
+            "Serving State is PUSH_AND_REPLICATE_PAUSED, but resume by lower pinned memory {}",
+            getNettyPinnedDirectMemory());
+        resumeReplicate();
+        resumePush();
+      case PUSH_PAUSED:
+        logger.info(
+            "Serving State is PUSH_PAUSED, but resume by lower pinned memory {}",
+            getNettyPinnedDirectMemory());
+        resumePush();
+    }
+  }
+
   private boolean canResumeByPinnedMemory() {
-    if (System.currentTimeMillis() >= pinnedMemoryNextCheckTime
+    if (pinnedMemoryCheckEnabled
+        && System.currentTimeMillis() >= pinnedMemoryNextCheckTime
         && getAllocatedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
       pinnedMemoryNextCheckTime += pinnedMemoryCheckInterval;
       return true;
