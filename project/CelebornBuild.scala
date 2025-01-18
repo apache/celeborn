@@ -772,7 +772,7 @@ trait SparkClientProjects {
         libraryDependencies ++= Seq(
           "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
           "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
-        ) ++ commonUnitTestDependencies
+        ) ++ commonUnitTestDependencies ++ Seq(Dependencies.mockitoInline % "test")
       )
   }
 
