@@ -52,18 +52,24 @@ private[deploy] class Controller(
   var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
   // shuffleKey -> (epoch -> CommitInfo)
   var shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]] = _
+  // shuffleKey -> (epoch -> (commitWaitTimestamp, RpcContext))
+  var shuffleCommitTime
+      : ConcurrentHashMap[String, ConcurrentHashMap[Long, (Long, RpcCallContext)]] =
+    _
   var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
   var shufflePushDataTimeout: ConcurrentHashMap[String, Long] = _
   var workerInfo: WorkerInfo = _
   var partitionLocationInfo: WorkerPartitionLocationInfo = _
   var timer: HashedWheelTimer = _
   var commitThreadPool: ThreadPoolExecutor = _
-  var waitThreadPool: ThreadPoolExecutor = _
+  var commitFinishedChecker: ScheduledExecutorService = _
   var asyncReplyPool: ScheduledExecutorService = _
   val minPartitionSizeToEstimate = conf.minPartitionSizeToEstimate
   var shutdown: AtomicBoolean = _
   val defaultPushdataTimeout = conf.pushDataTimeoutMs
   val mockCommitFilesFailure = conf.testMockCommitFilesFailure
+  val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
+  val workerCommitFilesCheckInterval = conf.workerCommitFilesCheckInterval
 
   def init(worker: Worker): Unit = {
     storageManager = worker.storageManager
@@ -71,13 +77,24 @@ private[deploy] class Controller(
     shufflePushDataTimeout = worker.shufflePushDataTimeout
     shuffleMapperAttempts = worker.shuffleMapperAttempts
     shuffleCommitInfos = worker.shuffleCommitInfos
+    shuffleCommitTime = worker.shuffleCommitTime
     workerInfo = worker.workerInfo
     partitionLocationInfo = worker.partitionLocationInfo
     timer = worker.timer
     commitThreadPool = worker.commitThreadPool
-    waitThreadPool = worker.waitThreadPool
     asyncReplyPool = worker.asyncReplyPool
     shutdown = worker.shutdown
+
+    commitFinishedChecker = worker.commitFinishedChecker
+    commitFinishedChecker.scheduleWithFixedDelay(
+      new Runnable {
+        override def run(): Unit = {
+          checkCommitTimeout(shuffleCommitTime)
+        }
+      },
+      0,
+      workerCommitFilesCheckInterval,
+      TimeUnit.MILLISECONDS)
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
@@ -313,7 +330,7 @@ private[deploy] class Controller(
                 }
 
                 val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
-                waitMapPartitionRegionFinished(fileWriter, conf.workerShuffleCommitTimeout)
+                waitMapPartitionRegionFinished(fileWriter, shuffleCommitTimeout)
                 val bytes = fileWriter.close()
                 if (bytes > 0L) {
                   if (fileWriter.getStorageInfo == null) {
@@ -410,27 +427,20 @@ private[deploy] class Controller(
       return
     }
 
-    val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
-
-    shuffleCommitInfos.putIfAbsent(shuffleKey, JavaUtils.newConcurrentHashMap[Long, CommitInfo]())
+    shuffleCommitInfos.putIfAbsent(
+      shuffleKey,
+      JavaUtils.newConcurrentHashMap[Long, CommitInfo]())
     val epochCommitMap = shuffleCommitInfos.get(shuffleKey)
-    epochCommitMap.putIfAbsent(epoch, new CommitInfo(null, CommitInfo.COMMIT_NOTSTARTED))
-    val commitInfo = epochCommitMap.get(epoch)
 
-    def waitForCommitFinish(): Unit = {
-      val delta = 100
-      var times = 0
-      while (delta * times < shuffleCommitTimeout) {
-        commitInfo.synchronized {
-          if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
-            context.reply(commitInfo.response)
-            return
-          }
-        }
-        Thread.sleep(delta)
-        times += 1
-      }
-    }
+    // to store the primaryIds and replicaIds
+    val response = CommitFilesResponse(
+      null,
+      List.empty.asJava,
+      List.empty.asJava,
+      primaryIds,
+      replicaIds)
+    epochCommitMap.putIfAbsent(epoch, new CommitInfo(response, CommitInfo.COMMIT_NOTSTARTED))
+    val commitInfo = epochCommitMap.get(epoch)
 
     commitInfo.synchronized {
       if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
@@ -439,12 +449,14 @@ private[deploy] class Controller(
         return
       } else if (commitInfo.status == CommitInfo.COMMIT_INPROCESS) {
         logInfo(s"$shuffleKey CommitFiles inprogress, wait for finish")
-        // should not use commitThreadPool in case of block by commit files.
-        waitThreadPool.submit(new Runnable {
-          override def run(): Unit = {
-            waitForCommitFinish()
-          }
-        })
+        // Replace the ThreadPool to avoid blocking
+        // Read and write security of epoch in epochWaitTimeMap is guaranteed by commitInfo's lock
+        shuffleCommitTime.putIfAbsent(
+          shuffleKey,
+          JavaUtils.newConcurrentHashMap[Long, (Long, RpcCallContext)]())
+        val epochWaitTimeMap = shuffleCommitTime.get(shuffleKey)
+        val commitStartWaitTime = System.currentTimeMillis()
+        epochWaitTimeMap.put(epoch, (commitStartWaitTime, context))
         return
       } else {
         logInfo(s"Start commitFiles for $shuffleKey")
@@ -727,6 +739,57 @@ private[deploy] class Controller(
           StatusCode.PARTIAL_SUCCESS,
           failedPrimaries,
           failedReplicas))
+    }
+  }
+
+  def checkCommitTimeout(shuffleCommitTime: ConcurrentHashMap[
+    String,
+    ConcurrentHashMap[Long, (Long, RpcCallContext)]]): Unit = {
+
+    val currentTime = System.currentTimeMillis()
+    val commitTimeIterator = shuffleCommitTime.entrySet().iterator()
+    while (commitTimeIterator.hasNext) {
+      val timeMapEntry = commitTimeIterator.next()
+      val shuffleKey = timeMapEntry.getKey
+      val epochWaitTimeMap = timeMapEntry.getValue
+      val epochIterator = epochWaitTimeMap.entrySet().iterator()
+
+      while (epochIterator.hasNext && shuffleCommitInfos.containsKey(shuffleKey)) {
+        val epochWaitTimeEntry = epochIterator.next()
+        val epoch = epochWaitTimeEntry.getKey
+        val (commitStartWaitTime, context) = epochWaitTimeEntry.getValue
+        try {
+          val commitInfo = shuffleCommitInfos.get(shuffleKey).get(epoch)
+          commitInfo.synchronized {
+            if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
+              context.reply(commitInfo.response)
+              epochIterator.remove()
+            } else {
+              if (currentTime - commitStartWaitTime >= shuffleCommitTimeout) {
+                val replyResponse = CommitFilesResponse(
+                  StatusCode.COMMIT_FILE_EXCEPTION,
+                  List.empty.asJava,
+                  List.empty.asJava,
+                  commitInfo.response.failedPrimaryIds,
+                  commitInfo.response.failedReplicaIds)
+                commitInfo.status = CommitInfo.COMMIT_FINISHED
+                commitInfo.response = replyResponse
+                context.reply(replyResponse)
+                epochIterator.remove()
+              }
+            }
+          }
+        } catch {
+          case error: Exception =>
+            epochIterator.remove()
+            logWarning(
+              s"Exception occurs when checkCommitTimeout for shuffleKey-epoch:$shuffleKey-$epoch, error: $error")
+        }
+      }
+      if (!shuffleCommitInfos.containsKey(shuffleKey)) {
+        logWarning(s"Shuffle $shuffleKey commit expired when checkCommitTimeout.")
+        commitTimeIterator.remove()
+      }
     }
   }
 
