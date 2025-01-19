@@ -1552,9 +1552,10 @@ public class ShuffleClientImpl extends ShuffleClient {
                 callback.onSuccess(ByteBuffer.wrap(new byte[] {StatusCode.SOFT_SPLIT.getValue()}));
               } else {
                 if (dataPushFailureTrackingEnabled) {
-                  for (int i = 0; i < numBatches; i++) {
+                  for (DataBatches.DataBatch resubmitBatch : batchesNeedResubmit) {
                     pushState.addFailedBatch(
-                        partitionUniqueIds[i], new PushFailedBatch(mapId, attemptId, batchIds[i]));
+                        resubmitBatch.loc.getUniqueId(),
+                        new PushFailedBatch(mapId, attemptId, resubmitBatch.batchId));
                   }
                 }
                 ReviveRequest[] requests =

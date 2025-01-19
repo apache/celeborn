@@ -706,8 +706,6 @@ message PbOpenStream {
   int32 endIndex = 4;
   int32 initialCredit = 5;
   bool readLocalShuffle = 6;
-  bool requireSubpartitionId = 7;
-  bool shuffleDataNeedSort = 8;
 }
 
 message PbStreamHandler {

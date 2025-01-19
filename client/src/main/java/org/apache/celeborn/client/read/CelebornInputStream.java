@@ -74,7 +74,8 @@ public abstract class CelebornInputStream extends InputStream {
     if (locations == null || locations.isEmpty()) {
       return emptyInputStream;
     } else {
-      // if startMapIndex > endMapIndex, means partition is skew partition.
+      // if startMapIndex > endMapIndex, means partition is skew partition and read by Celeborn
+      // implementation.
       // locations will split to sub-partitions with startMapIndex size.
       boolean readSkewPartitionWithoutMapRange =
           ClientUtils.readSkewPartitionWithoutMapRange(conf, startMapIndex, endMapIndex);

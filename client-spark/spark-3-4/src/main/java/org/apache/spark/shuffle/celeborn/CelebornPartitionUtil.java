@@ -17,10 +17,7 @@
 
 package org.apache.spark.shuffle.celeborn;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -34,23 +31,22 @@ public class CelebornPartitionUtil {
         locations.stream().mapToLong((PartitionLocation p) -> p.getStorageInfo().fileSize).sum();
     long step = totalPartitionSize / subPartitionSize;
     long startOffset = step * subPartitionIndex;
-    long endOffset = 0;
-    if (subPartitionIndex == subPartitionSize - 1) {
-      // last subPartition should include all remaining data
-      endOffset = totalPartitionSize + 1;
-    } else {
-      endOffset = step * (subPartitionIndex + 1);
-    }
+    long endOffset =
+        subPartitionIndex < subPartitionSize - 1
+            ? step * (subPartitionIndex + 1)
+            : totalPartitionSize + 1; // last subPartition should include all remaining data
 
     long partitionLocationOffset = 0;
     Map<String, Pair<Integer, Integer>> chunkRange = new HashMap<>();
-    for (int i = 0; i < locations.size(); i++) {
-      PartitionLocation p = locations.get(i);
+    for (PartitionLocation p : locations) {
       int left = -1;
       int right = -1;
+      Iterator<Long> chunkOffsets = p.getStorageInfo().getChunkOffsets().iterator();
       // Start from index 1 since the first chunk offset is always 0.
-      for (int j = 1; j < p.getStorageInfo().getChunkOffsets().size(); j++) {
-        long currentOffset = partitionLocationOffset + p.getStorageInfo().getChunkOffsets().get(j);
+      chunkOffsets.next();
+      int j = 1;
+      while (chunkOffsets.hasNext()) {
+        long currentOffset = partitionLocationOffset + chunkOffsets.next();
         if (currentOffset > startOffset && left < 0) {
           left = j - 1;
         }
@@ -60,6 +56,7 @@ public class CelebornPartitionUtil {
         if (left >= 0 && right >= 0) {
           chunkRange.put(p.getUniqueId(), Pair.of(left, right));
         }
+        j++;
       }
       partitionLocationOffset += p.getStorageInfo().getFileSize();
     }

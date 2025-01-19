@@ -127,7 +127,7 @@ class CelebornShuffleReader[K, C](
 
     var partCnt = 0
 
-    // if startMapIndex > endMapIndex, means partition is skew partition.
+    // if startMapIndex > endMapIndex, means partition is skew partition and read by Celeborn implementation.
     // locations will split to sub-partitions with startMapIndex size.
     val splitSkewPartitionWithoutMapRange =
       ClientUtils.readSkewPartitionWithoutMapRange(conf, startMapIndex, endMapIndex)
@@ -154,7 +154,7 @@ class CelebornShuffleReader[K, C](
         locations.asScala.foreach { location =>
           partCnt += 1
           val hostPort = location.hostAndFetchPort
-          if (!workerRequestMap.containsKey(hostPort))
+          if (!workerRequestMap.containsKey(hostPort)) {
             try {
               val client = shuffleClient.getDataClientFactory().createClient(
                 location.getHost,
@@ -171,6 +171,7 @@ class CelebornShuffleReader[K, C](
                   s"Failed to create client for $shuffleKey-$partitionId from host: ${location.hostAndFetchPort}. " +
                     s"Shuffle reader will try its replica if exists.")
             }
+          }
           workerRequestMap.get(hostPort) match {
             case (_, locArr, pbOpenStreamListBuilder) =>
               locArr.add(location)
