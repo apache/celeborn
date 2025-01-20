@@ -330,9 +330,6 @@ public class MemoryManager {
     servingState = currentServingState();
     if (lastState == servingState) {
       if (servingState != ServingState.NONE_PAUSED) {
-        if (canResumeByPinnedMemory()) {
-          resumeByPinnedMemory(servingState);
-        }
         logger.debug("Trigger action: TRIM");
         trimCounter += 1;
         // force to append pause spent time even we are in pause state
@@ -343,7 +340,6 @@ public class MemoryManager {
         }
         trimAllListeners();
       }
-      return;
     }
     logger.info("Serving state transformed from {} to {}", lastState, servingState);
     switch (servingState) {
@@ -355,7 +351,7 @@ public class MemoryManager {
           if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
             logger.info("Trigger action: RESUME REPLICATE");
             resumeReplicate();
-          } else if (lastState == ServingState.NONE_PAUSED) {
+          } else {
             logger.info("Trigger action: PAUSE PUSH");
             pausePushDataStartTime = System.currentTimeMillis();
             memoryPressureListeners.forEach(
@@ -370,13 +366,11 @@ public class MemoryManager {
           resumeByPinnedMemory(servingState);
         } else {
           pausePushDataAndReplicateCounter.increment();
-          if (lastState == ServingState.NONE_PAUSED) {
-            logger.info("Trigger action: PAUSE PUSH");
-            pausePushDataAndReplicateStartTime = System.currentTimeMillis();
-            memoryPressureListeners.forEach(
-                memoryPressureListener ->
-                    memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
-          }
+          logger.info("Trigger action: PAUSE PUSH");
+          pausePushDataAndReplicateStartTime = System.currentTimeMillis();
+          memoryPressureListeners.forEach(
+              memoryPressureListener ->
+                  memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
           logger.info("Trigger action: PAUSE REPLICATE");
           memoryPressureListeners.forEach(
               memoryPressureListener ->
