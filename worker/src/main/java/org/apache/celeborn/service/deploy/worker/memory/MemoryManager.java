@@ -328,19 +328,6 @@ public class MemoryManager {
   public void switchServingState() {
     ServingState lastState = servingState;
     servingState = currentServingState();
-    if (lastState == servingState) {
-      if (servingState != ServingState.NONE_PAUSED) {
-        logger.debug("Trigger action: TRIM");
-        trimCounter += 1;
-        // force to append pause spent time even we are in pause state
-        if (trimCounter >= forceAppendPauseSpentTimeThreshold) {
-          logger.debug(
-              "Trigger action: TRIM for {} times, force to append pause spent time.", trimCounter);
-          appendPauseSpentTime(servingState);
-        }
-        trimAllListeners();
-      }
-    }
     logger.info("Serving state transformed from {} to {}", lastState, servingState);
     switch (servingState) {
       case PUSH_PAUSED:
@@ -359,7 +346,13 @@ public class MemoryManager {
                     memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
           }
         }
+        logger.debug("Trigger action: TRIM");
         trimAllListeners();
+        if (trimCounter >= forceAppendPauseSpentTimeThreshold) {
+          logger.debug(
+              "Trigger action: TRIM for {} times, force to append pause spent time.", trimCounter);
+          appendPauseSpentTime(servingState);
+        }
         break;
       case PUSH_AND_REPLICATE_PAUSED:
         if (canResumeByPinnedMemory()) {
@@ -376,7 +369,13 @@ public class MemoryManager {
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
         }
+        logger.debug("Trigger action: TRIM");
         trimAllListeners();
+        if (trimCounter >= forceAppendPauseSpentTimeThreshold) {
+          logger.debug(
+              "Trigger action: TRIM for {} times, force to append pause spent time.", trimCounter);
+          appendPauseSpentTime(servingState);
+        }
         break;
       case NONE_PAUSED:
         // resume from paused mode, append pause spent time
