@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.mockito.internal.stubbing.answers.AnswersWithDelay;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
@@ -54,15 +53,17 @@ public class ShuffleClientDelayedResponseSuiteJ {
     LifecycleManager lifecycleManager = new LifecycleManager("APP", conf);
     Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
 
-    // mock framework will return unexpected result when the answer is delayed
-    // and there is multiple call of when
     when(endpointRef.askSync(any(), any(), any()))
         .thenAnswer(
-            new AnswersWithDelay(
-                1000,
-                invocation ->
-                    GetReducerFileGroupResponse$.MODULE$.apply(
-                        StatusCode.SUCCESS, locations, new int[0], Collections.emptySet())));
+            invocation -> {
+              try {
+                Thread.sleep(1000);
+              } catch (InterruptedException e) {
+                // ignore this interrupted exception
+              }
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SUCCESS, locations, new int[0], Collections.emptySet());
+            });
 
     shuffleClient =
         new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
