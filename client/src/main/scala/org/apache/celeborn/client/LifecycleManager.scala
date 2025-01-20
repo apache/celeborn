@@ -144,6 +144,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       shuffleId: Int,
       locations: util.List[PartitionLocation]): Unit = {
     val map = latestPartitionLocation.computeIfAbsent(shuffleId, newMapFunc)
+    registerShuffleResponseRpcCache.invalidate(shuffleId)
     locations.asScala.foreach(location => map.put(location.getId, location))
   }
 
@@ -547,12 +548,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 shuffleId,
                 rpcContext,
                 partitionId,
-                getInitialLocs(shuffleId, p => p.getId == partitionId))
+                getLatestLocs(shuffleId, p => p.getId == partitionId))
             case PartitionType.REDUCE =>
               if (rpcContext.isInstanceOf[LocalNettyRpcCallContext]) {
                 context.reply(RegisterShuffleResponse(
                   StatusCode.SUCCESS,
-                  getInitialLocs(shuffleId, p => p.getEpoch == 0)))
+                  getLatestLocs(shuffleId, _ => true)))
               } else {
                 val cachedMsg = registerShuffleResponseRpcCache.get(
                   shuffleId,
@@ -561,7 +562,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                       rpcContext.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(
                         RegisterShuffleResponse(
                           StatusCode.SUCCESS,
-                          getInitialLocs(shuffleId, p => p.getEpoch == 0)))
+                          getLatestLocs(shuffleId, _ => true)))
                     }
                   })
                 rpcContext.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
@@ -580,13 +581,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       }
     }
 
-    def getInitialLocs(
+    def getLatestLocs(
         shuffleId: Int,
         partitionLocationFilter: PartitionLocation => Boolean): Array[PartitionLocation] = {
       workerSnapshots(shuffleId)
         .values()
         .asScala
-        .flatMap(_.getAllPrimaryLocationsWithMinEpoch())
+        .flatMap(_.getAllPrimaryLocationsWithMaxEpoch())
         .filter(partitionLocationFilter)
         .toArray
     }
