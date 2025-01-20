@@ -380,11 +380,14 @@ public class MemoryManager {
         break;
       case NONE_PAUSED:
         // resume from paused mode, append pause spent time
-        appendPauseSpentTime(lastState);
         if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
           resumeReplicate();
+          resumePush();
+          appendPauseSpentTime(lastState);
+        } else if(lastState == ServingState.PUSH_PAUSED) {
+          resumePush();
+          appendPauseSpentTime(lastState);
         }
-        resumePush();
     }
   }
 
