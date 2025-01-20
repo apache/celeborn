@@ -360,11 +360,7 @@ public class SlotsAllocator {
         }
         storageInfo =
             getStorageInfo(
-                workers,
-                nextPrimaryInd,
-                slotsRestrictions,
-                workerDiskIndex,
-                availableStorageTypes);
+                workers, nextPrimaryInd, slotsRestrictions, workerDiskIndex, availableStorageTypes);
       } else {
         if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
           while (!workers.get(nextPrimaryInd).haveDisk()) {
@@ -375,8 +371,7 @@ public class SlotsAllocator {
           }
         }
         storageInfo =
-            getStorageInfo(
-                workers, nextPrimaryInd, null, workerDiskIndex, availableStorageTypes);
+            getStorageInfo(workers, nextPrimaryInd, null, workerDiskIndex, availableStorageTypes);
       }
       PartitionLocation primaryPartition =
           createLocation(partitionId, workers.get(nextPrimaryInd), null, storageInfo, true);
@@ -417,8 +412,7 @@ public class SlotsAllocator {
             }
           }
           storageInfo =
-              getStorageInfo(
-                  workers, nextReplicaInd, null, workerDiskIndex, availableStorageTypes);
+              getStorageInfo(workers, nextReplicaInd, null, workerDiskIndex, availableStorageTypes);
         }
         PartitionLocation replicaPartition =
             createLocation(
