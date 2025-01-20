@@ -98,7 +98,7 @@ public class MemoryManager {
   private final StorageManager storageManager;
   private boolean pinnedMemoryCheckEnabled;
   private long pinnedMemoryCheckInterval;
-  private long pinnedMemoryNextCheckTime = 0L;
+  private long pinnedMemoryLastCheckTime = 0L;
 
   @VisibleForTesting
   public static MemoryManager initialize(CelebornConf conf) {
@@ -325,7 +325,7 @@ public class MemoryManager {
   }
 
   @VisibleForTesting
-  protected void switchServingState() {
+  public void switchServingState() {
     ServingState lastState = servingState;
     servingState = currentServingState();
     if (lastState == servingState) {
@@ -598,9 +598,9 @@ public class MemoryManager {
 
   private boolean canResumeByPinnedMemory() {
     if (pinnedMemoryCheckEnabled
-        && System.currentTimeMillis() >= pinnedMemoryNextCheckTime
+        && System.currentTimeMillis() - pinnedMemoryLastCheckTime >= pinnedMemoryCheckInterval
         && getAllocatedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
-      pinnedMemoryNextCheckTime += pinnedMemoryCheckInterval;
+      pinnedMemoryLastCheckTime = System.currentTimeMillis();
       return true;
     } else {
       return false;
