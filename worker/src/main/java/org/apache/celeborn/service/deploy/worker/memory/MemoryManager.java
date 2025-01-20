@@ -384,7 +384,7 @@ public class MemoryManager {
           resumeReplicate();
           resumePush();
           appendPauseSpentTime(lastState);
-        } else if(lastState == ServingState.PUSH_PAUSED) {
+        } else if (lastState == ServingState.PUSH_PAUSED) {
           resumePush();
           appendPauseSpentTime(lastState);
         }
