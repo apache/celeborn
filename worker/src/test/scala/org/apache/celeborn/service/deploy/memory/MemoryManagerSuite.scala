@@ -180,6 +180,13 @@ class MemoryManagerSuite extends CelebornFunSuite {
     assert(!replicateListener.isPause)
     assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
 
+    // KEEP PAUSE PUSH
+    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(pushThreshold + 1)
+    memoryManager.switchServingState()
+    assert(pushListener.isPause)
+    assert(!replicateListener.isPause)
+    assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
+
     Mockito.when(memoryManager.getMemoryUsage).thenReturn(0L)
     memoryManager.switchServingState()
     assert(!pushListener.isPause)
@@ -192,6 +199,13 @@ class MemoryManagerSuite extends CelebornFunSuite {
     memoryManager.switchServingState()
     assert(!pushListener.isPause)
     assert(!replicateListener.isPause)
+    assert(memoryManager.servingState == ServingState.PUSH_AND_REPLICATE_PAUSED)
+
+    // KEEP PAUSE PUSH AND REPLICATE
+    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(replicateThreshold + 1)
+    memoryManager.switchServingState()
+    assert(pushListener.isPause)
+    assert(replicateListener.isPause)
     assert(memoryManager.servingState == ServingState.PUSH_AND_REPLICATE_PAUSED)
 
     Mockito.when(memoryManager.getMemoryUsage).thenReturn(0L)
