@@ -29,7 +29,7 @@ so it is advisable that the `Worker` machines have adequate storage.
 Code profiling is currently only supported for
 
 *   Linux (x64)
-*   Linux (arm 64)
+*   Linux (arm64)
 *   Linux (musl, x64)
 *   MacOS
 
