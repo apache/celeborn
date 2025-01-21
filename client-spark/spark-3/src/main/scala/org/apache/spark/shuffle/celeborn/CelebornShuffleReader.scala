@@ -380,8 +380,8 @@ class CelebornShuffleReader[K, C](
       celebornShuffleId: Int,
       ce: Throwable): Unit = {
     if (ce.getCause != null &&
-      ce.getCause.isInstanceOf[InterruptedException] || ce.getCause.isInstanceOf[
-        TimeoutException]) {
+      (ce.getCause.isInstanceOf[InterruptedException] || ce.getCause.isInstanceOf[
+        TimeoutException])) {
       logWarning(s"fetch shuffle ${celebornShuffleId} timeout or interrupt", ce)
       throw ce
     } else {
