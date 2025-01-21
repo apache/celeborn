@@ -285,7 +285,7 @@ public class MemoryManager {
             + "pause replication memory: {},  "
             + "read buffer memory limit: {} target: {}, "
             + "memory shuffle storage limit: {}, "
-            + "resume memory ratio: {}, "
+            + "resume by direct memory ratio: {}, "
             + "resume by pinned memory ratio: {}",
         Utils.bytesToString(maxDirectMemory),
         Utils.bytesToString(pausePushDataThreshold),
