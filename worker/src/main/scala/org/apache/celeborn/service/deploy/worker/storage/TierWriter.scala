@@ -161,13 +161,12 @@ abstract class TierWriterBase(
 
   def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask
 
-  def flush(finalFlush: Boolean, fromEvict: Boolean = false): Unit = {
+  def flush(finalFlush: Boolean, rebuildChunkOffsets: Boolean = false): Unit = {
     if (flushBuffer != null) {
       val numBytes = flushBuffer.readableBytes()
       var flushTask: FlushTask = null
       if (numBytes != 0) {
-        if (fromEvict) {
-          //          notifier.numPendingFlushes.incrementAndGet()
+        if (rebuildChunkOffsets) {
           val dupBuf = flushBuffer.retainedDuplicate()
           // this flusher buffer is from memory tier writer, so that we can not keep the buffer
           flushTask = genFlushTask(finalFlush, false)
@@ -193,7 +192,7 @@ abstract class TierWriterBase(
       if (flushTask != null) {
         addFlushTask(flushTask)
         flushBuffer = null
-        if (!fromEvict) {
+        if (!rebuildChunkOffsets) {
           metaHandler.afterFlush(numBytes)
         }
         if (!finalFlush) {
