@@ -15,7 +15,8 @@
 add_library(
         network
         STATIC
-        Message.cpp)
+        Message.cpp
+        MessageDispatcher.cpp)
 
 target_include_directories(network PUBLIC ${CMAKE_BINARY_DIR})
 
@@ -25,6 +26,9 @@ target_link_libraries(
         proto
         utils
         protocol
+        ${WANGLE}
+        ${FIZZ}
+        ${LIBSODIUM_LIBRARY}
         ${FOLLY_WITH_DEPENDENCIES}
         ${GLOG}
         ${GFLAGS_LIBRARIES}

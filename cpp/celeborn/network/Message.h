@@ -178,7 +178,7 @@ class RpcFailure : public Message {
 class ChunkFetchSuccess : public Message {
  public:
   ChunkFetchSuccess(
-      protocol::StreamChunkSlice& streamChunkSlice,
+      const protocol::StreamChunkSlice& streamChunkSlice,
       std::unique_ptr<memory::ReadOnlyByteBuffer>&& body)
       : Message(CHUNK_FETCH_SUCCESS, std::move(body)),
         streamChunkSlice_(streamChunkSlice) {}
@@ -201,7 +201,7 @@ class ChunkFetchSuccess : public Message {
 class ChunkFetchFailure : public Message {
  public:
   ChunkFetchFailure(
-      protocol::StreamChunkSlice& streamChunkSlice,
+      const protocol::StreamChunkSlice& streamChunkSlice,
       std::string&& errorString)
       : Message(
             CHUNK_FETCH_FAILURE,
