@@ -70,7 +70,6 @@ abstract class TierWriterBase(
       metaHandler.beforeWrite(buf)
       ensureNotClosed()
       writerInternal(buf)
-      updateMemoryMetric(buf.readableBytes)
     }
 
     metaHandler.afterWrite(buf.readableBytes())
@@ -95,11 +94,11 @@ abstract class TierWriterBase(
   def close(evict: Boolean = false): Long = {
     try {
       ensureNotClosed()
-      waitOnNoPending(numPendingWrites)
+      waitOnNoPending(numPendingWrites, false)
       closed = true
       finalFlush()
 
-      waitOnNoPending(notifier.numPendingFlushes)
+      waitOnNoPending(notifier.numPendingFlushes, true)
       metaHandler.afterClose()
     } finally {
       returnBuffer(false)
@@ -136,7 +135,7 @@ abstract class TierWriterBase(
   def finalFlush(): Unit = {}
 
   @throws[IOException]
-  protected def waitOnNoPending(counter: AtomicInteger): Unit = {
+  protected def waitOnNoPending(counter: AtomicInteger, failWhenTimeout: Boolean): Unit = {
     var waitTime = writerCloseTimeoutMs
     while (counter.get > 0 && waitTime > 0) {
       try {
@@ -150,7 +149,7 @@ abstract class TierWriterBase(
       }
       waitTime -= WAIT_INTERVAL_MS
     }
-    if (counter.get > 0) {
+    if (counter.get > 0 && failWhenTimeout) {
       val ioe = new IOException("Wait pending actions timeout.")
       notifier.setException(ioe)
       throw ioe
@@ -172,8 +171,6 @@ abstract class TierWriterBase(
           val dupBuf = flushBuffer.retainedDuplicate()
           // this flusher buffer is from memory tier writer, so that we can not keep the buffer
           flushTask = genFlushTask(finalFlush, false)
-          MemoryManager.instance.releaseMemoryFileStorage(numBytes)
-          MemoryManager.instance.incrementDiskBuffer(numBytes)
           if (numBytes > chunkSize) {
             val headerBuf = ByteBuffer.allocate(16)
             while (dupBuf.isReadable) {
@@ -182,7 +179,6 @@ abstract class TierWriterBase(
               val batchHeader = headerBuf.array
               val compressedSize = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12)
               dupBuf.skipBytes(compressedSize)
-
             }
             dupBuf.release
           } else metaHandler.afterFlush(numBytes)
@@ -291,6 +287,9 @@ class MemoryTierWriter(
       // and handle its release
       file.swapFlushBuffer(flushBuffer)
       file.flush(false, true)
+      val numBytes = flushBuffer.readableBytes()
+      MemoryManager.instance.releaseMemoryFileStorage(numBytes)
+      MemoryManager.instance.incrementDiskBuffer(numBytes)
       storageManager.unregisterMemoryPartitionWriterAndFileInfo(fileInfo, shuffleKey, filename)
       storageManager.evictedFileCount.incrementAndGet
     }
@@ -315,6 +314,7 @@ class MemoryTierWriter(
     // memory tier writer will not flush
     // add the bytes into flusher buffer is flush completed
     metaHandler.afterFlush(buf.readableBytes())
+    updateMemoryMetric(buf.readableBytes)
   }
 
   override def closeStreams(): Unit = {
