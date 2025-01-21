@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.channel.Channel;
@@ -52,6 +53,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFil
 import org.apache.celeborn.common.protocol.message.ControlMessages.RegisterShuffleResponse$;
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
+import org.apache.celeborn.common.rpc.RpcTimeoutException;
 
 public class ShuffleClientSuiteJ {
 
@@ -487,5 +489,33 @@ public class ShuffleClientSuiteJ {
     } catch (CelebornIOException e) {
       Assert.assertTrue(e.getCause() == null);
     }
+  }
+
+  @Test
+  public void testUpdateReducerFileGroupTimeout() throws InterruptedException {
+    CelebornConf conf = new CelebornConf();
+    conf.set("celeborn.client.rpc.getReducerFileGroup.askTimeout", "1ms");
+
+    when(endpointRef.askSync(any(), any(), any()))
+        .thenAnswer(
+            invocation -> {
+              throw new RpcTimeoutException(
+                  "Rpc timeout", new TimeoutException("ask sync timeout"));
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    AtomicReference<Exception> exceptionRef = new AtomicReference<>();
+
+    try {
+      shuffleClient.updateFileGroup(0, 0);
+    } catch (CelebornIOException e) {
+      exceptionRef.set(e);
+    }
+
+    Exception exception = exceptionRef.get();
+    Assert.assertTrue(exception.getCause() instanceof TimeoutException);
   }
 }
