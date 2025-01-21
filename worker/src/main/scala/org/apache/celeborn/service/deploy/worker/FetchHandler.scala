@@ -526,6 +526,7 @@ class FetchHandler(
                   pbStreamHandlerOpt.getStreamHandler,
                   sortFileInfo.isLegacy)
               } else {
+                // pbStreamHandlerOpt has no exception
                 handleRpcIOException(
                   sortFileInfo.client,
                   sortFileInfo.rpcRequestId,
