@@ -98,7 +98,7 @@ public class MemoryManager {
   private final StorageManager storageManager;
   private boolean pinnedMemoryCheckEnabled;
   private long pinnedMemoryCheckInterval;
-  private long pinnedMemoryLastCheckTime = 0L;
+  private long pinnedMemoryLastCheckTime = 0;
 
   @VisibleForTesting
   public static MemoryManager initialize(CelebornConf conf) {
@@ -285,14 +285,16 @@ public class MemoryManager {
             + "pause replication memory: {},  "
             + "read buffer memory limit: {} target: {}, "
             + "memory shuffle storage limit: {}, "
-            + "resume memory ratio: {}",
+            + "resume memory ratio: {}, "
+            + "resume by pinned memory ratio: {}",
         Utils.bytesToString(maxDirectMemory),
         Utils.bytesToString(pausePushDataThreshold),
         Utils.bytesToString(pauseReplicateThreshold),
         Utils.bytesToString(readBufferThreshold),
         Utils.bytesToString(readBufferTarget),
         Utils.bytesToString(memoryFileStorageThreshold),
-        directMemoryResumeRatio);
+        directMemoryResumeRatio,
+        pinnedMemoryResumeRatio);
   }
 
   public boolean shouldEvict(boolean aggressiveMemoryFileEvictEnabled, double evictRatio) {
@@ -347,6 +349,7 @@ public class MemoryManager {
           }
         }
         logger.debug("Trigger action: TRIM");
+        trimCounter += 1;
         trimAllListeners();
         if (trimCounter >= forceAppendPauseSpentTimeThreshold) {
           logger.debug(
@@ -370,6 +373,7 @@ public class MemoryManager {
                   memoryPressureListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
         }
         logger.debug("Trigger action: TRIM");
+        trimCounter += 1;
         trimAllListeners();
         if (trimCounter >= forceAppendPauseSpentTimeThreshold) {
           logger.debug(
@@ -445,7 +449,7 @@ public class MemoryManager {
     return getNettyUsedDirectMemory() + sortMemoryCounter.get();
   }
 
-  public long getAllocatedMemory() {
+  public long getPinnedMemory() {
     return getNettyPinnedDirectMemory() + sortMemoryCounter.get();
   }
 
@@ -595,7 +599,7 @@ public class MemoryManager {
   private boolean canResumeByPinnedMemory() {
     if (pinnedMemoryCheckEnabled
         && System.currentTimeMillis() - pinnedMemoryLastCheckTime >= pinnedMemoryCheckInterval
-        && getAllocatedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
+        && getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
       pinnedMemoryLastCheckTime = System.currentTimeMillis();
       return true;
     } else {
