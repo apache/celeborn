@@ -74,10 +74,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private static final String RECOVERY_SORTED_FILES_FILE_NAME_PREFIX = "sortedFiles";
   private File recoverFile;
   private volatile boolean shutdown = false;
+
+  // shuffleKey -> Set(shuffleKey-fileName)
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
       JavaUtils.newConcurrentHashMap();
   private final ConcurrentHashMap<String, Set<String>> sortingShuffleFiles =
       JavaUtils.newConcurrentHashMap();
+
   private final Cache<String, Map<Integer, List<ShuffleBlockInfo>>> indexCache;
   private final Map<String, Set<String>> indexCacheNames = JavaUtils.newConcurrentHashMap();
 
@@ -200,7 +203,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   //    generated, it awaits until a timeout occurs (default 220 seconds).
   // 3. If the sorted file is generated, it returns the sorted FileInfo.
   // This method will generate temporary file info for this shuffle read
-  public FileInfo getSortedFileInfo(
+  public FileInfo getSortedFileInfoOri(
       String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
       throws IOException {
     if (fileInfo instanceof MemoryFileInfo) {
@@ -292,15 +295,70 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
       }
 
-      return resolve(
-          shuffleKey,
-          fileId,
-          userIdentifier,
-          sortedFilePath,
-          indexFilePath,
-          startMapIndex,
-          endMapIndex);
+      return getSortedDiskFileInfo(shuffleKey, fileId, fileInfo, startMapIndex, endMapIndex);
     }
+  }
+
+  // 1. If the sorted file is not generated, it adds the FileSorter task to the sorting queue and
+  // return.
+  //    The asynchronous thread will get the sorted fileInfo.
+  // 2. If the FileSorter task is already in the sorting queue but the sorted file has not been
+  //    generated, return directly.
+
+  public void submitDiskFileSortingTask(String shuffleKey, String fileName, FileInfo fileInfo)
+      throws IOException {
+    DiskFileInfo diskFileInfo = ((DiskFileInfo) fileInfo);
+    String fileId = shuffleKey + "-" + fileName;
+    Set<String> sorted =
+        sortedShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
+    Set<String> sorting =
+        sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
+
+    synchronized (sorting) {
+      if (!sorted.contains(fileId) && !sorting.contains(fileId)) {
+        try {
+          FileSorter fileSorter = new FileSorter(diskFileInfo, fileId, shuffleKey);
+          sorting.add(fileId);
+          logger.debug(
+              "Adding sorter to sort queue shuffle key {}, file name {}", shuffleKey, fileName);
+          shuffleSortTaskDeque.put(fileSorter);
+        } catch (InterruptedException e) {
+          logger.error("Sorter scheduler thread is interrupted means worker is shutting down.", e);
+          throw new IOException(
+              "Sort scheduler thread is interrupted means worker is shutting down.", e);
+        } catch (IOException e) {
+          logger.error("File sorter access DFS failed.", e);
+          throw new IOException("File sorter access DFS failed.", e);
+        }
+      }
+    }
+  }
+
+  public FileInfo sortAndGetMemoryFileInfo(FileInfo fileInfo, int startMapIndex, int endMapIndex) {
+    MemoryFileInfo memoryFileInfo = ((MemoryFileInfo) fileInfo);
+    Map<Integer, List<ShuffleBlockInfo>> indexesMap;
+    sortMemoryShuffleFile(memoryFileInfo);
+    indexesMap = memoryFileInfo.getSortedIndexes();
+
+    ReduceFileMeta reduceFileMeta =
+        new ReduceFileMeta(
+            ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
+                startMapIndex, endMapIndex, shuffleChunkSize, indexesMap, true),
+            shuffleChunkSize);
+    CompositeByteBuf targetBuffer =
+        MemoryManager.instance().getStorageByteBufAllocator().compositeBuffer(Integer.MAX_VALUE);
+    ShuffleBlockInfoUtils.sliceSortedBufferByMapRange(
+        startMapIndex,
+        endMapIndex,
+        indexesMap,
+        memoryFileInfo.getSortedBuffer(),
+        targetBuffer,
+        shuffleChunkSize);
+    return new MemoryFileInfo(
+        memoryFileInfo.getUserIdentifier(),
+        memoryFileInfo.isPartitionSplitEnabled(),
+        reduceFileMeta,
+        targetBuffer);
   }
 
   public static void sortMemoryShuffleFile(MemoryFileInfo memoryFileInfo) {
@@ -582,69 +640,72 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return transferredSize;
   }
 
-  public DiskFileInfo resolve(
-      String shuffleKey,
-      String fileId,
-      UserIdentifier userIdentifier,
-      String sortedFilePath,
-      String indexFilePath,
-      int startMapIndex,
-      int endMapIndex)
+  public DiskFileInfo getSortedDiskFileInfo(
+      String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
       throws IOException {
-    Map<Integer, List<ShuffleBlockInfo>> indexMap;
-    try {
-      indexMap =
-          indexCache.get(
-              fileId,
-              () -> {
-                FileChannel indexChannel = null;
-                FSDataInputStream dfsIndexStream = null;
-                boolean isDfs = Utils.isHdfsPath(indexFilePath) || Utils.isS3Path(indexFilePath);
-                boolean isS3 = Utils.isS3Path(indexFilePath);
-                int indexSize;
-                try {
-                  if (isDfs) {
-                    StorageInfo.Type storageType =
-                        isS3 ? StorageInfo.Type.S3 : StorageInfo.Type.HDFS;
-                    FileSystem hadoopFs = StorageManager.hadoopFs().get(storageType);
-                    dfsIndexStream = hadoopFs.open(new Path(indexFilePath));
-                    indexSize = (int) hadoopFs.getFileStatus(new Path(indexFilePath)).getLen();
-                  } else {
-                    indexChannel = FileChannelUtils.openReadableFileChannel(indexFilePath);
-                    File indexFile = new File(indexFilePath);
-                    indexSize = (int) indexFile.length();
+    DiskFileInfo diskFileInfo = ((DiskFileInfo) fileInfo);
+    String fileId = shuffleKey + "-" + fileName;
+    UserIdentifier userIdentifier = diskFileInfo.getUserIdentifier();
+    String sortedFilePath = Utils.getSortedFilePath(diskFileInfo.getFilePath());
+    String indexFilePath = Utils.getIndexFilePath(diskFileInfo.getFilePath());
+    if (sortedShuffleFiles.contains(shuffleKey)
+        && sortedShuffleFiles.get(shuffleKey).contains(fileId)) {
+      Map<Integer, List<ShuffleBlockInfo>> indexMap;
+      try {
+        indexMap =
+            indexCache.get(
+                fileId,
+                () -> {
+                  FileChannel indexChannel = null;
+                  FSDataInputStream dfsIndexStream = null;
+                  boolean isDfs = Utils.isHdfsPath(indexFilePath) || Utils.isS3Path(indexFilePath);
+                  boolean isS3 = Utils.isS3Path(indexFilePath);
+                  int indexSize;
+                  try {
+                    if (isDfs) {
+                      StorageInfo.Type storageType =
+                          isS3 ? StorageInfo.Type.S3 : StorageInfo.Type.HDFS;
+                      FileSystem hadoopFs = StorageManager.hadoopFs().get(storageType);
+                      dfsIndexStream = hadoopFs.open(new Path(indexFilePath));
+                      indexSize = (int) hadoopFs.getFileStatus(new Path(indexFilePath)).getLen();
+                    } else {
+                      indexChannel = FileChannelUtils.openReadableFileChannel(indexFilePath);
+                      File indexFile = new File(indexFilePath);
+                      indexSize = (int) indexFile.length();
+                    }
+                    ByteBuffer indexBuf = ByteBuffer.allocate(indexSize);
+                    if (isDfs) {
+                      readStreamFully(dfsIndexStream, indexBuf, indexFilePath);
+                    } else {
+                      readChannelFully(indexChannel, indexBuf, indexFilePath);
+                    }
+                    indexBuf.rewind();
+                    Map<Integer, List<ShuffleBlockInfo>> tIndexMap =
+                        ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuf);
+                    Set<String> indexCacheItemsSet =
+                        indexCacheNames.computeIfAbsent(shuffleKey, v -> new HashSet<>());
+                    indexCacheItemsSet.add(fileId);
+                    return tIndexMap;
+                  } catch (Exception e) {
+                    logger.error(
+                        "Read sorted shuffle file index " + indexFilePath + " error, detail: ", e);
+                    throw new IOException("Read sorted shuffle file index failed.", e);
+                  } finally {
+                    IOUtils.closeQuietly(indexChannel, null);
+                    IOUtils.closeQuietly(dfsIndexStream, null);
                   }
-                  ByteBuffer indexBuf = ByteBuffer.allocate(indexSize);
-                  if (isDfs) {
-                    readStreamFully(dfsIndexStream, indexBuf, indexFilePath);
-                  } else {
-                    readChannelFully(indexChannel, indexBuf, indexFilePath);
-                  }
-                  indexBuf.rewind();
-                  Map<Integer, List<ShuffleBlockInfo>> tIndexMap =
-                      ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuf);
-                  Set<String> indexCacheItemsSet =
-                      indexCacheNames.computeIfAbsent(shuffleKey, v -> new HashSet<>());
-                  indexCacheItemsSet.add(fileId);
-                  return tIndexMap;
-                } catch (Exception e) {
-                  logger.error(
-                      "Read sorted shuffle file index " + indexFilePath + " error, detail: ", e);
-                  throw new IOException("Read sorted shuffle file index failed.", e);
-                } finally {
-                  IOUtils.closeQuietly(indexChannel, null);
-                  IOUtils.closeQuietly(dfsIndexStream, null);
-                }
-              });
-    } catch (ExecutionException e) {
-      throw new IOException("Read sorted shuffle file index failed.", e);
+                });
+      } catch (ExecutionException e) {
+        throw new IOException("Read sorted shuffle file index failed.", e);
+      }
+      ReduceFileMeta reduceFileMeta =
+          new ReduceFileMeta(
+              ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
+                  startMapIndex, endMapIndex, shuffleChunkSize, indexMap, false),
+              shuffleChunkSize);
+      return new DiskFileInfo(userIdentifier, reduceFileMeta, sortedFilePath);
     }
-    ReduceFileMeta reduceFileMeta =
-        new ReduceFileMeta(
-            ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
-                startMapIndex, endMapIndex, shuffleChunkSize, indexMap, false),
-            shuffleChunkSize);
-    return new DiskFileInfo(userIdentifier, reduceFileMeta, sortedFilePath);
+    return null;
   }
 
   class FileSorter {
