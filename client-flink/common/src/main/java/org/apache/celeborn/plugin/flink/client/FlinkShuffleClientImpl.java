@@ -283,7 +283,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           // refresh file groups
           Tuple3<ReduceFileGroups, String, Exception> fileGroups =
               loadFileGroupInternal(shuffleId, isSegmentGranularityVisible);
-          ReduceFileGroups newGroups = fileGroups._1;
+          ReduceFileGroups newGroups = fileGroups._1();
           if (newGroups == null) {
             throw new CelebornIOException(
                 loadFileGroupException(shuffleId, partitionId, fileGroups._2()));
