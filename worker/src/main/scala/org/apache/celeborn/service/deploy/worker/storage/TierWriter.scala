@@ -22,7 +22,7 @@ import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-import io.netty.buffer.{ByteBuf, ByteBufAllocator, CompositeByteBuf}
+import io.netty.buffer.{ByteBuf, CompositeByteBuf}
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.AlreadyClosedException
@@ -57,9 +57,6 @@ abstract class TierWriterBase(
   @volatile var closed = false
   @volatile var destroyed = false
 
-  val memoryFileAllocator: ByteBufAllocator = storageManager.storageBufferAllocator
-  var memoryFileStorageMaxFileSize: Long = conf.workerMemoryFileStorageMaxFileSize
-
   takeBuffer()
 
   def write(buf: ByteBuf): Unit = {
@@ -77,8 +74,6 @@ abstract class TierWriterBase(
   }
 
   protected def writerInternal(buf: ByteBuf): Unit
-
-  def updateMemoryMetric(numBytes: Int): Unit
 
   def needEvict(): Boolean
 
@@ -276,8 +271,10 @@ class MemoryTierWriter(
     partitionDataWriterContext.getShuffleKey,
     storageManager) {
 
+  val memoryFileStorageMaxFileSize: Long = conf.workerMemoryFileStorageMaxFileSize
+
   override def needEvict(): Boolean = {
-    flushBuffer.readableBytes() > memoryFileStorageMaxFileSize && storageManager.localOrDfsStorageAvailable()
+    flushBuffer.readableBytes() > memoryFileStorageMaxFileSize && storageManager.localOrDfsStorageAvailable
   }
 
   override def evict(file: TierWriterBase): Unit = {
@@ -297,10 +294,6 @@ class MemoryTierWriter(
   // Memory file won't produce flush task
   override def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask = null
 
-  override def updateMemoryMetric(numBytes: Int): Unit = {
-    MemoryManager.instance().incrementMemoryFileStorage(numBytes)
-  }
-
   override def writerInternal(buf: ByteBuf): Unit = {
     buf.retain()
     try {
@@ -312,8 +305,9 @@ class MemoryTierWriter(
     }
     // memory tier writer will not flush
     // add the bytes into flusher buffer is flush completed
-    metaHandler.afterFlush(buf.readableBytes())
-    updateMemoryMetric(buf.readableBytes)
+    val numBytes = buf.readableBytes()
+    metaHandler.afterFlush(numBytes)
+    MemoryManager.instance().incrementMemoryFileStorage(numBytes)
   }
 
   override def closeStreams(): Unit = {
@@ -322,7 +316,7 @@ class MemoryTierWriter(
   }
 
   override def takeBufferInternal(): CompositeByteBuf = {
-    memoryFileAllocator.compositeBuffer(Integer.MAX_VALUE)
+    storageManager.storageBufferAllocator.compositeBuffer(Integer.MAX_VALUE)
   }
 
   override def returnBufferInternal(destroy: Boolean): Unit = {

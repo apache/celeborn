@@ -75,7 +75,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
     val transConf = new TransportConf("shuffle", new CelebornConf)
     val allocator = NettyUtils.getByteBufAllocator(transConf, source, false)
     when(storageManager.storageBufferAllocator).thenReturn(allocator)
-    when(storageManager.localOrDfsStorageAvailable()).thenReturn(true)
+    when(storageManager.localOrDfsStorageAvailable).thenReturn(true)
 
     MemoryManager.initialize(celebornConf, storageManager, null)
 
