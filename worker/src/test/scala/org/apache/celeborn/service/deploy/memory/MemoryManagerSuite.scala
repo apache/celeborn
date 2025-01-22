@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.memory
 
 import scala.concurrent.duration.DurationInt
 
+import org.mockito.{Mockito, MockitoSugar}
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
 
@@ -27,8 +28,8 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.{WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE, WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE}
 import org.apache.celeborn.common.protocol.TransportModuleConstants
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
-import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
-import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.{MemoryPressureListener, ServingState}
+
 class MemoryManagerSuite extends CelebornFunSuite {
 
   // reset the memory manager before each test
@@ -151,6 +152,68 @@ class MemoryManagerSuite extends CelebornFunSuite {
     }
     assert(memoryManager.getPausePushDataTime.longValue() == lastPauseTime)
     assert(memoryManager.getPausePushDataAndReplicateTime.longValue() > 0)
+  }
+
+  test("[CELEBORN-1792] Test MemoryManager resume by pinned memory") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL.key, "300s")
+    conf.set(CelebornConf.WORKER_PINNED_MEMORY_CHECK_INTERVAL.key, "0")
+    MemoryManager.reset()
+    val memoryManager = MockitoSugar.spy(MemoryManager.initialize(conf))
+    val maxDirectorMemory = memoryManager.maxDirectMemory
+    val pushThreshold =
+      (conf.workerDirectMemoryRatioToPauseReceive * maxDirectorMemory).longValue()
+    val replicateThreshold =
+      (conf.workerDirectMemoryRatioToPauseReplicate * maxDirectorMemory).longValue()
+
+    val pushListener = new MockMemoryPressureListener(TransportModuleConstants.PUSH_MODULE)
+    val replicateListener =
+      new MockMemoryPressureListener(TransportModuleConstants.REPLICATE_MODULE)
+    memoryManager.registerMemoryListener(pushListener)
+    memoryManager.registerMemoryListener(replicateListener)
+
+    // NONE PAUSED -> PAUSE PUSH
+    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(0L)
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(pushThreshold + 1)
+    memoryManager.switchServingState()
+    assert(!pushListener.isPause)
+    assert(!replicateListener.isPause)
+    assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
+
+    // KEEP PAUSE PUSH
+    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(pushThreshold + 1)
+    memoryManager.switchServingState()
+    assert(pushListener.isPause)
+    assert(!replicateListener.isPause)
+    assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
+
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(0L)
+    memoryManager.switchServingState()
+    assert(!pushListener.isPause)
+    assert(!replicateListener.isPause)
+    assert(memoryManager.servingState == ServingState.NONE_PAUSED)
+
+    // NONE PAUSED -> PAUSE PUSH AND REPLICATE
+    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(0L)
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(replicateThreshold + 1)
+    memoryManager.switchServingState()
+    assert(!pushListener.isPause)
+    assert(!replicateListener.isPause)
+    assert(memoryManager.servingState == ServingState.PUSH_AND_REPLICATE_PAUSED)
+
+    // KEEP PAUSE PUSH AND REPLICATE
+    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(replicateThreshold + 1)
+    memoryManager.switchServingState()
+    assert(pushListener.isPause)
+    assert(replicateListener.isPause)
+    assert(memoryManager.servingState == ServingState.PUSH_AND_REPLICATE_PAUSED)
+
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(0L)
+    memoryManager.switchServingState()
+    assert(!pushListener.isPause)
+    assert(!replicateListener.isPause)
+    assert(memoryManager.servingState == ServingState.NONE_PAUSED)
+    MemoryManager.reset()
   }
 
   class MockMemoryPressureListener(
