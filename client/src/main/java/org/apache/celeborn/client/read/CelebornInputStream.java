@@ -348,7 +348,6 @@ public abstract class CelebornInputStream extends InputStream {
                 fetchChunkMaxRetry,
                 location,
                 e);
-            location = location.getPeer();
             if (pbStreamHandler != null) {
               try {
                 TransportClient client =
@@ -371,6 +370,7 @@ public abstract class CelebornInputStream extends InputStream {
               }
               pbStreamHandler = null;
             }
+            location = location.getPeer();
           } else {
             logger.warn(
                 "CreatePartitionReader failed {}/{} times for location {}, retry the same location",
