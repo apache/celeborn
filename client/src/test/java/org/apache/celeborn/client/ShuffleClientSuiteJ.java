@@ -25,13 +25,20 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.junit.Assert;
 import org.junit.Test;
 
 import org.apache.celeborn.client.compress.Compressor;
@@ -42,9 +49,11 @@ import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.CompressionCodec;
 import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.common.protocol.message.ControlMessages.*;
+import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse$;
+import org.apache.celeborn.common.protocol.message.ControlMessages.RegisterShuffleResponse$;
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
+import org.apache.celeborn.common.rpc.RpcTimeoutException;
 
 public class ShuffleClientSuiteJ {
 
@@ -383,5 +392,130 @@ public class ShuffleClientSuiteJ {
 
     shuffleClient.dataClientFactory = clientFactory;
     return conf;
+  }
+
+  @Test
+  public void testUpdateReducerFileGroupInterrupted() throws InterruptedException {
+    CelebornConf conf = new CelebornConf();
+    conf.set("celeborn.client.spark.stageRerun.enabled", "true");
+    Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
+    when(endpointRef.askSync(any(), any(), any()))
+        .thenAnswer(
+            t -> {
+              Thread.sleep(60 * 1000);
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SUCCESS, locations, new int[0], Collections.emptySet());
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    AtomicReference<Exception> exceptionRef = new AtomicReference<>();
+    Thread thread =
+        new Thread(
+            new Runnable() {
+              @Override
+              public void run() {
+                try {
+                  shuffleClient.updateFileGroup(0, 0);
+                } catch (CelebornIOException e) {
+                  exceptionRef.set(e);
+                }
+              }
+            });
+
+    thread.start();
+    Thread.sleep(1000);
+    thread.interrupt();
+    Thread.sleep(1000);
+
+    Exception exception = exceptionRef.get();
+    Assert.assertTrue(exception.getCause() instanceof InterruptedException);
+  }
+
+  @Test
+  public void testUpdateReducerFileGroupNonFetchFailureExceptions() {
+    CelebornConf conf = new CelebornConf();
+    conf.set("celeborn.client.spark.stageRerun.enabled", "true");
+    Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
+    when(endpointRef.askSync(any(), any(), any()))
+        .thenAnswer(
+            t -> {
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SHUFFLE_NOT_REGISTERED, locations, new int[0], Collections.emptySet());
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    try {
+      shuffleClient.updateFileGroup(0, 0);
+    } catch (CelebornIOException e) {
+      Assert.assertTrue(e.getCause() == null);
+    }
+
+    when(endpointRef.askSync(any(), any(), any()))
+        .thenAnswer(
+            t -> {
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.STAGE_END_TIME_OUT, locations, new int[0], Collections.emptySet());
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    try {
+      shuffleClient.updateFileGroup(0, 0);
+    } catch (CelebornIOException e) {
+      Assert.assertTrue(e.getCause() == null);
+    }
+
+    when(endpointRef.askSync(any(), any(), any()))
+        .thenAnswer(
+            t -> {
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SHUFFLE_DATA_LOST, locations, new int[0], Collections.emptySet());
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    try {
+      shuffleClient.updateFileGroup(0, 0);
+    } catch (CelebornIOException e) {
+      Assert.assertTrue(e.getCause() == null);
+    }
+  }
+
+  @Test
+  public void testUpdateReducerFileGroupTimeout() throws InterruptedException {
+    CelebornConf conf = new CelebornConf();
+    conf.set("celeborn.client.rpc.getReducerFileGroup.askTimeout", "1ms");
+
+    when(endpointRef.askSync(any(), any(), any()))
+        .thenAnswer(
+            invocation -> {
+              throw new RpcTimeoutException(
+                  "Rpc timeout", new TimeoutException("ask sync timeout"));
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    AtomicReference<Exception> exceptionRef = new AtomicReference<>();
+
+    try {
+      shuffleClient.updateFileGroup(0, 0);
+    } catch (CelebornIOException e) {
+      exceptionRef.set(e);
+    }
+
+    Exception exception = exceptionRef.get();
+    Assert.assertTrue(exception.getCause() instanceof TimeoutException);
   }
 }
