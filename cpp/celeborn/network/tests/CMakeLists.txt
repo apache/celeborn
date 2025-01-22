@@ -16,7 +16,8 @@
 add_executable(
         celeborn_network_test
         FrameDecoderTest.cpp
-        MessageTest.cpp)
+        MessageTest.cpp
+        MessageDispatcherTest.cpp)
 
 add_test(NAME celeborn_network_test COMMAND celeborn_network_test)
 
