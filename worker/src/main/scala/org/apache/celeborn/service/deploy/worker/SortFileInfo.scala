@@ -36,7 +36,8 @@ class SortFileInfo(
     var userIdentifier: UserIdentifier,
     var sortedFilePath: String,
     var indexFilePath: String,
-    var error: String)
+    var error: String,
+    var fileIndex: Int)
 
 object SortFileInfo {
   val SORT_NOTSTARTED: Int = 0

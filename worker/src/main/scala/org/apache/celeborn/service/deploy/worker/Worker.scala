@@ -41,7 +41,7 @@ import org.apache.celeborn.common.network.{CelebornRackResolver, TransportContex
 import org.apache.celeborn.common.network.sasl.SaslServerBootstrap
 import org.apache.celeborn.common.network.server.TransportServerBootstrap
 import org.apache.celeborn.common.network.util.TransportConf
-import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants, WorkerEventType}
+import org.apache.celeborn.common.protocol.{PartitionType, PbOpenStreamListResponse, PbRegisterWorkerResponse, PbStreamHandlerOpt, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants, WorkerEventType}
 import org.apache.celeborn.common.protocol.PbWorkerStatus.State
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -317,6 +317,13 @@ private[celeborn] class Worker(
 
   val sortFilesInfo: ConcurrentHashMap[String, ConcurrentHashMap[String, SortFileInfo]] =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, SortFileInfo]]()
+
+  val pbOpenStreamListResponseMap
+      : ConcurrentHashMap[String, ConcurrentHashMap[Int, PbStreamHandlerOpt]] =
+    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Int, PbStreamHandlerOpt]]()
+
+  val batchSortingCnt: ConcurrentHashMap[String, Int] =
+    JavaUtils.newConcurrentHashMap[String, Int]()
 
   private val masterClient = new MasterClient(internalRpcEnvInUse, conf, true)
   secretRegistry.initialize(masterClient)
@@ -770,6 +777,7 @@ private[celeborn] class Worker(
         shuffleCommitInfos.remove(shuffleKey)
         shuffleCommitTime.remove(shuffleKey)
         sortFilesInfo.remove(shuffleKey)
+        pbOpenStreamListResponseMap.remove(shuffleKey)
         workerInfo.releaseSlots(shuffleKey)
         val applicationId = Utils.splitShuffleKey(shuffleKey)._1
         if (!workerInfo.getApplicationIdSet.contains(applicationId)) {

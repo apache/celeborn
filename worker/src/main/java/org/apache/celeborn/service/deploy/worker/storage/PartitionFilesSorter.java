@@ -202,7 +202,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   //    generated, it awaits until a timeout occurs (default 220 seconds).
   // 3. If the sorted file is generated, it returns the sorted FileInfo.
   // This method will generate temporary file info for this shuffle read
-  public FileInfo getSortedFileInfoOri(
+  public FileInfo getSortedFileInfo(
       String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
       throws IOException {
     if (fileInfo instanceof MemoryFileInfo) {
@@ -247,7 +247,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           fileSorting = false;
         } else if (!sorting.contains(fileId)) {
           try {
-            FileSorter fileSorter = new FileSorter(diskFileInfo, fileId, shuffleKey);
+            PartitionFilesSorter.FileSorter fileSorter =
+                new PartitionFilesSorter.FileSorter(diskFileInfo, fileId, shuffleKey);
             sorting.add(fileId);
             logger.debug(
                 "Adding sorter to sort queue shuffle key {}, file name {}", shuffleKey, fileName);
@@ -303,7 +304,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   //    The asynchronous thread will get the sorted fileInfo.
   // 2. If the FileSorter task is already in the sorting queue but the sorted file has not been
   //    generated, return directly.
-
   public void submitDiskFileSortingTask(String shuffleKey, String fileName, FileInfo fileInfo)
       throws IOException {
     DiskFileInfo diskFileInfo = ((DiskFileInfo) fileInfo);

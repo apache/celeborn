@@ -129,7 +129,7 @@ public class MemoryPartitionFilesSorterSuiteJ {
     PartitionFilesSorter partitionFilesSorter =
         new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
     FileInfo info =
-        partitionFilesSorter.getSortedFileInfoOri(
+        partitionFilesSorter.getSortedFileInfo(
             "application-1",
             "",
             partitionDataWriter.getMemoryFileInfo(),

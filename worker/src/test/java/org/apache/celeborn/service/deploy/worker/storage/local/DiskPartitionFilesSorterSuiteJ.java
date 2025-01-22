@@ -145,7 +145,7 @@ public class DiskPartitionFilesSorterSuiteJ {
       PartitionFilesSorter partitionFilesSorter =
           new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
       FileInfo info =
-          partitionFilesSorter.getSortedFileInfoOri(
+          partitionFilesSorter.getSortedFileInfo(
               "application-1",
               originFileName,
               partitionDataWriter.getDiskFileInfo(),

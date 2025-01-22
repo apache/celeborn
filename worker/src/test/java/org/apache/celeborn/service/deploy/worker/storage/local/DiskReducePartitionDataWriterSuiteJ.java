@@ -164,7 +164,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
     PartitionFilesSorter sorter = mock(PartitionFilesSorter.class);
     Mockito.doReturn(info)
         .when(sorter)
-        .getSortedFileInfoOri(anyString(), anyString(), eq(info), anyInt(), anyInt());
+        .getSortedFileInfo(anyString(), anyString(), eq(info), anyInt(), anyInt());
     handler.setPartitionsSorter(sorter);
     transportContext = new TransportContext(transConf, handler);
     server = transportContext.createServer();
