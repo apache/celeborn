@@ -35,7 +35,8 @@ class SortFileInfo(
     var callback: RpcResponseCallback,
     var userIdentifier: UserIdentifier,
     var sortedFilePath: String,
-    var indexFilePath: String)
+    var indexFilePath: String,
+    var error: String)
 
 object SortFileInfo {
   val SORT_NOTSTARTED: Int = 0

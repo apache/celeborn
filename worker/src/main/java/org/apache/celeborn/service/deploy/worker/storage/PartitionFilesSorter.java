@@ -75,12 +75,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private File recoverFile;
   private volatile boolean shutdown = false;
 
-  // shuffleKey -> Set(shuffleKey-fileName)
+  // shuffleKey -> Set(fileId: shuffleKey-fileName)
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
       JavaUtils.newConcurrentHashMap();
   private final ConcurrentHashMap<String, Set<String>> sortingShuffleFiles =
       JavaUtils.newConcurrentHashMap();
-
   private final Cache<String, Map<Integer, List<ShuffleBlockInfo>>> indexCache;
   private final Map<String, Set<String>> indexCacheNames = JavaUtils.newConcurrentHashMap();
 
@@ -648,7 +647,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     UserIdentifier userIdentifier = diskFileInfo.getUserIdentifier();
     String sortedFilePath = Utils.getSortedFilePath(diskFileInfo.getFilePath());
     String indexFilePath = Utils.getIndexFilePath(diskFileInfo.getFilePath());
-    if (sortedShuffleFiles.contains(shuffleKey)
+    if (sortedShuffleFiles.containsKey(shuffleKey)
         && sortedShuffleFiles.get(shuffleKey).contains(fileId)) {
       Map<Integer, List<ShuffleBlockInfo>> indexMap;
       try {

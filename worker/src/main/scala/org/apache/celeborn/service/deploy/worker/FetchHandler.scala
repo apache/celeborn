@@ -443,6 +443,7 @@ class FetchHandler(
             callback,
             memoryFileInfo.getUserIdentifier,
             null,
+            null,
             null))
       case diskFileInfo: DiskFileInfo =>
         val sortedFilePath = Utils.getSortedFilePath(diskFileInfo.getFilePath)
@@ -463,9 +464,14 @@ class FetchHandler(
             callback,
             diskFileInfo.getUserIdentifier,
             sortedFilePath,
-            indexFilePath))
+            indexFilePath,
+            null))
     }
 
+    // we must get sorted fileInfo for the following cases.
+    // 1. when the current request is a non-range openStream, but the original unsorted file
+    //    has been deleted by another range's openStream request.
+    // 2. when the current request is a range openStream request.
     if ((endIndex != Int.MaxValue) || (endIndex == Int.MaxValue
         && !fileInfo.addStream(streamId))) {
       if (fileInfo.isInstanceOf[MemoryFileInfo]) {
@@ -477,14 +483,24 @@ class FetchHandler(
           sortFileInfo.status = SortFileInfo.SORT_FINISHED
         }
       } else {
-        partitionsSorter.submitDiskFileSortingTask(shuffleKey, fileName, fileInfo)
-        val sortFileInfo = fileInfoMap.get(fileId)
-        sortFileInfo.synchronized {
-          sortFileInfo.status = SortFileInfo.SORTING
+        try {
+          partitionsSorter.submitDiskFileSortingTask(shuffleKey, fileName, fileInfo)
+          val sortFileInfo = fileInfoMap.get(fileId)
+          sortFileInfo.synchronized {
+            sortFileInfo.status = SortFileInfo.SORTING
+          }
+        } catch {
+          case e: IOException =>
+            logError(s"submit diskFile sorting task failed, error: ${e.getMessage}")
+            val sortFileInfo = fileInfoMap.get(fileId)
+            sortFileInfo.synchronized {
+              sortFileInfo.status = SortFileInfo.SORT_FAILED
+              sortFileInfo.error = e.getMessage
+            }
         }
       }
     } else {
-      // mark status if do not need to sort
+      // mark status as finished if there is no need to sort
       val sortFileInfo = fileInfoMap.get(fileId)
       sortFileInfo.synchronized {
         sortFileInfo.status = SortFileInfo.SORT_FINISHED
@@ -503,7 +519,7 @@ class FetchHandler(
       val fileInfoMap = sortFileInfoEntry.getValue
       val fileInfoIterator = fileInfoMap.entrySet().iterator()
 
-      while (fileInfoIterator.hasNext) {
+      while (fileInfoIterator.hasNext && sortFilesInfos.containsKey(shuffleKey)) {
         val fileInfoEntry = fileInfoIterator.next()
         val fileId = fileInfoEntry.getKey
         val sortFileInfo = fileInfoEntry.getValue
@@ -519,6 +535,7 @@ class FetchHandler(
                 sortFileInfo.startIndex,
                 sortFileInfo.endIndex,
                 sortFileInfo.readLocalShuffle)
+
               if (pbStreamHandlerOpt.getStatus == StatusCode.SUCCESS.getValue) {
                 replyStreamHandler(
                   sortFileInfo.client,
@@ -526,27 +543,29 @@ class FetchHandler(
                   pbStreamHandlerOpt.getStreamHandler,
                   sortFileInfo.isLegacy)
               } else {
-                // pbStreamHandlerOpt has no exception
+                val error = makeException(shuffleKey, sortFileInfo)
                 handleRpcIOException(
                   sortFileInfo.client,
                   sortFileInfo.rpcRequestId,
                   shuffleKey,
                   sortFileInfo.fileName,
-                  new CelebornIOException(pbStreamHandlerOpt.getErrorMsg),
+                  error,
                   sortFileInfo.callback)
               }
+
               fileInfoIterator.remove()
             } else if (sortFileInfo.status == SortFileInfo.SORT_FAILED) {
+              val error = makeException(shuffleKey, sortFileInfo)
               handleRpcIOException(
                 sortFileInfo.client,
                 sortFileInfo.rpcRequestId,
                 shuffleKey,
                 sortFileInfo.fileName,
-                new CelebornIOException("sort failed"),
+                error,
                 sortFileInfo.callback)
               fileInfoIterator.remove()
             } else if (sortFileInfo.status == SortFileInfo.SORTING) {
-              // memoryFileInfos have not status of sorting
+              // memoryFileInfos have no status of sorting
               val sortedFileInfo = partitionsSorter.getSortedDiskFileInfo(
                 shuffleKey,
                 sortFileInfo.fileName,
@@ -556,30 +575,42 @@ class FetchHandler(
 
               if (sortedFileInfo != null) {
                 sortFileInfo.fileInfo = sortedFileInfo
-              }
-
-              if (currentTime - sortFileInfo.startTime > conf.workerPartitionSorterSortPartitionTimeout) {
-                logError(s"Sort file $fileId timeout, remove it")
-                handleRpcIOException(
-                  sortFileInfo.client,
-                  sortFileInfo.rpcRequestId,
-                  shuffleKey,
-                  sortFileInfo.fileName,
-                  new CelebornIOException("sort failed timeout"),
-                  sortFileInfo.callback)
-                sortFileInfo.status = SortFileInfo.SORT_FAILED
-                fileInfoIterator.remove()
+                sortFileInfo.status = SortFileInfo.SORT_FINISHED
+              } else {
+                if (currentTime - sortFileInfo.startTime > conf.workerPartitionSorterSortPartitionTimeout) {
+                  val error = makeException(shuffleKey, sortFileInfo)
+                  logError(s"Sort file $fileId timeout, remove it")
+                  sortFileInfo.status = SortFileInfo.SORT_FAILED
+                  sortFileInfo.error = s"Sort file $fileId timeout."
+                  handleRpcIOException(
+                    sortFileInfo.client,
+                    sortFileInfo.rpcRequestId,
+                    shuffleKey,
+                    sortFileInfo.fileName,
+                    error,
+                    sortFileInfo.callback)
+                  fileInfoIterator.remove()
+                }
               }
             }
           }
         } catch {
           case e: Exception =>
-            logError(s"Check sort files error, shuffleKey: $shuffleKey, fileId: $fileId", e)
-
-          // todo: handle sort fail
-
+            logError(s"Check sort files error, shuffleKey: $shuffleKey, fileId: $fileId, error: ${e.getMessage}")
+            fileInfoIterator.remove()
         }
       }
+      if (!sortFilesInfos.containsKey(shuffleKey)) {
+        logWarning(s"Shuffle $shuffleKey expired when checkSortFiles.")
+        sortFileInfoIterator.remove()
+      }
+    }
+
+    def makeException(shuffleKey: String, sortFileInfo: SortFileInfo): CelebornIOException = {
+      val msg =
+        s"Read file shuffleKey-fileName: ${shuffleKey}-${sortFileInfo.fileName} error from ${NettyUtils.getRemoteAddress(
+          sortFileInfo.client.getChannel)}, Exception: ${sortFileInfo.error}."
+      new CelebornIOException(msg)
     }
   }
 
