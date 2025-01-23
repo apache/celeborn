@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -57,6 +58,8 @@ public class DummyShuffleClient extends ShuffleClient {
 
   private final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
       new HashMap<>();
+
+  public AtomicInteger fetchFailureCount = new AtomicInteger();
 
   public DummyShuffleClient(CelebornConf conf, File file) throws Exception {
     this.os = new BufferedOutputStream(new FileOutputStream(file));
@@ -186,6 +189,7 @@ public class DummyShuffleClient extends ShuffleClient {
 
   @Override
   public boolean reportShuffleFetchFailure(int appShuffleId, int shuffleId, long taskId) {
+    fetchFailureCount.incrementAndGet();
     return true;
   }
 

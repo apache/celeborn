@@ -1280,9 +1280,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDirectMemoryRatioToPauseReplicate: Double =
     get(WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE)
   def workerDirectMemoryRatioToResume: Double = get(WORKER_DIRECT_MEMORY_RATIO_RESUME)
+  def workerPinnedMemoryRatioToResume: Double = get(WORKER_PINNED_MEMORY_RATIO_RESUME)
   def workerPartitionSorterDirectMemoryRatioThreshold: Double =
     get(WORKER_PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD)
   def workerDirectMemoryPressureCheckIntervalMs: Long = get(WORKER_DIRECT_MEMORY_CHECK_INTERVAL)
+  def workerPinnedMemoryCheckEnabled: Boolean = get(WORKER_PINNED_MEMORY_CHECK_ENABLED)
+  def workerPinnedMemoryCheckIntervalMs: Long = get(WORKER_PINNED_MEMORY_CHECK_INTERVAL)
   def workerDirectMemoryReportIntervalSecond: Long = get(WORKER_DIRECT_MEMORY_REPORT_INTERVAL)
   def workerDirectMemoryTrimChannelWaitInterval: Long =
     get(WORKER_DIRECT_MEMORY_TRIM_CHANNEL_WAIT_INTERVAL)
@@ -3713,6 +3716,24 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10ms")
 
+  val WORKER_PINNED_MEMORY_CHECK_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.monitor.pinnedMemory.check.enabled")
+      .categories("worker")
+      .doc("If true, MemoryManager will check worker should resume by pinned memory used.")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefaultString("true")
+
+  val WORKER_PINNED_MEMORY_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.monitor.pinnedMemory.check.interval")
+      .categories("worker")
+      .doc("Interval of worker direct pinned memory checking, " +
+        "only takes effect when celeborn.network.memory.allocator.pooled and " +
+        "celeborn.worker.monitor.pinnedMemory.check.enabled are enabled.")
+      .version("0.6.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10s")
+
   val WORKER_DIRECT_MEMORY_REPORT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.worker.monitor.memory.report.interval")
       .withAlternative("celeborn.worker.memory.reportInterval")
@@ -3861,6 +3882,16 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doubleConf
       .createWithDefault(0.7)
+
+  val WORKER_PINNED_MEMORY_RATIO_RESUME: ConfigEntry[Double] =
+    buildConf("celeborn.worker.pinnedMemoryRatioToResume")
+      .categories("worker")
+      .doc("If pinned memory usage is less than this limit, worker will resume, " +
+        "only takes effect when celeborn.network.memory.allocator.pooled and " +
+        "celeborn.worker.monitor.pinnedMemory.check.enabled are enabled")
+      .version("0.6.0")
+      .doubleConf
+      .createWithDefault(0.3)
 
   val WORKER_MEMORY_FILE_STORAGE_MAX_FILE_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.memoryFileStorage.maxFileSize")

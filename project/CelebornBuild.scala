@@ -41,7 +41,7 @@ object Dependencies {
   val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.8.0")
 
   // Dependent library versions
-  val apLoaderVersion = "3.0-8"
+  val apLoaderVersion = "3.0-9"
   val commonsCompressVersion = "1.4.1"
   val commonsCryptoVersion = "1.0.0"
   val commonsIoVersion = "2.17.0"
@@ -942,7 +942,7 @@ trait SparkClientProjects {
         libraryDependencies ++= Seq(
           "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
           "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
-        ) ++ commonUnitTestDependencies
+        ) ++ commonUnitTestDependencies ++ Seq(Dependencies.mockitoInline % "test")
       )
   }
 
