@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import scala.Tuple2;
+import scala.Tuple3;
 import scala.reflect.ClassTag$;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -265,9 +265,9 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       int shuffleId, int partitionId, boolean isSegmentGranularityVisible)
       throws CelebornIOException {
     ReduceFileGroups reduceFileGroups =
-        reduceFileGroupsMap.computeIfAbsent(
-                shuffleId, (id) -> Tuple2.apply(new ReduceFileGroups(), null))
-            ._1;
+        reduceFileGroupsMap
+            .computeIfAbsent(shuffleId, (id) -> Tuple3.apply(new ReduceFileGroups(), null, null))
+            ._1();
     if (reduceFileGroups.partitionIds != null
         && reduceFileGroups.partitionIds.contains(partitionId)) {
       logger.debug(
@@ -281,12 +281,12 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
               Utils.makeReducerKey(shuffleId, partitionId));
         } else {
           // refresh file groups
-          Tuple2<ReduceFileGroups, String> fileGroups =
+          Tuple3<ReduceFileGroups, String, Exception> fileGroups =
               loadFileGroupInternal(shuffleId, isSegmentGranularityVisible);
-          ReduceFileGroups newGroups = fileGroups._1;
+          ReduceFileGroups newGroups = fileGroups._1();
           if (newGroups == null) {
             throw new CelebornIOException(
-                loadFileGroupException(shuffleId, partitionId, fileGroups._2));
+                loadFileGroupException(shuffleId, partitionId, fileGroups._2()));
           } else if (!newGroups.partitionIds.contains(partitionId)) {
             throw new CelebornIOException(
                 String.format(
