@@ -63,7 +63,7 @@ class FetchHandler(
   var partitionsSorter: PartitionFilesSorter = _
   var sortFileChecker: ScheduledExecutorService = _
   var registered: Option[AtomicBoolean] = None
-  // shuffleKey -> (fileId -> SortFileInfo)
+  // shuffleKey -> (fileRequest -> SortFileInfo)
   var sortFilesInfos: ConcurrentHashMap[String, ConcurrentHashMap[String, SortFileInfo]] = _
 
   // batchId: shuffleKey-requestId -> (Index ->  PbStreamHandlerOpt)
@@ -175,7 +175,7 @@ class FetchHandler(
         val pbOpenStreamListResponse = PbOpenStreamListResponse.newBuilder()
         checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
 
-        val batchId = s"${shuffleKey}-${rpcRequest.requestId}"
+        val batchId = shuffleKey + "-" + client.getClientId + "-" + rpcRequest.requestId
         pbOpenStreamListResponseMap.putIfAbsent(
           batchId,
           JavaUtils.newConcurrentHashMap[Int, PbStreamHandlerOpt]())
@@ -334,29 +334,17 @@ class FetchHandler(
 
     val fileInfo = getRawFileInfo(shuffleKey, fileName)
     val streamId = chunkStreamManager.nextStreamId()
-
-    val fileId = shuffleKey + "-" + fileName;
+    val fileId = shuffleKey + "-" + fileName
+    // clientId + rpcRequestId is same in batch condition
+    val fileRequest = client.getClientId + "-" + rpcRequestId + "-" + fileId
     sortFilesInfos.putIfAbsent(shuffleKey, JavaUtils.newConcurrentHashMap[String, SortFileInfo]())
     val fileInfoMap = sortFilesInfos.get(shuffleKey)
     val startSortTIme = System.currentTimeMillis()
-    // todo same file different request should response.(wont response now)
-    // todo same problem in batch
-    // todo lost replicate request here
-//    if (fileInfoMap.containsKey(fileId)) {
-//      val sortFileInfo = fileInfoMap.get(fileId)
-//      // cant solve the problem in async condition
-//      sortFileInfo.synchronized {
-//        if (sortFileInfo.status == SortFileInfo.SORT_FINISHED) {
-//          // reply
-//        }
-//      }
-//
-//    }
 
     fileInfo match {
       case memoryFileInfo: MemoryFileInfo =>
         fileInfoMap.putIfAbsent(
-          fileId,
+          fileRequest,
           new SortFileInfo(
             fileInfo,
             SortFileInfo.SORT_NOTSTARTED,
@@ -378,7 +366,7 @@ class FetchHandler(
         val sortedFilePath = Utils.getSortedFilePath(diskFileInfo.getFilePath)
         val indexFilePath = Utils.getIndexFilePath(diskFileInfo.getFilePath)
         fileInfoMap.putIfAbsent(
-          fileId,
+          fileRequest,
           new SortFileInfo(
             fileInfo,
             SortFileInfo.SORT_NOTSTARTED,
@@ -449,12 +437,34 @@ class FetchHandler(
 
       while (fileInfoIterator.hasNext && sortFilesInfos.containsKey(shuffleKey)) {
         val fileInfoEntry = fileInfoIterator.next()
-        val fileId = fileInfoEntry.getKey
+        val fileRequest = fileInfoEntry.getKey
         val sortFileInfo = fileInfoEntry.getValue
-        val batchId = s"${shuffleKey}-${sortFileInfo.rpcRequestId}"
 
         try {
           sortFileInfo.synchronized {
+            val batchId =
+              shuffleKey + "-" + sortFileInfo.client.getClientId + "-" + sortFileInfo.rpcRequestId
+
+            if (sortFileInfo.status == SortFileInfo.SORTING) {
+              // memoryFileInfos have no status of sorting
+              val sortedFileInfo = partitionsSorter.getSortedDiskFileInfo(
+                shuffleKey,
+                sortFileInfo.fileName,
+                sortFileInfo.fileInfo,
+                sortFileInfo.startIndex,
+                sortFileInfo.endIndex)
+
+              if (sortedFileInfo != null) {
+                sortFileInfo.fileInfo = sortedFileInfo
+                sortFileInfo.status = SortFileInfo.SORT_FINISHED
+              } else {
+                if (currentTime - sortFileInfo.startTime > conf.workerPartitionSorterSortPartitionTimeout) {
+                  sortFileInfo.status = SortFileInfo.SORT_FAILED
+                  sortFileInfo.error = s"Sort file $fileRequest timeout."
+                }
+              }
+            }
+
             if (sortFileInfo.status == SortFileInfo.SORT_FINISHED) {
               val pbStreamHandlerOpt = getPbStreamHandlerOpt(
                 sortFileInfo.fileInfo,
@@ -465,41 +475,18 @@ class FetchHandler(
                 sortFileInfo.endIndex,
                 sortFileInfo.readLocalShuffle)
 
-              if (pbStreamHandlerOpt.getStatus == StatusCode.SUCCESS.getValue) {
-                if (sortFileInfo.fileIndex == -1) {
-                  replyStreamHandler(
-                    sortFileInfo.client,
-                    sortFileInfo.rpcRequestId,
-                    pbStreamHandlerOpt.getStreamHandler,
-                    sortFileInfo.isLegacy)
-                } else {
-                  val batchStreamHandlerOptMap = pbOpenStreamListResponseMap.get(batchId)
-                  batchStreamHandlerOptMap.put(sortFileInfo.fileIndex, pbStreamHandlerOpt)
-                  val sortingCnt = batchSortingCnt.get(batchId)
-                  batchSortingCnt.put(batchId, sortingCnt - 1)
-                }
+              if (sortFileInfo.fileIndex == -1) {
+                replyStreamHandler(
+                  sortFileInfo.client,
+                  sortFileInfo.rpcRequestId,
+                  pbStreamHandlerOpt.getStreamHandler,
+                  sortFileInfo.isLegacy)
               } else {
-                val error = makeException(shuffleKey, sortFileInfo)
-                if (sortFileInfo.fileIndex == -1) {
-                  handleRpcIOException(
-                    sortFileInfo.client,
-                    sortFileInfo.rpcRequestId,
-                    shuffleKey,
-                    sortFileInfo.fileName,
-                    error,
-                    sortFileInfo.callback)
-                } else {
-                  val failedStreamHandlerOpt = PbStreamHandlerOpt.newBuilder().setStatus(
-                    StatusCode.OPEN_STREAM_FAILED.getValue)
-                    .setErrorMsg(error.getMessage).build()
-                  val batchStreamHandlerOptMap = pbOpenStreamListResponseMap.get(batchId)
-                  batchStreamHandlerOptMap.put(sortFileInfo.fileIndex, failedStreamHandlerOpt)
-                  val sortingCnt = batchSortingCnt.get(batchId)
-                  batchSortingCnt.put(batchId, sortingCnt - 1)
-                }
-                workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
+                val batchStreamHandlerOptMap = pbOpenStreamListResponseMap.get(batchId)
+                batchStreamHandlerOptMap.put(sortFileInfo.fileIndex, pbStreamHandlerOpt)
+                val sortingCnt = batchSortingCnt.get(batchId)
+                batchSortingCnt.put(batchId, sortingCnt - 1)
               }
-
               fileInfoIterator.remove()
             } else if (sortFileInfo.status == SortFileInfo.SORT_FAILED) {
               val error = makeException(shuffleKey, sortFileInfo)
@@ -520,52 +507,13 @@ class FetchHandler(
                 val sortingCnt = batchSortingCnt.get(batchId)
                 batchSortingCnt.put(batchId, sortingCnt - 1)
               }
-              fileInfoIterator.remove()
               workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
-            } else if (sortFileInfo.status == SortFileInfo.SORTING) {
-              // memoryFileInfos have no status of sorting
-              val sortedFileInfo = partitionsSorter.getSortedDiskFileInfo(
-                shuffleKey,
-                sortFileInfo.fileName,
-                sortFileInfo.fileInfo,
-                sortFileInfo.startIndex,
-                sortFileInfo.endIndex)
-
-              if (sortedFileInfo != null) {
-                sortFileInfo.fileInfo = sortedFileInfo
-                sortFileInfo.status = SortFileInfo.SORT_FINISHED
-              } else {
-                if (currentTime - sortFileInfo.startTime > conf.workerPartitionSorterSortPartitionTimeout) {
-                  val error = makeException(shuffleKey, sortFileInfo)
-                  logError(s"Sort file $fileId timeout, remove it")
-                  sortFileInfo.status = SortFileInfo.SORT_FAILED
-                  sortFileInfo.error = s"Sort file $fileId timeout."
-
-                  if (sortFileInfo.fileIndex == -1) {
-                    handleRpcIOException(
-                      sortFileInfo.client,
-                      sortFileInfo.rpcRequestId,
-                      shuffleKey,
-                      sortFileInfo.fileName,
-                      error,
-                      sortFileInfo.callback)
-                  } else {
-                    val failedStreamHandlerOpt = PbStreamHandlerOpt.newBuilder().setStatus(
-                      StatusCode.OPEN_STREAM_FAILED.getValue)
-                      .setErrorMsg(error.getMessage).build()
-                    val batchStreamHandlerOptMap = pbOpenStreamListResponseMap.get(batchId)
-                    batchStreamHandlerOptMap.put(sortFileInfo.fileIndex, failedStreamHandlerOpt)
-                    val sortingCnt = batchSortingCnt.get(batchId)
-                    batchSortingCnt.put(batchId, sortingCnt - 1)
-                  }
-                  fileInfoIterator.remove()
-                  workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
-                }
-              }
+              fileInfoIterator.remove()
             }
 
-            val sortingCnt = batchSortingCnt.get(batchId)
-            if (sortingCnt <= 0) {
+            // return pbOpenStreamListResponse for openStreamListRequest
+            if (sortFileInfo.fileIndex == -1 && batchSortingCnt.containsKey(
+                batchId) && batchSortingCnt.get(batchId) <= 0) {
               val pbOpenStreamListResponse = PbOpenStreamListResponse.newBuilder()
               val batchStreamHandlerOptMap = pbOpenStreamListResponseMap.get(batchId)
               batchStreamHandlerOptMap.asScala.toList.sortBy(_._1).map {
@@ -583,7 +531,8 @@ class FetchHandler(
           }
         } catch {
           case e: Exception =>
-            logError(s"Check sort files error, shuffleKey: $shuffleKey, fileId: $fileId, error: ${e.getMessage}")
+            logError(
+              s"Check sort files error, shuffleKey: $shuffleKey, fileId: $fileRequest, error: ${e.getMessage}")
             fileInfoIterator.remove()
         }
       }
