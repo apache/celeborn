@@ -19,15 +19,13 @@ package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, Set => JSet}
-import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.JavaConverters._
 
-import org.apache.commons.lang3.tuple.Pair
 import com.google.common.annotations.VisibleForTesting
-
+import org.apache.commons.lang3.tuple.Pair
 import org.apache.spark.{Aggregator, InterruptibleIterator, ShuffleDependency, TaskContext}
 import org.apache.spark.celeborn.ExceptionMakerHelper
 import org.apache.spark.internal.Logging
