@@ -233,22 +233,18 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     } else {
       DiskFileInfo diskFileInfo = ((DiskFileInfo) fileInfo);
       String fileId = shuffleKey + "-" + fileName;
-      UserIdentifier userIdentifier = diskFileInfo.getUserIdentifier();
       Set<String> sorted =
           sortedShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
       Set<String> sorting =
           sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
 
-      String sortedFilePath = Utils.getSortedFilePath(diskFileInfo.getFilePath());
-      String indexFilePath = Utils.getIndexFilePath(diskFileInfo.getFilePath());
       boolean fileSorting = true;
       synchronized (sorting) {
         if (sorted.contains(fileId)) {
           fileSorting = false;
         } else if (!sorting.contains(fileId)) {
           try {
-            PartitionFilesSorter.FileSorter fileSorter =
-                new PartitionFilesSorter.FileSorter(diskFileInfo, fileId, shuffleKey);
+            FileSorter fileSorter = new FileSorter(diskFileInfo, fileId, shuffleKey);
             sorting.add(fileId);
             logger.debug(
                 "Adding sorter to sort queue shuffle key {}, file name {}", shuffleKey, fileName);
@@ -295,7 +291,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
       }
 
-      return getSortedDiskFileInfo(shuffleKey, fileId, fileInfo, startMapIndex, endMapIndex);
+      return getSortedDiskFileInfo(shuffleKey, fileName, fileInfo, startMapIndex, endMapIndex);
     }
   }
 
