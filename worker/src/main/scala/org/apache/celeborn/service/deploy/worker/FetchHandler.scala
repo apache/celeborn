@@ -842,4 +842,24 @@ class FetchHandler(
   def setPartitionsSorter(partitionFilesSorter: PartitionFilesSorter): Unit = {
     this.partitionsSorter = partitionFilesSorter
   }
+
+  def setSortFilesInfos(sortFilesInfos: ConcurrentHashMap[
+    String,
+    ConcurrentHashMap[String, SortFileInfo]]): Unit = {
+    this.sortFilesInfos = sortFilesInfos
+  }
+
+  def setSortFileChecker(sortFileChecker: ScheduledExecutorService): Unit = {
+    this.sortFileChecker = sortFileChecker
+    this.sortFileChecker.scheduleWithFixedDelay(
+      new Runnable {
+        override def run(): Unit = {
+          getAndReplySortedFiles()
+        }
+      },
+      0,
+      workerSortFilesCheckInterval,
+      TimeUnit.MILLISECONDS)
+  }
+
 }
