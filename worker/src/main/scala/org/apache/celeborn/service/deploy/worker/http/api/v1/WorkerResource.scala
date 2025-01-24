@@ -22,6 +22,7 @@ import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
 
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -37,13 +38,13 @@ import org.apache.celeborn.service.deploy.worker.Worker
 class WorkerResource extends ApiRequestContext {
   private def worker = httpService.asInstanceOf[Worker]
 
+  @Operation(description = "List the worker information.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(
-        implementation = classOf[WorkerInfoResponse]))),
-    description = "List the worker information.")
+        implementation = classOf[WorkerInfoResponse]))))
   @GET
   def workers(): WorkerInfoResponse = {
     ApiUtils.workerInfoResponse(
@@ -53,13 +54,13 @@ class WorkerResource extends ApiRequestContext {
       worker.registered.get())
   }
 
+  @Operation(description =
+    "List the unavailable peers of the worker, this always means the worker connect to the peer failed.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[UnAvailablePeersResponse]))),
-    description =
-      "List the unavailable peers of the worker, this always means the worker connect to the peer failed.")
+      schema = new Schema(implementation = classOf[UnAvailablePeersResponse]))))
   @GET
   @Path("/unavailable_peers")
   def unavailablePeerWorkers(): UnAvailablePeersResponse = {
@@ -70,14 +71,13 @@ class WorkerResource extends ApiRequestContext {
         }.toSeq.asJava)
   }
 
+  @Operation(description =
+    "Trigger this worker to exit. Legal exit types are 'DECOMMISSION', 'GRACEFUL' and 'IMMEDIATELY'.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(
-        implementation = classOf[HandleResponse]))),
-    description =
-      "Trigger this worker to exit. Legal exit types are 'DECOMMISSION', 'GRACEFUL' and 'IMMEDIATELY'.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("exit")
   def exit(request: WorkerExitRequest): HandleResponse = {

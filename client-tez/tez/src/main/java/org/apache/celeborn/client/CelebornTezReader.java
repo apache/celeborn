@@ -55,7 +55,7 @@ public class CelebornTezReader {
         };
     celebornInputStream =
         shuffleClient.readPartition(
-            shuffleId, partitionId, attemptNumber, 0, Integer.MAX_VALUE, metricsCallback);
+            shuffleId, partitionId, attemptNumber, 0, 0, Integer.MAX_VALUE, metricsCallback);
   }
 
   public byte[] getShuffleBlock() throws IOException {

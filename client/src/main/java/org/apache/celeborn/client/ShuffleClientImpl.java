@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import scala.Tuple2;
+import scala.Tuple3;
 import scala.reflect.ClassTag$;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -178,7 +179,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   // key: shuffleId
-  protected final Map<Integer, Tuple2<ReduceFileGroups, String>> reduceFileGroupsMap =
+  protected final Map<Integer, Tuple3<ReduceFileGroups, String, Exception>> reduceFileGroupsMap =
       JavaUtils.newConcurrentHashMap();
 
   public ShuffleClientImpl(String appUniqueId, CelebornConf conf, UserIdentifier userIdentifier) {
@@ -1778,11 +1779,12 @@ public class ShuffleClientImpl extends ShuffleClient {
     return true;
   }
 
-  protected Tuple2<ReduceFileGroups, String> loadFileGroupInternal(
+  protected Tuple3<ReduceFileGroups, String, Exception> loadFileGroupInternal(
       int shuffleId, boolean isSegmentGranularityVisible) {
     {
       long getReducerFileGroupStartTime = System.nanoTime();
       String exceptionMsg = null;
+      Exception exception = null;
       try {
         if (lifecycleManagerRef == null) {
           exceptionMsg = "Driver endpoint is null!";
@@ -1804,12 +1806,13 @@ public class ShuffleClientImpl extends ShuffleClient {
                   shuffleId,
                   TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
                   response.fileGroup().size());
-              return Tuple2.apply(
+              return Tuple3.apply(
                   new ReduceFileGroups(
                       response.fileGroup(),
                       response.attempts(),
                       response.partitionIds(),
                       response.pushFailedBatches()),
+                  null,
                   null);
             case SHUFFLE_NOT_REGISTERED:
               logger.warn(
@@ -1818,12 +1821,13 @@ public class ShuffleClientImpl extends ShuffleClient {
                   response.status(),
                   shuffleId);
               // return empty result
-              return Tuple2.apply(
+              return Tuple3.apply(
                   new ReduceFileGroups(
                       response.fileGroup(),
                       response.attempts(),
                       response.partitionIds(),
                       response.pushFailedBatches()),
+                  null,
                   null);
             case STAGE_END_TIME_OUT:
             case SHUFFLE_DATA_LOST:
@@ -1842,8 +1846,9 @@ public class ShuffleClientImpl extends ShuffleClient {
         }
         logger.error("Exception raised while call GetReducerFileGroup for {}.", shuffleId, e);
         exceptionMsg = e.getMessage();
+        exception = e;
       }
-      return Tuple2.apply(null, exceptionMsg);
+      return Tuple3.apply(null, exceptionMsg, exception);
     }
   }
 
@@ -1856,21 +1861,22 @@ public class ShuffleClientImpl extends ShuffleClient {
   public ReduceFileGroups updateFileGroup(
       int shuffleId, int partitionId, boolean isSegmentGranularityVisible)
       throws CelebornIOException {
-    Tuple2<ReduceFileGroups, String> fileGroupTuple =
+    Tuple3<ReduceFileGroups, String, Exception> fileGroupTuple =
         reduceFileGroupsMap.compute(
             shuffleId,
             (id, existsTuple) -> {
-              if (existsTuple == null || existsTuple._1 == null) {
+              if (existsTuple == null || existsTuple._1() == null) {
                 return loadFileGroupInternal(shuffleId, isSegmentGranularityVisible);
               } else {
                 return existsTuple;
               }
             });
-    if (fileGroupTuple._1 == null) {
+    if (fileGroupTuple._1() == null) {
       throw new CelebornIOException(
-          loadFileGroupException(shuffleId, partitionId, (fileGroupTuple._2)));
+          loadFileGroupException(shuffleId, partitionId, (fileGroupTuple._2())),
+          fileGroupTuple._3());
     } else {
-      return fileGroupTuple._1;
+      return fileGroupTuple._1();
     }
   }
 
@@ -1945,7 +1951,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @VisibleForTesting
-  public Map<Integer, Tuple2<ReduceFileGroups, String>> getReduceFileGroupsMap() {
+  public Map<Integer, Tuple3<ReduceFileGroups, String, Exception>> getReduceFileGroupsMap() {
     return reduceFileGroupsMap;
   }
 

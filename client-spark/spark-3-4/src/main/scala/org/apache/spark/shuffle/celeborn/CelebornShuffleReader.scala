@@ -20,11 +20,14 @@ package org.apache.spark.shuffle.celeborn
 import java.io.IOException
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.JavaConverters._
 
 import org.apache.commons.lang3.tuple.Pair
+import com.google.common.annotations.VisibleForTesting
+
 import org.apache.spark.{Aggregator, InterruptibleIterator, ShuffleDependency, TaskContext}
 import org.apache.spark.celeborn.ExceptionMakerHelper
 import org.apache.spark.internal.Logging
@@ -41,7 +44,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.{CelebornIOException, PartitionUnRetryAbleException}
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol.TransportMessage
-import org.apache.celeborn.common.protocol.{MessageType, PartitionLocation, PbOpenStreamList, PbOpenStreamListResponse, PbStreamHandler}
+import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
 
@@ -58,7 +61,9 @@ class CelebornShuffleReader[K, C](
   extends ShuffleReader[K, C] with Logging {
 
   private val dep = handle.dependency
-  private val shuffleClient = ShuffleClient.get(
+
+  @VisibleForTesting
+  val shuffleClient = ShuffleClient.get(
     handle.appUniqueId,
     handle.lifecycleManagerHost,
     handle.lifecycleManagerPort,
@@ -112,7 +117,9 @@ class CelebornShuffleReader[K, C](
       fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition)
     } catch {
       case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
-        handleFetchExceptions(handle.shuffleId, shuffleId, 0, ce)
+        // if a task is interrupted, should not report fetch failure
+        // if a task update file group timeout, should not report fetch failure
+        checkAndReportFetchFailureForUpdateFileGroupFailure(shuffleId, ce)
       case e: Throwable => throw e
     }
 
@@ -408,7 +415,22 @@ class CelebornShuffleReader[K, C](
     }
   }
 
-  private def handleFetchExceptions(
+  @VisibleForTesting
+  def checkAndReportFetchFailureForUpdateFileGroupFailure(
+      celebornShuffleId: Int,
+      ce: Throwable): Unit = {
+    if (ce.getCause != null &&
+      (ce.getCause.isInstanceOf[InterruptedException] || ce.getCause.isInstanceOf[
+        TimeoutException])) {
+      logWarning(s"fetch shuffle ${celebornShuffleId} timeout or interrupt", ce)
+      throw ce
+    } else {
+      handleFetchExceptions(handle.shuffleId, celebornShuffleId, 0, ce)
+    }
+  }
+
+  @VisibleForTesting
+  def handleFetchExceptions(
       appShuffleId: Int,
       shuffleId: Int,
       partitionId: Int,

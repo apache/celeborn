@@ -208,7 +208,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   val activeTypes = conf.availableStorageTypes
 
-  def localOrDfsStorageAvailable(): Boolean = {
+  lazy val localOrDfsStorageAvailable: Boolean = {
     StorageInfo.OSSAvailable(activeTypes) || StorageInfo.HDFSAvailable(
       activeTypes) || StorageInfo.localDiskAvailable(
       activeTypes) || hdfsDir.nonEmpty || !diskInfos.isEmpty || s3Dir.nonEmpty
