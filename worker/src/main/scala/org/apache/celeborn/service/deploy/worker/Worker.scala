@@ -194,9 +194,6 @@ private[celeborn] class Worker(
       configService)
   }
 
-  var controller = new Controller(rpcEnv, conf, metricsSystem, workerSource)
-  rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
-
   // Visible for testing
   private[worker] var internalRpcEndpoint: RpcEndpoint = _
   private var internalRpcEndpointRef: RpcEndpointRef = _
@@ -557,8 +554,11 @@ private[celeborn] class Worker(
     pushDataHandler.init(this)
     replicateHandler.init(this)
     fetchHandler.init(this)
-    controller.init(this)
     workerStatusManager.init(this)
+
+    val controller = new Controller(rpcEnv, conf, metricsSystem, workerSource)
+    controller.init(this)
+    rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
 
     logInfo("Worker started.")
     rpcEnv.awaitTermination()
