@@ -478,7 +478,6 @@ class FetchHandler(
                 sortFileInfo.readLocalShuffle)
 
               if (sortFileInfo.fileIndex == -1) {
-                logInfo(s"reply stream handler for fileRequest: $fileRequest")
                 replyStreamHandler(
                   sortFileInfo.client,
                   sortFileInfo.rpcRequestId,
