@@ -26,6 +26,7 @@ class SortFileInfo(
     var status: Int,
     var client: TransportClient,
     var fileName: String,
+    var streamId: Long,
     var startIndex: Int,
     var endIndex: Int,
     var readLocalShuffle: Boolean,

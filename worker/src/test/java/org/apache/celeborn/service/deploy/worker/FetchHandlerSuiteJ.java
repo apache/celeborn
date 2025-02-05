@@ -31,6 +31,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
 
 import com.google.common.base.Throwables;
 import io.netty.channel.Channel;
@@ -69,6 +71,7 @@ import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 import org.apache.celeborn.service.deploy.worker.storage.PartitionFilesSorter;
@@ -310,11 +313,16 @@ public class FetchHandlerSuiteJ {
     Worker worker = mock(Worker.class);
     PartitionFilesSorter partitionFilesSorter =
         new PartitionFilesSorter(MemoryManager.instance(), conf, workerSource);
-
+    ScheduledExecutorService sortFileChecker =
+        ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-sortFile-checker");
+    ConcurrentHashMap<String, ConcurrentHashMap<String, SortFileInfo>> sortFilesInfo =
+        new ConcurrentHashMap<>();
     StorageManager storageManager = mock(StorageManager.class);
     Mockito.doReturn(storageManager).when(worker).storageManager();
     Mockito.doReturn(workerSource).when(worker).workerSource();
     Mockito.doReturn(partitionFilesSorter).when(worker).partitionsSorter();
+    Mockito.doReturn(sortFileChecker).when(worker).sortFileChecker();
+    Mockito.doReturn(sortFilesInfo).when(worker).sortFilesInfo();
     fetchHandler0.init(worker);
     FetchHandler fetchHandler = spy(fetchHandler0);
     Mockito.doReturn(fileInfo).when(fetchHandler).getRawFileInfo(anyString(), anyString());
@@ -340,6 +348,17 @@ public class FetchHandlerSuiteJ {
         new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)),
         createRpcResponseCallback(channel));
     RpcResponse result = channel.readOutbound();
+
+    while (result == null) {
+      try {
+        LOG.info("wait 100ms for RpcResponse result");
+        Thread.sleep(100);
+        result = channel.readOutbound();
+      } catch (InterruptedException e) {
+        LOG.error("interrupted by exception", e);
+        throw new IOException("waiting for PbStreamHandler interrupted", e);
+      }
+    }
     StreamHandle streamHandler = (StreamHandle) Message.decode(result.body().nioByteBuffer());
     if (endIndex == Integer.MAX_VALUE) {
       assertEquals(50, streamHandler.numChunks);
@@ -382,7 +401,20 @@ public class FetchHandlerSuiteJ {
         client,
         new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)),
         createRpcResponseCallback(channel));
+
     RpcResponse result = channel.readOutbound();
+
+    while (result == null) {
+      try {
+        LOG.info("wait 100ms for RpcResponse result");
+        Thread.sleep(100);
+        result = channel.readOutbound();
+      } catch (InterruptedException e) {
+        LOG.error("interrupted by exception", e);
+        throw new IOException("waiting for PbStreamHandler interrupted", e);
+      }
+    }
+
     PbStreamHandler streamHandler =
         TransportMessage.fromByteBuffer(result.body().nioByteBuffer()).getParsedPayload();
     if (endIndex == Integer.MAX_VALUE) {

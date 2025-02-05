@@ -349,6 +349,7 @@ class FetchHandler(
             SortFileInfo.SORT_NOTSTARTED,
             client,
             fileName,
+            streamId,
             startIndex,
             endIndex,
             readLocalShuffle,
@@ -371,6 +372,7 @@ class FetchHandler(
             SortFileInfo.SORT_NOTSTARTED,
             client,
             fileName,
+            streamId,
             startIndex,
             endIndex,
             readLocalShuffle,
@@ -470,11 +472,13 @@ class FetchHandler(
                 sortFileInfo.client,
                 shuffleKey,
                 sortFileInfo.fileName,
+                sortFileInfo.streamId,
                 sortFileInfo.startIndex,
                 sortFileInfo.endIndex,
                 sortFileInfo.readLocalShuffle)
 
               if (sortFileInfo.fileIndex == -1) {
+                logInfo(s"reply stream handler for fileRequest: $fileRequest")
                 replyStreamHandler(
                   sortFileInfo.client,
                   sortFileInfo.rpcRequestId,
@@ -554,11 +558,11 @@ class FetchHandler(
       client: TransportClient,
       shuffleKey: String,
       fileName: String,
+      streamId: Long,
       startIndex: Int,
       endIndex: Int,
       readLocalShuffle: Boolean = false): PbStreamHandlerOpt = {
 
-    val streamId = chunkStreamManager.nextStreamId()
     val meta = fileInfo.getReduceFileMeta
     val streamHandler =
       if (readLocalShuffle && !fileInfo.isInstanceOf[MemoryFileInfo]) {
