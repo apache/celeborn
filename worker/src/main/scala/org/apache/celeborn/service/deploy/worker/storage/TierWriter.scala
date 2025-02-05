@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.JavaConverters.asScalaBufferConverter
 
 import io.netty.buffer.{ByteBuf, CompositeByteBuf}
+import org.apache.hadoop.fs.FileSystem
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.AlreadyClosedException
@@ -45,6 +46,7 @@ abstract class TierWriterBase(
     val metaHandler: PartitionMetaHandler,
     val numPendingWrites: AtomicInteger,
     val notifier: FlushNotifier,
+    val flushLock: AnyRef,
     val fileInfo: FileInfo,
     val source: AbstractSource,
     val storageType: StorageInfo.Type,
@@ -52,16 +54,15 @@ abstract class TierWriterBase(
     val shuffleKey: String,
     val storageManager: StorageManager) extends Logging {
   val metricsCollectCriticalEnabled: Boolean = conf.metricsCollectCriticalEnabled
-  val flushLock = new AnyRef
-  val WAIT_INTERVAL_MS = 5
+  private val WAIT_INTERVAL_MS = 5
 
   var flushBuffer: CompositeByteBuf = _
   var writerCloseTimeoutMs: Long = conf.workerWriterCloseTimeoutMs
   var flusherBufferSize = 0L
-  var chunkSize: Long = conf.shuffleChunkSize
+  private val chunkSize: Long = conf.shuffleChunkSize
 
-  @volatile var closed = false
-  @volatile var destroyed = false
+  @volatile var closed: Boolean = false
+  @volatile private var destroyed: Boolean = false
 
   takeBuffer()
 
@@ -72,14 +73,14 @@ abstract class TierWriterBase(
     flushLock.synchronized {
       metaHandler.beforeWrite(buf)
       ensureNotClosed()
-      writerInternal(buf)
+      writeInternal(buf)
     }
 
     metaHandler.afterWrite(buf.readableBytes())
     numPendingWrites.decrementAndGet()
   }
 
-  protected def writerInternal(buf: ByteBuf): Unit
+  protected def writeInternal(buf: ByteBuf): Unit
 
   def needEvict(): Boolean
 
@@ -92,27 +93,25 @@ abstract class TierWriterBase(
     flushBuffer = inputBuffer
   }
 
-  def close(evict: Boolean = false): Long = {
+  // close and destroy need to be invoked in synchronized blocks
+  def close(): Long = {
+    ensureNotClosed()
     try {
-      ensureNotClosed()
       waitOnNoPending(numPendingWrites, false)
       closed = true
       finalFlush()
-
-      waitOnNoPending(notifier.numPendingFlushes, true)
       metaHandler.afterClose()
+      waitOnNoPending(notifier.numPendingFlushes, true)
     } finally {
       returnBuffer(false)
       try {
         closeStreams()
       } catch {
         case e: IOException =>
-          logWarning(s"close file writer ${this} failed", e)
+          logWarning(s"close file writer $this failed", e)
       }
     }
-    if (!evict) {
-      notifyFileCommitted()
-    }
+    notifyFileCommitted()
 
     fileInfo.getFileLength
   }
@@ -125,8 +124,8 @@ abstract class TierWriterBase(
     }
   }
 
-  def getFileAlreadyClosedMsg: String = {
-    s"PartitionDataWriter has already closed! File name:${filename}"
+  private def getFileAlreadyClosedMsg: String = {
+    s"PartitionDataWriter has already closed! File name:$filename"
   }
 
   // this method is not used in memory tier writer
@@ -136,7 +135,7 @@ abstract class TierWriterBase(
   def finalFlush(): Unit = {}
 
   @throws[IOException]
-  protected def waitOnNoPending(counter: AtomicInteger, failWhenTimeout: Boolean): Unit = {
+  private def waitOnNoPending(counter: AtomicInteger, failWhenTimeout: Boolean): Unit = {
     var waitTime = writerCloseTimeoutMs
     while (counter.get > 0 && waitTime > 0) {
       try {
@@ -179,9 +178,12 @@ abstract class TierWriterBase(
               val batchHeader = headerBuf.array
               val compressedSize = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12)
               dupBuf.skipBytes(compressedSize)
+              metaHandler.afterFlush(compressedSize + 16)
             }
             dupBuf.release
-          } else metaHandler.afterFlush(numBytes)
+          } else {
+            metaHandler.afterFlush(numBytes)
+          }
         } else {
           notifier.checkException()
           // if a flush buffer is larger than the chunk size, it might contain data of multiple chunks
@@ -204,7 +206,7 @@ abstract class TierWriterBase(
 
   }
 
-  def takeBuffer() = {
+  private def takeBuffer(): Unit = {
     var metricsName: String = null
     var fileAbsPath: String = null
     if (metricsCollectCriticalEnabled) {
@@ -253,6 +255,10 @@ abstract class TierWriterBase(
 
   def returnBufferInternal(destroy: Boolean): Unit
 
+  def getFlusher(): Flusher
+
+  def registerToDeviceMonitor(): Unit = {}
+
 }
 
 class MemoryTierWriter(
@@ -260,6 +266,7 @@ class MemoryTierWriter(
     metaHandler: PartitionMetaHandler,
     numPendingWriters: AtomicInteger,
     notifier: FlushNotifier,
+    flushLock: AnyRef,
     source: AbstractSource,
     fileInfo: MemoryFileInfo,
     storageType: StorageInfo.Type,
@@ -270,6 +277,7 @@ class MemoryTierWriter(
     metaHandler,
     numPendingWriters,
     notifier,
+    flushLock,
     fileInfo,
     source,
     storageType,
@@ -278,6 +286,10 @@ class MemoryTierWriter(
     storageManager) {
 
   val memoryFileStorageMaxFileSize: Long = conf.workerMemoryFileStorageMaxFileSize
+
+  storageManager.registerMemoryPartitionWriter(
+    partitionDataWriterContext.getPartitionDataWriter,
+    fileInfo)
 
   override def needEvict(): Boolean = {
     flushBuffer.readableBytes() > memoryFileStorageMaxFileSize && storageManager.localOrDfsStorageAvailable
@@ -288,8 +300,10 @@ class MemoryTierWriter(
       // swap tier writer's flush buffer to memory tier writer's
       // and handle its release
       file.swapFlushBuffer(flushBuffer)
+      // close memory file writer after evict happened
       file.flush(false, true)
       val numBytes = flushBuffer.readableBytes()
+      logDebug(s"Evict $numBytes from memory to other tier")
       MemoryManager.instance.releaseMemoryFileStorage(numBytes)
       MemoryManager.instance.incrementDiskBuffer(numBytes)
       storageManager.unregisterMemoryPartitionWriterAndFileInfo(fileInfo, shuffleKey, filename)
@@ -300,7 +314,7 @@ class MemoryTierWriter(
   // Memory file won't produce flush task
   override def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask = null
 
-  override def writerInternal(buf: ByteBuf): Unit = {
+  override def writeInternal(buf: ByteBuf): Unit = {
     buf.retain()
     try {
       flushBuffer.addComponent(true, buf)
@@ -335,6 +349,10 @@ class MemoryTierWriter(
   override def addFlushTask(task: FlushTask): Unit = {
     // memory tier write does not need flush tasks
   }
+
+  override def getFlusher(): Flusher = {
+    null
+  }
 }
 
 class LocalTierWriter(
@@ -342,6 +360,7 @@ class LocalTierWriter(
     metaHandler: PartitionMetaHandler,
     numPendingWrites: AtomicInteger,
     notifier: FlushNotifier,
+    flushLock: AnyRef,
     flusher: Flusher,
     source: AbstractSource,
     diskFileInfo: DiskFileInfo,
@@ -353,6 +372,7 @@ class LocalTierWriter(
     metaHandler,
     numPendingWrites,
     notifier,
+    flushLock,
     diskFileInfo,
     source,
     storageType,
@@ -360,7 +380,7 @@ class LocalTierWriter(
     partitionDataWriterContext.getShuffleKey,
     storageManager) {
   flusherBufferSize = conf.workerFlusherBufferSize
-  val flushWorkerIndex = flusher.getWorkerIndex
+  private val flushWorkerIndex: Int = flusher.getWorkerIndex
   val userCongestionControlContext: UserCongestionControlContext =
     if (CongestionController.instance != null)
       CongestionController.instance.getUserCongestionContext(
@@ -368,8 +388,8 @@ class LocalTierWriter(
     else
       null
 
-  private val channel: FileChannel =
-    FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath);
+  private lazy val channel: FileChannel =
+    FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath)
 
   override def needEvict(): Boolean = {
     false
@@ -380,7 +400,7 @@ class LocalTierWriter(
     new LocalFlushTask(flushBuffer, channel, notifier, true)
   }
 
-  override def writerInternal(buf: ByteBuf): Unit = {
+  override def writeInternal(buf: ByteBuf): Unit = {
     val numBytes = buf.readableBytes()
     val flushBufferReadableBytes = flushBuffer.readableBytes
     if (flushBufferReadableBytes != 0 && flushBufferReadableBytes + numBytes >= flusherBufferSize) {
@@ -403,8 +423,10 @@ class LocalTierWriter(
   override def evict(file: TierWriterBase): Unit = ???
 
   override def finalFlush(): Unit = {
-    if (flushBuffer != null && flushBuffer.readableBytes() > 0) {
-      flush(true)
+    flushLock.synchronized {
+      if (flushBuffer != null && flushBuffer.readableBytes() > 0) {
+        flush(true)
+      }
     }
   }
 
@@ -426,6 +448,8 @@ class LocalTierWriter(
 
   override def cleanLocalOrDfsFiles(): Unit = {
     diskFileInfo.deleteAllFiles(null)
+    partitionDataWriterContext.getDeviceMonitor.unregisterFileWriter(
+      partitionDataWriterContext.getPartitionDataWriter)
   }
 
   override def takeBufferInternal(): CompositeByteBuf = {
@@ -446,6 +470,17 @@ class LocalTierWriter(
       throw e
     }
   }
+
+  def getFlusher(): Flusher = {
+    flusher
+  }
+
+  override def registerToDeviceMonitor(): Unit = {
+    storageManager.registerDiskFilePartitionWriter(
+      partitionDataWriterContext.getPartitionDataWriter,
+      partitionDataWriterContext.getWorkingDir,
+      fileInfo.asInstanceOf[DiskFileInfo])
+  }
 }
 
 class DfsTierWriter(
@@ -453,6 +488,7 @@ class DfsTierWriter(
     metaHandler: PartitionMetaHandler,
     numPendingWrites: AtomicInteger,
     notifier: FlushNotifier,
+    flushLock: AnyRef,
     flusher: Flusher,
     source: AbstractSource,
     hdfsFileInfo: DiskFileInfo,
@@ -464,6 +500,7 @@ class DfsTierWriter(
     metaHandler,
     numPendingWrites,
     notifier,
+    flushLock,
     hdfsFileInfo,
     source,
     storageType,
@@ -471,10 +508,10 @@ class DfsTierWriter(
     partitionDataWriterContext.getShuffleKey,
     storageManager) {
   flusherBufferSize = conf.workerHdfsFlusherBufferSize
-  val flushWorkerIndex = flusher.getWorkerIndex
-  val hadoopFs = StorageManager.hadoopFs.get(storageType)
+  private val flushWorkerIndex: Int = flusher.getWorkerIndex
+  val hadoopFs: FileSystem = StorageManager.hadoopFs.get(storageType)
   var deleted = false
-  var s3MultipartUploadHandler: MultipartUploadHandler = null
+  private var s3MultipartUploadHandler: MultipartUploadHandler = _
   var partNumber: Int = 1
 
   this.flusherBufferSize =
@@ -518,6 +555,11 @@ class DfsTierWriter(
       hadoopFs.create(hdfsFileInfo.getDfsPath, true).close()
   }
 
+  storageManager.registerDiskFilePartitionWriter(
+    partitionDataWriterContext.getPartitionDataWriter,
+    partitionDataWriterContext.getWorkingDir,
+    fileInfo.asInstanceOf[DiskFileInfo])
+
   override def needEvict(): Boolean = {
     false
   }
@@ -539,7 +581,7 @@ class DfsTierWriter(
     }
   }
 
-  override def writerInternal(buf: ByteBuf): Unit = {
+  override def writeInternal(buf: ByteBuf): Unit = {
     val numBytes = buf.readableBytes()
     val flushBufferReadableBytes = flushBuffer.readableBytes
     if (flushBufferReadableBytes != 0 && flushBufferReadableBytes + numBytes >= flusherBufferSize) {
@@ -560,8 +602,10 @@ class DfsTierWriter(
   override def evict(file: TierWriterBase): Unit = ???
 
   override def finalFlush(): Unit = {
-    if (flushBuffer != null && flushBuffer.readableBytes() > 0) {
-      flush(true)
+    flushLock.synchronized {
+      if (flushBuffer != null && flushBuffer.readableBytes() > 0) {
+        flush(true)
+      }
     }
   }
 
@@ -606,5 +650,9 @@ class DfsTierWriter(
       notifier.setException(e)
       throw e
     }
+  }
+
+  def getFlusher(): Flusher = {
+    flusher
   }
 }
