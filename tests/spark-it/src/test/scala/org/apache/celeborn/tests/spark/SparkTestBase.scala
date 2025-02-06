@@ -81,6 +81,7 @@ trait SparkTestBase extends AnyFunSuite
     sparkConf.set("spark.sql.adaptive.localShuffleReader.enabled", "false")
     sparkConf.set(s"spark.${MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
     sparkConf.set(s"spark.${SPARK_SHUFFLE_WRITER_MODE.key}", mode.toString)
+    sparkConf.set("spark.ui.enabled", "false")
     sparkConf
   }
 
