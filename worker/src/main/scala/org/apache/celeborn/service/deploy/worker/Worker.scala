@@ -194,8 +194,7 @@ private[celeborn] class Worker(
       conf.workerCongestionControlCheckIntervalMs)
   }
 
-  var controller = new Controller(rpcEnv, conf, metricsSystem, workerSource)
-  rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
+  val controller = new Controller(rpcEnv, conf, metricsSystem, workerSource)
 
   // Visible for testing
   private[worker] var internalRpcEndpoint: RpcEndpoint = _
@@ -543,8 +542,10 @@ private[celeborn] class Worker(
     pushDataHandler.init(this)
     replicateHandler.init(this)
     fetchHandler.init(this)
-    controller.init(this)
     workerStatusManager.init(this)
+
+    controller.init(this)
+    rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
 
     logInfo("Worker started.")
     rpcEnv.awaitTermination()
