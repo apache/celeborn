@@ -330,12 +330,10 @@ public class MemoryManager {
   public void switchServingState() {
     ServingState lastState = servingState;
     servingState = currentServingState();
-    if (servingState == lastState && servingState == ServingState.NONE_PAUSED) {
-      // this means that there is no memory pressure here
-      // skip the rest check logic of memory checker
-      return;
+
+    if (servingState != lastState) {
+      logger.info("Serving state transformed from {} to {}", lastState, servingState);
     }
-    logger.info("Serving state transformed from {} to {}", lastState, servingState);
     switch (servingState) {
       case PUSH_PAUSED:
         if (canResumeByPinnedMemory()) {
