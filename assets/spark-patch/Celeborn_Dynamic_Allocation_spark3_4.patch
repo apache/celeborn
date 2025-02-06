@@ -21,9 +21,10 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
 diff --git a/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala b/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala
---- a/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala	(revision efae5362cbeaf1594b18edf594e83b2cf72afce6)
-+++ b/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala	(date 1685946134830)
-@@ -209,7 +209,7 @@
+index f06312c15cf..3d2e8f72d42 100644
+--- a/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala
++++ b/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala
+@@ -209,7 +209,7 @@ private[spark] class ExecutorAllocationManager(
        } else if (decommissionEnabled &&
            conf.get(config.STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED)) {
          logInfo("Shuffle data decommission is enabled without a shuffle service.")
@@ -32,50 +33,25 @@ diff --git a/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scal
          throw new SparkException("Dynamic allocation of executors requires the external " +
            "shuffle service. You may enable this through spark.shuffle.service.enabled.")
        }
-Index: core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
 diff --git a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
---- a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala	(revision efae5362cbeaf1594b18edf594e83b2cf72afce6)
-+++ b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala	(date 1685946134830)
-@@ -2515,7 +2515,7 @@
+index 26be8c72bbc..e1cf377b533 100644
+--- a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
++++ b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
+@@ -2520,7 +2520,8 @@ private[spark] class DAGScheduler(
      // if the cluster manager explicitly tells us that the entire worker was lost, then
      // we know to unregister shuffle output.  (Note that "worker" specifically refers to the process
      // from a Standalone cluster, where the shuffle service lives in the Worker.)
 -    val fileLost = workerHost.isDefined || !env.blockManager.externalShuffleServiceEnabled
-+    val fileLost = !Utils.isCelebornEnabled(sc.getConf) && (workerHost.isDefined || !env.blockManager.externalShuffleServiceEnabled)
++    val fileLost = !Utils.isCelebornEnabled(sc.getConf) &&
++      (workerHost.isDefined || !env.blockManager.externalShuffleServiceEnabled)
      removeExecutorAndUnregisterOutputs(
        execId = execId,
        fileLost = fileLost,
-Index: core/src/main/scala/org/apache/spark/util/Utils.scala
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
-diff --git a/core/src/main/scala/org/apache/spark/util/Utils.scala b/core/src/main/scala/org/apache/spark/util/Utils.scala
---- a/core/src/main/scala/org/apache/spark/util/Utils.scala	(revision efae5362cbeaf1594b18edf594e83b2cf72afce6)
-+++ b/core/src/main/scala/org/apache/spark/util/Utils.scala	(date 1685946145650)
-@@ -3271,6 +3271,9 @@
-     files.toSeq
-   }
-
-+  def isCelebornEnabled(conf: SparkConf): Boolean =
-+    conf.get("spark.shuffle.manager", "sort").contains("celeborn")
-+
-   /**
-    * Return the median number of a long array
-    *
-Index: core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
 diff --git a/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala b/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala
---- a/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala	(revision efae5362cbeaf1594b18edf594e83b2cf72afce6)
-+++ b/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala	(date 1685946134830)
-@@ -1055,7 +1055,7 @@
+index 124a27502fe..9a59a08e875 100644
+--- a/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala
++++ b/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala
+@@ -1055,7 +1055,7 @@ private[spark] class TaskSetManager(
      // data from this dead executor so we would need to rerun these tasks on other executors.
      val maybeShuffleMapOutputLoss = isShuffleMapTasks &&
        (reason.isInstanceOf[ExecutorDecommission] || !env.blockManager.externalShuffleServiceEnabled)
@@ -84,3 +60,39 @@ diff --git a/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala
        for ((tid, info) <- taskInfos if info.executorId == execId) {
          val index = info.index
          lazy val isShuffleMapOutputAvailable = reason match {
+diff --git a/core/src/main/scala/org/apache/spark/scheduler/dynalloc/ExecutorMonitor.scala b/core/src/main/scala/org/apache/spark/scheduler/dynalloc/ExecutorMonitor.scala
+index 34878b8e561..169c25d05ec 100644
+--- a/core/src/main/scala/org/apache/spark/scheduler/dynalloc/ExecutorMonitor.scala
++++ b/core/src/main/scala/org/apache/spark/scheduler/dynalloc/ExecutorMonitor.scala
+@@ -30,7 +30,7 @@ import org.apache.spark.internal.config._
+ import org.apache.spark.resource.ResourceProfile.UNKNOWN_RESOURCE_PROFILE_ID
+ import org.apache.spark.scheduler._
+ import org.apache.spark.storage.{RDDBlockId, ShuffleDataBlockId}
+-import org.apache.spark.util.Clock
++import org.apache.spark.util.{Clock, Utils}
+ 
+ /**
+  * A monitor for executor activity, used by ExecutorAllocationManager to detect idle executors.
+@@ -552,7 +552,7 @@ private[spark] class ExecutorMonitor(
+     // This should only be used in the event thread.
+     private val shuffleIds = if (shuffleTrackingEnabled) new mutable.HashSet[Int]() else null
+ 
+-    def isIdle: Boolean = idleStart >= 0 && !hasActiveShuffle
++    def isIdle: Boolean = idleStart >= 0 && (!hasActiveShuffle || Utils.isCelebornEnabled(conf))
+ 
+     def updateRunningTasks(delta: Int): Unit = {
+       runningTasks = math.max(0, runningTasks + delta)
+diff --git a/core/src/main/scala/org/apache/spark/util/Utils.scala b/core/src/main/scala/org/apache/spark/util/Utils.scala
+index b4c9060f2e1..8ad92c20868 100644
+--- a/core/src/main/scala/org/apache/spark/util/Utils.scala
++++ b/core/src/main/scala/org/apache/spark/util/Utils.scala
+@@ -3271,6 +3271,9 @@ private[spark] object Utils extends Logging {
+     files.toSeq
+   }
+ 
++  def isCelebornEnabled(conf: SparkConf): Boolean =
++    conf.get("spark.shuffle.manager", "sort").contains("celeborn")
++
+   /**
+    * Return the median number of a long array
+    *
