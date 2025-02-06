@@ -74,6 +74,7 @@ public class LocalPartitionReader implements PartitionReader {
       CelebornConf conf,
       String shuffleKey,
       PartitionLocation location,
+      PbStreamHandler pbStreamHandler,
       TransportClientFactory clientFactory,
       int startMapIndex,
       int endMapIndex,
@@ -95,19 +96,23 @@ public class LocalPartitionReader implements PartitionReader {
     long fetchTimeoutMs = conf.clientFetchTimeoutMs();
     try {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort(), 0);
-      TransportMessage openStreamMsg =
-          new TransportMessage(
-              MessageType.OPEN_STREAM,
-              PbOpenStream.newBuilder()
-                  .setShuffleKey(shuffleKey)
-                  .setFileName(location.getFileName())
-                  .setStartIndex(startMapIndex)
-                  .setEndIndex(endMapIndex)
-                  .setReadLocalShuffle(true)
-                  .build()
-                  .toByteArray());
-      ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
-      streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
+      if (pbStreamHandler == null) {
+        TransportMessage openStreamMsg =
+                new TransportMessage(
+                        MessageType.OPEN_STREAM,
+                        PbOpenStream.newBuilder()
+                                .setShuffleKey(shuffleKey)
+                                .setFileName(location.getFileName())
+                                .setStartIndex(startMapIndex)
+                                .setEndIndex(endMapIndex)
+                                .setReadLocalShuffle(true)
+                                .build()
+                                .toByteArray());
+        ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
+        streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
+      } else {
+        this.streamHandler = pbStreamHandler;
+      }
     } catch (IOException | InterruptedException e) {
       throw new IOException(
           "Read shuffle file from local file failed, partition location: "

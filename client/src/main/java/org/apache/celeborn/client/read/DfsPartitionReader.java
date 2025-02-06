@@ -76,6 +76,7 @@ public class DfsPartitionReader implements PartitionReader {
       CelebornConf conf,
       String shuffleKey,
       PartitionLocation location,
+      PbStreamHandler pbStreamHandler,
       TransportClientFactory clientFactory,
       int startMapIndex,
       int endMapIndex,
@@ -97,26 +98,28 @@ public class DfsPartitionReader implements PartitionReader {
 
     if (endMapIndex != Integer.MAX_VALUE) {
       long fetchTimeoutMs = conf.clientFetchTimeoutMs();
-      try {
-        client = clientFactory.createClient(location.getHost(), location.getFetchPort());
-        TransportMessage openStream =
-            new TransportMessage(
-                MessageType.OPEN_STREAM,
-                PbOpenStream.newBuilder()
-                    .setShuffleKey(shuffleKey)
-                    .setFileName(location.getFileName())
-                    .setStartIndex(startMapIndex)
-                    .setEndIndex(endMapIndex)
-                    .build()
-                    .toByteArray());
-        ByteBuffer response = client.sendRpcSync(openStream.toByteBuffer(), fetchTimeoutMs);
-        streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
-        // Parse this message to ensure sort is done.
-      } catch (IOException | InterruptedException e) {
-        throw new IOException(
-            "read shuffle file from DFS failed, filePath: "
-                + location.getStorageInfo().getFilePath(),
-            e);
+      if (pbStreamHandler == null) {
+        try {
+          client = clientFactory.createClient(location.getHost(), location.getFetchPort());
+          TransportMessage openStream =
+                  new TransportMessage(
+                          MessageType.OPEN_STREAM,
+                          PbOpenStream.newBuilder()
+                                  .setShuffleKey(shuffleKey)
+                                  .setFileName(location.getFileName())
+                                  .setStartIndex(startMapIndex)
+                                  .setEndIndex(endMapIndex)
+                                  .build()
+                                  .toByteArray());
+          ByteBuffer response = client.sendRpcSync(openStream.toByteBuffer(), fetchTimeoutMs);
+          streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
+          // Parse this message to ensure sort is done.
+        } catch (IOException | InterruptedException e) {
+          throw new IOException(
+                  "read shuffle file from DFS failed, filePath: "
+                          + location.getStorageInfo().getFilePath(),
+                  e);
+        }
       }
 
       dfsInputStream =
