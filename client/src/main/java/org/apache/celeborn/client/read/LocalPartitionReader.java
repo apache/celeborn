@@ -98,16 +98,16 @@ public class LocalPartitionReader implements PartitionReader {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort(), 0);
       if (pbStreamHandler == null) {
         TransportMessage openStreamMsg =
-                new TransportMessage(
-                        MessageType.OPEN_STREAM,
-                        PbOpenStream.newBuilder()
-                                .setShuffleKey(shuffleKey)
-                                .setFileName(location.getFileName())
-                                .setStartIndex(startMapIndex)
-                                .setEndIndex(endMapIndex)
-                                .setReadLocalShuffle(true)
-                                .build()
-                                .toByteArray());
+            new TransportMessage(
+                MessageType.OPEN_STREAM,
+                PbOpenStream.newBuilder()
+                    .setShuffleKey(shuffleKey)
+                    .setFileName(location.getFileName())
+                    .setStartIndex(startMapIndex)
+                    .setEndIndex(endMapIndex)
+                    .setReadLocalShuffle(true)
+                    .build()
+                    .toByteArray());
         ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
         streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
       } else {

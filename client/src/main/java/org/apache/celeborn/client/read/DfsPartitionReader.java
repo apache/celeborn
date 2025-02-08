@@ -102,23 +102,23 @@ public class DfsPartitionReader implements PartitionReader {
         try {
           client = clientFactory.createClient(location.getHost(), location.getFetchPort());
           TransportMessage openStream =
-                  new TransportMessage(
-                          MessageType.OPEN_STREAM,
-                          PbOpenStream.newBuilder()
-                                  .setShuffleKey(shuffleKey)
-                                  .setFileName(location.getFileName())
-                                  .setStartIndex(startMapIndex)
-                                  .setEndIndex(endMapIndex)
-                                  .build()
-                                  .toByteArray());
+              new TransportMessage(
+                  MessageType.OPEN_STREAM,
+                  PbOpenStream.newBuilder()
+                      .setShuffleKey(shuffleKey)
+                      .setFileName(location.getFileName())
+                      .setStartIndex(startMapIndex)
+                      .setEndIndex(endMapIndex)
+                      .build()
+                      .toByteArray());
           ByteBuffer response = client.sendRpcSync(openStream.toByteBuffer(), fetchTimeoutMs);
           streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
           // Parse this message to ensure sort is done.
         } catch (IOException | InterruptedException e) {
           throw new IOException(
-                  "read shuffle file from DFS failed, filePath: "
-                          + location.getStorageInfo().getFilePath(),
-                  e);
+              "read shuffle file from DFS failed, filePath: "
+                  + location.getStorageInfo().getFilePath(),
+              e);
         }
       }
 
