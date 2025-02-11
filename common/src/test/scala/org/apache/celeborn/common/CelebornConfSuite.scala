@@ -293,7 +293,6 @@ class CelebornConfSuite extends CelebornFunSuite {
   private val transportTestNetworkIoStorageMemoryMapThreshold =
     NETWORK_IO_STORAGE_MEMORY_MAP_THRESHOLD.defaultValue.get + 5
   private val transportTestNetworkIoLazyFd = !NETWORK_IO_LAZY_FD.defaultValue.get
-  private val transportTestNetworkVerboseMetrics = !NETWORK_VERBOSE_METRICS.defaultValue.get
   private val transportTestChannelHeartbeatInterval =
     CHANNEL_HEARTBEAT_INTERVAL.defaultValue.get + 5
   private val transportTestPushTimeoutCheckThreads = PUSH_TIMEOUT_CHECK_THREADS.defaultValue.get + 5
@@ -334,7 +333,6 @@ class CelebornConfSuite extends CelebornFunSuite {
       moduleKey(NETWORK_IO_STORAGE_MEMORY_MAP_THRESHOLD),
       transportTestNetworkIoStorageMemoryMapThreshold.toString)
     conf.set(moduleKey(NETWORK_IO_LAZY_FD), transportTestNetworkIoLazyFd.toString)
-    conf.set(moduleKey(NETWORK_VERBOSE_METRICS), transportTestNetworkVerboseMetrics.toString)
     conf.set(moduleKey(CHANNEL_HEARTBEAT_INTERVAL), transportTestChannelHeartbeatInterval.toString)
     conf.set(moduleKey(PUSH_TIMEOUT_CHECK_THREADS), transportTestPushTimeoutCheckThreads.toString)
     conf.set(moduleKey(PUSH_TIMEOUT_CHECK_INTERVAL), transportTestPushTimeoutCheckInterval.toString)
@@ -347,7 +345,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     conf
   }
 
-  private def validateDefauitTransportConfValue(conf: CelebornConf, module: String): Unit = {
+  private def validateDefaultTransportConfValue(conf: CelebornConf, module: String): Unit = {
     assert(transportTestNetworkIoMode == conf.networkIoMode(module))
     assert(transportTestNetworkIoPreferDirectBufs == conf.networkIoPreferDirectBufs(module))
     assert(transportTestNetworkIoConnectTimeout == conf.networkIoConnectTimeoutMs(module))
@@ -363,7 +361,6 @@ class CelebornConfSuite extends CelebornFunSuite {
     assert(transportTestNetworkIoRetryWait == conf.networkIoRetryWaitMs(module))
     assert(transportTestNetworkIoStorageMemoryMapThreshold == conf.networkIoMemoryMapBytes(module))
     assert(transportTestNetworkIoLazyFd == conf.networkIoLazyFileDescriptor(module))
-    assert(transportTestNetworkVerboseMetrics == conf.networkIoVerboseMetrics(module))
     assert(transportTestChannelHeartbeatInterval == conf.clientHeartbeatInterval(module))
     assert(transportTestPushTimeoutCheckThreads == conf.pushDataTimeoutCheckerThreads(module))
     assert(transportTestPushTimeoutCheckInterval == conf.pushDataTimeoutCheckInterval(module))
@@ -374,20 +371,20 @@ class CelebornConfSuite extends CelebornFunSuite {
 
   test("Basic fetch module config") {
     val conf = setupCelebornConfForTransportTests("test")
-    validateDefauitTransportConfValue(conf, "test")
+    validateDefaultTransportConfValue(conf, "test")
   }
 
   test("Fallback to parent module's config for transport conf when not defined for module") {
     val conf = setupCelebornConfForTransportTests("test_parent_module")
     // set in parent, but should work in child
-    validateDefauitTransportConfValue(conf, "test_child_module")
+    validateDefaultTransportConfValue(conf, "test_child_module")
   }
 
   test("rpc_service and rpc_client should default to rpc if not configured") {
     val conf = setupCelebornConfForTransportTests("rpc")
     // set in rpc, so should work for specific rpc servers
-    validateDefauitTransportConfValue(conf, "rpc_service")
-    validateDefauitTransportConfValue(conf, "rpc_app")
+    validateDefaultTransportConfValue(conf, "rpc_service")
+    validateDefaultTransportConfValue(conf, "rpc_app")
   }
 
   test("Test fallback config works even with parent") {
