@@ -96,32 +96,33 @@ public class DfsPartitionReader implements PartitionReader {
       this.hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
     }
 
-    if (endMapIndex != Integer.MAX_VALUE) {
-      long fetchTimeoutMs = conf.clientFetchTimeoutMs();
+    long fetchTimeoutMs = conf.clientFetchTimeoutMs();
+    try {
+      client = clientFactory.createClient(location.getHost(), location.getFetchPort());
       if (pbStreamHandler == null) {
-        try {
-          client = clientFactory.createClient(location.getHost(), location.getFetchPort());
-          TransportMessage openStream =
-              new TransportMessage(
-                  MessageType.OPEN_STREAM,
-                  PbOpenStream.newBuilder()
-                      .setShuffleKey(shuffleKey)
-                      .setFileName(location.getFileName())
-                      .setStartIndex(startMapIndex)
-                      .setEndIndex(endMapIndex)
-                      .build()
-                      .toByteArray());
-          ByteBuffer response = client.sendRpcSync(openStream.toByteBuffer(), fetchTimeoutMs);
-          streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
-          // Parse this message to ensure sort is done.
-        } catch (IOException | InterruptedException e) {
-          throw new IOException(
-              "read shuffle file from DFS failed, filePath: "
-                  + location.getStorageInfo().getFilePath(),
-              e);
-        }
+        TransportMessage openStream =
+            new TransportMessage(
+                MessageType.OPEN_STREAM,
+                PbOpenStream.newBuilder()
+                    .setShuffleKey(shuffleKey)
+                    .setFileName(location.getFileName())
+                    .setStartIndex(startMapIndex)
+                    .setEndIndex(endMapIndex)
+                    .build()
+                    .toByteArray());
+        ByteBuffer response = client.sendRpcSync(openStream.toByteBuffer(), fetchTimeoutMs);
+        streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
+        // Parse this message to ensure sort is done.
+      } else {
+        streamHandler = pbStreamHandler;
       }
+    } catch (IOException | InterruptedException e) {
+      throw new IOException(
+          "read shuffle file from DFS failed, filePath: " + location.getStorageInfo().getFilePath(),
+          e);
+    }
 
+    if (endMapIndex != Integer.MAX_VALUE) {
       dfsInputStream =
           hadoopFs.open(new Path(Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
       chunkOffsets.addAll(
