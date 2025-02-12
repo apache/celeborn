@@ -1142,8 +1142,16 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       if (!hasHDFSStorage && !hasS3Storage) {
         val prefix = workerStorageBaseDirPrefix
         val number = workerStorageBaseDirNumber
+        val diskType = Type.valueOf(workerStorageBaseDirDiskType)
         (1 to number).map { i =>
-          (s"$prefix$i", defaultMaxCapacity, workerHddFlusherThreads, HDD)
+          (
+            s"$prefix$i",
+            defaultMaxCapacity,
+            diskType match {
+              case SSD => workerSsdFlusherThreads
+              case _ => workerHddFlusherThreads
+            },
+            diskType)
         }
       } else {
         Seq.empty
@@ -1188,6 +1196,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def workerStorageBaseDirPrefix: String = get(WORKER_STORAGE_BASE_DIR_PREFIX)
   def workerStorageBaseDirNumber: Int = get(WORKER_STORAGE_BASE_DIR_COUNT)
+  def workerStorageBaseDirDiskType: String = get(WORKER_STORAGE_BASE_DIR_DISK_TYPE)
   def workerStorageExpireDirTimeout: Long = get(WORKER_STORAGE_EXPIRE_DIR_TIMEOUT)
   def creditStreamThreadsPerMountpoint: Int = get(WORKER_BUFFERSTREAM_THREADS_PER_MOUNTPOINT)
   def workerDirectMemoryRatioForReadBuffer: Double = get(WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER)
@@ -3069,6 +3078,18 @@ object CelebornConf extends Logging {
         "step by one.")
       .intConf
       .createWithDefault(16)
+
+  val WORKER_STORAGE_BASE_DIR_DISK_TYPE: ConfigEntry[String] =
+    buildConf("celeborn.worker.storage.baseDir.diskType")
+      .internal
+      .categories("worker")
+      .version("0.6.0")
+      .doc(
+        s"The disk type of base directory for worker. Available options: ${StorageInfo.Type.HDD.name}, ${StorageInfo.Type.SSD.name}.")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set(StorageInfo.Type.HDD.name, StorageInfo.Type.SSD.name))
+      .createWithDefault(StorageInfo.Type.HDD.name)
 
   val WORKER_STORAGE_EXPIRE_DIR_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.storage.expireDirs.timeout")
