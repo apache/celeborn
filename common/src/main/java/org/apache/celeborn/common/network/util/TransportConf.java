@@ -136,14 +136,6 @@ public class TransportConf {
     return celebornConf.networkIoLazyFileDescriptor(module);
   }
 
-  /**
-   * Whether to track Netty memory detailed metrics. If true, the detailed metrics of Netty
-   * PoolByteBufAllocator will be gotten, otherwise only general memory usage will be tracked.
-   */
-  public boolean verboseMetrics() {
-    return celebornConf.networkIoVerboseMetrics(module);
-  }
-
   public CelebornConf getCelebornConf() {
     return celebornConf;
   }

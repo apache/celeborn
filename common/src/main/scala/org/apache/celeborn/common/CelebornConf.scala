@@ -601,10 +601,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getTransportConfBoolean(module, NETWORK_IO_LAZY_FD)
   }
 
-  def networkIoVerboseMetrics(module: String): Boolean = {
-    getTransportConfBoolean(module, NETWORK_VERBOSE_METRICS)
-  }
-
   def networkShareMemoryAllocator: Boolean = get(NETWORK_MEMORY_ALLOCATOR_SHARE)
 
   def networkMemoryAllocatorAllowCache: Boolean =
@@ -2162,14 +2158,6 @@ object CelebornConf extends Logging {
         s"it works for worker fetch server.")
       .booleanConf
       .createWithDefault(true)
-
-  val NETWORK_VERBOSE_METRICS: ConfigEntry[Boolean] =
-    buildConf("celeborn.<module>.io.enableVerboseMetrics")
-      .categories("network")
-      .doc("Whether to track Netty memory detailed metrics. If true, the detailed metrics of Netty " +
-        "PoolByteBufAllocator will be gotten, otherwise only general memory usage will be tracked.")
-      .booleanConf
-      .createWithDefault(false)
 
   val NETWORK_IO_STORAGE_MEMORY_MAP_THRESHOLD: ConfigEntry[Long] =
     buildConf("celeborn.<module>.storage.memoryMapThreshold")
