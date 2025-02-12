@@ -138,7 +138,7 @@ function build_service {
   # Store the command as an array because $MVN variable might have spaces in it.
   # Normal quoting tricks don't work.
   # See: http://mywiki.wooledge.org/BashFAQ/050
-  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl master,worker,cli -am $@)
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl master,worker,cli,verifier -am $@)
 
   # Actually build the jar
   echo -e "\nBuilding with..."
@@ -150,6 +150,7 @@ function build_service {
   mkdir -p "$DIST_DIR/master-jars"
   mkdir -p "$DIST_DIR/worker-jars"
   mkdir -p "$DIST_DIR/cli-jars"
+  mkdir -p "$DIST_DIR/verifier-jars"
 
   ## Copy master jars
   cp "$PROJECT_DIR"/master/target/celeborn-master_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/master-jars/"
@@ -169,6 +170,13 @@ function build_service {
   for jar in $(ls "$PROJECT_DIR/cli/target/scala-$SCALA_VERSION/jars"); do
     (cd $DIST_DIR/cli-jars; ln -snf "../jars/$jar" .)
   done
+  ## Copy verifier jars
+  cp "$PROJECT_DIR"/verifier/target/celeborn-verifier_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/verifier-jars/"
+  cp "$PROJECT_DIR"/verifier/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
+  for jar in $(ls "$PROJECT_DIR/verifier/target/scala-$SCALA_VERSION/jars"); do
+    (cd $DIST_DIR/verifier-jars; ln -snf "../jars/$jar" .)
+  done
+
 }
 
 function build_spark_client {
