@@ -52,62 +52,62 @@ class MessageDispatcher : public wangle::ClientDispatcherBase<
                               SerializePipeline,
                               std::unique_ptr<Message>,
                               std::unique_ptr<Message>> {
-public:
-    void read(Context*, std::unique_ptr<Message> toRecvMsg) override;
+ public:
+  void read(Context*, std::unique_ptr<Message> toRecvMsg) override;
 
-    virtual folly::Future<std::unique_ptr<Message>> sendRpcRequest(
-        std::unique_ptr<Message> toSendMsg) {
-        return operator()(std::move(toSendMsg));
-    }
+  virtual folly::Future<std::unique_ptr<Message>> sendRpcRequest(
+      std::unique_ptr<Message> toSendMsg) {
+    return operator()(std::move(toSendMsg));
+  }
 
-    virtual folly::Future<std::unique_ptr<Message>> sendFetchChunkRequest(
-        const protocol::StreamChunkSlice& streamChunkSlice,
-        std::unique_ptr<Message> toSendMsg);
+  virtual folly::Future<std::unique_ptr<Message>> sendFetchChunkRequest(
+      const protocol::StreamChunkSlice& streamChunkSlice,
+      std::unique_ptr<Message> toSendMsg);
 
-    virtual void sendRpcRequestWithoutResponse(
-        std::unique_ptr<Message> toSendMsg);
+  virtual void sendRpcRequestWithoutResponse(
+      std::unique_ptr<Message> toSendMsg);
 
-    folly::Future<std::unique_ptr<Message>> operator()(
-        std::unique_ptr<Message> toSendMsg) override;
+  folly::Future<std::unique_ptr<Message>> operator()(
+      std::unique_ptr<Message> toSendMsg) override;
 
-    void readEOF(Context* ctx) override;
+  void readEOF(Context* ctx) override;
 
-    void readException(Context* ctx, folly::exception_wrapper e) override;
+  void readException(Context* ctx, folly::exception_wrapper e) override;
 
-    void transportActive(Context* ctx) override;
+  void transportActive(Context* ctx) override;
 
-    void transportInactive(Context* ctx) override;
+  void transportInactive(Context* ctx) override;
 
-    folly::Future<folly::Unit> writeException(
-        Context* ctx,
-        folly::exception_wrapper e) override;
+  folly::Future<folly::Unit> writeException(
+      Context* ctx,
+      folly::exception_wrapper e) override;
 
-    folly::Future<folly::Unit> close() override;
+  folly::Future<folly::Unit> close() override;
 
-    folly::Future<folly::Unit> close(Context* ctx) override;
+  folly::Future<folly::Unit> close(Context* ctx) override;
 
-    bool isAvailable() override {
-        return !closed_;
-    }
+  bool isAvailable() override {
+    return !closed_;
+  }
 
-private:
-    void cleanup();
+ private:
+  void cleanup();
 
-    using MsgPromise = folly::Promise<std::unique_ptr<Message>>;
-    struct MsgPromiseHolder {
-        MsgPromise msgPromise;
-        std::chrono::time_point<std::chrono::system_clock> requestTime;
-    };
-    folly::Synchronized<std::unordered_map<long, MsgPromiseHolder>, std::mutex>
-        requestIdRegistry_;
-    folly::Synchronized<
-        std::unordered_map<
-            protocol::StreamChunkSlice,
-            MsgPromiseHolder,
-            protocol::StreamChunkSlice::Hasher>,
-        std::mutex>
-        streamChunkSliceRegistry_;
-    std::atomic<bool> closed_{false};
+  using MsgPromise = folly::Promise<std::unique_ptr<Message>>;
+  struct MsgPromiseHolder {
+    MsgPromise msgPromise;
+    std::chrono::time_point<std::chrono::system_clock> requestTime;
+  };
+  folly::Synchronized<std::unordered_map<long, MsgPromiseHolder>, std::mutex>
+      requestIdRegistry_;
+  folly::Synchronized<
+      std::unordered_map<
+          protocol::StreamChunkSlice,
+          MsgPromiseHolder,
+          protocol::StreamChunkSlice::Hasher>,
+      std::mutex>
+      streamChunkSliceRegistry_;
+  std::atomic<bool> closed_{false};
 };
 } // namespace network
 } // namespace celeborn
