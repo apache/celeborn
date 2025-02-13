@@ -3084,8 +3084,8 @@ object CelebornConf extends Logging {
       .internal
       .categories("worker")
       .version("0.6.0")
-      .doc(
-        s"The disk type of base directory for worker. Available options: ${StorageInfo.Type.HDD.name}, ${StorageInfo.Type.SSD.name}.")
+      .doc(s"The disk type of base directory for worker to write if `${WORKER_STORAGE_DIRS.key}` is not set. " +
+        s"Available options: ${StorageInfo.Type.HDD.name}, ${StorageInfo.Type.SSD.name}.")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set(StorageInfo.Type.HDD.name, StorageInfo.Type.SSD.name))
