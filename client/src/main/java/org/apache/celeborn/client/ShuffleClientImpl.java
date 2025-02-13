@@ -1506,7 +1506,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                           partitionIds[partitionIndex],
                           StatusCode.fromValue(statusCodeList.get(i).byteValue())));
                   if (statusCodeList.get(i) == StatusCode.SOFT_SPLIT.getValue()) {
-                    PartitionLocation loc = batches.get(i).loc;
+                    PartitionLocation loc = batches.get(partitionIndex).loc;
                     if (!newerPartitionLocationExists(
                         reducePartitionMap.get(shuffleId), loc.getId(), loc.getEpoch(), false)) {
                       ReviveRequest reviveRequest =

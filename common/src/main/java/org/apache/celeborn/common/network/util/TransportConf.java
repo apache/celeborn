@@ -84,6 +84,11 @@ public class TransportConf {
     return celebornConf.networkIoClientThreads(module);
   }
 
+  /** * Whether to use conflict avoid EventExecutorChooser while creating transport client */
+  public boolean conflictAvoidChooserEnable() {
+    return celebornConf.networkIoConflictAvoidChooserEnable(module);
+  }
+
   /**
    * Receive buffer size (SO_RCVBUF). Note: the optimal size for receive buffer and send buffer
    * should be latency * network_bandwidth. Assuming latency = 1ms, network_bandwidth = 10Gbps
@@ -129,14 +134,6 @@ public class TransportConf {
    */
   public boolean lazyFileDescriptor() {
     return celebornConf.networkIoLazyFileDescriptor(module);
-  }
-
-  /**
-   * Whether to track Netty memory detailed metrics. If true, the detailed metrics of Netty
-   * PoolByteBufAllocator will be gotten, otherwise only general memory usage will be tracked.
-   */
-  public boolean verboseMetrics() {
-    return celebornConf.networkIoVerboseMetrics(module);
   }
 
   public CelebornConf getCelebornConf() {

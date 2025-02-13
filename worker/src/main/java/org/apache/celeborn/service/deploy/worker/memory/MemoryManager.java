@@ -330,7 +330,10 @@ public class MemoryManager {
   public void switchServingState() {
     ServingState lastState = servingState;
     servingState = currentServingState();
-    logger.info("Serving state transformed from {} to {}", lastState, servingState);
+
+    if (servingState != lastState) {
+      logger.info("Serving state transformed from {} to {}", lastState, servingState);
+    }
     switch (servingState) {
       case PUSH_PAUSED:
         if (canResumeByPinnedMemory()) {

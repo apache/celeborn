@@ -186,7 +186,6 @@ private[celeborn] class Worker(
   val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
 
   if (conf.workerCongestionControlEnabled) {
-
     CongestionController.initialize(
       workerSource,
       conf.workerCongestionControlSampleTimeWindowSeconds.toInt,
@@ -194,8 +193,7 @@ private[celeborn] class Worker(
       configService)
   }
 
-  var controller = new Controller(rpcEnv, conf, metricsSystem, workerSource)
-  rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
+  val controller = new Controller(rpcEnv, conf, metricsSystem, workerSource)
 
   // Visible for testing
   private[worker] var internalRpcEndpoint: RpcEndpoint = _
@@ -557,8 +555,10 @@ private[celeborn] class Worker(
     pushDataHandler.init(this)
     replicateHandler.init(this)
     fetchHandler.init(this)
-    controller.init(this)
     workerStatusManager.init(this)
+
+    controller.init(this)
+    rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
 
     logInfo("Worker started.")
     rpcEnv.awaitTermination()

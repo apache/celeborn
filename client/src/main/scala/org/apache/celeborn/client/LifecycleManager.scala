@@ -383,7 +383,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         }
         causes.add(Utils.toStatusCode(info.getStatus))
       }
-      logWarning(s"Received Revive request, number of partitions ${partitionIds.size()}")
+      logDebug(s"Received Revive request, number of partitions ${partitionIds.size()}")
       handleRevive(
         context,
         shuffleId,

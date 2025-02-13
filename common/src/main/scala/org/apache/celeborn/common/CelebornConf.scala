@@ -572,6 +572,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getTransportConfInt(module, NETWORK_IO_CLIENT_THREADS)
   }
 
+  def networkIoConflictAvoidChooserEnable(module: String): Boolean = {
+    val key = NETWORK_IO_CLIENT_CONFLICT_AVOID_CHOOSER_ENABLE.key.replace("<module>", module)
+    getBoolean(key, NETWORK_IO_CLIENT_CONFLICT_AVOID_CHOOSER_ENABLE.defaultValue.get)
+  }
+
   def networkIoReceiveBuf(module: String): Int = {
     getTransportConfSizeAsBytes(module, NETWORK_IO_RECEIVE_BUFFER).toInt
   }
@@ -594,10 +599,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def networkIoLazyFileDescriptor(module: String): Boolean = {
     getTransportConfBoolean(module, NETWORK_IO_LAZY_FD)
-  }
-
-  def networkIoVerboseMetrics(module: String): Boolean = {
-    getTransportConfBoolean(module, NETWORK_VERBOSE_METRICS)
   }
 
   def networkShareMemoryAllocator: Boolean = get(NETWORK_MEMORY_ALLOCATOR_SHARE)
@@ -2063,6 +2064,21 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(0)
 
+  val NETWORK_IO_CLIENT_CONFLICT_AVOID_CHOOSER_ENABLE: ConfigEntry[Boolean] =
+    buildConf("celeborn.<module>.io.conflictAvoidChooser.enable")
+      .categories("network")
+      .doc("Whether to use conflict avoid event executor chooser in the client thread pool. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVICE_MODULE}`, " +
+        s"works for master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
+        s"it works for shuffle client push and fetch data. " +
+        s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
+        s"it works for replicate client of worker replicating data to peer worker.")
+      .booleanConf
+      .createWithDefault(false)
+
   val NETWORK_IO_RECEIVE_BUFFER: ConfigEntry[Long] =
     buildConf("celeborn.<module>.io.receiveBuffer")
       .categories("network")
@@ -2144,14 +2160,6 @@ object CelebornConf extends Logging {
         s"it works for worker fetch server.")
       .booleanConf
       .createWithDefault(true)
-
-  val NETWORK_VERBOSE_METRICS: ConfigEntry[Boolean] =
-    buildConf("celeborn.<module>.io.enableVerboseMetrics")
-      .categories("network")
-      .doc("Whether to track Netty memory detailed metrics. If true, the detailed metrics of Netty " +
-        "PoolByteBufAllocator will be gotten, otherwise only general memory usage will be tracked.")
-      .booleanConf
-      .createWithDefault(false)
 
   val NETWORK_IO_STORAGE_MEMORY_MAP_THRESHOLD: ConfigEntry[Long] =
     buildConf("celeborn.<module>.storage.memoryMapThreshold")
@@ -2255,7 +2263,7 @@ object CelebornConf extends Logging {
         "users to provide a custom master endpoint resolver implementation. This is useful in environments " +
         "where the master nodes might change due to scaling operations or infrastructure updates. Clients " +
         "need to ensure that provided resolver class should be present in the classpath.")
-      .version("0.6.0")
+      .version("0.5.2")
       .stringConf
       .checkValue(
         resolver => Utils.classIsLoadable(resolver),
@@ -5657,7 +5665,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.chunk.prefetch.enabled")
       .categories("client")
       .doc("Whether to enable chunk prefetch when creating CelebornInputStream.")
-      .version("0.6.0")
+      .version("0.5.1")
       .booleanConf
       .createWithDefault(false)
 
@@ -5666,7 +5674,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .doc("Window size that CelebornShuffleReader pre-creates CelebornInputStreams, for coalesced scenario " +
         "where multiple Partitions are read")
-      .version("0.6.0")
+      .version("0.5.1")
       .intConf
       .createWithDefault(16)
 
