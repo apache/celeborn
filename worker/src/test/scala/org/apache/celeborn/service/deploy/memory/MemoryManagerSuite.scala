@@ -17,18 +17,20 @@
 
 package org.apache.celeborn.service.deploy.memory
 
+import java.util.concurrent.TimeUnit
+
 import scala.concurrent.duration.DurationInt
+
 import org.mockito.{Mockito, MockitoSugar}
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.{WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE, WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE}
 import org.apache.celeborn.common.protocol.TransportModuleConstants
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.{MemoryPressureListener, ServingState}
-
-import java.util.concurrent.TimeUnit
 
 class MemoryManagerSuite extends CelebornFunSuite {
 

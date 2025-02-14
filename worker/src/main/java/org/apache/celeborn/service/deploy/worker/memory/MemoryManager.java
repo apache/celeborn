@@ -618,7 +618,8 @@ public class MemoryManager {
 
   private boolean keepResumeByPinnedMemory() {
     return pinnedMemoryCheckEnabled
-            && System.currentTimeMillis() - pinnedMemoryLastCheckTime < workerResumeByPinnedMemoryKeepTime;
+        && System.currentTimeMillis() - pinnedMemoryLastCheckTime
+            < workerResumeByPinnedMemoryKeepTime;
   }
 
   private void resumePush() {
