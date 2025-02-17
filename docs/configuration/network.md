@@ -52,7 +52,8 @@ license: |
 | celeborn.rpc.dispatcher.threads | 0 | false | Threads number of message dispatcher event loop. Default to 0, which is availableCore. | 0.3.0 | celeborn.rpc.dispatcher.numThreads | 
 | celeborn.rpc.inbox.capacity | 0 | false | Specifies size of the in memory bounded capacity. | 0.5.0 |  | 
 | celeborn.rpc.io.threads | &lt;undefined&gt; | false | Netty IO thread number of NettyRpcEnv to handle RPC request. The default threads number is the number of runtime available processors. | 0.2.0 |  | 
-| celeborn.rpc.lookupTimeout | 30s | false | Timeout for RPC lookup operations. | 0.2.0 |  | 
+| celeborn.rpc.lookupTimeout | 30s | false | Timeout for RPC lookup operations. | 0.2.0 |  |
+| celeborn.rpc.retryWait | 1s | false | Time to wait before next retry on RpcTimeoutException. | 0.6.0 |  |
 | celeborn.shuffle.io.maxChunksBeingTransferred | &lt;undefined&gt; | false | The max number of chunks allowed to be transferred at the same time on shuffle service. Note that new incoming connections will be closed when the max number is hit. The client will retry according to the shuffle retry configs (see `celeborn.<module>.io.maxRetries` and `celeborn.<module>.io.retryWait`), if those limits are reached the task will fail with fetch failure. | 0.2.0 |  | 
 | celeborn.ssl.&lt;module&gt;.enabled | false | false | Enables SSL for securing wire traffic. | 0.5.0 |  | 
 | celeborn.ssl.&lt;module&gt;.enabledAlgorithms | &lt;undefined&gt; | false | A comma-separated list of ciphers. The specified ciphers must be supported by JVM.<br/>The reference list of protocols can be found in the "JSSE Cipher Suite Names" section of the Java security guide. The list for Java 11, for example, can be found at [this page](https://docs.oracle.com/en/java/javase/11/docs/specs/security/standard-names.html#jsse-cipher-suite-names)<br/>Note: If not set, the default cipher suite for the JRE will be used | 0.5.0 |  | 
