@@ -454,7 +454,14 @@ public abstract class CelebornInputStream extends InputStream {
             logger.debug("Read local shuffle file {}", localHostAddress);
             containLocalRead = true;
             return new LocalPartitionReader(
-                conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex, callback);
+                conf,
+                shuffleKey,
+                location,
+                pbStreamHandler,
+                clientFactory,
+                startMapIndex,
+                endMapIndex,
+                callback);
           } else {
             return new WorkerPartitionReader(
                 conf,
@@ -471,7 +478,14 @@ public abstract class CelebornInputStream extends InputStream {
         case S3:
         case HDFS:
           return new DfsPartitionReader(
-              conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex, callback);
+              conf,
+              shuffleKey,
+              location,
+              pbStreamHandler,
+              clientFactory,
+              startMapIndex,
+              endMapIndex,
+              callback);
         default:
           throw new CelebornIOException(
               String.format("Unknown storage info %s to read location %s", storageInfo, location));

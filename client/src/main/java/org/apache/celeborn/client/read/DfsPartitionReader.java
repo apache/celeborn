@@ -76,6 +76,7 @@ public class DfsPartitionReader implements PartitionReader {
       CelebornConf conf,
       String shuffleKey,
       PartitionLocation location,
+      PbStreamHandler pbStreamHandler,
       TransportClientFactory clientFactory,
       int startMapIndex,
       int endMapIndex,
@@ -95,10 +96,10 @@ public class DfsPartitionReader implements PartitionReader {
       this.hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
     }
 
-    if (endMapIndex != Integer.MAX_VALUE) {
-      long fetchTimeoutMs = conf.clientFetchTimeoutMs();
-      try {
-        client = clientFactory.createClient(location.getHost(), location.getFetchPort());
+    long fetchTimeoutMs = conf.clientFetchTimeoutMs();
+    try {
+      client = clientFactory.createClient(location.getHost(), location.getFetchPort());
+      if (pbStreamHandler == null) {
         TransportMessage openStream =
             new TransportMessage(
                 MessageType.OPEN_STREAM,
@@ -112,13 +113,16 @@ public class DfsPartitionReader implements PartitionReader {
         ByteBuffer response = client.sendRpcSync(openStream.toByteBuffer(), fetchTimeoutMs);
         streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
         // Parse this message to ensure sort is done.
-      } catch (IOException | InterruptedException e) {
-        throw new IOException(
-            "read shuffle file from DFS failed, filePath: "
-                + location.getStorageInfo().getFilePath(),
-            e);
+      } else {
+        streamHandler = pbStreamHandler;
       }
+    } catch (IOException | InterruptedException e) {
+      throw new IOException(
+          "read shuffle file from DFS failed, filePath: " + location.getStorageInfo().getFilePath(),
+          e);
+    }
 
+    if (endMapIndex != Integer.MAX_VALUE) {
       dfsInputStream =
           hadoopFs.open(new Path(Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
       chunkOffsets.addAll(
