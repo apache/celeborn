@@ -32,7 +32,7 @@ import org.apache.celeborn.common.CelebornConf.MAX_CHUNKS_BEING_TRANSFERRED
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, MapFileMeta, MemoryFileInfo, ReduceFileMeta}
-import org.apache.celeborn.common.network.buffer.{FileChunkBuffers, MemoryChunkBuffers, NioManagedBuffer}
+import org.apache.celeborn.common.network.buffer.{FileChunkBuffers, MemoryChunkBuffers, NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.BaseMessageHandler
@@ -103,7 +103,7 @@ class FetchHandler(
       case r: BufferStreamEnd =>
         handleEndStreamFromClient(client, r.getStreamId)
       case r: ReadAddCredit =>
-        handleReadAddCredit(client, r.getCredit, r.getStreamId)
+        handleReadAddCredit(client, r.getCredit, r.getStreamId, -1)
       case r: ChunkFetchRequest =>
         handleChunkFetchRequest(client, r.streamChunkSlice, r)
       case unknown: RequestMessage =>
@@ -170,13 +170,18 @@ class FetchHandler(
           bufferStreamEnd.getStreamId,
           bufferStreamEnd.getStreamType)
       case readAddCredit: PbReadAddCredit =>
-        handleReadAddCredit(client, readAddCredit.getCredit, readAddCredit.getStreamId)
+        handleReadAddCredit(
+          client,
+          readAddCredit.getCredit,
+          readAddCredit.getStreamId,
+          rpcRequest.requestId)
       case notifyRequiredSegment: PbNotifyRequiredSegment =>
         handleNotifyRequiredSegment(
           client,
           notifyRequiredSegment.getRequiredSegmentId,
           notifyRequiredSegment.getStreamId,
-          notifyRequiredSegment.getSubPartitionId)
+          notifyRequiredSegment.getSubPartitionId,
+          rpcRequest.requestId)
       case chunkFetchRequest: PbChunkFetchRequest =>
         handleChunkFetchRequest(
           client,
@@ -480,13 +485,22 @@ class FetchHandler(
     }
   }
 
-  def handleReadAddCredit(client: TransportClient, credit: Int, streamId: Long): Unit = {
+  def handleReadAddCredit(
+      client: TransportClient,
+      credit: Int,
+      streamId: Long,
+      requestId: Long): Unit = {
     val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)
     if (shuffleKey != null) {
       workerSource.recordAppActiveConnection(
         client,
         shuffleKey)
       creditStreamManager.addCredit(credit, streamId)
+      if (requestId != -1) {
+        client.getChannel.writeAndFlush(new RpcResponse(
+          requestId,
+          NettyManagedBuffer.EmptyBuffer))
+      }
     }
   }
 
@@ -494,7 +508,8 @@ class FetchHandler(
       client: TransportClient,
       requiredSegmentId: Int,
       streamId: Long,
-      subPartitionId: Int): Unit = {
+      subPartitionId: Int,
+      requestId: Long): Unit = {
     // process NotifyRequiredSegment request here, the MapPartitionDataReader will send data if the segment buffer is available.
     logDebug(
       s"Handle NotifyRequiredSegment with streamId: $streamId, requiredSegmentId: $requiredSegmentId")
@@ -504,6 +519,9 @@ class FetchHandler(
         client,
         shuffleKey)
       creditStreamManager.notifyRequiredSegment(requiredSegmentId, streamId, subPartitionId)
+      client.getChannel.writeAndFlush(new RpcResponse(
+        requestId,
+        NettyManagedBuffer.EmptyBuffer))
     }
   }
 
