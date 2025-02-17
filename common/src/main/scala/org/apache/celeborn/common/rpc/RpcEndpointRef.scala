@@ -101,6 +101,8 @@ abstract class RpcEndpointRef(conf: CelebornConf)
    * loop of [[RpcEndpoint]].
    *
    * @param message the message to send
+   * @param retryCount the number of retries for the timeout
+   * @param retryWait the waiting time for a retry
    * @tparam T type of the reply message
    * @return the reply message from the corresponding [[RpcEndpoint]]
    */
@@ -116,6 +118,8 @@ abstract class RpcEndpointRef(conf: CelebornConf)
    *
    * @param message the message to send
    * @param timeout the timeout duration
+   * @param retryCount the number of retries for the timeout
+   * @param retryWait the waiting time for a retry
    * @tparam T type of the reply message
    * @return the reply message from the corresponding [[RpcEndpoint]]
    */
@@ -147,7 +151,6 @@ abstract class RpcEndpointRef(conf: CelebornConf)
       }
     }
     // should never be here
-    val future = ask[T](message, timeout)
-    timeout.awaitResult(future, address)
+    null.asInstanceOf[T]
   }
 }
