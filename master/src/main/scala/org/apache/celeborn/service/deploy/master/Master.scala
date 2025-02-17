@@ -1284,13 +1284,13 @@ private[celeborn] class Master(
 
   override def getMasterGroupInfo: String = {
     val sb = new StringBuilder
-    sb.append("====================== Master Group INFO ==============================\n")
+    sb.append("====================== Master Group INFO ==============================<br>")
     sb.append(getMasterGroupInfoInternal)
     sb.toString()
   }
 
   private def getWorkers: String = {
-    statusSystem.workersMap.values().asScala.mkString("\n")
+    statusSystem.workersMap.values().asScala.mkString("<br>")
   }
 
   override def handleWorkerEvent(
@@ -1323,72 +1323,72 @@ private[celeborn] class Master(
 
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
-    sb.append("====================== Workers Info in Master =========================\n")
+    sb.append("====================== Workers Info in Master =========================<br>")
     sb.append(getWorkers)
     sb.toString()
   }
 
   override def getLostWorkers: String = {
     val sb = new StringBuilder
-    sb.append("======================= Lost Workers in Master ========================\n")
+    sb.append("======================= Lost Workers in Master ========================<br>")
     statusSystem.lostWorkers.asScala.toSeq.sortBy(_._2).foreach { case (worker, time) =>
-      sb.append(s"${worker.toUniqueId.padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
+      sb.append(s"${worker.toUniqueId.padTo(50, " ").mkString}${Utils.formatTimestamp(time)}<br>")
     }
     sb.toString()
   }
 
   override def getShutdownWorkers: String = {
     val sb = new StringBuilder
-    sb.append("===================== Shutdown Workers in Master ======================\n")
+    sb.append("===================== Shutdown Workers in Master ======================<br>")
     statusSystem.shutdownWorkers.asScala.foreach { worker =>
-      sb.append(s"${worker.toUniqueId}\n")
+      sb.append(s"${worker.toUniqueId}<br>")
     }
     sb.toString()
   }
 
   override def getDecommissionWorkers: String = {
     val sb = new StringBuilder
-    sb.append("===================== Decommission Workers in Master ======================\n")
+    sb.append("===================== Decommission Workers in Master ======================<br>")
     statusSystem.decommissionWorkers.asScala.foreach { worker =>
-      sb.append(s"${worker.toUniqueId}\n")
+      sb.append(s"${worker.toUniqueId}<br>")
     }
     sb.toString()
   }
 
   override def getExcludedWorkers: String = {
     val sb = new StringBuilder
-    sb.append("===================== Excluded Workers in Master ======================\n")
+    sb.append("===================== Excluded Workers in Master ======================<br>")
     (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).foreach {
-      worker => sb.append(s"${worker.toUniqueId}\n")
+      worker => sb.append(s"${worker.toUniqueId}<br>")
     }
     sb.toString()
   }
 
   override def getHostnameList: String = {
     val sb = new StringBuilder
-    sb.append("================= LifecycleManager Hostname List ======================\n")
+    sb.append("================= LifecycleManager Hostname List ======================<br>")
     statusSystem.hostnameSet.asScala.foreach { host =>
-      sb.append(s"$host\n")
+      sb.append(s"$host<br>")
     }
     sb.toString()
   }
 
   override def getApplicationList: String = {
     val sb = new StringBuilder
-    sb.append("================= LifecycleManager Application List ======================\n")
+    sb.append("================= LifecycleManager Application List ======================<br>")
     statusSystem.appHeartbeatTime.asScala.toSeq.sortBy(_._2).foreach { case (appId, time) =>
-      sb.append(s"${appId.padTo(40, " ").mkString}${Utils.formatTimestamp(time)}\n")
+      sb.append(s"${appId.padTo(40, " ").mkString}${Utils.formatTimestamp(time)}<br>")
     }
     sb.toString()
   }
 
   override def getShuffleList: String = {
     val sb = new StringBuilder
-    sb.append("======================= Shuffle Key List ============================\n")
+    sb.append("======================= Shuffle Key List ============================<br>")
     statusSystem.registeredAppAndShuffles.asScala.foreach { shuffleKey =>
       val appId = shuffleKey._1
       shuffleKey._2.asScala.foreach { id =>
-        sb.append(s"$appId-${id}\n")
+        sb.append(s"$appId-${id}<br>")
       }
     }
     sb.toString()
@@ -1455,7 +1455,7 @@ private[celeborn] class Master(
     if (haEnabled) {
       val sb = new StringBuilder
       val groupInfo = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getGroupInfo
-      sb.append(s"group id: ${groupInfo.getGroup.getGroupId.getUuid}\n")
+      sb.append(s"group id: ${groupInfo.getGroup.getGroupId.getUuid}<br>")
 
       def getLeader(roleInfo: RaftProtos.RoleInfoProto): RaftProtos.RaftPeerProto = {
         if (roleInfo == null) {
@@ -1496,9 +1496,9 @@ private[celeborn] class Master(
 
   override def getWorkerEventInfo(): String = {
     val sb = new StringBuilder
-    sb.append("======================= Workers Event in Master ========================\n")
+    sb.append("======================= Workers Event in Master ========================<br>")
     statusSystem.workerEventInfos.asScala.foreach { case (worker, workerEventInfo) =>
-      sb.append(s"${worker.toUniqueId.padTo(50, " ").mkString}$workerEventInfo\n")
+      sb.append(s"${worker.toUniqueId.padTo(50, " ").mkString}$workerEventInfo<br>")
     }
     sb.toString()
   }
