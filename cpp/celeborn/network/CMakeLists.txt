@@ -16,13 +16,15 @@ add_library(
         network
         STATIC
         Message.cpp
-        MessageDispatcher.cpp)
+        MessageDispatcher.cpp
+        TransportClient.cpp)
 
 target_include_directories(network PUBLIC ${CMAKE_BINARY_DIR})
 
 target_link_libraries(
         network
         memory
+        conf
         proto
         utils
         protocol
