@@ -5919,7 +5919,7 @@ object CelebornConf extends Logging {
   val CLIENT_ADAPTIVE_OPTIMIZE_SKEWED_PARTITION_READ_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.adaptive.optimizeSkewedPartitionRead.enabled")
       .categories("client")
-      .version("0.5.0")
+      .version("0.6.0")
       .doc("If this is true, Celeborn will adaptively split skewed partitions instead of reading them by Spark map " +
         "range. Please note that this feature requires the `Celeborn-Optimize-Skew-Partitions-spark3_3.patch`. ")
       .booleanConf
