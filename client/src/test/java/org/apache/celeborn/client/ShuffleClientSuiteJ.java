@@ -258,6 +258,12 @@ public class ShuffleClientSuiteJ {
                 RegisterShuffleResponse$.MODULE$.apply(
                     statusCode, new PartitionLocation[] {primaryLocation}));
 
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            t ->
+                RegisterShuffleResponse$.MODULE$.apply(
+                    statusCode, new PartitionLocation[] {primaryLocation}));
+
     shuffleClient.setupLifecycleManagerRef(endpointRef);
 
     ChannelFuture mockedFuture =
@@ -420,6 +426,14 @@ public class ShuffleClientSuiteJ {
                   StatusCode.SUCCESS, locations, new int[0], Collections.emptySet());
             });
 
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            t -> {
+              Thread.sleep(60 * 1000);
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SUCCESS, locations, new int[0], Collections.emptySet());
+            });
+
     shuffleClient =
         new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
     shuffleClient.setupLifecycleManagerRef(endpointRef);
@@ -459,6 +473,13 @@ public class ShuffleClientSuiteJ {
                   StatusCode.SHUFFLE_NOT_REGISTERED, locations, new int[0], Collections.emptySet());
             });
 
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            t -> {
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SHUFFLE_NOT_REGISTERED, locations, new int[0], Collections.emptySet());
+            });
+
     shuffleClient =
         new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
     shuffleClient.setupLifecycleManagerRef(endpointRef);
@@ -470,6 +491,13 @@ public class ShuffleClientSuiteJ {
     }
 
     when(endpointRef.askSync(any(), any(), any()))
+        .thenAnswer(
+            t -> {
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.STAGE_END_TIME_OUT, locations, new int[0], Collections.emptySet());
+            });
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
         .thenAnswer(
             t -> {
               return GetReducerFileGroupResponse$.MODULE$.apply(
@@ -493,6 +521,13 @@ public class ShuffleClientSuiteJ {
                   StatusCode.SHUFFLE_DATA_LOST, locations, new int[0], Collections.emptySet());
             });
 
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            t -> {
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SHUFFLE_DATA_LOST, locations, new int[0], Collections.emptySet());
+            });
+
     shuffleClient =
         new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
     shuffleClient.setupLifecycleManagerRef(endpointRef);
@@ -510,6 +545,12 @@ public class ShuffleClientSuiteJ {
     conf.set("celeborn.client.rpc.getReducerFileGroup.askTimeout", "1ms");
 
     when(endpointRef.askSync(any(), any(), any()))
+        .thenAnswer(
+            invocation -> {
+              throw new RpcTimeoutException(
+                  "Rpc timeout", new TimeoutException("ask sync timeout"));
+            });
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
         .thenAnswer(
             invocation -> {
               throw new RpcTimeoutException(
