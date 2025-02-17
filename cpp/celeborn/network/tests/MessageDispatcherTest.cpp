@@ -64,8 +64,8 @@ std::unique_ptr<memory::ReadOnlyByteBuffer> toReadOnlyByteBuffer(
 } // namespace
 
 TEST(MessageDispatcherTest, sendRpcRequestAndReceiveResponse) {
-  std::unique_ptr<Message> sendedMsg;
-  MockHandler mockHandler(sendedMsg);
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(sentMsg);
   auto mockPipeline = createMockedPipeline(std::move(mockHandler));
   auto dispatcher = std::make_unique<MessageDispatcher>();
   dispatcher->setPipeline(mockPipeline.get());
@@ -77,11 +77,11 @@ TEST(MessageDispatcherTest, sendRpcRequestAndReceiveResponse) {
   auto future = dispatcher->sendRpcRequest(std::move(rpcRequest));
 
   EXPECT_FALSE(future.isReady());
-  EXPECT_EQ(sendedMsg->type(), Message::RPC_REQUEST);
-  auto sendedRpcRequest = dynamic_cast<RpcRequest*>(sendedMsg.get());
-  EXPECT_EQ(sendedRpcRequest->body()->remainingSize(), requestBody.size());
+  EXPECT_EQ(sentMsg->type(), Message::RPC_REQUEST);
+  auto sentRpcRequest = dynamic_cast<RpcRequest*>(sentMsg.get());
+  EXPECT_EQ(sentRpcRequest->body()->remainingSize(), requestBody.size());
   EXPECT_EQ(
-      sendedRpcRequest->body()->readToString(requestBody.size()), requestBody);
+      sentRpcRequest->body()->readToString(requestBody.size()), requestBody);
 
   const std::string responseBody = "test-response-body";
   auto rpcResponse = std::make_unique<RpcResponse>(
@@ -99,8 +99,8 @@ TEST(MessageDispatcherTest, sendRpcRequestAndReceiveResponse) {
 }
 
 TEST(MessageDispatcherTest, sendRpcRequestAndReceiveFailure) {
-  std::unique_ptr<Message> sendedMsg;
-  MockHandler mockHandler(sendedMsg);
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(sentMsg);
   auto mockPipeline = createMockedPipeline(std::move(mockHandler));
   auto dispatcher = std::make_unique<MessageDispatcher>();
   dispatcher->setPipeline(mockPipeline.get());
@@ -112,11 +112,11 @@ TEST(MessageDispatcherTest, sendRpcRequestAndReceiveFailure) {
   auto future = dispatcher->sendRpcRequest(std::move(rpcRequest));
 
   EXPECT_FALSE(future.isReady());
-  EXPECT_EQ(sendedMsg->type(), Message::RPC_REQUEST);
-  auto sendedRpcRequest = dynamic_cast<RpcRequest*>(sendedMsg.get());
-  EXPECT_EQ(sendedRpcRequest->body()->remainingSize(), requestBody.size());
+  EXPECT_EQ(sentMsg->type(), Message::RPC_REQUEST);
+  auto sentRpcRequest = dynamic_cast<RpcRequest*>(sentMsg.get());
+  EXPECT_EQ(sentRpcRequest->body()->remainingSize(), requestBody.size());
   EXPECT_EQ(
-      sendedRpcRequest->body()->readToString(requestBody.size()), requestBody);
+      sentRpcRequest->body()->readToString(requestBody.size()), requestBody);
 
   const std::string errorMsg = "test-error-msg";
   auto copiedErrorMsg = errorMsg;
@@ -128,8 +128,8 @@ TEST(MessageDispatcherTest, sendRpcRequestAndReceiveFailure) {
 }
 
 TEST(MessageDispatcherTest, sendFetchChunkRequestAndReceiveSuccess) {
-  std::unique_ptr<Message> sendedMsg;
-  MockHandler mockHandler(sendedMsg);
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(sentMsg);
   auto mockPipeline = createMockedPipeline(std::move(mockHandler));
   auto dispatcher = std::make_unique<MessageDispatcher>();
   dispatcher->setPipeline(mockPipeline.get());
@@ -143,11 +143,11 @@ TEST(MessageDispatcherTest, sendFetchChunkRequestAndReceiveSuccess) {
       streamChunkSlice, std::move(rpcRequest));
 
   EXPECT_FALSE(future.isReady());
-  EXPECT_EQ(sendedMsg->type(), Message::RPC_REQUEST);
-  auto sendedRpcRequest = dynamic_cast<RpcRequest*>(sendedMsg.get());
-  EXPECT_EQ(sendedRpcRequest->body()->remainingSize(), requestBody.size());
+  EXPECT_EQ(sentMsg->type(), Message::RPC_REQUEST);
+  auto sentRpcRequest = dynamic_cast<RpcRequest*>(sentMsg.get());
+  EXPECT_EQ(sentRpcRequest->body()->remainingSize(), requestBody.size());
   EXPECT_EQ(
-      sendedRpcRequest->body()->readToString(requestBody.size()), requestBody);
+      sentRpcRequest->body()->readToString(requestBody.size()), requestBody);
 
   const std::string chunkFetchSuccessBody = "test-chunk-fetch-success-body";
   auto chunkFetchSuccess = std::make_unique<ChunkFetchSuccess>(
@@ -169,8 +169,8 @@ TEST(MessageDispatcherTest, sendFetchChunkRequestAndReceiveSuccess) {
 }
 
 TEST(MessageDispatcherTest, sendFetchChunkRequestAndReceiveFailure) {
-  std::unique_ptr<Message> sendedMsg;
-  MockHandler mockHandler(sendedMsg);
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(sentMsg);
   auto mockPipeline = createMockedPipeline(std::move(mockHandler));
   auto dispatcher = std::make_unique<MessageDispatcher>();
   dispatcher->setPipeline(mockPipeline.get());
@@ -184,11 +184,11 @@ TEST(MessageDispatcherTest, sendFetchChunkRequestAndReceiveFailure) {
       streamChunkSlice, std::move(rpcRequest));
 
   EXPECT_FALSE(future.isReady());
-  EXPECT_EQ(sendedMsg->type(), Message::RPC_REQUEST);
-  auto sendedRpcRequest = dynamic_cast<RpcRequest*>(sendedMsg.get());
-  EXPECT_EQ(sendedRpcRequest->body()->remainingSize(), requestBody.size());
+  EXPECT_EQ(sentMsg->type(), Message::RPC_REQUEST);
+  auto sentRpcRequest = dynamic_cast<RpcRequest*>(sentMsg.get());
+  EXPECT_EQ(sentRpcRequest->body()->remainingSize(), requestBody.size());
   EXPECT_EQ(
-      sendedRpcRequest->body()->readToString(requestBody.size()), requestBody);
+      sentRpcRequest->body()->readToString(requestBody.size()), requestBody);
 
   const std::string errorMsg = "test-error-msg";
   auto copiedErrorMsg = errorMsg;
