@@ -178,7 +178,7 @@ abstract class RpcEnv(config: RpcEnvConfig) {
           } else {
             throw e
           }
-        case e: RpcEndpointNotFoundException =>
+        case e: Exception =>
           throw e
       }
     }

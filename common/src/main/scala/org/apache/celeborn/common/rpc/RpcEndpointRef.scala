@@ -148,6 +148,8 @@ abstract class RpcEndpointRef(conf: CelebornConf)
           } else {
             throw e
           }
+        case e: Exception =>
+          throw e
       }
     }
     // should never be here
