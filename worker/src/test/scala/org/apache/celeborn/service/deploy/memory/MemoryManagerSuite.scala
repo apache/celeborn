@@ -221,15 +221,14 @@ class MemoryManagerSuite extends CelebornFunSuite {
   test("[CELEBORN-1792] Test MemoryManager keep resume a while by pinned memory") {
     val conf = new CelebornConf()
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL.key, "300s")
-    conf.set(CelebornConf.WORKER_PINNED_MEMORY_CHECK_INTERVAL.key, "0")
-    conf.set(CelebornConf.WORKER_RESUME_BY_PINNED_MEMORY_KEEP_TIME.key, "1s")
+    conf.set(CelebornConf.WORKER_PINNED_MEMORY_CHECK_INTERVAL.key, "1s")
     MemoryManager.reset()
     val memoryManager = MockitoSugar.spy(MemoryManager.initialize(conf))
     val maxDirectorMemory = memoryManager.maxDirectMemory
     val pushThreshold =
       (conf.workerDirectMemoryRatioToPauseReceive * maxDirectorMemory).longValue()
-    val replicateThreshold =
-      (conf.workerDirectMemoryRatioToPauseReplicate * maxDirectorMemory).longValue()
+    val pinnedMemoryResumeThreshold =
+      (conf.workerPinnedMemoryRatioToResume * maxDirectorMemory).longValue()
     val channelsLimiter = new MockChannelsLimiter()
     memoryManager.registerMemoryListener(channelsLimiter)
 
@@ -240,14 +239,15 @@ class MemoryManagerSuite extends CelebornFunSuite {
     assert(channelsLimiter.isResume)
     assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
 
-    // KEEP PAUSE PUSH, BUT CHANNELS KEEP RESUME
-    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(pushThreshold + 1)
+    // keep pause push, but channels keep resume when pinnedMemory still less than threshold
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(pushThreshold + 1)
     memoryManager.switchServingState()
     assert(channelsLimiter.isResume)
     assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
 
-    TimeUnit.SECONDS.sleep(1)
-    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(pushThreshold + 1)
+    // exit keepResumeByPinnedMemory because pinnedMemory is greater than threshold
+    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(
+      pinnedMemoryResumeThreshold + 1)
     memoryManager.switchServingState()
     assert(!channelsLimiter.isResume)
     assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
@@ -257,30 +257,6 @@ class MemoryManagerSuite extends CelebornFunSuite {
     assert(channelsLimiter.isResume)
     assert(memoryManager.servingState == ServingState.NONE_PAUSED)
 
-    // NONE PAUSED -> PAUSE PUSH AND REPLICATE
-    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(0L)
-    Mockito.when(memoryManager.getMemoryUsage).thenReturn(replicateThreshold + 1)
-    memoryManager.switchServingState()
-    assert(channelsLimiter.isResume)
-    assert(memoryManager.servingState == ServingState.PUSH_AND_REPLICATE_PAUSED)
-
-    // KEEP PAUSE PUSH AND REPLICATE, BUT CHANNELS KEEP RESUME
-    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(replicateThreshold + 1)
-    memoryManager.switchServingState()
-    assert(channelsLimiter.isResume)
-    assert(memoryManager.servingState == ServingState.PUSH_AND_REPLICATE_PAUSED)
-
-    TimeUnit.SECONDS.sleep(1)
-    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(replicateThreshold + 1)
-    memoryManager.switchServingState()
-    assert(!channelsLimiter.isResume)
-    assert(memoryManager.servingState == ServingState.PUSH_AND_REPLICATE_PAUSED)
-
-    Mockito.when(memoryManager.getMemoryUsage).thenReturn(0L)
-    memoryManager.switchServingState()
-    assert(channelsLimiter.isResume)
-    assert(memoryManager.servingState == ServingState.NONE_PAUSED)
-    MemoryManager.reset()
   }
 
   class MockMemoryPressureListener(

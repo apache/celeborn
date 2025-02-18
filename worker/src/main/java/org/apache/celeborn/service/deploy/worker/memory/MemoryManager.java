@@ -99,7 +99,6 @@ public class MemoryManager {
   private boolean pinnedMemoryCheckEnabled;
   private long pinnedMemoryCheckInterval;
   private long pinnedMemoryLastCheckTime = 0;
-  private long workerResumeByPinnedMemoryKeepTime;
 
   @VisibleForTesting
   public static MemoryManager initialize(CelebornConf conf) {
@@ -135,7 +134,6 @@ public class MemoryManager {
     long checkInterval = conf.workerDirectMemoryPressureCheckIntervalMs();
     this.pinnedMemoryCheckEnabled = conf.workerPinnedMemoryCheckEnabled();
     this.pinnedMemoryCheckInterval = conf.workerPinnedMemoryCheckIntervalMs();
-    this.workerResumeByPinnedMemoryKeepTime = conf.workerResumeByPinnedMemoryKeepTime();
     long reportInterval = conf.workerDirectMemoryReportIntervalSecond();
     double readBufferTargetRatio = conf.readBufferTargetRatio();
     long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
@@ -340,8 +338,11 @@ public class MemoryManager {
       case PUSH_PAUSED:
         if (canResumeByPinnedMemory()) {
           resumeByPinnedMemory(servingState);
-        } else if (keepResumeByPinnedMemory()) {
+        } else if (keepResumeByPinnedMemory(lastState)) {
           // do nothing, keep resume for a while
+          logger.info(
+              "keep resume for {}ms after last resumeByPinnedMemory",
+              System.currentTimeMillis() - pinnedMemoryLastCheckTime);
         } else {
           pausePushDataCounter.increment();
           if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
@@ -367,8 +368,11 @@ public class MemoryManager {
       case PUSH_AND_REPLICATE_PAUSED:
         if (canResumeByPinnedMemory()) {
           resumeByPinnedMemory(servingState);
-        } else if (keepResumeByPinnedMemory()) {
+        } else if (keepResumeByPinnedMemory(lastState)) {
           // do nothing, keep resume for a while
+          logger.info(
+              "keep resume for {}ms after last resumeByPinnedMemory",
+              System.currentTimeMillis() - pinnedMemoryLastCheckTime);
         } else {
           pausePushDataAndReplicateCounter.increment();
           logger.info("Trigger action: PAUSE PUSH");
@@ -616,10 +620,12 @@ public class MemoryManager {
     }
   }
 
-  private boolean keepResumeByPinnedMemory() {
+  private boolean keepResumeByPinnedMemory(ServingState lastState) {
     return pinnedMemoryCheckEnabled
-        && System.currentTimeMillis() - pinnedMemoryLastCheckTime
-            < workerResumeByPinnedMemoryKeepTime;
+        && (lastState == ServingState.PUSH_PAUSED
+            || lastState == ServingState.PUSH_AND_REPLICATE_PAUSED)
+        && getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio
+        && System.currentTimeMillis() - pinnedMemoryLastCheckTime < pinnedMemoryCheckInterval;
   }
 
   private void resumePush() {
