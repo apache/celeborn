@@ -91,6 +91,9 @@ public class CelebornPartitionUtil {
         j++;
       }
       partitionLocationOffset += p.getStorageInfo().getFileSize();
+      if (partitionLocationOffset > endOffset) {
+        break;
+      }
     }
     return chunkRange;
   }
