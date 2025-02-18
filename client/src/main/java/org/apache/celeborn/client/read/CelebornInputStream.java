@@ -563,7 +563,9 @@ public abstract class CelebornInputStream extends InputStream {
                 clientFactory,
                 startMapIndex,
                 endMapIndex,
-                callback);
+                callback,
+                startChunkIndex,
+                endChunkIndex);
           } else {
             return new WorkerPartitionReader(
                 conf,
