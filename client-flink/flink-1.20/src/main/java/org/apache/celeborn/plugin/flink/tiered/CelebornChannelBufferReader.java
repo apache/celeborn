@@ -124,7 +124,11 @@ public class CelebornChannelBufferReader {
   public void setup(TieredStorageMemoryManager memoryManager) {
     this.bufferManager = new CelebornChannelBufferManager(memoryManager, this);
     if (numBackLog > 0) {
-      notifyAvailableCredits(bufferManager.requestBuffers(numBackLog));
+      int numRequestedBuffers = bufferManager.requestBuffers(numBackLog);
+      if (numRequestedBuffers > 0) {
+        bufferManager.decreaseRequiredCredits(numRequestedBuffers);
+        notifyAvailableCredits(numRequestedBuffers);
+      }
       numBackLog = 0;
     }
   }
@@ -195,7 +199,6 @@ public class CelebornChannelBufferReader {
               .setStreamId(bufferStream.getStreamId())
               .setCredit(numCredits)
               .build());
-      bufferManager.decreaseRequiredCredits(numCredits);
       return;
     }
     LOG.warn(
@@ -256,6 +259,7 @@ public class CelebornChannelBufferReader {
       }
       int numRequestedBuffers = bufferManager.requestBuffers(backlog);
       if (numRequestedBuffers > 0) {
+        bufferManager.decreaseRequiredCredits(numRequestedBuffers);
         notifyAvailableCredits(numRequestedBuffers);
       }
       numBackLog = 0;
@@ -300,7 +304,10 @@ public class CelebornChannelBufferReader {
     dataListener.accept(
         readData.getFlinkBuffer(), new TieredStorageSubpartitionId(readData.getSubPartitionId()));
     int numRequested = bufferManager.tryRequestBuffersIfNeeded();
-    notifyAvailableCredits(numRequested);
+    if (numRequested > 0) {
+      bufferManager.decreaseRequiredCredits(numRequested);
+      notifyAvailableCredits(numRequested);
+    }
   }
 
   public void onStreamEnd(BufferStreamEnd streamEnd) {
