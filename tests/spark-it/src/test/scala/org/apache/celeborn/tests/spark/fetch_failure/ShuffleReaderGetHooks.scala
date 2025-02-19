@@ -31,8 +31,10 @@ import org.apache.celeborn.common.CelebornConf
 class FailCommitShuffleReaderGetHook(
     conf: CelebornConf)
   extends ShuffleManagerHook {
+
   var executed: AtomicBoolean = new AtomicBoolean(false)
   val lock = new Object
+
   override def exec(
       handle: ShuffleHandle,
       startPartition: Int,
@@ -72,8 +74,10 @@ class FileDeletionShuffleReaderGetHook(
     shuffleIdToBeDeleted: Seq[Int] = Seq(),
     triggerStageId: Option[Int] = None)
   extends ShuffleManagerHook {
+
   var executed: AtomicBoolean = new AtomicBoolean(false)
   val lock = new Object
+
   private def deleteDataFile(appUniqueId: String, celebornShuffleId: Int): Unit = {
     val datafile =
       workerDirs.map(dir => {
@@ -87,6 +91,7 @@ class FileDeletionShuffleReaderGetHook(
       case None => throw new RuntimeException("unexpected, there must be some data file")
     }
   }
+
   override def exec(
       handle: ShuffleHandle,
       startPartition: Int,
@@ -118,7 +123,8 @@ class FileDeletionShuffleReaderGetHook(
             executed.set(true)
           }
         }
-        case _ => throw new RuntimeException("unexpected, only support RssShuffleHandle here")
+        case x => throw new RuntimeException(s"unexpected, only support RssShuffleHandle here," +
+          s" but get ${x.getClass.getCanonicalName}")
       }
     }
   }
