@@ -18,10 +18,12 @@ package org.apache.celeborn.spark
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue}
 import java.util.concurrent.atomic.AtomicReference
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 import org.apache.spark.scheduler.{RunningStageManager, RunningStageManagerImpl}
+
 import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.internal.Logging
 
@@ -82,8 +84,8 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
   }
 
   def addShuffleIdToBeCleaned(
-                               celebornShuffleId: Int,
-                               appShuffleIdentifier: String): Unit = {
+      celebornShuffleId: Int,
+      appShuffleIdentifier: String): Unit = {
     val Array(appShuffleId, stageId, _) = appShuffleIdentifier.split('-')
     lifecycleManager.get().getShuffleIdMapping.get(appShuffleId.toInt).foreach {
       case (pastAppShuffleIdentifier, (celebornShuffleId, _)) => {
