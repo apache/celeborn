@@ -68,7 +68,7 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
     val stageIds =
       celebornShuffleIdToReferringStages.computeIfAbsent(
         celebornShuffleId,
-        (_) => new mutable.HashSet[Int]())
+        (_: Int) => new mutable.HashSet[Int]())
     lock.synchronized {
       stageIds.add(stageId.toInt)
     }
