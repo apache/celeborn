@@ -4817,7 +4817,7 @@ object CelebornConf extends Logging {
   val CLIENT_FETCH_CLEAN_FAILED_SHUFFLE: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.fetch.cleanFailedShuffle")
       .categories("client")
-      .version("0.4.1")
+      .version("0.6.0")
       .doc("whether to clean those disk space occupied by shuffles which cannot be fetched")
       .booleanConf
       .createWithDefault(false)
