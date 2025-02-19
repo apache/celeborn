@@ -61,7 +61,7 @@ class SparkUtilsSuite extends AnyFunSuite
         .getOrCreate()
 
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
-      val hook = new FileDeletionShuffleReaderGetHook(celebornConf)
+      val hook = new FileDeletionShuffleReaderGetHook(celebornConf, workerDirs)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
 
       try {
