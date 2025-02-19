@@ -34,6 +34,11 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
   with FetchFailureTestBase
   with BeforeAndAfterEach {
 
+  override def beforeAll(): Unit = {
+    logInfo("test initialized , setup Celeborn mini cluster")
+    setupMiniClusterWithRandomPorts(workerNum = 2)
+  }
+
   override def beforeEach(): Unit = {
     ShuffleClient.reset()
     FailedShuffleCleaner.reset()
@@ -242,6 +247,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       sparkSession.stop()
     }
   }
+
   // 6. for multiple level M - 1 lineage , all failed disk spaces are cleaned
   test("celeborn spark integration test - (M-1 dep with multi-level lineage) the failed shuffle files are all cleaned up" +
     " correctly") {
