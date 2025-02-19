@@ -423,7 +423,11 @@ public class ShuffleClientSuiteJ {
             t -> {
               Thread.sleep(60 * 1000);
               return GetReducerFileGroupResponse$.MODULE$.apply(
-                  StatusCode.SUCCESS, locations, new int[0], Collections.emptySet());
+                  StatusCode.SUCCESS,
+                  locations,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap());
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
@@ -431,7 +435,11 @@ public class ShuffleClientSuiteJ {
             t -> {
               Thread.sleep(60 * 1000);
               return GetReducerFileGroupResponse$.MODULE$.apply(
-                  StatusCode.SUCCESS, locations, new int[0], Collections.emptySet());
+                  StatusCode.SUCCESS,
+                  locations,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap());
             });
 
     shuffleClient =
@@ -470,14 +478,22 @@ public class ShuffleClientSuiteJ {
         .thenAnswer(
             t -> {
               return GetReducerFileGroupResponse$.MODULE$.apply(
-                  StatusCode.SHUFFLE_NOT_REGISTERED, locations, new int[0], Collections.emptySet());
+                  StatusCode.SHUFFLE_NOT_REGISTERED,
+                  locations,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap());
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
         .thenAnswer(
             t -> {
               return GetReducerFileGroupResponse$.MODULE$.apply(
-                  StatusCode.SHUFFLE_NOT_REGISTERED, locations, new int[0], Collections.emptySet());
+                  StatusCode.SHUFFLE_NOT_REGISTERED,
+                  locations,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap());
             });
 
     shuffleClient =
@@ -494,14 +510,22 @@ public class ShuffleClientSuiteJ {
         .thenAnswer(
             t -> {
               return GetReducerFileGroupResponse$.MODULE$.apply(
-                  StatusCode.STAGE_END_TIME_OUT, locations, new int[0], Collections.emptySet());
+                  StatusCode.STAGE_END_TIME_OUT,
+                  locations,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap());
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
         .thenAnswer(
             t -> {
               return GetReducerFileGroupResponse$.MODULE$.apply(
-                  StatusCode.STAGE_END_TIME_OUT, locations, new int[0], Collections.emptySet());
+                  StatusCode.STAGE_END_TIME_OUT,
+                  locations,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap());
             });
 
     shuffleClient =
@@ -518,14 +542,22 @@ public class ShuffleClientSuiteJ {
         .thenAnswer(
             t -> {
               return GetReducerFileGroupResponse$.MODULE$.apply(
-                  StatusCode.SHUFFLE_DATA_LOST, locations, new int[0], Collections.emptySet());
+                  StatusCode.SHUFFLE_DATA_LOST,
+                  locations,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap());
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
         .thenAnswer(
             t -> {
               return GetReducerFileGroupResponse$.MODULE$.apply(
-                  StatusCode.SHUFFLE_DATA_LOST, locations, new int[0], Collections.emptySet());
+                  StatusCode.SHUFFLE_DATA_LOST,
+                  locations,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap());
             });
 
     shuffleClient =
