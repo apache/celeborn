@@ -14,12 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.scheduler
 
-package org.apache.spark
+import org.apache.spark.SparkContext
 
-object SparkContextHelper {
-  def env: SparkEnv = {
-    assert(SparkContext.getActive.isDefined)
-    SparkContext.getActive.get.env
+trait RunningStageManager {
+  def isRunningStage(stageId: Int): Boolean
+}
+
+class RunningStageManagerImpl extends RunningStageManager {
+  private def dagScheduler = SparkContext.getActive.get.dagScheduler
+  override def isRunningStage(stageId: Int): Boolean = {
+    dagScheduler.runningStages.map(_.id).contains(stageId)
   }
 }
