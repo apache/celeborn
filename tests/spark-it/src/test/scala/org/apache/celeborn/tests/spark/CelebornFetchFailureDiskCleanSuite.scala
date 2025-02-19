@@ -130,7 +130,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
   // 1. for single level 1-1 lineage, the old disk space is cleaned before the spark application
   // finish
   test("celeborn spark integration test - (1-1 dep with, single level lineage) the failed shuffle file is cleaned up correctly") {
-    if (runningWithSpark3OrNewer()) {
+    if (Spark3OrNewer) {
       val sparkSession = createSparkSession(enableFailedShuffleCleaner = true)
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new FileDeletionShuffleReaderGetHook(
@@ -155,7 +155,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
   }
   // 2. for multiple level 1-1 lineage, the old disk space is cleaned one by one
   test("celeborn spark integration test - (1-1 dep with, multi-level lineage) the failed shuffle file is cleaned up correctly") {
-    if (runningWithSpark3OrNewer()) {
+    if (Spark3OrNewer) {
       val sparkSession = createSparkSession(enableFailedShuffleCleaner = true)
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook =
@@ -189,7 +189,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
   // 3. for single level M-1 lineage, the single failed disk space is cleaned
   test(
     "celeborn spark integration test - (M-1 dep with single level lineage) the single failed shuffle file is cleaned up correctly") {
-    if (runningWithSpark3OrNewer()) {
+    if (Spark3OrNewer) {
       val sparkSession = createSparkSession(enableFailedShuffleCleaner = true)
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new FileDeletionShuffleReaderGetHook(
@@ -214,7 +214,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
   }
   // 4. for single level M-1 lineage, all failed disk spaces are cleaned
   test("celeborn spark integration test - (M-1 dep with single-level lineage) all failed disk spaces are cleaned") {
-    if (runningWithSpark3OrNewer()) {
+    if (Spark3OrNewer) {
       val sparkSession = createSparkSession(enableFailedShuffleCleaner = true)
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new FileDeletionShuffleReaderGetHook(
@@ -243,7 +243,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
   // 6. for multiple level M - 1 lineage , all failed disk spaces are cleaned
   test("celeborn spark integration test - (M-1 dep with multi-level lineage) the failed shuffle files are all cleaned up" +
     " correctly") {
-    if (runningWithSpark3OrNewer()) {
+    if (Spark3OrNewer) {
       val sparkSession = createSparkSession(enableFailedShuffleCleaner = true)
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new FileDeletionShuffleReaderGetHook(
@@ -276,7 +276,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
 
   // 7. if the dependency is 1 to M , we should not clean it
   test("celeborn spark integration test - Do not clean up the shuffle files being referred by more than one stages") {
-    if (runningWithSpark3OrNewer()) {
+    if (Spark3OrNewer) {
       System.setProperty(
         FailedShuffleCleaner.RUNNING_STAGE_CHECKER_CLASS,
         "org.apache.celeborn.tests.spark.fetch_failure.TestRunningStageManager")
@@ -307,7 +307,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
   }
   // 8. if the dependency is 1 to M but failed in commit phase, we should just clean it
   test("celeborn spark integration test - clear the failed-to-commit shuffle file even it is referred by more than once") {
-    if (runningWithSpark3OrNewer()) {
+    if (Spark3OrNewer) {
       System.setProperty(
         FailedShuffleCleaner.RUNNING_STAGE_CHECKER_CLASS,
         "org.apache.celeborn.tests.spark.fetch_failure.TestRunningStageManager")
@@ -335,7 +335,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
   }
   test("celeborn spark integration test - clean up the shuffle files if" +
     " the referring stage has finished") {
-    if (runningWithSpark3OrNewer()) {
+    if (Spark3OrNewer) {
       System.setProperty(
         FailedShuffleCleaner.RUNNING_STAGE_CHECKER_CLASS,
         "org.apache.celeborn.tests.spark.fetch_failure.TestRunningStageManager")
