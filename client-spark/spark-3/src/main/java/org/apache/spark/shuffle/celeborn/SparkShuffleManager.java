@@ -150,7 +150,6 @@ public class SparkShuffleManager implements ShuffleManager {
 
             lifecycleManager.registerShuffleTrackerCallback(
                 shuffleId -> SparkUtils.unregisterAllMapOutput(mapOutputTracker, shuffleId));
-
             if (celebornConf.clientAdaptiveOptimizeSkewedPartitionReadEnabled()) {
               lifecycleManager.registerCelebornSkewShuffleCheckCallback(
                   SparkUtils::isCelebornSkewShuffleOrChildShuffle);
@@ -164,6 +163,17 @@ public class SparkShuffleManager implements ShuffleManager {
                         shuffleId, getReducerFileGroupResponse));
             lifecycleManager.registerInvalidatedBroadcastCallback(
                 shuffleId -> SparkUtils.invalidateSerializedGetReducerFileGroupResponse(shuffleId));
+
+          }
+          if (lifecycleManager.conf().clientFetchCleanFailedShuffle()) {
+            lifecycleManager.registerGetShuffleIdForWriterCallback(
+                (celebornShuffleId, appShuffleIdentifier) ->
+                    SparkUtils.addWriterShuffleIdsToBeCleaned(
+                        lifecycleManager, celebornShuffleId, appShuffleIdentifier));
+            lifecycleManager.registerGetShuffleIdForReaderCallback(
+                (celebornShuffleId, appShuffleIdentifier) ->
+                    SparkUtils.addShuffleIdRefCount(
+                        lifecycleManager, celebornShuffleId, appShuffleIdentifier));
           }
         }
       }

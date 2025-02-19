@@ -29,6 +29,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
+import org.apache.celeborn.client.LifecycleManager;
+import org.apache.celeborn.spark.FailedShuffleCleaner;
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
@@ -624,5 +626,17 @@ public class SparkUtils {
           }
           return null;
         });
+  }
+
+  public static void addWriterShuffleIdsToBeCleaned(
+      LifecycleManager lifecycleManager, int celebornShuffeId, String appShuffleIdentifier) {
+    FailedShuffleCleaner.setLifecycleManager(lifecycleManager);
+    FailedShuffleCleaner.addShuffleIdToBeCleaned(celebornShuffeId, appShuffleIdentifier);
+  }
+
+  public static void addShuffleIdRefCount(
+      LifecycleManager lifecycleManager, int celebornShuffeId, String appShuffleIdentifier) {
+    FailedShuffleCleaner.setLifecycleManager(lifecycleManager);
+    FailedShuffleCleaner.addShuffleIdReferringStage(celebornShuffeId, appShuffleIdentifier);
   }
 }

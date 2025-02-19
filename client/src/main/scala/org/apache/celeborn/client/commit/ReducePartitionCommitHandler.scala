@@ -69,8 +69,8 @@ class ReducePartitionCommitHandler(
   class MultiSerdeVersionRpcContext(val ctx: RpcCallContext, val serdeVersion: SerdeVersion) {}
 
   private val getReducerFileGroupRequest =
-    JavaUtils.newConcurrentHashMap[Int, util.Set[MultiSerdeVersionRpcContext]]()
-  private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
+    JavaUtils.newConcurrentHashMap[Int, util.Set[RpcCallContext]]()
+  private[celeborn] val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = JavaUtils.newConcurrentHashMap[Int, Array[Int]]()

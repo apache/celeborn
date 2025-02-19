@@ -927,6 +927,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                   logInfo(s"reuse existing shuffleId $id for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
                   id
                 } else {
+                  // this branch means it is a redo of previous write stage
                   if (isBarrierStage) {
                     // unregister previous shuffle(s) which are still valid
                     val mapUpdates = shuffleIds.filter(_._2._2).map { kv =>
@@ -937,6 +938,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                   }
                   val newShuffleId = shuffleIdGenerator.getAndIncrement()
                   logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
+                  getShuffleIdForWriterCallback.foreach(callback =>
+                    callback.accept(newShuffleId, appShuffleIdentifier))
                   shuffleIds.put(appShuffleIdentifier, (newShuffleId, true))
                   newShuffleId
                 }
@@ -950,11 +953,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       } else {
         shuffleIds.values.filter(v => v._2).map(v => v._1).toSeq.reverse.find(
           areAllMapTasksEnd) match {
-          case Some(shuffleId) =>
+          case Some(celebornShuffleId) =>
+            getShuffleIdForReaderCallback.foreach(callback =>
+              callback.accept(celebornShuffleId, appShuffleIdentifier))
             val pbGetShuffleIdResponse = {
               logDebug(
-                s"get shuffleId $shuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier isWriter $isWriter")
-              PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).setSuccess(true).build()
+                s"get shuffleId $celebornShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier isWriter $isWriter")
+              PbGetShuffleIdResponse.newBuilder().setShuffleId(celebornShuffleId).setSuccess(true).build()
             }
             context.reply(pbGetShuffleIdResponse)
           case None =>
@@ -1850,6 +1855,17 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     appShuffleTrackerCallback = Some(callback)
   }
 
+  // expecting celeborn shuffle id and application shuffle identifier
+  @volatile private var getShuffleIdForWriterCallback: Option[BiConsumer[Integer, String]] = None
+  def registerGetShuffleIdForWriterCallback(callback: BiConsumer[Integer, String]): Unit = {
+    getShuffleIdForWriterCallback = Some(callback)
+  }
+  // expecting celeborn shuffle id and application shuffle identifier
+  @volatile private var getShuffleIdForReaderCallback: Option[BiConsumer[Integer, String]] = None
+  def registerGetShuffleIdForReaderCallback(callback: BiConsumer[Integer, String]): Unit = {
+    getShuffleIdForReaderCallback = Some(callback)
+  }
+
   def registerAppShuffleDeterminate(appShuffleId: Int, determinate: Boolean): Unit = {
     appShuffleDeterminateMap.put(appShuffleId, determinate)
   }
@@ -1931,4 +1947,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       case _ =>
     }
   }
+
+  def getShuffleIdMapping = shuffleIdMapping
 }
