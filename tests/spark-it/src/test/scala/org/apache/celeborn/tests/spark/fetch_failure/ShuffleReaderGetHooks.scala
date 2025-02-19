@@ -124,7 +124,7 @@ class FileDeletionShuffleReaderGetHook(
           }
         }
         case x => throw new RuntimeException(s"unexpected, only support RssShuffleHandle here," +
-          s" but get ${x.getClass.getCanonicalName}")
+            s" but get ${x.getClass.getCanonicalName}")
       }
     }
   }
