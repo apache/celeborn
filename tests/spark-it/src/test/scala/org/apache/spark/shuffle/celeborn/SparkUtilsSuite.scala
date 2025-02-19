@@ -31,6 +31,7 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.tests.spark.SparkTestBase
+import org.apache.celeborn.tests.spark.fetch_failure.FileDeletionShuffleReaderGetHook
 
 class SparkUtilsSuite extends AnyFunSuite
   with SparkTestBase
@@ -58,7 +59,7 @@ class SparkUtilsSuite extends AnyFunSuite
         .getOrCreate()
 
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
-      val hook = new ShuffleReaderFetchFailureGetHook(celebornConf)
+      val hook = new FileDeletionShuffleReaderGetHook(celebornConf)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
 
       try {
