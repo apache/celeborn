@@ -116,46 +116,4 @@ trait SparkTestBase extends AnyFunSuite
     val outMap = result.collect().map(row => row.getString(0) -> row.getLong(1)).toMap
     outMap
   }
-
-  class ShuffleReaderFetchFailureGetHook(conf: CelebornConf) extends ShuffleManagerHook {
-    var executed: AtomicBoolean = new AtomicBoolean(false)
-    val lock = new Object
-
-    override def exec(
-        handle: ShuffleHandle,
-        startPartition: Int,
-        endPartition: Int,
-        context: TaskContext): Unit = {
-      if (executed.get() == true) return
-
-      lock.synchronized {
-        handle match {
-          case h: CelebornShuffleHandle[_, _, _] => {
-            val appUniqueId = h.appUniqueId
-            val shuffleClient = ShuffleClient.get(
-              h.appUniqueId,
-              h.lifecycleManagerHost,
-              h.lifecycleManagerPort,
-              conf,
-              h.userIdentifier,
-              h.extension)
-            val celebornShuffleId =
-              SparkUtils.celebornShuffleId(shuffleClient, h, context, false)
-            val allFiles = workerDirs.map(dir => {
-              new File(s"$dir/celeborn-worker/shuffle_data/$appUniqueId/$celebornShuffleId")
-            })
-            val datafile = allFiles.filter(_.exists())
-              .flatMap(_.listFiles().iterator).sortBy(_.getName).headOption
-            datafile match {
-              case Some(file) => file.delete()
-              case None => throw new RuntimeException("unexpected, there must be some data file" +
-                  s" under ${workerDirs.mkString(",")}")
-            }
-          }
-          case _ => throw new RuntimeException("unexpected, only support RssShuffleHandle here")
-        }
-        executed.set(true)
-      }
-    }
-  }
 }

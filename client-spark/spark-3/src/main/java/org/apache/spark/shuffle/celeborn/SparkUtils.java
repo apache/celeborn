@@ -29,8 +29,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
-import org.apache.celeborn.client.LifecycleManager;
-import org.apache.celeborn.spark.FailedShuffleCleaner;
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
@@ -66,6 +64,7 @@ import org.apache.spark.storage.BlockManagerId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
@@ -77,6 +76,7 @@ import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.reflect.DynFields;
 import org.apache.celeborn.reflect.DynMethods;
+import org.apache.celeborn.spark.FailedShuffleCleaner;
 
 public class SparkUtils {
   private static final Logger LOG = LoggerFactory.getLogger(SparkUtils.class);

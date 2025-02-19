@@ -14,17 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.scheduler
+package org.apache.celeborn.tests.spark.fetch_failure
 
-import org.apache.spark.SparkContext
+import scala.collection.mutable
 
-trait RunningStageManager {
-  def isRunningStage(stageId: Int): Boolean
-}
+import org.apache.spark.scheduler.{RunningStageManager, SparkSchedulerHelper}
 
-class RunningStageManagerImpl extends RunningStageManager {
-  private def dagScheduler = SparkContext.getActive.get.dagScheduler
-  override def isRunningStage(stageId: Int): Boolean = {
-    dagScheduler.runningStages.map(_.id).contains(stageId)
+class TestRunningStageManager extends RunningStageManager {
+  import TestRunningStageManager._
+  def setRunningStages(stageIds: Seq[Int]): Unit = {
+    stageIds.foreach(stageId => runningStages += stageId)
   }
+  override def isRunningStage(stageId: Int): Boolean = {
+    if (runningStages.contains(stageId)) {
+      println(s"instrumented running stages contains $stageId")
+      true
+    } else {
+      SparkSchedulerHelper.runningStages.map(_.id).contains(stageId)
+    }
+  }
+}
+object TestRunningStageManager {
+  val runningStages = new mutable.HashSet[Int]
 }
