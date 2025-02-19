@@ -29,7 +29,7 @@ private[tests] trait FetchFailureTestBase extends SparkTestBase {
       overrideShuffleMgr: Boolean = true,
       enableFailedShuffleCleaner: Boolean = false): SparkSession = {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
-    new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+
     var baseBuilder = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .config("spark.sql.shuffle.partitions", 2)
@@ -38,6 +38,7 @@ private[tests] trait FetchFailureTestBase extends SparkTestBase {
       .config("spark.celeborn.client.shuffle.expired.checkInterval", "1s")
       .config("spark.kryoserializer.buffer.max", "2047m")
       .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+
     baseBuilder =
       if (overrideShuffleMgr) {
         baseBuilder.config(

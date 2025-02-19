@@ -76,6 +76,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       }
     }
   }
+
   class CheckingThreadForStableStatus(
       shuffleIdShouldNotExist: Seq[Int],
       shuffleIdMustExist: Seq[Int],
@@ -105,6 +106,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       }
     }
   }
+
   private def triggerStorageCheckThread(
       shuffleIdShouldNotExist: Seq[Int],
       shuffleIdMustExist: Seq[Int],
