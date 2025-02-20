@@ -621,11 +621,12 @@ public class MemoryManager {
   }
 
   private boolean keepResumeByPinnedMemory(ServingState lastState) {
+    // getPinnedMemory maybe expensive, so we check it at the end
     return pinnedMemoryCheckEnabled
         && (lastState == ServingState.PUSH_PAUSED
             || lastState == ServingState.PUSH_AND_REPLICATE_PAUSED)
-        && getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio
-        && System.currentTimeMillis() - pinnedMemoryLastCheckTime < pinnedMemoryCheckInterval;
+        && System.currentTimeMillis() - pinnedMemoryLastCheckTime < pinnedMemoryCheckInterval
+        && getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio;
   }
 
   private void resumePush() {
