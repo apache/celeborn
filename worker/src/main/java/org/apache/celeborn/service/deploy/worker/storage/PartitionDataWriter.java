@@ -48,7 +48,6 @@ public class PartitionDataWriter implements DeviceObserver {
   protected final DeviceMonitor deviceMonitor;
   private final long splitThreshold;
   private final PartitionSplitMode splitMode;
-  protected boolean deleted = false;
   protected final FlushNotifier notifier = new FlushNotifier();
   // It's only needed when graceful shutdown is enabled
   protected final StorageManager storageManager;
@@ -147,21 +146,8 @@ public class PartitionDataWriter implements DeviceObserver {
     return tierWriterProxy.close();
   }
 
-  @FunctionalInterface
-  public interface RunnableWithIOException {
-    void run() throws IOException;
-  }
-
   public boolean isClosed() {
     return tierWriterProxy.isClosed();
-  }
-
-  protected synchronized long close(
-      RunnableWithIOException tryClose,
-      RunnableWithIOException streamClose,
-      RunnableWithIOException finalClose)
-      throws IOException {
-    return tierWriterProxy.close();
   }
 
   public void evict(boolean checkClose) throws IOException {
