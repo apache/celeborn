@@ -341,12 +341,11 @@ public class MemoryManager {
         } else if (keepResumeByPinnedMemory(lastState)) {
           // do nothing, keep resume for a while
           logger.info(
-              "keep resume for {}ms after last resumeByPinnedMemory",
+              "PUSH_PAUSED keep resume for {}ms after last resumeByPinnedMemory",
               System.currentTimeMillis() - pinnedMemoryLastCheckTime);
         } else {
           pausePushDataCounter.increment();
           if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
-            logger.info("Trigger action: RESUME REPLICATE");
             resumeReplicate();
           } else {
             logger.info("Trigger action: PAUSE PUSH");
@@ -371,7 +370,7 @@ public class MemoryManager {
         } else if (keepResumeByPinnedMemory(lastState)) {
           // do nothing, keep resume for a while
           logger.info(
-              "keep resume for {}ms after last resumeByPinnedMemory",
+              "PUSH_AND_REPLICATE_PAUSED keep resume for {}ms after last resumeByPinnedMemory",
               System.currentTimeMillis() - pinnedMemoryLastCheckTime);
         } else {
           pausePushDataAndReplicateCounter.increment();
