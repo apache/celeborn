@@ -181,6 +181,7 @@ public class MasterClient {
         setRpcEndpointRef(leaderAddr);
       } else {
         LOG.warn("Master leader is not present currently, please check masters' status!");
+        resetRpcEndpointRef(oldRef);
       }
       return true;
     } else if (e.getCause() instanceof IOException || e instanceof RpcTimeoutException) {
