@@ -51,7 +51,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
           orderList)
       }
     }
-    logError(s"Create evict file filaed for ${partitionDataWriterContext.getPartitionLocation}")
+    logError(s"Create evict file failed for ${partitionDataWriterContext.getPartitionLocation}")
     null
   }
 
@@ -69,7 +69,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
         "Partition data writer context can not have null partition location")
     }
 
-    def getPartitionMetahandler(fileInfo: FileInfo) = {
+    def getPartitionMetaHandler(fileInfo: FileInfo) = {
       partitionType match {
         case PartitionType.REDUCE =>
           new ReducePartitionMetaHandler(partitionDataWriterContext.isRangeReadFilter, fileInfo)
@@ -98,7 +98,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
               partitionDataWriterContext.getUserIdentifier,
               partitionDataWriterContext.getPartitionType,
               partitionDataWriterContext.isPartitionSplitEnabled)
-            val metaHandler = getPartitionMetahandler(memoryFileInfo)
+            val metaHandler = getPartitionMetaHandler(memoryFileInfo)
             new MemoryTierWriter(
               conf,
               metaHandler,
@@ -120,7 +120,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
               partitionDataWriterContext.getPartitionType,
               partitionDataWriterContext.isPartitionSplitEnabled)
             partitionDataWriterContext.setWorkingDir(workingDir)
-            val metaHandler = getPartitionMetahandler(diskFileInfo)
+            val metaHandler = getPartitionMetaHandler(diskFileInfo)
             if (storageInfoType == StorageInfo.Type.HDD || storageInfoType == StorageInfo.Type.SSD) {
               new LocalTierWriter(
                 conf,
