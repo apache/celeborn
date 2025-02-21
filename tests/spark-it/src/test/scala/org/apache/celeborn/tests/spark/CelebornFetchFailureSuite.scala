@@ -27,6 +27,7 @@ import org.apache.spark.shuffle.celeborn.{SparkShuffleManager, SparkUtils, TestC
 import org.apache.spark.sql.SparkSession
 import org.scalatest.{BeforeAndAfterEach, Ignore}
 import org.scalatest.funsuite.AnyFunSuite
+
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.tests.spark.fetch_failure.{FetchFailureTestBase, FileDeletionShuffleReaderGetHook}
