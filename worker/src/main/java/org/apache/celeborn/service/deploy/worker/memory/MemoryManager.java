@@ -336,14 +336,7 @@ public class MemoryManager {
     }
     switch (servingState) {
       case PUSH_PAUSED:
-        if (canResumeByPinnedMemory()) {
-          resumeByPinnedMemory(servingState);
-        } else if (keepResumeByPinnedMemory(lastState)) {
-          // do nothing, keep resume for a while
-          logger.info(
-              "PUSH_PAUSED keep resume for {}ms after last resumeByPinnedMemory",
-              System.currentTimeMillis() - pinnedMemoryLastCheckTime);
-        } else {
+        if (!tryResumeByPinnedMemory(servingState, lastState)) {
           pausePushDataCounter.increment();
           if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
             resumeReplicate();
@@ -365,14 +358,7 @@ public class MemoryManager {
         }
         break;
       case PUSH_AND_REPLICATE_PAUSED:
-        if (canResumeByPinnedMemory()) {
-          resumeByPinnedMemory(servingState);
-        } else if (keepResumeByPinnedMemory(lastState)) {
-          // do nothing, keep resume for a while
-          logger.info(
-              "PUSH_AND_REPLICATE_PAUSED keep resume for {}ms after last resumeByPinnedMemory",
-              System.currentTimeMillis() - pinnedMemoryLastCheckTime);
-        } else {
+        if (!tryResumeByPinnedMemory(servingState, lastState)) {
           pausePushDataAndReplicateCounter.increment();
           logger.info("Trigger action: PAUSE PUSH");
           pausePushDataAndReplicateStartTime = System.currentTimeMillis();
@@ -608,24 +594,29 @@ public class MemoryManager {
     }
   }
 
-  private boolean canResumeByPinnedMemory() {
-    if (pinnedMemoryCheckEnabled
-        && System.currentTimeMillis() - pinnedMemoryLastCheckTime >= pinnedMemoryCheckInterval
-        && getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
-      pinnedMemoryLastCheckTime = System.currentTimeMillis();
-      return true;
-    } else {
+  private boolean tryResumeByPinnedMemory(ServingState currentState, ServingState lastState) {
+    boolean success = false;
+    if (!pinnedMemoryCheckEnabled) {
       return false;
     }
-  }
-
-  private boolean keepResumeByPinnedMemory(ServingState lastState) {
-    // getPinnedMemory maybe expensive, so we check it at the end
-    return pinnedMemoryCheckEnabled
-        && (lastState == ServingState.PUSH_PAUSED
-            || lastState == ServingState.PUSH_AND_REPLICATE_PAUSED)
-        && System.currentTimeMillis() - pinnedMemoryLastCheckTime < pinnedMemoryCheckInterval
-        && getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio;
+    if (System.currentTimeMillis() - pinnedMemoryLastCheckTime >= pinnedMemoryCheckInterval) {
+      if (getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
+        pinnedMemoryLastCheckTime = System.currentTimeMillis();
+        resumeByPinnedMemory(currentState);
+        success = true;
+      }
+    } else {
+      if (lastState != ServingState.NONE_PAUSED
+          && getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
+        // do nothing, keep resume for a while
+        logger.info(
+            "currentState: {}, keep resume for {}ms after last resumeByPinnedMemory",
+            currentState,
+            System.currentTimeMillis() - pinnedMemoryLastCheckTime);
+        success = true;
+      }
+    }
+    return success;
   }
 
   private void resumePush() {
