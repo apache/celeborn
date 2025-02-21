@@ -36,7 +36,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup Celeborn mini cluster")
-    setupMiniClusterWithRandomPorts(workerNum = 2)
+    setupMiniClusterWithRandomPorts(workerNum = 1)
   }
 
   override def beforeEach(): Unit = {
@@ -193,6 +193,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       sparkSession.stop()
     }
   }
+
   // 3. for single level M-1 lineage, the single failed disk space is cleaned
   test(
     "celeborn spark integration test - (M-1 dep with single level lineage) the single failed shuffle file is cleaned up correctly") {
@@ -216,9 +217,9 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       val expect = "[2,1,2]"
       assert(tuples.head.toString().equals(expect))
       sparkSession.stop()
-      println(s"end ${System.currentTimeMillis()}")
     }
   }
+
   // 4. for single level M-1 lineage, all failed disk spaces are cleaned
   test("celeborn spark integration test - (M-1 dep with single-level lineage) all failed disk spaces are cleaned") {
     if (Spark3OrNewer) {
