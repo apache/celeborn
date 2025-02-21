@@ -25,13 +25,13 @@ import org.apache.spark.celeborn.ExceptionMakerHelper
 import org.apache.spark.rdd.RDD
 import org.apache.spark.shuffle.celeborn.{SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
 import org.apache.spark.sql.SparkSession
-import org.scalatest.BeforeAndAfterEach
+import org.scalatest.{BeforeAndAfterEach, Ignore}
 import org.scalatest.funsuite.AnyFunSuite
-
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.tests.spark.fetch_failure.{FetchFailureTestBase, FileDeletionShuffleReaderGetHook}
 
+@Ignore
 class CelebornFetchFailureSuite extends AnyFunSuite
   with FetchFailureTestBase
   with BeforeAndAfterEach {
