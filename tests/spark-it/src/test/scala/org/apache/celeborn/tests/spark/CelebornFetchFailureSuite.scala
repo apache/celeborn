@@ -32,7 +32,6 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.tests.spark.fetch_failure.{FetchFailureTestBase, FileDeletionShuffleReaderGetHook}
 
-@Ignore
 class CelebornFetchFailureSuite extends AnyFunSuite
   with FetchFailureTestBase
   with BeforeAndAfterEach {
