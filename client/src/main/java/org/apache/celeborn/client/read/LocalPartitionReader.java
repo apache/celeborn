@@ -189,7 +189,7 @@ public class LocalPartitionReader implements PartitionReader {
   private void fetchChunks() {
     int inFlight = chunkIndex - startChunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
-      int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, endChunkIndex- chunkIndex + 1);
+      int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, endChunkIndex - chunkIndex + 1);
       if (pendingFetchTask.compareAndSet(false, true)) {
         logger.debug(
             "Trigger local reader fetch chunk with {} and fetch {} chunks", chunkIndex, toFetch);
