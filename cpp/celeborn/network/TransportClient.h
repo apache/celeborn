@@ -36,11 +36,11 @@ namespace network {
  * and deserializes folly::IOBuf into Message when read().
  */
 class MessageSerializeHandler : public wangle::Handler<
-                                   std::unique_ptr<folly::IOBuf>,
-                                   std::unique_ptr<Message>,
-                                   std::unique_ptr<Message>,
-                                   std::unique_ptr<folly::IOBuf>> {
-public:
+                                    std::unique_ptr<folly::IOBuf>,
+                                    std::unique_ptr<Message>,
+                                    std::unique_ptr<Message>,
+                                    std::unique_ptr<folly::IOBuf>> {
+ public:
   void read(Context* ctx, std::unique_ptr<folly::IOBuf> msg) override;
 
   folly::Future<folly::Unit> write(Context* ctx, std::unique_ptr<Message> msg)
@@ -51,16 +51,15 @@ using FetchChunkSuccessCallback = std::function<void(
     protocol::StreamChunkSlice,
     std::unique_ptr<memory::ReadOnlyByteBuffer>)>;
 
-using FetchChunkFailureCallback = std::function<void(
-    protocol::StreamChunkSlice,
-    std::unique_ptr<std::exception>)>;
+using FetchChunkFailureCallback = std::function<
+    void(protocol::StreamChunkSlice, std::unique_ptr<std::exception>)>;
 
 /**
  * TransportClient sends the messages to the network layer, and handles
  * the message callback, timeout, error handling, etc.
  */
 class TransportClient {
-public:
+ public:
   TransportClient(
       std::unique_ptr<wangle::ClientBootstrap<SerializePipeline>> client,
       std::unique_ptr<MessageDispatcher> dispatcher,
@@ -70,7 +69,9 @@ public:
     return sendRpcRequestSync(request, defaultTimeout_);
   }
 
-  RpcResponse sendRpcRequestSync(const RpcRequest& request, Timeout timeout);
+  virtual RpcResponse sendRpcRequestSync(
+      const RpcRequest& request,
+      Timeout timeout);
 
   // Ignore the response, return immediately.
   void sendRpcRequestWithoutResponse(const RpcRequest& request);
@@ -87,7 +88,7 @@ public:
 
   ~TransportClient() = default;
 
-private:
+ private:
   std::unique_ptr<wangle::ClientBootstrap<SerializePipeline>> client_;
   std::unique_ptr<MessageDispatcher> dispatcher_;
   Timeout defaultTimeout_;
@@ -95,20 +96,20 @@ private:
 
 class MessagePipelineFactory
     : public wangle::PipelineFactory<SerializePipeline> {
-public:
+ public:
   SerializePipeline::Ptr newPipeline(
       std::shared_ptr<folly::AsyncTransport> sock) override;
 };
 
 class TransportClientFactory {
-public:
+ public:
   TransportClientFactory(const std::shared_ptr<conf::CelebornConf>& conf);
 
   std::shared_ptr<TransportClient> createClient(
       const std::string& host,
       uint16_t port);
 
-private:
+ private:
   struct ClientPool {
     std::mutex mutex;
     std::vector<std::shared_ptr<TransportClient>> clients;

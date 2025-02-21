@@ -18,7 +18,8 @@ add_executable(
         FrameDecoderTest.cpp
         MessageTest.cpp
         MessageDispatcherTest.cpp
-        TransportClientTest.cpp)
+        TransportClientTest.cpp
+        NettyRpcEndpointRefTest.cpp)
 
 add_test(NAME celeborn_network_test COMMAND celeborn_network_test)
 
