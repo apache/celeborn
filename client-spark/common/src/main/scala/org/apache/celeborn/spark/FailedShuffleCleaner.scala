@@ -65,12 +65,9 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
   def addShuffleIdReferringStage(celebornShuffleId: Int, appShuffleIdentifier: String): Unit = {
     // this is only implemented/tested with Spark for now
     val Array(_, stageId, _) = appShuffleIdentifier.split('-')
-    val stageIds =
-      celebornShuffleIdToReferringStages.computeIfAbsent(
-        celebornShuffleId,
-        (_: Int) => new mutable.HashSet[Int]())
+    celebornShuffleIdToReferringStages.putIfAbsent(celebornShuffleId, new mutable.HashSet[Int]())
     lock.synchronized {
-      stageIds.add(stageId.toInt)
+      celebornShuffleIdToReferringStages.get(celebornShuffleId).add(stageId.toInt)
     }
   }
 
