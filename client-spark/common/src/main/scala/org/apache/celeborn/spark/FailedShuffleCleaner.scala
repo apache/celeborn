@@ -14,8 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.celeborn.spark
-
+package org.apache.celeborn.spark
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue}
 import java.util.concurrent.atomic.AtomicReference
@@ -28,14 +27,14 @@ import org.apache.spark.scheduler.{RunningStageManager, RunningStageManagerImpl}
 import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.internal.Logging
 
-object FailedShuffleCleaner extends Logging {
+private[celeborn] object FailedShuffleCleaner extends Logging {
 
   private val lifecycleManager = new AtomicReference[LifecycleManager](null)
   // in celeborn ids
   private val shufflesToBeCleand = new LinkedBlockingQueue[Int]()
   private val cleanedShuffleIds = new mutable.HashSet[Int]
   // celeborn shuffle id to stage id referred to it
-  val celebornShuffleIdToReferringStages =
+  private[celeborn] val celebornShuffleIdToReferringStages =
     new ConcurrentHashMap[Int, mutable.HashSet[Int]]()
 
   private val lock = new Object
