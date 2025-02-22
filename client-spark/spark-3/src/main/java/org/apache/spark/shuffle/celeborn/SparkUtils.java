@@ -45,6 +45,7 @@ import org.apache.spark.TaskContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.io.CompressionCodec;
 import org.apache.spark.io.CompressionCodec$;
+import org.apache.spark.celeborn.spark.FailedShuffleCleaner;
 import org.apache.spark.scheduler.DAGScheduler;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.scheduler.MapStatus$;
@@ -76,7 +77,6 @@ import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.reflect.DynFields;
 import org.apache.celeborn.reflect.DynMethods;
-import org.apache.celeborn.spark.FailedShuffleCleaner;
 
 public class SparkUtils {
   private static final Logger LOG = LoggerFactory.getLogger(SparkUtils.class);
