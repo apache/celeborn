@@ -20,6 +20,7 @@ import java.io.File
 
 import scala.collection.mutable
 
+import org.apache.spark.celeborn.spark.FailedShuffleCleaner
 import org.apache.spark.shuffle.celeborn.{SparkUtils, TestCelebornShuffleManager}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
@@ -27,7 +28,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.service.deploy.worker.Worker
-import org.apache.celeborn.spark.FailedShuffleCleaner
 import org.apache.celeborn.tests.spark.fetch_failure.{FailCommitShuffleReaderGetHook, FetchFailureTestBase, FileDeletionShuffleReaderGetHook, TestRunningStageManager}
 
 class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
