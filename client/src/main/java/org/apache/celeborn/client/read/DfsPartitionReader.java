@@ -143,15 +143,14 @@ public class DfsPartitionReader implements PartitionReader {
     this.currentChunkIndex = this.startChunkIndex;
     this.numChunks = this.endChunkIndex - this.startChunkIndex + 1;
     logger.debug(
-        "DFS {} total offset count:{} start chunk index:{} end chunk index:{} offsets:{}, {}, {}, {}",
+        "DFS {} total offset count:{} chunk count: {} " +
+        "start chunk index:{} end chunk index:{} offsets:{}",
         location.getStorageInfo().getFilePath(),
         chunkOffsets.size(),
+        this.numChunks,
         this.startChunkIndex,
         this.endChunkIndex,
-        chunkOffsets,
-        startChunkIndex,
-        endChunkIndex,
-        numChunks);
+        chunkOffsets);
     if (this.numChunks > 0) {
       fetchThread =
           ThreadUtils.newDaemonSingleThreadExecutor(
