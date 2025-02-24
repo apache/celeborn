@@ -599,9 +599,10 @@ public class MemoryManager {
     if (!pinnedMemoryCheckEnabled) {
       return false;
     }
-    if (System.currentTimeMillis() - pinnedMemoryLastCheckTime >= pinnedMemoryCheckInterval) {
+    long currentTime = System.currentTimeMillis();
+    if (currentTime - pinnedMemoryLastCheckTime >= pinnedMemoryCheckInterval) {
       if (getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
-        pinnedMemoryLastCheckTime = System.currentTimeMillis();
+        pinnedMemoryLastCheckTime = currentTime;
         resumeByPinnedMemory(currentState);
         success = true;
       }
@@ -612,7 +613,7 @@ public class MemoryManager {
         logger.info(
             "currentState: {}, keep resume for {}ms after last resumeByPinnedMemory",
             currentState,
-            System.currentTimeMillis() - pinnedMemoryLastCheckTime);
+            currentTime - pinnedMemoryLastCheckTime);
         success = true;
       }
     }
