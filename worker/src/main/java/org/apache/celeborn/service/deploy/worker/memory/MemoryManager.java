@@ -384,6 +384,7 @@ public class MemoryManager {
         break;
       case NONE_PAUSED:
         // resume from paused mode, append pause spent time
+        resumingByPinnedMemory = false;
         if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
           resumeReplicate();
           resumePush();
