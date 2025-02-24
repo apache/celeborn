@@ -344,13 +344,6 @@ private[deploy] class Controller(
                       } else {
                         fileWriter.getMemoryFileInfo
                       }
-                    val fileMeta = fileInfo.getFileMeta
-                    fileMeta match {
-                      case meta: ReduceFileMeta =>
-                        storageInfo.setFileSize(bytes)
-                        storageInfo.setChunkOffsets(meta.getChunkOffsets)
-                      case _ =>
-                    }
                     committedStorageInfos.put(uniqueId, storageInfo)
                     if (fileWriter.getMapIdBitMap != null) {
                       committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)

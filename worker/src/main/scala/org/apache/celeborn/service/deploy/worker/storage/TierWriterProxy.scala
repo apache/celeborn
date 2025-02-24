@@ -54,7 +54,12 @@ class TierWriterProxy(
     currentTierWriter.write(buf)
   }
 
+  // evict and flush method need to be in a same synchronized block
+  // because memory manager may want to evict a file under memory pressure
   def evict(checkClose: Boolean): Unit = this.synchronized {
+    // close and evict might be invoked concurrently
+    // do not evict committed files from memory manager
+    // evict memory file info if worker is shutdown gracefully
     if (checkClose) {
       if (fileClosed) {
         return
@@ -120,7 +125,7 @@ class TierWriterProxy(
     storageInfo
   }
 
-  def destroy(ioException: IOException): Unit = {
+  def destroy(ioException: IOException): Unit = this.synchronized {
     currentTierWriter.destroy(ioException)
   }
 
@@ -132,7 +137,7 @@ class TierWriterProxy(
     currentTierWriter.flush(false)
   }
 
-  def close(): Long = {
+  def close(): Long = this.synchronized {
     val len = currentTierWriter.close()
     fileClosed = true
     len

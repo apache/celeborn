@@ -93,7 +93,7 @@ abstract class TierWriterBase(
   }
 
   // close and destroy need to be invoked in synchronized blocks
-  def close(evict: Boolean = false): Long = synchronized {
+  def close(evict: Boolean = false): Long = {
     ensureNotClosed()
     try {
       waitOnNoPending(numPendingWrites, false)
@@ -225,7 +225,7 @@ abstract class TierWriterBase(
 
   def takeBufferInternal(): CompositeByteBuf
 
-  def destroy(ioException: IOException): Unit = synchronized {
+  def destroy(ioException: IOException): Unit = {
     if (!closed) {
       closed = true
       if (!notifier.hasException) {
@@ -293,6 +293,7 @@ class MemoryTierWriter(
       // swap tier writer's flush buffer to memory tier writer's
       // and handle its release
       file.swapFlushBuffer(flushBuffer)
+      // close memory file writer after evict happened
       file.flush(false, true)
       val numBytes = flushBuffer.readableBytes()
       logDebug(s"Evict ${numBytes} from memory to other tier")

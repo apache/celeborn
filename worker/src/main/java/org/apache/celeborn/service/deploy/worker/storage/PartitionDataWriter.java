@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.IOException;
+import java.util.Objects;
 
 import scala.Option;
 
@@ -68,7 +69,7 @@ public class PartitionDataWriter implements DeviceObserver {
     String shuffleKey = writerContext.getShuffleKey();
     String filename = writerContext.getPartitionLocation().getFileName();
 
-    writerString = shuffleKey + "-" + filename + " partition-writer";
+    writerString = shuffleKey + "-" + filename + "-partition-writer";
 
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
     if (CongestionController.instance() != null) {
@@ -170,14 +171,15 @@ public class PartitionDataWriter implements DeviceObserver {
   }
 
   @Override
-  public int hashCode() {
-    return tierWriterProxy.hashCode();
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    PartitionDataWriter that = (PartitionDataWriter) o;
+    return Objects.equals(writerString, that.writerString);
   }
 
   @Override
-  public boolean equals(Object obj) {
-    return (obj instanceof PartitionDataWriter)
-        && tierWriterProxy.equals(((PartitionDataWriter) obj).tierWriterProxy);
+  public int hashCode() {
+    return Objects.hashCode(writerString);
   }
 
   @Override
