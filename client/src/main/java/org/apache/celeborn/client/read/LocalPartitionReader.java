@@ -148,7 +148,7 @@ public class LocalPartitionReader implements PartitionReader {
       if (shuffleChannel == null) {
         shuffleChannel = FileChannelUtils.openReadableFileChannel(fullPath);
         if (mapRangeRead) {
-          shuffleChannel.position(chunkOffsets.get(0));
+          shuffleChannel.position(chunkOffsets.get(chunkIndex));
         }
       }
       for (int i = 0; i < toFetch; i++) {
