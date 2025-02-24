@@ -888,6 +888,12 @@ private[celeborn] class Master(
         if (requestSlots.maxWorkers <= 0) slotsAssignMaxWorkers
         else Math.min(slotsAssignMaxWorkers, requestSlots.maxWorkers)),
       numAvailableWorkers)
+
+    if (numWorkers < numAvailableWorkers && requestSlots.shouldReplicate && requestSlots.shouldRackAware) {
+      // Shuffle the available workers to randomize the order for rack awareness during slot offering
+      Collections.shuffle(availableWorkers)
+    }
+
     val startIndex = Random.nextInt(numAvailableWorkers)
     val selectedWorkers = new util.ArrayList[WorkerInfo](numWorkers)
     selectedWorkers.addAll(availableWorkers.subList(
