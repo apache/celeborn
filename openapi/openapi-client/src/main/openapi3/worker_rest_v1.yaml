@@ -552,6 +552,9 @@ components:
           type: integer
           format: int64
           description: The start time of the worker state.
+        networkLocation:
+          type: string
+          description: The network location of the worker.
       required:
         - host
         - rpcPort
