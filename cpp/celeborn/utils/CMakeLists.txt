@@ -24,6 +24,7 @@ add_library(
 
 target_link_libraries(
         utils
+        memory
         ${FOLLY_WITH_DEPENDENCIES}
         ${GLOG}
         ${GFLAGS_LIBRARIES}

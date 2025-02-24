@@ -106,6 +106,11 @@ class RpcRequest : public Message {
       : Message(RPC_REQUEST, other.body_->clone()),
         requestId_(other.requestId_) {}
 
+  void operator=(const RpcRequest& lhs) {
+    requestId_ = lhs.requestId();
+    body_ = lhs.body_->clone();
+  }
+
   virtual ~RpcRequest() = default;
 
   long requestId() const {

@@ -19,6 +19,20 @@
 
 namespace celeborn {
 namespace utils {
+void writeUTF(memory::WriteOnlyByteBuffer& buffer, const std::string& msg) {
+  buffer.write<short>(msg.size());
+  buffer.writeFromString(msg);
+}
+
+void writeRpcAddress(
+    memory::WriteOnlyByteBuffer& buffer,
+    const std::string& host,
+    int port) {
+  buffer.write<uint8_t>(1);
+  writeUTF(buffer, host);
+  buffer.write<int32_t>(port);
+}
+
 std::vector<std::string_view> parseColonSeparatedHostPorts(
     const std::string_view& s,
     int num) {
@@ -27,12 +41,11 @@ std::vector<std::string_view> parseColonSeparatedHostPorts(
   std::vector<std::string_view> result;
   result.resize(num + 1);
   size_t size = 0;
-  for (int result_idx = 1, parsed_idx = parsed.size() - num;
-       result_idx <= num;
+  for (int result_idx = 1, parsed_idx = parsed.size() - num; result_idx <= num;
        result_idx++, parsed_idx++) {
     result[result_idx] = parsed[parsed_idx];
     size += parsed[parsed_idx].size() + 1;
-       }
+  }
   result[0] = s.substr(0, s.size() - size);
   return result;
 }
