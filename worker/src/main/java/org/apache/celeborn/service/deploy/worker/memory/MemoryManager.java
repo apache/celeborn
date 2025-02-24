@@ -99,6 +99,7 @@ public class MemoryManager {
   private boolean pinnedMemoryCheckEnabled;
   private long pinnedMemoryCheckInterval;
   private long pinnedMemoryLastCheckTime = 0;
+  private boolean resumingByPinnedMemory = false;
 
   @VisibleForTesting
   public static MemoryManager initialize(CelebornConf conf) {
@@ -343,6 +344,7 @@ public class MemoryManager {
           } else {
             logger.info("Trigger action: PAUSE PUSH");
             pausePushDataStartTime = System.currentTimeMillis();
+            resumingByPinnedMemory = false;
             memoryPressureListeners.forEach(
                 memoryPressureListener ->
                     memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
@@ -362,6 +364,7 @@ public class MemoryManager {
           pausePushDataAndReplicateCounter.increment();
           logger.info("Trigger action: PAUSE PUSH");
           pausePushDataAndReplicateStartTime = System.currentTimeMillis();
+          resumingByPinnedMemory = false;
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
@@ -603,11 +606,13 @@ public class MemoryManager {
     if (currentTime - pinnedMemoryLastCheckTime >= pinnedMemoryCheckInterval) {
       if (getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
         pinnedMemoryLastCheckTime = currentTime;
+        resumingByPinnedMemory = true;
         resumeByPinnedMemory(currentState);
         success = true;
       }
     } else {
-      if (lastState != ServingState.NONE_PAUSED
+      if (resumingByPinnedMemory
+          && lastState != ServingState.NONE_PAUSED
           && getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
         // do nothing, keep resume for a while
         logger.info(
