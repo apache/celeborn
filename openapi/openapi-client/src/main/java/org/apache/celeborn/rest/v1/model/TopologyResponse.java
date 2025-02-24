@@ -61,7 +61,7 @@ public class TopologyResponse {
   }
 
   /**
-   * The worker topologies.
+   * The workers topology information.
    * @return topologies
    */
   @javax.annotation.Nullable

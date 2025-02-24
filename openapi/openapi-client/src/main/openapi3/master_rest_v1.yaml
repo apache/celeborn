@@ -984,7 +984,7 @@ components:
       properties:
         topologies:
           type: array
-          description: The worker topologies.
+          description: The workers topology information.
           items:
             $ref: '#/components/schemas/TopologyInfo'
 
