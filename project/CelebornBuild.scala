@@ -37,7 +37,7 @@ import CelebornCommonSettings._
 
 object Dependencies {
 
-  val zstdJniVersion = sparkClientProjects.map(_.zstdJniVersion).getOrElse("1.5.2-1")
+  val zstdJniVersion = sparkClientProjects.map(_.zstdJniVersion).getOrElse("1.5.7-1")
   val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.8.0")
 
   // Dependent library versions
