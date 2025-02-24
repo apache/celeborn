@@ -169,7 +169,6 @@ function build_service {
   for jar in $(ls "$PROJECT_DIR/cli/target/scala-$SCALA_VERSION/jars"); do
     (cd $DIST_DIR/cli-jars; ln -snf "../jars/$jar" .)
   done
-
 }
 
 function build_spark_client {
