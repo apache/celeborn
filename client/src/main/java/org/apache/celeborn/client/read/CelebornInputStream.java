@@ -589,7 +589,9 @@ public abstract class CelebornInputStream extends InputStream {
               clientFactory,
               startMapIndex,
               endMapIndex,
-              callback);
+              callback,
+              startChunkIndex,
+              endChunkIndex);
         default:
           throw new CelebornIOException(
               String.format("Unknown storage info %s to read location %s", storageInfo, location));

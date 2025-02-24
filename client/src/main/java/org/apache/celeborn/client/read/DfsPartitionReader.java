@@ -66,6 +66,8 @@ public class DfsPartitionReader implements PartitionReader {
   private int numChunks = 0;
   private int returnedChunks = 0;
   private int currentChunkIndex = 0;
+  private int startChunkIndex;
+  private int endChunkIndex;
   private final List<Long> chunkOffsets = new ArrayList<>();
   private TransportClient client;
   private PbStreamHandler streamHandler;
@@ -80,7 +82,9 @@ public class DfsPartitionReader implements PartitionReader {
       TransportClientFactory clientFactory,
       int startMapIndex,
       int endMapIndex,
-      MetricsCallback metricsCallback)
+      MetricsCallback metricsCallback,
+      int startChunkIndex,
+      int endChunkIndex)
       throws IOException {
     this.conf = conf;
     shuffleChunkSize = conf.dfsReadChunkSize();
@@ -122,7 +126,7 @@ public class DfsPartitionReader implements PartitionReader {
           e);
     }
 
-    if (endMapIndex != Integer.MAX_VALUE) {
+    if (endMapIndex != Integer.MAX_VALUE && endMapIndex != -1) {
       dfsInputStream =
           hadoopFs.open(new Path(Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
       chunkOffsets.addAll(
@@ -131,13 +135,24 @@ public class DfsPartitionReader implements PartitionReader {
       dfsInputStream = hadoopFs.open(new Path(location.getStorageInfo().getFilePath()));
       chunkOffsets.addAll(getChunkOffsetsFromUnsortedIndex(conf, location));
     }
+    this.startChunkIndex = startChunkIndex == -1 ? 0 : startChunkIndex;
+    this.endChunkIndex =
+        endChunkIndex == -1
+            ? chunkOffsets.size() - 2
+            : Math.min(chunkOffsets.size() - 2, endChunkIndex);
+    this.currentChunkIndex = this.startChunkIndex;
+    this.numChunks = this.endChunkIndex - this.startChunkIndex + 1;
     logger.debug(
-        "DFS {} index count:{} offsets:{}",
+        "DFS {} total offset count:{} start chunk index:{} end chunk index:{} offsets:{}, {}, {}, {}",
         location.getStorageInfo().getFilePath(),
         chunkOffsets.size(),
-        chunkOffsets);
-    if (chunkOffsets.size() > 1) {
-      numChunks = chunkOffsets.size() - 1;
+        this.startChunkIndex,
+        this.endChunkIndex,
+        chunkOffsets,
+        startChunkIndex,
+        endChunkIndex,
+        numChunks);
+    if (this.numChunks > 0) {
       fetchThread =
           ThreadUtils.newDaemonSingleThreadExecutor(
               "celeborn-client-dfs-partition-fetcher" + location.getStorageInfo().getFilePath());
@@ -197,7 +212,7 @@ public class DfsPartitionReader implements PartitionReader {
       fetchThread.submit(
           () -> {
             try {
-              while (!closed && currentChunkIndex < numChunks) {
+              while (!closed && currentChunkIndex <= endChunkIndex) {
                 while (results.size() >= fetchMaxReqsInFlight) {
                   Thread.sleep(50);
                 }
