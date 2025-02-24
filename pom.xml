@@ -39,7 +39,6 @@
     <module>master</module>
     <module>worker</module>
     <module>cli</module>
-    <module>verifier</module>
   </modules>
 
   <distributionManagement>

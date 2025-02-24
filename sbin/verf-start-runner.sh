@@ -24,15 +24,15 @@ fi
 
 . "${CELEBORN_HOME}/sbin/load-celeborn-env.sh"
 
-if [ "$CELEBORN_VERF_CLI_MEMORY" = "" ]; then
-  CELEBORN_VERF_CLI_MEMORY="1g"
+if [ "$CELEBORN_VERF_RUNNER_MEMORY" = "" ]; then
+  CELEBORN_VERF_RUNNER_MEMORY="1g"
 fi
 
 
-export CELEBORN_JAVA_OPTS="-Xmx$CELEBORN_VERF_CLI_MEMORY  $CELEBORN_VERF_CLI_JAVA_OPTS"
+export CELEBORN_JAVA_OPTS="-Xmx$CELEBORN_VERF_RUNNER_MEMORY $CELEBORN_VERF_RUNNER_JAVA_OPTS"
 
 if [ "$WORKER_INSTANCE" = "" ]; then
   WORKER_INSTANCE=1
 fi
 
-"${CELEBORN_HOME}/sbin/celeborn-daemon.sh" start org.apache.celeborn.verifier.cli.Cli "$WORKER_INSTANCE" "$@"
+"${CELEBORN_HOME}/sbin/celeborn-daemon.sh" start org.apache.celeborn.verifier.runner.Runner "$WORKER_INSTANCE" "$@"

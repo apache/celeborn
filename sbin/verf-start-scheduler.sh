@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-# Starts the celeborn worker on the machine this script is executed on.
+# Starts the celeborn master on the machine this script is executed on.
 
 if [ -z "${CELEBORN_HOME}" ]; then
   export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
@@ -24,15 +24,10 @@ fi
 
 . "${CELEBORN_HOME}/sbin/load-celeborn-env.sh"
 
-if [ "$CELEBORN_VERF_CLI_MEMORY" = "" ]; then
-  CELEBORN_VERF_CLI_MEMORY="1g"
+if [ "$CELEBORN_VERF_SCHEDULER_MEMORY" = "" ]; then
+  CELEBORN_VERF_SCHEDULER_MEMORY="1g"
 fi
 
+export CELEBORN_JAVA_OPTS="-Xmx$CELEBORN_VERF_SCHEDULER_MEMORY $CELEBORN_VERF_SCHEDULER_JAVA_OPTS"
 
-export CELEBORN_JAVA_OPTS="-Xmx$CELEBORN_VERF_CLI_MEMORY  $CELEBORN_VERF_CLI_JAVA_OPTS"
-
-if [ "$WORKER_INSTANCE" = "" ]; then
-  WORKER_INSTANCE=1
-fi
-
-"${CELEBORN_HOME}/sbin/celeborn-daemon.sh" start org.apache.celeborn.verifier.cli.Cli "$WORKER_INSTANCE" "$@"
+"${CELEBORN_HOME}/sbin/celeborn-daemon.sh" start org.apache.celeborn.verifier.scheduler.Scheduler 1 "$@"

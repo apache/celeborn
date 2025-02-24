@@ -138,7 +138,7 @@ function build_service {
   # Store the command as an array because $MVN variable might have spaces in it.
   # Normal quoting tricks don't work.
   # See: http://mywiki.wooledge.org/BashFAQ/050
-  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl master,worker,cli,verifier -am $@)
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl master,worker,cli -am $@)
 
   # Actually build the jar
   echo -e "\nBuilding with..."
@@ -150,7 +150,6 @@ function build_service {
   mkdir -p "$DIST_DIR/master-jars"
   mkdir -p "$DIST_DIR/worker-jars"
   mkdir -p "$DIST_DIR/cli-jars"
-  mkdir -p "$DIST_DIR/verifier-jars"
 
   ## Copy master jars
   cp "$PROJECT_DIR"/master/target/celeborn-master_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/master-jars/"
@@ -169,12 +168,6 @@ function build_service {
   cp "$PROJECT_DIR"/cli/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
   for jar in $(ls "$PROJECT_DIR/cli/target/scala-$SCALA_VERSION/jars"); do
     (cd $DIST_DIR/cli-jars; ln -snf "../jars/$jar" .)
-  done
-  ## Copy verifier jars
-  cp "$PROJECT_DIR"/verifier/target/celeborn-verifier_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/verifier-jars/"
-  cp "$PROJECT_DIR"/verifier/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
-  for jar in $(ls "$PROJECT_DIR/verifier/target/scala-$SCALA_VERSION/jars"); do
-    (cd $DIST_DIR/verifier-jars; ln -snf "../jars/$jar" .)
   done
 
 }
@@ -274,6 +267,27 @@ function build_tez_client {
     cp "$PROJECT_DIR"/client-tez/tez-shaded/target/celeborn-client-tez-shaded_${SCALA_VERSION}-$VERSION.jar "$DIST_DIR/tez/"
 }
 
+function build_verifier() {
+  VERSION=$("$MVN" help:evaluate -Dexpression=project.version $@ 2>/dev/null \
+      | grep -v "INFO" \
+      | grep -v "WARNING" \
+      | tail -n 1)
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl verifier -am $@)
+
+  # Actually build the jar
+  echo -e "\nBuilding with..."
+  echo -e "\$ ${BUILD_COMMAND[@]}\n"
+
+  "${BUILD_COMMAND[@]}"
+
+  mkdir -p "$DIST_DIR/verifier-jars"
+  ## Copy verifier jars
+  cp "$PROJECT_DIR"/verifier/target/celeborn-verifier_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/verifier-jars/"
+  cp "$PROJECT_DIR"/verifier/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
+  for jar in $(ls "$PROJECT_DIR/verifier/target/scala-$SCALA_VERSION/jars"); do
+    (cd $DIST_DIR/verifier-jars; ln -snf "../jars/$jar" .)
+  done
+}
 
 #########################
 #     sbt functions     #
@@ -394,6 +408,10 @@ else
   else
     ## build release package on demand
     build_service $@
+    if [[  $@ == *"verifier"* ]]; then
+      echo "build verifier module"
+      build_verifier $@
+    fi
     echo "build client with $@"
     ENGINE_COUNT=0
     ENGINES=("spark" "flink" "mr" "tez")
@@ -432,7 +450,13 @@ cp "$PROJECT_DIR"/conf/*.template "$DIST_DIR/conf"
 
 # Copy shell scripts
 cp -r "$PROJECT_DIR/bin" "$DIST_DIR"
-cp -r "$PROJECT_DIR/sbin" "$DIST_DIR"
+# only copy all the non-verifier scripts in sbin when building non-verifier
+mkdir "$DIST_DIR/sbin"
+find "$PROJECT_DIR/sbin" -maxdepth 1 -type f ! -name 'verf*' -exec cp {} "$DIST_DIR/sbin" \;
+# only copy verifier scripts when building verifier
+if [[  $@ == *"verifier"* ]]; then
+  find "$PROJECT_DIR/sbin" -maxdepth 1 -type f -name 'verf*' -exec cp {} "$DIST_DIR/sbin" \;
+fi
 
 # Copy db scripts
 mkdir "$DIST_DIR/db-scripts"
