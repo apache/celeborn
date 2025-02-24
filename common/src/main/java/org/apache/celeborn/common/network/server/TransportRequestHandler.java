@@ -31,6 +31,7 @@ import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.*;
+import org.apache.celeborn.common.network.util.NettyUtils;
 
 /**
  * A handler that processes requests from clients and writes chunk data back. Each handler is
@@ -112,7 +113,11 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
             }
           });
     } catch (Exception e) {
-      logger.error("Error while invoking handler#receive() on RPC id " + req.requestId, e);
+      logger.error(
+          "Error while invoking handler#receive() on RPC id {} from {}",
+          req.requestId,
+          NettyUtils.getRemoteAddress(channel),
+          e);
       respond(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
     } finally {
       req.body().release();
@@ -124,7 +129,10 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       logger.trace("Process one way request");
       msgHandler.receive(reverseClient, req);
     } catch (Exception e) {
-      logger.error("Error while invoking handler#receive() for one-way message.", e);
+      logger.error(
+          "Error while invoking handler#receive() for one-way message from {}.",
+          NettyUtils.getRemoteAddress(channel),
+          e);
     } finally {
       req.body().release();
     }
@@ -135,7 +143,10 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       logger.trace("delegating to handler to process other request");
       msgHandler.receive(reverseClient, req);
     } catch (Exception e) {
-      logger.error("Error while invoking handler#receive() for other message.", e);
+      logger.error(
+          "Error while invoking handler#receive() for other message from {}.",
+          NettyUtils.getRemoteAddress(channel),
+          e);
     } finally {
       if (req.body() != null) {
         req.body().release();
