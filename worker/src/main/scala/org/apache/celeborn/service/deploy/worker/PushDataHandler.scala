@@ -1408,15 +1408,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
   private def checkDiskFull(fileWriter: PartitionDataWriter): Boolean = {
     val flusher = fileWriter.getFlusher;
-    if (flusher == null || flusher.isInstanceOf[
-        HdfsFlusher] || flusher.isInstanceOf[S3Flusher]) {
-      return false
-    }
-    val mountPoint = flusher.asInstanceOf[LocalFlusher].mountPoint
-    val diskInfo = workerInfo.diskInfos.get(mountPoint)
-    val diskFull =
+    if (flusher.isInstanceOf[LocalFlusher]) {
+      val mountPoint = flusher.asInstanceOf[LocalFlusher].mountPoint
+      val diskInfo = workerInfo.diskInfos.get(mountPoint)
       diskInfo.status.equals(DiskStatus.HIGH_DISK_USAGE) || diskInfo.actualUsableSpace <= 0
-    diskFull
+    } else {
+      false
+    }
   }
 
   private def checkDiskFullAndSplit(

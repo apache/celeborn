@@ -24,7 +24,7 @@ import com.google.protobuf.GeneratedMessageV3
 import io.netty.buffer.ByteBuf
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, MemoryFileInfo}
+import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, MemoryFileInfo, ReduceFileMeta}
 import org.apache.celeborn.common.protocol.{PartitionType, StorageInfo}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
@@ -89,25 +89,35 @@ class TierWriterProxy(
   }
 
   def getCurrentStorageInfo(): StorageInfo = {
-    if (currentTierWriter.fileInfo.isInstanceOf[DiskFileInfo]) {
-      val diskFileInfo = currentTierWriter.fileInfo.asInstanceOf[DiskFileInfo]
-      if (diskFileInfo.isDFS) {
-        if (currentTierWriter.asInstanceOf[DfsTierWriter].deleted) {
-          return null
-        } else if (diskFileInfo.isS3) {
-          return new StorageInfo(StorageInfo.Type.S3, true, diskFileInfo.getFilePath)
-        } else if (diskFileInfo.isHdfs) {
-          return new StorageInfo(StorageInfo.Type.HDFS, true, diskFileInfo.getFilePath)
+    val storageInfo = {
+      if (currentTierWriter.fileInfo.isInstanceOf[DiskFileInfo]) {
+        val diskFileInfo = currentTierWriter.fileInfo.asInstanceOf[DiskFileInfo]
+        if (diskFileInfo.isDFS) {
+          if (currentTierWriter.asInstanceOf[DfsTierWriter].deleted) {
+            return null
+          } else if (diskFileInfo.isS3) {
+            return new StorageInfo(StorageInfo.Type.S3, true, diskFileInfo.getFilePath)
+          } else if (diskFileInfo.isHdfs) {
+            return new StorageInfo(StorageInfo.Type.HDFS, true, diskFileInfo.getFilePath)
+          }
         }
+        val flusher = currentTierWriter.asInstanceOf[LocalTierWriter].getFlusher()
+        new StorageInfo(flusher.asInstanceOf[LocalFlusher].diskType, true, "")
+      } else if (currentTierWriter.fileInfo.isInstanceOf[MemoryFileInfo]) {
+        new StorageInfo(StorageInfo.Type.MEMORY, true, "")
+      } else {
+        // this should not happen
+        null
       }
-      val flusher = currentTierWriter.asInstanceOf[LocalTierWriter].getFlusher()
-      new StorageInfo(flusher.asInstanceOf[LocalFlusher].diskType, true, "")
-    } else if (currentTierWriter.fileInfo.isInstanceOf[MemoryFileInfo]) {
-      new StorageInfo(StorageInfo.Type.MEMORY, true, "")
-    } else {
-      // this should not happen
-      null
     }
+
+    // this is for the optimize of sort elimination
+    if (storageInfo != null && currentTierWriter.fileInfo.getFileMeta.isInstanceOf[ReduceFileMeta]) {
+      storageInfo.setFileSize(currentTierWriter.fileInfo.getFileLength)
+      storageInfo.setChunkOffsets(
+        currentTierWriter.fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets)
+    }
+    storageInfo
   }
 
   def destroy(ioException: IOException): Unit = {

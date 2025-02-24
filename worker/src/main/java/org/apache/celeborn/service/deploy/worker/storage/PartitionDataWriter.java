@@ -52,7 +52,7 @@ public class PartitionDataWriter implements DeviceObserver {
   // It's only needed when graceful shutdown is enabled
   protected final StorageManager storageManager;
   private UserCongestionControlContext userCongestionControlContext = null;
-  public static String writerString;
+  public final String writerString;
 
   public PartitionDataWriter(
       StorageManager storageManager,
@@ -76,15 +76,8 @@ public class PartitionDataWriter implements DeviceObserver {
           CongestionController.instance()
               .getUserCongestionContext(writerContext.getUserIdentifier());
     }
-
+    writerContext.setPartitionDataWriter(this);
     tierWriterProxy = new TierWriterProxy(writerContext, storageManager, conf, partitionType);
-    if (tierWriterProxy.currentTierWriter() instanceof MemoryTierWriter) {
-      storageManager.registerMemoryPartitionWriter(
-          this, (MemoryFileInfo) tierWriterProxy.getCurrentFileInfo());
-    } else {
-      storageManager.registerDiskFilePartitionWriter(
-          this, writerContext.getWorkingDir(), (DiskFileInfo) tierWriterProxy.getCurrentFileInfo());
-    }
   }
 
   public DiskFileInfo getDiskFileInfo() {

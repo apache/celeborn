@@ -39,6 +39,7 @@ public class PartitionDataWriterContext {
   private final boolean isSegmentGranularityVisible;
 
   private File workingDir;
+  private PartitionDataWriter partitionDataWriter;
 
   public PartitionDataWriterContext(
       long splitThreshold,
@@ -114,6 +115,14 @@ public class PartitionDataWriterContext {
 
   public void setWorkingDir(File workingDir) {
     this.workingDir = workingDir;
+  }
+
+  public PartitionDataWriter getPartitionDataWriter() {
+    return partitionDataWriter;
+  }
+
+  public void setPartitionDataWriter(PartitionDataWriter partitionDataWriter) {
+    this.partitionDataWriter = partitionDataWriter;
   }
 
   @Override

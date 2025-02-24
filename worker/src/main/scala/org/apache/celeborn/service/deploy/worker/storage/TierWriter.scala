@@ -92,7 +92,8 @@ abstract class TierWriterBase(
     flushBuffer = inputBuffer
   }
 
-  def close(evict: Boolean = false): Long = {
+  // close and destroy need to be invoked in synchronized blocks
+  def close(evict: Boolean = false): Long = synchronized {
     ensureNotClosed()
     try {
       waitOnNoPending(numPendingWrites, false)
@@ -224,7 +225,7 @@ abstract class TierWriterBase(
 
   def takeBufferInternal(): CompositeByteBuf
 
-  def destroy(ioException: IOException): Unit = {
+  def destroy(ioException: IOException): Unit = synchronized {
     if (!closed) {
       closed = true
       if (!notifier.hasException) {
@@ -278,6 +279,10 @@ class MemoryTierWriter(
     storageManager) {
 
   val memoryFileStorageMaxFileSize: Long = conf.workerMemoryFileStorageMaxFileSize
+
+  storageManager.registerMemoryPartitionWriter(
+    partitionDataWriterContext.getPartitionDataWriter,
+    fileInfo)
 
   override def needEvict(): Boolean = {
     flushBuffer.readableBytes() > memoryFileStorageMaxFileSize && storageManager.localOrDfsStorageAvailable
@@ -371,6 +376,11 @@ class LocalTierWriter(
 
   private lazy val channel: FileChannel =
     FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath);
+
+  storageManager.registerDiskFilePartitionWriter(
+    partitionDataWriterContext.getPartitionDataWriter,
+    partitionDataWriterContext.getWorkingDir,
+    fileInfo.asInstanceOf[DiskFileInfo])
 
   override def needEvict: Boolean = {
     false
@@ -524,6 +534,11 @@ class DfsTierWriter(
       }
       hadoopFs.create(hdfsFileInfo.getDfsPath, true).close()
   }
+
+  storageManager.registerDiskFilePartitionWriter(
+    partitionDataWriterContext.getPartitionDataWriter,
+    partitionDataWriterContext.getWorkingDir,
+    fileInfo.asInstanceOf[DiskFileInfo])
 
   override def needEvict: Boolean = {
     false
