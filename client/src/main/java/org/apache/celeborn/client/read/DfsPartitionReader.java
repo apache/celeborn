@@ -74,6 +74,8 @@ public class DfsPartitionReader implements PartitionReader {
   private MetricsCallback metricsCallback;
   private FileSystem hadoopFs;
 
+  private Path dataFilePath;
+
   public DfsPartitionReader(
       CelebornConf conf,
       String shuffleKey,
@@ -125,14 +127,14 @@ public class DfsPartitionReader implements PartitionReader {
           "read shuffle file from DFS failed, filePath: " + location.getStorageInfo().getFilePath(),
           e);
     }
-
     if (endMapIndex != Integer.MAX_VALUE && endMapIndex != -1) {
-      dfsInputStream =
-          hadoopFs.open(new Path(Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
+      dataFilePath = new Path(Utils.getSortedFilePath(location.getStorageInfo().getFilePath()));
+      dfsInputStream = hadoopFs.open(dataFilePath);
       chunkOffsets.addAll(
           getChunkOffsetsFromSortedIndex(conf, location, startMapIndex, endMapIndex));
     } else {
-      dfsInputStream = hadoopFs.open(new Path(location.getStorageInfo().getFilePath()));
+      dataFilePath = new Path(location.getStorageInfo().getFilePath());
+      dfsInputStream = hadoopFs.open(dataFilePath);
       chunkOffsets.addAll(getChunkOffsetsFromUnsortedIndex(conf, location));
     }
     this.startChunkIndex = startChunkIndex == -1 ? 0 : startChunkIndex;
@@ -224,14 +226,12 @@ public class DfsPartitionReader implements PartitionReader {
                 } catch (IOException e) {
                   logger.warn(
                       "read DFS {} failed will retry, error detail {}",
-                      location.getStorageInfo().getFilePath(),
+                      dataFilePath,
                       e);
                   try {
                     dfsInputStream.close();
                     dfsInputStream =
-                        hadoopFs.open(
-                            new Path(
-                                Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
+                        hadoopFs.open(dataFilePath);
                     dfsInputStream.readFully(offset, buffer);
                   } catch (IOException ex) {
                     logger.warn(
