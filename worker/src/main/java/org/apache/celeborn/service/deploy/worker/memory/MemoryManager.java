@@ -348,10 +348,12 @@ public class MemoryManager {
             memoryPressureListeners.forEach(
                 memoryPressureListener ->
                     memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
+            // trimCounter cannot be increased when channels resume by PinnedMemory, otherwise
+            // PauseSpentTime will be increased unexpectedly
+            trimCounter += 1;
           }
         }
         logger.debug("Trigger action: TRIM");
-        trimCounter += 1;
         trimAllListeners();
         if (trimCounter >= forceAppendPauseSpentTimeThreshold) {
           logger.debug(
@@ -372,9 +374,9 @@ public class MemoryManager {
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
+          trimCounter += 1;
         }
         logger.debug("Trigger action: TRIM");
-        trimCounter += 1;
         trimAllListeners();
         if (trimCounter >= forceAppendPauseSpentTimeThreshold) {
           logger.debug(
