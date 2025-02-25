@@ -668,6 +668,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(MASTER_SLOT_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT)
   def masterSlotAssignExtraSlots: Int = get(MASTER_SLOT_ASSIGN_EXTRA_SLOTS)
   def masterSlotAssignMaxWorkers: Int = get(MASTER_SLOT_ASSIGN_MAX_WORKERS)
+  def masterSlotAssignShuffleAvailableWorkers: Boolean =
+    get(MASTER_SLOT_ASSIGN_SHUFFLE_AVAILABLE_WORKERS)
   def initialEstimatedPartitionSize: Long = get(ESTIMATED_PARTITION_SIZE_INITIAL_SIZE)
   def estimatedPartitionSizeUpdaterInitialDelay: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
@@ -2940,6 +2942,15 @@ object CelebornConf extends Logging {
         s"from Master side and Client side, see `celeborn.client.slot.assign.maxWorkers`.")
       .intConf
       .createWithDefault(10000)
+
+  val MASTER_SLOT_ASSIGN_SHUFFLE_AVAILABLE_WORKERS: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.slot.assign.shuffleAvailableWorkers")
+      .categories("master")
+      .version("0.6.0")
+      .doc("Whether to shuffle the available workers before selecting to randomize the order for " +
+        "rack awareness during slot assign.")
+      .booleanConf
+      .createWithDefault(false)
 
   val ESTIMATED_PARTITION_SIZE_INITIAL_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.master.estimatedPartitionSize.initialSize")

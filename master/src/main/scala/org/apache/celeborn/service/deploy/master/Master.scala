@@ -197,6 +197,7 @@ private[celeborn] class Master(
     JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
 
   private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
+  private val slotsAssignShuffleAvailableWorkers = conf.masterSlotAssignShuffleAvailableWorkers
   private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
   private val slotsAssignLoadAwareDiskGroupGradient =
     conf.masterSlotAssignLoadAwareDiskGroupGradient
@@ -889,8 +890,11 @@ private[celeborn] class Master(
         else Math.min(slotsAssignMaxWorkers, requestSlots.maxWorkers)),
       numAvailableWorkers)
 
-    if (numWorkers < numAvailableWorkers && requestSlots.shouldReplicate && requestSlots.shouldRackAware) {
-      // Shuffle the available workers to randomize the order for rack awareness during slot offering
+    if (slotsAssignShuffleAvailableWorkers &&
+      numWorkers < numAvailableWorkers &&
+      requestSlots.shouldReplicate &&
+      requestSlots.shouldRackAware) {
+      // Shuffle the available workers before selecting to randomize the order for rack awareness during slot assign
       Collections.shuffle(availableWorkers)
     }
 
