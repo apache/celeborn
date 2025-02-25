@@ -30,25 +30,26 @@ public class CelebornPartitionUtilSuiteJ {
   @Test
   public void testSkewPartitionSplitIgnoreEmpty1() {
     ArrayList<PartitionLocation> locations = new ArrayList<>();
-    PartitionLocation loc = genPartitionLocation(0, new Long[]{0L, 20L, 30L});
+    PartitionLocation loc = genPartitionLocation(0, new Long[] {0L, 20L, 30L});
     List<Long> offsets = loc.getStorageInfo().getChunkOffsets();
     locations.add(loc);
     int partitionNumber = 10;
     Long sum = 0L;
-    for(int i = 0; i < partitionNumber; i++) {
+    for (int i = 0; i < partitionNumber; i++) {
       Map<String, Pair<Integer, Integer>> res =
-              CelebornPartitionUtil.splitSkewedPartitionLocations(locations, partitionNumber, i);
-      if(!res.isEmpty()) {
+          CelebornPartitionUtil.splitSkewedPartitionLocations(locations, partitionNumber, i);
+      if (!res.isEmpty()) {
         int l = res.get(loc.getUniqueId()).getLeft();
         int r = res.get(loc.getUniqueId()).getRight();
         Assert.assertTrue(r >= l);
-        for(int j = l; j <= r; j++) {
+        for (int j = l; j <= r; j++) {
           sum += offsets.get(j + 1) - offsets.get(j);
         }
       }
     }
     Assert.assertEquals(offsets.get(offsets.size() - 1), sum);
   }
+
   @Test
   public void testSkewPartitionSplit() {
 
