@@ -78,4 +78,4 @@ scala-reflect/2.12.18//scala-reflect-2.12.18.jar
 slf4j-api/1.7.36//slf4j-api-1.7.36.jar
 snakeyaml/2.2//snakeyaml-2.2.jar
 snappy-java/1.1.10.5//snappy-java-1.1.10.5.jar
-zstd-jni/1.5.2-1//zstd-jni-1.5.2-1.jar
+zstd-jni/1.5.7-1//zstd-jni-1.5.7-1.jar

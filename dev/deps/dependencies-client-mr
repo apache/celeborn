@@ -199,4 +199,4 @@ woodstox-core/5.4.0//woodstox-core-5.4.0.jar
 xz/1.0//xz-1.0.jar
 zookeeper-jute/3.6.3//zookeeper-jute-3.6.3.jar
 zookeeper/3.6.3//zookeeper-3.6.3.jar
-zstd-jni/1.5.2-1//zstd-jni-1.5.2-1.jar
+zstd-jni/1.5.7-1//zstd-jni-1.5.7-1.jar

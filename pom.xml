@@ -100,7 +100,7 @@
     <slf4j.version>1.7.36</slf4j.version>
     <roaringbitmap.version>1.0.6</roaringbitmap.version>
     <snakeyaml.version>2.2</snakeyaml.version>
-    <zstd-jni.version>1.5.2-1</zstd-jni.version>
+    <zstd-jni.version>1.5.7-1</zstd-jni.version>
     <kubernetes-client.version>6.7.0</kubernetes-client.version>
     <rocksdbjni.version>9.5.2</rocksdbjni.version>
     <jackson.version>2.15.3</jackson.version>
