@@ -224,14 +224,10 @@ public class DfsPartitionReader implements PartitionReader {
                 try {
                   dfsInputStream.readFully(offset, buffer);
                 } catch (IOException e) {
-                  logger.warn(
-                      "read DFS {} failed will retry, error detail {}",
-                      dataFilePath,
-                      e);
+                  logger.warn("read DFS {} failed will retry, error detail {}", dataFilePath, e);
                   try {
                     dfsInputStream.close();
-                    dfsInputStream =
-                        hadoopFs.open(dataFilePath);
+                    dfsInputStream = hadoopFs.open(dataFilePath);
                     dfsInputStream.readFully(offset, buffer);
                   } catch (IOException ex) {
                     logger.warn(
