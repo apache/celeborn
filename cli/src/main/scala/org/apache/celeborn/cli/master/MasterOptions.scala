@@ -77,6 +77,11 @@ final class MasterOptions {
   @Option(names = Array("--show-workers"), description = Array("Show registered workers"))
   private[master] var showWorkers: Boolean = _
 
+  @Option(
+    names = Array("--show-workers-topology"),
+    description = Array("Show registered workers topology"))
+  private[master] var showWorkersTopology: Boolean = _
+
   @Option(names = Array("--show-conf"), description = Array("Show master conf"))
   private[master] var showConf: Boolean = _
 
