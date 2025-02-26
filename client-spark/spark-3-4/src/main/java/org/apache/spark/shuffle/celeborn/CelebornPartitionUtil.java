@@ -85,7 +85,7 @@ public class CelebornPartitionUtil {
         if (currentOffset <= endOffset) {
           right = j - 1;
         }
-        if (left >= 0 && right >= 0) {
+        if (left >= 0 && right >= 0 && right >= left) {
           chunkRange.put(p.getUniqueId(), Pair.of(left, right));
         }
         j++;
