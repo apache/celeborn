@@ -226,6 +226,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/HandleResponse'
 
+  /api/v1/workers/topology:
+    get:
+      tags:
+        - Worker
+      operationId: getWorkersTopology
+      description: List all worker topology info of the master.
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopologyResponse'
+
   /api/v1/applications:
     get:
       tags:
@@ -841,6 +855,9 @@ components:
           type: integer
           format: int64
           description: The start time of the worker state.
+        networkLocation:
+          type: string
+          description: The network location of the worker.
       required:
         - host
         - rpcPort
@@ -949,6 +966,27 @@ components:
           description: The worker events.
           items:
             $ref: '#/components/schemas/WorkerEventData'
+
+    TopologyInfo:
+      type: object
+      properties:
+        networkLocation:
+          type: string
+          description: The network location.
+        workers:
+          type: array
+          description: The workers in the network location.
+          items:
+            type: string
+
+    TopologyResponse:
+      type: object
+      properties:
+        topologies:
+          type: array
+          description: The workers topology information.
+          items:
+            $ref: '#/components/schemas/TopologyInfo'
 
     WorkerId:
       type: object

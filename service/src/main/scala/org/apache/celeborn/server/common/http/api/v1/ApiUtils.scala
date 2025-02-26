@@ -57,6 +57,7 @@ object ApiUtils {
       .workerRef(Option(workerInfo.endpoint).map(_.toString).orNull)
       .workerState(workerInfo.workerStatus.getState.toString)
       .workerStateStartTime(workerInfo.workerStatus.getStateStartTime)
+      .networkLocation(workerInfo.networkLocation)
   }
 
   private def workerResourceConsumptions(workerInfo: WorkerInfo)

@@ -152,6 +152,25 @@ class WorkerResource extends ApiRequestContext {
       new HandleResponse().success(success).message(finalMsg)
     }
 
+  @Operation(description = "List all worker topology info of the master.")
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[TopologyResponse]))))
+  @GET
+  @Path("/topology")
+  def getWorkersTopology(): TopologyResponse = {
+    new TopologyResponse()
+      .topologies(
+        statusSystem.workersMap.values().asScala.groupBy(_.networkLocation).map {
+          case (networkLocation, workers) =>
+            new TopologyInfo()
+              .networkLocation(networkLocation)
+              .workers(workers.map(_.toUniqueId).toSeq.asJava)
+        }.toSeq.asJava)
+  }
+
   private def toWorkerEventType(eunmObj: EventTypeEnum): WorkerEventType = {
     eunmObj match {
       case EventTypeEnum.NONE => WorkerEventType.None
