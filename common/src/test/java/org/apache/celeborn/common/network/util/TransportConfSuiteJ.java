@@ -73,6 +73,11 @@ public class TransportConfSuiteJ {
     assertEquals(10000, transportConf.sslTrustStoreReloadIntervalMs());
   }
 
+  @Test
+  public void testSslHandshakeTimeoutMs() {
+    assertEquals(10000, transportConf.sslHandshakeTimeoutMs());
+  }
+
   // If a specific key is not set, it should be inherited from celeborn.ssl namespace
   @Test
   public void testInheritance() {
