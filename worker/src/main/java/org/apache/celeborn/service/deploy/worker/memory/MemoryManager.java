@@ -351,15 +351,16 @@ public class MemoryManager {
             // trimCounter cannot be increased when channels resume by PinnedMemory, otherwise
             // PauseSpentTime will be increased unexpectedly
             trimCounter += 1;
+            if (trimCounter >= forceAppendPauseSpentTimeThreshold) {
+              logger.debug(
+                  "Trigger action: TRIM for {} times, force to append pause spent time.",
+                  trimCounter);
+              appendPauseSpentTime(servingState);
+            }
           }
         }
         logger.debug("Trigger action: TRIM");
         trimAllListeners();
-        if (trimCounter >= forceAppendPauseSpentTimeThreshold) {
-          logger.debug(
-              "Trigger action: TRIM for {} times, force to append pause spent time.", trimCounter);
-          appendPauseSpentTime(servingState);
-        }
         break;
       case PUSH_AND_REPLICATE_PAUSED:
         if (!tryResumeByPinnedMemory(servingState, lastState)) {
@@ -375,14 +376,15 @@ public class MemoryManager {
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
           trimCounter += 1;
+          if (trimCounter >= forceAppendPauseSpentTimeThreshold) {
+            logger.debug(
+                "Trigger action: TRIM for {} times, force to append pause spent time.",
+                trimCounter);
+            appendPauseSpentTime(servingState);
+          }
         }
         logger.debug("Trigger action: TRIM");
         trimAllListeners();
-        if (trimCounter >= forceAppendPauseSpentTimeThreshold) {
-          logger.debug(
-              "Trigger action: TRIM for {} times, force to append pause spent time.", trimCounter);
-          appendPauseSpentTime(servingState);
-        }
         break;
       case NONE_PAUSED:
         // resume from paused mode, append pause spent time
