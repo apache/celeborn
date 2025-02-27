@@ -6093,10 +6093,10 @@ object CelebornConf extends Logging {
 
   val SSL_HANDSHAKE_TIMEOUT_MS: ConfigEntry[Long] =
     buildConf("celeborn.ssl.<module>.sslHandshakeTimeoutMs")
-      .categories("nextwork", "ssl")
+      .categories("network", "ssl")
       .version("0.6.0")
-      .doc("The timeout for the SSL handshake (in milliseconds). The default value is same as" +
-        " the default value in Netty.")
+      .doc("The timeout for the SSL handshake (in milliseconds). The default value is set to " +
+        "the current Netty default.")
       .timeConf(TimeUnit.MILLISECONDS)
       .checkValue(
         p => p > 0 && p <= Int.MaxValue,

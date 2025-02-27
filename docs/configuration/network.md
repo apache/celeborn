@@ -69,5 +69,5 @@ license: |
 | celeborn.ssl.&lt;module&gt;.trustStorePassword | &lt;undefined&gt; | false | Password for the trust store. | 0.5.0 |  | 
 | celeborn.ssl.&lt;module&gt;.trustStoreReloadIntervalMs | 10s | false | The interval at which the trust store should be reloaded (in milliseconds), when enabled. This setting is mostly only useful for server components, not applications. | 0.5.0 |  | 
 | celeborn.ssl.&lt;module&gt;.trustStoreReloadingEnabled | false | false | Whether the trust store should be reloaded periodically.<br/> This setting is mostly only useful for Celeborn services (masters, workers), and not applications. | 0.5.0 |  | 
-| celeborn.ssl.&lt;module&gt;.sslHandshakeTimeoutMs | 10s | false | The timeout for the SSL handshake (in milliseconds). The default value is same as the default value in Netty. | 0.6.0 |  | 
+| celeborn.ssl.&lt;module&gt;.sslHandshakeTimeoutMs | 10s | false | The timeout for the SSL handshake (in milliseconds). The default value is set to the current Netty default. | 0.6.0 |  | 
 <!--end-include-->
