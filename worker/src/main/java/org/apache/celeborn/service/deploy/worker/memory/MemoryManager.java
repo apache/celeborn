@@ -603,54 +603,29 @@ public class MemoryManager {
   }
 
   private boolean tryResumeByPinnedMemory(ServingState currentState, ServingState lastState) {
-if (pinnedMemoryCheckEnabled) {
-   long currentTime = System.currentTimeMillis();
-    if (currentTime - pinnedMemoryLastCheckTime >= pinnedMemoryCheckInterval) {
-      if (getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
-        pinnedMemoryLastCheckTime = currentTime;
-        resumingByPinnedMemory = true;
-        resumeByPinnedMemory(currentState);
-        return true;
-      }
-    } else {
-      if (resumingByPinnedMemory
-          && lastState != ServingState.NONE_PAUSED
-          && getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
-        // do nothing, keep resume for a while
-        logger.info(
-            "currentState: {}, keep resume for {}ms after last resumeByPinnedMemory",
-            currentState,
-            currentTime - pinnedMemoryLastCheckTime);
-        return true;
-      }
-    }
-}
-    
-return false;
-    if (!pinnedMemoryCheckEnabled) {
-      return false;
-    }
-    long currentTime = System.currentTimeMillis();
-    if (currentTime - pinnedMemoryLastCheckTime >= pinnedMemoryCheckInterval) {
-      if (getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
-        pinnedMemoryLastCheckTime = currentTime;
-        resumingByPinnedMemory = true;
-        resumeByPinnedMemory(currentState);
-        success = true;
-      }
-    } else {
-      if (resumingByPinnedMemory
-          && lastState != ServingState.NONE_PAUSED
-          && getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
-        // do nothing, keep resume for a while
-        logger.info(
-            "currentState: {}, keep resume for {}ms after last resumeByPinnedMemory",
-            currentState,
-            currentTime - pinnedMemoryLastCheckTime);
-        success = true;
+    if (pinnedMemoryCheckEnabled) {
+      long currentTime = System.currentTimeMillis();
+      if (currentTime - pinnedMemoryLastCheckTime >= pinnedMemoryCheckInterval) {
+        if (getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
+          pinnedMemoryLastCheckTime = currentTime;
+          resumingByPinnedMemory = true;
+          resumeByPinnedMemory(currentState);
+          return true;
+        }
+      } else {
+        if (resumingByPinnedMemory
+            && lastState != ServingState.NONE_PAUSED
+            && getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
+          // do nothing, keep resume for a while
+          logger.info(
+              "currentState: {}, keep resume for {}ms after last resumeByPinnedMemory",
+              currentState,
+              currentTime - pinnedMemoryLastCheckTime);
+          return true;
+        }
       }
     }
-    return success;
+    return false;
   }
 
   private void resumePush() {
