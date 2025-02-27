@@ -223,6 +223,11 @@ public class TransportConf {
     return celebornConf.maxSslEncryptedBlockSize(module);
   }
 
+  /** The timeout in milliseconds for the SSL handshake */
+  public int sslHandshakeTimeoutMs() {
+    return celebornConf.sslHandshakeTimeoutMs(module);
+  }
+
   // suppressing to ensure clarity of code.
   @SuppressWarnings("RedundantIfStatement")
   public boolean sslEnabledAndKeysAreValid() {

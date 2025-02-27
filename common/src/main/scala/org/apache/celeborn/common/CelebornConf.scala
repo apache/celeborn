@@ -1472,6 +1472,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   /**
+   * The timeout in milliseconds for the SSL handshake
+   */
+  def sslHandshakeTimeoutMs(module: String): Int = {
+    getSslConfig(SSL_HANDSHAKE_TIMEOUT_MS, module).toInt
+  }
+
+  /**
    * Internal config: the max size when chunking the stream with SSL
    */
   def maxSslEncryptedBlockSize(module: String): Int = {
@@ -6083,6 +6090,19 @@ object CelebornConf extends Logging {
         "used for SSL. Given use of self-signed certificate, auto ssl only provides over the wire encryption")
       .booleanConf
       .createWithDefault(false)
+
+  val SSL_HANDSHAKE_TIMEOUT_MS: ConfigEntry[Long] =
+    buildConf("celeborn.ssl.<module>.sslHandshakeTimeoutMs")
+      .categories("network", "ssl")
+      .version("0.6.0")
+      .doc("The timeout for the SSL handshake (in milliseconds). The default value is set to " +
+        s"the current Netty default. This is applicable for `${TransportModuleConstants.RPC_APP_MODULE}` " +
+        s"and `${TransportModuleConstants.RPC_SERVICE_MODULE}` modules")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(
+        p => p > 0 && p <= Int.MaxValue,
+        s"Invalid sslHandshakeTimeoutMs, must be a position number upto ${Int.MaxValue}")
+      .createWithDefaultString("10s")
 
   val SECRET_REDACTION_PATTERN =
     buildConf("celeborn.redaction.regex")
