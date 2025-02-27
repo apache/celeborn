@@ -633,6 +633,28 @@ object PbSerDeUtils {
         Mode.REPLICA
       }
 
+    val storageInfo =
+      if (pbPackedPartitionLocations.getFileSizesList.isEmpty ||
+        pbPackedPartitionLocations.getChunksOffsetsList.isEmpty) {
+        new StorageInfo(
+          StorageInfo.typesMap.get(pbPackedPartitionLocations.getTypes(index)),
+          pbPackedPartitionLocations.getMountPointsSet(
+            pbPackedPartitionLocations.getMountPoints(index)),
+          pbPackedPartitionLocations.getFinalResult(index),
+          filePath,
+          pbPackedPartitionLocations.getAvailableStorageTypes(index))
+      } else {
+        new StorageInfo(
+          StorageInfo.typesMap.get(pbPackedPartitionLocations.getTypes(index)),
+          pbPackedPartitionLocations.getMountPointsSet(
+            pbPackedPartitionLocations.getMountPoints(index)),
+          pbPackedPartitionLocations.getFinalResult(index),
+          filePath,
+          pbPackedPartitionLocations.getAvailableStorageTypes(index),
+          pbPackedPartitionLocations.getFileSizes(index),
+          pbPackedPartitionLocations.getChunksOffsets(index).getChunkOffsetList)
+      }
+
     new PartitionLocation(
       pbPackedPartitionLocations.getIds(index),
       pbPackedPartitionLocations.getEpoches(index),
@@ -643,15 +665,7 @@ object PbSerDeUtils {
       workerIdParts(4).toInt,
       mode,
       null,
-      new StorageInfo(
-        StorageInfo.typesMap.get(pbPackedPartitionLocations.getTypes(index)),
-        pbPackedPartitionLocations.getMountPointsSet(
-          pbPackedPartitionLocations.getMountPoints(index)),
-        pbPackedPartitionLocations.getFinalResult(index),
-        filePath,
-        pbPackedPartitionLocations.getAvailableStorageTypes(index),
-        pbPackedPartitionLocations.getFileSizes(index),
-        pbPackedPartitionLocations.getChunksOffsets(index).getChunkOffsetList),
+      storageInfo,
       Utils.byteStringToRoaringBitmap(pbPackedPartitionLocations.getMapIdBitMap(index)))
   }
 
