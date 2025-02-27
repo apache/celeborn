@@ -87,6 +87,7 @@ public class TransportClientFactory implements Closeable {
 
   private final int connectTimeoutMs;
   private final int connectionTimeoutMs;
+  private final int sslHandshakeTimeoutMs;
 
   private final int receiveBuf;
 
@@ -106,6 +107,7 @@ public class TransportClientFactory implements Closeable {
     this.numConnectionsPerPeer = conf.numConnectionsPerPeer();
     this.connectTimeoutMs = conf.connectTimeoutMs();
     this.connectionTimeoutMs = conf.connectionTimeoutMs();
+    this.sslHandshakeTimeoutMs = conf.sslHandshakeTimeoutMs();
     this.receiveBuf = conf.receiveBuf();
     this.sendBuf = conf.sendBuf();
     this.rand = new Random();
@@ -310,6 +312,7 @@ public class TransportClientFactory implements Closeable {
     }
     if (context.sslEncryptionEnabled()) {
       final SslHandler sslHandler = cf.channel().pipeline().get(SslHandler.class);
+      sslHandler.setHandshakeTimeoutMillis(sslHandshakeTimeoutMs);
       Future<Channel> future =
           sslHandler
               .handshakeFuture()

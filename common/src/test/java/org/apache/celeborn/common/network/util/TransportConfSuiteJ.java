@@ -73,6 +73,32 @@ public class TransportConfSuiteJ {
     assertEquals(10000, transportConf.sslTrustStoreReloadIntervalMs());
   }
 
+  @Test
+  public void testSslHandshakeTimeoutMs() {
+    assertEquals(10000, transportConf.sslHandshakeTimeoutMs());
+
+    final String module1 = "rpc_app";
+    final String module2 = "rpc_service";
+
+    final int module1HandshakeTimeoutMs = 20000;
+    final int module2HandshakeTimeoutMs = 30000;
+
+    CelebornConf conf = new CelebornConf();
+
+    conf.set(
+        "celeborn.ssl." + module1 + ".sslHandshakeTimeoutMs",
+        Integer.toString(module1HandshakeTimeoutMs));
+    conf.set(
+        "celeborn.ssl." + module2 + ".sslHandshakeTimeoutMs",
+        Integer.toString(module2HandshakeTimeoutMs));
+
+    TransportConf module1TransportConf = new TransportConf(module1, conf);
+    TransportConf module2TransportConf = new TransportConf(module2, conf);
+
+    assertEquals(module1HandshakeTimeoutMs, module1TransportConf.sslHandshakeTimeoutMs());
+    assertEquals(module2HandshakeTimeoutMs, module2TransportConf.sslHandshakeTimeoutMs());
+  }
+
   // If a specific key is not set, it should be inherited from celeborn.ssl namespace
   @Test
   public void testInheritance() {
