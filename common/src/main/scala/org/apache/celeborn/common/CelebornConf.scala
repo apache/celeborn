@@ -6096,7 +6096,8 @@ object CelebornConf extends Logging {
       .categories("network", "ssl")
       .version("0.6.0")
       .doc("The timeout for the SSL handshake (in milliseconds). The default value is set to " +
-        "the current Netty default.")
+        s"the current Netty default. This is applicable for `${TransportModuleConstants.RPC_APP_MODULE}` " +
+        s"and `${TransportModuleConstants.RPC_SERVICE_MODULE}` modules")
       .timeConf(TimeUnit.MILLISECONDS)
       .checkValue(
         p => p > 0 && p <= Int.MaxValue,
