@@ -76,15 +76,15 @@ public class TransportConfSuiteJ {
   @Test
   public void testSslHandshakeTimeoutMs() {
     assertEquals(10000, transportConf.sslHandshakeTimeoutMs());
-    
+
     final String module1 = "rpc_app";
     final String module2 = "rpc_service";
-    
+
     final int module1HandshakeTimeoutMs = 20000;
     final int module2HandshakeTimeoutMs = 30000;
 
     CelebornConf conf = new CelebornConf();
-    
+
     conf.set(
         "celeborn.ssl." + module1 + ".sslHandshakeTimeoutMs",
         Integer.toString(module1HandshakeTimeoutMs));
