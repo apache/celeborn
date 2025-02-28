@@ -44,7 +44,7 @@ class WorkerInfo(
     _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) extends Serializable
   with Logging {
   var networkLocation = NetworkTopology.DEFAULT_RACK
-  val version = Option(_version).getOrElse(WorkerInfo.UNKNOWN_VERSION)
+  var version = Option(_version).filter(_.nonEmpty).getOrElse(WorkerInfo.UNKNOWN_VERSION)
   var lastHeartbeat: Long = 0
   var workerStatus = WorkerStatus.normalWorkerStatus()
   val diskInfos =

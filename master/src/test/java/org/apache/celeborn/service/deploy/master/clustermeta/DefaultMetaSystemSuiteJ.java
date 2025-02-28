@@ -164,6 +164,26 @@ public class DefaultMetaSystemSuiteJ {
 
     assertEquals(3, statusSystem.workersMap.size());
     assertEquals(3, statusSystem.availableWorkers.size());
+
+    WorkerInfo workerInfo3 =
+        statusSystem.workersMap.values().stream()
+            .filter(w -> w.host().equals(HOSTNAME3))
+            .findFirst()
+            .get();
+    assertEquals(WorkerInfo.UNKNOWN_VERSION(), workerInfo3.version());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        INTERNALPORT3,
+        NETWORK_LOCATION3,
+        "v1",
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
+    assertEquals("v1", workerInfo3.version());
   }
 
   @Test
