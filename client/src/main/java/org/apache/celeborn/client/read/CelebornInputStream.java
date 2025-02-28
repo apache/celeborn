@@ -415,6 +415,27 @@ public abstract class CelebornInputStream extends InputStream {
       }
     }
 
+    private Boolean shouldReadFromPeerLocation(PartitionLocation location) {
+      if (!location.hasPeer()) {
+        return false;
+      }
+      if (!readSkewPartitionWithoutMapRange) {
+        return true;
+      }
+      Pair<Integer, Integer> chunkRange = partitionLocationToChunkRange.get(location.getUniqueId());
+      int startChunkIndex = chunkRange.getLeft();
+      int endChunkIndex = chunkRange.getRight();
+      List<Long> peerChunkOffsets = location.getPeer().getStorageInfo().chunkOffsets;
+      if (peerChunkOffsets.size() < endChunkIndex + 2) {
+        return false;
+      }
+      List<Long> primaryChunkOffsets = location.getStorageInfo().chunkOffsets;
+      return primaryChunkOffsets.get(startChunkIndex).equals(peerChunkOffsets.get(startChunkIndex))
+          && primaryChunkOffsets
+              .get(endChunkIndex + 1)
+              .equals(peerChunkOffsets.get(endChunkIndex + 1));
+    }
+
     private PartitionReader createReaderWithRetry(
         PartitionLocation location, PbStreamHandler pbStreamHandler) throws IOException {
       Exception lastException = null;
@@ -424,12 +445,20 @@ public abstract class CelebornInputStream extends InputStream {
           if (isExcluded(location)) {
             throw new CelebornIOException("Fetch data from excluded worker! " + location);
           }
+          if (location.hasPeer()) {
+            logger.debug(
+                "Primary {} Offset: {}, Replicate {} Offset {}",
+                location.getUniqueId(),
+                location.getStorageInfo().chunkOffsets,
+                location.getPeer().getUniqueId(),
+                location.getPeer().getStorageInfo().chunkOffsets);
+          }
           return createReader(location, pbStreamHandler, fetchChunkRetryCnt, fetchChunkMaxRetry);
         } catch (Exception e) {
           lastException = e;
           shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort(), e);
           fetchChunkRetryCnt++;
-          if (location.hasPeer() && !readSkewPartitionWithoutMapRange) {
+          if (shouldReadFromPeerLocation(location)) {
             // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
             // so sleep before next try.
             if (fetchChunkRetryCnt % 2 == 0) {
