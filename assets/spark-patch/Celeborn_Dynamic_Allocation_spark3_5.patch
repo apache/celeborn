@@ -21,39 +21,39 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
 diff --git a/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala b/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala
-index f06312c15cf..3d2e8f72d42 100644
+index 441bf60e489..8e967825fd3 100644
 --- a/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala
 +++ b/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala
-@@ -209,7 +209,7 @@ private[spark] class ExecutorAllocationManager(
+@@ -210,7 +210,7 @@ private[spark] class ExecutorAllocationManager(
        } else if (decommissionEnabled &&
            conf.get(config.STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED)) {
          logInfo("Shuffle data decommission is enabled without a shuffle service.")
 -      } else if (!testing) {
 +      } else if (!testing && !Utils.isCelebornEnabled(conf)) {
-         throw new SparkException("Dynamic allocation of executors requires the external " +
-           "shuffle service. You may enable this through spark.shuffle.service.enabled.")
-       }
+         throw new SparkException("Dynamic allocation of executors requires one of the " +
+           "following conditions: 1) enabling external shuffle service through " +
+           s"${config.SHUFFLE_SERVICE_ENABLED.key}. 2) enabling shuffle tracking through " +
 diff --git a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
-index 26be8c72bbc..e1cf377b533 100644
+index 89d16e57934..d7456d37e46 100644
 --- a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
 +++ b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
-@@ -2520,7 +2520,8 @@ private[spark] class DAGScheduler(
+@@ -2585,7 +2585,8 @@ private[spark] class DAGScheduler(
      // if the cluster manager explicitly tells us that the entire worker was lost, then
      // we know to unregister shuffle output.  (Note that "worker" specifically refers to the process
      // from a Standalone cluster, where the shuffle service lives in the Worker.)
--    val fileLost = workerHost.isDefined || !env.blockManager.externalShuffleServiceEnabled
+-    val fileLost = !sc.shuffleDriverComponents.supportsReliableStorage() &&
 +    val fileLost = !Utils.isCelebornEnabled(sc.getConf) &&
-+      (workerHost.isDefined || !env.blockManager.externalShuffleServiceEnabled)
++      !sc.shuffleDriverComponents.supportsReliableStorage() &&
+       (workerHost.isDefined || !env.blockManager.externalShuffleServiceEnabled)
      removeExecutorAndUnregisterOutputs(
        execId = execId,
-       fileLost = fileLost,
 diff --git a/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala b/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala
-index 124a27502fe..9a59a08e875 100644
+index 69b626029e4..d8361b87043 100644
 --- a/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala
 +++ b/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala
-@@ -1055,7 +1055,7 @@ private[spark] class TaskSetManager(
-     // data from this dead executor so we would need to rerun these tasks on other executors.
+@@ -1049,7 +1049,7 @@ private[spark] class TaskSetManager(
      val maybeShuffleMapOutputLoss = isShuffleMapTasks &&
+       !sched.sc.shuffleDriverComponents.supportsReliableStorage() &&
        (reason.isInstanceOf[ExecutorDecommission] || !env.blockManager.externalShuffleServiceEnabled)
 -    if (maybeShuffleMapOutputLoss && !isZombie) {
 +    if (maybeShuffleMapOutputLoss && !isZombie && !Utils.isCelebornEnabled(conf)) {
@@ -83,10 +83,10 @@ index 34878b8e561..169c25d05ec 100644
      def updateRunningTasks(delta: Int): Unit = {
        runningTasks = math.max(0, runningTasks + delta)
 diff --git a/core/src/main/scala/org/apache/spark/util/Utils.scala b/core/src/main/scala/org/apache/spark/util/Utils.scala
-index b4c9060f2e1..8ad92c20868 100644
+index 3b0efffedec..393fcad3576 100644
 --- a/core/src/main/scala/org/apache/spark/util/Utils.scala
 +++ b/core/src/main/scala/org/apache/spark/util/Utils.scala
-@@ -3271,6 +3271,9 @@ private[spark] object Utils extends Logging {
+@@ -3071,6 +3071,9 @@ private[spark] object Utils
      files.toSeq
    }
  
