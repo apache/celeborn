@@ -68,6 +68,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
       1,
       userIdentifier,
       PartitionType.REDUCE,
+      false,
       false)
 
     val source = new WorkerSource(celebornConf)
@@ -201,6 +202,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
       1,
       userIdentifier,
       PartitionType.REDUCE,
+      false,
       false)
 
     val flusher = new LocalFlusher(

@@ -60,8 +60,8 @@ abstract class TierWriterBase(
   var flusherBufferSize = 0L
   var chunkSize: Long = conf.shuffleChunkSize
 
-  @volatile var closed = false
-  @volatile var destroyed = false
+  @volatile var closed: Boolean = false
+  @volatile var destroyed: Boolean = false
 
   takeBuffer()
 
@@ -92,15 +92,15 @@ abstract class TierWriterBase(
     flushBuffer = inputBuffer
   }
 
+  // close and destroy need to be invoked in synchronized blocks
   def close(evict: Boolean = false): Long = {
+    ensureNotClosed()
     try {
-      ensureNotClosed()
       waitOnNoPending(numPendingWrites, false)
       closed = true
       finalFlush()
-
-      waitOnNoPending(notifier.numPendingFlushes, true)
       metaHandler.afterClose()
+      waitOnNoPending(notifier.numPendingFlushes, true)
     } finally {
       returnBuffer(false)
       try {
@@ -181,7 +181,8 @@ abstract class TierWriterBase(
               dupBuf.skipBytes(compressedSize)
             }
             dupBuf.release
-          } else metaHandler.afterFlush(numBytes)
+          }
+          metaHandler.afterFlush(numBytes)
         } else {
           notifier.checkException()
           // if a flush buffer is larger than the chunk size, it might contain data of multiple chunks
@@ -279,6 +280,10 @@ class MemoryTierWriter(
 
   val memoryFileStorageMaxFileSize: Long = conf.workerMemoryFileStorageMaxFileSize
 
+  storageManager.registerMemoryPartitionWriter(
+    partitionDataWriterContext.getPartitionDataWriter,
+    fileInfo)
+
   override def needEvict(): Boolean = {
     flushBuffer.readableBytes() > memoryFileStorageMaxFileSize && storageManager.localOrDfsStorageAvailable
   }
@@ -288,8 +293,10 @@ class MemoryTierWriter(
       // swap tier writer's flush buffer to memory tier writer's
       // and handle its release
       file.swapFlushBuffer(flushBuffer)
+      // close memory file writer after evict happened
       file.flush(false, true)
       val numBytes = flushBuffer.readableBytes()
+      logDebug(s"Evict ${numBytes} from memory to other tier")
       MemoryManager.instance.releaseMemoryFileStorage(numBytes)
       MemoryManager.instance.incrementDiskBuffer(numBytes)
       storageManager.unregisterMemoryPartitionWriterAndFileInfo(fileInfo, shuffleKey, filename)
@@ -368,8 +375,13 @@ class LocalTierWriter(
     else
       null
 
-  private val channel: FileChannel =
+  private lazy val channel: FileChannel =
     FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath);
+
+  storageManager.registerDiskFilePartitionWriter(
+    partitionDataWriterContext.getPartitionDataWriter,
+    partitionDataWriterContext.getWorkingDir,
+    fileInfo.asInstanceOf[DiskFileInfo])
 
   override def needEvict: Boolean = {
     false
@@ -403,8 +415,10 @@ class LocalTierWriter(
   override def evict(file: TierWriterBase): Unit = ???
 
   override def finalFlush(): Unit = {
-    if (flushBuffer != null && flushBuffer.readableBytes() > 0) {
-      flush(true)
+    flushLock.synchronized {
+      if (flushBuffer != null && flushBuffer.readableBytes() > 0) {
+        flush(true)
+      }
     }
   }
 
@@ -445,6 +459,10 @@ class LocalTierWriter(
       notifier.setException(e)
       throw e
     }
+  }
+
+  def getFlusher(): Flusher = {
+    flusher
   }
 }
 
@@ -518,6 +536,11 @@ class DfsTierWriter(
       hadoopFs.create(hdfsFileInfo.getDfsPath, true).close()
   }
 
+  storageManager.registerDiskFilePartitionWriter(
+    partitionDataWriterContext.getPartitionDataWriter,
+    partitionDataWriterContext.getWorkingDir,
+    fileInfo.asInstanceOf[DiskFileInfo])
+
   override def needEvict: Boolean = {
     false
   }
@@ -560,8 +583,11 @@ class DfsTierWriter(
   override def evict(file: TierWriterBase): Unit = ???
 
   override def finalFlush(): Unit = {
-    if (flushBuffer != null && flushBuffer.readableBytes() > 0) {
-      flush(true)
+    flushLock.synchronized {
+      if (flushBuffer != null && flushBuffer.readableBytes() > 0) {
+        flush(true)
+      }
+
     }
   }
 
@@ -606,5 +632,9 @@ class DfsTierWriter(
       notifier.setException(e)
       throw e
     }
+  }
+
+  def getFlusher(): Flusher = {
+    flusher
   }
 }

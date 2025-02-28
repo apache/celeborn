@@ -17,11 +17,12 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
+import java.io.File;
+
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
-import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.util.Utils;
 
 public class PartitionDataWriterContext {
@@ -35,7 +36,10 @@ public class PartitionDataWriterContext {
   private final boolean partitionSplitEnabled;
   private final String shuffleKey;
   private final PartitionType partitionType;
-  private StorageInfo.Type storageType = null;
+  private final boolean isSegmentGranularityVisible;
+
+  private File workingDir;
+  private PartitionDataWriter partitionDataWriter;
 
   public PartitionDataWriterContext(
       long splitThreshold,
@@ -46,7 +50,8 @@ public class PartitionDataWriterContext {
       int shuffleId,
       UserIdentifier userIdentifier,
       PartitionType partitionType,
-      boolean partitionSplitEnabled) {
+      boolean partitionSplitEnabled,
+      boolean isSegmentGranularityVisible) {
     this.splitThreshold = splitThreshold;
     this.partitionSplitMode = partitionSplitMode;
     this.rangeReadFilter = rangeReadFilter;
@@ -57,6 +62,7 @@ public class PartitionDataWriterContext {
     this.partitionSplitEnabled = partitionSplitEnabled;
     this.partitionType = partitionType;
     this.shuffleKey = Utils.makeShuffleKey(appId, shuffleId);
+    this.isSegmentGranularityVisible = isSegmentGranularityVisible;
   }
 
   public long getSplitThreshold() {
@@ -99,11 +105,53 @@ public class PartitionDataWriterContext {
     return partitionType;
   }
 
-  public StorageInfo.Type getStorageType() {
-    return storageType;
+  public boolean isSegmentGranularityVisible() {
+    return isSegmentGranularityVisible;
   }
 
-  public void setStorageType(StorageInfo.Type storageType) {
-    this.storageType = storageType;
+  public File getWorkingDir() {
+    return workingDir;
+  }
+
+  public void setWorkingDir(File workingDir) {
+    this.workingDir = workingDir;
+  }
+
+  public PartitionDataWriter getPartitionDataWriter() {
+    return partitionDataWriter;
+  }
+
+  public void setPartitionDataWriter(PartitionDataWriter partitionDataWriter) {
+    this.partitionDataWriter = partitionDataWriter;
+  }
+
+  @Override
+  public String toString() {
+    return "PartitionDataWriterContext{"
+        + "splitThreshold="
+        + splitThreshold
+        + ", partitionSplitMode="
+        + partitionSplitMode
+        + ", rangeReadFilter="
+        + rangeReadFilter
+        + ", partitionLocation="
+        + partitionLocation
+        + ", appId='"
+        + appId
+        + '\''
+        + ", shuffleId="
+        + shuffleId
+        + ", userIdentifier="
+        + userIdentifier
+        + ", partitionSplitEnabled="
+        + partitionSplitEnabled
+        + ", shuffleKey='"
+        + shuffleKey
+        + '\''
+        + ", partitionType="
+        + partitionType
+        + ", isSegmentGranularityVisible="
+        + isSegmentGranularityVisible
+        + '}';
   }
 }
