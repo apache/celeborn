@@ -47,12 +47,15 @@ import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, D
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
-import org.apache.celeborn.service.deploy.worker.shuffledb.{DB, DBBackend, DBProvider}
+import org.apache.celeborn.service.deploy.worker.shuffledb.{DB, DBBackend, DBProvider, StoreVersion}
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
 import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapPartitionFileWriter
 
 final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
+
+  private val STORAGE_MANAGER_KEY_PREFIX = "STORAGE-MANAGER-KEY"
+
   // fileInfos and partitionDataWriters are one to one mapping
   // mount point -> file writer
   val workingDirWriters =
@@ -214,6 +217,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       activeTypes) || hdfsDir.nonEmpty || !diskInfos.isEmpty || s3Dir.nonEmpty
   }
 
+  override def getKeyPrefix: String = {
+    STORAGE_MANAGER_KEY_PREFIX
+  }
+
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
     if (diskStatus == DiskStatus.CRITICAL_ERROR) {
       logInfo(s"Disk $mountPoint faces critical error, will remove its disk operator.")
@@ -307,11 +314,11 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     if (db != null) {
       val cache = JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
       val itr = db.iterator
-      itr.seek(SHUFFLE_KEY_PREFIX.getBytes(StandardCharsets.UTF_8))
+      itr.seek(getKeyPrefix.getBytes(StandardCharsets.UTF_8))
       while (itr.hasNext) {
         val entry = itr.next
         val key = new String(entry.getKey, StandardCharsets.UTF_8)
-        if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
+        if (key.startsWith(getKeyPrefix)) {
           val shuffleKey = parseDbShuffleKey(key)
           try {
             val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue, cache, mountPoints)
@@ -322,6 +329,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           } catch {
             case exception: Exception =>
               logError(s"Reload DB: $shuffleKey failed.", exception)
+              throw exception
           }
         } else {
           return

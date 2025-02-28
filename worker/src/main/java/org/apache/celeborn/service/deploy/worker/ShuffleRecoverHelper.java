@@ -22,17 +22,20 @@ import java.nio.charset.StandardCharsets;
 import org.apache.celeborn.service.deploy.worker.shuffledb.StoreVersion;
 
 public abstract class ShuffleRecoverHelper {
-  protected String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
   protected StoreVersion CURRENT_VERSION = new StoreVersion(1, 0);
 
   protected byte[] dbShuffleKey(String shuffleKey) {
-    return (SHUFFLE_KEY_PREFIX + ";" + shuffleKey).getBytes(StandardCharsets.UTF_8);
+    return (getKeyPrefix() + ";" + shuffleKey).getBytes(StandardCharsets.UTF_8);
   }
 
   protected String parseDbShuffleKey(String s) {
-    if (!s.startsWith(SHUFFLE_KEY_PREFIX)) {
-      throw new IllegalArgumentException("Expected a string starting with " + SHUFFLE_KEY_PREFIX);
+    if (!s.startsWith(getKeyPrefix())) {
+      throw new IllegalArgumentException("Expected a string starting with " + getKeyPrefix());
     }
-    return s.substring(SHUFFLE_KEY_PREFIX.length() + 1);
+    return s.substring(getKeyPrefix().length() + 1);
+  }
+
+  protected String getKeyPrefix() {
+    return "SHUFFLE-KEY";
   }
 }

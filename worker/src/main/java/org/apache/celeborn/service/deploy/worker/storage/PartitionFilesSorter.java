@@ -40,6 +40,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import org.apache.commons.io.IOUtils;
@@ -71,6 +72,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private static final Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
 
   private static final StoreVersion CURRENT_VERSION = new StoreVersion(1, 0);
+  private static final String PARTITION_FILES_SORTER_KEY_PREFIX = "PARTITION-FILES-SORTER-KEY";
   private static final String RECOVERY_SORTED_FILES_FILE_NAME_PREFIX = "sortedFiles";
   private File recoverFile;
   private volatile boolean shutdown = false;
@@ -175,6 +177,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             logger.warn("Sort scheduler thread is shutting down, detail: ", e);
           }
         });
+  }
+
+  @Override
+  public String getKeyPrefix() {
+    return PARTITION_FILES_SORTER_KEY_PREFIX;
   }
 
   public int getPendingSortTaskCount() {
@@ -418,14 +425,14 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     indexCache.invalidateAll();
   }
 
-  private void reloadAndCleanSortedShuffleFiles(DB db) {
+  private void reloadAndCleanSortedShuffleFiles(DB db) throws InvalidProtocolBufferException {
     if (db != null) {
       DBIterator itr = db.iterator();
-      itr.seek(SHUFFLE_KEY_PREFIX.getBytes(StandardCharsets.UTF_8));
+      itr.seek(getKeyPrefix().getBytes(StandardCharsets.UTF_8));
       while (itr.hasNext()) {
         Map.Entry<byte[], byte[]> entry = itr.next();
         String key = new String(entry.getKey(), StandardCharsets.UTF_8);
-        if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
+        if (key.startsWith(getKeyPrefix())) {
           String shuffleKey = parseDbShuffleKey(key);
           try {
             Set<String> sortedFiles = PbSerDeUtils.fromPbSortedShuffleFileSet(entry.getValue());
@@ -434,7 +441,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             sortedFilesDb.delete(entry.getKey());
           } catch (Exception exception) {
             logger.error("Reload DB: {} failed.", shuffleKey, exception);
+            throw exception;
           }
+        } else {
+          return;
         }
       }
     }
