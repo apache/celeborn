@@ -462,4 +462,18 @@ public class SparkUtils {
       sparkContext.addSparkListener(listener);
     }
   }
+
+  private static final DynMethods.UnboundMethod isCelebornSkewShuffle_METHOD =
+      DynMethods.builder("isCelebornSkewedShuffle")
+          .hiddenImpl("org.apache.spark.celeborn.CelebornShuffleState", Integer.TYPE)
+          .orNoop()
+          .build();
+
+  public static boolean isCelebornSkewShuffleOrChildShuffle(int sparkShuffleId) {
+    if (!isCelebornSkewShuffle_METHOD.isNoop()) {
+      return isCelebornSkewShuffle_METHOD.invoke(sparkShuffleId);
+    } else {
+      return false;
+    }
+  }
 }
