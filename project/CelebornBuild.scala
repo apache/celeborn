@@ -581,12 +581,31 @@ object CeleborMPU {
 }
 
 object CelebornCommon {
+  import scala.sys.process.Process
+  def buildenv = Process(Seq("uname")).!!.trim.replaceFirst("[^A-Za-z0-9].*", "").toLowerCase
+  def bashpath = Process(Seq("where", "bash")).!!.split("[\r\n]+").head.replace('\\', '/')
+  lazy val buildInfoSettings = Seq(
+    (Compile / resourceGenerators) += Def.task {
+      val buildScript = baseDirectory.value + "/../build/celeborn-build-info"
+      val targetDir = baseDirectory.value + "/target/extra-resources/"
+      // support Windows build under cygwin/mingw64, etc
+      val bash = buildenv match {
+        case "cygwin" | "msys2" | "mingw64" | "clang64" => bashpath
+        case _ => "bash"
+      }
+      val command = Seq(bash, buildScript, targetDir, version.value)
+      Process(command).!!
+      val propsFile = baseDirectory.value / "target" / "extra-resources" / "celeborn-version-info.properties"
+      Seq(propsFile)
+    }.taskValue
+  )
 
 
   lazy val common = Project("celeborn-common", file("common"))
     .dependsOn(CelebornSpi.spi)
     .settings (
       commonSettings,
+      buildInfoSettings,
       protoSettings,
       libraryDependencies ++= Seq(
         Dependencies.protobufJava,

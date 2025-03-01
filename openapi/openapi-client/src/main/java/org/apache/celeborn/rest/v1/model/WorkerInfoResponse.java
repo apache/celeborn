@@ -51,7 +51,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkerInfoResponse.JSON_PROPERTY_WORKER_STATE_START_TIME,
   WorkerInfoResponse.JSON_PROPERTY_IS_REGISTERED,
   WorkerInfoResponse.JSON_PROPERTY_IS_SHUTDOWN,
-  WorkerInfoResponse.JSON_PROPERTY_IS_DECOMMISSIONING
+  WorkerInfoResponse.JSON_PROPERTY_IS_DECOMMISSIONING,
+  WorkerInfoResponse.JSON_PROPERTY_VERSION
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class WorkerInfoResponse {
@@ -105,6 +106,9 @@ public class WorkerInfoResponse {
 
   public static final String JSON_PROPERTY_IS_DECOMMISSIONING = "isDecommissioning";
   private Boolean isDecommissioning;
+
+  public static final String JSON_PROPERTY_VERSION = "version";
+  private String version;
 
   public WorkerInfoResponse() {
   }
@@ -550,6 +554,31 @@ public class WorkerInfoResponse {
     this.isDecommissioning = isDecommissioning;
   }
 
+  public WorkerInfoResponse version(String version) {
+    
+    this.version = version;
+    return this;
+  }
+
+  /**
+   * The version of the worker.
+   * @return version
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_VERSION)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public String getVersion() {
+    return version;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_VERSION)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setVersion(String version) {
+    this.version = version;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -575,12 +604,13 @@ public class WorkerInfoResponse {
         Objects.equals(this.workerStateStartTime, workerInfoResponse.workerStateStartTime) &&
         Objects.equals(this.isRegistered, workerInfoResponse.isRegistered) &&
         Objects.equals(this.isShutdown, workerInfoResponse.isShutdown) &&
-        Objects.equals(this.isDecommissioning, workerInfoResponse.isDecommissioning);
+        Objects.equals(this.isDecommissioning, workerInfoResponse.isDecommissioning) &&
+        Objects.equals(this.version, workerInfoResponse.version);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, slotUsed, lastHeartbeatTimestamp, heartbeatElapsedSeconds, diskInfos, resourceConsumptions, workerRef, workerState, workerStateStartTime, isRegistered, isShutdown, isDecommissioning);
+    return Objects.hash(host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, slotUsed, lastHeartbeatTimestamp, heartbeatElapsedSeconds, diskInfos, resourceConsumptions, workerRef, workerState, workerStateStartTime, isRegistered, isShutdown, isDecommissioning, version);
   }
 
   @Override
@@ -604,6 +634,7 @@ public class WorkerInfoResponse {
     sb.append("    isRegistered: ").append(toIndentedString(isRegistered)).append("\n");
     sb.append("    isShutdown: ").append(toIndentedString(isShutdown)).append("\n");
     sb.append("    isDecommissioning: ").append(toIndentedString(isDecommissioning)).append("\n");
+    sb.append("    version: ").append(toIndentedString(version)).append("\n");
     sb.append("}");
     return sb.toString();
   }

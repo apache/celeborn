@@ -293,6 +293,7 @@ private[celeborn] class Worker(
       fetchPort,
       replicatePort,
       internalPort,
+      org.apache.celeborn.common.CELEBORN_VERSION,
       diskInfos,
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption])
 
@@ -513,6 +514,7 @@ private[celeborn] class Worker(
     super.initialize()
     logInfo(s"Starting Worker $host:$pushPort:$fetchPort:$replicatePort" +
       s" with ${workerInfo.diskInfos} slots.")
+    logInfo(s"Running Celeborn version ${org.apache.celeborn.common.CELEBORN_VERSION}")
     registerWithMaster()
 
     // start heartbeat
@@ -561,6 +563,7 @@ private[celeborn] class Worker(
     rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
 
     logInfo("Worker started.")
+    Utils.printVersion()
     rpcEnv.awaitTermination()
     if (conf.internalPortEnabled) {
       internalRpcEnvInUse.awaitTermination()
@@ -646,6 +649,7 @@ private[celeborn] class Worker(
               replicatePort,
               internalPort,
               networkLocation,
+              org.apache.celeborn.common.CELEBORN_VERSION,
               // Use WorkerInfo's diskInfo since re-register when heartbeat return not-registered,
               // StorageManager have update the disk info.
               workerInfo.diskInfos.asScala.toMap,

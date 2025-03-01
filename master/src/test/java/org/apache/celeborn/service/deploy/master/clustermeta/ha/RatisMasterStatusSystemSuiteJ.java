@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -298,6 +299,7 @@ public class RatisMasterStatusSystemSuiteJ {
           REPLICATEPORT1,
           INTERNALPORT1,
           NETWORK_LOCATION1,
+          null,
           disks1,
           userResourceConsumption1,
           getNewReqeustId());
@@ -322,6 +324,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT1,
         INTERNALPORT1,
         NETWORK_LOCATION1,
+        null,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -333,6 +336,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT2,
         INTERNALPORT2,
         NETWORK_LOCATION2,
+        null,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -344,6 +348,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT3,
         INTERNALPORT3,
         NETWORK_LOCATION3,
+        null,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -360,6 +365,43 @@ public class RatisMasterStatusSystemSuiteJ {
     assertWorkers(STATUSSYSTEM1.workersMap.values());
     assertWorkers(STATUSSYSTEM2.workersMap.values());
     assertWorkers(STATUSSYSTEM3.workersMap.values());
+
+    WorkerInfo workerInfo13 =
+        STATUSSYSTEM1.workersMap.values().stream()
+            .filter(w -> w.host().equals(HOSTNAME3))
+            .findFirst()
+            .get();
+    WorkerInfo workerInfo23 =
+        STATUSSYSTEM1.workersMap.values().stream()
+            .filter(w -> w.host().equals(HOSTNAME3))
+            .findFirst()
+            .get();
+    WorkerInfo workerInfo33 =
+        STATUSSYSTEM1.workersMap.values().stream()
+            .filter(w -> w.host().equals(HOSTNAME3))
+            .findFirst()
+            .get();
+    assertEquals(WorkerInfo.UNKNOWN_VERSION(), workerInfo13.version());
+    assertEquals(WorkerInfo.UNKNOWN_VERSION(), workerInfo23.version());
+    assertEquals(WorkerInfo.UNKNOWN_VERSION(), workerInfo33.version());
+
+    statusSystem.handleRegisterWorker(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        INTERNALPORT3,
+        NETWORK_LOCATION3,
+        "v1",
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
+    Thread.sleep(3000L);
+
+    assertEquals("v1", workerInfo13.version());
+    assertEquals("v1", workerInfo23.version());
+    assertEquals("v1", workerInfo33.version());
   }
 
   private void assertWorkers(Collection<WorkerInfo> workerInfos) {
@@ -410,6 +452,7 @@ public class RatisMasterStatusSystemSuiteJ {
         workerInfo1.replicatePort(),
         workerInfo1.internalPort(),
         workerInfo1.networkLocation(),
+        workerInfo1.version(),
         workerInfo1.diskInfos(),
         workerInfo1.userResourceConsumption(),
         getNewReqeustId());
@@ -421,6 +464,7 @@ public class RatisMasterStatusSystemSuiteJ {
         workerInfo2.replicatePort(),
         workerInfo2.internalPort(),
         workerInfo2.networkLocation(),
+        workerInfo2.version(),
         workerInfo2.diskInfos(),
         workerInfo2.userResourceConsumption(),
         getNewReqeustId());
@@ -463,6 +507,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT1,
         INTERNALPORT1,
         NETWORK_LOCATION1,
+        null,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -474,6 +519,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT2,
         INTERNALPORT2,
         NETWORK_LOCATION2,
+        null,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -485,6 +531,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT3,
         INTERNALPORT3,
         NETWORK_LOCATION3,
+        null,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -515,6 +562,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT1,
         INTERNALPORT1,
         NETWORK_LOCATION1,
+        null,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -526,6 +574,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT2,
         INTERNALPORT2,
         NETWORK_LOCATION2,
+        null,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -537,6 +586,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT3,
         INTERNALPORT3,
         NETWORK_LOCATION3,
+        null,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -549,6 +599,7 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             INTERNALPORT1,
+            null,
             disks1,
             userResourceConsumption1);
     WorkerInfo workerInfo2 =
@@ -623,6 +674,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT1,
         INTERNALPORT1,
         NETWORK_LOCATION1,
+        null,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -634,6 +686,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT2,
         INTERNALPORT2,
         NETWORK_LOCATION3,
+        null,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -645,6 +698,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT3,
         INTERNALPORT3,
         NETWORK_LOCATION3,
+        null,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -713,6 +767,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT1,
         INTERNALPORT1,
         NETWORK_LOCATION1,
+        null,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -724,6 +779,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT2,
         INTERNALPORT2,
         NETWORK_LOCATION2,
+        null,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -735,6 +791,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT3,
         INTERNALPORT3,
         NETWORK_LOCATION3,
+        null,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -794,6 +851,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT1,
         INTERNALPORT1,
         NETWORK_LOCATION1,
+        null,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -805,6 +863,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT2,
         INTERNALPORT2,
         NETWORK_LOCATION2,
+        null,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -816,6 +875,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT3,
         INTERNALPORT3,
         NETWORK_LOCATION3,
+        null,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -875,6 +935,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT1,
         INTERNALPORT1,
         NETWORK_LOCATION1,
+        null,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -886,6 +947,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT2,
         INTERNALPORT2,
         NETWORK_LOCATION2,
+        null,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -897,6 +959,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT3,
         INTERNALPORT3,
         NETWORK_LOCATION3,
+        null,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -996,6 +1059,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT1,
         INTERNALPORT1,
         NETWORK_LOCATION1,
+        null,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -1007,6 +1071,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT2,
         INTERNALPORT2,
         NETWORK_LOCATION2,
+        null,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -1018,6 +1083,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT3,
         INTERNALPORT3,
         NETWORK_LOCATION3,
+        null,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -1229,6 +1295,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT1,
         INTERNALPORT1,
         NETWORK_LOCATION1,
+        null,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -1240,6 +1307,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT2,
         INTERNALPORT2,
         NETWORK_LOCATION2,
+        null,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -1251,6 +1319,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT3,
         INTERNALPORT3,
         NETWORK_LOCATION3,
+        null,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -1293,6 +1362,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT1,
         INTERNALPORT1,
         NETWORK_LOCATION1,
+        null,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -1304,6 +1374,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT2,
         INTERNALPORT2,
         NETWORK_LOCATION2,
+        null,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -1315,6 +1386,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT3,
         INTERNALPORT3,
         NETWORK_LOCATION3,
+        null,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -1419,6 +1491,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT1,
         INTERNALPORT1,
         NETWORK_LOCATION1,
+        null,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -1430,6 +1503,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT2,
         INTERNALPORT2,
         NETWORK_LOCATION2,
+        null,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -1441,6 +1515,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT3,
         INTERNALPORT3,
         NETWORK_LOCATION3,
+        null,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
@@ -1530,6 +1605,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT1,
         INTERNALPORT1,
         NETWORK_LOCATION1,
+        null,
         disks1,
         userResourceConsumption1,
         getNewReqeustId());
@@ -1541,6 +1617,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT2,
         INTERNALPORT2,
         NETWORK_LOCATION2,
+        null,
         disks2,
         userResourceConsumption2,
         getNewReqeustId());
@@ -1552,6 +1629,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT3,
         INTERNALPORT3,
         NETWORK_LOCATION3,
+        null,
         disks3,
         userResourceConsumption3,
         getNewReqeustId());

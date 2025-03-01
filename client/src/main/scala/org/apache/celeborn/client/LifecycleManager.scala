@@ -180,6 +180,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   rpcEnv.setupEndpoint(RpcNameConstants.LIFECYCLE_MANAGER_EP, this)
 
   logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")
+  Utils.printVersion()
 
   private var masterRpcEnvInUse = rpcEnv
   private var workerRpcEnvInUse = rpcEnv
