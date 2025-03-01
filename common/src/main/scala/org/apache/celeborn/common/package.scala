@@ -20,7 +20,7 @@ package org.apache.celeborn
 package object common {
   val CELEBORN_VERSION: String = CelebornBuildInfo.celeborn_version
   val CELEBORN_BRANCH: String = CelebornBuildInfo.celeborn_branch
-  val CELEBORN_REVISION: String = CelebornBuildInfo.celeborn_version
+  val CELEBORN_REVISION: String = CelebornBuildInfo.celeborn_revision
   val CELEBORN_BUILD_USER: String = CelebornBuildInfo.celeborn_build_user
   val CELEBORN_BUILD_DATE: String = CelebornBuildInfo.celeborn_build_date
 }

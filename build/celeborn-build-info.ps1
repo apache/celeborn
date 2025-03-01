@@ -17,7 +17,7 @@
 
 # This script generates the build info for celeborn and places it into the celeborn-version-info.properties file.
 # Arguments:
-#   ResourceDir - The target directory where properties file would be created. [./core/target/extra-resources]
+#   ResourceDir - The target directory where properties file would be created. [./common/target/extra-resources]
 #   CelebornVersion - The current version of celeborn
 
 param(

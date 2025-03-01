@@ -1514,6 +1514,7 @@ private[celeborn] class Master(
   override def initialize(): Unit = {
     super.initialize()
     logInfo("Master started.")
+    Utils.printVersion()
     rpcEnv.awaitTermination()
     if (conf.internalPortEnabled) {
       internalRpcEnvInUse.awaitTermination()

@@ -563,6 +563,7 @@ private[celeborn] class Worker(
     rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
 
     logInfo("Worker started.")
+    Utils.printVersion()
     rpcEnv.awaitTermination()
     if (conf.internalPortEnabled) {
       internalRpcEnvInUse.awaitTermination()

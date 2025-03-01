@@ -1371,4 +1371,21 @@ object Utils extends Logging {
     connectException || rpcTimeout || fetchChunkTimeout
   }
 
+  def printVersion(): Unit = {
+    logInfo("""
+      _____    __    __
+     / ___/__ / /__ / /  ___  _______
+    / /__/ -_) / -_) _ \/ _ \/ __/ _ \
+    \___/\__/_/\__/_.__/\___/_/ /_//_/  version %s
+
+    Branch %s
+    Compiled by user %s on %s
+    Revision %s
+    """.format(
+      org.apache.celeborn.common.CELEBORN_VERSION,
+      org.apache.celeborn.common.CELEBORN_BRANCH,
+      org.apache.celeborn.common.CELEBORN_BUILD_USER,
+      org.apache.celeborn.common.CELEBORN_BUILD_DATE,
+      org.apache.celeborn.common.CELEBORN_REVISION))
+  }
 }
