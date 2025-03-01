@@ -894,7 +894,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 // For barrier stages, all tasks are re-executed when it is re-run : similar to indeterminate stage.
                 // So if a barrier stage is getting reexecuted, previous stage/attempt needs to
                 // be cleaned up as it is entirely unusuable
-                if (determinate && !isBarrierStage)
+                if (determinate && !isBarrierStage && !isCelebornSkewShuffleOrChildShuffle(
+                    appShuffleId))
                   shuffleIds.values.toSeq.reverse.find(e => e._2 == true)
                 else
                   None
@@ -1039,6 +1040,22 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             false
         }
       case None => true
+    }
+  }
+
+  private def isCelebornSkewShuffleOrChildShuffle(shuffleId: Int): Boolean = {
+    celebornSkewShuffleCheckCallback match {
+      case Some(skewShuffleCallback) =>
+        try {
+          skewShuffleCallback.apply(shuffleId)
+        } catch {
+          case t: Throwable =>
+            logError(
+              s"Error checking if the shuffle: $shuffleId is skew shuffle or it's child shuffle",
+              t)
+            false
+        }
+      case None => false
     }
   }
 
@@ -1822,6 +1839,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   @volatile private var cancelShuffleCallback: Option[BiConsumer[Integer, String]] = None
   def registerCancelShuffleCallback(callback: BiConsumer[Integer, String]): Unit = {
     cancelShuffleCallback = Some(callback)
+  }
+
+  @volatile private var celebornSkewShuffleCheckCallback
+      : Option[function.Function[Integer, Boolean]] = None
+  def registerCelebornSkewShuffleCheckCallback(callback: function.Function[Integer, Boolean])
+      : Unit = {
+    celebornSkewShuffleCheckCallback = Some(callback)
   }
 
   // Initialize at the end of LifecycleManager construction.
