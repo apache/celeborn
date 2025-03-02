@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
+import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
 import scala.Tuple2;
 
 import com.github.luben.zstd.ZstdException;
@@ -415,16 +416,27 @@ public abstract class CelebornInputStream extends InputStream {
       }
     }
 
+    private PartitionReader createReaderWithRetry( PartitionLocation location, PbStreamHandler pbStreamHandler)
+            throws IOException {
+      return createReaderWithRetry(location, pbStreamHandler, Optional.empty());
+    }
+
     private PartitionReader createReaderWithRetry(
-        PartitionLocation location, PbStreamHandler pbStreamHandler) throws IOException {
+        PartitionLocation location, PbStreamHandler pbStreamHandler,
+        Optional<PartitionReaderCheckpointMetadata> checkpointMetadata) throws IOException {
       Exception lastException = null;
+      PartitionReader reader = null;
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
           logger.debug("Create reader for location {}", location);
           if (isExcluded(location)) {
             throw new CelebornIOException("Fetch data from excluded worker! " + location);
           }
-          return createReader(location, pbStreamHandler, fetchChunkRetryCnt, fetchChunkMaxRetry);
+          reader = createReader(location, pbStreamHandler, fetchChunkRetryCnt, fetchChunkMaxRetry);
+          if (checkpointMetadata.isPresent()) {
+            reader.updateCheckpointMetadata(checkpointMetadata.get());
+          }
+          return reader;
         } catch (Exception e) {
           lastException = e;
           shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort(), e);
@@ -512,6 +524,7 @@ public abstract class CelebornInputStream extends InputStream {
               if (fetchChunkRetryCnt % 2 == 0) {
                 Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
               }
+              // We must not use checkpoint for peer location since chunkIds don't always match across peers
               currentReader = createReaderWithRetry(currentReader.getLocation().getPeer(), null);
             } else {
               logger.warn(
@@ -521,7 +534,9 @@ public abstract class CelebornInputStream extends InputStream {
                   currentReader.getLocation(),
                   e);
               Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
-              currentReader = createReaderWithRetry(currentReader.getLocation(), null);
+              // When reading from the same host again, it is possible to skip already read data chunks,
+              // improving read performance during retries.
+              currentReader = createReaderWithRetry(currentReader.getLocation(), null, Optional.ofNullable(currentReader.getPartitionReaderCheckpointMetadata()));
             }
           }
         }
@@ -789,6 +804,7 @@ public abstract class CelebornInputStream extends InputStream {
               hasData = true;
               break;
             } else {
+              callback.incDuplicateBytesRead(BATCH_HEADER_SIZE + size);
               logger.debug(
                   "Skip duplicated batch: mapId {}, attemptId {}, batchId {}.",
                   mapId,

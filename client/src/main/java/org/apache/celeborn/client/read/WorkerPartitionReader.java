@@ -17,18 +17,9 @@
 
 package org.apache.celeborn.client.read;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
 import io.netty.buffer.ByteBuf;
-import io.netty.util.ReferenceCounted;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.read.checkpoint.WorkerPartitionReaderCheckpointMetadata;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
@@ -44,8 +35,19 @@ import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.util.ExceptionUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class WorkerPartitionReader implements PartitionReader {
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+public class WorkerPartitionReader implements PartitionReader<WorkerPartitionReaderCheckpointMetadata> {
   private final Logger logger = LoggerFactory.getLogger(WorkerPartitionReader.class);
   private PartitionLocation location;
   private final TransportClientFactory clientFactory;
@@ -58,7 +60,7 @@ public class WorkerPartitionReader implements PartitionReader {
   private int startChunkIndex;
   private int endChunkIndex;
 
-  private final LinkedBlockingQueue<ByteBuf> results;
+  private final LinkedBlockingQueue<Pair<Integer, ByteBuf>> results;
   private final ChunkReceivedCallback callback;
 
   private final AtomicReference<IOException> exception = new AtomicReference<>();
@@ -71,6 +73,10 @@ public class WorkerPartitionReader implements PartitionReader {
   private int fetchChunkRetryCnt;
   private int fetchChunkMaxRetry;
   private final boolean testFetch;
+
+  // checkpoints
+  private final boolean isCheckpointEnabled;
+  private Set<Integer> chunkIdsAlreadyReturned;
 
   WorkerPartitionReader(
       CelebornConf conf,
@@ -101,7 +107,7 @@ public class WorkerPartitionReader implements PartitionReader {
               ByteBuf buf = ((NettyManagedBuffer) buffer).getBuf();
               if (!closed) {
                 buf.retain();
-                results.add(buf);
+                results.add(Pair.of(chunkIndex, buf));
               }
             }
           }
@@ -147,13 +153,15 @@ public class WorkerPartitionReader implements PartitionReader {
     this.clientFactory = clientFactory;
     this.fetchChunkRetryCnt = fetchChunkRetryCnt;
     this.fetchChunkMaxRetry = fetchChunkMaxRetry;
+    this.chunkIdsAlreadyReturned = new HashSet<>();
+    this.isCheckpointEnabled = conf.isWorkerPartitionReaderCheckpointEnabled();
     testFetch = conf.testFetchFailure();
     ShuffleClient.incrementTotalReadCounter();
   }
 
   @Override
   public boolean hasNext() {
-    return returnedChunks < endChunkIndex - startChunkIndex + 1;
+    return chunkIdsAlreadyReturned.size() < endChunkIndex - startChunkIndex + 1;
   }
 
   @Override
@@ -162,7 +170,7 @@ public class WorkerPartitionReader implements PartitionReader {
     if (chunkIndex <= endChunkIndex) {
       fetchChunks();
     }
-    ByteBuf chunk = null;
+    Pair<Integer, ByteBuf> chunk = null;
     try {
       while (chunk == null) {
         checkException();
@@ -176,7 +184,8 @@ public class WorkerPartitionReader implements PartitionReader {
       throw e;
     }
     returnedChunks++;
-    return chunk;
+    chunkIdsAlreadyReturned.add(chunk.getLeft());
+    return chunk.getRight();
   }
 
   @Override
@@ -185,7 +194,9 @@ public class WorkerPartitionReader implements PartitionReader {
       closed = true;
     }
     if (results.size() > 0) {
-      results.forEach(ReferenceCounted::release);
+      results.forEach(chunk -> {
+        chunk.getRight().release(); //
+      });
     }
     results.clear();
     closeStream();
@@ -210,14 +221,31 @@ public class WorkerPartitionReader implements PartitionReader {
     return location;
   }
 
+  @Override
+  public WorkerPartitionReaderCheckpointMetadata getPartitionReaderCheckpointMetadata() {
+    return isCheckpointEnabled ? new WorkerPartitionReaderCheckpointMetadata(chunkIdsAlreadyReturned) : null;
+  }
+
+  @Override
+  public void updateCheckpointMetadata(WorkerPartitionReaderCheckpointMetadata checkpointMetadata) {
+    chunkIdsAlreadyReturned = checkpointMetadata.getReturnedChunks();
+  }
+
   private void fetchChunks() throws IOException, InterruptedException {
     final int inFlight = chunkIndex - startChunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
-      final int toFetch =
+      int toFetch =
           Math.min(fetchMaxReqsInFlight - inFlight + 1, endChunkIndex + 1 - chunkIndex);
-      for (int i = 0; i < toFetch; i++) {
-        if (testFetch && fetchChunkRetryCnt < fetchChunkMaxRetry - 1 && chunkIndex == 3) {
+
+      while (toFetch > 0 && chunkIndex <= endChunkIndex) {
+        if (chunkIdsAlreadyReturned.contains(chunkIndex)) {
+          logger.info("Skipping chunk {} as it has already been returned," +
+                  " likely by a previous reader for the same partition.", chunkIndex);
+          chunkIndex++;
+          returnedChunks++;
+        } else if (testFetch && fetchChunkRetryCnt < fetchChunkMaxRetry - 1 && chunkIndex == 3) {
           callback.onFailure(chunkIndex, new CelebornIOException("Test fetch chunk failure"));
+          toFetch--;
         } else {
           if (!client.isActive()) {
             try {
@@ -237,6 +265,7 @@ public class WorkerPartitionReader implements PartitionReader {
           }
           client.fetchChunk(streamHandler.getStreamId(), chunkIndex, fetchTimeoutMs, callback);
           chunkIndex++;
+          toFetch--;
         }
       }
     }
