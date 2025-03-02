@@ -161,10 +161,14 @@ public class MetaUtil {
     return ResourceProtos.WorkerStatus.newBuilder()
         .setState(ResourceProtos.WorkerStatus.State.forNumber(workerStatus.getStateValue()))
         .setStateStartTime(workerStatus.getStateStartTime())
+        .putAllStats(workerStatus.getStats())
         .build();
   }
 
   public static WorkerStatus fromPbWorkerStatus(ResourceProtos.WorkerStatus workerStatus) {
-    return new WorkerStatus(workerStatus.getState().getNumber(), workerStatus.getStateStartTime());
+    return new WorkerStatus(
+        workerStatus.getState().getNumber(),
+        workerStatus.getStateStartTime(),
+        workerStatus.getStatsMap());
   }
 }

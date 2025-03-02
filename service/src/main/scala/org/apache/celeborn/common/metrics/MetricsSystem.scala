@@ -122,6 +122,10 @@ class MetricsSystem(
     }
   }
 
+  protected[celeborn] def registerSink(sink: Sink): Unit = {
+    sinks += sink
+  }
+
   private def registerSinks() {
     val instConfig = metricsConfig.getInstance(instance)
     val sinkConfigs = metricsConfig.subProperties(instConfig, MetricsSystem.SINK_REGEX)

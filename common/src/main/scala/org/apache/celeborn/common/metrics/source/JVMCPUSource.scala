@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.metrics.source
 
-import java.lang.management.ManagementFactory
+import java.lang.management.{ManagementFactory, OperatingSystemMXBean}
 import javax.management.{MBeanServer, ObjectName}
 
 import scala.util.control.NonFatal
@@ -46,10 +46,26 @@ class JVMCPUSource(conf: CelebornConf, role: String) extends AbstractSource(conf
         }
       }
     })
+
+  addGauge(
+    JVM_CPU_LOAD,
+    new Gauge[Double] {
+      val osBean = ManagementFactory.getPlatformMXBean(classOf[OperatingSystemMXBean])
+      override def getValue: Double = {
+        try {
+          // return JVM process CPU time if the ProcessCpuTime method is available
+          osBean.getSystemLoadAverage
+        } catch {
+          case NonFatal(_) => -1L
+        }
+      }
+    })
+
   // start cleaner
   startCleaner()
 }
 
 object JVMCPUSource {
   val JVM_CPU_TIME = "JVMCPUTime"
+  val JVM_CPU_LOAD = "JVMCPULoad"
 }

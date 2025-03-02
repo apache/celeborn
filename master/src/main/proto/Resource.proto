@@ -176,6 +176,7 @@ message WorkerStatus {
 
   required State state = 1;
   required int64 stateStartTime = 2;
+  map<string, string> stats = 3;
 }
 
 message RegisterWorkerRequest {

@@ -234,4 +234,6 @@ object WorkerSource {
   // clean
   val CLEAN_TASK_QUEUE_SIZE = "CleanTaskQueueSize"
   val CLEAN_EXPIRED_SHUFFLE_KEYS_TIME = "CleanExpiredShuffleKeysTime"
+
+  val DISK_USAGE_RATIO = "DiskUsageRatio"
 }

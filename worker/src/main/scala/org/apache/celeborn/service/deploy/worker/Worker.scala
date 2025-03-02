@@ -55,6 +55,7 @@ import org.apache.celeborn.service.deploy.worker.WorkerSource.ACTIVE_CONNECTION_
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
+import org.apache.celeborn.service.deploy.worker.metrics.IWorkerMetricSink
 import org.apache.celeborn.service.deploy.worker.monitor.JVMQuake
 import org.apache.celeborn.service.deploy.worker.profiler.JVMProfiler
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
@@ -71,21 +72,42 @@ private[celeborn] class Worker(
   override val metricsSystem: MetricsSystem =
     MetricsSystem.createMetricsSystem(serviceName, conf)
   val workerSource = new WorkerSource(conf)
+  val jvmResource = new JVMSource(conf, Role.WORKER)
+  val jvmCPUResource = new JVMCPUSource(conf, Role.WORKER)
+  val systemMiscSource = new SystemMiscSource(conf, Role.WORKER)
+
   val resourceConsumptionSource =
     new ResourceConsumptionSource(conf, Role.WORKER)
   private val threadPoolSource = ThreadPoolSource(conf, Role.WORKER)
+
   metricsSystem.registerSource(workerSource)
   metricsSystem.registerSource(threadPoolSource)
   metricsSystem.registerSource(resourceConsumptionSource)
-  metricsSystem.registerSource(new JVMSource(conf, Role.WORKER))
-  metricsSystem.registerSource(new JVMCPUSource(conf, Role.WORKER))
-  metricsSystem.registerSource(new SystemMiscSource(conf, Role.WORKER))
+  metricsSystem.registerSource(jvmResource)
+  metricsSystem.registerSource(jvmCPUResource)
+  metricsSystem.registerSource(systemMiscSource)
 
   private val topResourceConsumptionCount = conf.metricsWorkerAppTopResourceConsumptionCount
   private val topApplicationUserIdentifiers =
     JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
 
   val workerStatusManager = new WorkerStatusManager(conf)
+
+  if (conf.workloadMetricCollectorClassName.nonEmpty) {
+    val sinks = Utils.loadExtensions(
+      classOf[IWorkerMetricSink],
+      scala.collection.immutable.Seq(conf.workloadMetricCollectorClassName),
+      conf)
+    assert(
+      sinks.nonEmpty,
+      "A valid worker metric collector must be specified by config " +
+        s"${CelebornConf.WORKER_WORKLOAD_METRIC_COLLECTOR_CLASS_NAME.key}, but ${conf.workloadMetricCollectorClassName} resulted in zero " +
+        "valid metric collector.")
+    val sink = sinks.head
+    sink.init(this)
+    metricsSystem.registerSink(sink)
+  }
+
   private val authEnabled = conf.authEnabled
   private val secretRegistry = new WorkerSecretRegistryImpl(conf.workerApplicationRegistryCacheSize)
 
@@ -452,6 +474,11 @@ private[celeborn] class Worker(
   }
   workerSource.addGauge(WorkerSource.CLEAN_TASK_QUEUE_SIZE) { () =>
     cleanTaskQueue.size()
+  }
+
+  workerSource.addGauge(WorkerSource.DISK_USAGE_RATIO) { () =>
+    val disks = workerInfo.diskInfos.asScala.values
+    1.0 - disks.map(_.actualUsableSpace).sum.toDouble / disks.map(_.totalSpace).sum
   }
 
   private def highWorkload: Boolean = {

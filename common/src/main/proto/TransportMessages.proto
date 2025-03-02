@@ -231,6 +231,7 @@ message PbWorkerStatus {
 
   State state = 1;
   int64 stateStartTime = 2;
+  map<string, string> stats = 3;
 }
 
 message PbHeartbeatFromWorkerResponse {

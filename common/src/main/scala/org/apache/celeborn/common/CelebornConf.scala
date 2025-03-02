@@ -1536,6 +1536,17 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def secretRedactionPattern = get(SECRET_REDACTION_PATTERN)
 
   def containerInfoProviderClass = get(CONTAINER_INFO_PROVIDER)
+
+  // //////////////////////////////////////////////////////
+  //                     Auto Scaler                     //
+  // //////////////////////////////////////////////////////
+
+  def workloadMetricCollectorClassName: String = get(WORKER_WORKLOAD_METRIC_COLLECTOR_CLASS_NAME)
+
+  def workloadMetricSlidingWindowSize: Int = get(WORKER_WORKLOAD_METRIC_SLIDINGWINDOW_SIZE)
+
+  def workloadMetricCheckInterval: Long = get(WORKER_WORKLOAD_METRIC_CHECK_INTERVAL)
+
 }
 
 object CelebornConf extends Logging {
@@ -6160,4 +6171,28 @@ object CelebornConf extends Logging {
       .doubleConf
       .checkValue(v => v > 0.0 && v <= 1.0, "Should be in (0.0, 1.0].")
       .createWithDefault(1)
+
+  val WORKER_WORKLOAD_METRIC_COLLECTOR_CLASS_NAME: ConfigEntry[String] =
+    buildConf("celeborn.worker.workload.metric.CollectorClassName")
+      .categories("master")
+      .doc("The workload collector class name")
+      .version("0.6.0")
+      .stringConf
+      .createWithDefaultString("org.apache.celeborn.service.deploy.worker.metrics.WorkerMetricSink")
+
+  val WORKER_WORKLOAD_METRIC_SLIDINGWINDOW_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.worker.workload.metric.slidingWindow.size")
+      .categories("worker")
+      .doc("The size of sliding windows used to calculate statistics about workload.")
+      .version("0.6.0")
+      .intConf
+      .createWithDefault(5)
+
+  val WORKER_WORKLOAD_METRIC_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.workload.metric.check.interval")
+      .categories("worker")
+      .version("0.6.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
+
 }

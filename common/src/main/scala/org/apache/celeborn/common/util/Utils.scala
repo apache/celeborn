@@ -19,6 +19,7 @@ package org.apache.celeborn.common.util
 
 import java.io._
 import java.lang.management.{LockInfo, ManagementFactory, MonitorInfo, ThreadInfo}
+import java.lang.reflect.InvocationTargetException
 import java.math.{MathContext, RoundingMode}
 import java.net._
 import java.nio.ByteBuffer
@@ -32,7 +33,7 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.io.Source
 import scala.reflect.ClassTag
-import scala.util.{Random => ScalaRandom, Try}
+import scala.util.{Failure, Random => ScalaRandom, Success, Try}
 import scala.util.control.{ControlThrowable, NonFatal}
 import scala.util.matching.Regex
 
@@ -1369,6 +1370,63 @@ object Utils extends Logging {
     val fetchChunkTimeout = e.isInstanceOf[
       CelebornIOException] && e.getCause != null && e.getCause.isInstanceOf[IOException]
     connectException || rpcTimeout || fetchChunkTimeout
+  }
+
+  /**
+   * Create instances of extension classes.
+   *
+   * The classes in the given list must:
+   * - Be subclasses of the given base class.
+   * - Provide either a no-arg constructor, or a 1-arg constructor that takes a CelebornConf.
+   *
+   * The constructors are allowed to throw "UnsupportedOperationException" if the extension does not
+   * want to be registered; this allows the implementations to check the Celeborn configuration (or
+   * other state) and decide they do not need to be added. A log message is printed in that case.
+   * Other exceptions are bubbled up.
+   */
+  def loadExtensions[T <: AnyRef](
+      extClass: Class[T],
+      classes: Seq[String],
+      conf: CelebornConf): Seq[T] = {
+    classes.flatMap { name =>
+      try {
+        val klass = classForName(name)
+        require(
+          extClass.isAssignableFrom(klass),
+          s"$name is not a subclass of ${extClass.getName}.")
+
+        val ext = Try(klass.getConstructor(classOf[CelebornConf])) match {
+          case Success(ctor) =>
+            ctor.newInstance(conf).asInstanceOf[T]
+
+          case Failure(_) =>
+            klass.getConstructor().newInstance().asInstanceOf[T]
+        }
+
+        Some(ext)
+      } catch {
+        case _: NoSuchMethodException =>
+          throw new CelebornException(
+            s"$name did not have a zero-argument constructor or a" +
+              " single-argument constructor that accepts SparkConf. Note: if the class is" +
+              " defined inside of another Scala class, then its constructors may accept an" +
+              " implicit parameter that references the enclosing class; in this case, you must" +
+              " define the class as a top-level class in order to prevent this extra" +
+              " parameter from breaking Spark's ability to find a valid constructor.")
+
+        case e: InvocationTargetException =>
+          e.getCause match {
+            case uoe: UnsupportedOperationException =>
+              logDebug(s"Extension $name not being initialized.", uoe)
+              logInfo("Extension ${MDC(CLASS_NAME, name)} not being initialized.")
+              None
+
+            case null => throw e
+
+            case cause => throw cause
+          }
+      }
+    }
   }
 
 }
