@@ -55,15 +55,16 @@ class WorkerMetricSink(conf: CelebornConf) extends IWorkerMetricSink with Loggin
 
   override def start(): Unit = {
     scheduler = ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-jvm-metric-scheduler")
+    val runnable: Runnable = () => {
+      try {
+        WorkerMetricSink.this.update()
+        WorkerMetricSink.this.report()
+      } catch {
+        case e: Throwable => logError("reporting metrics failed", e)
+      }
+    }
     scheduler.scheduleWithFixedDelay(
-      () => {
-        try {
-          WorkerMetricSink.this.update()
-          WorkerMetricSink.this.report()
-        } catch {
-          case e: Throwable => logError("reporting metrics failed", e)
-        }
-      },
+      runnable,
       0,
       checkInterval,
       TimeUnit.MILLISECONDS)

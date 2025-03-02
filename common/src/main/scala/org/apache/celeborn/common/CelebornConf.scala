@@ -6174,7 +6174,7 @@ object CelebornConf extends Logging {
 
   val WORKER_WORKLOAD_METRIC_COLLECTOR_CLASS_NAME: ConfigEntry[String] =
     buildConf("celeborn.worker.workload.metric.CollectorClassName")
-      .categories("master")
+      .categories("worker")
       .doc("The workload collector class name")
       .version("0.6.0")
       .stringConf

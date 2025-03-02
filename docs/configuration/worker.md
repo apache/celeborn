@@ -183,6 +183,9 @@ license: |
 | celeborn.worker.storage.storagePolicy.createFilePolicy | &lt;undefined&gt; | false | This defined the order for creating files across available storages. Available storages options are: MEMORY,SSD,HDD,HDFS,OSS | 0.5.1 |  | 
 | celeborn.worker.storage.storagePolicy.evictPolicy | &lt;undefined&gt; | false | This define the order of evict files if the storages are available. Available storages: MEMORY,SSD,HDD,HDFS. Definition: StorageTypes|StorageTypes|StorageTypes. Example: MEMORY,SSD|SSD,HDFS. The example means that a MEMORY shuffle file can be evicted to SSD and a SSD shuffle file can be evicted to HDFS. | 0.5.1 |  | 
 | celeborn.worker.storage.workingDir | celeborn-worker/shuffle_data | false | Worker's working dir path name. | 0.3.0 | celeborn.worker.workingDir | 
+| celeborn.worker.workload.metric.CollectorClassName | org.apache.celeborn.service.deploy.worker.metrics.WorkerMetricSink | false | The workload collector class name | 0.6.0 |  | 
+| celeborn.worker.workload.metric.check.interval | 5s | false |  | 0.6.0 |  | 
+| celeborn.worker.workload.metric.slidingWindow.size | 5 | false | The size of sliding windows used to calculate statistics about workload. | 0.6.0 |  | 
 | celeborn.worker.writer.close.timeout | 120s | false | Timeout for a file writer to close | 0.2.0 |  | 
 | celeborn.worker.writer.create.maxAttempts | 3 | false | Retry count for a file writer to create if its creation was failed. | 0.2.0 |  | 
 <!--end-include-->
