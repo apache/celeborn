@@ -371,7 +371,7 @@ class LocalTierWriter(
   private val channel: FileChannel =
     FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath);
 
-  override def needEvict: Boolean = {
+  override def needEvict(): Boolean = {
     false
   }
 
@@ -518,7 +518,7 @@ class DfsTierWriter(
       hadoopFs.create(hdfsFileInfo.getDfsPath, true).close()
   }
 
-  override def needEvict: Boolean = {
+  override def needEvict(): Boolean = {
     false
   }
 
