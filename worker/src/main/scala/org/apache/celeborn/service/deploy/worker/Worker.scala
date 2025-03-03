@@ -52,7 +52,6 @@ import org.apache.celeborn.common.util.{CelebornExitKind, CollectionUtils, JavaU
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
-import org.apache.celeborn.service.deploy.worker.WorkerSource.ACTIVE_CONNECTION_COUNT
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
@@ -477,7 +476,7 @@ private[celeborn] class Worker(
       case (ServingState.PUSH_AND_REPLICATE_PAUSED, _, _) => true
       case (ServingState.PUSH_PAUSED, _, _) => true
       case (_, _, Some(activeConnectionMax)) =>
-        workerSource.getCounterCount(ACTIVE_CONNECTION_COUNT) >= activeConnectionMax
+        workerSource.getCounterCount(WorkerSource.ACTIVE_CONNECTION_COUNT) >= activeConnectionMax
       case _ => false
     }
   }
@@ -672,6 +671,7 @@ private[celeborn] class Worker(
             logWarning(
               s"Register worker to master failed, will retry after ${Utils.msDurationToString(interval)}",
               throwable)
+            WorkerSource.incCounter(WorkerSource.REGISTER_WITH_MASTER_FAIL_COUNT)
             exception = throwable
             null
         }
