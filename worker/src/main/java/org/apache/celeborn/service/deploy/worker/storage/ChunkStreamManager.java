@@ -198,11 +198,6 @@ public class ChunkStreamManager {
     return streams.get(streamId);
   }
 
-  public Tuple2<String, String> getShuffleKeyAndFileName(long streamId) {
-    StreamState state = streams.get(streamId);
-    return new Tuple2<>(state.shuffleKey, state.fileName);
-  }
-
   public int getStreamsCount() {
     return streams.size();
   }
