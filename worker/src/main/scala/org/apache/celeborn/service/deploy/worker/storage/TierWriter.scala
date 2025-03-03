@@ -254,6 +254,7 @@ abstract class TierWriterBase(
 
   def returnBufferInternal(destroy: Boolean): Unit
 
+  def getFlusher(): Flusher
 }
 
 class MemoryTierWriter(
@@ -341,6 +342,10 @@ class MemoryTierWriter(
 
   override def addFlushTask(task: FlushTask): Unit = {
     // memory tier write does not need flush tasks
+  }
+
+  override def getFlusher(): Flusher = {
+    null
   }
 }
 
@@ -440,6 +445,8 @@ class LocalTierWriter(
 
   override def cleanLocalOrDfsFiles(): Unit = {
     diskFileInfo.deleteAllFiles(null)
+    partitionDataWriterContext.getDeviceMonitor.unregisterFileWriter(
+      partitionDataWriterContext.getPartitionDataWriter)
   }
 
   override def takeBufferInternal(): CompositeByteBuf = {

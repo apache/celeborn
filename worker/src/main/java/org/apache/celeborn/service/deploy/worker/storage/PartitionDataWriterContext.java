@@ -40,6 +40,7 @@ public class PartitionDataWriterContext {
 
   private File workingDir;
   private PartitionDataWriter partitionDataWriter;
+  private DeviceMonitor deviceMonitor;
 
   public PartitionDataWriterContext(
       long splitThreshold,
@@ -123,6 +124,14 @@ public class PartitionDataWriterContext {
 
   public void setPartitionDataWriter(PartitionDataWriter partitionDataWriter) {
     this.partitionDataWriter = partitionDataWriter;
+  }
+
+  public DeviceMonitor getDeviceMonitor() {
+    return deviceMonitor;
+  }
+
+  public void setDeviceMonitor(DeviceMonitor deviceMonitor) {
+    this.deviceMonitor = deviceMonitor;
   }
 
   @Override

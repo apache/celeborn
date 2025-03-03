@@ -164,12 +164,6 @@ class TierWriterProxy(
   }
 
   def getFlusher(): Flusher = {
-    if (currentTierWriter.isInstanceOf[LocalTierWriter]) {
-      currentTierWriter.asInstanceOf[LocalTierWriter].getFlusher()
-    }
-    if (currentTierWriter.isInstanceOf[DfsTierWriter]) {
-      currentTierWriter.asInstanceOf[DfsTierWriter].getFlusher()
-    }
-    null
+    currentTierWriter.getFlusher()
   }
 }

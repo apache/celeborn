@@ -86,6 +86,8 @@ trait PartitionMetaHandler {
    * segment index
    */
   def afterClose(): Unit
+
+  def getMapIdBitmap(): Option[RoaringBitmap]
 }
 
 class MapPartitionMetaHandler(
@@ -322,6 +324,7 @@ class MapPartitionMetaHandler(
     }
   }
 
+  override def getMapIdBitmap(): Option[RoaringBitmap] = Option.empty
 }
 
 class ReducePartitionMetaHandler(val rangeReadFilter: Boolean, val fileInfo: FileInfo)

@@ -20,8 +20,6 @@ package org.apache.celeborn.service.deploy.worker.storage;
 import java.io.IOException;
 import java.util.Objects;
 
-import scala.Option;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.GeneratedMessageV3;
 import io.netty.buffer.ByteBuf;
@@ -78,15 +76,17 @@ public class PartitionDataWriter implements DeviceObserver {
               .getUserCongestionContext(writerContext.getUserIdentifier());
     }
     writerContext.setPartitionDataWriter(this);
+    writerContext.setDeviceMonitor(deviceMonitor);
     tierWriterProxy = new TierWriterProxy(writerContext, storageManager, conf, partitionType);
   }
 
   public DiskFileInfo getDiskFileInfo() {
     // keep compatible with current logic
-    if (!(tierWriterProxy.getCurrentFileInfo() instanceof DiskFileInfo)) {
-      return null;
+    FileInfo currentFileInfo = tierWriterProxy.getCurrentFileInfo();
+    if (currentFileInfo instanceof DiskFileInfo) {
+      return (DiskFileInfo) currentFileInfo;
     }
-    return ((DiskFileInfo) tierWriterProxy.getCurrentFileInfo());
+    return null;
   }
 
   public String getFilePath() {
@@ -117,18 +117,12 @@ public class PartitionDataWriter implements DeviceObserver {
   }
 
   public RoaringBitmap getMapIdBitMap() {
-    if (tierWriterProxy.currentTierWriter().metaHandler() instanceof MapPartitionMetaHandler) {
-      return null;
-    }
-
-    Option<RoaringBitmap> bitmapOpt =
-        ((ReducePartitionMetaHandler) tierWriterProxy.currentTierWriter().metaHandler())
-            .getMapIdBitmap();
-
+    scala.Option<RoaringBitmap> bitmapOpt =
+        tierWriterProxy.currentTierWriter().metaHandler().getMapIdBitmap();
+    // to keep compatible with scala 2.11
     if (bitmapOpt.isDefined()) {
       return bitmapOpt.get();
     }
-
     return null;
   }
 
@@ -152,10 +146,6 @@ public class PartitionDataWriter implements DeviceObserver {
 
   public synchronized void destroy(IOException ioException) {
     tierWriterProxy.destroy(ioException);
-    // If this is local files, it needs to unregister from device monitor
-    if (tierWriterProxy.isLocalFile()) {
-      deviceMonitor.unregisterFileWriter(this);
-    }
   }
 
   public FileInfo getCurrentFileInfo() {
