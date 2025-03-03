@@ -469,9 +469,11 @@ class FetchHandler(
     streamType match {
       case StreamType.ChunkStream =>
         val streamState = chunkStreamManager.getStreamState(streamId)
-        val (shuffleKey, fileName) = (streamState.shuffleKey, streamState.fileName)
-        workerSource.recordAppActiveConnection(client, shuffleKey)
-        getRawFileInfo(shuffleKey, fileName).closeStream(streamId)
+        if (streamState != null) {
+          val (shuffleKey, fileName) = (streamState.shuffleKey, streamState.fileName)
+          workerSource.recordAppActiveConnection(client, shuffleKey)
+          getRawFileInfo(shuffleKey, fileName).closeStream(streamId)
+        }
       case StreamType.CreditStream =>
         val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)
         if (shuffleKey != null) {
@@ -533,9 +535,15 @@ class FetchHandler(
     logDebug(s"Received req from ${remoteAddr}" +
       s" to fetch block $streamChunkSlice")
 
-    workerSource.recordAppActiveConnection(
-      client,
-      chunkStreamManager.getShuffleKeyAndFileName(streamChunkSlice.streamId)._1)
+    val streamState = chunkStreamManager.getStreamState(streamChunkSlice.streamId)
+    if (streamState == null) {
+      val message = s"Stream ${streamChunkSlice.streamId} is not registered with worker. " +
+        "This can happen if the worker was restart recently."
+      logError(message)
+      workerSource.incCounter(WorkerSource.FETCH_CHUNK_FAIL_COUNT)
+      client.getChannel.writeAndFlush(new ChunkFetchFailure(streamChunkSlice, message))
+      return
+    }
 
     maxChunkBeingTransferred.foreach { threshold =>
       val chunksBeingTransferred = chunkStreamManager.chunksBeingTransferred // take high cpu usage
@@ -549,6 +557,8 @@ class FetchHandler(
         return
       }
     }
+
+    workerSource.recordAppActiveConnection(client, streamState.shuffleKey)
 
     val reqStr = req.toString
     workerSource.startTimer(WorkerSource.FETCH_CHUNK_TIME, reqStr)
