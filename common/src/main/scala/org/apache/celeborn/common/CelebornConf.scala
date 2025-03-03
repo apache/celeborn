@@ -1285,6 +1285,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDirectMemoryPressureCheckIntervalMs: Long = get(WORKER_DIRECT_MEMORY_CHECK_INTERVAL)
   def workerPinnedMemoryCheckEnabled: Boolean = get(WORKER_PINNED_MEMORY_CHECK_ENABLED)
   def workerPinnedMemoryCheckIntervalMs: Long = get(WORKER_PINNED_MEMORY_CHECK_INTERVAL)
+  def workerResumeByPinnedMemoryKeepTime: Long = get(WORKER_RESUME_BY_PINNED_MEMORY_KEEP_TIME)
   def workerDirectMemoryReportIntervalSecond: Long = get(WORKER_DIRECT_MEMORY_REPORT_INTERVAL)
   def workerDirectMemoryTrimChannelWaitInterval: Long =
     get(WORKER_DIRECT_MEMORY_TRIM_CHANNEL_WAIT_INTERVAL)
@@ -3739,6 +3740,14 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
+
+  val WORKER_RESUME_BY_PINNED_MEMORY_KEEP_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.worker.monitor.resumeByPinnedMemory.keepTime")
+      .categories("worker")
+      .doc("Time of worker to stay in resume state after resumeByPinnedMemory")
+      .version("0.6.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1s")
 
   val WORKER_DIRECT_MEMORY_REPORT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.worker.monitor.memory.report.interval")
