@@ -100,7 +100,7 @@ public class MemoryManager {
   private long pinnedMemoryCheckInterval;
   private long pinnedMemoryLastCheckTime = 0;
   private boolean resumingByPinnedMemory = false;
-  private long workerResumeByPinnedMemoryKeepTime;
+  private long workerPinnedMemoryResumeKeepTime;
 
   @VisibleForTesting
   public static MemoryManager initialize(CelebornConf conf) {
@@ -136,7 +136,7 @@ public class MemoryManager {
     long checkInterval = conf.workerDirectMemoryPressureCheckIntervalMs();
     this.pinnedMemoryCheckEnabled = conf.workerPinnedMemoryCheckEnabled();
     this.pinnedMemoryCheckInterval = conf.workerPinnedMemoryCheckIntervalMs();
-    this.workerResumeByPinnedMemoryKeepTime = conf.workerResumeByPinnedMemoryKeepTime();
+    this.workerPinnedMemoryResumeKeepTime = conf.workerPinnedMemoryResumeKeepTime();
     long reportInterval = conf.workerDirectMemoryReportIntervalSecond();
     double readBufferTargetRatio = conf.readBufferTargetRatio();
     long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
@@ -618,7 +618,7 @@ public class MemoryManager {
         if (resumingByPinnedMemory
             && lastState != ServingState.NONE_PAUSED
             && System.currentTimeMillis() - pinnedMemoryLastCheckTime
-                < workerResumeByPinnedMemoryKeepTime
+                < workerPinnedMemoryResumeKeepTime
             && getPinnedMemory() / (double) (maxDirectMemory) < pinnedMemoryResumeRatio) {
           // do nothing, keep resume for a while
           logger.info(
