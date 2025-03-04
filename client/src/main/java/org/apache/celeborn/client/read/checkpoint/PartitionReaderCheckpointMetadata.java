@@ -17,7 +17,5 @@
 
 package org.apache.celeborn.client.read.checkpoint;
 
-/**
- * Checkpoint metadata interface for a partition reader.
- */
+/** Checkpoint metadata interface for a partition reader. */
 public interface PartitionReaderCheckpointMetadata {}

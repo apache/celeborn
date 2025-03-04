@@ -71,7 +71,9 @@ class ReadWriteTestWithFailures extends AnyFunSuite
       .set("celeborn.client.fetch.maxReqsInFlight", "1")
       .set("celeborn.client.shuffle.compression.codec", CompressionCodec.NONE.toString)
       .set(CelebornConf.TEST_CLIENT_FETCH_FAILURE.key, "true")
-      .set(CelebornConf.WORKER_PARTITION_READER_CHECKPOINT_ENABLE.key, workerChunkLevelCheckpointEnabled)
+      .set(
+        CelebornConf.WORKER_PARTITION_READER_CHECKPOINT_ENABLE.key,
+        workerChunkLevelCheckpointEnabled)
       .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "false")
 
     val lifecycleManager = new LifecycleManager(APP, clientConf)

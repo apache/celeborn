@@ -19,15 +19,13 @@ package org.apache.celeborn.client.read.checkpoint;
 
 import java.util.Set;
 
-/**
- * Checkpoint metadata for a partition reader on the worker side.
- *
- */
+/** Checkpoint metadata for a partition reader on the worker side. */
 public class WorkerPartitionReaderCheckpointMetadata implements PartitionReaderCheckpointMetadata {
   private final Set<Integer> returnedChunks;
 
   /**
    * Create an instance of the checkpoint metadata.
+   *
    * @param returnedChunks The set of chunks that have already been returned to the user.
    */
   public WorkerPartitionReaderCheckpointMetadata(Set<Integer> returnedChunks) {
