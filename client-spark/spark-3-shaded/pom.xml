@@ -31,7 +31,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
-      <artifactId>celeborn-client-spark-3-4_${scala.binary.version}</artifactId>
+      <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>

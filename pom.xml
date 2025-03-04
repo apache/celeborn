@@ -1372,7 +1372,7 @@
       <id>spark-3.0</id>
       <modules>
         <module>client-spark/common</module>
-        <module>client-spark/spark-3-4</module>
+        <module>client-spark/spark-3</module>
         <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
@@ -1392,7 +1392,7 @@
       <id>spark-3.1</id>
       <modules>
         <module>client-spark/common</module>
-        <module>client-spark/spark-3-4</module>
+        <module>client-spark/spark-3</module>
         <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
@@ -1412,7 +1412,7 @@
       <id>spark-3.2</id>
       <modules>
         <module>client-spark/common</module>
-        <module>client-spark/spark-3-4</module>
+        <module>client-spark/spark-3</module>
         <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
@@ -1431,7 +1431,7 @@
       <id>spark-3.3</id>
       <modules>
         <module>client-spark/common</module>
-        <module>client-spark/spark-3-4</module>
+        <module>client-spark/spark-3</module>
         <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
@@ -1450,7 +1450,7 @@
       <id>spark-3.4</id>
       <modules>
         <module>client-spark/common</module>
-        <module>client-spark/spark-3-4</module>
+        <module>client-spark/spark-3</module>
         <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
@@ -1469,7 +1469,7 @@
       <id>spark-3.5</id>
       <modules>
         <module>client-spark/common</module>
-        <module>client-spark/spark-3-4</module>
+        <module>client-spark/spark-3</module>
         <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-3.5-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
@@ -1488,7 +1488,7 @@
       <id>spark-4.0</id>
       <modules>
         <module>client-spark/common</module>
-        <module>client-spark/spark-3-4</module>
+        <module>client-spark/spark-3</module>
         <module>client-spark/spark-3-columnar-common</module>
         <module>client-spark/spark-4-columnar-shuffle</module>
         <module>client-spark/spark-4-shaded</module>
