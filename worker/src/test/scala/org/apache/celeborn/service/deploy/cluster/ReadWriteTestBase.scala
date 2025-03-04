@@ -103,7 +103,6 @@ trait ReadWriteTestBase extends AnyFunSuite
     val metricsCallback = new MetricsCallback {
       override def incBytesRead(bytesWritten: Long): Unit = {}
       override def incReadTime(time: Long): Unit = {}
-      override def incDuplicateBytesRead(bytesRead: Long): Unit = {}
     }
     val inputStream = shuffleClient.readPartition(
       1,

@@ -149,7 +149,6 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     val metricsCallback = new MetricsCallback {
       override def incBytesRead(bytesWritten: Long): Unit = {}
       override def incReadTime(time: Long): Unit = {}
-      override def incDuplicateBytesRead(bytesRead: Long): Unit = {}
     }
 
     // reduce normal empty CelebornInputStream

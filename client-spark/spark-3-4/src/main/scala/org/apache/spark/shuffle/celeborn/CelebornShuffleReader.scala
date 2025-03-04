@@ -91,8 +91,6 @@ class CelebornShuffleReader[K, C](
 
       override def incReadTime(time: Long): Unit =
         metrics.incFetchWaitTime(time)
-
-      override def incDuplicateBytesRead(bytesRead: Long): Unit = {}
     }
 
     if (streamCreatorPool == null) {

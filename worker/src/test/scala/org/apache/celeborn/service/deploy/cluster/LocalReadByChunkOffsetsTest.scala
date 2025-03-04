@@ -121,7 +121,6 @@ class LocalReadByChunkOffsetsTest extends AnyFunSuite
     val metricsCallback = new MetricsCallback {
       override def incBytesRead(bytesWritten: Long): Unit = {}
       override def incReadTime(time: Long): Unit = {}
-      override def incDuplicateBytesRead(bytesRead: Long): Unit = ???
     }
 
     // chunkOffset is [0, 9404, 25913, 35393, 49576]
