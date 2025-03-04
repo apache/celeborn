@@ -17,7 +17,19 @@
 
 package org.apache.celeborn.client.read;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
 import io.netty.buffer.ByteBuf;
+import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.read.checkpoint.WorkerPartitionReaderCheckpointMetadata;
 import org.apache.celeborn.common.CelebornConf;
@@ -35,19 +47,9 @@ import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.util.ExceptionUtils;
-import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
-public class WorkerPartitionReader implements PartitionReader<WorkerPartitionReaderCheckpointMetadata> {
+public class WorkerPartitionReader
+    implements PartitionReader<WorkerPartitionReaderCheckpointMetadata> {
   private final Logger logger = LoggerFactory.getLogger(WorkerPartitionReader.class);
   private PartitionLocation location;
   private final TransportClientFactory clientFactory;
@@ -194,9 +196,10 @@ public class WorkerPartitionReader implements PartitionReader<WorkerPartitionRea
       closed = true;
     }
     if (results.size() > 0) {
-      results.forEach(chunk -> {
-        chunk.getRight().release(); //
-      });
+      results.forEach(
+          chunk -> {
+            chunk.getRight().release(); //
+          });
     }
     results.clear();
     closeStream();
@@ -223,7 +226,9 @@ public class WorkerPartitionReader implements PartitionReader<WorkerPartitionRea
 
   @Override
   public WorkerPartitionReaderCheckpointMetadata getPartitionReaderCheckpointMetadata() {
-    return isCheckpointEnabled ? new WorkerPartitionReaderCheckpointMetadata(chunkIdsAlreadyReturned) : null;
+    return isCheckpointEnabled
+        ? new WorkerPartitionReaderCheckpointMetadata(chunkIdsAlreadyReturned)
+        : null;
   }
 
   @Override
@@ -234,13 +239,14 @@ public class WorkerPartitionReader implements PartitionReader<WorkerPartitionRea
   private void fetchChunks() throws IOException, InterruptedException {
     final int inFlight = chunkIndex - startChunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
-      int toFetch =
-          Math.min(fetchMaxReqsInFlight - inFlight + 1, endChunkIndex + 1 - chunkIndex);
+      int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, endChunkIndex + 1 - chunkIndex);
 
       while (toFetch > 0 && chunkIndex <= endChunkIndex) {
         if (chunkIdsAlreadyReturned.contains(chunkIndex)) {
-          logger.info("Skipping chunk {} as it has already been returned," +
-                  " likely by a previous reader for the same partition.", chunkIndex);
+          logger.info(
+              "Skipping chunk {} as it has already been returned,"
+                  + " likely by a previous reader for the same partition.",
+              chunkIndex);
           chunkIndex++;
           returnedChunks++;
         } else if (testFetch && fetchChunkRetryCnt < fetchChunkMaxRetry - 1 && chunkIndex == 3) {

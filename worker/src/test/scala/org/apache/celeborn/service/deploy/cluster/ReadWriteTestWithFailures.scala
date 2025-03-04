@@ -1,21 +1,22 @@
 package org.apache.celeborn.service.deploy.cluster
 
-import org.apache.celeborn.client.read.MetricsCallback
-import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
-import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.protocol.CompressionCodec
-import org.apache.celeborn.service.deploy.MiniClusterFeature
-import org.junit.Assert
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.funsuite.AnyFunSuite
-
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import java.util
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
+
+import org.junit.Assert
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.funsuite.AnyFunSuite
+
+import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
+import org.apache.celeborn.client.read.MetricsCallback
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.protocol.CompressionCodec
+import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class ReadWriteTestWithFailures extends AnyFunSuite
   with Logging with MiniClusterFeature with BeforeAndAfterAll {
@@ -24,8 +25,8 @@ class ReadWriteTestWithFailures extends AnyFunSuite
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup Celeborn mini cluster")
-    val (m, _) = setupMiniClusterWithRandomPorts(workerConf = Map("celeborn.shuffle.chunk.size" -> "100B",
-    "celeborn.worker.flusher.buffer.size" -> "10B"))
+    val (m, _) = setupMiniClusterWithRandomPorts(workerConf =
+      Map("celeborn.shuffle.chunk.size" -> "100B", "celeborn.worker.flusher.buffer.size" -> "10B"))
     masterPort = m.conf.masterPort
   }
 
@@ -49,8 +50,9 @@ class ReadWriteTestWithFailures extends AnyFunSuite
       .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "false")
 
     val lifecycleManager = new LifecycleManager(APP, clientConf)
-    val shuffleClient = new ShuffleClientImpl(APP, clientConf, UserIdentifier("mock", "mock"))
-    shuffleClient.setupLifecycleManagerRef(lifecycleManager.self)
+    val shuffleClient1 = new ShuffleClientImpl(APP, clientConf, UserIdentifier("mock", "mock"))
+    val shuffleClient2 = new ShuffleClientImpl(APP, clientConf, UserIdentifier("mock", "mock"))
+    shuffleClient1.setupLifecycleManagerRef(lifecycleManager.self)
 
     // push 100 random strings
     val numuuids = 100
@@ -59,12 +61,12 @@ class ReadWriteTestWithFailures extends AnyFunSuite
       val str = UUID.randomUUID().toString
       stringSet.add(str)
       val data = ("_" + str).getBytes(StandardCharsets.UTF_8)
-      shuffleClient.pushData(1, 0, 0, 0, data, 0, data.length, 1, 1)
+      shuffleClient1.pushData(1, 0, 0, 0, data, 0, data.length, 1, 1)
     }
-    shuffleClient.pushMergedData(1, 0, 0)
+    shuffleClient1.pushMergedData(1, 0, 0)
     Thread.sleep(1000)
 
-    shuffleClient.mapperEnd(1, 0, 0, 1)
+    shuffleClient1.mapperEnd(1, 0, 0, 1)
 
     var duplicateBytesRead = new AtomicLong(0)
     val metricsCallback = new MetricsCallback {
@@ -74,7 +76,7 @@ class ReadWriteTestWithFailures extends AnyFunSuite
         duplicateBytesRead.addAndGet(bytesRead)
       }
     }
-    val inputStream = shuffleClient.readPartition(
+    val inputStream = shuffleClient1.readPartition(
       1,
       1,
       0,
@@ -97,7 +99,8 @@ class ReadWriteTestWithFailures extends AnyFunSuite
       b = inputStream.read()
     }
 
-    val readStrings = new String(outputStream.toByteArray, StandardCharsets.UTF_8).substring(1).split("_")
+    val readStrings =
+      new String(outputStream.toByteArray, StandardCharsets.UTF_8).substring(1).split("_")
     Assert.assertEquals(readStrings.length, numuuids)
     readStrings.foreach { str =>
       Assert.assertTrue(stringSet.contains(str))
@@ -106,7 +109,7 @@ class ReadWriteTestWithFailures extends AnyFunSuite
     // Assert no duplicate chunks read despite chunk fetch retries
     Assert.assertEquals(duplicateBytesRead.get(), 0)
     Thread.sleep(5000L)
-    shuffleClient.shutdown()
+    shuffleClient1.shutdown()
     lifecycleManager.rpcEnv.shutdown()
   }
 }
