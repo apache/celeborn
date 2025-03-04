@@ -22,8 +22,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-import scala.Tuple2;
-
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -192,11 +190,6 @@ public class ChunkStreamManager {
 
   public StreamState getStreamState(long streamId) {
     return streams.get(streamId);
-  }
-
-  public Tuple2<String, String> getShuffleKeyAndFileName(long streamId) {
-    StreamState state = streams.get(streamId);
-    return new Tuple2<>(state.shuffleKey, state.fileName);
   }
 
   public int getStreamsCount() {
