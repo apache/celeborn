@@ -133,12 +133,8 @@ jobs:
       run: |
         SPARK_BINARY_VERSION=${{ matrix.spark }}
         SPARK_MAJOR_VERSION=${SPARK_BINARY_VERSION%%.*}
-        SPARK_MODULE_NAME=$SPARK_MAJOR_VERSION
-        if [[ $SPARK_MAJOR_VERSION == "3" ]]; then
-            SPARK_MODULE_NAME="3-4"
-        fi
         PROFILES="-Pgoogle-mirror,spark-${{ matrix.spark }}"
-        TEST_MODULES="client-spark/common,client-spark/spark-${SPARK_MODULE_NAME},client-spark/spark-${SPARK_MAJOR_VERSION}-columnar-common,client-spark/spark-${SPARK_MAJOR_VERSION}-shaded,tests/spark-it"
+        TEST_MODULES="client-spark/common,client-spark/spark-${SPARK_MAJOR_VERSION},client-spark/spark-${SPARK_MAJOR_VERSION}-columnar-common,client-spark/spark-${SPARK_MAJOR_VERSION}-shaded,tests/spark-it"
         build/mvn $PROFILES -pl $TEST_MODULES -am clean install -DskipTests
         build/mvn $PROFILES -pl $TEST_MODULES -Dspark.shuffle.sort.io.plugin.class=${{ matrix.shuffle-plugin-class }} test
     - name: Upload test log
