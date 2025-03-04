@@ -36,6 +36,14 @@ class ReadWriteTestWithFailures extends AnyFunSuite
   }
 
   test(s"test MiniCluster with connection resets, ensure no duplicate reads") {
+    Assert.assertEquals(performTest("true"), 0)
+  }
+
+  test(s"test MiniCluster with connection resets, assert duplicate reads") {
+    Assert.assertTrue(performTest("false") > 0)
+  }
+
+  def performTest(workerChunkLevelCheckpointEnabled: String): Long = {
     val APP = "app-1"
 
     val clientConf = new CelebornConf()
@@ -46,13 +54,12 @@ class ReadWriteTestWithFailures extends AnyFunSuite
       .set("celeborn.client.fetch.maxReqsInFlight", "1")
       .set("celeborn.client.shuffle.compression.codec", CompressionCodec.NONE.toString)
       .set(CelebornConf.TEST_CLIENT_FETCH_FAILURE.key, "true")
-      .set(CelebornConf.WORKER_PARTITION_READER_CHECKPOINT_ENABLE.key, "true")
+      .set(CelebornConf.WORKER_PARTITION_READER_CHECKPOINT_ENABLE.key, workerChunkLevelCheckpointEnabled)
       .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "false")
 
     val lifecycleManager = new LifecycleManager(APP, clientConf)
-    val shuffleClient1 = new ShuffleClientImpl(APP, clientConf, UserIdentifier("mock", "mock"))
-    val shuffleClient2 = new ShuffleClientImpl(APP, clientConf, UserIdentifier("mock", "mock"))
-    shuffleClient1.setupLifecycleManagerRef(lifecycleManager.self)
+    val shuffleClient = new ShuffleClientImpl(APP, clientConf, UserIdentifier("mock", "mock"))
+    shuffleClient.setupLifecycleManagerRef(lifecycleManager.self)
 
     // push 100 random strings
     val numuuids = 100
@@ -61,12 +68,12 @@ class ReadWriteTestWithFailures extends AnyFunSuite
       val str = UUID.randomUUID().toString
       stringSet.add(str)
       val data = ("_" + str).getBytes(StandardCharsets.UTF_8)
-      shuffleClient1.pushData(1, 0, 0, 0, data, 0, data.length, 1, 1)
+      shuffleClient.pushData(1, 0, 0, 0, data, 0, data.length, 1, 1)
     }
-    shuffleClient1.pushMergedData(1, 0, 0)
+    shuffleClient.pushMergedData(1, 0, 0)
     Thread.sleep(1000)
 
-    shuffleClient1.mapperEnd(1, 0, 0, 1)
+    shuffleClient.mapperEnd(1, 0, 0, 1)
 
     var duplicateBytesRead = new AtomicLong(0)
     val metricsCallback = new MetricsCallback {
@@ -76,7 +83,7 @@ class ReadWriteTestWithFailures extends AnyFunSuite
         duplicateBytesRead.addAndGet(bytesRead)
       }
     }
-    val inputStream = shuffleClient1.readPartition(
+    val inputStream = shuffleClient.readPartition(
       1,
       1,
       0,
@@ -106,10 +113,10 @@ class ReadWriteTestWithFailures extends AnyFunSuite
       Assert.assertTrue(stringSet.contains(str))
     }
 
-    // Assert no duplicate chunks read despite chunk fetch retries
-    Assert.assertEquals(duplicateBytesRead.get(), 0)
     Thread.sleep(5000L)
-    shuffleClient1.shutdown()
+    shuffleClient.shutdown()
     lifecycleManager.rpcEnv.shutdown()
+
+    duplicateBytesRead.get()
   }
 }
