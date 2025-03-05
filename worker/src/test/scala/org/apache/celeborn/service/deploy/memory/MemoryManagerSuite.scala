@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.service.deploy.memory
 
+import java.util.concurrent.TimeUnit
+
 import scala.concurrent.duration.DurationInt
 
 import org.mockito.{Mockito, MockitoSugar}
@@ -216,6 +218,47 @@ class MemoryManagerSuite extends CelebornFunSuite {
     MemoryManager.reset()
   }
 
+  test("[CELEBORN-1792] Test MemoryManager keep resume a while by pinned memory") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL.key, "300s")
+    conf.set(CelebornConf.WORKER_PINNED_MEMORY_CHECK_INTERVAL.key, "1s")
+    MemoryManager.reset()
+    val memoryManager = MockitoSugar.spy(MemoryManager.initialize(conf))
+    val maxDirectorMemory = memoryManager.maxDirectMemory
+    val pushThreshold =
+      (conf.workerDirectMemoryRatioToPauseReceive * maxDirectorMemory).longValue()
+    val pinnedMemoryResumeThreshold =
+      (conf.workerPinnedMemoryRatioToResume * maxDirectorMemory).longValue()
+    val channelsLimiter = new MockChannelsLimiter()
+    memoryManager.registerMemoryListener(channelsLimiter)
+
+    // NONE PAUSED -> PAUSE PUSH
+    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(0L)
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(pushThreshold + 1)
+    memoryManager.switchServingState()
+    assert(channelsLimiter.isResume)
+    assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
+
+    // keep pause push, but channels keep resume when pinnedMemory still less than threshold
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(pushThreshold + 1)
+    memoryManager.switchServingState()
+    assert(channelsLimiter.isResume)
+    assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
+
+    // exit keepResumeByPinnedMemory because pinnedMemory is greater than threshold
+    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(
+      pinnedMemoryResumeThreshold + 1)
+    memoryManager.switchServingState()
+    assert(!channelsLimiter.isResume)
+    assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
+
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(0L)
+    memoryManager.switchServingState()
+    assert(channelsLimiter.isResume)
+    assert(memoryManager.servingState == ServingState.NONE_PAUSED)
+
+  }
+
   class MockMemoryPressureListener(
       val belongModuleName: String,
       var isPause: Boolean = false) extends MemoryPressureListener {
@@ -235,4 +278,19 @@ class MemoryManagerSuite extends CelebornFunSuite {
       // do nothing
     }
   }
+
+  class MockChannelsLimiter(var isResume: Boolean = false) extends MemoryPressureListener {
+    override def onPause(moduleName: String): Unit = {
+      isResume = false
+    }
+
+    override def onResume(moduleName: String): Unit = {
+      isResume = true
+    }
+
+    override def onTrim(): Unit = {
+      // do nothing
+    }
+  }
+
 }
