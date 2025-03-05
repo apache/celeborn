@@ -136,6 +136,14 @@ public class NettyMemoryMetrics {
             MetricRegistry.name(metricPrefix, "chunkSize"),
             labels,
             pooledAllocatorMetric::chunkSize);
+        source.addGauge(
+            MetricRegistry.name(metricPrefix, "pinnedHeapMemory"),
+            labels,
+            () -> ((PooledByteBufAllocator) allocator).pinnedHeapMemory());
+        source.addGauge(
+            MetricRegistry.name(metricPrefix, "pinnedDirectMemory"),
+            labels,
+            () -> ((PooledByteBufAllocator) allocator).pinnedDirectMemory());
         if (verboseMetricsEnabled) {
           int directArenaIndex = 0;
           for (PoolArenaMetric metric : pooledAllocatorMetric.directArenas()) {
