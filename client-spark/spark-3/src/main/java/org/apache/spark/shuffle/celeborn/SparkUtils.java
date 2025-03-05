@@ -471,7 +471,7 @@ public class SparkUtils {
 
   public static boolean isCelebornSkewShuffleOrChildShuffle(int sparkShuffleId) {
     if (!isCelebornSkewShuffle_METHOD.isNoop()) {
-      return isCelebornSkewShuffle_METHOD.invoke(sparkShuffleId);
+      return isCelebornSkewShuffle_METHOD.asStatic().invoke(sparkShuffleId);
     } else {
       return false;
     }
