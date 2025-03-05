@@ -255,6 +255,9 @@ abstract class TierWriterBase(
   def returnBufferInternal(destroy: Boolean): Unit
 
   def getFlusher(): Flusher
+
+  def registerToDeviceMonitor(): Unit = {}
+
 }
 
 class MemoryTierWriter(
@@ -383,11 +386,6 @@ class LocalTierWriter(
   private lazy val channel: FileChannel =
     FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath);
 
-  storageManager.registerDiskFilePartitionWriter(
-    partitionDataWriterContext.getPartitionDataWriter,
-    partitionDataWriterContext.getWorkingDir,
-    fileInfo.asInstanceOf[DiskFileInfo])
-
   override def needEvict(): Boolean = {
     false
   }
@@ -470,6 +468,13 @@ class LocalTierWriter(
 
   def getFlusher(): Flusher = {
     flusher
+  }
+
+  override def registerToDeviceMonitor(): Unit = {
+    storageManager.registerDiskFilePartitionWriter(
+      partitionDataWriterContext.getPartitionDataWriter,
+      partitionDataWriterContext.getWorkingDir,
+      fileInfo.asInstanceOf[DiskFileInfo])
   }
 }
 

@@ -78,6 +78,7 @@ public class PartitionDataWriter implements DeviceObserver {
     writerContext.setPartitionDataWriter(this);
     writerContext.setDeviceMonitor(deviceMonitor);
     tierWriterProxy = new TierWriterProxy(writerContext, storageManager, conf, partitionType);
+    tierWriterProxy.registerToDeviceMonitor();
   }
 
   public DiskFileInfo getDiskFileInfo() {

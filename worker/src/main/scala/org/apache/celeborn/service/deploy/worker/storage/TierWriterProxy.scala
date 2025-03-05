@@ -166,4 +166,8 @@ class TierWriterProxy(
   def getFlusher(): Flusher = {
     currentTierWriter.getFlusher()
   }
+
+  def registerToDeviceMonitor(): Unit = {
+    currentTierWriter.registerToDeviceMonitor()
+  }
 }

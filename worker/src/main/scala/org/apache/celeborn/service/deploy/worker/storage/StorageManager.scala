@@ -477,7 +477,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       s3Writers.put(fileInfo.getFilePath, writer)
       return
     }
-    deviceMonitor.registerFileWriter(writer, fileInfo)
+    deviceMonitor.registerFileWriter(writer)
     workingDirWriters.computeIfAbsent(workingDir, workingDirWriterListFunc).put(
       fileInfo.getFilePath,
       writer)
