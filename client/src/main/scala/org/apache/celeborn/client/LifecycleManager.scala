@@ -942,8 +942,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 s"unexpected! unknown appShuffleId $appShuffleId when checking shuffle deterministic level"))
         }
       } else {
-        logError(
-          s"shuffleIds for shuffle: $appShuffleId,${shuffleIds.values.filter(v => v._2).map(v => v._1)}")
         shuffleIds.values.filter(v => v._2).map(v => v._1).toSeq.reverse.find(
           areAllMapTasksEnd) match {
           case Some(shuffleId) =>
