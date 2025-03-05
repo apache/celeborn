@@ -144,8 +144,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       shuffleId: Int,
       locations: util.List[PartitionLocation]): Unit = {
     val map = latestPartitionLocation.computeIfAbsent(shuffleId, newMapFunc)
-    registerShuffleResponseRpcCache.invalidate(shuffleId)
     locations.asScala.foreach(location => map.put(location.getId, location))
+    invalidateLatestMaxLocsCache(shuffleId)
   }
 
   case class RegisterCallContext(context: RpcCallContext, partitionId: Int = -1) {
@@ -1823,6 +1823,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   @volatile private var cancelShuffleCallback: Option[BiConsumer[Integer, String]] = None
   def registerCancelShuffleCallback(callback: BiConsumer[Integer, String]): Unit = {
     cancelShuffleCallback = Some(callback)
+  }
+
+  def invalidateLatestMaxLocsCache(shuffleId: Int): Unit = {
+    registerShuffleResponseRpcCache.invalidate(shuffleId)
   }
 
   // Initialize at the end of LifecycleManager construction.
