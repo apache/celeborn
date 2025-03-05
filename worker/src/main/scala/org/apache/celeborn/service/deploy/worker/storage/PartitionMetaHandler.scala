@@ -86,6 +86,8 @@ trait PartitionMetaHandler {
    * segment index
    */
   def afterClose(): Unit
+
+  def getMapIdBitmap(): Option[RoaringBitmap]
 }
 
 class MapPartitionMetaHandler(
@@ -322,13 +324,14 @@ class MapPartitionMetaHandler(
     }
   }
 
+  override def getMapIdBitmap(): Option[RoaringBitmap] = Option.empty
 }
 
 class ReducePartitionMetaHandler(val rangeReadFilter: Boolean, val fileInfo: FileInfo)
   extends PartitionMetaHandler {
   val logger = LoggerFactory.getLogger(classOf[MapPartitionMetaHandler])
   lazy val mapIdBitMap: Option[RoaringBitmap] =
-    if (rangeReadFilter) Some(new RoaringBitmap()) else None
+    if (rangeReadFilter) Some(new RoaringBitmap()) else Option.empty
 
   override def afterFlush(size: Int): Unit = {
     fileInfo.updateBytesFlushed(size)
