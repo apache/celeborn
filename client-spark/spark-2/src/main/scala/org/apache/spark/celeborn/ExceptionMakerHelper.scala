@@ -23,7 +23,7 @@ import org.apache.celeborn.common.util.ExceptionMaker
 
 object ExceptionMakerHelper {
 
-  val FETCH_FAILURE_ERROR_MSG = "Celeborn FetchFailure with shuffle id "
+  val FETCH_FAILURE_ERROR_MSG = "Celeborn FetchFailure with appShuffleId/shuffleId: "
 
   val SHUFFLE_FETCH_FAILURE_EXCEPTION_MAKER = new ExceptionMaker() {
     override def makeFetchFailureException(
