@@ -1058,10 +1058,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
-  private def isCelebornSkewShuffleOrChildShuffle(shuffleId: Int): Boolean = {
+  private def isCelebornSkewShuffleOrChildShuffle(appShuffleId: Int): Boolean = {
     celebornSkewShuffleCheckCallback match {
       case Some(skewShuffleCallback) =>
-        skewShuffleCallback.apply(shuffleId)
+        skewShuffleCallback.apply(appShuffleId)
       case None => false
     }
   }

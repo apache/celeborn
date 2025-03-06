@@ -151,8 +151,8 @@ index bd2823bcac1..37fd6dc9f30 100644
      // `findMissingPartitions()` returns all partitions every time.
      stage match {
 -      case sms: ShuffleMapStage if stage.isIndeterminate && !sms.isAvailable =>
-+      case sms: ShuffleMapStage if (stage.isIndeterminate && !sms.isAvailable) ||
-+      CelebornShuffleState.isCelebornSkewedShuffle(sms.shuffleDep.shuffleId) =>
++      case sms: ShuffleMapStage if (stage.isIndeterminate ||
++        CelebornShuffleState.isCelebornSkewedShuffle(sms.shuffleDep.shuffleId)) && !sms.isAvailable =>
 +        logInfo(s"Unregistering shuffle output for stage ${stage.id}" +
 +          s" shuffle ${sms.shuffleDep.shuffleId}")
          mapOutputTracker.unregisterAllMapAndMergeOutput(sms.shuffleDep.shuffleId)
