@@ -31,6 +31,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
+import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class LifecycleManagerReserveSlotsSuite extends AnyFunSuite
@@ -83,8 +84,9 @@ class LifecycleManagerReserveSlotsSuite extends AnyFunSuite
     val partitionLocationMap1 =
       shuffleClient1.getPartitionLocation(SHUFFLE_ID, MAP_NUM, PARTITION_NUM)
 
-    partitionLocationMap1.forEach { case (_, partitionLocation) =>
-      assert(partitionLocation.getEpoch == 0)
+    partitionLocationMap1.forEach {
+      case (partitionId: Integer, partitionLocation: PartitionLocation) =>
+        assert(partitionLocation.getEpoch == 0)
     }
 
     val worker2PartitionIds = mutable.Map.empty[WorkerInfo, ArrayBuffer[Int]]
