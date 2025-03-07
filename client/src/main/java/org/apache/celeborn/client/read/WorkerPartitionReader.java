@@ -198,7 +198,7 @@ public class WorkerPartitionReader
     if (results.size() > 0) {
       results.forEach(
           chunk -> {
-            chunk.getRight().release(); //
+            chunk.getRight().release();
           });
     }
     results.clear();

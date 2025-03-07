@@ -982,8 +982,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchTimeoutMs: Long = get(CLIENT_FETCH_TIMEOUT)
   def clientFetchBufferSize: Int = get(CLIENT_FETCH_BUFFER_SIZE).toInt
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
-  def isWorkerPartitionReaderCheckpointEnabled: Boolean =
-    get(WORKER_PARTITION_READER_CHECKPOINT_ENABLE)
+  def isWorkerPartitionReaderCheckpointEnabled: Boolean = {
+    if (clientPushReplicateEnabled) {
+      false
+    } else
+      get(WORKER_PARTITION_READER_CHECKPOINT_ENABLE)
+  }
+
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
   def clientStageRerunEnabled: Boolean = get(CLIENT_STAGE_RERUN_ENABLED)
   def clientFetchExcludeWorkerOnFailureEnabled: Boolean =
