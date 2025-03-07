@@ -592,7 +592,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         ) // get the partition with latest epoch of each worker
         .foldLeft(Map.empty[Int, PartitionLocation]) { (partitionLocationMap, partitionLocation) =>
           partitionLocationMap.get(partitionLocation.getId) match {
-            case Some(existing) if existing.getEpoch >= partitionLocation.getEpoch => partitionLocationMap
+            case Some(existing) if existing.getEpoch >= partitionLocation.getEpoch =>
+              partitionLocationMap
             case _ => partitionLocationMap + (partitionLocation.getId -> partitionLocation)
           }
         } // get the partition with latest epoch of all the partitions
