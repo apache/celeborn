@@ -291,7 +291,7 @@ class NettyRpcEnv(
       case NonFatal(e) =>
         onFailure(e)
     }
-    promise.future.mapTo[T].recover(timeout.addMessageIfTimeout(address))(ThreadUtils.sameThread)
+    promise.future.mapTo[T].recover(timeout.addMessageIfTimeout)(ThreadUtils.sameThread)
   }
 
   private[celeborn] def serialize(content: Any): ByteBuffer = {

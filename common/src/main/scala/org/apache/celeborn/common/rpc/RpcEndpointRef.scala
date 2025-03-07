@@ -90,7 +90,7 @@ abstract class RpcEndpointRef(conf: CelebornConf)
    */
   def askSync[T: ClassTag](message: Any, timeout: RpcTimeout): T = {
     val future = ask[T](message, timeout)
-    timeout.awaitResult(future, address)
+    timeout.awaitResult(future)
   }
 
   /**
