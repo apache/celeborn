@@ -133,7 +133,7 @@ abstract class RpcEndpointRef(conf: CelebornConf)
       numRetries -= 1
       try {
         val future = ask[T](message, timeout)
-        return timeout.awaitResult(future, address)
+        return timeout.awaitResult(future)
       } catch {
         case e: RpcTimeoutException =>
           if (numRetries > 0) {
