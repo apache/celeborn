@@ -84,9 +84,8 @@ class LifecycleManagerReserveSlotsSuite extends AnyFunSuite
     val partitionLocationMap1 =
       shuffleClient1.getPartitionLocation(SHUFFLE_ID, MAP_NUM, PARTITION_NUM)
 
-    partitionLocationMap1.forEach {
-      case (partitionId: Integer, partitionLocation: PartitionLocation) =>
-        assert(partitionLocation.getEpoch == 0)
+    partitionLocationMap1.forEach { (partitionId: Integer, partitionLocation: PartitionLocation) =>
+      assert(partitionLocation.getEpoch == 0)
     }
 
     val worker2PartitionIds = mutable.Map.empty[WorkerInfo, ArrayBuffer[Int]]
