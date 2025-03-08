@@ -60,6 +60,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       sparkSession: SparkSession)
     extends Thread {
     var exception: Exception = _
+
     protected def checkDirStatus(): Boolean = {
       val deletedSuccessfully = shuffleIdShouldNotExist.forall(shuffleId => {
         workerDirs.forall(dir =>
@@ -73,6 +74,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       })
       deletedSuccessfully && createdSuccessfully
     }
+
     override def run(): Unit = {
       var allDataInShape = checkDirStatus()
       while (!allDataInShape) {
@@ -127,13 +129,15 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
     checkingThread.start()
     checkingThread
   }
+
   private def checkStorageValidation(checkingThread: Thread): Unit = {
     checkingThread.join(120 * 1000)
     if (checkingThread.isAlive || checkingThread.asInstanceOf[CheckingThread].exception != null) {
       throw new IllegalStateException("the storage checking status failed," +
-        s"${}")
+        s"${checkingThread.isAlive} ${checkingThread.asInstanceOf[CheckingThread].exception.getMessage}")
     }
   }
+
   // 1. for single level 1-1 lineage, the old disk space is cleaned before the spark application
   // finish
   test("celeborn spark integration test - (1-1 dep with, single level lineage) the failed shuffle file is cleaned up correctly") {
