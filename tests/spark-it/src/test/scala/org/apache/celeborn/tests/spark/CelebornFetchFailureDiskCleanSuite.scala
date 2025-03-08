@@ -67,11 +67,23 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
           !new File(s"$dir/celeborn-worker/shuffle_data/" +
             s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists())
       })
+      val deletedSuccessfullyString = shuffleIdShouldNotExist.map(shuffleId => {
+        shuffleId.toString + ":" +
+          workerDirs.map(dir =>
+            !new File(s"$dir/celeborn-worker/shuffle_data/" +
+              s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists()).toList
+      }).mkString(",")
       val createdSuccessfully = shuffleIdMustExist.forall(shuffleId => {
         workerDirs.exists(dir =>
           new File(s"$dir/celeborn-worker/shuffle_data/" +
             s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists())
       })
+      val createdSuccessfullyString = shuffleIdMustExist.map(shuffleId => {
+        workerDirs.map(dir =>
+          new File(s"$dir/celeborn-worker/shuffle_data/" +
+            s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists()).toList
+      }).mkString(",")
+      println(s"${deletedSuccessfullyString} \t $createdSuccessfullyString")
       deletedSuccessfully && createdSuccessfully
     }
 
@@ -287,7 +299,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       sparkSession.stop()
     }
   }
-  
+
   // 7. if the dependency is 1 to M , we should not clean it
   test("celeborn spark integration test - Do not clean up the shuffle files being referred by more than one stages") {
     if (Spark3OrNewer) {
