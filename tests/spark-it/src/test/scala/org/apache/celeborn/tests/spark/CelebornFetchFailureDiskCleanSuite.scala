@@ -209,7 +209,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       }
       sparkSession.stop()
     }
-  }
+  }*/
 
   // 3. for single level M-1 lineage, the single failed disk space is cleaned
   test(
@@ -235,7 +235,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       assert(tuples.head.toString().equals(expect))
       sparkSession.stop()
     }
-  }*/
+  }
 
   // 4. for single level M-1 lineage, all failed disk spaces are cleaned
   test("celeborn spark integration test - (M-1 dep with single-level lineage) all failed disk spaces are cleaned") {
