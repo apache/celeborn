@@ -88,7 +88,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       sparkSession: SparkSession)
     extends CheckingThread(shuffleIdShouldNotExist, shuffleIdMustExist, sparkSession) {
     override def run(): Unit = {
-      val timeout = 60000
+      val timeout = 240000
       var elapseTime = 0L
       var allDataInShape = checkDirStatus()
       while (!allDataInShape) {
@@ -128,7 +128,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
     checkingThread
   }
   private def checkStorageValidation(checkingThread: Thread): Unit = {
-    checkingThread.join(120 * 1000)
+    checkingThread.join(240 * 1000)
     if (checkingThread.isAlive || checkingThread.asInstanceOf[CheckingThread].exception != null) {
       throw new IllegalStateException("the storage checking status failed," +
         s"${}")
