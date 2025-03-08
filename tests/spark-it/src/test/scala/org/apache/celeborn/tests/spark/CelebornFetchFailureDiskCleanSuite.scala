@@ -263,7 +263,6 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       // verify result
       assert(hook.executed.get())
       val expect = "[2,1,1]"
-      println(tuples.head.toString())
       assert(tuples.head.toString().equals(expect))
       sparkSession.stop()
     }
