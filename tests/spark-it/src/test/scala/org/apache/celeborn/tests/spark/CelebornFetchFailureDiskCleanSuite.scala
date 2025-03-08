@@ -176,7 +176,8 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       }
       sparkSession.stop()
     }
-  }
+  }*/
+
   // 2. for multiple level 1-1 lineage, the old disk space is cleaned one by one
   test("celeborn spark integration test - (1-1 dep with, multi-level lineage) the failed shuffle file is cleaned up correctly") {
     if (Spark3OrNewer) {
@@ -209,7 +210,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       }
       sparkSession.stop()
     }
-  }*/
+  }
 
   // 3. for single level M-1 lineage, the single failed disk space is cleaned
   test(
