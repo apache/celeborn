@@ -102,7 +102,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       sparkSession: SparkSession)
     extends CheckingThread(shuffleIdShouldNotExist, shuffleIdMustExist, sparkSession) {
     override def run(): Unit = {
-      val timeout = 60000
+      val timeout = 30000
       var elapseTime = 0L
       var allDataInShape = checkDirStatus()
       while (!allDataInShape) {
@@ -143,7 +143,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
   }
 
   private def checkStorageValidation(checkingThread: Thread): Unit = {
-    checkingThread.join(120 * 1000)
+    checkingThread.join(240 * 1000)
     if (checkingThread.isAlive || checkingThread.asInstanceOf[CheckingThread].exception != null) {
       throw new IllegalStateException("the storage checking status failed," +
         s"${checkingThread.isAlive} ${checkingThread.asInstanceOf[CheckingThread].exception.getMessage}")
@@ -235,7 +235,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       assert(tuples.head.toString().equals(expect))
       sparkSession.stop()
     }
-  }
+  }*/
 
   // 4. for single level M-1 lineage, all failed disk spaces are cleaned
   test("celeborn spark integration test - (M-1 dep with single-level lineage) all failed disk spaces are cleaned") {
@@ -264,7 +264,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       assert(tuples.head.toString().equals(expect))
       sparkSession.stop()
     }
-  }*/
+  }
 
   // 6. for multiple level M - 1 lineage , all failed disk spaces are cleaned
   test("celeborn spark integration test - (M-1 dep with multi-level lineage) the failed shuffle files are all cleaned up" +
