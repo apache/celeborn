@@ -249,6 +249,11 @@ public class WorkerPartitionReader
               chunkIndex);
           chunkIndex++;
           returnedChunks++;
+          // IMP Since we're skipping fetching this chunk, we must not decrement toFetch here
+          // Eg: If chunkIndex=1, toFetch=2, endChunkIndex = 4 and chunkIdsAlreadyReturned = {1,2}
+          // if we skip chunk 1 and 2, decrementing toFetch here would wrongly exit the loop
+          // without ever fetching chunk {3, 4}, and next() would end up waiting for chunk {3,4}
+          // infinitely.
         } else if (testFetch && fetchChunkRetryCnt < fetchChunkMaxRetry - 1 && chunkIndex == 3) {
           callback.onFailure(chunkIndex, new CelebornIOException("Test fetch chunk failure"));
           toFetch--;
