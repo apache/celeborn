@@ -79,9 +79,10 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
             s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists())
       })
       val createdSuccessfullyString = shuffleIdMustExist.map(shuffleId => {
-        workerDirs.map(dir =>
-          new File(s"$dir/celeborn-worker/shuffle_data/" +
-            s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists()).toList
+        shuffleId.toString + ":" +
+          workerDirs.map(dir =>
+            new File(s"$dir/celeborn-worker/shuffle_data/" +
+              s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists()).toList
       }).mkString(",")
       println(s"${deletedSuccessfullyString} \t $createdSuccessfullyString")
       deletedSuccessfully && createdSuccessfully
@@ -102,7 +103,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       sparkSession: SparkSession)
     extends CheckingThread(shuffleIdShouldNotExist, shuffleIdMustExist, sparkSession) {
     override def run(): Unit = {
-      val timeout = 30000
+      val timeout = 20000
       var elapseTime = 0L
       var allDataInShape = checkDirStatus()
       while (!allDataInShape) {
