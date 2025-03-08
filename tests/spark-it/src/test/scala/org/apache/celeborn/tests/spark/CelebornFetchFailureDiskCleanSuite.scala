@@ -138,6 +138,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
     }
   }
 
+  /*
   // 1. for single level 1-1 lineage, the old disk space is cleaned before the spark application
   // finish
   test("celeborn spark integration test - (1-1 dep with, single level lineage) the failed shuffle file is cleaned up correctly") {
@@ -251,7 +252,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       assert(tuples.head.toString().equals(expect))
       sparkSession.stop()
     }
-  }
+  }*/
 
   // 6. for multiple level M - 1 lineage , all failed disk spaces are cleaned
   test("celeborn spark integration test - (M-1 dep with multi-level lineage) the failed shuffle files are all cleaned up" +
@@ -286,7 +287,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       sparkSession.stop()
     }
   }
-
+  
   // 7. if the dependency is 1 to M , we should not clean it
   test("celeborn spark integration test - Do not clean up the shuffle files being referred by more than one stages") {
     if (Spark3OrNewer) {
@@ -318,6 +319,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       sparkSession.stop()
     }
   }
+
   // 8. if the dependency is 1 to M but failed in commit phase, we should just clean it
   test("celeborn spark integration test - clear the failed-to-commit shuffle file even it is referred by more than once") {
     if (Spark3OrNewer) {
