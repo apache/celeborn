@@ -143,11 +143,13 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
     checkingThread
   }
 
-  private def checkStorageValidation(checkingThread: Thread): Unit = {
+  private def checkStorageValidation(thread: Thread): Unit = {
+    val checkingThread = thread.asInstanceOf[CheckingThread]
     checkingThread.join(240 * 1000)
-    if (checkingThread.isAlive || checkingThread.asInstanceOf[CheckingThread].exception != null) {
+    if (checkingThread.isAlive || checkingThread.exception != null) {
       throw new IllegalStateException("the storage checking status failed," +
-        s"${checkingThread.isAlive} ${checkingThread.asInstanceOf[CheckingThread].exception.getMessage}")
+        s"${checkingThread.isAlive} ${if (checkingThread.exception != null) checkingThread.exception.getMessage
+        else "NULL"}")
     }
   }
 
