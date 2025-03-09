@@ -1745,7 +1745,7 @@ object CelebornConf extends Logging {
   val RPC_RETRY_WAIT: ConfigEntry[Long] =
     buildConf("celeborn.rpc.retryWait")
       .categories("network")
-      .version("0.6.0")
+      .version("0.5.4")
       .doc("Time to wait before next retry on RpcTimeoutException.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1s")
@@ -4295,7 +4295,7 @@ object CelebornConf extends Logging {
   val CLIENT_RPC_RETRY_WAIT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.retryWait")
       .categories("client")
-      .version("0.6.0")
+      .version("0.5.4")
       .doc("Client-specified time to wait before next retry on RpcTimeoutException.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1s")
