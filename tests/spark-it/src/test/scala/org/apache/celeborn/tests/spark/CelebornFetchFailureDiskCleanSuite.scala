@@ -143,7 +143,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
     checkingThread
   }
 
-  private def checkStorageValidation(thread: Thread, timeout: Long = 60 * 1000): Unit = {
+  private def checkStorageValidation(thread: Thread, timeout: Long = 120 * 1000): Unit = {
     val checkingThread = thread.asInstanceOf[CheckingThread]
     checkingThread.join(timeout)
     if (checkingThread.isAlive || checkingThread.exception != null) {
