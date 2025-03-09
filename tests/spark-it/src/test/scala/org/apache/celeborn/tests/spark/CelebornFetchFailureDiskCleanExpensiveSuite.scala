@@ -22,6 +22,13 @@ import org.apache.celeborn.tests.spark.fetch_failure.{FetchFailureDiskCleanBase,
 
 class CelebornFetchFailureDiskCleanExpensiveSuite extends FetchFailureDiskCleanBase {
 
+  override def afterAll(): Unit = {
+    logInfo("all test complete , stop Celeborn mini cluster")
+    // to avoid generated files being deleted too quickly
+    Thread.sleep(60 * 1000)
+    shutdownMiniCluster()
+  }
+
   // 6. for multiple level M - 1 lineage , all failed disk spaces are cleaned
   test("celeborn spark integration test - (M-1 dep with multi-level lineage) the failed shuffle files are all cleaned up" +
     " correctly") {
