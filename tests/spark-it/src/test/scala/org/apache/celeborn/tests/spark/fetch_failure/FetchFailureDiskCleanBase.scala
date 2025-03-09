@@ -30,6 +30,7 @@ import org.apache.celeborn.spark.FailedShuffleCleaner
 private[tests] trait FetchFailureDiskCleanBase extends AnyFunSuite
   with FetchFailureTestBase
   with BeforeAndAfterEach {
+
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup Celeborn mini cluster")
     setupMiniClusterWithRandomPorts(workerNum = 1)
@@ -87,7 +88,7 @@ private[tests] trait FetchFailureDiskCleanBase extends AnyFunSuite
     override def run(): Unit = {
       var allDataInShape = checkDirStatus()
       while (!allDataInShape) {
-        Thread.sleep(1000)
+        Thread.sleep(200)
         allDataInShape = checkDirStatus()
       }
     }
