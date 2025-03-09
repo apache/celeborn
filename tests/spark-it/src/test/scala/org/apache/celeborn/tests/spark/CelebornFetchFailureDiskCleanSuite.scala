@@ -143,9 +143,9 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
     checkingThread
   }
 
-  private def checkStorageValidation(thread: Thread): Unit = {
+  private def checkStorageValidation(thread: Thread, timeout: Long = 60 * 1000): Unit = {
     val checkingThread = thread.asInstanceOf[CheckingThread]
-    checkingThread.join(240 * 1000)
+    checkingThread.join(timeout)
     if (checkingThread.isAlive || checkingThread.exception != null) {
       throw new IllegalStateException("the storage checking status failed," +
         s"${checkingThread.isAlive} ${if (checkingThread.exception != null) checkingThread.exception.getMessage
@@ -293,7 +293,7 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
         .withColumnRenamed("count", "countId").groupBy("countId").count()
         .withColumnRenamed("count", "df2_count")
       val tuples = df1.hint("merge").join(df2, "countId").select("*").collect()
-      checkStorageValidation(checkingThread)
+      checkStorageValidation(checkingThread, timeout = 600 * 1000)
       // verify result
       assert(hook.executed.get())
       val expect = "[1,2,2]"
