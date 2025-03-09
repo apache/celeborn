@@ -22,13 +22,6 @@ import org.apache.celeborn.tests.spark.fetch_failure.{FetchFailureDiskCleanBase,
 
 class CelebornFetchFailureDiskCleanExpensiveSuite extends FetchFailureDiskCleanBase {
 
-  override def afterAll(): Unit = {
-    logInfo("all test complete , stop Celeborn mini cluster")
-    // to avoid generated files being deleted too quickly
-    Thread.sleep(60 * 1000)
-    shutdownMiniCluster()
-  }
-
   // 6. for multiple level M - 1 lineage , all failed disk spaces are cleaned
   test("celeborn spark integration test - (M-1 dep with multi-level lineage) the failed shuffle files are all cleaned up" +
     " correctly") {
@@ -53,7 +46,9 @@ class CelebornFetchFailureDiskCleanExpensiveSuite extends FetchFailureDiskCleanB
       val df2 = Seq((2, "c"), (3, "d")).toDF("id", "data").groupBy("id").count()
         .withColumnRenamed("count", "countId").groupBy("countId").count()
         .withColumnRenamed("count", "df2_count")
-      val tuples = df1.hint("merge").join(df2, "countId").select("*").collect()
+      val df = df1.hint("merge").join(df2, "countId").select("*").persist()
+      val tuples = df.collect()
+      df.collect()
       checkStorageValidation(checkingThread, timeout = 600 * 1000)
       // verify result
       assert(hook.executed.get())

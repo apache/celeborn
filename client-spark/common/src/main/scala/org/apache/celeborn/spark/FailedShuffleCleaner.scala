@@ -133,6 +133,7 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
           if (!cleanedShuffleIds.contains(shuffleId)) {
             lifecycleManager.get().unregisterShuffle(shuffleId)
             logInfo(s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
+            println(s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
             cleanedShuffleIds += shuffleId
           }
         }
