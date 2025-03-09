@@ -16,142 +16,14 @@
  */
 package org.apache.celeborn.tests.spark
 
-import java.io.File
-
 import scala.collection.mutable
 
 import org.apache.spark.shuffle.celeborn.{SparkUtils, TestCelebornShuffleManager}
-import org.apache.spark.sql.SparkSession
-import org.scalatest.BeforeAndAfterEach
-import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.service.deploy.worker.Worker
 import org.apache.celeborn.spark.FailedShuffleCleaner
-import org.apache.celeborn.tests.spark.fetch_failure.{FailCommitShuffleReaderGetHook, FetchFailureTestBase, FileDeletionShuffleReaderGetHook, TestRunningStageManager}
+import org.apache.celeborn.tests.spark.fetch_failure.{FailCommitShuffleReaderGetHook, FetchFailureDiskCleanBase, FileDeletionShuffleReaderGetHook, TestRunningStageManager}
 
-class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
-  with FetchFailureTestBase
-  with BeforeAndAfterEach {
-
-  override def beforeAll(): Unit = {
-    logInfo("test initialized , setup Celeborn mini cluster")
-    setupMiniClusterWithRandomPorts(workerNum = 1)
-  }
-
-  override def beforeEach(): Unit = {
-    ShuffleClient.reset()
-    FailedShuffleCleaner.reset()
-  }
-
-  override def afterEach(): Unit = {
-    System.gc()
-  }
-
-  override def createWorker(map: Map[String, String]): Worker = {
-    val storageDir = createTmpDir()
-    workerDirs = workerDirs :+ storageDir
-    super.createWorker(map ++ Map("celeborn.master.heartbeat.worker.timeout" -> "10s"), storageDir)
-  }
-
-  class CheckingThread(
-      shuffleIdShouldNotExist: Seq[Int],
-      shuffleIdMustExist: Seq[Int],
-      sparkSession: SparkSession)
-    extends Thread {
-    var exception: Exception = _
-
-    protected def checkDirStatus(): Boolean = {
-      val deletedSuccessfully = shuffleIdShouldNotExist.forall(shuffleId => {
-        workerDirs.forall(dir =>
-          !new File(s"$dir/celeborn-worker/shuffle_data/" +
-            s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists())
-      })
-      val deletedSuccessfullyString = shuffleIdShouldNotExist.map(shuffleId => {
-        shuffleId.toString + ":" +
-          workerDirs.map(dir =>
-            !new File(s"$dir/celeborn-worker/shuffle_data/" +
-              s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists()).toList
-      }).mkString(",")
-      val createdSuccessfully = shuffleIdMustExist.forall(shuffleId => {
-        workerDirs.exists(dir =>
-          new File(s"$dir/celeborn-worker/shuffle_data/" +
-            s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists())
-      })
-      val createdSuccessfullyString = shuffleIdMustExist.map(shuffleId => {
-        shuffleId.toString + ":" +
-          workerDirs.map(dir =>
-            new File(s"$dir/celeborn-worker/shuffle_data/" +
-              s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists()).toList
-      }).mkString(",")
-      println(s"${deletedSuccessfullyString} \t $createdSuccessfullyString")
-      deletedSuccessfully && createdSuccessfully
-    }
-
-    override def run(): Unit = {
-      var allDataInShape = checkDirStatus()
-      while (!allDataInShape) {
-        Thread.sleep(1000)
-        allDataInShape = checkDirStatus()
-      }
-    }
-  }
-
-  class CheckingThreadForStableStatus(
-      shuffleIdShouldNotExist: Seq[Int],
-      shuffleIdMustExist: Seq[Int],
-      sparkSession: SparkSession)
-    extends CheckingThread(shuffleIdShouldNotExist, shuffleIdMustExist, sparkSession) {
-    override def run(): Unit = {
-      val timeout = 20000
-      var elapseTime = 0L
-      var allDataInShape = checkDirStatus()
-      while (!allDataInShape) {
-        Thread.sleep(5000)
-        println("init state not meet")
-        allDataInShape = checkDirStatus()
-      }
-      while (allDataInShape) {
-        Thread.sleep(5000)
-        elapseTime += 5000
-        if (elapseTime > timeout) {
-          return
-        }
-        allDataInShape = checkDirStatus()
-        if (!allDataInShape) {
-          exception = new IllegalStateException("the directory state does not meet" +
-            " the expected state")
-          throw exception
-        }
-      }
-    }
-  }
-
-  private def triggerStorageCheckThread(
-      shuffleIdShouldNotExist: Seq[Int],
-      shuffleIdMustExist: Seq[Int],
-      sparkSession: SparkSession,
-      forStableStatusChecking: Boolean): CheckingThread = {
-    val checkingThread =
-      if (!forStableStatusChecking) {
-        new CheckingThread(shuffleIdShouldNotExist, shuffleIdMustExist, sparkSession)
-      } else {
-        new CheckingThreadForStableStatus(shuffleIdShouldNotExist, shuffleIdMustExist, sparkSession)
-      }
-    checkingThread.setDaemon(true)
-    checkingThread.start()
-    checkingThread
-  }
-
-  private def checkStorageValidation(thread: Thread, timeout: Long = 120 * 1000): Unit = {
-    val checkingThread = thread.asInstanceOf[CheckingThread]
-    checkingThread.join(timeout)
-    if (checkingThread.isAlive || checkingThread.exception != null) {
-      throw new IllegalStateException("the storage checking status failed," +
-        s"${checkingThread.isAlive} ${if (checkingThread.exception != null) checkingThread.exception.getMessage
-        else "NULL"}")
-    }
-  }
+class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
 
   // 1. for single level 1-1 lineage, the old disk space is cleaned before the spark application
   // finish
@@ -263,40 +135,6 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
       // verify result
       assert(hook.executed.get())
       val expect = "[2,1,1]"
-      assert(tuples.head.toString().equals(expect))
-      sparkSession.stop()
-    }
-  }
-
-  // 6. for multiple level M - 1 lineage , all failed disk spaces are cleaned
-  test("celeborn spark integration test - (M-1 dep with multi-level lineage) the failed shuffle files are all cleaned up" +
-    " correctly") {
-    if (Spark3OrNewer) {
-      val sparkSession = createSparkSession(enableFailedShuffleCleaner = true)
-      val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
-      val hook = new FileDeletionShuffleReaderGetHook(
-        celebornConf,
-        workerDirs,
-        shuffleIdToBeDeleted = Seq(0, 1, 2, 3),
-        triggerStageId = Some(4))
-      TestCelebornShuffleManager.registerReaderGetHook(hook)
-      val checkingThread = triggerStorageCheckThread(
-        Seq(0, 1, 2, 3),
-        Seq(4, 5, 6, 7),
-        sparkSession,
-        forStableStatusChecking = false)
-      import sparkSession.implicits._
-      val df1 = Seq((1, "a"), (2, "b")).toDF("id", "data").groupBy("id").count()
-        .withColumnRenamed("count", "countId").groupBy("countId").count()
-        .withColumnRenamed("count", "df1_count")
-      val df2 = Seq((2, "c"), (3, "d")).toDF("id", "data").groupBy("id").count()
-        .withColumnRenamed("count", "countId").groupBy("countId").count()
-        .withColumnRenamed("count", "df2_count")
-      val tuples = df1.hint("merge").join(df2, "countId").select("*").collect()
-      checkStorageValidation(checkingThread, timeout = 600 * 1000)
-      // verify result
-      assert(hook.executed.get())
-      val expect = "[1,2,2]"
       assert(tuples.head.toString().equals(expect))
       sparkSession.stop()
     }
