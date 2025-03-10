@@ -51,8 +51,6 @@ class WorkerPartitionReader
 
   std::unique_ptr<memory::ReadOnlyByteBuffer> next() override;
 
-  void fetchChunks();
-
  private:
   // Disable creating the object directly to make sure that
   // std::enable_shared_from_this works properly.
@@ -63,6 +61,8 @@ class WorkerPartitionReader
       int32_t startMapIndex,
       int32_t endMapIndex,
       network::TransportClientFactory* clientFactory);
+
+  void fetchChunks();
 
   // This function cannot be called within constructor!
   void initAndCheck();
@@ -86,8 +86,6 @@ class WorkerPartitionReader
   folly::Synchronized<std::unique_ptr<std::exception>> exception_;
 
   static constexpr auto kDefaultConsumeIter = std::chrono::milliseconds(500);
-  // TODO: the maxTry count might not be proper.
-  static constexpr int kDefaultMaxTryConsume = 100;
 
   // TODO: add other params, such as fetchChunkRetryCnt, fetchChunkMaxRetry
 };

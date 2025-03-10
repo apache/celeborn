@@ -82,16 +82,10 @@ std::unique_ptr<memory::ReadOnlyByteBuffer> WorkerPartitionReader::next() {
   fetchChunks();
   auto result = std::unique_ptr<memory::ReadOnlyByteBuffer>();
   // TODO: the try iter here is not aligned with java version.
-  for (int iter = 0; iter < kDefaultMaxTryConsume && result == nullptr;
-       iter++) {
+  while (!result) {
     initAndCheck();
     // TODO: add metric or time tracing
     chunkQueue_.try_dequeue_for(result, kDefaultConsumeIter);
-  }
-  if (!result) {
-    CELEBORN_FAIL(
-        "chunk dequeue failed after " + std::to_string(kDefaultMaxTryConsume) +
-        " iters");
   }
   toConsumeChunkId_++;
   return std::move(result);
