@@ -68,10 +68,8 @@ public class TransportContext implements Closeable {
   private final TransportConf conf;
   private final BaseMessageHandler msgHandler;
   private final ChannelDuplexHandler channelsLimiter;
-  private final boolean closeIdleConnections;
   // Non-null if SSL is enabled, null otherwise.
   @Nullable private final SSLFactory sslFactory;
-  private final boolean enableHeartbeat;
   private final AbstractSource source;
 
   private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
@@ -80,17 +78,19 @@ public class TransportContext implements Closeable {
   public TransportContext(
       TransportConf conf,
       BaseMessageHandler msgHandler,
-      boolean closeIdleConnections,
       ChannelDuplexHandler channelsLimiter,
-      boolean enableHeartbeat,
       AbstractSource source) {
     this.conf = conf;
     this.msgHandler = msgHandler;
-    this.closeIdleConnections = closeIdleConnections;
     this.sslFactory = SSLFactory.createSslFactory(conf);
     this.channelsLimiter = channelsLimiter;
-    this.enableHeartbeat = enableHeartbeat;
     this.source = source;
+
+    logger.info(
+        "Close idle connections = {}, heartbeat enabled = {} for transport module = {}",
+        this.conf.closeIdleConnections(),
+        this.conf.channelHeartbeatEnabled(),
+        conf.getModuleName());
 
     if (null != this.sslFactory) {
       logger.info(
@@ -103,34 +103,23 @@ public class TransportContext implements Closeable {
   }
 
   public TransportContext(
-      TransportConf conf,
-      BaseMessageHandler msgHandler,
-      boolean closeIdleConnections,
-      boolean enableHeartbeat,
-      AbstractSource source) {
-    this(conf, msgHandler, closeIdleConnections, null, enableHeartbeat, source);
+      TransportConf conf, BaseMessageHandler msgHandler, AbstractSource source) {
+    this(conf, msgHandler, null, source);
   }
 
   public TransportContext(
       TransportConf conf,
       BaseMessageHandler msgHandler,
-      boolean closeIdleConnections,
-      boolean enableHeartbeat,
       AbstractSource source,
       boolean collectFetchChunkDetailMetrics) {
-    this(conf, msgHandler, closeIdleConnections, null, enableHeartbeat, source);
+    this(conf, msgHandler, null, source);
     if (collectFetchChunkDetailMetrics) {
       ENCODER.setSource(source);
     }
   }
 
-  public TransportContext(
-      TransportConf conf, BaseMessageHandler msgHandler, boolean closeIdleConnections) {
-    this(conf, msgHandler, closeIdleConnections, null, false, null);
-  }
-
   public TransportContext(TransportConf conf, BaseMessageHandler msgHandler) {
-    this(conf, msgHandler, false, false, null);
+    this(conf, msgHandler, null);
   }
 
   public TransportClientFactory createClientFactory(List<TransportClientBootstrap> bootstraps) {
@@ -219,7 +208,7 @@ public class TransportContext implements Closeable {
           .addLast(FrameDecoder.HANDLER_NAME, decoder)
           .addLast(
               "idleStateHandler",
-              enableHeartbeat
+              conf.channelHeartbeatEnabled()
                   ? new IdleStateHandler(conf.connectionTimeoutMs() / 1000, 0, 0)
                   : new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
           .addLast("handler", channelHandler);
@@ -241,8 +230,8 @@ public class TransportContext implements Closeable {
         responseHandler,
         requestHandler,
         conf.connectionTimeoutMs(),
-        closeIdleConnections,
-        enableHeartbeat,
+        conf.closeIdleConnections(),
+        conf.channelHeartbeatEnabled(),
         conf.clientHeartbeatInterval(),
         this);
   }

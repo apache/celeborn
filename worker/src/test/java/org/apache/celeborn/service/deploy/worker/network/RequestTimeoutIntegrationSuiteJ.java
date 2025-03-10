@@ -72,6 +72,7 @@ public class RequestTimeoutIntegrationSuiteJ {
 
   protected void doSetup(CelebornConf celebornConf) {
     celebornConf.set("celeborn.shuffle.io.connectionTimeout", "2s");
+    celebornConf.set("celeborn.closeIdleConnections", "true");
     conf = new TransportConf(TEST_MODULE, celebornConf);
   }
 
@@ -129,7 +130,7 @@ public class RequestTimeoutIntegrationSuiteJ {
           }
         };
 
-    TransportContext context = new TransportContext(conf, handler, true);
+    TransportContext context = new TransportContext(conf, handler);
     server = context.createServer();
     clientFactory = context.createClientFactory();
     TransportClient client = clientFactory.createClient(getLocalHost(), server.getPort());
@@ -186,7 +187,7 @@ public class RequestTimeoutIntegrationSuiteJ {
           }
         };
 
-    TransportContext context = new TransportContext(conf, handler, true);
+    TransportContext context = new TransportContext(conf, handler);
     server = context.createServer();
     clientFactory = context.createClientFactory();
 
@@ -252,7 +253,7 @@ public class RequestTimeoutIntegrationSuiteJ {
           }
         };
 
-    TransportContext context = new TransportContext(conf, handler, true);
+    TransportContext context = new TransportContext(conf, handler);
     server = context.createServer();
     clientFactory = context.createClientFactory();
     TransportClient client = clientFactory.createClient(getLocalHost(), server.getPort());

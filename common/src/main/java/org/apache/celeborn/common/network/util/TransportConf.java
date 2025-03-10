@@ -270,4 +270,12 @@ public class TransportConf {
 
     return shouldAutoSslEnabled;
   }
+
+  public boolean channelHeartbeatEnabled() {
+    return celebornConf.channelHeartbeatEnabled(module);
+  }
+
+  public boolean closeIdleConnections() {
+    return celebornConf.closeIdleConnections(module);
+  }
 }

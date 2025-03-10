@@ -200,8 +200,9 @@ public class TransportClientFactorySuiteJ {
   public void closeIdleConnectionForRequestTimeOut() throws IOException, InterruptedException {
     CelebornConf _conf = new CelebornConf();
     _conf.set("celeborn.shuffle.io.connectionTimeout", "1s");
+    _conf.set("celeborn.closeIdleConnections", "true");
     TransportConf conf = new TransportConf(TEST_MODULE, _conf);
-    TransportContext context = new TransportContext(conf, new BaseMessageHandler(), true);
+    TransportContext context = new TransportContext(conf, new BaseMessageHandler());
     try (TransportClientFactory factory = context.createClientFactory()) {
       TransportClient c1 = factory.createClient(getLocalHost(), server1.getPort());
       assertTrue(c1.isActive());
