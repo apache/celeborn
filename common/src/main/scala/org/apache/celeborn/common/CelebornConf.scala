@@ -2094,6 +2094,7 @@ object CelebornConf extends Logging {
   val NETWORK_IO_CLIENT_CONFLICT_AVOID_CHOOSER_ENABLE: ConfigEntry[Boolean] =
     buildConf("celeborn.<module>.io.conflictAvoidChooser.enable")
       .categories("network")
+      .version("0.5.4")
       .doc("Whether to use conflict avoid event executor chooser in the client thread pool. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
         s"works for shuffle client. " +
