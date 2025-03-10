@@ -88,7 +88,7 @@
     <guava.version>33.1.0-jre</guava.version>
     <junit.version>4.13.2</junit.version>
     <leveldb.version>1.8</leveldb.version>
-    <log4j2.version>2.17.2</log4j2.version>
+    <log4j2.version>2.24.3</log4j2.version>
     <lz4-java.version>1.8.0</lz4-java.version>
     <mockito.version>4.11.0</mockito.version>
     <mockito-scalatest.version>1.17.14</mockito-scalatest.version>
