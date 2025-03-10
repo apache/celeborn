@@ -18,7 +18,6 @@
 package org.apache.spark.shuffle.celeborn;
 
 import org.apache.spark.memory.MemoryConsumer;
-import org.apache.spark.memory.SparkOutOfMemoryError;
 import org.apache.spark.unsafe.Platform;
 import org.apache.spark.unsafe.array.LongArray;
 import org.apache.spark.util.collection.unsafe.sort.RadixSort;
@@ -87,7 +86,7 @@ public class ShuffleInMemorySorter {
   public void expandPointerArray(LongArray newArray) {
     if (array != null) {
       if (newArray.size() < array.size()) {
-        throw new SparkOutOfMemoryError("Not enough memory to grow pointer array");
+        SparkCommonUtils.throwSparkOutOfMemoryError();
       }
       Platform.copyMemory(
           array.getBaseObject(),
