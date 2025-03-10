@@ -81,7 +81,6 @@ std::unique_ptr<memory::ReadOnlyByteBuffer> WorkerPartitionReader::next() {
   initAndCheck();
   fetchChunks();
   auto result = std::unique_ptr<memory::ReadOnlyByteBuffer>();
-  // TODO: the try iter here is not aligned with java version.
   while (!result) {
     initAndCheck();
     // TODO: add metric or time tracing
