@@ -86,7 +86,7 @@ private[celeborn] class RpcMetricsTracker(
       if (slowRpcInterval < 0 || System.currentTimeMillis() - lastLogTime > slowRpcInterval &&
         lastSlowLogTime.compareAndSet(lastLogTime, System.currentTimeMillis())) {
         logWarning(
-          s"slow rpc detected: currentQueueSize = ${queueLengthFunc()}, queueTime=$queueTime processTime=$processTime message=$message")
+          s"slow rpc detected: currentQueueSize = ${queueLengthFunc()}, queueTime=$queueTime(ns) processTime=$processTime(ns) message=$message")
       }
 
       val lastTime = lastDumpTime.get
@@ -144,7 +144,7 @@ private[celeborn] class RpcMetricsTracker(
       return
 
     val builder = new StringBuilder();
-    builder.append(s"RPC statistics for $name").append("\n")
+    builder.append(s"RPC statistics for $name (time unit: ns)").append("\n")
     builder.append(s"current queue size = ${queueLengthFunc()}").append("\n")
     builder.append(s"max queue length = ${maxQueueLength.get()}").append("\n")
     histogramMap.entrySet.asScala.foreach(entry => {
