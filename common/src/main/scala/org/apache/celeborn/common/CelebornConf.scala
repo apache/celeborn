@@ -1911,7 +1911,7 @@ object CelebornConf extends Logging {
   val RPC_RETRY_WAIT: ConfigEntry[Long] =
     buildConf("celeborn.rpc.retryWait")
       .categories("network")
-      .version("0.6.0")
+      .version("0.5.4")
       .doc("Time to wait before next retry on RpcTimeoutException.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1s")
@@ -2094,6 +2094,7 @@ object CelebornConf extends Logging {
   val NETWORK_IO_CLIENT_CONFLICT_AVOID_CHOOSER_ENABLE: ConfigEntry[Boolean] =
     buildConf("celeborn.<module>.io.conflictAvoidChooser.enable")
       .categories("network")
+      .version("0.5.4")
       .doc("Whether to use conflict avoid event executor chooser in the client thread pool. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
         s"works for shuffle client. " +
@@ -4990,7 +4991,7 @@ object CelebornConf extends Logging {
   val CLIENT_RPC_RETRY_WAIT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.retryWait")
       .categories("client")
-      .version("0.6.0")
+      .version("0.5.4")
       .doc("Client-specified time to wait before next retry on RpcTimeoutException.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1s")
