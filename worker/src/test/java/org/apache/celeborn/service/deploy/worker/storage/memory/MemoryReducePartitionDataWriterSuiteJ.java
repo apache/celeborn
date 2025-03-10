@@ -81,7 +81,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
   private static final TransportConf transConf = new TransportConf("shuffle", new CelebornConf());
   private static StorageManager storageManager;
   private static StoragePolicy storagePolicy;
-  private static Object flushLock = new Object();
 
   private StorageManager prepareMemoryFileTestEnvironment(
       UserIdentifier userIdentifier,
@@ -117,7 +116,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                         celebornConf.shuffleRangeReadFilterEnabled(), memoryFileInfo),
                     numPendingWriters,
                     flushNotifier,
-                    flushLock,
                     source,
                     memoryFileInfo,
                     StorageInfo.Type.MEMORY,
@@ -125,12 +123,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                     storageManager))
         .when(storagePolicy)
         .createFileWriter(
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any());
+            Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
 
     return storageManager;
   }

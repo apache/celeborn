@@ -102,7 +102,6 @@ class StoragePolicyCase4 extends CelebornFunSuite {
       memoryDisabledHintPartitionLocation)
     when(mockedStorageManager.localOrDfsStorageAvailable).thenAnswer(true)
     val conf = new CelebornConf()
-    val flushLock = new AnyRef
     conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "MEMORY,SSD,HDD,HDFS,OSS,S3")
     val storagePolicy = new StoragePolicy(conf, mockedStorageManager, mockedSource)
     val pendingWriters = new AtomicInteger()
@@ -111,8 +110,7 @@ class StoragePolicyCase4 extends CelebornFunSuite {
       mockedPartitionWriterContext,
       PartitionType.REDUCE,
       pendingWriters,
-      notifier,
-      flushLock)
+      notifier)
     assert(file.isInstanceOf[LocalTierWriter])
   }
 

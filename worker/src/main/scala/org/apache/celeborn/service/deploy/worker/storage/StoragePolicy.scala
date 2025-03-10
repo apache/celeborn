@@ -38,8 +38,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
       partitionDataWriterContext: PartitionDataWriterContext,
       partitionType: PartitionType,
       numPendingWrites: AtomicInteger,
-      notifier: FlushNotifier,
-      flushLock: AnyRef): TierWriterBase = {
+      notifier: FlushNotifier): TierWriterBase = {
     evictFileOrder.foreach { order =>
       val orderList = order.get(celebornFile.storageType.name())
       if (orderList != null) {
@@ -48,7 +47,6 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
           partitionType,
           numPendingWrites,
           notifier,
-          flushLock,
           orderList)
       }
     }
@@ -61,7 +59,6 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
       partitionType: PartitionType,
       numPendingWrites: AtomicInteger,
       notifier: FlushNotifier,
-      flushLock: AnyRef,
       order: Option[List[String]] = createFileOrder): TierWriterBase = {
     logDebug(
       s"create file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
@@ -107,7 +104,6 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                 metaHandler,
                 numPendingWrites,
                 notifier,
-                flushLock,
                 source,
                 memoryFileInfo,
                 storageInfoType,
@@ -135,7 +131,6 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                   metaHandler,
                   numPendingWrites,
                   notifier,
-                  flushLock,
                   flusher,
                   source,
                   diskFileInfo,
@@ -148,7 +143,6 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                   metaHandler,
                   numPendingWrites,
                   notifier,
-                  flushLock,
                   flusher,
                   source,
                   diskFileInfo,

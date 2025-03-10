@@ -78,7 +78,6 @@ public class PartitionDataWriter implements DeviceObserver {
     writerContext.setPartitionDataWriter(this);
     writerContext.setDeviceMonitor(deviceMonitor);
     tierWriterProxy = new TierWriterProxy(writerContext, storageManager, conf, partitionType);
-    tierWriterProxy.registerToDeviceMonitor();
   }
 
   public DiskFileInfo getDiskFileInfo() {
@@ -132,7 +131,7 @@ public class PartitionDataWriter implements DeviceObserver {
     return tierWriterProxy.getCurrentStorageInfo();
   }
 
-  public synchronized long close() {
+  public long close() {
     return tierWriterProxy.close();
   }
 
@@ -146,7 +145,7 @@ public class PartitionDataWriter implements DeviceObserver {
     tierWriterProxy.evict(checkClose);
   }
 
-  public synchronized void destroy(IOException ioException) {
+  public void destroy(IOException ioException) {
     tierWriterProxy.destroy(ioException);
   }
 
@@ -234,9 +233,5 @@ public class PartitionDataWriter implements DeviceObserver {
 
   public Flusher getFlusher() {
     return tierWriterProxy.getFlusher();
-  }
-
-  public TierWriterProxy getTierWriterProxy() {
-    return tierWriterProxy;
   }
 }

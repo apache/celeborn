@@ -112,8 +112,7 @@ class StoragePolicyCase3 extends CelebornFunSuite {
       mockedPartitionWriterContext,
       PartitionType.REDUCE,
       pendingWriters,
-      notifier,
-      flushLock)
+      notifier)
     assert(nFile.isInstanceOf[LocalTierWriter])
   }
 

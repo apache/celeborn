@@ -244,10 +244,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
         when(fw3.getFilePath).thenReturn(f3.getAbsolutePath)
         when(fw4.getFilePath).thenReturn(f4.getAbsolutePath)
 
-        deviceMonitor.registerFileWriter(fw1)
-        deviceMonitor.registerFileWriter(fw2)
-        deviceMonitor.registerFileWriter(fw3)
-        deviceMonitor.registerFileWriter(fw4)
+        deviceMonitor.registerFileWriter(fw1, f1.getAbsolutePath)
+        deviceMonitor.registerFileWriter(fw2, f2.getAbsolutePath)
+        deviceMonitor.registerFileWriter(fw3, f3.getAbsolutePath)
+        deviceMonitor.registerFileWriter(fw4, f4.getAbsolutePath)
 
         assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 3)
         assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 3)
@@ -344,10 +344,11 @@ class DeviceMonitorSuite extends AnyFunSuite {
           deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(storageManager))
         assert(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.contains(df4))
 
-        deviceMonitor.registerFileWriter(fw1)
-        deviceMonitor.registerFileWriter(fw2)
-        deviceMonitor.registerFileWriter(fw3)
-        deviceMonitor.registerFileWriter(fw4)
+        deviceMonitor.registerFileWriter(fw1, f1.getAbsolutePath)
+        deviceMonitor.registerFileWriter(fw2, f2.getAbsolutePath)
+        deviceMonitor.registerFileWriter(fw3, f3.getAbsolutePath)
+        deviceMonitor.registerFileWriter(fw4, f4.getAbsolutePath)
+
         assertEquals(deviceMonitor.observedDevices.get(vdaDeviceInfo).observers.size(), 4)
         assertEquals(deviceMonitor.observedDevices.get(vdbDeviceInfo).observers.size(), 4)
       }

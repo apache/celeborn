@@ -46,7 +46,6 @@ abstract class TierWriterBase(
     val metaHandler: PartitionMetaHandler,
     val numPendingWrites: AtomicInteger,
     val notifier: FlushNotifier,
-    val flushLock: AnyRef,
     val fileInfo: FileInfo,
     val source: AbstractSource,
     val storageType: StorageInfo.Type,
@@ -60,6 +59,7 @@ abstract class TierWriterBase(
   var writerCloseTimeoutMs: Long = conf.workerWriterCloseTimeoutMs
   var flusherBufferSize = 0L
   private val chunkSize: Long = conf.shuffleChunkSize
+  val flushLock: AnyRef = new AnyRef
 
   @volatile var closed: Boolean = false
   @volatile private var destroyed: Boolean = false
@@ -116,7 +116,7 @@ abstract class TierWriterBase(
     fileInfo.getFileLength
   }
 
-  def ensureNotClosed(): Unit = {
+  private def ensureNotClosed(): Unit = {
     if (closed) {
       val msg = getFileAlreadyClosedMsg
       logWarning(msg)
@@ -256,9 +256,6 @@ abstract class TierWriterBase(
   def returnBufferInternal(destroy: Boolean): Unit
 
   def getFlusher(): Flusher
-
-  def registerToDeviceMonitor(): Unit = {}
-
 }
 
 class MemoryTierWriter(
@@ -266,7 +263,6 @@ class MemoryTierWriter(
     metaHandler: PartitionMetaHandler,
     numPendingWriters: AtomicInteger,
     notifier: FlushNotifier,
-    flushLock: AnyRef,
     source: AbstractSource,
     fileInfo: MemoryFileInfo,
     storageType: StorageInfo.Type,
@@ -277,7 +273,6 @@ class MemoryTierWriter(
     metaHandler,
     numPendingWriters,
     notifier,
-    flushLock,
     fileInfo,
     source,
     storageType,
@@ -360,7 +355,6 @@ class LocalTierWriter(
     metaHandler: PartitionMetaHandler,
     numPendingWrites: AtomicInteger,
     notifier: FlushNotifier,
-    flushLock: AnyRef,
     flusher: Flusher,
     source: AbstractSource,
     diskFileInfo: DiskFileInfo,
@@ -372,7 +366,6 @@ class LocalTierWriter(
     metaHandler,
     numPendingWrites,
     notifier,
-    flushLock,
     diskFileInfo,
     source,
     storageType,
@@ -387,6 +380,10 @@ class LocalTierWriter(
         partitionDataWriterContext.getUserIdentifier)
     else
       null
+  storageManager.registerDiskFilePartitionWriter(
+    partitionDataWriterContext.getPartitionDataWriter,
+    partitionDataWriterContext.getWorkingDir,
+    fileInfo.asInstanceOf[DiskFileInfo])
 
   private lazy val channel: FileChannel =
     FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath)
@@ -474,13 +471,6 @@ class LocalTierWriter(
   def getFlusher(): Flusher = {
     flusher
   }
-
-  override def registerToDeviceMonitor(): Unit = {
-    storageManager.registerDiskFilePartitionWriter(
-      partitionDataWriterContext.getPartitionDataWriter,
-      partitionDataWriterContext.getWorkingDir,
-      fileInfo.asInstanceOf[DiskFileInfo])
-  }
 }
 
 class DfsTierWriter(
@@ -488,7 +478,6 @@ class DfsTierWriter(
     metaHandler: PartitionMetaHandler,
     numPendingWrites: AtomicInteger,
     notifier: FlushNotifier,
-    flushLock: AnyRef,
     flusher: Flusher,
     source: AbstractSource,
     hdfsFileInfo: DiskFileInfo,
@@ -500,7 +489,6 @@ class DfsTierWriter(
     metaHandler,
     numPendingWrites,
     notifier,
-    flushLock,
     hdfsFileInfo,
     source,
     storageType,

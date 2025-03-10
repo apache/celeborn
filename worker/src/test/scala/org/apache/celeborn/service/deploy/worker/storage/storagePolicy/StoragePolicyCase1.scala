@@ -109,8 +109,7 @@ class StoragePolicyCase1 extends CelebornFunSuite {
       mockedPartitionWriterContext,
       PartitionType.REDUCE,
       pendingWriters,
-      notifier,
-      flushLock)
+      notifier)
     assert(file.isInstanceOf[MemoryTierWriter])
   }
 

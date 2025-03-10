@@ -37,17 +37,15 @@ class TierWriterProxy(
   val notifier = new FlushNotifier
   val numPendingWrites = new AtomicInteger
   @volatile var currentTierWriter: TierWriterBase = _
-  val flushLock = new AnyRef
 
   currentTierWriter =
     storageManager.storagePolicy.createFileWriter(
       partitionDataWriterContext,
       partitionType,
       numPendingWrites,
-      notifier,
-      flushLock)
+      notifier)
 
-  def write(buf: ByteBuf): Unit = this.flushLock.synchronized {
+  def write(buf: ByteBuf): Unit = this.synchronized {
     if (currentTierWriter.needEvict()) {
       evict(false)
     }
@@ -56,7 +54,7 @@ class TierWriterProxy(
 
   // evict and flush method need to be in a same synchronized block
   // because memory manager may want to evict a file under memory pressure
-  def evict(checkClose: Boolean): Unit = this.flushLock.synchronized {
+  def evict(checkClose: Boolean): Unit = this.synchronized {
     // close and evict might be invoked concurrently
     // do not evict committed files from memory manager
     // evict memory file info if worker is shutdown gracefully
@@ -71,13 +69,12 @@ class TierWriterProxy(
         partitionDataWriterContext,
         partitionType,
         numPendingWrites,
-        notifier,
-        flushLock)
+        notifier)
     currentTierWriter.evict(nFile)
     currentTierWriter = nFile
   }
 
-  def flush(finalFlush: Boolean): Unit = this.flushLock.synchronized {
+  def flush(finalFlush: Boolean): Unit = this.synchronized {
     currentTierWriter.flush(finalFlush)
   }
 
@@ -85,7 +82,7 @@ class TierWriterProxy(
     currentTierWriter.fileInfo
   }
 
-  def needHardSplitForMemoryFile(): Boolean = {
+  def needHardSplitForMemoryFile(): Boolean = this.synchronized {
     if (!currentTierWriter.isInstanceOf[MemoryTierWriter]) {
       return false
     }
@@ -126,11 +123,11 @@ class TierWriterProxy(
     storageInfo
   }
 
-  def destroy(ioException: IOException): Unit = {
+  def destroy(ioException: IOException): Unit = this.synchronized {
     currentTierWriter.destroy(ioException)
   }
 
-  def close(): Long = {
+  def close(): Long = this.synchronized {
     currentTierWriter.close()
   }
 
@@ -156,9 +153,5 @@ class TierWriterProxy(
 
   def getFlusher(): Flusher = {
     currentTierWriter.getFlusher()
-  }
-
-  def registerToDeviceMonitor(): Unit = {
-    currentTierWriter.registerToDeviceMonitor()
   }
 }

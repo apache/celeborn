@@ -41,8 +41,6 @@ import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 
 public class PartitionDataWriterSuiteUtils {
-  private static Object flushLock = new Object();
-
   public static File getTemporaryFile(File tempDir) throws IOException {
     String filename = UUID.randomUUID().toString();
     File temporaryFile = new File(tempDir, filename);
@@ -98,7 +96,6 @@ public class PartitionDataWriterSuiteUtils {
                     finalMetaHandler,
                     numPendingWriters,
                     flushNotifier,
-                    flushLock,
                     flusher,
                     source,
                     fileInfo,
@@ -107,12 +104,7 @@ public class PartitionDataWriterSuiteUtils {
                     storageManager))
         .when(storagePolicy)
         .createFileWriter(
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any());
+            Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
 
     return storageManager;
   }
@@ -151,7 +143,6 @@ public class PartitionDataWriterSuiteUtils {
                         celebornConf.shuffleRangeReadFilterEnabled(), memoryFileInfo),
                     numPendingWriters,
                     flushNotifier,
-                    flushLock,
                     source,
                     memoryFileInfo,
                     StorageInfo.Type.MEMORY,
@@ -159,12 +150,7 @@ public class PartitionDataWriterSuiteUtils {
                     storageManager))
         .when(storagePolicy)
         .createFileWriter(
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any());
+            Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
 
     return storageManager;
   }
@@ -232,7 +218,6 @@ public class PartitionDataWriterSuiteUtils {
                         celebornConf.shuffleRangeReadFilterEnabled(), memoryFileInfo),
                     numPendingWriters,
                     flushNotifier,
-                    flushLock,
                     source,
                     memoryFileInfo,
                     StorageInfo.Type.MEMORY,
@@ -240,12 +225,7 @@ public class PartitionDataWriterSuiteUtils {
                     storageManager))
         .when(storagePolicy)
         .createFileWriter(
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any());
+            Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
 
     Mockito.doAnswer(
             invocation ->
@@ -255,7 +235,6 @@ public class PartitionDataWriterSuiteUtils {
                         celebornConf.shuffleRangeReadFilterEnabled(), fileInfo),
                     numPendingWriters,
                     flushNotifier,
-                    flushLock,
                     flusher,
                     source,
                     fileInfo,
@@ -264,12 +243,7 @@ public class PartitionDataWriterSuiteUtils {
                     storageManager))
         .when(storagePolicy)
         .getEvictedFileWriter(
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any());
+            Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
 
     return storageManager;
   }
