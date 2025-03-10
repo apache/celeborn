@@ -15,4 +15,4 @@
  * limitations under the License.
  */
 
-ThisBuild / version := "0.5.5-SNAPSHOT"
+ThisBuild / version := "0.5.4"
