@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -36,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
@@ -307,5 +309,16 @@ public class DfsPartitionReader implements PartitionReader {
   @Override
   public PartitionLocation getLocation() {
     return location;
+  }
+
+  @Override
+  public Optional<PartitionReaderCheckpointMetadata> getPartitionReaderCheckpointMetadata() {
+    // TODO implement similar to {@link WorkerPartitionReader}
+    return Optional.empty();
+  }
+
+  @Override
+  public void updateCheckpointMetadata(PartitionReaderCheckpointMetadata checkpointMetadata) {
+    // TODO implement similar to {@link WorkerPartitionReader}
   }
 }
