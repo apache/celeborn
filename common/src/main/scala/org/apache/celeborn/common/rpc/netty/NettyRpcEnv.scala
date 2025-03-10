@@ -251,7 +251,7 @@ class NettyRpcEnv(
       case RpcFailure(e) => onFailure(e)
       case rpcReply =>
         if (!promise.trySuccess(rpcReply)) {
-          logWarning(s"Ignored message: $reply")
+          logWarning(s"Ignored message: ${reply.getClass.getCanonicalName}")
         }
     }
 
