@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -34,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -276,5 +278,16 @@ public class LocalPartitionReader implements PartitionReader {
   @Override
   public PartitionLocation getLocation() {
     return location;
+  }
+
+  @Override
+  public Optional<PartitionReaderCheckpointMetadata> getPartitionReaderCheckpointMetadata() {
+    // TODO implement similar to {@link WorkerPartitionReader}
+    return Optional.empty();
+  }
+
+  @Override
+  public void updateCheckpointMetadata(PartitionReaderCheckpointMetadata checkpointMetadata) {
+    // TODO implement similar to {@link WorkerPartitionReader}
   }
 }

@@ -17,5 +17,22 @@
 
 package org.apache.celeborn.client.read.checkpoint;
 
+import java.util.Set;
+
 /** Checkpoint metadata interface for a partition reader. */
-public interface PartitionReaderCheckpointMetadata {}
+public class PartitionReaderCheckpointMetadata {
+  private final Set<Integer> returnedChunks;
+
+  /**
+   * Create an instance of the checkpoint metadata.
+   *
+   * @param returnedChunks The set of chunks that have already been returned to the user.
+   */
+  public PartitionReaderCheckpointMetadata(Set<Integer> returnedChunks) {
+    this.returnedChunks = returnedChunks;
+  }
+
+  public Set<Integer> getReturnedChunks() {
+    return returnedChunks;
+  }
+}

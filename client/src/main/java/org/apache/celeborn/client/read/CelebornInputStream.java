@@ -427,17 +427,15 @@ public abstract class CelebornInputStream extends InputStream {
         Optional<PartitionReaderCheckpointMetadata> checkpointMetadata)
         throws IOException {
       Exception lastException = null;
-      PartitionReader reader = null;
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
           logger.debug("Create reader for location {}", location);
           if (isExcluded(location)) {
             throw new CelebornIOException("Fetch data from excluded worker! " + location);
           }
-          reader = createReader(location, pbStreamHandler, fetchChunkRetryCnt, fetchChunkMaxRetry);
-          if (checkpointMetadata.isPresent()) {
-            reader.updateCheckpointMetadata(checkpointMetadata.get());
-          }
+          PartitionReader reader =
+              createReader(location, pbStreamHandler, fetchChunkRetryCnt, fetchChunkMaxRetry);
+          checkpointMetadata.ifPresent(reader::updateCheckpointMetadata);
           return reader;
         } catch (Exception e) {
           lastException = e;
@@ -544,7 +542,7 @@ public abstract class CelebornInputStream extends InputStream {
                   createReaderWithRetry(
                       currentReader.getLocation(),
                       null,
-                      Optional.ofNullable(currentReader.getPartitionReaderCheckpointMetadata()));
+                      currentReader.getPartitionReaderCheckpointMetadata());
             }
           }
         }

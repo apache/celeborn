@@ -20,6 +20,7 @@ package org.apache.celeborn.client.read;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -31,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.client.read.checkpoint.WorkerPartitionReaderCheckpointMetadata;
+import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
@@ -48,8 +49,7 @@ import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.util.ExceptionUtils;
 
-public class WorkerPartitionReader
-    implements PartitionReader<WorkerPartitionReaderCheckpointMetadata> {
+public class WorkerPartitionReader implements PartitionReader {
   private final Logger logger = LoggerFactory.getLogger(WorkerPartitionReader.class);
   private PartitionLocation location;
   private final TransportClientFactory clientFactory;
@@ -225,14 +225,14 @@ public class WorkerPartitionReader
   }
 
   @Override
-  public WorkerPartitionReaderCheckpointMetadata getPartitionReaderCheckpointMetadata() {
+  public Optional<PartitionReaderCheckpointMetadata> getPartitionReaderCheckpointMetadata() {
     return isCheckpointEnabled
-        ? new WorkerPartitionReaderCheckpointMetadata(chunkIdsAlreadyReturned)
-        : null;
+        ? Optional.of(new PartitionReaderCheckpointMetadata(chunkIdsAlreadyReturned))
+        : Optional.empty();
   }
 
   @Override
-  public void updateCheckpointMetadata(WorkerPartitionReaderCheckpointMetadata checkpointMetadata) {
+  public void updateCheckpointMetadata(PartitionReaderCheckpointMetadata checkpointMetadata) {
     chunkIdsAlreadyReturned = checkpointMetadata.getReturnedChunks();
   }
 

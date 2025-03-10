@@ -982,12 +982,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchTimeoutMs: Long = get(CLIENT_FETCH_TIMEOUT)
   def clientFetchBufferSize: Int = get(CLIENT_FETCH_BUFFER_SIZE).toInt
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
-  def isWorkerPartitionReaderCheckpointEnabled: Boolean = {
-    if (clientPushReplicateEnabled) {
-      false
-    } else
-      get(WORKER_PARTITION_READER_CHECKPOINT_ENABLE)
-  }
+  def isWorkerPartitionReaderCheckpointEnabled: Boolean =
+    get(WORKER_PARTITION_READER_CHECKPOINT_ENABLED)
 
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
   def clientStageRerunEnabled: Boolean = get(CLIENT_STAGE_RERUN_ENABLED)
@@ -4698,8 +4694,8 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64k")
 
-  val WORKER_PARTITION_READER_CHECKPOINT_ENABLE: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.partition.reader.checkpointEnabled")
+  val WORKER_PARTITION_READER_CHECKPOINT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.partition.reader.checkpoint.enabled")
       .categories("client")
       .version("0.6.0")
       .doc("Whether or not checkpoint reads when re-creating a worker reader. Setting to true minimizes" +

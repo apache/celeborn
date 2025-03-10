@@ -137,5 +137,5 @@ license: |
 | celeborn.storage.s3.endpoint.region | &lt;undefined&gt; | false | S3 endpoint for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.s3.secret.key | &lt;undefined&gt; | false | S3 secret key for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.tags.tagsExpr |  | true | Expression to filter workers by tags. The expression is a comma-separated list of tags. The expression is evaluated as a logical AND of all tags. For example, `prod,high-io` filters workers that have both the `prod` and `high-io` tags. | 0.6.0 |  | 
-| celeborn.worker.partition.reader.checkpointEnabled | false | false | Whether or not checkpoint reads when re-creating a worker reader. Setting to true minimizes the amount of unnecessary reads during client read retries | 0.6.0 |  | 
+| celeborn.worker.partition.reader.checkpoint.enabled | false | false | Whether or not checkpoint reads when re-creating a worker reader. Setting to true minimizes the amount of unnecessary reads during client read retries | 0.6.0 |  | 
 <!--end-include-->

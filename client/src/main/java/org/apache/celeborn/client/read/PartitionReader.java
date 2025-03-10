@@ -18,13 +18,14 @@
 package org.apache.celeborn.client.read;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import io.netty.buffer.ByteBuf;
 
 import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 
-public interface PartitionReader<T extends PartitionReaderCheckpointMetadata> {
+public interface PartitionReader {
   boolean hasNext();
 
   ByteBuf next() throws IOException, InterruptedException;
@@ -33,9 +34,7 @@ public interface PartitionReader<T extends PartitionReaderCheckpointMetadata> {
 
   PartitionLocation getLocation();
 
-  default T getPartitionReaderCheckpointMetadata() {
-    return null;
-  }
+  Optional<PartitionReaderCheckpointMetadata> getPartitionReaderCheckpointMetadata();
 
-  default void updateCheckpointMetadata(T checkpointMetadata) {}
+  void updateCheckpointMetadata(PartitionReaderCheckpointMetadata checkpointMetadata);
 }
