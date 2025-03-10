@@ -145,6 +145,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       locations: util.List[PartitionLocation]): Unit = {
     val map = latestPartitionLocation.computeIfAbsent(shuffleId, newMapFunc)
     locations.asScala.foreach(location => map.put(location.getId, location))
+    invalidateLatestMaxLocsCache(shuffleId)
   }
 
   case class RegisterCallContext(context: RpcCallContext, partitionId: Int = -1) {
@@ -547,12 +548,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 shuffleId,
                 rpcContext,
                 partitionId,
-                getInitialLocs(shuffleId, p => p.getId == partitionId))
+                getLatestLocs(shuffleId, p => p.getId == partitionId))
             case PartitionType.REDUCE =>
               if (rpcContext.isInstanceOf[LocalNettyRpcCallContext]) {
                 context.reply(RegisterShuffleResponse(
                   StatusCode.SUCCESS,
-                  getInitialLocs(shuffleId, p => p.getEpoch == 0)))
+                  getLatestLocs(shuffleId, _ => true)))
               } else {
                 val cachedMsg = registerShuffleResponseRpcCache.get(
                   shuffleId,
@@ -561,7 +562,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                       rpcContext.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(
                         RegisterShuffleResponse(
                           StatusCode.SUCCESS,
-                          getInitialLocs(shuffleId, p => p.getEpoch == 0)))
+                          getLatestLocs(shuffleId, _ => true)))
                     }
                   })
                 rpcContext.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
@@ -580,13 +581,23 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       }
     }
 
-    def getInitialLocs(
+    def getLatestLocs(
         shuffleId: Int,
         partitionLocationFilter: PartitionLocation => Boolean): Array[PartitionLocation] = {
       workerSnapshots(shuffleId)
         .values()
         .asScala
-        .flatMap(_.getAllPrimaryLocationsWithMinEpoch())
+        .flatMap(
+          _.getAllPrimaryLocationsWithMaxEpoch()
+        ) // get the partition with latest epoch of each worker
+        .foldLeft(Map.empty[Int, PartitionLocation]) { (partitionLocationMap, partitionLocation) =>
+          partitionLocationMap.get(partitionLocation.getId) match {
+            case Some(existing) if existing.getEpoch >= partitionLocation.getEpoch =>
+              partitionLocationMap
+            case _ => partitionLocationMap + (partitionLocation.getId -> partitionLocation)
+          }
+        } // get the partition with latest epoch of all the partitions
+        .values
         .filter(partitionLocationFilter)
         .toArray
     }
@@ -1822,6 +1833,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   @volatile private var cancelShuffleCallback: Option[BiConsumer[Integer, String]] = None
   def registerCancelShuffleCallback(callback: BiConsumer[Integer, String]): Unit = {
     cancelShuffleCallback = Some(callback)
+  }
+
+  def invalidateLatestMaxLocsCache(shuffleId: Int): Unit = {
+    registerShuffleResponseRpcCache.invalidate(shuffleId)
   }
 
   // Initialize at the end of LifecycleManager construction.
