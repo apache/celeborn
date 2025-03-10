@@ -25,10 +25,11 @@ import java.util
 import com.google.common.annotations.VisibleForTesting
 import com.google.protobuf.GeneratedMessageV3
 import io.netty.buffer.ByteBuf
+import org.apache.hadoop.fs.FileSystem
 import org.roaringbitmap.RoaringBitmap
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 
-import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, MapFileMeta, MemoryFileInfo}
+import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, MapFileMeta, MemoryFileInfo, ReduceFileMeta}
 import org.apache.celeborn.common.protocol.{PbPushDataHandShake, PbRegionFinish, PbRegionStart, PbSegmentStart}
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.FileChannelUtils
@@ -62,7 +63,7 @@ trait PartitionMetaHandler {
   /**
    * For reduce partition meta handler, this method will do nothing
    * For map partition meta handler, this method will ensure that this region is not finished
-   * For map segmenta partition meta handler, this method will update segment index
+   * For map segment partition meta handler, this method will update segment index
    * @param size processed shuffle data size
    */
   def afterWrite(size: Int): Unit
@@ -86,25 +87,27 @@ trait PartitionMetaHandler {
    * segment index
    */
   def afterClose(): Unit
+
+  def getMapIdBitmap(): Option[RoaringBitmap]
 }
 
 class MapPartitionMetaHandler(
     diskFileInfo: DiskFileInfo,
     notifier: FlushNotifier) extends PartitionMetaHandler {
-  lazy val hadoopFs = StorageManager.hadoopFs.get()
-  val logger = LoggerFactory.getLogger(classOf[MapPartitionMetaHandler])
-  val fileMeta = diskFileInfo.getFileMeta.asInstanceOf[MapFileMeta]
+  lazy val hadoopFs: FileSystem = StorageManager.hadoopFs.get()
+  val logger: Logger = LoggerFactory.getLogger(classOf[MapPartitionMetaHandler])
+  val fileMeta: MapFileMeta = diskFileInfo.getFileMeta.asInstanceOf[MapFileMeta]
   var numSubpartitions = 0
   var currentDataRegionIndex = 0
   var isBroadcastRegion = false
-  var numSubpartitionBytes: Array[Long] = null
-  var indexBuffer: ByteBuffer = null
+  var numSubpartitionBytes: Array[Long] = _
+  var indexBuffer: ByteBuffer = _
   var currentSubpartition = 0
-  var totalBytes = 0L
-  var regionStartingOffset = 0L
+  private var totalBytes = 0L
+  private var regionStartingOffset = 0L
   var indexChannel: FileChannel =
     FileChannelUtils.createWritableFileChannel(diskFileInfo.getIndexPath)
-  @volatile var isRegionFinished = true
+  @volatile private var isRegionFinished = true
 
   override def handleEvent(message: GeneratedMessageV3): Unit = {
     // only accept protobuf messages
@@ -115,7 +118,7 @@ class MapPartitionMetaHandler(
         regionStart(
           pb.getCurrentRegionIndex,
           pb.getIsBroadcast)
-      case pb: PbRegionFinish =>
+      case _: PbRegionFinish =>
         regionFinish()
       case _ =>
       // do not handle
@@ -126,26 +129,26 @@ class MapPartitionMetaHandler(
   def pushDataHandShake(numSubpartitions: Int, bufferSize: Int): Unit = {
     logger.debug(
       s"FileWriter:${diskFileInfo.getFilePath} " +
-        s"pushDataHandShake numReducePartitions:${numSubpartitions} " +
-        s"bufferSize:${bufferSize}")
+        s"pushDataHandShake numReducePartitions:$numSubpartitions " +
+        s"bufferSize:$bufferSize")
     this.numSubpartitions = numSubpartitions
     numSubpartitionBytes = new Array[Long](numSubpartitions)
     fileMeta.setBufferSize(bufferSize)
     fileMeta.setNumSubPartitions(numSubpartitions)
   }
 
-  def regionStart(currentDataRegionIndex: Int, isBroadcastRegion: Boolean): Unit = {
+  private def regionStart(currentDataRegionIndex: Int, isBroadcastRegion: Boolean): Unit = {
     logger.debug(
       s"FileWriter:${diskFileInfo.getFilePath} " +
-        s"regionStart currentDataRegionIndex:${currentDataRegionIndex} " +
-        s"isBroadcastRegion:${isBroadcastRegion}")
+        s"regionStart currentDataRegionIndex:$currentDataRegionIndex " +
+        s"isBroadcastRegion:$isBroadcastRegion")
     this.currentSubpartition = 0
     this.currentDataRegionIndex = currentDataRegionIndex
     this.isBroadcastRegion = isBroadcastRegion
   }
 
   @throws[IOException]
-  def regionFinish(): Unit = {
+  private def regionFinish(): Unit = {
     // TODO: When region is finished, flush the data to be ready for the reading, in scenarios that
     // the upstream task writes and the downstream task reads simultaneously, such as flink hybrid
     // shuffle
@@ -159,18 +162,18 @@ class MapPartitionMetaHandler(
       if (!isBroadcastRegion) {
         logger.debug(
           s"flush index filename:${diskFileInfo.getFilePath} " +
-            s"region:${currentDataRegionIndex} " +
-            s"partitionId:${partitionIndex} " +
-            s"flush index fileOffset:${fileOffset}, " +
+            s"region:$currentDataRegionIndex " +
+            s"partitionId:$partitionIndex " +
+            s"flush index fileOffset:$fileOffset, " +
             s"size:${numSubpartitionBytes(partitionIndex)} ")
         indexBuffer.putLong(numSubpartitionBytes(partitionIndex))
         fileOffset += numSubpartitionBytes(partitionIndex)
       } else {
         logger.debug(
           s"flush index broadcast filename:${diskFileInfo.getFilePath} " +
-            s"region:${currentDataRegionIndex} " +
-            s"partitionId:${partitionIndex} " +
-            s"fileOffset:${fileOffset}, " +
+            s"region:$currentDataRegionIndex " +
+            s"partitionId:$partitionIndex " +
+            s"fileOffset:$fileOffset, " +
             s"size:${numSubpartitionBytes(0)} ")
         indexBuffer.putLong(numSubpartitionBytes(0))
       }
@@ -181,7 +184,7 @@ class MapPartitionMetaHandler(
     isRegionFinished = true
   }
 
-  protected def allocateIndexBuffer(numSubpartitions: Int): ByteBuffer = {
+  private def allocateIndexBuffer(numSubpartitions: Int): ByteBuffer = {
     // the returned buffer size is no smaller than 4096 bytes to improve disk IO performance
     val minBufferSize = 4096
     val indexRegionSize = numSubpartitions * (8 + 8)
@@ -199,7 +202,7 @@ class MapPartitionMetaHandler(
 
   @SuppressWarnings(Array("ByteBufferBackingArray"))
   @throws[IOException]
-  protected def flushIndex(): Unit = {
+  private def flushIndex(): Unit = {
     // TODO: force flush the index file channel in scenarios which the upstream task writes and
     // downstream task reads simultaneously, such as flink hybrid shuffle
     if (indexBuffer != null) {
@@ -209,7 +212,7 @@ class MapPartitionMetaHandler(
       notifier.checkException()
       try {
         if (indexBuffer.hasRemaining) {
-          // mappartition synchronously writes file index
+          // map partition synchronously writes file index
           if (indexChannel != null) while (indexBuffer.hasRemaining) indexChannel.write(indexBuffer)
           else if (diskFileInfo.isDFS) {
             val dfsStream = hadoopFs.append(diskFileInfo.getDfsIndexPath)
@@ -268,7 +271,7 @@ class MapPartitionMetaHandler(
       notifier.checkException()
       try {
         if (indexBuffer.hasRemaining) {
-          // mappartition synchronously writes file index
+          // map partition synchronously writes file index
           if (indexChannel != null) while (indexBuffer.hasRemaining) indexChannel.write(indexBuffer)
           else if (diskFileInfo.isDFS) {
             val dfsStream = hadoopFs.append(diskFileInfo.getDfsIndexPath)
@@ -292,15 +295,15 @@ class MapPartitionMetaHandler(
     bytes.resetReaderIndex()
     logger.debug(
       s"map partition filename:${diskFileInfo.getFilePath} " +
-        s"write partition:${partitionId} " +
-        s"attemptId:${attemptId} " +
-        s"batchId:${batchId} " +
-        s"size:${size}")
+        s"write partition:$partitionId " +
+        s"attemptId:$attemptId " +
+        s"batchId:$batchId " +
+        s"size:$size")
 
     if (partitionId < currentSubpartition) throw new IOException(
       s"Must writing data in reduce partition index order, " +
-        s"but now partitionId is ${partitionId} " +
-        s"and pre partitionId is ${currentSubpartition}")
+        s"but now partitionId is $partitionId " +
+        s"and pre partitionId is $currentSubpartition")
 
     if (partitionId > currentSubpartition) currentSubpartition = partitionId
     val length = bytes.readableBytes
@@ -322,13 +325,14 @@ class MapPartitionMetaHandler(
     }
   }
 
+  override def getMapIdBitmap(): Option[RoaringBitmap] = Option.empty
 }
 
 class ReducePartitionMetaHandler(val rangeReadFilter: Boolean, val fileInfo: FileInfo)
   extends PartitionMetaHandler {
-  val logger = LoggerFactory.getLogger(classOf[MapPartitionMetaHandler])
+  val logger: Logger = LoggerFactory.getLogger(classOf[MapPartitionMetaHandler])
   lazy val mapIdBitMap: Option[RoaringBitmap] =
-    if (rangeReadFilter) Some(new RoaringBitmap()) else None
+    if (rangeReadFilter) Some(new RoaringBitmap()) else Option.empty
 
   override def afterFlush(size: Int): Unit = {
     fileInfo.updateBytesFlushed(size)
@@ -350,38 +354,21 @@ class ReducePartitionMetaHandler(val rangeReadFilter: Boolean, val fileInfo: Fil
     // but its size is smaller than the nextBoundary, then the
     // chunk offset will not be set after flushing. we should
     // set it during FileWriter close.
-    if (fileInfo.isInstanceOf[DiskFileInfo]) {
-      val diskFileInfo = fileInfo.asInstanceOf[DiskFileInfo]
-      diskFileInfo.getReduceFileMeta.getLastChunkOffset == diskFileInfo.getFileLength
-    }
-    if (fileInfo.isInstanceOf[MemoryFileInfo]) {
-      val memoryFileInfo = fileInfo.asInstanceOf[MemoryFileInfo]
-      memoryFileInfo.getReduceFileMeta.getLastChunkOffset == memoryFileInfo.getFileLength
-    }
-    // this should not happen
-    false
+    fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getLastChunkOffset == fileInfo.getFileLength
   }
 
   override def beforeWrite(bytes: ByteBuf): Unit = {
     if (rangeReadFilter) {
-      val mapId = getMapIdFromBuf(bytes)
+      val header = new Array[Byte](4)
+      bytes.markReaderIndex
+      bytes.readBytes(header)
+      bytes.resetReaderIndex
+      val mapId = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET)
       mapIdBitMap.get.add(mapId)
     }
   }
 
   override def afterWrite(size: Int): Unit = {}
-
-  def getMapIdFromBuf(buf: ByteBuf): Int = {
-    if (rangeReadFilter) {
-      val header = new Array[Byte](4)
-      buf.markReaderIndex
-      buf.readBytes(header)
-      buf.resetReaderIndex
-      Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET)
-    } else {
-      0
-    }
-  }
 
   def getMapIdBitmap(): Option[RoaringBitmap] = {
     mapIdBitMap
@@ -398,10 +385,10 @@ class SegmentMapPartitionMetaHandler(diskFileInfo: DiskFileInfo, notifier: Flush
   extends MapPartitionMetaHandler(diskFileInfo, notifier) {
 
   @VisibleForTesting
-  val subPartitionHasStartSegment: util.Map[Integer, Boolean] =
-    new util.HashMap[Integer, Boolean];
+  private val subPartitionHasStartSegment: util.Map[Integer, Boolean] =
+    new util.HashMap[Integer, Boolean]
   @VisibleForTesting
-  var subPartitionBufferIndex: Array[Int] = null
+  private var subPartitionBufferIndex: Array[Int] = _
   private var dataHeaders: List[Int] = _
 
   override def handleEvent(message: GeneratedMessageV3): Unit = {
@@ -414,7 +401,7 @@ class SegmentMapPartitionMetaHandler(diskFileInfo: DiskFileInfo, notifier: Flush
     }
   }
 
-  def segmentStart(subPartitionId: Int, segmentId: Int): Unit = {
+  private def segmentStart(subPartitionId: Int, segmentId: Int): Unit = {
     fileMeta.addPartitionSegmentId(
       subPartitionId,
       segmentId)
@@ -436,7 +423,7 @@ class SegmentMapPartitionMetaHandler(diskFileInfo: DiskFileInfo, notifier: Flush
   override def afterClose(): Unit = {
     subPartitionHasStartSegment.clear()
     super.afterClose()
-    logger.debug(s"Close ${this} for file ${diskFileInfo.getFile}")
+    logger.debug(s"Close $this for file ${diskFileInfo.getFile}")
     fileMeta.setIsWriterClosed(true)
   }
 
@@ -450,14 +437,14 @@ class SegmentMapPartitionMetaHandler(diskFileInfo: DiskFileInfo, notifier: Flush
 
     if (!subPartitionHasStartSegment.containsKey(subPartitionId))
       throw new IllegalStateException(String.format(
-        s"This partition may not start a segment: subPartitionId:${subPartitionId} attemptId:${attemptId} batchId:${batchId} size:${size}"))
+        s"This partition may not start a segment: subPartitionId:$subPartitionId attemptId:$attemptId batchId:$batchId size:$size"))
     val currentSubpartition = getCurrentSubpartition
     // the subPartitionId must be ordered in a region// the subPartitionId must be ordered in a region
     if (subPartitionId < currentSubpartition) throw new IOException(String.format(
-      s"Must writing data in reduce partition index order, but now supPartitionId is ${subPartitionId} and the previous supPartitionId is ${currentSubpartition}, attemptId is ${attemptId}, batchId is ${batchId}, size is ${size}"))
+      s"Must writing data in reduce partition index order, but now supPartitionId is $subPartitionId and the previous supPartitionId is $currentSubpartition, attemptId is $attemptId, batchId is $batchId, size is $size"))
     bytes.resetReaderIndex
     logger.debug(
-      s"mappartition filename:${diskFileInfo.getFilePath} write partition:${subPartitionId} currentSubPartition:${currentSubpartition} attemptId:${attemptId} batchId:${batchId} size:${size}")
+      s"map partition filename:${diskFileInfo.getFilePath} write partition:$subPartitionId currentSubPartition:$currentSubpartition attemptId:$attemptId batchId:$batchId size:$size")
     if (subPartitionId > currentSubpartition) setCurrentSubpartition(subPartitionId)
     val length = bytes.readableBytes
     setTotalBytes(getTotalBytes + length)
@@ -467,6 +454,7 @@ class SegmentMapPartitionMetaHandler(diskFileInfo: DiskFileInfo, notifier: Flush
 
   override def afterWrite(size: Int): Unit = {
     super.afterWrite(size)
+    setRegionFinished(false)
     val subPartitionId = dataHeaders(0)
     val attemptId = dataHeaders(1)
     if (subPartitionHasStartSegment.get(subPartitionId)) {
@@ -475,11 +463,11 @@ class SegmentMapPartitionMetaHandler(diskFileInfo: DiskFileInfo, notifier: Flush
         subPartitionBufferIndex(subPartitionId),
         fileMeta.getPartitionWritingSegmentId(subPartitionId))
       logger.debug(
-        s"Add a segment id, partitionId:${subPartitionId}, " +
+        s"Add a segment id, partitionId:$subPartitionId, " +
           s"bufferIndex:${subPartitionBufferIndex(subPartitionId)}, " +
           s"segmentId:${fileMeta.getPartitionWritingSegmentId(subPartitionId)}, " +
           s"filename:${diskFileInfo.getFilePath}, " +
-          s"attemptId:${attemptId}.")
+          s"attemptId:$attemptId.")
       // After the first buffer index of the segment is added, the following buffers in the segment
       // should not be added anymore, so the subPartitionHasStartSegment is updated to false.
       subPartitionHasStartSegment.put(subPartitionId, false)
