@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-ARG java_image_tag=8-jdk-focal
+ARG java_image_tag=8-jdk-noble
 FROM eclipse-temurin:${java_image_tag}
 
 ARG celeborn_uid=10006
