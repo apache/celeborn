@@ -12,10 +12,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-add_subdirectory(proto)
-add_subdirectory(memory)
-add_subdirectory(utils)
-add_subdirectory(conf)
-add_subdirectory(protocol)
-add_subdirectory(network)
-add_subdirectory(client)
+
+add_executable(
+        celeborn_client_test
+        WorkerPartitionReaderTest.cpp)
+
+add_test(NAME celeborn_client_test COMMAND celeborn_client_test)
+
+target_include_directories(client PUBLIC ${CMAKE_BINARY_DIR})
+
+target_link_libraries(
+        celeborn_client_test
+        PRIVATE
+        memory
+        conf
+        proto
+        protocol
+        utils
+        network
+        client
+        ${WANGLE}
+        ${FIZZ}
+        ${LIBSODIUM_LIBRARY}
+        ${FOLLY_WITH_DEPENDENCIES}
+        ${GLOG}
+        ${GFLAGS_LIBRARIES}
+        GTest::gtest
+        GTest::gmock
+        GTest::gtest_main)
