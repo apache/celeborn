@@ -357,6 +357,16 @@ public class SparkUtils {
     }
   }
 
+  public static TaskSetManager getTaskSetManager(long taskId) {
+    SparkContext sparkContext = SparkContext$.MODULE$.getActive().getOrElse(null);
+    if (sparkContext == null) {
+      LOG.error("Can not get active SparkContext.");
+      return null;
+    }
+    TaskSchedulerImpl taskScheduler = (TaskSchedulerImpl) sparkContext.taskScheduler();
+    return getTaskSetManager(taskScheduler, taskId);
+  }
+
   @VisibleForTesting
   protected static Tuple2<TaskInfo, List<TaskInfo>> getTaskAttempts(
       TaskSetManager taskSetManager, long taskId) {
@@ -384,9 +394,9 @@ public class SparkUtils {
   protected static Map<String, Set<Long>> reportedStageShuffleFetchFailureTaskIds =
       JavaUtils.newConcurrentHashMap();
 
-  protected static void removeStageReportedShuffleFetchFailureTaskIds(
+  protected static Set<Long> removeStageReportedShuffleFetchFailureTaskIds(
       int stageId, int stageAttemptId) {
-    reportedStageShuffleFetchFailureTaskIds.remove(stageId + "-" + stageAttemptId);
+    return reportedStageShuffleFetchFailureTaskIds.remove(stageId + "-" + stageAttemptId);
   }
 
   /**
