@@ -357,6 +357,30 @@ public class SparkUtils {
               .hiddenImpl(TaskSetManager.class, "taskInfos")
               .defaultAlwaysNull()
               .build();
+  private static final DynFields.UnboundField<
+          scala.collection.mutable.HashMap<
+              Integer, scala.collection.mutable.HashMap<Integer, TaskSetManager>>>
+      TASK_SETS_BY_STAGE_ID_AND_ATTEMPT_FIELD =
+          DynFields.builder()
+              .hiddenImpl(TaskSchedulerImpl.class, "taskSetsByStageIdAndAttempt")
+              .defaultAlwaysNull()
+              .build();
+  private static final DynFields.UnboundField<scala.collection.mutable.HashSet<Long>>
+      RUNNING_TASKS_SET_FIELD =
+          DynFields.builder()
+              .hiddenImpl(TaskSetManager.class, "runningTasksSet")
+              .defaultAlwaysNull()
+              .build();
+  private static final DynFields.UnboundField stageIdToStage_FIELD =
+      DynFields.builder()
+          .hiddenImpl(DAGScheduler.class, "stageIdToStage")
+          .defaultAlwaysNull()
+          .build();
+  protected static final DynMethods.UnboundMethod isIndeterminate_METHOD =
+      DynMethods.builder("isIndeterminate")
+          .hiddenImpl("org.apache.spark.scheduler.Stage")
+          .orNoop()
+          .build();
 
   /**
    * TaskSetManager - it is not designed to be used outside the spark scheduler. Please be careful.
@@ -367,6 +391,32 @@ public class SparkUtils {
       ConcurrentHashMap<Long, TaskSetManager> taskIdToTaskSetManager =
           TASK_ID_TO_TASK_SET_MANAGER_FIELD.bind(taskScheduler).get();
       return taskIdToTaskSetManager.get(taskId);
+    }
+  }
+
+  /**
+   * TaskSetManager - it is not designed to be used outside the spark scheduler. Please be careful.
+   */
+  public static TaskSetManager getTaskSetManager(int stageId, int stageAttemptId) {
+    SparkContext sparkContext = SparkContext$.MODULE$.getActive().getOrElse(null);
+    if (sparkContext == null) {
+      LOG.error("Can not get active SparkContext.");
+      return null;
+    }
+    TaskSchedulerImpl taskScheduler = (TaskSchedulerImpl) sparkContext.taskScheduler();
+    synchronized (taskScheduler) {
+      scala.collection.mutable.HashMap<
+              Integer, scala.collection.mutable.HashMap<Integer, TaskSetManager>>
+          taskSetsByStageIdAndAttempt =
+              TASK_SETS_BY_STAGE_ID_AND_ATTEMPT_FIELD.bind(taskScheduler).get();
+      scala.Option<scala.collection.mutable.HashMap<Integer, TaskSetManager>> stageTaskSetAttempts =
+          taskSetsByStageIdAndAttempt.get(stageId);
+      if (stageTaskSetAttempts.isDefined()) {
+        return stageTaskSetAttempts.get().get(stageAttemptId).getOrElse(null);
+      } else {
+        LOG.error("Can not get TaskSetManager for stage {} (attempt {})", stageId, stageAttemptId);
+        return null;
+      }
     }
   }
 
@@ -394,12 +444,79 @@ public class SparkUtils {
     }
   }
 
+  protected static Object getStage(int stageId) {
+    if (SparkContext$.MODULE$.getActive().nonEmpty()) {
+      DAGScheduler scheduler = SparkContext$.MODULE$.getActive().get().dagScheduler();
+      synchronized (scheduler) {
+        scala.collection.mutable.Map<Integer, Object> stageIdToStage =
+            (scala.collection.mutable.Map<Integer, Object>)
+                stageIdToStage_FIELD.bind(scheduler).get();
+        scala.Option<Object> stageOption = stageIdToStage.get(stageId);
+        if (stageOption.isEmpty()) {
+          LOG.error("Can not get Stage with stageId: {}", stageId);
+        }
+        return stageOption.isEmpty() ? null : stageOption.get();
+      }
+    } else {
+      LOG.error("Can not get active SparkContext.");
+      return null;
+    }
+  }
+
+  public static boolean isStageIndeterminate(int stageId) {
+    Object stage = getStage(stageId);
+    if (stage != null) {
+      boolean stageIndeterminate =
+          !isIndeterminate_METHOD.isNoop()
+              && ((boolean) isIndeterminate_METHOD.bind(stage).invoke());
+      // CELEBORN-1856, if stage is indeterminate or shuffleMapStage is skewed and read by
+      // Celeborn chunkOffsets, should not call notifyPartitionCompletion, otherwise will
+      // skip running tasks for the same partition because TaskSetManager.dequeueTaskFromList
+      // will skip running task which TaskSetManager.successful(taskIndex) is true.
+      // TODO: ResultStage has result commit and other issues
+      boolean isCelebornShuffleIndeterminate =
+          (stage instanceof ShuffleMapStage)
+              && isCelebornSkewShuffleOrChildShuffle(
+                  ((ShuffleMapStage) stage).shuffleDep().shuffleId());
+      if (stageIndeterminate || isCelebornShuffleIndeterminate) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  protected static int killTaskSetManagerRunningTasks(
+      TaskSetManager taskSetManager, String reason) {
+    SparkContext sparkContext = SparkContext$.MODULE$.getActive().getOrElse(null);
+    if (sparkContext == null) {
+      LOG.error("Can not get active SparkContext.");
+      return 0;
+    }
+    int killedTasks = 0;
+    TaskSchedulerImpl taskScheduler = (TaskSchedulerImpl) sparkContext.taskScheduler();
+    synchronized (taskScheduler) {
+      for (Long taskId :
+          scala.collection.JavaConverters.asJavaCollectionConverter(
+                  RUNNING_TASKS_SET_FIELD.bind(taskSetManager).get())
+              .asJavaCollection()) {
+        try {
+          taskScheduler.killTaskAttempt(taskId, true, reason);
+          killedTasks++;
+        } catch (Throwable e) {
+          LOG.error("Failed to kill running task {} in {}", taskId, taskSetManager.name(), e);
+        }
+      }
+      LOG.info("Killed {} running tasks in {}", killedTasks, taskSetManager.name());
+      return killedTasks;
+    }
+  }
+
   protected static Map<String, Set<Long>> reportedStageShuffleFetchFailureTaskIds =
       JavaUtils.newConcurrentHashMap();
 
-  protected static void removeStageReportedShuffleFetchFailureTaskIds(
+  protected static Set<Long> removeStageReportedShuffleFetchFailureTaskIds(
       int stageId, int stageAttemptId) {
-    reportedStageShuffleFetchFailureTaskIds.remove(stageId + "-" + stageAttemptId);
+    return reportedStageShuffleFetchFailureTaskIds.remove(stageId + "-" + stageAttemptId);
   }
 
   /**
