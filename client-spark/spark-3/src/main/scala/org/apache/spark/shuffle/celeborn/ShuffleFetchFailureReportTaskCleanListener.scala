@@ -21,7 +21,9 @@ import scala.collection.JavaConverters._
 
 import org.apache.spark.scheduler.{SparkListener, SparkListenerStageCompleted}
 
-class ShuffleFetchFailureReportTaskCleanListener extends SparkListener {
+import org.apache.celeborn.common.internal.Logging
+
+class ShuffleFetchFailureReportTaskCleanListener extends SparkListener with Logging {
   override def onStageCompleted(stageCompleted: SparkListenerStageCompleted): Unit = {
     val stageId = stageCompleted.stageInfo.stageId
     val stageAttemptId = stageCompleted.stageInfo.attemptNumber()
@@ -31,10 +33,12 @@ class ShuffleFetchFailureReportTaskCleanListener extends SparkListener {
       shuffleFetchFailureTaskIds.asScala.headOption.foreach { case taskId =>
         val taskSetManager = SparkUtils.getTaskSetManager(taskId)
         if (taskSetManager != null && taskSetManager.runningTasks > 0) {
-          taskSetManager.abort(
-            s"Aborting the ${taskSetManager.runningTasks} running tasks in stage" +
-              s" $stageId (attempt $stageAttemptId) due to shuffle fetch failure." +
-              s" The entire stage will be rerun.")
+          logInfo(s"Killing the ${taskSetManager.runningTasks} running tasks in stage" +
+            s" $stageId (attempt $stageAttemptId) due to shuffle fetch failure." +
+            s" The entire stage will be rerun.")
+          SparkUtils.killTaskSetManagerRunningTasks(
+            taskSetManager,
+            "The entire stage will be rerun due to shuffle fetch failure.")
         }
       }
     }

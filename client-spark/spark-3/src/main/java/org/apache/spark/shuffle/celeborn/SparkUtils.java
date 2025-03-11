@@ -344,6 +344,12 @@ public class SparkUtils {
               .hiddenImpl(TaskSetManager.class, "taskInfos")
               .defaultAlwaysNull()
               .build();
+  private static final DynFields.UnboundField<scala.collection.mutable.HashSet<Long>>
+      RUNNING_TASKS_SET_FIELD =
+          DynFields.builder()
+              .hiddenImpl(TaskSetManager.class, "runningTasksSet")
+              .defaultAlwaysNull()
+              .build();
 
   /**
    * TaskSetManager - it is not designed to be used outside the spark scheduler. Please be careful.
@@ -388,6 +394,24 @@ public class SparkUtils {
     } else {
       LOG.error("Can not get TaskSetManager for taskId: {}", taskId);
       return null;
+    }
+  }
+
+  protected static void killTaskSetManagerRunningTasks(
+      TaskSetManager taskSetManager, String reason) {
+    SparkContext sparkContext = SparkContext$.MODULE$.getActive().getOrElse(null);
+    if (sparkContext == null) {
+      LOG.error("Can not get active SparkContext.");
+      return;
+    }
+    TaskSchedulerImpl taskScheduler = (TaskSchedulerImpl) sparkContext.taskScheduler();
+    try {
+      scala.collection.JavaConverters.asJavaCollectionConverter(
+              RUNNING_TASKS_SET_FIELD.bind(taskSetManager).get())
+          .asJavaCollection().stream()
+          .forEach(taskId -> taskScheduler.killTaskAttempt(taskId, true, reason));
+    } catch (Exception e) {
+      LOG.error("Failed to kill running tasks in " + taskSetManager.name(), e);
     }
   }
 
