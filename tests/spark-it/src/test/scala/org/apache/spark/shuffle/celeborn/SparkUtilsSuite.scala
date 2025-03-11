@@ -141,9 +141,13 @@ class SparkUtilsSuite extends AnyFunSuite
         val taskId = 0
         val taskSetManager = SparkUtils.getTaskSetManager(taskScheduler, taskId)
         assert(taskSetManager != null)
+        assert(taskSetManager == SparkUtils.getTaskSetManager(
+          taskSetManager.taskSet.stageId,
+          taskSetManager.taskSet.stageAttemptId))
         assert(SparkUtils.getTaskAttempts(taskSetManager, taskId)._2.size() == 1)
         assert(!SparkUtils.taskAnotherAttemptRunningOrSuccessful(taskId))
         assert(SparkUtils.reportedStageShuffleFetchFailureTaskIds.size() == 1)
+        assert(SparkUtils.killTaskSetManagerRunningTasks(taskSetManager, "test") > 0)
       }
 
       sparkSession.sparkContext.cancelAllJobs()
