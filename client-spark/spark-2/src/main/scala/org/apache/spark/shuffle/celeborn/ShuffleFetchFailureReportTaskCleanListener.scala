@@ -17,8 +17,6 @@
 
 package org.apache.spark.shuffle.celeborn
 
-import scala.collection.JavaConverters._
-
 import org.apache.spark.scheduler.{SparkListener, SparkListenerStageCompleted}
 
 import org.apache.celeborn.common.internal.Logging
@@ -30,16 +28,14 @@ class ShuffleFetchFailureReportTaskCleanListener extends SparkListener with Logg
     val shuffleFetchFailureTaskIds =
       SparkUtils.removeStageReportedShuffleFetchFailureTaskIds(stageId, stageAttemptId)
     if (shuffleFetchFailureTaskIds != null) {
-      shuffleFetchFailureTaskIds.asScala.headOption.foreach { case taskId =>
-        val taskSetManager = SparkUtils.getTaskSetManager(taskId)
-        if (taskSetManager != null && taskSetManager.runningTasks > 0) {
-          logInfo(s"Killing the ${taskSetManager.runningTasks} running tasks in stage" +
-            s" $stageId (attempt $stageAttemptId) due to shuffle fetch failure." +
-            s" The entire stage will be rerun.")
-          SparkUtils.killTaskSetManagerRunningTasks(
-            taskSetManager,
-            "The entire stage will be rerun due to shuffle fetch failure.")
-        }
+      val taskSetManager = SparkUtils.getTaskSetManager(stageId, stageAttemptId)
+      if (taskSetManager != null && taskSetManager.runningTasks > 0) {
+        logInfo(s"Killing the ${taskSetManager.runningTasks} running tasks in stage" +
+          s" $stageId (attempt $stageAttemptId) due to shuffle fetch failure." +
+          s" The entire stage will be rerun.")
+        SparkUtils.killTaskSetManagerRunningTasks(
+          taskSetManager,
+          "The entire stage will be rerun due to shuffle fetch failure.")
       }
     }
   }
