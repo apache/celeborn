@@ -234,6 +234,9 @@ public class SparkUtils {
       TASK_SETS_BY_STAGE_ID_AND_ATTEMPT_FIELD =
           DynFields.builder()
               .hiddenImpl(TaskSchedulerImpl.class, "taskSetsByStageIdAndAttempt")
+              .hiddenImpl(
+                  TaskSchedulerImpl.class,
+                  "org$apache$spark$scheduler$TaskSchedulerImpl$$taskSetsByStageIdAndAttempt")
               .defaultAlwaysNull()
               .build();
   private static final DynFields.UnboundField<scala.collection.mutable.HashSet<Long>>
