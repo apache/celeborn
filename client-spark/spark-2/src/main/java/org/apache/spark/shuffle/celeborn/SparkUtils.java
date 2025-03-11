@@ -312,19 +312,21 @@ public class SparkUtils {
     }
     int killedTasks = 0;
     TaskSchedulerImpl taskScheduler = (TaskSchedulerImpl) sparkContext.taskScheduler();
-    for (Long taskId :
-        scala.collection.JavaConverters.asJavaCollectionConverter(
-                RUNNING_TASKS_SET_FIELD.bind(taskSetManager).get())
-            .asJavaCollection()) {
-      try {
-        taskScheduler.killTaskAttempt(taskId, true, reason);
-        killedTasks++;
-      } catch (Throwable e) {
-        logger.error("Failed to kill running task {} in {}", taskId, taskSetManager.name(), e);
+    synchronized (taskScheduler) {
+      for (Long taskId :
+          scala.collection.JavaConverters.asJavaCollectionConverter(
+                  RUNNING_TASKS_SET_FIELD.bind(taskSetManager).get())
+              .asJavaCollection()) {
+        try {
+          taskScheduler.killTaskAttempt(taskId, true, reason);
+          killedTasks++;
+        } catch (Throwable e) {
+          logger.error("Failed to kill running task {} in {}", taskId, taskSetManager.name(), e);
+        }
       }
+      logger.info("Killed {} running tasks in {}", killedTasks, taskSetManager.name());
+      return killedTasks;
     }
-    logger.info("Killed {} running tasks in {}", killedTasks, taskSetManager.name());
-    return killedTasks;
   }
 
   protected static Map<String, Set<Long>> reportedStageShuffleFetchFailureTaskIds =
