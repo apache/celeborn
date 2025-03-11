@@ -207,6 +207,7 @@ private[celeborn] class Worker(
 
   val pushDataHandler = new PushDataHandler(workerSource)
   private val (pushServerTransportContext, pushServer) = {
+    val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads = conf.workerPushIoThreads.getOrElse(storageManager.totalFlusherThread)
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.PUSH_MODULE, numThreads)
@@ -215,7 +216,9 @@ private[celeborn] class Worker(
       new TransportContext(
         transportConf,
         pushDataHandler,
+        closeIdleConnections,
         pushServerLimiter,
+        conf.workerPushHeartbeatEnabled,
         workerSource)
     (
       transportContext,
@@ -224,6 +227,7 @@ private[celeborn] class Worker(
 
   val replicateHandler = new PushDataHandler(workerSource)
   val (replicateTransportContext, replicateServer, replicateClientFactory) = {
+    val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads =
       conf.workerReplicateIoThreads.getOrElse(storageManager.totalFlusherThread)
     val transportConf =
@@ -233,7 +237,9 @@ private[celeborn] class Worker(
       new TransportContext(
         transportConf,
         replicateHandler,
+        closeIdleConnections,
         replicateLimiter,
+        false,
         workerSource)
     (
       transportContext,
@@ -243,6 +249,7 @@ private[celeborn] class Worker(
 
   var fetchHandler: FetchHandler = _
   private val (fetchServerTransportContext, fetchServer) = {
+    val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads = conf.workerFetchIoThreads.getOrElse(storageManager.totalFlusherThread)
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
@@ -251,6 +258,8 @@ private[celeborn] class Worker(
       new TransportContext(
         transportConf,
         fetchHandler,
+        closeIdleConnections,
+        conf.workerFetchHeartbeatEnabled,
         workerSource,
         conf.metricsCollectCriticalEnabled)
     (
