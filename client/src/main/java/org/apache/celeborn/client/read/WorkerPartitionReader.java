@@ -156,7 +156,7 @@ public class WorkerPartitionReader implements PartitionReader {
     this.fetchChunkRetryCnt = fetchChunkRetryCnt;
     this.fetchChunkMaxRetry = fetchChunkMaxRetry;
     this.chunkIdsAlreadyReturned = new HashSet<>();
-    this.isCheckpointEnabled = conf.isWorkerPartitionReaderCheckpointEnabled();
+    this.isCheckpointEnabled = conf.isPartitionReaderCheckpointEnabled();
     testFetch = conf.testFetchFailure();
     ShuffleClient.incrementTotalReadCounter();
   }
