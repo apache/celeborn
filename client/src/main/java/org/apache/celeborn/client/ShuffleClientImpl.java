@@ -56,6 +56,7 @@ import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.PushData;
 import org.apache.celeborn.common.network.protocol.PushMergedData;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
+import org.apache.celeborn.common.network.protocol.TransportMessagesHelper;
 import org.apache.celeborn.common.network.sasl.SaslClientBootstrap;
 import org.apache.celeborn.common.network.sasl.SaslCredentials;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
@@ -184,6 +185,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId
   protected final Map<Integer, Tuple3<ReduceFileGroups, String, Exception>> reduceFileGroupsMap =
       JavaUtils.newConcurrentHashMap();
+
+  private final TransportMessagesHelper messagesHelper = new TransportMessagesHelper();
 
   public ShuffleClientImpl(String appUniqueId, CelebornConf conf, UserIdentifier userIdentifier) {
     super();
@@ -1984,6 +1987,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     shuffleIdCache.clear();
     pushExcludedWorkers.clear();
     fetchExcludedWorkers.clear();
+    messagesHelper.close();
     logger.warn("Shuffle client has been shutdown!");
   }
 
