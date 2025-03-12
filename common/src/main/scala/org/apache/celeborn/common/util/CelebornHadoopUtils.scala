@@ -54,6 +54,7 @@ object CelebornHadoopUtils extends Logging {
           "S3 storage is enabled but s3AccessKey, s3SecretKey, or s3EndpointRegion is not set")
       }
       hadoopConf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+      hadoopConf.set("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
       hadoopConf.set(
         "fs.s3a.aws.credentials.provider",
         "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")

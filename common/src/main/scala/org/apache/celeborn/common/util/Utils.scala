@@ -1216,7 +1216,7 @@ object Utils extends Logging {
   val SORTED_SUFFIX = ".sorted"
   val INDEX_SUFFIX = ".index"
   val SUFFIX_HDFS_WRITE_SUCCESS = ".success"
-  val COMPATIBLE_HDFS_REGEX = "^(?!s3a://)[a-zA-Z0-9]+://.*"
+  val COMPATIBLE_HDFS_REGEX = "^(?!s3://)(?!s3a://)[a-zA-Z0-9]+://.*"
   val S3_REGEX = "^s3[a]?://([a-z0-9][a-z0-9-]{1,61}[a-z0-9])(/.*)?$"
 
   val UNKNOWN_APP_SHUFFLE_ID = -1
