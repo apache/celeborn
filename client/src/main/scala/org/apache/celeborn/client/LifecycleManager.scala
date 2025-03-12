@@ -36,6 +36,7 @@ import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
+import com.google.protobuf.ExtensionRegistry
 
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.client.listener.WorkerStatusListener
@@ -158,8 +159,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     JavaUtils.newConcurrentHashMap[Int, util.Set[RegisterCallContext]]()
 
   // Threads
+  private val runTransportMessagesThread =
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+      "lifecycle-manager-transport-messages-runner")
   private val forwardMessageThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-message-forwarder")
+  private var runTransportMessagesStaticBlockerTask: util.concurrent.Future[_] = _
   private var checkForShuffleRemoval: ScheduledFuture[_] = _
   val rpcSharedThreadPool =
     ThreadUtils.newDaemonCachedThreadPool(
@@ -251,6 +256,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   override def onStart(): Unit = {
     // noinspection ConvertExpressionToSAM
+    runTransportMessagesStaticBlockerTask = runTransportMessagesThread.submit(
+      new Runnable {
+        override def run(): Unit = Utils.tryLogNonFatalError {
+          // Pre-run TransportMessages static code blocks to improve performance of protobuf serialization.
+          TransportMessages.registerAllExtensions(ExtensionRegistry.newInstance())
+        }
+      })
     checkForShuffleRemoval = forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
@@ -263,7 +275,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   override def onStop(): Unit = {
+    runTransportMessagesStaticBlockerTask.cancel(true)
     checkForShuffleRemoval.cancel(true)
+    ThreadUtils.shutdown(runTransportMessagesThread)
     ThreadUtils.shutdown(forwardMessageThread)
 
     commitManager.stop()

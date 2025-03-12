@@ -21,7 +21,7 @@ import java.io.IOException
 import java.net.BindException
 import java.util
 import java.util.Collections
-import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ExecutorService, Future, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
 
@@ -29,6 +29,7 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
+import com.google.protobuf.ExtensionRegistry
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.ratis.proto.RaftProtos
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole
@@ -171,8 +172,11 @@ private[celeborn] class Master(
   secretRegistry.setMetadataHandler(statusSystem)
 
   // Threads
+  private val runTransportMessagesThread =
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-transport-messages-runner")
   private val forwardMessageThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-message-forwarder")
+  private var runTransportMessagesStaticBlockerTask: Future[_] = _
   private var checkForWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForApplicationTimeOutTask: ScheduledFuture[_] = _
   private var checkForUnavailableWorkerTimeOutTask: ScheduledFuture[_] = _
@@ -320,6 +324,13 @@ private[celeborn] class Master(
         "send-application-meta")
     }
 
+    runTransportMessagesStaticBlockerTask = runTransportMessagesThread.submit(
+      new Runnable {
+        override def run(): Unit = Utils.tryLogNonFatalError {
+          // Pre-run TransportMessages static code blocks to improve performance of protobuf serialization.
+          TransportMessages.registerAllExtensions(ExtensionRegistry.newInstance())
+        }
+      })
     checkForWorkerTimeOutTask = scheduleCheckTask(workerHeartbeatTimeoutMs, pbCheckForWorkerTimeout)
     checkForApplicationTimeOutTask =
       scheduleCheckTask(appHeartbeatTimeoutMs / 2, CheckForApplicationTimeOut)
@@ -354,10 +365,12 @@ private[celeborn] class Master(
       return
     }
     logInfo("Stopping Celeborn Master.")
+    Option(runTransportMessagesStaticBlockerTask).foreach(_.cancel(true))
     Option(checkForWorkerTimeOutTask).foreach(_.cancel(true))
     Option(checkForUnavailableWorkerTimeOutTask).foreach(_.cancel(true))
     Option(checkForApplicationTimeOutTask).foreach(_.cancel(true))
     Option(checkForDFSRemnantDirsTimeOutTask).foreach(_.cancel(true))
+    runTransportMessagesThread.shutdownNow()
     forwardMessageThread.shutdownNow()
     rackResolver.stop()
     if (authEnabled) {
