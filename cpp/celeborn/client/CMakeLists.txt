@@ -14,7 +14,8 @@
 # limitations under the License.
 add_library(
         client
-        reader/WorkerPartitionReader.cpp)
+        reader/WorkerPartitionReader.cpp
+        reader/CelebornInputStream.cpp)
 
 target_include_directories(client PUBLIC ${CMAKE_BINARY_DIR})
 
