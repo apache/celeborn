@@ -84,16 +84,19 @@ fi
 maybe_enable_jemalloc() {
   if [ "${CELEBORN_PREFER_JEMALLOC:-false}" == "true" ]; then
     JEMALLOC_PATH="${CELEBORN_JEMALLOC_PATH:-/usr/lib/$(uname -m)-linux-gnu/libjemalloc.so}"
+    JEMALLOC2_PATH="/usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2"
     JEMALLOC_FALLBACK="/usr/lib/x86_64-linux-gnu/libjemalloc.so"
     if [ -f "$JEMALLOC_PATH" ]; then
       export LD_PRELOAD="$LD_PRELOAD:$JEMALLOC_PATH"
+    elif [ -f "$JEMALLOC2_PATH" ]; then
+      export LD_PRELOAD="$LD_PRELOAD:$JEMALLOC2_PATH"
     elif [ -f "$JEMALLOC_FALLBACK" ]; then
       export LD_PRELOAD="$LD_PRELOAD:$JEMALLOC_FALLBACK"
     else
       if [ "$JEMALLOC_PATH" == "$JEMALLOC_FALLBACK" ]; then
         MSG_PATH="$JEMALLOC_PATH"
       else
-        MSG_PATH="$JEMALLOC_PATH and $JEMALLOC_FALLBACK"
+        MSG_PATH="$JEMALLOC_PATH and $JEMALLOC2_PATH and $JEMALLOC_FALLBACK"
       fi
       echo "WARNING: attempted to load jemalloc from $MSG_PATH but the library couldn't be found. glibc will be used instead."
     fi
