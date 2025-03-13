@@ -285,9 +285,4 @@ public class LocalPartitionReader implements PartitionReader {
     // TODO implement similar to {@link WorkerPartitionReader}
     return Optional.empty();
   }
-
-  @Override
-  public void updateCheckpointMetadata(PartitionReaderCheckpointMetadata checkpointMetadata) {
-    // TODO implement similar to {@link WorkerPartitionReader}
-  }
 }

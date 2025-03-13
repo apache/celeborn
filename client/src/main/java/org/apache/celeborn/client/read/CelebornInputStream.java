@@ -434,8 +434,12 @@ public abstract class CelebornInputStream extends InputStream {
             throw new CelebornIOException("Fetch data from excluded worker! " + location);
           }
           PartitionReader reader =
-              createReader(location, pbStreamHandler, fetchChunkRetryCnt, fetchChunkMaxRetry);
-          checkpointMetadata.ifPresent(reader::updateCheckpointMetadata);
+              createReader(
+                  location,
+                  pbStreamHandler,
+                  fetchChunkRetryCnt,
+                  fetchChunkMaxRetry,
+                  checkpointMetadata);
           return reader;
         } catch (Exception e) {
           lastException = e;
@@ -554,7 +558,8 @@ public abstract class CelebornInputStream extends InputStream {
         PartitionLocation location,
         PbStreamHandler pbStreamHandler,
         int fetchChunkRetryCnt,
-        int fetchChunkMaxRetry)
+        int fetchChunkMaxRetry,
+        Optional<PartitionReaderCheckpointMetadata> checkpointMetadata)
         throws IOException, InterruptedException {
 
       StorageInfo storageInfo = location.getStorageInfo();
@@ -600,7 +605,8 @@ public abstract class CelebornInputStream extends InputStream {
                 fetchChunkMaxRetry,
                 callback,
                 startChunkIndex,
-                endChunkIndex);
+                endChunkIndex,
+                checkpointMetadata);
           }
         case S3:
         case HDFS:
@@ -614,7 +620,8 @@ public abstract class CelebornInputStream extends InputStream {
               endMapIndex,
               callback,
               startChunkIndex,
-              endChunkIndex);
+              endChunkIndex,
+              checkpointMetadata);
         default:
           throw new CelebornIOException(
               String.format("Unknown storage info %s to read location %s", storageInfo, location));

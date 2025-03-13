@@ -4695,7 +4695,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("64k")
 
   val PARTITION_READER_CHECKPOINT_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.partition.reader.checkpoint.enabled")
+    buildConf("celeborn.client.partition.reader.checkpoint.enabled")
       .categories("client")
       .version("0.6.0")
       .doc("Whether or not checkpoint reads when re-creating a partition reader. Setting to true minimizes" +

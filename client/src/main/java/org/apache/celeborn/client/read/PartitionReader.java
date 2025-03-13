@@ -35,6 +35,4 @@ public interface PartitionReader {
   PartitionLocation getLocation();
 
   Optional<PartitionReaderCheckpointMetadata> getPartitionReaderCheckpointMetadata();
-
-  void updateCheckpointMetadata(PartitionReaderCheckpointMetadata checkpointMetadata);
 }

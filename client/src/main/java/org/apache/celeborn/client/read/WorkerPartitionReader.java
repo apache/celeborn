@@ -19,9 +19,7 @@ package org.apache.celeborn.client.read;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.HashSet;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -57,11 +55,13 @@ public class WorkerPartitionReader implements PartitionReader {
   private TransportClient client;
   private MetricsCallback metricsCallback;
 
+  private int lastReturnedChunkId = -1;
   private int returnedChunks;
   private int chunkIndex;
   private int startChunkIndex;
   private int endChunkIndex;
 
+  private int inflightRequestCount;
   private final LinkedBlockingQueue<Pair<Integer, ByteBuf>> results;
   private final ChunkReceivedCallback callback;
 
@@ -76,9 +76,7 @@ public class WorkerPartitionReader implements PartitionReader {
   private int fetchChunkMaxRetry;
   private final boolean testFetch;
 
-  // checkpoints
-  private final boolean isCheckpointEnabled;
-  private Set<Integer> chunkIdsAlreadyReturned;
+  private Optional<PartitionReaderCheckpointMetadata> partitionReaderCheckpointMetadata;
 
   WorkerPartitionReader(
       CelebornConf conf,
@@ -92,12 +90,14 @@ public class WorkerPartitionReader implements PartitionReader {
       int fetchChunkMaxRetry,
       MetricsCallback metricsCallback,
       int startChunkIndex,
-      int endChunkIndex)
+      int endChunkIndex,
+      Optional<PartitionReaderCheckpointMetadata> checkpointMetadata)
       throws IOException, InterruptedException {
     this.shuffleKey = shuffleKey;
     fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
     fetchTimeoutMs = conf.clientFetchTimeoutMs();
+    inflightRequestCount = 0;
     this.metricsCallback = metricsCallback;
     // only add the buffer to results queue if this reader is not closed.
     callback =
@@ -155,20 +155,35 @@ public class WorkerPartitionReader implements PartitionReader {
     this.clientFactory = clientFactory;
     this.fetchChunkRetryCnt = fetchChunkRetryCnt;
     this.fetchChunkMaxRetry = fetchChunkMaxRetry;
-    this.chunkIdsAlreadyReturned = new HashSet<>();
-    this.isCheckpointEnabled = conf.isPartitionReaderCheckpointEnabled();
+    if (checkpointMetadata.isPresent()) {
+      this.partitionReaderCheckpointMetadata = checkpointMetadata;
+      this.returnedChunks = checkpointMetadata.get().getReturnedChunks().size();
+    } else {
+      this.partitionReaderCheckpointMetadata =
+          conf.isPartitionReaderCheckpointEnabled()
+              ? Optional.of(new PartitionReaderCheckpointMetadata())
+              : Optional.empty();
+    }
     testFetch = conf.testFetchFailure();
     ShuffleClient.incrementTotalReadCounter();
   }
 
   @Override
   public boolean hasNext() {
-    return chunkIdsAlreadyReturned.size() < endChunkIndex - startChunkIndex + 1;
+    return returnedChunks < endChunkIndex - startChunkIndex + 1;
+  }
+
+  private void checkpoint() {
+    if (lastReturnedChunkId != -1) {
+      partitionReaderCheckpointMetadata.ifPresent(
+          readerCheckpointMetadata -> readerCheckpointMetadata.checkpoint(lastReturnedChunkId));
+    }
   }
 
   @Override
   public ByteBuf next() throws IOException, InterruptedException {
     checkException();
+    checkpoint();
     if (chunkIndex <= endChunkIndex) {
       fetchChunks();
     }
@@ -186,7 +201,8 @@ public class WorkerPartitionReader implements PartitionReader {
       throw e;
     }
     returnedChunks++;
-    chunkIdsAlreadyReturned.add(chunk.getLeft());
+    inflightRequestCount--;
+    lastReturnedChunkId = chunk.getLeft();
     return chunk.getRight();
   }
 
@@ -226,29 +242,22 @@ public class WorkerPartitionReader implements PartitionReader {
 
   @Override
   public Optional<PartitionReaderCheckpointMetadata> getPartitionReaderCheckpointMetadata() {
-    return isCheckpointEnabled
-        ? Optional.of(new PartitionReaderCheckpointMetadata(chunkIdsAlreadyReturned))
-        : Optional.empty();
-  }
-
-  @Override
-  public void updateCheckpointMetadata(PartitionReaderCheckpointMetadata checkpointMetadata) {
-    chunkIdsAlreadyReturned = checkpointMetadata.getReturnedChunks();
+    return partitionReaderCheckpointMetadata;
   }
 
   private void fetchChunks() throws IOException, InterruptedException {
-    final int inFlight = chunkIndex - startChunkIndex - returnedChunks;
+    final int inFlight = inflightRequestCount;
     if (inFlight < fetchMaxReqsInFlight) {
       int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, endChunkIndex + 1 - chunkIndex);
 
       while (toFetch > 0 && chunkIndex <= endChunkIndex) {
-        if (chunkIdsAlreadyReturned.contains(chunkIndex)) {
+        if (partitionReaderCheckpointMetadata.isPresent()
+            && partitionReaderCheckpointMetadata.get().isCheckpointed(chunkIndex)) {
           logger.info(
               "Skipping chunk {} as it has already been returned,"
                   + " likely by a previous reader for the same partition.",
               chunkIndex);
           chunkIndex++;
-          returnedChunks++;
           // IMP Since we're skipping fetching this chunk, we must not decrement toFetch here
           // Eg: If chunkIndex=1, toFetch=2, endChunkIndex = 4 and chunkIdsAlreadyReturned = {1,2}
           // if we skip chunk 1 and 2, decrementing toFetch here would wrongly exit the loop
@@ -275,6 +284,7 @@ public class WorkerPartitionReader implements PartitionReader {
             }
           }
           client.fetchChunk(streamHandler.getStreamId(), chunkIndex, fetchTimeoutMs, callback);
+          inflightRequestCount++;
           chunkIndex++;
           toFetch--;
         }
