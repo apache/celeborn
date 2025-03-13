@@ -36,6 +36,6 @@ jobs:
         run: |
           VERSION="${{ steps.extract_version.outputs.VERSION }}"
           cd apache-celeborn-${VERSION}-bin
-          #docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
           docker buildx create --use
           docker buildx build -f docker/Dockerfile --platform=linux/amd64,linux/arm64 -t apache/celeborn:${VERSION} .
