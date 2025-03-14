@@ -182,8 +182,8 @@ public class WorkerPartitionReader implements PartitionReader {
 
   @Override
   public ByteBuf next() throws IOException, InterruptedException {
-    checkException();
     checkpoint();
+    checkException();
     if (chunkIndex <= endChunkIndex) {
       fetchChunks();
     }
