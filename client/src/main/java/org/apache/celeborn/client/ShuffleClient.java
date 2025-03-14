@@ -22,8 +22,11 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.LongAdder;
 
+import com.google.protobuf.ExtensionRegistry;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
@@ -38,9 +41,11 @@ import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.common.protocol.TransportMessages;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.util.CelebornHadoopUtils;
 import org.apache.celeborn.common.util.ExceptionMaker;
+import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.write.PushFailedBatch;
 import org.apache.celeborn.common.write.PushState;
 
@@ -55,6 +60,8 @@ public abstract class ShuffleClient {
   private static volatile Map<StorageInfo.Type, FileSystem> hadoopFs;
   private static LongAdder totalReadCounter = new LongAdder();
   private static LongAdder localShuffleReadCounter = new LongAdder();
+  private final ExecutorService transportMessagesRunner;
+  private final Future<?> runTransportMessagesStaticBlockerTask;
 
   // for testing
   public static void reset() {
@@ -63,7 +70,16 @@ public abstract class ShuffleClient {
     hadoopFs = null;
   }
 
-  protected ShuffleClient() {}
+  protected ShuffleClient() {
+    transportMessagesRunner =
+        ThreadUtils.newDaemonSingleThreadExecutor("client-transport-messages-runner");
+    runTransportMessagesStaticBlockerTask =
+        transportMessagesRunner.submit(
+            () ->
+                // Pre-run TransportMessages static code blocks to improve performance of protobuf
+                // serialization.
+                TransportMessages.registerAllExtensions(ExtensionRegistry.newInstance()));
+  }
 
   public static ShuffleClient get(
       String appUniqueId,
@@ -268,7 +284,10 @@ public abstract class ShuffleClient {
 
   public abstract boolean cleanupShuffle(int shuffleId);
 
-  public abstract void shutdown();
+  public void shutdown() {
+    runTransportMessagesStaticBlockerTask.cancel(true);
+    transportMessagesRunner.shutdown();
+  }
 
   public abstract PartitionLocation registerMapPartitionTask(
       int shuffleId, int numMappers, int mapId, int attemptId, int partitionId) throws IOException;

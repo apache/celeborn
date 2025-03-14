@@ -1962,6 +1962,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public void shutdown() {
+    super.shutdown();
     if (null != reviveManager) {
       reviveManager.close();
     }

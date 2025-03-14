@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 import scala.collection.JavaConverters._
 
 import com.google.common.annotations.VisibleForTesting
+import com.google.protobuf.ExtensionRegistry
 import io.netty.util.HashedWheelTimer
 
 import org.apache.celeborn.common.CelebornConf
@@ -41,7 +42,7 @@ import org.apache.celeborn.common.network.{CelebornRackResolver, TransportContex
 import org.apache.celeborn.common.network.sasl.SaslServerBootstrap
 import org.apache.celeborn.common.network.server.TransportServerBootstrap
 import org.apache.celeborn.common.network.util.TransportConf
-import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants, WorkerEventType}
+import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportMessages, TransportModuleConstants, WorkerEventType}
 import org.apache.celeborn.common.protocol.PbWorkerStatus.State
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -324,8 +325,11 @@ private[celeborn] class Worker(
     JavaUtils.newConcurrentHashMap[WorkerInfo, Long]()
 
   // Threads
+  private val transportMessagesRunner: ScheduledExecutorService =
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-transport-messages-runner")
   private val forwardMessageScheduler: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-forward-message-scheduler")
+  private var runTransportMessagesStaticBlockerTask: Future[_] = _
   private var sendHeartbeatTask: ScheduledFuture[_] = _
   private var checkFastFailTask: ScheduledFuture[_] = _
 
@@ -515,6 +519,13 @@ private[celeborn] class Worker(
       s" with ${workerInfo.diskInfos} slots.")
     registerWithMaster()
 
+    runTransportMessagesStaticBlockerTask = transportMessagesRunner.submit(
+      new Runnable {
+        override def run(): Unit = Utils.tryLogNonFatalError {
+          // Pre-run TransportMessages static code blocks to improve performance of protobuf serialization.
+          TransportMessages.registerAllExtensions(ExtensionRegistry.newInstance())
+        }
+      })
     // start heartbeat
     sendHeartbeatTask = forwardMessageScheduler.scheduleWithFixedDelay(
       new Runnable {
@@ -577,6 +588,14 @@ private[celeborn] class Worker(
       if (jvmQuake != null) {
         jvmQuake.stop()
       }
+      if (runTransportMessagesStaticBlockerTask != null) {
+        if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+          runTransportMessagesStaticBlockerTask.cancel(false)
+        } else {
+          runTransportMessagesStaticBlockerTask.cancel(true)
+        }
+        runTransportMessagesStaticBlockerTask = null
+      }
       if (sendHeartbeatTask != null) {
         if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
           sendHeartbeatTask.cancel(false)
@@ -594,12 +613,14 @@ private[celeborn] class Worker(
         checkFastFailTask = null
       }
       if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+        transportMessagesRunner.shutdown()
         forwardMessageScheduler.shutdown()
         replicateThreadPool.shutdown()
         commitThreadPool.shutdown()
         commitFinishedChecker.shutdown();
         asyncReplyPool.shutdown()
       } else {
+        transportMessagesRunner.shutdownNow()
         forwardMessageScheduler.shutdownNow()
         replicateThreadPool.shutdownNow()
         commitThreadPool.shutdownNow()
