@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.PartitionConnectionException;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.util.ExceptionUtils;
@@ -261,10 +262,14 @@ public class RemoteShuffleInputGateDelegation {
           return;
         }
         Class<?> clazz = PartitionUnRetryAbleException.class;
-        if (throwable.getMessage() != null && throwable.getMessage().contains(clazz.getName())) {
-          cause = new PartitionNotFoundException(rpID);
-        } else {
-          cause = throwable;
+        String message = throwable.getMessage();
+        cause = throwable;
+        if (null != message) {
+          if (message.contains(clazz.getName())) {
+            cause = new PartitionNotFoundException(rpID);
+          } else if (message.contains("Failed to connect to")) {
+            cause = new PartitionConnectionException(rpID, throwable);
+          }
         }
         availabilityHelper.getUnavailableToResetAvailable().complete(null);
       }
