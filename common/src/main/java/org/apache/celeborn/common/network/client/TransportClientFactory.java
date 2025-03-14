@@ -294,7 +294,8 @@ public class TransportClientFactory implements Closeable {
         new ChannelInitializer<SocketChannel>() {
           @Override
           public void initChannel(SocketChannel ch) {
-            TransportChannelHandler clientHandler = context.initializePipeline(ch, decoder, true);
+            TransportChannelHandler clientHandler =
+                context.initializePipeline(ch, decoder, bootstrap);
             clientRef.set(clientHandler.getClient());
             channelRef.set(ch);
           }

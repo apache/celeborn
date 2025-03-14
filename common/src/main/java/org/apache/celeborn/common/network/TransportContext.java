@@ -23,6 +23,7 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -35,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.metrics.source.AbstractSource;
+import org.apache.celeborn.common.network.client.ReconnectHandler;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientBootstrap;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
@@ -73,6 +75,7 @@ public class TransportContext implements Closeable {
   @Nullable private final SSLFactory sslFactory;
   private final boolean enableHeartbeat;
   private final AbstractSource source;
+  private ReconnectHandler reconnectHandler;
 
   private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
   private static final SslMessageEncoder SSL_ENCODER = SslMessageEncoder.INSTANCE;
@@ -173,20 +176,22 @@ public class TransportContext implements Closeable {
   }
 
   public TransportChannelHandler initializePipeline(
-      SocketChannel channel, ChannelInboundHandlerAdapter decoder, boolean isClient) {
-    return initializePipeline(channel, decoder, msgHandler, isClient);
+      SocketChannel channel, ChannelInboundHandlerAdapter decoder, Bootstrap bootstrap) {
+    return initializePipeline(channel, decoder, msgHandler, true, bootstrap);
   }
 
   public TransportChannelHandler initializePipeline(
-      SocketChannel channel, BaseMessageHandler resolvedMsgHandler, boolean isClient) {
-    return initializePipeline(channel, new TransportFrameDecoder(), resolvedMsgHandler, isClient);
+      SocketChannel channel, BaseMessageHandler resolvedMsgHandler) {
+    return initializePipeline(
+        channel, new TransportFrameDecoder(), resolvedMsgHandler, false, null);
   }
 
   public TransportChannelHandler initializePipeline(
       SocketChannel channel,
       ChannelInboundHandlerAdapter decoder,
       BaseMessageHandler resolvedMsgHandler,
-      boolean isClient) {
+      boolean isClient,
+      Bootstrap bootstrap) {
     try {
       ChannelPipeline pipeline = channel.pipeline();
       if (nettyLogger.getLoggingHandler() != null) {
@@ -221,8 +226,12 @@ public class TransportContext implements Closeable {
               "idleStateHandler",
               enableHeartbeat
                   ? new IdleStateHandler(conf.connectionTimeoutMs() / 1000, 0, 0)
-                  : new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
-          .addLast("handler", channelHandler);
+                  : new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000));
+      if (isClient) {
+        reconnectHandler = new ReconnectHandler(conf, bootstrap);
+        pipeline.addLast(reconnectHandler);
+      }
+      pipeline.addLast("handler", channelHandler);
       return channelHandler;
     } catch (RuntimeException e) {
       logger.error("Error while initializing Netty pipeline", e);
@@ -263,6 +272,9 @@ public class TransportContext implements Closeable {
   public void close() {
     if (sslFactory != null) {
       sslFactory.destroy();
+    }
+    if (reconnectHandler != null) {
+      reconnectHandler.stopReconnect();
     }
   }
 }
