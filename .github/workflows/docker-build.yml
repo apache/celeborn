@@ -1,0 +1,41 @@
+name: Build and Push Celeborn Docker Images
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      celeborn_version:
+        description: 'Celeborn version (e.g., 0.3.0)'
+        required: false # Making it optional for release triggers
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set Celeborn Version
+        id: set_version
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            echo "VERSION=${VERSION#v}" >> $GITHUB_OUTPUT
+          else
+            VERSION="${{ github.event.inputs.celeborn_version }}"
+            echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download Celeborn Release
+        run: |
+          VERSION="${{ steps.extract_version.outputs.VERSION }}"
+          wget https://downloads.apache.org/celeborn/celeborn-${VERSION}/apache-celeborn-${VERSION}-bin.tgz
+          tar -xzf apache-celeborn-${VERSION}-bin.tgz
+
+      - name: Build and Push
+        run: |
+          VERSION="${{ steps.extract_version.outputs.VERSION }}"
+          cd apache-celeborn-${VERSION}-bin
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+          docker buildx create --use
+          docker buildx build -f docker/Dockerfile --platform=linux/amd64,linux/arm64 -t apache/celeborn:${VERSION} .
