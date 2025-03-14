@@ -58,6 +58,19 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
       partitionDataWriterContext: PartitionDataWriterContext,
       partitionType: PartitionType,
       numPendingWrites: AtomicInteger,
+      notifier: FlushNotifier): TierWriterBase = {
+    createFileWriter(
+      partitionDataWriterContext: PartitionDataWriterContext,
+      partitionType: PartitionType,
+      numPendingWrites: AtomicInteger,
+      notifier: FlushNotifier,
+      createFileOrder)
+  }
+
+  def createFileWriter(
+      partitionDataWriterContext: PartitionDataWriterContext,
+      partitionType: PartitionType,
+      numPendingWrites: AtomicInteger,
       notifier: FlushNotifier,
       order: Option[List[String]] = createFileOrder): TierWriterBase = {
     logDebug(

@@ -89,7 +89,7 @@ public class PartitionDataWriter implements DeviceObserver {
     currentTierWriter =
         storageManager
             .storagePolicy()
-            .createFileWriter(writerContext, partitionType, numPendingWrites, notifier, null);
+            .createFileWriter(writerContext, partitionType, numPendingWrites, notifier);
   }
 
   public DiskFileInfo getDiskFileInfo() {
