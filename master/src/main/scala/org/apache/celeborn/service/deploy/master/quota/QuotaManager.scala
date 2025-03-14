@@ -394,7 +394,7 @@ class QuotaManager(
   }
 
   private def clearQuotaStatus(activeUsers: mutable.Set[UserIdentifier]): Unit = {
-    userQuotaStatus.keySet().removeIf(userIdentifier => !activeUsers.contains(userIdentifier))
-    tenantQuotaStatus.keySet().removeIf(tenantId => !activeUsers.map(_.tenantId).contains(tenantId))
+    userQuotaStatus.keySet().removeIf((userIdentifier: UserIdentifier) => !activeUsers.contains(userIdentifier))
+    tenantQuotaStatus.keySet().removeIf((tenantId: String) => !activeUsers.map(_.tenantId).contains(tenantId))
   }
 }
