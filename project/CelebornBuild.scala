@@ -569,7 +569,7 @@ object CeleborMPU {
 
   lazy val hadoopAwsDependencies = Seq(Dependencies.hadoopAws, Dependencies.awsS3)
 
-  lazy val celeborMPU = Project("celeborn-multipart-uploader", file("multipart-uploader"))
+  lazy val celeborMPU = Project("celeborn-multipart-uploader-s3", file("multipart-uploader/multipart-uploader-s3"))
     .dependsOn(CelebornService.service % "test->test;compile->compile")
     .settings (
       commonSettings,
