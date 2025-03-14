@@ -39,7 +39,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
-import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionDataWriter, PartitionDataWriter, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionMetaHandler, PartitionDataWriter, SegmentMapPartitionMetaHandler, StorageManager}
 
 private[deploy] class Controller(
     override val rpcEnv: RpcEnv,
@@ -344,13 +344,6 @@ private[deploy] class Controller(
                       } else {
                         fileWriter.getMemoryFileInfo
                       }
-                    val fileMeta = fileInfo.getFileMeta
-                    fileMeta match {
-                      case meta: ReduceFileMeta =>
-                        storageInfo.setFileSize(bytes)
-                        storageInfo.setChunkOffsets(meta.getChunkOffsets)
-                      case _ =>
-                    }
                     committedStorageInfos.put(uniqueId, storageInfo)
                     if (fileWriter.getMapIdBitMap != null) {
                       committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)
@@ -385,14 +378,14 @@ private[deploy] class Controller(
   private def waitMapPartitionRegionFinished(
       fileWriter: PartitionDataWriter,
       waitTimeout: Long): Unit = {
-    fileWriter match {
-      case writer: MapPartitionDataWriter =>
-        if (writer.checkPartitionRegionFinished(
-            waitTimeout)) {
-          logDebug(s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+    fileWriter.getMetaHandler match {
+      case metaHandler: MapPartitionMetaHandler =>
+        if (metaHandler.checkPartitionRegionFinished(waitTimeout)) {
+          logDebug(
+            s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFilePath}")
         } else {
           logWarning(
-            s"CommitFile failed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+            s"CommitFile failed to waitMapPartitionRegionFinished ${fileWriter.getFilePath}")
         }
       case _ =>
     }
