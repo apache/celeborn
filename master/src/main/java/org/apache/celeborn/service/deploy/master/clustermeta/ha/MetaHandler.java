@@ -262,8 +262,7 @@ public class MetaHandler {
               replicatePort,
               internalPort,
               networkLocation,
-              diskInfos,
-              userResourceConsumption);
+              diskInfos);
           break;
 
         case ReportWorkerUnavailable:

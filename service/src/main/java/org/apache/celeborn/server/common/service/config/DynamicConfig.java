@@ -225,6 +225,14 @@ public abstract class DynamicConfig {
         ConfigType.BOOLEAN);
   }
 
+  public boolean quotaEnabled() {
+    return getValue(
+        CelebornConf.QUOTA_ENABLED().key(),
+        CelebornConf.QUOTA_ENABLED(),
+        Boolean.TYPE,
+        ConfigType.BOOLEAN);
+  }
+
   public Map<String, String> getConfigs() {
     return configs;
   }

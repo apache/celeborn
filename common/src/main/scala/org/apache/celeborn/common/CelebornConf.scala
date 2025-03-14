@@ -672,6 +672,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def estimatedPartitionSizeForEstimationUpdateInterval: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
   def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
+  def masterResourceConsumptionMetricsEnabled: Boolean =
+    get(MASTER_RESOURCE_CONSUMPTION_METRICS_ENABLED)
   def clusterName: String = get(CLUSTER_NAME)
 
   // //////////////////////////////////////////////////////
@@ -6123,4 +6125,12 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefault(Long.MaxValue)
+
+  val MASTER_RESOURCE_CONSUMPTION_METRICS_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.userResourceConsumption.metrics.enabled")
+      .categories("master")
+      .doc("Whether to enable resource consumption metrics.")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefaultString("false")
 }

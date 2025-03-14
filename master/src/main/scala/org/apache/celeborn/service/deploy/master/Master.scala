@@ -671,17 +671,11 @@ private[celeborn] class Master(
         fetchPort,
         replicatePort,
         disks.map { disk => disk.mountPoint -> disk }.toMap.asJava,
+        userResourceConsumption,
         System.currentTimeMillis(),
         highWorkload,
         workerStatus,
         requestId)
-      statusSystem.updateWorkerResourceConsumptions(
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
-        userResourceConsumption)
     }
 
     val expiredShuffleKeys = new util.HashSet[String]
@@ -1167,11 +1161,7 @@ private[celeborn] class Master(
   private[master] def handleCheckQuota(
       userIdentifier: UserIdentifier,
       context: RpcCallContext): Unit = {
-    if (conf.quotaEnabled) {
-      context.reply(quotaManager.checkUserQuotaStatus(userIdentifier))
-    } else {
-      context.reply(CheckQuotaResponse(true, ""))
-    }
+    context.reply(quotaManager.checkUserQuotaStatus(userIdentifier))
   }
 
   private def handleCheckWorkersAvailable(context: RpcCallContext): Unit = {

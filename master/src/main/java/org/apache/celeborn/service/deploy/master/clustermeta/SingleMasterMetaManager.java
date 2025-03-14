@@ -118,12 +118,15 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       long time,
       boolean highWorkload,
       WorkerStatus workerStatus,
       String requestId) {
     updateWorkerHeartbeatMeta(
         host, rpcPort, pushPort, fetchPort, replicatePort, disks, time, workerStatus, highWorkload);
+    updateWorkerResourceConsumptions(
+        host, rpcPort, pushPort, fetchPort, replicatePort, userResourceConsumption);
   }
 
   @Override
@@ -139,15 +142,9 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId) {
     updateRegisterWorkerMeta(
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
-        internalPort,
-        networkLocation,
-        disks,
-        userResourceConsumption);
+        host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, networkLocation, disks);
+    updateWorkerResourceConsumptions(
+        host, rpcPort, pushPort, fetchPort, replicatePort, userResourceConsumption);
   }
 
   @Override

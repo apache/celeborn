@@ -272,6 +272,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       long time,
       boolean highWorkload,
       WorkerStatus workerStatus,
@@ -294,6 +295,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setHighWorkload(highWorkload)
                       .build())
               .build());
+      updateWorkerResourceConsumptions(
+          host, rpcPort, pushPort, fetchPort, replicatePort, userResourceConsumption);
     } catch (CelebornRuntimeException e) {
       LOG.error("Handle worker heartbeat for {} failed!", host, e);
       throw e;
@@ -327,10 +330,10 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setInternalPort(internalPort)
                       .setNetworkLocation(networkLocation)
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
-                      .putAllUserResourceConsumption(
-                          MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
                       .build())
               .build());
+      updateWorkerResourceConsumptions(
+          host, rpcPort, pushPort, fetchPort, replicatePort, userResourceConsumption);
     } catch (CelebornRuntimeException e) {
       LOG.error("Handle worker register for {} failed!", host, e);
       throw e;

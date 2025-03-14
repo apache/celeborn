@@ -45,11 +45,10 @@ class QuotaManager(
 
   val userQuotaStatus: JMap[UserIdentifier, QuotaStatus] = JavaUtils.newConcurrentHashMap()
   val tenantQuotaStatus: JMap[String, QuotaStatus] = JavaUtils.newConcurrentHashMap()
+  val resourceConsumptionMetricsEnabled = celebornConf.masterResourceConsumptionMetricsEnabled
   @volatile
   var clusterQuotaStatus: QuotaStatus = new QuotaStatus()
   val appQuotaStatus: JMap[String, QuotaStatus] = JavaUtils.newConcurrentHashMap()
-  val userResourceConsumptionMap: JMap[UserIdentifier, ResourceConsumption] =
-    JavaUtils.newConcurrentHashMap()
   private val quotaChecker =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-quota-checker")
   quotaChecker.scheduleWithFixedDelay(
@@ -70,20 +69,38 @@ class QuotaManager(
     appQuotaStatus.remove(appId)
   }
 
-  def checkUserQuotaStatus(userIdentifier: UserIdentifier): CheckQuotaResponse = {
-    val tenantStatus = tenantQuotaStatus.getOrDefault(userIdentifier.tenantId, QuotaStatus())
-    val userStatus = userQuotaStatus.getOrDefault(userIdentifier, QuotaStatus())
-    if (userStatus.exceed) {
-      CheckQuotaResponse(false, userStatus.exceedReason)
-    } else if (tenantStatus.exceed) {
-      CheckQuotaResponse(false, tenantStatus.exceedReason)
+  def checkUserQuotaStatus(user: UserIdentifier): CheckQuotaResponse = {
+    val quotaEnabled =
+      Option(configService)
+        .map(_.getTenantUserConfigFromCache(user.tenantId, user.name).quotaEnabled)
+        .getOrElse(celebornConf.quotaEnabled)
+    if (quotaEnabled) {
+      val tenantStatus = tenantQuotaStatus.getOrDefault(user.tenantId, QuotaStatus())
+      val userStatus = userQuotaStatus.getOrDefault(user, QuotaStatus())
+      if (userStatus.exceed) {
+        logInfo(s"user $user quota exceeded, detail: ${userStatus.exceedReason}")
+        CheckQuotaResponse(false, userStatus.exceedReason)
+      } else if (tenantStatus.exceed) {
+        logInfo(s"User $user was rejected because of tenant " +
+          s"${user.tenantId} quota exceeded, detail: ${tenantStatus.exceedReason}")
+        CheckQuotaResponse(false, tenantStatus.exceedReason)
+      } else if (clusterQuotaStatus.exceed) {
+        logInfo(s"User $user was rejected because of cluster quota exceeded, " +
+          s"detail: ${clusterQuotaStatus.exceedReason}")
+        CheckQuotaResponse(false, clusterQuotaStatus.exceedReason)
+      } else {
+        CheckQuotaResponse(true, "")
+      }
     } else {
-      CheckQuotaResponse(!clusterQuotaStatus.exceed, clusterQuotaStatus.exceedReason)
+      CheckQuotaResponse(true, "")
     }
   }
 
   def checkApplicationQuotaStatus(applicationId: String): CheckQuotaResponse = {
     val status = appQuotaStatus.getOrDefault(applicationId, QuotaStatus())
+    if (status.exceed) {
+      logInfo(s"application $applicationId quota exceeded, detail: ${status.exceedReason}")
+    }
     CheckQuotaResponse(!status.exceed, status.exceedReason)
   }
 
@@ -193,69 +210,51 @@ class QuotaManager(
       var clusterResourceConsumption = ResourceConsumption(0, 0, 0, 0)
       val activeUsers = mutable.Set[UserIdentifier]()
 
-      val tenantResourceConsumption =
+      val tenantResourceConsumptions =
         statusSystem.availableWorkers.asScala.flatMap { workerInfo =>
           workerInfo.userResourceConsumption.asScala
         }.groupBy(_._1.tenantId).toSeq.map { case (tenantId, tenantConsumptionList) =>
           var tenantResourceConsumption = ResourceConsumption(0, 0, 0, 0)
-          val userResourceConsumption =
+          val userResourceConsumptions =
             tenantConsumptionList.groupBy(_._1).map {
               case (userIdentifier, userConsumptionList) =>
                 activeUsers.add(userIdentifier)
                 // Step 1: Compute user consumption and set quota status.
                 val resourceConsumptionList = userConsumptionList.map(_._2).toSeq
-                val resourceConsumption = computeUserResourceConsumption(resourceConsumptionList)
+                val userResourceConsumption =
+                  computeUserResourceConsumption(resourceConsumptionList)
 
                 // Step 2: Update user resource consumption metrics.
                 // For extract metrics
-                userResourceConsumptionMap.put(userIdentifier, resourceConsumption)
-                registerUserResourceConsumptionMetrics(userIdentifier)
+                registerUserResourceConsumptionMetrics(userIdentifier, userResourceConsumption)
 
                 // Step 3: Expire user level exceeded app except already expired app
-                clusterResourceConsumption = clusterResourceConsumption.add(resourceConsumption)
-                tenantResourceConsumption = tenantResourceConsumption.add(resourceConsumption)
-                val quotaStatus = checkUserQuotaSpace(userIdentifier, resourceConsumption)
+                clusterResourceConsumption = clusterResourceConsumption.add(userResourceConsumption)
+                tenantResourceConsumption = tenantResourceConsumption.add(userResourceConsumption)
+                val quotaStatus = checkUserQuotaSpace(userIdentifier, userResourceConsumption)
                 userQuotaStatus.put(userIdentifier, quotaStatus)
                 if (interruptShuffleEnabled && quotaStatus.exceed) {
-                  val subResourceConsumptions = computeSubConsumption(resourceConsumptionList)
-                  // Compute expired size
-                  val (expired, notExpired) = subResourceConsumptions.partition { case (app, _) =>
-                    appQuotaStatus.containsKey(app)
-                  }
-                  val userConsumptions =
-                    expired.values.foldLeft(resourceConsumption)(_.subtract(_))
-                  expireApplication(
-                    userConsumptions,
-                    getUserStorageQuota(userIdentifier),
-                    notExpired.toSeq,
-                    USER_EXHAUSTED)
-                  (Option(subResourceConsumptions), resourceConsumptionList)
+                  val subResourceConsumptions =
+                    checkUserResourceConsumption(
+                      userIdentifier,
+                      resourceConsumptionList,
+                      userResourceConsumption)
+                  (Some(subResourceConsumptions), resourceConsumptionList)
                 } else {
                   (None, resourceConsumptionList)
                 }
-            }
+            }.toSeq
 
           val quotaStatus = checkTenantQuotaSpace(tenantId, tenantResourceConsumption)
           tenantQuotaStatus.put(tenantId, quotaStatus)
           // Expire tenant level exceeded app except already expired app
           if (interruptShuffleEnabled && quotaStatus.exceed) {
-            val appConsumptions = userResourceConsumption.map {
-              case (None, subConsumptionList) => computeSubConsumption(subConsumptionList)
-              case (Some(subConsumptions), _) => subConsumptions
-            }.flatMap(_.toSeq).toSeq
-
-            // Compute nonExpired app total usage
-            val (expired, notExpired) = appConsumptions.partition { case (app, _) =>
-              appQuotaStatus.containsKey(app)
-            }
-            tenantResourceConsumption =
-              expired.map(_._2).foldLeft(tenantResourceConsumption)(_.subtract(_))
-            expireApplication(
-              tenantResourceConsumption,
-              getTenantStorageQuota(tenantId),
-              notExpired,
-              TENANT_EXHAUSTED)
-            (Option(appConsumptions), tenantConsumptionList.map(_._2).toSeq)
+            val appConsumptions =
+              checkTenantResourceConsumption(
+                tenantId,
+                userResourceConsumptions,
+                tenantResourceConsumption)
+            (Some(appConsumptions), tenantConsumptionList.map(_._2).toSeq)
           } else {
             (None, tenantConsumptionList.map(_._2).toSeq)
           }
@@ -267,20 +266,76 @@ class QuotaManager(
       // Expire cluster level exceeded app except already expired app
       clusterQuotaStatus = checkClusterQuotaSpace(clusterResourceConsumption)
       if (interruptShuffleEnabled && clusterQuotaStatus.exceed) {
-        val appConsumptions = tenantResourceConsumption.map {
-          case (None, subConsumptionList) => computeSubConsumption(subConsumptionList)
-          case (Some(subConsumptions), _) => subConsumptions
-        }.flatMap(_.toSeq).toSeq
-
-        // Compute nonExpired app total usage
-        val (expired, notExpired) = appConsumptions.partition { case (app, _) =>
-          appQuotaStatus.containsKey(app)
-        }
-        clusterResourceConsumption =
-          expired.map(_._2).foldLeft(clusterResourceConsumption)(_.subtract(_))
-        expireApplication(clusterResourceConsumption, clusterQuota, notExpired, CLUSTER_EXHAUSTED)
+        checkClusterResourceConsumption(
+          tenantResourceConsumptions,
+          clusterResourceConsumption,
+          clusterQuota)
       }
     }
+  }
+
+  def checkUserResourceConsumption(
+      userIdentifier: UserIdentifier,
+      resourceConsumptionList: Seq[ResourceConsumption],
+      usedResourceConsumption: ResourceConsumption): Seq[(String, ResourceConsumption)] = {
+    val appConsumptions = computeSubConsumption(resourceConsumptionList).toSeq
+    // Compute expired size
+    val (expired, notExpired) = appConsumptions.partition { case (app, _) =>
+      appQuotaStatus.containsKey(app)
+    }
+    val notExpiredUserConsumptions =
+      expired.map(_._2).foldLeft(usedResourceConsumption)(_.subtract(_))
+    expireApplication(
+      notExpiredUserConsumptions,
+      getUserStorageQuota(userIdentifier),
+      notExpired,
+      USER_EXHAUSTED)
+    appConsumptions
+  }
+
+  def checkTenantResourceConsumption(
+      tenantId: String,
+      consumptions: Seq[(Option[Seq[(String, ResourceConsumption)]], Seq[ResourceConsumption])],
+      usedResourceConsumption: ResourceConsumption): Seq[(String, ResourceConsumption)] = {
+    val appConsumptions = consumptions.map {
+      case (None, subConsumptionList) => computeSubConsumption(subConsumptionList)
+      case (Some(subConsumptions), _) => subConsumptions
+    }.flatMap(_.toSeq).toSeq
+
+    // Compute nonExpired app total usage
+    val (expired, notExpired) = appConsumptions.partition { case (app, _) =>
+      appQuotaStatus.containsKey(app)
+    }
+    val notExpiredResourceConsumption =
+      expired.map(_._2).foldLeft(usedResourceConsumption)(_.subtract(_))
+    expireApplication(
+      notExpiredResourceConsumption,
+      getTenantStorageQuota(tenantId),
+      notExpired,
+      TENANT_EXHAUSTED)
+    appConsumptions
+  }
+
+  def checkClusterResourceConsumption(
+      consumptions: Seq[(Option[Seq[(String, ResourceConsumption)]], Seq[ResourceConsumption])],
+      usedResourceConsumption: ResourceConsumption,
+      clusterQuota: StorageQuota): Unit = {
+    val appConsumptions = consumptions.map {
+      case (None, subConsumptionList) => computeSubConsumption(subConsumptionList)
+      case (Some(subConsumptions), _) => subConsumptions
+    }.flatMap(_.toSeq).toSeq
+
+    // Compute nonExpired app total usage
+    val (expired, notExpired) = appConsumptions.partition { case (app, _) =>
+      appQuotaStatus.containsKey(app)
+    }
+    val notExpiredClusterResourceConsumption =
+      expired.map(_._2).foldLeft(usedResourceConsumption)(_.subtract(_))
+    expireApplication(
+      notExpiredClusterResourceConsumption,
+      clusterQuota,
+      notExpired,
+      CLUSTER_EXHAUSTED)
   }
 
   private def expireApplication(
@@ -319,35 +374,27 @@ class QuotaManager(
     }
   }
 
-  private def getResourceConsumption(userIdentifier: UserIdentifier): ResourceConsumption = {
-    userResourceConsumptionMap.getOrDefault(userIdentifier, ResourceConsumption(0, 0, 0, 0))
-  }
-
-  private def registerUserResourceConsumptionMetrics(userIdentifier: UserIdentifier): Unit = {
-    resourceConsumptionSource.addGauge(DISK_FILE_COUNT, userIdentifier.toMap) { () =>
-      getResourceConsumption(userIdentifier).diskBytesWritten
-    }
-    resourceConsumptionSource.addGauge(DISK_BYTES_WRITTEN, userIdentifier.toMap) { () =>
-      getResourceConsumption(userIdentifier).diskBytesWritten
-    }
-    resourceConsumptionSource.addGauge(HDFS_FILE_COUNT, userIdentifier.toMap) { () =>
-      getResourceConsumption(userIdentifier).hdfsFileCount
-    }
-    resourceConsumptionSource.addGauge(HDFS_BYTES_WRITTEN, userIdentifier.toMap) { () =>
-      getResourceConsumption(userIdentifier).hdfsBytesWritten
+  private def registerUserResourceConsumptionMetrics(
+      userIdentifier: UserIdentifier,
+      resourceConsumption: ResourceConsumption): Unit = {
+    if (resourceConsumptionMetricsEnabled) {
+      resourceConsumptionSource.addGauge(DISK_FILE_COUNT, userIdentifier.toMap) { () =>
+        resourceConsumption.diskBytesWritten
+      }
+      resourceConsumptionSource.addGauge(DISK_BYTES_WRITTEN, userIdentifier.toMap) { () =>
+        resourceConsumption.diskBytesWritten
+      }
+      resourceConsumptionSource.addGauge(HDFS_FILE_COUNT, userIdentifier.toMap) { () =>
+        resourceConsumption.hdfsFileCount
+      }
+      resourceConsumptionSource.addGauge(HDFS_BYTES_WRITTEN, userIdentifier.toMap) { () =>
+        resourceConsumption.hdfsBytesWritten
+      }
     }
   }
 
   private def clearQuotaStatus(activeUsers: mutable.Set[UserIdentifier]): Unit = {
-    userQuotaStatus
-      .keySet()
-      .asScala
-      .diff(activeUsers)
-      .foreach(userQuotaStatus.remove)
-    tenantQuotaStatus
-      .keySet()
-      .asScala
-      .diff(activeUsers.map(_.tenantId).toSet)
-      .foreach(tenantQuotaStatus.remove)
+    userQuotaStatus.keySet().removeIf(userIdentifier => !activeUsers.contains(userIdentifier))
+    tenantQuotaStatus.keySet().removeIf(tenantId => !activeUsers.map(_.tenantId).contains(tenantId))
   }
 }

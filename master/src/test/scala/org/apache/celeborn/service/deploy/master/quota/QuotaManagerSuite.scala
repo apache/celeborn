@@ -70,6 +70,7 @@ class QuotaManagerSuite extends CelebornFunSuite
     conf.set(
       CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH.key,
       getTestResourceFile("dynamicConfig-quota.yaml").getPath)
+    conf.set("celeborn.master.userResourceConsumption.metrics.enabled", "true")
     resourceConsumptionSource = new ResourceConsumptionSource(conf, "Master")
     DynamicConfigServiceFactory.reset()
     configService = DynamicConfigServiceFactory.getConfigService(conf)
@@ -377,7 +378,7 @@ class QuotaManagerSuite extends CelebornFunSuite
         if (i < 100) {
           (0 until 1000).map {
             index =>
-              val appId = s"$user$i app$index"
+              val appId = s"$user$i case2_app$index"
               val consumption = ResourceConsumption(
                 MIN + Math.abs(random.nextLong()) % (MAX - MIN),
                 MIN + Math.abs(random.nextLong()) % (MAX - MIN),
@@ -388,7 +389,7 @@ class QuotaManagerSuite extends CelebornFunSuite
         } else {
           (0 until 1000).map {
             index =>
-              val appId = s"$user$i app$index"
+              val appId = s"$user$i case2_app$index"
               val consumption = ResourceConsumption(0, 0, 0, 0)
               (appId, consumption)
           }.toMap
@@ -418,7 +419,7 @@ class QuotaManagerSuite extends CelebornFunSuite
       assertFalse(quotaManager.checkUserQuotaStatus(user).isAvailable)
       (0 until 1000).foreach {
         index =>
-          val appId = s"$user$i app$index"
+          val appId = s"$user$i case2_app$index"
           if (i < 100) {
             assertFalse(quotaManager.checkApplicationQuotaStatus(appId).isAvailable)
           } else {
