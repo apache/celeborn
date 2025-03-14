@@ -21,12 +21,12 @@
     <groupId>org.apache.celeborn</groupId>
     <artifactId>celeborn-parent_${scala.binary.version}</artifactId>
     <version>${project.version}</version>
-    <relativePath>../pom.xml</relativePath>
+    <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-multipart-uploader_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-multipart-uploader-s3_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Multipart Uploader</name>
+  <name>Celeborn Multipart Uploader S3</name>
 
   <dependencies>
     <dependency>

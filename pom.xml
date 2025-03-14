@@ -1345,7 +1345,7 @@
     <profile>
       <id>aws</id>
       <modules>
-        <module>multipart-uploader</module>
+        <module>multipart-uploader/multipart-uploader-s3</module>
       </modules>
       <properties>
         <aws-deps>true</aws-deps>
