@@ -19,6 +19,9 @@ package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.IOException;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import scala.Option;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.GeneratedMessageV3;
@@ -34,6 +37,7 @@ import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.UserCongestionControlContext;
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
 /*
  * Note: Once FlushNotifier.exception is set, the whole file is not available.
@@ -42,27 +46,30 @@ import org.apache.celeborn.service.deploy.worker.congestcontrol.UserCongestionCo
 public class PartitionDataWriter implements DeviceObserver {
   private static final Logger logger = LoggerFactory.getLogger(PartitionDataWriter.class);
 
-  protected TierWriterProxy tierWriterProxy;
-
-  protected final DeviceMonitor deviceMonitor;
   private final long splitThreshold;
   private final PartitionSplitMode splitMode;
-  protected final FlushNotifier notifier = new FlushNotifier();
-  // It's only needed when graceful shutdown is enabled
-  protected final StorageManager storageManager;
+  private final long memoryFileStorageMaxFileSize;
+  private final AtomicInteger numPendingWrites = new AtomicInteger(0);
+  private final PartitionDataWriterContext writerContext;
+  private final PartitionType partitionType;
+  private final String writerString;
+  private final StorageManager storageManager;
+  private final FlushNotifier notifier = new FlushNotifier();
+
   private UserCongestionControlContext userCongestionControlContext = null;
-  public final String writerString;
+  private volatile TierWriterBase currentTierWriter;
 
   public PartitionDataWriter(
       StorageManager storageManager,
       CelebornConf conf,
       DeviceMonitor deviceMonitor,
       PartitionDataWriterContext writerContext,
-      PartitionType partitionType)
-      throws IOException {
+      PartitionType partitionType) {
+    memoryFileStorageMaxFileSize = conf.workerMemoryFileStorageMaxFileSize();
+    this.writerContext = writerContext;
+
     this.storageManager = storageManager;
     this.splitThreshold = writerContext.getSplitThreshold();
-    this.deviceMonitor = deviceMonitor;
     this.splitMode = writerContext.getPartitionSplitMode();
     String shuffleKey = writerContext.getShuffleKey();
     String filename = writerContext.getPartitionLocation().getFileName();
@@ -75,14 +82,19 @@ public class PartitionDataWriter implements DeviceObserver {
           CongestionController.instance()
               .getUserCongestionContext(writerContext.getUserIdentifier());
     }
+
     writerContext.setPartitionDataWriter(this);
     writerContext.setDeviceMonitor(deviceMonitor);
-    tierWriterProxy = new TierWriterProxy(writerContext, storageManager, conf, partitionType);
+    this.partitionType = partitionType;
+    currentTierWriter =
+        storageManager
+            .storagePolicy()
+            .createFileWriter(writerContext, partitionType, numPendingWrites, notifier, null);
   }
 
   public DiskFileInfo getDiskFileInfo() {
     // keep compatible with current logic
-    FileInfo currentFileInfo = tierWriterProxy.getCurrentFileInfo();
+    FileInfo currentFileInfo = currentTierWriter.fileInfo();
     if (currentFileInfo instanceof DiskFileInfo) {
       return (DiskFileInfo) currentFileInfo;
     }
@@ -94,32 +106,37 @@ public class PartitionDataWriter implements DeviceObserver {
   }
 
   public void incrementPendingWrites() {
-    tierWriterProxy.incrementPendingWriters();
+    numPendingWrites.incrementAndGet();
   }
 
   public void decrementPendingWrites() {
-    tierWriterProxy.decrementPendingWriters();
+    numPendingWrites.decrementAndGet();
   }
 
   // this will only happen if a worker is under memory pressure
   @VisibleForTesting
-  public void flush() throws IOException {
-    tierWriterProxy.flush(false);
+  public synchronized void flush() {
+    currentTierWriter.flush(false, false);
   }
 
-  public boolean needHardSplitForMemoryShuffleStorage() {
-    return tierWriterProxy.needHardSplitForMemoryFile();
+  public synchronized boolean needHardSplitForMemoryShuffleStorage() {
+    if (!(currentTierWriter instanceof MemoryTierWriter)) {
+      return false;
+    }
+    return !storageManager.localOrDfsStorageAvailable()
+        && (currentTierWriter.fileInfo().getFileLength() > memoryFileStorageMaxFileSize
+            || !MemoryManager.instance().memoryFileStorageAvailable());
   }
 
-  /** assume data size is less than chunk capacity */
-  public void write(ByteBuf data) throws IOException {
-    tierWriterProxy.write(data);
-    tierWriterProxy.decrementPendingWriters();
+  public synchronized void write(ByteBuf data) throws IOException {
+    if (currentTierWriter.needEvict()) {
+      evict(false);
+    }
+    currentTierWriter.write(data);
   }
 
   public RoaringBitmap getMapIdBitMap() {
-    scala.Option<RoaringBitmap> bitmapOpt =
-        tierWriterProxy.currentTierWriter().metaHandler().getMapIdBitmap();
+    Option<RoaringBitmap> bitmapOpt = currentTierWriter.metaHandler().getMapIdBitmap();
     // to keep compatible with scala 2.11
     if (bitmapOpt.isDefined()) {
       return bitmapOpt.get();
@@ -128,29 +145,68 @@ public class PartitionDataWriter implements DeviceObserver {
   }
 
   public StorageInfo getStorageInfo() {
-    return tierWriterProxy.getCurrentStorageInfo();
-  }
-
-  public long close() {
-    return tierWriterProxy.close();
+    StorageInfo storageInfo = null;
+    FileInfo fileInfo = currentTierWriter.fileInfo();
+    if (fileInfo instanceof DiskFileInfo) {
+      DiskFileInfo diskFileInfo = (DiskFileInfo) fileInfo;
+      if (diskFileInfo.isDFS()) {
+        if (((DfsTierWriter) currentTierWriter).deleted()) {
+          return null;
+        } else if (diskFileInfo.isS3()) {
+          storageInfo = new StorageInfo(StorageInfo.Type.S3, true, diskFileInfo.getFilePath());
+        } else {
+          storageInfo = new StorageInfo(StorageInfo.Type.HDFS, true, diskFileInfo.getFilePath());
+        }
+      } else {
+        LocalFlusher flusher = (LocalFlusher) currentTierWriter.getFlusher();
+        storageInfo = new StorageInfo(flusher.diskType(), true, "");
+      }
+    } else if (fileInfo instanceof MemoryFileInfo) {
+      storageInfo = new StorageInfo(StorageInfo.Type.MEMORY, true, "");
+    }
+    if (storageInfo != null
+        && currentTierWriter.fileInfo().getFileMeta() instanceof ReduceFileMeta) {
+      storageInfo.setFileSize(currentTierWriter.fileInfo().getFileLength());
+      storageInfo.setChunkOffsets(
+          ((ReduceFileMeta) currentTierWriter.fileInfo().getFileMeta()).getChunkOffsets());
+    }
+    return storageInfo;
   }
 
   public boolean isClosed() {
-    return tierWriterProxy.isClosed();
+    return currentTierWriter.closed();
   }
 
-  public void evict(boolean checkClose) throws IOException {
-    // this lock is used to make sure that
-    // memory manager won't evict with writer thread concurrently
-    tierWriterProxy.evict(checkClose);
+  // evict and flush method need to be in a same synchronized block
+  // because memory manager may want to evict a file under memory pressure
+  public synchronized void evict(boolean checkClose) {
+    // close and evict might be invoked concurrently
+    // do not evict committed files from memory manager
+    // evict memory file info if worker is shutdown gracefully
+    if (checkClose) {
+      if (currentTierWriter.closed()) {
+        return;
+      }
+    }
+    TierWriterBase newTierWriter =
+        storageManager
+            .storagePolicy()
+            .getEvictedFileWriter(
+                currentTierWriter, writerContext, partitionType, numPendingWrites, notifier);
+    currentTierWriter.evict(newTierWriter);
+    currentTierWriter = newTierWriter;
   }
 
-  public void destroy(IOException ioException) {
-    tierWriterProxy.destroy(ioException);
+  public synchronized void destroy(IOException ioException) {
+    currentTierWriter.destroy(ioException);
+  }
+
+  public synchronized long close() {
+    return currentTierWriter.close();
   }
 
   public FileInfo getCurrentFileInfo() {
-    return tierWriterProxy.getCurrentFileInfo();
+    return currentTierWriter.fileInfo();
   }
 
   public IOException getException() {
@@ -216,7 +272,7 @@ public class PartitionDataWriter implements DeviceObserver {
   public void notifyNonCriticalError(String mountPoint, DiskStatus diskStatus) {}
 
   public MemoryFileInfo getMemoryFileInfo() {
-    return ((MemoryFileInfo) tierWriterProxy.getCurrentFileInfo());
+    return ((MemoryFileInfo) currentTierWriter.fileInfo());
   }
 
   public UserCongestionControlContext getUserCongestionControlContext() {
@@ -224,14 +280,14 @@ public class PartitionDataWriter implements DeviceObserver {
   }
 
   public void handleEvents(GeneratedMessageV3 message) {
-    tierWriterProxy.handleEvents(message);
+    currentTierWriter.metaHandler().handleEvent(message);
   }
 
   public PartitionMetaHandler getMetaHandler() {
-    return tierWriterProxy.getMetaHandler();
+    return currentTierWriter.metaHandler();
   }
 
   public Flusher getFlusher() {
-    return tierWriterProxy.getFlusher();
+    return currentTierWriter.getFlusher();
   }
 }
