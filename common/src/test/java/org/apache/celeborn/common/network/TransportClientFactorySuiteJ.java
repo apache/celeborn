@@ -26,8 +26,12 @@ import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelPipeline;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -259,5 +263,31 @@ public class TransportClientFactorySuiteJ {
     TransportClient transportClient =
         factory.retryCreateClient("xxx", 10, 1, TransportFrameDecoder::new);
     Assert.assertEquals(transportClient, client);
+  }
+
+  @Test
+  public void testChannelInactiveReconnect()
+      throws IOException, InterruptedException, ExecutionException {
+    context.getConf().getCelebornConf().set(CelebornConf.NETWORK_RECONNECT_MAX_RETRIES(), 3);
+    ChannelPipeline pipeline =
+        context
+            .createClientFactory()
+            .createClient(getLocalHost(), server1.getPort())
+            .getChannel()
+            .pipeline();
+    TestReconnectHandler handler = new TestReconnectHandler();
+    pipeline.addLast(handler);
+    pipeline.disconnect().get();
+    assertFalse(handler.inactive);
+  }
+
+  static class TestReconnectHandler extends ChannelInboundHandlerAdapter {
+
+    private boolean inactive = false;
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+      inactive = true;
+    }
   }
 }

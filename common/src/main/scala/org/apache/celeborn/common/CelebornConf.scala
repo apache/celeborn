@@ -594,6 +594,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getTransportConfTimeAsMs(module, NETWORK_IO_RETRY_WAIT).toInt
   }
 
+  def networkReconnectMaxRetries(module: String): Int = {
+    getTransportConfInt(module, NETWORK_RECONNECT_MAX_RETRIES)
+  }
+
+  def networkReconnectRetryWaitMs(module: String): Int = {
+    getTransportConfTimeAsMs(module, NETWORK_RECONNECT_RETRY_WAIT).toInt
+  }
+
   def networkIoMemoryMapBytes(module: String): Int = {
     getTransportConfSizeAsBytes(module, NETWORK_IO_STORAGE_MEMORY_MAP_THRESHOLD).toInt
   }
@@ -2176,6 +2184,37 @@ object CelebornConf extends Logging {
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
         s"it works for Flink shuffle client push data.")
       .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
+
+  val NETWORK_RECONNECT_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.<module>.reconnect.maxRetries")
+      .categories("network")
+      .version("0.6.0")
+      .doc(
+        "Max number of times we will try to reconnect per request. " +
+          "If set to 0, we will not do any retries. " +
+          s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
+          s"it works for shuffle client push and fetch data. " +
+          s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
+          s"it works for replicate client of worker replicating data to peer worker. " +
+          s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
+          s"it works for Flink shuffle client push data.")
+      .intConf
+      .createWithDefault(0)
+
+  val NETWORK_RECONNECT_RETRY_WAIT: ConfigEntry[Long] =
+    buildConf("celeborn.<module>.reconnect.retryWait")
+      .categories("network")
+      .version("0.6.0")
+      .doc("Time that we will wait in order to perform a retry after reconnection fails. " +
+        "Only relevant if maxReconnectRetries > 0. " +
+        s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
+        s"it works for shuffle client push and fetch data. " +
+        s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
+        s"it works for replicate client of worker replicating data to peer worker. " +
+        s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
+        s"it works for Flink shuffle client push data.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
 
