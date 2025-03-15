@@ -277,6 +277,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   protected void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
     logger.debug("Push giant record, size {}.", numBytes);
+    long start = System.nanoTime();
     int bytesWritten =
         shuffleClient.pushData(
             shuffleId,
@@ -288,8 +289,10 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             numBytes,
             numMappers,
             numPartitions);
+    long delta = System.nanoTime() - start;
     mapStatusLengths[partitionId].add(bytesWritten);
     writeMetrics.incBytesWritten(bytesWritten);
+    writeMetrics.incWriteTime(delta);
   }
 
   private int getOrUpdateOffset(int partitionId, int serializedRecordSize)
