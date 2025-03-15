@@ -227,7 +227,6 @@ public class MetaHandler {
               fetchPort,
               replicatePort,
               diskInfos,
-              userResourceConsumption,
               request.getWorkerHeartbeatRequest().getTime(),
               workerStatus,
               highWorkload);
@@ -263,8 +262,7 @@ public class MetaHandler {
               replicatePort,
               internalPort,
               networkLocation,
-              diskInfos,
-              userResourceConsumption);
+              diskInfos);
           break;
 
         case ReportWorkerUnavailable:

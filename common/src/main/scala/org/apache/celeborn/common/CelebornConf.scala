@@ -674,6 +674,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def estimatedPartitionSizeForEstimationUpdateInterval: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
   def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
+  def masterResourceConsumptionMetricsEnabled: Boolean =
+    get(MASTER_RESOURCE_CONSUMPTION_METRICS_ENABLED)
   def clusterName: String = get(CLUSTER_NAME)
 
   // //////////////////////////////////////////////////////
@@ -5508,40 +5510,40 @@ object CelebornConf extends Logging {
       .stringConf
       .createWithDefault("org.apache.celeborn.server.common.container.DefaultContainerInfoProvider")
 
-  val QUOTA_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
+  val QUOTA_TENANT_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
     buildConf("celeborn.quota.tenant.diskBytesWritten")
       .categories("quota")
       .dynamic
-      .doc("Quota dynamic configuration for written disk bytes.")
+      .doc("Tenant level quota dynamic configuration for written disk bytes.")
       .version("0.5.0")
-      .longConf
+      .bytesConf(ByteUnit.BYTE)
       .createWithDefault(Long.MaxValue)
 
-  val QUOTA_DISK_FILE_COUNT: ConfigEntry[Long] =
+  val QUOTA_TENANT_DISK_FILE_COUNT: ConfigEntry[Long] =
     buildConf("celeborn.quota.tenant.diskFileCount")
       .categories("quota")
       .dynamic
-      .doc("Quota dynamic configuration for written disk file count.")
+      .doc("Tenant level quota dynamic configuration for written disk file count.")
       .version("0.5.0")
-      .longConf
+      .bytesConf(ByteUnit.BYTE)
       .createWithDefault(Long.MaxValue)
 
-  val QUOTA_HDFS_BYTES_WRITTEN: ConfigEntry[Long] =
+  val QUOTA_TENANT_HDFS_BYTES_WRITTEN: ConfigEntry[Long] =
     buildConf("celeborn.quota.tenant.hdfsBytesWritten")
       .categories("quota")
       .dynamic
-      .doc("Quota dynamic configuration for written hdfs bytes.")
+      .doc("Tenant level quota dynamic configuration for written hdfs bytes.")
       .version("0.5.0")
-      .longConf
+      .bytesConf(ByteUnit.BYTE)
       .createWithDefault(Long.MaxValue)
 
-  val QUOTA_HDFS_FILE_COUNT: ConfigEntry[Long] =
+  val QUOTA_TENANT_HDFS_FILE_COUNT: ConfigEntry[Long] =
     buildConf("celeborn.quota.tenant.hdfsFileCount")
       .categories("quota")
       .dynamic
-      .doc("Quota dynamic configuration for written hdfs file count.")
+      .doc("Tenant level quota dynamic configuration for written hdfs file count.")
       .version("0.5.0")
-      .longConf
+      .bytesConf(ByteUnit.BYTE)
       .createWithDefault(Long.MaxValue)
 
   val QUOTA_INTERRUPT_SHUFFLE_ENABLED: ConfigEntry[Boolean] =
@@ -6170,4 +6172,84 @@ object CelebornConf extends Logging {
       .doubleConf
       .checkValue(v => v > 0.0 && v <= 1.0, "Should be in (0.0, 1.0].")
       .createWithDefault(1)
+
+  val QUOTA_CLUSTER_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
+    buildConf("celeborn.quota.cluster.diskBytesWritten")
+      .categories("quota")
+      .dynamic
+      .doc("Cluster level quota dynamic configuration for written disk bytes.")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_CLUSTER_DISK_FILE_COUNT: ConfigEntry[Long] =
+    buildConf("celeborn.quota.cluster.diskFileCount")
+      .categories("quota")
+      .dynamic
+      .doc("Cluster level quota dynamic configuration for written disk file count.")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_CLUSTER_HDFS_BYTES_WRITTEN: ConfigEntry[Long] =
+    buildConf("celeborn.quota.cluster.hdfsBytesWritten")
+      .categories("quota")
+      .dynamic
+      .doc("Cluster level quota dynamic configuration for written hdfs bytes.")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_CLUSTER_HDFS_FILE_COUNT: ConfigEntry[Long] =
+    buildConf("celeborn.quota.cluster.hdfsFileCount")
+      .categories("quota")
+      .dynamic
+      .doc("Cluster level quota dynamic configuration for written hdfs file count.")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_USER_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
+    buildConf("celeborn.quota.user.diskBytesWritten")
+      .categories("quota")
+      .dynamic
+      .doc("User level quota dynamic configuration for written disk bytes.")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_USER_DISK_FILE_COUNT: ConfigEntry[Long] =
+    buildConf("celeborn.quota.user.diskFileCount")
+      .categories("quota")
+      .dynamic
+      .doc("User level quota dynamic configuration for written disk file count.")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_USER_HDFS_BYTES_WRITTEN: ConfigEntry[Long] =
+    buildConf("celeborn.quota.user.hdfsBytesWritten")
+      .categories("quota")
+      .dynamic
+      .doc("User level quota dynamic configuration for written hdfs bytes.")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_USER_HDFS_FILE_COUNT: ConfigEntry[Long] =
+    buildConf("celeborn.quota.user.hdfsFileCount")
+      .categories("quota")
+      .dynamic
+      .doc("User level quota dynamic configuration for written hdfs file count.")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
+
+  val MASTER_RESOURCE_CONSUMPTION_METRICS_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.userResourceConsumption.metrics.enabled")
+      .categories("master")
+      .doc("Whether to enable resource consumption metrics.")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefaultString("false")
 }
