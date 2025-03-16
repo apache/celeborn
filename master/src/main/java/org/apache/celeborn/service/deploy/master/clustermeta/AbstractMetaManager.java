@@ -310,7 +310,14 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       Map<String, DiskInfo> disks) {
     WorkerInfo workerInfo =
         new WorkerInfo(
-            host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, disks, null);
+            host,
+            rpcPort,
+            pushPort,
+            fetchPort,
+            replicatePort,
+            internalPort,
+            disks,
+            new HashMap<>());
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
     if (networkLocation != null
         && !networkLocation.isEmpty()
