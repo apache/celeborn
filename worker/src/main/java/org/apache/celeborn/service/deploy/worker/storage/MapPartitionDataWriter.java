@@ -67,8 +67,12 @@ public class MapPartitionDataWriter extends PartitionDataWriter {
     if (!diskFileInfo.isDFS()) {
       indexChannel = FileChannelUtils.createWritableFileChannel(diskFileInfo.getIndexPath());
     } else {
-      StorageInfo.Type storageType =
-          diskFileInfo.isS3() ? StorageInfo.Type.S3 : StorageInfo.Type.HDFS;
+      StorageInfo.Type storageType = StorageInfo.Type.HDFS;
+      if (diskFileInfo.isS3()) {
+        storageType = StorageInfo.Type.S3;
+      } else if (diskFileInfo.isOSS()) {
+        storageType = StorageInfo.Type.OSS;
+      }
       this.hadoopFs = StorageManager.hadoopFs().get(storageType);
       try {
         hadoopFs.create(diskFileInfo.getDfsIndexPath(), true).close();

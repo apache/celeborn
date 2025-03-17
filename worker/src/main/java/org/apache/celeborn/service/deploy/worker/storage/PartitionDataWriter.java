@@ -118,6 +118,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   private UserCongestionControlContext userCongestionControlContext = null;
 
   protected MultipartUploadHandler s3MultipartUploadHandler;
+  protected MultipartUploadHandler ossMultipartUploadHandler;
 
   protected int partNumber = 1;
 
@@ -189,8 +190,12 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       this.flusherBufferSize = localFlusherBufferSize;
       channel = FileChannelUtils.createWritableFileChannel(this.diskFileInfo.getFilePath());
     } else {
-      StorageInfo.Type storageType =
-          diskFileInfo.isS3() ? StorageInfo.Type.S3 : StorageInfo.Type.HDFS;
+      StorageInfo.Type storageType = StorageInfo.Type.HDFS;
+      if (diskFileInfo.isS3()) {
+        storageType = StorageInfo.Type.S3;
+      } else if (diskFileInfo.isOSS()) {
+        storageType = StorageInfo.Type.OSS;
+      }
       this.hadoopFs = StorageManager.hadoopFs().get(storageType);
       this.flusherBufferSize = diskFileInfo.isS3() ? s3FlusherBufferSize : hdfsFlusherBufferSize;
       // We open the stream and close immediately because DFS output stream will
@@ -229,6 +234,30 @@ public abstract class PartitionDataWriter implements DeviceObserver {
                           key,
                           s3MultiplePartUploadMaxRetries);
           s3MultipartUploadHandler.startUpload();
+        } else if (diskFileInfo.isOSS()) {
+          Configuration configuration = hadoopFs.getConf();
+          String ossEndpoint = configuration.get("fs.oss.endpoint");
+          String ossAccessKey = configuration.get("fs.oss.accessKeyId");
+          String ossSecretKey = configuration.get("fs.oss.accessKeySecret");
+
+          URI uri = hadoopFs.getUri();
+          String bucketName = uri.getHost();
+          int index = diskFileInfo.getFilePath().indexOf(bucketName);
+          String key = diskFileInfo.getFilePath().substring(index + bucketName.length() + 1);
+
+          this.ossMultipartUploadHandler =
+              (MultipartUploadHandler)
+                  DynConstructors.builder()
+                      .impl(
+                          "org.apache.celeborn.OssMultipartUploadHandler",
+                          String.class,
+                          String.class,
+                          String.class,
+                          String.class,
+                          String.class)
+                      .build()
+                      .newInstance(ossEndpoint, bucketName, ossAccessKey, ossSecretKey, key);
+          ossMultipartUploadHandler.startUpload();
         }
       } catch (IOException e) {
         try {
@@ -287,6 +316,15 @@ public abstract class PartitionDataWriter implements DeviceObserver {
                     s3MultipartUploadHandler,
                     partNumber++,
                     finalFlush);
+          } else if (diskFileInfo.isOSS()) {
+            task =
+                new OssFlushTask(
+                    flushBuffer,
+                    notifier,
+                    false,
+                    ossMultipartUploadHandler,
+                    partNumber++,
+                    finalFlush);
           }
           MemoryManager.instance().releaseMemoryFileStorage(numBytes);
           MemoryManager.instance().incrementDiskBuffer(numBytes);
@@ -320,6 +358,15 @@ public abstract class PartitionDataWriter implements DeviceObserver {
                       notifier,
                       true,
                       s3MultipartUploadHandler,
+                      partNumber++,
+                      finalFlush);
+            } else if (diskFileInfo.isOSS()) {
+              task =
+                  new OssFlushTask(
+                      flushBuffer,
+                      notifier,
+                      true,
+                      ossMultipartUploadHandler,
                       partNumber++,
                       finalFlush);
             }
@@ -364,6 +411,11 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         logger.warn("Abort s3 multipart upload for {}", diskFileInfo.getFilePath());
         s3MultipartUploadHandler.complete();
         s3MultipartUploadHandler.close();
+      }
+      if (ossMultipartUploadHandler != null) {
+        logger.warn("Abort s3 multipart upload for {}", diskFileInfo.getFilePath());
+        ossMultipartUploadHandler.complete();
+        ossMultipartUploadHandler.close();
       }
       return;
     }
@@ -472,6 +524,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           return null;
         } else if (diskFileInfo.isS3()) {
           return new StorageInfo(StorageInfo.Type.S3, true, diskFileInfo.getFilePath());
+        } else if (diskFileInfo.isOSS()) {
+          return new StorageInfo(StorageInfo.Type.OSS, true, diskFileInfo.getFilePath());
         } else {
           return new StorageInfo(StorageInfo.Type.HDFS, true, diskFileInfo.getFilePath());
         }
@@ -536,6 +590,10 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       if (s3MultipartUploadHandler != null) {
         s3MultipartUploadHandler.complete();
         s3MultipartUploadHandler.close();
+      }
+      if (ossMultipartUploadHandler != null) {
+        ossMultipartUploadHandler.complete();
+        ossMultipartUploadHandler.close();
       }
       // unregister from DeviceMonitor
       if (diskFileInfo != null && !this.diskFileInfo.isDFS()) {

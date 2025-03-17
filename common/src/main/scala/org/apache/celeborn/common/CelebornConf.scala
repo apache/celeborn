@@ -659,6 +659,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(ACTIVE_STORAGE_TYPES).contains(StorageInfo.Type.HDFS.name()) && get(HDFS_DIR).isDefined
   def hasS3Storage: Boolean =
     get(ACTIVE_STORAGE_TYPES).contains(StorageInfo.Type.S3.name()) && get(S3_DIR).isDefined
+  def hasOssStorage: Boolean =
+    get(ACTIVE_STORAGE_TYPES).contains(StorageInfo.Type.OSS.name()) && get(OSS_DIR).isDefined
   def masterSlotAssignLoadAwareDiskGroupNum: Int = get(MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM)
   def masterSlotAssignLoadAwareDiskGroupGradient: Double =
     get(MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT)
@@ -1186,6 +1188,21 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     }.getOrElse("")
   }
 
+  def ossDir: String = {
+    get(OSS_DIR).map {
+      ossDir =>
+        if (!Utils.isOssPath(ossDir)) {
+          log.error(s"${OSS_DIR.key} configuration is wrong $ossDir. Disable OSS support.")
+          ""
+        } else {
+          ossDir
+        }
+    }.getOrElse("")
+  }
+  def ossEndpoint: String = get(OSS_ENDPOINT).getOrElse("")
+  def ossAccessKey: String = get(OSS_ACCESS_KEY).getOrElse("")
+  def ossSecretKey: String = get(OSS_SECRET_KEY).getOrElse("")
+
   def hdfsDir: String = {
     get(HDFS_DIR).map {
       hdfsDir =>
@@ -1263,6 +1280,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerSsdFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)
   def workerHdfsFlusherThreads: Int = get(WORKER_FLUSHER_HDFS_THREADS)
   def workerS3FlusherThreads: Int = get(WORKER_FLUSHER_S3_THREADS)
+  def workerOssFlusherThreads: Int = get(WORKER_FLUSHER_OSS_THREADS)
   def workerCreateWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
 
   // //////////////////////////////////////////////////////
@@ -3168,6 +3186,38 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(5)
 
+  val OSS_ENDPOINT: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.oss.endpoint")
+      .categories("worker", "master", "client")
+      .version("0.6.0")
+      .doc("OSS endpoint for Celeborn to store shuffle data.")
+      .stringConf
+      .createOptional
+
+  val OSS_DIR: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.oss.dir")
+      .categories("worker", "master", "client")
+      .version("0.6.0")
+      .doc("OSS base directory for Celeborn to store shuffle data.")
+      .stringConf
+      .createOptional
+
+  val OSS_SECRET_KEY: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.oss.secret.key")
+      .categories("worker", "master", "client")
+      .version("0.6.0")
+      .doc("OSS secret key for Celeborn to store shuffle data.")
+      .stringConf
+      .createOptional
+
+  val OSS_ACCESS_KEY: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.oss.access.key")
+      .categories("worker", "master", "client")
+      .version("0.6.0")
+      .doc("S3 access key for Celeborn to store shuffle data.")
+      .stringConf
+      .createOptional
+
   val WORKER_DISK_RESERVE_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.storage.disk.reserve.size")
       .withAlternative("celeborn.worker.disk.reserve.size")
@@ -3652,6 +3702,14 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("6m")
 
+  val WORKER_OSS_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.worker.flusher.oss.buffer.size")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("Size of buffer used by a OSS flusher.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("6m")
+
   val WORKER_WRITER_CLOSE_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.writer.close.timeout")
       .categories("worker")
@@ -3696,6 +3754,14 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.flusher.s3.threads")
       .categories("worker")
       .doc("Flusher's thread count used for write data to S3.")
+      .version("0.6.0")
+      .intConf
+      .createWithDefault(8)
+
+  val WORKER_FLUSHER_OSS_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.oss.threads")
+      .categories("worker")
+      .doc("Flusher's thread count used for write data to OSS.")
       .version("0.6.0")
       .intConf
       .createWithDefault(8)

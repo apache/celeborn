@@ -71,6 +71,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   val hasS3Storage = conf.hasS3Storage
 
+  val hasOssStorage = conf.hasOssStorage
+
   val storageExpireDirTimeout = conf.workerStorageExpireDirTimeout
   val storagePolicy = new StoragePolicy(conf, this, workerSource)
 
@@ -99,6 +101,11 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val s3DiskInfo =
     if (conf.hasS3Storage)
       Option(new DiskInfo("S3", Long.MaxValue, 999999, 999999, 0, StorageInfo.Type.S3))
+    else None
+
+  val ossDiskInfo =
+    if (conf.hasOssStorage)
+      Option(new DiskInfo("OSS", Long.MaxValue, 999999, 999999, 0, StorageInfo.Type.OSS))
     else None
 
   def disksSnapshot(): List[DiskInfo] = {
@@ -160,6 +167,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   val hdfsDir = conf.hdfsDir
   val s3Dir = conf.s3Dir
+  val ossDir = conf.ossDir
   val hdfsPermission = new FsPermission("755")
   val (hdfsFlusher, _totalHdfsFlusherThread) =
     if (hasHDFSStorage) {
@@ -199,6 +207,27 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           storageBufferAllocator,
           conf.workerPushMaxComponents)),
         conf.workerS3FlusherThreads)
+    } else {
+      (None, 0)
+    }
+
+  val (ossFlusher, _totalOssFlusherThread) =
+    if (hasOssStorage) {
+      logInfo(s"Initialize OSS support with path $ossDir")
+      try {
+        StorageManager.hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
+      } catch {
+        case e: Exception =>
+          logError("Celeborn initialize OSS failed.", e)
+          throw e
+      }
+      (
+        Some(new OssFlusher(
+          workerSource,
+          conf.workerOssFlusherThreads,
+          storageBufferAllocator,
+          conf.workerPushMaxComponents)),
+        conf.workerOssFlusherThreads)
     } else {
       (None, 0)
     }
@@ -613,12 +642,14 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val removedFileInfos = diskFileInfos.remove(shuffleKey)
         var isDfsExpired = false
         var isHdfs = false
+        var isOss = false
         if (removedFileInfos != null) {
           removedFileInfos.asScala.foreach {
             case (_, fileInfo) =>
               if (cleanFileInternal(shuffleKey, fileInfo)) {
                 isDfsExpired = true
                 isHdfs = fileInfo.isHdfs
+                isOss = fileInfo.isOSS
               }
           }
         }
@@ -633,9 +664,14 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         }
         if (isDfsExpired) {
           try {
-            val dir = if (hasHDFSStorage && isHdfs) hdfsDir else s3Dir
+            val dir =
+              if (hasHDFSStorage && isHdfs) hdfsDir
+              else if (hasOssStorage && isOss) ossDir
+              else s3Dir
             val storageInfo =
-              if (hasHDFSStorage && isHdfs) StorageInfo.Type.HDFS else StorageInfo.Type.S3
+              if (hasHDFSStorage && isHdfs) StorageInfo.Type.HDFS
+              else if (hasOssStorage && isOss) StorageInfo.Type.OSS
+              else StorageInfo.Type.S3
             StorageManager.hadoopFs.get(storageInfo).delete(
               new Path(new Path(dir, conf.workerWorkingDir), s"$appId/$shuffleId"),
               true)
@@ -1057,7 +1093,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           }
           healthyWorkingDirs()
         }
-      if (dirs.isEmpty && hdfsFlusher.isEmpty && s3Flusher.isEmpty) {
+      if (dirs.isEmpty && hdfsFlusher.isEmpty && s3Flusher.isEmpty && ossFlusher.isEmpty) {
         throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
       }
 
@@ -1097,6 +1133,24 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           fileName,
           s3FileInfo)
         return (s3Flusher.get, s3FileInfo, null)
+      } else if (dirs.isEmpty && location.getStorageInfo.OSSAvailable()) {
+        val shuffleDir =
+          new Path(new Path(ossDir, conf.workerWorkingDir), s"$appId/$shuffleId")
+        FileSystem.mkdirs(
+          StorageManager.hadoopFs.get(StorageInfo.Type.OSS),
+          shuffleDir,
+          hdfsPermission)
+        val ossFilePath = new Path(shuffleDir, fileName).toString
+        val ossFileInfo = new DiskFileInfo(
+          userIdentifier,
+          partitionSplitEnabled,
+          new ReduceFileMeta(conf.shuffleChunkSize),
+          ossFilePath,
+          StorageInfo.Type.OSS)
+        diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
+          fileName,
+          ossFileInfo)
+        return (ossFlusher.get, ossFileInfo, null)
       } else if (dirs.nonEmpty && location.getStorageInfo.localDiskAvailable()) {
         val dir = dirs(getNextIndex % dirs.size)
         val mountPoint = DeviceInfo.getMountPoint(dir.getAbsolutePath, mountPoints)

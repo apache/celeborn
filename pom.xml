@@ -72,6 +72,7 @@
     <!-- use hadoop-3 as default  -->
     <hadoop.version>3.3.6</hadoop.version>
     <aws.version>1.12.532</aws.version>
+    <aliyun-sdk-oss.version>3.13.0</aliyun-sdk-oss.version>
     <!--
     If you change codahale.metrics.version, you also need to change
     the link to metrics.dropwizard.io in docs/monitoring.md.

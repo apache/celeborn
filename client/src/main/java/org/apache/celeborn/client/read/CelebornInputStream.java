@@ -582,6 +582,7 @@ public abstract class CelebornInputStream extends InputStream {
                 endChunkIndex);
           }
         case S3:
+        case OSS:
         case HDFS:
           return new DfsPartitionReader(
               conf,

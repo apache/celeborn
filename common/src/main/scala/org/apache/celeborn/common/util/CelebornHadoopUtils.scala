@@ -61,6 +61,15 @@ object CelebornHadoopUtils extends Logging {
       hadoopConf.set("fs.s3a.access.key", conf.s3AccessKey)
       hadoopConf.set("fs.s3a.secret.key", conf.s3SecretKey)
       hadoopConf.set("fs.s3a.endpoint.region", conf.s3EndpointRegion)
+    } else if (conf.ossDir.nonEmpty) {
+      if (conf.ossAccessKey.isEmpty || conf.ossSecretKey.isEmpty || conf.ossEndpoint.isEmpty) {
+        throw new CelebornException(
+          "OSS storage is enabled but ossAccessKey, ossSecretKey, or ossEndpoint is not set")
+      }
+      hadoopConf.set("fs.oss.impl", "org.apache.hadoop.fs.aliyun.oss.AliyunOSSFileSystem")
+      hadoopConf.set("fs.oss.accessKeyId", conf.ossAccessKey)
+      hadoopConf.set("fs.oss.accessKeySecret", conf.ossSecretKey)
+      hadoopConf.set("fs.oss.endpoint", conf.ossEndpoint)
     }
     appendSparkHadoopConfigs(conf, hadoopConf)
     hadoopConf
@@ -84,6 +93,10 @@ object CelebornHadoopUtils extends Logging {
     if (conf.hasS3Storage) {
       val s3Dir = new Path(conf.s3Dir)
       hadoopFs.put(StorageInfo.Type.S3, s3Dir.getFileSystem(hadoopConf))
+    }
+    if (conf.hasOssStorage) {
+      val ossDir = new Path(conf.ossDir)
+      hadoopFs.put(StorageInfo.Type.OSS, ossDir.getFileSystem(hadoopConf))
     }
     hadoopFs
   }

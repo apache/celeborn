@@ -211,12 +211,14 @@ class WorkerInfo(
           curDisk.activeSlots = newDisk.activeSlots
           curDisk.avgFlushTime = newDisk.avgFlushTime
           curDisk.avgFetchTime = newDisk.avgFetchTime
-          if (estimatedPartitionSize.nonEmpty && curDisk.storageType != StorageInfo.Type.HDFS && curDisk.storageType != StorageInfo.Type.S3) {
+          if (estimatedPartitionSize.nonEmpty && curDisk.storageType != StorageInfo.Type.HDFS
+            && curDisk.storageType != StorageInfo.Type.S3 && curDisk.storageType != StorageInfo.Type.OSS) {
             curDisk.maxSlots = curDisk.actualUsableSpace / estimatedPartitionSize.get
           }
           curDisk.setStatus(newDisk.status)
         } else {
-          if (estimatedPartitionSize.nonEmpty && newDisk.storageType != StorageInfo.Type.HDFS && newDisk.storageType != StorageInfo.Type.S3) {
+          if (estimatedPartitionSize.nonEmpty && newDisk.storageType != StorageInfo.Type.HDFS
+            && newDisk.storageType != StorageInfo.Type.S3 && newDisk.storageType != StorageInfo.Type.OSS) {
             newDisk.maxSlots = newDisk.actualUsableSpace / estimatedPartitionSize.get
           }
           diskInfos.put(mountPoint, newDisk)
