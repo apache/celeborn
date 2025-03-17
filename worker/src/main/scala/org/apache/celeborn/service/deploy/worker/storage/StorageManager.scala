@@ -1034,7 +1034,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         null,
         null)
     } else if (location.getStorageInfo.localDiskAvailable() || location.getStorageInfo.HDFSAvailable()
-      || location.getStorageInfo.S3Available()|| location.getStorageInfo.OSSAvailable()) {
+      || location.getStorageInfo.S3Available() || location.getStorageInfo.OSSAvailable()) {
       logDebug(s"create non-memory file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
       val createDiskFileResult = createDiskFile(
         location,

@@ -43,11 +43,7 @@ public class TierWriterHelper {
   }
 
   public static MultipartUploadHandler getOssMultipartUploadHandler(
-      String ossEndpoint,
-      String bucketName,
-      String ossAccessKey,
-      String ossSecretKey,
-      String key) {
+      String ossEndpoint, String bucketName, String ossAccessKey, String ossSecretKey, String key) {
     return (MultipartUploadHandler)
         DynConstructors.builder()
             .impl(
