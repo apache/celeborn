@@ -18,6 +18,7 @@ package org.apache.celeborn.service.deploy.master.quota
 
 import java.util.{Map => JMap}
 import java.util.concurrent.TimeUnit
+import java.util.function.Predicate
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -394,9 +395,14 @@ class QuotaManager(
   }
 
   private def clearQuotaStatus(activeUsers: mutable.Set[UserIdentifier]): Unit = {
-    userQuotaStatus.keySet().removeIf((userIdentifier: UserIdentifier) =>
-      !activeUsers.contains(userIdentifier))
-    tenantQuotaStatus.keySet().removeIf((tenantId: String) =>
-      !activeUsers.map(_.tenantId).contains(tenantId))
+    userQuotaStatus.keySet().removeIf(new Predicate[UserIdentifier] {
+      override def test(userIdentifier: UserIdentifier): Boolean =
+        !activeUsers.contains(userIdentifier)
+    })
+
+    tenantQuotaStatus.keySet().removeIf(new Predicate[String] {
+      override def test(tenantId: String): Boolean =
+        !activeUsers.exists(_.tenantId == tenantId)
+    })
   }
 }
