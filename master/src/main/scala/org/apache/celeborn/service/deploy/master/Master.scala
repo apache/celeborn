@@ -189,6 +189,7 @@ private[celeborn] class Master(
   private val dfsExpireDirsTimeoutMS = conf.dfsExpireDirsTimeoutMS
   private val hasHDFSStorage = conf.hasHDFSStorage
   private val hasS3Storage = conf.hasS3Storage
+  private val hasOssStorage = conf.hasOssStorage
 
   private val quotaManager = new QuotaManager(conf, configService)
   private val tagsManager = new TagsManager(Option(configService))
@@ -330,7 +331,7 @@ private[celeborn] class Master(
         CheckForWorkerUnavailableInfoTimeout)
     }
 
-    if (hasHDFSStorage || hasS3Storage) {
+    if (hasHDFSStorage || hasS3Storage || hasOssStorage) {
       checkForDFSRemnantDirsTimeOutTask =
         scheduleCheckTask(dfsExpireDirsTimeoutMS, CheckForDFSExpiredDirsTimeout)
     }
@@ -1057,7 +1058,7 @@ private[celeborn] class Master(
         workersAssignedToApp.remove(appId)
         statusSystem.handleAppLost(appId, requestId)
         logInfo(s"Removed application $appId")
-        if (hasHDFSStorage || hasS3Storage) {
+        if (hasHDFSStorage || hasS3Storage || hasOssStorage) {
           checkAndCleanExpiredAppDirsOnDFS(appId)
         }
         if (context != null) {
@@ -1079,6 +1080,7 @@ private[celeborn] class Master(
     }
     if (hasHDFSStorage) processDir(conf.hdfsDir, expiredDir)
     if (hasS3Storage) processDir(conf.s3Dir, expiredDir)
+    if (hasOssStorage) processDir(conf.ossDir, expiredDir)
   }
 
   private def processDir(dfsDir: String, expiredDir: String): Unit = {

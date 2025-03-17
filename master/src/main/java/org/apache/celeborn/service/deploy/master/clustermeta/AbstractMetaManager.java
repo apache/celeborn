@@ -285,12 +285,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         disks.values().stream().filter(s -> !s.status().equals(DiskStatus.HEALTHY)).count();
     boolean exceed = unhealthyDiskNum * 1.0 / disks.size() >= unhealthyDiskRatioThreshold;
     if (!excludedWorkers.contains(worker)
-        && (((disks.isEmpty() || exceed) && !conf.hasHDFSStorage() && !conf.hasS3Storage())
+        && (((disks.isEmpty() || exceed) && !conf.hasHDFSStorage() && !conf.hasS3Storage() && !conf.hasOssStorage())
             || highWorkload)) {
       LOG.warn(
           "Worker {} (unhealthy disks num: {}) adds to excluded workers", worker, unhealthyDiskNum);
       excludedWorkers.add(worker);
-    } else if ((availableSlots.get() > 0 || conf.hasHDFSStorage() || conf.hasS3Storage())
+    } else if ((availableSlots.get() > 0 || conf.hasHDFSStorage() || conf.hasS3Storage() || conf.hasOssStorage())
         && !highWorkload) {
       // only unblack if numSlots larger than 0
       excludedWorkers.remove(worker);

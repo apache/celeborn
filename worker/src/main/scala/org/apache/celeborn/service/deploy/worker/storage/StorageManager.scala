@@ -59,6 +59,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     JavaUtils.newConcurrentHashMap[File, ConcurrentHashMap[String, PartitionDataWriter]]()
   val hdfsWriters = JavaUtils.newConcurrentHashMap[String, PartitionDataWriter]()
   val s3Writers = JavaUtils.newConcurrentHashMap[String, PartitionDataWriter]()
+  val ossWriters = JavaUtils.newConcurrentHashMap[String, PartitionDataWriter]()
   val memoryWriters = JavaUtils.newConcurrentHashMap[MemoryFileInfo, PartitionDataWriter]()
   // (shuffleKey->(filename->DiskFileInfo))
   private val diskFileInfos =
@@ -86,7 +87,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         (new File(workdir, conf.workerWorkingDir), maxSpace, flusherThread, storageType)
       }
 
-    if (workingDirInfos.size <= 0 && !hasHDFSStorage && !hasS3Storage) {
+    if (workingDirInfos.size <= 0 && !hasHDFSStorage && !hasS3Storage && !hasOssStorage) {
       throw new IOException("Empty working directory configuration!")
     }
 
@@ -233,14 +234,14 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
 
   def totalFlusherThread: Int =
-    _totalLocalFlusherThread + _totalHdfsFlusherThread + _totalS3FlusherThread
+    _totalLocalFlusherThread + _totalHdfsFlusherThread + _totalS3FlusherThread + _totalOssFlusherThread
 
   val activeTypes = conf.availableStorageTypes
 
   lazy val localOrDfsStorageAvailable: Boolean = {
     StorageInfo.OSSAvailable(activeTypes) || StorageInfo.HDFSAvailable(
       activeTypes) || StorageInfo.localDiskAvailable(
-      activeTypes) || hdfsDir.nonEmpty || !diskInfos.isEmpty || s3Dir.nonEmpty
+      activeTypes) || hdfsDir.nonEmpty || !diskInfos.isEmpty || s3Dir.nonEmpty || ossDir.nonEmpty
   }
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
@@ -449,7 +450,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       userIdentifier: UserIdentifier,
       partitionSplitEnabled: Boolean,
       isSegmentGranularityVisible: Boolean): PartitionDataWriter = {
-    if (healthyWorkingDirs().size <= 0 && !hasHDFSStorage && !hasS3Storage) {
+    if (healthyWorkingDirs().size <= 0 && !hasHDFSStorage && !hasS3Storage && !hasOssStorage) {
       throw new IOException("No available working dirs!")
     }
     val partitionDataWriterContext = new PartitionDataWriterContext(
@@ -520,6 +521,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
     if (writer.getDiskFileInfo.isS3) {
       s3Writers.put(fileInfo.getFilePath, writer)
+      return
+    }
+    if (writer.getDiskFileInfo.isOSS) {
+      ossWriters.put(fileInfo.getFilePath, writer)
       return
     }
     deviceMonitor.registerFileWriter(writer)
@@ -609,6 +614,14 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             s3FileWriter.destroy(new IOException(
               s"Destroy FileWriter $s3FileWriter caused by shuffle $shuffleKey expired."))
             s3Writers.remove(info.getFilePath)
+          }
+        } else if (info.isOSS) {
+          isDfsExpired = true
+          val ossFileWriter = ossWriters.get(info.getFilePath)
+          if (ossFileWriter != null) {
+            ossFileWriter.destroy(new IOException(
+              s"Destroy FileWriter $ossFileWriter caused by shuffle $shuffleKey expired."))
+            ossWriters.remove(info.getFilePath)
           }
         } else {
           val workingDir =
@@ -778,7 +791,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
       val dfsCleaned = hadoopFs match {
         case dfs: FileSystem =>
-          val dfsDir = if (hasHDFSStorage) hdfsDir else s3Dir
+          val dfsDir = if (hasHDFSStorage) hdfsDir else if (hasOssStorage) ossDir else s3Dir
           val dfsWorkPath = new Path(dfsDir, conf.workerWorkingDir)
           // DFS path not exist when first time initialize
           if (dfs.exists(dfsWorkPath)) {
@@ -1020,7 +1033,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         null,
         null,
         null)
-    } else if (location.getStorageInfo.localDiskAvailable() || location.getStorageInfo.HDFSAvailable() || location.getStorageInfo.S3Available()) {
+    } else if (location.getStorageInfo.localDiskAvailable() || location.getStorageInfo.HDFSAvailable()
+      || location.getStorageInfo.S3Available()|| location.getStorageInfo.OSSAvailable()) {
       logDebug(s"create non-memory file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
       val createDiskFileResult = createDiskFile(
         location,

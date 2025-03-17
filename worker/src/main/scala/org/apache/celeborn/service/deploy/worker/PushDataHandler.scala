@@ -26,10 +26,8 @@ import scala.collection.mutable
 import scala.concurrent.{Await, Promise}
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
-
 import com.google.protobuf.GeneratedMessageV3
 import io.netty.buffer.ByteBuf
-
 import org.apache.celeborn.common.exception.{AlreadyClosedException, CelebornIOException}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo, WorkerPartitionLocationInfo}
@@ -45,7 +43,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
-import org.apache.celeborn.service.deploy.worker.storage.{HdfsFlusher, LocalFlusher, MapPartitionDataWriter, PartitionDataWriter, S3Flusher, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{HdfsFlusher, LocalFlusher, MapPartitionDataWriter, OssFlusher, PartitionDataWriter, S3Flusher, StorageManager}
 import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapPartitionFileWriter
 
 class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler with Logging {
@@ -1420,7 +1418,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
   private def checkDiskFull(fileWriter: PartitionDataWriter): Boolean = {
     if (fileWriter.flusher == null || fileWriter.flusher.isInstanceOf[
-        HdfsFlusher] || fileWriter.flusher.isInstanceOf[S3Flusher]) {
+        HdfsFlusher] || fileWriter.flusher.isInstanceOf[S3Flusher] || fileWriter.flusher.isInstanceOf[OssFlusher]) {
       return false
     }
     val mountPoint = fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint

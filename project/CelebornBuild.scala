@@ -47,6 +47,7 @@ object Dependencies {
   val commonsIoVersion = "2.17.0"
   val commonsLoggingVersion = "1.1.3"
   val commonsLang3Version = "3.17.0"
+  val commonsCollectionsVersion = "3.2.2"
   val findbugsVersion = "1.3.9"
   val guavaVersion = "33.1.0-jre"
   val hadoopVersion = "3.3.6"
@@ -124,6 +125,7 @@ object Dependencies {
   val hadoopAws = "org.apache.hadoop" % "hadoop-aws" % hadoopVersion excludeAll (
     ExclusionRule("com.amazonaws", "aws-java-sdk-bundle"))
   val awsS3 = "com.amazonaws" % "aws-java-sdk-s3" % awsS3Version
+  val commonsCollections = "commons-collections" % "commons-collections" % commonsCollectionsVersion
   val hadoopAliyun = "org.apache.hadoop" % "hadoop-aliyun" % hadoopVersion
   val aliyunOss = "com.aliyun.oss" % "aliyun-sdk-oss" % aliyunOssVersion
   val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion
@@ -572,7 +574,7 @@ object CelebornSpi {
 object CeleborMPU {
 
   lazy val hadoopAwsDependencies = Seq(Dependencies.hadoopAws, Dependencies.awsS3)
-  lazy val hadoopAliyunDependencies = Seq(Dependencies.hadoopAliyun, Dependencies.aliyunOss)
+  lazy val hadoopAliyunDependencies = Seq(Dependencies.commonsCollections, Dependencies.hadoopAliyun, Dependencies.aliyunOss)
 
   lazy val celeborMPU = Project("celeborn-multipart-uploader-s3", file("multipart-uploader/multipart-uploader-s3"))
     .dependsOn(CelebornService.service % "test->test;compile->compile")
@@ -716,6 +718,15 @@ object CelebornService {
 }
 
 object CelebornMaster {
+  val mpuDependencies =
+    if (profiles.exists(_.startsWith("aws"))) {
+      Seq(Dependencies.hadoopAws)
+    } else if (profiles.exists(_.startsWith("aliyun"))) {
+      Seq(Dependencies.hadoopAliyun)
+    } else {
+      Seq.empty
+    }
+
   lazy val master = Project("celeborn-master", file("master"))
     .dependsOn(CelebornCommon.common)
     .dependsOn(CelebornCommon.common % "test->test;compile->compile")
@@ -738,7 +749,7 @@ object CelebornMaster {
         Dependencies.ratisServer,
         Dependencies.ratisShell,
         Dependencies.scalatestMockito % "test",
-      ) ++ commonUnitTestDependencies
+      ) ++ commonUnitTestDependencies ++ mpuDependencies
     )
 }
 

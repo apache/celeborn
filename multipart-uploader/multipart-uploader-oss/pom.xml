@@ -44,6 +44,11 @@
       <artifactId>aliyun-sdk-oss</artifactId>
       <version>${aliyun-sdk-oss.version}</version>
     </dependency>
+    <dependency>
+      <groupId>commons-collections</groupId>
+      <artifactId>commons-collections</artifactId>
+      <version>3.2.2</version>
+    </dependency>
   </dependencies>
 
   <build>

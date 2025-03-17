@@ -1145,7 +1145,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         (dir, maxCapacity, flushThread, diskType)
       }
     }.getOrElse {
-      if (!hasHDFSStorage && !hasS3Storage) {
+      if (!hasHDFSStorage && !hasS3Storage && !hasOssStorage) {
         val prefix = workerStorageBaseDirPrefix
         val number = workerStorageBaseDirNumber
         val diskType = Type.valueOf(workerStorageBaseDirDiskType)
@@ -1275,6 +1275,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerFlusherBufferSize: Long = get(WORKER_FLUSHER_BUFFER_SIZE)
   def workerHdfsFlusherBufferSize: Long = get(WORKER_HDFS_FLUSHER_BUFFER_SIZE)
   def workerS3FlusherBufferSize: Long = get(WORKER_S3_FLUSHER_BUFFER_SIZE)
+  def workerOssFlusherBufferSize: Long = get(WORKER_OSS_FLUSHER_BUFFER_SIZE)
   def workerWriterCloseTimeoutMs: Long = get(WORKER_WRITER_CLOSE_TIMEOUT)
   def workerHddFlusherThreads: Int = get(WORKER_FLUSHER_HDD_THREADS)
   def workerSsdFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)

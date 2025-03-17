@@ -186,7 +186,7 @@ private[deploy] class Controller(
       return
     }
 
-    if (storageManager.healthyWorkingDirs().size <= 0 && !conf.hasHDFSStorage && !conf.hasS3Storage) {
+    if (storageManager.healthyWorkingDirs().size <= 0 && !conf.hasHDFSStorage && !conf.hasS3Storage && !conf.hasOssStorage) {
       val msg = "Local storage has no available dirs!"
       logError(s"[handleReserveSlots] $msg")
       context.reply(ReserveSlotsResponse(StatusCode.NO_AVAILABLE_WORKING_DIR, msg))

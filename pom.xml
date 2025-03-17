@@ -1353,6 +1353,15 @@
       </properties>
     </profile>
     <profile>
+      <id>aliyun</id>
+      <modules>
+        <module>multipart-uploader/multipart-uploader-oss</module>
+      </modules>
+      <properties>
+        <aliyun-deps>true</aliyun-deps>
+      </properties>
+    </profile>
+    <profile>
       <id>spark-2.4</id>
       <modules>
         <module>client-spark/common</module>

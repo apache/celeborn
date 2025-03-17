@@ -108,6 +108,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   private final long hdfsFlusherBufferSize;
 
   private final long s3FlusherBufferSize;
+  private final long ossFlusherBufferSize;
   private Exception exception = null;
   private boolean metricsCollectCriticalEnabled;
   private long chunkSize;
@@ -146,6 +147,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     this.localFlusherBufferSize = conf.workerFlusherBufferSize();
     this.hdfsFlusherBufferSize = conf.workerHdfsFlusherBufferSize();
     this.s3FlusherBufferSize = conf.workerS3FlusherBufferSize();
+    this.ossFlusherBufferSize = conf.workerOssFlusherBufferSize();
     this.metricsCollectCriticalEnabled = conf.metricsCollectCriticalEnabled();
     this.chunkSize = conf.shuffleChunkSize();
     this.s3MultiplePartUploadMaxRetries = conf.s3MultiplePartUploadMaxRetries();
@@ -197,7 +199,12 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         storageType = StorageInfo.Type.OSS;
       }
       this.hadoopFs = StorageManager.hadoopFs().get(storageType);
-      this.flusherBufferSize = diskFileInfo.isS3() ? s3FlusherBufferSize : hdfsFlusherBufferSize;
+      this.flusherBufferSize = hdfsFlusherBufferSize;
+      if (diskFileInfo.isS3()) {
+        flusherBufferSize = s3FlusherBufferSize;
+      } else if (diskFileInfo.isOSS()) {
+        flusherBufferSize = ossFlusherBufferSize;
+      }
       // We open the stream and close immediately because DFS output stream will
       // create a DataStreamer that is a thread.
       // If we reuse DFS output stream, we will exhaust the memory soon.
