@@ -258,6 +258,9 @@ public class SparkUtils {
     }
   }
 
+  /**
+   * TaskSetManager - it is not designed to be used outside the spark scheduler. Please be careful.
+   */
   public static TaskSetManager getTaskSetManager(int stageId, int stageAttemptId) {
     SparkContext sparkContext = SparkContext$.MODULE$.getActive().getOrElse(null);
     if (sparkContext == null) {
@@ -265,17 +268,20 @@ public class SparkUtils {
       return null;
     }
     TaskSchedulerImpl taskScheduler = (TaskSchedulerImpl) sparkContext.taskScheduler();
-    scala.collection.mutable.HashMap<
-            Integer, scala.collection.mutable.HashMap<Integer, TaskSetManager>>
-        taskSetsByStageIdAndAttempt =
-            TASK_SETS_BY_STAGE_ID_AND_ATTEMPT_FIELD.bind(taskScheduler).get();
-    scala.Option<scala.collection.mutable.HashMap<Integer, TaskSetManager>> stageTaskSetAttempts =
-        taskSetsByStageIdAndAttempt.get(stageId);
-    if (stageTaskSetAttempts.isDefined()) {
-      return stageTaskSetAttempts.get().get(stageAttemptId).getOrElse(null);
-    } else {
-      logger.error("Can not get TaskSetManager for stage {} (attempt {})", stageId, stageAttemptId);
-      return null;
+    synchronized (taskScheduler) {
+      scala.collection.mutable.HashMap<
+              Integer, scala.collection.mutable.HashMap<Integer, TaskSetManager>>
+          taskSetsByStageIdAndAttempt =
+              TASK_SETS_BY_STAGE_ID_AND_ATTEMPT_FIELD.bind(taskScheduler).get();
+      scala.Option<scala.collection.mutable.HashMap<Integer, TaskSetManager>> stageTaskSetAttempts =
+          taskSetsByStageIdAndAttempt.get(stageId);
+      if (stageTaskSetAttempts.isDefined()) {
+        return stageTaskSetAttempts.get().get(stageAttemptId).getOrElse(null);
+      } else {
+        logger.error(
+            "Can not get TaskSetManager for stage {} (attempt {})", stageId, stageAttemptId);
+        return null;
+      }
     }
   }
 
