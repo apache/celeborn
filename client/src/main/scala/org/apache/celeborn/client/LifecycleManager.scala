@@ -45,6 +45,7 @@ import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ApplicationMeta, ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.source.Role
+import org.apache.celeborn.common.network.protocol.TransportMessagesHelper
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
@@ -237,6 +238,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val changePartitionManager = new ChangePartitionManager(conf, this)
   private val releasePartitionManager = new ReleasePartitionManager(conf, this)
 
+  private val messagesHelper: TransportMessagesHelper = new TransportMessagesHelper()
+
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
   // `masterClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
   // a reference to `masterClient`, there may be cases where `masterClient` is null when
@@ -287,6 +290,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         workerRpcEnvInUse.awaitTermination()
       }
     }
+    messagesHelper.close()
   }
 
   /**

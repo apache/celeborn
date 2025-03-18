@@ -42,7 +42,7 @@ import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Role, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.CelebornRackResolver
-import org.apache.celeborn.common.network.protocol.TransportMessage
+import org.apache.celeborn.common.network.protocol.{TransportMessage, TransportMessagesHelper}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -310,6 +310,8 @@ private[celeborn] class Master(
       : util.concurrent.ConcurrentHashMap[String, util.Set[WorkerInfo]] =
     JavaUtils.newConcurrentHashMap[String, util.Set[WorkerInfo]]()
 
+  private val messagesHelper: TransportMessagesHelper = new TransportMessagesHelper()
+
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
     if (!threadsStarted.compareAndSet(false, true)) {
@@ -364,6 +366,7 @@ private[celeborn] class Master(
     if (authEnabled) {
       sendApplicationMetaExecutor.shutdownNow()
     }
+    messagesHelper.close()
     logInfo("Celeborn Master is stopped.")
   }
 

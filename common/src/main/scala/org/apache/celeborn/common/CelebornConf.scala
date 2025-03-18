@@ -984,6 +984,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchTimeoutMs: Long = get(CLIENT_FETCH_TIMEOUT)
   def clientFetchBufferSize: Int = get(CLIENT_FETCH_BUFFER_SIZE).toInt
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
+  def isPartitionReaderCheckpointEnabled: Boolean =
+    get(PARTITION_READER_CHECKPOINT_ENABLED)
+
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
   def clientStageRerunEnabled: Boolean = get(CLIENT_STAGE_RERUN_ENABLED)
   def clientFetchExcludeWorkerOnFailureEnabled: Boolean =
@@ -4767,6 +4770,15 @@ object CelebornConf extends Logging {
         s"this buffer size not less than `${CLIENT_PUSH_BUFFER_MAX_SIZE.key}`.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64k")
+
+  val PARTITION_READER_CHECKPOINT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.partition.reader.checkpoint.enabled")
+      .categories("client")
+      .version("0.6.0")
+      .doc("Whether or not checkpoint reads when re-creating a partition reader. Setting to true minimizes" +
+        " the amount of unnecessary reads during partition read retries")
+      .booleanConf
+      .createWithDefault(false)
 
   val CLIENT_FETCH_MAX_REQS_IN_FLIGHT: ConfigEntry[Int] =
     buildConf("celeborn.client.fetch.maxReqsInFlight")
