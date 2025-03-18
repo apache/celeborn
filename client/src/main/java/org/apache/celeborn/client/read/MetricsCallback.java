@@ -21,4 +21,6 @@ public interface MetricsCallback {
   void incBytesRead(long bytesRead);
 
   void incReadTime(long time);
+
+  default void incDuplicateBytesRead(long bytesRead) {}
 }
