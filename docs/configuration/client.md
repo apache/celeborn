@@ -133,13 +133,13 @@ license: |
 | celeborn.quota.interruptShuffle.enabled | false | false | Whether to enable interrupt shuffle when quota exceeds. | 0.6.0 |  | 
 | celeborn.storage.availableTypes | HDD | false | Enabled storages. Available options: MEMORY,HDD,SSD,HDFS,S3,OSS. Note: HDD and SSD would be treated as identical. | 0.3.0 | celeborn.storage.activeTypes | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | false | HDFS base directory for Celeborn to store shuffle data. | 0.2.0 |  | 
+| celeborn.storage.oss.access.key | &lt;undefined&gt; | false | OSS access key for Celeborn to store shuffle data. | 0.6.0 |  | 
+| celeborn.storage.oss.dir | &lt;undefined&gt; | false | OSS base directory for Celeborn to store shuffle data. | 0.6.0 |  | 
+| celeborn.storage.oss.endpoint | &lt;undefined&gt; | false | OSS endpoint for Celeborn to store shuffle data. | 0.6.0 |  | 
+| celeborn.storage.oss.secret.key | &lt;undefined&gt; | false | OSS secret key for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.s3.access.key | &lt;undefined&gt; | false | S3 access key for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.s3.dir | &lt;undefined&gt; | false | S3 base directory for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.s3.endpoint.region | &lt;undefined&gt; | false | S3 endpoint for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.s3.secret.key | &lt;undefined&gt; | false | S3 secret key for Celeborn to store shuffle data. | 0.6.0 |  | 
-| celeborn.storage.oss.endpoint | &lt;undefined&gt; | false | OSS endpoint for Celeborn to store shuffle data. | 0.6.0 |  | 
-| celeborn.storage.oss.dir | &lt;undefined&gt; | false | OSS base directory for Celeborn to store shuffle data. | 0.6.0 |  | 
-| celeborn.storage.oss.access.key | &lt;undefined&gt; | false | OSS access key for Celeborn to store shuffle data. | 0.6.0 |  | 
-| celeborn.storage.oss.secret.key | &lt;undefined&gt; | false | OSS secret key for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.tags.tagsExpr |  | true | Expression to filter workers by tags. The expression is a comma-separated list of tags. The expression is evaluated as a logical AND of all tags. For example, `prod,high-io` filters workers that have both the `prod` and `high-io` tags. | 0.6.0 |  | 
 <!--end-include-->
