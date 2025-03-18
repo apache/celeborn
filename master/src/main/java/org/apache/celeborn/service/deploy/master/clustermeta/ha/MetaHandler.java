@@ -199,9 +199,6 @@ public class MetaHandler {
           pushPort = request.getWorkerHeartbeatRequest().getPushPort();
           fetchPort = request.getWorkerHeartbeatRequest().getFetchPort();
           diskInfos = MetaUtil.fromPbDiskInfos(request.getWorkerHeartbeatRequest().getDisksMap());
-          userResourceConsumption =
-              MetaUtil.fromPbUserResourceConsumption(
-                  request.getWorkerHeartbeatRequest().getUserResourceConsumptionMap());
           replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
           boolean highWorkload = request.getWorkerHeartbeatRequest().getHighWorkload();
           if (request.getWorkerHeartbeatRequest().hasWorkerStatus()) {
@@ -212,14 +209,13 @@ public class MetaHandler {
           }
 
           LOG.debug(
-              "Handle worker heartbeat for {} {} {} {} {} {} {}",
+              "Handle worker heartbeat for {} {} {} {} {} {}",
               host,
               rpcPort,
               pushPort,
               fetchPort,
               replicatePort,
-              diskInfos,
-              userResourceConsumption);
+              diskInfos);
           metaSystem.updateWorkerHeartbeatMeta(
               host,
               rpcPort,
@@ -241,19 +237,15 @@ public class MetaHandler {
           String networkLocation = request.getRegisterWorkerRequest().getNetworkLocation();
           int internalPort = request.getRegisterWorkerRequest().getInternalPort();
           diskInfos = MetaUtil.fromPbDiskInfos(request.getRegisterWorkerRequest().getDisksMap());
-          userResourceConsumption =
-              MetaUtil.fromPbUserResourceConsumption(
-                  request.getRegisterWorkerRequest().getUserResourceConsumptionMap());
           LOG.debug(
-              "Handle worker register for {} {} {} {} {} {} {} {}",
+              "Handle worker register for {} {} {} {} {} {} {}",
               host,
               rpcPort,
               pushPort,
               fetchPort,
               replicatePort,
               internalPort,
-              diskInfos,
-              userResourceConsumption);
+              diskInfos);
           metaSystem.updateRegisterWorkerMeta(
               host,
               rpcPort,

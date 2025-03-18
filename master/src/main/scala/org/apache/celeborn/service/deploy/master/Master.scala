@@ -1161,7 +1161,11 @@ private[celeborn] class Master(
   private[master] def handleCheckQuota(
       userIdentifier: UserIdentifier,
       context: RpcCallContext): Unit = {
-    context.reply(quotaManager.checkUserQuotaStatus(userIdentifier))
+    if (conf.quotaEnabled) {
+      context.reply(quotaManager.checkUserQuotaStatus(userIdentifier))
+    } else {
+      context.reply(CheckQuotaResponse(true, ""))
+    }
   }
 
   private def handleCheckWorkersAvailable(context: RpcCallContext): Unit = {

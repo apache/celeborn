@@ -71,27 +71,19 @@ class QuotaManager(
   }
 
   def checkUserQuotaStatus(user: UserIdentifier): CheckQuotaResponse = {
-    val quotaEnabled =
-      Option(configService)
-        .map(_.getTenantUserConfigFromCache(user.tenantId, user.name).quotaEnabled)
-        .getOrElse(celebornConf.quotaEnabled)
-    if (quotaEnabled) {
-      val tenantStatus = tenantQuotaStatus.getOrDefault(user.tenantId, QuotaStatus())
-      val userStatus = userQuotaStatus.getOrDefault(user, QuotaStatus())
-      if (userStatus.exceed) {
-        logInfo(s"user $user quota exceeded, detail: ${userStatus.exceedReason}")
-        CheckQuotaResponse(false, userStatus.exceedReason)
-      } else if (tenantStatus.exceed) {
-        logInfo(s"User $user was rejected because of tenant " +
-          s"${user.tenantId} quota exceeded, detail: ${tenantStatus.exceedReason}")
-        CheckQuotaResponse(false, tenantStatus.exceedReason)
-      } else if (clusterQuotaStatus.exceed) {
-        logInfo(s"User $user was rejected because of cluster quota exceeded, " +
-          s"detail: ${clusterQuotaStatus.exceedReason}")
-        CheckQuotaResponse(false, clusterQuotaStatus.exceedReason)
-      } else {
-        CheckQuotaResponse(true, "")
-      }
+    val tenantStatus = tenantQuotaStatus.getOrDefault(user.tenantId, QuotaStatus())
+    val userStatus = userQuotaStatus.getOrDefault(user, QuotaStatus())
+    if (userQuotaEnabled && userStatus.exceed) {
+      logInfo(s"user $user quota exceeded, detail: ${userStatus.exceedReason}")
+      CheckQuotaResponse(false, userStatus.exceedReason)
+    } else if (tenantQuotaEnabled && tenantStatus.exceed) {
+      logInfo(s"User $user was rejected because of tenant " +
+        s"${user.tenantId} quota exceeded, detail: ${tenantStatus.exceedReason}")
+      CheckQuotaResponse(false, tenantStatus.exceedReason)
+    } else if (clusterQuotaEnabled && clusterQuotaStatus.exceed) {
+      logInfo(s"User $user was rejected because of cluster quota exceeded, " +
+        s"detail: ${clusterQuotaStatus.exceedReason}")
+      CheckQuotaResponse(false, clusterQuotaStatus.exceedReason)
     } else {
       CheckQuotaResponse(true, "")
     }
@@ -404,5 +396,23 @@ class QuotaManager(
       override def test(tenantId: String): Boolean =
         !activeUsers.exists(_.tenantId == tenantId)
     })
+  }
+
+  def clusterQuotaEnabled: Boolean = {
+    Option(configService)
+      .map(_.getSystemConfigFromCache.clusterQuotaEnabled())
+      .getOrElse(celebornConf.clusterQuotaEnabled)
+  }
+
+  def tenantQuotaEnabled: Boolean = {
+    Option(configService)
+      .map(_.getSystemConfigFromCache.tenantQuotaEnabled())
+      .getOrElse(celebornConf.tenantQuotaEnabled)
+  }
+
+  def userQuotaEnabled: Boolean = {
+    Option(configService)
+      .map(_.getSystemConfigFromCache.userQuotaEnabled())
+      .getOrElse(celebornConf.userQuotaEnabled)
   }
 }

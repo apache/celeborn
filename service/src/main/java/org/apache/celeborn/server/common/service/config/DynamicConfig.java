@@ -225,10 +225,26 @@ public abstract class DynamicConfig {
         ConfigType.BOOLEAN);
   }
 
-  public boolean quotaEnabled() {
+  public boolean clusterQuotaEnabled() {
     return getValue(
-        CelebornConf.QUOTA_ENABLED().key(),
-        CelebornConf.QUOTA_ENABLED(),
+        CelebornConf.CLUSTER_QUOTA_ENABLED().key(),
+        CelebornConf.CLUSTER_QUOTA_ENABLED(),
+        Boolean.TYPE,
+        ConfigType.BOOLEAN);
+  }
+
+  public boolean tenantQuotaEnabled() {
+    return getValue(
+        CelebornConf.TENANT_QUOTA_ENABLED().key(),
+        CelebornConf.TENANT_QUOTA_ENABLED(),
+        Boolean.TYPE,
+        ConfigType.BOOLEAN);
+  }
+
+  public boolean userQuotaEnabled() {
+    return getValue(
+        CelebornConf.USER_QUOTA_ENABLED().key(),
+        CelebornConf.USER_QUOTA_ENABLED(),
         Boolean.TYPE,
         ConfigType.BOOLEAN);
   }
