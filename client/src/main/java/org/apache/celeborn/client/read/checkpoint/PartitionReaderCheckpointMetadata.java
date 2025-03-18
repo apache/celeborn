@@ -15,24 +15,29 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.client.read;
+package org.apache.celeborn.client.read.checkpoint;
 
-import java.io.IOException;
-import java.util.Optional;
+import java.util.HashSet;
+import java.util.Set;
 
-import io.netty.buffer.ByteBuf;
+/** Checkpoint metadata interface for a partition reader. */
+public class PartitionReaderCheckpointMetadata {
+  private final Set<Integer> returnedChunks;
 
-import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
-import org.apache.celeborn.common.protocol.PartitionLocation;
+  /** Create an instance of the checkpoint metadata. */
+  public PartitionReaderCheckpointMetadata() {
+    this.returnedChunks = new HashSet<>();
+  }
 
-public interface PartitionReader {
-  boolean hasNext();
+  public void checkpoint(int chunkId) {
+    returnedChunks.add(chunkId);
+  }
 
-  ByteBuf next() throws IOException, InterruptedException;
+  public boolean isCheckpointed(int chunkId) {
+    return returnedChunks.contains(chunkId);
+  }
 
-  void close();
-
-  PartitionLocation getLocation();
-
-  Optional<PartitionReaderCheckpointMetadata> getPartitionReaderCheckpointMetadata();
+  public Set<Integer> getReturnedChunks() {
+    return returnedChunks;
+  }
 }
