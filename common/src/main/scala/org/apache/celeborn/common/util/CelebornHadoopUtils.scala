@@ -66,6 +66,7 @@ object CelebornHadoopUtils extends Logging {
         throw new CelebornException(
           "OSS storage is enabled but ossAccessKey, ossSecretKey, or ossEndpoint is not set")
       }
+      hadoopConf.set("fs.oss.credentials.provider", "")
       hadoopConf.set("fs.oss.impl", "org.apache.hadoop.fs.aliyun.oss.AliyunOSSFileSystem")
       hadoopConf.set("fs.oss.accessKeyId", conf.ossAccessKey)
       hadoopConf.set("fs.oss.accessKeySecret", conf.ossSecretKey)
