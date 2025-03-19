@@ -223,6 +223,7 @@ class CelebornShuffleReader[K, C](
     // wait for all futures to complete
     futures.foreach(f => f.get())
     val end = System.currentTimeMillis()
+    metricsCallback.incReadTime(end - startTime)
     logInfo(s"BatchOpenStream for $partCnt cost ${end - startTime}ms")
 
     val streams = JavaUtils.newConcurrentHashMap[Integer, CelebornInputStream]()
