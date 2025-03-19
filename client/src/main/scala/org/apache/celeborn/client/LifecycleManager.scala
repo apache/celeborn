@@ -1857,6 +1857,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   def registerCelebornSkewShuffleCheckCallback(callback: function.Function[Integer, Boolean])
       : Unit = {
     celebornSkewShuffleCheckCallback = Some(callback)
+  }
 
   // Initialize at the end of LifecycleManager construction.
   initialize()
