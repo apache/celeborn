@@ -135,7 +135,7 @@ index 00000000000..5e190c512df
 +
 +}
 diff --git a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
-index 89d16e57934..6d01581c940 100644
+index 89d16e57934..a50d79b2b7f 100644
 --- a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
 +++ b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
 @@ -34,6 +34,7 @@ import com.google.common.util.concurrent.{Futures, SettableFuture}
@@ -158,7 +158,27 @@ index 89d16e57934..6d01581c940 100644
          mapOutputTracker.unregisterAllMapAndMergeOutput(sms.shuffleDep.shuffleId)
          sms.shuffleDep.newShuffleMergeState()
        case _ =>
-@@ -1944,6 +1948,14 @@ private[spark] class DAGScheduler(
+@@ -1854,7 +1858,18 @@ private[spark] class DAGScheduler(
+         // tasks complete, they still count and we can mark the corresponding partitions as
+         // finished if the stage is determinate. Here we notify the task scheduler to skip running
+         // tasks for the same partition to save resource.
+-        if (!stage.isIndeterminate && task.stageAttemptId < stage.latestInfo.attemptNumber()) {
++        // finished. Here we notify the task scheduler to skip running tasks for the same partition,
++        // to save resource.
++        // CELEBORN-1856, if stage is indeterminate or shuffleMapStage is skewed and read by
++        // Celeborn chunkOffsets, should not call notifyPartitionCompletion, otherwise will
++        // skip running tasks for the same partition because TaskSetManager.dequeueTaskFromList
++        // will skip running task which TaskSetManager.successful(taskIndex) is true.
++        // TODO: ResultStage has result commit and other issues
++        val isCelebornShuffleIndeterminate = stage.isInstanceOf[ShuffleMapStage] &&
++          CelebornShuffleState.isCelebornSkewedShuffle(
++            stage.asInstanceOf[ShuffleMapStage].shuffleDep.shuffleId)
++        if (!stage.isIndeterminate && task.stageAttemptId < stage.latestInfo.attemptNumber()
++          && !isCelebornShuffleIndeterminate) {
+           taskScheduler.notifyPartitionCompletion(stageId, task.partitionId)
+         }
+ 
+@@ -1944,6 +1959,14 @@ private[spark] class DAGScheduler(
          val failedStage = stageIdToStage(task.stageId)
          val mapStage = shuffleIdToMapStage(shuffleId)
  
@@ -173,7 +193,7 @@ index 89d16e57934..6d01581c940 100644
          if (failedStage.latestInfo.attemptNumber != task.stageAttemptId) {
            logInfo(s"Ignoring fetch failure from $task as it's from $failedStage attempt" +
              s" ${task.stageAttemptId} and there is a more recent attempt for that stage " +
-@@ -2042,7 +2054,7 @@ private[spark] class DAGScheduler(
+@@ -2042,7 +2065,7 @@ private[spark] class DAGScheduler(
                // Note that, if map stage is UNORDERED, we are fine. The shuffle partitioner is
                // guaranteed to be determinate, so the input data of the reducers will not change
                // even if the map tasks are re-tried.
@@ -182,7 +202,7 @@ index 89d16e57934..6d01581c940 100644
                  // It's a little tricky to find all the succeeding stages of `mapStage`, because
                  // each stage only know its parents not children. Here we traverse the stages from
                  // the leaf nodes (the result stages of active jobs), and rollback all the stages
-@@ -2053,7 +2065,15 @@ private[spark] class DAGScheduler(
+@@ -2053,7 +2076,15 @@ private[spark] class DAGScheduler(
  
                  def collectStagesToRollback(stageChain: List[Stage]): Unit = {
                    if (stagesToRollback.contains(stageChain.head)) {
