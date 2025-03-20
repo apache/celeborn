@@ -125,7 +125,7 @@ class DiskInfo(
    * @return the available slots of the disk.
    */
   def getAvailableSlots(): Long = this.synchronized {
-      math.max(availableSlots, 0L)
+    math.max(availableSlots, 0L)
   }
 
   def allocateSlots(shuffleKey: String, slots: Int): Unit = this.synchronized {
