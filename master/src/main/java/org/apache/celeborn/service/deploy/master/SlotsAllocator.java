@@ -151,7 +151,8 @@ public class SlotsAllocator {
             || (shouldReplicate
                 && (usableDisks.size() == 1
                     || usableDisks.stream().map(diskToWorkerMap::get).distinct().count() <= 1));
-    boolean noAvailableSlots = usableDisks.stream().mapToLong(DiskInfo::getAvailableSlots).sum() <= 0;
+    boolean noAvailableSlots =
+        usableDisks.stream().mapToLong(DiskInfo::getAvailableSlots).sum() <= 0;
 
     if (noUsableDisks || noAvailableSlots) {
       logger.warn(
