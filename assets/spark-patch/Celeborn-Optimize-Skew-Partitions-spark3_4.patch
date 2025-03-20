@@ -167,7 +167,7 @@ index 26be8c72bbc..4323b6d1a75 100644
 +        // Celeborn chunkOffsets, should not call notifyPartitionCompletion, otherwise will
 +        // skip running tasks for the same partition because TaskSetManager.dequeueTaskFromList
 +        // will skip running task which TaskSetManager.successful(taskIndex) is true.
-+        // TODO: Current we only handle ShuffleMapStage, ResultStage has result commit and other issues
++        // TODO: Suggest cherry-pick SPARK-45182 and SPARK-45498, ResultStage may has result commit and other issues
 +        val isStageIndeterminate = stage.isInstanceOf[ShuffleMapStage] &&
 +          CelebornShuffleState.isCelebornSkewedShuffle(
 +            stage.asInstanceOf[ShuffleMapStage].shuffleDep.shuffleId)

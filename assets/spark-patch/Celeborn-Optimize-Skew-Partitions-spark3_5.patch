@@ -135,7 +135,7 @@ index 00000000000..5e190c512df
 +
 +}
 diff --git a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
-index 89d16e57934..a50d79b2b7f 100644
+index 89d16e57934..36ce50093c0 100644
 --- a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
 +++ b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
 @@ -34,6 +34,7 @@ import com.google.common.util.concurrent.{Futures, SettableFuture}
@@ -178,6 +178,15 @@ index 89d16e57934..a50d79b2b7f 100644
            taskScheduler.notifyPartitionCompletion(stageId, task.partitionId)
          }
  
+@@ -1909,7 +1924,7 @@ private[spark] class DAGScheduler(
+           case smt: ShuffleMapTask =>
+             val shuffleStage = stage.asInstanceOf[ShuffleMapStage]
+             // Ignore task completion for old attempt of indeterminate stage
+-            val ignoreIndeterminate = stage.isIndeterminate &&
++            val ignoreIndeterminate = (stage.isIndeterminate || isCelebornShuffleIndeterminate) &&
+               task.stageAttemptId < stage.latestInfo.attemptNumber()
+             if (!ignoreIndeterminate) {
+               shuffleStage.pendingPartitions -= task.partitionId
 @@ -1944,6 +1959,14 @@ private[spark] class DAGScheduler(
          val failedStage = stageIdToStage(task.stageId)
          val mapStage = shuffleIdToMapStage(shuffleId)
