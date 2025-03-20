@@ -420,7 +420,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         s3MultipartUploadHandler.close();
       }
       if (ossMultipartUploadHandler != null) {
-        logger.warn("Abort s3 multipart upload for {}", diskFileInfo.getFilePath());
+        logger.warn("Abort oss multipart upload for {}", diskFileInfo.getFilePath());
         ossMultipartUploadHandler.complete();
         ossMultipartUploadHandler.close();
       }

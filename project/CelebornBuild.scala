@@ -720,9 +720,9 @@ object CelebornService {
 object CelebornMaster {
   val mpuDependencies =
     if (profiles.exists(_.startsWith("aws"))) {
-      Seq(Dependencies.hadoopAws)
+      CeleborMPU.hadoopAwsDependencies
     } else if (profiles.exists(_.startsWith("aliyun"))) {
-      Seq(Dependencies.hadoopAliyun)
+      CeleborMPU.hadoopAliyunDependencies
     } else {
       Seq.empty
     }
