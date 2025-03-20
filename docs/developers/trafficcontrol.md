@@ -53,7 +53,7 @@ time force flush to release memory.
 `Worker` high-frequently checks used direct memory ratio, and triggers `Pause Receive`, `Pause Replicate` and `Resume`
 accordingly. The state machine is as follows:
 
-![backpressure](../../assets/img/backpressure.svg)
+![backpressure](../assets/img/backpressure.svg)
 
 `Back Pressure` is the basic traffic control and can't be disabled. Users can tune the three watermarks through the
 following configuration.

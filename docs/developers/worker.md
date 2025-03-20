@@ -19,9 +19,9 @@ license: |
 # Worker
 The main functions of Celeborn `Worker` are:
 
-- Store, serve, and manage `PartitionLocation` data. See [Storage](../../developers/storage)
+- Store, serve, and manage `PartitionLocation` data. See [Storage](../developers/storage.md)
 - Traffic control through `Back Pressure` and `Congestion Control`. See
-  [Traffic Control](../../developers/trafficcontrol)
+  [Traffic Control](../developers/trafficcontrol.md)
 - Support rolling upgrade through `Graceful Shutdown`
 - Support elasticity through `Decommission Shutdown`
 - Self health check

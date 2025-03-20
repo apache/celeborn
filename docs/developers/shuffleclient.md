@@ -55,7 +55,7 @@ responds to data of some partition id.
 
 Upon receiving `RequestSlots`, `Master` allocates slots for the shuffle among `Worker`s. If replication is turned on,
 `Master` allocates a pair of `Worker`s for each `PartitionLocation` to store two replicas for each `PartitionLocation`.
-The detailed allocation strategy can be found in [Slots Allocation](../../developers/master#slots-allocation). `Master` then
+The detailed allocation strategy can be found in [Slots Allocation](../developers/master.md#slots-allocation). `Master` then
 responds to `LifecycleManager` with the allocated `PartitionLocation`s.
 
 `LifcycleManager` caches the `PartitionLocation`s for the shuffle and responds to each `RegisterShuffle` RPCs from
@@ -70,7 +70,7 @@ In normal cases, the process of pushing data is as follows:
 - `ShuffleClient` sends `PushData` to the `Worker` on which the current `PartitionLocation` is allocated, and holds push
   state for this pushing
 - `Worker` receives the data, do replication if needed, then responds success ACK to `ShuffleClient`. For more details
-  about how data is replicated and stored in `Worker`s, please refer to [Worker](../../developers/worker)
+  about how data is replicated and stored in `Worker`s, please refer to [Worker](../developers/worker.md)
 - Upon receiving success ACK from `Worker`, `ShuffleClient` considers success for this pushing and modifies the push state
 
 ### Push or Merge?
@@ -112,7 +112,7 @@ There are two kinds of Split:
 
 The process of `SOFT_SPLIT` is as follows:
 
-![softsplit](../../assets/img/softsplit.svg)
+![softsplit](../assets/img/softsplit.svg)
 
 `LifecycleManager` keeps the split information and tells reducer to read from all splits of the `PartitionLocation`
 to guarantee no data is lost.
@@ -145,27 +145,27 @@ to guarantee no data is lost.
 - `metricsCallback` is the callback of monitoring metrics to increase read bytes and time etc.
 
 The returned input stream is guaranteed to be `Exactly Once`, meaning no data lost and no duplicated reading, or else
-an exception will be thrown, see [Here](../../developers/faulttolerant#exactly-once).
+an exception will be thrown, see [Here](../developers/faulttolerant.md#exactly-once).
 
 ### Get PartitionLocations
 To read data from a partition id, `ShuffleClient` first checks whether the mapping from partition id to all
 `PartitionLocation`s are locally cached, if not, `ShuffleClient` sends GetReducerFileGroup to `LifecycleManager`
-for the mapping, see [Here](../../developers/lifecyclemanager#getreducerfilegroup).
+for the mapping, see [Here](../developers/lifecyclemanager.md#getreducerfilegroup).
 
 ### Read from PartitionLocation
 `ShuffleClient` creates a `PartitionReader` for each `PartitinLocation`.
-As described [Here](../../developers/storage#multi-layered-storage), `PartitionLocation` data can be stored in
+As described [Here](../developers/storage.md#multi-layered-storage), `PartitionLocation` data can be stored in
 different medium, i.e. memory, local disk, distributed filesystem. For the former two, it creates
 a `WorkerPartitionReader` to read from `Worker`, for the last one, it creates a `DfsPartitionReader` to read
 directly from the distributed filesystem.
 
-As described [Here](../../developers/storage#reducepartition), the file is chunked. `WorkerPartitionReader` asynchronously
+As described [Here](../developers/storag.mde#reducepartition), the file is chunked. `WorkerPartitionReader` asynchronously
 requests multiple chunks from `Worker`, and reduce task consumes the data whenever available.
 
 If exception occurs when fetching a chunk, `ShuffleClient` will restart reading from the beginning of another
 (if replication is turned on, else retry the same) `PartitionLocation`. The reason to restart reading the whole
 `PartitionLocation` instead of the chunk is because chunks with the same index in primary and replica are not
-guaranteed to contain the same data, as explained [Here](../../developers/storage#reducepartition).
+guaranteed to contain the same data, as explained [Here](../developers/storage.md#reducepartition).
 
 `ShuffleClient` chained the `PartitionReader`s and wrap them in an InputStream. To avoid duplicated read,
 `CelebornInputStream` discards data from un-successful attempts, and records batch ids it has seen within an attempt.
