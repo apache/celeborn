@@ -71,7 +71,8 @@ public class SlotsAllocator {
         if (diskInfoEntry.getValue().status().equals(DiskStatus.HEALTHY)) {
           if (StorageInfo.localDiskAvailable(availableStorageTypes)
               && diskInfoEntry.getValue().storageType() != StorageInfo.Type.HDFS
-              && diskInfoEntry.getValue().storageType() != StorageInfo.Type.S3) {
+              && diskInfoEntry.getValue().storageType() != StorageInfo.Type.S3
+              && diskInfoEntry.getValue().storageType() != StorageInfo.Type.OSS) {
             usableDisks.add(
                 new UsableDiskInfo(
                     diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
@@ -82,6 +83,11 @@ public class SlotsAllocator {
                     diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
           } else if (StorageInfo.S3Available(availableStorageTypes)
               && diskInfoEntry.getValue().storageType() == StorageInfo.Type.S3) {
+            usableDisks.add(
+                new UsableDiskInfo(
+                    diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
+          } else if (StorageInfo.OSSAvailable(availableStorageTypes)
+              && diskInfoEntry.getValue().storageType() == StorageInfo.Type.OSS) {
             usableDisks.add(
                 new UsableDiskInfo(
                     diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
@@ -141,7 +147,8 @@ public class SlotsAllocator {
                       if (diskInfo.actualUsableSpace() > 0
                           && diskInfo.status().equals(DiskStatus.HEALTHY)
                           && diskInfo.storageType() != StorageInfo.Type.HDFS
-                          && diskInfo.storageType() != StorageInfo.Type.S3) {
+                          && diskInfo.storageType() != StorageInfo.Type.S3
+                          && diskInfo.storageType() != StorageInfo.Type.OSS) {
                         usableDisks.add(diskInfo);
                       }
                     }));
@@ -200,6 +207,8 @@ public class SlotsAllocator {
         storageInfo = new StorageInfo("", StorageInfo.Type.HDFS, availableStorageTypes);
       } else if (selectedDiskInfo.storageType() == StorageInfo.Type.S3) {
         storageInfo = new StorageInfo("", StorageInfo.Type.S3, availableStorageTypes);
+      } else if (selectedDiskInfo.storageType() == StorageInfo.Type.OSS) {
+        storageInfo = new StorageInfo("", StorageInfo.Type.OSS, availableStorageTypes);
       } else {
         storageInfo =
             new StorageInfo(
@@ -214,6 +223,7 @@ public class SlotsAllocator {
             selectedWorker.diskInfos().values().stream()
                 .filter(p -> p.storageType() != StorageInfo.Type.HDFS)
                 .filter(p -> p.storageType() != StorageInfo.Type.S3)
+                .filter(p -> p.storageType() != StorageInfo.Type.OSS)
                 .collect(Collectors.toList())
                 .toArray(new DiskInfo[0]);
         storageInfo =
@@ -224,6 +234,8 @@ public class SlotsAllocator {
         workerDiskIndex.put(selectedWorker, (diskIndex + 1) % diskInfos.length);
       } else if (StorageInfo.S3Available(availableStorageTypes)) {
         storageInfo = new StorageInfo("", StorageInfo.Type.S3, availableStorageTypes);
+      } else if (StorageInfo.OSSAvailable(availableStorageTypes)) {
+        storageInfo = new StorageInfo("", StorageInfo.Type.OSS, availableStorageTypes);
       } else {
         storageInfo = new StorageInfo("", StorageInfo.Type.HDFS, availableStorageTypes);
       }
