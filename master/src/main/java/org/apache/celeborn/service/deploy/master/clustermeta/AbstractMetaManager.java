@@ -330,7 +330,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     } else {
       workerInfo.networkLocation_$eq(rackResolver.resolve(host).getNetworkLocation());
     }
-    workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
+    workerInfo.updateDiskSlots(estimatedPartitionSize);
     synchronized (workersMap) {
       workersMap.putIfAbsent(workerInfo.toUniqueId(), workerInfo);
       shutdownWorkers.remove(workerInfo);
@@ -573,7 +573,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     HashSet<WorkerInfo> workers = new HashSet(workersMap.values());
     excludedWorkers.forEach(workers::remove);
     manuallyExcludedWorkers.forEach(workers::remove);
-    workers.forEach(workerInfo -> workerInfo.updateDiskMaxSlots(estimatedPartitionSize));
+    workers.forEach(workerInfo -> workerInfo.updateDiskSlots(estimatedPartitionSize));
   }
 
   private boolean isWorkerAvailable(WorkerInfo workerInfo) {

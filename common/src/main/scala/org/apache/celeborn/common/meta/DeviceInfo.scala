@@ -84,6 +84,7 @@ class DiskInfo(
   var totalSpace = 0L
   var storageType: StorageInfo.Type = StorageInfo.Type.SSD
   var maxSlots: Long = 0
+  var availableSlots: Long = 0
   lazy val shuffleAllocations = new util.HashMap[String, Integer]()
   lazy val applicationAllocations = new util.HashMap[String, Integer]()
 
@@ -123,8 +124,8 @@ class DiskInfo(
    *
    * @return the available slots of the disk.
    */
-  def availableSlots(): Long = this.synchronized {
-    math.max(maxSlots - activeSlots, 0L)
+  def getAvailableSlots(): Long = {
+    math.max(availableSlots, 0L)
   }
 
   def allocateSlots(shuffleKey: String, slots: Int): Unit = this.synchronized {
@@ -175,6 +176,7 @@ class DiskInfo(
   override def toString: String = this.synchronized {
     val (emptyShuffles, nonEmptyShuffles) = shuffleAllocations.asScala.partition(_._2 == 0)
     s"DiskInfo(maxSlots: $maxSlots," +
+      s" availableSlots: $availableSlots," +
       s" committed shuffles ${emptyShuffles.size}," +
       s" running applications ${applicationAllocations.size}," +
       s" shuffleAllocations: ${nonEmptyShuffles.toMap}," +
