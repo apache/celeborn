@@ -39,10 +39,10 @@ Say developers of this application is searching for a suitable data service, and
 
 ## Step One: Setup Celeborn Cluster
 First, you need an available Celeborn Cluster. Refer to [QuickStart](../../) to set up a simple cluster in a
-single node, or [Deploy](../../deploy) to set up a multi-node cluster, standalone or on K8s.
+single node, or [Deploy](../deploy.md) to set up a multi-node cluster, standalone or on K8s.
 
 ## Step Two: Create LifecycleManager
-As described in [Client](../../developers/client), `Client` is separated into `LifecycleManager`, which is singleton
+As described in [Client](../developers/client.md), `Client` is separated into `LifecycleManager`, which is singleton
 through an application; and `ShuffleClient`, which can have multiple instances.
 
 Step two is to create a `LifecycleManager` instance, using the following API:
@@ -54,7 +54,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf)
 - `appUniqueId` is the application id. Celeborn cluster stores, serves, and cleans up data in the granularity of
   (application id, shuffle id)
 - `conf` is an object of `CelebornConf`. The only required configuration is the address of Celeborn `Master`. For
-  the thorough description of configs, refer to [Configuration](../../configuration)
+  the thorough description of configs, refer to [Configuration](../configuration)
 
 The example java code to create an `LifecycleManager` instance is as follows:
 
@@ -112,7 +112,7 @@ In practice, one `ShuffleClient` instance is created in each Executor process of
 process of Flink.
 
 ## Step Four: Push Data
-You can then push data with `ShuffleClient` with [pushData](../../developers/shuffleclient#api-specification), like
+You can then push data with `ShuffleClient` with [pushData](../developers/shuffleclient.md#api-specification), like
 the following:
 
 ```java
@@ -131,7 +131,7 @@ int bytesWritten =
 
 Each call of `pushData` passes a byte array containing data from the same partition id. In addition to specifying the
 shuffleId, mapId, attemptId that the data belongs, `ShuffleClient` should also specify the number of mappers and the
-number of partitions for [Lazy Register](../../developers/shuffleclient#lazy-shuffle-register).
+number of partitions for [Lazy Register](../developers/shuffleclient.md#lazy-shuffle-register).
 
 After the map task finishes, `ShuffleClient` should call `mapperEnd` to tell `LifecycleManager` that the map task
 finishes pushing its data:
@@ -151,7 +151,7 @@ public abstract void mapperEnd(
 
 ## Step Five: Read Data
 After all tasks successfully called `mapperEnd`, you can start reading data from some partition id, using the
-[readPartition API](../../developers/shuffleclient#api-specification_1), as the following code:
+[readPartition API](../developers/shuffleclient.md#api-specification-1), as the following code:
 
 ```java
 InputStream inputStream = shuffleClient.readPartition(

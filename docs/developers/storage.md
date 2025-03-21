@@ -38,7 +38,7 @@ Celeborn supports two kinds of partitions:
 #### ReducePartition
 The layout of `ReducePartition` is as follows:
 
-![ReducePartition](../../assets/img/reducepartition.svg)
+![ReducePartition](../assets/img/reducepartition.svg)
 
 `ReducePartition` data file consists of several chunks (defaults to 8 MiB). Each data file has an in-memory index
 which points to start positions of each chunk. Upon requesting data from some partition, `Worker` first returns the
@@ -52,7 +52,7 @@ replica contain the same data batches in normal cases.
 #### MapPartition
 The layout of `MapPartition` is as follows:
 
-![MapPartition](../../assets/img/mappartition.svg)
+![MapPartition](../assets/img/mappartition.svg)
 
 `MapPartition` data file consists of several regions (defaults to 64MiB), each region is sorted by partition id.
 Each region has an in-memory index which points to start positions of each partition. Upon requesting data from
@@ -93,11 +93,11 @@ Celeborn supports two configurable kinds of split:
 - `SOFT_SPLIT`, meaning old `PartitionLocation` epoch continues to accept data, when new epoch is ready, `ShuffleClient`
   switches to the new location transparently
 
-The detailed design of split can be found [Here](../../developers/shuffleclient#split).
+The detailed design of split can be found [Here](../developers/shuffleclient.md#split).
 
 ## Self Check
 In additional to health and space check on each disk, `Worker` also collects perf statistics to feed Master for
-better [slots allocation](../../developers/master#slots-allocation):
+better [slots allocation](../developers/master.md#slots-allocation):
 
 - Average flush time of the last time window
 - Average fetch time of the last time window
@@ -114,7 +114,7 @@ The principles of data placement are:
 
 The high-level design of multi-layered storage is:
 
-![storage](../../assets/img/multilayer.svg)
+![storage](../assets/img/multilayer.svg)
 
 `Worker`'s memory is divided into two logical regions: `Push Region` and `Cache Region`. `ShuffleClient` pushes data
 into `Push Region`, as ① indicates. Whenever the buffered data in `PushRegion` for a `PartitionLocation` exceeds the

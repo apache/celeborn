@@ -91,7 +91,7 @@ and will ignore the workers that have the following tags:
 
 This backend reads [worker tags and configurations](#configuration) settings from a
 user-specified dynamic config file. For more information on using the FileSystem config store
-backend, refer to [filesystem config service](../developers/configuration#filesystem-config-service).
+backend, refer to [filesystem config service](developers/configuration.md#filesystem-config-service).
 
 Here is an example of worker tags assignment and configuration via YAML file:
 
@@ -126,7 +126,7 @@ Here is an example of worker tags assignment and configuration via YAML file:
 
 This backend reads [worker tags and configurations](#configuration) settings from a
 user-specified database. For more information on using the database store backend,
-refer to [database config service](../developers/configuration#database-config-service).
+refer to [database config service](developers/configuration.md#database-config-service).
 
 Here is an example SQL of worker tags assignment and configuration:
 

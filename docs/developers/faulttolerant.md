@@ -26,19 +26,19 @@ as much as possible, especially the following:
 - When fetch chunk fails
 - When disk is unhealthy or reaching limit
 
-This article is based on [ReducePartition](../../developers/storage#reducepartition).
+This article is based on [ReducePartition](../developers/storage.md#reducepartition).
 
 ## Handle PushData Failure
-The detailed description of push data can be found in [PushData](../../developers/shuffleclient#pushdata). Push data can fail for
+The detailed description of push data can be found in [PushData](../developers/shuffleclient.md#pushdata). Push data can fail for
 various reasons, i.e. CPU high load, network fluctuation, JVM GC, `Worker` lost. 
 
 Celeborn does not eagerly consider `Worker` lost when push data fails, instead it considers it as temporary
 unavailable, and asks for another (pair of) `PartitionLocation`(s) on different `Worker`(s) to continue pushing.
 The process is called `Revive`:
 
-![Revive](../../assets/img/revive.svg)
+![Revive](../assets/img/revive.svg)
 
-Handling [PushMergedData](../../developers/shuffleclient#push-or-merge) failure is similar but more complex. Currently,
+Handling [PushMergedData](../developers/shuffleclient.md#push-or-merge) failure is similar but more complex. Currently,
 `PushMergedData` is in all-or-nothing fashion, meaning either all data batches in the request succeed or all fail.
 Partial success is not supported yet.
 
@@ -49,7 +49,7 @@ all data batches in `PushMergedData` have the same primary and replica (if any) 
 Then `ShuffleClient` groups the new `PartitionLocations` in the same way as before, resulting in multiple
 `PushMergedData` requests, then send them to their destinations.
 
-Celeborn detects data lost when processing `CommitFiles` (See [Worker](../..developers/overview#shuffle-lifecycle)).
+Celeborn detects data lost when processing `CommitFiles` (See [Worker](../developers/overview.md#shuffle-lifecycle)).
 Celeborn considers no `DataLost` if and only if every `PartitionLocation` has succeeded to commit at least one replica
 (if replication is turned off, there is only one replica for each `PartitionLocation`).
 
@@ -57,10 +57,10 @@ When a `Worker` is down, all `PartitionLocation`s on the `Worker` will be revive
 to `LifecycleManager`. To alleviate this, `ShuffleClient` batches all `Revive` requests before sending to
 `LifecycleManager`:
 
-![BatchRevive](../../assets/img/batchrevive.svg)
+![BatchRevive](../assets/img/batchrevive.svg)
 
 ## Handle Fetch Failure
-As [ReducePartition](../../developers/storage#reducepartition) describes, data file consists of chunks, `ShuffleClient`
+As [ReducePartition](../developers/storage.md#reducepartition) describes, data file consists of chunks, `ShuffleClient`
 asks for a chunk once a time.
 
 `ShuffleClient` defines the max number of retries for each replica(defaults to 3). When fetch chunk fails,

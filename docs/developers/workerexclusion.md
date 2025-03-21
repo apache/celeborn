@@ -22,7 +22,7 @@ figure out `Worker` status as soon as possible, and as correct as possible. This
 design of `Worker` exclusion.
 
 ## Participants
-As described [Previously](../../developers/overview#components), Celeborn has three components: `Master`, `Worker`,
+As described [Previously](../developers/overview.md#components), Celeborn has three components: `Master`, `Worker`,
 and `Client`. `Client` is further separated into `LifecycleManager` and `ShuffleClient`. `Master`/`LifecycleManager`
 /`ShuffleClient` need to know about `Worker` status, actively or reactively.
 
@@ -34,7 +34,7 @@ lists of `Worker`s with different status:
 - Excluded list. `Worker`s that are inside active list, but have no available disks for allocating new
   slots. `Master` recognizes such `Worker`s through heartbeat from `Worker`s.
 - Graceful shutdown list. `Worker`s that are inside active list, but have triggered
-  [Graceful Shutdown](../../upgrading). `Master` expects these `Worker`s should re-register themselves soon.
+  [Graceful Shutdown](../upgrading.md). `Master` expects these `Worker`s should re-register themselves soon.
 - Lost list. `Worker`s whose heartbeat timed out. These `Worker`s will be removed from active and excluded
   list, but will not be removed from graceful shutdown list.
 
@@ -54,7 +54,7 @@ actively exclude `Worker`s when it encounters critical exceptions, for example:
 - Connection exception happened
 
 In addition to exclude the `Worker`s locally, `ShuffleClient` also carries the cause of push failure with
-[Revive](../../developers/faulttolerant#handle-pushdata-failure) to `LifecycleManager`, see the section below.
+[Revive](../developers/faulttolerant.md#handle-pushdata-failure) to `LifecycleManager`, see the section below.
 
 Such strategy is aggressive, false negative may happen. To rectify, `ShuffleClient` removes a `Worker` from
 the excluded list whenever an event happens that indicates that `Worker` is available, for example:

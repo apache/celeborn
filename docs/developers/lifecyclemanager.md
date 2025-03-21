@@ -45,7 +45,7 @@ to handle the requests, `LifecycleManager` will send requests to `Master` and `W
 - DestroyWorkerSlots to `Worker`
 
 ## RegisterShuffle
-As described in [PushData](../../developers/shuffleclient#lazy-shuffle-register), `ShuffleClient` lazily send
+As described in [PushData](../developers/shuffleclient.md#lazy-shuffle-register), `ShuffleClient` lazily send
 RegisterShuffle to LifecycleManager, so many concurrent requests will be sent to `LifecycleManager`.
 
 To ensure only one request for each shuffle is handled, `LifecycleManager` puts tail requests in a set and only
@@ -54,18 +54,18 @@ let go the first request. When the first request finishes, `LifecycleManager` re
 The process of handling RegisterShuffle is as follows:
 
 `LifecycleManager` sends RequestSlots to `Master`, `Master` allocates slots for the shuffle, as
-[Here](../../developers/master#slots-allocation) describes.
+[Here](../developers/master.md#slots-allocation) describes.
 
 Upon receiving slots allocation result, `LifecycleManager` sends ReserveSlots to all `Workers`s allocated
 in parallel. `Worker`s then select a disk and initialize for each `PartitionLocation`, see
-[Here](../../developers/storage#local-disk-and-memory-buffer).
+[Here](../developers/storage.md#local-disk-and-memory-buffer).
 
 After all related `Worker`s successfully reserved slots, `LifecycleManager` stores the shuffle information in
 memory and responds to all pending and future requests.
 
 ## Revive/PartitionSplit
 Celeborn handles push data failure in a so-called Revive mechanism, see
-[Here](../../developers/faulttolerant#handle-pushdata-failure). Similar to [Split](../../developers/pushdata#split),
+[Here](../developers/faulttolerant.md#handle-pushdata-failure). Similar to [Split](../developers/shuffleclient.md#split),
 they both asks `LifecycleManager` for a new epoch of `PartitionLocation` for future data pushing.
 
 Upon receiving Revive/PartitionSplit, `LifecycleManager` first checks whether it has a newer epoch locally, if so
@@ -95,7 +95,7 @@ and ignores other attempts. This is correct because compute engines guarantee th
 generate the same output data.
 
 Upon receiving CommitFiles, `Worker`s flush buffered data to files and responds the succeeded and failed
-`PartitionLocation`s to `LifecycleManager`, see [Here](../../developers/storage#local-disk-and-memory-buffer).
+`PartitionLocation`s to `LifecycleManager`, see [Here](../developers/storage.md#local-disk-and-memory-buffer).
 `LifecycleManager` then checks if any of `PartitionLocation` loses both primary and replica data (mark data lost if so),
 and stores the information in memory.
 
@@ -110,14 +110,14 @@ Upon receiving the request, `LifecycleManager` responds the cached mapping or in
 `LifecycleManager` periodically sends heartbeat to `Master`, piggybacking the following information:
 
 - Bytes and files written by the application, used to calculate estimated partition size, see
-  [Here](../../developers/master#maintain-active-shuffles)
+  [Here](../developers/master.md#maintain-active-shuffles)
 - `Worker` list that `LifecycleManager` wants `Master` to tell status
 
 ## UnregisterShuffle
 When compute engines tells Celeborn that some shuffle is complete (i.e. through unregisterShuffle for Spark),
 `LifecycleManager` first checks and waits for write stage end, then put the shuffle id into unregistered set,
 after some expire time it removes the id and sends UnregisterShuffle to `Master` for cleanup, see
-[Here](../../developers/master#maintain-active-shuffles)
+[Here](../developers/master.md#maintain-active-shuffles)
 
 ## DestroyWorkerSlots
 Normally, `Worker`s cleanup resources for `PartitionLocation`s after notified shuffle unregistered. 

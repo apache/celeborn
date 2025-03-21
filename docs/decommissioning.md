@@ -69,16 +69,16 @@ Administrators perform decommissioning operation in two approaches:
   curl -X POST -H "Content-Type: application/json" -d '{"eventType":"DecommissionThenIdle","workers":[{"host":"192.168.15.140","rpcPort":"37359","pushPort":"38303","fetchPort":"37569","replicatePort":"37093"},{"host":"192.168.15.141","rpcPort":"37359","pushPort":"38303","fetchPort":"37569","replicatePort":"37093"}]}' http://ip:port/api/v1/workers/events
   ```
 
-Details of decommissioning interface can refer to [REST API](../restapi/#rest-api)
+Details of decommissioning interface can refer to [REST API](restapi.md/#rest-api)
 
 ## Decommission Monitoring
 
 Administrators can monitor the status of the workers to ensure they are gracefully exiting
 after all tasks are complete.
 
-Administrators can monitor the status of the workers under decommission through worker REST API [ip:port/isDecommissioning](../monitoring/#worker_1)
-or worker metrics [IsDecommissioningWorker](../monitoring/#worker).
-Also, administrator can monitor count of workers decommissioned through master metrics [DecommissionWorkerCount](../monitoring/#master).
+Administrators can monitor the status of the workers under decommission through worker REST API [ip:port/isDecommissioning](monitoring.md/#worker_1)
+or worker metrics [IsDecommissioningWorker](monitoring.md/#worker).
+Also, administrator can monitor count of workers decommissioned through master metrics [DecommissionWorkerCount](monitoring.md/#master).
 
 By providing a REST API and metrics for decommissioning workers,
 Celeborn ensures that cluster administrators have a robust and flexible tool
