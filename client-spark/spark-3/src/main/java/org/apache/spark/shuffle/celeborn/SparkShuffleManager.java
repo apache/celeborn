@@ -150,6 +150,16 @@ public class SparkShuffleManager implements ShuffleManager {
 
             lifecycleManager.registerShuffleTrackerCallback(
                 shuffleId -> SparkUtils.unregisterAllMapOutput(mapOutputTracker, shuffleId));
+            if (lifecycleManager.conf().clientFetchCleanFailedShuffle()) {
+              lifecycleManager.registerGetShuffleIdForWriterCallback(
+                  (celebornShuffleId, appShuffleIdentifier) ->
+                      SparkUtils.addWriterShuffleIdsToBeCleaned(
+                          lifecycleManager, celebornShuffleId, appShuffleIdentifier));
+              lifecycleManager.registerGetShuffleIdForReaderCallback(
+                  (celebornShuffleId, appShuffleIdentifier) ->
+                      SparkUtils.addShuffleIdRefCount(
+                          lifecycleManager, celebornShuffleId, appShuffleIdentifier));
+            }
           }
         }
       }
