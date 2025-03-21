@@ -49,7 +49,6 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.service.deploy.worker.shuffledb.{DB, DBBackend, DBProvider}
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
-import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapPartitionFileWriter
 
 final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
@@ -432,32 +431,17 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       shuffleId,
       userIdentifier,
       partitionType,
-      partitionSplitEnabled)
+      partitionSplitEnabled,
+      isSegmentGranularityVisible)
 
     val writer =
       try {
-        partitionType match {
-          case PartitionType.MAP =>
-            if (isSegmentGranularityVisible) new SegmentMapPartitionFileWriter(
-              this,
-              workerSource,
-              conf,
-              deviceMonitor,
-              partitionDataWriterContext)
-            else new MapPartitionDataWriter(
-              this,
-              workerSource,
-              conf,
-              deviceMonitor,
-              partitionDataWriterContext)
-          case PartitionType.REDUCE => new ReducePartitionDataWriter(
-              this,
-              workerSource,
-              conf,
-              deviceMonitor,
-              partitionDataWriterContext)
-          case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
-        }
+        new PartitionDataWriter(
+          this,
+          conf,
+          deviceMonitor,
+          partitionDataWriterContext,
+          partitionType)
       } catch {
         case e: Exception =>
           logError("Create partition data writer failed", e)
@@ -485,15 +469,15 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       writer: PartitionDataWriter,
       workingDir: File,
       fileInfo: DiskFileInfo): Unit = {
-    if (writer.getDiskFileInfo.isHdfs) {
+    if (fileInfo.isHdfs) {
       hdfsWriters.put(fileInfo.getFilePath, writer)
       return
     }
-    if (writer.getDiskFileInfo.isS3) {
+    if (fileInfo.isS3) {
       s3Writers.put(fileInfo.getFilePath, writer)
       return
     }
-    deviceMonitor.registerFileWriter(writer)
+    deviceMonitor.registerFileWriter(writer, fileInfo.getFilePath)
     workingDirWriters.computeIfAbsent(workingDir, workingDirWriterListFunc).put(
       fileInfo.getFilePath,
       writer)
@@ -821,7 +805,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
                     t)
               }
             } else {
-              logWarning(s"Skip flushOnMemoryPressure because ${writer.flusher} " +
+              logWarning(s"Skip flushOnMemoryPressure because ${writer.getFlusher} " +
                 s"has error: ${writer.getException.getMessage}")
             }
           }
