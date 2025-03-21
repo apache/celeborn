@@ -28,13 +28,13 @@ jobs:
 
       - name: Download Celeborn Release
         run: |
-          VERSION="${{ steps.extract_version.outputs.VERSION }}"
+          VERSION="${{ steps.set_version.outputs.VERSION }}"
           wget https://downloads.apache.org/celeborn/celeborn-${VERSION}/apache-celeborn-${VERSION}-bin.tgz
           tar -xzf apache-celeborn-${VERSION}-bin.tgz
 
       - name: Build and Push
         run: |
-          VERSION="${{ steps.extract_version.outputs.VERSION }}"
+          VERSION="${{ steps.set_version.outputs.VERSION }}"
           cd apache-celeborn-${VERSION}-bin
           docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
           docker buildx create --use
