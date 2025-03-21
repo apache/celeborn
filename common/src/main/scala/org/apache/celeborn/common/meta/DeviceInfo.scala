@@ -124,7 +124,7 @@ class DiskInfo(
    *
    * @return the available slots of the disk.
    */
-  def getAvailableSlots(): Long = this.synchronized {
+  def getAvailableSlots(): Long = {
     math.max(availableSlots, 0L)
   }
 
