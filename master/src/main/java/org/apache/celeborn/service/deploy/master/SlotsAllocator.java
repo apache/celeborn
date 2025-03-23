@@ -74,17 +74,17 @@ public class SlotsAllocator {
               && diskInfoEntry.getValue().storageType() != StorageInfo.Type.S3) {
             usableDisks.add(
                 new UsableDiskInfo(
-                    diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
+                    diskInfoEntry.getValue(), diskInfoEntry.getValue().getAvailableSlots()));
           } else if (StorageInfo.HDFSAvailable(availableStorageTypes)
               && diskInfoEntry.getValue().storageType() == StorageInfo.Type.HDFS) {
             usableDisks.add(
                 new UsableDiskInfo(
-                    diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
+                    diskInfoEntry.getValue(), diskInfoEntry.getValue().getAvailableSlots()));
           } else if (StorageInfo.S3Available(availableStorageTypes)
               && diskInfoEntry.getValue().storageType() == StorageInfo.Type.S3) {
             usableDisks.add(
                 new UsableDiskInfo(
-                    diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
+                    diskInfoEntry.getValue(), diskInfoEntry.getValue().getAvailableSlots()));
           }
         }
       }
@@ -151,7 +151,8 @@ public class SlotsAllocator {
             || (shouldReplicate
                 && (usableDisks.size() == 1
                     || usableDisks.stream().map(diskToWorkerMap::get).distinct().count() <= 1));
-    boolean noAvailableSlots = usableDisks.stream().mapToLong(DiskInfo::availableSlots).sum() <= 0;
+    boolean noAvailableSlots =
+        usableDisks.stream().mapToLong(DiskInfo::getAvailableSlots).sum() <= 0;
 
     if (noUsableDisks || noAvailableSlots) {
       logger.warn(
@@ -511,7 +512,7 @@ public class SlotsAllocator {
     long[] groupAvailableSlots = new long[groupSize];
     for (int i = 0; i < groupSize; i++) {
       for (DiskInfo disk : groups.get(i)) {
-        groupAvailableSlots[i] += disk.availableSlots();
+        groupAvailableSlots[i] += disk.getAvailableSlots();
       }
     }
     double[] currentAllocation = new double[groupSize];
@@ -557,8 +558,8 @@ public class SlotsAllocator {
             restrictions.computeIfAbsent(diskWorkerMap.get(disk), v -> new ArrayList<>());
         long allocated =
             (int) Math.ceil((groupAllocations[i] + groupLeft) / (double) disksInsideGroup);
-        if (allocated > disk.availableSlots()) {
-          allocated = disk.availableSlots();
+        if (allocated > disk.getAvailableSlots()) {
+          allocated = disk.getAvailableSlots();
         }
         if (allocated > groupRequired) {
           allocated = groupRequired;
