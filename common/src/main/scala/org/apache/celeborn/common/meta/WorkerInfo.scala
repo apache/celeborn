@@ -164,7 +164,7 @@ class WorkerInfo(
   }
 
   def slotAvailable(): Boolean = this.synchronized {
-    diskInfos.asScala.exists { case (_, disk) => (disk.maxSlots - disk.activeSlots) > 0 }
+    diskInfos.asScala.exists { case (_, disk) => (disk.availableSlots) > 0 }
   }
 
   def getTotalSlots(): Long = this.synchronized {
@@ -179,14 +179,15 @@ class WorkerInfo(
     this.workerStatus = workerStatus;
   }
 
-  def updateDiskMaxSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
+  def updateDiskSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
     diskInfos.asScala.foreach { case (_, disk) =>
-      disk.maxSlots_$eq(disk.actualUsableSpace / estimatedPartitionSize)
+      disk.maxSlots_$eq(disk.totalSpace / estimatedPartitionSize)
+      disk.availableSlots_$eq(disk.actualUsableSpace / estimatedPartitionSize)
     }
   }
 
   def totalAvailableSlots(): Long = this.synchronized {
-    diskInfos.asScala.map(_._2.availableSlots()).sum
+    diskInfos.asScala.map(_._2.getAvailableSlots()).sum
   }
 
   def totalSpace(): Long = this.synchronized {
@@ -212,12 +213,14 @@ class WorkerInfo(
         curDisk.avgFlushTime = newDisk.avgFlushTime
         curDisk.avgFetchTime = newDisk.avgFetchTime
         if (estimatedPartitionSize.nonEmpty && curDisk.storageType != StorageInfo.Type.HDFS) {
-          curDisk.maxSlots = curDisk.actualUsableSpace / estimatedPartitionSize.get
+          curDisk.maxSlots = curDisk.totalSpace / estimatedPartitionSize.get
+          curDisk.availableSlots = curDisk.actualUsableSpace / estimatedPartitionSize.get
         }
         curDisk.setStatus(newDisk.status)
       } else {
         if (estimatedPartitionSize.nonEmpty && newDisk.storageType != StorageInfo.Type.HDFS) {
-          newDisk.maxSlots = newDisk.actualUsableSpace / estimatedPartitionSize.get
+          newDisk.maxSlots = newDisk.totalSpace / estimatedPartitionSize.get
+          newDisk.availableSlots = newDisk.actualUsableSpace / estimatedPartitionSize.get
         }
         diskInfos.put(mountPoint, newDisk)
       }
