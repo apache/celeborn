@@ -231,6 +231,9 @@ object WorkerSource {
   val IS_DECOMMISSIONING_WORKER = "IsDecommissioningWorker"
   val UNRELEASED_SHUFFLE_COUNT = "UnreleasedShuffleCount"
 
+  // graceful
+  val UNRELEASED_PARTITION_LOCATION_COUNT = "UnreleasedPartitionLocationCount"
+
   // clean
   val CLEAN_TASK_QUEUE_SIZE = "CleanTaskQueueSize"
   val CLEAN_EXPIRED_SHUFFLE_KEYS_TIME = "CleanExpiredShuffleKeysTime"
