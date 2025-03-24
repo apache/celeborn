@@ -481,7 +481,7 @@ public class SlotsAllocatorSuiteJ {
     final List<WorkerInfo> workers = prepareWorkers(true);
     // Simulates no available slots behavior with greatly changed estimatedPartitionSize for workers
     // with usable disks.
-    workers.forEach(workerInfo -> workerInfo.updateDiskMaxSlots(Long.MAX_VALUE));
+    workers.forEach(workerInfo -> workerInfo.updateDiskSlots(Long.MAX_VALUE));
     final List<Integer> partitionIds = Collections.singletonList(0);
     final boolean shouldReplicate = false;
 
