@@ -206,7 +206,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
     workerInfo.networkLocation_$eq(rackResolver.resolve(host).getNetworkLocation());
-    workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
+    workerInfo.updateDiskSlots(estimatedPartitionSize);
     synchronized (workers) {
       if (!workers.contains(workerInfo)) {
         workers.add(workerInfo);
@@ -374,6 +374,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         .filter(
             worker ->
                 !excludedWorkers.contains(worker) && !manuallyExcludedWorkers.contains(worker))
-        .forEach(workerInfo -> workerInfo.updateDiskMaxSlots(estimatedPartitionSize));
+        .forEach(workerInfo -> workerInfo.updateDiskSlots(estimatedPartitionSize));
   }
 }
