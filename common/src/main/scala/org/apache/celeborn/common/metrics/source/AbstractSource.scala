@@ -122,14 +122,26 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   def addGauge[T](name: String, labels: Map[String, String] = Map.empty)(f: () => T): Unit = {
-    addGauge(
-      name,
-      labels,
-      metricRegistry.register(
-        metricNameWithCustomizedLabels(name, labels),
-        new Gauge[T] {
-          override def getValue: T = f()
-        }))
+    val gauge = new Gauge[T] {
+      override def getValue: T = f()
+    }
+    val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
+    // filter out non-number type gauges
+    if (gauge.getValue.isInstanceOf[Number]) {
+      namedGauges.computeIfAbsent(
+        metricNameWithLabel,
+        (_: String) => {
+          NamedGauge(
+            name,
+            metricRegistry.register(
+              metricNameWithLabel,
+              gauge),
+            labels ++ staticLabels)
+        })
+    } else {
+      logWarning(
+        s"Add gauge $name failed, the value type ${f().getClass} is not a number")
+    }
   }
 
   def addGauge[T](name: String, gauge: Gauge[T]): Unit = {
@@ -152,15 +164,22 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     addMeter(name, labels.asScala.toMap, meter)
   }
 
-  def addMeter(name: String, labels: Map[String, String] = Map.empty)(f: () => Long): Unit = {
-    addMeter(
-      name,
-      labels,
-      metricRegistry.register(
-        metricNameWithCustomizedLabels(name, labels),
-        new Meter {
-          override def getCount: Long = f()
-        }))
+  def addMeter(
+      name: String,
+      labels: Map[String, String])(f: () => Long): Unit = {
+    val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
+    namedMeters.computeIfAbsent(
+      metricNameWithLabel,
+      (_: String) => {
+        NamedMeter(
+          name,
+          metricRegistry.register(
+            metricNameWithLabel,
+            new Meter() {
+              override def getCount: Long = f()
+            }),
+          labels ++ staticLabels)
+      })
   }
 
   def addMeter(name: String, meter: Meter): Unit = {
@@ -200,14 +219,17 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def addHistogram(name: String, labels: Map[String, String]): Unit = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
-    namedHistogram.putIfAbsent(
+    namedHistogram.computeIfAbsent(
       metricNameWithLabel,
-      NamedHistogram(
-        name,
-        metricRegistry.register(
-          metricNameWithLabel,
-          new CelebornHistogram(new ResettableSlidingWindowReservoir(metricsSlidingWindowSize))),
-        labels ++ staticLabels))
+      (_: String) => {
+        NamedHistogram(
+          name,
+          metricRegistry.register(
+            metricNameWithLabel,
+            new CelebornHistogram(new ResettableSlidingWindowReservoir(metricsSlidingWindowSize))),
+          labels ++ staticLabels)
+      })
+
   }
 
   def counters(): List[NamedCounter] = {
