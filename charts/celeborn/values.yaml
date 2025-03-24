@@ -190,12 +190,25 @@ podAnnotations: {}
 # key2: value2
 
 # -- Pod node selector
-nodeSelector: {}
+masterNodeSelector: {}
+# key1: value1
+# key2: value2
+
+workerNodeSelector: {}
 # key1: value1
 # key2: value2
 
 # -- Pod tolerations
-tolerations: []
+masterTolerations: []
+# - key: key1
+#   operator: Equal
+#   value: value1
+#   effect: NoSchedule
+# - key: key2
+#   operator: Exists
+#   effect: NoSchedule
+
+workerTolerations: []
 # - key: key1
 #   operator: Equal
 #   value: value1

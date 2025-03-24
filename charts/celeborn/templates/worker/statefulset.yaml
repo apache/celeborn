@@ -128,11 +128,11 @@ spec:
       {{ fail "Currently, Celeborn chart only supports 'emptyDir' and 'hostPath' volume types" }}
       {{- end }}
       {{- end }}
-      {{- with .Values.nodeSelector }}
+      {{- with .Values.workerNodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
+      {{- with .Values.workerTolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
