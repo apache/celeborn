@@ -1544,9 +1544,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                     dataBatchReviveInfos);
               } else {
                 callback.onFailure(
-                    new CelebornIOException(
-                        "Parser pushMergedData response failed since no HARD_SPLIT array message. "
-                        "Current version client can't be compatibility with older worker version."));
+                    new CelebornIOException("Parser pushMergedData response failed. " +
+                        "Current client can't be compatibility with older worker version."));
                 return;
               }
               if (batchesNeedResubmit.isEmpty()) {
