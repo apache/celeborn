@@ -150,6 +150,11 @@ public class SparkShuffleManager implements ShuffleManager {
 
             lifecycleManager.registerShuffleTrackerCallback(
                 shuffleId -> SparkUtils.unregisterAllMapOutput(mapOutputTracker, shuffleId));
+
+            if (celebornConf.clientAdaptiveOptimizeSkewedPartitionReadEnabled()) {
+              lifecycleManager.registerCelebornSkewShuffleCheckCallback(
+                  SparkUtils::isCelebornSkewShuffleOrChildShuffle);
+            }
           }
         }
       }
