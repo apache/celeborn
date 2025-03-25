@@ -632,7 +632,17 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           // Handle the response from replica
           val wrappedCallback = new RpcResponseCallback() {
             override def onSuccess(response: ByteBuffer): Unit = {
-              val replicaReason = response.get()
+              // During the rolling upgrade of the worker cluster, it is possible for
+              // the primary worker to be upgraded to a new version that includes
+              // the changes from [CELEBORN-1721], while the replica worker is still running
+              // on an older version that does not have these changes.
+              // In this scenario, the replica may return a response without any context
+              // when status of SUCCESS.
+              val replicaReason = if (response.remaining() > 0) {
+                response.get()
+              } else {
+                StatusCode.SUCCESS
+              }
               if (replicaReason == StatusCode.HARD_SPLIT.getValue) {
                 if (response.remaining() > 0) {
                   try {
