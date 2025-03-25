@@ -1543,20 +1543,10 @@ public class ShuffleClientImpl extends ShuffleClient {
                     groupedBatchId,
                     dataBatchReviveInfos);
               } else {
-                // Workers that do not incorporate changes from [CELEBORN-1721]
-                // will respond with a status of HARD_SPLIT,
-                // but will not include a PbPushMergedDataSplitPartitionInfo.
-                // For backward compatibility, all batches must be resubmitted.
-                batchesNeedResubmit = batches;
-                logger.info(
-                    "Push merged data to {} hard split required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
-                    addressPair,
-                    shuffleId,
-                    mapId,
-                    attemptId,
-                    Arrays.toString(partitionIds),
-                    groupedBatchId,
-                    Arrays.toString(batchIds));
+                callback.onFailure(
+                    new CelebornIOException("Parser pushMergedData response failed since no HARD_SPLIT array message. "
+                    "Current version client can't be compatibility with older worker version."));
+                return;
               }
               if (batchesNeedResubmit.isEmpty()) {
                 pushState.onSuccess(hostPort);
