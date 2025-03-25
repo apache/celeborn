@@ -1624,7 +1624,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             } else {
               // Workers that do not incorporate changes from [CELEBORN-1721]
               // will respond with a status of empty response.
-              // For backward compatibility, we should keep logic of check response remaining.
+              //  For backward compatibility, we should keep logic of check response remaining.
               pushState.onSuccess(hostPort);
               callback.onSuccess(response);
             }
