@@ -638,11 +638,12 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               // on an older version that does not have these changes.
               // In this scenario, the replica may return a response without any context
               // when status of SUCCESS.
-              val replicaReason = if (response.remaining() > 0) {
-                response.get()
-              } else {
-                StatusCode.SUCCESS
-              }
+              val replicaReason =
+                if (response.remaining() > 0) {
+                  response.get()
+                } else {
+                  StatusCode.SUCCESS
+                }
               if (replicaReason == StatusCode.HARD_SPLIT.getValue) {
                 if (response.remaining() > 0) {
                   try {
