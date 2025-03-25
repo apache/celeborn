@@ -1545,8 +1545,8 @@ public class ShuffleClientImpl extends ShuffleClient {
               } else {
                 callback.onFailure(
                     new CelebornIOException(
-                        "Parser pushMergedData response failed. " +
-                              "Current client can't be compatibility with older worker version."));
+                        "Parser pushMergedData response failed. "
+                            + "Current client can't be compatibility with older worker version."));
                 return;
               }
               if (batchesNeedResubmit.isEmpty()) {
