@@ -428,7 +428,7 @@ class LocalTierWriter(
   }
 
   override def closeStreams(): Unit = {
-    // local disk file won't need to close streams
+    channel.close()
   }
 
   override def notifyFileCommitted(): Unit =
