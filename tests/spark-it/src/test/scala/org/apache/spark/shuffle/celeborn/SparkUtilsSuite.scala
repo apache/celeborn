@@ -161,7 +161,6 @@ class SparkUtilsSuite extends AnyFunSuite
     }
   }
 
-<<<<<<< HEAD
   test("serialize/deserialize GetReducerFileGroupResponse with broadcast") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
     val sparkSession = SparkSession.builder()
@@ -219,10 +218,7 @@ class SparkUtilsSuite extends AnyFunSuite
     }
   }
 
-  test("is stage inDeterminate") {
-=======
   test("is stage inDeterminate and killTaskSetManagerRunningTasks") {
->>>>>>> b3ceb100d (test name)
     if (Spark3OrNewer) {
       val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
       val sparkSession = SparkSession.builder()

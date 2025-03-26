@@ -360,13 +360,13 @@ public class SparkUtils {
   private static final DynFields.UnboundField<
           scala.collection.mutable.HashMap<
               Integer, scala.collection.mutable.HashMap<Integer, TaskSetManager>>>
-      TASK_SETS_BY_STAGE_ID_AND_ATTEMPT_FIELD =
+      taskSetsByStageIdAndAttempt_FIELD =
           DynFields.builder()
               .hiddenImpl(TaskSchedulerImpl.class, "taskSetsByStageIdAndAttempt")
               .defaultAlwaysNull()
               .build();
   private static final DynFields.UnboundField<scala.collection.mutable.HashSet<Long>>
-      RUNNING_TASKS_SET_FIELD =
+      runningTasksSet_FIELD =
           DynFields.builder()
               .hiddenImpl(TaskSetManager.class, "runningTasksSet")
               .defaultAlwaysNull()
@@ -407,8 +407,7 @@ public class SparkUtils {
     synchronized (taskScheduler) {
       scala.collection.mutable.HashMap<
               Integer, scala.collection.mutable.HashMap<Integer, TaskSetManager>>
-          taskSetsByStageIdAndAttempt =
-              TASK_SETS_BY_STAGE_ID_AND_ATTEMPT_FIELD.bind(taskScheduler).get();
+          taskSetsByStageIdAndAttempt = taskSetsByStageIdAndAttempt_FIELD.bind(taskScheduler).get();
       scala.Option<scala.collection.mutable.HashMap<Integer, TaskSetManager>> stageTaskSetAttempts =
           taskSetsByStageIdAndAttempt.get(stageId);
       if (stageTaskSetAttempts.isDefined()) {
@@ -497,7 +496,7 @@ public class SparkUtils {
     synchronized (taskScheduler) {
       for (Long taskId :
           scala.collection.JavaConverters.asJavaCollectionConverter(
-                  RUNNING_TASKS_SET_FIELD.bind(taskSetManager).get())
+                  runningTasksSet_FIELD.bind(taskSetManager).get())
               .asJavaCollection()) {
         try {
           taskScheduler.killTaskAttempt(taskId, true, reason);
