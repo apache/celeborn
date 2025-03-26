@@ -186,4 +186,5 @@ license: |
 | celeborn.worker.storage.workingDir | celeborn-worker/shuffle_data | false | Worker's working dir path name. | 0.3.0 | celeborn.worker.workingDir | 
 | celeborn.worker.writer.close.timeout | 120s | false | Timeout for a file writer to close | 0.2.0 |  | 
 | celeborn.worker.writer.create.maxAttempts | 3 | false | Retry count for a file writer to create if its creation was failed. | 0.2.0 |  | 
+| celeborn.worker.writer.gatherApi.enabled | false | false | Worker will use gather API if this config is true. | 0.6.0 |  | 
 <!--end-include-->

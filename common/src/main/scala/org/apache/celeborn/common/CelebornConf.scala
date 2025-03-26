@@ -1276,6 +1276,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerHdfsFlusherThreads: Int = get(WORKER_FLUSHER_HDFS_THREADS)
   def workerS3FlusherThreads: Int = get(WORKER_FLUSHER_S3_THREADS)
   def workerCreateWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
+  def workerWriterGatherApiEnabled: Boolean = get(WORKER_WRITER_GATHER_API_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                    Disk Monitor                     //
@@ -3897,6 +3898,14 @@ object CelebornConf extends Logging {
       .doc("Retry count for a file writer to create if its creation was failed.")
       .intConf
       .createWithDefault(3)
+
+  val WORKER_WRITER_GATHER_API_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.writer.gatherApi.enabled")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("Worker will use gather API if this config is true.")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD: ConfigEntry[Double] =
     buildConf("celeborn.worker.partitionSorter.directMemoryRatioThreshold")
