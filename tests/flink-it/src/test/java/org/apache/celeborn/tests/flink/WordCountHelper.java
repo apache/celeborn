@@ -19,12 +19,15 @@ package org.apache.celeborn.tests.flink;
 
 import static org.junit.Assert.assertEquals;
 
+import java.io.IOException;
+
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.util.Collector;
 
 public class WordCountHelper {
@@ -43,7 +46,23 @@ public class WordCountHelper {
         .keyBy(value -> value.f0)
         .sum(1)
         .map((MapFunction<Tuple2<String, Long>, Long>) wordCount -> wordCount.f1)
-        .addSink(new VerifySink((long) parallelism * WORD_COUNT));
+        .sinkTo(
+            (Sink<Long>)
+                writerInitContext ->
+                    new SinkWriter<Long>() {
+                      @Override
+                      public void write(Long value, Context context)
+                          throws IOException, InterruptedException {
+                        assertEquals(parallelism * WORD_COUNT, value.longValue());
+                      }
+
+                      @Override
+                      public void flush(boolean endOfInput)
+                          throws IOException, InterruptedException {}
+
+                      @Override
+                      public void close() throws Exception {}
+                    });
   }
 
   private static class WordsMapper implements MapFunction<Long, String> {
@@ -82,22 +101,6 @@ public class WordCountHelper {
       for (int i = 0; i < wordsCount; ++i) {
         collector.collect(new Tuple2<>(word, 1L));
       }
-    }
-  }
-
-  private static class VerifySink implements SinkFunction<Long> {
-
-    private static final long serialVersionUID = -1975623991098131708L;
-
-    private final Long wordCount;
-
-    public VerifySink(long wordCount) {
-      this.wordCount = wordCount;
-    }
-
-    @Override
-    public void invoke(Long value, Context context) {
-      assertEquals(wordCount, value);
     }
   }
 }
