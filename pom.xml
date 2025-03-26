@@ -1191,6 +1191,7 @@
             <compilerArgs>
               <arg>-XDcompilePolicy=simple</arg>
               <arg>-Xplugin:ErrorProne \
+                -XepDisableWarningsInGeneratedCode \
                 -XepExcludedPaths:.*/target/generated-sources/.* \
                 -Xep:BadImport:OFF \
                 -Xep:EmptyBlockTag:OFF \
@@ -1576,6 +1577,7 @@
               <compilerArgs>
                 <arg>-XDcompilePolicy=simple</arg>
                 <arg>-Xplugin:ErrorProne \
+                  -XepDisableWarningsInGeneratedCode \
                   -XepExcludedPaths:.*/target/generated-sources/.* \
                   -Xep:BadImport:OFF \
                   -Xep:EmptyBlockTag:OFF \
@@ -1636,6 +1638,7 @@
               <compilerArgs>
                 <arg>-XDcompilePolicy=simple</arg>
                 <arg>-Xplugin:ErrorProne \
+                  -XepDisableWarningsInGeneratedCode \
                   -XepExcludedPaths:.*/target/generated-sources/.* \
                   -Xep:BadImport:OFF \
                   -Xep:EmptyBlockTag:OFF \
