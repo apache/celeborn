@@ -494,7 +494,7 @@ public class SparkUtils {
    * A [[KeyLock]] whose key is a shuffle id to ensure there is only one thread accessing the
    * broadcast belonging to the shuffle id at a time.
    */
-  private static KeyLock<Integer> shuffleBroadcastLock = new KeyLock();
+  private static final KeyLock<Integer> shuffleBroadcastLock = new KeyLock<>();
 
   @VisibleForTesting
   public static AtomicInteger getReducerFileGroupResponseBroadcastNum = new AtomicInteger();
@@ -548,7 +548,7 @@ public class SparkUtils {
             return _serializeResult;
           } catch (Throwable e) {
             LOG.error(
-                "Failed to serialize GetReducerFileGroupResponse for shuffle: " + shuffleId, e);
+                "Failed to serialize GetReducerFileGroupResponse for shuffle: {}", shuffleId, e);
             return null;
           }
         });
