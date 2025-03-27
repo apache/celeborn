@@ -294,6 +294,7 @@ class CelebornShuffleReader[K, C](
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
         var inputStream: CelebornInputStream = streams.get(partitionId)
+        var sleepCnt = 0L
         while (inputStream == null) {
           if (exceptionRef.get() != null) {
             exceptionRef.get() match {
@@ -302,9 +303,15 @@ class CelebornShuffleReader[K, C](
               case e => throw e
             }
           }
-          logInfo("inputStream is null, sleeping...")
+          if (sleepCnt == 0) {
+            logInfo("inputStream is null, sleeping...")
+          }
+          sleepCnt += 1
           Thread.sleep(50)
           inputStream = streams.get(partitionId)
+        }
+        if (sleepCnt > 0) {
+          logInfo(s"inputStream is not null, sleep count: $sleepCnt")
         }
         metricsCallback.incReadTime(
           TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
