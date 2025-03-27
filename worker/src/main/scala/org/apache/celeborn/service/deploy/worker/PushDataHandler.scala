@@ -675,9 +675,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                   }
                   // Only primary data enable replication will push data to replica
                   Option(CongestionController.instance()) match {
-                    case Some(congestionController) if fileWriters.nonEmpty =>
-                      if (congestionController.isUserCongested(
-                          fileWriters.head.getUserCongestionControlContext)) {
+                    case Some(congestionController) =>
+                      val userCongested =
+                        fileWriters
+                          .find(_ != null)
+                          .map(_.getUserCongestionControlContext)
+                          .exists(congestionController.isUserCongested)
+                      if (userCongested) {
                         // Check whether primary congest the data though the replicas doesn't congest
                         // it(the response is empty)
                         pushMergedDataCallback.onSuccess(
@@ -780,9 +784,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             index += 1
           }
           Option(CongestionController.instance()) match {
-            case Some(congestionController) if fileWriters.nonEmpty =>
-              if (congestionController.isUserCongested(
-                  fileWriters.head.getUserCongestionControlContext)) {
+            case Some(congestionController) =>
+              val userCongested =
+                fileWriters
+                  .find(_ != null)
+                  .map(_.getUserCongestionControlContext)
+                  .exists(congestionController.isUserCongested)
+              if (userCongested) {
                 if (isPrimary) {
                   pushMergedDataCallback.onSuccess(StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED)
                 } else {
