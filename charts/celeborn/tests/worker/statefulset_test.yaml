@@ -69,9 +69,9 @@ tests:
           path: spec.template.spec.imagePullSecrets[1].name
           value: test-secret2
 
-  - it: Should add node selector if `nodeSelector` is set
+  - it: Should add node selector if `workerNodeSelector` is set
     set:
-      nodeSelector:
+      workerNodeSelector:
         key1: value1
         key2: value2
     asserts:
@@ -82,9 +82,9 @@ tests:
           path: spec.template.spec.nodeSelector.key2
           value: value2
 
-  - it: Should add tolerations if `tolerations` is set
+  - it: Should add tolerations if `workerTolerations` is set
     set:
-      tolerations:
+      workerTolerations:
         - key: key1
           operator: Equal
           value: value1
