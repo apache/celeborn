@@ -157,7 +157,11 @@ public class DiskFileInfo extends FileInfo {
     return Utils.isS3Path(filePath);
   }
 
+  public boolean isOSS() {
+    return Utils.isOssPath(filePath);
+  }
+
   public boolean isDFS() {
-    return Utils.isS3Path(filePath) || Utils.isHdfsPath(filePath);
+    return Utils.isS3Path(filePath) || Utils.isOssPath(filePath) || Utils.isHdfsPath(filePath);
   }
 }

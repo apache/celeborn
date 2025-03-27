@@ -331,20 +331,36 @@ public class SlotsAllocatorSuiteJ {
       boolean expectSuccess,
       boolean roundRobin,
       boolean enableS3) {
+    checkSlotsOnDFS(
+        workers, partitionIds, shouldReplicate, expectSuccess, roundRobin, enableS3, false);
+  }
+
+  private void checkSlotsOnDFS(
+      List<WorkerInfo> workers,
+      List<Integer> partitionIds,
+      boolean shouldReplicate,
+      boolean expectSuccess,
+      boolean roundRobin,
+      boolean enableS3,
+      boolean enableOss) {
     CelebornConf conf = new CelebornConf();
+    int availableStorageTypes;
     if (enableS3) {
       conf.set("celeborn.active.storage.levels", "S3");
+      availableStorageTypes = StorageInfo.S3_MASK;
+    } else if (enableOss) {
+      conf.set("celeborn.active.storage.levels", "OSS");
+      availableStorageTypes = StorageInfo.OSS_MASK;
     } else {
       conf.set("celeborn.active.storage.levels", "HDFS");
+      availableStorageTypes = StorageInfo.HDFS_MASK;
     }
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots;
     if (roundRobin) {
-      int availableStorageTypes = enableS3 ? StorageInfo.S3_MASK : StorageInfo.HDFS_MASK;
       slots =
           SlotsAllocator.offerSlotsRoundRobin(
               workers, partitionIds, shouldReplicate, false, availableStorageTypes);
     } else {
-      int availableStorageTypes = enableS3 ? StorageInfo.S3_MASK : StorageInfo.HDFS_MASK;
       slots =
           SlotsAllocator.offerSlotsLoadAware(
               workers,
@@ -501,5 +517,38 @@ public class SlotsAllocatorSuiteJ {
     final boolean shouldReplicate = true;
     checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, true, true);
     checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, false, true);
+  }
+
+  @Test
+  public void testOssOnly() {
+    final List<WorkerInfo> workers = prepareWorkers(false);
+    final List<Integer> partitionIds = new ArrayList<>();
+    for (int i = 0; i < 3000; i++) {
+      partitionIds.add(i);
+    }
+    final boolean shouldReplicate = true;
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, true, false, true);
+  }
+
+  @Test
+  public void testLocalDisksAndOss() {
+    final List<WorkerInfo> workers = prepareWorkers(true);
+    DiskInfo ossDiskInfo1 =
+        new DiskInfo(
+            "OSS", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE, StorageInfo.Type.OSS);
+    DiskInfo ossDiskInfo2 =
+        new DiskInfo(
+            "OSS", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE, StorageInfo.Type.OSS);
+    ossDiskInfo1.maxSlots_$eq(Long.MAX_VALUE);
+    ossDiskInfo2.maxSlots_$eq(Long.MAX_VALUE);
+    workers.get(0).diskInfos().put("OSS", ossDiskInfo1);
+    workers.get(1).diskInfos().put("OSS", ossDiskInfo2);
+    final List<Integer> partitionIds = new ArrayList<>();
+    for (int i = 0; i < 3000; i++) {
+      partitionIds.add(i);
+    }
+    final boolean shouldReplicate = true;
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, true, false, true);
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, false, false, true);
   }
 }

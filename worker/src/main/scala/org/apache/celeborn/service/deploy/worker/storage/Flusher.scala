@@ -210,3 +210,22 @@ final private[worker] class S3Flusher(
 
   override def toString: String = s"s3Flusher@$flusherId"
 }
+
+final private[worker] class OssFlusher(
+    workerSource: AbstractSource,
+    ossFlusherThreads: Int,
+    allocator: ByteBufAllocator,
+    maxComponents: Int) extends Flusher(
+    workerSource,
+    ossFlusherThreads,
+    allocator,
+    maxComponents,
+    null,
+    "OSS") with Logging {
+
+  override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
+    logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
+  }
+
+  override def toString: String = s"ossFlusher@$flusherId"
+}
