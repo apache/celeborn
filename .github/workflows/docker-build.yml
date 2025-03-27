@@ -43,4 +43,4 @@ jobs:
           VERSION="${{ steps.set_version.outputs.VERSION }}"
           cd apache-celeborn-${VERSION}-bin
           docker buildx create --use
-          docker buildx build -f docker/Dockerfile --platform=linux/amd64,linux/arm64 -t apache/celeborn:${VERSION} .
+          docker buildx build --push -f docker/Dockerfile --platform=linux/amd64,linux/arm64 -t apache/celeborn:${VERSION} .
