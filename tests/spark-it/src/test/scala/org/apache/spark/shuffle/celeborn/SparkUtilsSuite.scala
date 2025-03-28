@@ -20,7 +20,7 @@ package org.apache.spark.shuffle.celeborn
 import scala.collection.JavaConverters._
 
 import org.apache.spark.SparkConf
-import org.apache.spark.scheduler.TaskSchedulerImpl
+import org.apache.spark.scheduler.{TaskSchedulerImpl, TaskSetManager}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually.eventually
@@ -30,6 +30,7 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.protocol.ShuffleMode
+import org.apache.celeborn.reflect.{DynFields, DynMethods}
 import org.apache.celeborn.tests.spark.SparkTestBase
 
 class SparkUtilsSuite extends AnyFunSuite
@@ -155,6 +156,90 @@ class SparkUtilsSuite extends AnyFunSuite
       }
     } finally {
       sparkSession.stop()
+    }
+  }
+
+  test("is stage inDeterminate and killTaskSetManagerRunningTasks") {
+    if (Spark3OrNewer) {
+      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+      val sparkSession = SparkSession.builder()
+        .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+        .config("spark.sql.shuffle.partitions", 2)
+        .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+        .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+        .config(
+          "spark.shuffle.manager",
+          "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+        .getOrCreate()
+
+      try {
+        val sc = sparkSession.sparkContext
+        val jobThread = new Thread {
+          override def run(): Unit = {
+            try {
+              sc.parallelize(1 to 100, 2)
+                .repartition(1)
+                .mapPartitions { iter =>
+                  Thread.sleep(3000)
+                  iter
+                }.collect()
+            } catch {
+              case _: InterruptedException =>
+            }
+          }
+        }
+        jobThread.start()
+
+        val getStage_METHOD = DynMethods.builder("getStage")
+          .hiddenImpl(classOf[SparkUtils], classOf[Int])
+          .orNoop()
+          .build()
+        val isIndeterminate_METHOD = DynFields.builder()
+          .hiddenImpl(classOf[SparkUtils], "isIndeterminate_METHOD")
+          .defaultAlwaysNull()
+          .buildStatic()
+          .get()
+          .asInstanceOf[DynMethods.UnboundMethod]
+        val isStageIndeterminate_METHOD = DynMethods.builder("isStageIndeterminate")
+          .impl(classOf[SparkUtils], classOf[Int])
+          .orNoop()
+          .build()
+        val getTaskSetManagerByStageId_METHOD = DynMethods.builder("getTaskSetManager")
+          .impl(classOf[SparkUtils], classOf[Int], classOf[Int])
+          .orNoop()
+          .build()
+        val killTaskSetManagerRunningTasks_METHOD =
+          DynMethods.builder("killTaskSetManagerRunningTasks")
+            .hiddenImpl(classOf[SparkUtils], classOf[TaskSetManager], classOf[String])
+            .orNoop()
+            .build()
+
+        assert(!getStage_METHOD.isNoop)
+        assert(!isIndeterminate_METHOD.isNoop)
+        assert(!isStageIndeterminate_METHOD.isNoop)
+        assert(!getTaskSetManagerByStageId_METHOD.isNoop)
+        assert(!killTaskSetManagerRunningTasks_METHOD.isNoop)
+
+        eventually(timeout(3.seconds), interval(100.milliseconds)) {
+          val stage = getStage_METHOD.asStatic().invoke(Integer.valueOf(0)).asInstanceOf[
+            org.apache.spark.scheduler.ShuffleMapStage]
+          assert(stage != null)
+          assert(!isIndeterminate_METHOD.invoke(stage).asInstanceOf[Boolean])
+          val taskSetManager: TaskSetManager = getTaskSetManagerByStageId_METHOD.asStatic().invoke(
+            Integer.valueOf(0),
+            Integer.valueOf(0))
+          assert(taskSetManager != null)
+          assert(killTaskSetManagerRunningTasks_METHOD.asStatic.invoke(
+            taskSetManager,
+            "test").asInstanceOf[Int] > 0)
+        }
+
+        sparkSession.sparkContext.cancelAllJobs()
+
+        jobThread.interrupt()
+      } finally {
+        sparkSession.stop()
+      }
     }
   }
 }
