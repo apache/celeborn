@@ -40,12 +40,11 @@ private[worker] class LocalFlushTask(
     keepBuffer: Boolean) extends FlushTask(buffer, notifier, keepBuffer) {
   override def flush(): Unit = {
     val buffers = buffer.nioBuffers()
-    for (buffer <- buffers) {
-      while (buffer.hasRemaining) {
-        fileChannel.write(buffer)
-      }
-    }
-
+    val readableBytes = buffer.readableBytes()
+    var written = 0L
+    do {
+      written = fileChannel.write(buffers) + written
+    } while (written != readableBytes)
     // TODO: force flush file channel in scenarios where the upstream task writes and the downstream task reads simultaneously, such as flink hybrid shuffle.
   }
 }
