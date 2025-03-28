@@ -304,14 +304,14 @@ class CelebornShuffleReader[K, C](
             }
           }
           if (sleepCnt == 0) {
-            logInfo("inputStream is null, sleeping...")
+            logInfo(s"inputStream for partition: $partitionId is null, sleeping...")
           }
           sleepCnt += 1
           Thread.sleep(50)
           inputStream = streams.get(partitionId)
         }
         if (sleepCnt > 0) {
-          logInfo(s"inputStream is not null, sleep count: $sleepCnt")
+          logInfo(s"inputStream for partition: $partitionId is not null, sleep count: $sleepCnt")
         }
         metricsCallback.incReadTime(
           TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
