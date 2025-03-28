@@ -1203,7 +1203,8 @@ trait FlinkClientProjects {
           flinkStreamingDependency,
           flinkClientsDependency,
           flinkRuntimeWebDependency
-        ) ++ commonUnitTestDependencies
+        ) ++ commonUnitTestDependencies,
+        (Test / envVars) += ("FLINK_VERSION", flinkVersion)
       )
   }
 
