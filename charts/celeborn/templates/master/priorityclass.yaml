@@ -19,8 +19,8 @@ limitations under the License.
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
-  name: {{ include "celeborn.masterPriorityClassName" . }}
+  name: {{ include "celeborn.master.priorityClassName" . }}
   labels:
-    {{- include "celeborn.labels" . | nindent 4 }}
+    {{- include "celeborn.master.labels" . | nindent 4 }}
 value: {{ .Values.priorityClass.master.value }}
 {{- end }}
