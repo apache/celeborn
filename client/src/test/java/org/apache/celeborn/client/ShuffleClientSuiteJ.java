@@ -427,7 +427,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  new byte[0]);
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
@@ -439,7 +440,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  new byte[0]);
             });
 
     shuffleClient =
@@ -482,7 +484,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  new byte[0]);
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
@@ -493,7 +496,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  new byte[0]);
             });
 
     shuffleClient =
@@ -514,7 +518,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  new byte[0]);
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
@@ -525,7 +530,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  new byte[0]);
             });
 
     shuffleClient =
@@ -546,7 +552,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  new byte[0]);
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
@@ -557,7 +564,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  new byte[0]);
             });
 
     shuffleClient =

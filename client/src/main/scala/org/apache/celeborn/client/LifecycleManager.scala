@@ -1677,6 +1677,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         } else {
           batchRemoveShuffleIds += shuffleId
         }
+        invalidatedBroadcastGetReducerFileGroupResponse(shuffleId)
       }
     }
     if (batchRemoveShuffleIds.nonEmpty) {
@@ -1848,6 +1849,22 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     cancelShuffleCallback = Some(callback)
   }
 
+  @volatile private var broadcastGetReducerFileGroupResponseCallback
+      : Option[java.util.function.BiFunction[Integer, GetReducerFileGroupResponse, Array[Byte]]] =
+    None
+  def registerBroadcastGetReducerFileGroupResponseCallback(call: java.util.function.BiFunction[
+    Integer,
+    GetReducerFileGroupResponse,
+    Array[Byte]]): Unit = {
+    broadcastGetReducerFileGroupResponseCallback = Some(call)
+  }
+
+  @volatile private var invalidatedBroadcastCallback: Option[Consumer[Integer]] =
+    None
+  def registerInvalidatedBroadcastCallback(call: Consumer[Integer]): Unit = {
+    invalidatedBroadcastCallback = Some(call)
+  }
+
   def invalidateLatestMaxLocsCache(shuffleId: Int): Unit = {
     registerShuffleResponseRpcCache.invalidate(shuffleId)
   }
@@ -1889,4 +1906,19 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     case _ =>
   }
 
+  def broadcastGetReducerFileGroupResponse(
+      shuffleId: Int,
+      response: GetReducerFileGroupResponse): Option[Array[Byte]] = {
+    broadcastGetReducerFileGroupResponseCallback match {
+      case Some(c) => Option(c.apply(shuffleId, response))
+      case _ => None
+    }
+  }
+
+  private def invalidatedBroadcastGetReducerFileGroupResponse(shuffleId: Int): Unit = {
+    invalidatedBroadcastCallback match {
+      case Some(c) => c.accept(shuffleId)
+      case _ =>
+    }
+  }
 }

@@ -22,6 +22,7 @@ import java.util.{Collections, UUID}
 
 import scala.collection.JavaConverters._
 
+import com.google.protobuf.ByteString
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.identity.UserIdentifier
@@ -285,10 +286,11 @@ object ControlMessages extends Logging {
   // Path can't be serialized
   case class GetReducerFileGroupResponse(
       status: StatusCode,
-      fileGroup: util.Map[Integer, util.Set[PartitionLocation]],
-      attempts: Array[Int],
+      fileGroup: util.Map[Integer, util.Set[PartitionLocation]] = Collections.emptyMap(),
+      attempts: Array[Int] = Array.emptyIntArray,
       partitionIds: util.Set[Integer] = Collections.emptySet[Integer](),
-      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]] = Collections.emptyMap())
+      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]] = Collections.emptyMap(),
+      broadcast: Array[Byte] = Array.emptyByteArray)
     extends MasterMessage
 
   object WorkerExclude {
@@ -752,7 +754,13 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP, payload)
 
-    case GetReducerFileGroupResponse(status, fileGroup, attempts, partitionIds, failedBatches) =>
+    case GetReducerFileGroupResponse(
+          status,
+          fileGroup,
+          attempts,
+          partitionIds,
+          failedBatches,
+          broadcast) =>
       val builder = PbGetReducerFileGroupResponse
         .newBuilder()
         .setStatus(status.getValue)
@@ -770,6 +778,7 @@ object ControlMessages extends Logging {
           case (uniqueId, pushFailedBatchSet) =>
             (uniqueId, PbSerDeUtils.toPbPushFailedBatchSet(pushFailedBatchSet))
         }.asJava)
+      builder.setBroadcast(ByteString.copyFrom(broadcast))
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
 
@@ -1198,12 +1207,14 @@ object ControlMessages extends Logging {
           case (uniqueId, pushFailedBatchSet) =>
             (uniqueId, PbSerDeUtils.fromPbPushFailedBatchSet(pushFailedBatchSet))
         }.toMap.asJava
+        val broadcast = pbGetReducerFileGroupResponse.getBroadcast.toByteArray
         GetReducerFileGroupResponse(
           Utils.toStatusCode(pbGetReducerFileGroupResponse.getStatus),
           fileGroup,
           attempts,
           partitionIds,
-          pushFailedBatches)
+          pushFailedBatches,
+          broadcast)
 
       case GET_SHUFFLE_ID_VALUE =>
         message.getParsedPayload()

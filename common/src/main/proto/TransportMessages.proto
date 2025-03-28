@@ -390,6 +390,8 @@ message PbGetReducerFileGroupResponse {
   repeated int32 partitionIds = 4;
 
   map<string, PbPushFailedBatchSet> pushFailedBatches = 5;
+
+  bytes broadcast = 6;
 }
 
 message PbGetShuffleId {
