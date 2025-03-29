@@ -24,7 +24,6 @@ import java.time.Duration;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -80,11 +79,7 @@ public abstract class AbstractRemoteShuffleServiceFactory
     ResultPartitionManager resultPartitionManager = new ResultPartitionManager();
     MetricGroup metricGroup = shuffleEnvironmentContext.getParentMetricGroup();
 
-    Duration requestSegmentsTimeout =
-        Duration.ofMillis(
-            configuration.getLong(
-                NettyShuffleEnvironmentOptions
-                    .NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS));
+    Duration requestSegmentsTimeout = getRequestSegmentsTimeout(configuration);
     NetworkBufferPool networkBufferPool =
         new NetworkBufferPool(numBuffers, bufferSize, requestSegmentsTimeout);
 
@@ -95,6 +90,8 @@ public abstract class AbstractRemoteShuffleServiceFactory
             configuration, bufferSize, resultPartitionManager, networkBufferPool, celebornConf);
     return result;
   }
+
+  abstract Duration getRequestSegmentsTimeout(Configuration configuration);
 
   protected static class AbstractRemoteShuffleServiceParameters {
     public final Configuration configuration;

@@ -87,12 +87,6 @@
     </dependency>
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>${flink.scala.artifact}</artifactId>
-      <version>${flink.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.flink</groupId>
       <artifactId>${flink.runtime.web.artifact}</artifactId>
       <version>${flink.version}</version>
       <scope>test</scope>

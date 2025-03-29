@@ -347,6 +347,7 @@ if [ "$SBT_ENABLED" == "true" ]; then
     sbt_build_client -Pflink-1.18
     sbt_build_client -Pflink-1.19
     sbt_build_client -Pflink-1.20
+    sbt_build_client -Pflink-2.0
     sbt_build_client -Pmr
     sbt_build_client -Ptez
   else
@@ -381,6 +382,7 @@ else
     build_flink_client -Pflink-1.18
     build_flink_client -Pflink-1.19
     build_flink_client -Pflink-1.20
+    build_flink_client -Pflink-2.0
     build_mr_client -Pmr
     build_tez_client -Ptez
   else
