@@ -60,10 +60,6 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   val metricsCapacity: Int = conf.metricsCapacity
 
-  val timerSupplier = new TimerSupplier(metricsSlidingWindowSize)
-
-  val histogramSupplier = new HistogramSupplier(metricsSlidingWindowSize)
-
   val metricsCleaner: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-metrics-cleaner")
 
@@ -126,10 +122,26 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   def addGauge[T](name: String, labels: Map[String, String] = Map.empty)(f: () => T): Unit = {
-    addGauge(
-      name,
-      labels,
-      metricRegistry.gauge(metricNameWithCustomizedLabels(name, labels), new GaugeSupplier[T](f)))
+    val gauge = new Gauge[T] {
+      override def getValue: T = f()
+    }
+    val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
+    // filter out non-number type gauges
+    if (gauge.getValue.isInstanceOf[Number]) {
+      namedGauges.computeIfAbsent(
+        metricNameWithLabel,
+        (_: String) => {
+          NamedGauge(
+            name,
+            metricRegistry.register(
+              metricNameWithLabel,
+              gauge),
+            labels ++ staticLabels)
+        })
+    } else {
+      logWarning(
+        s"Add gauge $name failed, the value type ${f().getClass} is not a number")
+    }
   }
 
   def addGauge[T](name: String, gauge: Gauge[T]): Unit = {
@@ -152,11 +164,22 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     addMeter(name, labels.asScala.toMap, meter)
   }
 
-  def addMeter(name: String, labels: Map[String, String] = Map.empty)(f: () => Long): Unit = {
-    addMeter(
-      name,
-      labels,
-      metricRegistry.meter(metricNameWithCustomizedLabels(name, labels), new MeterSupplier(f)))
+  def addMeter(
+      name: String,
+      labels: Map[String, String])(f: () => Long): Unit = {
+    val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
+    namedMeters.computeIfAbsent(
+      metricNameWithLabel,
+      (_: String) => {
+        NamedMeter(
+          name,
+          metricRegistry.register(
+            metricNameWithLabel,
+            new Meter() {
+              override def getCount: Long = f()
+            }),
+          labels ++ staticLabels)
+      })
   }
 
   def addMeter(name: String, meter: Meter): Unit = {
@@ -172,7 +195,9 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       (_: String) => {
         val namedTimer = NamedTimer(
           name,
-          metricRegistry.timer(metricNameWithLabel, timerSupplier),
+          metricRegistry.register(
+            metricNameWithLabel,
+            new CelebornTimer(new ResettableSlidingWindowReservoir(metricsSlidingWindowSize))),
           labels ++ staticLabels)
         val values = JavaUtils.newConcurrentHashMap[String, Long]()
         (namedTimer, values)
@@ -194,12 +219,17 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def addHistogram(name: String, labels: Map[String, String]): Unit = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
-    namedHistogram.putIfAbsent(
+    namedHistogram.computeIfAbsent(
       metricNameWithLabel,
-      NamedHistogram(
-        name,
-        metricRegistry.histogram(name, histogramSupplier),
-        labels ++ staticLabels))
+      (_: String) => {
+        NamedHistogram(
+          name,
+          metricRegistry.register(
+            metricNameWithLabel,
+            new CelebornHistogram(new ResettableSlidingWindowReservoir(metricsSlidingWindowSize))),
+          labels ++ staticLabels)
+      })
+
   }
 
   def counters(): List[NamedCounter] = {
@@ -559,27 +589,5 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     } else {
       metricsName + MetricLabels.labelString(labels ++ staticLabels)
     }
-  }
-}
-
-class TimerSupplier(val slidingWindowSize: Int)
-  extends MetricRegistry.MetricSupplier[Timer] {
-  override def newMetric(): Timer = {
-    new CelebornTimer(new ResettableSlidingWindowReservoir(slidingWindowSize))
-  }
-}
-
-class GaugeSupplier[T](f: () => T) extends MetricRegistry.MetricSupplier[Gauge[_]] {
-  override def newMetric(): Gauge[T] = new Gauge[T] { override def getValue: T = f() }
-}
-
-class MeterSupplier(f: () => Long) extends MetricRegistry.MetricSupplier[Meter] {
-  override def newMetric(): Meter = new Meter { override def getCount: Long = f() }
-}
-
-class HistogramSupplier(val slidingWindowSize: Int)
-  extends MetricRegistry.MetricSupplier[Histogram] {
-  override def newMetric(): Histogram = {
-    new CelebornHistogram(new ResettableSlidingWindowReservoir(slidingWindowSize))
   }
 }
