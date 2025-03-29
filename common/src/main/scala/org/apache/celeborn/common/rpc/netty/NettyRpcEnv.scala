@@ -34,7 +34,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.client._
-import org.apache.celeborn.common.network.protocol.{RequestMessage => NRequestMessage, RpcRequest}
+import org.apache.celeborn.common.network.protocol.{LanguageType, RequestMessage => NRequestMessage, RpcRequest, TransportMessage}
 import org.apache.celeborn.common.network.sasl.{SaslClientBootstrap, SaslServerBootstrap}
 import org.apache.celeborn.common.network.sasl.registration.{RegistrationClientBootstrap, RegistrationServerBootstrap}
 import org.apache.celeborn.common.network.server._
@@ -504,6 +504,20 @@ private[celeborn] class RequestMessage(
       writeRpcAddress(out, senderAddress)
       writeRpcAddress(out, receiver.address)
       out.writeUTF(receiver.name)
+      val msg = Utils.toTransportMessage(content)
+      msg match {
+        case transMsg: TransportMessage =>
+          // Check if the msg is a TransportMessage with CPP languageType.
+          // If so, write the marker and the body explicitly.
+          if (transMsg.getLanguageType == LanguageType.CPP) {
+            val out = new DataOutputStream(bos)
+            out.writeByte(LanguageType.CPP.getMarker)
+            out.write(transMsg.toByteBuffer.array)
+            out.close()
+            return bos.toByteBuffer
+          }
+        case _ =>
+      }
       val s = nettyEnv.serializeStream(out)
       try {
         s.writeObject(Utils.toTransportMessage(content))

@@ -48,6 +48,7 @@ import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
+import org.apache.celeborn.common.network.protocol.LanguageType;
 import org.apache.celeborn.common.protocol.CompressionCodec;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse$;
@@ -427,7 +428,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  LanguageType.JAVA);
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
@@ -439,7 +441,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  LanguageType.JAVA);
             });
 
     shuffleClient =
@@ -482,7 +485,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  LanguageType.JAVA);
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
@@ -493,7 +497,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  LanguageType.JAVA);
             });
 
     shuffleClient =
@@ -514,7 +519,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  LanguageType.JAVA);
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
@@ -525,7 +531,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  LanguageType.JAVA);
             });
 
     shuffleClient =
@@ -546,7 +553,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  LanguageType.JAVA);
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
@@ -557,7 +565,8 @@ public class ShuffleClientSuiteJ {
                   locations,
                   new int[0],
                   Collections.emptySet(),
-                  Collections.emptyMap());
+                  Collections.emptyMap(),
+                  LanguageType.JAVA);
             });
 
     shuffleClient =

@@ -34,6 +34,7 @@ import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, Shu
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.ShufflePartitionLocationInfo
+import org.apache.celeborn.common.network.protocol.LanguageType
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -64,8 +65,10 @@ class ReducePartitionCommitHandler(
     sharedRpcPool)
   with Logging {
 
+  class Record(val ctx: RpcCallContext, val languageType: LanguageType) {}
+
   private val getReducerFileGroupRequest =
-    JavaUtils.newConcurrentHashMap[Int, util.Set[RpcCallContext]]()
+    JavaUtils.newConcurrentHashMap[Int, util.Set[Record]]()
   private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
@@ -295,7 +298,7 @@ class ReducePartitionCommitHandler(
       numMappers: Int,
       isSegmentGranularityVisible: Boolean): Unit = {
     super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible)
-    getReducerFileGroupRequest.put(shuffleId, new util.HashSet[RpcCallContext]())
+    getReducerFileGroupRequest.put(shuffleId, new util.HashSet[Record]())
     initMapperAttempts(shuffleId, numMappers)
   }
 
@@ -309,7 +312,14 @@ class ReducePartitionCommitHandler(
     }
   }
 
-  private def replyGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+  private def replyGetReducerFileGroup(record: Record, shuffleId: Int): Unit = {
+    replyGetReducerFileGroup(record.ctx, shuffleId, record.languageType)
+  }
+
+  private def replyGetReducerFileGroup(
+      context: RpcCallContext,
+      shuffleId: Int,
+      languageType: LanguageType): Unit = {
     if (isStageDataLost(shuffleId)) {
       context.reply(
         GetReducerFileGroupResponse(
@@ -323,7 +333,8 @@ class ReducePartitionCommitHandler(
         context.reply(GetReducerFileGroupResponse(
           StatusCode.SUCCESS,
           reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
-          getMapperAttempts(shuffleId)))
+          getMapperAttempts(shuffleId),
+          languageType = languageType))
       } else {
         val cachedMsg = getReducerFileGroupRpcCache.get(
           shuffleId,
@@ -336,7 +347,8 @@ class ReducePartitionCommitHandler(
                 pushFailedBatches =
                   shufflePushFailedBatches.getOrDefault(
                     shuffleId,
-                    new util.HashMap[String, util.Set[PushFailedBatch]]()))
+                    new util.HashMap[String, util.Set[PushFailedBatch]]()),
+                languageType = languageType)
               context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
             }
           })
@@ -345,17 +357,20 @@ class ReducePartitionCommitHandler(
     }
   }
 
-  override def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+  override def handleGetReducerFileGroup(
+      context: RpcCallContext,
+      shuffleId: Int,
+      languageType: LanguageType): Unit = {
     // Quick return for ended stage, avoid occupy sync lock.
     if (isStageEnd(shuffleId)) {
-      replyGetReducerFileGroup(context, shuffleId)
+      replyGetReducerFileGroup(context, shuffleId, languageType)
     } else {
       getReducerFileGroupRequest.synchronized {
         // If setStageEnd() called after isStageEnd and before got lock, should reply here.
         if (isStageEnd(shuffleId)) {
-          replyGetReducerFileGroup(context, shuffleId)
+          replyGetReducerFileGroup(context, shuffleId, languageType)
         } else {
-          getReducerFileGroupRequest.get(shuffleId).add(context)
+          getReducerFileGroupRequest.get(shuffleId).add(new Record(context, languageType))
         }
       }
     }
