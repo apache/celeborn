@@ -43,6 +43,7 @@ public class SparkShuffleManager implements ShuffleManager {
 
   private static final Logger logger = LoggerFactory.getLogger(SparkShuffleManager.class);
 
+
   private static final String sortShuffleManagerName =
       "org.apache.spark.shuffle.sort.SortShuffleManager";
 
