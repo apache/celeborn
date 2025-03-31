@@ -655,6 +655,14 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                         pushMergedDataCallback.unionReplicaSplitPartitions(
                           pushMergedDataResponse.getSplitPartitionIndexesList,
                           pushMergedDataResponse.getStatusCodesList)
+
+                        var index = 0
+                        while (index < result.length) {
+                          if (result(index) == StatusCode.HARD_SPLIT) {
+                            pushMergedDataCallback.addSplitPartition(index, result(index))
+                          }
+                          index += 1
+                        }
                       } catch {
                         case e: CelebornIOException =>
                           pushMergedDataCallback.onFailure(e)
@@ -678,13 +686,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                     return
                   }
 
-                  var index = 0
-                  while (index < result.length) {
-                    if (result(index) == StatusCode.HARD_SPLIT) {
-                      pushMergedDataCallback.addSplitPartition(index, result(index))
-                    }
-                    index += 1
-                  }
                   // Only primary data enable replication will push data to replica
                   Option(CongestionController.instance()) match {
                     case Some(congestionController) =>
