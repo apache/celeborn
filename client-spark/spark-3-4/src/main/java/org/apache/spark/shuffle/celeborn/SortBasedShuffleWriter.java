@@ -168,7 +168,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       SendBufferPool sendBufferPool)
       throws IOException {
     this(
-        SparkUtils.celebornShuffleId(client, handle, taskContext, true),
+        SparkUtils.celebornShuffleId(client, handle, taskContext, true)._1,
         handle.dependency(),
         handle.numMappers(),
         taskContext,
@@ -188,7 +188,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       SortBasedPusher pusher)
       throws IOException {
     this(
-        SparkUtils.celebornShuffleId(client, handle, taskContext, true),
+        SparkUtils.celebornShuffleId(client, handle, taskContext, true)._1,
         handle.dependency(),
         handle.numMappers(),
         taskContext,

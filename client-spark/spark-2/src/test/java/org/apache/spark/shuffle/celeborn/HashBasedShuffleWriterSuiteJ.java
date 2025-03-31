@@ -35,7 +35,7 @@ public class HashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
       throws IOException {
     // this test case is independent of the `mapId` value
     return new HashBasedShuffleWriter<Integer, String, String>(
-        SparkUtils.celebornShuffleId(client, handle, context, true),
+        SparkUtils.celebornShuffleId(client, handle, context, true)._1,
         handle,
         /*mapId=*/ 0,
         context,

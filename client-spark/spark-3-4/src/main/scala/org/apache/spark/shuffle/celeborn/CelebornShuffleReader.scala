@@ -77,26 +77,22 @@ class CelebornShuffleReader[K, C](
 
     val serializerInstance = newSerializerInstance(dep)
 
-    var shuffleId = handle.shuffleId
-    try {
-      shuffleId = SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
-    } catch {
-      case ce @ (_: CelebornIOException) =>
-        // skip report fetch failure cause celeborn shuffleId may not return
-        if (throwsFetchFailure) {
-          logWarning(s"Handle fetch exceptions for ${shuffleId}", ce)
-          throw new FetchFailedException(
-            null,
-            handle.shuffleId,
-            -1,
-            -1,
-            startPartition,
-            SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + handle.shuffleId,
-            ce)
-        } else {
-          throw ce
-        }
-      case e: Throwable => throw e
+    val (shuffleId, success) = SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
+    if (!success) {
+      val ce = new UnsupportedOperationException(
+        s"unexpected! there is no finished map stage associated with appShuffleId ${handle.shuffleId}")
+      if (throwsFetchFailure) {
+        throw new FetchFailedException(
+          null,
+          handle.shuffleId,
+          -1,
+          -1,
+          startPartition,
+          SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + handle.shuffleId,
+          ce)
+      } else {
+        throw ce
+      }
     }
     shuffleIdTracker.track(handle.shuffleId, shuffleId)
     logDebug(

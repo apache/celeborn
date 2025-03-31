@@ -862,7 +862,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     if (shuffleIds == null) {
       logWarning(s"unknown appShuffleId $appShuffleId, maybe no shuffle data for this shuffle")
       val pbGetShuffleIdResponse =
-        PbGetShuffleIdResponse.newBuilder().setShuffleId(UNKNOWN_APP_SHUFFLE_ID).build()
+        PbGetShuffleIdResponse.newBuilder().setShuffleId(UNKNOWN_APP_SHUFFLE_ID).setSuccess(
+          true).build()
       context.reply(pbGetShuffleIdResponse)
       return
     }
@@ -876,7 +877,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         shuffleIds.get(appShuffleIdentifier) match {
           case Some((shuffleId, _)) =>
             val pbGetShuffleIdResponse =
-              PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).build()
+              PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).setSuccess(true).build()
             context.reply(pbGetShuffleIdResponse)
           case None =>
             Option(appShuffleDeterminateMap.get(appShuffleId)).map { determinate =>
@@ -909,7 +910,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                   newShuffleId
                 }
               val pbGetShuffleIdResponse =
-                PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).build()
+                PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).setSuccess(true).build()
               context.reply(pbGetShuffleIdResponse)
             }.orElse(
               throw new UnsupportedOperationException(
@@ -922,12 +923,17 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             val pbGetShuffleIdResponse = {
               logDebug(
                 s"get shuffleId $shuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier isWriter $isWriter")
-              PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).build()
+              PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).setSuccess(true).build()
             }
             context.reply(pbGetShuffleIdResponse)
           case None =>
-            throw new UnsupportedOperationException(
-              s"unexpected! there is no finished map stage associated with appShuffleId $appShuffleId")
+            val pbGetShuffleIdResponse = {
+              logInfo(
+                s"there is no finished map stage associated with appShuffleId $appShuffleId")
+              PbGetShuffleIdResponse.newBuilder().setShuffleId(UNKNOWN_APP_SHUFFLE_ID).setSuccess(
+                false).build()
+            }
+            context.reply(pbGetShuffleIdResponse)
         }
       }
     }

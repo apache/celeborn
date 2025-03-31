@@ -118,7 +118,7 @@ public class SparkUtils {
     return appShuffleId + "-" + context.stageId() + "-" + context.stageAttemptNumber();
   }
 
-  public static int celebornShuffleId(
+  public static Tuple2<Integer, Boolean> celebornShuffleId(
       ShuffleClient client,
       CelebornShuffleHandle<?, ?, ?> handle,
       TaskContext context,
@@ -131,7 +131,7 @@ public class SparkUtils {
           isWriter,
           context instanceof BarrierTaskContext);
     } else {
-      return handle.shuffleId();
+      return Tuple2.apply(handle.shuffleId(), true);
     }
   }
 
