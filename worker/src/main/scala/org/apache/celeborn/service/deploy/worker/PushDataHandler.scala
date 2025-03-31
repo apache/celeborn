@@ -632,51 +632,52 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           // Handle the response from replica
           val wrappedCallback = new RpcResponseCallback() {
             override def onSuccess(response: ByteBuffer): Unit = {
-              // During the rolling upgrade of the worker cluster, it is possible for
-              // the primary worker to be upgraded to a new version that includes
-              // the changes from [CELEBORN-1721], while the replica worker is still running
-              // on an older version that does not have these changes.
-              // In this scenario, the replica may return a response without any context
-              // when status of SUCCESS.
-              val replicaReason =
-                if (response.remaining() > 0) {
-                  response.get()
-                } else {
-                  StatusCode.SUCCESS
-                }
-              if (replicaReason == StatusCode.HARD_SPLIT.getValue) {
-                if (response.remaining() > 0) {
-                  try {
-                    val pushMergedDataResponse: PbPushMergedDataSplitPartitionInfo =
-                      TransportMessage.fromByteBuffer(
-                        response).getParsedPayload[PbPushMergedDataSplitPartitionInfo]()
-                    pushMergedDataCallback.unionReplicaSplitPartitions(
-                      pushMergedDataResponse.getSplitPartitionIndexesList,
-                      pushMergedDataResponse.getStatusCodesList)
-                  } catch {
-                    case e: CelebornIOException =>
-                      pushMergedDataCallback.onFailure(e)
-                      return
-                    case e: IllegalArgumentException =>
-                      pushMergedDataCallback.onFailure(new CelebornIOException(e))
-                      return
-                  }
-                } else {
-                  // During the rolling upgrade of the worker cluster, it is possible for the primary worker
-                  // to be upgraded to a new version that includes the changes from [CELEBORN-1721], while
-                  // the replica worker is still running on an older version that does not have these changes.
-                  // In this scenario, the replica may return a response with a status of HARD_SPLIT, but
-                  // will not provide a PbPushMergedDataSplitPartitionInfo.
-                  logWarning(
-                    s"The response status from the replica (shuffle $shuffleKey map $mapId attempt $attemptId) is HARD_SPLIT, but no PbPushMergedDataSplitPartitionInfo is present.")
-                  partitionIdToLocations.indices.foreach(index =>
-                    pushMergedDataCallback.addSplitPartition(index, StatusCode.HARD_SPLIT))
-                  pushMergedDataCallback.onSuccess(StatusCode.HARD_SPLIT)
-                  return
-                }
-              }
               Try(Await.result(writePromise.future, Duration.Inf)) match {
                 case Success(result) =>
+                  // During the rolling upgrade of the worker cluster, it is possible for
+                  // the primary worker to be upgraded to a new version that includes
+                  // the changes from [CELEBORN-1721], while the replica worker is still running
+                  // on an older version that does not have these changes.
+                  // In this scenario, the replica may return a response without any context
+                  // when status of SUCCESS.
+                  val replicaReason =
+                    if (response.remaining() > 0) {
+                      response.get()
+                    } else {
+                      StatusCode.SUCCESS
+                    }
+                  if (replicaReason == StatusCode.HARD_SPLIT.getValue) {
+                    if (response.remaining() > 0) {
+                      try {
+                        val pushMergedDataResponse: PbPushMergedDataSplitPartitionInfo =
+                          TransportMessage.fromByteBuffer(
+                            response).getParsedPayload[PbPushMergedDataSplitPartitionInfo]()
+                        pushMergedDataCallback.unionReplicaSplitPartitions(
+                          pushMergedDataResponse.getSplitPartitionIndexesList,
+                          pushMergedDataResponse.getStatusCodesList)
+                      } catch {
+                        case e: CelebornIOException =>
+                          pushMergedDataCallback.onFailure(e)
+                          return
+                        case e: IllegalArgumentException =>
+                          pushMergedDataCallback.onFailure(new CelebornIOException(e))
+                          return
+                      }
+                    } else {
+                      // During the rolling upgrade of the worker cluster, it is possible for the primary worker
+                      // to be upgraded to a new version that includes the changes from [CELEBORN-1721], while
+                      // the replica worker is still running on an older version that does not have these changes.
+                      // In this scenario, the replica may return a response with a status of HARD_SPLIT, but
+                      // will not provide a PbPushMergedDataSplitPartitionInfo.
+                      logWarning(
+                        s"The response status from the replica (shuffle $shuffleKey map $mapId attempt $attemptId) is HARD_SPLIT, but no PbPushMergedDataSplitPartitionInfo is present.")
+                      partitionIdToLocations.indices.foreach(index =>
+                        pushMergedDataCallback.addSplitPartition(index, StatusCode.HARD_SPLIT))
+                    }
+                    pushMergedDataCallback.onSuccess(StatusCode.HARD_SPLIT)
+                    return
+                  }
+
                   var index = 0
                   while (index < result.length) {
                     if (result(index) == StatusCode.HARD_SPLIT) {
