@@ -118,3 +118,47 @@
     - any-glob-to-any-file: [
       'spi/**/*'
     ]
+
+"module:tests":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'tests/**/*',
+      'toolkit/**/*',
+    ]
+
+"module:web":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'web/**/*'
+    ]
+
+"module:worker":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'worker/**/*'
+    ]
+
+"module:spark":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'client-spark/**/*',
+      'assets/spark-patch/**/*',
+    ]
+
+"module:flink":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'client-flink/**/*',
+    ]
+
+"module:mr":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'client-mr/**/*',
+    ]
+
+"module:tez":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'client-tez/**/*',
+    ]
