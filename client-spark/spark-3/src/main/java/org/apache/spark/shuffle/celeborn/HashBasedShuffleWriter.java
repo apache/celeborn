@@ -333,8 +333,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final int size = sendOffsets[i];
       if (size > 0) {
         mergeData(i, sendBuffers[i], 0, size);
-        // free buffer
-        sendBuffers[i] = null;
       }
     }
     sendBufferPool.returnBuffer(sendBuffers);
