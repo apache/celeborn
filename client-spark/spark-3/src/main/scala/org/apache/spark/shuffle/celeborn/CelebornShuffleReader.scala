@@ -308,7 +308,7 @@ class CelebornShuffleReader[K, C](
             logInfo(s"inputStream for partition: $partitionId is null, sleeping...")
           }
           sleepCnt += 1
-          Thread.sleep(50)
+          Thread.sleep(5)
           inputStream = streams.get(partitionId)
         }
         if (sleepCnt > 0) {
