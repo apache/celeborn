@@ -88,6 +88,7 @@ import org.apache.celeborn.tez.plugin.util.CelebornTezUtils;
 
 public class CelebornDagAppMaster extends DAGAppMaster {
 
+
   private static final Logger Logger = LoggerFactory.getLogger(CelebornDagAppMaster.class);
   private static final String MASTER_ENDPOINTS_ENV = "CELEBORN_MASTER_ENDPOINTS";
 

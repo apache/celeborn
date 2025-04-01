@@ -16,6 +16,7 @@
 # limitations under the License.
 #
 
+
 #set -x
 REG_HOME="$(
   cd "$(dirname "$0")"

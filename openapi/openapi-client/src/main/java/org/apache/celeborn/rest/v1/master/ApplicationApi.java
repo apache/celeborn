@@ -50,6 +50,7 @@ public class ApplicationApi extends BaseApi {
     super(apiClient);
   }
 
+
   /**
    * 
    * Delete resource of apps.

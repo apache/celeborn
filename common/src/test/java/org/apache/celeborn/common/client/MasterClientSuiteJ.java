@@ -52,6 +52,7 @@ import org.apache.celeborn.common.rpc.RpcTimeoutException;
 public class MasterClientSuiteJ {
   private static final Logger LOG = LoggerFactory.getLogger(MasterClientSuiteJ.class);
 
+
   private final String masterHost = "localhost";
   private final int masterPort = 9097;
   private final CelebornConf conf = new CelebornConf(false);

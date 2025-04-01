@@ -42,6 +42,7 @@ class ApplicationHeartbeater(
     registeredShuffles: ConcurrentHashMap.KeySetView[Int, java.lang.Boolean],
     cancelAllActiveStages: String => Unit) extends Logging {
 
+
   private var stopped = false
   private val reviseLostShuffles = conf.reviseLostShufflesEnabled
 

@@ -29,6 +29,7 @@ import org.apache.celeborn.service.deploy.worker.Worker
 
 class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
 
+
   private val celebornConf = new CelebornConf()
   protected var master: Master = _
   protected var worker: Worker = _

@@ -40,6 +40,7 @@ public class MasterSecretRegistryImpl implements SecretRegistry {
     statusSystem.handleApplicationMeta(new ApplicationMeta(appId, secret));
   }
 
+
   @Override
   public void unregister(String appId) {
     LOG.info("Removing metadata for appId: {}", appId);

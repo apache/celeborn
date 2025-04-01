@@ -40,6 +40,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     super.beforeAll()
   }
 
+
   override def beforeEach(): Unit = {
     val testConf = Map(
       s"${CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key}" -> "3")

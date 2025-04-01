@@ -18,6 +18,7 @@
 # An Example:
 # celeborn.worker.storage.dirs                    /mnt/disk1:capacity=1T:disktype=HDD:flushthread=1,/mnt/disk2:capacity=1T:disktype=SSD:flushthread=16
 
+
 celeborn.metrics.enabled                         true
 
 celeborn.worker.http.port                        9096

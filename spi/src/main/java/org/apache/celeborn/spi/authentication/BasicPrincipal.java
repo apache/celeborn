@@ -33,6 +33,7 @@ public class BasicPrincipal implements Principal {
     return name;
   }
 
+
   @Override
   public String toString() {
     return name;

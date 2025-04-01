@@ -80,6 +80,7 @@ public class FetchHandlerSuiteJ {
 
   private static final CelebornConf conf = new CelebornConf();
 
+
   private static final Random random = new Random();
 
   private static final UserIdentifier userIdentifier =

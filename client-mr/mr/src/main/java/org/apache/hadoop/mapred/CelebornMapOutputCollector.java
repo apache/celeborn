@@ -39,6 +39,7 @@ public class CelebornMapOutputCollector<K extends Object, V extends Object>
   private CelebornSortBasedPusher<K, V> celebornSortBasedPusher;
   private int numReducers;
 
+
   @Override
   public void init(Context context) throws IOException {
     JobConf jobConf = context.getJobConf();

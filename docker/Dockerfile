@@ -18,6 +18,7 @@
 ARG java_image_tag=8-jdk-noble
 FROM eclipse-temurin:${java_image_tag}
 
+
 ARG celeborn_uid=10006
 ARG celeborn_gid=10006
 

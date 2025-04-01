@@ -35,6 +35,7 @@ from urllib.request import urlopen
 from urllib.request import Request
 from urllib.error import HTTPError
 
+
 try:
     import jira.client
 
