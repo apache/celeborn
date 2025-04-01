@@ -21,6 +21,7 @@ import java.io.IOException
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
 
@@ -43,7 +44,8 @@ import org.apache.celeborn.common.exception.{CelebornIOException, PartitionUnRet
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol._
-import org.apache.celeborn.common.protocol.message.StatusCode
+import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
+import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
 
 class CelebornShuffleReader[K, C](
@@ -465,4 +467,13 @@ class CelebornShuffleReader[K, C](
 
 object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
+  // Register the deserializer for GetReducerFileGroupResponse broadcast
+  ShuffleClient.registerDeserializeReducerFileGroupResponseFunction(new BiFunction[
+    Integer,
+    Array[Byte],
+    GetReducerFileGroupResponse] {
+    override def apply(shuffleId: Integer, broadcast: Array[Byte]): GetReducerFileGroupResponse = {
+      SparkUtils.deserializeGetReducerFileGroupResponse(shuffleId, broadcast)
+    }
+  })
 }
