@@ -26,6 +26,7 @@ class MasterSource(conf: CelebornConf) extends AbstractSource(conf, Role.MASTER)
   import MasterSource._
   // add timers
   addTimer(OFFER_SLOTS_TIME)
+  addTimer(UPDATE_RESOURCE_CONSUMPTION_TIME)
   // start cleaner
   startCleaner()
 }
