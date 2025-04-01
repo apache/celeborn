@@ -239,7 +239,8 @@ public class WorkerPartitionReader implements PartitionReader {
   private void fetchChunks() throws IOException, InterruptedException {
     final int inFlight = inflightRequestCount;
     if (inFlight < fetchMaxReqsInFlight) {
-      int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, streamHandler.getNumChunks() - chunkIndex);
+      int toFetch =
+          Math.min(fetchMaxReqsInFlight - inFlight + 1, streamHandler.getNumChunks() - chunkIndex);
 
       while (toFetch > 0 && chunkIndex < streamHandler.getNumChunks()) {
         if (partitionReaderCheckpointMetadata.isPresent()
