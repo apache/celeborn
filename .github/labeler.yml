@@ -35,7 +35,7 @@
 
 "kind:deploy":
   - changed-files:
-    - all-globs-to-any-file: [
+    - any-glob-to-any-file: [
       'bin/**/*',
       'sbin/**/*',
       'assets/grafana/*',
