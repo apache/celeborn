@@ -66,10 +66,10 @@ class ReducePartitionCommitHandler(
     sharedRpcPool)
   with Logging {
 
-  class MultiLanguageRpcContext(val ctx: RpcCallContext, val serdeVersion: SerdeVersion) {}
+  class MultiSerdeVersionRpcContext(val ctx: RpcCallContext, val serdeVersion: SerdeVersion) {}
 
   private val getReducerFileGroupRequest =
-    JavaUtils.newConcurrentHashMap[Int, util.Set[MultiLanguageRpcContext]]()
+    JavaUtils.newConcurrentHashMap[Int, util.Set[MultiSerdeVersionRpcContext]]()
   private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
@@ -303,7 +303,7 @@ class ReducePartitionCommitHandler(
       numMappers: Int,
       isSegmentGranularityVisible: Boolean): Unit = {
     super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible)
-    getReducerFileGroupRequest.put(shuffleId, new util.HashSet[MultiLanguageRpcContext]())
+    getReducerFileGroupRequest.put(shuffleId, new util.HashSet[MultiSerdeVersionRpcContext]())
     initMapperAttempts(shuffleId, numMappers)
   }
 
@@ -317,7 +317,9 @@ class ReducePartitionCommitHandler(
     }
   }
 
-  private def replyGetReducerFileGroup(context: MultiLanguageRpcContext, shuffleId: Int): Unit = {
+  private def replyGetReducerFileGroup(
+      context: MultiSerdeVersionRpcContext,
+      shuffleId: Int): Unit = {
     replyGetReducerFileGroup(context.ctx, shuffleId, context.serdeVersion)
   }
 
@@ -415,7 +417,7 @@ class ReducePartitionCommitHandler(
         if (isStageEnd(shuffleId)) {
           replyGetReducerFileGroup(context, shuffleId, serdeVersion)
         } else {
-          getReducerFileGroupRequest.get(shuffleId).add(new MultiLanguageRpcContext(
+          getReducerFileGroupRequest.get(shuffleId).add(new MultiSerdeVersionRpcContext(
             context,
             serdeVersion))
         }
