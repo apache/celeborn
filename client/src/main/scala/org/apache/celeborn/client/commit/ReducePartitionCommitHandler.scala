@@ -34,7 +34,7 @@ import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, Shu
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.ShufflePartitionLocationInfo
-import org.apache.celeborn.common.network.protocol.LanguageType
+import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -66,7 +66,7 @@ class ReducePartitionCommitHandler(
     sharedRpcPool)
   with Logging {
 
-  class MultiLanguageRpcContext(val ctx: RpcCallContext, val languageType: LanguageType) {}
+  class MultiLanguageRpcContext(val ctx: RpcCallContext, val serdeVersion: SerdeVersion) {}
 
   private val getReducerFileGroupRequest =
     JavaUtils.newConcurrentHashMap[Int, util.Set[MultiLanguageRpcContext]]()
@@ -317,14 +317,14 @@ class ReducePartitionCommitHandler(
     }
   }
 
-  private def replyGetReducerFileGroup(record: MultiLanguageRpcContext, shuffleId: Int): Unit = {
-    replyGetReducerFileGroup(record.ctx, shuffleId, record.languageType)
+  private def replyGetReducerFileGroup(context: MultiLanguageRpcContext, shuffleId: Int): Unit = {
+    replyGetReducerFileGroup(context.ctx, shuffleId, context.serdeVersion)
   }
 
   private def replyGetReducerFileGroup(
       context: RpcCallContext,
       shuffleId: Int,
-      languageType: LanguageType): Unit = {
+      serdeVersion: SerdeVersion): Unit = {
     if (isStageDataLost(shuffleId)) {
       context.reply(
         GetReducerFileGroupResponse(
@@ -339,7 +339,7 @@ class ReducePartitionCommitHandler(
           StatusCode.SUCCESS,
           reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
           getMapperAttempts(shuffleId),
-          languageType = languageType)
+          serdeVersion = serdeVersion)
 
         // only check whether broadcast enabled for the UTs
         if (getReducerFileGroupResponseBroadcastEnabled) {
@@ -360,7 +360,7 @@ class ReducePartitionCommitHandler(
                   shufflePushFailedBatches.getOrDefault(
                     shuffleId,
                     new util.HashMap[String, util.Set[PushFailedBatch]]()),
-                languageType = languageType)
+                serdeVersion = serdeVersion)
 
               val serializedMsg =
                 context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
@@ -397,7 +397,7 @@ class ReducePartitionCommitHandler(
         GetReducerFileGroupResponse(
           response.status,
           broadcast = broadcastBytes,
-          languageType = response.languageType)
+          serdeVersion = response.serdeVersion)
       case _ => response
     }
   }
@@ -405,19 +405,19 @@ class ReducePartitionCommitHandler(
   override def handleGetReducerFileGroup(
       context: RpcCallContext,
       shuffleId: Int,
-      languageType: LanguageType): Unit = {
+      serdeVersion: SerdeVersion): Unit = {
     // Quick return for ended stage, avoid occupy sync lock.
     if (isStageEnd(shuffleId)) {
-      replyGetReducerFileGroup(context, shuffleId, languageType)
+      replyGetReducerFileGroup(context, shuffleId, serdeVersion)
     } else {
       getReducerFileGroupRequest.synchronized {
         // If setStageEnd() called after isStageEnd and before got lock, should reply here.
         if (isStageEnd(shuffleId)) {
-          replyGetReducerFileGroup(context, shuffleId, languageType)
+          replyGetReducerFileGroup(context, shuffleId, serdeVersion)
         } else {
           getReducerFileGroupRequest.get(shuffleId).add(new MultiLanguageRpcContext(
             context,
-            languageType))
+            serdeVersion))
         }
       }
     }

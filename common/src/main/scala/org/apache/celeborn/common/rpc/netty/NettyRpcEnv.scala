@@ -34,7 +34,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.client._
-import org.apache.celeborn.common.network.protocol.{LanguageType, RequestMessage => NRequestMessage, RpcRequest, TransportMessage}
+import org.apache.celeborn.common.network.protocol.{RequestMessage => NRequestMessage, RpcRequest, SerdeVersion, TransportMessage}
 import org.apache.celeborn.common.network.sasl.{SaslClientBootstrap, SaslServerBootstrap}
 import org.apache.celeborn.common.network.sasl.registration.{RegistrationClientBootstrap, RegistrationServerBootstrap}
 import org.apache.celeborn.common.network.server._
@@ -507,11 +507,11 @@ private[celeborn] class RequestMessage(
       val msg = Utils.toTransportMessage(content)
       msg match {
         case transMsg: TransportMessage =>
-          // Check if the msg is a TransportMessage with CPP languageType.
+          // Check if the msg is a TransportMessage with language-agnostic V2 serdeVersion.
           // If so, write the marker and the body explicitly.
-          if (transMsg.getLanguageType == LanguageType.CPP) {
+          if (transMsg.getSerdeVersion == SerdeVersion.V2) {
             val out = new DataOutputStream(bos)
-            out.writeByte(LanguageType.CPP.getMarker)
+            out.writeByte(SerdeVersion.V2.getMarker)
             out.write(transMsg.toByteBuffer.array)
             out.close()
             return bos.toByteBuffer

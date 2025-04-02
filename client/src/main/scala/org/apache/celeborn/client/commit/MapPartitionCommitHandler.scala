@@ -31,7 +31,7 @@ import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, Shu
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
-import org.apache.celeborn.common.network.protocol.LanguageType
+import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -234,7 +234,7 @@ class MapPartitionCommitHandler(
   override def handleGetReducerFileGroup(
       context: RpcCallContext,
       shuffleId: Int,
-      languageType: LanguageType): Unit = {
+      serdeVersion: SerdeVersion): Unit = {
     // TODO: if support the downstream map task start early before the upstream reduce task, it should
     //  waiting the upstream task register shuffle, then reply these GetReducerFileGroup.
     //  Note that flink hybrid shuffle should support it in the future.
@@ -249,7 +249,7 @@ class MapPartitionCommitHandler(
       reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
       getMapperAttempts(shuffleId),
       succeedPartitionIds,
-      languageType = languageType))
+      serdeVersion = serdeVersion))
   }
 
   override def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {

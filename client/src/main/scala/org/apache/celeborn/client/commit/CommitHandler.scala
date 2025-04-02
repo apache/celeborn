@@ -34,7 +34,7 @@ import org.apache.celeborn.client.LifecycleManager.{ShuffleFailedWorkers, Shuffl
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
-import org.apache.celeborn.common.network.protocol.LanguageType
+import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -182,7 +182,7 @@ abstract class CommitHandler(
   def handleGetReducerFileGroup(
       context: RpcCallContext,
       shuffleId: Int,
-      languageType: LanguageType): Unit
+      serdeVersion: SerdeVersion): Unit
 
   def removeExpiredShuffle(shuffleId: Int): Unit = {
     reducerFileGroupsMap.remove(shuffleId)

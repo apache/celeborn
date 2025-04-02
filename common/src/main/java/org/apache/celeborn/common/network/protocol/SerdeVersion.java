@@ -18,18 +18,20 @@
 package org.apache.celeborn.common.network.protocol;
 
 /**
- * LanguageType represents which language the message is deserialized from / will be serialized
- * into. For JAVA, the leading byte would be 0xAC according to Java's serialization stack. For CPP,
- * the leading byte would be 0xFF as defined in CelebornCpp module. In this way, messages from/for
- * different language could be distinguished and deser/ser accordingly.
+ * SerdeVersion represents which ser/de version the message is deserialized from / will be
+ * serialized into. For V1 (used by legacy java engine), the ser/de is dependent on java's
+ * serialization stack, and the leading byte would be 0xAC according to Java's serialization stack.
+ * For V2 (used by cpp client), the ser/de is language-agnostic, the leading byte would be 0xFF as
+ * defined in CelebornCpp module. In this way, messages from/for different version could be
+ * distinguished and ser/de accordingly.
  */
-public enum LanguageType {
-  JAVA((byte) 0xAC),
-  CPP((byte) 0xFF);
+public enum SerdeVersion {
+  V1((byte) 0xAC),
+  V2((byte) 0xFF);
 
   private final byte marker;
 
-  LanguageType(byte marker) {
+  SerdeVersion(byte marker) {
     this.marker = marker;
   }
 

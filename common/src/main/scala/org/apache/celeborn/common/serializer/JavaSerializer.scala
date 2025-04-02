@@ -23,7 +23,7 @@ import java.nio.ByteBuffer
 import scala.reflect.ClassTag
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.network.protocol.{LanguageType, TransportMessage}
+import org.apache.celeborn.common.network.protocol.{SerdeVersion, TransportMessage}
 import org.apache.celeborn.common.util.{ByteBufferInputStream, ByteBufferOutputStream, Utils}
 
 private[celeborn] class JavaSerializationStream(
@@ -102,11 +102,11 @@ private[celeborn] class JavaSerializerInstance(
     val msg = Utils.toTransportMessage(t)
     msg match {
       case transMsg: TransportMessage =>
-        // Check if the msg is a TransportMessage with CPP languageType.
+        // Check if the msg is a TransportMessage with language-agnostic V2 serdeVersion.
         // If so, write the marker and the body explicitly.
-        if (transMsg.getLanguageType == LanguageType.CPP) {
+        if (transMsg.getSerdeVersion == SerdeVersion.V2) {
           val out = new DataOutputStream(bos)
-          out.writeByte(LanguageType.CPP.getMarker)
+          out.writeByte(SerdeVersion.V2.getMarker)
           out.write(transMsg.toByteBuffer.array)
           out.close()
           return bos.toByteBuffer
@@ -121,11 +121,11 @@ private[celeborn] class JavaSerializerInstance(
 
   override def deserialize[T: ClassTag](bytes: ByteBuffer): T = {
     bytes.mark
-    val languageMarker = bytes.get
-    // If the languageMarker byte is CPP, deserialize directly.
-    if (languageMarker == LanguageType.CPP.getMarker) {
+    val serdeVersion = bytes.get
+    // If the serdeVersion byte is V2, deserialize directly.
+    if (serdeVersion == SerdeVersion.V2.getMarker) {
       return Utils.fromTransportMessage(
-        TransportMessage.fromByteBuffer(bytes, LanguageType.CPP)).asInstanceOf[T]
+        TransportMessage.fromByteBuffer(bytes, SerdeVersion.V2)).asInstanceOf[T]
     }
     bytes.reset
     val bis = new ByteBufferInputStream(bytes)
@@ -135,11 +135,11 @@ private[celeborn] class JavaSerializerInstance(
 
   override def deserialize[T: ClassTag](bytes: ByteBuffer, loader: ClassLoader): T = {
     bytes.mark
-    val languageMarker = bytes.get
-    // If the languageMarker byte is CPP, deserialize directly.
-    if (languageMarker == LanguageType.CPP.getMarker) {
+    val serdeVersion = bytes.get
+    // If the serdeVersion byte is V2, deserialize directly.
+    if (serdeVersion == SerdeVersion.V2.getMarker) {
       return Utils.fromTransportMessage(
-        TransportMessage.fromByteBuffer(bytes, LanguageType.CPP)).asInstanceOf[T]
+        TransportMessage.fromByteBuffer(bytes, SerdeVersion.V2)).asInstanceOf[T]
     }
     bytes.reset
     val bis = new ByteBufferInputStream(bytes)

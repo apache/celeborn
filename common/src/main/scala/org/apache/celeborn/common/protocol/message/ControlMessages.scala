@@ -28,7 +28,7 @@ import org.roaringbitmap.RoaringBitmap
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
-import org.apache.celeborn.common.network.protocol.{LanguageType, TransportMessage}
+import org.apache.celeborn.common.network.protocol.{SerdeVersion, TransportMessage}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.MessageType._
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -282,7 +282,7 @@ object ControlMessages extends Logging {
   case class GetReducerFileGroup(
       shuffleId: Int,
       isSegmentGranularityVisible: Boolean,
-      languageType: LanguageType)
+      serdeVersion: SerdeVersion)
     extends MasterMessage
 
   // util.Set[String] -> util.Set[Path.toString]
@@ -294,7 +294,7 @@ object ControlMessages extends Logging {
       partitionIds: util.Set[Integer] = Collections.emptySet[Integer](),
       pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]] = Collections.emptyMap(),
       broadcast: Array[Byte] = Array.emptyByteArray,
-      languageType: LanguageType = LanguageType.JAVA)
+      serdeVersion: SerdeVersion = SerdeVersion.V1)
     extends MasterMessage
 
   object WorkerExclude {
@@ -751,12 +751,12 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END_RESPONSE, payload)
 
-    case GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, languageType) =>
+    case GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, serdeVersion) =>
       val payload = PbGetReducerFileGroup.newBuilder()
         .setShuffleId(shuffleId)
         .setIsSegmentGranularityVisible(isSegmentGranularityVisible)
         .build().toByteArray
-      new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP, payload, languageType)
+      new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP, payload, serdeVersion)
 
     case GetReducerFileGroupResponse(
           status,
@@ -765,7 +765,7 @@ object ControlMessages extends Logging {
           partitionIds,
           failedBatches,
           broadcast,
-          languageType) =>
+          serdeVersion) =>
       val builder = PbGetReducerFileGroupResponse
         .newBuilder()
         .setStatus(status.getValue)
@@ -785,7 +785,7 @@ object ControlMessages extends Logging {
         }.asJava)
       builder.setBroadcast(ByteString.copyFrom(broadcast))
       val payload = builder.build().toByteArray
-      new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload, languageType)
+      new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload, serdeVersion)
 
     case pb: PbWorkerExclude =>
       new TransportMessage(MessageType.WORKER_EXCLUDE, pb.toByteArray)
@@ -1183,7 +1183,7 @@ object ControlMessages extends Logging {
         GetReducerFileGroup(
           pbGetReducerFileGroup.getShuffleId,
           pbGetReducerFileGroup.getIsSegmentGranularityVisible,
-          message.getLanguageType)
+          message.getSerdeVersion)
 
       case GET_REDUCER_FILE_GROUP_RESPONSE_VALUE =>
         val pbGetReducerFileGroupResponse = PbGetReducerFileGroupResponse

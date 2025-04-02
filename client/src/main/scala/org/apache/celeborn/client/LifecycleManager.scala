@@ -45,8 +45,7 @@ import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ApplicationMeta, ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.source.Role
-import org.apache.celeborn.common.network.protocol.LanguageType
-import org.apache.celeborn.common.network.protocol.TransportMessagesHelper
+import org.apache.celeborn.common.network.protocol.{SerdeVersion, TransportMessagesHelper}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
@@ -436,10 +435,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     case GetReducerFileGroup(
           shuffleId: Int,
           isSegmentGranularityVisible: Boolean,
-          languageType: LanguageType) =>
+          serdeVersion: SerdeVersion) =>
       logDebug(
         s"Received GetShuffleFileGroup request for shuffleId $shuffleId, isSegmentGranularityVisible $isSegmentGranularityVisible")
-      handleGetReducerFileGroup(context, shuffleId, isSegmentGranularityVisible, languageType)
+      handleGetReducerFileGroup(context, shuffleId, isSegmentGranularityVisible, serdeVersion)
 
     case pb: PbGetShuffleId =>
       val appShuffleId = pb.getAppShuffleId
@@ -850,7 +849,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       context: RpcCallContext,
       shuffleId: Int,
       isSegmentGranularityVisible: Boolean,
-      languageType: LanguageType): Unit = {
+      serdeVersion: SerdeVersion): Unit = {
     // If isSegmentGranularityVisible is set to true, the downstream reduce task may start early than upstream map task, e.g. flink hybrid shuffle.
     // Under these circumstances, there's a possibility that the shuffle might not yet be registered when the downstream reduce task send GetReduceFileGroup request,
     // so we shouldn't send a SHUFFLE_NOT_REGISTERED response directly, should enqueue this request to pending list, and response to the downstream reduce task the ReduceFileGroup when the upstream map task register shuffle done
@@ -860,10 +859,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         StatusCode.SHUFFLE_NOT_REGISTERED,
         JavaUtils.newConcurrentHashMap(),
         Array.empty,
-        languageType = languageType))
+        serdeVersion = serdeVersion))
       return
     }
-    commitManager.handleGetReducerFileGroup(context, shuffleId, languageType)
+    commitManager.handleGetReducerFileGroup(context, shuffleId, serdeVersion)
   }
 
   private def handleGetShuffleIdForApp(

@@ -53,11 +53,8 @@ import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientBootstrap;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
-import org.apache.celeborn.common.network.protocol.LanguageType;
-import org.apache.celeborn.common.network.protocol.PushData;
-import org.apache.celeborn.common.network.protocol.PushMergedData;
-import org.apache.celeborn.common.network.protocol.TransportMessage;
-import org.apache.celeborn.common.network.protocol.TransportMessagesHelper;
+import org.apache.celeborn.common.network.protocol.*;
+import org.apache.celeborn.common.network.protocol.SerdeVersion;
 import org.apache.celeborn.common.network.sasl.SaslClientBootstrap;
 import org.apache.celeborn.common.network.sasl.SaslCredentials;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
@@ -1804,7 +1801,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     try {
       GetReducerFileGroup getReducerFileGroup =
-          new GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, LanguageType.JAVA);
+          new GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, SerdeVersion.V1);
 
       GetReducerFileGroupResponse response =
           lifecycleManagerRef.askSync(

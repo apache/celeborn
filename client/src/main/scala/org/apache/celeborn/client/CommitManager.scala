@@ -34,7 +34,7 @@ import org.apache.celeborn.client.listener.{WorkersStatus, WorkerStatusListener}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
-import org.apache.celeborn.common.network.protocol.LanguageType
+import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, StorageInfo}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
@@ -279,8 +279,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
   def handleGetReducerFileGroup(
       context: RpcCallContext,
       shuffleId: Int,
-      languageType: LanguageType): Unit = {
-    getCommitHandler(shuffleId).handleGetReducerFileGroup(context, shuffleId, languageType)
+      serdeVersion: SerdeVersion): Unit = {
+    getCommitHandler(shuffleId).handleGetReducerFileGroup(context, shuffleId, serdeVersion)
   }
 
   // exposed for test
