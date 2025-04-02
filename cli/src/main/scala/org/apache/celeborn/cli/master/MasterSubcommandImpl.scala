@@ -250,8 +250,6 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
         spec.commandLine(),
         "Applications must be provided for this command.")
     }
-    val appIds = util.Arrays.asList[String](commonOptions.apps.split(","): _*)
-    val request = new DeleteAppsRequest().apps(appIds)
-    applicationApi.deleteApps(request)
+    applicationApi.deleteApps(commonOptions.apps)
   }
 }
