@@ -313,15 +313,20 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   protected def doStopTimer(metricsName: String, key: String, labels: Map[String, String]): Unit = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, labels)
     try {
-      val (namedTimer, map) = namedTimers.get(metricNameWithLabel)
-      val startTime = Option(map.remove(key))
-      startTime match {
-        case Some(t) =>
-          namedTimer.timer.update(System.nanoTime() - t, TimeUnit.NANOSECONDS)
-          if (namedTimer.timer.getCount % metricsSlidingWindowSize == 0) {
-            addTimerMetrics(namedTimer)
-          }
-        case None =>
+      val pair = namedTimers.get(metricNameWithLabel)
+      if (pair != null) {
+        val (namedTimer, map) = pair
+        val startTime = Option(map.remove(key))
+        startTime match {
+          case Some(t) =>
+            namedTimer.timer.update(System.nanoTime() - t, TimeUnit.NANOSECONDS)
+            if (namedTimer.timer.getCount % metricsSlidingWindowSize == 0) {
+              addTimerMetrics(namedTimer)
+            }
+          case None =>
+        }
+      } else {
+        logWarning(s"Metric $metricNameWithLabel not found!")
       }
     } catch {
       case e: Exception =>

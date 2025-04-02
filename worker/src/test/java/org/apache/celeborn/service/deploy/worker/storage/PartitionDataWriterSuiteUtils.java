@@ -53,13 +53,23 @@ public class PartitionDataWriterSuiteUtils {
       UserIdentifier userIdentifier,
       Flusher flusher,
       boolean reduceMeta,
-      CelebornConf conf)
+      CelebornConf conf,
+      StoragePolicy storagePolicy,
+      PartitionDataWriterContext context)
       throws IOException {
     File file = getTemporaryFile(tempDir);
     DiskFileInfo fileInfo = new DiskFileInfo(file, userIdentifier, conf);
+
+    AtomicInteger numPendingWriters = new AtomicInteger();
+    FlushNotifier flushNotifier = new FlushNotifier();
+    PartitionMetaHandler metaHandler = null;
     if (!reduceMeta) {
       fileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
+      metaHandler = new MapPartitionMetaHandler(fileInfo, flushNotifier);
+    } else {
+      metaHandler = new ReducePartitionMetaHandler(conf.shuffleRangeReadFilterEnabled(), fileInfo);
     }
+
     StorageManager storageManager = Mockito.mock(StorageManager.class);
     Mockito.doAnswer(
             invocation ->
@@ -67,6 +77,34 @@ public class PartitionDataWriterSuiteUtils {
                     null, flusher, fileInfo, file))
         .when(storageManager)
         .createFile(Mockito.any(), Mockito.anyBoolean());
+    Mockito.doAnswer(invocation -> storagePolicy).when(storageManager).storagePolicy();
+
+    AbstractSource source = Mockito.mock(WorkerSource.class);
+    Mockito.doAnswer(
+            invocationOnMock -> {
+              Function0<?> function = (Function0<?>) invocationOnMock.getArguments()[2];
+              return function.apply();
+            })
+        .when(source)
+        .sample(Mockito.anyString(), Mockito.anyString(), Mockito.any(Function0.class));
+
+    PartitionMetaHandler finalMetaHandler = metaHandler;
+    Mockito.doAnswer(
+            invocation ->
+                new LocalTierWriter(
+                    conf,
+                    finalMetaHandler,
+                    numPendingWriters,
+                    flushNotifier,
+                    flusher,
+                    source,
+                    fileInfo,
+                    StorageInfo.Type.MEMORY,
+                    context,
+                    storageManager))
+        .when(storagePolicy)
+        .createFileWriter(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+
     return storageManager;
   }
 
@@ -74,7 +112,10 @@ public class PartitionDataWriterSuiteUtils {
       UserIdentifier userIdentifier,
       boolean reduceMeta,
       StorageManager storageManager,
-      CelebornConf celebornConf) {
+      StoragePolicy storagePolicy,
+      CelebornConf celebornConf,
+      AbstractSource source,
+      PartitionDataWriterContext writerContext) {
     ReduceFileMeta reduceFileMeta = new ReduceFileMeta(celebornConf.shuffleChunkSize());
     MemoryFileInfo memoryFileInfo = new MemoryFileInfo(userIdentifier, false, reduceFileMeta);
     if (!reduceMeta) {
@@ -87,6 +128,28 @@ public class PartitionDataWriterSuiteUtils {
                     memoryFileInfo, null, null, null))
         .when(storageManager)
         .createFile(Mockito.any(), Mockito.anyBoolean());
+
+    Mockito.doAnswer(invocation -> storagePolicy).when(storageManager).storagePolicy();
+
+    AtomicInteger numPendingWriters = new AtomicInteger();
+    FlushNotifier flushNotifier = new FlushNotifier();
+
+    Mockito.doAnswer(
+            invocation ->
+                new MemoryTierWriter(
+                    celebornConf,
+                    new ReducePartitionMetaHandler(
+                        celebornConf.shuffleRangeReadFilterEnabled(), memoryFileInfo),
+                    numPendingWriters,
+                    flushNotifier,
+                    source,
+                    memoryFileInfo,
+                    StorageInfo.Type.MEMORY,
+                    writerContext,
+                    storageManager))
+        .when(storagePolicy)
+        .createFileWriter(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+
     return storageManager;
   }
 
@@ -94,7 +157,11 @@ public class PartitionDataWriterSuiteUtils {
       UserIdentifier userIdentifier,
       boolean reduceMeta,
       StorageManager storageManager,
-      CelebornConf celebornConf)
+      CelebornConf celebornConf,
+      AtomicInteger numPendingWriters,
+      FlushNotifier flushNotifier,
+      PartitionDataWriterContext writerContext,
+      StoragePolicy storagePolicy)
       throws IOException {
     ReduceFileMeta reduceFileMeta = new ReduceFileMeta(celebornConf.shuffleChunkSize());
     MemoryFileInfo memoryFileInfo = new MemoryFileInfo(userIdentifier, false, reduceFileMeta);
@@ -141,6 +208,40 @@ public class PartitionDataWriterSuiteUtils {
             })
         .when(storageManager)
         .createFile(Mockito.any(), Mockito.anyBoolean());
+    Mockito.doAnswer(
+            invocation ->
+                new MemoryTierWriter(
+                    celebornConf,
+                    new ReducePartitionMetaHandler(
+                        celebornConf.shuffleRangeReadFilterEnabled(), memoryFileInfo),
+                    numPendingWriters,
+                    flushNotifier,
+                    source,
+                    memoryFileInfo,
+                    StorageInfo.Type.MEMORY,
+                    writerContext,
+                    storageManager))
+        .when(storagePolicy)
+        .createFileWriter(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+
+    Mockito.doAnswer(
+            invocation ->
+                new LocalTierWriter(
+                    celebornConf,
+                    new ReducePartitionMetaHandler(
+                        celebornConf.shuffleRangeReadFilterEnabled(), fileInfo),
+                    numPendingWriters,
+                    flushNotifier,
+                    flusher,
+                    source,
+                    fileInfo,
+                    StorageInfo.Type.MEMORY,
+                    writerContext,
+                    storageManager))
+        .when(storagePolicy)
+        .getEvictedFileWriter(
+            Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+
     return storageManager;
   }
 }
