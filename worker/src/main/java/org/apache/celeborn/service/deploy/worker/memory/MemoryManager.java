@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.memory;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -260,17 +259,13 @@ public class MemoryManager {
                 memoryWriters.sort(
                     Comparator.comparingLong(o -> o.getMemoryFileInfo().getFileLength()));
                 Collections.reverse(memoryWriters);
-                try {
-                  for (PartitionDataWriter writer : memoryWriters) {
-                    // this branch means that there is no memory pressure
-                    if (!shouldEvict(aggressiveEvictModeEnabled, evictRatio)) {
-                      break;
-                    }
-                    logger.debug("Evict writer {}", writer);
-                    writer.evict(true);
+                for (PartitionDataWriter writer : memoryWriters) {
+                  // this branch means that there is no memory pressure
+                  if (!shouldEvict(aggressiveEvictModeEnabled, evictRatio)) {
+                    break;
                   }
-                } catch (IOException e) {
-                  logger.warn("Partition data writer evict failed", e);
+                  logger.debug("Evict writer {}", writer);
+                  writer.evict(true);
                 }
               }
             } catch (Exception e) {

@@ -37,8 +37,8 @@ import org.apache.celeborn.service.deploy.worker.WorkerSource
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
 class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
-
   private def prepareMemoryWriter: MemoryTierWriter = {
+
     val celebornConf = new CelebornConf()
     celebornConf.set("celeborn.worker.memoryFileStorage.maxFileSize", "80k")
     val reduceFileMeta = new ReduceFileMeta(celebornConf.shuffleChunkSize)
@@ -68,6 +68,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
       1,
       userIdentifier,
       PartitionType.REDUCE,
+      false,
       false)
 
     val source = new WorkerSource(celebornConf)
@@ -201,6 +202,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
       1,
       userIdentifier,
       PartitionType.REDUCE,
+      false,
       false)
 
     val flusher = new LocalFlusher(

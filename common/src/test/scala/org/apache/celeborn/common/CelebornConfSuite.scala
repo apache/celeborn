@@ -427,7 +427,7 @@ class CelebornConfSuite extends CelebornFunSuite {
 
     conf.unset("celeborn.worker.storage.storagePolicy.createFilePolicy")
     val createFilePolicy3 = conf.workerStoragePolicyCreateFilePolicy
-    assert(List("MEMORY", "HDD", "SSD", "HDFS", "OSS") == createFilePolicy3.get)
+    assert(List("MEMORY", "SSD", "HDD", "HDFS", "OSS") == createFilePolicy3.get)
 
     try {
       conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "ABC")

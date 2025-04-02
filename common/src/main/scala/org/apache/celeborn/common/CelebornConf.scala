@@ -1227,7 +1227,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerStoragePolicyCreateFilePolicy: Option[List[String]] =
     get(WORKER_STORAGE_CREATE_FILE_POLICY).map {
       policy => policy.split(",").map(_.trim).toList
-    }.orElse(Some(List("MEMORY", "HDD", "SSD", "HDFS", "OSS")))
+    }.orElse(Some(List("MEMORY", "SSD", "HDD", "HDFS", "OSS")))
 
   def workerStoragePolicyEvictFilePolicy: Option[Map[String, List[String]]] =
     get(WORKER_STORAGE_EVICT_POLICY).map {
