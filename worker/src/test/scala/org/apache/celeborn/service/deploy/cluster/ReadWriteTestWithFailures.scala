@@ -108,6 +108,11 @@ class ReadWriteTestWithFailures extends AnyFunSuite
       0,
       0,
       0,
+      Integer.MAX_VALUE,
+      null,
+      null,
+      null,
+      null,
       metricsCallback)
 
     val outputStream = new ByteArrayOutputStream()
