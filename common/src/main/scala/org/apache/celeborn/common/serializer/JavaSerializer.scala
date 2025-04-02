@@ -136,6 +136,9 @@ private[celeborn] class JavaSerializerInstance(
  * @note This serializer is not guaranteed to be wire-compatible across different versions of
  * Spark. It is intended to be used to serialize/de-serialize data within a single
  * Spark application.
+ *
+ * @note Java Object Serialization Specification:
+ * https://docs.oracle.com/javase/8/docs/platform/serialization/spec/protocol.html
  */
 class JavaSerializer(conf: CelebornConf) extends Serializer with Externalizable {
   private var counterReset = conf.getInt("spark.serializer.objectStreamReset", 100)
