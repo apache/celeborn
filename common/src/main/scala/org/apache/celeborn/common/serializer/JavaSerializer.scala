@@ -23,6 +23,7 @@ import java.nio.ByteBuffer
 import scala.reflect.ClassTag
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.network.protocol.{LanguageType, TransportMessage}
 import org.apache.celeborn.common.util.{ByteBufferInputStream, ByteBufferOutputStream, Utils}
 
 private[celeborn] class JavaSerializationStream(
@@ -98,6 +99,20 @@ private[celeborn] class JavaSerializerInstance(
 
   override def serialize[T: ClassTag](t: T): ByteBuffer = {
     val bos = new ByteBufferOutputStream()
+    val msg = Utils.toTransportMessage(t)
+    msg match {
+      case transMsg: TransportMessage =>
+        // Check if the msg is a TransportMessage with CPP languageType.
+        // If so, write the marker and the body explicitly.
+        if (transMsg.getLanguageType == LanguageType.CPP) {
+          val out = new DataOutputStream(bos)
+          out.writeByte(LanguageType.CPP.getMarker)
+          out.write(transMsg.toByteBuffer.array)
+          out.close()
+          return bos.toByteBuffer
+        }
+      case _ =>
+    }
     val out = serializeStream(bos)
     out.writeObject(Utils.toTransportMessage(t))
     out.close()
@@ -105,12 +120,28 @@ private[celeborn] class JavaSerializerInstance(
   }
 
   override def deserialize[T: ClassTag](bytes: ByteBuffer): T = {
+    bytes.mark
+    val languageMarker = bytes.get
+    // If the languageMarker byte is CPP, deserialize directly.
+    if (languageMarker == LanguageType.CPP.getMarker) {
+      return Utils.fromTransportMessage(
+        TransportMessage.fromByteBuffer(bytes, LanguageType.CPP)).asInstanceOf[T]
+    }
+    bytes.reset
     val bis = new ByteBufferInputStream(bytes)
     val in = deserializeStream(bis)
     Utils.fromTransportMessage(in.readObject()).asInstanceOf[T]
   }
 
   override def deserialize[T: ClassTag](bytes: ByteBuffer, loader: ClassLoader): T = {
+    bytes.mark
+    val languageMarker = bytes.get
+    // If the languageMarker byte is CPP, deserialize directly.
+    if (languageMarker == LanguageType.CPP.getMarker) {
+      return Utils.fromTransportMessage(
+        TransportMessage.fromByteBuffer(bytes, LanguageType.CPP)).asInstanceOf[T]
+    }
+    bytes.reset
     val bis = new ByteBufferInputStream(bytes)
     val in = deserializeStream(bis, loader)
     Utils.fromTransportMessage(in.readObject()).asInstanceOf[T]
