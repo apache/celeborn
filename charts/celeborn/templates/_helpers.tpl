@@ -111,5 +111,8 @@ Create the name of configmap to use
 Create the name of the celeborn image to use
 */}}
 {{- define "celeborn.image" -}}
-{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+{{- $imageRegistry := .Values.image.registry | default "docker.io" }}
+{{- $imageRepository := .Values.image.repository | default "apache/celeborn" }}
+{{- $imageTag := .Values.image.tag | default .Chart.AppVersion }}
+{{- printf "%s/%s:%s" $imageRegistry $imageRepository $imageTag }}
 {{- end }}

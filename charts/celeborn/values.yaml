@@ -27,10 +27,12 @@ fullnameOverride: ""
 
 # Specifies the Celeborn image to use
 image:
+  # -- Image registry
+  registry: docker.io
   # -- Image repository
-  repository: aliyunemr/remote-shuffle-service
-  # -- Image tag
-  tag: 0.1.1-6badd20
+  repository: apache/celeborn
+  # -- Image tag, default is chart `appVersion`
+  tag: ""
   # -- Image pull policy
   pullPolicy: Always
   # -- Image name for init containter. (your-private-repo/alpine:3.18)
