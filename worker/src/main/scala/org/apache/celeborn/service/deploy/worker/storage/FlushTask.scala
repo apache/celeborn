@@ -41,8 +41,8 @@ private[worker] class LocalFlushTask(
     gatherApiEnabled: Boolean) extends FlushTask(buffer, notifier, keepBuffer) {
   override def flush(): Unit = {
     val buffers = buffer.nioBuffers()
-    val readableBytes = buffer.readableBytes()
     if (gatherApiEnabled) {
+      val readableBytes = buffer.readableBytes()
       var written = 0L
       do {
         written = fileChannel.write(buffers) + written
