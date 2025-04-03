@@ -48,6 +48,7 @@ jobs:
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,flink-1.18
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,flink-1.19
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,flink-1.20
+          build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,flink-2.0
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,spark-2.4
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,spark-3.3
           build/mvn org.apache.rat:apache-rat-plugin:check -Pgoogle-mirror,mr

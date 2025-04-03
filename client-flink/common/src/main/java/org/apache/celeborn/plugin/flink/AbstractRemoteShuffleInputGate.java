@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.event.TaskEvent;
@@ -50,6 +51,7 @@ public abstract class AbstractRemoteShuffleInputGate extends IndexedInputGate {
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
       BufferDecompressor bufferDecompressor,
       int numConcurrentReading) {
+    Tuple2<Integer, Integer> indexRange = getConsumedSubpartitionIndexRange(gateDescriptor);
     inputGateDelegation =
         new RemoteShuffleInputGateDelegation(
             celebornConf,
@@ -60,8 +62,8 @@ public abstract class AbstractRemoteShuffleInputGate extends IndexedInputGate {
             bufferDecompressor,
             numConcurrentReading,
             availabilityHelper,
-            gateDescriptor.getConsumedSubpartitionIndexRange().getStartIndex(),
-            gateDescriptor.getConsumedSubpartitionIndexRange().getEndIndex());
+            indexRange.f0,
+            indexRange.f1);
   }
 
   /** Setup gate and build network connections. */
@@ -159,6 +161,10 @@ public abstract class AbstractRemoteShuffleInputGate extends IndexedInputGate {
     throw new FlinkRuntimeException("Method should not be called.");
   }
 
+  public void resumeGateConsumption() throws IOException {
+    throw new FlinkRuntimeException("Method should not be called.");
+  }
+
   @Override
   public void resumeConsumption(InputChannelInfo channelInfo) {
     throw new FlinkRuntimeException("Method should not be called.");
@@ -180,4 +186,7 @@ public abstract class AbstractRemoteShuffleInputGate extends IndexedInputGate {
         inputGateDelegation.getGateIndex(),
         inputGateDelegation.getGateDescriptor().toString());
   }
+
+  public abstract Tuple2<Integer, Integer> getConsumedSubpartitionIndexRange(
+      InputGateDeploymentDescriptor gateDescriptor);
 }

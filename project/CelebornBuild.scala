@@ -485,6 +485,7 @@ object Utils {
     case Some("flink-1.18") => Some(Flink118)
     case Some("flink-1.19") => Some(Flink119)
     case Some("flink-1.20") => Some(Flink120)
+    case Some("flink-2.0") => Some(Flink20)
     case _ => None
   }
 
@@ -1125,6 +1126,16 @@ object Flink120 extends FlinkClientProjects {
   val flinkClientShadedProjectName: String = "celeborn-client-flink-1_20-shaded"
 }
 
+object Flink20 extends FlinkClientProjects {
+  val flinkVersion = "2.0.0"
+
+  // note that SBT does not allow using the period symbol (.) in project names.
+  val flinkClientProjectPath = "client-flink/flink-2.0"
+  val flinkClientProjectName = "celeborn-client-flink-2_0"
+  val flinkClientShadedProjectPath: String = "client-flink/flink-2.0-shaded"
+  val flinkClientShadedProjectName: String = "celeborn-client-flink-2_0-shaded"
+}
+
 trait FlinkClientProjects {
 
   val flinkVersion: String
@@ -1199,7 +1210,6 @@ trait FlinkClientProjects {
         commonSettings,
         libraryDependencies ++= Seq(
           "org.apache.flink" % "flink-runtime" % flinkVersion % "test",
-          "org.apache.flink" %% "flink-scala" % flinkVersion % "test",
           flinkStreamingDependency,
           flinkClientsDependency,
           flinkRuntimeWebDependency

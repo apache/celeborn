@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.metrics.SimpleCounter;
@@ -78,6 +79,13 @@ public class RemoteShuffleInputGate extends AbstractRemoteShuffleInputGate {
   @Override
   public InputChannel getChannel(int channelIndex) {
     return new FakedRemoteInputChannel(channelIndex);
+  }
+
+  @Override
+  public Tuple2<Integer, Integer> getConsumedSubpartitionIndexRange(
+      InputGateDeploymentDescriptor gateDescriptor) {
+    IndexRange indexRange = gateDescriptor.getConsumedSubpartitionIndexRange();
+    return Tuple2.of(indexRange.getStartIndex(), indexRange.getEndIndex());
   }
 
   /** Accommodation for the incompleteness of Flink pluggable shuffle service. */
