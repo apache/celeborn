@@ -22,7 +22,6 @@ package deploy.master.meta;
 
 enum Type {
   Unknown = 0;
-
   UnRegisterShuffle = 12;
   RequestSlots = 13;
 
