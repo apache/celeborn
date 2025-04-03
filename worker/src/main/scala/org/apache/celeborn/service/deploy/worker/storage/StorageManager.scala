@@ -507,7 +507,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       s3Writers.put(fileInfo.getFilePath, writer)
       return
     }
-    if (writer.getDiskFileInfo.isOSS) {
+    if (fileInfo.isOSS) {
       ossWriters.put(fileInfo.getFilePath, writer)
       return
     }
