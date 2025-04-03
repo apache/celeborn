@@ -26,7 +26,6 @@ import org.apache.celeborn.rest.v1.master.invoker.Configuration;
 import org.apache.celeborn.rest.v1.master.invoker.Pair;
 
 import org.apache.celeborn.rest.v1.model.ApplicationsHeartbeatResponse;
-import org.apache.celeborn.rest.v1.model.DeleteAppsRequest;
 import org.apache.celeborn.rest.v1.model.HandleResponse;
 import org.apache.celeborn.rest.v1.model.HostnamesResponse;
 import org.apache.celeborn.rest.v1.model.ReviseLostShufflesRequest;
@@ -53,28 +52,34 @@ public class ApplicationApi extends BaseApi {
   /**
    * 
    * Delete resource of apps.
-   * @param deleteAppsRequest  (optional)
+   * @param appIds The IDs of the applications to be deleted, separated by commas. (required)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse deleteApps(DeleteAppsRequest deleteAppsRequest) throws ApiException {
-    return this.deleteApps(deleteAppsRequest, Collections.emptyMap());
+  public HandleResponse deleteApps(String appIds) throws ApiException {
+    return this.deleteApps(appIds, Collections.emptyMap());
   }
 
 
   /**
    * 
    * Delete resource of apps.
-   * @param deleteAppsRequest  (optional)
+   * @param appIds The IDs of the applications to be deleted, separated by commas. (required)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse deleteApps(DeleteAppsRequest deleteAppsRequest, Map<String, String> additionalHeaders) throws ApiException {
-    Object localVarPostBody = deleteAppsRequest;
+  public HandleResponse deleteApps(String appIds, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = null;
+    
+    // verify the required parameter 'appIds' is set
+    if (appIds == null) {
+      throw new ApiException(400, "Missing the required parameter 'appIds' when calling deleteApps");
+    }
     
     // create path and map variables
-    String localVarPath = "/api/v1/applications";
+    String localVarPath = "/api/v1/applications/{appIds}"
+      .replaceAll("\\{" + "appIds" + "\\}", apiClient.escapeString(appIds.toString()));
 
     StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
     String localVarQueryParameterBaseName;
@@ -95,7 +100,7 @@ public class ApplicationApi extends BaseApi {
     final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
 
     final String[] localVarContentTypes = {
-      "application/json"
+      
     };
     final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
 

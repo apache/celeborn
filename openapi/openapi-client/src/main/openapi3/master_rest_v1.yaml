@@ -253,16 +253,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApplicationsHeartbeatResponse'
+
+  /api/v1/applications/{appIds}:
     delete:
       tags:
         - Application
       operationId: deleteApps
       description: Delete resource of apps.
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DeleteAppsRequest'
+      parameters:
+        - name: appIds
+          in: path
+          description: The IDs of the applications to be deleted, separated by commas.
+          required: true
+          schema:
+            type: string
       responses:
         "200":
           description: The request was successful.
@@ -1125,17 +1129,6 @@ components:
             $ref: '#/components/schemas/RatisPeer'
       required:
         - peers
-
-    DeleteAppsRequest:
-      type: object
-      properties:
-        apps:
-          type: array
-          description: The apps to be deleted.
-          items:
-            type: string
-      required:
-        - apps
 
     ReviseLostShufflesRequest:
       type: object
