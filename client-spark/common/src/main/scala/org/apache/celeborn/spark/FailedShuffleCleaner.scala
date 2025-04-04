@@ -16,7 +16,7 @@
  */
 package org.apache.celeborn.spark
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue}
+import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.JavaConverters._
@@ -26,6 +26,7 @@ import org.apache.spark.scheduler.{RunningStageManager, RunningStageManagerImpl}
 
 import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.util.ThreadUtils
 
 private[celeborn] object FailedShuffleCleaner extends Logging {
 
@@ -113,38 +114,36 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
     cleanedShuffleIds.remove(celebornShuffleId)
   }
 
-  private def noRunningDownstreamStage(shuffleId: Int): Boolean = {
-    val allReferringStageIds = celebornShuffleIdToReferringStages.get(shuffleId)
-    require(allReferringStageIds != null, s"no stage referring to shuffle $shuffleId")
+  private def noRunningDownstreamStage(celebornShuffleId: Int): Boolean = {
+    val allReferringStageIds = celebornShuffleIdToReferringStages.get(celebornShuffleId)
+    require(allReferringStageIds != null, s"no stage referring to shuffle $celebornShuffleId")
     val ret =
       allReferringStageIds.count(stageId => runningStageManager.isRunningStage(stageId)) == 0
     if (ret) {
-      logInfo(s"no running downstream stages refers to $shuffleId")
+      logInfo(s"no running downstream stages refers to $celebornShuffleId")
     } else {
-      logInfo(s"there is more than one running downstream stage referring to shuffle $shuffleId," +
-        s" ignore it for cleanup ")
+      logInfo(
+        s"there is more than one running downstream stage referring to shuffle $celebornShuffleId," +
+          s" ignore it for cleanup ")
     }
     ret
   }
 
-  private val cleanerThread = new Thread() {
-    override def run(): Unit = {
-      while (true) {
-        val allShuffleIds = new util.ArrayList[Int]
-        shufflesToBeCleand.drainTo(allShuffleIds)
-        allShuffleIds.asScala.foreach { shuffleId =>
-          if (!cleanedShuffleIds.contains(shuffleId)) {
-            lifecycleManager.get().unregisterShuffle(shuffleId)
-            logInfo(s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
-            cleanedShuffleIds += shuffleId
-          }
+  private val cleanerThreadPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+    "failedShuffleCleanerThreadPool")
+  cleanerThreadPool.scheduleWithFixedDelay(
+    () => {
+      val allShuffleIds = new util.ArrayList[Int]
+      shufflesToBeCleand.drainTo(allShuffleIds)
+      allShuffleIds.asScala.foreach { shuffleId =>
+        if (!cleanedShuffleIds.contains(shuffleId)) {
+          lifecycleManager.get().unregisterShuffle(shuffleId)
+          logInfo(s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
+          cleanedShuffleIds += shuffleId
         }
-        Thread.sleep(1000)
       }
-    }
-  }
-
-  cleanerThread.setName("shuffle cleaner thread")
-  cleanerThread.setDaemon(true)
-  cleanerThread.start()
+    },
+    lifecycleManager.get().conf.clientFetchCleanFailedShuffleIntervalMS,
+    lifecycleManager.get().conf.clientFetchCleanFailedShuffleIntervalMS,
+    TimeUnit.SECONDS)
 }
