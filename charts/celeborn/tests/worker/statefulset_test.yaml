@@ -24,11 +24,12 @@ release:
   name: celeborn
 
 tests:
-  - it: Should add extra pod annotations if `podAnnotations` is specified
+  - it: Should add extra pod annotations if `worker.annotations` is specified
     set:
-      podAnnotations:
-        key1: value1
-        key2: value2
+      worker:
+        annotations:
+          key1: value1
+          key2: value2
     asserts:
       - equal:
           path: spec.template.metadata.annotations.key1
