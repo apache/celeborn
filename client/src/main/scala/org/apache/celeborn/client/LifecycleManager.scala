@@ -1165,6 +1165,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           shuffleIds.values.map {
             case (shuffleId, _) =>
               unregisterShuffle(shuffleId)
+              unregisterShuffleCallback.foreach(c => c.accept(shuffleId))
           })
       }
     } else {
@@ -1864,6 +1865,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   @volatile private var getShuffleIdForReaderCallback: Option[BiConsumer[Integer, String]] = None
   def registerGetShuffleIdForReaderCallback(callback: BiConsumer[Integer, String]): Unit = {
     getShuffleIdForReaderCallback = Some(callback)
+  }
+
+  @volatile private var unregisterShuffleCallback: Option[Consumer[Integer]] = None
+  def registerUnregisterShuffleCallback(callback: Consumer[Integer]): Unit = {
+    unregisterShuffleCallback = Some(callback)
   }
 
   def registerAppShuffleDeterminate(appShuffleId: Int, determinate: Boolean): Unit = {

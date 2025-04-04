@@ -640,4 +640,10 @@ public class SparkUtils {
     FailedShuffleCleaner.setLifecycleManager(lifecycleManager);
     FailedShuffleCleaner.addShuffleIdReferringStage(celebornShuffeId, appShuffleIdentifier);
   }
+
+  public static void removeCleanedShuffleId(
+      LifecycleManager lifecycleManager, int celebornShuffleId) {
+    FailedShuffleCleaner.setLifecycleManager(lifecycleManager);
+    FailedShuffleCleaner.removeCleanedShuffleId(celebornShuffleId);
+  }
 }

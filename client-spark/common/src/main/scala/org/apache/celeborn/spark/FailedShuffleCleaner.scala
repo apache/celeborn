@@ -85,12 +85,11 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
       appShuffleIdentifier: String): Unit = {
     val Array(appShuffleId, stageId, _) = appShuffleIdentifier.split('-')
     lifecycleManager.get().getShuffleIdMapping.get(appShuffleId.toInt).foreach {
-      case (pastAppShuffleIdentifier, (celebornShuffleId, _)) => {
+      case (_, (celebornShuffleId, _)) => {
         if (!celebornShuffleIdToReferringStages.containsKey(celebornShuffleId)
           || onlyCurrentStageReferred(celebornShuffleId, stageId.toInt)
           || noRunningDownstreamStage(celebornShuffleId)
           || !committedSuccessfully(celebornShuffleId)) {
-          val Array(_, stageId, attemptId) = pastAppShuffleIdentifier.split('-')
           shufflesToBeCleand.put(celebornShuffleId)
         }
       }
@@ -108,6 +107,10 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
 
   def setLifecycleManager(ref: LifecycleManager): Unit = {
     lifecycleManager.compareAndSet(null, ref)
+  }
+
+  def removeCleanedShuffleId(celebornShuffleId: Int): Unit = {
+    cleanedShuffleIds.remove(celebornShuffleId)
   }
 
   private def noRunningDownstreamStage(shuffleId: Int): Boolean = {
@@ -133,7 +136,6 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
           if (!cleanedShuffleIds.contains(shuffleId)) {
             lifecycleManager.get().unregisterShuffle(shuffleId)
             logInfo(s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
-            println(s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
             cleanedShuffleIds += shuffleId
           }
         }
