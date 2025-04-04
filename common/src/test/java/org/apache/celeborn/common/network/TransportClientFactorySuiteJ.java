@@ -26,8 +26,12 @@ import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -259,5 +263,40 @@ public class TransportClientFactorySuiteJ {
     TransportClient transportClient =
         factory.retryCreateClient("xxx", 10, 1, TransportFrameDecoder::new);
     Assert.assertEquals(transportClient, client);
+  }
+
+  @Test
+  public void testChannelInactiveReconnect()
+      throws IOException, InterruptedException, ExecutionException {
+    verifyChannelInactiveReconnect(false);
+    verifyChannelInactiveReconnect(true);
+  }
+
+  private void verifyChannelInactiveReconnect(boolean reconnectEnabled)
+      throws IOException, InterruptedException, ExecutionException {
+    CelebornConf _conf = new CelebornConf();
+    if (reconnectEnabled) {
+      _conf.set(String.format("celeborn.%s.reconnect.maxRetries", TEST_MODULE), "3");
+    }
+    TransportConf conf = new TransportConf(TEST_MODULE, _conf);
+    try (TransportContext ctx = new TransportContext(conf, new BaseMessageHandler(), true);
+        TransportClientFactory factory = ctx.createClientFactory()) {
+      Channel channel = factory.createClient(getLocalHost(), server1.getPort()).getChannel();
+      TestReconnectHandler handler = new TestReconnectHandler();
+      channel.pipeline().addLast(handler);
+      channel.disconnect().get();
+      Thread.sleep(10000);
+      assertEquals(reconnectEnabled, handler.active);
+    }
+  }
+
+  static class TestReconnectHandler extends ChannelInboundHandlerAdapter {
+
+    private boolean active = true;
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+      active = false;
+    }
   }
 }
