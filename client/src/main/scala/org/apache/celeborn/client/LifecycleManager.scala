@@ -938,7 +938,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                   }
                   val newShuffleId = shuffleIdGenerator.getAndIncrement()
                   logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
-                  getShuffleIdForWriterCallback.foreach(callback =>
+                  validateCelebornShuffleIdForClean.foreach(callback =>
                     callback.accept(newShuffleId, appShuffleIdentifier))
                   shuffleIds.put(appShuffleIdentifier, (newShuffleId, true))
                   newShuffleId
@@ -954,7 +954,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         shuffleIds.values.filter(v => v._2).map(v => v._1).toSeq.reverse.find(
           areAllMapTasksEnd) match {
           case Some(celebornShuffleId) =>
-            getShuffleIdForReaderCallback.foreach(callback =>
+            recordShuffleIdReference.foreach(callback =>
               callback.accept(celebornShuffleId, appShuffleIdentifier))
             val pbGetShuffleIdResponse = {
               logDebug(
@@ -1857,14 +1857,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   // expecting celeborn shuffle id and application shuffle identifier
-  @volatile private var getShuffleIdForWriterCallback: Option[BiConsumer[Integer, String]] = None
+  @volatile private var validateCelebornShuffleIdForClean: Option[BiConsumer[Integer, String]] =
+    None
   def registerGetShuffleIdForWriterCallback(callback: BiConsumer[Integer, String]): Unit = {
-    getShuffleIdForWriterCallback = Some(callback)
+    validateCelebornShuffleIdForClean = Some(callback)
   }
   // expecting celeborn shuffle id and application shuffle identifier
-  @volatile private var getShuffleIdForReaderCallback: Option[BiConsumer[Integer, String]] = None
+  @volatile private var recordShuffleIdReference: Option[BiConsumer[Integer, String]] = None
   def registerGetShuffleIdForReaderCallback(callback: BiConsumer[Integer, String]): Unit = {
-    getShuffleIdForReaderCallback = Some(callback)
+    recordShuffleIdReference = Some(callback)
   }
 
   @volatile private var unregisterShuffleCallback: Option[Consumer[Integer]] = None

@@ -84,16 +84,12 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
   def addShuffleIdToBeCleaned(
       celebornShuffleId: Int,
       appShuffleIdentifier: String): Unit = {
-    val Array(appShuffleId, stageId, _) = appShuffleIdentifier.split('-')
-    lifecycleManager.get().getShuffleIdMapping.get(appShuffleId.toInt).foreach {
-      case (_, (celebornShuffleId, _)) => {
-        if (!celebornShuffleIdToReferringStages.containsKey(celebornShuffleId)
-          || onlyCurrentStageReferred(celebornShuffleId, stageId.toInt)
-          || noRunningDownstreamStage(celebornShuffleId)
-          || !committedSuccessfully(celebornShuffleId)) {
-          shufflesToBeCleand.put(celebornShuffleId)
-        }
-      }
+    val Array(_, stageId, _) = appShuffleIdentifier.split('-')
+    if (!celebornShuffleIdToReferringStages.containsKey(celebornShuffleId)
+      || onlyCurrentStageReferred(celebornShuffleId, stageId.toInt)
+      || noRunningDownstreamStage(celebornShuffleId)
+      || !committedSuccessfully(celebornShuffleId)) {
+      shufflesToBeCleand.put(celebornShuffleId)
     }
   }
 
