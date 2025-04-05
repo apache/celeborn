@@ -38,6 +38,11 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
   private[celeborn] val celebornShuffleIdToReferringStages =
     new ConcurrentHashMap[Int, mutable.HashSet[Int]]()
 
+  private lazy val cleanInterval =
+    lifecycleManager.get().conf.clientFetchCleanFailedShuffleIntervalMS
+
+  private var initialized = false
+
   private val lock = new Object
   val RUNNING_STAGE_CHECKER_CLASS = "CELEBORN_TEST_RUNNING_STAGE_CHECKER_IMPL"
 
@@ -103,7 +108,27 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
   }
 
   def setLifecycleManager(ref: LifecycleManager): Unit = {
-    lifecycleManager.compareAndSet(null, ref)
+    val firstSet = lifecycleManager.compareAndSet(null, ref)
+    if (firstSet) {
+      cleanerThreadPool.scheduleWithFixedDelay(
+        new Runnable {
+          override def run(): Unit = {
+            val allShuffleIds = new util.ArrayList[Int]
+            shufflesToBeCleand.drainTo(allShuffleIds)
+            allShuffleIds.asScala.foreach { shuffleId =>
+              if (!cleanedShuffleIds.contains(shuffleId)) {
+                lifecycleManager.get().unregisterShuffle(shuffleId)
+                logInfo(
+                  s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
+                cleanedShuffleIds += shuffleId
+              }
+            }
+          }
+        },
+        cleanInterval,
+        cleanInterval,
+        TimeUnit.SECONDS)
+    }
   }
 
   def removeCleanedShuffleId(celebornShuffleId: Int): Unit = {
@@ -127,21 +152,4 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
 
   private val cleanerThreadPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor(
     "failedShuffleCleanerThreadPool")
-  cleanerThreadPool.scheduleWithFixedDelay(
-    new Runnable {
-      override def run(): Unit = {
-        val allShuffleIds = new util.ArrayList[Int]
-        shufflesToBeCleand.drainTo(allShuffleIds)
-        allShuffleIds.asScala.foreach { shuffleId =>
-          if (!cleanedShuffleIds.contains(shuffleId)) {
-            lifecycleManager.get().unregisterShuffle(shuffleId)
-            logInfo(s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
-            cleanedShuffleIds += shuffleId
-          }
-        }
-      }
-    },
-    lifecycleManager.get().conf.clientFetchCleanFailedShuffleIntervalMS,
-    lifecycleManager.get().conf.clientFetchCleanFailedShuffleIntervalMS,
-    TimeUnit.SECONDS)
 }
