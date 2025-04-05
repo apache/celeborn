@@ -128,14 +128,16 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
   private val cleanerThreadPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor(
     "failedShuffleCleanerThreadPool")
   cleanerThreadPool.scheduleWithFixedDelay(
-    () => {
-      val allShuffleIds = new util.ArrayList[Int]
-      shufflesToBeCleand.drainTo(allShuffleIds)
-      allShuffleIds.asScala.foreach { shuffleId =>
-        if (!cleanedShuffleIds.contains(shuffleId)) {
-          lifecycleManager.get().unregisterShuffle(shuffleId)
-          logInfo(s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
-          cleanedShuffleIds += shuffleId
+    new Runnable {
+      override def run(): Unit = {
+        val allShuffleIds = new util.ArrayList[Int]
+        shufflesToBeCleand.drainTo(allShuffleIds)
+        allShuffleIds.asScala.foreach { shuffleId =>
+          if (!cleanedShuffleIds.contains(shuffleId)) {
+            lifecycleManager.get().unregisterShuffle(shuffleId)
+            logInfo(s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
+            cleanedShuffleIds += shuffleId
+          }
         }
       }
     },
