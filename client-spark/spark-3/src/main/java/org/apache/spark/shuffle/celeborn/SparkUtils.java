@@ -629,9 +629,9 @@ public class SparkUtils {
   }
 
   public static void addWriterShuffleIdsToBeCleaned(
-      LifecycleManager lifecycleManager, int celebornShuffeId, String appShuffleIdentifier) {
+      LifecycleManager lifecycleManager, String appShuffleIdentifier) {
     FailedShuffleCleaner.setLifecycleManager(lifecycleManager);
-    FailedShuffleCleaner.addShuffleIdToBeCleaned(celebornShuffeId, appShuffleIdentifier);
+    FailedShuffleCleaner.addShuffleIdToBeCleaned(appShuffleIdentifier);
   }
 
   public static void addShuffleIdRefCount(

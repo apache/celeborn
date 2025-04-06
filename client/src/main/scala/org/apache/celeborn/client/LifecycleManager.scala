@@ -939,7 +939,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                   val newShuffleId = shuffleIdGenerator.getAndIncrement()
                   logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
                   validateCelebornShuffleIdForClean.foreach(callback =>
-                    callback.accept(newShuffleId, appShuffleIdentifier))
+                    callback.accept(appShuffleIdentifier))
                   shuffleIds.put(appShuffleIdentifier, (newShuffleId, true))
                   newShuffleId
                 }
@@ -1857,14 +1857,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   // expecting celeborn shuffle id and application shuffle identifier
-  @volatile private var validateCelebornShuffleIdForClean: Option[BiConsumer[Integer, String]] =
+  @volatile private var validateCelebornShuffleIdForClean: Option[Consumer[String]] =
     None
-  def registerGetShuffleIdForWriterCallback(callback: BiConsumer[Integer, String]): Unit = {
+  def registerValidateCelebornShuffleIdForCleanCallback(
+      callback: Consumer[String]): Unit = {
     validateCelebornShuffleIdForClean = Some(callback)
   }
   // expecting celeborn shuffle id and application shuffle identifier
   @volatile private var recordShuffleIdReference: Option[BiConsumer[Integer, String]] = None
-  def registerGetShuffleIdForReaderCallback(callback: BiConsumer[Integer, String]): Unit = {
+  def registerRecordShuffleIdReferenceCallback(callback: BiConsumer[Integer, String]): Unit = {
     recordShuffleIdReference = Some(callback)
   }
 

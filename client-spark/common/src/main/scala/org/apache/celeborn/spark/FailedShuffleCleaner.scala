@@ -41,8 +41,6 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
   private lazy val cleanInterval =
     lifecycleManager.get().conf.clientFetchCleanFailedShuffleIntervalMS
 
-  private var initialized = false
-
   private val lock = new Object
   val RUNNING_STAGE_CHECKER_CLASS = "CELEBORN_TEST_RUNNING_STAGE_CHECKER_IMPL"
 
@@ -66,6 +64,9 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
     cleanedShuffleIds.clear()
     celebornShuffleIdToReferringStages.clear()
     runningStageManager = buildRunningStageChecker()
+    cleanerThreadPool.shutdownNow()
+    cleanerThreadPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+      "failedShuffleCleanerThreadPool")
   }
 
   def addShuffleIdReferringStage(celebornShuffleId: Int, appShuffleIdentifier: String): Unit = {
@@ -86,15 +87,17 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
     ret
   }
 
-  def addShuffleIdToBeCleaned(
-      celebornShuffleId: Int,
-      appShuffleIdentifier: String): Unit = {
-    val Array(_, stageId, _) = appShuffleIdentifier.split('-')
-    if (!celebornShuffleIdToReferringStages.containsKey(celebornShuffleId)
-      || onlyCurrentStageReferred(celebornShuffleId, stageId.toInt)
-      || noRunningDownstreamStage(celebornShuffleId)
-      || !committedSuccessfully(celebornShuffleId)) {
-      shufflesToBeCleand.put(celebornShuffleId)
+  def addShuffleIdToBeCleaned(appShuffleIdentifier: String): Unit = {
+    val Array(appShuffleId, stageId, _) = appShuffleIdentifier.split('-')
+    lifecycleManager.get().getShuffleIdMapping.get(appShuffleId.toInt).foreach {
+      case (_, (celebornShuffleId, _)) => {
+        if (!celebornShuffleIdToReferringStages.containsKey(celebornShuffleId)
+          || onlyCurrentStageReferred(celebornShuffleId, stageId.toInt)
+          || noRunningDownstreamStage(celebornShuffleId)
+          || !committedSuccessfully(celebornShuffleId)) {
+          shufflesToBeCleand.put(celebornShuffleId)
+        }
+      }
     }
   }
 
@@ -127,7 +130,7 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
         },
         cleanInterval,
         cleanInterval,
-        TimeUnit.SECONDS)
+        TimeUnit.MILLISECONDS)
     }
   }
 
@@ -150,6 +153,6 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
     ret
   }
 
-  private val cleanerThreadPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+  private var cleanerThreadPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor(
     "failedShuffleCleanerThreadPool")
 }
