@@ -48,7 +48,9 @@ class CelebornFetchFailureDiskCleanExpensiveSuite extends FetchFailureDiskCleanB
         .withColumnRenamed("count", "df2_count")
       val df = df1.hint("merge").join(df2, "countId").select("*").persist()
       val tuples = df.collect()
+      println("first job done")
       df.collect()
+      println("second job done")
       checkStorageValidation(checkingThread, timeout = 600 * 1000)
       // verify result
       assert(hook.executed.get())

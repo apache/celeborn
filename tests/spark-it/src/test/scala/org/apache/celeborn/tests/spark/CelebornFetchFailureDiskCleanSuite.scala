@@ -200,6 +200,7 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
       sparkSession.stop()
     }
   }
+
   test("celeborn spark integration test - clean up the shuffle files if" +
     " the referring stage has finished") {
     if (Spark3OrNewer) {

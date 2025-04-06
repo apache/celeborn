@@ -938,6 +938,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                   }
                   val newShuffleId = shuffleIdGenerator.getAndIncrement()
                   logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
+                  println(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId" +
+                    s" appShuffleIdentifier $appShuffleIdentifier")
                   validateCelebornShuffleIdForClean.foreach(callback =>
                     callback.accept(appShuffleIdentifier))
                   shuffleIds.put(appShuffleIdentifier, (newShuffleId, true))
