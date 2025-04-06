@@ -28,8 +28,13 @@ private[tests] trait FetchFailureTestBase extends SparkTestBase {
   def createSparkSession(
       overrideShuffleMgr: Boolean = true,
       enableFailedShuffleCleaner: Boolean = false): SparkSession = {
-    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
-
+    val sparkConf = new SparkConf().setAppName({
+      if (!enableFailedShuffleCleaner) {
+        "fetch-failure"
+      } else {
+        "fetch-failure-failed-shuffle-clean"
+      }
+    }).setMaster("local[2,3]")
     var baseBuilder = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .config("spark.sql.shuffle.partitions", 2)

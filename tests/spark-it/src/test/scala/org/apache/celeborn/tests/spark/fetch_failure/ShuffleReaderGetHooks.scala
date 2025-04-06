@@ -97,7 +97,9 @@ class FileDeletionShuffleReaderGetHook(
       startPartition: Int,
       endPartition: Int,
       context: TaskContext): Unit = {
-    if (executed.get()) return
+    if (executed.get()) {
+      return
+    }
     lock.synchronized {
       handle match {
         case h: CelebornShuffleHandle[_, _, _] => {

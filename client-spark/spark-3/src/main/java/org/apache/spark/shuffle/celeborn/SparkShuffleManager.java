@@ -179,7 +179,6 @@ public class SparkShuffleManager implements ShuffleManager {
                 shuffleId -> SparkUtils.invalidateSerializedGetReducerFileGroupResponse(shuffleId));
           }
           if (lifecycleManager.conf().clientFetchCleanFailedShuffle()) {
-            System.out.println("register callbacks");
             lifecycleManager.registerValidateCelebornShuffleIdForCleanCallback(
                 (appShuffleIdentifier) ->
                     SparkUtils.addWriterShuffleIdsToBeCleaned(
