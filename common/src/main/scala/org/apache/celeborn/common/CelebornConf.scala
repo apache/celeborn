@@ -1018,6 +1018,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_PUSH_SORT_SMALL_PUSH_TOLERATE_FACTOR)
   def clientPushSortMaxMemoryFactor: Double =
     get(CLIENT_PUSH_SORT_MAX_MEMORY_FACTOR)
+  def clientPushSortMaxMemoryBytes: Long = get(CLIENT_PUSH_SORT_MAX_MEMORY_BYTES).getOrElse(0L)
+  def clientPushSortCalculateMaxMemoryBytes: Boolean =
+    get(CLIENT_PUSH_SORT_CALCULATE_MAX_MEMORY_BYTES)
   def clientPushSortRandomizePartitionIdEnabled: Boolean =
     get(CLIENT_PUSH_SORT_RANDOMIZE_PARTITION_ENABLED)
   def clientPushRetryThreads: Int = get(CLIENT_PUSH_RETRY_THREADS)
@@ -5379,6 +5382,25 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.6.0")
       .doc("Whether to add UUID suffix for application id for unique. When `true`, add UUID suffix for unique application id. Currently, this only applies to Spark and MR.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_PUSH_SORT_MAX_MEMORY_BYTES: OptionalConfigEntry[Long] =
+    buildConf("celeborn.client.spark.push.sort.memory.maxMemoryBytes")
+      .categories("client")
+      .doc(
+        "the max number of executor memory which can be used for SortBasedWriter buffer. By default " +
+          "it is calculated using Spark executorMemory and offHeapSize")
+      .version("0.5.3")
+      .longConf
+      .createOptional
+
+  val CLIENT_PUSH_SORT_CALCULATE_MAX_MEMORY_BYTES: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.push.sort.memory.calculateMaxMemoryBytes")
+      .categories("client")
+      .doc(
+        "Use SparkConf to calculate the maxMemoryBytes available to sort based pusher")
+      .version("0.5.3")
       .booleanConf
       .createWithDefault(false)
 

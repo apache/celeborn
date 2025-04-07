@@ -34,6 +34,7 @@ import org.apache.spark.Partitioner;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkVersionUtil;
 import org.apache.spark.TaskContext;
+import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.memory.UnifiedMemoryManager;
 import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
@@ -83,10 +84,15 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
       CelebornConf conf,
       File tempFile,
       int numPartitions,
-      ShuffleWriteMetricsReporter metricsReporter)
+      ShuffleWriteMetricsReporter metricsReporter,
+      SparkConf sparkConf,
+      String pushSortMemoryThreshold,
+      int numCores)
       throws Exception {
-    SparkConf sparkConf = new SparkConf(false).set("spark.buffer.pageSize", "32k");
-    UnifiedMemoryManager unifiedMemoryManager = UnifiedMemoryManager.apply(sparkConf, 1);
+    if (sparkConf == null) {
+      sparkConf = new SparkConf(false).set("spark.buffer.pageSize", "32k");
+    }
+    UnifiedMemoryManager unifiedMemoryManager = UnifiedMemoryManager.apply(sparkConf, numCores);
     TaskMemoryManager taskMemoryManager = new TaskMemoryManager(unifiedMemoryManager, 0);
 
     final ShuffleClient client = new DummyShuffleClient(conf, tempFile);
@@ -106,10 +112,12 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
             /*taskAttemptId=*/ 0,
             /*numMappers=*/ 0,
             /*numPartitions=*/ numPartitions,
-            conf,
+            SortBasedPusher.setMemoryConfs(
+                sparkConf, conf, numCores, taskMemoryManager.getTungstenMemoryMode()),
             metricsReporter::incBytesWritten,
             mapStatusLengths,
-            /*pushSortMemoryThreshold=*/ Utils.byteStringAsBytes("32K"),
+            /*pushSortMemoryThreshold=*/ Utils.byteStringAsBytes(
+                pushSortMemoryThreshold == null ? "32K" : pushSortMemoryThreshold),
             SendBufferPool.get(4, 30, 60));
     return pusher;
   }
@@ -172,7 +180,8 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
     ((DummyShuffleClient) client).initReducePartitionMap(shuffleId, numPartitions, 1);
     File tempPusherFile = new File(tempDir, UUID.randomUUID().toString());
     SortBasedPusher pusher =
-        createSortBasedPusher(conf, tempPusherFile, numPartitions, metrics.shuffleWriteMetrics());
+        createSortBasedPusher(
+            conf, tempPusherFile, numPartitions, metrics.shuffleWriteMetrics(), null, null, 1);
     final SortBasedShuffleWriter<Integer, String, String> writer =
         createShuffleWriterWithPusher(
             handle, taskContext, conf, client, metrics.shuffleWriteMetrics(), pusher);
@@ -206,5 +215,182 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
     iterator = getUnsafeRowIterator(256 * 1024, 8 * 1024, total, 1);
     writer.doWrite(iterator);
     assertEquals(128 * 1024, pusher.getPushSortMemoryThreshold());
+  }
+
+  @Test
+  public void testSortBasedPusherMaxMemoryOnHeap() throws Exception {
+    int numPartitions = 8;
+    double maxMemoryFactor = 0.9;
+    double sparkMemoryFraction = 0.9;
+    final UnsafeRowSerializer serializer = new UnsafeRowSerializer(1, null);
+    final CelebornConf conf =
+        new CelebornConf()
+            .set(CelebornConf.CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD(), "true")
+            .set(CelebornConf.CLIENT_PUSH_SORT_CALCULATE_MAX_MEMORY_BYTES(), "true")
+            .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "32k")
+            .set(CelebornConf.CLIENT_PUSH_SORT_MAX_MEMORY_FACTOR(), maxMemoryFactor);
+
+    // set the available executor memory size 64kb
+    SparkConf sparkConf =
+        new SparkConf(false)
+            .set("spark.buffer.pageSize", "12k")
+            .set("spark.testing", "true")
+            .set("spark.testing.memory", Integer.toString(64 * 1024))
+            .set("spark.executor.memory", Integer.toString(64 * 1024))
+            .set("spark.memory.fraction", Double.toString(sparkMemoryFraction));
+
+    String PartitionIdPassthroughClazz;
+    if (SparkVersionUtil.isGreaterThan(3, 3)) {
+      PartitionIdPassthroughClazz = "org.apache.spark.PartitionIdPassthrough";
+    } else {
+      PartitionIdPassthroughClazz = "org.apache.spark.sql.execution.PartitionIdPassthrough";
+    }
+    DynConstructors.Ctor<Partitioner> partitionIdPassthroughCtor =
+        DynConstructors.builder().impl(PartitionIdPassthroughClazz, int.class).build();
+    final Partitioner partitioner = partitionIdPassthroughCtor.newInstance(numPartitions);
+    Mockito.doReturn(partitioner).when(dependency).partitioner();
+    Mockito.doReturn(serializer).when(dependency).serializer();
+
+    final File tempFile = new File(tempDir, UUID.randomUUID().toString());
+    final CelebornShuffleHandle<Integer, String, String> handle =
+        new CelebornShuffleHandle<>(
+            appId, host, port, userIdentifier, shuffleId, false, numMaps, dependency);
+    final ShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    ((DummyShuffleClient) client).initReducePartitionMap(shuffleId, numPartitions, 1);
+    File tempPusherFile = new File(tempDir, UUID.randomUUID().toString());
+
+    SortBasedPusher pusher =
+        createSortBasedPusher(
+            conf,
+            tempPusherFile,
+            numPartitions,
+            metrics.shuffleWriteMetrics(),
+            sparkConf,
+            "12k",
+            1);
+    final SortBasedShuffleWriter<Integer, String, String> writer =
+        createShuffleWriterWithPusher(
+            handle, taskContext, conf, client, metrics.shuffleWriteMetrics(), pusher);
+
+    AtomicInteger total = new AtomicInteger(0);
+
+    assertEquals(12 * 1024, pusher.getPushSortMemoryThreshold());
+    assertEquals(
+        64 * 1024 * maxMemoryFactor * sparkMemoryFraction,
+        pusher.memoryThresholdManager.getMaxMemoryThresholdInBytes(),
+        2);
+    assertEquals(MemoryMode.ON_HEAP, pusher.getMode());
+
+    // memory threshold is 12k, push 12k to bump threshold to 24k
+    Iterator iterator = getUnsafeRowIterator(12 * 1024, 6 * 1024, total, numPartitions);
+    writer.doWrite(iterator);
+    assertEquals(24 * 1024, pusher.getPushSortMemoryThreshold());
+    assertEquals(2, total.get());
+
+    // push 24k to bump threshold to 48k
+    iterator = getUnsafeRowIterator(24 * 1024, 6 * 1024, total, numPartitions);
+    writer.doWrite(iterator);
+    assertEquals(48 * 1024, pusher.getPushSortMemoryThreshold());
+    assertEquals(6, total.get());
+
+    // push 48k to bump threshold to max limit of 64k * maxMemoryFactor * sparkMemoryFraction
+    iterator = getUnsafeRowIterator(48 * 1024, 6 * 1024, total, numPartitions);
+    writer.doWrite(iterator);
+    assertEquals(
+        64 * 1024 * maxMemoryFactor * sparkMemoryFraction, pusher.getPushSortMemoryThreshold(), 2);
+    assertEquals(14, total.get());
+  }
+
+  @Test
+  public void testSortBasedPusherMaxMemoryOffHeap() throws Exception {
+    int numPartitions = 8;
+    double maxMemoryFactor = 0.9;
+    double sparkMemoryFraction = 0.5;
+    int numCores = 2;
+    final UnsafeRowSerializer serializer = new UnsafeRowSerializer(1, null);
+    final CelebornConf conf =
+        new CelebornConf()
+            .set(CelebornConf.CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD(), "true")
+            .set(CelebornConf.CLIENT_PUSH_SORT_CALCULATE_MAX_MEMORY_BYTES(), "true")
+            .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "32k")
+            .set(CelebornConf.CLIENT_PUSH_SORT_MAX_MEMORY_FACTOR(), maxMemoryFactor);
+
+    // set the available executor memory size 64kb
+    SparkConf sparkConf =
+        new SparkConf(false)
+            .set("spark.buffer.pageSize", "12k")
+            .set("spark.testing", "true")
+            .set("spark.testing.memory", Integer.toString(130 * 1024))
+            .set("spark.executor.memory", Integer.toString(0))
+            .set("spark.memory.offHeap.size", Integer.toString(130 * 1024))
+            .set("spark.memory.fraction", Double.toString(sparkMemoryFraction))
+            .set("spark.memory.offHeap.enabled", "true");
+
+    String PartitionIdPassthroughClazz;
+    if (SparkVersionUtil.isGreaterThan(3, 3)) {
+      PartitionIdPassthroughClazz = "org.apache.spark.PartitionIdPassthrough";
+    } else {
+      PartitionIdPassthroughClazz = "org.apache.spark.sql.execution.PartitionIdPassthrough";
+    }
+    DynConstructors.Ctor<Partitioner> partitionIdPassthroughCtor =
+        DynConstructors.builder().impl(PartitionIdPassthroughClazz, int.class).build();
+    final Partitioner partitioner = partitionIdPassthroughCtor.newInstance(numPartitions);
+    Mockito.doReturn(partitioner).when(dependency).partitioner();
+    Mockito.doReturn(serializer).when(dependency).serializer();
+
+    final File tempFile = new File(tempDir, UUID.randomUUID().toString());
+    final CelebornShuffleHandle<Integer, String, String> handle =
+        new CelebornShuffleHandle<>(
+            appId, host, port, userIdentifier, shuffleId, false, numMaps, dependency);
+    final ShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    ((DummyShuffleClient) client).initReducePartitionMap(shuffleId, numPartitions, 1);
+    File tempPusherFile = new File(tempDir, UUID.randomUUID().toString());
+
+    SortBasedPusher pusher =
+        createSortBasedPusher(
+            conf,
+            tempPusherFile,
+            numPartitions,
+            metrics.shuffleWriteMetrics(),
+            sparkConf,
+            "12k",
+            numCores);
+    final SortBasedShuffleWriter<Integer, String, String> writer =
+        createShuffleWriterWithPusher(
+            handle, taskContext, conf, client, metrics.shuffleWriteMetrics(), pusher);
+
+    AtomicInteger total = new AtomicInteger(0);
+
+    assertEquals(12 * 1024, pusher.getPushSortMemoryThreshold());
+    // max memory is 29491 bytes
+    assertEquals(
+        130 * 1024 * maxMemoryFactor * sparkMemoryFraction / numCores,
+        pusher.memoryThresholdManager.getMaxMemoryThresholdInBytes(),
+        2);
+    assertEquals(MemoryMode.OFF_HEAP, pusher.getMode());
+
+    // memory threshold is 12k, push 12k to bump threshold to 24k
+    Iterator iterator = getUnsafeRowIterator(12 * 1024, 6 * 1024, total, numPartitions);
+    writer.doWrite(iterator);
+    assertEquals(24 * 1024, pusher.getPushSortMemoryThreshold());
+    assertEquals(2, total.get());
+
+    // push 24k to bump threshold to max of 29491
+    iterator = getUnsafeRowIterator(24 * 1024, 6 * 1024, total, numPartitions);
+    writer.doWrite(iterator);
+    assertEquals(
+        130 * 1024 * maxMemoryFactor * sparkMemoryFraction / numCores,
+        pusher.getPushSortMemoryThreshold(),
+        2);
+    assertEquals(6, total.get());
+
+    // push another 48k, threshold stays the same
+    iterator = getUnsafeRowIterator(48 * 1024, 6 * 1024, total, numPartitions);
+    writer.doWrite(iterator);
+    assertEquals(
+        130 * 1024 * maxMemoryFactor * sparkMemoryFraction / numCores,
+        pusher.getPushSortMemoryThreshold(),
+        2);
+    assertEquals(14, total.get());
   }
 }

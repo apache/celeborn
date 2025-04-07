@@ -298,7 +298,8 @@ public class SparkShuffleManager implements ShuffleManager {
               h.dependency(),
               h.numMappers(),
               context,
-              celebornConf,
+              SortBasedPusher.setMemoryConfs(
+                  conf, celebornConf, cores, context.taskMemoryManager().getTungstenMemoryMode()),
               shuffleClient,
               metrics,
               SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout));
