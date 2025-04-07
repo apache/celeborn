@@ -334,6 +334,7 @@ class CelebornShuffleReader[K, C](
 
         (partitionId, inputStream)
       } else {
+        log.warn("Shuffle handle reports that there are no mappers, so we create an empty stream")
         (partitionId, CelebornInputStream.empty())
       }
     }).filter {

@@ -198,7 +198,12 @@ class UtilsSuite extends CelebornFunSuite {
     fileGroup.put(2, partitionLocation(2))
 
     val attempts = Array(0, 0, 1)
-    val response = GetReducerFileGroupResponse(StatusCode.STAGE_ENDED, fileGroup, attempts)
+    val response = GetReducerFileGroupResponse(
+      StatusCode.STAGE_ENDED,
+      fileGroup,
+      attempts,
+      Collections.emptySet(),
+      new AtomicIntegerArray(0))
     val responseTrans = Utils.fromTransportMessage(Utils.toTransportMessage(response)).asInstanceOf[
       GetReducerFileGroupResponse]
 

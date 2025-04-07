@@ -22,6 +22,8 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.must.Matchers.include
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
@@ -32,6 +34,12 @@ class MemoryStorageReusedExchangeSuite extends AnyFunSuite
 
   override def beforeEach(): Unit = {
     ShuffleClient.reset()
+  }
+
+  override def afterEach(): Unit = {
+    if (SparkSession.getActiveSession.isDefined) {
+      SparkSession.getActiveSession.get.stop()
+    }
   }
 
   test("[CELEBORN-980] Asynchronously delete original files to fix ReusedExchange bug") {
@@ -47,6 +55,10 @@ class MemoryStorageReusedExchangeSuite extends AnyFunSuite
       .set("spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes", "100")
       .set("spark.sql.adaptive.advisoryPartitionSizeInBytes", "100")
       .set(s"spark.celeborn.storage.availableTypes", "HDD,MEMORY")
+      .set(s"spark.plugins", "org.apache.spark.shuffle.celeborn.CelebornIntegrityCheckPlugin")
+      .set(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.celeborn.ValidatingSparkShuffleManager")
     val spark = SparkSession.builder()
       .config(sparkConf)
       .getOrCreate()

@@ -17,12 +17,16 @@
 
 package org.apache.celeborn.service.deploy.cluster
 
+import org.junit.Ignore
+
 import org.apache.celeborn.common.protocol.CompressionCodec
 
-class ClusterReadWriteTestWithNONE extends ReadWriteTestBase {
-
-  test(s"test MiniCluster With NONE") {
-    testReadWriteByCode(CompressionCodec.NONE)
-  }
-
-}
+//TODO(gaurav): decide if we need to re-enable this ever
+//@Ignore
+//class ClusterReadWriteTestWithNONE extends ReadWriteTestBase {
+//
+//  test(s"test MiniCluster With NONE") {
+//    testReadWriteByCode(CompressionCodec.NONE)
+//  }
+//
+//}

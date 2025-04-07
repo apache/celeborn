@@ -22,6 +22,8 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.must.Matchers.include
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
@@ -32,6 +34,12 @@ class ReusedExchangeSuite extends AnyFunSuite
 
   override def beforeEach(): Unit = {
     ShuffleClient.reset()
+  }
+
+  override def afterEach(): Unit = {
+    if (SparkSession.getActiveSession.isDefined) {
+      SparkSession.getActiveSession.get.stop()
+    }
   }
 
   Array(true, false).foreach { chunkPrefetch =>
@@ -50,7 +58,10 @@ class ReusedExchangeSuite extends AnyFunSuite
 
   def testReusedExchange(readLocalShuffle: Boolean, prefetch: Boolean): Unit = {
     val sparkConf = new SparkConf().setAppName("celeborn-test").setMaster("local[2]")
-      .set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
+      .set(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.celeborn.ValidatingSparkShuffleManager")
+      .set(s"spark.plugins", "org.apache.spark.shuffle.celeborn.CelebornIntegrityCheckPlugin")
       .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
       .set(s"spark.${CelebornConf.READ_LOCAL_SHUFFLE_FILE.key}", readLocalShuffle.toString)
       .set(s"spark.${CelebornConf.CLIENT_CHUNK_PREFETCH_ENABLED.key}", prefetch.toString)

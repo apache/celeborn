@@ -20,14 +20,15 @@ package org.apache.celeborn.client.commit
 import java.nio.ByteBuffer
 import java.util
 import java.util.concurrent.{Callable, ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
-import java.util.function
-
+import java.util.concurrent.atomic.AtomicIntegerArray
+import java.util.{Collections, function}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-
+import com.google.common.base.Preconditions.checkState
 import com.google.common.cache.{Cache, CacheBuilder}
+import org.roaringbitmap.{IntConsumer, RoaringBitmap}
+import org.roaringbitmap.RoaringBitmap
 import com.google.common.collect.Sets
-
 import org.apache.celeborn.client.{ClientUtils, LifecycleManager, ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
@@ -78,6 +79,13 @@ class ReducePartitionCommitHandler(
   private val rpcCacheSize = conf.clientRpcCacheSize
   private val rpcCacheConcurrencyLevel = conf.clientRpcCacheConcurrencyLevel
   private val rpcCacheExpireTime = conf.clientRpcCacheExpireTime
+
+  private val shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled
+
+  // partitionId-shuffleId -> number of mappers that have written to this reducer (partition + shuffle)
+  private val mapperCountForReducer = JavaUtils.newConcurrentHashMap[Integer, AtomicIntegerArray]()
+  private val aqePartitionCompletenessValidator =
+    JavaUtils.newConcurrentHashMap[Int, AQEPartitionCompletenessValidator]()
 
   private val getReducerFileGroupResponseBroadcastEnabled = conf.getReducerFileGroupBroadcastEnabled
   private val getReducerFileGroupResponseBroadcastMiniSize =
@@ -263,18 +271,39 @@ class ReducePartitionCommitHandler(
       mapId: Int,
       attemptId: Int,
       numMappers: Int,
+      numPartitions: Int,
+      writtenPartitions: RoaringBitmap,
       partitionId: Int,
       pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]],
       recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean) = {
     shuffleMapperAttempts.synchronized {
       if (getMapperAttempts(shuffleId) == null) {
         logDebug(s"[handleMapperEnd] $shuffleId not registered, create one.")
-        initMapperAttempts(shuffleId, numMappers)
+        initMapperAttempts(shuffleId, numMappers, numPartitions)
       }
 
       val attempts = shuffleMapperAttempts.get(shuffleId)
       if (attempts(mapId) < 0) {
         attempts(mapId) = attemptId
+
+        if (shuffleIntegrityCheckEnabled) {
+          if (writtenPartitions == null) {
+            logInfo(
+              s"[finishMapperAttempt] no partition writes for mapper $mapId in shuffle $shuffleId.")
+          } else {
+            val array = mapperCountForReducer.get(shuffleId)
+            checkState(
+              array != null,
+              "MapperCountForReducer can only be null if shuffleId %s is not registered",
+              shuffleId)
+            writtenPartitions.forEach(new IntConsumer {
+              override def accept(value: Int): Unit = {
+                array.getAndIncrement(value)
+              }
+            })
+          }
+        }
+
         if (null != pushFailedBatches && !pushFailedBatches.isEmpty) {
           val pushFailedBatchesMap = shufflePushFailedBatches.computeIfAbsent(
             shuffleId,
@@ -298,19 +327,50 @@ class ReducePartitionCommitHandler(
   override def registerShuffle(
       shuffleId: Int,
       numMappers: Int,
-      isSegmentGranularityVisible: Boolean): Unit = {
-    super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible)
+      isSegmentGranularityVisible: Boolean,
+      numPartitions: Int): Unit = {
+    super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible, numPartitions)
     getReducerFileGroupRequest.put(shuffleId, new util.HashSet[RpcCallContext]())
-    initMapperAttempts(shuffleId, numMappers)
+    initMapperAttempts(shuffleId, numMappers, numPartitions)
   }
 
-  private def initMapperAttempts(shuffleId: Int, numMappers: Int): Unit = {
+  override def finishPartition(
+      shuffleId: Int,
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      actualMapperCount: Int): (Boolean, String) = {
+    logInfo(s"finish Partition call: shuffleId: $shuffleId, " +
+      s"partitionId: $partitionId, " +
+      s"startMapIndex: $startMapIndex " +
+      s"endMapIndex: $endMapIndex, " +
+      s"actualMapperCount: $actualMapperCount")
+    val map = mapperCountForReducer.get(shuffleId);
+    checkState(
+      map != null,
+      "MapperCount map cannot be null for a registered shuffleId: %d",
+      shuffleId)
+    val expectedWrittenMapperCountForParent = map.get(partitionId)
+    val validator = aqePartitionCompletenessValidator.computeIfAbsent(
+      shuffleId,
+      _ => new AQEPartitionCompletenessValidator)
+    validator.validateSubPartition(
+      partitionId,
+      startMapIndex,
+      endMapIndex,
+      actualMapperCount,
+      expectedWrittenMapperCountForParent,
+      shuffleMapperAttempts.get(shuffleId).length)
+  }
+
+  private def initMapperAttempts(shuffleId: Int, numMappers: Int, numPartitions: Int): Unit = {
     shuffleMapperAttempts.synchronized {
       if (!shuffleMapperAttempts.containsKey(shuffleId)) {
         val attempts = new Array[Int](numMappers)
         0 until numMappers foreach (idx => attempts(idx) = -1)
         shuffleMapperAttempts.put(shuffleId, attempts)
       }
+      mapperCountForReducer.put(shuffleId, new AtomicIntegerArray(numPartitions))
     }
   }
 
@@ -321,14 +381,18 @@ class ReducePartitionCommitHandler(
           StatusCode.SHUFFLE_DATA_LOST,
           JavaUtils.newConcurrentHashMap(),
           Array.empty,
-          new util.HashSet[Integer]()))
+          new util.HashSet[Integer](),
+          new AtomicIntegerArray(mapperCountForReducer.get(shuffleId).length())))
     } else {
       // LocalNettyRpcCallContext is for the UTs
       if (context.isInstanceOf[LocalNettyRpcCallContext]) {
         var response = GetReducerFileGroupResponse(
           StatusCode.SUCCESS,
           reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
-          getMapperAttempts(shuffleId))
+          getMapperAttempts(shuffleId),
+          Collections.emptySet[Integer](),
+          mapperCountForReducer.get(shuffleId)))
+        )
 
         // only check whether broadcast enabled for the UTs
         if (getReducerFileGroupResponseBroadcastEnabled) {
@@ -341,14 +405,24 @@ class ReducePartitionCommitHandler(
           shuffleId,
           new Callable[ByteBuffer]() {
             override def call(): ByteBuffer = {
+              val groups =
+                reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap())
+              val map = mapperCountForReducer.get(shuffleId)
+              checkState(
+                map != null,
+                "MapperCount map cannot be null for a registered shuffleId: %d",
+                shuffleId)
+
               val returnedMsg = GetReducerFileGroupResponse(
                 StatusCode.SUCCESS,
                 reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
                 getMapperAttempts(shuffleId),
+                Collections.emptySet[Integer](),
                 pushFailedBatches =
                   shufflePushFailedBatches.getOrDefault(
                     shuffleId,
-                    new util.HashMap[String, util.Set[PushFailedBatch]]()))
+                    new util.HashMap[String, util.Set[PushFailedBatch]]()),
+                map)
 
               val serializedMsg =
                 context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)

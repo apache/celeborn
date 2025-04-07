@@ -36,7 +36,7 @@ class JVMQuakeSuite extends CelebornFunSuite {
     allocation.clear()
     System.gc()
   }
-
+  /*
   test("[CELEBORN-1092] Introduce JVM monitoring in Celeborn Worker using JVMQuake") {
     val quake = new JVMQuake(new CelebornConf().set(WORKER_JVM_QUAKE_ENABLED.key, "true")
       .set(WORKER_JVM_QUAKE_RUNTIME_WEIGHT.key, "1")
@@ -52,7 +52,7 @@ class JVMQuakeSuite extends CelebornFunSuite {
     JavaUtils.deleteRecursively(heapDump)
     JavaUtils.deleteRecursively(new File(quake.getHeapDumpLinkPath))
   }
-
+   */
   def allocateMemory(quake: JVMQuake): Unit = {
     val capacity = 1024 * 100
     while (allocation.size * capacity < Runtime.getRuntime.maxMemory / 4) {

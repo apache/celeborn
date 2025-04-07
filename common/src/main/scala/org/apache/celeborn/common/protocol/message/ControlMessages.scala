@@ -19,6 +19,7 @@ package org.apache.celeborn.common.protocol.message
 
 import java.util
 import java.util.{Collections, UUID}
+import java.util.concurrent.atomic.AtomicIntegerArray
 
 import scala.collection.JavaConverters._
 
@@ -134,13 +135,22 @@ object ControlMessages extends Logging {
     def apply(
         shuffleId: Int,
         numMappers: Int,
-        numPartitions: Int): PbRegisterShuffle =
+        numPartitions: Int,
+        writtenPartitions: RoaringBitmap): PbRegisterShuffle =
       PbRegisterShuffle.newBuilder()
         .setShuffleId(shuffleId)
         .setNumMappers(numMappers)
         .setNumPartitions(numPartitions)
         .build()
   }
+
+  case class ReducerPartitionEnd(
+      shuffleId: Int,
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      actualMapperCount: Int)
+    extends MasterMessage
 
   object RegisterMapPartitionTask {
     def apply(
@@ -274,7 +284,9 @@ object ControlMessages extends Logging {
       attemptId: Int,
       numMappers: Int,
       partitionId: Int,
-      failedBatchSet: util.Map[String, util.Set[PushFailedBatch]])
+      failedBatchSet: util.Map[String, util.Set[PushFailedBatch]],
+      numPartitions: Int,
+      writtenPartitions: RoaringBitmap)
     extends MasterMessage
 
   case class MapperEndResponse(status: StatusCode) extends MasterMessage
@@ -290,6 +302,7 @@ object ControlMessages extends Logging {
       attempts: Array[Int] = Array.emptyIntArray,
       partitionIds: util.Set[Integer] = Collections.emptySet[Integer](),
       pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]] = Collections.emptyMap(),
+      mapperCountForReducer: AtomicIntegerArray,
       broadcast: Array[Byte] = Array.emptyByteArray)
     extends MasterMessage
 
@@ -726,7 +739,15 @@ object ControlMessages extends Logging {
     case pb: PbChangeLocationResponse =>
       new TransportMessage(MessageType.CHANGE_LOCATION_RESPONSE, pb.toByteArray)
 
-    case MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId, pushFailedBatch) =>
+    case MapperEnd(
+          shuffleId,
+          mapId,
+          attemptId,
+          numMappers,
+          numPartitions,
+          writtenPartitions,
+          partitionId,
+          pushFailedBatch) =>
       val pushFailedMap = pushFailedBatch.asScala.map { case (k, v) =>
         val resultValue = PbSerDeUtils.toPbPushFailedBatchSet(v)
         (k, resultValue)
@@ -736,6 +757,8 @@ object ControlMessages extends Logging {
         .setMapId(mapId)
         .setAttemptId(attemptId)
         .setNumMappers(numMappers)
+        .setNumPartitions(numPartitions)
+        .setWrittenPartitions(Utils.roaringBitmapToByteString(writtenPartitions))
         .setPartitionId(partitionId)
         .putAllPushFailureBatches(pushFailedMap)
         .build().toByteArray
@@ -746,6 +769,8 @@ object ControlMessages extends Logging {
         .setStatus(status.getValue)
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END_RESPONSE, payload)
+
+    case class ReducerPartitionEndResponse(status: StatusCode) extends MasterMessage
 
     case GetReducerFileGroup(shuffleId, isSegmentGranularityVisible) =>
       val payload = PbGetReducerFileGroup.newBuilder()
@@ -760,6 +785,7 @@ object ControlMessages extends Logging {
           attempts,
           partitionIds,
           failedBatches,
+          mapperCountForReducer,
           broadcast) =>
       val builder = PbGetReducerFileGroupResponse
         .newBuilder()
@@ -773,6 +799,9 @@ object ControlMessages extends Logging {
         }.asJava)
       builder.addAllAttempts(attempts.map(Integer.valueOf).toIterable.asJava)
       builder.addAllPartitionIds(partitionIds)
+      for (i <- 0 until mapperCountForReducer.length()) {
+        builder.addMapperCountForReducer(mapperCountForReducer.get(i))
+      }
       builder.putAllPushFailedBatches(
         failedBatches.asScala.map {
           case (uniqueId, pushFailedBatchSet) =>
@@ -784,6 +813,12 @@ object ControlMessages extends Logging {
 
     case pb: PbWorkerExclude =>
       new TransportMessage(MessageType.WORKER_EXCLUDE, pb.toByteArray)
+
+    case pb: PbReducerPartitionEnd =>
+      new TransportMessage(MessageType.REDUCER_PARTITION_END, pb.toByteArray)
+
+    case pb: PbReducerPartitionEndResponse =>
+      new TransportMessage(MessageType.REDUCER_PARTITION_END_RESPONSE, pb.toByteArray)
 
     case pb: PbWorkerExcludeResponse =>
       new TransportMessage(MessageType.WORKER_EXCLUDE_RESPONSE, pb.toByteArray)
@@ -1167,7 +1202,21 @@ object ControlMessages extends Logging {
           pbMapperEnd.getPushFailureBatchesMap.asScala.map {
             case (partitionId, pushFailedBatchSet) =>
               (partitionId, PbSerDeUtils.fromPbPushFailedBatchSet(pushFailedBatchSet))
-          }.toMap.asJava)
+          }.toMap.asJava,
+          pbMapperEnd.getNumPartitions,
+          Utils.byteStringToRoaringBitmap(pbMapperEnd.getWrittenPartitions))
+
+      case REDUCER_PARTITION_END_VALUE =>
+        val pbReducerPartitionEnd = PbReducerPartitionEnd.parseFrom(message.getPayload)
+        ReducerPartitionEnd(
+          pbReducerPartitionEnd.getShuffleId,
+          pbReducerPartitionEnd.getPartitionId,
+          pbReducerPartitionEnd.getStartMaxIndex,
+          pbReducerPartitionEnd.getEndMapIndex,
+          pbReducerPartitionEnd.getActualMapperCount)
+
+      case REDUCER_PARTITION_END_RESPONSE_VALUE =>
+        PbReducerPartitionEndResponse.parseFrom(message.getPayload)
 
       case MAPPER_END_RESPONSE_VALUE =>
         val pbMapperEndResponse = PbMapperEndResponse.parseFrom(message.getPayload)
@@ -1208,12 +1257,15 @@ object ControlMessages extends Logging {
             (uniqueId, PbSerDeUtils.fromPbPushFailedBatchSet(pushFailedBatchSet))
         }.toMap.asJava
         val broadcast = pbGetReducerFileGroupResponse.getBroadcast.toByteArray
+        val mapperCountArray =
+          pbGetReducerFileGroupResponse.getMapperCountForReducerList.asScala.map(_.toInt).toArray
         GetReducerFileGroupResponse(
           Utils.toStatusCode(pbGetReducerFileGroupResponse.getStatus),
           fileGroup,
           attempts,
           partitionIds,
           pushFailedBatches,
+          new AtomicIntegerArray(mapperCountArray),
           broadcast)
 
       case GET_SHUFFLE_ID_VALUE =>

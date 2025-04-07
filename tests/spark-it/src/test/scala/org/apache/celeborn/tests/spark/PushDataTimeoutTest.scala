@@ -20,7 +20,7 @@ package org.apache.celeborn.tests.spark
 import scala.collection.JavaConverters._
 
 import org.apache.spark.{SparkConf, SparkContextHelper}
-import org.apache.spark.shuffle.celeborn.SparkShuffleManager
+import org.apache.spark.shuffle.celeborn.{SparkShuffleManager, ValidatingSparkShuffleManager}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
@@ -44,7 +44,7 @@ class PushDataTimeoutTest extends AnyFunSuite
     // enabled, there is a possibility that two workers might be added to the excluded list due to
     // primary/replica timeout issues, then there are not enough workers to do replication if
     // available workers number = 1
-    setupMiniClusterWithRandomPorts(workerConf = workerConf, workerNum = 4)
+    setupMiniClusterWithRandomPorts(workerConf = workerConf, workerNum = 6)
   }
 
   override def beforeEach(): Unit = {
@@ -128,6 +128,7 @@ class PushDataTimeoutTest extends AnyFunSuite
     val celebornSparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .getOrCreate()
+
     try {
       combine(celebornSparkSession)
     } catch {
@@ -140,7 +141,7 @@ class PushDataTimeoutTest extends AnyFunSuite
     assert(PushDataHandler.pushReplicaMergeDataTimeoutTested.get())
     val excludedWorkers = SparkContextHelper.env
       .shuffleManager
-      .asInstanceOf[SparkShuffleManager]
+      .asInstanceOf[ValidatingSparkShuffleManager]
       .getLifecycleManager
       .workerStatusTracker
       .excludedWorkers

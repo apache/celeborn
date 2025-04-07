@@ -58,6 +58,7 @@ public abstract class ShuffleClient {
   private static volatile Map<StorageInfo.Type, FileSystem> hadoopFs;
   private static LongAdder totalReadCounter = new LongAdder();
   private static LongAdder localShuffleReadCounter = new LongAdder();
+  public static final int METADATA_BATCH_ID = -1;
 
   private static volatile Optional<
           BiFunction<Integer, byte[], ControlMessages.GetReducerFileGroupResponse>>
@@ -202,13 +203,21 @@ public abstract class ShuffleClient {
 
   public abstract void pushMergedData(int shuffleId, int mapId, int attemptId) throws IOException;
 
-  // Report partition locations written by the completed map task of ReducePartition Shuffle Type
-  public abstract void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers)
+  // Report partition locations written by the completed map task of MapPartition Shuffle Type.
+  // Returns # of partitions
+  public abstract int mapperEnd(
+      int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
       throws IOException;
 
-  // Report partition locations written by the completed map task of MapPartition Shuffle Type
-  public abstract void mapPartitionMapperEnd(
-      int shuffleId, int mapId, int attemptId, int numMappers, int partitionId) throws IOException;
+  public abstract void reducerPartitionEnd(
+      int shuffleId, int partitionId, int startMapIndex, int endMapIndex, int actualMapperCount)
+      throws IOException;
+
+  // Report partition locations written by the completed map task of MapPartition Shuffle Type.
+  // Returns # of partitions
+  public abstract int mapPartitionMapperEnd(
+      int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions, int partitionId)
+      throws IOException;
 
   // Cleanup states of the map task
   public abstract void cleanup(int shuffleId, int mapId, int attemptId);
@@ -304,6 +313,10 @@ public abstract class ShuffleClient {
   public abstract TransportClientFactory getDataClientFactory();
 
   public abstract void excludeFailedFetchLocation(String hostAndFetchPort, Exception e);
+
+  public abstract int sendCommitMetadata(
+          int shuffleId, int mapId, int attemptNumber, int numMappers, int numPartitions)
+          throws IOException;
 
   public static void registerDeserializeReducerFileGroupResponseFunction(
       BiFunction<Integer, byte[], ControlMessages.GetReducerFileGroupResponse> function) {

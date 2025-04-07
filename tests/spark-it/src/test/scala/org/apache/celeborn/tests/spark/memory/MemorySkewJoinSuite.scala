@@ -26,6 +26,8 @@ import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.internal.SQLConf
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.must.Matchers.include
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
@@ -46,7 +48,10 @@ class MemorySkewJoinSuite extends AnyFunSuite
   }
 
   private def enableCeleborn(conf: SparkConf) = {
-    conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
+    conf.set(
+      "spark.shuffle.manager",
+      "org.apache.spark.shuffle.celeborn.ValidatingSparkShuffleManager")
+      .set(s"spark.plugins", "org.apache.spark.shuffle.celeborn.CelebornIntegrityCheckPlugin")
       .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
       .set(s"spark.${CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD.key}", "10MB")
   }
@@ -127,25 +132,36 @@ class MemorySkewJoinSuite extends AnyFunSuite
         enableCeleborn(sparkConf)
 
         val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
-        if (sparkSession.version.startsWith("3")) {
-          sparkSession.read.parquet("./df1").repartition(8).createOrReplaceTempView("df1")
-          sparkSession.read.parquet("./df2").repartition(8).createOrReplaceTempView("df2")
-          val result = sparkSession.sql("select count(*), max(df1.fa), max(df1.fb), max(df1.fc)," +
-            "max(df1.fd), max(df2.fa), max(df2.fb), max(df2.fc), max(df2.fd)" +
-            "from df1 join df2 on df1.key=df2.key and df1.key=1").collect()
-          if (lastResult == null) {
-            lastResult = result(0)
-          } else {
-            assert((lastResult.getLong(0) == result(0).getLong(0)) &&
-              (lastResult.getString(1) == result(0).getString(1)) &&
-              (lastResult.getString(2) == result(0).getString(2)) &&
-              (lastResult.getString(3) == result(0).getString(3)) &&
-              (lastResult.getString(4) == result(0).getString(4)) &&
-              (lastResult.getString(5) == result(0).getString(5)) &&
-              (lastResult.getString(6) == result(0).getString(6)) &&
-              (lastResult.getString(7) == result(0).getString(7)) &&
-              (lastResult.getString(8) == result(0).getString(8)))
+        try {
+          if (sparkSession.version.startsWith("3")) {
+            sparkSession.read.parquet("./df1").repartition(8).createOrReplaceTempView("df1")
+            sparkSession.read.parquet("./df2").repartition(8).createOrReplaceTempView("df2")
+            val result =
+              sparkSession.sql("select count(*), max(df1.fa), max(df1.fb), max(df1.fc)," +
+                "max(df1.fd), max(df2.fa), max(df2.fb), max(df2.fc), max(df2.fd)" +
+                "from df1 join df2 on df1.key=df2.key and df1.key=1").collect()
+            if (lastResult == null) {
+              lastResult = result(0)
+            } else {
+              assert((lastResult.getLong(0) == result(0).getLong(0)) &&
+                (lastResult.getString(1) == result(0).getString(1)) &&
+                (lastResult.getString(2) == result(0).getString(2)) &&
+                (lastResult.getString(3) == result(0).getString(3)) &&
+                (lastResult.getString(4) == result(0).getString(4)) &&
+                (lastResult.getString(5) == result(0).getString(5)) &&
+                (lastResult.getString(6) == result(0).getString(6)) &&
+                (lastResult.getString(7) == result(0).getString(7)) &&
+                (lastResult.getString(8) == result(0).getString(8)))
+            }
           }
+        } catch {
+          case e: Throwable =>
+            if (codec != CompressionCodec.NONE) {
+              throw e
+            } else {
+              e.getMessage should include("Shuffle integrity check requires shuffle compression")
+            }
+        } finally {
           sparkSession.stop()
         }
       }

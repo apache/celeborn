@@ -106,7 +106,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
 
       val shuffleMgr = SparkContextHelper.env
         .shuffleManager
-        .asInstanceOf[SparkShuffleManager]
+        .asInstanceOf[ValidatingSparkShuffleManager]
       val lifecycleManager = shuffleMgr.getLifecycleManager
 
       shuffleMgr.unregisterShuffle(0)
@@ -234,9 +234,39 @@ class CelebornFetchFailureSuite extends AnyFunSuite
       val df1 = sparkSession.table("t_1")
       val df2 = sparkSession.table("t_2")
       val df3 = sparkSession.table("t_3")
-      df1.union(df2).union(df3).count()
-
+      df1.union(df2).union(df3).count() shouldBe 0
+      df1.union(df2).union(df3).collect() shouldBe empty
       sparkSession.stop()
+    }
+  }
+
+  test("celeborn spark integration test - empty shuffle data failure") {
+    if (Spark3OrNewer) {
+      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+      val sparkSession = SparkSession.builder()
+        .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+        .config("spark.sql.shuffle.partitions", 2)
+        .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+        .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+        .config("celeborn.stripe.handle.empty.partitions", false)
+        .getOrCreate()
+
+      sparkSession.sql("create table if not exists t_1 (a bigint) using parquet")
+      sparkSession.sql("create table if not exists t_2 (a bigint) using parquet")
+      sparkSession.sql("create table if not exists t_3 (a bigint) using parquet")
+      val df1 = sparkSession.table("t_1")
+      val df2 = sparkSession.table("t_2")
+      val df3 = sparkSession.table("t_3")
+      try {
+        df1.union(df2).union(df3).count()
+        fail("should throw exception")
+      } catch {
+        case e: Exception =>
+          assert(e.getMessage.contains("unexpected! unknown appShuffleId 0"))
+      } finally {
+        sparkSession.stop()
+      }
+
     }
   }
 

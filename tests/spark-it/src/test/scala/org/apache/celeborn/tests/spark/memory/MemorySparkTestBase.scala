@@ -18,6 +18,7 @@
 package org.apache.celeborn.tests.spark.memory
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite

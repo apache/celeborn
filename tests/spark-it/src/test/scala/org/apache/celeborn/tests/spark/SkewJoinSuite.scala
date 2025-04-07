@@ -24,6 +24,8 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.must.Matchers.include
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
@@ -42,7 +44,10 @@ class SkewJoinSuite extends AnyFunSuite
   }
 
   private def enableCeleborn(conf: SparkConf) = {
-    conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
+    conf.set(
+      "spark.shuffle.manager",
+      "org.apache.spark.shuffle.celeborn.ValidatingSparkShuffleManager")
+      .set(s"spark.plugins", "org.apache.spark.shuffle.celeborn.CelebornIntegrityCheckPlugin")
       .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
       .set(s"spark.${CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD.key}", "10MB")
   }

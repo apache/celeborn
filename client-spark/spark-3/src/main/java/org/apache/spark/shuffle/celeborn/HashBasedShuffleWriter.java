@@ -19,6 +19,7 @@ package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
 import javax.annotation.Nullable;
@@ -29,6 +30,7 @@ import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Stopwatch;
 import org.apache.spark.Partitioner;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkEnv;
@@ -377,9 +379,28 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     writeMetrics.incWriteTime(System.nanoTime() - pushMergedDataTime);
     updateRecordsWrittenMetrics();
 
-    long waitStartTime = System.nanoTime();
-    shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers);
-    writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
+    Stopwatch waitingStartTime = Stopwatch.createStarted();
+    int bytesWritten =
+        shuffleClient.sendCommitMetadata(
+            shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);
+    writeMetrics.incBytesWritten(bytesWritten);
+    long sendCommitMetadataElapsedMs = waitingStartTime.elapsed(TimeUnit.MILLISECONDS);
+
+    Stopwatch mapperEndSw = Stopwatch.createStarted();
+    int writtenPartitions =
+        shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);
+    long mapperEndElapsedMs = mapperEndSw.elapsed(TimeUnit.MILLISECONDS);
+    writeMetrics.incWriteTime(waitingStartTime.elapsed(TimeUnit.MILLISECONDS));
+
+    logger.info(
+        "SendCommitMetadataBatchForAllPartitions ShuffleId {} mapId {} encodedAttemptId {}: mappers {}/{} sendCommitMetadata took {} ms, mapperEnd took {} ms",
+        shuffleId,
+        mapId,
+        encodedAttemptId,
+        writtenPartitions,
+        numMappers,
+        sendCommitMetadataElapsedMs,
+        mapperEndElapsedMs);
 
     BlockManagerId bmId = SparkEnv.get().blockManager().shuffleServerId();
     mapStatus =

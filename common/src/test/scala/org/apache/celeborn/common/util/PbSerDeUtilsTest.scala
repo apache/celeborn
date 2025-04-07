@@ -19,6 +19,7 @@ package org.apache.celeborn.common.util
 
 import java.io.File
 import java.util
+import java.util.concurrent.atomic.AtomicIntegerArray
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -583,12 +584,19 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     shuffleMap.put(1, locationSet)
     val attempts = Array.fill(10)(10)
     val succeedPartitions = Array.fill(10)(10).map(java.lang.Integer.valueOf).toSet.asJava
+    val mapperCountForReducer = new AtomicIntegerArray(5)
+    mapperCountForReducer.getAndSet(0, 1)
+    mapperCountForReducer.getAndSet(1, 1)
+    mapperCountForReducer.getAndSet(2, 1)
+    mapperCountForReducer.getAndSet(3, 1)
+    mapperCountForReducer.getAndSet(4, 1)
 
     val GetReducerFileGroupResponseMsg = GetReducerFileGroupResponse(
       StatusCode.SUCCESS,
       shuffleMap,
       attempts,
-      succeedPartitions)
+      succeedPartitions,
+      mapperCountForReducer)
 
     val transportGetReducerFileGroup =
       ControlMessages.toTransportMessage(GetReducerFileGroupResponseMsg)
@@ -614,12 +622,19 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     shuffleMap.put(1, locationSet)
     val attempts = Array.fill(10)(10)
     val succeedPartitions = Array.fill(10)(10).map(java.lang.Integer.valueOf).toSet.asJava
+    val mapperCountForReducer = new AtomicIntegerArray(5)
+    mapperCountForReducer.getAndSet(0, 1)
+    mapperCountForReducer.getAndSet(1, 1)
+    mapperCountForReducer.getAndSet(2, 1)
+    mapperCountForReducer.getAndSet(3, 1)
+    mapperCountForReducer.getAndSet(4, 1)
 
     val GetReducerFileGroupResponseMsg = GetReducerFileGroupResponse(
       StatusCode.SUCCESS,
       shuffleMap,
       attempts,
-      succeedPartitions)
+      succeedPartitions,
+      mapperCountForReducer)
 
     val transportGetReducerFileGroup =
       ControlMessages.toTransportMessage(GetReducerFileGroupResponseMsg)
@@ -645,12 +660,19 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     shuffleMap.put(1, locationSet)
     val attempts = Array.fill(10)(10)
     val succeedPartitions = Array.fill(10)(10).map(java.lang.Integer.valueOf).toSet.asJava
+    val mapperCountForReducer = new AtomicIntegerArray(5)
+    mapperCountForReducer.getAndSet(0, 1)
+    mapperCountForReducer.getAndSet(1, 1)
+    mapperCountForReducer.getAndSet(2, 1)
+    mapperCountForReducer.getAndSet(3, 1)
+    mapperCountForReducer.getAndSet(4, 1)
 
     val GetReducerFileGroupResponseMsg = GetReducerFileGroupResponse(
       StatusCode.SUCCESS,
       shuffleMap,
       attempts,
-      succeedPartitions)
+      succeedPartitions,
+      mapperCountForReducer)
 
     val transportGetReducerFileGroup =
       ControlMessages.toTransportMessage(GetReducerFileGroupResponseMsg)

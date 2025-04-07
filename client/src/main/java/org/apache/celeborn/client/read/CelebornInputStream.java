@@ -17,13 +17,19 @@
 
 package org.apache.celeborn.client.read;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.celeborn.client.read.CelebornIntegrityCheckTracker.registerValidation;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.celeborn.common.CommitMetadata;
 import scala.Tuple2;
 
 import com.github.luben.zstd.ZstdException;
@@ -72,11 +78,10 @@ public abstract class CelebornInputStream extends InputStream {
       int shuffleId,
       int partitionId,
       ExceptionMaker exceptionMaker,
-      MetricsCallback metricsCallback)
+      MetricsCallback metricsCallback,
+      int expectedMapperCount)
       throws IOException {
-    if (locations == null || locations.isEmpty()) {
-      return emptyInputStream;
-    } else {
+
       // if startMapIndex > endMapIndex, means partition is skew partition and read by Celeborn
       // implementation.
       // locations will split to sub-partitions with startMapIndex size.
@@ -101,7 +106,8 @@ public abstract class CelebornInputStream extends InputStream {
             partitionId,
             exceptionMaker,
             true,
-            metricsCallback);
+            metricsCallback,
+            expectedMapperCount);
       } else {
         return new CelebornInputStreamImpl(
             conf,
@@ -123,7 +129,8 @@ public abstract class CelebornInputStream extends InputStream {
             partitionId,
             exceptionMaker,
             false,
-            metricsCallback);
+            metricsCallback,
+            expectedMapperCount);
       }
     }
   }
@@ -153,11 +160,18 @@ public abstract class CelebornInputStream extends InputStream {
         public int partitionsRead() {
           return 0;
         }
+
+        @Override
+        public Map<String, CommitMetadata> getExpectedCommitMetadata() {
+          return Map.of();
+        }
       };
 
   public abstract int totalPartitionsToRead();
 
   public abstract int partitionsRead();
+
+  public abstract Map<String, CommitMetadata> getExpectedCommitMetadata();
 
   private static final class CelebornInputStreamImpl extends CelebornInputStream {
     private static final Random RAND = new Random();
@@ -201,8 +215,11 @@ public abstract class CelebornInputStream extends InputStream {
     private final boolean rangeReadFilter;
     private final boolean enabledReadLocalShuffle;
     private final String localHostAddress;
+    private final Map<String, CommitMetadata> expectedCommitMetadataMap = new HashMap<>();
 
     private boolean shuffleCompressionEnabled;
+    private boolean shuffleIntegrityCheckEnabled;
+    private boolean shuffleIntegrityCheckEmptyPartitionEnabled;
     private long fetchExcludedWorkerExpireTimeout;
     private ConcurrentHashMap<String, Long> fetchExcludedWorkers;
 
@@ -212,7 +229,14 @@ public abstract class CelebornInputStream extends InputStream {
     private int shuffleId;
     private int partitionId;
     private ExceptionMaker exceptionMaker;
+    private final int expectedMapperCount;
     private boolean closed = false;
+    private boolean integrityChecked = false;
+    private final CommitMetadata aggregatedExpectedCommitMetadata = new CommitMetadata();
+    private final CommitMetadata aggregatedActualCommitMetadata = new CommitMetadata();
+    private final RoaringBitmap actualMappersRead = new RoaringBitmap();
+    private final Lock rangeReadMapperBitmapLock = new ReentrantLock();
+    private RoaringBitmap rangeReadMappersBitmap = new RoaringBitmap();
 
     private final boolean readSkewPartitionWithoutMapRange;
 
@@ -234,7 +258,8 @@ public abstract class CelebornInputStream extends InputStream {
         int partitionId,
         ExceptionMaker exceptionMaker,
         boolean splitSkewPartitionWithoutMapRange,
-        MetricsCallback metricsCallback)
+        MetricsCallback metricsCallback,
+        int expectedMapperCount)
         throws IOException {
       this(
           conf,
@@ -256,7 +281,8 @@ public abstract class CelebornInputStream extends InputStream {
           partitionId,
           exceptionMaker,
           splitSkewPartitionWithoutMapRange,
-          metricsCallback);
+          metricsCallback,
+          expectedMapperCount);
     }
 
     CelebornInputStreamImpl(
@@ -279,7 +305,8 @@ public abstract class CelebornInputStream extends InputStream {
         int partitionId,
         ExceptionMaker exceptionMaker,
         boolean readSkewPartitionWithoutMapRange,
-        MetricsCallback metricsCallback)
+        MetricsCallback metricsCallback,
+        int expectedMapperCount)
         throws IOException {
       this.conf = conf;
       this.clientFactory = clientFactory;
@@ -299,6 +326,14 @@ public abstract class CelebornInputStream extends InputStream {
       this.localHostAddress = Utils.localHostName(conf);
       this.shuffleCompressionEnabled =
           !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
+      this.shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled();
+      if (this.shuffleIntegrityCheckEnabled) {
+        checkArgument(
+                this.shuffleCompressionEnabled, "Shuffle integrity check requires shuffle compression");
+      }
+      //TODO(gaurav): remove this flag
+      this.shuffleIntegrityCheckEmptyPartitionEnabled =
+              conf.clientShuffleIntegrityCheckEmptyPartitionEnabled();
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.failedBatches = failedBatchSet;
       this.readSkewPartitionWithoutMapRange = readSkewPartitionWithoutMapRange;
@@ -312,7 +347,9 @@ public abstract class CelebornInputStream extends InputStream {
       this.retryWaitMs = conf.networkIoRetryWaitMs(TransportModuleConstants.DATA_MODULE);
       this.callback = metricsCallback;
       this.exceptionMaker = exceptionMaker;
+      this.expectedMapperCount = expectedMapperCount;
       this.partitionId = partitionId;
+      this.expectedMapperCount = expectedMapperCount;
       this.appShuffleId = appShuffleId;
       this.shuffleId = shuffleId;
       this.shuffleClient = shuffleClient;
@@ -335,6 +372,14 @@ public abstract class CelebornInputStream extends InputStream {
       RoaringBitmap bitmap = location.getMapIdBitMap();
       if (bitmap == null && location.hasPeer()) {
         bitmap = location.getPeer().getMapIdBitMap();
+      }
+      if (bitmap == null) {
+        throw new RuntimeException(
+            "Bitmap for PartitionLocation is null even when range Filter Feature is enabled: "
+                + location);
+      }
+      synchronized (rangeReadMapperBitmapLock) {
+        rangeReadMappersBitmap = RoaringBitmap.or(bitmap, rangeReadMappersBitmap);
       }
       for (int i = startMapIndex; i < endMapIndex; i++) {
         if (bitmap.contains(i)) {
@@ -714,6 +759,102 @@ public abstract class CelebornInputStream extends InputStream {
       }
     }
 
+    void validateIntegrity() {
+      if (integrityChecked) {
+        logger.info("Skipping integrity checks since checks have already been performed");
+        return;
+      }
+      if (!shuffleIntegrityCheckEnabled) {
+        logger.info("Skipping integrity checks since shuffleIntegrityCheckEnabled is disabled");
+        return;
+      }
+
+      String key = Utils.makeReducerKey(shuffleId, partitionId);
+
+      boolean isCommitMetadataEqual =
+          CommitMetadata.checkCommitMetadata(
+              aggregatedExpectedCommitMetadata, aggregatedActualCommitMetadata);
+      if (!isCommitMetadataEqual) {
+        String errorMessage =
+            String.format(
+                "Mismatched CommitMetadata in AppShuffleId %s, shuffleId %s, partitionId %s. Expected: %s, actual: %s",
+                appShuffleId,
+                shuffleId,
+                partitionId,
+                aggregatedExpectedCommitMetadata,
+                aggregatedActualCommitMetadata);
+        RuntimeException exception = new RuntimeException(errorMessage);
+        logger.error("Integrity check failed", exception);
+        throw exception;
+      } else {
+        logger.info(
+            "Matched CommitMetadata for {}. Expected CommitMetadata: {}, actual CommitMetadata: {}",
+            key,
+            aggregatedExpectedCommitMetadata,
+            aggregatedActualCommitMetadata);
+      }
+
+      if (!shuffleIntegrityCheckEmptyPartitionEnabled) {
+        logger.info(
+            "Skipping empty partition check since shuffleIntegrityCheckEmptyPartitionEnabled is disabled");
+        registerValidation(appShuffleId, startMapIndex, endMapIndex, partitionId);
+        integrityChecked = true;
+        return;
+      }
+
+      int actualMappersCount;
+      if (endMapIndex == Integer.MAX_VALUE) {
+        actualMappersCount = actualMappersRead.getCardinality();
+      } else {
+        if (rangeReadFilter) {
+          synchronized (rangeReadMapperBitmapLock) {
+            actualMappersCount = rangeReadMappersBitmap.getCardinality();
+          }
+        } else {
+          logger.info(
+              "Potential AQE case. Completeness check will be made in LM: partitionId: {}, startMapIndex: {}, endMapIndex: {},",
+              partitionId,
+              startMapIndex,
+              endMapIndex);
+          try {
+            int actualMapperCount = actualMappersRead.getCardinality();
+            shuffleClient.reducerPartitionEnd(
+                shuffleId, partitionId, startMapIndex, endMapIndex, actualMapperCount);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+          registerValidation(appShuffleId, startMapIndex, endMapIndex, partitionId);
+          integrityChecked = true;
+          return;
+        }
+      }
+      boolean isMapperCountEqual = actualMappersCount == expectedMapperCount;
+      if (!isMapperCountEqual) {
+        String errorMessage =
+            String.format(
+                "Mismatched mapper count in AppShuffleId %s, shuffleId %s, partitionId %s for rangeReadFilter %b, startMapIndex %d, endMapIndex %d. Expected count: %s, actual count: %s (actual mappers %s)",
+                appShuffleId,
+                shuffleId,
+                partitionId,
+                rangeReadFilter,
+                startMapIndex,
+                endMapIndex,
+                expectedMapperCount,
+                actualMappersCount,
+                actualMappersRead);
+        RuntimeException exception = new RuntimeException(errorMessage);
+        logger.error("Integrity check failed", exception);
+        throw exception;
+      }
+      registerValidation(appShuffleId, startMapIndex, endMapIndex, partitionId);
+      integrityChecked = true;
+      logger.info(
+          "Matched mapper count for {}. Expected mapper count: {}, actual mapper count: {}",
+          key,
+          expectedMapperCount,
+          actualMappersCount);
+    }
+
     private boolean moveToNextChunk() throws IOException {
       if (currentChunk != null) {
         currentChunk.release();
@@ -753,6 +894,7 @@ public abstract class CelebornInputStream extends InputStream {
           firstChunk = false;
         }
         if (currentChunk == null) {
+          validateIntegrity();
           close();
           return false;
         }
@@ -782,6 +924,7 @@ public abstract class CelebornInputStream extends InputStream {
 
           // de-duplicate
           if (attemptId == attempts[mapId]) {
+            actualMappersRead.add(mapId);
             if (readSkewPartitionWithoutMapRange) {
               Set<PushFailedBatch> failedBatchSet =
                   this.failedBatches.get(currentReader.getLocation().getUniqueId());
@@ -803,19 +946,65 @@ public abstract class CelebornInputStream extends InputStream {
             if (!batchSet.contains(batchId)) {
               batchSet.add(batchId);
               callback.incBytesRead(BATCH_HEADER_SIZE + size);
-              if (shuffleCompressionEnabled) {
-                // decompress data
-                int originalLength = decompressor.getOriginalLen(compressedBuf);
-                if (rawDataBuf.length < originalLength) {
-                  rawDataBuf = new byte[originalLength];
+
+              // Handling when integrity checks are disabled.
+              if (!shuffleIntegrityCheckEnabled) {
+                if (shuffleCompressionEnabled) {
+                  // decompress data
+                  int originalLength = decompressor.getOriginalLen(compressedBuf);
+                  if (rawDataBuf.length < originalLength) {
+                    rawDataBuf = new byte[originalLength];
+                  }
+                  limit = decompressor.decompress(compressedBuf, rawDataBuf, 0);
+                } else {
+                  limit = size;
                 }
-                limit = decompressor.decompress(compressedBuf, rawDataBuf, 0);
+                position = 0;
+                hasData = true;
+                break;
+              }
+
+              // Handling when integrity checks are enabled.
+              String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+              if (batchId == ShuffleClient.METADATA_BATCH_ID) {
+                if (!shuffleCompressionEnabled) {
+                  throw new RuntimeException(
+                          "Unexpected commit metadata when shuffleCompression is disabled");
+                }
+                int originalLength = decompressor.getOriginalLen(compressedBuf);
+                var rawMetadataBuf = new byte[originalLength];
+                decompressor.decompress(compressedBuf, rawMetadataBuf, 0);
+
+                CommitMetadata commitMetadata =
+                        convertRawMetadataToMapAttemptCommitMetadata(rawMetadataBuf);
+                logger.debug(
+                        "partition {} converted CommitMetadata{} for map id {} attempt Id {} input stream {} ",
+                        partitionId,
+                        commitMetadata,
+                        mapId,
+                        attemptId,
+                        this.hashCode());
+
+                expectedCommitMetadataMap.put(mapKey, commitMetadata);
+                aggregatedExpectedCommitMetadata.addCommitData(commitMetadata);
               } else {
                 limit = size;
+
+                if (shuffleCompressionEnabled) {
+                  // decompress data
+                  int originalLength = decompressor.getOriginalLen(compressedBuf);
+                  if (rawDataBuf.length < originalLength) {
+                    rawDataBuf = new byte[originalLength];
+                  }
+                  limit = decompressor.decompress(compressedBuf, rawDataBuf, 0);
+                  aggregatedActualCommitMetadata.addDataWithOffsetAndLength(rawDataBuf, 0, limit);
+                } else {
+                  limit = size;
+                }
+                position = 0;
+                hasData = true;
+                break;
               }
-              position = 0;
-              hasData = true;
-              break;
             } else {
               callback.incDuplicateBytesRead(BATCH_HEADER_SIZE + size);
               logger.debug(
@@ -825,6 +1014,11 @@ public abstract class CelebornInputStream extends InputStream {
                   batchId);
             }
           }
+        }
+
+        if (!hasData) {
+          validateIntegrity();
+          // TODO(borovsky) consider closing the stream
         }
 
         return hasData;
@@ -868,6 +1062,10 @@ public abstract class CelebornInputStream extends InputStream {
       }
     }
 
+    private CommitMetadata convertRawMetadataToMapAttemptCommitMetadata(byte[] rawMetadataBuf) {
+      return CommitMetadata.decode(Unpooled.wrappedBuffer(rawMetadataBuf));
+    }
+
     @Override
     public int totalPartitionsToRead() {
       return locations.size();
@@ -876,6 +1074,11 @@ public abstract class CelebornInputStream extends InputStream {
     @Override
     public int partitionsRead() {
       return fileIndex;
+    }
+
+    @Override
+    public Map<String, CommitMetadata> getExpectedCommitMetadata() {
+      return expectedCommitMetadataMap;
     }
   }
 }

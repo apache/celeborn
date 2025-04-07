@@ -822,7 +822,12 @@ private[celeborn] class Worker(
     workerSource.removeAppActiveConnection(applicationIds)
   }
 
+  private def updateWorkerStatus(): Unit = {
+    workerInfo.setWorkerStatus(workerStatusManager.currentWorkerStatus)
+  }
+
   override def getWorkerInfo: String = {
+    updateWorkerStatus()
     val sb = new StringBuilder
     sb.append("====================== WorkerInfo of Worker ===========================\n")
     sb.append(workerInfo.toString()).append("\n")
@@ -887,6 +892,10 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
+  override def getStatus: String = {
+    workerStatusManager.getWorkerState().toString
+  }
+
   override def exit(exitType: String): String = {
     exitType.toUpperCase(Locale.ROOT) match {
       case "DECOMMISSION" =>
@@ -898,9 +907,12 @@ private[celeborn] class Worker(
         workerStatusManager.doTransition(WorkerEventType.Graceful)
       case "IMMEDIATELY" =>
         workerStatusManager.doTransition(WorkerEventType.Immediately)
+      case "DECOMMISSIONTHENIDLE" =>
+        workerStatusManager.doTransition(WorkerEventType.DecommissionThenIdle)
       case _ =>
         workerStatusManager.doTransition(workerStatusManager.exitEventType)
     }
+    updateWorkerStatus()
     val sb = new StringBuilder
     sb.append("============================ Exit Worker =============================\n")
     sb.append(s"Exit worker by $exitType triggered: \n")

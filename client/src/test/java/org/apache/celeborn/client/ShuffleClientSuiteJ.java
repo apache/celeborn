@@ -44,6 +44,7 @@ import org.junit.Test;
 
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.CommitMetadata;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -66,7 +67,8 @@ public class ShuffleClientSuiteJ {
   private static final String TEST_APPLICATION_ID = "testapp1";
   private static final int TEST_SHUFFLE_ID = 1;
   private static final int TEST_ATTEMPT_ID = 0;
-  private static final int TEST_REDUCRE_ID = 0;
+  private static final int TEST_REDUCER_ID = 0;
+  private static final int TEST_MAP_ID = 0;
 
   private static final int PRIMARY_RPC_PORT = 1234;
   private static final int PRIMARY_PUSH_PORT = 1235;
@@ -110,7 +112,7 @@ public class ShuffleClientSuiteJ {
               TEST_SHUFFLE_ID,
               TEST_ATTEMPT_ID,
               TEST_ATTEMPT_ID,
-              TEST_REDUCRE_ID,
+              TEST_REDUCER_ID,
               TEST_BUF1,
               0,
               TEST_BUF1.length,
@@ -125,6 +127,110 @@ public class ShuffleClientSuiteJ {
         final int compressedTotalSize = compressor.getCompressedTotalSize();
         assertEquals(compressedTotalSize + BATCH_HEADER_SIZE, pushDataLen);
       }
+
+      // Verify commit metadata is empty when integrity check is disabled
+      String mapKey = Utils.makeMapKey(TEST_SHUFFLE_ID, TEST_ATTEMPT_ID, TEST_ATTEMPT_ID);
+      PushState pushState = shuffleClient.getPushState(mapKey);
+
+      assertNotNull(pushState);
+      assertNotNull(pushState.getCommitMetadataMap());
+      assertTrue(pushState.getCommitMetadataMap().isEmpty());
+    }
+  }
+
+  @Test
+  public void testInvalidShuffleId() throws IOException, InterruptedException {
+    for (CompressionCodec codec : CompressionCodec.values()) {
+      setupEnv(codec);
+
+      Exception exception =
+          assertThrows(
+              CelebornIOException.class,
+              () -> {
+                shuffleClient.readPartition(-1, 1, 1, 0, 0, null);
+              });
+
+      assertTrue(exception.getMessage().contains("readPartition called for unexpected shuffleId"));
+    }
+  }
+
+  @Test
+  public void testPushDataWithIntegrityCheck() throws IOException, InterruptedException {
+    for (CompressionCodec codec : CompressionCodec.values()) {
+      CelebornConf conf = setupEnv(codec, StatusCode.SUCCESS, true);
+
+      int pushDataLen =
+          shuffleClient.pushData(
+              TEST_SHUFFLE_ID,
+              TEST_MAP_ID,
+              TEST_ATTEMPT_ID,
+              TEST_REDUCER_ID,
+              TEST_BUF1,
+              0,
+              TEST_BUF1.length,
+              1,
+              1);
+
+      if (codec.equals(CompressionCodec.NONE)) {
+        assertEquals(TEST_BUF1.length + BATCH_HEADER_SIZE, pushDataLen);
+      } else {
+        Compressor compressor = Compressor.getCompressor(conf);
+        compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
+        final int compressedTotalSize = compressor.getCompressedTotalSize();
+        assertEquals(compressedTotalSize + BATCH_HEADER_SIZE, pushDataLen);
+
+        // Verify commit metadata is correct when integrity check is enabled
+        String mapKey = Utils.makeMapKey(TEST_SHUFFLE_ID, TEST_MAP_ID, TEST_ATTEMPT_ID);
+        PushState pushState = shuffleClient.getPushState(mapKey);
+        assertNotNull(pushState);
+
+        Map<Integer, CommitMetadata> commitMetadataMap = pushState.getCommitMetadataMap();
+        assertNotNull(commitMetadataMap);
+
+        assertEquals(commitMetadataMap.size(), 1);
+
+        CommitMetadata commitMetadata = pushState.getCommitMetadataMap().get(0);
+        assertNotNull(commitMetadata);
+
+        assertEquals(commitMetadata.getBytes(), 11);
+        assertEquals(commitMetadata.getChecksum(), 222957957);
+      }
+    }
+  }
+
+  @Test
+  public void testSendCommitMetadataWithIntegrityCheck() throws IOException, InterruptedException {
+    for (CompressionCodec codec : CompressionCodec.values()) {
+      CelebornConf conf = setupEnv(codec, StatusCode.SUCCESS, true);
+
+      int pushDataLen =
+          shuffleClient.pushData(
+              TEST_SHUFFLE_ID,
+              TEST_ATTEMPT_ID,
+              TEST_ATTEMPT_ID,
+              TEST_REDUCER_ID,
+              TEST_BUF1,
+              0,
+              TEST_BUF1.length,
+              1,
+              1);
+
+      int commitBytesSent =
+          shuffleClient.sendCommitMetadata(TEST_SHUFFLE_ID, TEST_ATTEMPT_ID, TEST_ATTEMPT_ID, 1, 1);
+      if (codec.equals(CompressionCodec.NONE)) {
+        assertEquals(TEST_BUF1.length + BATCH_HEADER_SIZE, pushDataLen);
+        assertEquals(0, commitBytesSent);
+      } else {
+        Compressor compressor = Compressor.getCompressor(conf);
+        CommitMetadata commitMetadata = new CommitMetadata(222957957, 11);
+        ByteBuf byteBuf = Unpooled.buffer();
+        commitMetadata.encode(byteBuf);
+        compressor.compress(byteBuf.array(), 0, byteBuf.readableBytes());
+
+        final int compressedTotalSize = compressor.getCompressedTotalSize();
+
+        assertEquals(BATCH_HEADER_SIZE + compressedTotalSize, commitBytesSent);
+      }
     }
   }
 
@@ -136,7 +242,7 @@ public class ShuffleClientSuiteJ {
           TEST_SHUFFLE_ID,
           TEST_ATTEMPT_ID,
           TEST_ATTEMPT_ID,
-          TEST_REDUCRE_ID,
+          TEST_REDUCER_ID,
           TEST_BUF1,
           0,
           TEST_BUF1.length,
@@ -163,7 +269,7 @@ public class ShuffleClientSuiteJ {
               TEST_SHUFFLE_ID,
               TEST_ATTEMPT_ID,
               TEST_ATTEMPT_ID,
-              TEST_REDUCRE_ID,
+              TEST_REDUCER_ID,
               TEST_BUF1,
               0,
               TEST_BUF1.length,
@@ -185,7 +291,7 @@ public class ShuffleClientSuiteJ {
               TEST_SHUFFLE_ID,
               TEST_ATTEMPT_ID,
               TEST_ATTEMPT_ID,
-              TEST_REDUCRE_ID,
+              TEST_REDUCER_ID,
               buf1k,
               0,
               buf1k.length,

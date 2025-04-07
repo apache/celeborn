@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.client;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -24,7 +26,10 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 
+import com.google.common.base.Stopwatch;
+import org.roaringbitmap.RoaringBitmap;
 import scala.Tuple2;
 import scala.Tuple3;
 import scala.reflect.ClassTag$;
@@ -123,6 +128,11 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final boolean pushExcludeWorkerOnFailureEnabled;
   private final boolean shuffleCompressionEnabled;
+  private final boolean shuffleIntegrityCheckEnabled;
+  private final boolean shuffleIntegrityCheckEmptyPartitionEnabled;
+  // key: shuffleId, value: (partitionId, count)
+  private final Map<Integer, AtomicIntegerArray> mapperCountMap = new ConcurrentHashMap<>();
+
   private final Set<String> pushExcludedWorkers = ConcurrentHashMap.newKeySet();
   private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
       JavaUtils.newConcurrentHashMap();
@@ -155,16 +165,19 @@ public class ShuffleClientImpl extends ShuffleClient {
     public Map<String, Set<PushFailedBatch>> pushFailedBatches;
     public int[] mapAttempts;
     public Set<Integer> partitionIds;
+    public AtomicIntegerArray mapperCountForReducer;
 
     ReduceFileGroups(
         Map<Integer, Set<PartitionLocation>> partitionGroups,
         int[] mapAttempts,
         Set<Integer> partitionIds,
-        Map<String, Set<PushFailedBatch>> pushFailedBatches) {
+        Map<String, Set<PushFailedBatch>> pushFailedBatches,
+        AtomicIntegerArray mapperCountForReducer) {
       this.partitionGroups = partitionGroups;
       this.mapAttempts = mapAttempts;
       this.partitionIds = partitionIds;
       this.pushFailedBatches = pushFailedBatches;
+      this.mapperCountForReducer = mapperCountForReducer;
     }
 
     public ReduceFileGroups() {
@@ -172,6 +185,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       this.mapAttempts = null;
       this.partitionIds = null;
       this.pushFailedBatches = null;
+      this.mapperCountForReducer = null;
     }
 
     public void update(ReduceFileGroups fileGroups) {
@@ -179,6 +193,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       mapAttempts = fileGroups.mapAttempts;
       partitionIds = fileGroups.partitionIds;
       pushFailedBatches = fileGroups.pushFailedBatches;
+      mapperCountForReducer = fileGroups.mapperCountForReducer;
     }
   }
 
@@ -204,6 +219,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     shuffleCompressionEnabled = !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
     pushReplicateEnabled = conf.clientPushReplicateEnabled();
     fetchExcludeWorkerOnFailureEnabled = conf.clientFetchExcludeWorkerOnFailureEnabled();
+    shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled();
+    shuffleIntegrityCheckEmptyPartitionEnabled =
+        conf.clientShuffleIntegrityCheckEmptyPartitionEnabled();
     if (conf.clientPushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
@@ -650,6 +668,29 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
+  public void reducerPartitionEnd(
+          int shuffleId, int partitionId, int startMapIndex, int endMapIndex, int actualMapperCount)
+          throws IOException {
+    PbReducerPartitionEnd pbReducerPartitionEnd =
+            PbReducerPartitionEnd.newBuilder()
+                    .setShuffleId(shuffleId)
+                    .setPartitionId(partitionId)
+                    .setStartMaxIndex(startMapIndex)
+                    .setEndMapIndex(endMapIndex)
+                    .setActualMapperCount(actualMapperCount)
+                    .build();
+
+    PbReducerPartitionEndResponse pbReducerPartitionEndResponse =
+            lifecycleManagerRef.askSync(
+                    pbReducerPartitionEnd,
+                    conf.clientRpcRegisterShuffleAskTimeout(),
+                    ClassTag$.MODULE$.apply(PbReducerPartitionEndResponse.class));
+    if (pbReducerPartitionEndResponse.getStatus() != StatusCode.SUCCESS.getValue()) {
+      throw new CelebornIOException(pbReducerPartitionEndResponse.getErrorMsg());
+    }
+  }
+
+  @Override
   public boolean reportShuffleFetchFailure(int appShuffleId, int shuffleId, long taskId) {
     PbReportShuffleFetchFailure pbReportShuffleFetchFailure =
         PbReportShuffleFetchFailure.newBuilder()
@@ -867,6 +908,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     Map<Integer, PartitionLocation> oldLocMap = new HashMap<>();
     Iterator<ReviveRequest> iter = requests.iterator();
+
     while (iter.hasNext()) {
       ReviveRequest req = iter.next();
       oldLocMap.put(req.partitionId, req.loc);
@@ -948,10 +990,12 @@ public class ShuffleClientImpl extends ShuffleClient {
       int numMappers,
       int numPartitions,
       boolean doPush,
-      boolean skipCompress)
+      boolean skipCompress,
+      boolean isMetadata)
       throws IOException {
     // mapKey
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+
     // return if shuffle stage already ended
     if (mapperEnded(shuffleId, mapId)) {
       logger.debug(
@@ -1011,7 +1055,24 @@ public class ShuffleClientImpl extends ShuffleClient {
     PushState pushState = getPushState(mapKey);
 
     // increment batchId
-    final int nextBatchId = pushState.nextBatchId();
+    int nextBatchId;
+    if (!isMetadata) {
+      nextBatchId = pushState.nextBatchId();
+    } else {
+      nextBatchId = METADATA_BATCH_ID;
+    }
+
+    // Track commit metadata if shuffle compression and integrity check are enabled and this request
+    // is not for pushing metadata itself.
+    if (shuffleCompressionEnabled && shuffleIntegrityCheckEnabled && !isMetadata) {
+      CommitMetadata commitMetadata =
+          pushState.getCommitMetadataMap().computeIfAbsent(partitionId, id -> new CommitMetadata());
+      commitMetadata.addDataWithOffsetAndLength(data, offset, length);
+
+      if (shuffleIntegrityCheckEmptyPartitionEnabled) {
+        pushState.markPartitionAsWritten(partitionId);
+      }
+    }
 
     if (shuffleCompressionEnabled && !skipCompress) {
       // compress data
@@ -1337,6 +1398,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         numMappers,
         numPartitions,
         true,
+        false,
         false);
   }
 
@@ -1371,6 +1433,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         length,
         numMappers,
         numPartitions,
+        false,
         false,
         false);
   }
@@ -1727,20 +1790,90 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
   }
 
-  @Override
-  public void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers)
+  private int sendCommitMetadataBatchForAllPartitions(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      PushState pushState,
+      int numMappers,
+      int numPartitions)
       throws IOException {
-    mapEndInternal(shuffleId, mapId, attemptId, numMappers, -1);
+    // This check should not be required, since we already check at callsites, but it has been added
+    // as a safeguard.
+    if (!shuffleIntegrityCheckEnabled) {
+      logger.info("shuffleIntegrityCheck disabled. Not sending any commit metadata.");
+      return 0;
+    }
+
+    if (!shuffleCompressionEnabled) {
+      logger.info("ShuffleCompression disabled. Not sending any metadata either");
+      return 0;
+    }
+
+    Map<Integer, CommitMetadata> metadataMap = pushState.getCommitMetadataMap();
+
+    int bytes = 0;
+
+    for (int partitionId = 0; partitionId < numPartitions; partitionId++) {
+      CommitMetadata metadata =
+          metadataMap.computeIfAbsent(partitionId, id -> new CommitMetadata());
+
+      if (metadata.getBytes() == 0) {
+        logger.debug(
+            "Skip sending empty CommitMetadata for shuffle {} mapper {} partition {}",
+            shuffleId,
+            mapId,
+            partitionId);
+        continue;
+      }
+
+      ByteBuf metadataBuffer = Unpooled.buffer();
+      metadata.encode(metadataBuffer);
+
+      logger.debug(
+          "Sending CommitMetadata{} for partition {} by mapper {}", metadata, partitionId, mapId);
+      byte[] metadataBytes = new byte[metadataBuffer.readableBytes()];
+      metadataBuffer.readBytes(metadataBytes);
+
+      bytes +=
+          pushOrMergeData(
+              shuffleId,
+              mapId,
+              attemptId,
+              partitionId,
+              metadataBytes,
+              0,
+              metadataBytes.length,
+              numMappers,
+              numPartitions,
+              false,
+              false,
+              true);
+    }
+    pushMergedData(shuffleId, mapId, attemptId);
+    return bytes;
   }
 
   @Override
-  public void mapPartitionMapperEnd(
-      int shuffleId, int mapId, int attemptId, int numMappers, int partitionId) throws IOException {
-    mapEndInternal(shuffleId, mapId, attemptId, numMappers, partitionId);
+  public int mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
+      throws IOException {
+    return mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, -1);
   }
 
-  private void mapEndInternal(
-      int shuffleId, int mapId, int attemptId, int numMappers, Integer partitionId)
+  @Override
+  public int mapPartitionMapperEnd(
+      int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions, int partitionId)
+      throws IOException {
+    return mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, partitionId);
+  }
+
+  private int mapEndInternal(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int numPartitions,
+      Integer partitionId)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = getPushState(mapKey);
@@ -1748,21 +1881,32 @@ public class ShuffleClientImpl extends ShuffleClient {
     try {
       limitZeroInFlight(mapKey, pushState);
 
-      MapperEndResponse response =
-          lifecycleManagerRef.askSync(
-              new MapperEnd(
-                  shuffleId,
-                  mapId,
-                  attemptId,
-                  numMappers,
-                  partitionId,
-                  pushState.getFailedBatches()),
-              rpcMaxRetries,
-              rpcRetryWait,
-              ClassTag$.MODULE$.apply(MapperEndResponse.class));
-      if (response.status() != StatusCode.SUCCESS) {
-        throw new CelebornIOException("MapperEnd failed! StatusCode: " + response.status());
+      RoaringBitmap writtenPartitions = pushState.getWrittenPartitions();
+
+      Stopwatch sw = Stopwatch.createStarted();
+      try {
+        MapperEndResponse response =
+                lifecycleManagerRef.askSync(
+                        new MapperEnd(
+                                shuffleId,
+                                mapId,
+                                attemptId,
+                                numMappers,
+                                partitionId,
+                                pushState.getFailedBatches(),
+                                numPartitions,
+                                writtenPartitions),
+                        rpcMaxRetries,
+                        rpcRetryWait,
+                        ClassTag$.MODULE$.apply(MapperEndResponse.class));
+        if (response.status() != StatusCode.SUCCESS) {
+          throw new CelebornIOException("MapperEnd failed! StatusCode: " + response.status());
+        }
+      } finally {
+        logger.info("mapEndInternal took {} ms", sw.elapsed(TimeUnit.MILLISECONDS));
       }
+
+      return writtenPartitions.getCardinality();
     } finally {
       pushStates.remove(mapKey);
     }
@@ -1823,30 +1967,30 @@ public class ShuffleClientImpl extends ShuffleClient {
             }
           }
           logger.info(
-              "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
+              "Shuffle {} request reducer file group success using {} ms, result partition size {}, mapperCountForReducer {}.",
               shuffleId,
               TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
-              response.fileGroup().size());
+              response.fileGroup().size(),
+              response.mapperCountForReducer());
+          AtomicIntegerArray mapperCountForReducer = response.mapperCountForReducer();
+          this.mapperCountMap.put(shuffleId, response.mapperCountForReducer());
           return Tuple3.apply(
               new ReduceFileGroups(
                   response.fileGroup(),
                   response.attempts(),
                   response.partitionIds(),
-                  response.pushFailedBatches()),
+                  response.pushFailedBatches(),
+                  response.mapperCountForReducer()),
               null,
               null);
         case SHUFFLE_NOT_REGISTERED:
-          logger.warn(
-              "Request {} return {} for {}.", getReducerFileGroup, response.status(), shuffleId);
-          // return empty result
-          return Tuple3.apply(
-              new ReduceFileGroups(
-                  response.fileGroup(),
-                  response.attempts(),
-                  response.partitionIds(),
-                  response.pushFailedBatches()),
-              null,
-              null);
+          // We don't know under what scenarios this can happen, so we throw an exception to
+          // ensure integrity of the shuffle data.
+          // Rather than return an empty result, throw an exception.
+          throw new CelebornIOException(
+                  String.format(
+                          "Unexpected status. Request %s return %s for %s.",
+                          getReducerFileGroup, response.status(), shuffleId));
         case STAGE_END_TIME_OUT:
         case SHUFFLE_DATA_LOST:
           exceptionMsg =
@@ -1922,8 +2066,11 @@ public class ShuffleClientImpl extends ShuffleClient {
       MetricsCallback metricsCallback)
       throws IOException {
     if (shuffleId == Utils$.MODULE$.UNKNOWN_APP_SHUFFLE_ID()) {
+      // shuffleId should never be unknown. The writer should have generated a shuffleId for the
+      // application. Fail the app if this happens.
       logger.warn("Shuffle data is empty for shuffle {}: UNKNOWN_APP_SHUFFLE_ID.", shuffleId);
-      return CelebornInputStream.empty();
+      throw new CelebornIOException(
+          String.format("readPartition called for unexpected shuffleId %s", shuffleId));
     }
 
     // When `mapAttempts` is not null, it's guaranteed that the code path comes from
@@ -1934,36 +2081,39 @@ public class ShuffleClientImpl extends ShuffleClient {
       mapAttempts = fileGroups.mapAttempts;
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
         locations = new ArrayList(fileGroups.partitionGroups.get(partitionId));
+      } else {
+        logger.info("Shuffle data is empty for shuffle {} partition {}.", shuffleId, partitionId);
+        locations = new ArrayList<>();
       }
     }
 
-    if (locations == null || locations.size() == 0) {
-      logger.warn("Shuffle data is empty for shuffle {} partition {}.", shuffleId, partitionId);
-      return CelebornInputStream.empty();
-    } else {
-      String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
-      assert dataClientFactory != null;
-      return CelebornInputStream.create(
-          conf,
-          dataClientFactory,
-          shuffleKey,
-          locations,
-          streamHandlers,
-          mapAttempts,
-          failedBatchSetMap,
-          chunksRange,
-          attemptNumber,
-          taskId,
-          startMapIndex,
-          endMapIndex,
-          fetchExcludedWorkers,
-          this,
-          appShuffleId,
-          shuffleId,
-          partitionId,
-          exceptionMaker,
-          metricsCallback);
-    }
+    AtomicIntegerArray array = mapperCountMap.get(shuffleId);
+    checkState(array != null, "mapperCount array unavailable for shuffleId %s", shuffleId);
+    int expectedMapperCount = array.get(partitionId);
+
+    String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
+    assert dataClientFactory != null;
+    return CelebornInputStream.create(
+            conf,
+            dataClientFactory,
+            shuffleKey,
+            locations,
+            streamHandlers,
+            mapAttempts,
+            failedBatchSetMap,
+            chunksRange,
+            attemptNumber,
+            taskId,
+            startMapIndex,
+            endMapIndex,
+            fetchExcludedWorkers,
+            this,
+            appShuffleId,
+            shuffleId,
+            partitionId,
+            exceptionMaker,
+            metricsCallback,
+            expectedMapperCount);
   }
 
   @VisibleForTesting
@@ -2090,5 +2240,20 @@ public class ShuffleClientImpl extends ShuffleClient {
         && Utils.isCriticalCauseForFetch(e)) {
       fetchExcludedWorkers.put(hostAndFetchPort, System.currentTimeMillis());
     }
+  }
+
+  @Override
+  public int sendCommitMetadata(
+      int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
+      throws IOException {
+    if (!shuffleIntegrityCheckEnabled) {
+      logger.debug("shuffleIntegrityCheck disabled. Not sending any commit metadata.");
+      return 0;
+    }
+
+    final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+    PushState pushState = getPushState(mapKey);
+    return sendCommitMetadataBatchForAllPartitions(
+        shuffleId, mapId, attemptId, pushState, numMappers, numPartitions);
   }
 }

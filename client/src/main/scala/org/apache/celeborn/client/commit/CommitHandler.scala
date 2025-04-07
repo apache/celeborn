@@ -28,6 +28,8 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 
+import org.roaringbitmap.RoaringBitmap
+
 import org.apache.celeborn.client.{ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleFailedWorkers, ShuffleFileGroups, ShufflePushFailedBatches}
@@ -201,6 +203,8 @@ abstract class CommitHandler(
       mapId: Int,
       attemptId: Int,
       numMappers: Int,
+      numPartitions: Int,
+      writtenPartitions: RoaringBitmap,
       partitionId: Int,
       pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]],
       recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean)
@@ -208,7 +212,8 @@ abstract class CommitHandler(
   def registerShuffle(
       shuffleId: Int,
       numMappers: Int,
-      isSegmentGranularityVisible: Boolean): Unit = {
+      isSegmentGranularityVisible: Boolean,
+      numPartitions: Int): Unit = {
     // TODO: if isSegmentGranularityVisible is set to true, it is necessary to handle the pending
     //  get partition request of downstream reduce task here, in scenarios which support
     //  downstream task start early before the upstream task, e.g. flink hybrid shuffle.
@@ -218,6 +223,13 @@ abstract class CommitHandler(
   def isSegmentGranularityVisible(shuffleId: Int): Boolean = {
     false
   }
+
+  def finishPartition(
+      shuffleId: Int,
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      actualMapperCount: Int): (Boolean, String)
 
   def doParallelCommitFiles(
       shuffleId: Int,

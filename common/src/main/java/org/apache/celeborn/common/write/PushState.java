@@ -24,11 +24,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.google.common.collect.Sets;
+import org.apache.celeborn.common.CommitMetadata;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.roaringbitmap.RoaringBitmap;
 
 public class PushState {
 
@@ -37,11 +39,14 @@ public class PushState {
   private final InFlightRequestTracker inFlightRequestTracker;
 
   private final Map<String, Set<PushFailedBatch>> failedBatchMap;
+  private final ConcurrentHashMap<Integer, CommitMetadata> commitMetadataMap = new ConcurrentHashMap<>();
+  private final RoaringBitmap writtenPartitions = new RoaringBitmap();
 
   public PushState(CelebornConf conf) {
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
     inFlightRequestTracker = new InFlightRequestTracker(conf, this);
     failedBatchMap = new ConcurrentHashMap<>();
+
   }
 
   public void cleanup() {
@@ -103,5 +108,21 @@ public class PushState {
 
   public Map<String, Set<PushFailedBatch>> getFailedBatches() {
     return this.failedBatchMap;
+  }
+
+  public ConcurrentHashMap<Integer, CommitMetadata> getCommitMetadataMap() {
+    return commitMetadataMap;
+  }
+
+  public void markPartitionAsWritten(int partitionId) {
+    synchronized (writtenPartitions) {
+      writtenPartitions.add(partitionId);
+    }
+  }
+
+  public RoaringBitmap getWrittenPartitions() {
+    synchronized (writtenPartitions) {
+      return writtenPartitions.clone();
+    }
   }
 }

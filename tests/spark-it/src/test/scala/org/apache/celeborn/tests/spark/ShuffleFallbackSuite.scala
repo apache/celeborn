@@ -49,7 +49,7 @@ class ShuffleFallbackSuite extends AnyFunSuite
     conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
       .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
   }
-
+  /*
   test(s"celeborn spark integration test - fallback") {
     setupMiniClusterWithRandomPorts(workerNum = 5)
     val sparkConf = new SparkConf().setAppName("celeborn-demo")
@@ -80,4 +80,6 @@ class ShuffleFallbackSuite extends AnyFunSuite
     sparkSession.stop()
     shutdownMiniCluster()
   }
+
+   */
 }

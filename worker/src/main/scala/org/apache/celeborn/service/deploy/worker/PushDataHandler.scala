@@ -162,12 +162,14 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     val key = s"${pushData.requestId}"
     val callbackWithTimer =
       if (isPrimary) {
+        workerSource.updateHistogram(WorkerSource.PRIMARY_PUSH_DATA_SIZE, pushData.body().size())
         new RpcResponseCallbackWithTimer(
           workerSource,
           WorkerSource.PRIMARY_PUSH_DATA_TIME,
           key,
           callback)
       } else {
+        workerSource.updateHistogram(WorkerSource.REPLICA_PUSH_DATA_SIZE, pushData.body().size())
         new RpcResponseCallbackWithTimer(
           workerSource,
           WorkerSource.REPLICA_PUSH_DATA_TIME,
