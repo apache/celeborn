@@ -285,6 +285,9 @@ function sbt_build_service {
   if [[ $@ == *"aws"* ]]; then
      export SBT_MAVEN_PROFILES="aws"
   fi
+  if [[ $@ == *"aliyun"* ]]; then
+     export SBT_MAVEN_PROFILES="aliyun"
+  fi
   BUILD_COMMAND=("$SBT" clean package)
 
   # Actually build the jar

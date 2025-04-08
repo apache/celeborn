@@ -42,10 +42,15 @@ license: |
 | celeborn.redaction.regex | (?i)secret|password|token|access[.]key | false | Regex to decide which Celeborn configuration properties and environment variables in master and worker environments contain sensitive information. When this regex matches a property key or value, the value is redacted from the logging. | 0.5.0 |  | 
 | celeborn.shuffle.chunk.size | 8m | false | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128M and the data will need 16 fetch chunk requests to fetch. | 0.2.0 |  | 
 | celeborn.shuffle.sortPartition.block.compactionFactor | 0.25 | false | Combine sorted shuffle blocks such that size of compacted shuffle block does not exceed compactionFactor * celeborn.shuffle.chunk.size | 0.4.2 |  | 
-| celeborn.storage.availableTypes | HDD | false | Enabled storages. Available options: MEMORY,HDD,SSD,HDFS,S3. Note: HDD and SSD would be treated as identical. | 0.3.0 | celeborn.storage.activeTypes | 
+| celeborn.storage.availableTypes | HDD | false | Enabled storages. Available options: MEMORY,HDD,SSD,HDFS,S3,OSS. Note: HDD and SSD would be treated as identical. | 0.3.0 | celeborn.storage.activeTypes | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | false | HDFS base directory for Celeborn to store shuffle data. | 0.2.0 |  | 
 | celeborn.storage.hdfs.kerberos.keytab | &lt;undefined&gt; | false | Kerberos keytab file path for HDFS storage connection. | 0.3.2 |  | 
 | celeborn.storage.hdfs.kerberos.principal | &lt;undefined&gt; | false | Kerberos principal for HDFS storage connection. | 0.3.2 |  | 
+| celeborn.storage.oss.access.key | &lt;undefined&gt; | false | OSS access key for Celeborn to store shuffle data. | 0.6.0 |  | 
+| celeborn.storage.oss.dir | &lt;undefined&gt; | false | OSS base directory for Celeborn to store shuffle data. | 0.6.0 |  | 
+| celeborn.storage.oss.endpoint | &lt;undefined&gt; | false | OSS endpoint for Celeborn to store shuffle data. | 0.6.0 |  | 
+| celeborn.storage.oss.ignore.credentials | true | false | Whether to skip oss credentials, disable this config to support jindo sdk . | 0.6.0 |  | 
+| celeborn.storage.oss.secret.key | &lt;undefined&gt; | false | OSS secret key for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.s3.access.key | &lt;undefined&gt; | false | S3 access key for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.s3.dir | &lt;undefined&gt; | false | S3 base directory for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.s3.endpoint.region | &lt;undefined&gt; | false | S3 endpoint for Celeborn to store shuffle data. | 0.6.0 |  | 
@@ -85,6 +90,8 @@ license: |
 | celeborn.worker.flusher.hdd.threads | 1 | false | Flusher's thread count per disk used for write data to HDD disks. | 0.2.0 |  | 
 | celeborn.worker.flusher.hdfs.buffer.size | 4m | false | Size of buffer used by a HDFS flusher. | 0.3.0 |  | 
 | celeborn.worker.flusher.hdfs.threads | 8 | false | Flusher's thread count used for write data to HDFS. | 0.2.0 |  | 
+| celeborn.worker.flusher.oss.buffer.size | 6m | false | Size of buffer used by a OSS flusher. | 0.6.0 |  | 
+| celeborn.worker.flusher.oss.threads | 8 | false | Flusher's thread count used for write data to OSS. | 0.6.0 |  | 
 | celeborn.worker.flusher.s3.buffer.size | 6m | false | Size of buffer used by a S3 flusher. | 0.6.0 |  | 
 | celeborn.worker.flusher.s3.threads | 8 | false | Flusher's thread count used for write data to S3. | 0.6.0 |  | 
 | celeborn.worker.flusher.shutdownTimeout | 3s | false | Timeout for a flusher to shutdown. | 0.2.0 |  | 

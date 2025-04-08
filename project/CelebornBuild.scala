@@ -47,10 +47,12 @@ object Dependencies {
   val commonsIoVersion = "2.17.0"
   val commonsLoggingVersion = "1.1.3"
   val commonsLang3Version = "3.17.0"
+  val commonsCollectionsVersion = "3.2.2"
   val findbugsVersion = "1.3.9"
   val guavaVersion = "33.1.0-jre"
   val hadoopVersion = "3.3.6"
   val awsS3Version = "1.12.532"
+  val aliyunOssVersion = "3.13.0"
   val junitInterfaceVersion = "0.13.3"
   // don't forget update `junitInterfaceVersion` when we upgrade junit
   val junitVersion = "4.13.2"
@@ -123,6 +125,9 @@ object Dependencies {
   val hadoopAws = "org.apache.hadoop" % "hadoop-aws" % hadoopVersion excludeAll (
     ExclusionRule("com.amazonaws", "aws-java-sdk-bundle"))
   val awsS3 = "com.amazonaws" % "aws-java-sdk-s3" % awsS3Version
+  val commonsCollections = "commons-collections" % "commons-collections" % commonsCollectionsVersion
+  val hadoopAliyun = "org.apache.hadoop" % "hadoop-aliyun" % hadoopVersion
+  val aliyunOss = "com.aliyun.oss" % "aliyun-sdk-oss" % aliyunOssVersion
   val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion
   val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion excludeAll (
     ExclusionRule("com.rabbitmq", "amqp-client"))
@@ -454,8 +459,9 @@ object Utils {
       profiles
   }
 
-  val celeborMPUProject = profiles.filter(_.startsWith("aws")).headOption match {
+  val celeborMPUProject = profiles.find(p => p.startsWith("aws") || p.startsWith("aliyun")) match {
     case Some("aws") => Some(CeleborMPU.celeborMPU)
+    case Some("aliyun") => Some(CeleborMPU.celeborMPUOss)
     case _ => None
   }
 
@@ -569,6 +575,7 @@ object CelebornSpi {
 object CeleborMPU {
 
   lazy val hadoopAwsDependencies = Seq(Dependencies.hadoopAws, Dependencies.awsS3)
+  lazy val hadoopAliyunDependencies = Seq(Dependencies.commonsCollections, Dependencies.hadoopAliyun, Dependencies.aliyunOss)
 
   lazy val celeborMPU = Project("celeborn-multipart-uploader-s3", file("multipart-uploader/multipart-uploader-s3"))
     .dependsOn(CelebornService.service % "test->test;compile->compile")
@@ -578,6 +585,16 @@ object CeleborMPU {
         Dependencies.log4j12Api,
         Dependencies.log4jSlf4jImpl,
       ) ++ hadoopAwsDependencies
+    )
+
+  lazy val celeborMPUOss = Project("celeborn-multipart-uploader-oss", file("multipart-uploader/multipart-uploader-oss"))
+    .dependsOn(CelebornService.service % "test->test;compile->compile")
+    .settings (
+      commonSettings,
+      libraryDependencies ++= Seq(
+        Dependencies.log4j12Api,
+        Dependencies.log4jSlf4jImpl,
+      ) ++ hadoopAliyunDependencies
     )
 }
 
@@ -702,6 +719,15 @@ object CelebornService {
 }
 
 object CelebornMaster {
+  val mpuDependencies =
+    if (profiles.exists(_.startsWith("aws"))) {
+      CeleborMPU.hadoopAwsDependencies
+    } else if (profiles.exists(_.startsWith("aliyun"))) {
+      CeleborMPU.hadoopAliyunDependencies
+    } else {
+      Seq.empty
+    }
+
   lazy val master = Project("celeborn-master", file("master"))
     .dependsOn(CelebornCommon.common)
     .dependsOn(CelebornCommon.common % "test->test;compile->compile")
@@ -724,7 +750,7 @@ object CelebornMaster {
         Dependencies.ratisServer,
         Dependencies.ratisShell,
         Dependencies.scalatestMockito % "test",
-      ) ++ commonUnitTestDependencies
+      ) ++ commonUnitTestDependencies ++ mpuDependencies
     )
 }
 
@@ -738,6 +764,8 @@ object CelebornWorker {
 
   if (profiles.exists(_.startsWith("aws"))) {
     worker = worker.dependsOn(CeleborMPU.celeborMPU)
+  } else if (profiles.exists(_.startsWith("aliyun"))) {
+    worker = worker.dependsOn(CeleborMPU.celeborMPUOss)
   }
 
   worker = worker.settings(
@@ -1032,6 +1060,7 @@ trait SparkClientProjects {
               name.startsWith("failureaccess-") ||
               name.startsWith("netty-") ||
               name.startsWith("commons-lang3-") ||
+              name.startsWith("commons-io-") ||
               name.startsWith("RoaringBitmap-"))
           }
         },

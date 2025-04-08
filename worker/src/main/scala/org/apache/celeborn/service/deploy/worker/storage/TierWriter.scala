@@ -68,7 +68,10 @@ abstract class TierWriterBase(
 
   def write(buf: ByteBuf): Unit = {
     ensureNotClosed()
-    if (notifier.hasException) return
+    if (notifier.hasException) {
+      handleException()
+      return
+    }
 
     flushLock.synchronized {
       metaHandler.beforeWrite(buf)
@@ -79,6 +82,8 @@ abstract class TierWriterBase(
     metaHandler.afterWrite(buf.readableBytes())
     numPendingWrites.decrementAndGet()
   }
+
+  def handleException(): Unit
 
   protected def writeInternal(buf: ByteBuf): Unit
 
@@ -348,6 +353,8 @@ class MemoryTierWriter(
   override def getFlusher(): Flusher = {
     null
   }
+
+  override def handleException(): Unit = {}
 }
 
 class LocalTierWriter(
@@ -471,6 +478,8 @@ class LocalTierWriter(
   def getFlusher(): Flusher = {
     flusher
   }
+
+  override def handleException(): Unit = {}
 }
 
 class DfsTierWriter(
@@ -500,11 +509,14 @@ class DfsTierWriter(
   val hadoopFs: FileSystem = StorageManager.hadoopFs.get(storageType)
   var deleted = false
   private var s3MultipartUploadHandler: MultipartUploadHandler = _
+  private var ossMultipartUploadHandler: MultipartUploadHandler = _
   var partNumber: Int = 1
 
   this.flusherBufferSize =
     if (hdfsFileInfo.isS3()) {
       conf.workerS3FlusherBufferSize
+    } else if (hdfsFileInfo.isOSS()) {
+      conf.workerOssFlusherBufferSize
     } else {
       conf.workerHdfsFlusherBufferSize
     }
@@ -530,6 +542,24 @@ class DfsTierWriter(
         key,
         conf.s3MultiplePartUploadMaxRetries)
       s3MultipartUploadHandler.startUpload()
+    } else if (hdfsFileInfo.isOSS) {
+      val configuration = hadoopFs.getConf
+      val ossEndpoint = configuration.get("fs.oss.endpoint")
+      val ossAccessKey = configuration.get("fs.oss.accessKeyId")
+      val ossSecretKey = configuration.get("fs.oss.accessKeySecret")
+
+      val uri = hadoopFs.getUri
+      val bucketName = uri.getHost
+      val index = hdfsFileInfo.getFilePath.indexOf(bucketName)
+      val key = hdfsFileInfo.getFilePath.substring(index + bucketName.length + 1)
+
+      this.ossMultipartUploadHandler = TierWriterHelper.getOssMultipartUploadHandler(
+        ossEndpoint,
+        bucketName,
+        ossAccessKey,
+        ossSecretKey,
+        key)
+      ossMultipartUploadHandler.startUpload()
     }
   } catch {
     case _: IOException =>
@@ -556,11 +586,21 @@ class DfsTierWriter(
     notifier.numPendingFlushes.incrementAndGet()
     if (hdfsFileInfo.isHdfs) {
       new HdfsFlushTask(flushBuffer, hdfsFileInfo.getDfsPath(), notifier, true)
+    } else if (hdfsFileInfo.isOSS) {
+      val flushTask = new OssFlushTask(
+        flushBuffer,
+        notifier,
+        true,
+        ossMultipartUploadHandler,
+        partNumber,
+        finalFlush)
+      partNumber = partNumber + 1
+      flushTask
     } else {
       val flushTask = new S3FlushTask(
         flushBuffer,
         notifier,
-        false,
+        true,
         s3MultipartUploadHandler,
         partNumber,
         finalFlush)
@@ -610,6 +650,14 @@ class DfsTierWriter(
       }
       indexOutputStream.close()
     }
+    if (s3MultipartUploadHandler != null) {
+      s3MultipartUploadHandler.complete()
+      s3MultipartUploadHandler.close()
+    }
+    if (ossMultipartUploadHandler != null) {
+      ossMultipartUploadHandler.complete()
+      ossMultipartUploadHandler.close()
+    }
   }
 
   override def notifyFileCommitted(): Unit =
@@ -642,5 +690,18 @@ class DfsTierWriter(
 
   def getFlusher(): Flusher = {
     flusher
+  }
+
+  override def handleException(): Unit = {
+    if (s3MultipartUploadHandler != null) {
+      logWarning(s"Abort s3 multipart upload for ${fileInfo.getFilePath}")
+      s3MultipartUploadHandler.complete()
+      s3MultipartUploadHandler.close()
+    }
+    if (ossMultipartUploadHandler != null) {
+      logWarning(s"Abort Oss multipart upload for ${fileInfo.getFilePath}")
+      ossMultipartUploadHandler.complete()
+      ossMultipartUploadHandler.close()
+    }
   }
 }

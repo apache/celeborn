@@ -90,6 +90,11 @@ To compile for Spark 3.5 with Java21,  please use the following command
 
 > **_NOTE:_** Celeborn supports automatic builds on linux aarch64 platform via `aarch64` profile. `aarch64` profile requires glibc version 3.4.21. There is potential problematic frame `C  [libc.so.6+0x8412a]` for other glibc version like 2.x etc.
 
+To build Celeborn with Aliyun OSS support MPU, please use the following command
+```shell
+./build/make-distribution.sh --sbt-enabled -Pspark-3.4 -Pjdk-8 -Paliyun
+```
+
 ### Package Details
 Build procedure will create a compressed package.
 
@@ -256,6 +261,16 @@ Disks: {/mnt/disk1=DiskInfo(maxSlots: 6679, committed shuffles 0, running applic
 WorkerRef: null
 ```
 
+Shuffle OSS storage related configurations:
+```properties
+# If you are using Celeborn for shuffle OSS storage, these settings will be needed.
+celeborn.storage.availableTypes OSS
+celeborn.storage.oss.dir oss://<bucket_name>/
+celeborn.storage.oss.access.key <oss_access_key>
+celeborn.storage.oss.secret.key <oss_secret_key>
+celeborn.storage.oss.endpoint oss-cn-<region>[-internal].aliyuncs.com
+```
+
 #### Deploy Celeborn on K8S
 Please refer to our [website](https://celeborn.apache.org/docs/latest/deploy_on_k8s/)
 
@@ -308,6 +323,16 @@ spark.dynamicAllocation.shuffleTracking.enabled false
 # Support ShuffleManager when defined in user jars
 # Required Spark version < 4.0.0 or without SPARK-45762, highly recommended to false for ShuffleManager in user-defined jar specified by --jars or spark.jars
 spark.executor.userClassPathFirst false
+```
+
+Shuffle OSS storage related configurations:
+```properties
+# If you are using Celeborn for shuffle OSS storage, these settings will be needed.
+spark.celeborn.storage.availableTypes OSS
+spark.celeborn.storage.oss.dir oss://<bucket_name>/
+spark.celeborn.storage.oss.access.key <oss_access_key>
+spark.celeborn.storage.oss.secret.key <oss_secret_key>
+spark.celeborn.storage.oss.endpoint oss-cn-<region>[-internal].aliyuncs.com
 ```
 
 ### Deploy Flink client

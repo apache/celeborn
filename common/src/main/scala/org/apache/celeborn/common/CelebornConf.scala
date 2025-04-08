@@ -659,6 +659,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(ACTIVE_STORAGE_TYPES).contains(StorageInfo.Type.HDFS.name()) && get(HDFS_DIR).isDefined
   def hasS3Storage: Boolean =
     get(ACTIVE_STORAGE_TYPES).contains(StorageInfo.Type.S3.name()) && get(S3_DIR).isDefined
+  def hasOssStorage: Boolean =
+    get(ACTIVE_STORAGE_TYPES).contains(StorageInfo.Type.OSS.name()) && get(OSS_DIR).isDefined
   def masterSlotAssignLoadAwareDiskGroupNum: Int = get(MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM)
   def masterSlotAssignLoadAwareDiskGroupGradient: Double =
     get(MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT)
@@ -1155,7 +1157,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         (dir, maxCapacity, flushThread, diskType)
       }
     }.getOrElse {
-      if (!hasHDFSStorage && !hasS3Storage) {
+      if (!hasHDFSStorage && !hasS3Storage && !hasOssStorage) {
         val prefix = workerStorageBaseDirPrefix
         val number = workerStorageBaseDirNumber
         val diskType = Type.valueOf(workerStorageBaseDirDiskType)
@@ -1197,6 +1199,22 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         }
     }.getOrElse("")
   }
+
+  def ossDir: String = {
+    get(OSS_DIR).map {
+      ossDir =>
+        if (!Utils.isOssPath(ossDir)) {
+          log.error(s"${OSS_DIR.key} configuration is wrong $ossDir. Disable OSS support.")
+          ""
+        } else {
+          ossDir
+        }
+    }.getOrElse("")
+  }
+  def ossEndpoint: String = get(OSS_ENDPOINT).getOrElse("")
+  def ossAccessKey: String = get(OSS_ACCESS_KEY).getOrElse("")
+  def ossSecretKey: String = get(OSS_SECRET_KEY).getOrElse("")
+  def ossIgnoreCredentials: Boolean = get(OSS_IGNORE_CREDENTIALS)
 
   def hdfsDir: String = {
     get(HDFS_DIR).map {
@@ -1270,11 +1288,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerFlusherBufferSize: Long = get(WORKER_FLUSHER_BUFFER_SIZE)
   def workerHdfsFlusherBufferSize: Long = get(WORKER_HDFS_FLUSHER_BUFFER_SIZE)
   def workerS3FlusherBufferSize: Long = get(WORKER_S3_FLUSHER_BUFFER_SIZE)
+  def workerOssFlusherBufferSize: Long = get(WORKER_OSS_FLUSHER_BUFFER_SIZE)
   def workerWriterCloseTimeoutMs: Long = get(WORKER_WRITER_CLOSE_TIMEOUT)
   def workerHddFlusherThreads: Int = get(WORKER_FLUSHER_HDD_THREADS)
   def workerSsdFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)
   def workerHdfsFlusherThreads: Int = get(WORKER_FLUSHER_HDFS_THREADS)
   def workerS3FlusherThreads: Int = get(WORKER_FLUSHER_S3_THREADS)
+  def workerOssFlusherThreads: Int = get(WORKER_FLUSHER_OSS_THREADS)
   def workerCreateWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
 
   // //////////////////////////////////////////////////////
@@ -3180,6 +3200,46 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(5)
 
+  val OSS_ENDPOINT: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.oss.endpoint")
+      .categories("worker", "master", "client")
+      .version("0.6.0")
+      .doc("OSS endpoint for Celeborn to store shuffle data.")
+      .stringConf
+      .createOptional
+
+  val OSS_DIR: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.oss.dir")
+      .categories("worker", "master", "client")
+      .version("0.6.0")
+      .doc("OSS base directory for Celeborn to store shuffle data.")
+      .stringConf
+      .createOptional
+
+  val OSS_SECRET_KEY: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.oss.secret.key")
+      .categories("worker", "master", "client")
+      .version("0.6.0")
+      .doc("OSS secret key for Celeborn to store shuffle data.")
+      .stringConf
+      .createOptional
+
+  val OSS_IGNORE_CREDENTIALS: ConfigEntry[Boolean] =
+    buildConf("celeborn.storage.oss.ignore.credentials")
+      .categories("worker", "master", "client")
+      .version("0.6.0")
+      .doc("Whether to skip oss credentials, disable this config to support jindo sdk .")
+      .booleanConf
+      .createWithDefault(true)
+
+  val OSS_ACCESS_KEY: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.oss.access.key")
+      .categories("worker", "master", "client")
+      .version("0.6.0")
+      .doc("OSS access key for Celeborn to store shuffle data.")
+      .stringConf
+      .createOptional
+
   val WORKER_DISK_RESERVE_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.storage.disk.reserve.size")
       .withAlternative("celeborn.worker.disk.reserve.size")
@@ -3664,6 +3724,14 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("6m")
 
+  val WORKER_OSS_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.worker.flusher.oss.buffer.size")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("Size of buffer used by a OSS flusher.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("6m")
+
   val WORKER_WRITER_CLOSE_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.writer.close.timeout")
       .categories("worker")
@@ -3708,6 +3776,14 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.flusher.s3.threads")
       .categories("worker")
       .doc("Flusher's thread count used for write data to S3.")
+      .version("0.6.0")
+      .intConf
+      .createWithDefault(8)
+
+  val WORKER_FLUSHER_OSS_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.oss.threads")
+      .categories("worker")
+      .doc("Flusher's thread count used for write data to OSS.")
       .version("0.6.0")
       .intConf
       .createWithDefault(8)
@@ -5744,7 +5820,7 @@ object CelebornConf extends Logging {
       .categories("master", "worker", "client")
       .version("0.3.0")
       .doc(
-        "Enabled storages. Available options: MEMORY,HDD,SSD,HDFS,S3. Note: HDD and SSD would be treated as identical.")
+        "Enabled storages. Available options: MEMORY,HDD,SSD,HDFS,S3,OSS. Note: HDD and SSD would be treated as identical.")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValue(p => p.split(",").map(StorageInfo.validate).reduce(_ && _), "")

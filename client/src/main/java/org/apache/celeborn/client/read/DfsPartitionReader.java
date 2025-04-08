@@ -101,9 +101,12 @@ public class DfsPartitionReader implements PartitionReader {
 
     this.metricsCallback = metricsCallback;
     this.location = location;
-    if (location.getStorageInfo() != null
-        && location.getStorageInfo().getType() == StorageInfo.Type.S3) {
-      this.hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.S3);
+    if (location.getStorageInfo() != null) {
+      if (location.getStorageInfo().getType() == StorageInfo.Type.S3) {
+        this.hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.S3);
+      } else if (location.getStorageInfo().getType() == StorageInfo.Type.OSS) {
+        this.hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.OSS);
+      }
     } else {
       this.hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
     }

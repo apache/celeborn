@@ -485,8 +485,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     FSDataOutputStream dfsIndexOutput = null;
     FileChannel indexFileChannel = null;
     if (isDfs) {
-      boolean isS3 = Utils.isS3Path(indexFilePath);
-      StorageInfo.Type storageType = isS3 ? StorageInfo.Type.S3 : StorageInfo.Type.HDFS;
+      StorageInfo.Type storageType = StorageInfo.Type.HDFS;
+      if (Utils.isS3Path(indexFilePath)) {
+        storageType = StorageInfo.Type.S3;
+      } else if (Utils.isOssPath(indexFilePath)) {
+        storageType = StorageInfo.Type.OSS;
+      }
       FileSystem hadoopFs = StorageManager.hadoopFs().get(storageType);
       // If the index file exists, it will be overwritten.
       // So there is no need to check its existence.
@@ -599,13 +603,19 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
               () -> {
                 FileChannel indexChannel = null;
                 FSDataInputStream dfsIndexStream = null;
-                boolean isDfs = Utils.isHdfsPath(indexFilePath) || Utils.isS3Path(indexFilePath);
-                boolean isS3 = Utils.isS3Path(indexFilePath);
+                boolean isDfs =
+                    Utils.isHdfsPath(indexFilePath)
+                        || Utils.isS3Path(indexFilePath)
+                        || Utils.isOssPath(indexFilePath);
                 int indexSize;
                 try {
                   if (isDfs) {
-                    StorageInfo.Type storageType =
-                        isS3 ? StorageInfo.Type.S3 : StorageInfo.Type.HDFS;
+                    StorageInfo.Type storageType = StorageInfo.Type.HDFS;
+                    if (Utils.isS3Path(indexFilePath)) {
+                      storageType = StorageInfo.Type.S3;
+                    } else if (Utils.isOssPath(indexFilePath)) {
+                      storageType = StorageInfo.Type.OSS;
+                    }
                     FileSystem hadoopFs = StorageManager.hadoopFs().get(storageType);
                     dfsIndexStream = hadoopFs.open(new Path(indexFilePath));
                     indexSize = (int) hadoopFs.getFileStatus(new Path(indexFilePath)).getLen();
@@ -656,6 +666,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private final String shuffleKey;
     private final boolean isHdfs;
     private final boolean isS3;
+    private final boolean isOss;
     private final boolean isDfs;
     private final boolean isPrefetch;
     private final FileInfo originFileInfo;
@@ -672,7 +683,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       this.sortedFilePath = Utils.getSortedFilePath(originFilePath);
       this.isHdfs = fileInfo.isHdfs();
       this.isS3 = fileInfo.isS3();
-      this.isDfs = isHdfs || isS3;
+      this.isOss = fileInfo.isOSS();
+      this.isDfs = isHdfs || isS3 || isOss;
       this.isPrefetch = !isDfs && prefetchEnabled;
       this.originFileLen = fileInfo.getFileLength();
       this.fileId = fileId;
@@ -688,8 +700,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           indexFile.delete();
         }
       } else {
-        boolean isS3 = Utils.isS3Path(indexFilePath);
-        StorageInfo.Type storageType = isS3 ? StorageInfo.Type.S3 : StorageInfo.Type.HDFS;
+        StorageInfo.Type storageType = StorageInfo.Type.HDFS;
+        if (Utils.isS3Path(indexFilePath)) {
+          storageType = StorageInfo.Type.S3;
+        } else if (Utils.isOssPath(indexFilePath)) {
+          storageType = StorageInfo.Type.OSS;
+        }
         this.hadoopFs = StorageManager.hadoopFs().get(storageType);
         if (hadoopFs.exists(fileInfo.getDfsSortedPath())) {
           hadoopFs.delete(fileInfo.getDfsSortedPath(), false);

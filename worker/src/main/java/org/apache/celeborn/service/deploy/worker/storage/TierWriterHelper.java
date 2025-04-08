@@ -41,4 +41,19 @@ public class TierWriterHelper {
             .build()
             .newInstance(bucketName, s3AccessKey, s3SecretKey, s3EndpointRegion, key, maxRetryies);
   }
+
+  public static MultipartUploadHandler getOssMultipartUploadHandler(
+      String ossEndpoint, String bucketName, String ossAccessKey, String ossSecretKey, String key) {
+    return (MultipartUploadHandler)
+        DynConstructors.builder()
+            .impl(
+                "org.apache.celeborn.OssMultipartUploadHandler",
+                String.class,
+                String.class,
+                String.class,
+                String.class,
+                String.class)
+            .build()
+            .newInstance(ossEndpoint, bucketName, ossAccessKey, ossSecretKey, key);
+  }
 }

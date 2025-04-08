@@ -609,6 +609,7 @@ public abstract class CelebornInputStream extends InputStream {
                 checkpointMetadata);
           }
         case S3:
+        case OSS:
         case HDFS:
           return new DfsPartitionReader(
               conf,
