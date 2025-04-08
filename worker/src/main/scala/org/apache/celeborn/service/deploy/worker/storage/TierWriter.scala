@@ -68,7 +68,10 @@ abstract class TierWriterBase(
 
   def write(buf: ByteBuf): Unit = {
     ensureNotClosed()
-    if (notifier.hasException) return
+    if (notifier.hasException) {
+      handleException()
+      return
+    }
 
     flushLock.synchronized {
       metaHandler.beforeWrite(buf)
