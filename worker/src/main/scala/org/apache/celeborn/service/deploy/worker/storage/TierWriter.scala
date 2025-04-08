@@ -590,7 +590,7 @@ class DfsTierWriter(
       val flushTask = new OssFlushTask(
         flushBuffer,
         notifier,
-        false,
+        true,
         ossMultipartUploadHandler,
         partNumber,
         finalFlush)
@@ -600,7 +600,7 @@ class DfsTierWriter(
       val flushTask = new S3FlushTask(
         flushBuffer,
         notifier,
-        false,
+        true,
         s3MultipartUploadHandler,
         partNumber,
         finalFlush)
@@ -694,12 +694,12 @@ class DfsTierWriter(
 
   override def handleException(): Unit = {
     if (s3MultipartUploadHandler != null) {
-      logWarning("Abort s3 multipart upload for ${fileInfo.getFilePath}")
+      logWarning(s"Abort s3 multipart upload for ${fileInfo.getFilePath}")
       s3MultipartUploadHandler.complete()
       s3MultipartUploadHandler.close()
     }
     if (ossMultipartUploadHandler != null) {
-      logWarning("Abort Oss multipart upload for ${fileInfo.getFilePath}")
+      logWarning(s"Abort Oss multipart upload for ${fileInfo.getFilePath}")
       ossMultipartUploadHandler.complete()
       ossMultipartUploadHandler.close()
     }

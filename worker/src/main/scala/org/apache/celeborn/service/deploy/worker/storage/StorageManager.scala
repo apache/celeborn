@@ -1110,7 +1110,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           fileName,
           hdfsFileInfo)
         return (hdfsFlusher.get, hdfsFileInfo, null)
-      } else if (dirs.isEmpty && location.getStorageInfo.S3Available()) {
+      } else if (hasS3Storage && location.getStorageInfo.S3Available()) {
         val shuffleDir =
           new Path(new Path(s3Dir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(
@@ -1128,7 +1128,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           fileName,
           s3FileInfo)
         return (s3Flusher.get, s3FileInfo, null)
-      } else if (dirs.isEmpty && location.getStorageInfo.OSSAvailable()) {
+      } else if (hasOssStorage && location.getStorageInfo.OSSAvailable()) {
         val shuffleDir =
           new Path(new Path(ossDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(
