@@ -26,6 +26,8 @@ PROJECT_DIR="$(cd "$(dirname "$0")"/../..; pwd)"
 ASF_USERNAME=${ASF_USERNAME:?"ASF_USERNAME is required"}
 ASF_PASSWORD=${ASF_PASSWORD:?"ASF_PASSWORD is required"}
 RELEASE_RC_NO=${RELEASE_RC_NO:?"RELEASE_RC_NO is required, e.g. 0"}
+JAVA8_HOME=${JAVA8_HOME:?"JAVA8_HOME is required"}
+JAVA11_HOME=${JAVA11_HOME:?"JAVA11_HOME is required"}
 
 RELEASE_VERSION=$(awk -F'"' '/ThisBuild \/ version/ {print $2}' version.sbt)
 
@@ -41,6 +43,8 @@ Top level targets are:
 All other inputs are environment variables
 
 RELEASE_RC_NO   - Release RC number, (e.g. 0)
+JAVA8_HOME - Location where the JDK or JRE is installed for JDK 8
+JAVA11_HOME - Location where the JDK or JRE is installed for JDK 11
 
 ASF_USERNAME - Username of ASF committer account
 ASF_PASSWORD - Password of ASF committer account
@@ -118,6 +122,9 @@ upload_nexus_staging() {
 
   echo "Deploying celeborn-client-flink-1.20-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pflink-1.20 "clean;celeborn-client-flink-1_20-shaded/publishSigned"
+
+  echo "Deploying celeborn-client-flink-2.0-shaded_2.12"
+  ${PROJECT_DIR}/build/sbt -Pflink-2.0 "clean;celeborn-client-flink-2_0-shaded/publishSigned"
 
   echo "Deploying celeborn-client-mr-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pmr "clean;celeborn-client-mr-shaded/publishSigned"

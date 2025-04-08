@@ -216,26 +216,54 @@ public class SlotsAllocatorSuiteJ {
     check(workers, partitionIds, shouldReplicate, true);
   }
 
+  @Test
+  public void testAllocate3000ReduceIdsWithReplicateOnRoundRobin() {
+    final List<WorkerInfo> workers = prepareWorkers(true);
+    final List<Integer> partitionIds = new ArrayList<>();
+    for (int i = 0; i < 3000; i++) {
+      partitionIds.add(i);
+    }
+    final boolean shouldReplicate = true;
+
+    check(workers, partitionIds, shouldReplicate, true, true);
+  }
+
   private void check(
       List<WorkerInfo> workers,
       List<Integer> partitionIds,
       boolean shouldReplicate,
       boolean expectSuccess) {
+    check(workers, partitionIds, shouldReplicate, expectSuccess, false);
+  }
+
+  private void check(
+      List<WorkerInfo> workers,
+      List<Integer> partitionIds,
+      boolean shouldReplicate,
+      boolean expectSuccess,
+      boolean roundrobin) {
     String shuffleKey = "appId-1";
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM().key(), "2");
     conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT().key(), "1");
-    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        SlotsAllocator.offerSlotsLoadAware(
-            workers,
-            partitionIds,
-            shouldReplicate,
-            false,
-            conf.masterSlotAssignLoadAwareDiskGroupNum(),
-            conf.masterSlotAssignLoadAwareDiskGroupGradient(),
-            conf.masterSlotAssignLoadAwareFlushTimeWeight(),
-            conf.masterSlotAssignLoadAwareFetchTimeWeight(),
-            StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots;
+    if (roundrobin) {
+      slots =
+          SlotsAllocator.offerSlotsRoundRobin(
+              workers, partitionIds, shouldReplicate, false, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+    } else {
+      slots =
+          SlotsAllocator.offerSlotsLoadAware(
+              workers,
+              partitionIds,
+              shouldReplicate,
+              false,
+              conf.masterSlotAssignLoadAwareDiskGroupNum(),
+              conf.masterSlotAssignLoadAwareDiskGroupGradient(),
+              conf.masterSlotAssignLoadAwareFlushTimeWeight(),
+              conf.masterSlotAssignLoadAwareFetchTimeWeight(),
+              StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+    }
     if (expectSuccess) {
       if (shouldReplicate) {
         slots.forEach(
@@ -266,6 +294,19 @@ public class SlotsAllocatorSuiteJ {
         if (allocationMap.containsKey("UNKNOWN_DISK")) {
           unknownDiskSlots += allocationMap.get("UNKNOWN_DISK");
         }
+        if (roundrobin && !allocationMap.isEmpty()) {
+          int maxSlots = Collections.max(allocationMap.values());
+          int minSlots = Collections.min(allocationMap.values());
+          assertTrue(
+              "Worker "
+                  + worker.host()
+                  + " has unbalanced slot allocation. "
+                  + "Max: "
+                  + maxSlots
+                  + ", Min: "
+                  + minSlots,
+              maxSlots - minSlots <= 1);
+        }
       }
       int allocateToDiskSlots = 0;
       for (WorkerInfo worker : workers) {
@@ -290,20 +331,36 @@ public class SlotsAllocatorSuiteJ {
       boolean expectSuccess,
       boolean roundRobin,
       boolean enableS3) {
+    checkSlotsOnDFS(
+        workers, partitionIds, shouldReplicate, expectSuccess, roundRobin, enableS3, false);
+  }
+
+  private void checkSlotsOnDFS(
+      List<WorkerInfo> workers,
+      List<Integer> partitionIds,
+      boolean shouldReplicate,
+      boolean expectSuccess,
+      boolean roundRobin,
+      boolean enableS3,
+      boolean enableOss) {
     CelebornConf conf = new CelebornConf();
+    int availableStorageTypes;
     if (enableS3) {
       conf.set("celeborn.active.storage.levels", "S3");
+      availableStorageTypes = StorageInfo.S3_MASK;
+    } else if (enableOss) {
+      conf.set("celeborn.active.storage.levels", "OSS");
+      availableStorageTypes = StorageInfo.OSS_MASK;
     } else {
       conf.set("celeborn.active.storage.levels", "HDFS");
+      availableStorageTypes = StorageInfo.HDFS_MASK;
     }
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots;
     if (roundRobin) {
-      int availableStorageTypes = enableS3 ? StorageInfo.S3_MASK : StorageInfo.HDFS_MASK;
       slots =
           SlotsAllocator.offerSlotsRoundRobin(
               workers, partitionIds, shouldReplicate, false, availableStorageTypes);
     } else {
-      int availableStorageTypes = enableS3 ? StorageInfo.S3_MASK : StorageInfo.HDFS_MASK;
       slots =
           SlotsAllocator.offerSlotsLoadAware(
               workers,
@@ -424,7 +481,7 @@ public class SlotsAllocatorSuiteJ {
     final List<WorkerInfo> workers = prepareWorkers(true);
     // Simulates no available slots behavior with greatly changed estimatedPartitionSize for workers
     // with usable disks.
-    workers.forEach(workerInfo -> workerInfo.updateDiskMaxSlots(Long.MAX_VALUE));
+    workers.forEach(workerInfo -> workerInfo.updateDiskSlots(Long.MAX_VALUE));
     final List<Integer> partitionIds = Collections.singletonList(0);
     final boolean shouldReplicate = false;
 
@@ -460,5 +517,38 @@ public class SlotsAllocatorSuiteJ {
     final boolean shouldReplicate = true;
     checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, true, true);
     checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, false, true);
+  }
+
+  @Test
+  public void testOssOnly() {
+    final List<WorkerInfo> workers = prepareWorkers(false);
+    final List<Integer> partitionIds = new ArrayList<>();
+    for (int i = 0; i < 3000; i++) {
+      partitionIds.add(i);
+    }
+    final boolean shouldReplicate = true;
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, true, false, true);
+  }
+
+  @Test
+  public void testLocalDisksAndOss() {
+    final List<WorkerInfo> workers = prepareWorkers(true);
+    DiskInfo ossDiskInfo1 =
+        new DiskInfo(
+            "OSS", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE, StorageInfo.Type.OSS);
+    DiskInfo ossDiskInfo2 =
+        new DiskInfo(
+            "OSS", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE, StorageInfo.Type.OSS);
+    ossDiskInfo1.maxSlots_$eq(Long.MAX_VALUE);
+    ossDiskInfo2.maxSlots_$eq(Long.MAX_VALUE);
+    workers.get(0).diskInfos().put("OSS", ossDiskInfo1);
+    workers.get(1).diskInfos().put("OSS", ossDiskInfo2);
+    final List<Integer> partitionIds = new ArrayList<>();
+    for (int i = 0; i < 3000; i++) {
+      partitionIds.add(i);
+    }
+    final boolean shouldReplicate = true;
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, true, false, true);
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, false, false, true);
   }
 }

@@ -23,6 +23,7 @@ import java.nio.ByteBuffer
 import scala.reflect.ClassTag
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.network.protocol.{SerdeVersion, TransportMessage}
 import org.apache.celeborn.common.util.{ByteBufferInputStream, ByteBufferOutputStream, Utils}
 
 private[celeborn] class JavaSerializationStream(
@@ -98,6 +99,20 @@ private[celeborn] class JavaSerializerInstance(
 
   override def serialize[T: ClassTag](t: T): ByteBuffer = {
     val bos = new ByteBufferOutputStream()
+    val msg = Utils.toTransportMessage(t)
+    msg match {
+      case transMsg: TransportMessage =>
+        // Check if the msg is a TransportMessage with language-agnostic V2 serdeVersion.
+        // If so, write the marker and the body explicitly.
+        if (transMsg.getSerdeVersion == SerdeVersion.V2) {
+          val out = new DataOutputStream(bos)
+          out.writeByte(SerdeVersion.V2.getMarker)
+          out.write(transMsg.toByteBuffer.array)
+          out.close()
+          return bos.toByteBuffer
+        }
+      case _ =>
+    }
     val out = serializeStream(bos)
     out.writeObject(Utils.toTransportMessage(t))
     out.close()
@@ -105,12 +120,28 @@ private[celeborn] class JavaSerializerInstance(
   }
 
   override def deserialize[T: ClassTag](bytes: ByteBuffer): T = {
+    bytes.mark
+    val serdeVersion = bytes.get
+    // If the serdeVersion byte is V2, deserialize directly.
+    if (serdeVersion == SerdeVersion.V2.getMarker) {
+      return Utils.fromTransportMessage(
+        TransportMessage.fromByteBuffer(bytes, SerdeVersion.V2)).asInstanceOf[T]
+    }
+    bytes.reset
     val bis = new ByteBufferInputStream(bytes)
     val in = deserializeStream(bis)
     Utils.fromTransportMessage(in.readObject()).asInstanceOf[T]
   }
 
   override def deserialize[T: ClassTag](bytes: ByteBuffer, loader: ClassLoader): T = {
+    bytes.mark
+    val serdeVersion = bytes.get
+    // If the serdeVersion byte is V2, deserialize directly.
+    if (serdeVersion == SerdeVersion.V2.getMarker) {
+      return Utils.fromTransportMessage(
+        TransportMessage.fromByteBuffer(bytes, SerdeVersion.V2)).asInstanceOf[T]
+    }
+    bytes.reset
     val bis = new ByteBufferInputStream(bytes)
     val in = deserializeStream(bis, loader)
     Utils.fromTransportMessage(in.readObject()).asInstanceOf[T]
@@ -136,6 +167,9 @@ private[celeborn] class JavaSerializerInstance(
  * @note This serializer is not guaranteed to be wire-compatible across different versions of
  * Spark. It is intended to be used to serialize/de-serialize data within a single
  * Spark application.
+ *
+ * @note Java Object Serialization Specification:
+ * https://docs.oracle.com/javase/8/docs/platform/serialization/spec/protocol.html
  */
 class JavaSerializer(conf: CelebornConf) extends Serializer with Externalizable {
   private var counterReset = conf.getInt("spark.serializer.objectStreamReset", 100)

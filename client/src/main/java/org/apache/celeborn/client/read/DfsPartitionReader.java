@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -28,7 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.util.ReferenceCounted;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -36,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
@@ -57,29 +59,40 @@ public class DfsPartitionReader implements PartitionReader {
   PartitionLocation location;
   private final long shuffleChunkSize;
   private final int fetchMaxReqsInFlight;
-  private final LinkedBlockingQueue<ByteBuf> results;
+  private final LinkedBlockingQueue<Pair<Integer, ByteBuf>> results;
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private volatile boolean closed = false;
   private ExecutorService fetchThread;
   private boolean fetchThreadStarted;
   private FSDataInputStream dfsInputStream;
   private int numChunks = 0;
+  private int lastReturnedChunkId = -1;
   private int returnedChunks = 0;
   private int currentChunkIndex = 0;
+  private int startChunkIndex;
+  private int endChunkIndex;
   private final List<Long> chunkOffsets = new ArrayList<>();
   private TransportClient client;
   private PbStreamHandler streamHandler;
   private MetricsCallback metricsCallback;
   private FileSystem hadoopFs;
 
+  private Path dataFilePath;
+
+  private Optional<PartitionReaderCheckpointMetadata> partitionReaderCheckpointMetadata;
+
   public DfsPartitionReader(
       CelebornConf conf,
       String shuffleKey,
       PartitionLocation location,
+      PbStreamHandler pbStreamHandler,
       TransportClientFactory clientFactory,
       int startMapIndex,
       int endMapIndex,
-      MetricsCallback metricsCallback)
+      MetricsCallback metricsCallback,
+      int startChunkIndex,
+      int endChunkIndex,
+      Optional<PartitionReaderCheckpointMetadata> checkpointMetadata)
       throws IOException {
     this.conf = conf;
     shuffleChunkSize = conf.dfsReadChunkSize();
@@ -88,17 +101,20 @@ public class DfsPartitionReader implements PartitionReader {
 
     this.metricsCallback = metricsCallback;
     this.location = location;
-    if (location.getStorageInfo() != null
-        && location.getStorageInfo().getType() == StorageInfo.Type.S3) {
-      this.hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.S3);
+    if (location.getStorageInfo() != null) {
+      if (location.getStorageInfo().getType() == StorageInfo.Type.S3) {
+        this.hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.S3);
+      } else if (location.getStorageInfo().getType() == StorageInfo.Type.OSS) {
+        this.hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.OSS);
+      }
     } else {
       this.hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
     }
 
-    if (endMapIndex != Integer.MAX_VALUE) {
-      long fetchTimeoutMs = conf.clientFetchTimeoutMs();
-      try {
-        client = clientFactory.createClient(location.getHost(), location.getFetchPort());
+    long fetchTimeoutMs = conf.clientFetchTimeoutMs();
+    try {
+      client = clientFactory.createClient(location.getHost(), location.getFetchPort());
+      if (pbStreamHandler == null) {
         TransportMessage openStream =
             new TransportMessage(
                 MessageType.OPEN_STREAM,
@@ -112,28 +128,51 @@ public class DfsPartitionReader implements PartitionReader {
         ByteBuffer response = client.sendRpcSync(openStream.toByteBuffer(), fetchTimeoutMs);
         streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
         // Parse this message to ensure sort is done.
-      } catch (IOException | InterruptedException e) {
-        throw new IOException(
-            "read shuffle file from DFS failed, filePath: "
-                + location.getStorageInfo().getFilePath(),
-            e);
+      } else {
+        streamHandler = pbStreamHandler;
       }
-
-      dfsInputStream =
-          hadoopFs.open(new Path(Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
+    } catch (IOException | InterruptedException e) {
+      throw new IOException(
+          "read shuffle file from DFS failed, filePath: " + location.getStorageInfo().getFilePath(),
+          e);
+    }
+    if (endMapIndex != Integer.MAX_VALUE && endMapIndex != -1) {
+      dataFilePath = new Path(Utils.getSortedFilePath(location.getStorageInfo().getFilePath()));
+      dfsInputStream = hadoopFs.open(dataFilePath);
       chunkOffsets.addAll(
           getChunkOffsetsFromSortedIndex(conf, location, startMapIndex, endMapIndex));
     } else {
-      dfsInputStream = hadoopFs.open(new Path(location.getStorageInfo().getFilePath()));
+      dataFilePath = new Path(location.getStorageInfo().getFilePath());
+      dfsInputStream = hadoopFs.open(dataFilePath);
       chunkOffsets.addAll(getChunkOffsetsFromUnsortedIndex(conf, location));
     }
+    this.startChunkIndex = startChunkIndex == -1 ? 0 : startChunkIndex;
+    this.endChunkIndex =
+        endChunkIndex == -1
+            ? chunkOffsets.size() - 2
+            : Math.min(chunkOffsets.size() - 2, endChunkIndex);
+    this.currentChunkIndex = this.startChunkIndex;
+    this.numChunks = this.endChunkIndex - this.startChunkIndex + 1;
+
+    if (checkpointMetadata.isPresent()) {
+      this.partitionReaderCheckpointMetadata = checkpointMetadata;
+      this.returnedChunks = checkpointMetadata.get().getReturnedChunks().size();
+    } else {
+      this.partitionReaderCheckpointMetadata =
+          conf.isPartitionReaderCheckpointEnabled()
+              ? Optional.of(new PartitionReaderCheckpointMetadata())
+              : Optional.empty();
+    }
     logger.debug(
-        "DFS {} index count:{} offsets:{}",
+        "DFS {} total offset count:{} chunk count: {} "
+            + "start chunk index:{} end chunk index:{} offsets:{}",
         location.getStorageInfo().getFilePath(),
         chunkOffsets.size(),
+        this.numChunks,
+        this.startChunkIndex,
+        this.endChunkIndex,
         chunkOffsets);
-    if (chunkOffsets.size() > 1) {
-      numChunks = chunkOffsets.size() - 1;
+    if (this.numChunks > 0) {
       fetchThread =
           ThreadUtils.newDaemonSingleThreadExecutor(
               "celeborn-client-dfs-partition-fetcher" + location.getStorageInfo().getFilePath());
@@ -185,15 +224,32 @@ public class DfsPartitionReader implements PartitionReader {
     return returnedChunks < numChunks;
   }
 
+  private void checkpoint() {
+    if (lastReturnedChunkId != -1) {
+      partitionReaderCheckpointMetadata.ifPresent(
+          readerCheckpointMetadata -> readerCheckpointMetadata.checkpoint(lastReturnedChunkId));
+    }
+  }
+
   @Override
   public ByteBuf next() throws IOException, InterruptedException {
-    ByteBuf chunk = null;
+    Pair<Integer, ByteBuf> chunk = null;
+    checkpoint();
     if (!fetchThreadStarted) {
       fetchThreadStarted = true;
       fetchThread.submit(
           () -> {
             try {
-              while (!closed && currentChunkIndex < numChunks) {
+              while (!closed && currentChunkIndex <= endChunkIndex) {
+                if (partitionReaderCheckpointMetadata.isPresent()
+                    && partitionReaderCheckpointMetadata.get().isCheckpointed(currentChunkIndex)) {
+                  logger.info(
+                      "Skipping chunk {} as it has already been returned,"
+                          + " likely by a previous reader for the same partition.",
+                      currentChunkIndex);
+                  currentChunkIndex++;
+                  continue;
+                }
                 while (results.size() >= fetchMaxReqsInFlight) {
                   Thread.sleep(50);
                 }
@@ -204,16 +260,10 @@ public class DfsPartitionReader implements PartitionReader {
                 try {
                   dfsInputStream.readFully(offset, buffer);
                 } catch (IOException e) {
-                  logger.warn(
-                      "read DFS {} failed will retry, error detail {}",
-                      location.getStorageInfo().getFilePath(),
-                      e);
+                  logger.warn("read DFS {} failed will retry, error detail {}", dataFilePath, e);
                   try {
                     dfsInputStream.close();
-                    dfsInputStream =
-                        hadoopFs.open(
-                            new Path(
-                                Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
+                    dfsInputStream = hadoopFs.open(dataFilePath);
                     dfsInputStream.readFully(offset, buffer);
                   } catch (IOException ex) {
                     logger.warn(
@@ -224,7 +274,7 @@ public class DfsPartitionReader implements PartitionReader {
                     break;
                   }
                 }
-                results.put(Unpooled.wrappedBuffer(buffer));
+                results.put(Pair.of(currentChunkIndex, Unpooled.wrappedBuffer(buffer)));
                 logger.debug("add index {} to results", currentChunkIndex++);
               }
             } catch (Exception e) {
@@ -248,7 +298,8 @@ public class DfsPartitionReader implements PartitionReader {
       throw e;
     }
     returnedChunks++;
-    return chunk;
+    lastReturnedChunkId = chunk.getLeft();
+    return chunk.getRight();
   }
 
   private void checkException() throws IOException {
@@ -270,7 +321,7 @@ public class DfsPartitionReader implements PartitionReader {
       logger.warn("close DFS input stream failed.", e);
     }
     if (results.size() > 0) {
-      results.forEach(ReferenceCounted::release);
+      results.forEach(chunk -> chunk.getRight().release());
     }
     results.clear();
     closeStream();
@@ -293,5 +344,10 @@ public class DfsPartitionReader implements PartitionReader {
   @Override
   public PartitionLocation getLocation() {
     return location;
+  }
+
+  @Override
+  public Optional<PartitionReaderCheckpointMetadata> getPartitionReaderCheckpointMetadata() {
+    return partitionReaderCheckpointMetadata;
   }
 }

@@ -38,6 +38,7 @@ import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLoc
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Role, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.{CelebornRackResolver, TransportContext}
+import org.apache.celeborn.common.network.protocol.TransportMessagesHelper
 import org.apache.celeborn.common.network.sasl.SaslServerBootstrap
 import org.apache.celeborn.common.network.server.TransportServerBootstrap
 import org.apache.celeborn.common.network.util.TransportConf
@@ -363,6 +364,8 @@ private[celeborn] class Worker(
     jvmQuake.start()
   }
 
+  private val messagesHelper: TransportMessagesHelper = new TransportMessagesHelper()
+
   workerSource.addGauge(WorkerSource.REGISTERED_SHUFFLE_COUNT) { () =>
     workerInfo.getShuffleKeySet.size
   }
@@ -623,6 +626,7 @@ private[celeborn] class Worker(
       if (conf.internalPortEnabled) {
         internalRpcEnvInUse.stop(internalRpcEndpointRef)
       }
+      messagesHelper.close()
       super.stop(exitKind)
 
       logInfo("Worker is stopped.")

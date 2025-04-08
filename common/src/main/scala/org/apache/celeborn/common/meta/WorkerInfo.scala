@@ -163,7 +163,7 @@ class WorkerInfo(
   lazy val toUniqueId = s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
 
   def slotAvailable(): Boolean = this.synchronized {
-    diskInfos.asScala.exists { case (_, disk) => (disk.maxSlots - disk.activeSlots) > 0 }
+    diskInfos.asScala.exists { case (_, disk) => (disk.availableSlots) > 0 }
   }
 
   def getTotalSlots(): Long = this.synchronized {
@@ -178,14 +178,15 @@ class WorkerInfo(
     this.workerStatus = workerStatus;
   }
 
-  def updateDiskMaxSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
+  def updateDiskSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
     diskInfos.asScala.foreach { case (_, disk) =>
-      disk.maxSlots_$eq(disk.actualUsableSpace / estimatedPartitionSize)
+      disk.maxSlots_$eq(disk.totalSpace / estimatedPartitionSize)
+      disk.availableSlots_$eq(disk.actualUsableSpace / estimatedPartitionSize)
     }
   }
 
   def totalAvailableSlots(): Long = this.synchronized {
-    diskInfos.asScala.map(_._2.availableSlots()).sum
+    diskInfos.asScala.map(_._2.getAvailableSlots()).sum
   }
 
   def totalSpace(): Long = this.synchronized {
@@ -211,13 +212,17 @@ class WorkerInfo(
           curDisk.activeSlots = newDisk.activeSlots
           curDisk.avgFlushTime = newDisk.avgFlushTime
           curDisk.avgFetchTime = newDisk.avgFetchTime
-          if (estimatedPartitionSize.nonEmpty && curDisk.storageType != StorageInfo.Type.HDFS && curDisk.storageType != StorageInfo.Type.S3) {
-            curDisk.maxSlots = curDisk.actualUsableSpace / estimatedPartitionSize.get
+          if (estimatedPartitionSize.nonEmpty && curDisk.storageType != StorageInfo.Type.HDFS
+            && curDisk.storageType != StorageInfo.Type.S3 && curDisk.storageType != StorageInfo.Type.OSS) {
+            curDisk.maxSlots = curDisk.totalSpace / estimatedPartitionSize.get
+            curDisk.availableSlots = curDisk.actualUsableSpace / estimatedPartitionSize.get
           }
           curDisk.setStatus(newDisk.status)
         } else {
-          if (estimatedPartitionSize.nonEmpty && newDisk.storageType != StorageInfo.Type.HDFS && newDisk.storageType != StorageInfo.Type.S3) {
-            newDisk.maxSlots = newDisk.actualUsableSpace / estimatedPartitionSize.get
+          if (estimatedPartitionSize.nonEmpty && newDisk.storageType != StorageInfo.Type.HDFS
+            && newDisk.storageType != StorageInfo.Type.S3 && newDisk.storageType != StorageInfo.Type.OSS) {
+            newDisk.maxSlots = newDisk.totalSpace / estimatedPartitionSize.get
+            newDisk.availableSlots = newDisk.actualUsableSpace / estimatedPartitionSize.get
           }
           diskInfos.put(mountPoint, newDisk)
         }

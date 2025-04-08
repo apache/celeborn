@@ -37,7 +37,7 @@ import CelebornCommonSettings._
 
 object Dependencies {
 
-  val zstdJniVersion = sparkClientProjects.map(_.zstdJniVersion).getOrElse("1.5.2-1")
+  val zstdJniVersion = sparkClientProjects.map(_.zstdJniVersion).getOrElse("1.5.7-1")
   val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.8.0")
 
   // Dependent library versions
@@ -47,22 +47,24 @@ object Dependencies {
   val commonsIoVersion = "2.17.0"
   val commonsLoggingVersion = "1.1.3"
   val commonsLang3Version = "3.17.0"
+  val commonsCollectionsVersion = "3.2.2"
   val findbugsVersion = "1.3.9"
   val guavaVersion = "33.1.0-jre"
   val hadoopVersion = "3.3.6"
   val awsS3Version = "1.12.532"
+  val aliyunOssVersion = "3.13.0"
   val junitInterfaceVersion = "0.13.3"
   // don't forget update `junitInterfaceVersion` when we upgrade junit
   val junitVersion = "4.13.2"
   val leveldbJniVersion = "1.8"
-  val log4j2Version = "2.17.2"
+  val log4j2Version = "2.24.3"
   val jdkToolsVersion = "0.1"
   val metricsVersion = "4.2.25"
   val mockitoVersion = "4.11.0"
-  val nettyVersion = "4.1.115.Final"
-  val ratisVersion = "3.1.2"
+  val nettyVersion = "4.1.118.Final"
+  val ratisVersion = "3.1.3"
   val roaringBitmapVersion = "1.0.6"
-  val rocksdbJniVersion = "9.5.2"
+  val rocksdbJniVersion = "9.10.0"
   val jacksonVersion = "2.15.3"
   val jakartaActivationApiVersion = "1.2.1"
   val scalatestMockitoVersion = "1.17.14"
@@ -123,6 +125,9 @@ object Dependencies {
   val hadoopAws = "org.apache.hadoop" % "hadoop-aws" % hadoopVersion excludeAll (
     ExclusionRule("com.amazonaws", "aws-java-sdk-bundle"))
   val awsS3 = "com.amazonaws" % "aws-java-sdk-s3" % awsS3Version
+  val commonsCollections = "commons-collections" % "commons-collections" % commonsCollectionsVersion
+  val hadoopAliyun = "org.apache.hadoop" % "hadoop-aliyun" % hadoopVersion
+  val aliyunOss = "com.aliyun.oss" % "aliyun-sdk-oss" % aliyunOssVersion
   val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion
   val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion excludeAll (
     ExclusionRule("com.rabbitmq", "amqp-client"))
@@ -454,8 +459,9 @@ object Utils {
       profiles
   }
 
-  val celeborMPUProject = profiles.filter(_.startsWith("aws")).headOption match {
+  val celeborMPUProject = profiles.find(p => p.startsWith("aws") || p.startsWith("aliyun")) match {
     case Some("aws") => Some(CeleborMPU.celeborMPU)
+    case Some("aliyun") => Some(CeleborMPU.celeborMPUOss)
     case _ => None
   }
 
@@ -485,6 +491,7 @@ object Utils {
     case Some("flink-1.18") => Some(Flink118)
     case Some("flink-1.19") => Some(Flink119)
     case Some("flink-1.20") => Some(Flink120)
+    case Some("flink-2.0") => Some(Flink20)
     case _ => None
   }
 
@@ -568,8 +575,9 @@ object CelebornSpi {
 object CeleborMPU {
 
   lazy val hadoopAwsDependencies = Seq(Dependencies.hadoopAws, Dependencies.awsS3)
+  lazy val hadoopAliyunDependencies = Seq(Dependencies.commonsCollections, Dependencies.hadoopAliyun, Dependencies.aliyunOss)
 
-  lazy val celeborMPU = Project("celeborn-multipart-uploader", file("multipart-uploader"))
+  lazy val celeborMPU = Project("celeborn-multipart-uploader-s3", file("multipart-uploader/multipart-uploader-s3"))
     .dependsOn(CelebornService.service % "test->test;compile->compile")
     .settings (
       commonSettings,
@@ -577,6 +585,16 @@ object CeleborMPU {
         Dependencies.log4j12Api,
         Dependencies.log4jSlf4jImpl,
       ) ++ hadoopAwsDependencies
+    )
+
+  lazy val celeborMPUOss = Project("celeborn-multipart-uploader-oss", file("multipart-uploader/multipart-uploader-oss"))
+    .dependsOn(CelebornService.service % "test->test;compile->compile")
+    .settings (
+      commonSettings,
+      libraryDependencies ++= Seq(
+        Dependencies.log4j12Api,
+        Dependencies.log4jSlf4jImpl,
+      ) ++ hadoopAliyunDependencies
     )
 }
 
@@ -701,6 +719,15 @@ object CelebornService {
 }
 
 object CelebornMaster {
+  val mpuDependencies =
+    if (profiles.exists(_.startsWith("aws"))) {
+      CeleborMPU.hadoopAwsDependencies
+    } else if (profiles.exists(_.startsWith("aliyun"))) {
+      CeleborMPU.hadoopAliyunDependencies
+    } else {
+      Seq.empty
+    }
+
   lazy val master = Project("celeborn-master", file("master"))
     .dependsOn(CelebornCommon.common)
     .dependsOn(CelebornCommon.common % "test->test;compile->compile")
@@ -723,7 +750,7 @@ object CelebornMaster {
         Dependencies.ratisServer,
         Dependencies.ratisShell,
         Dependencies.scalatestMockito % "test",
-      ) ++ commonUnitTestDependencies
+      ) ++ commonUnitTestDependencies ++ mpuDependencies
     )
 }
 
@@ -737,6 +764,8 @@ object CelebornWorker {
 
   if (profiles.exists(_.startsWith("aws"))) {
     worker = worker.dependsOn(CeleborMPU.celeborMPU)
+  } else if (profiles.exists(_.startsWith("aliyun"))) {
+    worker = worker.dependsOn(CeleborMPU.celeborMPUOss)
   }
 
   worker = worker.settings(
@@ -783,7 +812,7 @@ object Spark24 extends SparkClientProjects {
 
 object Spark30 extends SparkClientProjects {
 
-  val sparkClientProjectPath = "client-spark/spark-3-4"
+  val sparkClientProjectPath = "client-spark/spark-3"
   val sparkClientProjectName = "celeborn-client-spark-3"
   val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
   val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
@@ -797,7 +826,7 @@ object Spark30 extends SparkClientProjects {
 
 object Spark31 extends SparkClientProjects {
 
-  val sparkClientProjectPath = "client-spark/spark-3-4"
+  val sparkClientProjectPath = "client-spark/spark-3"
   val sparkClientProjectName = "celeborn-client-spark-3"
   val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
   val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
@@ -811,7 +840,7 @@ object Spark31 extends SparkClientProjects {
 
 object Spark32 extends SparkClientProjects {
 
-  val sparkClientProjectPath = "client-spark/spark-3-4"
+  val sparkClientProjectPath = "client-spark/spark-3"
   val sparkClientProjectName = "celeborn-client-spark-3"
   val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
   val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
@@ -825,7 +854,7 @@ object Spark32 extends SparkClientProjects {
 
 object Spark33 extends SparkClientProjects {
 
-  val sparkClientProjectPath = "client-spark/spark-3-4"
+  val sparkClientProjectPath = "client-spark/spark-3"
   val sparkClientProjectName = "celeborn-client-spark-3"
   val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
   val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
@@ -842,7 +871,7 @@ object Spark33 extends SparkClientProjects {
 
 object Spark34 extends SparkClientProjects {
 
-  val sparkClientProjectPath = "client-spark/spark-3-4"
+  val sparkClientProjectPath = "client-spark/spark-3"
   val sparkClientProjectName = "celeborn-client-spark-3"
   val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
   val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
@@ -856,7 +885,7 @@ object Spark34 extends SparkClientProjects {
 
 object Spark35 extends SparkClientProjects {
 
-  val sparkClientProjectPath = "client-spark/spark-3-4"
+  val sparkClientProjectPath = "client-spark/spark-3"
   val sparkClientProjectName = "celeborn-client-spark-3"
   val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
   val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
@@ -864,7 +893,7 @@ object Spark35 extends SparkClientProjects {
   val lz4JavaVersion = "1.8.0"
   val sparkProjectScalaVersion = "2.12.18"
 
-  val sparkVersion = "3.5.4"
+  val sparkVersion = "3.5.5"
   val zstdJniVersion = "1.5.5-4"
 
   override val sparkColumnarShuffleVersion: String = "3.5"
@@ -872,7 +901,7 @@ object Spark35 extends SparkClientProjects {
 
 object Spark40 extends SparkClientProjects {
 
-  val sparkClientProjectPath = "client-spark/spark-3-4"
+  val sparkClientProjectPath = "client-spark/spark-3"
   val sparkClientProjectName = "celeborn-client-spark-4"
   val sparkClientShadedProjectPath = "client-spark/spark-4-shaded"
   val sparkClientShadedProjectName = "celeborn-client-spark-4-shaded"
@@ -1031,6 +1060,7 @@ trait SparkClientProjects {
               name.startsWith("failureaccess-") ||
               name.startsWith("netty-") ||
               name.startsWith("commons-lang3-") ||
+              name.startsWith("commons-io-") ||
               name.startsWith("RoaringBitmap-"))
           }
         },
@@ -1106,7 +1136,7 @@ object Flink118 extends FlinkClientProjects {
 }
 
 object Flink119 extends FlinkClientProjects {
-  val flinkVersion = "1.19.1"
+  val flinkVersion = "1.19.2"
 
   // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath = "client-flink/flink-1.19"
@@ -1116,13 +1146,23 @@ object Flink119 extends FlinkClientProjects {
 }
 
 object Flink120 extends FlinkClientProjects {
-  val flinkVersion = "1.20.0"
+  val flinkVersion = "1.20.1"
 
   // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath = "client-flink/flink-1.20"
   val flinkClientProjectName = "celeborn-client-flink-1_20"
   val flinkClientShadedProjectPath: String = "client-flink/flink-1.20-shaded"
   val flinkClientShadedProjectName: String = "celeborn-client-flink-1_20-shaded"
+}
+
+object Flink20 extends FlinkClientProjects {
+  val flinkVersion = "2.0.0"
+
+  // note that SBT does not allow using the period symbol (.) in project names.
+  val flinkClientProjectPath = "client-flink/flink-2.0"
+  val flinkClientProjectName = "celeborn-client-flink-2_0"
+  val flinkClientShadedProjectPath: String = "client-flink/flink-2.0-shaded"
+  val flinkClientShadedProjectName: String = "celeborn-client-flink-2_0-shaded"
 }
 
 trait FlinkClientProjects {
@@ -1146,10 +1186,11 @@ trait FlinkClientProjects {
     .aggregate(flinkCommon, flinkClient, flinkIt)
 
   // get flink major version. e.g:
-  //   1.20.0 -> 1.20
-  //   1.19.1 -> 1.19
+  //   1.20.1 -> 1.20
+  //   1.19.2 -> 1.19
   //   1.18.1 -> 1.18
   //   1.17.2 -> 1.17
+  //   1.16.3 -> 1.16
   lazy val flinkMajorVersion: String = flinkVersion.split("\\.").take(2).reduce(_ + "." + _)
 
   // the output would be something like: celeborn-client-flink-1.17-shaded_2.12-0.4.0-SNAPSHOT.jar
@@ -1198,11 +1239,11 @@ trait FlinkClientProjects {
         commonSettings,
         libraryDependencies ++= Seq(
           "org.apache.flink" % "flink-runtime" % flinkVersion % "test",
-          "org.apache.flink" %% "flink-scala" % flinkVersion % "test",
           flinkStreamingDependency,
           flinkClientsDependency,
           flinkRuntimeWebDependency
-        ) ++ commonUnitTestDependencies
+        ) ++ commonUnitTestDependencies,
+        (Test / envVars) += ("FLINK_VERSION", flinkVersion)
       )
   }
 

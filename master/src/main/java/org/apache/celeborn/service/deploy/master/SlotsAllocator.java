@@ -71,17 +71,23 @@ public class SlotsAllocator {
         if (diskInfoEntry.getValue().status().equals(DiskStatus.HEALTHY)) {
           if (StorageInfo.localDiskAvailable(availableStorageTypes)
               && diskInfoEntry.getValue().storageType() != StorageInfo.Type.HDFS
-              && diskInfoEntry.getValue().storageType() != StorageInfo.Type.S3) {
+              && diskInfoEntry.getValue().storageType() != StorageInfo.Type.S3
+              && diskInfoEntry.getValue().storageType() != StorageInfo.Type.OSS) {
             usableDisks.add(
                 new UsableDiskInfo(
-                    diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
+                    diskInfoEntry.getValue(), diskInfoEntry.getValue().getAvailableSlots()));
           } else if (StorageInfo.HDFSAvailable(availableStorageTypes)
               && diskInfoEntry.getValue().storageType() == StorageInfo.Type.HDFS) {
             usableDisks.add(
                 new UsableDiskInfo(
-                    diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
+                    diskInfoEntry.getValue(), diskInfoEntry.getValue().getAvailableSlots()));
           } else if (StorageInfo.S3Available(availableStorageTypes)
               && diskInfoEntry.getValue().storageType() == StorageInfo.Type.S3) {
+            usableDisks.add(
+                new UsableDiskInfo(
+                    diskInfoEntry.getValue(), diskInfoEntry.getValue().getAvailableSlots()));
+          } else if (StorageInfo.OSSAvailable(availableStorageTypes)
+              && diskInfoEntry.getValue().storageType() == StorageInfo.Type.OSS) {
             usableDisks.add(
                 new UsableDiskInfo(
                     diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
@@ -141,7 +147,8 @@ public class SlotsAllocator {
                       if (diskInfo.actualUsableSpace() > 0
                           && diskInfo.status().equals(DiskStatus.HEALTHY)
                           && diskInfo.storageType() != StorageInfo.Type.HDFS
-                          && diskInfo.storageType() != StorageInfo.Type.S3) {
+                          && diskInfo.storageType() != StorageInfo.Type.S3
+                          && diskInfo.storageType() != StorageInfo.Type.OSS) {
                         usableDisks.add(diskInfo);
                       }
                     }));
@@ -151,7 +158,8 @@ public class SlotsAllocator {
             || (shouldReplicate
                 && (usableDisks.size() == 1
                     || usableDisks.stream().map(diskToWorkerMap::get).distinct().count() <= 1));
-    boolean noAvailableSlots = usableDisks.stream().mapToLong(DiskInfo::availableSlots).sum() <= 0;
+    boolean noAvailableSlots =
+        usableDisks.stream().mapToLong(DiskInfo::getAvailableSlots).sum() <= 0;
 
     if (noUsableDisks || noAvailableSlots) {
       logger.warn(
@@ -200,6 +208,8 @@ public class SlotsAllocator {
         storageInfo = new StorageInfo("", StorageInfo.Type.HDFS, availableStorageTypes);
       } else if (selectedDiskInfo.storageType() == StorageInfo.Type.S3) {
         storageInfo = new StorageInfo("", StorageInfo.Type.S3, availableStorageTypes);
+      } else if (selectedDiskInfo.storageType() == StorageInfo.Type.OSS) {
+        storageInfo = new StorageInfo("", StorageInfo.Type.OSS, availableStorageTypes);
       } else {
         storageInfo =
             new StorageInfo(
@@ -214,6 +224,7 @@ public class SlotsAllocator {
             selectedWorker.diskInfos().values().stream()
                 .filter(p -> p.storageType() != StorageInfo.Type.HDFS)
                 .filter(p -> p.storageType() != StorageInfo.Type.S3)
+                .filter(p -> p.storageType() != StorageInfo.Type.OSS)
                 .collect(Collectors.toList())
                 .toArray(new DiskInfo[0]);
         storageInfo =
@@ -224,6 +235,8 @@ public class SlotsAllocator {
         workerDiskIndex.put(selectedWorker, (diskIndex + 1) % diskInfos.length);
       } else if (StorageInfo.S3Available(availableStorageTypes)) {
         storageInfo = new StorageInfo("", StorageInfo.Type.S3, availableStorageTypes);
+      } else if (StorageInfo.OSSAvailable(availableStorageTypes)) {
+        storageInfo = new StorageInfo("", StorageInfo.Type.OSS, availableStorageTypes);
       } else {
         storageInfo = new StorageInfo("", StorageInfo.Type.HDFS, availableStorageTypes);
       }
@@ -334,9 +347,8 @@ public class SlotsAllocator {
       boolean shouldReplicate,
       boolean shouldRackAware,
       int availableStorageTypes) {
-    // workerInfo -> (diskIndexForPrimary, diskIndexForReplica)
-    Map<WorkerInfo, Integer> workerDiskIndexForPrimary = new HashMap<>();
-    Map<WorkerInfo, Integer> workerDiskIndexForReplica = new HashMap<>();
+    // workerInfo -> (diskIndexForPrimaryAndReplica)
+    Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     List<Integer> partitionIdList = new LinkedList<>(partitionIds);
 
     final int workerSize = workers.size();
@@ -361,11 +373,7 @@ public class SlotsAllocator {
         }
         storageInfo =
             getStorageInfo(
-                workers,
-                nextPrimaryInd,
-                slotsRestrictions,
-                workerDiskIndexForPrimary,
-                availableStorageTypes);
+                workers, nextPrimaryInd, slotsRestrictions, workerDiskIndex, availableStorageTypes);
       } else {
         if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
           while (!workers.get(nextPrimaryInd).haveDisk()) {
@@ -376,8 +384,7 @@ public class SlotsAllocator {
           }
         }
         storageInfo =
-            getStorageInfo(
-                workers, nextPrimaryInd, null, workerDiskIndexForPrimary, availableStorageTypes);
+            getStorageInfo(workers, nextPrimaryInd, null, workerDiskIndex, availableStorageTypes);
       }
       PartitionLocation primaryPartition =
           createLocation(partitionId, workers.get(nextPrimaryInd), null, storageInfo, true);
@@ -398,7 +405,7 @@ public class SlotsAllocator {
                   workers,
                   nextReplicaInd,
                   slotsRestrictions,
-                  workerDiskIndexForReplica,
+                  workerDiskIndex,
                   availableStorageTypes);
         } else if (shouldRackAware) {
           while (nextReplicaInd == nextPrimaryInd
@@ -418,8 +425,7 @@ public class SlotsAllocator {
             }
           }
           storageInfo =
-              getStorageInfo(
-                  workers, nextReplicaInd, null, workerDiskIndexForReplica, availableStorageTypes);
+              getStorageInfo(workers, nextReplicaInd, null, workerDiskIndex, availableStorageTypes);
         }
         PartitionLocation replicaPartition =
             createLocation(
@@ -518,7 +524,7 @@ public class SlotsAllocator {
     long[] groupAvailableSlots = new long[groupSize];
     for (int i = 0; i < groupSize; i++) {
       for (DiskInfo disk : groups.get(i)) {
-        groupAvailableSlots[i] += disk.availableSlots();
+        groupAvailableSlots[i] += disk.getAvailableSlots();
       }
     }
     double[] currentAllocation = new double[groupSize];
@@ -564,8 +570,8 @@ public class SlotsAllocator {
             restrictions.computeIfAbsent(diskWorkerMap.get(disk), v -> new ArrayList<>());
         long allocated =
             (int) Math.ceil((groupAllocations[i] + groupLeft) / (double) disksInsideGroup);
-        if (allocated > disk.availableSlots()) {
-          allocated = disk.availableSlots();
+        if (allocated > disk.getAvailableSlots()) {
+          allocated = disk.getAvailableSlots();
         }
         if (allocated > groupRequired) {
           allocated = groupRequired;

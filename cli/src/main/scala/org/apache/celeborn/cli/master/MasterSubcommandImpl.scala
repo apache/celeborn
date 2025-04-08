@@ -47,6 +47,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     if (masterOptions.showDecommissioningWorkers) log(runShowDecommissioningWorkers)
     if (masterOptions.showLifecycleManagers) log(runShowLifecycleManagers)
     if (masterOptions.showWorkers) log(runShowWorkers)
+    if (masterOptions.showWorkersTopology) log(runShowWorkersTopology)
     if (masterOptions.showConf) log(runShowConf)
     if (masterOptions.showContainerInfo) log(runShowContainerInfo)
     if (masterOptions.showDynamicConf) log(runShowDynamicConf)
@@ -164,6 +165,8 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     applicationApi.getApplicationHostNames
 
   private[master] def runShowWorkers: WorkersResponse = workerApi.getWorkers
+
+  private[master] def runShowWorkersTopology: TopologyResponse = workerApi.getWorkersTopology()
 
   private[master] def getWorkerIds: util.List[WorkerId] = {
     val workerIds = commonOptions.workerIds

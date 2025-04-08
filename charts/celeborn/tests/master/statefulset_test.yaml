@@ -37,15 +37,16 @@ tests:
           path: spec.template.metadata.annotations.key2
           value: value2
 
-  - it: Should use the specified image if `image.repository` and `image.tag` is set
+  - it: Should use the specified image if `image.registry`, `image.repository` and `image.tag` is set
     set:
       image:
+        registry: test-registry
         repository: test-repository
         tag: test-tag
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].image
-          value: test-repository:test-tag
+          path: spec.template.spec.containers[?(@.name=="celeborn")].image
+          value: test-registry/test-repository:test-tag
 
   - it: Should use the specified image pull policy if `image.pullPolicy` is set
     set:

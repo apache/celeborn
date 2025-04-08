@@ -71,7 +71,7 @@ create `ShuffleClient`.
 
 ```java
 String host = lm.getHost();
-int = lm.getPort();
+int port = lm.getPort();
 ```
 
 ## Step Three: Create ShuffleClient

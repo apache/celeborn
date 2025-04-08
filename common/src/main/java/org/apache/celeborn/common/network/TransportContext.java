@@ -200,6 +200,7 @@ public class TransportContext implements Closeable {
         SslHandler sslHandler;
         try {
           sslHandler = new SslHandler(sslFactory.createSSLEngine(isClient, channel.alloc()));
+          sslHandler.setHandshakeTimeoutMillis(conf.sslHandshakeTimeoutMs());
         } catch (Exception e) {
           throw new IllegalStateException("Error creating Netty SslHandler", e);
         }

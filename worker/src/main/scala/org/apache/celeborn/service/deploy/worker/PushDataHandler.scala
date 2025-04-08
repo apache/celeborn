@@ -45,8 +45,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
-import org.apache.celeborn.service.deploy.worker.storage.{HdfsFlusher, LocalFlusher, MapPartitionDataWriter, PartitionDataWriter, S3Flusher, StorageManager}
-import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapPartitionFileWriter
+import org.apache.celeborn.service.deploy.worker.storage.{LocalFlusher, PartitionDataWriter, StorageManager}
 
 class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler with Logging {
 
@@ -632,7 +631,18 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           // Handle the response from replica
           val wrappedCallback = new RpcResponseCallback() {
             override def onSuccess(response: ByteBuffer): Unit = {
-              val replicaReason = response.get()
+              // During the rolling upgrade of the worker cluster, it is possible for
+              // the primary worker to be upgraded to a new version that includes
+              // the changes from [CELEBORN-1721], while the replica worker is still running
+              // on an older version that does not have these changes.
+              // In this scenario, the replica may return a response without any context
+              // when status of SUCCESS.
+              val replicaReason =
+                if (response.remaining() > 0) {
+                  response.get()
+                } else {
+                  StatusCode.SUCCESS
+                }
               if (replicaReason == StatusCode.HARD_SPLIT.getValue) {
                 if (response.remaining() > 0) {
                   try {
@@ -675,9 +685,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                   }
                   // Only primary data enable replication will push data to replica
                   Option(CongestionController.instance()) match {
-                    case Some(congestionController) if fileWriters.nonEmpty =>
-                      if (congestionController.isUserCongested(
-                          fileWriters.head.getUserCongestionControlContext)) {
+                    case Some(congestionController) =>
+                      val userCongested =
+                        fileWriters
+                          .find(_ != null)
+                          .map(_.getUserCongestionControlContext)
+                          .exists(congestionController.isUserCongested)
+                      if (userCongested) {
                         // Check whether primary congest the data though the replicas doesn't congest
                         // it(the response is empty)
                         pushMergedDataCallback.onSuccess(
@@ -780,9 +794,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             index += 1
           }
           Option(CongestionController.instance()) match {
-            case Some(congestionController) if fileWriters.nonEmpty =>
-              if (congestionController.isUserCongested(
-                  fileWriters.head.getUserCongestionControlContext)) {
+            case Some(congestionController) =>
+              val userCongested =
+                fileWriters
+                  .find(_ != null)
+                  .map(_.getUserCongestionControlContext)
+                  .exists(congestionController.isUserCongested)
+              if (userCongested) {
                 if (isPrimary) {
                   pushMergedDataCallback.onSuccess(StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED)
                 } else {
@@ -1243,41 +1261,30 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     try {
       messageType match {
         case Type.PUSH_DATA_HAND_SHAKE =>
-          val (numPartitions, bufferSize) =
+          val pbPushDataHandShake: PbPushDataHandShake =
             if (isLegacy)
-              (
-                msg.asInstanceOf[PushDataHandShake].numPartitions,
-                msg.asInstanceOf[PushDataHandShake].bufferSize)
+              PbPushDataHandShake.newBuilder()
+                .setNumPartitions(msg.asInstanceOf[PushDataHandShake].numPartitions)
+                .setBufferSize(msg.asInstanceOf[PushDataHandShake].bufferSize)
+                .build()
             else
-              (
-                pbMsg.asInstanceOf[PbPushDataHandShake].getNumPartitions,
-                pbMsg.asInstanceOf[PbPushDataHandShake].getBufferSize)
-          fileWriter.asInstanceOf[MapPartitionDataWriter].pushDataHandShake(
-            numPartitions,
-            bufferSize)
+              pbMsg.asInstanceOf[PbPushDataHandShake]
+          fileWriter.handleEvents(pbPushDataHandShake)
         case Type.REGION_START =>
-          val (currentRegionIndex, isBroadcast: Boolean) =
-            if (isLegacy)
-              (
-                msg.asInstanceOf[RegionStart].currentRegionIndex,
-                msg.asInstanceOf[RegionStart].isBroadcast)
-            else
-              (
-                pbMsg.asInstanceOf[PbRegionStart].getCurrentRegionIndex,
-                pbMsg.asInstanceOf[PbRegionStart].getIsBroadcast)
-          fileWriter.asInstanceOf[MapPartitionDataWriter].regionStart(
-            currentRegionIndex,
-            isBroadcast)
+          val pbRegionStart: PbRegionStart =
+            if (isLegacy) {
+              PbRegionStart.newBuilder()
+                .setCurrentRegionIndex(msg.asInstanceOf[RegionStart].currentRegionIndex)
+                .setIsBroadcast(msg.asInstanceOf[RegionStart].isBroadcast)
+                .build()
+            } else
+              pbMsg.asInstanceOf[PbRegionStart]
+          fileWriter.handleEvents(pbRegionStart)
         case Type.REGION_FINISH =>
-          fileWriter.asInstanceOf[MapPartitionDataWriter].regionFinish()
+          val pbRegionFinish: PbRegionFinish = PbRegionFinish.newBuilder().build()
+          fileWriter.handleEvents(pbRegionFinish)
         case Type.SEGMENT_START =>
-          val (subPartitionId, segmentId) =
-            (
-              pbMsg.asInstanceOf[PbSegmentStart].getSubPartitionId,
-              pbMsg.asInstanceOf[PbSegmentStart].getSegmentId)
-          fileWriter.asInstanceOf[SegmentMapPartitionFileWriter].segmentStart(
-            subPartitionId,
-            segmentId)
+          fileWriter.handleEvents(pbMsg)
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
       // for primary , send data to replica
@@ -1419,15 +1426,14 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   }
 
   private def checkDiskFull(fileWriter: PartitionDataWriter): Boolean = {
-    if (fileWriter.flusher == null || fileWriter.flusher.isInstanceOf[
-        HdfsFlusher] || fileWriter.flusher.isInstanceOf[S3Flusher]) {
-      return false
-    }
-    val mountPoint = fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint
-    val diskInfo = workerInfo.diskInfos.get(mountPoint)
-    val diskFull =
+    val flusher = fileWriter.getFlusher;
+    if (flusher.isInstanceOf[LocalFlusher]) {
+      val mountPoint = flusher.asInstanceOf[LocalFlusher].mountPoint
+      val diskInfo = workerInfo.diskInfos.get(mountPoint)
       diskInfo.status.equals(DiskStatus.HIGH_DISK_USAGE) || diskInfo.actualUsableSpace <= 0
-    diskFull
+    } else {
+      false
+    }
   }
 
   private def checkDiskFullAndSplit(

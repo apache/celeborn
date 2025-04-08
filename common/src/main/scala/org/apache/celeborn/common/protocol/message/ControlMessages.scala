@@ -22,16 +22,18 @@ import java.util.{Collections, UUID}
 
 import scala.collection.JavaConverters._
 
+import com.google.protobuf.ByteString
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
-import org.apache.celeborn.common.network.protocol.TransportMessage
+import org.apache.celeborn.common.network.protocol.{SerdeVersion, TransportMessage}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.MessageType._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{PbSerDeUtils, Utils}
+import org.apache.celeborn.common.write.PushFailedBatch
 
 sealed trait Message extends Serializable
 
@@ -271,21 +273,28 @@ object ControlMessages extends Logging {
       mapId: Int,
       attemptId: Int,
       numMappers: Int,
-      partitionId: Int)
+      partitionId: Int,
+      failedBatchSet: util.Map[String, util.Set[PushFailedBatch]])
     extends MasterMessage
 
   case class MapperEndResponse(status: StatusCode) extends MasterMessage
 
-  case class GetReducerFileGroup(shuffleId: Int, isSegmentGranularityVisible: Boolean)
+  case class GetReducerFileGroup(
+      shuffleId: Int,
+      isSegmentGranularityVisible: Boolean,
+      serdeVersion: SerdeVersion)
     extends MasterMessage
 
   // util.Set[String] -> util.Set[Path.toString]
   // Path can't be serialized
   case class GetReducerFileGroupResponse(
       status: StatusCode,
-      fileGroup: util.Map[Integer, util.Set[PartitionLocation]],
-      attempts: Array[Int],
-      partitionIds: util.Set[Integer] = Collections.emptySet[Integer]())
+      fileGroup: util.Map[Integer, util.Set[PartitionLocation]] = Collections.emptyMap(),
+      attempts: Array[Int] = Array.emptyIntArray,
+      partitionIds: util.Set[Integer] = Collections.emptySet[Integer](),
+      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]] = Collections.emptyMap(),
+      broadcast: Array[Byte] = Array.emptyByteArray,
+      serdeVersion: SerdeVersion = SerdeVersion.V1)
     extends MasterMessage
 
   object WorkerExclude {
@@ -721,13 +730,18 @@ object ControlMessages extends Logging {
     case pb: PbChangeLocationResponse =>
       new TransportMessage(MessageType.CHANGE_LOCATION_RESPONSE, pb.toByteArray)
 
-    case MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId) =>
+    case MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId, pushFailedBatch) =>
+      val pushFailedMap = pushFailedBatch.asScala.map { case (k, v) =>
+        val resultValue = PbSerDeUtils.toPbPushFailedBatchSet(v)
+        (k, resultValue)
+      }.toMap.asJava
       val payload = PbMapperEnd.newBuilder()
         .setShuffleId(shuffleId)
         .setMapId(mapId)
         .setAttemptId(attemptId)
         .setNumMappers(numMappers)
         .setPartitionId(partitionId)
+        .putAllPushFailureBatches(pushFailedMap)
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END, payload)
 
@@ -737,14 +751,21 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END_RESPONSE, payload)
 
-    case GetReducerFileGroup(shuffleId, isSegmentGranularityVisible) =>
+    case GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, serdeVersion) =>
       val payload = PbGetReducerFileGroup.newBuilder()
         .setShuffleId(shuffleId)
         .setIsSegmentGranularityVisible(isSegmentGranularityVisible)
         .build().toByteArray
-      new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP, payload)
+      new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP, payload, serdeVersion)
 
-    case GetReducerFileGroupResponse(status, fileGroup, attempts, partitionIds) =>
+    case GetReducerFileGroupResponse(
+          status,
+          fileGroup,
+          attempts,
+          partitionIds,
+          failedBatches,
+          broadcast,
+          serdeVersion) =>
       val builder = PbGetReducerFileGroupResponse
         .newBuilder()
         .setStatus(status.getValue)
@@ -757,8 +778,14 @@ object ControlMessages extends Logging {
         }.asJava)
       builder.addAllAttempts(attempts.map(Integer.valueOf).toIterable.asJava)
       builder.addAllPartitionIds(partitionIds)
+      builder.putAllPushFailedBatches(
+        failedBatches.asScala.map {
+          case (uniqueId, pushFailedBatchSet) =>
+            (uniqueId, PbSerDeUtils.toPbPushFailedBatchSet(pushFailedBatchSet))
+        }.asJava)
+      builder.setBroadcast(ByteString.copyFrom(broadcast))
       val payload = builder.build().toByteArray
-      new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
+      new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload, serdeVersion)
 
     case pb: PbWorkerExclude =>
       new TransportMessage(MessageType.WORKER_EXCLUDE, pb.toByteArray)
@@ -1141,7 +1168,11 @@ object ControlMessages extends Logging {
           pbMapperEnd.getMapId,
           pbMapperEnd.getAttemptId,
           pbMapperEnd.getNumMappers,
-          pbMapperEnd.getPartitionId)
+          pbMapperEnd.getPartitionId,
+          pbMapperEnd.getPushFailureBatchesMap.asScala.map {
+            case (partitionId, pushFailedBatchSet) =>
+              (partitionId, PbSerDeUtils.fromPbPushFailedBatchSet(pushFailedBatchSet))
+          }.toMap.asJava)
 
       case MAPPER_END_RESPONSE_VALUE =>
         val pbMapperEndResponse = PbMapperEndResponse.parseFrom(message.getPayload)
@@ -1151,7 +1182,8 @@ object ControlMessages extends Logging {
         val pbGetReducerFileGroup = PbGetReducerFileGroup.parseFrom(message.getPayload)
         GetReducerFileGroup(
           pbGetReducerFileGroup.getShuffleId,
-          pbGetReducerFileGroup.getIsSegmentGranularityVisible)
+          pbGetReducerFileGroup.getIsSegmentGranularityVisible,
+          message.getSerdeVersion)
 
       case GET_REDUCER_FILE_GROUP_RESPONSE_VALUE =>
         val pbGetReducerFileGroupResponse = PbGetReducerFileGroupResponse
@@ -1177,11 +1209,18 @@ object ControlMessages extends Logging {
 
         val attempts = pbGetReducerFileGroupResponse.getAttemptsList.asScala.map(_.toInt).toArray
         val partitionIds = new util.HashSet(pbGetReducerFileGroupResponse.getPartitionIdsList)
+        val pushFailedBatches = pbGetReducerFileGroupResponse.getPushFailedBatchesMap.asScala.map {
+          case (uniqueId, pushFailedBatchSet) =>
+            (uniqueId, PbSerDeUtils.fromPbPushFailedBatchSet(pushFailedBatchSet))
+        }.toMap.asJava
+        val broadcast = pbGetReducerFileGroupResponse.getBroadcast.toByteArray
         GetReducerFileGroupResponse(
           Utils.toStatusCode(pbGetReducerFileGroupResponse.getStatus),
           fileGroup,
           attempts,
-          partitionIds)
+          partitionIds,
+          pushFailedBatches,
+          broadcast)
 
       case GET_SHUFFLE_ID_VALUE =>
         message.getParsedPayload()

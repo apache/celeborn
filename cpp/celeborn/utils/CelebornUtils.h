@@ -22,6 +22,7 @@
 #include <chrono>
 #include <vector>
 
+#include "celeborn/memory/ByteBuffer.h"
 #include "celeborn/utils/Exceptions.h"
 
 namespace celeborn {
@@ -33,6 +34,25 @@ namespace utils {
 #define CELEBORN_SHUTDOWN_LOG_PREFIX "[CELEBORN_SHUTDOWN] "
 #define CELEBORN_SHUTDOWN_LOG(severity) \
   LOG(severity) << CELEBORN_SHUTDOWN_LOG_PREFIX
+
+template <typename T>
+std::vector<T> toVector(const std::set<T>& in) {
+  std::vector<T> out{};
+  out.reserve(in.size());
+  for (const auto& i : in) {
+    out.emplace_back(i);
+  }
+  return std::move(out);
+}
+
+std::string makeShuffleKey(const std::string& appId, int shuffleId);
+
+void writeUTF(memory::WriteOnlyByteBuffer& buffer, const std::string& msg);
+
+void writeRpcAddress(
+    memory::WriteOnlyByteBuffer& buffer,
+    const std::string& host,
+    int port);
 
 using Duration = std::chrono::duration<double>;
 using Timeout = std::chrono::milliseconds;

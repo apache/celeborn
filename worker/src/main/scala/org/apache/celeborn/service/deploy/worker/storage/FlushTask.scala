@@ -78,3 +78,19 @@ private[worker] class S3FlushTask(
     s3MultipartUploader.putPart(inputStream, partNumber, finalFlush)
   }
 }
+
+private[worker] class OssFlushTask(
+    buffer: CompositeByteBuf,
+    notifier: FlushNotifier,
+    keepBuffer: Boolean,
+    ossMultipartUploader: MultipartUploadHandler,
+    partNumber: Int,
+    finalFlush: Boolean = false)
+  extends FlushTask(buffer, notifier, keepBuffer) {
+
+  override def flush(): Unit = {
+    val bytes = ByteBufUtil.getBytes(buffer)
+    val inputStream = new ByteArrayInputStream(bytes)
+    ossMultipartUploader.putPart(inputStream, partNumber, finalFlush)
+  }
+}

@@ -32,14 +32,14 @@ import org.roaringbitmap.RoaringBitmap
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{WorkerInfo, WorkerPartitionLocationInfo}
+import org.apache.celeborn.common.meta.{ReduceFileMeta, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
-import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionDataWriter, PartitionDataWriter, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionMetaHandler, PartitionDataWriter, SegmentMapPartitionMetaHandler, StorageManager}
 
 private[deploy] class Controller(
     override val rpcEnv: RpcEnv,
@@ -186,7 +186,7 @@ private[deploy] class Controller(
       return
     }
 
-    if (storageManager.healthyWorkingDirs().size <= 0 && !conf.hasHDFSStorage && !conf.hasS3Storage) {
+    if (storageManager.healthyWorkingDirs().size <= 0 && !conf.hasHDFSStorage && !conf.hasS3Storage && !conf.hasOssStorage) {
       val msg = "Local storage has no available dirs!"
       logError(s"[handleReserveSlots] $msg")
       context.reply(ReserveSlotsResponse(StatusCode.NO_AVAILABLE_WORKING_DIR, msg))
@@ -337,7 +337,14 @@ private[deploy] class Controller(
                     // Only HDFS can be null, means that this partition location is deleted.
                     logDebug(s"Location $uniqueId is deleted.")
                   } else {
-                    committedStorageInfos.put(uniqueId, fileWriter.getStorageInfo)
+                    val storageInfo = fileWriter.getStorageInfo
+                    val fileInfo =
+                      if (null != fileWriter.getDiskFileInfo) {
+                        fileWriter.getDiskFileInfo
+                      } else {
+                        fileWriter.getMemoryFileInfo
+                      }
+                    committedStorageInfos.put(uniqueId, storageInfo)
                     if (fileWriter.getMapIdBitMap != null) {
                       committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)
                     }
@@ -371,14 +378,14 @@ private[deploy] class Controller(
   private def waitMapPartitionRegionFinished(
       fileWriter: PartitionDataWriter,
       waitTimeout: Long): Unit = {
-    fileWriter match {
-      case writer: MapPartitionDataWriter =>
-        if (writer.checkPartitionRegionFinished(
-            waitTimeout)) {
-          logDebug(s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+    fileWriter.getMetaHandler match {
+      case metaHandler: MapPartitionMetaHandler =>
+        if (metaHandler.checkPartitionRegionFinished(waitTimeout)) {
+          logDebug(
+            s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFilePath}")
         } else {
           logWarning(
-            s"CommitFile failed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+            s"CommitFile failed to waitMapPartitionRegionFinished ${fileWriter.getFilePath}")
         }
       case _ =>
     }

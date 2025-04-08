@@ -17,6 +17,10 @@
 
 package org.apache.celeborn.plugin.flink;
 
+import java.time.Duration;
+
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
@@ -48,5 +52,12 @@ public class RemoteShuffleServiceFactory extends AbstractRemoteShuffleServiceFac
         inputGateFactory,
         parameters.celebornConf,
         new NettyShuffleEnvironmentWrapper(nettyShuffleServiceFactory, shuffleEnvironmentContext));
+  }
+
+  @Override
+  public Duration getRequestSegmentsTimeout(Configuration configuration) {
+    return Duration.ofMillis(
+        configuration.get(
+            NettyShuffleEnvironmentOptions.NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS));
   }
 }

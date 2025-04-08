@@ -25,6 +25,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.security.UserGroupInformation
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.CelebornConf.{OSS_ACCESS_KEY, OSS_SECRET_KEY}
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.StorageInfo
@@ -54,12 +55,25 @@ object CelebornHadoopUtils extends Logging {
           "S3 storage is enabled but s3AccessKey, s3SecretKey, or s3EndpointRegion is not set")
       }
       hadoopConf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+      hadoopConf.set("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
       hadoopConf.set(
         "fs.s3a.aws.credentials.provider",
         "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
       hadoopConf.set("fs.s3a.access.key", conf.s3AccessKey)
       hadoopConf.set("fs.s3a.secret.key", conf.s3SecretKey)
       hadoopConf.set("fs.s3a.endpoint.region", conf.s3EndpointRegion)
+    } else if (conf.ossDir.nonEmpty) {
+      if (conf.ossAccessKey.isEmpty || conf.ossSecretKey.isEmpty || conf.ossEndpoint.isEmpty) {
+        throw new CelebornException(
+          "OSS storage is enabled but ossAccessKey, ossSecretKey, or ossEndpoint is not set")
+      }
+      if (conf.ossIgnoreCredentials) {
+        hadoopConf.set("fs.oss.credentials.provider", "")
+      }
+      hadoopConf.set("fs.oss.impl", "org.apache.hadoop.fs.aliyun.oss.AliyunOSSFileSystem")
+      hadoopConf.set("fs.oss.accessKeyId", conf.ossAccessKey)
+      hadoopConf.set("fs.oss.accessKeySecret", conf.ossSecretKey)
+      hadoopConf.set("fs.oss.endpoint", conf.ossEndpoint)
     }
     appendSparkHadoopConfigs(conf, hadoopConf)
     hadoopConf
@@ -83,6 +97,10 @@ object CelebornHadoopUtils extends Logging {
     if (conf.hasS3Storage) {
       val s3Dir = new Path(conf.s3Dir)
       hadoopFs.put(StorageInfo.Type.S3, s3Dir.getFileSystem(hadoopConf))
+    }
+    if (conf.hasOssStorage) {
+      val ossDir = new Path(conf.ossDir)
+      hadoopFs.put(StorageInfo.Type.OSS, ossDir.getFileSystem(hadoopConf))
     }
     hadoopFs
   }

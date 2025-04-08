@@ -45,6 +45,9 @@ There are already some further improvements on the schedule and welcome to conta
 When you add new RPC message, it's recommended to follow raw PB message case, for example
 `RegisterWorker` and `RegisterWorkerResponse`. The RPC messages will be unified into raw PB messages eventually.
 
+### Using `repeated` instead of `map` type field of RPC Messages
+When adding fields to an RPC Message, use `repeated` instead of `map` type. `TransportMessages` contains static code blocks to initialize many `Descriptor`s and `FieldAccessorTable`s, where the instantiation of `FieldAccessorTable` includes reflection.
+
 ### Using Error Prone
 Error Prone is a static analysis tool for Java that catches common programming mistakes at compile-time.
 

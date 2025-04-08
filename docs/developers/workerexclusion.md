@@ -67,7 +67,7 @@ Currently, exclusion in `ShuffleClient` is optional, users can configure using t
 `celeborn.client.push/fetch.excludeWorkerOnFailure.enabled`
 
 ## LifecycleManager Side Exclusion 
-The accuracy and delay in `LifecycleManager`'s exclusion list stands between `Master` and `Worker`. `LifecyleManager`
+The accuracy and delay in `LifecycleManager`'s exclusion list stands between `Master` and `ShuffleClient`. `LifecyleManager`
 excludes a `Worker` in the following scenarios:
 
 - Receives Revive request and the cause is critical

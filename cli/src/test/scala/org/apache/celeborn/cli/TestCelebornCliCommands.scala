@@ -186,6 +186,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "WorkersResponse")
   }
 
+  test("master --show-workers-topology") {
+    val args = prepareMasterArgs() :+ "--show-workers-topology"
+    captureOutputAndValidateResponse(args, "TopologyResponse")
+  }
+
   test("master --show-conf") {
     val args = prepareMasterArgs() :+ "--show-conf"
     captureOutputAndValidateResponse(args, "ConfResponse")
