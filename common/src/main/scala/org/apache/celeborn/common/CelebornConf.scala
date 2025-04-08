@@ -1214,6 +1214,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def ossEndpoint: String = get(OSS_ENDPOINT).getOrElse("")
   def ossAccessKey: String = get(OSS_ACCESS_KEY).getOrElse("")
   def ossSecretKey: String = get(OSS_SECRET_KEY).getOrElse("")
+  def ossIgnoreCredentials: Boolean = get(OSS_IGNORE_CREDENTIALS)
 
   def hdfsDir: String = {
     get(HDFS_DIR).map {
@@ -3222,6 +3223,14 @@ object CelebornConf extends Logging {
       .doc("OSS secret key for Celeborn to store shuffle data.")
       .stringConf
       .createOptional
+
+  val OSS_IGNORE_CREDENTIALS: ConfigEntry[Boolean] =
+    buildConf("celeborn.storage.oss.ignore.credentials")
+      .categories("worker", "master", "client")
+      .version("0.6.0")
+      .doc("Whether to skip oss credentials, disable this config to support jindo sdk .")
+      .booleanConf
+      .createWithDefault(true)
 
   val OSS_ACCESS_KEY: OptionalConfigEntry[String] =
     buildConf("celeborn.storage.oss.access.key")

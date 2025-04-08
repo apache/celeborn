@@ -80,6 +80,8 @@ abstract class TierWriterBase(
     numPendingWrites.decrementAndGet()
   }
 
+  def handleException(): Unit
+
   protected def writeInternal(buf: ByteBuf): Unit
 
   def needEvict(): Boolean
@@ -348,6 +350,8 @@ class MemoryTierWriter(
   override def getFlusher(): Flusher = {
     null
   }
+
+  override def handleException(): Unit = {}
 }
 
 class LocalTierWriter(
@@ -471,6 +475,8 @@ class LocalTierWriter(
   def getFlusher(): Flusher = {
     flusher
   }
+
+  override def handleException(): Unit = {}
 }
 
 class DfsTierWriter(
@@ -641,6 +647,14 @@ class DfsTierWriter(
       }
       indexOutputStream.close()
     }
+    if (s3MultipartUploadHandler != null) {
+      s3MultipartUploadHandler.complete()
+      s3MultipartUploadHandler.close()
+    }
+    if (ossMultipartUploadHandler != null) {
+      ossMultipartUploadHandler.complete()
+      ossMultipartUploadHandler.close()
+    }
   }
 
   override def notifyFileCommitted(): Unit =
@@ -673,5 +687,18 @@ class DfsTierWriter(
 
   def getFlusher(): Flusher = {
     flusher
+  }
+
+  override def handleException(): Unit = {
+    if (s3MultipartUploadHandler != null) {
+      logWarning("Abort s3 multipart upload for ${fileInfo.getFilePath}")
+      s3MultipartUploadHandler.complete()
+      s3MultipartUploadHandler.close()
+    }
+    if (ossMultipartUploadHandler != null) {
+      logWarning("Abort Oss multipart upload for ${fileInfo.getFilePath}")
+      ossMultipartUploadHandler.complete()
+      ossMultipartUploadHandler.close()
+    }
   }
 }

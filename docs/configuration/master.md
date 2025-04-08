@@ -94,6 +94,7 @@ license: |
 | celeborn.storage.oss.access.key | &lt;undefined&gt; | false | OSS access key for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.oss.dir | &lt;undefined&gt; | false | OSS base directory for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.oss.endpoint | &lt;undefined&gt; | false | OSS endpoint for Celeborn to store shuffle data. | 0.6.0 |  | 
+| celeborn.storage.oss.ignore.credentials | true | false | Whether to skip oss credentials, disable this config to support jindo sdk . | 0.6.0 |  | 
 | celeborn.storage.oss.secret.key | &lt;undefined&gt; | false | OSS secret key for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.s3.access.key | &lt;undefined&gt; | false | S3 access key for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.s3.dir | &lt;undefined&gt; | false | S3 base directory for Celeborn to store shuffle data. | 0.6.0 |  | 
