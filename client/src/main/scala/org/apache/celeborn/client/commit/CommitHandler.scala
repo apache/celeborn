@@ -34,6 +34,7 @@ import org.apache.celeborn.client.LifecycleManager.{ShuffleFailedWorkers, Shuffl
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -178,7 +179,10 @@ abstract class CommitHandler(
    * partitions are complete by the time the method is called, as downstream tasks may start early before all tasks
    * are completed.So map partition may need refresh reducer file group if needed.
    */
-  def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit
+  def handleGetReducerFileGroup(
+      context: RpcCallContext,
+      shuffleId: Int,
+      serdeVersion: SerdeVersion): Unit
 
   def removeExpiredShuffle(shuffleId: Int): Unit = {
     reducerFileGroupsMap.remove(shuffleId)

@@ -34,6 +34,7 @@ import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, Shu
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.ShufflePartitionLocationInfo
+import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -65,8 +66,10 @@ class ReducePartitionCommitHandler(
     sharedRpcPool)
   with Logging {
 
+  class MultiSerdeVersionRpcContext(val ctx: RpcCallContext, val serdeVersion: SerdeVersion) {}
+
   private val getReducerFileGroupRequest =
-    JavaUtils.newConcurrentHashMap[Int, util.Set[RpcCallContext]]()
+    JavaUtils.newConcurrentHashMap[Int, util.Set[MultiSerdeVersionRpcContext]]()
   private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
@@ -300,7 +303,7 @@ class ReducePartitionCommitHandler(
       numMappers: Int,
       isSegmentGranularityVisible: Boolean): Unit = {
     super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible)
-    getReducerFileGroupRequest.put(shuffleId, new util.HashSet[RpcCallContext]())
+    getReducerFileGroupRequest.put(shuffleId, new util.HashSet[MultiSerdeVersionRpcContext]())
     initMapperAttempts(shuffleId, numMappers)
   }
 
@@ -314,7 +317,16 @@ class ReducePartitionCommitHandler(
     }
   }
 
-  private def replyGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+  private def replyGetReducerFileGroup(
+      context: MultiSerdeVersionRpcContext,
+      shuffleId: Int): Unit = {
+    replyGetReducerFileGroup(context.ctx, shuffleId, context.serdeVersion)
+  }
+
+  private def replyGetReducerFileGroup(
+      context: RpcCallContext,
+      shuffleId: Int,
+      serdeVersion: SerdeVersion): Unit = {
     if (isStageDataLost(shuffleId)) {
       context.reply(
         GetReducerFileGroupResponse(
@@ -328,7 +340,8 @@ class ReducePartitionCommitHandler(
         var response = GetReducerFileGroupResponse(
           StatusCode.SUCCESS,
           reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
-          getMapperAttempts(shuffleId))
+          getMapperAttempts(shuffleId),
+          serdeVersion = serdeVersion)
 
         // only check whether broadcast enabled for the UTs
         if (getReducerFileGroupResponseBroadcastEnabled) {
@@ -348,7 +361,8 @@ class ReducePartitionCommitHandler(
                 pushFailedBatches =
                   shufflePushFailedBatches.getOrDefault(
                     shuffleId,
-                    new util.HashMap[String, util.Set[PushFailedBatch]]()))
+                    new util.HashMap[String, util.Set[PushFailedBatch]]()),
+                serdeVersion = serdeVersion)
 
               val serializedMsg =
                 context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
@@ -382,22 +396,30 @@ class ReducePartitionCommitHandler(
       response: GetReducerFileGroupResponse): GetReducerFileGroupResponse = {
     lifecycleManager.broadcastGetReducerFileGroupResponse(shuffleId, response) match {
       case Some(broadcastBytes) if broadcastBytes.nonEmpty =>
-        GetReducerFileGroupResponse(response.status, broadcast = broadcastBytes)
+        GetReducerFileGroupResponse(
+          response.status,
+          broadcast = broadcastBytes,
+          serdeVersion = response.serdeVersion)
       case _ => response
     }
   }
 
-  override def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+  override def handleGetReducerFileGroup(
+      context: RpcCallContext,
+      shuffleId: Int,
+      serdeVersion: SerdeVersion): Unit = {
     // Quick return for ended stage, avoid occupy sync lock.
     if (isStageEnd(shuffleId)) {
-      replyGetReducerFileGroup(context, shuffleId)
+      replyGetReducerFileGroup(context, shuffleId, serdeVersion)
     } else {
       getReducerFileGroupRequest.synchronized {
         // If setStageEnd() called after isStageEnd and before got lock, should reply here.
         if (isStageEnd(shuffleId)) {
-          replyGetReducerFileGroup(context, shuffleId)
+          replyGetReducerFileGroup(context, shuffleId, serdeVersion)
         } else {
-          getReducerFileGroupRequest.get(shuffleId).add(context)
+          getReducerFileGroupRequest.get(shuffleId).add(new MultiSerdeVersionRpcContext(
+            context,
+            serdeVersion))
         }
       }
     }
