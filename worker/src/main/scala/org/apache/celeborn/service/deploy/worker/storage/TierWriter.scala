@@ -388,7 +388,7 @@ class LocalTierWriter(
   private lazy val channel: FileChannel =
     FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath)
 
-  val gatherApiEnabled: Boolean = conf.workerWriterGatherApiEnabled
+  val gatherApiEnabled: Boolean = conf.workerFlusherLocalGatherAPIEnabled
 
   override def needEvict(): Boolean = {
     false
