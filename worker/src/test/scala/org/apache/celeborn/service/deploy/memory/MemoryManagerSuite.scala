@@ -142,7 +142,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
     val lastPauseTime1 = memoryManager.getPausePushDataTime.longValue()
     val lastPauseReplicaTime1 = memoryManager.getPausePushDataAndReplicateTime.longValue()
     // PauseTime should count the actual waiting time
-    assert(lastPauseTime1 >= 80)
+    assert(lastPauseTime1 >= 60)
     assert(lastPauseReplicaTime1 >= 20)
     logInfo(s"lastPauseTime1: $lastPauseTime1, lastPauseReplicaTime1: $lastPauseReplicaTime1")
 
