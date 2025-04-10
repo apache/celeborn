@@ -19,9 +19,9 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.{BufferedReader, File, FileInputStream, InputStreamReader, IOException}
 import java.nio.charset.Charset
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, FileSystemException, Paths}
 import java.util
-import java.util.concurrent.{ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{ExecutionException, ThreadPoolExecutor, TimeUnit}
 
 import scala.collection.JavaConverters._
 
@@ -29,7 +29,7 @@ import org.apache.commons.io.FileUtils
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, DiskStatus, FileInfo}
+import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.util.{DiskUtils, ThreadUtils, Utils}
 import org.apache.celeborn.common.util.Utils._
@@ -141,19 +141,34 @@ class LocalDeviceMonitor(
                   device.notifyObserversOnNonCriticalError(mountPoints, DiskStatus.IO_HANG)
                 } else {
                   device.diskInfos.values().asScala.foreach { diskInfo =>
-                    if (checkDiskUsage && DeviceMonitor.highDiskUsage(conf, diskInfo)) {
-                      logError(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
-                      device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
-                    } else if (checkReadWrite &&
-                      DeviceMonitor.readWriteError(conf, diskInfo.dirs.head)) {
-                      logError(s"${diskInfo.mountPoint} read-write error, notify observers")
-                      // We think that if one dir in device has read-write problem, if possible all
-                      // dirs in this device have the problem
-                      device.notifyObserversOnNonCriticalError(
-                        List(diskInfo.mountPoint),
-                        DiskStatus.READ_OR_WRITE_FAILURE)
-                    } else if (nonCriticalErrorSum <= device.notifyErrorThreshold * 0.5) {
-                      device.notifyObserversOnHealthy(diskInfo.mountPoint)
+                    try {
+                      if (checkDiskUsage && DeviceMonitor.highDiskUsage(conf, diskInfo)) {
+                        logError(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
+                        device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
+                      } else if (checkReadWrite &&
+                        DeviceMonitor.readWriteError(conf, diskInfo.dirs.head)) {
+                        logError(s"${diskInfo.mountPoint} read-write error, notify observers")
+                        // We think that if one dir in device has read-write problem, if possible all
+                        // dirs in this device have the problem
+                        device.notifyObserversOnNonCriticalError(
+                          List(diskInfo.mountPoint),
+                          DiskStatus.READ_OR_WRITE_FAILURE)
+                      } else if (nonCriticalErrorSum <= device.notifyErrorThreshold * 0.5) {
+                        device.notifyObserversOnHealthy(diskInfo.mountPoint)
+                      }
+                    } catch {
+                      case e: ExecutionException =>
+                        e.getCause match {
+                          case fse: FileSystemException =>
+                            logError(
+                              s"${diskInfo.mountPoint} critical error, notify observers",
+                              fse)
+                            device.notifyObserversOnError(
+                              List(diskInfo.mountPoint),
+                              DiskStatus.CRITICAL_ERROR)
+                          case throwable: Throwable =>
+                            throw throwable
+                        }
                     }
                   }
                 }
