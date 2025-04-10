@@ -368,6 +368,9 @@ public class MemoryManager {
           if (servingState != lastState) {
             pausePushDataAndReplicateStartTime = System.currentTimeMillis();
             logger.info("Trigger action: PAUSE PUSH and REPLICATE");
+            if (lastState == ServingState.NONE_PAUSED) {
+              pausePushDataStartTime = pausePushDataAndReplicateStartTime;
+            }
           }
           resumingByPinnedMemory = false;
           memoryPressureListeners.forEach(
@@ -521,10 +524,9 @@ public class MemoryManager {
 
   private void appendPauseSpentTime(ServingState servingState) {
     long nextPauseStartTime = System.currentTimeMillis();
-    if (servingState == ServingState.PUSH_PAUSED) {
-      pausePushDataTime += nextPauseStartTime - pausePushDataStartTime;
-      pausePushDataStartTime = nextPauseStartTime;
-    } else {
+    pausePushDataTime += nextPauseStartTime - pausePushDataStartTime;
+    pausePushDataStartTime = nextPauseStartTime;
+    if (servingState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
       pausePushDataAndReplicateTime += nextPauseStartTime - pausePushDataAndReplicateStartTime;
       pausePushDataAndReplicateStartTime = nextPauseStartTime;
     }

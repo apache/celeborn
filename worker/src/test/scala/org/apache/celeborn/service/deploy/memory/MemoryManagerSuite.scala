@@ -144,6 +144,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
     // PauseTime should count the actual waiting time
     assert(lastPauseTime1 >= 80)
     assert(lastPauseReplicaTime1 >= 20)
+    logInfo(s"lastPauseTime1: $lastPauseTime1, lastPauseReplicaTime1: $lastPauseReplicaTime1")
 
     // NONE PAUSED -> PAUSE PUSH AND REPLICATE
     memoryCounter.set(replicateThreshold + 1)
@@ -165,8 +166,9 @@ class MemoryManagerSuite extends CelebornFunSuite {
     Thread.sleep(15)
     val lastPauseTime2 = memoryManager.getPausePushDataTime.longValue()
     val lastPauseReplicaTime2 = memoryManager.getPausePushDataAndReplicateTime.longValue()
-    assert(lastPauseTime2 == lastPauseTime1)
+    assert(lastPauseTime2 > lastPauseTime1)
     assert(lastPauseReplicaTime2 > lastPauseReplicaTime1)
+    logInfo(s"lastPauseTime2: $lastPauseTime2, lastPauseReplicaTime2: $lastPauseReplicaTime2")
 
     // NONE PAUSED -> PAUSE PUSH
     memoryCounter.set(pushThreshold + 1)
@@ -190,6 +192,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
     val lastPauseReplicaTime3 = memoryManager.getPausePushDataAndReplicateTime.longValue()
     assert(lastPauseTime3 > lastPauseTime2)
     assert(lastPauseReplicaTime3 == lastPauseReplicaTime2)
+    logInfo(s"lastPauseTime3: $lastPauseTime3, lastPauseReplicaTime3: $lastPauseReplicaTime3")
   }
 
   test("[CELEBORN-1792] Test MemoryManager resume by pinned memory") {
