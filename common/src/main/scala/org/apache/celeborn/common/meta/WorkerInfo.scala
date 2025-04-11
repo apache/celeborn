@@ -180,8 +180,8 @@ class WorkerInfo(
 
   def updateDiskSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
     diskInfos.asScala.foreach { case (_, disk) =>
-      disk.maxSlots_$eq(disk.totalSpace / estimatedPartitionSize)
-      disk.availableSlots_$eq(disk.actualUsableSpace / estimatedPartitionSize)
+      disk.maxSlots = disk.totalSpace / estimatedPartitionSize
+      disk.availableSlots = disk.actualUsableSpace / estimatedPartitionSize
     }
   }
 
