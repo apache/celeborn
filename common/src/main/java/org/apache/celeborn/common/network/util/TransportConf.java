@@ -120,6 +120,22 @@ public class TransportConf {
   }
 
   /**
+   * Max number of times we will try to reconnect per request. If set to 0, we will not do any
+   * retries.
+   */
+  public int maxReconnectRetries() {
+    return celebornConf.networkReconnectMaxRetries(module);
+  }
+
+  /**
+   * Time (in milliseconds) that we will wait in order to perform a retry after reconnection fails.
+   * Only relevant if maxReconnectRetries > 0.
+   */
+  public int reconnectRetryWaitTimeMs() {
+    return celebornConf.networkReconnectRetryWaitMs(module);
+  }
+
+  /**
    * Minimum size of a block that we should start using memory map rather than reading in through
    * normal IO operations. This prevents Celeborn from memory mapping very small blocks. In general,
    * memory mapping has high overhead for blocks close to or below the page size of the OS.
