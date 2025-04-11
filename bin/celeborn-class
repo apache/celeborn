@@ -49,7 +49,40 @@ do
   if [ "$i" == "org.apache.celeborn.cli.CelebornCli" ] ; then
     LAUNCH_CLASS=org.apache.celeborn.cli.CelebornCli
   fi
+  if [ "$i" == "org.apache.celeborn.verifier.scheduler.Scheduler" ] ; then
+    LAUNCH_CLASS=org.apache.celeborn.verifier.scheduler.Scheduler
+  fi
+  if [ "$i" == "org.apache.celeborn.verifier.runner.Runner" ] ; then
+    LAUNCH_CLASS=org.apache.celeborn.verifier.runner.Runner
+  fi
+  if [ "$i" == "org.apache.celeborn.verifier.cli.Cli" ] ; then
+    LAUNCH_CLASS=org.apache.celeborn.verifier.cli.Cli
+  fi
 done
+
+if [ "${LAUNCH_CLASS}" == "org.apache.celeborn.verifier.scheduler.Scheduler" ] ; then
+  if [ -d "${CELEBORN_HOME}/verifier-jars" ]; then
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/verifier-jars"
+  else
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/verifier/target"
+  fi
+fi
+
+if [ "${LAUNCH_CLASS}" == "org.apache.celeborn.verifier.runner.Runner" ] ; then
+  if [ -d "${CELEBORN_HOME}/verifier-jars" ]; then
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/verifier-jars"
+  else
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/verifier/target"
+  fi
+fi
+
+if [ "${LAUNCH_CLASS}" == "org.apache.celeborn.verifier.cli.Cli" ] ; then
+  if [ -d "${CELEBORN_HOME}/verifier-jars" ]; then
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/verifier-jars"
+  else
+    CELEBORN_JARS_DIR="${CELEBORN_HOME}/verifier/target"
+  fi
+fi
 
 if [ "${LAUNCH_CLASS}" == "org.apache.celeborn.service.deploy.master.Master" ] ; then
   if [ -d "${CELEBORN_HOME}/master-jars" ]; then
