@@ -135,7 +135,7 @@ index 00000000000..5e190c512df
 +
 +}
 diff --git a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
-index b950c07f3d8..d27de8d8153 100644
+index b950c07f3d8..6875582e0aa 100644
 --- a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
 +++ b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
 @@ -33,6 +33,7 @@ import com.google.common.util.concurrent.{Futures, SettableFuture}
@@ -200,18 +200,20 @@ index b950c07f3d8..d27de8d8153 100644
                  // It's a little tricky to find all the succeeding stages of `mapStage`, because
                  // each stage only know its parents not children. Here we traverse the stages from
                  // the leaf nodes (the result stages of active jobs), and rollback all the stages
-@@ -1861,7 +1882,15 @@ private[spark] class DAGScheduler(
+@@ -1861,7 +1882,17 @@ private[spark] class DAGScheduler(
  
                  def collectStagesToRollback(stageChain: List[Stage]): Unit = {
                    if (stagesToRollback.contains(stageChain.head)) {
 -                    stageChain.drop(1).foreach(s => stagesToRollback += s)
 +                    stageChain.drop(1).foreach(s => {
 +                      stagesToRollback += s
-+                      s match {
-+                        case currentMapStage: ShuffleMapStage if isCelebornSkewedShuffle =>
-+                          CelebornShuffleState.registerCelebornSkewedShuffle(currentMapStage.shuffleDep.shuffleId)
-+                        case _: ResultStage =>
++                      if (isCelebornSkewedShuffle) {
++                        s match {
++                          case currentMapStage: ShuffleMapStage =>
++                            CelebornShuffleState.registerCelebornSkewedShuffle(currentMapStage.shuffleDep.shuffleId)
++                          case _: ResultStage =>
 +                          // do nothing, should abort celeborn skewed read stage
++                        }
 +                      }
 +                    })
                    } else {
