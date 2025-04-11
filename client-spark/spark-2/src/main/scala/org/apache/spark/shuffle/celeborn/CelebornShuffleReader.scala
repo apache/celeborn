@@ -64,7 +64,23 @@ class CelebornShuffleReader[K, C](
 
     val serializerInstance = dep.serializer.newInstance()
 
-    val shuffleId = SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
+    val (shuffleId, success) = SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
+    if (!success) {
+      val ce = new UnsupportedOperationException(
+        s"unexpected! there is no finished map stage associated with appShuffleId ${handle.shuffleId}")
+      if (handle.throwsFetchFailure) {
+        throw new FetchFailedException(
+          null,
+          handle.shuffleId,
+          -1,
+          -1,
+          startPartition,
+          SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + handle.shuffleId,
+          ce)
+      } else {
+        throw ce
+      }
+    }
     shuffleIdTracker.track(handle.shuffleId, shuffleId)
     logDebug(
       s"get shuffleId $shuffleId for appShuffleId ${handle.shuffleId} attemptNum ${context.stageAttemptNumber()}")

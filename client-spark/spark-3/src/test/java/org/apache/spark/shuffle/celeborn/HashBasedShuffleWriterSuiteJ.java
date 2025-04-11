@@ -37,7 +37,7 @@ public class HashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
       ShuffleWriteMetricsReporter metrics)
       throws IOException {
     return new HashBasedShuffleWriter<Integer, String, String>(
-        SparkUtils.celebornShuffleId(client, handle, context, true),
+        SparkUtils.celebornShuffleId(client, handle, context, true)._1,
         handle,
         context,
         conf,
