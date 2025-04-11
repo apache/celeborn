@@ -202,7 +202,7 @@ index 89d16e57934..a7710e249af 100644
          if (failedStage.latestInfo.attemptNumber != task.stageAttemptId) {
            logInfo(s"Ignoring fetch failure from $task as it's from $failedStage attempt" +
              s" ${task.stageAttemptId} and there is a more recent attempt for that stage " +
-@@ -2042,7 +2065,7 @@ private[spark] class DAGScheduler(
+@@ -2042,7 +2065,8 @@ private[spark] class DAGScheduler(
                // Note that, if map stage is UNORDERED, we are fine. The shuffle partitioner is
                // guaranteed to be determinate, so the input data of the reducers will not change
                // even if the map tasks are re-tried.
@@ -212,7 +212,7 @@ index 89d16e57934..a7710e249af 100644
                  // It's a little tricky to find all the succeeding stages of `mapStage`, because
                  // each stage only know its parents not children. Here we traverse the stages from
                  // the leaf nodes (the result stages of active jobs), and rollback all the stages
-@@ -2053,7 +2076,15 @@ private[spark] class DAGScheduler(
+@@ -2053,7 +2077,15 @@ private[spark] class DAGScheduler(
  
                  def collectStagesToRollback(stageChain: List[Stage]): Unit = {
                    if (stagesToRollback.contains(stageChain.head)) {
