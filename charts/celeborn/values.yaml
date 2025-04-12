@@ -186,10 +186,17 @@ priorityClass:
     # -- Specifies the integer value of this priority class, default is Celeborn master value minus 1000
     value: 999999000
 
-# -- Pod annotations
-podAnnotations: {}
-# key1: value1
-# key2: value2
+master:
+  # -- Annotations for Celeborn master pods.
+  annotations:
+    # key1: value1
+    # key2: value2
+
+worker:
+  # -- Annotations for Celeborn worker pods.
+  annotations:
+    # key1: value1
+    # key2: value2
 
 # -- Pod node selector
 nodeSelector: {}
