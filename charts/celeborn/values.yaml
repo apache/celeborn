@@ -192,16 +192,21 @@ master:
     # key1: value1
     # key2: value2
 
+  # -- Node selector for Celeborn master pods.
+  nodeSelector:
+    # key1: value1
+    # key2: value2
+
 worker:
   # -- Annotations for Celeborn worker pods.
   annotations:
     # key1: value1
     # key2: value2
 
-# -- Pod node selector
-nodeSelector: {}
-# key1: value1
-# key2: value2
+  # -- Node selector for Celeborn worker pods.
+  nodeSelector:
+    # key1: value1
+    # key2: value2
 
 # -- Pod tolerations
 tolerations: []
