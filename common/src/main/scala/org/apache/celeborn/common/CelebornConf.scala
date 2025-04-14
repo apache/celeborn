@@ -4046,7 +4046,7 @@ object CelebornConf extends Logging {
       .doc("Whether or not checkpoint reads when re-creating a partition reader. Setting to true minimizes" +
         " the amount of unnecessary reads during partition read retries")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val CLIENT_FETCH_MAX_REQS_IN_FLIGHT: ConfigEntry[Int] =
     buildConf("celeborn.client.fetch.maxReqsInFlight")
