@@ -17,18 +17,18 @@
 package org.apache.celeborn.spark
 
 import java.util
-import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, TimeUnit}
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+import org.apache.spark.scheduler.{RunningStageManager, RunningStageManagerImpl}
+import org.apache.spark.shuffle.celeborn.SparkUtils
+
 import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.ThreadUtils
-
-import org.apache.spark.scheduler.{RunningStageManager, RunningStageManagerImpl}
-import org.apache.spark.shuffle.celeborn.SparkUtils
 
 private[celeborn] object FailedShuffleCleaner extends Logging {
 
@@ -75,8 +75,7 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
   def addShuffleIdReferringStage(celebornShuffleId: Int, appShuffleIdentifier: String): Unit = {
     // this is only implemented/tested with Spark for now
     val Array(_, stageId, _) = SparkUtils.decodeAppShuffleIdentifier(appShuffleIdentifier)
-    celebornShuffleIdToReferringStages.putIfAbsent(celebornShuffleId,
-      new mutable.HashSet[Int])
+    celebornShuffleIdToReferringStages.putIfAbsent(celebornShuffleId, new mutable.HashSet[Int])
     lock.synchronized {
       celebornShuffleIdToReferringStages.get(celebornShuffleId).add(stageId.toInt)
     }
@@ -84,13 +83,13 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
 
   private def onlyCurrentStageReferred(celebornShuffleId: Int, stageId: Int): Boolean =
     lock.synchronized {
-    val ret = celebornShuffleIdToReferringStages.get(celebornShuffleId).size == 1 &&
-      celebornShuffleIdToReferringStages.get(celebornShuffleId).contains(stageId)
-    if (ret) {
-      logInfo(s"only stage $stageId refers to shuffle $celebornShuffleId, adding for clean up")
+      val ret = celebornShuffleIdToReferringStages.get(celebornShuffleId).size == 1 &&
+        celebornShuffleIdToReferringStages.get(celebornShuffleId).contains(stageId)
+      if (ret) {
+        logInfo(s"only stage $stageId refers to shuffle $celebornShuffleId, adding for clean up")
+      }
+      ret
     }
-    ret
-  }
 
   def addShuffleIdToBeCleaned(appShuffleIdentifier: String): Unit = {
     val Array(appShuffleId, stageId, _) = SparkUtils.decodeAppShuffleIdentifier(

@@ -159,9 +159,11 @@ public class SparkShuffleManager implements ShuffleManager {
           if (lifecycleManager.conf().clientFetchCleanFailedShuffle()) {
             if (!lifecycleManager.conf().clientStageRerunEnabled()) {
               throw new IllegalArgumentException(
-                  CelebornConf.CLIENT_STAGE_RERUN_ENABLED().key() + " has to be "
-                      + "enabled, when " +
-                      CelebornConf.CLIENT_FETCH_CLEAN_FAILED_SHUFFLE().key() + " is set to true");
+                  CelebornConf.CLIENT_STAGE_RERUN_ENABLED().key()
+                      + " has to be "
+                      + "enabled, when "
+                      + CelebornConf.CLIENT_FETCH_CLEAN_FAILED_SHUFFLE().key()
+                      + " is set to true");
             }
             lifecycleManager.registerValidateCelebornShuffleIdForCleanCallback(
                 (appShuffleIdentifier) ->
