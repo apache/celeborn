@@ -21,7 +21,6 @@ import org.scalatest.Ignore
 
 import org.apache.celeborn.common.protocol.CompressionCodec
 
-@Ignore
 class JavaReadCppWriteTestWithNONE extends JavaReadCppWriteTestBase {
 
   test(s"test javaReadCppWrite with NONE") {
