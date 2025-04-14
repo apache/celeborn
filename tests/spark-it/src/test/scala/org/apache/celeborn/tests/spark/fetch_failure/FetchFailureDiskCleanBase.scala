@@ -25,7 +25,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.service.deploy.worker.Worker
-import org.apache.celeborn.spark.FailedShuffleCleaner
+import org.apache.spark.celeborn.spark.FailedShuffleCleaner
 
 private[tests] trait FetchFailureDiskCleanBase extends AnyFunSuite
   with FetchFailureTestBase

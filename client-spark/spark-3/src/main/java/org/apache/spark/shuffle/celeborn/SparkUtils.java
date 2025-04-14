@@ -130,8 +130,12 @@ public class SparkUtils {
         .getOrElse(context::applicationId);
   }
 
-  public static String getAppShuffleIdentifier(int appShuffleId, TaskContext context) {
+  public static String encodeAppShuffleIdentifier(int appShuffleId, TaskContext context) {
     return appShuffleId + "-" + context.stageId() + "-" + context.stageAttemptNumber();
+  }
+
+  public static String[] decodeAppShuffleIdentifier(String appShuffleIdentifier) {
+    return appShuffleIdentifier.split("-");
   }
 
   public static int celebornShuffleId(
@@ -140,7 +144,7 @@ public class SparkUtils {
       TaskContext context,
       Boolean isWriter) {
     if (handle.throwsFetchFailure()) {
-      String appShuffleIdentifier = getAppShuffleIdentifier(handle.shuffleId(), context);
+      String appShuffleIdentifier = encodeAppShuffleIdentifier(handle.shuffleId(), context);
       Tuple2<Integer, Boolean> res =
           client.getShuffleId(
               handle.shuffleId(),
@@ -329,7 +333,7 @@ public class SparkUtils {
 
     if (!(taskContext instanceof BarrierTaskContext)) return;
     int appShuffleId = handle.shuffleId();
-    String appShuffleIdentifier = SparkUtils.getAppShuffleIdentifier(appShuffleId, taskContext);
+    String appShuffleIdentifier = SparkUtils.encodeAppShuffleIdentifier(appShuffleId, taskContext);
 
     BarrierTaskContext barrierContext = (BarrierTaskContext) taskContext;
     barrierContext.addTaskFailureListener(
@@ -634,10 +638,10 @@ public class SparkUtils {
     FailedShuffleCleaner.addShuffleIdToBeCleaned(appShuffleIdentifier);
   }
 
-  public static void addShuffleIdRefCount(
-      LifecycleManager lifecycleManager, int celebornShuffeId, String appShuffleIdentifier) {
+  public static void addShuffleIdRefStage(
+      LifecycleManager lifecycleManager, int celebornShuffleId, String appShuffleIdentifier) {
     FailedShuffleCleaner.setLifecycleManager(lifecycleManager);
-    FailedShuffleCleaner.addShuffleIdReferringStage(celebornShuffeId, appShuffleIdentifier);
+    FailedShuffleCleaner.addShuffleIdReferringStage(celebornShuffleId, appShuffleIdentifier);
   }
 
   public static void removeCleanedShuffleId(

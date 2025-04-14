@@ -112,7 +112,7 @@ class FileDeletionShuffleReaderGetHook(
             h.userIdentifier,
             h.extension)
           val celebornShuffleId = SparkUtils.celebornShuffleId(shuffleClient, h, context, false)
-          val appShuffleIdentifier = SparkUtils.getAppShuffleIdentifier(handle.shuffleId, context)
+          val appShuffleIdentifier = SparkUtils.encodeAppShuffleIdentifier(handle.shuffleId, context)
           val Array(_, stageId, _) = appShuffleIdentifier.split('-')
           if (triggerStageId.isEmpty || triggerStageId.get == stageId.toInt) {
             if (shuffleIdToBeDeleted.isEmpty) {

@@ -15,18 +15,20 @@
  * limitations under the License.
  */
 package org.apache.celeborn.spark
+
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-import org.apache.spark.scheduler.{RunningStageManager, RunningStageManagerImpl}
-
 import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.ThreadUtils
+
+import org.apache.spark.scheduler.{RunningStageManager, RunningStageManagerImpl}
+import org.apache.spark.shuffle.celeborn.SparkUtils
 
 private[celeborn] object FailedShuffleCleaner extends Logging {
 
@@ -38,10 +40,11 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
   private[celeborn] val celebornShuffleIdToReferringStages =
     new ConcurrentHashMap[Int, mutable.HashSet[Int]]()
 
+  private val lock = new Object
+
   private lazy val cleanInterval =
     lifecycleManager.get().conf.clientFetchCleanFailedShuffleIntervalMS
 
-  private val lock = new Object
   val RUNNING_STAGE_CHECKER_CLASS = "CELEBORN_TEST_RUNNING_STAGE_CHECKER_IMPL"
 
   private[celeborn] var runningStageManager: RunningStageManager = buildRunningStageChecker()
@@ -71,14 +74,16 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
 
   def addShuffleIdReferringStage(celebornShuffleId: Int, appShuffleIdentifier: String): Unit = {
     // this is only implemented/tested with Spark for now
-    val Array(_, stageId, _) = appShuffleIdentifier.split('-')
-    celebornShuffleIdToReferringStages.putIfAbsent(celebornShuffleId, new mutable.HashSet[Int]())
+    val Array(_, stageId, _) = SparkUtils.decodeAppShuffleIdentifier(appShuffleIdentifier)
+    celebornShuffleIdToReferringStages.putIfAbsent(celebornShuffleId,
+      new mutable.HashSet[Int])
     lock.synchronized {
       celebornShuffleIdToReferringStages.get(celebornShuffleId).add(stageId.toInt)
     }
   }
 
-  private def onlyCurrentStageReferred(celebornShuffleId: Int, stageId: Int): Boolean = {
+  private def onlyCurrentStageReferred(celebornShuffleId: Int, stageId: Int): Boolean =
+    lock.synchronized {
     val ret = celebornShuffleIdToReferringStages.get(celebornShuffleId).size == 1 &&
       celebornShuffleIdToReferringStages.get(celebornShuffleId).contains(stageId)
     if (ret) {
@@ -88,7 +93,8 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
   }
 
   def addShuffleIdToBeCleaned(appShuffleIdentifier: String): Unit = {
-    val Array(appShuffleId, stageId, _) = appShuffleIdentifier.split('-')
+    val Array(appShuffleId, stageId, _) = SparkUtils.decodeAppShuffleIdentifier(
+      appShuffleIdentifier)
     lifecycleManager.get().getShuffleIdMapping.get(appShuffleId.toInt).foreach {
       case (_, (celebornShuffleId, _)) => {
         if (!celebornShuffleIdToReferringStages.containsKey(celebornShuffleId)
@@ -138,7 +144,7 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
     cleanedShuffleIds.remove(celebornShuffleId)
   }
 
-  private def noRunningDownstreamStage(celebornShuffleId: Int): Boolean = {
+  private def noRunningDownstreamStage(celebornShuffleId: Int): Boolean = lock.synchronized {
     val allReferringStageIds = celebornShuffleIdToReferringStages.get(celebornShuffleId)
     require(allReferringStageIds != null, s"no stage referring to shuffle $celebornShuffleId")
     val ret =

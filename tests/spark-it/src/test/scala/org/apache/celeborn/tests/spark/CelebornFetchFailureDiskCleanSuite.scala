@@ -19,9 +19,8 @@ package org.apache.celeborn.tests.spark
 import scala.collection.mutable
 
 import org.apache.spark.shuffle.celeborn.{SparkUtils, TestCelebornShuffleManager}
-
-import org.apache.celeborn.spark.FailedShuffleCleaner
 import org.apache.celeborn.tests.spark.fetch_failure.{FailCommitShuffleReaderGetHook, FetchFailureDiskCleanBase, FileDeletionShuffleReaderGetHook, TestRunningStageManager}
+import org.apache.spark.celeborn.spark.FailedShuffleCleaner
 
 class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
 

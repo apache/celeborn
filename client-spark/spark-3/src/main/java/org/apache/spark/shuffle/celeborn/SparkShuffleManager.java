@@ -157,13 +157,19 @@ public class SparkShuffleManager implements ShuffleManager {
           }
 
           if (lifecycleManager.conf().clientFetchCleanFailedShuffle()) {
+            if (!lifecycleManager.conf().clientStageRerunEnabled()) {
+              throw new IllegalArgumentException(
+                  CelebornConf.CLIENT_STAGE_RERUN_ENABLED().key() + " has to be "
+                      + "enabled, when " +
+                      CelebornConf.CLIENT_FETCH_CLEAN_FAILED_SHUFFLE().key() + " is set to true");
+            }
             lifecycleManager.registerValidateCelebornShuffleIdForCleanCallback(
                 (appShuffleIdentifier) ->
                     SparkUtils.addWriterShuffleIdsToBeCleaned(
                         lifecycleManager, appShuffleIdentifier));
             lifecycleManager.registerRecordShuffleIdReferenceCallback(
                 (celebornShuffleId, appShuffleIdentifier) ->
-                    SparkUtils.addShuffleIdRefCount(
+                    SparkUtils.addShuffleIdRefStage(
                         lifecycleManager, celebornShuffleId, appShuffleIdentifier));
             lifecycleManager.registerUnregisterShuffleCallback(
                 (celebornShuffleId) ->
@@ -177,19 +183,6 @@ public class SparkShuffleManager implements ShuffleManager {
                         shuffleId, getReducerFileGroupResponse));
             lifecycleManager.registerInvalidatedBroadcastCallback(
                 shuffleId -> SparkUtils.invalidateSerializedGetReducerFileGroupResponse(shuffleId));
-          }
-          if (lifecycleManager.conf().clientFetchCleanFailedShuffle()) {
-            lifecycleManager.registerValidateCelebornShuffleIdForCleanCallback(
-                (appShuffleIdentifier) ->
-                    SparkUtils.addWriterShuffleIdsToBeCleaned(
-                        lifecycleManager, appShuffleIdentifier));
-            lifecycleManager.registerRecordShuffleIdReferenceCallback(
-                (celebornShuffleId, appShuffleIdentifier) ->
-                    SparkUtils.addShuffleIdRefCount(
-                        lifecycleManager, celebornShuffleId, appShuffleIdentifier));
-            lifecycleManager.registerUnregisterShuffleCallback(
-                (celebornShuffleId) ->
-                    SparkUtils.removeCleanedShuffleId(lifecycleManager, celebornShuffleId));
           }
         }
       }
