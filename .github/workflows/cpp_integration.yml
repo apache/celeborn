@@ -58,7 +58,7 @@ jobs:
           rm -rf build && mkdir -p build && cd build
           cmake .. && make -j
       # This step is necessary because within container the setup-java step would pollute the $PATH
-      # and cause following steps fail. We manually back up the $PATH here to avoid the pollution.
+      # and cause following steps fail. We manually back up the $PATH here to avoid the problem.
       - name: Backup Path
         run: |
           echo $PATH
