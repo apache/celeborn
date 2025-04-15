@@ -139,16 +139,6 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
       </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>${maven.plugin.surefire.version}</version>
-        <configuration>
-          <excludes>
-            <exclude>**/JavaReadCppWriteTestWithNONE.scala</exclude>
-          </excludes>
-        </configuration>
-      </plugin>
     </plugins>
   </build>
 

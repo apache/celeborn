@@ -17,13 +17,11 @@
 
 package org.apache.celeborn.service.deploy.cluster
 
-import org.scalatest.Ignore
-
 import org.apache.celeborn.common.protocol.CompressionCodec
 
-class JavaReadCppWriteTestWithNONE extends JavaReadCppWriteTestBase {
+object JavaReadCppWriteTestWithNONE extends JavaReadCppWriteTestBase {
 
-  test(s"test javaReadCppWrite with NONE") {
+  def main(args: Array[String]) = {
     testJavaReadCppWrite(CompressionCodec.NONE)
   }
 }

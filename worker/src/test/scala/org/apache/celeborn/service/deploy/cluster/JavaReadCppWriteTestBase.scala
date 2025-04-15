@@ -19,14 +19,11 @@ package org.apache.celeborn.service.deploy.cluster
 
 import java.io.File
 import java.util
-
 import scala.io.Source
 import scala.util.Random
-
 import org.junit.Assert
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
-
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
@@ -52,6 +49,15 @@ trait JavaReadCppWriteTestBase extends AnyFunSuite
   }
 
   def testJavaReadCppWrite(codec: CompressionCodec): Unit = {
+    beforeAll()
+    try {
+      runJavaReadCppWrite(codec)
+    } finally {
+      afterAll()
+    }
+  }
+
+  def runJavaReadCppWrite(codec: CompressionCodec): Unit = {
     val appUniqueId = "test-app"
     val shuffleId = 0
     val attemptId = 0
@@ -114,7 +120,8 @@ trait JavaReadCppWriteTestBase extends AnyFunSuite
     // Execution command: $exec lifecycleManagerHost lifecycleManagerPort appUniqueId shuffleId attemptId numPartitions cppResultFile
     val command =
       s"$cppBinFilePath $lifecycleManagerHost $lifecycleManagerPort $appUniqueId $shuffleId $attemptId $numPartitions $cppResultFile"
-    runCommand(command)
+    val commandOutput = runCommand(command)
+    println(s"command output: $commandOutput")
 
     // Verify the sum result.
     var lineCount = 0
@@ -124,5 +131,8 @@ trait JavaReadCppWriteTestBase extends AnyFunSuite
       lineCount += 1
     }
     Assert.assertEquals(lineCount, numPartitions)
+    lifecycleManager.stop()
+    shuffleClient.shutdown()
   }
+
 }
