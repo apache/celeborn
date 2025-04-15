@@ -19,11 +19,14 @@ package org.apache.celeborn.service.deploy.cluster
 
 import java.io.File
 import java.util
+
 import scala.io.Source
 import scala.util.Random
+
 import org.junit.Assert
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
+
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
@@ -118,8 +121,10 @@ trait JavaReadCppWriteTestBase extends AnyFunSuite
     val cppBinFileName = "cppDataSumWithReaderClient"
     val cppBinFilePath = s"$projectDirectory/$cppBinRelativeDirectory/$cppBinFileName"
     // Execution command: $exec lifecycleManagerHost lifecycleManagerPort appUniqueId shuffleId attemptId numPartitions cppResultFile
-    val command =
+    val command = {
       s"$cppBinFilePath $lifecycleManagerHost $lifecycleManagerPort $appUniqueId $shuffleId $attemptId $numPartitions $cppResultFile"
+    }
+    println(s"run command: $command")
     val commandOutput = runCommand(command)
     println(s"command output: $commandOutput")
 
