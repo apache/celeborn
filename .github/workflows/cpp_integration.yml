@@ -52,12 +52,14 @@ jobs:
         with:
           persist-credentials: 'false'
           fetch-depth: 0
-#      - name: Compile Celeborn Cpp
-#        working-directory: ./cpp
-#        run: |
-#          rm -rf build && mkdir -p build && cd build
-#          cmake .. && make -j
-      - name: Update Path
+      - name: Compile Celeborn Cpp
+        working-directory: ./cpp
+        run: |
+          rm -rf build && mkdir -p build && cd build
+          cmake .. && make -j
+      # This step is necessary because within container the setup-java step would pollute the $PATH
+      # and cause following steps fail. We manually back up the $PATH here to avoid the pollution.
+      - name: Backup Path
         run: |
           echo $PATH
           echo "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" >>"$GITHUB_PATH"
@@ -69,10 +71,8 @@ jobs:
           cache: maven
           check-latest: false
       - name: Compile & Install Celeborn Java
-#        shell: /usr/bin/bash
         run: build/mvn clean install -DskipTests
       - name: Run Java-Cpp Hybrid Integration Test
-#        shell: /usr/bin/bash
         run: |
           build/mvn -pl worker \
             test-compile exec:java \
