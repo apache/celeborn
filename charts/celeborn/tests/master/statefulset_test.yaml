@@ -85,16 +85,17 @@ tests:
           path: spec.template.spec.nodeSelector.key2
           value: value2
 
-  - it: Should add tolerations if `tolerations` is set
+  - it: Should add tolerations if `master.tolerations` is set
     set:
-      tolerations:
-        - key: key1
-          operator: Equal
-          value: value1
-          effect: NoSchedule
-        - key: key2
-          operator: Exists
-          effect: NoSchedule
+      master:
+        tolerations:
+          - key: key1
+            operator: Equal
+            value: value1
+            effect: NoSchedule
+          - key: key2
+            operator: Exists
+            effect: NoSchedule
     asserts:
       - equal:
           path: spec.template.spec.tolerations
