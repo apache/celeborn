@@ -17,11 +17,13 @@
 package org.apache.celeborn.spark
 
 import java.util
-import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, TimeUnit}
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+
+import org.apache.spark.scheduler.{RunningStageManager, RunningStageManagerImpl}
 
 import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.internal.Logging
@@ -71,7 +73,7 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
 
   def addShuffleIdReferringStage(celebornShuffleId: Int, appShuffleIdentifier: String): Unit = {
     // this is only implemented/tested with Spark for now
-    val Array(_, stageId, _) = SparkUtils.decodeAppShuffleIdentifier(appShuffleIdentifier)
+    val Array(_, stageId, _) = appShuffleIdentifier.split("-");
     celebornShuffleIdToReferringStages.putIfAbsent(celebornShuffleId, new mutable.HashSet[Int])
     lock.synchronized {
       celebornShuffleIdToReferringStages.get(celebornShuffleId).add(stageId.toInt)
@@ -89,8 +91,7 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
     }
 
   def addShuffleIdToBeCleaned(appShuffleIdentifier: String): Unit = {
-    val Array(appShuffleId, stageId, _) = SparkUtils.decodeAppShuffleIdentifier(
-      appShuffleIdentifier)
+    val Array(appShuffleId, stageId, _) = appShuffleIdentifier.split("-");
     lifecycleManager.get().getShuffleIdMapping.get(appShuffleId.toInt).foreach {
       case (_, (celebornShuffleId, _)) => {
         if (!celebornShuffleIdToReferringStages.containsKey(celebornShuffleId)
