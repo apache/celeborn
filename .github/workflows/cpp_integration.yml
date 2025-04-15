@@ -65,8 +65,10 @@ jobs:
           cache: maven
           check-latest: false
       - name: Compile & Install Celeborn Java
+        shell: bash
         run: build/mvn clean install -DskipTests
       - name: Run Java-Cpp Hybrid Integration Test
+        shell: bash
         run: |
           build/mvn -pl worker \
             test-compile exec:java \
