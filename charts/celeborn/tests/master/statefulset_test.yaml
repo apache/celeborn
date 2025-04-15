@@ -71,11 +71,12 @@ tests:
           path: spec.template.spec.imagePullSecrets[1].name
           value: test-secret2
 
-  - it: Should add node selector if `nodeSelector` is set
+  - it: Should add node selector if `master.nodeSelector` is set
     set:
-      nodeSelector:
-        key1: value1
-        key2: value2
+      master:
+        nodeSelector:
+          key1: value1
+          key2: value2
     asserts:
       - equal:
           path: spec.template.spec.nodeSelector.key1
