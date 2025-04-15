@@ -73,9 +73,8 @@ class CelebornShuffleReader[K, C](
           null,
           handle.shuffleId,
           -1,
-          -1,
           startPartition,
-          SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + handle.shuffleId,
+          SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId,
           ce)
       } else {
         throw ce
