@@ -17,14 +17,11 @@
 package org.apache.celeborn.spark
 
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-
-import org.apache.spark.scheduler.{RunningStageManager, RunningStageManagerImpl}
-import org.apache.spark.shuffle.celeborn.SparkUtils
 
 import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.internal.Logging
