@@ -17,8 +17,9 @@
 
 package org.apache.celeborn.common.identity
 
-import org.apache.celeborn.common.CelebornConf
 import org.apache.hadoop.security.UserGroupInformation
+
+import org.apache.celeborn.common.CelebornConf
 
 class HadoopBasedIdentityProvider extends IdentityProvider {
   def provideUserIdentifier(): UserIdentifier = {
