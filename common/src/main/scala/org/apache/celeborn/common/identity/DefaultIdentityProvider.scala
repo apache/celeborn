@@ -26,4 +26,10 @@ class DefaultIdentityProvider extends IdentityProvider {
       conf.userSpecificTenant,
       conf.userSpecificUserName)
   }
+
+  override def provide(conf: CelebornConf): UserIdentifier = {
+    UserIdentifier(
+      conf.userSpecificTenant,
+      conf.userSpecificUserName)
+  }
 }

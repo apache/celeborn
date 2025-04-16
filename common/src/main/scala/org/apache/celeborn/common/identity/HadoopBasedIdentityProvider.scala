@@ -17,12 +17,21 @@
 
 package org.apache.celeborn.common.identity
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.hadoop.security.UserGroupInformation
 
 class HadoopBasedIdentityProvider extends IdentityProvider {
-  override def provide(): UserIdentifier = {
+  def provideUserIdentifier(): UserIdentifier = {
     UserIdentifier(
       IdentityProvider.DEFAULT_TENANT_ID,
       UserGroupInformation.getCurrentUser.getShortUserName)
+  }
+
+  override def provide(): UserIdentifier = {
+    provideUserIdentifier()
+  }
+
+  override def provide(conf: CelebornConf): UserIdentifier = {
+    provideUserIdentifier()
   }
 }

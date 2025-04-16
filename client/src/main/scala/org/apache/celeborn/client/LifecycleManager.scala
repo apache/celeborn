@@ -97,7 +97,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   // shuffle id -> (partitionId -> newest PartitionLocation)
   val latestPartitionLocation =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
-  private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
+  private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide(conf)
   private val availableStorageTypes = conf.availableStorageTypes
   // app shuffle id -> LinkedHashMap of (app shuffle identifier, (shuffle id, fetch status))
   private val shuffleIdMapping = JavaUtils.newConcurrentHashMap[

@@ -23,6 +23,7 @@ import org.apache.celeborn.common.util.Utils
 
 abstract class IdentityProvider {
   def provide(): UserIdentifier
+  def provide(conf: CelebornConf): UserIdentifier
 }
 
 object IdentityProvider extends Logging {
