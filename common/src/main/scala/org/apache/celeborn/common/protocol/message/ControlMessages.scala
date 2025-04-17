@@ -1068,7 +1068,7 @@ object ControlMessages extends Logging {
 
       case RELEASE_SLOTS_RESPONSE_VALUE =>
         val pbReleaseSlotsResponse = PbReleaseSlotsResponse.parseFrom(message.getPayload)
-        ReleaseSlotsResponse(Utils.toStatusCode(pbReleaseSlotsResponse.getStatus))
+        ReleaseSlotsResponse(StatusCode.fromValue(pbReleaseSlotsResponse.getStatus))
 
       case REGISTER_WORKER_VALUE =>
         PbRegisterWorker.parseFrom(message.getPayload)
@@ -1152,7 +1152,7 @@ object ControlMessages extends Logging {
               pbRequestSlotsResponse.getWorkerResourceMap)
           }
         RequestSlotsResponse(
-          Utils.toStatusCode(pbRequestSlotsResponse.getStatus),
+          StatusCode.fromValue(pbRequestSlotsResponse.getStatus),
           workerResource)
 
       case CHANGE_LOCATION_VALUE =>
@@ -1176,7 +1176,7 @@ object ControlMessages extends Logging {
 
       case MAPPER_END_RESPONSE_VALUE =>
         val pbMapperEndResponse = PbMapperEndResponse.parseFrom(message.getPayload)
-        MapperEndResponse(Utils.toStatusCode(pbMapperEndResponse.getStatus))
+        MapperEndResponse(StatusCode.fromValue(pbMapperEndResponse.getStatus))
 
       case GET_REDUCER_FILE_GROUP_VALUE =>
         val pbGetReducerFileGroup = PbGetReducerFileGroup.parseFrom(message.getPayload)
@@ -1215,7 +1215,7 @@ object ControlMessages extends Logging {
         }.toMap.asJava
         val broadcast = pbGetReducerFileGroupResponse.getBroadcast.toByteArray
         GetReducerFileGroupResponse(
-          Utils.toStatusCode(pbGetReducerFileGroupResponse.getStatus),
+          StatusCode.fromValue(pbGetReducerFileGroupResponse.getStatus),
           fileGroup,
           attempts,
           partitionIds,
@@ -1252,7 +1252,7 @@ object ControlMessages extends Logging {
 
       case APPLICATION_LOST_RESPONSE_VALUE =>
         val pbApplicationLostResponse = PbApplicationLostResponse.parseFrom(message.getPayload)
-        ApplicationLostResponse(Utils.toStatusCode(pbApplicationLostResponse.getStatus))
+        ApplicationLostResponse(StatusCode.fromValue(pbApplicationLostResponse.getStatus))
 
       case HEARTBEAT_FROM_APPLICATION_VALUE =>
         val pbHeartbeatFromApplication = PbHeartbeatFromApplication.parseFrom(message.getPayload)
@@ -1273,7 +1273,7 @@ object ControlMessages extends Logging {
           PbHeartbeatFromApplicationResponse.parseFrom(message.getPayload)
         val pbCheckQuotaResponse = pbHeartbeatFromApplicationResponse.getCheckQuotaResponse
         HeartbeatFromApplicationResponse(
-          Utils.toStatusCode(pbHeartbeatFromApplicationResponse.getStatus),
+          StatusCode.fromValue(pbHeartbeatFromApplicationResponse.getStatus),
           pbHeartbeatFromApplicationResponse.getExcludedWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
           pbHeartbeatFromApplicationResponse.getUnknownWorkersList.asScala
@@ -1351,7 +1351,7 @@ object ControlMessages extends Logging {
       case RESERVE_SLOTS_RESPONSE_VALUE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)
         ReserveSlotsResponse(
-          Utils.toStatusCode(pbReserveSlotsResponse.getStatus),
+          StatusCode.fromValue(pbReserveSlotsResponse.getStatus),
           pbReserveSlotsResponse.getReason)
 
       case COMMIT_FILES_VALUE =>
@@ -1378,7 +1378,7 @@ object ControlMessages extends Logging {
           committedBitMap.put(entry._1, Utils.byteStringToRoaringBitmap(entry._2))
         }
         CommitFilesResponse(
-          Utils.toStatusCode(pbCommitFilesResponse.getStatus),
+          StatusCode.fromValue(pbCommitFilesResponse.getStatus),
           pbCommitFilesResponse.getCommittedPrimaryIdsList,
           pbCommitFilesResponse.getCommittedReplicaIdsList,
           pbCommitFilesResponse.getFailedPrimaryIdsList,
@@ -1400,7 +1400,7 @@ object ControlMessages extends Logging {
       case DESTROY_RESPONSE_VALUE =>
         val pbDestroyResponse = PbDestroyWorkerSlotsResponse.parseFrom(message.getPayload)
         DestroyWorkerSlotsResponse(
-          Utils.toStatusCode(pbDestroyResponse.getStatus),
+          StatusCode.fromValue(pbDestroyResponse.getStatus),
           pbDestroyResponse.getFailedPrimariesList,
           pbDestroyResponse.getFailedReplicasList)
 
@@ -1434,7 +1434,7 @@ object ControlMessages extends Logging {
 
       case STAGE_END_RESPONSE_VALUE =>
         val pbStageEndResponse = PbStageEndResponse.parseFrom(message.getPayload)
-        StageEndResponse(Utils.toStatusCode(pbStageEndResponse.getStatus))
+        StageEndResponse(StatusCode.fromValue(pbStageEndResponse.getStatus))
 
       case CHECK_WORKERS_AVAILABLE_VALUE =>
         PbCheckWorkersAvailable.parseFrom(message.getPayload)

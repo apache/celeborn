@@ -386,7 +386,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         } else {
           oldPartitions.add(null)
         }
-        causes.add(Utils.toStatusCode(info.getStatus))
+        causes.add(StatusCode.fromValue(info.getStatus))
       }
       logDebug(s"Received Revive request, number of partitions ${partitionIds.size()}")
       handleRevive(
@@ -1676,7 +1676,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           val unregisterShuffleResponse = requestMasterUnregisterShuffle(
             UnregisterShuffle(appUniqueId, shuffleId, MasterClient.genRequestId()))
           // if unregister shuffle not success, wait next turn
-          if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
+          if (StatusCode.SUCCESS == StatusCode.fromValue(unregisterShuffleResponse.getStatus)) {
             unregisterShuffleTime.remove(shuffleId)
           }
         } else {
@@ -1691,7 +1691,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           appUniqueId,
           batchRemoveShuffleIds.asJava,
           MasterClient.genRequestId()))
-      if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
+      if (StatusCode.SUCCESS == StatusCode.fromValue(unregisterShuffleResponse.getStatus)) {
         batchRemoveShuffleIds.foreach { shuffleId: Integer =>
           unregisterShuffleTime.remove(shuffleId)
         }

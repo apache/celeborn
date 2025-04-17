@@ -112,4 +112,9 @@ public enum StatusCode {
     }
     throw new IllegalArgumentException("Unknown status code: " + value);
   }
+
+  public static StatusCode fromValue(int value) {
+    assert (value >= 0 && value < 256);
+    return fromValue((byte) value);
+  }
 }
