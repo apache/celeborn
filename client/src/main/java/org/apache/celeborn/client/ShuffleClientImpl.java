@@ -335,7 +335,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   + ", revive status "
                   + request.reviveStatus
                   + "("
-                  + Utils.toStatusCode(request.reviveStatus)
+                  + StatusCode.fromValue(request.reviveStatus)
                   + ")"
                   + ", old location: "
                   + request.loc));
@@ -458,7 +458,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                             + " then revive but "
                             + request.reviveStatus
                             + "("
-                            + Utils.toStatusCode(request.reviveStatus)
+                            + StatusCode.fromValue(request.reviveStatus)
                             + ")")));
             return;
           }
@@ -494,7 +494,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                         + " then revive but "
                         + request.reviveStatus
                         + "("
-                        + Utils.toStatusCode(request.reviveStatus)
+                        + StatusCode.fromValue(request.reviveStatus)
                         + ")")));
         return;
       }
@@ -689,7 +689,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     while (numRetries > 0) {
       try {
         PbRegisterShuffleResponse response = callable.call();
-        StatusCode respStatus = Utils.toStatusCode(response.getStatus());
+        StatusCode respStatus = StatusCode.fromValue(response.getStatus());
         if (StatusCode.SUCCESS.equals(respStatus)) {
           ConcurrentHashMap<Integer, PartitionLocation> result = JavaUtils.newConcurrentHashMap();
           Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
