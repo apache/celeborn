@@ -29,6 +29,7 @@ import scala.collection.mutable.ListBuffer;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext$;
 import org.apache.spark.TaskContextImpl;
+import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.memory.UnifiedMemoryManager;
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -39,6 +40,7 @@ import org.apache.spark.sql.types.DataType;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,6 +132,53 @@ public class SortBasedPusherSuiteJ {
     pusher.close(true);
 
     assertEquals(taskContext.taskMetrics().memoryBytesSpilled(), 2097152);
+  }
+
+  @Test
+  public void testSetMemoryConfsDisabled() {
+    // celeborn.client.spark.push.sort.memory.calculateMaxMemoryBytes disabled by default
+    CelebornConf conf = new CelebornConf();
+    assertEquals(false, conf.clientPushSortCalculateMaxMemoryBytes());
+    SortBasedPusher.setMemoryConfs(sparkConf, conf, 1, MemoryMode.ON_HEAP);
+    assertEquals(0L, conf.clientPushSortMaxMemoryBytes());
+  }
+
+  @Test
+  public void testSetMemoryConfsOnHeap() {
+    // celeborn.client.spark.push.sort.memory.calculateMaxMemoryBytes disabled by default
+    CelebornConf conf =
+        new CelebornConf().set(CelebornConf.CLIENT_PUSH_SORT_CALCULATE_MAX_MEMORY_BYTES(), true);
+    SparkConf sparkConf =
+        new SparkConf(false)
+            .set("spark.executor.memory", Integer.toString(1200 * 1024 * 1024))
+            .set("spark.memory.offHeap.size", Integer.toString(600 * 1024 * 1024));
+    SortBasedPusher.setMemoryConfs(sparkConf, conf, 4, MemoryMode.ON_HEAP);
+    // (1200m - 300m reserved) * .6 memory fraction / 4 cores = 135
+    assertEquals(135 * 1024 * 1024, conf.clientPushSortMaxMemoryBytes());
+  }
+
+  @Test
+  public void testSetMemoryConfsOffHeap() {
+    // celeborn.client.spark.push.sort.memory.calculateMaxMemoryBytes disabled by default
+    CelebornConf conf =
+        new CelebornConf().set(CelebornConf.CLIENT_PUSH_SORT_CALCULATE_MAX_MEMORY_BYTES(), true);
+    SparkConf sparkConf =
+        new SparkConf(false)
+            .set("spark.executor.memory", Integer.toString(1200 * 1024 * 1024))
+            .set("spark.memory.offHeap.size", Integer.toString(600 * 1024 * 1024))
+            .set("spark.memory.fraction", Double.toString(0.8));
+    SortBasedPusher.setMemoryConfs(sparkConf, conf, 3, MemoryMode.OFF_HEAP);
+    // (1200m - 300m reserved) * .9 memory fraction / 4 cores = 160
+    assertEquals(160 * 1024 * 1024, conf.clientPushSortMaxMemoryBytes());
+  }
+
+  @Test
+  public void testSetMemoryConfsException() {
+    SparkConf sparkConf = new SparkConf(false);
+    CelebornConf celebornConf = Mockito.mock(CelebornConf.class);
+    Mockito.when(celebornConf.clientPushSortCalculateMaxMemoryBytes())
+        .thenThrow(new RuntimeException("Test exception"));
+    SortBasedPusher.setMemoryConfs(sparkConf, celebornConf, 1, MemoryMode.ON_HEAP);
   }
 
   private static UnsafeRow genUnsafeRow(int size) {
