@@ -197,6 +197,16 @@ master:
     # key1: value1
     # key2: value2
 
+  # -- Tolerations for Celeborn master pods.
+  tolerations:
+    # - key: key1
+    #   operator: Equal
+    #   value: value1
+    #   effect: NoSchedule
+    # - key: key2
+    #   operator: Exists
+    #   effect: NoSchedule
+
 worker:
   # -- Annotations for Celeborn worker pods.
   annotations:
@@ -208,15 +218,15 @@ worker:
     # key1: value1
     # key2: value2
 
-# -- Pod tolerations
-tolerations: []
-# - key: key1
-#   operator: Equal
-#   value: value1
-#   effect: NoSchedule
-# - key: key2
-#   operator: Exists
-#   effect: NoSchedule
+  # -- Tolerations for Celeborn worker pods.
+  tolerations:
+    # - key: key1
+    #   operator: Equal
+    #   value: value1
+    #   effect: NoSchedule
+    # - key: key2
+    #   operator: Exists
+    #   effect: NoSchedule
 
 affinity:
   # -- Pod affinity for Celeborn master pods
