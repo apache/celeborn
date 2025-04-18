@@ -56,7 +56,7 @@ spec:
         - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
           mountPath: {{ $dir.mountPath }}
         {{- end}}
-        {{- with .Values.resources.worker }}
+        {{- with .Values.worker.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
@@ -100,7 +100,7 @@ spec:
         - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
           mountPath: {{ .mountPath }}
         {{- end }}
-        {{- with .Values.resources.worker }}
+        {{- with .Values.worker.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}

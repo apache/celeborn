@@ -139,25 +139,6 @@ dnsPolicy: ClusterFirst
 # -- Specifies whether to use the host's network namespace
 hostNetwork: false
 
-resources:
-  # -- Pod resources for Celeborn master pods
-  master: {}
-    # limits:
-    #   cpu: 100m
-    #   memory: 128Mi
-    # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
-
-  # -- Pod resources for Celeborn worker pods
-  worker: {}
-    # limits:
-    #   cpu: 100m
-    #   memory: 128Mi
-    # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
-
 # -- Container security context
 securityContext:
   # Specifies the user ID to run the entrypoint of the container process
@@ -192,6 +173,15 @@ master:
     # key1: value1
     # key2: value2
 
+  # -- Resources for Celeborn master containers.
+  resources:
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+
   # -- Node selector for Celeborn master pods.
   nodeSelector:
     # key1: value1
@@ -212,6 +202,15 @@ worker:
   annotations:
     # key1: value1
     # key2: value2
+
+  # -- Resources for Celeborn worker containers.
+  resources:
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
 
   # -- Node selector for Celeborn worker pods.
   nodeSelector:
