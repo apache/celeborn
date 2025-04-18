@@ -150,11 +150,32 @@ public class SparkShuffleManager implements ShuffleManager {
 
             lifecycleManager.registerShuffleTrackerCallback(
                 shuffleId -> SparkUtils.unregisterAllMapOutput(mapOutputTracker, shuffleId));
-
             if (celebornConf.clientAdaptiveOptimizeSkewedPartitionReadEnabled()) {
               lifecycleManager.registerCelebornSkewShuffleCheckCallback(
                   SparkUtils::isCelebornSkewShuffleOrChildShuffle);
             }
+          }
+
+          if (lifecycleManager.conf().clientFetchCleanFailedShuffle()) {
+            if (!lifecycleManager.conf().clientStageRerunEnabled()) {
+              throw new IllegalArgumentException(
+                  CelebornConf.CLIENT_STAGE_RERUN_ENABLED().key()
+                      + " has to be "
+                      + "enabled, when "
+                      + CelebornConf.CLIENT_FETCH_CLEAN_FAILED_SHUFFLE().key()
+                      + " is set to true");
+            }
+            lifecycleManager.registerValidateCelebornShuffleIdForCleanCallback(
+                (appShuffleIdentifier) ->
+                    SparkUtils.addWriterShuffleIdsToBeCleaned(
+                        lifecycleManager, appShuffleIdentifier));
+            lifecycleManager.registerRecordShuffleIdReferenceCallback(
+                (celebornShuffleId, appShuffleIdentifier) ->
+                    SparkUtils.addShuffleIdRefStage(
+                        lifecycleManager, celebornShuffleId, appShuffleIdentifier));
+            lifecycleManager.registerUnregisterShuffleCallback(
+                (celebornShuffleId) ->
+                    SparkUtils.removeCleanedShuffleId(lifecycleManager, celebornShuffleId));
           }
 
           if (celebornConf.getReducerFileGroupBroadcastEnabled()) {
