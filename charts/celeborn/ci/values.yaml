@@ -96,21 +96,23 @@ dnsPolicy: ClusterFirstWithHostNet
 # -- Specifies whether to use the host's network namespace
 hostNetwork: true
 
-resources:
-  # -- Pod resources for Celeborn master pods
-  master:
-    limits:
-      cpu: 100m
-      memory: 800Mi
+# -- Resources for Celeborn master containers.
+master:
+  resources:
     requests:
       cpu: 100m
       memory: 800Mi
-  # -- Pod resources for Celeborn worker pods
-  worker:
     limits:
+      cpu: 100m
+      memory: 800Mi
+
+# -- Resources for Celeborn worker containers.
+worker:
+  resources:
+    requests:
       cpu: 100m
       memory: 1Gi
-    requests:
+    limits:
       cpu: 100m
       memory: 1Gi
 
