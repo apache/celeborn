@@ -52,7 +52,7 @@ spec:
         volumeMounts:
         - name: {{ $.Release.Name }}-master-vol-0
           mountPath: {{ (index $dirs 0).mountPath }}
-        {{- with .Values.resources.master }}
+        {{- with .Values.master.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
@@ -97,7 +97,7 @@ spec:
         - name: {{ $.Release.Name }}-master-vol-{{ $index }}
           mountPath: {{ .mountPath }}
         {{- end }}
-        {{- with .Values.resources.master }}
+        {{- with .Values.master.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
