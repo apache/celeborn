@@ -21,6 +21,8 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.google.common.base.Preconditions;
+
 public enum StatusCode {
   // 1/0 Status
   SUCCESS(0),
@@ -114,7 +116,8 @@ public enum StatusCode {
   }
 
   public static StatusCode fromValue(int value) {
-    assert (value >= 0 && value < 256);
+    Preconditions.checkArgument(
+        value >= 0 && value < 256, "Value:" + value + " is out of range [0,256).");
     return fromValue((byte) value);
   }
 }
