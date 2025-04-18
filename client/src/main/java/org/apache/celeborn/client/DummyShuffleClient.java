@@ -32,6 +32,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import scala.Tuple2;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -182,9 +184,9 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
-  public int getShuffleId(
+  public Tuple2<Integer, Boolean> getShuffleId(
       int appShuffleId, String appShuffleIdentifier, boolean isWriter, boolean isBarrierStage) {
-    return appShuffleId;
+    return Tuple2.apply(appShuffleId, true);
   }
 
   @Override

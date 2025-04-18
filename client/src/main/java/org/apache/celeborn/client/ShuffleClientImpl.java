@@ -103,7 +103,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected byte[] extension;
 
   // key: appShuffleIdentifier, value: shuffleId
-  protected Map<String, Integer> shuffleIdCache = JavaUtils.newConcurrentHashMap();
+  protected Map<String, Tuple2<Integer, Boolean>> shuffleIdCache = JavaUtils.newConcurrentHashMap();
 
   // key: shuffleId, value: (partitionId, PartitionLocation)
   final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
@@ -626,7 +626,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public int getShuffleId(
+  public Tuple2<Integer, Boolean> getShuffleId(
       int appShuffleId, String appShuffleIdentifier, boolean isWriter, boolean isBarrierStage) {
     return shuffleIdCache.computeIfAbsent(
         appShuffleIdentifier,
@@ -643,7 +643,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                   pbGetShuffleId,
                   conf.clientRpcRegisterShuffleAskTimeout(),
                   ClassTag$.MODULE$.apply(PbGetShuffleIdResponse.class));
-          return pbGetShuffleIdResponse.getShuffleId();
+          return Tuple2.apply(
+              pbGetShuffleIdResponse.getShuffleId(), pbGetShuffleIdResponse.getSuccess());
         });
   }
 
