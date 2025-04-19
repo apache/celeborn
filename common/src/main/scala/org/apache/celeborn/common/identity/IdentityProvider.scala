@@ -37,8 +37,7 @@ object IdentityProvider extends Logging {
       val clazz = Class.forName(
         className,
         true,
-        Thread.currentThread().getContextClassLoader
-      ).asInstanceOf[Class[IdentityProvider]]
+        Thread.currentThread().getContextClassLoader).asInstanceOf[Class[IdentityProvider]]
 
       val ctor = clazz.getDeclaredConstructor(classOf[CelebornConf])
       logDebug(s"Using constructor with CelebornConf for $className")
