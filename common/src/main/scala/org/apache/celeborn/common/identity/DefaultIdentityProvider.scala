@@ -19,9 +19,8 @@ package org.apache.celeborn.common.identity
 
 import org.apache.celeborn.common.CelebornConf
 
-class DefaultIdentityProvider extends IdentityProvider {
+class DefaultIdentityProvider(conf: CelebornConf) extends IdentityProvider(conf) {
   override def provide(): UserIdentifier = {
-    val conf = new CelebornConf()
     UserIdentifier(
       conf.userSpecificTenant,
       conf.userSpecificUserName)
