@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.celeborn.spark.FailedShuffleCleaner;
 import org.apache.spark.*;
 import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
@@ -267,6 +268,9 @@ public class SparkShuffleManager implements ShuffleManager {
     if (_sortShuffleManager != null) {
       _sortShuffleManager.stop();
       _sortShuffleManager = null;
+    }
+    if (celebornConf.clientFetchCleanFailedShuffle()) {
+      FailedShuffleCleaner.reset();
     }
   }
 

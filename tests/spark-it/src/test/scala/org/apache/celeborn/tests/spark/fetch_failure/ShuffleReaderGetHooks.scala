@@ -22,8 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.shuffle.ShuffleHandle
-import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
-
+import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkCommonUtils, SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClient}
 import org.apache.celeborn.client.commit.ReducePartitionCommitHandler
 import org.apache.celeborn.common.CelebornConf
@@ -113,7 +112,7 @@ class FileDeletionShuffleReaderGetHook(
             h.extension)
           val celebornShuffleId = SparkUtils.celebornShuffleId(shuffleClient, h, context, false)
           val appShuffleIdentifier =
-            SparkUtils.getAppShuffleIdentifier(handle.shuffleId, context)
+            SparkCommonUtils.encodeAppShuffleIdentifier(handle.shuffleId, context)
           val Array(_, stageId, _) = appShuffleIdentifier.split('-')
           if (triggerStageId.isEmpty || triggerStageId.get == stageId.toInt) {
             if (shuffleIdToBeDeleted.isEmpty) {

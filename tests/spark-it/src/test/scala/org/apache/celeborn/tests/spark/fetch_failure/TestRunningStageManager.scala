@@ -18,22 +18,21 @@ package org.apache.celeborn.tests.spark.fetch_failure
 
 import scala.collection.mutable
 
-import org.apache.spark.scheduler.{RunningStageManager, SparkSchedulerHelper}
+import org.apache.spark.RunningStageManager
+import org.apache.spark.scheduler.SparkSchedulerHelper
 
 class TestRunningStageManager extends RunningStageManager {
   import TestRunningStageManager._
-  def setRunningStages(stageIds: Seq[Int]): Unit = {
-    stageIds.foreach(stageId => runningStages += stageId)
-  }
+
   override def isRunningStage(stageId: Int): Boolean = {
     if (runningStages.contains(stageId)) {
-      println(s"instrumented running stages contains $stageId")
       true
     } else {
       SparkSchedulerHelper.runningStages.map(_.id).contains(stageId)
     }
   }
 }
+
 object TestRunningStageManager {
   val runningStages = new mutable.HashSet[Int]
 }
