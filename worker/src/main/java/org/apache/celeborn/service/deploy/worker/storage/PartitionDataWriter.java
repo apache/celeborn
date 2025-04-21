@@ -104,6 +104,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   private Exception exception = null;
   private boolean metricsCollectCriticalEnabled;
   private long chunkSize;
+  private boolean gatherApiEnabled;
 
   private UserBufferInfo userBufferInfo = null;
 
@@ -130,6 +131,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     this.hdfsFlusherBufferSize = conf.workerHdfsFlusherBufferSize();
     this.metricsCollectCriticalEnabled = conf.metricsCollectCriticalEnabled();
     this.chunkSize = conf.shuffleChunkSize();
+    this.gatherApiEnabled = conf.workerFlusherLocalGatherAPIEnabled();
 
     Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFileResult =
         storageManager.createFile(writerContext, supportInMemory);
@@ -218,7 +220,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           ByteBuf dupBuf = flushBuffer.retainedDuplicate();
           // flush task will release the buffer of memory shuffle file
           if (channel != null) {
-            task = new LocalFlushTask(flushBuffer, channel, notifier, false);
+            task = new LocalFlushTask(flushBuffer, channel, notifier, false, gatherApiEnabled);
           } else if (diskFileInfo.isHdfs()) {
             task = new HdfsFlushTask(flushBuffer, diskFileInfo.getHdfsPath(), notifier, false);
           }
@@ -244,7 +246,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           if (!isMemoryShuffleFile.get()) {
             notifier.numPendingFlushes.incrementAndGet();
             if (channel != null) {
-              task = new LocalFlushTask(flushBuffer, channel, notifier, true);
+              task = new LocalFlushTask(flushBuffer, channel, notifier, true, gatherApiEnabled);
             } else if (diskFileInfo.isHdfs()) {
               task = new HdfsFlushTask(flushBuffer, diskFileInfo.getHdfsPath(), notifier, true);
             }
