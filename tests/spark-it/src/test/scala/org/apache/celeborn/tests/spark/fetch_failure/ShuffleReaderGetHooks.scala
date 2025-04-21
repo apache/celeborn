@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkCommonUtils, SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
+
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClient}
 import org.apache.celeborn.client.commit.ReducePartitionCommitHandler
 import org.apache.celeborn.common.CelebornConf

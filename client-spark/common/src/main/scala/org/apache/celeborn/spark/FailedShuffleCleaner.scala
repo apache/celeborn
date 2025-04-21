@@ -24,11 +24,11 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 import org.apache.spark.{RunningStageManager, RunningStageManagerImpl}
+import org.apache.spark.shuffle.celeborn.SparkCommonUtils
+
 import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.ThreadUtils
-
-import org.apache.spark.shuffle.celeborn.SparkCommonUtils
 
 private[celeborn] object FailedShuffleCleaner extends Logging {
 

@@ -326,8 +326,8 @@ public class SparkUtils {
 
     if (!(taskContext instanceof BarrierTaskContext)) return;
     int appShuffleId = handle.shuffleId();
-    String appShuffleIdentifier = SparkCommonUtils.encodeAppShuffleIdentifier(
-        appShuffleId, taskContext);
+    String appShuffleIdentifier =
+        SparkCommonUtils.encodeAppShuffleIdentifier(appShuffleId, taskContext);
 
     BarrierTaskContext barrierContext = (BarrierTaskContext) taskContext;
     barrierContext.addTaskFailureListener(

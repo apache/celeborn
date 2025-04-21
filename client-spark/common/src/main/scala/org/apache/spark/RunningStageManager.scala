@@ -29,7 +29,6 @@ class RunningStageManagerImpl extends RunningStageManager {
   private val idField = stageClass.getDeclaredField("id")
   idField.setAccessible(true)
 
-
   private def runningStages: mutable.HashSet[_] = {
     val dagSchedulerClz = SparkContext.getActive.get.dagScheduler.getClass
     val runningStagesField = dagSchedulerClz.getDeclaredField("runningStages")

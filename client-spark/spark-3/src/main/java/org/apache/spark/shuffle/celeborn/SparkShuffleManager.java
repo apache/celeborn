@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.celeborn.spark.FailedShuffleCleaner;
 import org.apache.spark.*;
 import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
@@ -38,6 +37,7 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.celeborn.reflect.DynMethods;
+import org.apache.celeborn.spark.FailedShuffleCleaner;
 
 /**
  * In order to support Spark Stage resubmit with ShuffleReader FetchFails, Celeborn shuffleId has to
