@@ -104,7 +104,6 @@ license: |
 | celeborn.client.shuffle.dynamicResourceFactor | 0.5 | false | The ChangePartitionManager will check whether (unavailable workers / shuffle allocated workers) is more than the factor before obtaining candidate workers from the requestSlots RPC response when `celeborn.client.shuffle.dynamicResourceEnabled` set true | 0.6.0 |  | 
 | celeborn.client.shuffle.expired.checkInterval | 60s | false | Interval for client to check expired shuffles. | 0.3.0 | celeborn.shuffle.expired.checkInterval | 
 | celeborn.client.shuffle.manager.port | 0 | false | Port used by the LifecycleManager on the Driver. | 0.3.0 | celeborn.shuffle.manager.port | 
-| celeborn.client.shuffle.mapPartition.split.enabled | false | false | whether to enable shuffle partition split. Currently, this only applies to MapPartition. | 0.3.1 |  | 
 | celeborn.client.shuffle.partition.type | REDUCE | false | Type of shuffle's partition. | 0.3.0 | celeborn.shuffle.partition.type | 
 | celeborn.client.shuffle.partitionSplit.mode | SOFT | false | soft: the shuffle file size might be larger than split threshold. hard: the shuffle file size will be limited to split threshold. | 0.3.0 | celeborn.shuffle.partitionSplit.mode | 
 | celeborn.client.shuffle.partitionSplit.threshold | 1G | false | Shuffle file size threshold, if file size exceeds this, trigger split. | 0.3.0 | celeborn.shuffle.partitionSplit.threshold | 
