@@ -613,7 +613,7 @@ object Utils extends Logging {
     }
   }
 
-  def instantiateDynamicConfigStoreBackend[T](className: String, conf: CelebornConf): T = {
+  def instantiateClassWithCelebornConf[T](className: String, conf: CelebornConf): T = {
     try {
       DynConstructors.builder().impl(className, classOf[CelebornConf])
         .build[T]()

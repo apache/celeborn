@@ -34,14 +34,7 @@ object IdentityProvider extends Logging {
     logDebug(s"Creating instance of $className")
 
     try {
-      val clazz = Class.forName(
-        className,
-        true,
-        Thread.currentThread().getContextClassLoader).asInstanceOf[Class[IdentityProvider]]
-
-      val ctor = clazz.getDeclaredConstructor(classOf[CelebornConf])
-      logDebug(s"Using constructor with CelebornConf for $className")
-      ctor.newInstance(conf)
+      Utils.instantiateClassWithCelebornConf[IdentityProvider](className, conf)
     } catch {
       case e: NoSuchMethodException =>
         logError(s"Failed to instantiate class $className", e)
