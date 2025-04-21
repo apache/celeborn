@@ -74,7 +74,7 @@ public class ApplicationApi extends BaseApi {
     Object localVarPostBody = deleteAppsRequest;
     
     // create path and map variables
-    String localVarPath = "/api/v1/applications";
+    String localVarPath = "/api/v1/applications/delete_apps";
 
     StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
     String localVarQueryParameterBaseName;
@@ -104,7 +104,7 @@ public class ApplicationApi extends BaseApi {
     TypeReference<HandleResponse> localVarReturnType = new TypeReference<HandleResponse>() {};
     return apiClient.invokeAPI(
         localVarPath,
-        "DELETE",
+        "POST",
         localVarQueryParams,
         localVarCollectionQueryParams,
         localVarQueryStringJoiner.toString(),
