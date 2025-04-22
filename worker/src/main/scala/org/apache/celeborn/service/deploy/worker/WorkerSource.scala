@@ -19,8 +19,11 @@ package org.apache.celeborn.service.deploy.worker
 
 import java.util
 import java.util.concurrent.ConcurrentHashMap
+
 import scala.collection.JavaConverters._
+
 import com.google.common.collect.Sets
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.source.{AbstractSource, Role}
 import org.apache.celeborn.common.network.client.TransportClient
@@ -106,7 +109,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
     val applicationId = Utils.splitShuffleKey(shuffleKey)._1
     if (applicationIds != null && !applicationIds.contains(applicationId)) {
       var labels = Map.empty[String, String]
-      if (true) {
+      if (conf.metricsPushApplicationId) {
         labels += (applicationLabel -> applicationId)
         addCounter(ACTIVE_CONNECTION_COUNT, labels)
       }
@@ -125,7 +128,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
     if (applicationIds == null) {
       return
     }
-    if (true) {
+    if (conf.metricsPushApplicationId) {
       applicationIds.asScala.foreach(applicationId =>
         removeCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId)))
     } else {
