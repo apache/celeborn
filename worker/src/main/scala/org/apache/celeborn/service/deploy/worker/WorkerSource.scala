@@ -19,11 +19,8 @@ package org.apache.celeborn.service.deploy.worker
 
 import java.util
 import java.util.concurrent.ConcurrentHashMap
-
 import scala.collection.JavaConverters._
-
 import com.google.common.collect.Sets
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.source.{AbstractSource, Role}
 import org.apache.celeborn.common.network.client.TransportClient
@@ -101,27 +98,39 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   def connectionInactive(client: TransportClient): Unit = {
     val applicationIds = appActiveConnections.remove(client.getChannel.id().asLongText())
     incCounter(ACTIVE_CONNECTION_COUNT, -1)
-    if (null != applicationIds) {
-      applicationIds.asScala.foreach(applicationId =>
-        incCounter(ACTIVE_CONNECTION_COUNT, -1, Map(applicationLabel -> applicationId)))
-    }
+    decActiveConnectionCount(applicationIds)
   }
 
   def recordAppActiveConnection(client: TransportClient, shuffleKey: String): Unit = {
     val applicationIds = appActiveConnections.get(client.getChannel.id().asLongText())
     val applicationId = Utils.splitShuffleKey(shuffleKey)._1
     if (applicationIds != null && !applicationIds.contains(applicationId)) {
-      addCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId))
-      incCounter(ACTIVE_CONNECTION_COUNT, 1, Map(applicationLabel -> applicationId))
+      var labels = Map.empty[String, String]
+      if (true) {
+        labels += (applicationLabel -> applicationId)
+        addCounter(ACTIVE_CONNECTION_COUNT, labels)
+      }
+      incCounter(ACTIVE_CONNECTION_COUNT, 1, labels)
       applicationIds.add(applicationId)
     }
   }
 
   def removeAppActiveConnection(applicationIds: util.Set[String]): Unit = {
-    applicationIds.asScala.foreach(applicationId =>
-      removeCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId)))
+    decActiveConnectionCount(applicationIds)
     appActiveConnections.values().asScala.foreach(connectionAppIds =>
       applicationIds.asScala.foreach(applicationId => connectionAppIds.remove(applicationId)))
+  }
+
+  private def decActiveConnectionCount(applicationIds: util.Set[String]): Unit = {
+    if (applicationIds == null) {
+      return
+    }
+    if (true) {
+      applicationIds.asScala.foreach(applicationId =>
+        removeCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId)))
+    } else {
+      incCounter(ACTIVE_CONNECTION_COUNT, -1 * applicationIds.size())
+    }
   }
 
   // start cleaner thread
