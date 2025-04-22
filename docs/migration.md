@@ -41,6 +41,8 @@ license: |
 
 - Since 0.6.0, Celeborn changed `celeborn.<module>.io.mode` optional, of which the default value changed from `NIO` to `EPOLL` if epoll mode is available, falling back to `NIO` otherwise.
 
+- Since 0.6.0, Celeborn removed `celeborn.client.shuffle.mapPartition.split.enabled` to enable shuffle partition split at default for MapPartition.
+
 - Since 0.6.0, Celeborn has introduced a new RESTful API namespace: /api/v1, which uses the application/json media type for requests and responses.
    The `celeborn-openapi-client` SDK is also available to help users interact with the new RESTful APIs.
    The legacy RESTful APIs have been deprecated and will be removed in future releases.

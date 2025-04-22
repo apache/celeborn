@@ -1197,10 +1197,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             rangeReadFilter,
             userIdentifier,
             conf.pushDataTimeoutMs,
-            if (getPartitionType(shuffleId) == PartitionType.MAP)
-              conf.clientShuffleMapPartitionSplitEnabled
-            else true,
-            isSegmentGranularityVisible))
+            partitionSplitEnabled = true,
+            isSegmentGranularityVisible = isSegmentGranularityVisible))
         futures.add((future, workerInfo))
       }(ec)
     }

@@ -1404,7 +1404,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFlinkResultPartitionSupportFloatingBuffer: Boolean =
     get(CLIENT_RESULT_PARTITION_SUPPORT_FLOATING_BUFFER)
   def clientFlinkDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
-  def clientShuffleMapPartitionSplitEnabled = get(CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED)
   def clientChunkPrefetchEnabled = get(CLIENT_CHUNK_PREFETCH_ENABLED)
   def clientInputStreamCreationWindow = get(CLIENT_INPUTSTREAM_CREATION_WINDOW)
 
@@ -5859,15 +5858,6 @@ object CelebornConf extends Logging {
       .doc("Threads count for streamCreatorPool in CelebornShuffleReader.")
       .intConf
       .createWithDefault(32)
-
-  val CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.shuffle.mapPartition.split.enabled")
-      .categories("client")
-      .doc(
-        "whether to enable shuffle partition split. Currently, this only applies to MapPartition.")
-      .version("0.3.1")
-      .booleanConf
-      .createWithDefault(false)
 
   val CLIENT_CHUNK_PREFETCH_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.chunk.prefetch.enabled")
