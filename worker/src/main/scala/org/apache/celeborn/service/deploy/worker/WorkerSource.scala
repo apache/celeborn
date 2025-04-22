@@ -101,7 +101,10 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   def connectionInactive(client: TransportClient): Unit = {
     val applicationIds = appActiveConnections.remove(client.getChannel.id().asLongText())
     incCounter(ACTIVE_CONNECTION_COUNT, -1)
-    decActiveConnectionCount(applicationIds)
+    if (null != applicationIds) {
+      applicationIds.asScala.foreach(applicationId =>
+        incCounter(ACTIVE_CONNECTION_COUNT, -1, Map(applicationLabel -> applicationId)))
+    }
   }
 
   def recordAppActiveConnection(client: TransportClient, shuffleKey: String): Unit = {
@@ -119,21 +122,10 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   }
 
   def removeAppActiveConnection(applicationIds: util.Set[String]): Unit = {
-    decActiveConnectionCount(applicationIds)
+    applicationIds.asScala.foreach(applicationId =>
+      removeCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId)))
     appActiveConnections.values().asScala.foreach(connectionAppIds =>
       applicationIds.asScala.foreach(applicationId => connectionAppIds.remove(applicationId)))
-  }
-
-  private def decActiveConnectionCount(applicationIds: util.Set[String]): Unit = {
-    if (applicationIds == null) {
-      return
-    }
-    if (conf.metricsPushApplicationId) {
-      applicationIds.asScala.foreach(applicationId =>
-        removeCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId)))
-    } else {
-      incCounter(ACTIVE_CONNECTION_COUNT, -1 * applicationIds.size())
-    }
   }
 
   // start cleaner thread
