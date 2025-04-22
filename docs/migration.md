@@ -21,6 +21,10 @@ license: |
 
 # Migration Guide
 
+## Upgrading from 0.6.0 to 0.6.1
+
+- Since 0.6.1, Celeborn deprecate `celeborn.<module>.io.conflictAvoidChooser.enable`. Please use `celeborn.<module>.io.nonEventLoopChooser.enabled` instead.
+
 # Upgrading from 0.5 to 0.6
 
 - Since 0.6.0, Celeborn deprecate `celeborn.client.spark.fetch.throwsFetchFailure`. Please use `celeborn.client.spark.stageRerun.enabled` instead.

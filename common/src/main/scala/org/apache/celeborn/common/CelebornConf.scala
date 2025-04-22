@@ -577,9 +577,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getTransportConfInt(module, NETWORK_IO_CLIENT_THREADS)
   }
 
-  def networkIoConflictAvoidChooserEnable(module: String): Boolean = {
-    val key = NETWORK_IO_CLIENT_CONFLICT_AVOID_CHOOSER_ENABLE.key.replace("<module>", module)
-    getBoolean(key, NETWORK_IO_CLIENT_CONFLICT_AVOID_CHOOSER_ENABLE.defaultValue.get)
+  def networkIoNonEventLoopChooserEnabled(module: String): Boolean = {
+    val key = NETWORK_IO_NON_EVENT_LOOP_CHOOSER_ENABLED.key.replace("<module>", module)
+    getBoolean(key, NETWORK_IO_NON_EVENT_LOOP_CHOOSER_ENABLED.defaultValue.get)
   }
 
   def networkIoReceiveBuf(module: String): Int = {
@@ -2148,11 +2148,12 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(0)
 
-  val NETWORK_IO_CLIENT_CONFLICT_AVOID_CHOOSER_ENABLE: ConfigEntry[Boolean] =
-    buildConf("celeborn.<module>.io.conflictAvoidChooser.enable")
+  val NETWORK_IO_NON_EVENT_LOOP_CHOOSER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.<module>.io.nonEventLoopChooser.enabled")
+      .withAlternative("celeborn.<module>.io.conflictAvoidChooser.enable")
       .categories("network")
       .version("0.5.4")
-      .doc("Whether to use conflict avoid event executor chooser in the client thread pool. " +
+      .doc("Whether to use non-EventLoop EventExecutorChooser in the client thread pool. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
         s"works for shuffle client. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_SERVICE_MODULE}`, " +

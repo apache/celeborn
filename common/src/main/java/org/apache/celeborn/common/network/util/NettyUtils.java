@@ -65,21 +65,27 @@ public class NettyUtils {
 
   /** Creates a Netty EventLoopGroup based on the IOMode. */
   public static EventLoopGroup createEventLoop(
-      IOMode mode, int numThreads, boolean conflictAvoidChooserEnable, String threadPrefix) {
+      IOMode mode, int numThreads, boolean nonEventLoopChooserEnabled, String threadPrefix) {
     ThreadFactory threadFactory = createThreadFactory(threadPrefix);
 
     switch (mode) {
       case NIO:
-        return conflictAvoidChooserEnable
+        return nonEventLoopChooserEnabled
             ? new NioEventLoopGroup(
                 numThreads,
                 new ThreadPerTaskExecutor(threadFactory),
-                ConflictAvoidEventExecutorChooserFactory.INSTANCE,
+                NonEventLoopEventExecutorChooserFactory.INSTANCE,
                 SelectorProvider.provider(),
                 DefaultSelectStrategyFactory.INSTANCE)
             : new NioEventLoopGroup(numThreads, threadFactory);
       case EPOLL:
-        return new EpollEventLoopGroup(numThreads, threadFactory);
+        return nonEventLoopChooserEnabled
+            ? new EpollEventLoopGroup(
+                numThreads,
+                new ThreadPerTaskExecutor(threadFactory),
+                NonEventLoopEventExecutorChooserFactory.INSTANCE,
+                DefaultSelectStrategyFactory.INSTANCE)
+            : new EpollEventLoopGroup(numThreads, threadFactory);
       default:
         throw new IllegalArgumentException("Unknown io mode: " + mode);
     }
