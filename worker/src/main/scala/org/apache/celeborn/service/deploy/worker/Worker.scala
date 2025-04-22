@@ -455,7 +455,7 @@ private[celeborn] class Worker(
   }
   // Unreleased partition location count when worker is restarting
   workerSource.addGauge(WorkerSource.UNRELEASED_PARTITION_LOCATION_COUNT) { () =>
-    if (shutdown.get() && (workerStatusManager.currentWorkerStatus.getState == State.InGraceFul)) {
+    if (shutdown.get()) {
       partitionLocationInfo.primaryPartitionLocations.values()
     } else {
       0
