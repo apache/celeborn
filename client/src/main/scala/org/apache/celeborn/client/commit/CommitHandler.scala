@@ -312,7 +312,7 @@ abstract class CommitHandler(
     val futureSeq = Future.sequence(outFutures)(cbf, ec)
     awaitResult(futureSeq, Duration.Inf)
 
-    val timeout = conf.rpcAskTimeout.duration.toMillis
+    val timeout = clientRpcCommitFilesAskTimeout.duration.toMillis
     var remainingTime = timeout * maxRetries
     val delta = 50
     while (remainingTime >= 0 && !futures.isEmpty) {
