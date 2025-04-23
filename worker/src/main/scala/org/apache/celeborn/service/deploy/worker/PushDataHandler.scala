@@ -640,6 +640,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                   // on an older version that does not have these changes.
                   // In this scenario, the replica may return a response without any context
                   // when status of SUCCESS.
+                  var index = 0
+                  while (index < result.length) {
+                    if (result(index) == StatusCode.HARD_SPLIT) {
+                      pushMergedDataCallback.addSplitPartition(index, result(index))
+                    }
+                    index += 1
+                  }
                   val replicaReason =
                     if (response.remaining() > 0) {
                       response.get()
@@ -655,14 +662,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                         pushMergedDataCallback.unionReplicaSplitPartitions(
                           pushMergedDataResponse.getSplitPartitionIndexesList,
                           pushMergedDataResponse.getStatusCodesList)
-
-                        var index = 0
-                        while (index < result.length) {
-                          if (result(index) == StatusCode.HARD_SPLIT) {
-                            pushMergedDataCallback.addSplitPartition(index, result(index))
-                          }
-                          index += 1
-                        }
                       } catch {
                         case e: CelebornIOException =>
                           pushMergedDataCallback.onFailure(e)
