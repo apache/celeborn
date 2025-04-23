@@ -634,12 +634,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             override def onSuccess(response: ByteBuffer): Unit = {
               Try(Await.result(writePromise.future, Duration.Inf)) match {
                 case Success(result) =>
-                  // During the rolling upgrade of the worker cluster, it is possible for
-                  // the primary worker to be upgraded to a new version that includes
-                  // the changes from [CELEBORN-1721], while the replica worker is still running
-                  // on an older version that does not have these changes.
-                  // In this scenario, the replica may return a response without any context
-                  // when status of SUCCESS.
                   var index = 0
                   while (index < result.length) {
                     if (result(index) == StatusCode.HARD_SPLIT) {
@@ -647,6 +641,12 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                     }
                     index += 1
                   }
+                  // During the rolling upgrade of the worker cluster, it is possible for
+                  // the primary worker to be upgraded to a new version that includes
+                  // the changes from [CELEBORN-1721], while the replica worker is still running
+                  // on an older version that does not have these changes.
+                  // In this scenario, the replica may return a response without any context
+                  // when status of SUCCESS.
                   val replicaReason =
                     if (response.remaining() > 0) {
                       response.get()
