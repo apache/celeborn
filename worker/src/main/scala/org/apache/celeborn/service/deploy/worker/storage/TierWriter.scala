@@ -413,17 +413,10 @@ class LocalTierWriter(
       flush(false)
     }
     buf.retain()
-    try {
-      flushBuffer.addComponent(true, buf)
-      MemoryManager.instance.incrementDiskBuffer(numBytes)
-      if (userCongestionControlContext != null)
-        userCongestionControlContext.updateProduceBytes(numBytes)
-    } catch {
-      case oom: OutOfMemoryError =>
-        buf.release()
-        MemoryManager.instance().releaseDiskBuffer(numBytes)
-        throw oom;
-    }
+    flushBuffer.addComponent(true, buf)
+    MemoryManager.instance.incrementDiskBuffer(numBytes)
+    if (userCongestionControlContext != null)
+      userCongestionControlContext.updateProduceBytes(numBytes)
   }
 
   override def evict(file: TierWriterBase): Unit = ???
@@ -618,15 +611,8 @@ class DfsTierWriter(
       flush(false)
     }
     buf.retain()
-    try {
-      flushBuffer.addComponent(true, buf)
-      MemoryManager.instance.incrementDiskBuffer(numBytes)
-    } catch {
-      case oom: OutOfMemoryError =>
-        buf.release()
-        MemoryManager.instance().releaseDiskBuffer(numBytes)
-        throw oom;
-    }
+    flushBuffer.addComponent(true, buf)
+    MemoryManager.instance.incrementDiskBuffer(numBytes)
   }
 
   override def evict(file: TierWriterBase): Unit = ???
