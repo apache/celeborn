@@ -32,13 +32,6 @@ object IdentityProvider extends Logging {
   def instantiate(conf: CelebornConf): IdentityProvider = {
     val className = conf.identityProviderClass
     logDebug(s"Creating instance of $className")
-
-    try {
-      Utils.instantiateClassWithCelebornConf[IdentityProvider](className, conf)
-    } catch {
-      case e: NoSuchMethodException =>
-        logError(s"Failed to instantiate class $className", e)
-        throw e
-    }
+    Utils.instantiateClassWithCelebornConf[IdentityProvider](className, conf)
   }
 }
