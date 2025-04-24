@@ -82,22 +82,25 @@ celeborn:
   celeborn.application.heartbeat.timeout: 120s
   celeborn.worker.heartbeat.timeout: 120s
 
-# -- Celeborn configurations
-environments:
-  CELEBORN_MASTER_MEMORY: 100m
-  CELEBORN_WORKER_MEMORY: 100m
-  CELEBORN_WORKER_OFFHEAP_MEMORY: 100m
-  CELEBORN_NO_DAEMONIZE: 1
-  TZ: "Asia/Shanghai"
-
 # -- Specifies the DNS policy for Celeborn pods to use
 dnsPolicy: ClusterFirstWithHostNet
 
 # -- Specifies whether to use the host's network namespace
 hostNetwork: true
 
-# -- Resources for Celeborn master containers.
 master:
+  # -- Environment variables for Celeborn master containers.
+  env:
+  - name: CELEBORN_MASTER_MEMORY
+    value: 100m
+  - name: CELEBORN_MASTER_JAVA_OPTS
+    value: -XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-master.out -Dio.netty.leakDetectionLevel=advanced
+  - name: CELEBORN_NO_DAEMONIZE
+    value: "true"
+  - name: TZ
+    value: Asia/Shanghai
+
+  # -- Resources for Celeborn master containers.
   resources:
     requests:
       cpu: 100m
@@ -106,8 +109,21 @@ master:
       cpu: 100m
       memory: 800Mi
 
-# -- Resources for Celeborn worker containers.
 worker:
+  # -- Environment variables for Celeborn worker containers.
+  env:
+  - name: CELEBORN_WORKER_MEMORY
+    value: 100m
+  - name: CELEBORN_WORKER_OFFHEAP_MEMORY
+    value: 100m
+  - name: CELEBORN_WORKER_JAVA_OPTS
+    value: -XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-worker.out -Dio.netty.leakDetectionLevel=advanced
+  - name: CELEBORN_NO_DAEMONIZE
+    value: "true"
+  - name: TZ
+    value: Asia/Shanghai
+
+  # -- Resources for Celeborn worker containers.
   resources:
     requests:
       cpu: 100m
