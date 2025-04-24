@@ -58,6 +58,14 @@ tests:
           path: spec.template.spec.containers[0].imagePullPolicy
           value: Always
 
+  - it: Should use the specified replicas if `worker.replicas` is set
+    set:
+      worker.replicas: 10
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 10
+
   - it: Should add environment variables if `worker.env` is set
     set:
       worker:
@@ -265,11 +273,3 @@ tests:
       - equal:
           path: spec.template.spec.securityContext.fsGroup
           value: 3000
-
-  - it: Should use the specified replicas if `workerReplicas` is set
-    set:
-      workerReplicas: 10
-    asserts:
-      - equal:
-          path: spec.replicas
-          value: 10

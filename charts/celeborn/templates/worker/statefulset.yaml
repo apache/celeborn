@@ -22,6 +22,7 @@ metadata:
   labels:
     {{- include "celeborn.worker.labels" . | nindent 4 }}
 spec:
+  replicas: {{ .Values.worker.replicas }}
   serviceName: {{ include "celeborn.worker.service.name" . }}
   selector:
     matchLabels:
@@ -76,7 +77,7 @@ spec:
         - -c
         {{- $namespace := .Release.Namespace }}
         - >
-          until {{ range until (.Values.masterReplicas | int) }}
+          until {{ range until (.Values.master.replicas | int) }}
           nslookup {{ include "celeborn.master.statefulSet.name" $ }}-{{ . }}.{{ include "celeborn.master.service.name" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && 
           {{- end }}
           true; do
@@ -150,4 +151,4 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       terminationGracePeriodSeconds: 30
-  replicas: {{ .Values.workerReplicas }}
+  
