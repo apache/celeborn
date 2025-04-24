@@ -138,10 +138,10 @@ tests:
               operator: Exists
               effect: NoSchedule
 
-  - it: Should use the specified affinity if `affinity.master` is set
+  - it: Should use the specified affinity if `master.affinity` is set
     set:
-      affinity:
-        master:
+      master:
+        affinity:
           nodeAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
               nodeSelectorTerms:
