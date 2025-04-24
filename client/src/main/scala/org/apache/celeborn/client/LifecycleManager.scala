@@ -1509,7 +1509,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       candidates(primaryIndex).fetchPort,
       candidates(primaryIndex).replicatePort,
       PartitionLocation.Mode.PRIMARY)
-
+    primaryLocation.getStorageInfo.availableStorageTypes = availableStorageTypes
     if (pushReplicateEnabled) {
       var replicaIndex = (primaryIndex + 1) % candidates.size
       while (pushRackAwareEnabled && isOnSameRack(primaryIndex, replicaIndex)
@@ -1530,6 +1530,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         candidates(replicaIndex).replicatePort,
         PartitionLocation.Mode.REPLICA,
         primaryLocation)
+      replicaLocation.getStorageInfo.availableStorageTypes = availableStorageTypes
       primaryLocation.setPeer(replicaLocation)
       val primaryAndReplicaPairs = slots.computeIfAbsent(candidates(replicaIndex), newLocationFunc)
       primaryAndReplicaPairs._2.add(replicaLocation)
