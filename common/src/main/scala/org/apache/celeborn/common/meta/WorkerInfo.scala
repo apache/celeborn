@@ -19,11 +19,8 @@ package org.apache.celeborn.common.meta
 
 import java.util
 import java.util.concurrent.TimeUnit
-
 import scala.collection.JavaConverters._
-
 import org.apache.hadoop.net.NetworkTopology
-
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.StorageInfo
@@ -31,6 +28,8 @@ import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.RpcEndpointRef
 import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
+
+import java.util.concurrent.atomic.AtomicBoolean
 
 class WorkerInfo(
     val host: String,
@@ -45,9 +44,11 @@ class WorkerInfo(
   var networkLocation = NetworkTopology.DEFAULT_RACK
   var lastHeartbeat: Long = 0
   var workerStatus = WorkerStatus.normalWorkerStatus()
-  val diskInfos =
+  val diskInfos = {
     if (_diskInfos != null) JavaUtils.newConcurrentHashMap[String, DiskInfo](_diskInfos)
     else null
+  }
+  val workerHasDisk: AtomicBoolean = new AtomicBoolean(computeWorkerHaveDisk)
   val userResourceConsumption =
     if (_userResourceConsumption != null)
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](_userResourceConsumption)
@@ -236,6 +237,7 @@ class WorkerInfo(
           diskInfos.remove(nonExistsMountPoint)
         }
       }
+      workerHasDisk.set(computeWorkerHaveDisk)
       JavaUtils.newConcurrentHashMap[String, DiskInfo](diskInfos)
     }
 
@@ -306,9 +308,17 @@ class WorkerInfo(
     result
   }
 
+  private def computeWorkerHaveDisk = {
+    if (diskInfos != null) {
+      diskInfos.values().asScala.exists(p =>
+        p.storageType == StorageInfo.Type.SSD || p.storageType == StorageInfo.Type.HDD)
+    } else {
+      false
+    }
+  }
+
   def haveDisk(): Boolean = {
-    diskInfos.values().asScala.exists(p =>
-      p.storageType == StorageInfo.Type.SSD || p.storageType == StorageInfo.Type.HDD)
+    workerHasDisk.get()
   }
 }
 
