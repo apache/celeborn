@@ -122,8 +122,6 @@ spec:
         hostPath:
           path: {{ $volume.hostPath | default $volume.mountPath }}/master
           type: DirectoryOrCreate
-      {{- else }}
-      {{ fail "For now Celeborn Helm only support emptyDir or hostPath volume types" }}
       {{- end }}
       {{- end }}
       {{- with .Values.master.nodeSelector }}
@@ -152,3 +150,19 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       terminationGracePeriodSeconds: 30
+  {{- if eq (include "celeborn.master.withPvc" .) "true" }}
+  volumeClaimTemplates:
+  {{- range $index, $volume := .Values.volumes.master }}
+  {{- if eq "pvc" $volume.type }}
+  - metadata:
+      name: {{ $.Release.Name }}-master-vol-{{ $index }}
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: {{ $volume.storageClassName }}
+      resources:
+        requests:
+          storage: {{ $volume.capacity }}
+      volumeMode: Filesystem
+  {{- end }}
+  {{- end }}
+  {{- end }}

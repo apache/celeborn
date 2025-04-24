@@ -297,3 +297,27 @@ tests:
       - equal:
           path: spec.template.spec.securityContext.fsGroup
           value: 3000
+
+  - it: Should define volumeClaimTemplates
+    set:
+      volumes:
+        worker:
+          - mountPath: /mnt/celeborn_ratis
+            type: pvc
+            diskType: SSD
+            storageClassName: gp3
+            capacity: 100Gi
+    asserts:
+      - equal:
+          path: spec.volumeClaimTemplates
+          value:
+            - metadata:
+                name: celeborn-worker-vol-0
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 100Gi
+                storageClassName: gp3
+                volumeMode: Filesystem

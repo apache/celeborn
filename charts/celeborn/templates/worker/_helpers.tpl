@@ -111,3 +111,16 @@ prometheus.io/scheme: 'http'
 prometheus.io/scrape: 'true'
 {{- end }}
 {{- end }}
+
+{{/*
+Indicate if PVC is used on worker volumes
+*/}}
+{{- define "celeborn.worker.withPvc" -}}
+{{- $withPvc := "false" -}}
+{{- range $index, $volume := .Values.volumes.worker }}
+{{- if eq "pvc" $volume.type }}
+{{- $withPvc = "true" -}}
+{{- end }}
+{{- end }}
+{{- $withPvc -}}
+{{- end }}

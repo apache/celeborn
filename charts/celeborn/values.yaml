@@ -64,10 +64,10 @@ cluster:
   name: cluster
 
 # Specifies Celeborn volumes.
-# Currently supported volume types are `emptyDir` and `hostPath`.
+# Currently supported volume types are `emptyDir`, `hostPath` and `pvc`.
 # Note that `hostPath` only works in hostPath type using to set `volumes hostPath path`.
 # Celeborn Master will pick first volumes for store raft log.
-# `diskType` only works in Celeborn Worker with hostPath type to manifest local disk type.
+# `diskType` only works in Celeborn Worker with hostPath and pvc type to manifest disk type.
 volumes:
   # -- Specifies volumes for Celeborn master pods
   master:
@@ -75,6 +75,10 @@ volumes:
       hostPath: /mnt/celeborn_ratis
       type: hostPath
       capacity: 100Gi
+#    - mountPath: /mnt/celeborn_ratis
+#      type: pvc
+#      storageClassName: gp3
+#      capacity: 100Gi
   # -- Specifies volumes for Celeborn worker pods
   worker:
     - mountPath: /mnt/disk1
@@ -97,6 +101,11 @@ volumes:
       type: hostPath
       diskType: SSD
       capacity: 100Gi
+#    - mountPath: /mnt/disk5
+#      type: pvc
+#      diskType: SSD
+#      storageClassName: gp3
+#      capacity: 100Gi
 
 # -- Celeborn configurations
 celeborn:
