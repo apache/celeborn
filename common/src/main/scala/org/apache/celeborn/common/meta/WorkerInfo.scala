@@ -19,8 +19,12 @@ package org.apache.celeborn.common.meta
 
 import java.util
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+
 import scala.collection.JavaConverters._
+
 import org.apache.hadoop.net.NetworkTopology
+
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.StorageInfo
@@ -28,8 +32,6 @@ import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.RpcEndpointRef
 import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
-
-import java.util.concurrent.atomic.AtomicBoolean
 
 class WorkerInfo(
     val host: String,
