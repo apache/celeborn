@@ -261,7 +261,9 @@ class UtilsSuite extends CelebornFunSuite {
 
   test("test instantiate") {
     val celebornConf = new CelebornConf()
-    assert(Utils.instantiate[DefaultIdentityProvider](celebornConf.identityProviderClass)
-      .isInstanceOf[DefaultIdentityProvider])
+    val testInstance = Utils.instantiateClassWithCelebornConf[DefaultIdentityProvider](
+      celebornConf.identityProviderClass,
+      celebornConf)
+    assert(testInstance.isInstanceOf[DefaultIdentityProvider])
   }
 }

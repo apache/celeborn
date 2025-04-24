@@ -19,7 +19,9 @@ package org.apache.celeborn.common.identity
 
 import org.apache.hadoop.security.UserGroupInformation
 
-class HadoopBasedIdentityProvider extends IdentityProvider {
+import org.apache.celeborn.common.CelebornConf
+
+class HadoopBasedIdentityProvider(conf: CelebornConf) extends IdentityProvider(conf) {
   override def provide(): UserIdentifier = {
     UserIdentifier(
       IdentityProvider.DEFAULT_TENANT_ID,

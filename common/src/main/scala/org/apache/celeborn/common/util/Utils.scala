@@ -613,7 +613,7 @@ object Utils extends Logging {
     }
   }
 
-  def instantiateDynamicConfigStoreBackend[T](className: String, conf: CelebornConf): T = {
+  def instantiateClassWithCelebornConf[T](className: String, conf: CelebornConf): T = {
     try {
       DynConstructors.builder().impl(className, classOf[CelebornConf])
         .build[T]()
@@ -621,7 +621,7 @@ object Utils extends Logging {
     } catch {
       case e: Throwable =>
         throw new CelebornException(
-          s"Failed to instantiate dynamic config store backend $className.",
+          s"Failed to instantiate class $className with celeborn conf.",
           e)
     }
   }
