@@ -23,8 +23,7 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-import org.apache.spark.{RunningStageManager, RunningStageManagerImpl}
-import org.apache.spark.shuffle.celeborn.SparkCommonUtils
+import org.apache.spark.shuffle.celeborn.{RunningStageManagerImpl, SparkCommonUtils}
 
 import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.internal.Logging

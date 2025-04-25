@@ -18,8 +18,9 @@ package org.apache.celeborn.tests.spark.fetch_failure
 
 import scala.collection.mutable
 
-import org.apache.spark.RunningStageManager
 import org.apache.spark.scheduler.SparkSchedulerHelper
+
+import org.apache.celeborn.spark.RunningStageManager
 
 class TestRunningStageManager extends RunningStageManager {
   import TestRunningStageManager._

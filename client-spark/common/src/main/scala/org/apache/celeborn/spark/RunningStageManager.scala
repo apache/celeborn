@@ -14,33 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark
-
-import scala.collection.mutable
+package org.apache.celeborn.spark
 
 trait RunningStageManager {
   def isRunningStage(stageId: Int): Boolean
-}
-
-class RunningStageManagerImpl extends RunningStageManager {
-
-  private val stageClass = Class.forName("org.apache.spark.scheduler.Stage")
-
-  private val idField = stageClass.getDeclaredField("id")
-  idField.setAccessible(true)
-
-  private def runningStages: mutable.HashSet[_] = {
-    val dagSchedulerClz = SparkContext.getActive.get.dagScheduler.getClass
-    val runningStagesField = dagSchedulerClz.getDeclaredField("runningStages")
-    runningStagesField.setAccessible(true)
-    runningStagesField.get(SparkContext.getActive.get.dagScheduler)
-      .asInstanceOf[mutable.HashSet[_]]
-  }
-
-  override def isRunningStage(stageId: Int): Boolean = {
-    runningStages.map { stage =>
-      val stageId = idField.get(stage).asInstanceOf[Int]
-      stageId
-    }.contains(stageId)
-  }
 }
