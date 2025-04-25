@@ -44,6 +44,7 @@ import org.junit.Test;
 
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.CommitMetadata;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -67,7 +68,8 @@ public class ShuffleClientSuiteJ {
   private static final String TEST_APPLICATION_ID = "testapp1";
   private static final int TEST_SHUFFLE_ID = 1;
   private static final int TEST_ATTEMPT_ID = 0;
-  private static final int TEST_REDUCRE_ID = 0;
+  private static final int TEST_REDUCER_ID = 0;
+  private static final int TEST_MAP_ID = 0;
 
   private static final int PRIMARY_RPC_PORT = 1234;
   private static final int PRIMARY_PUSH_PORT = 1235;
@@ -111,7 +113,7 @@ public class ShuffleClientSuiteJ {
               TEST_SHUFFLE_ID,
               TEST_ATTEMPT_ID,
               TEST_ATTEMPT_ID,
-              TEST_REDUCRE_ID,
+              TEST_REDUCER_ID,
               TEST_BUF1,
               0,
               TEST_BUF1.length,
