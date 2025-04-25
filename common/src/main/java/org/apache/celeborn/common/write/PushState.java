@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.celeborn.common.CommitMetadata;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -33,6 +34,8 @@ public class PushState {
   private final int pushBufferMaxSize;
   public AtomicReference<IOException> exception = new AtomicReference<>();
   private final InFlightRequestTracker inFlightRequestTracker;
+  private final ConcurrentHashMap<Integer, CommitMetadata> commitMetadataMap =
+          new ConcurrentHashMap<>();
 
   private final Map<String, LocationPushFailedBatches> failedBatchMap;
 
@@ -101,5 +104,35 @@ public class PushState {
 
   public Map<String, LocationPushFailedBatches> getFailedBatches() {
     return this.failedBatchMap;
+  }
+
+  public int[] getCRC32PerPartition(boolean shuffleIntegrityCheckEnabled, int numPartitions) {
+    int[] crc32PerPartition = new int[numPartitions];
+    if (!shuffleIntegrityCheckEnabled) {
+      return crc32PerPartition;
+    }
+
+    for (Map.Entry<Integer, CommitMetadata> entry : commitMetadataMap.entrySet()) {
+      crc32PerPartition[entry.getKey()] = entry.getValue().getChecksum();
+    }
+    return crc32PerPartition;
+  }
+
+  public long[] getBytesWrittenPerPartition(boolean shuffleIntegrityCheckEnabled, int numPartitions) {
+    long[] bytesWrittenPerPartition = new long[numPartitions];
+    if (!shuffleIntegrityCheckEnabled) {
+      return bytesWrittenPerPartition;
+    }
+
+    for (Map.Entry<Integer, CommitMetadata> entry : commitMetadataMap.entrySet()) {
+      bytesWrittenPerPartition[entry.getKey()] = entry.getValue().getBytes();
+    }
+    return bytesWrittenPerPartition;
+  }
+
+  public void addDataWithOffsetAndLength(int partitionId, byte[] data, int offset, int length) {
+    CommitMetadata commitMetadata =
+            commitMetadataMap.computeIfAbsent(partitionId, id -> new CommitMetadata());
+    commitMetadata.addDataWithOffsetAndLength(data, offset, length);
   }
 }
