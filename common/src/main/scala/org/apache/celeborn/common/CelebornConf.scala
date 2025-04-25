@@ -1415,6 +1415,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFlinkDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
   def clientFlinkMetricsScopeNamingShuffle: String =
     get(CLIENT_METRICS_SCOPE_NAMING_SHUFFLE)
+  def clientShuffleIntegrityCheckEnabled: Boolean = get(CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED)
   def clientChunkPrefetchEnabled = get(CLIENT_CHUNK_PREFETCH_ENABLED)
   def clientInputStreamCreationWindow = get(CLIENT_INPUTSTREAM_CREATION_WINDOW)
 
@@ -5922,6 +5923,14 @@ object CelebornConf extends Logging {
       .doc("Threads count for streamCreatorPool in CelebornShuffleReader.")
       .intConf
       .createWithDefault(32)
+
+  val CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.integrityCheck.enabled")
+    .categories("client", "shuffle")
+    .version("0.5.0")
+    .doc("When `true`, enables end-to-end integrity checks.")
+    .booleanConf
+    .createWithDefault(false)
 
   val CLIENT_CHUNK_PREFETCH_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.chunk.prefetch.enabled")
