@@ -114,6 +114,8 @@ enum MessageType {
   PUSH_MERGED_DATA_SPLIT_PARTITION_INFO = 91;
   GET_STAGE_END = 92;
   GET_STAGE_END_RESPONSE = 93;
+  REDUCER_PARTITION_END = 94;
+  REDUCER_PARTITION_END_RESPONSE = 95;
 }
 
 enum StreamType {
@@ -360,6 +362,9 @@ message PbMapperEnd {
   int32 numMappers = 4;
   int32 partitionId = 5;
   map<string, PbLocationPushFailedBatches> pushFailureBatches= 6;
+  int32 numPartitions = 7;
+  repeated int32 crc32PerPartition = 8;
+  repeated int64 bytesWrittenPerPartition = 9;
 }
 
 message PbLocationPushFailedBatches {
@@ -919,4 +924,18 @@ message PbGetStageEndResponse {
 
 message PbChunkOffsets {
   repeated int64 chunkOffset = 1;
+}
+
+message PbReducerPartitionEnd {
+  int32 shuffleId = 1;
+  int32 partitionId = 2;
+  int32 startMaxIndex = 3;
+  int32 endMapIndex = 4;
+  int32 crc32 = 5;
+  int64 bytesWritten = 6;
+}
+
+message PbReducerPartitionEndResponse {
+  int32 status = 1;
+  string errorMsg = 2;
 }
