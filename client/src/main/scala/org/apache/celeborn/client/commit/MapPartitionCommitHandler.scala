@@ -20,15 +20,14 @@ package org.apache.celeborn.client.commit
 import java.util
 import java.util.Collections
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
-import java.util.concurrent.atomic.AtomicInteger
-
+import java.util.concurrent.atomic.{AtomicInteger, AtomicIntegerArray}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-
+import org.roaringbitmap.RoaringBitmap
 import org.apache.celeborn.client.{ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
-import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.SerdeVersion
@@ -187,7 +186,10 @@ class MapPartitionCommitHandler(
       numMappers: Int,
       partitionId: Int,
       pushFailedBatches: util.Map[String, LocationPushFailedBatches],
-      recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean) = {
+      recordWorkerFailure: ShuffleFailedWorkers => Unit,
+      numPartitions: Int,
+      crc32PerPartition: Array[Int],
+      bytesWrittenPerPartition: Array[Long]): (Boolean, Boolean) = {
     val inProcessingPartitionIds =
       inProcessMapPartitionEndIds.computeIfAbsent(
         shuffleId,
@@ -222,13 +224,23 @@ class MapPartitionCommitHandler(
   override def registerShuffle(
       shuffleId: Int,
       numMappers: Int,
-      isSegmentGranularityVisible: Boolean): Unit = {
-    super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible)
+      isSegmentGranularityVisible: Boolean,
+      numPartitions: Int): Unit = {
+    super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible, numPartitions)
     shuffleIsSegmentGranularityVisible.put(shuffleId, isSegmentGranularityVisible)
   }
 
   override def isSegmentGranularityVisible(shuffleId: Int): Boolean = {
     shuffleIsSegmentGranularityVisible.get(shuffleId)
+  }
+
+  override def finishPartition(
+      shuffleId: Int,
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      actualCommitMetadata: CommitMetadata): (Boolean, String) = {
+    throw new UnsupportedOperationException()
   }
 
   override def handleGetReducerFileGroup(

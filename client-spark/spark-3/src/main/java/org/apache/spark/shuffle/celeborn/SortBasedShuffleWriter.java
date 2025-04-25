@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
 import scala.Option;
@@ -26,10 +27,8 @@ import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.spark.Partitioner;
-import org.apache.spark.ShuffleDependency;
-import org.apache.spark.SparkEnv;
-import org.apache.spark.TaskContext;
+import com.google.common.base.Stopwatch;
+import org.apache.spark.*;
 import org.apache.spark.annotation.Private;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.serializer.SerializationStream;
@@ -376,13 +375,28 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     pusher.pushData(false);
     pusher.close(true);
 
+    Stopwatch waitingStartTime = Stopwatch.createStarted();
+
     shuffleClient.pushMergedData(shuffleId, mapId, encodedAttemptId);
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
     writeMetrics.incRecordsWritten(tmpRecordsWritten);
+    long pushMergedDataTime = waitingStartTime.elapsed(TimeUnit.MILLISECONDS);
 
-    long waitStartTime = System.nanoTime();
-    shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers);
-    writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
+    Stopwatch mapperEndSw = Stopwatch.createStarted();
+    int writtenPartitions =
+        shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);
+    long mapperEndElapsedMs = mapperEndSw.elapsed(TimeUnit.MILLISECONDS);
+    writeMetrics.incWriteTime(mapperEndElapsedMs);
+
+    logger.info(
+        "SortBasedShuffleWriter close() ShuffleId {} mapId {} encodedAttemptId {}: mappers {}/{} sendCommitMetadata took {} ms, mapperEnd took {} ms",
+        shuffleId,
+        mapId,
+        encodedAttemptId,
+        writtenPartitions,
+        numMappers,
+        pushMergedDataTime,
+        mapperEndElapsedMs);
   }
 
   @Override
