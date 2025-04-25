@@ -462,7 +462,7 @@ public class SparkUtils {
             }
           } else {
             if (ti.attemptNumber() >= maxTaskFails - 1) {
-              LOG.info(
+              LOG.warn(
                   "StageId={} index={} taskId={} attemptNumber {} reach maxTaskFails {}.",
                   stageId,
                   taskInfo.index(),
