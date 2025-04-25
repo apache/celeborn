@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.client;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -122,6 +124,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final boolean pushExcludeWorkerOnFailureEnabled;
   private final boolean shuffleCompressionEnabled;
+  private final boolean shuffleIntegrityCheckEnabled;
+
   private final Set<String> pushExcludedWorkers = ConcurrentHashMap.newKeySet();
   private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
       JavaUtils.newConcurrentHashMap();
@@ -203,6 +207,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     shuffleCompressionEnabled = !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
     pushReplicateEnabled = conf.clientPushReplicateEnabled();
     fetchExcludeWorkerOnFailureEnabled = conf.clientFetchExcludeWorkerOnFailureEnabled();
+    shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled();
     if (conf.clientPushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
@@ -649,6 +654,29 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
+  public void reducerPartitionEnd(
+          int shuffleId, int partitionId, int startMapIndex, int endMapIndex, int actualMapperCount)
+          throws IOException {
+    PbReducerPartitionEnd pbReducerPartitionEnd =
+            PbReducerPartitionEnd.newBuilder()
+                    .setShuffleId(shuffleId)
+                    .setPartitionId(partitionId)
+                    .setStartMaxIndex(startMapIndex)
+                    .setEndMapIndex(endMapIndex)
+                    .setActualMapperCount(actualMapperCount)
+                    .build();
+
+    PbReducerPartitionEndResponse pbReducerPartitionEndResponse =
+            lifecycleManagerRef.askSync(
+                    pbReducerPartitionEnd,
+                    conf.clientRpcRegisterShuffleAskTimeout(),
+                    ClassTag$.MODULE$.apply(PbReducerPartitionEndResponse.class));
+    if (pbReducerPartitionEndResponse.getStatus() != StatusCode.SUCCESS.getValue()) {
+      throw new CelebornIOException(pbReducerPartitionEndResponse.getErrorMsg());
+    }
+  }
+
+  @Override
   public boolean reportShuffleFetchFailure(int appShuffleId, int shuffleId, long taskId) {
     PbReportShuffleFetchFailure pbReportShuffleFetchFailure =
         PbReportShuffleFetchFailure.newBuilder()
@@ -1011,6 +1039,12 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     // increment batchId
     final int nextBatchId = pushState.nextBatchId();
+
+    // Track commit metadata if shuffle compression and integrity check are enabled and this request
+    // is not for pushing metadata itself.
+    if (shuffleCompressionEnabled && shuffleIntegrityCheckEnabled) {
+        pushState.addDataWithOffsetAndLength(partitionId, data, offset, length);
+    }
 
     if (shuffleCompressionEnabled && !skipCompress) {
       // compress data
@@ -1725,25 +1759,35 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers)
+  public void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
       throws IOException {
-    mapEndInternal(shuffleId, mapId, attemptId, numMappers, -1);
+    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, -1);
   }
 
   @Override
   public void mapPartitionMapperEnd(
-      int shuffleId, int mapId, int attemptId, int numMappers, int partitionId) throws IOException {
-    mapEndInternal(shuffleId, mapId, attemptId, numMappers, partitionId);
+      int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions, int partitionId)
+      throws IOException {
+    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, partitionId);
   }
 
   private void mapEndInternal(
-      int shuffleId, int mapId, int attemptId, int numMappers, Integer partitionId)
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int numPartitions,
+      Integer partitionId)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = getPushState(mapKey);
 
     try {
       limitZeroInFlight(mapKey, pushState);
+
+      //send CRC32 and num bytes per partition if e2e checks are enabled
+      int[] crc32PerPartition = pushState.getCRC32PerPartition(shuffleIntegrityCheckEnabled, numPartitions);
+      long[] bytesPerPartition = pushState.getBytesWrittenPerPartition(shuffleIntegrityCheckEnabled, numPartitions);
 
       MapperEndResponse response =
           lifecycleManagerRef.askSync(
@@ -1753,7 +1797,10 @@ public class ShuffleClientImpl extends ShuffleClient {
                   attemptId,
                   numMappers,
                   partitionId,
-                  pushState.getFailedBatches()),
+                  pushState.getFailedBatches(),
+                  numPartitions,
+                  crc32PerPartition,
+                  bytesPerPartition),
               rpcMaxRetries,
               rpcRetryWait,
               ClassTag$.MODULE$.apply(MapperEndResponse.class));
