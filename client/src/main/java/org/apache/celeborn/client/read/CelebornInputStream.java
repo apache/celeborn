@@ -17,6 +17,9 @@
 
 package org.apache.celeborn.client.read;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.celeborn.client.read.CelebornIntegrityCheckTracker.registerValidation;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
@@ -24,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
+import org.apache.celeborn.common.CommitMetadata;
 import scala.Tuple2;
 
 import com.github.luben.zstd.ZstdException;
@@ -153,6 +157,7 @@ public abstract class CelebornInputStream extends InputStream {
         public int partitionsRead() {
           return 0;
         }
+
       };
 
   public abstract int totalPartitionsToRead();
@@ -201,8 +206,10 @@ public abstract class CelebornInputStream extends InputStream {
     private final boolean rangeReadFilter;
     private final boolean enabledReadLocalShuffle;
     private final String localHostAddress;
+    private final Map<String, CommitMetadata> expectedCommitMetadataMap = new HashMap<>();
 
     private boolean shuffleCompressionEnabled;
+    private boolean shuffleIntegrityCheckEnabled;
     private long fetchExcludedWorkerExpireTimeout;
     private ConcurrentHashMap<String, Long> fetchExcludedWorkers;
 
@@ -213,6 +220,8 @@ public abstract class CelebornInputStream extends InputStream {
     private int partitionId;
     private ExceptionMaker exceptionMaker;
     private boolean closed = false;
+    private boolean integrityChecked = false;
+    private final CommitMetadata aggregatedActualCommitMetadata = new CommitMetadata();
 
     private final boolean readSkewPartitionWithoutMapRange;
 
@@ -299,6 +308,11 @@ public abstract class CelebornInputStream extends InputStream {
       this.localHostAddress = Utils.localHostName(conf);
       this.shuffleCompressionEnabled =
           !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
+      this.shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled();
+      if (this.shuffleIntegrityCheckEnabled) {
+        checkArgument(
+                this.shuffleCompressionEnabled, "Shuffle integrity check requires shuffle compression");
+      }
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.failedBatches = failedBatchSet;
       this.readSkewPartitionWithoutMapRange = readSkewPartitionWithoutMapRange;
@@ -715,6 +729,32 @@ public abstract class CelebornInputStream extends InputStream {
       }
     }
 
+    void validateIntegrity() {
+      if (integrityChecked) {
+        logger.info("Skipping integrity checks since checks have already been performed");
+        return;
+      }
+      if (!shuffleIntegrityCheckEnabled) {
+        logger.info("Skipping integrity checks since shuffleIntegrityCheckEnabled is disabled");
+        return;
+      }
+
+      String key = Utils.makeReducerKey(shuffleId, partitionId);
+
+      try {
+        shuffleClient.reducerPartitionEnd(
+                shuffleId, partitionId, startMapIndex, endMapIndex, aggregatedActualCommitMetadata.getChecksum(), aggregatedActualCommitMetadata.getBytes());
+        logger.info(
+                "reducerPartitionEnd successful for {}. actual CommitMetadata: {}",
+                key,
+                aggregatedActualCommitMetadata);
+        registerValidation(appShuffleId, startMapIndex, endMapIndex, partitionId);
+        integrityChecked = true;
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
     private boolean moveToNextChunk() throws IOException {
       if (currentChunk != null) {
         currentChunk.release();
@@ -754,6 +794,7 @@ public abstract class CelebornInputStream extends InputStream {
           firstChunk = false;
         }
         if (currentChunk == null) {
+          validateIntegrity();
           close();
           return false;
         }
@@ -805,6 +846,7 @@ public abstract class CelebornInputStream extends InputStream {
             if (!batchSet.contains(batchId)) {
               batchSet.add(batchId);
               callback.incBytesRead(BATCH_HEADER_SIZE + size);
+
               if (shuffleCompressionEnabled) {
                 // decompress data
                 int originalLength = decompressor.getOriginalLen(compressedBuf);
@@ -812,9 +854,13 @@ public abstract class CelebornInputStream extends InputStream {
                   rawDataBuf = new byte[originalLength];
                 }
                 limit = decompressor.decompress(compressedBuf, rawDataBuf, 0);
+                if (shuffleIntegrityCheckEnabled) {
+                  aggregatedActualCommitMetadata.addDataWithOffsetAndLength(rawDataBuf, 0, limit);
+                }
               } else {
                 limit = size;
               }
+
               position = 0;
               hasData = true;
               break;
@@ -827,6 +873,11 @@ public abstract class CelebornInputStream extends InputStream {
                   batchId);
             }
           }
+        }
+
+        if (!hasData) {
+          validateIntegrity();
+          // TODO(borovsky) consider closing the stream
         }
 
         return hasData;
@@ -879,5 +930,6 @@ public abstract class CelebornInputStream extends InputStream {
     public int partitionsRead() {
       return fileIndex;
     }
+
   }
 }
