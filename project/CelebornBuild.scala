@@ -728,6 +728,11 @@ object CelebornMaster {
       Seq.empty
     }
 
+  lazy val jmhDependencies = Seq(
+    "org.openjdk.jmh" % "jmh-core" % "1.37",
+    "org.openjdk.jmh" % "jmh-generator-annprocess" % "1.37"
+  )
+
   lazy val master = Project("celeborn-master", file("master"))
     .dependsOn(CelebornCommon.common)
     .dependsOn(CelebornCommon.common % "test->test;compile->compile")
@@ -750,8 +755,9 @@ object CelebornMaster {
         Dependencies.ratisServer,
         Dependencies.ratisShell,
         Dependencies.scalatestMockito % "test",
-      ) ++ commonUnitTestDependencies ++ mpuDependencies
+      ) ++ commonUnitTestDependencies ++ mpuDependencies ++ jmhDependencies
     )
+    .enablePlugins(pl.project13.scala.sbt.JmhPlugin)
 }
 
 object CelebornWorker {
