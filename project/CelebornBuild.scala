@@ -85,6 +85,7 @@ object Dependencies {
   val httpCore5Version = "5.2.4"
   val jakartaAnnotationApiVersion = "1.3.5"
   val picocliVersion = "4.7.6"
+  val jmhVersion = "1.37"
 
   // For SSL support
   val bouncycastleVersion = "1.77"
@@ -264,6 +265,9 @@ object Dependencies {
   )
 
   val picocli = "info.picocli" % "picocli" % picocliVersion
+
+  val jmhCore = "org.openjdk.jmh" % "jmh-core" % jmhVersion % "test"
+  val jmhGeneratorAnnprocess = "org.openjdk.jmh" % "jmh-generator-annprocess" % jmhVersion % "test"
 }
 
 object CelebornCommonSettings {
@@ -728,10 +732,7 @@ object CelebornMaster {
       Seq.empty
     }
 
-  lazy val jmhDependencies = Seq(
-    "org.openjdk.jmh" % "jmh-core" % "1.37",
-    "org.openjdk.jmh" % "jmh-generator-annprocess" % "1.37"
-  )
+  lazy val jmhDependencies = Seq(Dependencies.jmhCore, Dependencies.jmhGeneratorAnnprocess)
 
   lazy val master = Project("celeborn-master", file("master"))
     .dependsOn(CelebornCommon.common)
