@@ -1182,10 +1182,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def partitionSplitMinimumSize: Long = get(WORKER_PARTITION_SPLIT_MIN_SIZE)
   def partitionSplitMaximumSize: Long = get(WORKER_PARTITION_SPLIT_MAX_SIZE)
 
-  def s3AccessKey: String = get(S3_ACCESS_KEY).getOrElse("")
-
-  def s3SecretKey: String = get(S3_SECRET_KEY).getOrElse("")
-
   def s3EndpointRegion: String = get(S3_ENDPOINT_REGION).getOrElse("")
 
   def s3MultiplePartUploadMaxRetries: Int = get(S3_MPU_MAX_RETRIES)
@@ -3167,22 +3163,6 @@ object CelebornConf extends Logging {
       .categories("worker", "master", "client")
       .version("0.6.0")
       .doc("S3 base directory for Celeborn to store shuffle data.")
-      .stringConf
-      .createOptional
-
-  val S3_SECRET_KEY: OptionalConfigEntry[String] =
-    buildConf("celeborn.storage.s3.secret.key")
-      .categories("worker", "master", "client")
-      .version("0.6.0")
-      .doc("S3 secret key for Celeborn to store shuffle data.")
-      .stringConf
-      .createOptional
-
-  val S3_ACCESS_KEY: OptionalConfigEntry[String] =
-    buildConf("celeborn.storage.s3.access.key")
-      .categories("worker", "master", "client")
-      .version("0.6.0")
-      .doc("S3 access key for Celeborn to store shuffle data.")
       .stringConf
       .createOptional
 

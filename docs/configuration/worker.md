@@ -51,11 +51,9 @@ license: |
 | celeborn.storage.oss.endpoint | &lt;undefined&gt; | false | OSS endpoint for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.oss.ignore.credentials | true | false | Whether to skip oss credentials, disable this config to support jindo sdk . | 0.6.0 |  | 
 | celeborn.storage.oss.secret.key | &lt;undefined&gt; | false | OSS secret key for Celeborn to store shuffle data. | 0.6.0 |  | 
-| celeborn.storage.s3.access.key | &lt;undefined&gt; | false | S3 access key for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.s3.dir | &lt;undefined&gt; | false | S3 base directory for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.s3.endpoint.region | &lt;undefined&gt; | false | S3 endpoint for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.storage.s3.mpu.maxRetries | 5 | false | S3 MPU upload max retries. | 0.6.0 |  | 
-| celeborn.storage.s3.secret.key | &lt;undefined&gt; | false | S3 secret key for Celeborn to store shuffle data. | 0.6.0 |  | 
 | celeborn.worker.activeConnection.max | &lt;undefined&gt; | false | If the number of active connections on a worker exceeds this configuration value, the worker will be marked as high-load in the heartbeat report, and the master will not include that node in the response of RequestSlots. | 0.3.1 |  | 
 | celeborn.worker.applicationRegistry.cache.size | 10000 | false | Cache size of the application registry on Workers. | 0.5.0 |  | 
 | celeborn.worker.bufferStream.threadsPerMountpoint | 8 | false | Threads count for read buffer per mount point. | 0.3.0 |  | 
