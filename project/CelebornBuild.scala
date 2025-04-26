@@ -758,7 +758,6 @@ object CelebornMaster {
         Dependencies.scalatestMockito % "test",
       ) ++ commonUnitTestDependencies ++ mpuDependencies ++ jmhDependencies
     )
-    .enablePlugins(pl.project13.scala.sbt.JmhPlugin)
 }
 
 object CelebornWorker {
