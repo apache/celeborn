@@ -214,6 +214,6 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
       numPartitions,
       9)
     // another mapper
-    shuffleClient.mapPartitionMapperEnd(shuffleId, mapId + 1, attemptId, numMappers, mapId + 1)
+    shuffleClient.mapPartitionMapperEnd(shuffleId, mapId + 1, attemptId, numMappers, numPartitions, mapId + 1)
   }
 }
