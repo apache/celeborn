@@ -19,7 +19,9 @@ package org.apache.celeborn.client.commit
 
 import java.util
 import java.util.Comparator
+
 import com.google.common.base.Preconditions.{checkArgument, checkState}
+
 import org.apache.celeborn.common.CommitMetadata
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.JavaUtils
@@ -29,7 +31,8 @@ class PartitionCompletenessValidator extends Logging {
   private val actualCommitMetadataForReducer = {
     JavaUtils.newConcurrentHashMap[Int, java.util.TreeMap[(Int, Int), CommitMetadata]]()
   }
-  private val currentCommitMetadataForReducer = JavaUtils.newConcurrentHashMap[Int, CommitMetadata]()
+  private val currentCommitMetadataForReducer =
+    JavaUtils.newConcurrentHashMap[Int, CommitMetadata]()
   private val currentTotalMapRangeSumForReducer = JavaUtils.newConcurrentHashMap[Int, Int]()
   private val comparator: Comparator[(Int, Int)] = (o1: (Int, Int), o2: (Int, Int)) => {
     val comparator = Integer.compare(o1._1, o2._1)
@@ -40,12 +43,12 @@ class PartitionCompletenessValidator extends Logging {
   }
 
   def validateSubPartition(
-                            partitionId: Int,
-                            startMapIndex: Int,
-                            endMapIndex: Int,
-                            actualCommitMetadata: CommitMetadata,
-                            expectedCommitMetadata: CommitMetadata,
-                            expectedTotalMapperCountForParent: Int): (Boolean, String) = {
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      actualCommitMetadata: CommitMetadata,
+      expectedCommitMetadata: CommitMetadata,
+      expectedTotalMapperCountForParent: Int): (Boolean, String) = {
     checkArgument(
       startMapIndex < endMapIndex,
       "startMapIndex %s must be less than endMapIndex %s",
@@ -70,8 +73,14 @@ class PartitionCompletenessValidator extends Logging {
           return (false, errorMessage)
         } else {
           subRangeToCommitMetadataMap.put((startMapIndex, endMapIndex), actualCommitMetadata)
-          currentCommitMetadataForReducer.merge(partitionId, actualCommitMetadata, CommitMetadata.combineMetadata)
-          currentTotalMapRangeSumForReducer.merge(partitionId, endMapIndex - startMapIndex, Integer.sum)
+          currentCommitMetadataForReducer.merge(
+            partitionId,
+            actualCommitMetadata,
+            CommitMetadata.combineMetadata)
+          currentTotalMapRangeSumForReducer.merge(
+            partitionId,
+            endMapIndex - startMapIndex,
+            Integer.sum)
         }
       } else if (count != actualCommitMetadata) {
         val errorMessage = s"Commit Metadata for partition: $partitionId " +
@@ -134,7 +143,7 @@ class PartitionCompletenessValidator extends Logging {
       startMapIndex,
       endMapIndex)
     val sumOfMapRanges: Int = currentTotalMapRangeSumForReducer.get(partitionId)
-    val currentCommitMetadata: CommitMetadata  =
+    val currentCommitMetadata: CommitMetadata =
       currentCommitMetadataForReducer.get(partitionId)
 
     if (sumOfMapRanges > totalMapperCountForPartition) {
