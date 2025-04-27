@@ -26,8 +26,8 @@ license: |
 | celeborn.metrics.extraLabels |  | false | If default metric labels are not enough, extra metric labels can be customized. Labels' pattern is: `<label1_key>=<label1_value>[,<label2_key>=<label2_value>]*`; e.g. `env=prod,version=1` | 0.3.0 |  | 
 | celeborn.metrics.json.path | /metrics/json | false | URI context path of json metrics HTTP server. | 0.4.0 |  | 
 | celeborn.metrics.json.pretty.enabled | true | false | When true, view metrics in json pretty format | 0.4.0 |  | 
+| celeborn.metrics.label.applicationId | false | false | When true, push applicationId as label for certain metrics. Note: applicationId is considered as a high cardinality label, be careful enabling it on metrics systems that are not optimized for high cardinality columns. | 0.6.0 |  | 
 | celeborn.metrics.prometheus.path | /metrics/prometheus | false | URI context path of prometheus metrics HTTP server. | 0.4.0 |  | 
-| celeborn.metrics.pushApplicationId | true | false | When true, push applicationId as label for certain metrics | 0.6.0 |  | 
 | celeborn.metrics.sample.rate | 1.0 | false | It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0]. | 0.2.0 |  | 
 | celeborn.metrics.timer.slidingWindow.size | 4096 | false | The sliding window size of timer metric. | 0.2.0 |  | 
 | celeborn.metrics.worker.app.topResourceConsumption.count | 50 | false | Size for top items about top resource consumption applications list of worker. The top resource consumption is determined by sum of diskBytesWritten and hdfsBytesWritten. The top resource consumption count prevents the total number of metrics from exceeding the metrics capacity. | 0.6.0 |  | 
