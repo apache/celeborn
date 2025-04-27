@@ -83,6 +83,8 @@ private[celeborn] class Worker(
   metricsSystem.registerSource(new SystemMiscSource(conf, Role.WORKER))
 
   private val topResourceConsumptionCount = conf.metricsWorkerAppTopResourceConsumptionCount
+  private val topResourceConsumptionBytesWrittenThreshold =
+    conf.metricsWorkerAppTopResourceConsumptionBytesWrittenThreshold
   private val topApplicationUserIdentifiers =
     JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
 
@@ -707,8 +709,11 @@ private[celeborn] class Worker(
       .reverse
       .take(topResourceConsumptionCount).foreach {
         case (appId, userIdentifier, appConsumption) =>
-          topApplicationUserIdentifiers.put(appId, userIdentifier)
-          gaugeResourceConsumption(userIdentifier, appId, appConsumption)
+          if (appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten >
+              topResourceConsumptionBytesWrittenThreshold) {
+            topApplicationUserIdentifiers.put(appId, userIdentifier)
+            gaugeResourceConsumption(userIdentifier, appId, appConsumption)
+          }
       }
   }
 

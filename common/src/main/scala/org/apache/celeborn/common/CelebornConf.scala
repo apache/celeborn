@@ -889,6 +889,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(METRICS_EXTRA_LABELS).map(Utils.parseMetricLabels).toMap
   def metricsWorkerAppTopResourceConsumptionCount: Int =
     get(METRICS_WORKER_APP_TOP_RESOURCE_CONSUMPTION_COUNT)
+  def metricsWorkerAppTopResourceConsumptionBytesWrittenThreshold: Long =
+    get(METRICS_WORKER_APP_TOP_RESOURCE_CONSUMPTION_BYTES_WRITTEN_THRESHOLD)
   def metricsWorkerForceAppendPauseSpentTimeThreshold: Int =
     get(METRICS_WORKER_PAUSE_SPENT_TIME_FORCE_APPEND_THRESHOLD)
   def metricsJsonPrettyEnabled: Boolean = get(METRICS_JSON_PRETTY_ENABLED)
@@ -5547,6 +5549,16 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .intConf
       .createWithDefault(50)
+
+  val METRICS_WORKER_APP_TOP_RESOURCE_CONSUMPTION_BYTES_WRITTEN_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.metrics.worker.app.topResourceConsumption.bytesWrittenThreshold")
+      .categories("metrics")
+      .doc("Threshold of bytes written for top resource consumption applications list of worker. " +
+        "The application which has bytes written less than this threshold will not be included " +
+        "in the top resource consumption list, including diskBytesWritten and hdfsBytesWritten.")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(0)
 
   val METRICS_WORKER_PAUSE_SPENT_TIME_FORCE_APPEND_THRESHOLD: ConfigEntry[Int] =
     buildConf("celeborn.metrics.worker.pauseSpentTime.forceAppend.threshold")
