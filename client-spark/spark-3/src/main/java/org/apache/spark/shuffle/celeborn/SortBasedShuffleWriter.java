@@ -383,20 +383,9 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     long pushMergedDataTime = waitingStartTime.elapsed(TimeUnit.MILLISECONDS);
 
     Stopwatch mapperEndSw = Stopwatch.createStarted();
-    int writtenPartitions =
-        shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);
+    shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);
     long mapperEndElapsedMs = mapperEndSw.elapsed(TimeUnit.MILLISECONDS);
     writeMetrics.incWriteTime(mapperEndElapsedMs);
-
-    logger.info(
-        "SortBasedShuffleWriter close() ShuffleId {} mapId {} encodedAttemptId {}: mappers {}/{} sendCommitMetadata took {} ms, mapperEnd took {} ms",
-        shuffleId,
-        mapId,
-        encodedAttemptId,
-        writtenPartitions,
-        numMappers,
-        pushMergedDataTime,
-        mapperEndElapsedMs);
   }
 
   @Override
