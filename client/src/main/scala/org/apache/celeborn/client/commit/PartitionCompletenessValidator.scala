@@ -74,7 +74,7 @@ class PartitionCompletenessValidator extends Logging {
           currentTotalMapRangeSumForReducer.merge(partitionId, endMapIndex - startMapIndex, Integer.sum)
         }
       } else if (count != actualCommitMetadata) {
-        val errorMessage = s"Written mapper count for partition: $partitionId " +
+        val errorMessage = s"Commit Metadata for partition: $partitionId " +
           s"not matching for sub-partition with startMapIndex: $startMapIndex endMapIndex: $endMapIndex " +
           s"previous count: $count new count: $actualCommitMetadata"
         logError(errorMessage)
