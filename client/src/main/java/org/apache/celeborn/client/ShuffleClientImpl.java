@@ -655,7 +655,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public void reducerPartitionEnd(
-          int shuffleId, int partitionId, int startMapIndex, int endMapIndex, int actualMapperCount)
+          int shuffleId, int partitionId, int startMapIndex, int endMapIndex, int crc32, long bytesWritten)
           throws IOException {
     PbReducerPartitionEnd pbReducerPartitionEnd =
             PbReducerPartitionEnd.newBuilder()
@@ -663,7 +663,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                     .setPartitionId(partitionId)
                     .setStartMaxIndex(startMapIndex)
                     .setEndMapIndex(endMapIndex)
-                    .setActualMapperCount(actualMapperCount)
+                    .setCrc32(crc32)
+                    .setBytesWritten(bytesWritten)
                     .build();
 
     PbReducerPartitionEndResponse pbReducerPartitionEndResponse =
