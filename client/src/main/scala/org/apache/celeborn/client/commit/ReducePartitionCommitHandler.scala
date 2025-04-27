@@ -17,16 +17,18 @@
 
 package org.apache.celeborn.client.commit
 
-import com.google.common.base.Preconditions.checkState
-
 import java.nio.ByteBuffer
 import java.util
 import java.util.concurrent.{Callable, ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.function
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+
+import com.google.common.base.Preconditions.checkState
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.google.common.collect.Sets
+
 import org.apache.celeborn.client.{ClientUtils, LifecycleManager, ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
@@ -83,7 +85,8 @@ class ReducePartitionCommitHandler(
 
   private val shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled
   // partitionId-shuffleId -> number of mappers that have written to this reducer (partition + shuffle)
-  private val commitMetadataForReducer = JavaUtils.newConcurrentHashMap[Integer, Array[CommitMetadata]]
+  private val commitMetadataForReducer =
+    JavaUtils.newConcurrentHashMap[Integer, Array[CommitMetadata]]
   private val aqePartitionCompletenessValidator =
     JavaUtils.newConcurrentHashMap[Int, PartitionCompletenessValidator]()
 
@@ -296,9 +299,12 @@ class ReducePartitionCommitHandler(
             if (crc32PerPartition(i) != 0) {
               val commitMetadata = commitMetadataArray(i)
               if (commitMetadata == null) {
-                commitMetadataArray(i) = new CommitMetadata(crc32PerPartition(i), bytesWrittenPerPartition(i))
+                commitMetadataArray(i) =
+                  new CommitMetadata(crc32PerPartition(i), bytesWrittenPerPartition(i))
               } else {
-                commitMetadata.addCommitData(new CommitMetadata(crc32PerPartition(i), bytesWrittenPerPartition(i)))
+                commitMetadata.addCommitData(new CommitMetadata(
+                  crc32PerPartition(i),
+                  bytesWrittenPerPartition(i)))
               }
             }
           }
@@ -335,11 +341,11 @@ class ReducePartitionCommitHandler(
   }
 
   override def finishPartition(
-                                shuffleId: Int,
-                                partitionId: Int,
-                                startMapIndex: Int,
-                                endMapIndex: Int,
-                                actualCommitMetadata: CommitMetadata): (Boolean, String) = {
+      shuffleId: Int,
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      actualCommitMetadata: CommitMetadata): (Boolean, String) = {
     logInfo(s"finish Partition call: shuffleId: $shuffleId, " +
       s"partitionId: $partitionId, " +
       s"startMapIndex: $startMapIndex " +
@@ -356,7 +362,8 @@ class ReducePartitionCommitHandler(
       val bool = CommitMetadata.checkCommitMetadata(actualCommitMetadata, expectedCommitMetadata)
       var message = ""
       if (!bool) {
-        message = s"CommitMetadata mismatch for shuffleId: $shuffleId partitionId: $partitionId expected: $expectedCommitMetadata actual: $actualCommitMetadata"
+        message =
+          s"CommitMetadata mismatch for shuffleId: $shuffleId partitionId: $partitionId expected: $expectedCommitMetadata actual: $actualCommitMetadata"
       }
       return (bool, message)
     }

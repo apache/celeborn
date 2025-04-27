@@ -78,8 +78,10 @@ public class CommitMetadata {
     return bytesMatch && checksumsMatch;
   }
 
-  public static CommitMetadata combineMetadata(CommitMetadata commitMetadata1, CommitMetadata commitMetadata2) {
-    CommitMetadata commitMetadata = new CommitMetadata(commitMetadata1.getChecksum(), commitMetadata1.getBytes());
+  public static CommitMetadata combineMetadata(
+      CommitMetadata commitMetadata1, CommitMetadata commitMetadata2) {
+    CommitMetadata commitMetadata =
+        new CommitMetadata(commitMetadata1.getChecksum(), commitMetadata1.getBytes());
     commitMetadata.addCommitData(commitMetadata2);
     return commitMetadata;
   }

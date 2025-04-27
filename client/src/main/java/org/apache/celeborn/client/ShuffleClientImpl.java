@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.client;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -655,23 +653,28 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public void reducerPartitionEnd(
-          int shuffleId, int partitionId, int startMapIndex, int endMapIndex, int crc32, long bytesWritten)
-          throws IOException {
+      int shuffleId,
+      int partitionId,
+      int startMapIndex,
+      int endMapIndex,
+      int crc32,
+      long bytesWritten)
+      throws IOException {
     PbReducerPartitionEnd pbReducerPartitionEnd =
-            PbReducerPartitionEnd.newBuilder()
-                    .setShuffleId(shuffleId)
-                    .setPartitionId(partitionId)
-                    .setStartMaxIndex(startMapIndex)
-                    .setEndMapIndex(endMapIndex)
-                    .setCrc32(crc32)
-                    .setBytesWritten(bytesWritten)
-                    .build();
+        PbReducerPartitionEnd.newBuilder()
+            .setShuffleId(shuffleId)
+            .setPartitionId(partitionId)
+            .setStartMaxIndex(startMapIndex)
+            .setEndMapIndex(endMapIndex)
+            .setCrc32(crc32)
+            .setBytesWritten(bytesWritten)
+            .build();
 
     PbReducerPartitionEndResponse pbReducerPartitionEndResponse =
-            lifecycleManagerRef.askSync(
-                    pbReducerPartitionEnd,
-                    conf.clientRpcRegisterShuffleAskTimeout(),
-                    ClassTag$.MODULE$.apply(PbReducerPartitionEndResponse.class));
+        lifecycleManagerRef.askSync(
+            pbReducerPartitionEnd,
+            conf.clientRpcRegisterShuffleAskTimeout(),
+            ClassTag$.MODULE$.apply(PbReducerPartitionEndResponse.class));
     if (pbReducerPartitionEndResponse.getStatus() != StatusCode.SUCCESS.getValue()) {
       throw new CelebornIOException(pbReducerPartitionEndResponse.getErrorMsg());
     }
@@ -1044,7 +1047,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     // Track commit metadata if shuffle compression and integrity check are enabled and this request
     // is not for pushing metadata itself.
     if (shuffleCompressionEnabled && shuffleIntegrityCheckEnabled) {
-        pushState.addDataWithOffsetAndLength(partitionId, data, offset, length);
+      pushState.addDataWithOffsetAndLength(partitionId, data, offset, length);
     }
 
     if (shuffleCompressionEnabled && !skipCompress) {
@@ -1786,9 +1789,11 @@ public class ShuffleClientImpl extends ShuffleClient {
     try {
       limitZeroInFlight(mapKey, pushState);
 
-      //send CRC32 and num bytes per partition if e2e checks are enabled
-      int[] crc32PerPartition = pushState.getCRC32PerPartition(shuffleIntegrityCheckEnabled, numPartitions);
-      long[] bytesPerPartition = pushState.getBytesWrittenPerPartition(shuffleIntegrityCheckEnabled, numPartitions);
+      // send CRC32 and num bytes per partition if e2e checks are enabled
+      int[] crc32PerPartition =
+          pushState.getCRC32PerPartition(shuffleIntegrityCheckEnabled, numPartitions);
+      long[] bytesPerPartition =
+          pushState.getBytesWrittenPerPartition(shuffleIntegrityCheckEnabled, numPartitions);
 
       MapperEndResponse response =
           lifecycleManagerRef.askSync(

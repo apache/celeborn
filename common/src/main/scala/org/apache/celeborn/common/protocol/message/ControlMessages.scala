@@ -17,14 +17,16 @@
 
 package org.apache.celeborn.common.protocol.message
 
-import com.google.common.base.Preconditions.checkState
-
 import java.util
 import java.util.{Collections, UUID}
 import java.util.concurrent.atomic.AtomicIntegerArray
+
 import scala.collection.JavaConverters._
+
+import com.google.common.base.Preconditions.checkState
 import com.google.protobuf.ByteString
 import org.roaringbitmap.RoaringBitmap
+
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
@@ -759,7 +761,16 @@ object ControlMessages extends Logging {
     case pb: PbChangeLocationResponse =>
       new TransportMessage(MessageType.CHANGE_LOCATION_RESPONSE, pb.toByteArray)
 
-    case MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId, pushFailedBatch, numPartitions, crc32PerPartition, bytesWrittenPerPartition) =>
+    case MapperEnd(
+          shuffleId,
+          mapId,
+          attemptId,
+          numMappers,
+          partitionId,
+          pushFailedBatch,
+          numPartitions,
+          crc32PerPartition,
+          bytesWrittenPerPartition) =>
       val pushFailedMap = pushFailedBatch.asScala.map { case (k, v) =>
         val resultValue = PbSerDeUtils.toPbLocationPushFailedBatches(v)
         (k, resultValue)
@@ -773,7 +784,8 @@ object ControlMessages extends Logging {
         .putAllPushFailureBatches(pushFailedMap)
         .setNumPartitions(numPartitions)
         .addAllCrc32PerPartition(crc32PerPartition.map(Integer.valueOf).toSeq.asJava)
-        .addAllBytesWrittenPerPartition(bytesWrittenPerPartition.map(java.lang.Long.valueOf).toSeq.asJava)
+        .addAllBytesWrittenPerPartition(bytesWrittenPerPartition.map(
+          java.lang.Long.valueOf).toSeq.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END, payload)
 
@@ -1202,7 +1214,8 @@ object ControlMessages extends Logging {
         val partitionCount = pbMapperEnd.getCrc32PerPartitionCount
         checkState(partitionCount == pbMapperEnd.getBytesWrittenPerPartitionCount)
         val crc32Array = new Array[Int](partitionCount)
-        val bytesWrittenPerPartitionArray = new Array[Long](pbMapperEnd.getBytesWrittenPerPartitionCount)
+        val bytesWrittenPerPartitionArray =
+          new Array[Long](pbMapperEnd.getBytesWrittenPerPartitionCount)
         for (i <- 0 until partitionCount) {
           crc32Array(i) = pbMapperEnd.getCrc32PerPartition(i)
           bytesWrittenPerPartitionArray(i) = pbMapperEnd.getBytesWrittenPerPartition(i)

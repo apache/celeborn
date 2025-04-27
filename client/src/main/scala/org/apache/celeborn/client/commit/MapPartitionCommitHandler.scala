@@ -21,9 +21,12 @@ import java.util
 import java.util.Collections
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
 import java.util.concurrent.atomic.{AtomicInteger, AtomicIntegerArray}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+
 import org.roaringbitmap.RoaringBitmap
+
 import org.apache.celeborn.client.{ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}

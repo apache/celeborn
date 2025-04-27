@@ -21,7 +21,7 @@ import java.lang.{Byte => JByte}
 import java.nio.ByteBuffer
 import java.security.SecureRandom
 import java.util
-import java.util.{Collections, function, List => JList}
+import java.util.{function, Collections, List => JList}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
 import java.util.function.{BiConsumer, BiFunction, Consumer}
@@ -33,6 +33,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 import scala.util.Random
+
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
 import org.roaringbitmap.RoaringBitmap
@@ -422,13 +423,31 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         oldPartition,
         isSegmentGranularityVisible = commitManager.isSegmentGranularityVisible(shuffleId))
 
-    case MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId, pushFailedBatch, numPartitions, crc32PerPartition, bytesWrittenPerPartition) =>
+    case MapperEnd(
+          shuffleId,
+          mapId,
+          attemptId,
+          numMappers,
+          partitionId,
+          pushFailedBatch,
+          numPartitions,
+          crc32PerPartition,
+          bytesWrittenPerPartition) =>
       logTrace(s"Received MapperEnd TaskEnd request, " +
         s"${Utils.makeMapKey(shuffleId, mapId, attemptId)}")
       val partitionType = getPartitionType(shuffleId)
       partitionType match {
         case PartitionType.REDUCE =>
-          handleMapperEnd(context, shuffleId, mapId, attemptId, numMappers, pushFailedBatch, numPartitions, crc32PerPartition, bytesWrittenPerPartition)
+          handleMapperEnd(
+            context,
+            shuffleId,
+            mapId,
+            attemptId,
+            numMappers,
+            pushFailedBatch,
+            numPartitions,
+            crc32PerPartition,
+            bytesWrittenPerPartition)
         case PartitionType.MAP =>
           handleMapPartitionEnd(
             context,
@@ -508,15 +527,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       }
   }
 
-
   private def handleReducerPartitionEnd(
-                                         context: RpcCallContext,
-                                         shuffleId: Int,
-                                         partitionId: Int,
-                                         startMapIndex: Int,
-                                         endMapIndex: Int,
-                                         crc32: Int,
-                                         bytesWritten: Long): Unit = {
+      context: RpcCallContext,
+      shuffleId: Int,
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      crc32: Int,
+      bytesWritten: Long): Unit = {
     val (isValid, errorMessage) = commitManager.finishPartition(
       shuffleId,
       partitionId,
