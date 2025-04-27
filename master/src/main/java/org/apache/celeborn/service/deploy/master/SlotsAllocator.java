@@ -356,12 +356,15 @@ public class SlotsAllocator {
     int primaryIndex = rand.nextInt(workerSize);
     int replicaIndex = rand.nextInt(workerSize);
 
-    Iterator<Integer> iter = partitionIdList.iterator();
+    ListIterator<Integer> iter = partitionIdList.listIterator(partitionIdList.size());
+    // Iterate from the end to preserve O(1) removal of processed partitions.
+    // This is important when we have a high number of concurrent apps that have a
+    // high number of partitions.
     outer:
-    while (iter.hasNext()) {
+    while (iter.hasPrevious()) {
       int nextPrimaryInd = primaryIndex;
 
-      int partitionId = iter.next();
+      int partitionId = iter.previous();
       StorageInfo storageInfo;
       if (slotsRestrictions != null && !slotsRestrictions.isEmpty()) {
         // this means that we'll select a mount point
