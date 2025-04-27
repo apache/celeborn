@@ -384,20 +384,9 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     long pushMergedDataDurationMs = waitingStartTime.elapsed(TimeUnit.MILLISECONDS);
 
     Stopwatch mapperEndSw = Stopwatch.createStarted();
-    int writtenPartitions =
-        shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);
+    shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);
     long mapperEndElapsedMs = mapperEndSw.elapsed(TimeUnit.MILLISECONDS);
     writeMetrics.incWriteTime(mapperEndElapsedMs);
-
-    logger.info(
-        "SendCommitMetadataBatchForAllPartitions ShuffleId {} mapId {} encodedAttemptId {}: mappers {}/{} sendCommitMetadata took {} ms, mapperEnd took {} ms",
-        shuffleId,
-        mapId,
-        encodedAttemptId,
-        writtenPartitions,
-        numMappers,
-        pushMergedDataDurationMs,
-        mapperEndElapsedMs);
 
     BlockManagerId bmId = SparkEnv.get().blockManager().shuffleServerId();
     mapStatus =
