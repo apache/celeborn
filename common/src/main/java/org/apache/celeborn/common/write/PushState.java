@@ -26,6 +26,7 @@ import org.apache.celeborn.common.CommitMetadata;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.CommitMetadata;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.util.JavaUtils;
 
@@ -35,7 +36,7 @@ public class PushState {
   public AtomicReference<IOException> exception = new AtomicReference<>();
   private final InFlightRequestTracker inFlightRequestTracker;
   private final ConcurrentHashMap<Integer, CommitMetadata> commitMetadataMap =
-          new ConcurrentHashMap<>();
+      new ConcurrentHashMap<>();
 
   private final Map<String, LocationPushFailedBatches> failedBatchMap;
 
@@ -118,7 +119,8 @@ public class PushState {
     return crc32PerPartition;
   }
 
-  public long[] getBytesWrittenPerPartition(boolean shuffleIntegrityCheckEnabled, int numPartitions) {
+  public long[] getBytesWrittenPerPartition(
+      boolean shuffleIntegrityCheckEnabled, int numPartitions) {
     long[] bytesWrittenPerPartition = new long[numPartitions];
     if (!shuffleIntegrityCheckEnabled) {
       return bytesWrittenPerPartition;
@@ -132,7 +134,7 @@ public class PushState {
 
   public void addDataWithOffsetAndLength(int partitionId, byte[] data, int offset, int length) {
     CommitMetadata commitMetadata =
-            commitMetadataMap.computeIfAbsent(partitionId, id -> new CommitMetadata());
+        commitMetadataMap.computeIfAbsent(partitionId, id -> new CommitMetadata());
     commitMetadata.addDataWithOffsetAndLength(data, offset, length);
   }
 }

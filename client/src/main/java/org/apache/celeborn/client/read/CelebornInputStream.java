@@ -26,7 +26,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
-import org.apache.celeborn.common.CommitMetadata;
 import scala.Tuple2;
 
 import com.github.luben.zstd.ZstdException;
@@ -43,6 +42,7 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.compress.Decompressor;
 import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.CommitMetadata;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
@@ -159,7 +159,6 @@ public abstract class CelebornInputStream extends InputStream {
         public int partitionsRead() {
           return 0;
         }
-
       };
 
   public abstract int totalPartitionsToRead();
@@ -316,7 +315,7 @@ public abstract class CelebornInputStream extends InputStream {
       this.shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled();
       if (this.shuffleIntegrityCheckEnabled) {
         checkArgument(
-                this.shouldDecompress, "Shuffle integrity check requires shuffle compression");
+            this.shouldDecompress, "Shuffle integrity check requires shuffle compression");
       }
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.failedBatches = failedBatchSet;
@@ -748,11 +747,16 @@ public abstract class CelebornInputStream extends InputStream {
 
       try {
         shuffleClient.reducerPartitionEnd(
-                shuffleId, partitionId, startMapIndex, endMapIndex, aggregatedActualCommitMetadata.getChecksum(), aggregatedActualCommitMetadata.getBytes());
+            shuffleId,
+            partitionId,
+            startMapIndex,
+            endMapIndex,
+            aggregatedActualCommitMetadata.getChecksum(),
+            aggregatedActualCommitMetadata.getBytes());
         logger.info(
-                "reducerPartitionEnd successful for {}. actual CommitMetadata: {}",
-                key,
-                aggregatedActualCommitMetadata);
+            "reducerPartitionEnd successful for {}. actual CommitMetadata: {}",
+            key,
+            aggregatedActualCommitMetadata);
         integrityChecked = true;
       } catch (IOException e) {
         throw new RuntimeException(e);
@@ -933,6 +937,5 @@ public abstract class CelebornInputStream extends InputStream {
     public int partitionsRead() {
       return fileIndex;
     }
-
   }
 }

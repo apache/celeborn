@@ -44,7 +44,6 @@ import org.junit.Test;
 
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.CommitMetadata;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.client.TransportClient;

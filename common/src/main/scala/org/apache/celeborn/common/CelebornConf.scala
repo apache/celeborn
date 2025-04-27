@@ -5926,11 +5926,11 @@ object CelebornConf extends Logging {
 
   val CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.integrityCheck.enabled")
-    .categories("client", "shuffle")
-    .version("0.5.0")
-    .doc("When `true`, enables end-to-end integrity checks.")
-    .booleanConf
-    .createWithDefault(false)
+      .categories("client", "shuffle")
+      .version("0.5.0")
+      .doc("When `true`, enables end-to-end integrity checks.")
+      .booleanConf
+      .createWithDefault(false)
 
   val CLIENT_CHUNK_PREFETCH_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.chunk.prefetch.enabled")
