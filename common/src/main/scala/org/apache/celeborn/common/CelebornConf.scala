@@ -5576,12 +5576,14 @@ object CelebornConf extends Logging {
       .createWithDefault(true)
 
   val METRICS_PUSH_APPLICATION_ID: ConfigEntry[Boolean] =
-    buildConf("celeborn.metrics.pushApplicationId")
+    buildConf("celeborn.metrics.label.applicationId")
       .categories("metrics")
-      .doc("When true, push applicationId as label for certain metrics")
+      .doc("When true, push applicationId as label for certain metrics. Note: applicationId " +
+        "is considered as a high cardinality label, be careful enabling it on metrics systems " +
+        "that are not optimized for high cardinality columns.")
       .version("0.6.0")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val IDENTITY_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.identity.provider")
