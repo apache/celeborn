@@ -18,7 +18,6 @@
 package org.apache.celeborn.client.read;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.celeborn.client.read.CelebornIntegrityCheckTracker.registerValidation;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -754,7 +753,6 @@ public abstract class CelebornInputStream extends InputStream {
                 "reducerPartitionEnd successful for {}. actual CommitMetadata: {}",
                 key,
                 aggregatedActualCommitMetadata);
-        registerValidation(appShuffleId, startMapIndex, endMapIndex, partitionId);
         integrityChecked = true;
       } catch (IOException e) {
         throw new RuntimeException(e);
