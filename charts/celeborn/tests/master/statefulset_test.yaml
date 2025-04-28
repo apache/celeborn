@@ -24,11 +24,12 @@ release:
   name: celeborn
 
 tests:
-  - it: Should add extra pod annotations if `podAnnotations` is specified
+  - it: Should add extra pod annotations if `master.annotations` is specified
     set:
-      podAnnotations:
-        key1: value1
-        key2: value2
+      master:
+        annotations:
+          key1: value1
+          key2: value2
     asserts:
       - equal:
           path: spec.template.metadata.annotations.key1
@@ -57,6 +58,112 @@ tests:
           path: spec.template.spec.containers[0].imagePullPolicy
           value: Always
 
+  - it: Should use the specified replicas if `master.replicas` is set
+    set:
+      master:
+        replicas: 10
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 10
+
+  - it: Should add environment variables if `master.env` is set
+    set:
+      master:
+        env:
+          - name: test-env-name-1
+            value: test-env-value-1
+          - name: test-env-name-2
+            valueFrom:
+              configMapKeyRef:
+                name: test-configmap
+                key: test-key
+                optional: false
+          - name: test-env-name-3
+            valueFrom:
+              secretKeyRef:
+                name: test-secret
+                key: test-key
+                optional: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: test-env-name-1
+            value: test-env-value-1
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: test-env-name-2
+            valueFrom:
+              configMapKeyRef:
+                name: test-configmap
+                key: test-key
+                optional: false
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: test-env-name-3
+            valueFrom:
+              secretKeyRef:
+                name: test-secret
+                key: test-key
+                optional: false
+
+  - it: Should add environment variable sources if `master.envFrom` is set
+    set:
+      master:
+        envFrom:
+          - configMapRef:
+              name: test-configmap
+              optional: false
+          - secretRef:
+              name: test-secret
+              optional: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: test-configmap
+              optional: false
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: test-secret
+              optional: false
+
+  - it: Should use the specified resources if `master.resources` is set
+    set:
+      master:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].resources
+          value:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      - equal:
+          path: spec.template.spec.containers[?(@.name=='celeborn')].resources
+          value:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
   - it: Should add secrets if `imagePullSecrets` is set
     set:
       imagePullSecrets:
@@ -70,11 +177,12 @@ tests:
           path: spec.template.spec.imagePullSecrets[1].name
           value: test-secret2
 
-  - it: Should add node selector if `nodeSelector` is set
+  - it: Should add node selector if `master.nodeSelector` is set
     set:
-      nodeSelector:
-        key1: value1
-        key2: value2
+      master:
+        nodeSelector:
+          key1: value1
+          key2: value2
     asserts:
       - equal:
           path: spec.template.spec.nodeSelector.key1
@@ -83,16 +191,17 @@ tests:
           path: spec.template.spec.nodeSelector.key2
           value: value2
 
-  - it: Should add tolerations if `tolerations` is set
+  - it: Should add tolerations if `master.tolerations` is set
     set:
-      tolerations:
-        - key: key1
-          operator: Equal
-          value: value1
-          effect: NoSchedule
-        - key: key2
-          operator: Exists
-          effect: NoSchedule
+      master:
+        tolerations:
+          - key: key1
+            operator: Equal
+            value: value1
+            effect: NoSchedule
+          - key: key2
+            operator: Exists
+            effect: NoSchedule
     asserts:
       - equal:
           path: spec.template.spec.tolerations
@@ -105,10 +214,10 @@ tests:
               operator: Exists
               effect: NoSchedule
 
-  - it: Should use the specified affinity if `affinity.master` is set
+  - it: Should use the specified affinity if `master.affinity` is set
     set:
-      affinity:
-        master:
+      master:
+        affinity:
           nodeAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
               nodeSelectorTerms:
@@ -147,10 +256,10 @@ tests:
                       values:
                         - another-node-label-value
 
-  - it: Should use the specified priority class name if `priorityClass.master.name` is set
+  - it: Should use the specified priority class name if `master.priorityClass.name` is set
     set:
-      priorityClass:
-        master:
+      master:
+        priorityClass:
           name: test-priority-class
     asserts:
       - equal:
@@ -189,11 +298,3 @@ tests:
       - equal:
           path: spec.template.spec.securityContext.fsGroup
           value: 3000
-
-  - it: Should use the specified replicas if `masterReplicas` is set
-    set:
-      masterReplicas: 10
-    asserts:
-      - equal:
-          path: spec.replicas
-          value: 10

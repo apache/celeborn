@@ -28,11 +28,6 @@ image:
   # -- Image pull policy
   pullPolicy: IfNotPresent
 
-# -- Specifies the number of Celeborn master replicas to deploy
-masterReplicas: 1
-# -- Specifies the number of Celeborn worker replicas to deploy
-workerReplicas: 1
-
 service:
   # -- Specifies service type
   type: ClusterIP
@@ -82,35 +77,59 @@ celeborn:
   celeborn.application.heartbeat.timeout: 120s
   celeborn.worker.heartbeat.timeout: 120s
 
-# -- Celeborn configurations
-environments:
-  CELEBORN_MASTER_MEMORY: 100m
-  CELEBORN_WORKER_MEMORY: 100m
-  CELEBORN_WORKER_OFFHEAP_MEMORY: 100m
-  CELEBORN_NO_DAEMONIZE: 1
-  TZ: "Asia/Shanghai"
-
 # -- Specifies the DNS policy for Celeborn pods to use
 dnsPolicy: ClusterFirstWithHostNet
 
 # -- Specifies whether to use the host's network namespace
 hostNetwork: true
 
-resources:
-  # -- Pod resources for Celeborn master pods
-  master:
-    limits:
-      cpu: 100m
-      memory: 800Mi
+master:
+  # -- Number of Celeborn master replicas to deploy, should not less than 3.
+  replicas: 1
+
+  # -- Environment variables for Celeborn master containers.
+  env:
+  - name: CELEBORN_MASTER_MEMORY
+    value: 100m
+  - name: CELEBORN_MASTER_JAVA_OPTS
+    value: -XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-master.out -Dio.netty.leakDetectionLevel=advanced
+  - name: CELEBORN_NO_DAEMONIZE
+    value: "true"
+  - name: TZ
+    value: Asia/Shanghai
+
+  # -- Resources for Celeborn master containers.
+  resources:
     requests:
       cpu: 100m
       memory: 800Mi
-  # -- Pod resources for Celeborn worker pods
-  worker:
     limits:
+      cpu: 100m
+      memory: 800Mi
+
+worker:
+  # -- Number of Celeborn worker replicas to deploy, should less than node number.
+  replicas: 1
+
+  # -- Environment variables for Celeborn worker containers.
+  env:
+  - name: CELEBORN_WORKER_MEMORY
+    value: 100m
+  - name: CELEBORN_WORKER_OFFHEAP_MEMORY
+    value: 100m
+  - name: CELEBORN_WORKER_JAVA_OPTS
+    value: -XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-worker.out -Dio.netty.leakDetectionLevel=advanced
+  - name: CELEBORN_NO_DAEMONIZE
+    value: "true"
+  - name: TZ
+    value: Asia/Shanghai
+
+  # -- Resources for Celeborn worker containers.
+  resources:
+    requests:
       cpu: 100m
       memory: 1Gi
-    requests:
+    limits:
       cpu: 100m
       memory: 1Gi
 

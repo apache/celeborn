@@ -889,6 +889,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(METRICS_EXTRA_LABELS).map(Utils.parseMetricLabels).toMap
   def metricsWorkerAppTopResourceConsumptionCount: Int =
     get(METRICS_WORKER_APP_TOP_RESOURCE_CONSUMPTION_COUNT)
+  def metricsWorkerAppTopResourceConsumptionBytesWrittenThreshold: Long =
+    get(METRICS_WORKER_APP_TOP_RESOURCE_CONSUMPTION_BYTES_WRITTEN_THRESHOLD)
   def metricsWorkerForceAppendPauseSpentTimeThreshold: Int =
     get(METRICS_WORKER_PAUSE_SPENT_TIME_FORCE_APPEND_THRESHOLD)
   def metricsJsonPrettyEnabled: Boolean = get(METRICS_JSON_PRETTY_ENABLED)
@@ -1298,6 +1300,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerS3FlusherThreads: Int = get(WORKER_FLUSHER_S3_THREADS)
   def workerOssFlusherThreads: Int = get(WORKER_FLUSHER_OSS_THREADS)
   def workerCreateWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
+  def workerFlusherLocalGatherAPIEnabled: Boolean = get(WORKER_FLUSHER_LOCAL_GATHER_API_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                    Disk Monitor                     //
@@ -1405,7 +1408,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFlinkResultPartitionSupportFloatingBuffer: Boolean =
     get(CLIENT_RESULT_PARTITION_SUPPORT_FLOATING_BUFFER)
   def clientFlinkDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
-  def clientShuffleMapPartitionSplitEnabled = get(CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED)
   def clientChunkPrefetchEnabled = get(CLIENT_CHUNK_PREFETCH_ENABLED)
   def clientInputStreamCreationWindow = get(CLIENT_INPUTSTREAM_CREATION_WINDOW)
 
@@ -3976,6 +3978,15 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(3)
 
+  val WORKER_FLUSHER_LOCAL_GATHER_API_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.flusher.local.gatherAPI.enabled")
+      .internal
+      .categories("worker")
+      .version("0.6.0")
+      .doc("Worker will use gather API if this config is true.")
+      .booleanConf
+      .createWithDefault(true)
+
   val WORKER_PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD: ConfigEntry[Double] =
     buildConf("celeborn.worker.partitionSorter.directMemoryRatioThreshold")
       .categories("worker")
@@ -5543,6 +5554,16 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(0)
 
+  val METRICS_WORKER_APP_TOP_RESOURCE_CONSUMPTION_BYTES_WRITTEN_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.metrics.worker.app.topResourceConsumption.bytesWrittenThreshold")
+      .categories("metrics")
+      .doc("Threshold of bytes written for top resource consumption applications list of worker. " +
+        "The application which has bytes written less than this threshold will not be included " +
+        "in the top resource consumption list, including diskBytesWritten and hdfsBytesWritten.")
+      .version("0.6.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(0)
+
   val METRICS_WORKER_PAUSE_SPENT_TIME_FORCE_APPEND_THRESHOLD: ConfigEntry[Int] =
     buildConf("celeborn.metrics.worker.pauseSpentTime.forceAppend.threshold")
       .categories("metrics")
@@ -5863,15 +5884,6 @@ object CelebornConf extends Logging {
       .doc("Threads count for streamCreatorPool in CelebornShuffleReader.")
       .intConf
       .createWithDefault(32)
-
-  val CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.shuffle.mapPartition.split.enabled")
-      .categories("client")
-      .doc(
-        "whether to enable shuffle partition split. Currently, this only applies to MapPartition.")
-      .version("0.3.1")
-      .booleanConf
-      .createWithDefault(false)
 
   val CLIENT_CHUNK_PREFETCH_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.chunk.prefetch.enabled")

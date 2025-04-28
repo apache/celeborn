@@ -276,7 +276,7 @@ object PbSerDeUtils {
       disks,
       userResourceConsumption)
     if (masterPersistWorkerNetworkLocation) {
-      workerInfo.networkLocation_$eq(pbWorkerInfo.getNetworkLocation)
+      workerInfo.networkLocation = pbWorkerInfo.getNetworkLocation
     }
     workerInfo
   }

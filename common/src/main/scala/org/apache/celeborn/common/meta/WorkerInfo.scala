@@ -19,6 +19,7 @@ package org.apache.celeborn.common.meta
 
 import java.util
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.JavaConverters._
 
@@ -45,9 +46,11 @@ class WorkerInfo(
   var networkLocation = NetworkTopology.DEFAULT_RACK
   var lastHeartbeat: Long = 0
   var workerStatus = WorkerStatus.normalWorkerStatus()
-  val diskInfos =
+  val diskInfos = {
     if (_diskInfos != null) JavaUtils.newConcurrentHashMap[String, DiskInfo](_diskInfos)
     else null
+  }
+  val workerHasDisk: AtomicBoolean = new AtomicBoolean(computeWorkerHaveDisk)
   val userResourceConsumption =
     if (_userResourceConsumption != null)
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](_userResourceConsumption)
@@ -180,8 +183,8 @@ class WorkerInfo(
 
   def updateDiskSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
     diskInfos.asScala.foreach { case (_, disk) =>
-      disk.maxSlots_$eq(disk.totalSpace / estimatedPartitionSize)
-      disk.availableSlots_$eq(disk.actualUsableSpace / estimatedPartitionSize)
+      disk.maxSlots = disk.totalSpace / estimatedPartitionSize
+      disk.availableSlots = disk.actualUsableSpace / estimatedPartitionSize
     }
   }
 
@@ -236,6 +239,7 @@ class WorkerInfo(
           diskInfos.remove(nonExistsMountPoint)
         }
       }
+      workerHasDisk.set(computeWorkerHaveDisk)
       JavaUtils.newConcurrentHashMap[String, DiskInfo](diskInfos)
     }
 
@@ -306,9 +310,17 @@ class WorkerInfo(
     result
   }
 
+  private def computeWorkerHaveDisk = {
+    if (diskInfos != null) {
+      diskInfos.values().asScala.exists(p =>
+        p.storageType == StorageInfo.Type.SSD || p.storageType == StorageInfo.Type.HDD)
+    } else {
+      false
+    }
+  }
+
   def haveDisk(): Boolean = {
-    diskInfos.values().asScala.exists(p =>
-      p.storageType == StorageInfo.Type.SSD || p.storageType == StorageInfo.Type.HDD)
+    workerHasDisk.get()
   }
 }
 

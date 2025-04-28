@@ -50,7 +50,7 @@ import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.network.util.TransportConf
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, RpcNameConstants, TransportModuleConstants}
-import org.apache.celeborn.common.protocol.message.{ControlMessages, Message, StatusCode}
+import org.apache.celeborn.common.protocol.message.{ControlMessages, Message}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.reflect.DynConstructors
 
@@ -613,7 +613,7 @@ object Utils extends Logging {
     }
   }
 
-  def instantiateDynamicConfigStoreBackend[T](className: String, conf: CelebornConf): T = {
+  def instantiateClassWithCelebornConf[T](className: String, conf: CelebornConf): T = {
     try {
       DynConstructors.builder().impl(className, classOf[CelebornConf])
         .build[T]()
@@ -621,7 +621,7 @@ object Utils extends Logging {
     } catch {
       case e: Throwable =>
         throw new CelebornException(
-          s"Failed to instantiate dynamic config store backend $className.",
+          s"Failed to instantiate class $className with celeborn conf.",
           e)
     }
   }
@@ -1055,121 +1055,6 @@ object Utils extends Logging {
       case transportMessage: TransportMessage =>
         ControlMessages.fromTransportMessage(transportMessage)
       case _ => message
-    }
-  }
-
-  def toStatusCode(status: Int): StatusCode = {
-    status match {
-      case 0 =>
-        StatusCode.SUCCESS
-      case 1 =>
-        StatusCode.PARTIAL_SUCCESS
-      case 2 =>
-        StatusCode.REQUEST_FAILED
-      case 3 =>
-        StatusCode.SHUFFLE_ALREADY_REGISTERED
-      case 4 =>
-        StatusCode.SHUFFLE_NOT_REGISTERED
-      case 5 =>
-        StatusCode.RESERVE_SLOTS_FAILED
-      case 6 =>
-        StatusCode.SLOT_NOT_AVAILABLE
-      case 7 =>
-        StatusCode.WORKER_NOT_FOUND
-      case 8 =>
-        StatusCode.PARTITION_NOT_FOUND
-      case 9 =>
-        StatusCode.REPLICA_PARTITION_NOT_FOUND
-      case 10 =>
-        StatusCode.DELETE_FILES_FAILED
-      case 11 =>
-        StatusCode.PARTITION_EXISTS
-      case 12 =>
-        StatusCode.REVIVE_FAILED
-      case 13 =>
-        StatusCode.REPLICATE_DATA_FAILED
-      case 14 =>
-        StatusCode.NUM_MAPPER_ZERO
-      case 15 =>
-        StatusCode.MAP_ENDED
-      case 16 =>
-        StatusCode.STAGE_ENDED
-      case 17 =>
-        StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_PRIMARY
-      case 18 =>
-        StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
-      case 19 =>
-        StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY
-      case 20 =>
-        StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND
-      case 21 =>
-        StatusCode.HARD_SPLIT
-      case 22 =>
-        StatusCode.SOFT_SPLIT
-      case 23 =>
-        StatusCode.STAGE_END_TIME_OUT
-      case 24 =>
-        StatusCode.SHUFFLE_DATA_LOST
-      case 25 =>
-        StatusCode.WORKER_SHUTDOWN
-      case 26 =>
-        StatusCode.NO_AVAILABLE_WORKING_DIR
-      case 27 =>
-        StatusCode.WORKER_EXCLUDED
-      case 28 =>
-        StatusCode.WORKER_UNKNOWN
-      case 29 =>
-        StatusCode.COMMIT_FILE_EXCEPTION
-      case 30 =>
-        StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED
-      case 31 =>
-        StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED
-      case 32 =>
-        StatusCode.PUSH_DATA_HANDSHAKE_FAIL_REPLICA
-      case 33 =>
-        StatusCode.PUSH_DATA_HANDSHAKE_FAIL_PRIMARY
-      case 34 =>
-        StatusCode.REGION_START_FAIL_REPLICA
-      case 35 =>
-        StatusCode.REGION_START_FAIL_PRIMARY
-      case 36 =>
-        StatusCode.REGION_FINISH_FAIL_REPLICA
-      case 37 =>
-        StatusCode.REGION_FINISH_FAIL_PRIMARY
-      case 38 =>
-        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY
-      case 39 =>
-        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA
-      case 40 =>
-        StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY
-      case 41 =>
-        StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
-      case 42 =>
-        StatusCode.PUSH_DATA_TIMEOUT_PRIMARY
-      case 43 =>
-        StatusCode.PUSH_DATA_TIMEOUT_REPLICA
-      case 44 =>
-        StatusCode.PUSH_DATA_PRIMARY_WORKER_EXCLUDED
-      case 45 =>
-        StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED
-      case 46 =>
-        StatusCode.FETCH_DATA_TIMEOUT
-      case 47 =>
-        StatusCode.REVIVE_INITIALIZED
-      case 48 =>
-        StatusCode.DESTROY_SLOTS_MOCK_FAILURE
-      case 49 =>
-        StatusCode.COMMIT_FILES_MOCK_FAILURE
-      case 50 =>
-        StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA
-      case 51 =>
-        StatusCode.OPEN_STREAM_FAILED
-      case 52 =>
-        StatusCode.SEGMENT_START_FAIL_REPLICA
-      case 53 =>
-        StatusCode.SEGMENT_START_FAIL_PRIMARY
-      case _ =>
-        null
     }
   }
 

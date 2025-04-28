@@ -395,13 +395,15 @@ class LocalTierWriter(
   private lazy val channel: FileChannel =
     FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath)
 
+  val gatherApiEnabled: Boolean = conf.workerFlusherLocalGatherAPIEnabled
+
   override def needEvict(): Boolean = {
     false
   }
 
   override def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask = {
     notifier.numPendingFlushes.incrementAndGet()
-    new LocalFlushTask(flushBuffer, channel, notifier, true)
+    new LocalFlushTask(flushBuffer, channel, notifier, true, gatherApiEnabled)
   }
 
   override def writeInternal(buf: ByteBuf): Unit = {

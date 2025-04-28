@@ -302,6 +302,7 @@ public class SparkUtils {
       if (taskSetManager != null) {
         int stageId = taskSetManager.stageId();
         int stageAttemptId = taskSetManager.taskSet().stageAttemptId();
+        int maxTaskFails = taskSetManager.maxTaskFailures();
         String stageUniqId = stageId + "-" + stageAttemptId;
         Set<Long> reportedStageTaskIds =
             reportedStageShuffleFetchFailureTaskIds.computeIfAbsent(
@@ -341,6 +342,17 @@ public class SparkUtils {
                   taskInfo.attemptNumber(),
                   ti.attemptNumber());
               return true;
+            }
+          } else {
+            if (ti.attemptNumber() >= maxTaskFails - 1) {
+              logger.warn(
+                  "StageId={} index={} taskId={} attemptNumber {} reach maxTaskFails {}.",
+                  stageId,
+                  taskInfo.index(),
+                  taskId,
+                  ti.attemptNumber(),
+                  maxTaskFails);
+              return false;
             }
           }
         }

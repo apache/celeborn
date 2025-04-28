@@ -335,7 +335,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   + ", revive status "
                   + request.reviveStatus
                   + "("
-                  + Utils.toStatusCode(request.reviveStatus)
+                  + StatusCode.fromValue(request.reviveStatus)
                   + ")"
                   + ", old location: "
                   + request.loc));
@@ -458,7 +458,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                             + " then revive but "
                             + request.reviveStatus
                             + "("
-                            + Utils.toStatusCode(request.reviveStatus)
+                            + StatusCode.fromValue(request.reviveStatus)
                             + ")")));
             return;
           }
@@ -494,7 +494,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                         + " then revive but "
                         + request.reviveStatus
                         + "("
-                        + Utils.toStatusCode(request.reviveStatus)
+                        + StatusCode.fromValue(request.reviveStatus)
                         + ")")));
         return;
       }
@@ -689,7 +689,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     while (numRetries > 0) {
       try {
         PbRegisterShuffleResponse response = callable.call();
-        StatusCode respStatus = Utils.toStatusCode(response.getStatus());
+        StatusCode respStatus = StatusCode.fromValue(response.getStatus());
         if (StatusCode.SUCCESS.equals(respStatus)) {
           ConcurrentHashMap<Integer, PartitionLocation> result = JavaUtils.newConcurrentHashMap();
           Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
@@ -1120,7 +1120,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       attemptId,
                       partitionId,
                       nextBatchId);
-                  if (dataPushFailureTrackingEnabled) {
+                  if (dataPushFailureTrackingEnabled && pushReplicateEnabled) {
                     pushState.addFailedBatch(
                         latest.getUniqueId(), new PushFailedBatch(mapId, attemptId, nextBatchId));
                   }
@@ -1560,7 +1560,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 pushState.onSuccess(hostPort);
                 callback.onSuccess(ByteBuffer.wrap(new byte[] {StatusCode.SOFT_SPLIT.getValue()}));
               } else {
-                if (dataPushFailureTrackingEnabled) {
+                if (dataPushFailureTrackingEnabled && pushReplicateEnabled) {
                   for (DataBatches.DataBatch resubmitBatch : batchesNeedResubmit) {
                     pushState.addFailedBatch(
                         resubmitBatch.loc.getUniqueId(),

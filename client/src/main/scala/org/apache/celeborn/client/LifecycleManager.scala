@@ -386,7 +386,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         } else {
           oldPartitions.add(null)
         }
-        causes.add(Utils.toStatusCode(info.getStatus))
+        causes.add(StatusCode.fromValue(info.getStatus))
       }
       logDebug(s"Received Revive request, number of partitions ${partitionIds.size()}")
       handleRevive(
@@ -1197,10 +1197,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             rangeReadFilter,
             userIdentifier,
             conf.pushDataTimeoutMs,
-            if (getPartitionType(shuffleId) == PartitionType.MAP)
-              conf.clientShuffleMapPartitionSplitEnabled
-            else true,
-            isSegmentGranularityVisible))
+            partitionSplitEnabled = true,
+            isSegmentGranularityVisible = isSegmentGranularityVisible))
         futures.add((future, workerInfo))
       }(ec)
     }
@@ -1511,7 +1509,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       candidates(primaryIndex).fetchPort,
       candidates(primaryIndex).replicatePort,
       PartitionLocation.Mode.PRIMARY)
-
+    primaryLocation.getStorageInfo.availableStorageTypes = availableStorageTypes
     if (pushReplicateEnabled) {
       var replicaIndex = (primaryIndex + 1) % candidates.size
       while (pushRackAwareEnabled && isOnSameRack(primaryIndex, replicaIndex)
@@ -1532,6 +1530,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         candidates(replicaIndex).replicatePort,
         PartitionLocation.Mode.REPLICA,
         primaryLocation)
+      replicaLocation.getStorageInfo.availableStorageTypes = availableStorageTypes
       primaryLocation.setPeer(replicaLocation)
       val primaryAndReplicaPairs = slots.computeIfAbsent(candidates(replicaIndex), newLocationFunc)
       primaryAndReplicaPairs._2.add(replicaLocation)
@@ -1676,7 +1675,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           val unregisterShuffleResponse = requestMasterUnregisterShuffle(
             UnregisterShuffle(appUniqueId, shuffleId, MasterClient.genRequestId()))
           // if unregister shuffle not success, wait next turn
-          if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
+          if (StatusCode.SUCCESS == StatusCode.fromValue(unregisterShuffleResponse.getStatus)) {
             unregisterShuffleTime.remove(shuffleId)
           }
         } else {
@@ -1691,7 +1690,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           appUniqueId,
           batchRemoveShuffleIds.asJava,
           MasterClient.genRequestId()))
-      if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
+      if (StatusCode.SUCCESS == StatusCode.fromValue(unregisterShuffleResponse.getStatus)) {
         batchRemoveShuffleIds.foreach { shuffleId: Integer =>
           unregisterShuffleTime.remove(shuffleId)
         }

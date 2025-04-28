@@ -15,14 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.identity
+package org.apache.celeborn.service.deploy.cluster
 
-import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.protocol.CompressionCodec
 
-class DefaultIdentityProvider(conf: CelebornConf) extends IdentityProvider(conf) {
-  override def provide(): UserIdentifier = {
-    UserIdentifier(
-      conf.userSpecificTenant,
-      conf.userSpecificUserName)
+object JavaReadCppWriteTestWithNONE extends JavaReadCppWriteTestBase {
+
+  def main(args: Array[String]) = {
+    testJavaReadCppWrite(CompressionCodec.NONE)
   }
 }
