@@ -101,6 +101,30 @@ tests:
                 key: test-key
                 optional: false
 
+  - it: Should add environment variable sources if `master.envFrom` is set
+    set:
+      master:
+        envFrom:
+          - configMapRef:
+              name: test-configmap
+              optional: false
+          - secretRef:
+              name: test-secret
+              optional: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: test-configmap
+              optional: false
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: test-secret
+              optional: false
+
   - it: Should use the specified resources if `master.resources` is set
     set:
       master:

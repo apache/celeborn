@@ -101,6 +101,30 @@ tests:
                 key: test-key
                 optional: false
 
+  - it: Should add environment variable sources if `worker.envFrom` is set
+    set:
+      worker:
+        envFrom:
+          - configMapRef:
+              name: test-configmap
+              optional: false
+          - secretRef:
+              name: test-secret
+              optional: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: test-configmap
+              optional: false
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: test-secret
+              optional: false
+
   - it: Should use the specified resources if `worker.resources` is set
     set:
       worker:
