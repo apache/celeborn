@@ -893,7 +893,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(METRICS_WORKER_PAUSE_SPENT_TIME_FORCE_APPEND_THRESHOLD)
   def metricsJsonPrettyEnabled: Boolean = get(METRICS_JSON_PRETTY_ENABLED)
 
-  def metricsPushApplicationId: Boolean = get(METRICS_PUSH_APPLICATION_ID)
+  def metricsLabelApplicationId: Boolean = get(METRICS_LABEL_APPLICATION_ID)
 
   // //////////////////////////////////////////////////////
   //                      Quota                         //
@@ -5575,7 +5575,7 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val METRICS_PUSH_APPLICATION_ID: ConfigEntry[Boolean] =
+  val METRICS_LABEL_APPLICATION_ID: ConfigEntry[Boolean] =
     buildConf("celeborn.metrics.label.applicationId")
       .categories("metrics")
       .doc("When true, push applicationId as label for certain metrics. Note: applicationId " +

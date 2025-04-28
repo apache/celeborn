@@ -112,7 +112,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
     val applicationId = Utils.splitShuffleKey(shuffleKey)._1
     if (applicationIds != null && !applicationIds.contains(applicationId)) {
       var labels = Map.empty[String, String]
-      if (conf.metricsPushApplicationId) {
+      if (conf.metricsLabelApplicationId) {
         labels += (applicationLabel -> applicationId)
         addCounter(ACTIVE_CONNECTION_COUNT, labels)
       }

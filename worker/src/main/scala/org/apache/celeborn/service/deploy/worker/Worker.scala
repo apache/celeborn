@@ -717,7 +717,7 @@ private[celeborn] class Worker(
       applicationId: String = null,
       resourceConsumption: ResourceConsumption = null): Unit = {
     var resourceConsumptionLabel = userIdentifier.toMap
-    if (applicationId != null && conf.metricsPushApplicationId)
+    if (applicationId != null && conf.metricsLabelApplicationId)
       resourceConsumptionLabel += (resourceConsumptionSource.applicationLabel -> applicationId)
     resourceConsumptionSource.addGauge(
       ResourceConsumptionSource.DISK_FILE_COUNT,
