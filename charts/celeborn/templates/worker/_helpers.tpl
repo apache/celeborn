@@ -16,7 +16,7 @@ limitations under the License.
 */}}
 
 {{/*
-Common labels for Celeborn master resoruces
+Common labels for Celeborn master resources
 */}}
 {{- define "celeborn.worker.labels" -}}
 {{ include "celeborn.labels" . }}
@@ -65,7 +65,7 @@ ports:
 Create the name of the worker priority class to use
 */}}
 {{- define "celeborn.worker.priorityClass.name" -}}
-{{- with .Values.priorityClass.worker.name -}}
+{{- with .Values.worker.priorityClass.name -}}
 {{ . }}
 {{- else -}}
 {{ include "celeborn.fullname" . }}-worker-priority-class

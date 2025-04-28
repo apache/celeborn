@@ -223,10 +223,10 @@ tests:
                       values:
                         - another-node-label-value
 
-  - it: Should use the specified priority class name if `priorityClass.master.name` is set
+  - it: Should use the specified priority class name if `master.priorityClass.name` is set
     set:
-      priorityClass:
-        master:
+      master:
+        priorityClass:
           name: test-priority-class
     asserts:
       - equal:

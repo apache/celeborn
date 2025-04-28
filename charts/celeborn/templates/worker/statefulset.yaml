@@ -136,7 +136,7 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if or .Values.priorityClass.worker.name .Values.priorityClass.worker.create }}
+      {{- if or .Values.worker.priorityClass.name .Values.worker.priorityClass.create }}
       priorityClassName: {{ include "celeborn.worker.priorityClass.name" . }}
       {{- end }}
       {{- with .Values.dnsPolicy }}
