@@ -174,6 +174,15 @@ master:
   - name: TZ
     value: Asia/Shanghai
 
+  # -- Environment variable sources for Celeborn master containers.
+  envFrom:
+  # - configMapRef:
+  #     name: celeborn-configmap
+  #     optional: false
+  # - secretRef:
+  #     name: celeborn-secret
+  #     optional: false
+
   # -- Resources for Celeborn master containers.
   resources:
     # requests:
@@ -232,6 +241,15 @@ worker:
     value: "true"
   - name: TZ
     value: Asia/Shanghai
+
+  # -- Environment variable sources for Celeborn worker containers.
+  envFrom:
+  # - configMapRef:
+  #     name: celeborn-configmap
+  #     optional: false
+  # - secretRef:
+  #     name: celeborn-secret
+  #     optional: false
 
   # -- Resources for Celeborn worker containers.
   resources:

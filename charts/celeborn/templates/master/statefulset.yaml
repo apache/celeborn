@@ -88,6 +88,10 @@ spec:
         env:
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        {{- with .Values.master.envFrom }}
+        envFrom:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         volumeMounts:
         - name: {{ include "celeborn.fullname" . }}-volume
           mountPath: /opt/celeborn/conf
