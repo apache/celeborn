@@ -16,7 +16,7 @@ limitations under the License.
 */}}
 
 {{/*
-Common labels for Celeborn master resoruces
+Common labels for Celeborn master resources
 */}}
 {{- define "celeborn.master.labels" -}}
 {{ include "celeborn.labels" . }}
@@ -43,7 +43,7 @@ Create the name of the master service to use
 Create the name of the master priority class to use
 */}}
 {{- define "celeborn.master.priorityClass.name" -}}
-{{- with .Values.priorityClass.master.name -}}
+{{- with .Values.master.priorityClass.name -}}
 {{ . }}
 {{- else -}}
 {{ include "celeborn.fullname" . }}-master-priority-class
