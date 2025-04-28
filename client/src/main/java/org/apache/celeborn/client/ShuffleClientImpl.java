@@ -1120,7 +1120,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       attemptId,
                       partitionId,
                       nextBatchId);
-                  if (dataPushFailureTrackingEnabled) {
+                  if (dataPushFailureTrackingEnabled && pushReplicateEnabled) {
                     pushState.addFailedBatch(
                         latest.getUniqueId(), new PushFailedBatch(mapId, attemptId, nextBatchId));
                   }
@@ -1560,7 +1560,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 pushState.onSuccess(hostPort);
                 callback.onSuccess(ByteBuffer.wrap(new byte[] {StatusCode.SOFT_SPLIT.getValue()}));
               } else {
-                if (dataPushFailureTrackingEnabled) {
+                if (dataPushFailureTrackingEnabled && pushReplicateEnabled) {
                   for (DataBatches.DataBatch resubmitBatch : batchesNeedResubmit) {
                     pushState.addFailedBatch(
                         resubmitBatch.loc.getUniqueId(),
