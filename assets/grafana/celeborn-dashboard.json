@@ -3324,7 +3324,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_UnreleasedPartitionLocationCount_Value{instance=~\"${instance}\"}",
+              "expr": "metrics_UnreleasedPartitionLocationCount_Value{role=\"Worker\", instance=~\"${instance}\"}",
               "instant": false,
               "range": true,
               "refId": "A"
