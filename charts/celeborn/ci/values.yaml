@@ -28,11 +28,6 @@ image:
   # -- Image pull policy
   pullPolicy: IfNotPresent
 
-# -- Specifies the number of Celeborn master replicas to deploy
-masterReplicas: 1
-# -- Specifies the number of Celeborn worker replicas to deploy
-workerReplicas: 1
-
 service:
   # -- Specifies service type
   type: ClusterIP
@@ -89,6 +84,9 @@ dnsPolicy: ClusterFirstWithHostNet
 hostNetwork: true
 
 master:
+  # -- Number of Celeborn master replicas to deploy, should not less than 3.
+  replicas: 1
+
   # -- Environment variables for Celeborn master containers.
   env:
   - name: CELEBORN_MASTER_MEMORY
@@ -110,6 +108,9 @@ master:
       memory: 800Mi
 
 worker:
+  # -- Number of Celeborn worker replicas to deploy, should less than node number.
+  replicas: 1
+
   # -- Environment variables for Celeborn worker containers.
   env:
   - name: CELEBORN_WORKER_MEMORY
