@@ -5536,10 +5536,12 @@ object CelebornConf extends Logging {
       .categories("metrics")
       .doc("Size for top items about top resource consumption applications list of worker. " +
         "The top resource consumption is determined by sum of diskBytesWritten and hdfsBytesWritten. " +
-        "The top resource consumption count prevents the total number of metrics from exceeding the metrics capacity.")
+        "The top resource consumption count prevents the total number of metrics from exceeding the metrics capacity." +
+        "Note: This will add applicationId as label which is considered as a high cardinality label, " +
+        "be careful enabling it on metrics systems that are not optimized for high cardinality columns.")
       .version("0.6.0")
       .intConf
-      .createWithDefault(50)
+      .createWithDefault(0)
 
   val METRICS_WORKER_PAUSE_SPENT_TIME_FORCE_APPEND_THRESHOLD: ConfigEntry[Int] =
     buildConf("celeborn.metrics.worker.pauseSpentTime.forceAppend.threshold")
