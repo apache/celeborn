@@ -82,8 +82,8 @@ private[celeborn] class Worker(
   metricsSystem.registerSource(new JVMCPUSource(conf, Role.WORKER))
   metricsSystem.registerSource(new SystemMiscSource(conf, Role.WORKER))
 
-  private val topResourceConsumptionCount = conf.metricsWorkerAppTopResourceConsumptionCount
-  private val topResourceConsumptionBytesWrittenThreshold =
+  private val topAppResourceConsumptionCount = conf.metricsWorkerAppTopResourceConsumptionCount
+  private val topAppResourceConsumptionBytesWrittenThreshold =
     conf.metricsWorkerAppTopResourceConsumptionBytesWrittenThreshold
   private val topApplicationUserIdentifiers =
     JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
@@ -686,11 +686,13 @@ private[celeborn] class Worker(
     resourceConsumptionSnapshot.asScala.foreach { case (userIdentifier, _) =>
       gaugeResourceConsumption(userIdentifier)
     }
-    handleTopResourceConsumption(resourceConsumptionSnapshot)
+    if (topAppResourceConsumptionCount > 0) {
+      handleTopAppResourceConsumption(resourceConsumptionSnapshot)
+    }
     resourceConsumptionSnapshot
   }
 
-  def handleTopResourceConsumption(userResourceConsumptions: util.Map[
+  def handleTopAppResourceConsumption(userResourceConsumptions: util.Map[
     UserIdentifier,
     ResourceConsumption]): Unit = {
     // Remove application top resource consumption gauges to refresh top resource consumption metrics.
@@ -707,12 +709,14 @@ private[celeborn] class Worker(
         appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten
       }
       .reverse
-      .take(topResourceConsumptionCount).foreach {
+      .take(topAppResourceConsumptionCount).foreach {
         case (appId, userIdentifier, appConsumption) =>
-          if (appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten >
-              topResourceConsumptionBytesWrittenThreshold) {
+          if (appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten >=
+              topAppResourceConsumptionBytesWrittenThreshold) {
             topApplicationUserIdentifiers.put(appId, userIdentifier)
             gaugeResourceConsumption(userIdentifier, appId, appConsumption)
+          } else {
+            return
           }
       }
   }
