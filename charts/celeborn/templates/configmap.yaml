@@ -44,11 +44,6 @@ data:
     {{ $key }}={{ $val }}
     {{- end }}
 
-  celeborn-env.sh: |
-    {{- range $key, $val := .Values.environments }}
-    {{ $key }}="{{ $val }}"
-    {{- end}} 
-
   log4j2.xml: |-
     {{- .Files.Get "files/conf/log4j2.xml" | nindent 4 }}
 

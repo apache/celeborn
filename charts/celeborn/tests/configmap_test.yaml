@@ -36,6 +36,4 @@ tests:
       - exists:
           path: data["celeborn-defaults.conf"]
       - exists:
-          path: data["celeborn-env.sh"]
-      - exists:
           path: data["log4j2.xml"]
