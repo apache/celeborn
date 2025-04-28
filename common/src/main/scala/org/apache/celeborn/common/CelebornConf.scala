@@ -4825,13 +4825,13 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.client.spark.fetch.cleanFailedShuffleIntervalMs")
+    buildConf("celeborn.client.spark.fetch.cleanFailedShuffleInterval")
       .categories("client")
       .version("0.6.0")
       .doc("the interval to clean the failed-to-fetch shuffle files, only valid when" +
         s" ${CLIENT_FETCH_CLEAN_FAILED_SHUFFLE.key} is enabled")
-      .longConf
-      .createWithDefault(1000)
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1s")
 
   val CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.fetch.excludeWorkerOnFailure.enabled")
