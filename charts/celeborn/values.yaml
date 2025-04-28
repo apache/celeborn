@@ -187,6 +187,22 @@ master:
     # key1: value1
     # key2: value2
 
+  # -- Affinity for Celeborn master pods.
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - celeborn
+          - key: app.kubernetes.io/role
+            operator: In
+            values:
+            - master
+        topologyKey: kubernetes.io/hostname
+
   # -- Tolerations for Celeborn master pods.
   tolerations:
     # - key: key1
@@ -217,6 +233,22 @@ worker:
     # key1: value1
     # key2: value2
 
+  # -- Affinity for Celeborn worker pods.
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - celeborn
+          - key: app.kubernetes.io/role
+            operator: In
+            values:
+            - worker
+        topologyKey: kubernetes.io/hostname
+
   # -- Tolerations for Celeborn worker pods.
   tolerations:
     # - key: key1
@@ -226,38 +258,6 @@ worker:
     # - key: key2
     #   operator: Exists
     #   effect: NoSchedule
-
-affinity:
-  # -- Pod affinity for Celeborn master pods
-  master:
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        - labelSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
-                  - celeborn
-              - key: app.kubernetes.io/role
-                operator: In
-                values:
-                  - master
-          topologyKey: kubernetes.io/hostname
-  # -- Pod affinity for Celeborn worker pods
-  worker:
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        - labelSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
-                  - celeborn
-              - key: app.kubernetes.io/role
-                operator: In
-                values:
-                  - worker
-          topologyKey: "kubernetes.io/hostname"
 
 podMonitor:
   # -- Specifies whether to enable creating pod monitors for Celeborn pods

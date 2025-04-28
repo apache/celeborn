@@ -138,10 +138,10 @@ tests:
               operator: Exists
               effect: NoSchedule
 
-  - it: Should use the specified affinity if `affinity.worker` is specified
+  - it: Should use the specified affinity if `worker.affinity` is specified
     set:
-      affinity:
-        worker:
+      worker:
+        affinity:
           nodeAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
               nodeSelectorTerms:
