@@ -118,9 +118,6 @@ celeborn:
   celeborn.application.heartbeat.timeout: 120s
   celeborn.worker.heartbeat.timeout: 120s
 
-# -- Specifies the DNS policy for Celeborn pods to use
-dnsPolicy: ClusterFirst
-
 # -- Specifies whether to use the host's network namespace
 hostNetwork: false
 
@@ -211,6 +208,9 @@ master:
     # -- Specifies the integer value of this priority class, default is half of system-cluster-critical.
     value: 1000000000
 
+  # -- DNS policy for Celeborn master pods.
+  dnsPolicy: ClusterFirst
+
 worker:
   # -- Number of Celeborn worker replicas to deploy, should less than node number.
   replicas: 5
@@ -290,6 +290,9 @@ worker:
     name: ""
     # -- Specifies the integer value of this priority class, default is Celeborn master value minus 1000
     value: 999999000
+
+  # -- DNS policy for Celeborn worker pods.
+  dnsPolicy: ClusterFirst
 
 podMonitor:
   # -- Specifies whether to enable creating pod monitors for Celeborn pods
