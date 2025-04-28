@@ -87,11 +87,10 @@ spec:
         - containerPort: {{ get .Values.celeborn "celeborn.worker.http.port" | default 9096 }}
           name: metrics
           protocol: TCP
+        {{- with .Values.worker.env }}
         env:
-        {{- range $key, $val := .Values.environments }}
-        - name: {{ $key }}
-          value: {{ $val | quote }}
-        {{- end}}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         volumeMounts:
         - mountPath: /opt/celeborn/conf
           name: {{ include "celeborn.fullname" . }}-volume

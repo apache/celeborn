@@ -58,6 +58,49 @@ tests:
           path: spec.template.spec.containers[0].imagePullPolicy
           value: Always
 
+  - it: Should add environment variables if `worker.env` is set
+    set:
+      worker:
+        env:
+          - name: test-env-name-1
+            value: test-env-value-1
+          - name: test-env-name-2
+            valueFrom:
+              configMapKeyRef:
+                name: test-configmap
+                key: test-key
+                optional: false
+          - name: test-env-name-3
+            valueFrom:
+              secretKeyRef:
+                name: test-secret
+                key: test-key
+                optional: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: test-env-name-1
+            value: test-env-value-1
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: test-env-name-2
+            valueFrom:
+              configMapKeyRef:
+                name: test-configmap
+                key: test-key
+                optional: false
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: test-env-name-3
+            valueFrom:
+              secretKeyRef:
+                name: test-secret
+                key: test-key
+                optional: false
+
   - it: Should use the specified resources if `worker.resources` is set
     set:
       worker:
