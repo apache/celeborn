@@ -44,6 +44,9 @@ license: |
 | celeborn.client.flink.resultPartition.supportFloatingBuffer | true | false | Whether to support floating buffer for result partitions. | 0.3.0 | remote-shuffle.job.support-floating-buffer-per-output-gate | 
 | celeborn.client.flink.shuffle.fallback.policy | AUTO | false | Celeborn supports the following kind of fallback policies. 1. ALWAYS: always use flink built-in shuffle implementation; 2. AUTO: prefer to use celeborn shuffle implementation, and fallback to use flink built-in shuffle implementation based on certain factors, e.g. availability of enough workers and quota; 3. NEVER: always use celeborn shuffle implementation, and fail fast when it it is concluded that fallback is required based on factors above. | 0.6.0 |  | 
 | celeborn.client.inputStream.creation.window | 16 | false | Window size that CelebornShuffleReader pre-creates CelebornInputStreams, for coalesced scenario where multiple Partitions are read | 0.5.1 |  | 
+| celeborn.client.lifecycleManager.registerShuffle.maxRetries | 3 | false | Max retry times for lifecycleManager to register shuffle. | 0.3.0 |  | 
+| celeborn.client.lifecycleManager.registerShuffle.retries.enabled | false | false | Max retry times for lifecycleManager to register shuffle. | 0.3.0 |  | 
+| celeborn.client.lifecycleManager.registerShuffle.retryWait | 10s | false | Wait time before next retry if register shuffle on the lifecycleManager failed. | 0.3.0 |  | 
 | celeborn.client.mr.pushData.max | 32m | false | Max size for a push data sent from mr client. | 0.4.0 |  | 
 | celeborn.client.partition.reader.checkpoint.enabled | false | false | Whether or not checkpoint reads when re-creating a partition reader. Setting to true minimizes the amount of unnecessary reads during partition read retries | 0.6.0 |  | 
 | celeborn.client.push.buffer.initial.size | 8k | false |  | 0.3.0 | celeborn.push.buffer.initial.size | 

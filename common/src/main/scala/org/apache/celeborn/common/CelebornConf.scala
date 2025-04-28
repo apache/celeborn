@@ -914,6 +914,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def clientCloseIdleConnections: Boolean = get(CLIENT_CLOSE_IDLE_CONNECTIONS)
   def clientRegisterShuffleMaxRetry: Int = get(CLIENT_REGISTER_SHUFFLE_MAX_RETRIES)
+  def clientLifecycleManagerRegisterShuffleRetriesEnabled: Boolean =
+    get(CLIENT_LIFECYCLE_MANAGER_REGISTER_SHUFFLE_RETRIES_ENABLED)
+  def clientLifecycleManagerRegisterShuffleMaxRetry: Int =
+    get(CLIENT_LIFECYCLE_MANAGER_REGISTER_SHUFFLE_MAX_RETRIES)
+  def clientLifecycleManagerRegisterShuffleRetryWaitMs: Long =
+    get(CLIENT_LIFECYCLE_MANAGER_REGISTER_SHUFFLE_RETRY_WAIT)
   def clientRegisterShuffleRetryWaitMs: Long = get(CLIENT_REGISTER_SHUFFLE_RETRY_WAIT)
   def clientReserveSlotsRackAwareEnabled: Boolean = get(CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED)
   def clientReserveSlotsMaxRetries: Int = get(CLIENT_RESERVE_SLOTS_MAX_RETRIES)
@@ -5066,6 +5072,30 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
+
+  val CLIENT_LIFECYCLE_MANAGER_REGISTER_SHUFFLE_RETRIES_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.lifecycleManager.registerShuffle.retries.enabled")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Max retry times for lifecycleManager to register shuffle.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_LIFECYCLE_MANAGER_REGISTER_SHUFFLE_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.client.lifecycleManager.registerShuffle.maxRetries")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Max retry times for lifecycleManager to register shuffle.")
+      .intConf
+      .createWithDefault(3)
+
+  val CLIENT_LIFECYCLE_MANAGER_REGISTER_SHUFFLE_RETRY_WAIT: ConfigEntry[Long] =
+    buildConf("celeborn.client.lifecycleManager.registerShuffle.retryWait")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Wait time before next retry if register shuffle on the lifecycleManager failed.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10s")
 
   val CLIENT_REGISTER_SHUFFLE_MAX_RETRIES: ConfigEntry[Int] =
     buildConf("celeborn.client.registerShuffle.maxRetries")

@@ -20,6 +20,7 @@ package org.apache.spark.shuffle.celeborn;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.spark.*;
 import org.apache.spark.internal.config.package$;
@@ -86,6 +87,9 @@ public class SparkShuffleManager implements ShuffleManager {
 
   private long sendBufferPoolCheckInterval;
   private long sendBufferPoolExpireTimeout;
+  private final int registerLifecycleManagerShuffleMaxRetries;
+  private final boolean registerLifecycleManagerShuffleRetriesEnabled;
+  private final long registerLifecycleManagerShuffleRetryWaitMs;
 
   private ExecutorShuffleIdTracker shuffleIdTracker = new ExecutorShuffleIdTracker();
 
@@ -115,6 +119,12 @@ public class SparkShuffleManager implements ShuffleManager {
     this.fallbackPolicyRunner = new CelebornShuffleFallbackPolicyRunner(celebornConf);
     this.sendBufferPoolCheckInterval = celebornConf.clientPushSendBufferPoolExpireCheckInterval();
     this.sendBufferPoolExpireTimeout = celebornConf.clientPushSendBufferPoolExpireTimeout();
+    this.registerLifecycleManagerShuffleRetriesEnabled =
+        celebornConf.clientLifecycleManagerRegisterShuffleRetriesEnabled();
+    this.registerLifecycleManagerShuffleMaxRetries =
+        celebornConf.clientLifecycleManagerRegisterShuffleMaxRetry();
+    this.registerLifecycleManagerShuffleRetryWaitMs =
+        celebornConf.clientLifecycleManagerRegisterShuffleRetryWaitMs();
   }
 
   private SortShuffleManager sortShuffleManager() {
@@ -172,6 +182,40 @@ public class SparkShuffleManager implements ShuffleManager {
 
   @Override
   public <K, V, C> ShuffleHandle registerShuffle(
+      int shuffleId, ShuffleDependency<K, V, C> dependency) {
+    if (!(isDriver && registerLifecycleManagerShuffleRetriesEnabled)) {
+      return doRegisterShuffle(shuffleId, dependency);
+    }
+    int numRetries = registerLifecycleManagerShuffleMaxRetries;
+    int totalRetries = registerLifecycleManagerShuffleMaxRetries;
+    Exception lastException = null;
+    while (numRetries > 0) {
+      try {
+        ShuffleHandle handle = doRegisterShuffle(shuffleId, dependency);
+        return handle;
+      } catch (Exception e) {
+        logger.error(
+            "Exception raised while registering shuffle {}. Try {}/{}",
+            shuffleId,
+            totalRetries - numRetries + 1,
+            totalRetries);
+        lastException = e;
+      }
+      try {
+        TimeUnit.MILLISECONDS.sleep(registerLifecycleManagerShuffleRetryWaitMs);
+      } catch (InterruptedException e) {
+        break;
+      }
+      numRetries--;
+    }
+    throw new RuntimeException(
+        "Register shuffle failed for shuffle "
+            + shuffleId
+            + ", reason: "
+            + lastException.toString());
+  }
+
+  private <K, V, C> ShuffleHandle doRegisterShuffle(
       int shuffleId, ShuffleDependency<K, V, C> dependency) {
     // Note: generate app unique id at driver side, make sure dependency.rdd.context
     // is the same SparkContext among different shuffleIds.
