@@ -17,7 +17,7 @@
 package org.apache.celeborn.spark
 
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ScheduledExecutorService, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.JavaConverters._
@@ -66,9 +66,10 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
     cleanedShuffleIds.clear()
     celebornShuffleIdToReferringStages.clear()
     runningStageManager = buildRunningStageChecker()
-    cleanerThreadPool.shutdownNow()
-    cleanerThreadPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-      "failedShuffleCleanerThreadPool")
+    if (cleanerThreadPool != null) {
+      cleanerThreadPool.shutdownNow()
+    }
+
   }
 
   def addShuffleIdReferringStage(celebornShuffleId: Int, appShuffleIdentifier: String): Unit = {
@@ -116,18 +117,25 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
   def setLifecycleManager(ref: LifecycleManager): Unit = {
     val firstSet = lifecycleManager.compareAndSet(null, ref)
     if (firstSet) {
+      cleanerThreadPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+        "failedShuffleCleanerThreadPool")
       cleanerThreadPool.scheduleWithFixedDelay(
         new Runnable {
           override def run(): Unit = {
-            val allShuffleIds = new util.ArrayList[Int]
-            shufflesToBeCleand.drainTo(allShuffleIds)
-            allShuffleIds.asScala.foreach { shuffleId =>
-              if (!cleanedShuffleIds.contains(shuffleId)) {
-                lifecycleManager.get().unregisterShuffle(shuffleId)
-                logInfo(
-                  s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
-                cleanedShuffleIds += shuffleId
+            try {
+              val allShuffleIds = new util.ArrayList[Int]
+              shufflesToBeCleand.drainTo(allShuffleIds)
+              allShuffleIds.asScala.foreach { shuffleId =>
+                if (!cleanedShuffleIds.contains(shuffleId)) {
+                  lifecycleManager.get().unregisterShuffle(shuffleId)
+                  logInfo(
+                    s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
+                  cleanedShuffleIds += shuffleId
+                }
               }
+            } catch {
+              case e: Exception =>
+                logError("unexpected exception in cleaner thread", e)
             }
           }
         },
@@ -156,6 +164,5 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
     ret
   }
 
-  private var cleanerThreadPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-    "failedShuffleCleanerThreadPool")
+  private var cleanerThreadPool: ScheduledExecutorService = _
 }

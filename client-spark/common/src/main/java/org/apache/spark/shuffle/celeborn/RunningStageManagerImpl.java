@@ -17,34 +17,29 @@
 
 package org.apache.spark.shuffle.celeborn;
 
-import java.lang.reflect.Field;
 import java.util.HashSet;
 
 import org.apache.spark.SparkContext$;
 import org.apache.spark.scheduler.DAGScheduler;
+import org.apache.spark.scheduler.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.reflect.DynFields;
 import org.apache.celeborn.spark.RunningStageManager;
 
 public class RunningStageManagerImpl implements RunningStageManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(RunningStageManagerImpl.class);
-  private final Field idField;
-
-  public RunningStageManagerImpl()
-      throws ClassNotFoundException, NoSuchFieldException, IllegalAccessException {
-    Class<?> stageClass = Class.forName("org.apache.spark.scheduler.Stage");
-    idField = stageClass.getDeclaredField("id");
-    idField.setAccessible(true);
-  }
+  private static final DynFields.UnboundField idField =
+      DynFields.builder().hiddenImpl(Stage.class, "id").build();
 
   private HashSet<?> runningStages() {
     try {
       DAGScheduler dagScheduler = SparkContext$.MODULE$.getActive().get().dagScheduler();
-      Class<?> dagSchedulerClz = SparkContext$.MODULE$.getActive().get().dagScheduler().getClass();
-      Field runningStagesField = dagSchedulerClz.getDeclaredField("runningStages");
-      return (HashSet<?>) runningStagesField.get(dagScheduler);
+      DynFields.UnboundField runningStagesField =
+          DynFields.builder().hiddenImpl(DAGScheduler.class, "runningStages").build();
+      return (HashSet<?>) runningStagesField.bind(dagScheduler).get();
     } catch (Exception e) {
       LOG.error("cannot get running stages", e);
       return new HashSet<>();
@@ -54,7 +49,7 @@ public class RunningStageManagerImpl implements RunningStageManager {
   public boolean isRunningStage(int stageId) {
     try {
       for (Object stage : runningStages()) {
-        int currentStageId = (Integer) idField.get(stage);
+        int currentStageId = (Integer) idField.bind(stage).get();
         if (currentStageId == stageId) {
           return true;
         }
