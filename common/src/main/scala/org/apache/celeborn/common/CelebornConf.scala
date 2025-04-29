@@ -98,9 +98,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   private def getTransportConfContainsImpl[T](
-    module: String,
-    entry: ConfigEntry[T],
-    fallbackWithoutModule: Boolean): Boolean = {
+      module: String,
+      entry: ConfigEntry[T],
+      fallbackWithoutModule: Boolean): Boolean = {
     findTransportConf(module, entry, fallbackWithoutModule).isDefined || (entry match {
       case fallbackConfig: FallbackConfigEntry[T] => contains(fallbackConfig)
       case _ => false
@@ -132,9 +132,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   private def findTransportConf[T](
-    module: String,
-    entry: ConfigEntry[T],
-    fallbackWithoutModule: Boolean): Option[String] = {
+      module: String,
+      entry: ConfigEntry[T],
+      fallbackWithoutModule: Boolean): Option[String] = {
     var currentModule = module
 
     while (null != currentModule) {
@@ -239,9 +239,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   /** Get a transport config */
   def getTransportConf(
-    module: String,
-    configEntry: ConfigEntry[String],
-    fallbackWithoutModule: Boolean = false): String = {
+      module: String,
+      configEntry: ConfigEntry[String],
+      fallbackWithoutModule: Boolean = false): String = {
     getTransportConfImpl(
       module,
       configEntry,
@@ -289,9 +289,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   /** Get time in ms for a transport config */
   def getTransportConfTimeAsMs(
-    module: String,
-    configEntry: ConfigEntry[Long],
-    fallbackWithoutModule: Boolean = false): Long = {
+      module: String,
+      configEntry: ConfigEntry[Long],
+      fallbackWithoutModule: Boolean = false): Long = {
     getTransportConfImpl(module, configEntry, Utils.timeStringAsMs, fallbackWithoutModule).get
   }
 
@@ -324,9 +324,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   /** Get a size parameter as bytes for a transport config */
   def getTransportConfSizeAsBytes(
-    module: String,
-    configEntry: ConfigEntry[Long],
-    fallbackWithoutModule: Boolean = false): Long = {
+      module: String,
+      configEntry: ConfigEntry[Long],
+      fallbackWithoutModule: Boolean = false): Long = {
     getTransportConfImpl(module, configEntry, Utils.byteStringAsBytes, fallbackWithoutModule).get
   }
 
@@ -420,9 +420,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   /** Get a parameter as an integer for a transport config */
   def getTransportConfInt(
-    module: String,
-    configEntry: ConfigEntry[Int],
-    fallbackWithoutModule: Boolean = false): Int = {
+      module: String,
+      configEntry: ConfigEntry[Int],
+      fallbackWithoutModule: Boolean = false): Int = {
     getTransportConfImpl(module, configEntry, Integer.parseInt, fallbackWithoutModule).get
   }
 
@@ -452,9 +452,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   /** Get a parameter as a long for a transport config */
   def getTransportConfBoolean(
-    module: String,
-    configEntry: ConfigEntry[Boolean],
-    fallbackWithoutModule: Boolean = false): Boolean = {
+      module: String,
+      configEntry: ConfigEntry[Boolean],
+      fallbackWithoutModule: Boolean = false): Boolean = {
     getTransportConfImpl(
       module,
       configEntry,
@@ -1429,7 +1429,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       config.valueConverter,
       allowDefault = false,
       fallbackWithoutModule = true)
-
 
     if (valueOpt.isDefined) {
       return valueOpt.get
