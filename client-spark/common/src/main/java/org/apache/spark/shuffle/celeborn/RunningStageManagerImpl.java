@@ -31,15 +31,15 @@ import org.apache.celeborn.spark.RunningStageManager;
 public class RunningStageManagerImpl implements RunningStageManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(RunningStageManagerImpl.class);
-  private static final DynFields.UnboundField idField =
+  private static final DynFields.UnboundField id_FIELD =
       DynFields.builder().hiddenImpl(Stage.class, "id").build();
+  private static final DynFields.UnboundField runningStages_FIELD =
+      DynFields.builder().hiddenImpl(DAGScheduler.class, "runningStages").build();
 
   private HashSet<?> runningStages() {
     try {
       DAGScheduler dagScheduler = SparkContext$.MODULE$.getActive().get().dagScheduler();
-      DynFields.UnboundField runningStagesField =
-          DynFields.builder().hiddenImpl(DAGScheduler.class, "runningStages").build();
-      return (HashSet<?>) runningStagesField.bind(dagScheduler).get();
+      return (HashSet<?>) runningStages_FIELD.bind(dagScheduler).get();
     } catch (Exception e) {
       LOG.error("cannot get running stages", e);
       return new HashSet<>();
@@ -49,7 +49,7 @@ public class RunningStageManagerImpl implements RunningStageManager {
   public boolean isRunningStage(int stageId) {
     try {
       for (Object stage : runningStages()) {
-        int currentStageId = (Integer) idField.bind(stage).get();
+        int currentStageId = (Integer) id_FIELD.bind(stage).get();
         if (currentStageId == stageId) {
           return true;
         }

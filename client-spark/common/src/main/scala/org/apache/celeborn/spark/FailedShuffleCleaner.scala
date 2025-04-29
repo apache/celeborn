@@ -33,7 +33,7 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
 
   private val lifecycleManager = new AtomicReference[LifecycleManager](null)
   // in celeborn ids
-  private val shufflesToBeCleand = new LinkedBlockingQueue[Int]()
+  private val shufflesToBeCleaned = new LinkedBlockingQueue[Int]()
   private val cleanedShuffleIds = new mutable.HashSet[Int]
   // celeborn shuffle id to stage id referred to it
   private[celeborn] val celebornShuffleIdToReferringStages =
@@ -62,14 +62,14 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
   // for test
   def reset(): Unit = {
     lifecycleManager.set(null)
-    shufflesToBeCleand.clear()
+    shufflesToBeCleaned.clear()
     cleanedShuffleIds.clear()
     celebornShuffleIdToReferringStages.clear()
     runningStageManager = buildRunningStageChecker()
     if (cleanerThreadPool != null) {
       cleanerThreadPool.shutdownNow()
+      cleanerThreadPool = null
     }
-
   }
 
   def addShuffleIdReferringStage(celebornShuffleId: Int, appShuffleIdentifier: String): Unit = {
@@ -99,7 +99,7 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
           || onlyCurrentStageReferred(celebornShuffleId, stageId.toInt)
           || noRunningDownstreamStage(celebornShuffleId)
           || !committedSuccessfully(celebornShuffleId)) {
-          shufflesToBeCleand.put(celebornShuffleId)
+          shufflesToBeCleaned.put(celebornShuffleId)
         }
       }
     }
@@ -124,7 +124,7 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
           override def run(): Unit = {
             try {
               val allShuffleIds = new util.ArrayList[Int]
-              shufflesToBeCleand.drainTo(allShuffleIds)
+              shufflesToBeCleaned.drainTo(allShuffleIds)
               allShuffleIds.asScala.foreach { shuffleId =>
                 if (!cleanedShuffleIds.contains(shuffleId)) {
                   lifecycleManager.get().unregisterShuffle(shuffleId)
