@@ -42,8 +42,10 @@ public class RunningStageManagerImpl implements RunningStageManager {
     try {
       DAGScheduler dagScheduler = SparkContext$.MODULE$.getActive().get().dagScheduler();
       return new HashSet<>(
-          JavaConverters.setAsJavaSet(
-              (scala.collection.mutable.HashSet<?>) runningStages_FIELD.bind(dagScheduler).get()));
+          JavaConverters.asJavaCollectionConverter(
+                  (scala.collection.mutable.HashSet<?>)
+                      runningStages_FIELD.bind(dagScheduler).get())
+              .asJavaCollection());
     } catch (Exception e) {
       LOG.error("cannot get running stages", e);
       return new HashSet<>();
