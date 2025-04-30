@@ -25,8 +25,9 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.spark.FailedShuffleCleaner
 
-class CelebornFailedDiskCleanUtils extends SparkTestBase {
+class CelebornFailedDiskCleanUtilsSuite extends SparkTestBase {
   test("test correctness of RunningStageManager") {
+    System.clearProperty(FailedShuffleCleaner.RUNNING_STAGE_CHECKER_CLASS)
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
     val sparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
@@ -37,22 +38,34 @@ class CelebornFailedDiskCleanUtils extends SparkTestBase {
         "spark.shuffle.manager",
         "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
       .getOrCreate()
-    var t: Thread = null
-    eventually(timeout(20.seconds), interval(100.milliseconds)) {
-      t = new Thread {
+
+    try {
+      val t = new Thread {
         override def run(): Unit = {
           try {
-            sparkSession.sparkContext.parallelize(List(1, 2, 3)).foreach(_ =>
-              Thread.sleep(60 * 1000))
+            sparkSession.sparkContext.parallelize(List(1, 2, 3)).mapPartitions { iter =>
+              Thread.sleep(60 * 1000)
+              iter
+            }.collect()
           } catch {
-            case _: Throwable =>
-            // swallow everything
+            case _: InterruptedException =>
           }
         }
       }
       t.start()
-      assert(FailedShuffleCleaner.runningStageManager.isRunningStage(0))
+
+      eventually(timeout(20.seconds), interval(100.milliseconds)) {
+        assert(FailedShuffleCleaner.runningStageManager.isRunningStage(0))
+      }
+
+      sparkSession.sparkContext.cancelAllJobs()
+      t.interrupt()
+
+      eventually(timeout(10.seconds), interval(100.milliseconds)) {
+        assert(!FailedShuffleCleaner.runningStageManager.isRunningStage(0))
+      }
+    } finally {
+      sparkSession.stop()
     }
-    sparkSession.stop()
   }
 }
