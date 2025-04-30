@@ -169,6 +169,7 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
       val expect = "[2,1]"
       assert(tuple.mkString("[", ",", "]").equals(expect))
       sparkSession.stop()
+      System.clearProperty(FailedShuffleCleaner.RUNNING_STAGE_CHECKER_CLASS)
     }
   }
 
@@ -198,6 +199,7 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
       val expect = "[2,1]"
       assert(tuples.mkString("[", ",", "]").equals(expect))
       sparkSession.stop()
+      System.clearProperty(FailedShuffleCleaner.RUNNING_STAGE_CHECKER_CLASS)
     }
   }
 
@@ -229,6 +231,7 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
       val expect = "[2,1]"
       assert(tuple.mkString("[", ",", "]").equals(expect))
       sparkSession.stop()
+      System.clearProperty(FailedShuffleCleaner.RUNNING_STAGE_CHECKER_CLASS)
     }
   }
 }
