@@ -95,6 +95,18 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
     }
   }
 
+  protected void processHeartbeat() {
+    try {
+      logger.trace("Process heartbeat from {}.", NettyUtils.getRemoteAddress(channel));
+      respond(new Heartbeat());
+    } catch (Exception e) {
+      logger.error(
+          "Error while invoking handler#respond() on heartbeat from {}.",
+          NettyUtils.getRemoteAddress(channel),
+          e);
+    }
+  }
+
   private void processRpcRequest(final RpcRequest req) {
     try {
       logger.trace("Process rpc request {}", req.requestId);

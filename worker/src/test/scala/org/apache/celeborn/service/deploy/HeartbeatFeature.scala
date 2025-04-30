@@ -66,21 +66,19 @@ trait HeartbeatFeature extends MiniClusterFeature {
       "celeborn.fetch.heartbeat.interval" -> "4s")
     val clientConf = new CelebornConf()
     clientConf.set("celeborn.data.io.connectionTimeout", "6s")
-    clientConf.set("celeborn.data.heartbeat.interval", "3s")
     (workerConf, clientConf)
   }
 
   def testHeartbeatFromWorker2Client(dataClientFactory: TransportClientFactory): Unit = {
     val (workerConf, _) = getTestHeartbeatFromWorker2ClientConf
-    // client <- worker:default client do not send heartbeat to worker, and worker sends hearbeat to client
-    // client active: after connection timeout, the channel still be active
+    // client <- worker: Worker sends heartbeat to client to avoid client read idle, and client sends heartbeat after receiving heartbeat to avoid worker read idle.
+    // client active: After client connection timeout, the channel remains active because worker send heartbeat to client.
     testCore(
       workerConf,
       dataClientFactory,
       (pushClient, fetchClient) => {
         Thread.sleep(7 * 1000)
         Assert.assertTrue(fetchClient.isActive)
-        // because worker don't send heartbeat when pushdata, so client's channel is false
         Assert.assertTrue(pushClient.isActive)
       })
   }
@@ -100,23 +98,23 @@ trait HeartbeatFeature extends MiniClusterFeature {
       : Unit = {
     val (workerConf, _) = getTestHeartbeatFromWorker2ClientWithNoHeartbeatConf
 
-    // client <- worker:default client do not send heartbeat to worker, and worker sends hearbeat to client
-    // client active: after connection timeout, the channel still be active
+    // client <- worker: Worker sends heartbeat to client to avoid client read idle, and client sends heartbeat after receiving heartbeat to avoid worker read idle.
+    // client inactive: After client connection timeout, the channel is inactive.
     testCore(
       workerConf,
       dataClientFactory,
       (pushClient, fetchClient) => {
         Thread.sleep(7 * 1000)
         Assert.assertFalse(fetchClient.isActive)
-        // because worker don't send heartbeat when pushdata, so client's channel is false
         Assert.assertFalse(pushClient.isActive)
       })
   }
 
-  def getTestHeartbeatFromWorker2ClientWithCloseChannelConf: (Map[String, String], CelebornConf) = {
+  def getTestHeartbeatFromWorker2ClientWithWorkerTimeoutConf
+      : (Map[String, String], CelebornConf) = {
     val workerConf = Map(
-      "celeborn.fetch.io.connectionTimeout" -> "9s",
-      "celeborn.push.io.connectionTimeout" -> "9s",
+      "celeborn.fetch.io.connectionTimeout" -> "3s",
+      "celeborn.push.io.connectionTimeout" -> "3s",
       "celeborn.push.heartbeat.interval" -> "4s",
       "celeborn.fetch.heartbeat.interval" -> "4s",
       "celeborn.worker.push.heartbeat.enabled" -> "true",
@@ -127,22 +125,17 @@ trait HeartbeatFeature extends MiniClusterFeature {
     (workerConf, clientConf)
   }
 
-  def testHeartbeatFromWorker2ClientWithCloseChannel(dataClientFactory: TransportClientFactory)
+  def testHeartbeatFromWorker2ClientWithWorkerTimeout(dataClientFactory: TransportClientFactory)
       : Unit = {
-    val (workerConf, _) = getTestHeartbeatFromWorker2ClientWithCloseChannelConf
+    val (workerConf, _) = getTestHeartbeatFromWorker2ClientWithWorkerTimeoutConf
 
-    // client <- worker:default client do not send heartbeat to worker, and worker sends hearbeat to client
-    // client inactive: after client connection timeout, client still be active(because worker send heartbeat to client);
-    // but after worker connectionTimeout, worker will close the channel, then client will be inactive
+    // client <- worker: Worker sends heartbeat to client to avoid client read idle, and client sends heartbeat after receiving heartbeat to avoid worker read idle.
+    // client inactive: Before client connection timeout, the channel is inactive because worker closes heartbeat.
     testCore(
       workerConf,
       dataClientFactory,
       (pushClient, fetchClient) => {
-        Thread.sleep(7 * 1000)
-        Assert.assertTrue(fetchClient.isActive)
-        Assert.assertTrue(pushClient.isActive)
-
-        Thread.sleep(4 * 1000)
+        Thread.sleep(5 * 1000)
         Assert.assertFalse(fetchClient.isActive)
         Assert.assertFalse(pushClient.isActive)
       })

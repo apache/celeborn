@@ -361,7 +361,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     assert(transportTestNetworkIoRetryWait == conf.networkIoRetryWaitMs(module))
     assert(transportTestNetworkIoStorageMemoryMapThreshold == conf.networkIoMemoryMapBytes(module))
     assert(transportTestNetworkIoLazyFd == conf.networkIoLazyFileDescriptor(module))
-    assert(transportTestChannelHeartbeatInterval == conf.clientHeartbeatInterval(module))
+    assert(transportTestChannelHeartbeatInterval == conf.channelHeartbeatInterval(module))
     assert(transportTestPushTimeoutCheckThreads == conf.pushDataTimeoutCheckerThreads(module))
     assert(transportTestPushTimeoutCheckInterval == conf.pushDataTimeoutCheckInterval(module))
     assert(transportTestFetchTimeoutCheckThreads == conf.fetchDataTimeoutCheckerThreads(module))
