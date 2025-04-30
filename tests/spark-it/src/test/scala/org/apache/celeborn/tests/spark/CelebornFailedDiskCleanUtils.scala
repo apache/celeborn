@@ -18,6 +18,9 @@ package org.apache.celeborn.tests.spark
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
+import org.scalatest.concurrent.Eventually.eventually
+import org.scalatest.concurrent.Futures.{interval, timeout}
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.spark.FailedShuffleCleaner
@@ -34,20 +37,22 @@ class CelebornFailedDiskCleanUtils extends SparkTestBase {
         "spark.shuffle.manager",
         "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
       .getOrCreate()
-    val t = new Thread {
-      override def run(): Unit = {
-        try {
-          sparkSession.sparkContext.parallelize(List(1, 2, 3)).foreach(_ =>
-            Thread.sleep(60 * 1000))
-        } catch {
-          case _: Throwable =>
-          // swallow everything
+    var t: Thread = null
+    eventually(timeout(20.seconds), interval(100.milliseconds)) {
+      t = new Thread {
+        override def run(): Unit = {
+          try {
+            sparkSession.sparkContext.parallelize(List(1, 2, 3)).foreach(_ =>
+              Thread.sleep(60 * 1000))
+          } catch {
+            case _: Throwable =>
+            // swallow everything
+          }
         }
       }
+      t.start()
+      assert(FailedShuffleCleaner.runningStageManager.isRunningStage(0))
     }
-    t.start()
-    Thread.sleep(20 * 1000)
-    assert(FailedShuffleCleaner.runningStageManager.isRunningStage(0))
     sparkSession.stop()
   }
 }
