@@ -1,10 +1,10 @@
 package org.apache.celeborn.tests.spark
 
-import org.apache.celeborn.common.protocol.ShuffleMode
-import org.apache.celeborn.spark.FailedShuffleCleaner
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
+
+import org.apache.celeborn.common.protocol.ShuffleMode
+import org.apache.celeborn.spark.FailedShuffleCleaner
 
 class CelebornFailedDiskCleanUtils extends SparkTestBase {
   test("test correctness of RunningStageManager") {
