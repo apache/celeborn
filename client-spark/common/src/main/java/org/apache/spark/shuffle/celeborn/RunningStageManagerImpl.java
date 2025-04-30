@@ -19,6 +19,8 @@ package org.apache.spark.shuffle.celeborn;
 
 import java.util.HashSet;
 
+import scala.collection.JavaConverters;
+
 import org.apache.spark.SparkContext$;
 import org.apache.spark.scheduler.DAGScheduler;
 import org.apache.spark.scheduler.Stage;
@@ -39,7 +41,9 @@ public class RunningStageManagerImpl implements RunningStageManager {
   private HashSet<?> runningStages() {
     try {
       DAGScheduler dagScheduler = SparkContext$.MODULE$.getActive().get().dagScheduler();
-      return (HashSet<?>) runningStages_FIELD.bind(dagScheduler).get();
+      return new HashSet<>(
+          JavaConverters.setAsJavaSet(
+              (scala.collection.mutable.HashSet<?>) runningStages_FIELD.bind(dagScheduler).get()));
     } catch (Exception e) {
       LOG.error("cannot get running stages", e);
       return new HashSet<>();
