@@ -81,7 +81,8 @@ private[tests] trait FetchFailureDiskCleanBase extends AnyFunSuite
             new File(s"$dir/celeborn-worker/shuffle_data/" +
               s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists()).toList
       }).mkString(",")
-      println(s"${deletedSuccessfullyString} \t $createdSuccessfullyString")
+      println(s"shuffle-to-be-deleted status: $deletedSuccessfullyString \n" +
+        s"shuffle-to-be-created status: $createdSuccessfullyString")
       deletedSuccessfully && createdSuccessfully
     }
 
