@@ -38,11 +38,11 @@ private[tests] trait FetchFailureDiskCleanBase extends AnyFunSuite
 
   override def beforeEach(): Unit = {
     ShuffleClient.reset()
-    FailedShuffleCleaner.reset()
   }
 
   override def afterEach(): Unit = {
     System.gc()
+    FailedShuffleCleaner.reset()
   }
 
   override def createWorker(map: Map[String, String]): Worker = {

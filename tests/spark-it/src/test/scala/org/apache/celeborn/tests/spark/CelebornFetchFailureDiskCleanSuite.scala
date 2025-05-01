@@ -143,15 +143,13 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
   // 7. if the dependency is 1 to M , we should not clean it
   test("celeborn spark integration test - Do not clean up the shuffle files being referred by more than one stages") {
     if (Spark3OrNewer) {
-      System.setProperty(
-        FailedShuffleCleaner.RUNNING_STAGE_CHECKER_CLASS,
-        "org.apache.celeborn.tests.spark.fetch_failure.TestRunningStageManager")
-      FailedShuffleCleaner.reset()
       // create dummy running stages
       TestRunningStageManager.runningStages += 2
       FailedShuffleCleaner.celebornShuffleIdToReferringStages.put(0, new mutable.HashSet[Int])
       FailedShuffleCleaner.celebornShuffleIdToReferringStages.get(0) += 2
-      val sparkSession = createSparkSession(enableFailedShuffleCleaner = true)
+      val sparkSession = createSparkSession(
+        enableFailedShuffleCleaner = true,
+        enableCustomizedRunningStageMgr = true)
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new FileDeletionShuffleReaderGetHook(
         celebornConf,
@@ -169,22 +167,19 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
       val expect = "[2,1]"
       assert(tuple.mkString("[", ",", "]").equals(expect))
       sparkSession.stop()
-      System.clearProperty(FailedShuffleCleaner.RUNNING_STAGE_CHECKER_CLASS)
     }
   }
 
   // 8. if the dependency is 1 to M but failed in commit phase, we should just clean it
   test("celeborn spark integration test - clear the failed-to-commit shuffle file even it is referred by more than once") {
     if (Spark3OrNewer) {
-      System.setProperty(
-        FailedShuffleCleaner.RUNNING_STAGE_CHECKER_CLASS,
-        "org.apache.celeborn.tests.spark.fetch_failure.TestRunningStageManager")
-      FailedShuffleCleaner.reset()
       // create dummy running stages
       TestRunningStageManager.runningStages += 2
       FailedShuffleCleaner.celebornShuffleIdToReferringStages.put(0, new mutable.HashSet[Int])
       FailedShuffleCleaner.celebornShuffleIdToReferringStages.get(0) += 2
-      val sparkSession = createSparkSession(enableFailedShuffleCleaner = true)
+      val sparkSession = createSparkSession(
+        enableFailedShuffleCleaner = true,
+        enableCustomizedRunningStageMgr = true)
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new FailCommitShuffleReaderGetHook(celebornConf)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
@@ -199,21 +194,18 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
       val expect = "[2,1]"
       assert(tuples.mkString("[", ",", "]").equals(expect))
       sparkSession.stop()
-      System.clearProperty(FailedShuffleCleaner.RUNNING_STAGE_CHECKER_CLASS)
     }
   }
 
   test("celeborn spark integration test - clean up the shuffle files if" +
     " the referring stage has finished") {
     if (Spark3OrNewer) {
-      System.setProperty(
-        FailedShuffleCleaner.RUNNING_STAGE_CHECKER_CLASS,
-        "org.apache.celeborn.tests.spark.fetch_failure.TestRunningStageManager")
-      FailedShuffleCleaner.reset()
       // create dummy running stages
       FailedShuffleCleaner.celebornShuffleIdToReferringStages.put(0, new mutable.HashSet[Int])
       FailedShuffleCleaner.celebornShuffleIdToReferringStages.get(0) += 2
-      val sparkSession = createSparkSession(enableFailedShuffleCleaner = true)
+      val sparkSession = createSparkSession(
+        enableFailedShuffleCleaner = true,
+        enableCustomizedRunningStageMgr = true)
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new FileDeletionShuffleReaderGetHook(
         celebornConf,
@@ -231,7 +223,6 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
       val expect = "[2,1]"
       assert(tuple.mkString("[", ",", "]").equals(expect))
       sparkSession.stop()
-      System.clearProperty(FailedShuffleCleaner.RUNNING_STAGE_CHECKER_CLASS)
     }
   }
 }

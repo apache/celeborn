@@ -16,14 +16,14 @@
  */
 package org.apache.celeborn.tests.spark
 
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.SparkEnv
+import org.apache.spark.shuffle.celeborn.SparkShuffleManager
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
-import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.spark.FailedShuffleCleaner
+import org.apache.celeborn.tests.spark.fetch_failure.FetchFailureDiskCleanBase
 
 class CelebornFailedDiskCleanUtilsSuite extends SparkTestBase {
   test("test correctness of RunningStageManager") {
@@ -49,9 +49,6 @@ class CelebornFailedDiskCleanUtilsSuite extends SparkTestBase {
             }.collect()
           } catch {
             case _: InterruptedException =>
-          }
-        }
-      }
       t.start()
 
       eventually(timeout(20.seconds), interval(100.milliseconds)) {

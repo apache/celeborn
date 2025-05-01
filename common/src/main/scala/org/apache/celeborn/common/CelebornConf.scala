@@ -1000,6 +1000,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchCleanFailedShuffle: Boolean = get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE)
   def clientFetchCleanFailedShuffleIntervalMS: Long =
     get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_INTERVAL)
+  def clientFetchCleanFailedShuffleRunningMgrImpl: String =
+    get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_RUNNING_STAGE_MGR_IMPL)
   def clientFetchExcludeWorkerOnFailureEnabled: Boolean =
     get(CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
   def clientFetchExcludedWorkerExpireTimeout: Long =
@@ -4823,6 +4825,14 @@ object CelebornConf extends Logging {
       .doc("whether to clean those disk space occupied by shuffles which cannot be fetched")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_RUNNING_STAGE_MGR_IMPL: ConfigEntry[String] =
+    buildConf("celeborn.client.spark.fetch.cleanFailedShuffle.runningStageManagerImpl")
+      .categories("client")
+      .version("0.6.0")
+      .doc("full class name of of running stage manager implementation, mainly for test")
+      .stringConf
+      .createWithDefault("org.apache.spark.shuffle.celeborn.RunningStageManagerImpl")
 
   val CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.client.spark.fetch.cleanFailedShuffleInterval")
