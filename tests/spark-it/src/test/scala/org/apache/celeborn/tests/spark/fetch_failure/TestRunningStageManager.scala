@@ -37,7 +37,7 @@ class TestRunningStageManager extends RunningStageManager {
     if (indeterministicStages.contains(stageId)) {
       false
     } else {
-      !SparkSchedulerHelper.stageIdToStage.get(stageId).exists(_.isIndeterminate)
+      true
     }
   }
 }
