@@ -18,4 +18,6 @@ package org.apache.celeborn.spark
 
 trait RunningStageManager {
   def isRunningStage(stageId: Int): Boolean
+
+  def isDeterministicStage(stageId: Int): Boolean
 }

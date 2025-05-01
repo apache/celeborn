@@ -32,8 +32,17 @@ class TestRunningStageManager extends RunningStageManager {
       SparkSchedulerHelper.runningStages.map(_.id).contains(stageId)
     }
   }
+
+  override def isDeterministicStage(stageId: Int): Boolean = {
+    if (indeterministicStages.contains(stageId)) {
+      false
+    } else {
+      SparkSchedulerHelper.stageIdToStage.get(stageId).exists(_.isIndeterminate)
+    }
+  }
 }
 
 object TestRunningStageManager {
   val runningStages = new mutable.HashSet[Int]
+  val indeterministicStages = new mutable.HashSet[Int]()
 }

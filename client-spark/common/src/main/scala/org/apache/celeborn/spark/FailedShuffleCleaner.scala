@@ -96,6 +96,7 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
         if (!celebornShuffleIdToReferringStages.containsKey(celebornShuffleId)
           || onlyCurrentStageReferred(celebornShuffleId, stageId.toInt)
           || noRunningDownstreamStage(celebornShuffleId)
+          || !isDeterministicStage(stageId.toInt)
           || !committedSuccessfully(celebornShuffleId)) {
           shufflesToBeCleaned.put(celebornShuffleId)
         }
@@ -146,6 +147,10 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
 
   def removeCleanedShuffleId(celebornShuffleId: Int): Unit = {
     cleanedShuffleIds.remove(celebornShuffleId)
+  }
+
+  private def isDeterministicStage(stageId: Int): Boolean = {
+    runningStageManager.isDeterministicStage(stageId)
   }
 
   private def noRunningDownstreamStage(celebornShuffleId: Int): Boolean = lock.synchronized {

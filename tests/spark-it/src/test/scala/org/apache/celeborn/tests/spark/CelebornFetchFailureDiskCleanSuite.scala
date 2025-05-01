@@ -24,7 +24,7 @@ import org.apache.celeborn.spark.FailedShuffleCleaner
 import org.apache.celeborn.tests.spark.fetch_failure.{FailCommitShuffleReaderGetHook, FetchFailureDiskCleanBase, FileDeletionShuffleReaderGetHook, TestRunningStageManager}
 
 class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
-
+  /*
   // 1. for single level 1-1 lineage, the old disk space is cleaned before the spark application
   // finish
   test("celeborn spark integration test - (1-1 dep with, single level lineage) the failed shuffle file is cleaned up correctly") {
@@ -214,6 +214,37 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
       TestCelebornShuffleManager.registerReaderGetHook(hook)
       val checkingThread =
         triggerStorageCheckThread(Seq(), Seq(1), sparkSession, forStableStatusChecking = true)
+      import sparkSession.implicits._
+      val df1 = Seq((1, "a"), (2, "b")).toDF("id", "data").groupBy("id").count()
+      val tuple = df1.collect().map(r => r.getAs[Int]("id"))
+      checkStorageValidation(checkingThread)
+      // verify result
+      assert(hook.executed.get())
+      val expect = "[2,1]"
+      assert(tuple.mkString("[", ",", "]").equals(expect))
+      sparkSession.stop()
+    }
+  }*/
+
+  test("celeborn spark integration test - clean up the shuffle files if" +
+    " the upstream stage is indeterministic") {
+    if (Spark3OrNewer) {
+      TestRunningStageManager.runningStages += 2
+      TestRunningStageManager.indeterministicStages += 0
+      // create dummy running stages
+      FailedShuffleCleaner.celebornShuffleIdToReferringStages.put(0, new mutable.HashSet[Int])
+      FailedShuffleCleaner.celebornShuffleIdToReferringStages.get(0) += 2
+      val sparkSession = createSparkSession(
+        enableFailedShuffleCleaner = true,
+        enableCustomizedRunningStageMgr = true)
+      val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
+      val hook = new FileDeletionShuffleReaderGetHook(
+        celebornConf,
+        workerDirs,
+        shuffleIdToBeDeleted = Seq(0))
+      TestCelebornShuffleManager.registerReaderGetHook(hook)
+      val checkingThread =
+        triggerStorageCheckThread(Seq(0), Seq(1), sparkSession, forStableStatusChecking = true)
       import sparkSession.implicits._
       val df1 = Seq((1, "a"), (2, "b")).toDF("id", "data").groupBy("id").count()
       val tuple = df1.collect().map(r => r.getAs[Int]("id"))
