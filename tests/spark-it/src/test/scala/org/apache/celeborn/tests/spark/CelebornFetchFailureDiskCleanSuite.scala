@@ -24,7 +24,7 @@ import org.apache.celeborn.spark.FailedShuffleCleaner
 import org.apache.celeborn.tests.spark.fetch_failure.{FailCommitShuffleReaderGetHook, FetchFailureDiskCleanBase, FileDeletionShuffleReaderGetHook, TestRunningStageManager}
 
 class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
-  /*
+  
   // 1. for single level 1-1 lineage, the old disk space is cleaned before the spark application
   // finish
   test("celeborn spark integration test - (1-1 dep with, single level lineage) the failed shuffle file is cleaned up correctly") {
@@ -224,7 +224,7 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
       assert(tuple.mkString("[", ",", "]").equals(expect))
       sparkSession.stop()
     }
-  }*/
+  }
 
   test("celeborn spark integration test - clean up the shuffle files if" +
     " the upstream stage is indeterministic") {
