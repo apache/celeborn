@@ -44,24 +44,21 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
   private lazy val cleanInterval =
     lifecycleManager.get().conf.clientFetchCleanFailedShuffleIntervalMS
 
-  val RUNNING_STAGE_CHECKER_CLASS = "CELEBORN_TEST_RUNNING_STAGE_CHECKER_IMPL"
+  private[celeborn] var runningStageManager: RunningStageManager = _
 
-  private[celeborn] var runningStageManager: RunningStageManager = buildRunningStageChecker()
-
-  // for testing
   private def buildRunningStageChecker(): RunningStageManager = {
-    if (System.getProperty(RUNNING_STAGE_CHECKER_CLASS) == null) {
-      new RunningStageManagerImpl
-    } else {
-      val className = System.getProperty(RUNNING_STAGE_CHECKER_CLASS)
+    val lifecycleMgrRef = lifecycleManager.get()
+    if (lifecycleMgrRef != null) {
+      val className = lifecycleManager.get().conf.clientFetchCleanFailedShuffleRunningMgrImpl
       val claz = Class.forName(className)
       claz.getDeclaredConstructor().newInstance().asInstanceOf[RunningStageManager]
+    } else {
+      null
     }
   }
 
   // for test
   def reset(): Unit = {
-    lifecycleManager.set(null)
     shufflesToBeCleaned.clear()
     cleanedShuffleIds.clear()
     celebornShuffleIdToReferringStages.clear()
@@ -70,6 +67,7 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
       cleanerThreadPool.shutdownNow()
       cleanerThreadPool = null
     }
+    lifecycleManager.set(null)
   }
 
   def addShuffleIdReferringStage(celebornShuffleId: Int, appShuffleIdentifier: String): Unit = {
@@ -119,6 +117,7 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
     if (firstSet) {
       cleanerThreadPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor(
         "failedShuffleCleanerThreadPool")
+      runningStageManager = buildRunningStageChecker()
       cleanerThreadPool.scheduleWithFixedDelay(
         new Runnable {
           override def run(): Unit = {
