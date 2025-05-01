@@ -30,7 +30,7 @@ class PartitionValidatorTest extends CelebornFunSuite {
 
   test("AQEPartitionCompletenessValidator should validate a new sub-partition correctly when there are no overlapping ranges") {
     validator = new PartitionCompletenessValidator
-    val (isValid, message) = validator.validateSubPartition(1, 0, 10, any(), any(), 20)
+    val (isValid, message) = validator.validateSubPartition(1, 0, 10, any(), any(), 20, false)
 
     isValid shouldBe (true)
     message shouldBe ("Partition is valid but still waiting for more data")
@@ -38,9 +38,17 @@ class PartitionValidatorTest extends CelebornFunSuite {
 
   test("AQEPartitionCompletenessValidator should fail validation for overlapping map ranges") {
     validator = new PartitionCompletenessValidator
-    validator.validateSubPartition(1, 0, 10, any(), any(), 20) // First call should add the range
+    validator.validateSubPartition(
+      1,
+      0,
+      10,
+      any(),
+      any(),
+      20,
+      false
+    ) // First call should add the range
     val (isValid, message) =
-      validator.validateSubPartition(1, 5, 15, any(), any(), 20) // This overlaps
+      validator.validateSubPartition(1, 5, 15, any(), any(), 20, false) // This overlaps
 
     isValid shouldBe (false)
     message should include("Encountered overlapping map range for partitionId: 1")
@@ -49,19 +57,43 @@ class PartitionValidatorTest extends CelebornFunSuite {
   test(
     "AQEPartitionCompletenessValidator should fail validation for overlapping map ranges- case 2") {
     validator = new PartitionCompletenessValidator
-    validator.validateSubPartition(1, 0, 1, any(), any(), 20) // First call should add the range
-    validator.validateSubPartition(1, 2, 3, any(), any(), 20) // First call should add the range
+    validator.validateSubPartition(
+      1,
+      0,
+      1,
+      any(),
+      any(),
+      20,
+      false
+    ) // First call should add the range
+    validator.validateSubPartition(
+      1,
+      2,
+      3,
+      any(),
+      any(),
+      20,
+      false
+    ) // First call should add the range
     val (isValid, message) =
-      validator.validateSubPartition(1, 1, 2, any(), any(), 20) // This overlaps
+      validator.validateSubPartition(1, 1, 2, any(), any(), 20, false) // This overlaps
 
     isValid shouldBe (true)
   }
 
   test("AQEPartitionCompletenessValidator should fail validation for overlapping map ranges - edge cases") {
     validator = new PartitionCompletenessValidator
-    validator.validateSubPartition(1, 0, 10, any(), any(), 20) // First call should add the range
+    validator.validateSubPartition(
+      1,
+      0,
+      10,
+      any(),
+      any(),
+      20,
+      false
+    ) // First call should add the range
     val (isValid, message) =
-      validator.validateSubPartition(1, 0, 5, any(), any(), 20) // This overlaps
+      validator.validateSubPartition(1, 0, 5, any(), any(), 20, false) // This overlaps
 
     isValid shouldBe (false)
     message should include("Encountered overlapping map range for partitionId: 1")
@@ -69,9 +101,17 @@ class PartitionValidatorTest extends CelebornFunSuite {
 
   test("AQEPartitionCompletenessValidator should fail validation for one map range subsuming another map range") {
     validator = new PartitionCompletenessValidator
-    validator.validateSubPartition(1, 5, 10, any(), any(), 20) // First call should add the range
+    validator.validateSubPartition(
+      1,
+      5,
+      10,
+      any(),
+      any(),
+      20,
+      false
+    ) // First call should add the range
     val (isValid, message) =
-      validator.validateSubPartition(1, 0, 15, any(), any(), 20) // This overlaps
+      validator.validateSubPartition(1, 0, 15, any(), any(), 20, false) // This overlaps
 
     isValid shouldBe (false)
     message should include("Encountered overlapping map range for partitionId: 1")
@@ -79,9 +119,17 @@ class PartitionValidatorTest extends CelebornFunSuite {
 
   test("AQEPartitionCompletenessValidator should fail validation for one map range subsuming another map range - 2") {
     validator = new PartitionCompletenessValidator
-    validator.validateSubPartition(1, 0, 15, any(), any(), 20) // First call should add the range
+    validator.validateSubPartition(
+      1,
+      0,
+      15,
+      any(),
+      any(),
+      20,
+      false
+    ) // First call should add the range
     val (isValid, message) =
-      validator.validateSubPartition(1, 5, 10, any(), any(), 20) // This overlaps
+      validator.validateSubPartition(1, 5, 10, any(), any(), 20, false) // This overlaps
 
     isValid shouldBe (false)
     message should include("Encountered overlapping map range for partitionId: 1")
@@ -98,12 +146,20 @@ class PartitionValidatorTest extends CelebornFunSuite {
       10,
       actuaCommitMetadata,
       expectedCommitMetadata,
-      20
+      20,
+      false
     ) // Write first partition
 
     // Second one with a different count
     val (isValid, message) =
-      validator.validateSubPartition(1, 0, 10, new CommitMetadata(3, 3), expectedCommitMetadata, 20)
+      validator.validateSubPartition(
+        1,
+        0,
+        10,
+        new CommitMetadata(3, 3),
+        expectedCommitMetadata,
+        20,
+        false)
 
     isValid should be(false)
     message should include("Commit Metadata for partition: 1 not matching for sub-partition")
@@ -112,14 +168,22 @@ class PartitionValidatorTest extends CelebornFunSuite {
   test("pass validation if written counts are correct after all updates") {
     validator = new PartitionCompletenessValidator
     val expectedCommitMetadata = new CommitMetadata(0, 10)
-    validator.validateSubPartition(1, 0, 10, new CommitMetadata(0, 5), expectedCommitMetadata, 20)
+    validator.validateSubPartition(
+      1,
+      0,
+      10,
+      new CommitMetadata(0, 5),
+      expectedCommitMetadata,
+      20,
+      false)
     val (isValid, message) = validator.validateSubPartition(
       1,
       10,
       20,
       new CommitMetadata(0, 5),
       expectedCommitMetadata,
-      20)
+      20,
+      false)
 
     isValid should be(true)
     message should be("Partition is complete")
@@ -136,7 +200,8 @@ class PartitionValidatorTest extends CelebornFunSuite {
       10,
       new CommitMetadata(0, 5),
       expectedCommitMetadataForPartition1,
-      20
+      20,
+      false
     ) // Validate partition 1
     validator.validateSubPartition(
       2,
@@ -144,7 +209,8 @@ class PartitionValidatorTest extends CelebornFunSuite {
       5,
       new CommitMetadata(0, 2),
       expectedCommitMetadataForPartition2,
-      10
+      10,
+      false
     ) // Validate partition 2
 
     val (isValid1, message1) = validator.validateSubPartition(
@@ -153,14 +219,16 @@ class PartitionValidatorTest extends CelebornFunSuite {
       10,
       new CommitMetadata(0, 5),
       expectedCommitMetadataForPartition1,
-      20)
+      20,
+      false)
     val (isValid2, message2) = validator.validateSubPartition(
       2,
       0,
       5,
       new CommitMetadata(0, 2),
       expectedCommitMetadataForPartition2,
-      10)
+      10,
+      false)
 
     isValid1 should be(true)
     isValid2 should be(true)
@@ -173,14 +241,16 @@ class PartitionValidatorTest extends CelebornFunSuite {
       20,
       new CommitMetadata(0, 5),
       expectedCommitMetadataForPartition1,
-      20)
+      20,
+      false)
     val (isValid4, message4) = validator.validateSubPartition(
       2,
       5,
       10,
       new CommitMetadata(),
       expectedCommitMetadataForPartition2,
-      10)
+      10,
+      false)
     isValid3 should be(true)
     isValid4 should be(true)
     message3 should be("Partition is complete")

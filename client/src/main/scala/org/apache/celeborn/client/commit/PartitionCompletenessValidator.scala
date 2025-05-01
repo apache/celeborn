@@ -18,10 +18,12 @@
 package org.apache.celeborn.client.commit
 
 import java.util
-import java.util.Comparator
+import java.util.{Comparator, HashMap => JHashMap, Map => JMap}
 
 import com.google.common.base.Preconditions.{checkArgument, checkState}
+import org.apache.commons.lang3.tuple.Pair
 
+import org.apache.celeborn.client.ClientUtils
 import org.apache.celeborn.common.CommitMetadata
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.JavaUtils
@@ -31,6 +33,7 @@ class PartitionCompletenessValidator extends Logging {
   private val actualCommitMetadataForReducer = {
     JavaUtils.newConcurrentHashMap[Int, java.util.TreeMap[(Int, Int), CommitMetadata]]()
   }
+  private val totalSubPartitionsProcessed = JavaUtils.newConcurrentHashMap[Int, Int]()
   private val currentCommitMetadataForReducer =
     JavaUtils.newConcurrentHashMap[Int, CommitMetadata]()
   private val currentTotalMapRangeSumForReducer = JavaUtils.newConcurrentHashMap[Int, Int]()
@@ -48,7 +51,44 @@ class PartitionCompletenessValidator extends Logging {
       endMapIndex: Int,
       actualCommitMetadata: CommitMetadata,
       expectedCommitMetadata: CommitMetadata,
-      expectedTotalMapperCountForParent: Int): (Boolean, String) = {
+      expectedTotalMapperCountForParent: Int,
+      skewPartitionHandlingWithoutMapRange: Boolean): (Boolean, String) = {
+  //TODO - ensure sub partitions aren't processed twice
+    if (skewPartitionHandlingWithoutMapRange) {
+      totalSubPartitionsProcessed.put(partitionId, totalSubPartitionsProcessed.get(partitionId) + 1)
+      if (!currentCommitMetadataForReducer.containsKey(partitionId)) {
+        currentCommitMetadataForReducer.put(
+          partitionId,
+          new CommitMetadata(actualCommitMetadata.getChecksum, actualCommitMetadata.getBytes))
+      } else {
+        currentCommitMetadataForReducer.get(partitionId).addCommitData(actualCommitMetadata)
+      }
+      val currentCommitMetadata = currentCommitMetadataForReducer.get(partitionId)
+      if (totalSubPartitionsProcessed.get(partitionId) == startMapIndex) {
+        val matchesMetadata =
+          CommitMetadata.checkCommitMetadata(expectedCommitMetadata, currentCommitMetadata)
+
+        if (matchesMetadata) {
+          logInfo(
+            s"AQE Partition $partitionId completed validation check in skew handling without map range, " +
+              s"expectedCommitMetadata $expectedCommitMetadata, " +
+              s"actualCommitMetadata $currentCommitMetadata, " +
+              s"totalSubPartitionCount $startMapIndex, ")
+          return (true, "Partition is complete")
+        } else {
+          val errorMsg =
+            s"AQE Partition $partitionId failed validation check in skew handling without map range" +
+              s"while processing range startMapIndex: $startMapIndex endMapIndex: $endMapIndex" +
+              s"ExpectedCommitMetadata $expectedCommitMetadata, " +
+              s"ActualCommitMetadata $currentCommitMetadata, " +
+              s"totalSubPartitionCount $startMapIndex, "
+          logError(errorMsg)
+          return (false, errorMsg)
+        }
+      }
+      return (true, "Partition is valid but still waiting for more data")
+    }
+
     checkArgument(
       startMapIndex < endMapIndex,
       "startMapIndex %s must be less than endMapIndex %s",
@@ -158,6 +198,7 @@ class PartitionCompletenessValidator extends Logging {
         logInfo(
           s"AQE Partition $partitionId completed validation check, " +
             s"expectedCommitMetadata $expectedCommitMetadata, " +
+            s"actualCommitMetadata $currentCommitMetadata, " +
             s"totalMapperCount $totalMapperCountForPartition")
         return (true, "Partition is complete")
       } else {

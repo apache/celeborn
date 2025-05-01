@@ -364,9 +364,15 @@ class ReducePartitionCommitHandler(
       if (!bool) {
         message =
           s"CommitMetadata mismatch for shuffleId: $shuffleId partitionId: $partitionId expected: $expectedCommitMetadata actual: $actualCommitMetadata"
+      } else {
+        logInfo(
+          s"CommitMetadata matched for shuffleID : $shuffleId, partitionId: $partitionId expected: $expectedCommitMetadata actual: $actualCommitMetadata")
       }
       return (bool, message)
     }
+
+    val splitSkewPartitionWithoutMapRange =
+      ClientUtils.readSkewPartitionWithoutMapRange(conf, startMapIndex, endMapIndex)
 
     val validator = aqePartitionCompletenessValidator.computeIfAbsent(
       shuffleId,
@@ -377,7 +383,8 @@ class ReducePartitionCommitHandler(
       endMapIndex,
       actualCommitMetadata,
       expectedCommitMetadata,
-      shuffleMapperAttempts.get(shuffleId).length)
+      shuffleMapperAttempts.get(shuffleId).length,
+      splitSkewPartitionWithoutMapRange)
   }
 
   private def initMapperAttempts(shuffleId: Int, numMappers: Int, numPartitions: Int): Unit = {
