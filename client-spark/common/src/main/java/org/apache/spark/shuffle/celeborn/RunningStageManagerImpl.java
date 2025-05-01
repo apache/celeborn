@@ -17,6 +17,7 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -87,6 +88,18 @@ public class RunningStageManagerImpl implements RunningStageManager {
   @Override
   public boolean isDeterministicStage(int stageId) {
     HashMap<?, ?> map = stageIdToStageMap();
-    return ((Stage) map.get(stageId)).isIndeterminate();
+    Object stage = map.get(stageId);
+    try {
+      Method isIndeterminateMethod = stage.getClass().getMethod("isIndeterminate");
+      boolean isIndeterminate = (boolean) isIndeterminateMethod.invoke(stage);
+      System.out.println("returning " + isIndeterminate);
+      return !isIndeterminate;
+    } catch (NoSuchMethodException e) {
+      System.out.println("Method isIndeterminate not found on stage object: " + e.getMessage());
+      return true;
+    } catch (Exception e) {
+      System.out.println("Error invoking isIndeterminate: " + e.getMessage());
+      return true;
+    }
   }
 }
