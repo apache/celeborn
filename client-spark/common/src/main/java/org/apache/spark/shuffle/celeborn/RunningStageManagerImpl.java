@@ -92,13 +92,12 @@ public class RunningStageManagerImpl implements RunningStageManager {
     try {
       Method isIndeterminateMethod = stage.getClass().getMethod("isIndeterminate");
       boolean isIndeterminate = (boolean) isIndeterminateMethod.invoke(stage);
-      System.out.println("returning " + isIndeterminate);
       return !isIndeterminate;
     } catch (NoSuchMethodException e) {
-      System.out.println("Method isIndeterminate not found on stage object: " + e.getMessage());
+      LOG.warn("Method isIndeterminate not found on stage object: " + e.getMessage());
       return true;
     } catch (Exception e) {
-      System.out.println("Error invoking isIndeterminate: " + e.getMessage());
+      LOG.warn("Error invoking isIndeterminate: " + e.getMessage());
       return true;
     }
   }
