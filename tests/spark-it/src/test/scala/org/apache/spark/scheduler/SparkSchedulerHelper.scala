@@ -23,4 +23,6 @@ object SparkSchedulerHelper {
   def dagScheduler = SparkContext.getActive.get.dagScheduler
 
   def runningStages = dagScheduler.runningStages
+
+  def stageIdToStage = dagScheduler.stageIdToStage
 }

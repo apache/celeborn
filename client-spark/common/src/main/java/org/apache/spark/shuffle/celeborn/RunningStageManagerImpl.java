@@ -17,6 +17,7 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import java.util.HashMap;
 import java.util.HashSet;
 
 import scala.collection.JavaConverters;
@@ -37,6 +38,8 @@ public class RunningStageManagerImpl implements RunningStageManager {
       DynFields.builder().hiddenImpl(Stage.class, "id").build();
   private static final DynFields.UnboundField runningStages_FIELD =
       DynFields.builder().hiddenImpl(DAGScheduler.class, "runningStages").build();
+  private static final DynFields.UnboundField stageIdToStage_FIELD =
+      DynFields.builder().hiddenImpl(DAGScheduler.class, "stageIdToStage").build();
 
   private HashSet<?> runningStages() {
     try {
@@ -49,6 +52,20 @@ public class RunningStageManagerImpl implements RunningStageManager {
     } catch (Exception e) {
       LOG.error("cannot get running stages", e);
       return new HashSet<>();
+    }
+  }
+
+  private HashMap<?, ?> stageIdToStageMap() {
+    try {
+      DAGScheduler dagScheduler = SparkContext$.MODULE$.getActive().get().dagScheduler();
+      return new HashMap<>(
+          JavaConverters.mapAsJavaMapConverter(
+                  (scala.collection.mutable.HashMap<?, ?>)
+                      stageIdToStage_FIELD.bind(dagScheduler).get())
+              .asJava());
+    } catch (Exception e) {
+      LOG.error("cannot get running stages", e);
+      return new HashMap<>();
     }
   }
 
@@ -65,5 +82,11 @@ public class RunningStageManagerImpl implements RunningStageManager {
       LOG.error("unexpected exception when checking whether it is running stage ", e);
       return true;
     }
+  }
+
+  @Override
+  public boolean isDeterministicStage(int stageId) {
+    HashMap<?, ?> map = stageIdToStageMap();
+    return ((Stage) map.get(stageId)).isIndeterminate();
   }
 }
