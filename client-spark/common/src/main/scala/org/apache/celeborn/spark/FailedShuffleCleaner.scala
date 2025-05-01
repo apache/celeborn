@@ -94,9 +94,9 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
     lifecycleManager.get().getShuffleIdMapping.get(appShuffleId.toInt).foreach {
       case (_, (celebornShuffleId, _)) => {
         if (!celebornShuffleIdToReferringStages.containsKey(celebornShuffleId)
+          || !isDeterministicStage(stageId.toInt)
           || onlyCurrentStageReferred(celebornShuffleId, stageId.toInt)
           || noRunningDownstreamStage(celebornShuffleId)
-          || !isDeterministicStage(stageId.toInt)
           || !committedSuccessfully(celebornShuffleId)) {
           shufflesToBeCleaned.put(celebornShuffleId)
         }
