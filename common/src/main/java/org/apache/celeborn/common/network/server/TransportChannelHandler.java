@@ -157,8 +157,8 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
       if (request instanceof Heartbeat) {
         logger.debug("Received heartbeat from {}.", NettyUtils.getRemoteAddress(ctx.channel()));
         if (!enableHeartbeat) {
-          // Which disables heartbeat should send heartbeat for processing heartbeat to avoid
-          // reading idleness of which enables heartbeat.
+          // When heartbeat is disabled, we should still response to a heartbeat if peer has
+          // heartbeat enabled - to present reading idleness.
           requestHandler.processHeartbeat();
         }
         ctx.fireChannelRead(request);
