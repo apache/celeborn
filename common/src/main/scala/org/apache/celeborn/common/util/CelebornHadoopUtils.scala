@@ -34,6 +34,7 @@ object CelebornHadoopUtils extends Logging {
   private var logPrinted = new AtomicBoolean(false)
   private[celeborn] def newConfiguration(conf: CelebornConf): Configuration = {
     val hadoopConf = new Configuration()
+    hadoopConf.set("fs.automatic.close", "false")
     if (conf.hdfsDir.nonEmpty) {
       val path = new Path(conf.hdfsDir)
       val scheme = path.toUri.getScheme
