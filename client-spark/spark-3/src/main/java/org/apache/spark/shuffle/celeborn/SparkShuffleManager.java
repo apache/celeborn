@@ -171,10 +171,6 @@ public class SparkShuffleManager implements ShuffleManager {
                 (appShuffleIdentifier) ->
                     SparkUtils.addWriterShuffleIdsToBeCleaned(
                         lifecycleManager, appShuffleIdentifier));
-            lifecycleManager.registerRecordShuffleIdReferenceCallback(
-                (celebornShuffleId, appShuffleIdentifier) ->
-                    SparkUtils.addShuffleIdRefStage(
-                        lifecycleManager, celebornShuffleId, appShuffleIdentifier));
             lifecycleManager.registerUnregisterShuffleCallback(
                 (celebornShuffleId) ->
                     SparkUtils.removeCleanedShuffleId(lifecycleManager, celebornShuffleId));

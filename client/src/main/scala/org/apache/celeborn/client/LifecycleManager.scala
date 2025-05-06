@@ -954,8 +954,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         shuffleIds.values.filter(v => v._2).map(v => v._1).toSeq.reverse.find(
           areAllMapTasksEnd) match {
           case Some(celebornShuffleId) =>
-            recordShuffleIdReference.foreach(callback =>
-              callback.accept(celebornShuffleId, appShuffleIdentifier))
             val pbGetShuffleIdResponse = {
               logDebug(
                 s"get shuffleId $celebornShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier isWriter $isWriter")
@@ -1862,11 +1860,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   def registerValidateCelebornShuffleIdForCleanCallback(
       callback: Consumer[String]): Unit = {
     validateCelebornShuffleIdForClean = Some(callback)
-  }
-  // expecting celeborn shuffle id and application shuffle identifier
-  @volatile private var recordShuffleIdReference: Option[BiConsumer[Integer, String]] = None
-  def registerRecordShuffleIdReferenceCallback(callback: BiConsumer[Integer, String]): Unit = {
-    recordShuffleIdReference = Some(callback)
   }
 
   @volatile private var unregisterShuffleCallback: Option[Consumer[Integer]] = None
