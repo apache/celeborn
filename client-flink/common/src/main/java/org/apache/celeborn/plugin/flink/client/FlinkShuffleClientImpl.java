@@ -174,7 +174,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     this.bufferSizeBytes = bufferSizeBytes;
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
-        Utils.fromCelebornConf(conf, module, conf.getInt("celeborn." + module + ".io.threads", 8));
+        Utils.fromCelebornConf(conf, module, conf.networkIoThreads(module));
     this.context =
         new TransportContext(
             dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());

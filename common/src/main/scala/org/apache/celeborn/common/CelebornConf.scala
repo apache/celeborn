@@ -514,7 +514,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(get(NETWORK_TIMEOUT).milli, NETWORK_TIMEOUT.key)
   def networkConnectTimeout: RpcTimeout =
     new RpcTimeout(get(NETWORK_CONNECT_TIMEOUT).milli, NETWORK_CONNECT_TIMEOUT.key)
-  def rpcIoThreads: Option[Int] = get(RPC_IO_THREAD)
+  def rpcIoThreads: Option[Int] = get(RPC_IO_THREADS)
   def rpcConnectThreads: Int = get(RPC_CONNECT_THREADS)
   def rpcLookupTimeout: RpcTimeout =
     new RpcTimeout(get(RPC_LOOKUP_TIMEOUT).milli, RPC_LOOKUP_TIMEOUT.key)
@@ -563,6 +563,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def networkIoBacklog(module: String): Int = {
     getTransportConfInt(module, NETWORK_IO_BACKLOG)
+  }
+
+  def networkIoThreads(module: String): Int = {
+    getTransportConfInt(module, NETWORK_IO_THREADS)
   }
 
   def networkIoServerThreads(module: String): Int = {
@@ -1905,7 +1909,7 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(1)
 
-  val RPC_IO_THREAD: OptionalConfigEntry[Int] =
+  val RPC_IO_THREADS: OptionalConfigEntry[Int] =
     buildConf("celeborn.rpc.io.threads")
       .categories("network")
       .doc("Netty IO thread number of NettyRpcEnv to handle RPC request. " +
@@ -2089,6 +2093,16 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(0)
 
+  val NETWORK_IO_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.<module>.io.threads")
+      .categories("network")
+      .doc(s"Default number of threads used in the server and client thread pool. " +
+        s"This specifies thread configuration based on JVM's allocation of cores. " +
+        s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
+        s"it works for shuffle client push and fetch data.")
+      .intConf
+      .createWithDefault(8)
+
   val NETWORK_IO_SERVER_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.<module>.io.serverThreads")
       .categories("network")
@@ -2115,7 +2129,7 @@ object CelebornConf extends Logging {
         s"If setting <module> to `${TransportModuleConstants.RPC_SERVICE_MODULE}`, " +
         s"works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push and fetch data. " +
+        s"it works for shuffle client push and fetch data, of which default value is determined by ${NETWORK_IO_THREADS.key} . " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
         s"it works for replicate client of worker replicating data to peer worker.")
       .intConf
