@@ -694,8 +694,6 @@ private[celeborn] class Master(
       val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
       val shuffleIds = statusSystem.registeredAppAndShuffles.get(appId)
       if (shuffleIds == null || !shuffleIds.contains(shuffleId)) {
-        logWarning(
-          s"Shuffle $shuffleKey expired on $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
         expiredShuffleKeys.add(shuffleKey)
       }
     }
