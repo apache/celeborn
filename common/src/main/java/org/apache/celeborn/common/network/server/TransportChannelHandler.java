@@ -109,6 +109,7 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
   @Override
   public void channelActive(ChannelHandlerContext ctx) throws Exception {
     if (enableHeartbeat) {
+      logger.info("Enabling heartbeat for channel: {}", ctx.channel());
       heartbeatFuture =
           ctx.executor()
               .scheduleWithFixedDelay(
