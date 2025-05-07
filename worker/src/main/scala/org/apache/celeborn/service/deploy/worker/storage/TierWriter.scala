@@ -321,6 +321,8 @@ class MemoryTierWriter(
       flushBuffer.addComponent(true, buf)
     } catch {
       case oom: OutOfMemoryError =>
+        // memory tier writer will not flush
+        // add the bytes into flusher buffer is flush completed
         metaHandler.afterFlush(numBytes)
         MemoryManager.instance.incrementMemoryFileStorage(numBytes)
         throw oom
