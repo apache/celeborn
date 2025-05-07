@@ -316,16 +316,17 @@ class MemoryTierWriter(
 
   override def writeInternal(buf: ByteBuf): Unit = {
     buf.retain()
+    val numBytes = buf.readableBytes()
     try {
       flushBuffer.addComponent(true, buf)
     } catch {
       case oom: OutOfMemoryError =>
-        MemoryManager.instance.releaseMemoryFileStorage(buf.readableBytes())
+        metaHandler.afterFlush(numBytes)
+        MemoryManager.instance.incrementMemoryFileStorage(numBytes)
         throw oom
     }
     // memory tier writer will not flush
     // add the bytes into flusher buffer is flush completed
-    val numBytes = buf.readableBytes()
     metaHandler.afterFlush(numBytes)
     MemoryManager.instance().incrementMemoryFileStorage(numBytes)
   }
@@ -413,7 +414,15 @@ class LocalTierWriter(
       flush(false)
     }
     buf.retain()
-    flushBuffer.addComponent(true, buf)
+    try {
+      flushBuffer.addComponent(true, buf)
+    } catch {
+      case oom: OutOfMemoryError =>
+        MemoryManager.instance.incrementDiskBuffer(numBytes)
+        if (userCongestionControlContext != null)
+          userCongestionControlContext.updateProduceBytes(numBytes)
+        throw oom
+    }
     MemoryManager.instance.incrementDiskBuffer(numBytes)
     if (userCongestionControlContext != null)
       userCongestionControlContext.updateProduceBytes(numBytes)
@@ -611,7 +620,13 @@ class DfsTierWriter(
       flush(false)
     }
     buf.retain()
-    flushBuffer.addComponent(true, buf)
+    try {
+      flushBuffer.addComponent(true, buf)
+    } catch {
+      case oom: OutOfMemoryError =>
+        MemoryManager.instance.incrementDiskBuffer(numBytes)
+        throw oom
+    }
     MemoryManager.instance.incrementDiskBuffer(numBytes)
   }
 
