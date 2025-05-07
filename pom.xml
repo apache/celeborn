@@ -90,6 +90,7 @@
     <junit.version>4.13.2</junit.version>
     <leveldb.version>1.8</leveldb.version>
     <log4j2.version>2.24.3</log4j2.version>
+    <disruptor.version>3.4.4</disruptor.version>
     <lz4-java.version>1.8.0</lz4-java.version>
     <mockito.version>4.11.0</mockito.version>
     <mockito-scalatest.version>1.17.14</mockito-scalatest.version>
@@ -244,6 +245,12 @@
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-1.2-api</artifactId>
         <version>${log4j2.version}</version>
+      </dependency>
+      <dependency>
+        <!-- log4j2 has an optional dependency on disruptor like AsyncLoggerContextSelector. -->
+        <groupId>com.lmax</groupId>
+        <artifactId>disruptor</artifactId>
+        <version>${disruptor.version}</version>
       </dependency>
       <dependency>
         <groupId>io.dropwizard.metrics</groupId>
