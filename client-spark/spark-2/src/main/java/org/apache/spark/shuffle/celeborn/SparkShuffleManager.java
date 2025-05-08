@@ -211,7 +211,7 @@ public class SparkShuffleManager implements ShuffleManager {
         if (h.throwsFetchFailure()) {
           SparkUtils.addFailureListenerIfBarrierTask(client, context, h);
         }
-        int shuffleId = SparkUtils.celebornShuffleId(client, h, context, true)._1;
+        int shuffleId = SparkUtils.celebornShuffleId(client, h, context, true);
         shuffleIdTracker.track(h.shuffleId(), shuffleId);
 
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {

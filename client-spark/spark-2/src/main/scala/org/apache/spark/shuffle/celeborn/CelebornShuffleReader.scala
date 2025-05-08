@@ -33,7 +33,7 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.read.CelebornInputStream
 import org.apache.celeborn.client.read.MetricsCallback
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.exception.{CelebornIOException, PartitionUnRetryAbleException}
+import org.apache.celeborn.common.exception.{CelebornIOException, CelebornRuntimeException, PartitionUnRetryAbleException}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
@@ -64,21 +64,23 @@ class CelebornShuffleReader[K, C](
 
     val serializerInstance = dep.serializer.newInstance()
 
-    val (shuffleId, success) = SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
-    if (!success) {
-      val ce = new UnsupportedOperationException(
-        s"unexpected! there is no finished map stage associated with appShuffleId ${handle.shuffleId}")
-      if (handle.throwsFetchFailure) {
-        throw new FetchFailedException(
-          null,
-          handle.shuffleId,
-          -1,
-          startPartition,
-          SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId,
-          ce)
-      } else {
-        throw ce
-      }
+    var shuffleId = handle.shuffleId
+    try {
+      shuffleId = SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
+    } catch {
+      case e: CelebornRuntimeException =>
+        logError(s"Failed to get shuffleId for appShuffleId ${handle.shuffleId}", e)
+        if (handle.throwsFetchFailure) {
+          throw new FetchFailedException(
+            null,
+            handle.shuffleId,
+            -1,
+            startPartition,
+            SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId,
+            e)
+        } else {
+          throw e
+        }
     }
     shuffleIdTracker.track(handle.shuffleId, shuffleId)
     logDebug(

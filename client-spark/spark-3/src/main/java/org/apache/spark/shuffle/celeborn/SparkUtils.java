@@ -66,6 +66,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -131,20 +132,26 @@ public class SparkUtils {
     return appShuffleId + "-" + context.stageId() + "-" + context.stageAttemptNumber();
   }
 
-  public static Tuple2<Integer, Boolean> celebornShuffleId(
+  public static int celebornShuffleId(
       ShuffleClient client,
       CelebornShuffleHandle<?, ?, ?> handle,
       TaskContext context,
       Boolean isWriter) {
     if (handle.throwsFetchFailure()) {
       String appShuffleIdentifier = getAppShuffleIdentifier(handle.shuffleId(), context);
-      return client.getShuffleId(
-          handle.shuffleId(),
-          appShuffleIdentifier,
-          isWriter,
-          context instanceof BarrierTaskContext);
+      Tuple2<Integer, Boolean> res =
+          client.getShuffleId(
+              handle.shuffleId(),
+              appShuffleIdentifier,
+              isWriter,
+              context instanceof BarrierTaskContext);
+      if (!res._2) {
+        throw new CelebornRuntimeException(String.format("Get invalid shuffle id %s", res._1));
+      } else {
+        return res._1;
+      }
     } else {
-      return Tuple2.apply(handle.shuffleId(), true);
+      return handle.shuffleId();
     }
   }
 
