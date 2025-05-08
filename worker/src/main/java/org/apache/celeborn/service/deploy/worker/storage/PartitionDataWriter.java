@@ -340,11 +340,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       try {
         flushBuffer.addComponent(true, data);
       } catch (OutOfMemoryError oom) {
-        data.release();
         if (isMemoryShuffleFile.get()) {
-          MemoryManager.instance().releaseMemoryFileStorage(numBytes);
-        } else {
-          MemoryManager.instance().releaseDiskBuffer(numBytes);
+          memoryFileInfo.updateBytesFlushed(numBytes);
         }
         throw oom;
       }
