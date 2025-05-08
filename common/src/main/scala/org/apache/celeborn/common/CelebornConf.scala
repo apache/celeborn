@@ -1028,6 +1028,27 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_PUSH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
   def clientPushMaxReqsInFlightPerWorker: Int = get(CLIENT_PUSH_MAX_REQS_IN_FLIGHT_PERWORKER)
   def clientPushMaxReqsInFlightTotal: Int = get(CLIENT_PUSH_MAX_REQS_IN_FLIGHT_TOTAL)
+
+  def clientPushMaxBytesSizeInFlightEnabled: Boolean =
+    get(CLIENT_PUSH_MAX_BYTES_SIZE_IN_FLIGHT_ENABLED)
+
+  def clientPushMaxBytesSizeInFlightPerWorker: Long = {
+    val value = get(CLIENT_PUSH_MAX_BYTES_SIZE_IN_FLIGHT_PERWORKER)
+    if (value <= 0) {
+      clientPushMaxReqsInFlightPerWorker * clientPushBufferMaxSize
+    } else {
+      value
+    }
+  }
+
+  def clientPushMaxBytesSizeInFlightTotal: Long = {
+    val value = get(CLIENT_PUSH_MAX_BYTES_SIZE_IN_FLIGHT_TOTAL)
+    if (value <= 0) {
+      clientPushMaxReqsInFlightTotal * clientPushBufferMaxSize
+    } else {
+      value
+    }
+  }
   def clientPushMaxReviveTimes: Int = get(CLIENT_PUSH_MAX_REVIVE_TIMES)
   def clientPushReviveInterval: Long = get(CLIENT_PUSH_REVIVE_INTERVAL)
   def clientPushReviveBatchSize: Int = get(CLIENT_PUSH_REVIVE_BATCHSIZE)
@@ -4624,6 +4645,15 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(512)
 
+  val CLIENT_PUSH_MAX_BYTES_SIZE_IN_FLIGHT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.push.maxBytesSizeInFlight.enabled")
+      .withAlternative("celeborn.push.maxBytesSizeInFlight.enabled")
+      .categories("client")
+      .version("0.6.0")
+      .doc("Whether `celeborn.client.push.maxBytesSizeInFlight.perWorker/total` is enabled")
+      .booleanConf
+      .createWithDefault(false)
+
   val CLIENT_PUSH_MAX_REQS_IN_FLIGHT_TOTAL: ConfigEntry[Int] =
     buildConf("celeborn.client.push.maxReqsInFlight.total")
       .withAlternative("celeborn.push.maxReqsInFlight")
@@ -4634,6 +4664,20 @@ object CelebornConf extends Logging {
         "* compression ratio(1 in worst case): 64KiB * 256 = 16MiB")
       .intConf
       .createWithDefault(256)
+
+  val CLIENT_PUSH_MAX_BYTES_SIZE_IN_FLIGHT_TOTAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.maxBytesSizeInFlight.total")
+      .withAlternative("celeborn.push.maxBytesSizeInFlight")
+      .categories("client")
+      .version("0.6.0")
+      .doc(
+        "Bytes size of total Netty in-flight requests. defaults to " +
+          "`celeborn.client.push.maxReqsInFlight.total` * `celeborn.client.push.buffer.max.size` " +
+          "* compression ratio(1 in worst case): 64KiB * 256 = 16MiB. This is an addition to " +
+          "`celeborn.client.push.maxReqsInFlight.tital` in cases where records are huge and exceed " +
+          "buffer max size.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(0L)
 
   val CLIENT_PUSH_MAX_REQS_IN_FLIGHT_PERWORKER: ConfigEntry[Int] =
     buildConf("celeborn.client.push.maxReqsInFlight.perWorker")
@@ -4646,6 +4690,19 @@ object CelebornConf extends Logging {
           "not exceed `celeborn.client.push.maxReqsInFlight.total`.")
       .intConf
       .createWithDefault(32)
+
+  val CLIENT_PUSH_MAX_BYTES_SIZE_IN_FLIGHT_PERWORKER: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.maxBytesSizeInFlight.perWorker")
+      .categories("client")
+      .version("0.6.0")
+      .doc(
+        "Bytes size of Netty in-flight requests per worker. defaults to " +
+          "`celeborn.client.push.maxReqsInFlight.perWorker` * `celeborn.client.push.buffer.max.size` " +
+          "* compression ratio(1 in worst case): 64KiB * 32 = 2MiB. This is an addition to " +
+          "`celeborn.client.push.maxReqsInFlight.perWorker` in cases where records are huge and exceed " +
+          "buffer max size.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(0L)
 
   val CLIENT_PUSH_MAX_REVIVE_TIMES: ConfigEntry[Int] =
     buildConf("celeborn.client.push.revive.maxRetries")

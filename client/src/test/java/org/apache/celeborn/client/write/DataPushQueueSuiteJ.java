@@ -124,7 +124,7 @@ public class DataPushQueueSuiteJ {
     for (int i = 0; i < numPartitions; i++) {
       byte[] b = intToBytes(workerData.get(i % numWorker).get(i / numWorker));
       int batchId = pushState.nextBatchId();
-      pushState.addBatch(batchId, reducePartitionMap.get(i).hostAndPushPort());
+      pushState.addBatch(batchId, 0, reducePartitionMap.get(i).hostAndPushPort());
       partitionBatchIdMap.put(i, batchId);
       dataPusher.addTask(i, b, b.length);
     }
