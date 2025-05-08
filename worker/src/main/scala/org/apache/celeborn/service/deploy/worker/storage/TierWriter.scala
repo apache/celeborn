@@ -316,16 +316,19 @@ class MemoryTierWriter(
 
   override def writeInternal(buf: ByteBuf): Unit = {
     buf.retain()
+    val numBytes = buf.readableBytes()
     try {
       flushBuffer.addComponent(true, buf)
     } catch {
       case oom: OutOfMemoryError =>
-        MemoryManager.instance.releaseMemoryFileStorage(buf.readableBytes())
+        // memory tier writer will not flush
+        // add the bytes into flusher buffer is flush completed
+        metaHandler.afterFlush(numBytes)
+        MemoryManager.instance.incrementMemoryFileStorage(numBytes)
         throw oom
     }
     // memory tier writer will not flush
     // add the bytes into flusher buffer is flush completed
-    val numBytes = buf.readableBytes()
     metaHandler.afterFlush(numBytes)
     MemoryManager.instance().incrementMemoryFileStorage(numBytes)
   }
@@ -415,15 +418,16 @@ class LocalTierWriter(
     buf.retain()
     try {
       flushBuffer.addComponent(true, buf)
-      MemoryManager.instance.incrementDiskBuffer(numBytes)
-      if (userCongestionControlContext != null)
-        userCongestionControlContext.updateProduceBytes(numBytes)
     } catch {
       case oom: OutOfMemoryError =>
-        buf.release()
-        MemoryManager.instance().releaseDiskBuffer(numBytes)
-        throw oom;
+        MemoryManager.instance.incrementDiskBuffer(numBytes)
+        if (userCongestionControlContext != null)
+          userCongestionControlContext.updateProduceBytes(numBytes)
+        throw oom
     }
+    MemoryManager.instance.incrementDiskBuffer(numBytes)
+    if (userCongestionControlContext != null)
+      userCongestionControlContext.updateProduceBytes(numBytes)
   }
 
   override def evict(file: TierWriterBase): Unit = ???
@@ -620,13 +624,12 @@ class DfsTierWriter(
     buf.retain()
     try {
       flushBuffer.addComponent(true, buf)
-      MemoryManager.instance.incrementDiskBuffer(numBytes)
     } catch {
       case oom: OutOfMemoryError =>
-        buf.release()
-        MemoryManager.instance().releaseDiskBuffer(numBytes)
-        throw oom;
+        MemoryManager.instance.incrementDiskBuffer(numBytes)
+        throw oom
     }
+    MemoryManager.instance.incrementDiskBuffer(numBytes)
   }
 
   override def evict(file: TierWriterBase): Unit = ???
