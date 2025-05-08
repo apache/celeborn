@@ -106,7 +106,9 @@ public abstract class CelebornInputStream extends InputStream {
             exceptionMaker,
             true,
             metricsCallback,
-            needDecompress);
+            needDecompress,
+            startMapIndex,
+            endMapIndex);
       } else {
         return new CelebornInputStreamImpl(
             conf,
@@ -129,7 +131,9 @@ public abstract class CelebornInputStream extends InputStream {
             exceptionMaker,
             false,
             metricsCallback,
-            needDecompress);
+            needDecompress,
+            -1,
+            -1);
       }
     }
   }
@@ -171,6 +175,8 @@ public abstract class CelebornInputStream extends InputStream {
     private final CelebornConf conf;
     private final TransportClientFactory clientFactory;
     private final String shuffleKey;
+    private final int numberOfSubPartitions;
+    private final int currentIndexOfSubPartition;
     private ArrayList<PartitionLocation> locations;
     private ArrayList<PbStreamHandler> streamHandlers;
     private int[] attempts;
@@ -245,7 +251,9 @@ public abstract class CelebornInputStream extends InputStream {
         ExceptionMaker exceptionMaker,
         boolean splitSkewPartitionWithoutMapRange,
         MetricsCallback metricsCallback,
-        boolean needDecompress)
+        boolean needDecompress,
+        int numberOfSubPartitions,
+        int currentIndexOfSubPartition)
         throws IOException {
       this(
           conf,
@@ -268,7 +276,9 @@ public abstract class CelebornInputStream extends InputStream {
           exceptionMaker,
           splitSkewPartitionWithoutMapRange,
           metricsCallback,
-          needDecompress);
+          needDecompress,
+          numberOfSubPartitions,
+          currentIndexOfSubPartition);
     }
 
     CelebornInputStreamImpl(
@@ -292,7 +302,9 @@ public abstract class CelebornInputStream extends InputStream {
         ExceptionMaker exceptionMaker,
         boolean readSkewPartitionWithoutMapRange,
         MetricsCallback metricsCallback,
-        boolean needDecompress)
+        boolean needDecompress,
+        int numberOfSubPartitions,
+        int currentIndexOfSubPartition)
         throws IOException {
       this.conf = conf;
       this.clientFactory = clientFactory;
@@ -320,6 +332,8 @@ public abstract class CelebornInputStream extends InputStream {
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.failedBatches = failedBatchSet;
       this.readSkewPartitionWithoutMapRange = readSkewPartitionWithoutMapRange;
+      this.numberOfSubPartitions = numberOfSubPartitions;
+      this.currentIndexOfSubPartition = currentIndexOfSubPartition;
       this.fetchExcludedWorkers = fetchExcludedWorkers;
 
       if (conf.clientPushReplicateEnabled()) {
@@ -746,17 +760,31 @@ public abstract class CelebornInputStream extends InputStream {
       String key = Utils.makeReducerKey(shuffleId, partitionId);
 
       try {
-        shuffleClient.reducerPartitionEnd(
-            shuffleId,
-            partitionId,
-            startMapIndex,
-            endMapIndex,
-            aggregatedActualCommitMetadata.getChecksum(),
-            aggregatedActualCommitMetadata.getBytes());
-        logger.info(
-            "reducerPartitionEnd successful for {}. actual CommitMetadata: {}",
-            key,
-            aggregatedActualCommitMetadata);
+        if (readSkewPartitionWithoutMapRange) {
+          shuffleClient.reducerPartitionEnd(
+              shuffleId,
+              partitionId,
+              numberOfSubPartitions,
+              currentIndexOfSubPartition,
+              aggregatedActualCommitMetadata.getChecksum(),
+              aggregatedActualCommitMetadata.getBytes());
+          logger.info(
+              "reducerPartitionEnd successful for {}. actual CommitMetadata: {}",
+              key,
+              aggregatedActualCommitMetadata);
+        } else {
+          shuffleClient.reducerPartitionEnd(
+              shuffleId,
+              partitionId,
+              startMapIndex,
+              endMapIndex,
+              aggregatedActualCommitMetadata.getChecksum(),
+              aggregatedActualCommitMetadata.getBytes());
+          logger.info(
+              "reducerPartitionEnd successful for {}. actual CommitMetadata: {}",
+              key,
+              aggregatedActualCommitMetadata);
+        }
         integrityChecked = true;
       } catch (IOException e) {
         throw new RuntimeException(e);
