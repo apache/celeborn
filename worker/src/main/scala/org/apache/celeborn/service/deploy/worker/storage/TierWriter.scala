@@ -532,7 +532,7 @@ class DfsTierWriter(
       val key = hdfsFileInfo.getFilePath.substring(index + bucketName.length + 1)
 
       this.s3MultipartUploadHandler = TierWriterHelper.getS3MultipartUploadHandler(
-        hadoopFs.getConf,
+        hadoopFs,
         bucketName,
         key,
         conf.s3MultiplePartUploadMaxRetries)

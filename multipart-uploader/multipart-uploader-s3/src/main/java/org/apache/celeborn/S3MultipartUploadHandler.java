@@ -41,6 +41,7 @@ import com.amazonaws.services.s3.model.PartListing;
 import com.amazonaws.services.s3.model.PartSummary;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.s3a.AWSCredentialProviderList;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
@@ -66,11 +67,12 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
   private Integer s3MultiplePartUploadMaxRetries;
 
   public S3MultipartUploadHandler(
-      Configuration conf, String bucketName, String key, Integer s3MultiplePartUploadMaxRetries)
+      FileSystem hadoopFs, String bucketName, String key, Integer s3MultiplePartUploadMaxRetries)
       throws IOException, URISyntaxException {
     this.bucketName = bucketName;
     this.s3MultiplePartUploadMaxRetries = s3MultiplePartUploadMaxRetries;
 
+    Configuration conf = hadoopFs.getConf();
     AWSCredentialProviderList providers = new AWSCredentialProviderList();
     providers.add(new TemporaryAWSCredentialsProvider(conf));
     providers.add(
