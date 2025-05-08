@@ -23,6 +23,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.celeborn.client.LocationManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +48,8 @@ public class DataPushQueue {
   private final PushState pushState;
   private final DataPusher dataPusher;
   private final int shuffleId;
+  private final int mapId;
+  private final int attemptId;
   private final int numMappers;
   private final int numPartitions;
   private final ShuffleClient client;
@@ -68,6 +71,8 @@ public class DataPushQueue {
     this.client = client;
     this.dataPusher = dataPusher;
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+    this.mapId = mapId;
+    this.attemptId = attemptId;
     this.pushState = client.getPushState(mapKey);
     this.takeTaskWaitIntervalMs = conf.clientPushTakeTaskWaitIntervalMs();
     this.takeTaskMaxWaitAttempts = conf.clientPushTakeTaskMaxWaitAttempts();
@@ -88,17 +93,17 @@ public class DataPushQueue {
       // takeTaskWaitTimeMs
       // in last loop
       workerCapacity.clear();
-      Map<Integer, PartitionLocation> partitionLocationMap =
-          client.getPartitionLocation(shuffleId, numMappers, numPartitions);
-      if (partitionLocationMap == null) {
+      boolean registered = client.ensureRegistered(shuffleId, numMappers, numPartitions);
+      if (!registered) {
         tasks.addAll(workingQueue);
         workingQueue.clear();
       } else {
         Iterator<PushTask> iterator = workingQueue.iterator();
+        LocationManager locationManager = client.getLocationManager();
         while (iterator.hasNext()) {
           PushTask task = iterator.next();
           int partitionId = task.getPartitionId();
-          PartitionLocation loc = partitionLocationMap.get(partitionId);
+          PartitionLocation loc = locationManager.getLocationOrReviveAsync(shuffleId, partitionId, mapId, attemptId, true, false);
           // According to CELEBORN-560, call rerun task and speculative task after LifecycleManager
           // handle StageEnd will return empty PartitionLocation map, here loc can be null
           if (loc != null) {

@@ -112,6 +112,7 @@ enum MessageType {
   REVISE_LOST_SHUFFLES = 89;
   REVISE_LOST_SHUFFLES_RESPONSE = 90;
   PUSH_MERGED_DATA_SPLIT_PARTITION_INFO = 91;
+  PARTITION_SPLIT_REPORT = 92;
 }
 
 enum StreamType {
@@ -323,6 +324,7 @@ message PbRevivePartitionInfo {
   int32 epoch = 2;
   PbPartitionLocation partition = 3;
   int32 status = 4;
+  int32 clientMaxEpoch = 5;
 }
 
 message PbRevive {
@@ -331,10 +333,16 @@ message PbRevive {
   repeated PbRevivePartitionInfo partitionInfo = 3;
 }
 
+message PbPartitionSplitReport {
+  int32 shuffleId = 1;
+  repeated int32 mapId = 2;
+  repeated PbRevivePartitionInfo partitionInfo = 3;
+}
+
 message PbChangeLocationPartitionInfo {
   int32 partitionId = 1;
   int32 status = 2;
-  PbPartitionLocation partition = 3;
+  repeated PbPartitionLocation partition = 3;
   bool oldAvailable = 4;
 }
 

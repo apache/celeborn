@@ -283,6 +283,14 @@ public abstract class ShuffleClient {
   public abstract ConcurrentHashMap<Integer, PartitionLocation> getPartitionLocation(
       int shuffleId, int numMappers, int numPartitions) throws CelebornIOException;
 
+  public boolean ensureRegistered(int shuffleId, int numMappers, int numPartitions) {
+    return false;
+  }
+
+  public LocationManager getLocationManager() {
+    return null;
+  }
+
   public abstract PushState getPushState(String mapKey);
 
   public abstract int getShuffleId(

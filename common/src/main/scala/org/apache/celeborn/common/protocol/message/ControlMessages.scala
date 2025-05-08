@@ -221,11 +221,41 @@ object ControlMessages extends Logging {
       reviveRequests.asScala.foreach { req =>
         val partitionInfoBuilder = PbRevivePartitionInfo.newBuilder()
           .setPartitionId(req.partitionId)
-          .setEpoch(req.epoch)
+          .setClientMaxEpoch(req.clientMaxEpoch)
           .setStatus(req.cause.getValue)
         if (req.loc != null) {
-          partitionInfoBuilder.setPartition(PbSerDeUtils.toPbPartitionLocation(req.loc))
+          partitionInfoBuilder
+            .setEpoch(req.loc.getEpoch)
+            .setPartition(PbSerDeUtils.toPbPartitionLocation(req.loc))
         }
+        builder.addPartitionInfo(partitionInfoBuilder.build())
+      }
+
+      builder.build()
+    }
+  }
+
+  object PartitionSplitReport {
+    def apply(
+               shuffleId: Int,
+               mapIds: util.Set[Integer],
+               reviveRequests: util.Collection[ReviveRequest]): PbPartitionSplitReport = {
+      val builder = PbPartitionSplitReport.newBuilder()
+        .setShuffleId(shuffleId)
+        .addAllMapId(mapIds)
+
+      reviveRequests.asScala.foreach { req =>
+        val partitionInfoBuilder = PbRevivePartitionInfo.newBuilder()
+          .setPartitionId(req.partitionId)
+          .setClientMaxEpoch(req.clientMaxEpoch)
+          .setStatus(req.cause.getValue)
+
+        if (req.loc != null) {
+          partitionInfoBuilder
+            .setEpoch(req.loc.getEpoch)
+            .setPartition(PbSerDeUtils.toPbPartitionLocation(req.loc))
+        }
+
         builder.addPartitionInfo(partitionInfoBuilder.build())
       }
 
@@ -250,17 +280,18 @@ object ControlMessages extends Logging {
   object ChangeLocationResponse {
     def apply(
         mapIds: util.Set[Integer],
-        newLocs: util.Map[Integer, (StatusCode, Boolean, PartitionLocation)])
+        newLocs: util.Map[Integer, (StatusCode, Boolean, Seq[PartitionLocation])])
         : PbChangeLocationResponse = {
       val builder = PbChangeLocationResponse.newBuilder()
       builder.addAllEndedMapId(mapIds)
-      newLocs.asScala.foreach { case (partitionId, (status, available, loc)) =>
+      newLocs.asScala.foreach { case (partitionId, (status, available, locs)) =>
         val pbChangeLocationPartitionInfoBuilder = PbChangeLocationPartitionInfo.newBuilder()
           .setPartitionId(partitionId)
           .setStatus(status.getValue)
           .setOldAvailable(available)
-        if (loc != null) {
-          pbChangeLocationPartitionInfoBuilder.setPartition(PbSerDeUtils.toPbPartitionLocation(loc))
+        if (locs != null) {
+          locs.foreach(loc =>
+            pbChangeLocationPartitionInfoBuilder.addPartition(PbSerDeUtils.toPbPartitionLocation(loc)))
         }
         builder.addPartitionInfo(pbChangeLocationPartitionInfoBuilder.build())
       }
