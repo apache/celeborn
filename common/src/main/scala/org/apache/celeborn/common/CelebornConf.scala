@@ -620,7 +620,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(MAX_CHUNKS_BEING_TRANSFERRED)
   }
 
-  def clientHeartbeatInterval(module: String): Long = {
+  def channelHeartbeatInterval(module: String): Long = {
     getTransportConfTimeAsMs(module, CHANNEL_HEARTBEAT_INTERVAL)
   }
 
@@ -2302,19 +2302,14 @@ object CelebornConf extends Logging {
       .categories("network")
       .version("0.3.0")
       .doc("The heartbeat interval between worker and client. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
-        s"works for shuffle client. " +
-        s"If setting <module> to `${TransportModuleConstants.RPC_SERVICE_MODULE}`, " +
-        s"works for master or worker. " +
-        s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push and fetch data. " +
-        s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for replicate client of worker replicating data to peer worker. " +
+        s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
+        s"it works for worker receiving push data. " +
+        s"If setting <module> to `${TransportModuleConstants.FETCH_MODULE}`, " +
+        s"it works for worker fetch server. " +
         "If you are using the \"celeborn.client.heartbeat.interval\", " +
         "please use the new configs for each module according to your needs or " +
-        "replace it with \"celeborn.rpc.heartbeat.interval\", " +
-        "\"celeborn.data.heartbeat.interval\" and " +
-        "\"celeborn.replicate.heartbeat.interval\". ")
+        "replace it with \"celeborn.push.heartbeat.interval\" and " +
+        "\"celeborn.fetch.heartbeat.interval\". ")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 

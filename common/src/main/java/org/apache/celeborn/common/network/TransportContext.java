@@ -243,7 +243,7 @@ public class TransportContext implements Closeable {
         conf.connectionTimeoutMs(),
         closeIdleConnections,
         enableHeartbeat,
-        conf.clientHeartbeatInterval(),
+        conf.channelHeartbeatInterval(),
         this);
   }
 

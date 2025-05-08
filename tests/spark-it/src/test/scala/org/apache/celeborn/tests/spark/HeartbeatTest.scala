@@ -51,9 +51,9 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
   }
 
   test("celeborn spark heartbeat test - client <- worker timeout") {
-    val (_, clientConf) = getTestHeartbeatFromWorker2ClientWithCloseChannelConf
+    val (_, clientConf) = getTestHeartbeatFromWorker2ClientWithWorkerTimeoutConf
     val shuffleClientImpl =
       new ShuffleClientImpl("APP", clientConf, new UserIdentifier("1", "1"))
-    testHeartbeatFromWorker2ClientWithCloseChannel(shuffleClientImpl.getDataClientFactory)
+    testHeartbeatFromWorker2ClientWithWorkerTimeout(shuffleClientImpl.getDataClientFactory)
   }
 }
