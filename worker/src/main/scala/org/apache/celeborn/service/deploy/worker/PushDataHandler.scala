@@ -491,8 +491,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       }
 
     // Fetch real batchId from body will add more cost and no meaning for replicate.
-    val doReplicate =
-      partitionIdToLocations.head._2 != null && partitionIdToLocations.head._2.hasPeer && isPrimary
+    val doReplicate = isPrimary && partitionIdToLocations.exists(p => p._2 != null && p._2.hasPeer)
 
     // find FileWriters responsible for the data
     var index = 0
@@ -603,7 +602,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     val writePromise = Promise[Array[StatusCode]]()
     // for primary, send data to replica
     if (doReplicate) {
-      val location = partitionIdToLocations.head._2
+      val location = partitionIdToLocations.find(p => p._2 != null && p._2.hasPeer).get._2
       val peer = location.getPeer
       val peerWorker = new WorkerInfo(
         peer.getHost,
