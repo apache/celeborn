@@ -53,7 +53,7 @@ class PartitionCompletenessValidator extends Logging {
       expectedCommitMetadata: CommitMetadata,
       expectedTotalMapperCountForParent: Int,
       skewPartitionHandlingWithoutMapRange: Boolean): (Boolean, String) = {
-  //TODO - ensure sub partitions aren't processed twice
+    // TODO - ensure sub partitions aren't processed twice
     if (skewPartitionHandlingWithoutMapRange) {
       totalSubPartitionsProcessed.put(partitionId, totalSubPartitionsProcessed.get(partitionId) + 1)
       if (!currentCommitMetadataForReducer.containsKey(partitionId)) {
