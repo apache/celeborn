@@ -41,7 +41,7 @@ public class PushState {
   public PushState(CelebornConf conf) {
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
     inFlightRequestTracker = new InFlightRequestTracker(conf, this);
-    failedBatchMap = new ConcurrentHashMap<>();
+    failedBatchMap = JavaUtils.newConcurrentHashMap();
   }
 
   public void cleanup() {
