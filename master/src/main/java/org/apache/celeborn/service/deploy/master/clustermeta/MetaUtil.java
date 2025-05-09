@@ -48,25 +48,24 @@ public class MetaUtil {
         address.getInternalPort());
   }
 
-
   public static WorkerInfo addrToInfo(WorkerAddress address) {
     return new WorkerInfo(
-            address.getHost(),
-            address.getRpcPort(),
-            address.getPushPort(),
-            address.getFetchPort(),
-            address.getReplicatePort(),
-            address.getInternalPort());
+        address.getHost(),
+        address.getRpcPort(),
+        address.getPushPort(),
+        address.getFetchPort(),
+        address.getReplicatePort(),
+        address.getInternalPort());
   }
 
   public static WorkerInfo pbInfoToInfo(PbWorkerInfo pbWorkerInfo) {
     return new WorkerInfo(
-            pbWorkerInfo.getHost(),
-            pbWorkerInfo.getRpcPort(),
-            pbWorkerInfo.getPushPort(),
-            pbWorkerInfo.getFetchPort(),
-            pbWorkerInfo.getReplicatePort(),
-            pbWorkerInfo.getInternalPort());
+        pbWorkerInfo.getHost(),
+        pbWorkerInfo.getRpcPort(),
+        pbWorkerInfo.getPushPort(),
+        pbWorkerInfo.getFetchPort(),
+        pbWorkerInfo.getReplicatePort(),
+        pbWorkerInfo.getInternalPort());
   }
 
   public static ResourceProtos.WorkerAddress infoToAddr(WorkerInfo info) {
@@ -101,29 +100,25 @@ public class MetaUtil {
     return map;
   }
 
-  public static Map<String, DiskInfo> fromPbDiskInfoMap(
-          Map<String, PbDiskInfo> pbDiskInfoMap) {
+  public static Map<String, DiskInfo> fromPbDiskInfoMap(Map<String, PbDiskInfo> pbDiskInfoMap) {
     Map<String, DiskInfo> map = new HashMap<>();
 
     pbDiskInfoMap.forEach(
-            (k, v) -> {
-              DiskInfo diskInfo =
-                      new DiskInfo(
-                              v.getMountPoint(),
-                              v.getUsableSpace(),
-                              v.getAvgFlushTime(),
-                              v.getAvgFetchTime(),
-                              v.getUsedSlots(),
-                              StorageInfo.typesMap.get(v.getStorageType()))
-                              .setStatus(Utils.toDiskStatus(v.getStatus()))
-                              .setTotalSpace(v.getTotalSpace());
-              map.put(k, diskInfo);
-            });
+        (k, v) -> {
+          DiskInfo diskInfo =
+              new DiskInfo(
+                      v.getMountPoint(),
+                      v.getUsableSpace(),
+                      v.getAvgFlushTime(),
+                      v.getAvgFetchTime(),
+                      v.getUsedSlots(),
+                      StorageInfo.typesMap.get(v.getStorageType()))
+                  .setStatus(Utils.toDiskStatus(v.getStatus()))
+                  .setTotalSpace(v.getTotalSpace());
+          map.put(k, diskInfo);
+        });
     return map;
   }
-
-
-
 
   public static Map<String, ResourceProtos.DiskInfo> toPbDiskInfos(
       Map<String, DiskInfo> diskInfos) {
@@ -218,6 +213,7 @@ public class MetaUtil {
   }
 
   public static WorkerStatus fromPbWorkerStatus(PbWorkerStatus pbWorkerStatus) {
-    return new WorkerStatus(pbWorkerStatus.getState().getNumber(), pbWorkerStatus.getStateStartTime());
+    return new WorkerStatus(
+        pbWorkerStatus.getState().getNumber(), pbWorkerStatus.getStateStartTime());
   }
 }
