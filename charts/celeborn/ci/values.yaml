@@ -77,9 +77,6 @@ celeborn:
   celeborn.application.heartbeat.timeout: 120s
   celeborn.worker.heartbeat.timeout: 120s
 
-# -- Specifies whether to use the host's network namespace
-hostNetwork: true
-
 master:
   # -- Number of Celeborn master replicas to deploy, should not less than 3.
   replicas: 1
@@ -106,6 +103,9 @@ master:
 
   # -- DNS policy for Celeborn master pods.
   dnsPolicy: ClusterFirstWithHostNet
+
+  # -- Whether to use the host's network namespace in Celeborn master pods.
+  hostNetwork: true
 
 worker:
   # -- Number of Celeborn worker replicas to deploy, should less than node number.
@@ -135,6 +135,9 @@ worker:
 
   # -- DNS policy for Celeborn worker pods.
   dnsPolicy: ClusterFirstWithHostNet
+
+  # -- Whether to use the host's network namespace in Celeborn worker pods.
+  hostNetwork: true
 
 # -- Container security context
 securityContext:
