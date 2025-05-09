@@ -28,6 +28,18 @@ on:
       - branch-*
 
 jobs:
+  celeborn_cpp_check_lint:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: 'false'
+          fetch-depth: 0
+      - uses: DoozyX/clang-format-lint-action@v0.20
+        with:
+          source: './cpp'
+          extensions: 'h,cpp,c'
+          clangFormatVersion: 19
   celeborn_cpp_unit_test:
     runs-on: ubuntu-22.04
     container: holylow/celeborn-cpp-dev:0.2
