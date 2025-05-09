@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.celeborn.common.protocol.PbSlotInfo;
 import org.apache.ratis.server.RaftServer;
 import org.apache.ratis.statemachine.SnapshotInfo;
 import org.junit.Assert;
@@ -88,6 +89,43 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             .build();
 
     ResourceResponse response = stateMachine.runCommand(request, -1);
+    Assert.assertTrue(response.getSuccess());
+  }
+
+  @Test
+  public void testRunCommandByTransportMessage() {
+    StateMachine stateMachine = ratisServer.getMasterStateMachine();
+
+    Map<String, Integer> allocations = new HashMap<>();
+    allocations.put("disk1", 15);
+    allocations.put("disk2", 20);
+
+    Map<String, PbSlotInfo> workerAllocations = new HashMap<>();
+    workerAllocations.put(
+            new WorkerInfo("host1", 1, 2, 3, 10).toUniqueId(),
+            PbSlotInfo.newBuilder().putAllSlot(allocations).build());
+    workerAllocations.put(
+            new WorkerInfo("host2", 2, 3, 4, 11).toUniqueId(),
+            PbSlotInfo.newBuilder().putAllSlot(allocations).build());
+    workerAllocations.put(
+            new WorkerInfo("host3", 3, 4, 5, 12).toUniqueId(),
+            PbSlotInfo.newBuilder().putAllSlot(allocations).build());
+
+    org.apache.celeborn.common.protocol.RequestSlotsRequest requestSlots =
+            org.apache.celeborn.common.protocol.RequestSlotsRequest.newBuilder()
+                    .setShuffleKey("appId-1-1")
+                    .setHostName("hostname")
+                    .putAllWorkerAllocations(workerAllocations)
+                    .build();
+
+    org.apache.celeborn.common.protocol.ResourceRequest request =
+            org.apache.celeborn.common.protocol.ResourceRequest.newBuilder()
+                    .setRequestSlotsRequest(requestSlots)
+                    .setCmdType(org.apache.celeborn.common.protocol.Type.RequestSlots)
+                    .setRequestId(UUID.randomUUID().toString())
+                    .build();
+
+    org.apache.celeborn.common.protocol.ResourceResponse response = stateMachine.runCommand(request, -1);
     Assert.assertTrue(response.getSuccess());
   }
 
