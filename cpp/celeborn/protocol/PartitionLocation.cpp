@@ -56,8 +56,7 @@ std::unique_ptr<const PartitionLocation> PartitionLocation::fromPb(
 std::unique_ptr<PartitionLocation> PartitionLocation::fromPackedPb(
     const PbPackedPartitionLocations& pb,
     int idx) {
-  auto& workerIdStr =
-    pb.workeridsset(pb.workerids(idx));
+  auto& workerIdStr = pb.workeridsset(pb.workerids(idx));
   auto workerIdParts = utils::parseColonSeparatedHostPorts(workerIdStr, 4);
   std::string filePath = pb.filepaths(idx);
   if (!filePath.empty()) {
