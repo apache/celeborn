@@ -41,17 +41,6 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
   private lazy val cleanInterval =
     lifecycleManager.get().conf.clientFetchCleanFailedShuffleIntervalMS
 
-  private def buildRunningStageChecker(): RunningStageManager = {
-    val lifecycleMgrRef = lifecycleManager.get()
-    if (lifecycleMgrRef != null) {
-      val className = lifecycleManager.get().conf.clientFetchCleanFailedShuffleRunningMgrImpl
-      val claz = Class.forName(className)
-      claz.getDeclaredConstructor().newInstance().asInstanceOf[RunningStageManager]
-    } else {
-      null
-    }
-  }
-
   // for test
   def reset(): Unit = {
     shufflesToBeCleaned.clear()
