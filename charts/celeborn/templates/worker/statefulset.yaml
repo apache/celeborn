@@ -144,7 +144,7 @@ spec:
       {{- if or .Values.worker.priorityClass.name .Values.worker.priorityClass.create }}
       priorityClassName: {{ include "celeborn.worker.priorityClass.name" . }}
       {{- end }}
-      {{- with .Values.dnsPolicy }}
+      {{- with .Values.worker.dnsPolicy }}
       dnsPolicy: {{ . }}
       {{- end }}
       {{- with .Values.hostNetwork }}

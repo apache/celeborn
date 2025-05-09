@@ -266,9 +266,10 @@ tests:
           path: spec.template.spec.priorityClassName
           value: test-priority-class
 
-  - it: Should use the specified dns policy if `dnsPolicy` is set
+  - it: Should use the specified dns policy if `master.dnsPolicy` is set
     set:
-      dnsPolicy: ClusterFirstWithHostNet
+      master:
+        dnsPolicy: ClusterFirstWithHostNet
     asserts:
       - equal:
           path: spec.template.spec.dnsPolicy

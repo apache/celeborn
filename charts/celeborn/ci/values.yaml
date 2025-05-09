@@ -77,9 +77,6 @@ celeborn:
   celeborn.application.heartbeat.timeout: 120s
   celeborn.worker.heartbeat.timeout: 120s
 
-# -- Specifies the DNS policy for Celeborn pods to use
-dnsPolicy: ClusterFirstWithHostNet
-
 # -- Specifies whether to use the host's network namespace
 hostNetwork: true
 
@@ -107,6 +104,9 @@ master:
       cpu: 100m
       memory: 800Mi
 
+  # -- DNS policy for Celeborn master pods.
+  dnsPolicy: ClusterFirstWithHostNet
+
 worker:
   # -- Number of Celeborn worker replicas to deploy, should less than node number.
   replicas: 1
@@ -132,6 +132,9 @@ worker:
     limits:
       cpu: 100m
       memory: 1Gi
+
+  # -- DNS policy for Celeborn worker pods.
+  dnsPolicy: ClusterFirstWithHostNet
 
 # -- Container security context
 securityContext:
