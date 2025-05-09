@@ -59,7 +59,7 @@ import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Ut
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
 import org.apache.celeborn.common.util.Utils.UNKNOWN_APP_SHUFFLE_ID
-import org.apache.celeborn.common.write.PushFailedBatch
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 
 object LifecycleManager {
   // shuffle id -> partition id -> partition locations
@@ -67,7 +67,7 @@ object LifecycleManager {
     ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[PartitionLocation]]]
   // shuffle id -> partition uniqueId -> PushFailedBatch set
   type ShufflePushFailedBatches =
-    ConcurrentHashMap[Int, util.HashMap[String, util.Set[PushFailedBatch]]]
+    ConcurrentHashMap[Int, util.HashMap[String, LocationPushFailedBatches]]
   type ShuffleAllocatedWorkers =
     ConcurrentHashMap[Int, ConcurrentHashMap[String, ShufflePartitionLocationInfo]]
   type ShuffleFailedWorkers = ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]
@@ -825,7 +825,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       mapId: Int,
       attemptId: Int,
       numMappers: Int,
-      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]]): Unit = {
+      pushFailedBatches: util.Map[String, LocationPushFailedBatches]): Unit = {
 
     val (mapperAttemptFinishedSuccess, allMapperFinished) =
       commitManager.finishMapperAttempt(
@@ -1112,12 +1112,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       }
     }
 
-    val (mapperAttemptFinishedSuccess, _) = commitManager.finishMapperAttempt(
-      shuffleId,
-      mapId,
-      attemptId,
-      numMappers,
-      partitionId)
+    val (mapperAttemptFinishedSuccess, _) =
+      commitManager.finishMapperAttempt(shuffleId, mapId, attemptId, numMappers, partitionId)
     reply(mapperAttemptFinishedSuccess)
   }
 
@@ -1811,7 +1807,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
-  // Once a partition is released, it will be never needed anymore
+  // Once a partition is released, it will never be needed anymore
   def releasePartition(shuffleId: Int, partitionId: Int): Unit = {
     commitManager.releasePartitionResource(shuffleId, partitionId)
     val partitionLocation = latestPartitionLocation.get(shuffleId)

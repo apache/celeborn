@@ -33,7 +33,7 @@ import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.MessageType._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{PbSerDeUtils, Utils}
-import org.apache.celeborn.common.write.PushFailedBatch
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 
 sealed trait Message extends Serializable
 
@@ -274,7 +274,7 @@ object ControlMessages extends Logging {
       attemptId: Int,
       numMappers: Int,
       partitionId: Int,
-      failedBatchSet: util.Map[String, util.Set[PushFailedBatch]])
+      failedBatchSet: util.Map[String, LocationPushFailedBatches])
     extends MasterMessage
 
   case class MapperEndResponse(status: StatusCode) extends MasterMessage
@@ -292,7 +292,8 @@ object ControlMessages extends Logging {
       fileGroup: util.Map[Integer, util.Set[PartitionLocation]] = Collections.emptyMap(),
       attempts: Array[Int] = Array.emptyIntArray,
       partitionIds: util.Set[Integer] = Collections.emptySet[Integer](),
-      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]] = Collections.emptyMap(),
+      pushFailedBatches: util.Map[String, LocationPushFailedBatches] =
+        Collections.emptyMap(),
       broadcast: Array[Byte] = Array.emptyByteArray,
       serdeVersion: SerdeVersion = SerdeVersion.V1)
     extends MasterMessage
@@ -732,7 +733,7 @@ object ControlMessages extends Logging {
 
     case MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId, pushFailedBatch) =>
       val pushFailedMap = pushFailedBatch.asScala.map { case (k, v) =>
-        val resultValue = PbSerDeUtils.toPbPushFailedBatchSet(v)
+        val resultValue = PbSerDeUtils.toPbLocationPushFailedBatches(v)
         (k, resultValue)
       }.toMap.asJava
       val payload = PbMapperEnd.newBuilder()
@@ -781,7 +782,7 @@ object ControlMessages extends Logging {
       builder.putAllPushFailedBatches(
         failedBatches.asScala.map {
           case (uniqueId, pushFailedBatchSet) =>
-            (uniqueId, PbSerDeUtils.toPbPushFailedBatchSet(pushFailedBatchSet))
+            (uniqueId, PbSerDeUtils.toPbLocationPushFailedBatches(pushFailedBatchSet))
         }.asJava)
       builder.setBroadcast(ByteString.copyFrom(broadcast))
       val payload = builder.build().toByteArray
@@ -1171,7 +1172,7 @@ object ControlMessages extends Logging {
           pbMapperEnd.getPartitionId,
           pbMapperEnd.getPushFailureBatchesMap.asScala.map {
             case (partitionId, pushFailedBatchSet) =>
-              (partitionId, PbSerDeUtils.fromPbPushFailedBatchSet(pushFailedBatchSet))
+              (partitionId, PbSerDeUtils.fromPbLocationPushFailedBatches(pushFailedBatchSet))
           }.toMap.asJava)
 
       case MAPPER_END_RESPONSE_VALUE =>
@@ -1211,7 +1212,7 @@ object ControlMessages extends Logging {
         val partitionIds = new util.HashSet(pbGetReducerFileGroupResponse.getPartitionIdsList)
         val pushFailedBatches = pbGetReducerFileGroupResponse.getPushFailedBatchesMap.asScala.map {
           case (uniqueId, pushFailedBatchSet) =>
-            (uniqueId, PbSerDeUtils.fromPbPushFailedBatchSet(pushFailedBatchSet))
+            (uniqueId, PbSerDeUtils.fromPbLocationPushFailedBatches(pushFailedBatchSet))
         }.toMap.asJava
         val broadcast = pbGetReducerFileGroupResponse.getBroadcast.toByteArray
         GetReducerFileGroupResponse(

@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiFunction;
@@ -44,7 +43,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.util.CelebornHadoopUtils;
 import org.apache.celeborn.common.util.ExceptionMaker;
-import org.apache.celeborn.common.write.PushFailedBatch;
+import org.apache.celeborn.common.write.LocationPushFailedBatches;
 import org.apache.celeborn.common.write.PushState;
 
 /**
@@ -267,7 +266,7 @@ public abstract class ShuffleClient {
       ExceptionMaker exceptionMaker,
       ArrayList<PartitionLocation> locations,
       ArrayList<PbStreamHandler> streamHandlers,
-      Map<String, Set<PushFailedBatch>> failedBatchSetMap,
+      Map<String, LocationPushFailedBatches> failedBatchSetMap,
       Map<String, Pair<Integer, Integer>> chunksRange,
       int[] mapAttempts,
       MetricsCallback metricsCallback)

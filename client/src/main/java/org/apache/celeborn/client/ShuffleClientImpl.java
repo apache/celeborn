@@ -68,7 +68,7 @@ import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.*;
 import org.apache.celeborn.common.write.DataBatches;
-import org.apache.celeborn.common.write.PushFailedBatch;
+import org.apache.celeborn.common.write.LocationPushFailedBatches;
 import org.apache.celeborn.common.write.PushState;
 
 public class ShuffleClientImpl extends ShuffleClient {
@@ -150,7 +150,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   public static class ReduceFileGroups {
     public Map<Integer, Set<PartitionLocation>> partitionGroups;
-    public Map<String, Set<PushFailedBatch>> pushFailedBatches;
+    public Map<String, LocationPushFailedBatches> pushFailedBatches;
     public int[] mapAttempts;
     public Set<Integer> partitionIds;
 
@@ -158,7 +158,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         Map<Integer, Set<PartitionLocation>> partitionGroups,
         int[] mapAttempts,
         Set<Integer> partitionIds,
-        Map<String, Set<PushFailedBatch>> pushFailedBatches) {
+        Map<String, LocationPushFailedBatches> pushFailedBatches) {
       this.partitionGroups = partitionGroups;
       this.mapAttempts = mapAttempts;
       this.partitionIds = partitionIds;
@@ -1121,8 +1121,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                       partitionId,
                       nextBatchId);
                   if (dataPushFailureTrackingEnabled && pushReplicateEnabled) {
-                    pushState.addFailedBatch(
-                        latest.getUniqueId(), new PushFailedBatch(mapId, attemptId, nextBatchId));
+                    pushState.recordFailedBatch(
+                        latest.getUniqueId(), mapId, attemptId, nextBatchId);
                   }
                   ReviveRequest reviveRequest =
                       new ReviveRequest(
@@ -1191,8 +1191,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             @Override
             public void onFailure(Throwable e) {
               if (dataPushFailureTrackingEnabled) {
-                pushState.addFailedBatch(
-                    latest.getUniqueId(), new PushFailedBatch(mapId, attemptId, nextBatchId));
+                pushState.recordFailedBatch(latest.getUniqueId(), mapId, attemptId, nextBatchId);
               }
               if (pushState.exception.get() != null) {
                 return;
@@ -1562,9 +1561,8 @@ public class ShuffleClientImpl extends ShuffleClient {
               } else {
                 if (dataPushFailureTrackingEnabled && pushReplicateEnabled) {
                   for (DataBatches.DataBatch resubmitBatch : batchesNeedResubmit) {
-                    pushState.addFailedBatch(
-                        resubmitBatch.loc.getUniqueId(),
-                        new PushFailedBatch(mapId, attemptId, resubmitBatch.batchId));
+                    pushState.recordFailedBatch(
+                        resubmitBatch.loc.getUniqueId(), mapId, attemptId, resubmitBatch.batchId);
                   }
                 }
                 ReviveRequest[] requests =
@@ -1624,8 +1622,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           public void onFailure(Throwable e) {
             if (dataPushFailureTrackingEnabled) {
               for (int i = 0; i < numBatches; i++) {
-                pushState.addFailedBatch(
-                    partitionUniqueIds[i], new PushFailedBatch(mapId, attemptId, batchIds[i]));
+                pushState.recordFailedBatch(partitionUniqueIds[i], mapId, attemptId, batchIds[i]);
               }
             }
             if (pushState.exception.get() != null) {
@@ -1914,7 +1911,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       ExceptionMaker exceptionMaker,
       ArrayList<PartitionLocation> locations,
       ArrayList<PbStreamHandler> streamHandlers,
-      Map<String, Set<PushFailedBatch>> failedBatchSetMap,
+      Map<String, LocationPushFailedBatches> failedBatchSetMap,
       Map<String, Pair<Integer, Integer>> chunksRange,
       int[] mapAttempts,
       MetricsCallback metricsCallback)
