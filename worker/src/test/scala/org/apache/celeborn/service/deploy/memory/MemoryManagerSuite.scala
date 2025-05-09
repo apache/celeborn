@@ -163,7 +163,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
     }
 
     // Wait for the check thread to update the metrics
-    Thread.sleep(15)
+    memoryManager.switchServingState()
     val lastPauseTime2 = memoryManager.getPausePushDataTime.longValue()
     val lastPauseReplicaTime2 = memoryManager.getPausePushDataAndReplicateTime.longValue()
     assert(lastPauseTime2 > lastPauseTime1)
@@ -187,7 +187,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
     }
 
     // Wait for the check thread to update the metrics
-    Thread.sleep(15)
+    memoryManager.switchServingState()
     val lastPauseTime3 = memoryManager.getPausePushDataTime.longValue()
     val lastPauseReplicaTime3 = memoryManager.getPausePushDataAndReplicateTime.longValue()
     assert(lastPauseTime3 > lastPauseTime2)
