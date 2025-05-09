@@ -275,9 +275,10 @@ tests:
           path: spec.template.spec.dnsPolicy
           value: ClusterFirstWithHostNet
 
-  - it: Should enable host network if `hostNetwork` is set to true
+  - it: Should enable host network if `master.hostNetwork` is set to true
     set:
-      hostNetwork: true
+      master:
+        hostNetwork: true
     asserts:
       - equal:
           path: spec.template.spec.hostNetwork

@@ -118,9 +118,6 @@ celeborn:
   celeborn.application.heartbeat.timeout: 120s
   celeborn.worker.heartbeat.timeout: 120s
 
-# -- Specifies whether to use the host's network namespace
-hostNetwork: false
-
 # -- Container security context
 securityContext:
   # Specifies the user ID to run the entrypoint of the container process
@@ -211,6 +208,9 @@ master:
   # -- DNS policy for Celeborn master pods.
   dnsPolicy: ClusterFirst
 
+  # -- Whether to use the host's network namespace in Celeborn master pods.
+  hostNetwork: false
+
 worker:
   # -- Number of Celeborn worker replicas to deploy, should less than node number.
   replicas: 5
@@ -293,6 +293,9 @@ worker:
 
   # -- DNS policy for Celeborn worker pods.
   dnsPolicy: ClusterFirst
+
+  # -- Whether to use the host's network namespace in Celeborn worker pods.
+  hostNetwork: false
 
 podMonitor:
   # -- Specifies whether to enable creating pod monitors for Celeborn pods

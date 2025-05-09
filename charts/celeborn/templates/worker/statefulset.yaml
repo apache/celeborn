@@ -147,7 +147,7 @@ spec:
       {{- with .Values.worker.dnsPolicy }}
       dnsPolicy: {{ . }}
       {{- end }}
-      {{- with .Values.hostNetwork }}
+      {{- with .Values.worker.hostNetwork }}
       hostNetwork: {{ . }}
       {{- end }}
       {{- with .Values.securityContext }}
