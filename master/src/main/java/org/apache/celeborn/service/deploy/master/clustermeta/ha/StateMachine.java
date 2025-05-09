@@ -31,6 +31,7 @@ import java.util.concurrent.ExecutorService;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import org.apache.celeborn.common.protocol.ResourceRequest;
 import org.apache.ratis.io.MD5Hash;
 import org.apache.ratis.proto.RaftProtos;
 import org.apache.ratis.protocol.Message;
@@ -213,6 +214,17 @@ public class StateMachine extends BaseStateMachine {
    */
   @VisibleForTesting
   protected ResourceResponse runCommand(ResourceProtos.ResourceRequest request, long trxLogIndex) {
+    try {
+      return metaHandler.handleWriteRequest(request);
+    } catch (Throwable e) {
+      String errorMessage = "Request " + request + "failed with exception";
+      ExitUtils.terminate(1, errorMessage, e, LOG);
+    }
+    return null;
+  }
+
+  @VisibleForTesting
+  protected org.apache.celeborn.common.protocol.ResourceResponse runCommand(ResourceRequest request, long trxLogIndex) {
     try {
       return metaHandler.handleWriteRequest(request);
     } catch (Throwable e) {
