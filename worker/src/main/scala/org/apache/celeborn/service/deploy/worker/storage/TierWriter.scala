@@ -530,21 +530,14 @@ class DfsTierWriter(
   try {
     hadoopFs.create(hdfsFileInfo.getDfsPath, true).close()
     if (hdfsFileInfo.isS3) {
-      val configuration = hadoopFs.getConf
-      val s3AccessKey = configuration.get("fs.s3a.access.key")
-      val s3SecretKey = configuration.get("fs.s3a.secret.key")
-      val s3EndpointRegion = configuration.get("fs.s3a.endpoint.region")
-
       val uri = hadoopFs.getUri
       val bucketName = uri.getHost
       val index = hdfsFileInfo.getFilePath.indexOf(bucketName)
       val key = hdfsFileInfo.getFilePath.substring(index + bucketName.length + 1)
 
       this.s3MultipartUploadHandler = TierWriterHelper.getS3MultipartUploadHandler(
+        hadoopFs,
         bucketName,
-        s3AccessKey,
-        s3SecretKey,
-        s3EndpointRegion,
         key,
         conf.s3MultiplePartUploadMaxRetries)
       s3MultipartUploadHandler.startUpload()

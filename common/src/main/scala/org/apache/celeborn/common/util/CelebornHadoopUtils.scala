@@ -18,6 +18,8 @@
 package org.apache.celeborn.common.util
 
 import java.io.{File, IOException}
+import java.util
+import java.util.HashSet
 import java.util.concurrent.atomic.AtomicBoolean
 
 import org.apache.hadoop.conf.Configuration
@@ -51,17 +53,18 @@ object CelebornHadoopUtils extends Logging {
     }
 
     if (conf.s3Dir.nonEmpty) {
-      if (conf.s3AccessKey.isEmpty || conf.s3SecretKey.isEmpty || conf.s3EndpointRegion.isEmpty) {
-        throw new CelebornException(
-          "S3 storage is enabled but s3AccessKey, s3SecretKey, or s3EndpointRegion is not set")
+      if (conf.s3EndpointRegion.isEmpty) {
+        throw new CelebornException("S3 storage is enabled but s3EndpointRegion is not set")
       }
       hadoopConf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
       hadoopConf.set("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
       hadoopConf.set(
         "fs.s3a.aws.credentials.provider",
-        "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
-      hadoopConf.set("fs.s3a.access.key", conf.s3AccessKey)
-      hadoopConf.set("fs.s3a.secret.key", conf.s3SecretKey)
+        "org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider," +
+          "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider," +
+          "com.amazonaws.auth.EnvironmentVariableCredentialsProvider," +
+          "org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider")
+
       hadoopConf.set("fs.s3a.endpoint.region", conf.s3EndpointRegion)
     } else if (conf.ossDir.nonEmpty) {
       if (conf.ossAccessKey.isEmpty || conf.ossSecretKey.isEmpty || conf.ossEndpoint.isEmpty) {
