@@ -1493,8 +1493,86 @@ public class RatisMasterStatusSystemSuiteJ {
         STATUSSYSTEM1.workerEventInfos.get(workerInfo2).getEventType());
 
     Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
-    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
-    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
+  }
+
+  @Test
+  public void testHandleWorkerEventByTransportMessage() throws InterruptedException {
+    AbstractMetaManager statusSystem = pickLeaderStatusSystem();
+    Assert.assertNotNull(statusSystem);
+
+    statusSystem.handleRegisterWorker(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        INTERNALPORT1,
+        NETWORK_LOCATION1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        INTERNALPORT2,
+        NETWORK_LOCATION2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        INTERNALPORT3,
+        NETWORK_LOCATION3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
+
+    WorkerInfo workerInfo1 =
+        WorkerInfo.fromUniqueId(
+            HOSTNAME1 + ":" + RPCPORT1 + ":" + PUSHPORT1 + ":" + FETCHPORT1 + ":" + REPLICATEPORT1);
+    WorkerInfo workerInfo2 =
+        WorkerInfo.fromUniqueId(
+            HOSTNAME2 + ":" + RPCPORT2 + ":" + PUSHPORT2 + ":" + FETCHPORT2 + ":" + REPLICATEPORT2);
+    statusSystem.handleWorkerEvent(
+        WorkerEventType.Decommission_VALUE,
+        Lists.newArrayList(workerInfo1, workerInfo2),
+        getNewReqeustId());
+
+    Thread.sleep(3000L);
+    Assert.assertEquals(2, STATUSSYSTEM1.workerEventInfos.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.workerEventInfos.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.workerEventInfos.size());
+
+    Assert.assertEquals(1, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
+
+    Assert.assertTrue(STATUSSYSTEM1.workerEventInfos.containsKey(workerInfo1));
+    Assert.assertTrue(STATUSSYSTEM1.workerEventInfos.containsKey(workerInfo2));
+
+    Assert.assertEquals(
+        WorkerEventType.Decommission,
+        STATUSSYSTEM1.workerEventInfos.get(workerInfo1).getEventType());
+
+    statusSystem.handleWorkerEvent(
+        WorkerEventType.None_VALUE, Lists.newArrayList(workerInfo1), getNewReqeustId());
+    Thread.sleep(3000L);
+    Assert.assertEquals(1, STATUSSYSTEM1.workerEventInfos.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.workerEventInfos.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.workerEventInfos.size());
+    Assert.assertTrue(STATUSSYSTEM1.workerEventInfos.containsKey(workerInfo2));
+    Assert.assertEquals(
+        WorkerEventType.Decommission,
+        STATUSSYSTEM1.workerEventInfos.get(workerInfo2).getEventType());
+
+    Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
   }
 
   @Test
