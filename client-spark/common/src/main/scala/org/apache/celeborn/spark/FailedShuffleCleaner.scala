@@ -17,7 +17,7 @@
 package org.apache.celeborn.spark
 
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ScheduledExecutorService, TimeUnit}
+import java.util.concurrent.{LinkedBlockingQueue, ScheduledExecutorService, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.JavaConverters._
@@ -35,8 +35,6 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
   // in celeborn ids
   private val shufflesToBeCleaned = new LinkedBlockingQueue[Int]()
   private val cleanedShuffleIds = new mutable.HashSet[Int]
-
-  private val lock = new Object
 
   private lazy val cleanInterval =
     lifecycleManager.get().conf.clientFetchCleanFailedShuffleIntervalMS
