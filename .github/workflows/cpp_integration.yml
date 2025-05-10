@@ -28,9 +28,22 @@ on:
       - branch-*
 
 jobs:
+  celeborn_cpp_check_lint:
+    runs-on: ubuntu-22.04
+    container: holylow/celeborn-cpp-dev:0.3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: 'false'
+          fetch-depth: 0
+      - name: Check Cpp Code Lint
+        working-directory: ./cpp
+        run: |
+          find ./ -iname '*.h' -o -iname '*.cpp' | \
+            xargs clang-format-15 -style=file:./.clang-format -n --Werror
   celeborn_cpp_unit_test:
     runs-on: ubuntu-22.04
-    container: holylow/celeborn-cpp-dev:0.2
+    container: holylow/celeborn-cpp-dev:0.3
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,7 +59,7 @@ jobs:
         run: ctest
   celeborn_cpp_integration_test:
     runs-on: ubuntu-22.04
-    container: holylow/celeborn-cpp-dev:0.2
+    container: holylow/celeborn-cpp-dev:0.3
     steps:
       - uses: actions/checkout@v4
         with:

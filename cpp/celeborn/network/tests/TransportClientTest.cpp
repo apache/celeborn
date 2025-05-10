@@ -182,14 +182,16 @@ TEST(TransportClientTest, fetchChunkAsyncSuccess) {
   protocol::StreamChunkSlice onSuccessStreamChunkSlice;
   std::unique_ptr<memory::ReadOnlyByteBuffer> onSuccessBuffer;
   FetchChunkSuccessCallback onSuccess =
-      [&](protocol::StreamChunkSlice slice, std::unique_ptr<memory::ReadOnlyByteBuffer> buffer) {
+      [&](protocol::StreamChunkSlice slice,
+          std::unique_ptr<memory::ReadOnlyByteBuffer> buffer) {
         onSuccessStreamChunkSlice = slice;
         onSuccessBuffer = std::move(buffer);
       };
   protocol::StreamChunkSlice onFailureStreamChunkSlice;
   std::unique_ptr<std::exception> onFailureException;
   FetchChunkFailureCallback onFailure =
-      [&](protocol::StreamChunkSlice slice, std::unique_ptr<std::exception> exception) {
+      [&](protocol::StreamChunkSlice slice,
+          std::unique_ptr<std::exception> exception) {
         onFailureStreamChunkSlice = slice;
         onFailureException = std::move(exception);
       };
@@ -229,14 +231,16 @@ TEST(TransportClientTest, fetchChunkAsyncFailure) {
   protocol::StreamChunkSlice onSuccessStreamChunkSlice;
   std::unique_ptr<memory::ReadOnlyByteBuffer> onSuccessBuffer;
   FetchChunkSuccessCallback onSuccess =
-      [&](protocol::StreamChunkSlice slice, std::unique_ptr<memory::ReadOnlyByteBuffer> buffer) {
+      [&](protocol::StreamChunkSlice slice,
+          std::unique_ptr<memory::ReadOnlyByteBuffer> buffer) {
         onSuccessStreamChunkSlice = slice;
         onSuccessBuffer = std::move(buffer);
       };
   protocol::StreamChunkSlice onFailureStreamChunkSlice;
   std::unique_ptr<std::exception> onFailureException;
   FetchChunkFailureCallback onFailure =
-      [&](protocol::StreamChunkSlice slice, std::unique_ptr<std::exception> exception) {
+      [&](protocol::StreamChunkSlice slice,
+          std::unique_ptr<std::exception> exception) {
         onFailureStreamChunkSlice = slice;
         onFailureException = std::move(exception);
       };

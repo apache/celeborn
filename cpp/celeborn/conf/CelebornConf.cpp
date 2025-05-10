@@ -29,11 +29,14 @@ std::string bool2String(bool value) {
   return value ? "true" : "false";
 }
 
-#define STR_PROP(_key_, _val_) {std::string(_key_), std::string(_val_)}
+#define STR_PROP(_key_, _val_) \
+  { std::string(_key_), std::string(_val_) }
 #define NUM_PROP(_key_, _val_) \
-  {std::string(_key_), folly::to<std::string>(_val_)}
-#define BOOL_PROP(_key_, _val_) {std::string(_key_), bool2String(_val_)}
-#define NONE_PROP(_key_) {std::string(_key_), folly::none}
+  { std::string(_key_), folly::to<std::string>(_val_) }
+#define BOOL_PROP(_key_, _val_) \
+  { std::string(_key_), bool2String(_val_) }
+#define NONE_PROP(_key_) \
+  { std::string(_key_), folly::none }
 
 enum class CapacityUnit {
   BYTE,
@@ -169,7 +172,8 @@ void CelebornConf::registerProperty(
 }
 
 Timeout CelebornConf::rpcLookupTimeout() const {
-  return utils::toTimeout(toDuration(optionalProperty(kRpcLookupTimeout).value()));
+  return utils::toTimeout(
+      toDuration(optionalProperty(kRpcLookupTimeout).value()));
 }
 
 Timeout CelebornConf::clientRpcGetReducerFileGroupRpcAskTimeout() const {
@@ -183,7 +187,8 @@ Timeout CelebornConf::networkConnectTimeout() const {
 }
 
 Timeout CelebornConf::clientFetchTimeout() const {
-  return utils::toTimeout(toDuration(optionalProperty(kClientFetchTimeout).value()));
+  return utils::toTimeout(
+      toDuration(optionalProperty(kClientFetchTimeout).value()));
 }
 
 int CelebornConf::networkIoNumConnectionsPerPeer() const {

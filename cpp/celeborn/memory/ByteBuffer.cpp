@@ -18,7 +18,7 @@
 #include "celeborn/memory/ByteBuffer.h"
 
 namespace celeborn {
-namespace memory{
+namespace memory {
 std::unique_ptr<WriteOnlyByteBuffer> ByteBuffer::createWriteOnly(
     size_t initialCapacity,
     bool isBigEndian) {

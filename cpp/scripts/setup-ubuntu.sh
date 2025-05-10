@@ -106,6 +106,9 @@ function install_build_prerequisites {
   if [[ ${USE_CLANG} != "false" ]]; then
     install_clang15
   fi
+
+  # Install clang-format-15 for lint checking.
+  ${SUDO} apt install -y clang-format-15
 }
 
 # Install packages required for build.

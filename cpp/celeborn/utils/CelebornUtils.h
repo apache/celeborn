@@ -62,7 +62,7 @@ inline Timeout toTimeout(Duration duration) {
 
 /// parse string like "Any-Host-Str:Port#1:Port#2:...:Port#num", split into
 /// {"Any-Host-Str", "Port#1", "Port#2", ..., "Port#num"}. Note that the
-/// "Any-Host_Str" might contain ':' in IPV6 address.
+/// "Any-Host-Str" might contain ':' in IPV6 address.
 std::vector<std::string_view> parseColonSeparatedHostPorts(
     const std::string_view& s,
     int num);
