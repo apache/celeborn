@@ -67,8 +67,8 @@ public class PushState {
     return inFlightRequestTracker.nextBatchId();
   }
 
-  public void addBatch(int batchId, String hostAndPushPort) {
-    inFlightRequestTracker.addBatch(batchId, hostAndPushPort);
+  public void addBatch(int batchId, int batchBytesSize, String hostAndPushPort) {
+    inFlightRequestTracker.addBatch(batchId, batchBytesSize, hostAndPushPort);
   }
 
   public void removeBatch(int batchId, String hostAndPushPort) {
