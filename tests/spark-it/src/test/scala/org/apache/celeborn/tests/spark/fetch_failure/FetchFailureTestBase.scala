@@ -39,6 +39,7 @@ private[tests] trait FetchFailureTestBase extends SparkTestBase {
     var baseBuilder = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .config("spark.sql.shuffle.partitions", 2)
+      .config("spark.driver.memory", "4g")
       .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
       .config("spark.celeborn.shuffle.enabled", "true")
       .config("spark.celeborn.client.shuffle.expired.checkInterval", "1s")
