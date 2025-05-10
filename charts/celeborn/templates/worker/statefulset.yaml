@@ -125,8 +125,6 @@ spec:
         hostPath:
           path: {{ $volume.hostPath | default $volume.mountPath }}/worker
           type: DirectoryOrCreate
-      {{- else }}
-      {{ fail "Currently, Celeborn chart only supports 'emptyDir' and 'hostPath' volume types" }}
       {{- end }}
       {{- end }}
       {{- with .Values.worker.nodeSelector }}
@@ -155,4 +153,19 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       terminationGracePeriodSeconds: 30
-  
+  {{- if eq (include "celeborn.worker.withPvc" .) "true" }}
+  volumeClaimTemplates:
+  {{- range $index, $volume := .Values.volumes.worker }}
+  {{- if eq "pvc" $volume.type }}
+  - metadata:
+      name: {{ $.Release.Name }}-worker-vol-{{ $index }}
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: {{ $volume.storageClassName }}
+      resources:
+        requests:
+          storage: {{ $volume.capacity }}
+      volumeMode: Filesystem
+  {{- end }}
+  {{- end }}
+  {{- end }}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "properties": {
+    "volumes": {
+      "type": "object",
+      "properties": {
+        "master": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "enum": [
+                  "emptyDir",
+                  "hostPath",
+                  "pvc"
+                ]
+              }
+            }
+          }
+        },
+      "worker": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "enum": [
+                "emptyDir",
+                "hostPath",
+                "pvc"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+},
+"title": "Values",
+"type": "object"
+}
