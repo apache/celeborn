@@ -240,6 +240,7 @@ These metrics are exposed by Celeborn worker.
     | WorkerConsumeSpeed                     | The speed of worker consumption for congestion control.                                                         |
     | IsDecommissioningWorker                | 1 means worker decommissioning, 0 means not decommissioning.                                                    |
     | UnreleasedShuffleCount                 | Unreleased shuffle count when worker is decommissioning.                                                        |
+    | UnreleasedPartitionLocationCount       | Unreleased partition location counit when worker is shutting down.                                              |
     | MemoryStorageFileCount                 | The count of files in Memory Storage of a worker.                                                               |
     | MemoryFileStorageSize                  | The total amount of memory used by Memory Storage.                                                              |
     | EvictedFileCount                       | The count of files evicted from Memory Storage to Disk                                                          |
