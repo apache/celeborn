@@ -15,12 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.spark
+package org.apache.spark.scheduler
 
-object SparkContextHelper {
+import org.apache.spark.SparkContext
 
-  def env: SparkEnv = {
-    assert(SparkContext.getActive.isDefined)
-    SparkContext.getActive.get.env
-  }
+object SparkSchedulerHelper {
+  def dagScheduler = SparkContext.getActive.get.dagScheduler
+
+  def runningStages = dagScheduler.runningStages
+
+  def stageIdToStage = dagScheduler.stageIdToStage
 }

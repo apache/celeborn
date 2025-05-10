@@ -52,6 +52,14 @@ public class SparkCommonUtils {
     }
   }
 
+  public static String encodeAppShuffleIdentifier(int appShuffleId, TaskContext context) {
+    return appShuffleId + "-" + context.stageId() + "-" + context.stageAttemptNumber();
+  }
+
+  public static String[] decodeAppShuffleIdentifier(String appShuffleIdentifier) {
+    return appShuffleIdentifier.split("-");
+  }
+
   public static int getEncodedAttemptNumber(TaskContext context) {
     return (context.stageAttemptNumber() << 16) | context.attemptNumber();
   }

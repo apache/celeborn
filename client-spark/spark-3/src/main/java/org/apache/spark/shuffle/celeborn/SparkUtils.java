@@ -64,6 +64,7 @@ import org.apache.spark.storage.BlockManagerId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
@@ -74,6 +75,7 @@ import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.reflect.DynFields;
 import org.apache.celeborn.reflect.DynMethods;
+import org.apache.celeborn.spark.FailedShuffleCleaner;
 
 public class SparkUtils {
   private static final Logger LOG = LoggerFactory.getLogger(SparkUtils.class);
@@ -127,17 +129,14 @@ public class SparkUtils {
         .getOrElse(context::applicationId);
   }
 
-  public static String getAppShuffleIdentifier(int appShuffleId, TaskContext context) {
-    return appShuffleId + "-" + context.stageId() + "-" + context.stageAttemptNumber();
-  }
-
   public static int celebornShuffleId(
       ShuffleClient client,
       CelebornShuffleHandle<?, ?, ?> handle,
       TaskContext context,
       Boolean isWriter) {
     if (handle.throwsFetchFailure()) {
-      String appShuffleIdentifier = getAppShuffleIdentifier(handle.shuffleId(), context);
+      String appShuffleIdentifier =
+          SparkCommonUtils.encodeAppShuffleIdentifier(handle.shuffleId(), context);
       return client.getShuffleId(
           handle.shuffleId(),
           appShuffleIdentifier,
@@ -320,7 +319,8 @@ public class SparkUtils {
 
     if (!(taskContext instanceof BarrierTaskContext)) return;
     int appShuffleId = handle.shuffleId();
-    String appShuffleIdentifier = SparkUtils.getAppShuffleIdentifier(appShuffleId, taskContext);
+    String appShuffleIdentifier =
+        SparkCommonUtils.encodeAppShuffleIdentifier(appShuffleId, taskContext);
 
     BarrierTaskContext barrierContext = (BarrierTaskContext) taskContext;
     barrierContext.addTaskFailureListener(
@@ -617,5 +617,17 @@ public class SparkUtils {
           }
           return null;
         });
+  }
+
+  public static void addWriterShuffleIdsToBeCleaned(
+      LifecycleManager lifecycleManager, String appShuffleIdentifier) {
+    FailedShuffleCleaner.setLifecycleManager(lifecycleManager);
+    FailedShuffleCleaner.addShuffleIdToBeCleaned(appShuffleIdentifier);
+  }
+
+  public static void removeCleanedShuffleId(
+      LifecycleManager lifecycleManager, int celebornShuffleId) {
+    FailedShuffleCleaner.setLifecycleManager(lifecycleManager);
+    FailedShuffleCleaner.removeCleanedShuffleId(celebornShuffleId);
   }
 }

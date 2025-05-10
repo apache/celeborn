@@ -37,6 +37,7 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.celeborn.reflect.DynMethods;
+import org.apache.celeborn.spark.FailedShuffleCleaner;
 
 /**
  * In order to support Spark Stage resubmit with ShuffleReader FetchFails, Celeborn shuffleId has to
@@ -157,6 +158,24 @@ public class SparkShuffleManager implements ShuffleManager {
             }
           }
 
+          if (lifecycleManager.conf().clientFetchCleanFailedShuffle()) {
+            if (!lifecycleManager.conf().clientStageRerunEnabled()) {
+              throw new IllegalArgumentException(
+                  CelebornConf.CLIENT_STAGE_RERUN_ENABLED().key()
+                      + " has to be "
+                      + "enabled, when "
+                      + CelebornConf.CLIENT_FETCH_CLEAN_FAILED_SHUFFLE().key()
+                      + " is set to true");
+            }
+            lifecycleManager.registerValidateCelebornShuffleIdForCleanCallback(
+                (appShuffleIdentifier) ->
+                    SparkUtils.addWriterShuffleIdsToBeCleaned(
+                        lifecycleManager, appShuffleIdentifier));
+            lifecycleManager.registerUnregisterShuffleCallback(
+                (celebornShuffleId) ->
+                    SparkUtils.removeCleanedShuffleId(lifecycleManager, celebornShuffleId));
+          }
+
           if (celebornConf.getReducerFileGroupBroadcastEnabled()) {
             lifecycleManager.registerBroadcastGetReducerFileGroupResponseCallback(
                 (shuffleId, getReducerFileGroupResponse) ->
@@ -246,6 +265,9 @@ public class SparkShuffleManager implements ShuffleManager {
     if (_sortShuffleManager != null) {
       _sortShuffleManager.stop();
       _sortShuffleManager = null;
+    }
+    if (celebornConf.clientFetchCleanFailedShuffle()) {
+      FailedShuffleCleaner.reset();
     }
   }
 
