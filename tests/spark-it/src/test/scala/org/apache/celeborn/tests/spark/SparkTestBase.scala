@@ -139,7 +139,8 @@ trait SparkTestBase extends AnyFunSuite
               conf,
               h.userIdentifier,
               h.extension)
-            val celebornShuffleId = SparkUtils.celebornShuffleId(shuffleClient, h, context, false)
+            val celebornShuffleId =
+              SparkUtils.celebornShuffleId(shuffleClient, h, context, false)
             val allFiles = workerDirs.map(dir => {
               new File(s"$dir/celeborn-worker/shuffle_data/$appUniqueId/$celebornShuffleId")
             })

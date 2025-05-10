@@ -403,6 +403,7 @@ message PbGetShuffleId {
 
 message PbGetShuffleIdResponse {
   int32 shuffleId = 1;
+  bool success = 2;
 }
 
 message PbReportShuffleFetchFailure {
