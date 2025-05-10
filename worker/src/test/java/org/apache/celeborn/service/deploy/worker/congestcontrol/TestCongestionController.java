@@ -338,6 +338,28 @@ public class TestCongestionController {
     Assert.assertFalse(controller1.isUserCongested(context1));
   }
 
+  @Test
+  public void testUpdateProduceBytes() throws InterruptedException {
+    UserIdentifier user = new UserIdentifier("test", "celeborn");
+    UserCongestionControlContext userCongestionControlContext =
+        controller.getUserCongestionContext(user);
+    userCongestionControlContext.updateProduceBytes(1000);
+    userCongestionControlContext.updateProduceBytes(1000);
+    userCongestionControlContext.updateProduceBytes(1000);
+    userCongestionControlContext.updateProduceBytes(1000);
+
+    int timeWindowsInMills =
+        userCongestionControlContext.getUserBufferInfo().getBufferStatusHub().timeWindowsInMills;
+    // Sleep to trigger removeExpiredNodes
+    Thread.sleep(timeWindowsInMills / 2 + 1);
+    userCongestionControlContext.updateProduceBytes(1000);
+    Thread.sleep(timeWindowsInMills / 2 + 1);
+
+    Assert.assertTrue(
+        userCongestionControlContext.getUserBufferInfo().getBufferStatusHub().avgBytesPerSec() > 0);
+    Assert.assertTrue(controller.getProducedBufferStatusHub().avgBytesPerSec() > 0);
+  }
+
   private void clearBufferStatus(CongestionController controller) {
     controller.getProducedBufferStatusHub().clear();
     controller.getConsumedBufferStatusHub().clear();
