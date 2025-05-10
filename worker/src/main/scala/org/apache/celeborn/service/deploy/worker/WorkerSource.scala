@@ -34,6 +34,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
 
   val appActiveConnections: ConcurrentHashMap[String, util.Set[String]] =
     JavaUtils.newConcurrentHashMap[String, util.Set[String]]
+  private val metricsLabelApplicationId = conf.metricsLabelApplicationId
 
   import WorkerSource._
   // add counters
@@ -108,6 +109,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   }
 
   def recordAppActiveConnection(client: TransportClient, shuffleKey: String): Unit = {
+    if (!metricsLabelApplicationId) return
     val applicationIds = appActiveConnections.get(client.getChannel.id().asLongText())
     val applicationId = Utils.splitShuffleKey(shuffleKey)._1
     if (applicationIds != null && !applicationIds.contains(applicationId)) {

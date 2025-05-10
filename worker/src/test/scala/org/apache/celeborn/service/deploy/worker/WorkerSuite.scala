@@ -131,6 +131,7 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
 
   test("handle top resource consumption") {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
+    conf.set(CelebornConf.METRICS_WORKER_APP_TOP_RESOURCE_CONSUMPTION_COUNT, 5)
     worker = new Worker(conf, workerArgs)
     val userIdentifier = new UserIdentifier("default", "celeborn")
     worker.handleTopAppResourceConsumption(Map(userIdentifier -> ResourceConsumption(

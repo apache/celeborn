@@ -895,6 +895,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(METRICS_WORKER_PAUSE_SPENT_TIME_FORCE_APPEND_THRESHOLD)
   def metricsJsonPrettyEnabled: Boolean = get(METRICS_JSON_PRETTY_ENABLED)
 
+  def metricsLabelApplicationId: Boolean = get(METRICS_LABEL_APPLICATION_ID)
+
   // //////////////////////////////////////////////////////
   //                      Quota                         //
   // //////////////////////////////////////////////////////
@@ -5520,10 +5522,12 @@ object CelebornConf extends Logging {
       .categories("metrics")
       .doc("Size for top items about top resource consumption applications list of worker. " +
         "The top resource consumption is determined by sum of diskBytesWritten and hdfsBytesWritten. " +
-        "The top resource consumption count prevents the total number of metrics from exceeding the metrics capacity.")
+        "The top resource consumption count prevents the total number of metrics from exceeding the metrics capacity. " +
+        "Note: This will add applicationId as label which is considered as a high cardinality label, " +
+        "be careful enabling it on metrics systems that are not optimized for high cardinality columns.")
       .version("0.6.0")
       .intConf
-      .createWithDefault(50)
+      .createWithDefault(0)
 
   val METRICS_WORKER_APP_TOP_RESOURCE_CONSUMPTION_BYTES_WRITTEN_THRESHOLD: ConfigEntry[Long] =
     buildConf("celeborn.metrics.worker.app.topResourceConsumption.bytesWrittenThreshold")
@@ -5568,6 +5572,16 @@ object CelebornConf extends Logging {
       .version("0.4.0")
       .booleanConf
       .createWithDefault(true)
+
+  val METRICS_LABEL_APPLICATION_ID: ConfigEntry[Boolean] =
+    buildConf("celeborn.metrics.label.applicationId")
+      .categories("metrics")
+      .doc("When true, push applicationId as label for certain metrics. Note: applicationId " +
+        "is considered as a high cardinality label, be careful enabling it on metrics systems " +
+        "that are not optimized for high cardinality columns.")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefault(false)
 
   val IDENTITY_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.identity.provider")
