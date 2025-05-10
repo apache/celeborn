@@ -164,6 +164,35 @@ tests:
               cpu: 100m
               memory: 128Mi
 
+  - it: Should add container securityContext if `master.securityContext` is set
+    set:
+      master:
+        securityContext:
+          readOnlyRootFilesystem: true
+          runAsUser: 1000
+          runAsGroup: 2000
+          fsGroup: 3000
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          runAsNonRoot: true
+          privileged: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value:
+            readOnlyRootFilesystem: true
+            runAsUser: 1000
+            runAsGroup: 2000
+            fsGroup: 3000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            privileged: false
+
   - it: Should add secrets if `imagePullSecrets` is set
     set:
       imagePullSecrets:
@@ -284,12 +313,13 @@ tests:
           path: spec.template.spec.hostNetwork
           value: true
 
-  - it: Should use the specified security context if `podSecurityContext` is set
+  - it: Should use the specified security context if `master.podSecurityContext` is set
     set:
-      securityContext:
-        runAsUser: 1000
-        runAsGroup: 2000
-        fsGroup: 3000
+      master:
+        podSecurityContext:
+          runAsUser: 1000
+          runAsGroup: 2000
+          fsGroup: 3000
     asserts:
       - equal:
           path: spec.template.spec.securityContext.runAsUser
