@@ -67,6 +67,10 @@
       <artifactId>log4j-1.2-api</artifactId>
     </dependency>
     <dependency>
+      <groupId>com.lmax</groupId>
+      <artifactId>disruptor</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.rocksdb</groupId>
       <artifactId>rocksdbjni</artifactId>
     </dependency>

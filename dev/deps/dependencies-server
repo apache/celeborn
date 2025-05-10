@@ -25,6 +25,7 @@ commons-crypto/1.0.0//commons-crypto-1.0.0.jar
 commons-io/2.17.0//commons-io-2.17.0.jar
 commons-lang3/3.17.0//commons-lang3-3.17.0.jar
 commons-logging/1.1.3//commons-logging-1.1.3.jar
+disruptor/3.4.4//disruptor-3.4.4.jar
 failureaccess/1.0.2//failureaccess-1.0.2.jar
 guava/33.1.0-jre//guava-33.1.0-jre.jar
 hadoop-client-api/3.3.6//hadoop-client-api-3.3.6.jar
