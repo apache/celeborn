@@ -35,7 +35,7 @@ private[tests] trait FetchFailureTestBase extends SparkTestBase {
       } else {
         "fetch-failure-failed-shuffle-clean"
       }
-    }).setMaster("local[1,4]")
+    }).setMaster("local[*]")
     var baseBuilder = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .config("spark.sql.shuffle.partitions", 2)
