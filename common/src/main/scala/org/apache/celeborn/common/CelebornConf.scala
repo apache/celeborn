@@ -5605,7 +5605,7 @@ object CelebornConf extends Logging {
         "that are not optimized for high cardinality columns.")
       .version("0.6.0")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val IDENTITY_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.identity.provider")
