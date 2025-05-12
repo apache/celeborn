@@ -455,6 +455,15 @@ private[celeborn] class Worker(
       0
     }
   }
+  // Unreleased partition location count when worker is restarting
+  workerSource.addGauge(WorkerSource.UNRELEASED_PARTITION_LOCATION_COUNT) { () =>
+    if (shutdown.get()) {
+      partitionLocationInfo.primaryPartitionLocations.size() +
+        partitionLocationInfo.replicaPartitionLocations.size()
+    } else {
+      0
+    }
+  }
   workerSource.addGauge(WorkerSource.CLEAN_TASK_QUEUE_SIZE) { () =>
     cleanTaskQueue.size()
   }
