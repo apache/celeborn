@@ -21,7 +21,7 @@ docker run \
     -w /celeborn \
     -it --rm \
     --name celeborn-cpp-dev-container \
-    holylow/celeborn-cpp-dev:0.2 \
+    holylow/celeborn-cpp-dev:0.3 \
     /bin/bash
 ```
 

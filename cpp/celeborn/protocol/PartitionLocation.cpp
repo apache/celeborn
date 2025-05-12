@@ -53,7 +53,6 @@ std::unique_ptr<const PartitionLocation> PartitionLocation::fromPb(
   return std::move(result);
 }
 
-
 std::unique_ptr<PartitionLocation> PartitionLocation::fromPackedPb(
     const PbPackedPartitionLocations& pb,
     int idx) {
