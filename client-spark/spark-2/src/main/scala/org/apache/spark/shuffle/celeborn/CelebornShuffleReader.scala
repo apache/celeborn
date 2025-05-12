@@ -63,25 +63,24 @@ class CelebornShuffleReader[K, C](
   override def read(): Iterator[Product2[K, C]] = {
 
     val serializerInstance = dep.serializer.newInstance()
-
-    var shuffleId = handle.shuffleId
-    try {
-      shuffleId = SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
-    } catch {
-      case e: CelebornRuntimeException =>
-        logError(s"Failed to get shuffleId for appShuffleId ${handle.shuffleId}", e)
-        if (handle.throwsFetchFailure) {
-          throw new FetchFailedException(
-            null,
-            handle.shuffleId,
-            -1,
-            startPartition,
-            SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId,
-            e)
-        } else {
-          throw e
-        }
-    }
+    val shuffleId =
+      try {
+        SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
+      } catch {
+        case e: CelebornRuntimeException =>
+          logError(s"Failed to get shuffleId for appShuffleId ${handle.shuffleId}", e)
+          if (handle.throwsFetchFailure) {
+            throw new FetchFailedException(
+              null,
+              handle.shuffleId,
+              -1,
+              startPartition,
+              SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId,
+              e)
+          } else {
+            throw e
+          }
+      }
     shuffleIdTracker.track(handle.shuffleId, shuffleId)
     logDebug(
       s"get shuffleId $shuffleId for appShuffleId ${handle.shuffleId} attemptNum ${context.stageAttemptNumber()}")

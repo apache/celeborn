@@ -79,26 +79,25 @@ class CelebornShuffleReader[K, C](
 
     val startTime = System.currentTimeMillis()
     val serializerInstance = newSerializerInstance(dep)
-
-    var shuffleId = handle.shuffleId
-    try {
-      shuffleId = SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
-    } catch {
-      case e: CelebornRuntimeException =>
-        logError(s"Failed to get shuffleId for appShuffleId ${handle.shuffleId}", e)
-        if (throwsFetchFailure) {
-          throw new FetchFailedException(
-            null,
-            handle.shuffleId,
-            -1,
-            -1,
-            startPartition,
-            SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + handle.shuffleId,
-            e)
-        } else {
-          throw e
-        }
-    }
+    val shuffleId =
+      try {
+        SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
+      } catch {
+        case e: CelebornRuntimeException =>
+          logError(s"Failed to get shuffleId for appShuffleId ${handle.shuffleId}", e)
+          if (throwsFetchFailure) {
+            throw new FetchFailedException(
+              null,
+              handle.shuffleId,
+              -1,
+              -1,
+              startPartition,
+              SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + handle.shuffleId,
+              e)
+          } else {
+            throw e
+          }
+      }
     shuffleIdTracker.track(handle.shuffleId, shuffleId)
     logDebug(
       s"get shuffleId $shuffleId for appShuffleId ${handle.shuffleId} attemptNum ${context.stageAttemptNumber()}")
