@@ -894,8 +894,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsWorkerForceAppendPauseSpentTimeThreshold: Int =
     get(METRICS_WORKER_PAUSE_SPENT_TIME_FORCE_APPEND_THRESHOLD)
   def metricsJsonPrettyEnabled: Boolean = get(METRICS_JSON_PRETTY_ENABLED)
-
-  def metricsLabelApplicationId: Boolean = get(METRICS_LABEL_APPLICATION_ID)
+  def metricsWorkerAppLevelEnabled: Boolean = get(METRICS_WORKER_APP_LEVEL_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                      Quota                         //
@@ -5598,11 +5597,11 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val METRICS_LABEL_APPLICATION_ID: ConfigEntry[Boolean] =
-    buildConf("celeborn.metrics.label.applicationId")
+  val METRICS_WORKER_APP_LEVEL_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.metrics.worker.appLevel.enabled")
       .categories("metrics")
-      .doc("When true, push applicationId as label for certain metrics. Note: applicationId " +
-        "is considered as a high cardinality label, be careful enabling it on metrics systems " +
+      .doc("When true, enable worker application level metrics. Note: applicationId is " +
+        "considered as a high cardinality label, be careful enabling it on metrics systems " +
         "that are not optimized for high cardinality columns.")
       .version("0.6.0")
       .booleanConf
