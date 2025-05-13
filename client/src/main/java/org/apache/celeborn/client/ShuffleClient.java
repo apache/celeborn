@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 
+import scala.Tuple2;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -266,7 +268,7 @@ public abstract class ShuffleClient {
 
   public abstract PushState getPushState(String mapKey);
 
-  public abstract int getShuffleId(
+  public abstract Tuple2<Integer, Boolean> getShuffleId(
       int appShuffleId, String appShuffleIdentifier, boolean isWriter, boolean isBarrierStage);
 
   /**

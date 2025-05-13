@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.reflect.DynFields;
 import org.apache.celeborn.reflect.DynMethods;
@@ -108,11 +109,17 @@ public class SparkUtils {
       Boolean isWriter) {
     if (handle.throwsFetchFailure()) {
       String appShuffleIdentifier = getAppShuffleIdentifier(handle.shuffleId(), context);
-      return client.getShuffleId(
-          handle.shuffleId(),
-          appShuffleIdentifier,
-          isWriter,
-          context instanceof BarrierTaskContext);
+      Tuple2<Integer, Boolean> res =
+          client.getShuffleId(
+              handle.shuffleId(),
+              appShuffleIdentifier,
+              isWriter,
+              context instanceof BarrierTaskContext);
+      if (!res._2) {
+        throw new CelebornRuntimeException(String.format("Get invalid shuffle id %s", res._1));
+      } else {
+        return res._1;
+      }
     } else {
       return handle.shuffleId();
     }
