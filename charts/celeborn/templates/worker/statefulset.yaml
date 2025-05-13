@@ -39,31 +39,32 @@ spec:
     spec:
       serviceAccountName:  {{ include "celeborn.serviceAccountName" . }}
       initContainers:
-      {{- $dirs := .Values.volumes.worker }}
-      {{- if eq "hostPath" (index $dirs 0).type }}
-      - name: chown-{{ $.Release.Name }}-worker-volume
-        image: {{ .Values.image.initContainerImage }}
+      - name: chown-celeborn-worker-volume
+        image: {{ include "celeborn.image" . }}
         {{- with .Values.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end }}
         command:
         - chown
-        - {{ .Values.worker.podSecurityContext.runAsUser | default 10006 }}:{{ .Values.worker.podSecurityContext.runAsGroup | default 10006 }}
-        {{- range $dir := $dirs }}
-        - {{ $dir.mountPath }}
-        {{- end}}
+        - -R
+        - {{ default .Values.worker.podSecurityContext.runAsUser | default 10006 }}:{{ default .Values.worker.podSecurityContext.runAsGroup | default 10006 }}
+        {{- range $volumeMount := .Values.worker.volumeMounts }}
+        {{- range $volume := $.Values.worker.volumes }}
+        {{- if and (eq $volume.name $volumeMount.name) $volume.hostPath }}
+        - {{ $volumeMount.mountPath }}
+        {{- end }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.worker.volumeMounts }}
         volumeMounts:
-        {{- range $index, $dir := $dirs }}
-        - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
-          mountPath: {{ $dir.mountPath }}
-        {{- end}}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         {{- with .Values.worker.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
         securityContext:
           runAsUser: 0
-      {{- end }}
       containers:
       - name: {{ .Chart.Name }}
         image: {{ include "celeborn.image" . }}
@@ -97,12 +98,17 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
         volumeMounts:
-        - mountPath: /opt/celeborn/conf
-          name: {{ include "celeborn.fullname" . }}-volume
-          readOnly: true
-        {{- range $index, $volume := .Values.volumes.worker }}
-        - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
-          mountPath: {{ .mountPath }}
+        - name: celeborn-conf
+          subPath: celeborn-defaults.conf
+          mountPath: /opt/celeborn/conf/celeborn-defaults.conf
+        - name: celeborn-conf
+          subPath: log4j2.xml
+          mountPath: /opt/celeborn/conf/log4j2.xml
+        - name: celeborn-conf
+          subPath: metrics.properties
+          mountPath: /opt/celeborn/conf/metrics.properties
+        {{- with .Values.worker.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- with .Values.worker.resources }}
         resources:
@@ -117,21 +123,19 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-      - name: {{ include "celeborn.fullname" . }}-volume
+      - name: celeborn-conf
         configMap:
           name: {{ include "celeborn.configMapName" . }}
-      {{- range $index, $volume := .Values.volumes.worker }}
-      - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
-      {{- if eq "emptyDir" $volume.type }}
-        emptyDir:
-          sizeLimit: {{ $volume.capacity }}
-      {{- else if eq "hostPath" $volume.type }}
-        hostPath:
-          path: {{ $volume.hostPath | default $volume.mountPath }}/worker
-          type: DirectoryOrCreate
-      {{- else }}
-      {{ fail "Currently, Celeborn chart only supports 'emptyDir' and 'hostPath' volume types" }}
-      {{- end }}
+          defaultMode: 0444
+          items:
+          - key: celeborn-defaults.conf
+            path: celeborn-defaults.conf
+          - key: log4j2.xml
+            path: log4j2.xml
+          - key: metrics.properties
+            path: metrics.properties
+      {{- with .Values.worker.volumes }}
+      {{- toYaml . | nindent 6 }}
       {{- end }}
       {{- with .Values.worker.nodeSelector }}
       nodeSelector:
@@ -159,4 +163,3 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       terminationGracePeriodSeconds: 30
-  

@@ -39,27 +39,32 @@ spec:
     spec:
       serviceAccountName: {{ include "celeborn.serviceAccountName" . }}
       initContainers:
-      {{- $dirs := .Values.volumes.master }}
-      {{- if eq "hostPath" (index $dirs 0).type }}
-      - name: chown-{{ $.Release.Name }}-master-volume
-        image: {{ .Values.image.initContainerImage  }}
+      - name: chown-celeborn-master-volume
+        image: {{ include "celeborn.image" . }}
         {{- with .Values.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end }}
         command:
         - chown
-        - {{ .Values.master.podSecurityContext.runAsUser | default 10006 }}:{{ .Values.master.podSecurityContext.runAsGroup | default 10006 }}
-        - {{ (index $dirs 0).mountPath }}
+        - -R
+        - {{ default .Values.master.podSecurityContext.runAsUser | default 10006 }}:{{ default .Values.master.podSecurityContext.runAsGroup | default 10006 }}
+        {{- range $volumeMount := .Values.master.volumeMounts }}
+        {{- range $volume := $.Values.master.volumes }}
+        {{- if and (eq $volume.name $volumeMount.name) $volume.hostPath }}
+        - {{ $volumeMount.mountPath }}
+        {{- end }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.master.volumeMounts }}
         volumeMounts:
-        - name: {{ $.Release.Name }}-master-vol-0
-          mountPath: {{ (index $dirs 0).mountPath }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         {{- with .Values.master.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
         securityContext:
           runAsUser: 0
-      {{- end }}
       containers:
       - name: {{ .Chart.Name }}
         image: {{ include "celeborn.image" . }}
@@ -94,12 +99,17 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
         volumeMounts:
-        - name: {{ include "celeborn.fullname" . }}-volume
-          mountPath: /opt/celeborn/conf
-          readOnly: true
-        {{- range $index, $volume := .Values.volumes.master }}
-        - name: {{ $.Release.Name }}-master-vol-{{ $index }}
-          mountPath: {{ .mountPath }}
+        - name: celeborn-conf
+          subPath: celeborn-defaults.conf
+          mountPath: /opt/celeborn/conf/celeborn-defaults.conf
+        - name: celeborn-conf
+          subPath: log4j2.xml
+          mountPath: /opt/celeborn/conf/log4j2.xml
+        - name: celeborn-conf
+          subPath: metrics.properties
+          mountPath: /opt/celeborn/conf/metrics.properties
+        {{- with .Values.master.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- with .Values.master.resources }}
         resources:
@@ -114,21 +124,19 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-      - name: {{ include "celeborn.fullname" . }}-volume
+      - name: celeborn-conf
         configMap:
           name: {{ include "celeborn.configMapName" . }}
-      {{- range $index, $volume := .Values.volumes.master }}
-      - name: {{ $.Release.Name }}-master-vol-{{ $index }}
-      {{- if eq "emptyDir" $volume.type }}
-        emptyDir:
-          sizeLimit: {{ $volume.capacity }}
-      {{- else if eq "hostPath" $volume.type }}
-        hostPath:
-          path: {{ $volume.hostPath | default $volume.mountPath }}/master
-          type: DirectoryOrCreate
-      {{- else }}
-      {{ fail "For now Celeborn Helm only support emptyDir or hostPath volume types" }}
-      {{- end }}
+          defaultMode: 0444
+          items:
+          - key: celeborn-defaults.conf
+            path: celeborn-defaults.conf
+          - key: log4j2.xml
+            path: log4j2.xml
+          - key: metrics.properties
+            path: metrics.properties
+      {{- with .Values.master.volumes }}
+      {{- toYaml . | nindent 6 }}
       {{- end }}
       {{- with .Values.master.nodeSelector }}
       nodeSelector:
