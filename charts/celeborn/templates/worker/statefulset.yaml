@@ -48,7 +48,7 @@ spec:
         {{- end }}
         command:
         - chown
-        - {{ .Values.securityContext.runAsUser | default 10006 }}:{{ .Values.securityContext.runAsGroup | default 10006 }}
+        - {{ .Values.worker.podSecurityContext.runAsUser | default 10006 }}:{{ .Values.worker.podSecurityContext.runAsGroup | default 10006 }}
         {{- range $dir := $dirs }}
         - {{ $dir.mountPath }}
         {{- end}}
@@ -108,6 +108,10 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
+        {{- with .Values.worker.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -150,7 +154,7 @@ spec:
       {{- with .Values.worker.hostNetwork }}
       hostNetwork: {{ . }}
       {{- end }}
-      {{- with .Values.securityContext }}
+      {{- with .Values.worker.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}

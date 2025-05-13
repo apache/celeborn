@@ -48,7 +48,7 @@ spec:
         {{- end }}
         command:
         - chown
-        - {{ .Values.securityContext.runAsUser | default 10006 }}:{{ .Values.securityContext.runAsGroup | default 10006 }}
+        - {{ .Values.master.podSecurityContext.runAsUser | default 10006 }}:{{ .Values.master.podSecurityContext.runAsGroup | default 10006 }}
         - {{ (index $dirs 0).mountPath }}
         volumeMounts:
         - name: {{ $.Release.Name }}-master-vol-0
@@ -105,6 +105,10 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
+        {{- with .Values.master.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -147,7 +151,7 @@ spec:
       {{- with .Values.master.hostNetwork }}
       hostNetwork: {{ . }}
       {{- end }}
-      {{- with .Values.securityContext }}
+      {{- with .Values.master.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}

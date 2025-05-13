@@ -139,15 +139,6 @@ worker:
   # -- Whether to use the host's network namespace in Celeborn worker pods.
   hostNetwork: true
 
-# -- Container security context
-securityContext:
-  # Specifies the user ID to run the entrypoint of the container process
-  runAsUser: 10006
-  # Specifies the group ID to run the entrypoint of the container process
-  runAsGroup: 10006
-  # Specifies the group ID to use when modifying ownership and permissions of the mounted volumes
-  fsGroup: 10006
-
 podMonitor:
   # -- Specifies whether to enable creating pod monitors for Celeborn pods
   enable: false

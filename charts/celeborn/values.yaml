@@ -118,15 +118,6 @@ celeborn:
   celeborn.application.heartbeat.timeout: 120s
   celeborn.worker.heartbeat.timeout: 120s
 
-# -- Container security context
-securityContext:
-  # Specifies the user ID to run the entrypoint of the container process
-  runAsUser: 10006
-  # Specifies the group ID to run the entrypoint of the container process
-  runAsGroup: 10006
-  # Specifies the group ID to use when modifying ownership and permissions of the mounted volumes
-  fsGroup: 10006
-
 master:
   # -- Number of Celeborn master replicas to deploy, should not less than 3.
   replicas: 3
@@ -164,6 +155,14 @@ master:
     # limits:
     #   cpu: 100m
     #   memory: 128Mi
+
+  # -- Security configurations for Celeborn master containers.
+  securityContext:
+    # privileged: false
+    # allowPrivilegeEscalation: false
+    # runAsUser: 10006
+    # runAsGroup: 10006
+    # fsGroup: 10006
 
   # -- Node selector for Celeborn master pods.
   nodeSelector:
@@ -211,6 +210,15 @@ master:
   # -- Whether to use the host's network namespace in Celeborn master pods.
   hostNetwork: false
 
+  # -- Pod-level security configurations for Celeborn master pods.
+  podSecurityContext:
+    # The user ID to use when running the entrypoint of the container process.
+    runAsUser: 10006
+    # The group ID to use when running the entrypoint of the container process.
+    runAsGroup: 10006
+    # The group ID to use when modifying the ownership and permissions of the mounted volumes.
+    fsGroup: 10006
+
 worker:
   # -- Number of Celeborn worker replicas to deploy, should less than node number.
   replicas: 5
@@ -250,6 +258,14 @@ worker:
     # limits:
     #   cpu: 100m
     #   memory: 128Mi
+
+  # -- Security configurations for Celeborn worker containers.
+  securityContext:
+    # privileged: false
+    # allowPrivilegeEscalation: false
+    # runAsUser: 10006
+    # runAsGroup: 10006
+    # fsGroup: 10006
 
   # -- Node selector for Celeborn worker pods.
   nodeSelector:
@@ -296,6 +312,15 @@ worker:
 
   # -- Whether to use the host's network namespace in Celeborn worker pods.
   hostNetwork: false
+
+  # -- Pod-level security configurations for Celeborn worker pods.
+  podSecurityContext:
+    # The user ID to use when running the entrypoint of the container process.
+    runAsUser: 10006
+    # The group ID to use when running the entrypoint of the container process.
+    runAsGroup: 10006
+    # The group ID to use when modifying the ownership and permissions of the mounted volumes.
+    fsGroup: 10006
 
 podMonitor:
   # -- Specifies whether to enable creating pod monitors for Celeborn pods
