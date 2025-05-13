@@ -58,6 +58,7 @@ object Dependencies {
   val junitVersion = "4.13.2"
   val leveldbJniVersion = "1.8"
   val log4j2Version = "2.24.3"
+  val disruptorVersion = "3.4.4"
   val jdkToolsVersion = "0.1"
   val metricsVersion = "4.2.25"
   val mockitoVersion = "4.11.0"
@@ -148,6 +149,7 @@ object Dependencies {
   val log4jCore = "org.apache.logging.log4j" % "log4j-core" % log4j2Version
   val log4j12Api = "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version
   val log4jSlf4jImpl = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version
+  val disruptor = "com.lmax" % "disruptor" % disruptorVersion
   val lz4Java = "org.lz4" % "lz4-java" % lz4JavaVersion
   val protobufJava = "com.google.protobuf" % "protobuf-java" % protoVersion
   val ratisClient = "org.apache.ratis" % "ratis-client" % ratisVersion
@@ -748,6 +750,7 @@ object CelebornMaster {
         Dependencies.hadoopClientApi,
         Dependencies.log4j12Api,
         Dependencies.log4jSlf4jImpl,
+        Dependencies.disruptor,
         Dependencies.ratisClient,
         Dependencies.ratisCommon,
         Dependencies.ratisGrpc,
@@ -783,6 +786,7 @@ object CelebornWorker {
         Dependencies.ioNetty,
         Dependencies.log4j12Api,
         Dependencies.log4jSlf4jImpl,
+        Dependencies.disruptor,
         Dependencies.leveldbJniAll,
         Dependencies.roaringBitmap,
         Dependencies.rocksdbJni,
