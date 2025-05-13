@@ -47,11 +47,13 @@ spec:
         command:
         - chown
         - -R
-        - {{ default .Values.master.podSecurityContext.runAsUser | default 10006 }}:{{ default .Values.master.podSecurityContext.runAsGroup | default 10006 }}
+        - {{ .Values.master.podSecurityContext.runAsUser | default 10006 }}:{{ .Values.master.podSecurityContext.runAsGroup | default 10006 }}
         {{- range $volumeMount := .Values.master.volumeMounts }}
         {{- range $volume := $.Values.master.volumes }}
-        {{- if and (eq $volume.name $volumeMount.name) $volume.hostPath }}
+        {{- if eq $volume.name $volumeMount.name }}
+        {{- if or $volume.hostPath $volume.emptyDir }}
         - {{ $volumeMount.mountPath }}
+        {{- end }}
         {{- end }}
         {{- end }}
         {{- end }}
