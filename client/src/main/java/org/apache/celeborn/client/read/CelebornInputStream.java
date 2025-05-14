@@ -895,7 +895,6 @@ public abstract class CelebornInputStream extends InputStream {
               } else {
                 limit = size;
               }
-
               position = 0;
               hasData = true;
               break;
@@ -912,9 +911,8 @@ public abstract class CelebornInputStream extends InputStream {
 
         if (!hasData) {
           validateIntegrity();
-          // TODO(borovsky) consider closing the stream
+          // TODO(gaurav): consider closing the stream
         }
-
         return hasData;
       } catch (LZ4Exception | ZstdException | IOException e) {
         logger.error(
