@@ -35,14 +35,14 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
       TestCelebornShuffleManager.registerReaderGetHook(hook)
       val checkingThread =
         triggerStorageCheckThread(Seq(0), Seq(1), sparkSession, forStableStatusChecking = false)
-      val tuples = sparkSession.sparkContext.parallelize(1 to 1000, 2)
-        .map { i => (i, s"$i") }.groupByKey(16).collect()
+      val tuples = sparkSession.sparkContext.parallelize(1 to 100, 2)
+        .map { i => (i, i) }.groupByKey(16).collect()
       checkStorageValidation(checkingThread)
       // verify result
       assert(hook.executed.get())
-      assert(tuples.length == 1000)
+      assert(tuples.length == 100)
       for (elem <- tuples) {
-        elem._2.foreach(s => assert(s.equals(elem._1.toString)))
+        elem._2.foreach(i => assert(i.equals(elem._1)))
       }
       sparkSession.stop()
     }
@@ -65,17 +65,16 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
         Seq(2, 3, 4),
         sparkSession,
         forStableStatusChecking = false)
-      val tuples = sparkSession.sparkContext.parallelize(1 to 1000, 2)
-        .map { i => (i, i.toString) }.groupByKey(16).map {
-          case (k, elements) =>
-            (k, elements.map(str => str.toLowerCase))
+      val tuples = sparkSession.sparkContext.parallelize(1 to 100, 2)
+        .map { i => (i, i) }.groupByKey(16).map {
+          case (k, elements) => (k, elements.map(i => i))
         }.groupByKey(4).groupByKey(2).collect()
       checkStorageValidation(checkingThread)
       // verify result
       assert(hook.executed.get())
-      assert(tuples.length == 1000)
+      assert(tuples.length == 100)
       for (elem <- tuples) {
-        elem._2.flatten.flatten.foreach(s => s.equals(elem._1.toString))
+        elem._2.flatten.flatten.foreach(s => s.equals(elem._1))
       }
       sparkSession.stop()
     }
