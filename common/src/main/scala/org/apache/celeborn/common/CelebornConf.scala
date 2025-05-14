@@ -5930,7 +5930,7 @@ object CelebornConf extends Logging {
       .version("0.5.0")
       .doc("When `true`, enables end-to-end integrity checks.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val CLIENT_CHUNK_PREFETCH_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.chunk.prefetch.enabled")
