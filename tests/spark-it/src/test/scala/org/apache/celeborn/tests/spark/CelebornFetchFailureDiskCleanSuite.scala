@@ -33,17 +33,16 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
         workerDirs,
         shuffleIdToBeDeleted = Seq(0))
       TestCelebornShuffleManager.registerReaderGetHook(hook)
-      val value = Range(1, 10000).mkString(",")
       val checkingThread =
         triggerStorageCheckThread(Seq(0), Seq(1), sparkSession, forStableStatusChecking = false)
       val tuples = sparkSession.sparkContext.parallelize(1 to 10000, 2)
-        .map { i => (i, value) }.groupByKey(16).collect()
+        .map { i => (i, s"$i") }.groupByKey(16).collect()
       checkStorageValidation(checkingThread)
       // verify result
       assert(hook.executed.get())
       assert(tuples.length == 10000)
       for (elem <- tuples) {
-        assert(elem._2.mkString(",").equals(value))
+        elem._2.foreach(s => assert(s.equals(elem._1.toString)))
       }
       sparkSession.stop()
     }
@@ -61,14 +60,13 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
           shuffleIdToBeDeleted = Seq(0, 1),
           triggerStageId = Some(2))
       TestCelebornShuffleManager.registerReaderGetHook(hook)
-      val value = Range(1, 32).mkString(",")
       val checkingThread = triggerStorageCheckThread(
         Seq(0, 1),
         Seq(2, 3, 4),
         sparkSession,
         forStableStatusChecking = false)
       val tuples = sparkSession.sparkContext.parallelize(1 to 10000, 2)
-        .map { i => (i, value) }.groupByKey(16).map {
+        .map { i => (i, i.toString) }.groupByKey(16).map {
           case (k, elements) =>
             (k, elements.map(str => str.toLowerCase))
         }.groupByKey(4).groupByKey(2).collect()
@@ -77,7 +75,7 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
       assert(hook.executed.get())
       assert(tuples.length == 10000)
       for (elem <- tuples) {
-        assert(elem._2.flatten.flatten.mkString(",").equals(value))
+        elem._2.flatten.flatten.foreach(s => s.equals(elem._1.toString))
       }
       sparkSession.stop()
     }
@@ -132,6 +130,44 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
       // verify result
       assert(hook.executed.get())
       val expect = "[2,1,1]"
+      assert(tuples.head.toString().equals(expect))
+      sparkSession.stop()
+    }
+  }
+
+  test("celeborn spark integration test - (M-1 dep with multi-level lineage) the failed shuffle files are all cleaned up" +
+    " correctly") {
+    if (Spark3OrNewer) {
+      val sparkSession = createSparkSession(enableFailedShuffleCleaner = true)
+
+      val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
+      val hook = new FileDeletionShuffleReaderGetHook(
+        celebornConf,
+        workerDirs,
+        shuffleIdToBeDeleted = Seq(0, 1, 2, 3),
+        triggerStageId = Some(4))
+      TestCelebornShuffleManager.registerReaderGetHook(hook)
+
+      val checkingThread = triggerStorageCheckThread(
+        Seq(0, 1, 2, 3),
+        Seq(4, 5, 6, 7),
+        sparkSession,
+        forStableStatusChecking = false)
+
+      import sparkSession.implicits._
+      val df1 = Seq((1, "a"), (2, "b")).toDF("id", "data").groupBy("id").count()
+        .withColumnRenamed("count", "countId").groupBy("countId").count()
+        .withColumnRenamed("count", "df1_count")
+      val df2 = Seq((2, "c"), (3, "d")).toDF("id", "data").groupBy("id").count()
+        .withColumnRenamed("count", "countId").groupBy("countId").count()
+        .withColumnRenamed("count", "df2_count")
+
+      val tuples = df1.hint("merge").join(df2, "countId").select("*").collect()
+
+      checkStorageValidation(checkingThread)
+      // verify result
+      assert(hook.executed.get())
+      val expect = "[1,2,2]"
       assert(tuples.head.toString().equals(expect))
       sparkSession.stop()
     }
