@@ -957,7 +957,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             val pbGetShuffleIdResponse = {
               logDebug(
                 s"get shuffleId $celebornShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier isWriter $isWriter")
-              PbGetShuffleIdResponse.newBuilder().setShuffleId(celebornShuffleId).setSuccess(true).build()
+              PbGetShuffleIdResponse.newBuilder().setShuffleId(celebornShuffleId).setSuccess(
+                true).build()
             }
             context.reply(pbGetShuffleIdResponse)
           case None =>

@@ -136,8 +136,8 @@ public class SparkUtils {
       TaskContext context,
       Boolean isWriter) {
     if (handle.throwsFetchFailure()) {
-      String appShuffleIdentifier = SparkCommonUtils.encodeAppShuffleIdentifier(handle.shuffleId(),
-          context);
+      String appShuffleIdentifier =
+          SparkCommonUtils.encodeAppShuffleIdentifier(handle.shuffleId(), context);
       Tuple2<Integer, Boolean> res =
           client.getShuffleId(
               handle.shuffleId(),
