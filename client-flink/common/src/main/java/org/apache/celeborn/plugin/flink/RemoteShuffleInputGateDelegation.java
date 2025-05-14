@@ -49,6 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.exception.DriverChangedException;
 import org.apache.celeborn.common.exception.PartitionUnRetryAbleException;
 import org.apache.celeborn.common.identity.UserIdentifier;
@@ -260,8 +261,10 @@ public class RemoteShuffleInputGateDelegation {
         if (cause != null) {
           return;
         }
-        Class<?> clazz = PartitionUnRetryAbleException.class;
-        if (throwable.getMessage() != null && throwable.getMessage().contains(clazz.getName())) {
+        String message = throwable.getMessage();
+        if (message != null
+            && (message.contains(CelebornIOException.class.getName())
+                || message.contains(PartitionUnRetryAbleException.class.getName()))) {
           cause = new PartitionNotFoundException(rpID);
         } else {
           cause = throwable;
