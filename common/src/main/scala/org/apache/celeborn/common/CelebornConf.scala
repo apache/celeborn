@@ -942,6 +942,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
   def clientMrMaxPushData: Long = get(CLIENT_MR_PUSH_DATA_MAX)
   def clientApplicationUUIDSuffixEnabled: Boolean = get(CLIENT_APPLICATION_UUID_SUFFIX_ENABLED)
+  def clientShuffleIntegrityCheckEnabled = get(CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED)
 
   def appUniqueIdWithUUIDSuffix(appId: String): String = {
     if (clientApplicationUUIDSuffixEnabled) {
@@ -5497,6 +5498,14 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.6.0")
       .doc("Whether to add UUID suffix for application id for unique. When `true`, add UUID suffix for unique application id. Currently, this only applies to Spark and MR.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.integrityCheck.enabled")
+      .categories("client", "shuffle")
+      .version("0.5.0")
+      .doc("When `true`, enables end-to-end integrity checks.")
       .booleanConf
       .createWithDefault(false)
 
