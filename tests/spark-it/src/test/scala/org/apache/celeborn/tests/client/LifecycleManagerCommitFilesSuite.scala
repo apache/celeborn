@@ -67,8 +67,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
     lifecycleManager.reserveSlotsWithRetry(
       shuffleId,
       new util.HashSet(res.workerResource.keySet()),
-      res.workerResource,
-      updateEpoch = false)
+      res.workerResource)
 
     lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
     0 until 10 foreach { partitionId =>
@@ -123,8 +122,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
     lifecycleManager.reserveSlotsWithRetry(
       shuffleId,
       new util.HashSet(res.workerResource.keySet()),
-      res.workerResource,
-      updateEpoch = false)
+      res.workerResource)
 
     lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
     0 until 10 foreach { partitionId =>
@@ -193,8 +191,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
     lifecycleManager.reserveSlotsWithRetry(
       shuffleId,
       new util.HashSet(res.workerResource.keySet()),
-      res.workerResource,
-      updateEpoch = false)
+      res.workerResource)
 
     lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
     0 until 1000 foreach { partitionId =>
@@ -253,8 +250,7 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
     lifecycleManager.reserveSlotsWithRetry(
       shuffleId,
       new util.HashSet(res.workerResource.keySet()),
-      res.workerResource,
-      updateEpoch = false)
+      res.workerResource)
 
     lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
 

@@ -45,11 +45,11 @@ class ReviveManager {
   private final int batchSize;
   ShuffleClientImpl shuffleClient;
   private ScheduledExecutorService batchReviveRequestScheduler =
-          ThreadUtils.newDaemonSingleThreadScheduledExecutor("batch-revive-scheduler");
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("batch-revive-scheduler");
   private ThreadPoolExecutor batchReviveRequestHandler =
-          ThreadUtils.newDaemonFixedThreadPool(2, "batch-revive-handler");
+      ThreadUtils.newDaemonFixedThreadPool(2, "batch-revive-handler");
   private ThreadPoolExecutor batchReportRequestHandler =
-          ThreadUtils.newDaemonFixedThreadPool(2, "batch-report-handler");
+      ThreadUtils.newDaemonFixedThreadPool(2, "batch-report-handler");
 
   public ReviveManager(ShuffleClientImpl shuffleClient, CelebornConf conf) {
     this.shuffleClient = shuffleClient;
@@ -57,39 +57,39 @@ class ReviveManager {
     this.batchSize = conf.clientPushReviveBatchSize();
 
     batchReviveRequestScheduler.scheduleWithFixedDelay(
-            () -> {
-              try {
-                Map<Integer, Set<ReviveRequest>> urgentMap = new HashMap<>();
-                Map<Integer, Set<ReviveRequest>> nonUrgentMap = new HashMap<>();
-                do {
-                  ArrayList<ReviveRequest> batchRequests = new ArrayList<>();
-                  requestQueue.drainTo(batchRequests, batchSize);
-                  for (ReviveRequest req : batchRequests) {
-                    Set<ReviveRequest> set = null;
-                    if (req.urgent) {
-                      set = urgentMap.computeIfAbsent(req.shuffleId, id -> new HashSet<>());
-                    } else {
-                      set = nonUrgentMap.computeIfAbsent(req.shuffleId, id -> new HashSet<>());
-                    }
-                    set.add(req);
-                  }
-                  if (!urgentMap.isEmpty()) {
-                    reviveInternal(urgentMap, true);
-                  }
-                  if (!nonUrgentMap.isEmpty()) {
-                    reviveInternal(nonUrgentMap, false);
-                  }
-                  // break the loop if remaining requests is less than half of
-                  // `celeborn.client.push.revive.batchSize`
-                } while (requestQueue.size() > batchSize / 2);
-              } catch (Throwable e) {
-                logger.error("Exception when batchRevive: ", e);
-                throw e;
+        () -> {
+          try {
+            Map<Integer, Set<ReviveRequest>> urgentMap = new HashMap<>();
+            Map<Integer, Set<ReviveRequest>> nonUrgentMap = new HashMap<>();
+            do {
+              ArrayList<ReviveRequest> batchRequests = new ArrayList<>();
+              requestQueue.drainTo(batchRequests, batchSize);
+              for (ReviveRequest req : batchRequests) {
+                Set<ReviveRequest> set = null;
+                if (req.urgent) {
+                  set = urgentMap.computeIfAbsent(req.shuffleId, id -> new HashSet<>());
+                } else {
+                  set = nonUrgentMap.computeIfAbsent(req.shuffleId, id -> new HashSet<>());
+                }
+                set.add(req);
               }
-            },
-            interval,
-            interval,
-            TimeUnit.MILLISECONDS);
+              if (!urgentMap.isEmpty()) {
+                reviveInternal(urgentMap, true);
+              }
+              if (!nonUrgentMap.isEmpty()) {
+                reviveInternal(nonUrgentMap, false);
+              }
+              // break the loop if remaining requests is less than half of
+              // `celeborn.client.push.revive.batchSize`
+            } while (requestQueue.size() > batchSize / 2);
+          } catch (Throwable e) {
+            logger.error("Exception when batchRevive: ", e);
+            throw e;
+          }
+        },
+        interval,
+        interval,
+        TimeUnit.MILLISECONDS);
   }
 
   public void reviveInternal(Map<Integer, Set<ReviveRequest>> shuffleMap, boolean urgent) {
@@ -111,14 +111,16 @@ class ReviveManager {
     Iterator<ReviveRequest> iter = requests.iterator();
     while (iter.hasNext()) {
       ReviveRequest req = iter.next();
-      if ((urgent && shuffleClient.newerPartitionLocationExists(shuffleId, req.partitionId, req.clientMaxEpoch))
-              || shuffleClient.mapperEnded(shuffleId, req.mapId)) {
+      if ((urgent
+              && shuffleClient.newerPartitionLocationExists(
+                  shuffleId, req.partitionId, req.clientMaxEpoch))
+          || shuffleClient.mapperEnded(shuffleId, req.mapId)) {
         req.reviveStatus = StatusCode.SUCCESS.getValue();
       } else {
         filteredRequests.add(req);
         mapIds.add(req.mapId);
         if (!requestsToSend.containsKey(req.partitionId)
-                || requestsToSend.get(req.partitionId).clientMaxEpoch < req.clientMaxEpoch) {
+            || requestsToSend.get(req.partitionId).clientMaxEpoch < req.clientMaxEpoch) {
           requestsToSend.put(req.partitionId, req);
         }
       }
@@ -126,33 +128,34 @@ class ReviveManager {
 
     ThreadPoolExecutor handler = urgent ? batchReviveRequestHandler : batchReportRequestHandler;
     if (!requestsToSend.isEmpty()) {
-      handler.submit(() -> {
-        try {
-          // Call reviveBatch. Return null means Exception caught or
-          // SHUFFLE_NOT_REGISTERED
-          //Do not use WriterTracerHere because traceInfo is set afterward
-          long reviveStartTime = System.nanoTime();
-          Map<Integer, Integer> results =
+      handler.submit(
+          () -> {
+            try {
+              // Call reviveBatch. Return null means Exception caught or
+              // SHUFFLE_NOT_REGISTERED
+              // Do not use WriterTracerHere because traceInfo is set afterward
+              long reviveStartTime = System.nanoTime();
+              Map<Integer, Integer> results =
                   shuffleClient.reviveBatch(shuffleId, mapIds, requestsToSend.values(), urgent);
-          long reviveCostTime = System.nanoTime() - reviveStartTime;
-          if (results == null) {
-            for (ReviveRequest req : filteredRequests) {
-              req.reviveStatus = StatusCode.REVIVE_FAILED.getValue();
-            }
-          } else {
-            for (ReviveRequest req : filteredRequests) {
-              if (shuffleClient.mapperEnded(shuffleId, req.mapId)) {
-                req.reviveStatus = StatusCode.SUCCESS.getValue();
+              long reviveCostTime = System.nanoTime() - reviveStartTime;
+              if (results == null) {
+                for (ReviveRequest req : filteredRequests) {
+                  req.reviveStatus = StatusCode.REVIVE_FAILED.getValue();
+                }
               } else {
-                req.reviveStatus = results.get(req.partitionId);
+                for (ReviveRequest req : filteredRequests) {
+                  if (shuffleClient.mapperEnded(shuffleId, req.mapId)) {
+                    req.reviveStatus = StatusCode.SUCCESS.getValue();
+                  } else {
+                    req.reviveStatus = results.get(req.partitionId);
+                  }
+                }
               }
+            } catch (Throwable e) {
+              logger.error("Exception when processRequests: ", e);
+              throw e;
             }
-          }
-        } catch (Throwable e) {
-          logger.error("Exception when processRequests: ", e);
-          throw e;
-        }
-      });
+          });
     }
   }
 

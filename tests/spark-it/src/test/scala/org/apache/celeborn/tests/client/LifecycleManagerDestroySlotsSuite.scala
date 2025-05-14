@@ -64,8 +64,7 @@ class LifecycleManagerDestroySlotsSuite extends WithShuffleClientSuite with Mini
     lifecycleManager.reserveSlotsWithRetry(
       shuffleId,
       new util.HashSet(res.workerResource.keySet()),
-      res.workerResource,
-      updateEpoch = false)
+      res.workerResource)
 
     val slotsToDestroy = new WorkerResource
     val destroyWorkers = workerInfos.keySet.take(2)
@@ -106,8 +105,7 @@ class LifecycleManagerDestroySlotsSuite extends WithShuffleClientSuite with Mini
     lifecycleManager.reserveSlotsWithRetry(
       shuffleId,
       new util.HashSet(res.workerResource.keySet()),
-      res.workerResource,
-      updateEpoch = false)
+      res.workerResource)
 
     val slotsToDestroy = new WorkerResource
     val destroyWorkers = workerInfos.keySet.take(2)
@@ -148,8 +146,7 @@ class LifecycleManagerDestroySlotsSuite extends WithShuffleClientSuite with Mini
     lifecycleManager.reserveSlotsWithRetry(
       shuffleId,
       new util.HashSet(res.workerResource.keySet()),
-      res.workerResource,
-      updateEpoch = false)
+      res.workerResource)
 
     val slotsToDestroy = new WorkerResource
     val destroyWorkers = workerInfos.keySet.take(2)
