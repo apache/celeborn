@@ -64,7 +64,7 @@ class SkewJoinSuite extends AnyFunSuite
           .set(s"spark.${CelebornConf.SHUFFLE_RANGE_READ_FILTER_ENABLED.key}", "true")
           .set(
             s"spark.${CelebornConf.CLIENT_ADAPTIVE_OPTIMIZE_SKEWED_PARTITION_READ_ENABLED.key}",
-            "true")
+            s"$enabled")
 
         enableCeleborn(sparkConf)
 
