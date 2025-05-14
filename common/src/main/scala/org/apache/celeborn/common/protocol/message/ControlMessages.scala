@@ -237,9 +237,9 @@ object ControlMessages extends Logging {
 
   object PartitionSplitReport {
     def apply(
-               shuffleId: Int,
-               mapIds: util.Set[Integer],
-               reviveRequests: util.Collection[ReviveRequest]): PbPartitionSplitReport = {
+        shuffleId: Int,
+        mapIds: util.Set[Integer],
+        reviveRequests: util.Collection[ReviveRequest]): PbPartitionSplitReport = {
       val builder = PbPartitionSplitReport.newBuilder()
         .setShuffleId(shuffleId)
         .addAllMapId(mapIds)
@@ -291,7 +291,8 @@ object ControlMessages extends Logging {
           .setOldAvailable(available)
         if (locs != null) {
           locs.foreach(loc =>
-            pbChangeLocationPartitionInfoBuilder.addPartition(PbSerDeUtils.toPbPartitionLocation(loc)))
+            pbChangeLocationPartitionInfoBuilder.addPartition(
+              PbSerDeUtils.toPbPartitionLocation(loc)))
         }
         builder.addPartitionInfo(pbChangeLocationPartitionInfoBuilder.build())
       }

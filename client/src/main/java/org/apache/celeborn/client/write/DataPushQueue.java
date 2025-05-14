@@ -23,10 +23,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.celeborn.client.LocationManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.client.LocationManager;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
@@ -103,7 +103,9 @@ public class DataPushQueue {
         while (iterator.hasNext()) {
           PushTask task = iterator.next();
           int partitionId = task.getPartitionId();
-          PartitionLocation loc = locationManager.getLocationOrReviveAsync(shuffleId, partitionId, mapId, attemptId, true, false);
+          PartitionLocation loc =
+              locationManager.getLocationOrReviveAsync(
+                  shuffleId, partitionId, mapId, attemptId, true, false);
           // According to CELEBORN-560, call rerun task and speculative task after LifecycleManager
           // handle StageEnd will return empty PartitionLocation map, here loc can be null
           if (loc != null) {

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker.congestcontrol;
+package org.apache.celeborn.common.util;
 
 import java.util.Iterator;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -51,7 +51,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
   }
 
   // 1 second.
-  protected final int intervalPerBucketInMills = 1000;
+  protected final int intervalPerBucketInMills;
   protected final int timeWindowsInMills;
   private final int maxQueueSize;
   private Pair<N, Integer> sumInfo;
@@ -59,7 +59,12 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
   private final LinkedBlockingDeque<Pair<Long, N>> _deque;
 
   public TimeSlidingHub(int timeWindowsInSecs) {
+    this(timeWindowsInSecs, 1000); // intervalPerBucketInMills default 1 second
+  }
+
+  public TimeSlidingHub(int timeWindowsInSecs, int intervalPerBucketInMills) {
     this._deque = new LinkedBlockingDeque<>();
+    this.intervalPerBucketInMills = intervalPerBucketInMills;
     this.maxQueueSize = timeWindowsInSecs * 1000 / intervalPerBucketInMills;
     this.timeWindowsInMills = maxQueueSize * intervalPerBucketInMills;
     this.sumInfo = Pair.of(newEmptyNode(), 0);

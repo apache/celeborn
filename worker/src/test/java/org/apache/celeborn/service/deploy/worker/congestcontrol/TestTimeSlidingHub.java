@@ -22,6 +22,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import org.apache.celeborn.common.util.TimeSlidingHub;
+
 public class TestTimeSlidingHub {
 
   private static class DummyTimeSlidingHub

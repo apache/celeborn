@@ -47,7 +47,7 @@ import org.apache.celeborn.common.meta.{ApplicationMeta, ShufflePartitionLocatio
 import org.apache.celeborn.common.metrics.source.Role
 import org.apache.celeborn.common.network.protocol.{SerdeVersion, TransportMessagesHelper}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
-import org.apache.celeborn.common.protocol._
+import org.apache.celeborn.common.protocol.{PbPartitionSplitReport, _}
 import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -94,9 +94,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   val shuffleFallbackCounts = JavaUtils.newConcurrentHashMap[String, java.lang.Long]()
   // maintain each shuffle's map relation of WorkerInfo and partition location
   val shuffleAllocatedWorkers = new ShuffleAllocatedWorkers
-  // shuffle id -> (partitionId -> newest PartitionLocation)
-  val latestPartitionLocation =
-    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
+  // shuffle id -> (partitionId -> PartitionLocationMonitor)
+  val partitionLocationMonitors =
+    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocationMonitor]]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
   private val availableStorageTypes = conf.availableStorageTypes
   // app shuffle id -> LinkedHashMap of (app shuffle identifier, (shuffle id, fetch status))
@@ -126,6 +126,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val mockDestroyFailure = conf.testMockDestroySlotsFailure
   private val authEnabled = conf.authEnabledOnClient
   private var applicationMeta: ApplicationMeta = _
+
+  // shuffleId -> (partitionId, maxEpoch)
+  val currentMaxPartitionEpoch =
+    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, Integer]]()
+  // shuffleId -> Number of map tasks, maxActiveLocation should be less than this value
+  private val shuffleId2NumMappers = JavaUtils.newConcurrentHashMap[Int, Int]()
+  val maxActiveLocation = conf.clientMaxActiveLocation
+
   @VisibleForTesting
   def workerSnapshots(shuffleId: Int): util.Map[String, ShufflePartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
@@ -134,19 +142,60 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   def getUnregisterShuffleTime(): ConcurrentHashMap[Int, Long] =
     unregisterShuffleTime
 
-  val newMapFunc: function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]] =
-    new util.function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]]() {
-      override def apply(s: Int): ConcurrentHashMap[Int, PartitionLocation] = {
-        JavaUtils.newConcurrentHashMap[Int, PartitionLocation]()
+  val newMapFunc: function.Function[Int, ConcurrentHashMap[Int, PartitionLocationMonitor]] =
+    new util.function.Function[Int, ConcurrentHashMap[Int, PartitionLocationMonitor]]() {
+      override def apply(s: Int): ConcurrentHashMap[Int, PartitionLocationMonitor] = {
+        JavaUtils.newConcurrentHashMap[Int, PartitionLocationMonitor]()
       }
     }
 
-  def updateLatestPartitionLocations(
+  def addNewPartitionLocations(
       shuffleId: Int,
       locations: util.List[PartitionLocation]): Unit = {
-    val map = latestPartitionLocation.computeIfAbsent(shuffleId, newMapFunc)
-    locations.asScala.foreach(location => map.put(location.getId, location))
+    val map = partitionLocationMonitors.computeIfAbsent(shuffleId, newMapFunc)
+    locations.asScala.foreach {
+      loc =>
+        map
+          .computeIfAbsent(
+            loc.getId,
+            _ =>
+              new PartitionLocationMonitor(
+                shuffleId,
+                loc.getId,
+                conf,
+                if (maxActiveLocation <= 0) {
+                  shuffleId2NumMappers.get(shuffleId)
+                } else {
+                  maxActiveLocation
+                }))
+          .addActiveLocationEpoch(loc)
+    }
     invalidateLatestMaxLocsCache(shuffleId)
+  }
+
+  def initCurrentMaxPartitionEpoch(
+      shuffleId: Int,
+      locations: util.List[PartitionLocation]): Unit = {
+    val partitionMap = currentMaxPartitionEpoch.computeIfAbsent(
+      shuffleId,
+      _ => JavaUtils.newConcurrentHashMap[Int, Integer])
+    locations.asScala.foreach { loc =>
+      partitionMap.compute(loc.getId, (k, v) => Math.max(v, loc.getEpoch))
+    }
+  }
+
+  def reportPartitionSplitOrRevived(
+      shuffleId: Int,
+      partitionId: Int,
+      oldEpoch: Int,
+      cause: Option[StatusCode] = None): Boolean = {
+    partitionLocationMonitors.get(shuffleId).get(partitionId).receivePartitionSplitOrRevived(
+      oldEpoch,
+      cause)
+  }
+
+  def getNextReserveSlotCount(shuffleId: Int, partitionId: Int): Int = {
+    partitionLocationMonitors.get(shuffleId).get(partitionId).nextReserveSlotCount
   }
 
   case class RegisterCallContext(context: RpcCallContext, partitionId: Int = -1) {
@@ -368,26 +417,33 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         partitionId,
         isSegmentGranularityVisible)
 
+    case pb: PbPartitionSplitReport =>
+      val shuffleId = pb.getShuffleId
+      val mapIds = pb.getMapIdList
+      val partitionInfos = pb.getPartitionInfoList
+
+      val (partitionIds, epochs, oldPartitions, causes, clientMaxEpochs) =
+        extractPartitionInfo(partitionInfos)
+      logDebug(
+        s"Received PartitionSplitReport request from ${context.senderAddress}, number of partitions ${partitionIds.size()}")
+      handleRevive(
+        context,
+        shuffleId,
+        mapIds,
+        partitionIds,
+        epochs,
+        oldPartitions,
+        causes,
+        clientMaxEpochs,
+        true)
+
     case pb: PbRevive =>
       val shuffleId = pb.getShuffleId
       val mapIds = pb.getMapIdList
       val partitionInfos = pb.getPartitionInfoList
 
-      val partitionIds = new util.ArrayList[Integer]()
-      val epochs = new util.ArrayList[Integer]()
-      val oldPartitions = new util.ArrayList[PartitionLocation]()
-      val causes = new util.ArrayList[StatusCode]()
-      (0 until partitionInfos.size()).foreach { idx =>
-        val info = partitionInfos.get(idx)
-        partitionIds.add(info.getPartitionId)
-        epochs.add(info.getEpoch)
-        if (info.hasPartition) {
-          oldPartitions.add(PbSerDeUtils.fromPbPartitionLocation(info.getPartition))
-        } else {
-          oldPartitions.add(null)
-        }
-        causes.add(StatusCode.fromValue(info.getStatus))
-      }
+      val (partitionIds, epochs, oldPartitions, causes, clientMaxEpochs) =
+        extractPartitionInfo(partitionInfos)
       logDebug(s"Received Revive request, number of partitions ${partitionIds.size()}")
       handleRevive(
         context,
@@ -396,7 +452,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         partitionIds,
         epochs,
         oldPartitions,
-        causes)
+        causes,
+        clientMaxEpochs,
+        false)
 
     case pb: PbPartitionSplit =>
       val shuffleId = pb.getShuffleId
@@ -411,7 +469,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         partitionId,
         epoch,
         oldPartition,
-        isSegmentGranularityVisible = commitManager.isSegmentGranularityVisible(shuffleId))
+        isSegmentGranularityVisible = commitManager.isSegmentGranularityVisible(shuffleId),
+        clientMaxEpoch = epoch,
+        reportOnly = false)
 
     case MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId, pushFailedBatch) =>
       logTrace(s"Received MapperEnd TaskEnd request, " +
@@ -625,7 +685,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           partitionId,
           -1,
           null,
-          isSegmentGranularityVisible = commitManager.isSegmentGranularityVisible(shuffleId))
+          isSegmentGranularityVisible = commitManager.isSegmentGranularityVisible(shuffleId),
+          clientMaxEpoch = -1,
+          reportOnly = false)
       }
     }
 
@@ -730,7 +792,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         shuffleId,
         candidatesWorkers,
         slots,
-        updateEpoch = false,
         isSegmentGranularityVisible)
 
     // If reserve slots failed, clear allocated resources, reply ReserveSlotFailed and return.
@@ -742,12 +803,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         logDebug(s"ReserveSlots for $shuffleId success with details:$slots!")
       }
       // Forth, register shuffle success, update status
+      shuffleId2NumMappers.put(shuffleId, numMappers)
       val allocatedWorkers =
         JavaUtils.newConcurrentHashMap[String, ShufflePartitionLocationInfo]()
       slots.asScala.foreach { case (workerInfo, (primaryLocations, replicaLocations)) =>
         val partitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
         partitionLocationInfo.addPrimaryPartitions(primaryLocations)
-        updateLatestPartitionLocations(shuffleId, primaryLocations)
+        addNewPartitionLocations(shuffleId, primaryLocations)
+        initCurrentMaxPartitionEpoch(shuffleId, primaryLocations)
         partitionLocationInfo.addReplicaPartitions(replicaLocations)
         allocatedWorkers.put(workerInfo.toUniqueId, partitionLocationInfo)
       }
@@ -774,7 +837,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       partitionIds: util.List[Integer],
       oldEpochs: util.List[Integer],
       oldPartitions: util.List[PartitionLocation],
-      causes: util.List[StatusCode]): Unit = {
+      causes: util.List[StatusCode],
+      clientMaxEpochs: util.List[Integer],
+      reportOnly: Boolean): Unit = {
     val contextWrapper =
       ChangeLocationsCallContext(context, partitionIds.size())
     // If shuffle not registered, reply ShuffleNotRegistered and return
@@ -814,9 +879,41 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         partitionIds.get(idx),
         oldEpochs.get(idx),
         oldPartitions.get(idx),
+        clientMaxEpochs.get(idx),
+        reportOnly,
         Some(causes.get(idx)),
         commitManager.isSegmentGranularityVisible(shuffleId))
     }
+  }
+
+  def extractPartitionInfo(partitionInfos: util.List[PbRevivePartitionInfo]): (
+      util.List[Integer],
+      util.List[Integer],
+      util.List[PartitionLocation],
+      util.List[StatusCode],
+      util.List[Integer]) = {
+    val partitionIds = new util.ArrayList[Integer]()
+    val epochs = new util.ArrayList[Integer]()
+    val oldPartitions = new util.ArrayList[PartitionLocation]()
+    val causes = new util.ArrayList[StatusCode]()
+    val clientMaxEpochs = new util.ArrayList[Integer]()
+
+    (0 until partitionInfos.size()).foreach { idx =>
+      val info = partitionInfos.get(idx)
+      partitionIds.add(info.getPartitionId)
+      epochs.add(info.getEpoch)
+
+      if (info.hasPartition) {
+        oldPartitions.add(PbSerDeUtils.fromPbPartitionLocation(info.getPartition))
+      } else {
+        oldPartitions.add(null)
+      }
+
+      causes.add(StatusCode.fromValue(info.getStatus.toByte))
+      clientMaxEpochs.add(info.getClientMaxEpoch)
+    }
+
+    (partitionIds, epochs, oldPartitions, causes, clientMaxEpochs)
   }
 
   private def handleMapperEnd(
@@ -1088,6 +1185,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         partitionLocationInfo.removeAllPrimaryPartitions()
         partitionLocationInfo.removeAllReplicaPartitions()
       }
+    }
+    partitionLocationMonitors.get(shuffleId).forEach {
+      case (partitionId, partitionLocationMonitor) =>
+        logInfo(s"Partition Location Monitor summary for shuffleId: ${shuffleId}, partitionId: ${partitionId}, ${partitionLocationMonitor.report}")
     }
   }
 
@@ -1395,7 +1496,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       shuffleId: Int,
       candidates: util.HashSet[WorkerInfo],
       slots: WorkerResource,
-      updateEpoch: Boolean = true,
       isSegmentGranularityVisible: Boolean = false): Boolean = {
     var requestSlots = slots
     val reserveSlotsMaxRetries = conf.clientReserveSlotsMaxRetries
@@ -1445,8 +1545,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             // duplicated with existing partition locations.
             requestSlots = reallocateSlotsFromCandidates(
               failedPartitionLocations.values.toList,
-              retryCandidates.asScala.toList,
-              updateEpoch)
+              retryCandidates.asScala.toList)
             requestSlots.asScala.foreach {
               case (workerInfo, (retryPrimaryLocs, retryReplicaLocs)) =>
                 val (primaryPartitionLocations, replicaPartitionLocations) =
@@ -1484,13 +1583,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   /**
    * Allocate a new primary/replica PartitionLocation pair from the current WorkerInfo list.
    *
-   * @param oldEpochId Current partition reduce location last epoch id
+   * @param epochId Target partition reduce location epoch id
    * @param candidates WorkerInfo list can be used to offer worker slots
    * @param slots      Current WorkerResource
    */
   def allocateFromCandidates(
       id: Int,
-      oldEpochId: Int,
+      epochId: Int,
       candidates: List[WorkerInfo],
       slots: WorkerResource,
       updateEpoch: Boolean = true): Unit = {
@@ -1502,7 +1601,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val primaryIndex = Random.nextInt(candidates.size)
     val primaryLocation = new PartitionLocation(
       id,
-      if (updateEpoch) oldEpochId + 1 else oldEpochId,
+      epochId,
       candidates(primaryIndex).host,
       candidates(primaryIndex).rpcPort,
       candidates(primaryIndex).pushPort,
@@ -1522,7 +1621,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       }
       val replicaLocation = new PartitionLocation(
         id,
-        if (updateEpoch) oldEpochId + 1 else oldEpochId,
+        epochId,
         candidates(replicaIndex).host,
         candidates(replicaIndex).rpcPort,
         candidates(replicaIndex).pushPort,
@@ -1541,11 +1640,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private def reallocateSlotsFromCandidates(
       oldPartitions: List[PartitionLocation],
-      candidates: List[WorkerInfo],
-      updateEpoch: Boolean = true): WorkerResource = {
+      candidates: List[WorkerInfo]): WorkerResource = {
     val slots = new WorkerResource()
     oldPartitions.foreach { partition =>
-      allocateFromCandidates(partition.getId, partition.getEpoch, candidates, slots, updateEpoch)
+      allocateFromCandidates(
+        partition.getId,
+        partition.getEpoch,
+        candidates,
+        slots,
+        updateEpoch = false)
     }
     slots
   }
@@ -1667,7 +1770,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         registeredShuffle.remove(shuffleId)
         registeringShuffleRequest.remove(shuffleId)
         shuffleAllocatedWorkers.remove(shuffleId)
-        latestPartitionLocation.remove(shuffleId)
+        partitionLocationMonitors.remove(shuffleId)
         commitManager.removeExpiredShuffle(shuffleId)
         changePartitionManager.removeExpiredShuffle(shuffleId)
         if (!batchRemoveExpiredShufflesEnabled) {
@@ -1813,7 +1916,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   // Once a partition is released, it will be never needed anymore
   def releasePartition(shuffleId: Int, partitionId: Int): Unit = {
     commitManager.releasePartitionResource(shuffleId, partitionId)
-    val partitionLocation = latestPartitionLocation.get(shuffleId)
+    val partitionLocation = partitionLocationMonitors.get(shuffleId)
     if (partitionLocation != null) {
       partitionLocation.remove(partitionId)
     }
@@ -1877,6 +1980,39 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   def registerCelebornSkewShuffleCheckCallback(callback: function.Function[Integer, Boolean])
       : Unit = {
     celebornSkewShuffleCheckCallback = Some(callback)
+  }
+
+  def getCurrentMaxPartitionEpochId(shuffleId: Int, partitionId: Int): Int = {
+    currentMaxPartitionEpoch.computeIfAbsent(
+      shuffleId,
+      _ => JavaUtils.newConcurrentHashMap[Int, Integer]).getOrDefault(partitionId, -1)
+  }
+
+  def allocateEpochIdsAndUpdateCurrentMaxEpoch(
+      shuffleId: Int,
+      partitionId: Int,
+      targetEpoch: Int): Array[Int] = {
+    var range = (-1, -1)
+    currentMaxPartitionEpoch.computeIfAbsent(
+      shuffleId,
+      _ => JavaUtils.newConcurrentHashMap[Int, Integer]).compute(
+      partitionId,
+      (_, currentMaxEpoch) => {
+        if (currentMaxEpoch == null) {
+          range = (0, targetEpoch)
+          targetEpoch
+        } else {
+          range = (currentMaxEpoch + 1, targetEpoch)
+          math.max(currentMaxEpoch, targetEpoch)
+        }
+      })
+    logDebug(
+      s"allocateEpochIdsAndUpdateCurrentMaxEpoch, shuffleId ${shuffleId}, partitionId ${partitionId}, from ${range._1} to ${range._2}")
+    if (range._1 <= range._2) {
+      (range._1 to range._2).toArray
+    } else {
+      Array.empty
+    }
   }
 
   // Initialize at the end of LifecycleManager construction.

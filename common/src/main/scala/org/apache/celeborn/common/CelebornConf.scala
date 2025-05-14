@@ -29,6 +29,7 @@ import scala.util.matching.Regex
 
 import io.netty.channel.epoll.Epoll
 
+import org.apache.celeborn.common.CelebornConf.{CLIENT_ACTIVE_FULL_LOCATION_INTERVAL_PER_BUCKET, CLIENT_ACTIVE_FULL_LOCATION_TIME_WINDOW, CLIENT_ASYNC_SPLIT_PARTITION_ENABLED, CLIENT_EXPECTED_WORKER_SPEED_MB_PER_SECOND}
 import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, HadoopBasedIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
@@ -1050,7 +1051,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_PUSH_SENDBUFFERPOOL_CHECKEXPIREINTERVAL)
   def clientAdaptiveOptimizeSkewedPartitionReadEnabled: Boolean =
     get(CLIENT_ADAPTIVE_OPTIMIZE_SKEWED_PARTITION_READ_ENABLED)
-
+  def clientActiveFullLocationTimeWindowSecs: Long = get(CLIENT_ACTIVE_FULL_LOCATION_TIME_WINDOW)
+  def clientActiveFullLocationIntervalPerBucketMs: Long =
+    get(CLIENT_ACTIVE_FULL_LOCATION_INTERVAL_PER_BUCKET)
+  def clientExpectedWorkerSpeedMBPerSecond: Int = get(CLIENT_EXPECTED_WORKER_SPEED_MB_PER_SECOND)
+  def clientMaxActiveLocation: Int = get(CLIENT_MAX_ACTIVE_LOCATION)
   // //////////////////////////////////////////////////////
   //                   Client Shuffle                    //
   // //////////////////////////////////////////////////////
@@ -1111,6 +1116,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def registerShuffleFilterExcludedWorkerEnabled: Boolean =
     get(REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED)
   def reviseLostShufflesEnabled: Boolean = get(REVISE_LOST_SHUFFLES_ENABLED)
+  def asyncSplitPartitionEnabled: Boolean = get(CLIENT_ASYNC_SPLIT_PARTITION_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                       Worker                        //
@@ -6019,6 +6025,14 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
+  val CLIENT_ASYNC_SPLIT_PARTITION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.async.split.partition.enabled")
+      .categories("client")
+      .version("0.6.0")
+      .doc("When enabled, the ChangePartitionManager will asynchronously split partitions based on the speed for partition splitting.")
+      .booleanConf
+      .createWithDefault(false)
+
   val NETWORK_IO_SASL_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.<module>.io.saslTimeout")
       .categories("network")
@@ -6122,6 +6136,38 @@ object CelebornConf extends Logging {
         "range. Please note that this feature requires the `Celeborn-Optimize-Skew-Partitions-spark3_3.patch`. ")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_ACTIVE_FULL_LOCATION_TIME_WINDOW: ConfigEntry[Long] =
+    buildConf("celeborn.client.active.full.location.time.window")
+      .categories("client")
+      .version("0.6.0")
+      .doc("The time window to check if the full location is active.")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("180s")
+
+  val CLIENT_ACTIVE_FULL_LOCATION_INTERVAL_PER_BUCKET: ConfigEntry[Long] =
+    buildConf("celeborn.client.active.full.location.interval.per.bucket")
+      .categories("client")
+      .version("0.6.0")
+      .doc("The interval to check if the full location is active per bucket.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10s")
+
+  val CLIENT_EXPECTED_WORKER_SPEED_MB_PER_SECOND: ConfigEntry[Int] =
+    buildConf("celeborn.client.expected.worker.speed.mb.per.second")
+      .categories("client")
+      .version("0.6.0")
+      .doc("The expected speed of a worker in MB/s.")
+      .intConf
+      .createWithDefault(10)
+
+  val CLIENT_MAX_ACTIVE_LOCATION: ConfigEntry[Int] =
+    buildConf("celeborn.client.max.active.location")
+      .categories("client")
+      .version("0.6.0")
+      .doc("The max number of active location. If the number is -1, it will be set to the number of mappers.")
+      .intConf
+      .createWithDefault(-1)
 
   //  SSL Configs
 

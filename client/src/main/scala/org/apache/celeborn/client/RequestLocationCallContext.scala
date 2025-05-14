@@ -18,6 +18,7 @@
 package org.apache.celeborn.client
 
 import java.util
+import java.util.concurrent.atomic.LongAdder
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.PartitionLocation
@@ -30,7 +31,7 @@ trait RequestLocationCallContext {
   def reply(
       partitionId: Int,
       status: StatusCode,
-      partitionLocationOpt: Option[PartitionLocation],
+      partitionLocationsOpt: Option[Seq[PartitionLocation]],
       available: Boolean): Unit
 }
 
@@ -42,6 +43,7 @@ case class ChangeLocationsCallContext(
   val newLocs =
     JavaUtils.newConcurrentHashMap[Integer, (StatusCode, Boolean, Seq[PartitionLocation])](
       partitionCount)
+  private val requestCount = new LongAdder
 
   def markMapperEnd(mapId: Int): Unit = this.synchronized {
     endedMapIds.add(mapId)
@@ -50,15 +52,21 @@ case class ChangeLocationsCallContext(
   override def reply(
       partitionId: Int,
       status: StatusCode,
-      partitionLocationOpt: Option[PartitionLocation],
+      partitionLocationsOpt: Option[Seq[PartitionLocation]],
       available: Boolean): Unit = this.synchronized {
-    if (newLocs.containsKey(partitionId)) {
-      logError(s"PartitionId $partitionId already exists!")
+    if (newLocs.containsKey(partitionId) && newLocs.get(partitionId)._3 != null && newLocs.get(
+        partitionId)._3.length != partitionLocationsOpt.getOrElse(Seq.empty).length) {
+      logError(s"PartitionId $partitionId already exists! " +
+        s"${newLocs.get(partitionId)._3.length} != ${partitionLocationsOpt.getOrElse(Seq.empty).length}")
     }
-    //TODO fix later
-//    newLocs.put(partitionId, (status, available, partitionLocationOpt.getOrElse(null)))
-
-    if (newLocs.size() == partitionCount || StatusCode.SHUFFLE_NOT_REGISTERED == status
+    if (partitionLocationsOpt.isDefined && (status == StatusCode.RESERVE_SLOTS_FAILED || status == StatusCode.SLOT_NOT_AVAILABLE)) {
+      newLocs.put(partitionId, (StatusCode.SUCCESS, available, partitionLocationsOpt.orNull))
+    } else {
+      newLocs.put(partitionId, (status, available, partitionLocationsOpt.orNull))
+    }
+    requestCount.increment()
+    if (requestCount.intValue() == partitionCount
+      || StatusCode.SHUFFLE_NOT_REGISTERED == status
       || StatusCode.STAGE_ENDED == status) {
       context.reply(ChangeLocationResponse(endedMapIds, newLocs))
     }
@@ -69,11 +77,11 @@ case class ApplyNewLocationCallContext(context: RpcCallContext) extends RequestL
   override def reply(
       partitionId: Int,
       status: StatusCode,
-      partitionLocationOpt: Option[PartitionLocation],
+      partitionLocationsOpt: Option[Seq[PartitionLocation]],
       available: Boolean): Unit = {
-    partitionLocationOpt match {
-      case Some(partitionLocation) =>
-        context.reply(RegisterShuffleResponse(status, Array(partitionLocation)))
+    partitionLocationsOpt match {
+      case Some(partitionLocations) =>
+        context.reply(RegisterShuffleResponse(status, partitionLocations.toArray))
       case None => context.reply(RegisterShuffleResponse(status, Array.empty))
     }
   }

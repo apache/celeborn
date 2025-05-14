@@ -99,6 +99,25 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     lifecycleManager.stop()
   }
 
+  test("allocateEpochIdsAndUpdateCurrentMaxEpoch") {
+    val celebornConf = new CelebornConf()
+    val lifecycleManager = new LifecycleManager(s"app-${System.currentTimeMillis()}", celebornConf)
+    val shuffleId = 0
+    val partitionId = 0
+    val r1 = lifecycleManager.allocateEpochIdsAndUpdateCurrentMaxEpoch(shuffleId, partitionId, 0)
+    assert(r1.length == 1)
+    assert(r1(0) == 0)
+    val r2 = lifecycleManager.allocateEpochIdsAndUpdateCurrentMaxEpoch(shuffleId, partitionId, 3)
+    assert(r2.length == 3)
+    assert(r2(0) == 1)
+    assert(r2(1) == 2)
+    assert(r2(2) == 3)
+    val r3 = lifecycleManager.allocateEpochIdsAndUpdateCurrentMaxEpoch(shuffleId, partitionId, 2)
+    assert(r3.length == 0)
+    val r4 = lifecycleManager.allocateEpochIdsAndUpdateCurrentMaxEpoch(shuffleId, partitionId, 3)
+    assert(r4.length == 0)
+  }
+
   override def afterAll(): Unit = {
     logInfo("all test complete , stop celeborn mini cluster")
     shutdownMiniCluster()
