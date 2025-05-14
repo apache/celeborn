@@ -4824,14 +4824,6 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_RUNNING_STAGE_MGR_IMPL: ConfigEntry[String] =
-    buildConf("celeborn.client.spark.fetch.cleanFailedShuffle.runningStageManagerImpl")
-      .categories("client")
-      .version("0.6.0")
-      .doc("full class name of of running stage manager implementation, mainly for test")
-      .stringConf
-      .createWithDefault("org.apache.spark.shuffle.celeborn.RunningStageManagerImpl")
-
   val CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.client.spark.fetch.cleanFailedShuffleInterval")
       .categories("client")
