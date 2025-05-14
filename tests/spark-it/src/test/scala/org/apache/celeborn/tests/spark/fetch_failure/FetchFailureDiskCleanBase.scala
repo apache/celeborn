@@ -89,7 +89,7 @@ private[tests] trait FetchFailureDiskCleanBase extends AnyFunSuite
     override def run(): Unit = {
       var allDataInShape = checkDirStatus()
       while (!allDataInShape) {
-        Thread.sleep(1000)
+        Thread.sleep(100)
         allDataInShape = checkDirStatus()
       }
     }
