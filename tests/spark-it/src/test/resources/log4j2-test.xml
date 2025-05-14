@@ -21,7 +21,7 @@
         <Console name="stdout" target="SYSTEM_OUT">
             <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
             <Filters>
-                <ThresholdFilter level="ERROR"/>
+                <ThresholdFilter level="INFO"/>
             </Filters>
         </Console>
         <File name="file" fileName="target/unit-tests.log">
