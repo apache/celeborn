@@ -876,7 +876,6 @@ public abstract class CelebornInputStream extends InputStream {
             if (!batchSet.contains(batchId)) {
               batchSet.add(batchId);
               callback.incBytesRead(BATCH_HEADER_SIZE + size);
-
               if (shuffleCompressionEnabled) {
                 // decompress data
                 int originalLength = decompressor.getOriginalLen(compressedBuf);
@@ -890,7 +889,6 @@ public abstract class CelebornInputStream extends InputStream {
               } else {
                 limit = size;
               }
-
               position = 0;
               hasData = true;
               break;
@@ -907,9 +905,8 @@ public abstract class CelebornInputStream extends InputStream {
 
         if (!hasData) {
           validateIntegrity();
-          // TODO(borovsky) consider closing the stream
+          // TODO(gaurav): consider closing the stream
         }
-
         return hasData;
       } catch (LZ4Exception | ZstdException | IOException e) {
         logger.error(
