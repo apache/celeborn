@@ -171,12 +171,6 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
-  public ConcurrentHashMap<Integer, PartitionLocation> getPartitionLocation(
-      int shuffleId, int numMappers, int numPartitions) {
-    return reducePartitionMap.get(shuffleId);
-  }
-
-  @Override
   public PushState getPushState(String mapKey) {
     return new PushState(conf);
   }

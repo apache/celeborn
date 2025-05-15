@@ -665,30 +665,6 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public ConcurrentHashMap<Integer, PartitionLocation> getPartitionLocation(
-      int shuffleId, int numMappers, int numPartitions) throws CelebornIOException {
-    // TODO only UT related usages, fix later
-    return null;
-    //    try {
-    //      return reducePartitionMap.computeIfAbsent(
-    //          shuffleId,
-    //          (id) -> {
-    //            try {
-    //              return registerShuffle(shuffleId, numMappers, numPartitions);
-    //            } catch (CelebornIOException e) {
-    //              throw new RuntimeException(e);
-    //            }
-    //          });
-    //    } catch (RuntimeException e) {
-    //      if (e.getCause() instanceof CelebornIOException) {
-    //        throw (CelebornIOException) e.getCause();
-    //      } else {
-    //        throw e;
-    //      }
-    //    }
-  }
-
-  @Override
   public boolean ensureRegistered(int shuffleId, int numMappers, int numPartitions) {
     if (!locationManager.registered(shuffleId)) {
       try {
@@ -777,20 +753,15 @@ public class ShuffleClientImpl extends ShuffleClient {
         if (StatusCode.SUCCESS.equals(respStatus)) {
           ConcurrentHashMap<Integer, List<PartitionLocation>> result =
               JavaUtils.newConcurrentHashMap();
-          for (int i = 0; i < response.getPartitionLocationsList().size(); i++) {
-            Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
-                PbSerDeUtils.fromPbPackedPartitionLocationsPair(
-                    response.getPackedPartitionLocationsPair());
-            for (PartitionLocation location : locations._1) {
-              pushExcludedWorkers.remove(location.hostAndPushPort());
-              if (location.hasPeer()) {
-                pushExcludedWorkers.remove(location.getPeer().hostAndPushPort());
-              }
-              List<PartitionLocation> list =
-                  result.computeIfAbsent(location.getId(), x -> new ArrayList<>());
-              list.add(location);
-              result.put(location.getId(), list);
+          Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
+              PbSerDeUtils.fromPbPackedPartitionLocationsPair(
+                  response.getPackedPartitionLocationsPair());
+          for (PartitionLocation location : locations._1) {
+            pushExcludedWorkers.remove(location.hostAndPushPort());
+            if (location.hasPeer()) {
+              pushExcludedWorkers.remove(location.getPeer().hostAndPushPort());
             }
+            result.computeIfAbsent(location.getId(), x -> new ArrayList<>()).add(location);
           }
           return result;
         } else if (StatusCode.SLOT_NOT_AVAILABLE.equals(respStatus)) {
@@ -928,6 +899,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         PbChangeLocationPartitionInfo partitionInfo = response.getPartitionInfo(i);
         int partitionId = partitionInfo.getPartitionId();
         int statusCode = partitionInfo.getStatus();
+        results.put(partitionId, statusCode);
         if (partitionInfo.getOldAvailable()) {
           PartitionLocation oldLoc = oldLocMap.get(partitionId);
           // Currently, revive only check if main location available, here won't remove peer loc.
@@ -959,7 +931,6 @@ public class ShuffleClientImpl extends ShuffleClient {
           logger.error("SHUFFLE_NOT_REGISTERED!");
           return null;
         }
-        results.put(partitionId, statusCode);
       }
 
       return results;

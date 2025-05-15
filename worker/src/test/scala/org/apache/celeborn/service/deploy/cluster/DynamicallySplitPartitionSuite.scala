@@ -32,18 +32,14 @@ import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class DynamicallySplitPartitionSuite extends AnyFunSuite
   with Logging with MiniClusterFeature with BeforeAndAfterAll {
-  val masterPort = 19099
+  var masterEndpoint = ""
 
   override def beforeAll(): Unit = {
-    val masterConf = Map(
-      "celeborn.master.host" -> "localhost",
-      "celeborn.master.port" -> masterPort.toString)
-    val workerConf = Map(
-      "celeborn.master.endpoints" -> s"localhost:$masterPort",
-      "celeborn.worker.flusher.buffer.size" -> "0")
+    val conf = Map("celeborn.worker.flusher.buffer.size" -> "0")
 
     logInfo("test initialized , setup Celeborn mini cluster")
-    setupMiniClusterWithRandomPorts(masterConf, workerConf, 5)
+    val (master, _) = setupMiniClusterWithRandomPorts(conf, conf, 5)
+    masterEndpoint = master.conf.get(CelebornConf.MASTER_ENDPOINTS.key)
   }
 
   class PushTask(shuffleClient: ShuffleClientImpl, shuffleId: Int, mapId: Int, mapNum: Int)
@@ -69,7 +65,7 @@ class DynamicallySplitPartitionSuite extends AnyFunSuite
   test("dynamically split partition") {
     val appId = s"dynamically-split-partition-test-${System.currentTimeMillis()}"
     val clientConf = new CelebornConf()
-      .set(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$masterPort")
+      .set(CelebornConf.MASTER_ENDPOINTS.key, masterEndpoint)
       .set(CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD.key, "10M")
       .set(CelebornConf.SHUFFLE_PARTITION_SPLIT_MODE.key, "HARD")
       .set(CelebornConf.CLIENT_ASYNC_SPLIT_PARTITION_ENABLED.key, "true")

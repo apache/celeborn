@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiFunction;
 
@@ -279,9 +278,6 @@ public abstract class ShuffleClient {
 
   public abstract PartitionLocation registerMapPartitionTask(
       int shuffleId, int numMappers, int mapId, int attemptId, int partitionId) throws IOException;
-
-  public abstract ConcurrentHashMap<Integer, PartitionLocation> getPartitionLocation(
-      int shuffleId, int numMappers, int numPartitions) throws CelebornIOException;
 
   public boolean ensureRegistered(int shuffleId, int numMappers, int numPartitions) {
     return false;

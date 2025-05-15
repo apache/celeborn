@@ -134,10 +134,8 @@ class ReviveManager {
               // Call reviveBatch. Return null means Exception caught or
               // SHUFFLE_NOT_REGISTERED
               // Do not use WriterTracerHere because traceInfo is set afterward
-              long reviveStartTime = System.nanoTime();
               Map<Integer, Integer> results =
                   shuffleClient.reviveBatch(shuffleId, mapIds, requestsToSend.values(), urgent);
-              long reviveCostTime = System.nanoTime() - reviveStartTime;
               if (results == null) {
                 for (ReviveRequest req : filteredRequests) {
                   req.reviveStatus = StatusCode.REVIVE_FAILED.getValue();
