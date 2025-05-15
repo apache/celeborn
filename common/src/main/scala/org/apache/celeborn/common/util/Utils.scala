@@ -1261,4 +1261,10 @@ object Utils extends Logging {
     connectException || rpcTimeout || fetchChunkTimeout
   }
 
+  def makeOpenStreamRequestId(
+      shuffleKey: String,
+      clientChannelId: String,
+      rpcRequestId: Long): String = {
+    s"$shuffleKey-$clientChannelId-$rpcRequestId"
+  }
 }
