@@ -316,7 +316,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
           mapId,
           attempt,
           numMappers);
-      shuffleClient.mapperEnd(0, mapId, attempt, numMappers);
+      shuffleClient.mapperEnd(0, mapId, attempt, numMappers, numReducers);
     } catch (IOException e) {
       exception.compareAndSet(null, e);
     }
