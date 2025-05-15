@@ -18,12 +18,11 @@
 package org.apache.celeborn.client.commit
 
 import java.util
-import java.util.{Comparator, HashMap => JHashMap, Map => JMap}
+import java.util.{Comparator, Map}
+import java.util.function.{BiFunction, Consumer}
 
 import com.google.common.base.Preconditions.{checkArgument, checkState}
-import org.apache.commons.lang3.tuple.Pair
 
-import org.apache.celeborn.client.ClientUtils
 import org.apache.celeborn.common.CommitMetadata
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.JavaUtils
@@ -37,12 +36,14 @@ class PartitionCompletenessValidator extends Logging {
   private val currentCommitMetadataForReducer =
     JavaUtils.newConcurrentHashMap[Int, CommitMetadata]()
   private val currentTotalMapRangeSumForReducer = JavaUtils.newConcurrentHashMap[Int, Int]()
-  private val comparator: Comparator[(Int, Int)] = (o1: (Int, Int), o2: (Int, Int)) => {
-    val comparator = Integer.compare(o1._1, o2._1)
-    if (comparator != 0)
-      comparator
-    else
-      Integer.compare(o1._2, o2._2)
+  private val comparator: java.util.Comparator[(Int, Int)] = new Comparator[(Int, Int)] {
+    override def compare(o1: (Int, Int), o2: (Int, Int)): Int = {
+      val comparator = Integer.compare(o1._1, o2._1)
+      if (comparator != 0)
+        comparator
+      else
+        Integer.compare(o1._2, o2._2)
+    }
   }
 
   def validateSubPartition(
@@ -98,7 +99,10 @@ class PartitionCompletenessValidator extends Logging {
       s"Validate partition invoked for partitionId $partitionId startMapIndex $startMapIndex endMapIndex $endMapIndex")
     val subRangeToCommitMetadataMap = actualCommitMetadataForReducer.computeIfAbsent(
       partitionId,
-      _ => new util.TreeMap[(Int, Int), CommitMetadata](comparator))
+      new java.util.function.Function[Int, util.TreeMap[(Int, Int), CommitMetadata]] {
+        override def apply(key: Int): util.TreeMap[(Int, Int), CommitMetadata] =
+          new util.TreeMap[(Int, Int), CommitMetadata](comparator)
+      })
     subRangeToCommitMetadataMap.synchronized {
       val count = subRangeToCommitMetadataMap.get((startMapIndex, endMapIndex))
       if (count == null) {
@@ -116,11 +120,17 @@ class PartitionCompletenessValidator extends Logging {
           currentCommitMetadataForReducer.merge(
             partitionId,
             actualCommitMetadata,
-            CommitMetadata.combineMetadata)
+            new java.util.function.BiFunction[CommitMetadata, CommitMetadata, CommitMetadata] {
+              override def apply(t: CommitMetadata, u: CommitMetadata): CommitMetadata =
+                CommitMetadata.combineMetadata(t, u)
+            })
           currentTotalMapRangeSumForReducer.merge(
             partitionId,
             endMapIndex - startMapIndex,
-            Integer.sum)
+            new BiFunction[Int, Int, Int] {
+              override def apply(t: Int, u: Int): Int =
+                Integer.sum(t, u)
+            })
         }
       } else if (count != actualCommitMetadata) {
         val errorMessage = s"Commit Metadata for partition: $partitionId " +
@@ -203,11 +213,12 @@ class PartitionCompletenessValidator extends Logging {
         return (true, "Partition is complete")
       } else {
 
-        val entryList = new StringBuilder("Map of range -> actual count\n");
+        val entryList = new StringBuilder("Map of range -> actual metadata\n");
         val mapRangeToCountMap = actualCommitMetadataForReducer.get(partitionId)
-        mapRangeToCountMap.entrySet().forEach(entry => {
-          entryList.append(
-            "Range " + entry.getKey + " commit metadata: " + entry.getValue + "\n")
+        mapRangeToCountMap.entrySet().forEach(new Consumer[util.Map.Entry[(Int, Int), CommitMetadata]] {
+          override def accept(entry: util.Map.Entry[(Int, Int), CommitMetadata]): Unit =
+            entryList.append(
+              "Range " + entry.getKey + " commit metadata: " + entry.getValue + "\n")
         })
         val errorMsg = s"AQE Partition $partitionId failed validation check " +
           s"while processing range startMapIndex: $startMapIndex endMapIndex: $endMapIndex" +
