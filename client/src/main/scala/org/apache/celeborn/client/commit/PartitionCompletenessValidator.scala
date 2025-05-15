@@ -215,7 +215,9 @@ class PartitionCompletenessValidator extends Logging {
 
         val entryList = new StringBuilder("Map of range -> actual metadata\n");
         val mapRangeToCountMap = actualCommitMetadataForReducer.get(partitionId)
-        mapRangeToCountMap.entrySet().forEach(new Consumer[util.Map.Entry[(Int, Int), CommitMetadata]] {
+        mapRangeToCountMap.entrySet().forEach(new Consumer[util.Map.Entry[
+          (Int, Int),
+          CommitMetadata]] {
           override def accept(entry: util.Map.Entry[(Int, Int), CommitMetadata]): Unit =
             entryList.append(
               "Range " + entry.getKey + " commit metadata: " + entry.getValue + "\n")
