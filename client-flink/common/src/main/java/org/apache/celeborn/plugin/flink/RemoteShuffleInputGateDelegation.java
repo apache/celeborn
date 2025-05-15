@@ -440,7 +440,8 @@ public class RemoteShuffleInputGateDelegation {
     try {
       event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
     } catch (Throwable t) {
-      throw new IOException("Deserialize failure.", t);
+      LOG.error("Failed to deserialize event: inputChannelInfo {}.", channelInfo, t);
+      throw new PartitionNotFoundException(channelToResultPartitionId.get(channelInfo));
     } finally {
       buffer.recycleBuffer();
     }
