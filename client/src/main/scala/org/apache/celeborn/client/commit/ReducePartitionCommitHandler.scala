@@ -376,7 +376,10 @@ class ReducePartitionCommitHandler(
 
     val validator = aqePartitionCompletenessValidator.computeIfAbsent(
       shuffleId,
-      _ => new PartitionCompletenessValidator)
+      new java.util.function.Function[Int, PartitionCompletenessValidator] {
+        override def apply(key: Int): PartitionCompletenessValidator =
+          new PartitionCompletenessValidator()
+      })
     validator.validateSubPartition(
       partitionId,
       startMapIndex,
