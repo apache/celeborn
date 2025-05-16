@@ -112,6 +112,8 @@ enum MessageType {
   REVISE_LOST_SHUFFLES = 89;
   REVISE_LOST_SHUFFLES_RESPONSE = 90;
   PUSH_MERGED_DATA_SPLIT_PARTITION_INFO = 91;
+  GET_STAGE_END = 92;
+  GET_STAGE_END_RESPONSE = 93;
 }
 
 enum StreamType {
@@ -901,6 +903,14 @@ message PbReviseLostShufflesResponse{
 message PbPushMergedDataSplitPartitionInfo {
   repeated int32 splitPartitionIndexes = 1;
   repeated int32 statusCodes = 2;
+}
+
+message PbGetStageEnd {
+  int32 shuffleId = 1;
+}
+
+message PbGetStageEndResponse {
+  bool stageEnd = 1;
 }
 
 message PbChunkOffsets {

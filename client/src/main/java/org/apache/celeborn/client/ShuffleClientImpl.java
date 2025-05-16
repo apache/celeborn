@@ -1872,6 +1872,22 @@ public class ShuffleClientImpl extends ShuffleClient {
     return updateFileGroup(shuffleId, partitionId, false);
   }
 
+  @Override
+  public boolean isShuffleStageEnd(int shuffleId) throws IOException {
+    if (null != lifecycleManagerRef) {
+      PbGetStageEnd request = PbGetStageEnd.newBuilder().setShuffleId(shuffleId).build();
+      PbGetStageEndResponse response =
+          lifecycleManagerRef.askSync(
+              request,
+              rpcMaxRetries,
+              rpcRetryWait,
+              ClassTag$.MODULE$.apply(PbGetStageEndResponse.class));
+      return response.getStageEnd();
+    } else {
+      return false;
+    }
+  }
+
   public ReduceFileGroups updateFileGroup(
       int shuffleId, int partitionId, boolean isSegmentGranularityVisible)
       throws CelebornIOException {

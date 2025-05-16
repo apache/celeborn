@@ -216,6 +216,8 @@ public abstract class ShuffleClient {
   public abstract ShuffleClientImpl.ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
       throws CelebornIOException;
 
+  public abstract boolean isShuffleStageEnd(int shuffleId) throws IOException;
+
   // Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
   // is a self-incrementing variable hidden in the implementation when sending data.
   /**

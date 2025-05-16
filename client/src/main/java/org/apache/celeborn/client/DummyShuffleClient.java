@@ -131,6 +131,11 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
+  public boolean isShuffleStageEnd(int shuffleId) throws IOException {
+    return true;
+  }
+
+  @Override
   public CelebornInputStream readPartition(
       int shuffleId,
       int appShuffleId,

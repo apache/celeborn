@@ -35,7 +35,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.ShufflePartitionLocationInfo
 import org.apache.celeborn.common.network.protocol.SerdeVersion
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, PbGetStageEndResponse}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
@@ -423,6 +423,10 @@ class ReducePartitionCommitHandler(
         }
       }
     }
+  }
+
+  override def handleGetStageEnd(context: RpcCallContext, shuffleId: Int): Unit = {
+    context.reply(PbGetStageEndResponse.newBuilder().setStageEnd(isStageEnd(shuffleId)).build())
   }
 
   override def waitStageEnd(shuffleId: Int): (Boolean, Long) = {
