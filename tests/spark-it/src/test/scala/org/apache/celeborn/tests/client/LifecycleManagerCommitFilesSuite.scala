@@ -70,8 +70,9 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       res.workerResource,
       updateEpoch = false)
 
-    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
-    0 until 10 foreach { partitionId =>
+    val numPartitions = 10
+    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false, numPartitions)
+    0 until numPartitions foreach { partitionId =>
       lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
     }
 
@@ -126,8 +127,9 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       res.workerResource,
       updateEpoch = false)
 
-    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
-    0 until 10 foreach { partitionId =>
+    val numPartitions = 10
+    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false, numPartitions)
+    0 until numPartitions foreach { partitionId =>
       lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
     }
 
@@ -196,8 +198,9 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       res.workerResource,
       updateEpoch = false)
 
-    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
-    0 until 1000 foreach { partitionId =>
+    val numPartitions = 1000
+    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false, numPartitions)
+    0 until numPartitions foreach { partitionId =>
       lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
     }
 
@@ -256,13 +259,14 @@ class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniC
       res.workerResource,
       updateEpoch = false)
 
-    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false)
+    val numPartitions = 3
+    lifecycleManager.commitManager.registerShuffle(shuffleId, 1, false, numPartitions)
 
     val buffer = "hello world".getBytes(StandardCharsets.UTF_8)
 
     var bufferLength = -1
 
-    0 until 3 foreach { partitionId =>
+    0 until numPartitions foreach { partitionId =>
       bufferLength =
         shuffleClient.pushData(shuffleId, 0, 0, partitionId, buffer, 0, buffer.length, 1, 3)
       lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)

@@ -21,7 +21,7 @@ import java.lang.{Byte => JByte}
 import java.nio.ByteBuffer
 import java.security.SecureRandom
 import java.util
-import java.util.{function, List => JList}
+import java.util.{function, Collections, List => JList}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
 import java.util.function.{BiConsumer, Consumer}
@@ -39,7 +39,7 @@ import com.google.common.cache.{Cache, CacheBuilder}
 
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.client.listener.WorkerStatusListener
-import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
@@ -413,13 +413,31 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         oldPartition,
         isSegmentGranularityVisible = commitManager.isSegmentGranularityVisible(shuffleId))
 
-    case MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId, pushFailedBatch) =>
+    case MapperEnd(
+          shuffleId,
+          mapId,
+          attemptId,
+          numMappers,
+          partitionId,
+          pushFailedBatch,
+          numPartitions,
+          crc32PerPartition,
+          bytesWrittenPerPartition) =>
       logTrace(s"Received MapperEnd TaskEnd request, " +
         s"${Utils.makeMapKey(shuffleId, mapId, attemptId)}")
       val partitionType = getPartitionType(shuffleId)
       partitionType match {
         case PartitionType.REDUCE =>
-          handleMapperEnd(context, shuffleId, mapId, attemptId, numMappers, pushFailedBatch)
+          handleMapperEnd(
+            context,
+            shuffleId,
+            mapId,
+            attemptId,
+            numMappers,
+            pushFailedBatch,
+            numPartitions,
+            crc32PerPartition,
+            bytesWrittenPerPartition)
         case PartitionType.MAP =>
           handleMapPartitionEnd(
             context,
@@ -428,6 +446,22 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             attemptId,
             partitionId,
             numMappers)
+        case _ =>
+          throw new UnsupportedOperationException(s"Not support $partitionType yet")
+      }
+
+    case pb: ReducerPartitionEnd =>
+      val partitionType = getPartitionType(pb.shuffleId)
+      partitionType match {
+        case PartitionType.REDUCE =>
+          handleReducerPartitionEnd(
+            context,
+            pb.shuffleId,
+            pb.partitionId,
+            pb.startMapIndex,
+            pb.endMapIndex,
+            pb.crc32,
+            pb.bytesWritten)
         case _ =>
           throw new UnsupportedOperationException(s"Not support $partitionType yet")
       }
@@ -476,6 +510,31 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       } else {
         context.reply(PbSerDeUtils.toPbApplicationMeta(applicationMeta))
       }
+  }
+
+  private def handleReducerPartitionEnd(
+      context: RpcCallContext,
+      shuffleId: Int,
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      crc32: Int,
+      bytesWritten: Long): Unit = {
+    val (isValid, errorMessage) = commitManager.finishPartition(
+      shuffleId,
+      partitionId,
+      startMapIndex,
+      endMapIndex,
+      new CommitMetadata(crc32, bytesWritten))
+    var response: PbReducerPartitionEndResponse = null
+    if (isValid) {
+      response =
+        PbReducerPartitionEndResponse.newBuilder().setStatus(StatusCode.SUCCESS.getValue).build();
+    } else {
+      response = PbReducerPartitionEndResponse.newBuilder().setStatus(
+        +StatusCode.REDUCE_PARTITION_END_FAILED.getValue).setErrorMsg(errorMessage).build();
+    }
+    context.reply(response)
   }
 
   def setupEndpoints(
@@ -756,7 +815,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       commitManager.registerShuffle(
         shuffleId,
         numMappers,
-        isSegmentGranularityVisible)
+        isSegmentGranularityVisible,
+        numPartitions)
 
       // Fifth, reply the allocated partition location to ShuffleClient.
       logInfo(s"Handle RegisterShuffle Success for $shuffleId.")
@@ -825,7 +885,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       mapId: Int,
       attemptId: Int,
       numMappers: Int,
-      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]]): Unit = {
+      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]],
+      numPartitions: Int,
+      crc32PerPartition: Array[Int],
+      bytesWrittenPerPartition: Array[Long]): Unit = {
 
     val (mapperAttemptFinishedSuccess, allMapperFinished) =
       commitManager.finishMapperAttempt(
@@ -833,7 +896,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         mapId,
         attemptId,
         numMappers,
-        pushFailedBatches = pushFailedBatches)
+        pushFailedBatches = pushFailedBatches,
+        numPartitions = numPartitions,
+        crc32PerPartition = crc32PerPartition,
+        bytesWrittenPerPartition = bytesWrittenPerPartition)
     if (mapperAttemptFinishedSuccess && allMapperFinished) {
       // last mapper finished. call mapper end
       logInfo(s"Last MapperEnd, call StageEnd with shuffleKey:" +
