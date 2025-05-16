@@ -32,7 +32,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{CollectionUtils => localCollectionUtils}
-import org.apache.celeborn.common.write.PushFailedBatch
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 
 object PbSerDeUtils {
 
@@ -477,7 +477,7 @@ object PbSerDeUtils {
   }
 
   def fromPbApplicationMeta(pbApplicationMeta: PbApplicationMeta): ApplicationMeta = {
-    new ApplicationMeta(pbApplicationMeta.getAppId, pbApplicationMeta.getSecret)
+    ApplicationMeta(pbApplicationMeta.getAppId, pbApplicationMeta.getSecret)
   }
 
   def toPbWorkerStatus(workerStatus: WorkerStatus): PbWorkerStatus = {
@@ -501,7 +501,7 @@ object PbSerDeUtils {
   def fromPbWorkerEventInfo(pbWorkerEventInfo: PbWorkerEventInfo): WorkerEventInfo = {
     new WorkerEventInfo(
       pbWorkerEventInfo.getWorkerEventType.getNumber,
-      pbWorkerEventInfo.getEventStartTime())
+      pbWorkerEventInfo.getEventStartTime)
   }
 
   private def toPackedPartitionLocation(
@@ -695,34 +695,36 @@ object PbSerDeUtils {
     }.asJava
   }
 
-  def toPbPushFailedBatch(pushFailedBatch: PushFailedBatch): PbPushFailedBatch = {
-    PbPushFailedBatch.newBuilder()
-      .setMapId(pushFailedBatch.getMapId)
-      .setAttemptId(pushFailedBatch.getAttemptId)
-      .setBatchId(pushFailedBatch.getBatchId)
+  def toPbFailedBatches(failedBatches: util.Set[Int]): PbFailedBatches = {
+    PbFailedBatches.newBuilder()
+      .addAllFailedBatches(failedBatches.asScala.map(new Integer(_)).asJava)
       .build()
   }
 
-  def fromPbPushFailedBatch(pbPushFailedBatch: PbPushFailedBatch): PushFailedBatch = {
-    new PushFailedBatch(
-      pbPushFailedBatch.getMapId,
-      pbPushFailedBatch.getAttemptId,
-      pbPushFailedBatch.getBatchId)
+  def fromPbFailedBatches(failedBatches: PbFailedBatches): util.Set[Int] = {
+    failedBatches.getFailedBatchesList.asScala.map(_.intValue()).toSet.asJava
   }
 
-  def toPbPushFailedBatchSet(failedBatchSet: util.Set[PushFailedBatch]): PbPushFailedBatchSet = {
-    val builder = PbPushFailedBatchSet.newBuilder()
-    failedBatchSet.asScala.foreach(batch => builder.addFailureBatches(toPbPushFailedBatch(batch)))
-
+  def toPbLocationPushFailedBatches(locationPushFailedBatches: LocationPushFailedBatches)
+      : PbLocationPushFailedBatches = {
+    val builder = PbLocationPushFailedBatches.newBuilder()
+    builder.putAllFailedBatches(
+      locationPushFailedBatches
+        .getFailedBatches
+        .asScala
+        .map(item =>
+          (item._1, toPbFailedBatches(item._2.asScala.map(_.intValue()).toSet.asJava))).asJava)
     builder.build()
   }
 
-  def fromPbPushFailedBatchSet(pbFailedBatchSet: PbPushFailedBatchSet)
-      : util.Set[PushFailedBatch] = {
-    val failedBatchSet = new util.HashSet[PushFailedBatch]()
-    pbFailedBatchSet.getFailureBatchesList.asScala.foreach(batch =>
-      failedBatchSet.add(fromPbPushFailedBatch(batch)))
-
-    failedBatchSet
+  def fromPbLocationPushFailedBatches(pbLocationPushFailedBatches: PbLocationPushFailedBatches)
+      : LocationPushFailedBatches = {
+    val batches = new LocationPushFailedBatches()
+    pbLocationPushFailedBatches.getFailedBatchesMap.asScala.foreach { case (key, value) =>
+      batches.getFailedBatches.put(
+        key,
+        fromPbFailedBatches(value).asScala.map(new Integer(_)).asJava)
+    }
+    batches
   }
 }

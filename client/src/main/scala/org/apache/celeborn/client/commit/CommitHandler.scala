@@ -43,7 +43,7 @@ import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
-import org.apache.celeborn.common.write.PushFailedBatch
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 
 case class CommitFilesParam(
     worker: WorkerInfo,
@@ -206,7 +206,7 @@ abstract class CommitHandler(
       attemptId: Int,
       numMappers: Int,
       partitionId: Int,
-      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]],
+      pushFailedBatches: util.Map[String, LocationPushFailedBatches],
       recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean)
 
   def registerShuffle(

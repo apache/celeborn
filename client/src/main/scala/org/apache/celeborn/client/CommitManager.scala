@@ -42,7 +42,7 @@ import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.common.util.ThreadUtils
-import org.apache.celeborn.common.write.PushFailedBatch
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 
 case class ShuffleCommittedInfo(
     // partition id -> unique partition ids
@@ -219,7 +219,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
       attemptId: Int,
       numMappers: Int,
       partitionId: Int = -1,
-      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]] = Collections.emptyMap())
+      pushFailedBatches: util.Map[String, LocationPushFailedBatches] = Collections.emptyMap())
       : (Boolean, Boolean) = {
     getCommitHandler(shuffleId).finishMapperAttempt(
       shuffleId,
