@@ -35,12 +35,12 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
       TestCelebornShuffleManager.registerReaderGetHook(hook)
       val checkingThread =
         triggerStorageCheckThread(Seq(0), Seq(1), sparkSession, forStableStatusChecking = false)
-      val tuples = sparkSession.sparkContext.parallelize(1 to 10, 2)
+      val tuples = sparkSession.sparkContext.parallelize(1 to 1000, 2)
         .map { i => (i, i) }.groupByKey(4).collect()
       checkStorageValidation(checkingThread)
       // verify result
       assert(hook.executed.get())
-      assert(tuples.length == 10)
+      assert(tuples.length == 1000)
       for (elem <- tuples) {
         elem._2.foreach(i => assert(i.equals(elem._1)))
       }
@@ -65,14 +65,14 @@ class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
         Seq(2, 3, 4),
         sparkSession,
         forStableStatusChecking = false)
-      val tuples = sparkSession.sparkContext.parallelize(1 to 10, 2)
+      val tuples = sparkSession.sparkContext.parallelize(1 to 1000, 2)
         .map { i => (i, i) }.groupByKey(16).map {
           case (k, elements) => (k, elements.map(i => i))
         }.groupByKey(4).groupByKey(2).collect()
       checkStorageValidation(checkingThread)
       // verify result
       assert(hook.executed.get())
-      assert(tuples.length == 10)
+      assert(tuples.length == 1000)
       for (elem <- tuples) {
         elem._2.flatten.flatten.foreach(s => s.equals(elem._1))
       }
