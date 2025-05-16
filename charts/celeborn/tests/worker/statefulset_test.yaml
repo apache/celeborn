@@ -133,6 +133,26 @@ tests:
               name: test-secret
               optional: false
 
+  - it: Should add volume mounts if `worker.volumeMounts` is set
+    set:
+      worker:
+        volumeMounts:
+          - name: disk1
+            mountPath: /mnt/disk1
+          - name: disk2
+            mountPath: /mnt/disk2
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: disk1
+            mountPath: /mnt/disk1
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: disk1
+            mountPath: /mnt/disk1
+
   - it: Should use the specified resources if `worker.resources` is set
     set:
       worker:
@@ -204,6 +224,32 @@ tests:
       - equal:
           path: spec.template.spec.imagePullSecrets[1].name
           value: test-secret2
+
+  - it: Should add volumes if `worker.volumes` is set
+    set:
+      worker:
+        volumes:
+          - name: disk1
+            emptyDir:
+              sizeLimit: 10Gi
+          - name: disk2
+            hostPath:
+              type: DirectoryOrCreate
+              path: /mnt/disk2
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: disk1
+            emptyDir:
+              sizeLimit: 10Gi
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: disk2
+            hostPath:
+              type: DirectoryOrCreate
+              path: /mnt/disk2
 
   - it: Should add node selector if `worker.nodeSelector` is set
     set:

@@ -63,60 +63,56 @@ cluster:
   # -- Specifies Kubernetes cluster name
   name: cluster
 
-# Specifies Celeborn volumes.
-# Currently supported volume types are `emptyDir` and `hostPath`.
-# Note that `hostPath` only works in hostPath type using to set `volumes hostPath path`.
-# Celeborn Master will pick first volumes for store raft log.
-# `diskType` only works in Celeborn Worker with hostPath type to manifest local disk type.
-volumes:
-  # -- Specifies volumes for Celeborn master pods
-  master:
-    - mountPath: /mnt/celeborn_ratis
-      hostPath: /mnt/celeborn_ratis
-      type: hostPath
-      capacity: 100Gi
-  # -- Specifies volumes for Celeborn worker pods
-  worker:
-    - mountPath: /mnt/disk1
-      hostPath: /mnt/disk1
-      type: hostPath
-      diskType: SSD
-      capacity: 100Gi
-    - mountPath: /mnt/disk2
-      hostPath: /mnt/disk2
-      type: hostPath
-      diskType: SSD
-      capacity: 100Gi
-    - mountPath: /mnt/disk3
-      hostPath: /mnt/disk3
-      type: hostPath
-      diskType: SSD
-      capacity: 100Gi
-    - mountPath: /mnt/disk4
-      hostPath: /mnt/disk4
-      type: hostPath
-      diskType: SSD
-      capacity: 100Gi
-
-# -- Celeborn configurations
+# -- Celeborn configurations.
+# Ref: [Configuration - Apache Celeborn](https://celeborn.apache.org/docs/latest/configuration).
 celeborn:
-  celeborn.master.ha.enabled: true
-  celeborn.metrics.enabled: true
-  celeborn.metrics.prometheus.path: /metrics/prometheus
+  # ============================================================================
+  # Mater
+  # ============================================================================
   celeborn.master.http.port: 9098
+  celeborn.master.heartbeat.worker.timeout: 120s
+  celeborn.master.heartbeat.application.timeout: 300s
+
+  # ============================================================================
+  # Mater HA
+  # ============================================================================
+  celeborn.master.ha.enabled: true
+  # Do not edit `celeborn.master.ha.node.<id>.host` manually, it should be configured automatically by Helm.
+  # celeborn.master.ha.node.<id>.host: ""
+  celeborn.master.ha.ratis.raft.server.storage.dir: /mnt/celeborn_ratis
+
+  # ============================================================================
+  # Worker
+  # ============================================================================
+  # Do not edit `celeborn.master.endpoints` manually, it should be configured automatically by Helm.
+  # celeborn.master.endpoints: <localhost>:9097
+  celeborn.shuffle.chunk.size: 8m
+  celeborn.worker.fetch.io.threads: 32
+  celeborn.worker.flusher.buffer.size: 256K
+  celeborn.worker.heartbeat.timeout: 120s
   celeborn.worker.http.port: 9096
   celeborn.worker.monitor.disk.enabled: false
-  celeborn.shuffle.chunk.size: 8m
+  celeborn.worker.push.io.threads: 32
+  celeborn.worker.storage.dirs: /mnt/disk1:disktype=SSD:capacity=100Gi,/mnt/disk2:disktype=SSD:capacity=100Gi,/mnt/disk3:disktype=SSD:capacity=100Gi,/mnt/disk4:disktype=SSD:capacity=100Gi
+
+  # ============================================================================
+  # Client
+  # ============================================================================
+  celeborn.client.push.stageEnd.timeout: 120s
+
+  # ============================================================================
+  # Network
+  # ============================================================================
   celeborn.rpc.io.serverThreads: 64
   celeborn.rpc.io.numConnectionsPerPeer: 2
   celeborn.rpc.io.clientThreads: 64
   celeborn.rpc.dispatcher.numThreads: 4
-  celeborn.worker.flusher.buffer.size: 256K
-  celeborn.worker.fetch.io.threads: 32
-  celeborn.worker.push.io.threads: 32
-  celeborn.push.stageEnd.timeout: 120s
-  celeborn.application.heartbeat.timeout: 120s
-  celeborn.worker.heartbeat.timeout: 120s
+
+  # ============================================================================
+  # Metrics
+  # ============================================================================
+  celeborn.metrics.enabled: true
+  celeborn.metrics.prometheus.path: /metrics/prometheus
 
 master:
   # -- Number of Celeborn master replicas to deploy, should not less than 3.
@@ -147,6 +143,11 @@ master:
   #     name: celeborn-secret
   #     optional: false
 
+  # -- Volume mounts for Celeborn master containers.
+  volumeMounts:
+  - name: celeborn-ratis
+    mountPath: /mnt/celeborn_ratis
+
   # -- Resources for Celeborn master containers.
   resources:
     # requests:
@@ -163,6 +164,13 @@ master:
     # runAsUser: 10006
     # runAsGroup: 10006
     # fsGroup: 10006
+
+  # -- Volumes for Celeborn master pods.
+  volumes:
+  - name: celeborn-ratis
+    hostPath:
+      type: DirectoryOrCreate
+      path: /mnt/celeborn_ratis
 
   # -- Node selector for Celeborn master pods.
   nodeSelector:
@@ -250,6 +258,17 @@ worker:
   #     name: celeborn-secret
   #     optional: false
 
+  # -- Volume mounts for Celeborn worker containers.
+  volumeMounts:
+  - name: disk1
+    mountPath: /mnt/disk1
+  - name: disk2
+    mountPath: /mnt/disk2
+  - name: disk3
+    mountPath: /mnt/disk3
+  - name: disk4
+    mountPath: /mnt/disk4
+
   # -- Resources for Celeborn worker containers.
   resources:
     # requests:
@@ -266,6 +285,25 @@ worker:
     # runAsUser: 10006
     # runAsGroup: 10006
     # fsGroup: 10006
+
+  # --Volumes for Celeborn worker pods.
+  volumes:
+  - name: disk1
+    hostPath:
+      type: DirectoryOrCreate
+      path: /mnt/disk1
+  - name: disk2
+    hostPath:
+      type: DirectoryOrCreate
+      path: /mnt/disk2
+  - name: disk3
+    hostPath:
+      type: DirectoryOrCreate
+      path: /mnt/disk3
+  - name: disk4
+    hostPath:
+      type: DirectoryOrCreate
+      path: /mnt/disk4
 
   # -- Node selector for Celeborn worker pods.
   nodeSelector:
