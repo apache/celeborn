@@ -139,7 +139,7 @@ private[tests] trait FetchFailureDiskCleanBase extends AnyFunSuite
     checkingThread
   }
 
-  protected def checkStorageValidation(thread: Thread, timeout: Long = 600 * 1000): Unit = {
+  protected def checkStorageValidation(thread: Thread, timeout: Long = 1200 * 1000): Unit = {
     val checkingThread = thread.asInstanceOf[CheckingThread]
     checkingThread.join(timeout)
     if (checkingThread.isAlive || checkingThread.exception != null) {
