@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.tests.spark.fetch_failure
+package org.apache.celeborn.tests.spark.fetch.failure
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession

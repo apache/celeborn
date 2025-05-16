@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.tests.spark.fetch_failure
+package org.apache.celeborn.tests.spark.fetch.failure
 
 import java.io.File
 
@@ -25,7 +25,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.service.deploy.worker.Worker
-import org.apache.celeborn.spark.FailedShuffleCleaner
 
 private[tests] trait FetchFailureDiskCleanBase extends AnyFunSuite
   with FetchFailureTestBase

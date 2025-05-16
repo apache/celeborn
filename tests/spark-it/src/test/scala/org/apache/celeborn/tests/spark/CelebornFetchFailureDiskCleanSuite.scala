@@ -18,7 +18,7 @@ package org.apache.celeborn.tests.spark
 
 import org.apache.spark.shuffle.celeborn.{SparkUtils, TestCelebornShuffleManager}
 
-import org.apache.celeborn.tests.spark.fetch_failure.{FetchFailureDiskCleanBase, FileDeletionShuffleReaderGetHook}
+import org.apache.celeborn.tests.spark.fetch.failure.{FetchFailureDiskCleanBase, FileDeletionShuffleReaderGetHook}
 
 class CelebornFetchFailureDiskCleanSuite extends FetchFailureDiskCleanBase {
 

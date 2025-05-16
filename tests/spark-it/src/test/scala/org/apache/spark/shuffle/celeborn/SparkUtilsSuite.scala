@@ -33,7 +33,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, ShuffleMode}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.tests.spark.SparkTestBase
-import org.apache.celeborn.tests.spark.fetch_failure.FileDeletionShuffleReaderGetHook
+import org.apache.celeborn.tests.spark.fetch.failure.FileDeletionShuffleReaderGetHook
 
 class SparkUtilsSuite extends AnyFunSuite
   with SparkTestBase

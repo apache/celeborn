@@ -30,7 +30,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.protocol.ShuffleMode
-import org.apache.celeborn.tests.spark.fetch_failure.{FetchFailureTestBase, FileDeletionShuffleReaderGetHook}
+import org.apache.celeborn.tests.spark.fetch.failure.{FetchFailureTestBase, FileDeletionShuffleReaderGetHook}
 
 class CelebornFetchFailureSuite extends AnyFunSuite
   with FetchFailureTestBase
