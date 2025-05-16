@@ -222,8 +222,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             scala.None$.empty());
 
     String module = TransportModuleConstants.DATA_MODULE;
-    dataTransportConf =
-        Utils.fromCelebornConf(conf, module, conf.getInt("celeborn." + module + ".io.threads", 8));
+    dataTransportConf = Utils.fromCelebornConf(conf, module, conf.networkIoThreads(module));
     initDataClientFactoryIfNeeded();
     int pushDataRetryThreads = conf.clientPushRetryThreads();
     pushDataRetryPool =
