@@ -18,7 +18,6 @@ package org.apache.celeborn.spark
 
 import java.util
 import java.util.concurrent.{LinkedBlockingQueue, ScheduledExecutorService, TimeUnit}
-import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -29,15 +28,14 @@ import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.ThreadUtils
 
-private[celeborn] object FailedShuffleCleaner extends Logging {
+private[celeborn] class FailedShuffleCleaner(lifecycleManager: LifecycleManager) extends Logging {
 
-  private val lifecycleManager = new AtomicReference[LifecycleManager](null)
   // in celeborn ids
   private val shufflesToBeCleaned = new LinkedBlockingQueue[Int]()
   private val cleanedShuffleIds = new mutable.HashSet[Int]
 
   private lazy val cleanInterval =
-    lifecycleManager.get().conf.clientFetchCleanFailedShuffleIntervalMS
+    lifecycleManager.conf.clientFetchCleanFailedShuffleIntervalMS
 
   // for test
   def reset(): Unit = {
@@ -47,47 +45,45 @@ private[celeborn] object FailedShuffleCleaner extends Logging {
       cleanerThreadPool.shutdownNow()
       cleanerThreadPool = null
     }
-    lifecycleManager.set(null)
   }
 
   def addShuffleIdToBeCleaned(appShuffleIdentifier: String): Unit = {
     val Array(appShuffleId, _, _) = SparkCommonUtils.decodeAppShuffleIdentifier(
       appShuffleIdentifier)
-    lifecycleManager.get().getShuffleIdMapping.get(appShuffleId.toInt).foreach {
+    lifecycleManager.getShuffleIdMapping.get(appShuffleId.toInt).foreach {
       case (_, (celebornShuffleId, _)) => shufflesToBeCleaned.put(celebornShuffleId)
     }
   }
 
-  def setLifecycleManager(ref: LifecycleManager): Unit = {
-    val firstSet = lifecycleManager.compareAndSet(null, ref)
-    if (firstSet) {
-      cleanerThreadPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-        "failedShuffleCleanerThreadPool")
-      cleanerThreadPool.scheduleWithFixedDelay(
-        new Runnable {
-          override def run(): Unit = {
-            try {
-              val allShuffleIds = new util.ArrayList[Int]
-              shufflesToBeCleaned.drainTo(allShuffleIds)
-              allShuffleIds.asScala.foreach { shuffleId =>
-                if (!cleanedShuffleIds.contains(shuffleId)) {
-                  lifecycleManager.get().unregisterShuffle(shuffleId)
-                  logInfo(
-                    s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
-                  cleanedShuffleIds += shuffleId
-                }
+  def init(): Unit = {
+    cleanerThreadPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+      "failedShuffleCleanerThreadPool")
+    cleanerThreadPool.scheduleWithFixedDelay(
+      new Runnable {
+        override def run(): Unit = {
+          try {
+            val allShuffleIds = new util.ArrayList[Int]
+            shufflesToBeCleaned.drainTo(allShuffleIds)
+            allShuffleIds.asScala.foreach { shuffleId =>
+              if (!cleanedShuffleIds.contains(shuffleId)) {
+                lifecycleManager.unregisterShuffle(shuffleId)
+                logInfo(
+                  s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
+                cleanedShuffleIds += shuffleId
               }
-            } catch {
-              case e: Exception =>
-                logError("unexpected exception in cleaner thread", e)
             }
+          } catch {
+            case e: Exception =>
+              logError("unexpected exception in cleaner thread", e)
           }
-        },
-        cleanInterval,
-        cleanInterval,
-        TimeUnit.MILLISECONDS)
-    }
+        }
+      },
+      cleanInterval,
+      cleanInterval,
+      TimeUnit.MILLISECONDS)
   }
+
+  init()
 
   def removeCleanedShuffleId(celebornShuffleId: Int): Unit = {
     cleanedShuffleIds.remove(celebornShuffleId)

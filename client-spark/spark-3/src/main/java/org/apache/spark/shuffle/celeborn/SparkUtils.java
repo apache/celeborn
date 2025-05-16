@@ -64,7 +64,6 @@ import org.apache.spark.storage.BlockManagerId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
@@ -76,7 +75,6 @@ import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.reflect.DynFields;
 import org.apache.celeborn.reflect.DynMethods;
-import org.apache.celeborn.spark.FailedShuffleCleaner;
 
 public class SparkUtils {
   private static final Logger LOG = LoggerFactory.getLogger(SparkUtils.class);
@@ -627,14 +625,12 @@ public class SparkUtils {
   }
 
   public static void addWriterShuffleIdsToBeCleaned(
-      LifecycleManager lifecycleManager, String appShuffleIdentifier) {
-    FailedShuffleCleaner.setLifecycleManager(lifecycleManager);
-    FailedShuffleCleaner.addShuffleIdToBeCleaned(appShuffleIdentifier);
+      SparkShuffleManager sparkShuffleManager, String appShuffleIdentifier) {
+    sparkShuffleManager.getFailedShuffleCleaner().addShuffleIdToBeCleaned(appShuffleIdentifier);
   }
 
   public static void removeCleanedShuffleId(
-      LifecycleManager lifecycleManager, int celebornShuffleId) {
-    FailedShuffleCleaner.setLifecycleManager(lifecycleManager);
-    FailedShuffleCleaner.removeCleanedShuffleId(celebornShuffleId);
+      SparkShuffleManager sparkShuffleManager, int celebornShuffleId) {
+    sparkShuffleManager.getFailedShuffleCleaner().removeCleanedShuffleId(celebornShuffleId);
   }
 }
