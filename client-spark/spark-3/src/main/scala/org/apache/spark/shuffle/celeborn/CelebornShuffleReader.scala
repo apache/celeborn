@@ -118,9 +118,9 @@ class CelebornShuffleReader[K, C](
         try {
           shuffleClient.isShuffleStageEnd(shuffleId)
         } catch {
-          case e: IOException =>
-            logError(s"Failed to check shuffle stage end for $shuffleId, assume not ended", e)
-            false
+          case e: Exception =>
+            logInfo(s"Failed to check shuffle stage end for $shuffleId, assume ended", e)
+            true
         }
       try {
         // startPartition is irrelevant
@@ -129,7 +129,7 @@ class CelebornShuffleReader[K, C](
         case ce: CelebornIOException
             if ce.getCause.isInstanceOf[TimeoutException] && !isShuffleStageEnd =>
           updateFileGroupsRetryTimes += 1
-          logError(
+          logInfo(
             s"UpdateFileGroup for $shuffleKey timeout due to shuffle stage not ended," +
               s" retry again, retry times $updateFileGroupsRetryTimes",
             ce)

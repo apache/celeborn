@@ -185,7 +185,7 @@ abstract class CommitHandler(
       serdeVersion: SerdeVersion): Unit
 
   /**
-   * Only Reduce partition mode supports to get stage end.
+   * Only Reduce partition mode supports get stage end.
    */
   def handleGetStageEnd(context: RpcCallContext, shuffleId: Int): Unit = {
     throw new UnsupportedOperationException(

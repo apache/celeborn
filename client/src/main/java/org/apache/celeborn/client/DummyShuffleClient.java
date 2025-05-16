@@ -131,7 +131,7 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
-  public boolean isShuffleStageEnd(int shuffleId) throws IOException {
+  public boolean isShuffleStageEnd(int shuffleId) throws Exception {
     return true;
   }
 

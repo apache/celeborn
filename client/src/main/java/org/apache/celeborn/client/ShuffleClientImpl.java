@@ -1873,7 +1873,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public boolean isShuffleStageEnd(int shuffleId) throws IOException {
+  public boolean isShuffleStageEnd(int shuffleId) throws Exception {
     if (null != lifecycleManagerRef) {
       PbGetStageEnd request = PbGetStageEnd.newBuilder().setShuffleId(shuffleId).build();
       PbGetStageEndResponse response =
