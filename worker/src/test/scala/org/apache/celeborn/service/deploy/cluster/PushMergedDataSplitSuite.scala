@@ -83,15 +83,20 @@ class PushMergedDataSplitSuite extends AnyFunSuite
           PARTITION_NUM)
 
         // find the worker that has at least 2 partitions
-        val partitionLocationMap =
-          shuffleClient.getPartitionLocation(SHUFFLE_ID, MAP_NUM, PARTITION_NUM)
+        val locationManager = shuffleClient.getLocationManager
         val worker2PartitionIds = mutable.Map.empty[WorkerInfo, ArrayBuffer[Int]]
-        for (partitionId <- 0 until PARTITION_NUM) {
-          val partitionLocation = partitionLocationMap.get(partitionId)
+        (0 until PARTITION_NUM).foreach(partitionId => {
+          val partitionLocation = locationManager.getLocationOrReviveAsync(
+            SHUFFLE_ID,
+            partitionId,
+            MAP_ID,
+            ATTEMPT_ID,
+            false,
+            false)
           worker2PartitionIds
             .getOrElseUpdate(partitionLocation.getWorker, ArrayBuffer.empty)
             .append(partitionId)
-        }
+        })
         val partitions = worker2PartitionIds.values.filter(_.size >= 2).head
         assert(partitions.length >= 2)
 
@@ -147,16 +152,25 @@ class PushMergedDataSplitSuite extends AnyFunSuite
             PARTITION_NUM)
           Thread.sleep(5 * 1000) // wait for flush
         }
-        assert(
-          partitionLocationMap.get(partitions(0)).getEpoch > 0
-        ) // means partition(0) will be split
+        assert(locationManager.getLocationOrReviveAsync(
+          SHUFFLE_ID,
+          0,
+          MAP_ID,
+          ATTEMPT_ID,
+          false,
+          false).getEpoch > 0) // means partition(0) hard_split
+        // means partition(0) will be split
 
         // push merged data, we expect that partition(0) will be split, while partition(1) will not be split
         shuffleClient.pushMergedData(SHUFFLE_ID, MAP_ID, ATTEMPT_ID)
         shuffleClient.mapperEnd(SHUFFLE_ID, MAP_ID, ATTEMPT_ID, MAP_NUM)
-        assert(
-          partitionLocationMap.get(partitions(1)).getEpoch == 0
-        ) // means partition(1) will not be split
+        assert(locationManager.getLocationOrReviveAsync(
+          SHUFFLE_ID,
+          1,
+          MAP_ID,
+          ATTEMPT_ID,
+          false,
+          false).getEpoch == 0) // means partition(1) will not be split
     }
   }
 }

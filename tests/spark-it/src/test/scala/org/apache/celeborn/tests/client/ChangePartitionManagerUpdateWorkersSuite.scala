@@ -77,8 +77,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val reserveSlotsSuccess = lifecycleManager.reserveSlotsWithRetry(
       shuffleId,
       new util.HashSet(res.workerResource.keySet()),
-      res.workerResource,
-      updateEpoch = false)
+      res.workerResource)
 
     if (reserveSlotsSuccess) {
       val allocatedWorkers =
@@ -89,7 +88,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
           allocatedWorkers.put(workerInfo.toUniqueId, partitionLocationInfo)
-          lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
+          lifecycleManager.addNewPartitionLocations(shuffleId, primaryLocations)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }
@@ -105,6 +104,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         shuffleId,
         partitionId,
         -1,
+        0,
         null,
         None)
       changePartitionManager.changePartitionRequests.computeIfAbsent(
@@ -152,8 +152,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val reserveSlotsSuccess = lifecycleManager.reserveSlotsWithRetry(
       shuffleId,
       new util.HashSet(res.workerResource.keySet()),
-      res.workerResource,
-      updateEpoch = false)
+      res.workerResource)
 
     if (reserveSlotsSuccess) {
       val allocatedWorkers =
@@ -164,7 +163,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
           allocatedWorkers.put(workerInfo.toUniqueId, partitionLocationInfo)
-          lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
+          lifecycleManager.addNewPartitionLocations(shuffleId, primaryLocations)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }
@@ -207,6 +206,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         shuffleId,
         partitionId,
         -1,
+        0,
         null,
         None)
       changePartitionManager.changePartitionRequests.computeIfAbsent(
@@ -260,8 +260,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val reserveSlotsSuccess = lifecycleManager.reserveSlotsWithRetry(
       shuffleId,
       new util.HashSet(res.workerResource.keySet()),
-      res.workerResource,
-      updateEpoch = false)
+      res.workerResource)
 
     if (reserveSlotsSuccess) {
       val allocatedWorkers =
@@ -287,6 +286,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         shuffleId,
         partitionId,
         -1,
+        0,
         null,
         None)
       changePartitionManager.changePartitionRequests.computeIfAbsent(
@@ -331,8 +331,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val reserveSlotsSuccess = lifecycleManager.reserveSlotsWithRetry(
       shuffleId,
       new util.HashSet(res.workerResource.keySet()),
-      res.workerResource,
-      updateEpoch = false)
+      res.workerResource)
 
     if (reserveSlotsSuccess) {
       val allocatedWorkers =
@@ -359,6 +358,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         shuffleId,
         partitionId,
         -1,
+        0,
         null,
         None)
       changePartitionManager.changePartitionRequests.computeIfAbsent(

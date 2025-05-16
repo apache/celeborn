@@ -81,17 +81,21 @@ class LifecycleManagerReserveSlotsSuite extends AnyFunSuite
       PARTITION_NUM)
 
     // find the worker that has at least 2 partitions
-    val partitionLocationMap1 =
-      shuffleClient1.getPartitionLocation(SHUFFLE_ID, MAP_NUM, PARTITION_NUM)
+    val locationManager1 = shuffleClient1.getLocationManager
 
     val worker2PartitionIds = mutable.Map.empty[WorkerInfo, ArrayBuffer[Int]]
-    for (partitionId <- 0 until PARTITION_NUM) {
-      val partitionLocation = partitionLocationMap1.get(partitionId)
-      assert(partitionLocation.getEpoch == 0)
+    (0 until PARTITION_NUM).foreach(partitionId => {
+      val partitionLocation = locationManager1.getLocationOrReviveAsync(
+        SHUFFLE_ID,
+        partitionId,
+        MAP_ID,
+        ATTEMPT_ID,
+        false,
+        false)
       worker2PartitionIds
         .getOrElseUpdate(partitionLocation.getWorker, ArrayBuffer.empty)
         .append(partitionId)
-    }
+    })
     val partitions = worker2PartitionIds.values.filter(_.size >= 2).head
     assert(partitions.length >= 2)
 
@@ -152,23 +156,47 @@ class LifecycleManagerReserveSlotsSuite extends AnyFunSuite
     }
 
     assert(
-      partitionLocationMap1.get(partitions(0)).getEpoch > 0
+      locationManager1.getLocationOrReviveAsync(
+        SHUFFLE_ID,
+        0,
+        MAP_ID,
+        ATTEMPT_ID,
+        false,
+        false).getEpoch > 0
     ) // means partition(0) will be split
 
     // push merged data, we expect that partition(0) will be split, while partition(1) will not be split
     shuffleClient1.pushMergedData(SHUFFLE_ID, MAP_ID, ATTEMPT_ID)
     shuffleClient1.mapperEnd(SHUFFLE_ID, MAP_ID, ATTEMPT_ID, MAP_NUM)
     // partition(1) will not be split
-    assert(partitionLocationMap1.get(partitions(1)).getEpoch == 0)
+    assert(locationManager1.getLocationOrReviveAsync(
+      SHUFFLE_ID,
+      1,
+      MAP_ID,
+      ATTEMPT_ID,
+      false,
+      false).getEpoch == 0)
 
     val shuffleClient2 = new ShuffleClientImpl(APP, clientConf, UserIdentifier("mock", "mock"))
     shuffleClient2.setupLifecycleManagerRef(lifecycleManager.self)
-    val partitionLocationMap2 =
-      shuffleClient2.getPartitionLocation(SHUFFLE_ID, MAP_NUM, PARTITION_NUM)
+    shuffleClient2.ensureRegistered(SHUFFLE_ID, MAP_NUM, PARTITION_NUM)
+    val locationManager2 = shuffleClient2.getLocationManager
 
     // lifecycleManager response with the latest epoch(epoch of partition(0) is larger than 0 caused by split)
-    assert(partitionLocationMap2.get(partitions(0)).getEpoch > 0)
+    assert(locationManager2.getLocationOrReviveAsync(
+      SHUFFLE_ID,
+      0,
+      MAP_ID,
+      ATTEMPT_ID,
+      false,
+      false).getEpoch > 0)
     // epoch of partition(1) is 0 without split
-    assert(partitionLocationMap2.get(partitions(1)).getEpoch == 0)
+    assert(locationManager2.getLocationOrReviveAsync(
+      SHUFFLE_ID,
+      1,
+      MAP_ID,
+      ATTEMPT_ID,
+      false,
+      false).getEpoch == 0)
   }
 }

@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.protocol;
 
+import java.util.Objects;
+
 import org.apache.celeborn.common.protocol.message.StatusCode;
 
 public class ReviveRequest {
@@ -24,9 +26,10 @@ public class ReviveRequest {
   public int mapId;
   public int attemptId;
   public int partitionId;
-  public int epoch;
   public PartitionLocation loc;
+  public int clientMaxEpoch;
   public StatusCode cause;
+  public boolean urgent;
   public volatile int reviveStatus;
 
   public ReviveRequest(
@@ -34,16 +37,64 @@ public class ReviveRequest {
       int mapId,
       int attemptId,
       int partitionId,
-      int epoch,
       PartitionLocation loc,
-      StatusCode cause) {
+      StatusCode cause,
+      int clientMaxEpoch,
+      boolean urgent) {
     this.shuffleId = shuffleId;
     this.mapId = mapId;
     this.attemptId = attemptId;
     this.partitionId = partitionId;
-    this.epoch = epoch;
     this.loc = loc;
+    this.clientMaxEpoch = clientMaxEpoch;
     this.cause = cause;
+    this.urgent = urgent;
     reviveStatus = StatusCode.REVIVE_INITIALIZED.getValue();
+  }
+
+  @Override
+  public String toString() {
+    return "ReviveRequest{"
+        + "shuffleId="
+        + shuffleId
+        + ", mapId="
+        + mapId
+        + ", attemptId="
+        + attemptId
+        + ", partitionId="
+        + partitionId
+        + ", loc="
+        + loc
+        + ", clientMaxEpoch="
+        + clientMaxEpoch
+        + ", cause="
+        + cause
+        + ", urgent="
+        + urgent
+        + ", reviveStatus="
+        + reviveStatus
+        + '}';
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    ReviveRequest that = (ReviveRequest) o;
+    return shuffleId == that.shuffleId
+        && mapId == that.mapId
+        && attemptId == that.attemptId
+        && partitionId == that.partitionId
+        && clientMaxEpoch == that.clientMaxEpoch
+        && urgent == that.urgent
+        && reviveStatus == that.reviveStatus
+        && loc == that.loc
+        && cause == that.cause;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        shuffleId, mapId, attemptId, partitionId, loc, clientMaxEpoch, cause, urgent, reviveStatus);
   }
 }

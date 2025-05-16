@@ -21,6 +21,8 @@ import java.util.concurrent.atomic.LongAdder;
 
 import org.apache.commons.lang3.tuple.Pair;
 
+import org.apache.celeborn.common.util.TimeSlidingHub;
+
 public class BufferStatusHub extends TimeSlidingHub<BufferStatusHub.BufferStatusNode> {
 
   public static class BufferStatusNode implements TimeSlidingHub.TimeSlidingNode {
