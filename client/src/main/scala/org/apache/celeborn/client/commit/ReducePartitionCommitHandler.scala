@@ -366,6 +366,8 @@ class ReducePartitionCommitHandler(
 
               val serializedMsg =
                 context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
+              logInfo(
+                s"Shuffle $shuffleId GetReducerFileGroupResponse size " + serializedMsg.capacity())
 
               if (getReducerFileGroupResponseBroadcastEnabled &&
                 serializedMsg.capacity() >= getReducerFileGroupResponseBroadcastMiniSize) {
