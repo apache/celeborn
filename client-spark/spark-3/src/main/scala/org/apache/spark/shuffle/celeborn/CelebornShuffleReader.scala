@@ -128,7 +128,7 @@ class CelebornShuffleReader[K, C](
         fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition)
       } catch {
         case ce: CelebornIOException
-            if ce.getCause.isInstanceOf[
+            if ce.getCause != null && ce.getCause.isInstanceOf[
               TimeoutException] && !isShuffleStageEnd && updateFileGroupsRetryTimes < updateFileGroupsMaxRetries =>
           updateFileGroupsRetryTimes += 1
           logInfo(
@@ -140,7 +140,7 @@ class CelebornShuffleReader[K, C](
           // if a task update file group timeout, should not report fetch failure
           checkAndReportFetchFailureForUpdateFileGroupFailure(shuffleId, ce)
       }
-    } while (true)
+    } while (fileGroups == null)
 
     val batchOpenStreamStartTime = System.currentTimeMillis()
     // host-port -> (TransportClient, PartitionLocation Array, PbOpenStreamList)
