@@ -5192,7 +5192,7 @@ object CelebornConf extends Logging {
       .doc("Max retry times for getReducerFileGroup RPC on timeout before LifecycleManager commitFiles completed.")
       .intConf
       .checkValue(v => v > 0, "Value must be positive")
-      .createWithDefault(4)
+      .createWithDefault(6)
 
   val CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.commitFiles.askTimeout")

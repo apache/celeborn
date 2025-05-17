@@ -133,13 +133,12 @@ class CelebornShuffleReader[K, C](
           updateFileGroupsRetryTimes += 1
           logInfo(
             s"UpdateFileGroup for $shuffleKey timeout due to shuffle stage not ended," +
-              s" retry again, retry times $updateFileGroupsRetryTimes",
+              s" retry again, retry times $updateFileGroupsRetryTimes/$updateFileGroupsMaxRetries",
             ce)
         case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
           // if a task is interrupted, should not report fetch failure
           // if a task update file group timeout, should not report fetch failure
           checkAndReportFetchFailureForUpdateFileGroupFailure(shuffleId, ce)
-        case e: Throwable => throw e
       }
     } while (true)
 
