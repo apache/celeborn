@@ -128,7 +128,7 @@ class CelebornShuffleReader[K, C](
         fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition)
       } catch {
         case ce: CelebornIOException
-            if ce.getCause.isInstanceOf[
+            if ce.getCause != null && ce.getCause.isInstanceOf[
               TimeoutException] && !isShuffleStageEnd && updateFileGroupsRetryTimes < updateFileGroupsMaxRetries =>
           updateFileGroupsRetryTimes += 1
           logInfo(

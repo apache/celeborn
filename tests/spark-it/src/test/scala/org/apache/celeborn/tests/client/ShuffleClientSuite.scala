@@ -75,9 +75,7 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
     val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
     assert(res.status == StatusCode.SUCCESS)
     lifecycleManager.registeredShuffle.add(shuffleId)
-    assert(lifecycleManager.registeredShuffle.contains(shuffleId))
-    assert(masterInfo._1.statusSystem.registeredAppAndShuffles.containsKey(APP))
-    assert(masterInfo._1.statusSystem.registeredAppAndShuffles.get(APP).contains(shuffleId))
+    assert(!shuffleClient.isShuffleStageEnd(shuffleId))
     lifecycleManager.commitManager.setStageEnd(shuffleId)
     assert(shuffleClient.isShuffleStageEnd(shuffleId))
   }

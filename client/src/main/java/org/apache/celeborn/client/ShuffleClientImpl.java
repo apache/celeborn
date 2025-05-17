@@ -1884,7 +1884,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               ClassTag$.MODULE$.apply(PbGetStageEndResponse.class));
       return response.getStageEnd();
     } else {
-      return false;
+      throw new RuntimeException("Driver endpoint is null!");
     }
   }
 
