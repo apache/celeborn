@@ -980,9 +980,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       get(CLIENT_RPC_GET_REDUCER_FILE_GROUP_ASK_TIMEOUT).milli,
       CLIENT_RPC_GET_REDUCER_FILE_GROUP_ASK_TIMEOUT.key)
 
-  def clientRpcGetReducerFileGroupMaxRetries: Int =
-    get(CLIENT_RPC_GET_REDUCER_FILE_GROUP_MAX_RETRIES)
-
   def clientRpcCommitFilesAskTimeout: RpcTimeout =
     new RpcTimeout(
       get(CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT).milli,
@@ -5184,15 +5181,6 @@ object CelebornConf extends Logging {
         s"During this process, there are `${CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files " +
         s"and 1 times for releasing slots request. User can customize this value according to your setting.")
       .fallbackConf(RPC_ASK_TIMEOUT)
-
-  val CLIENT_RPC_GET_REDUCER_FILE_GROUP_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.client.rpc.getReducerFileGroup.maxRetries")
-      .categories("client")
-      .version("0.6.0")
-      .doc("Max retry times for getReducerFileGroup RPC on timeout before LifecycleManager commitFiles completed.")
-      .intConf
-      .checkValue(v => v > 0, "Value must be positive")
-      .createWithDefault(6)
 
   val CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.commitFiles.askTimeout")
