@@ -975,6 +975,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       get(CLIENT_RPC_REQUEST_PARTITION_LOCATION_ASK_TIMEOUT).milli,
       CLIENT_RPC_REQUEST_PARTITION_LOCATION_ASK_TIMEOUT.key)
 
+  def clientRpcGetStageEndInterval: Long = get(CLIENT_RPC_GET_STAGE_END_INTERVAL)
+
   def clientRpcGetReducerFileGroupAskTimeout: RpcTimeout =
     new RpcTimeout(
       get(CLIENT_RPC_GET_REDUCER_FILE_GROUP_ASK_TIMEOUT).milli,
@@ -5172,6 +5174,14 @@ object CelebornConf extends Logging {
         s"During this process, there are `${CLIENT_RESERVE_SLOTS_MAX_RETRIES.key}` times for retry opportunities for reserving slots. " +
         s"User can customize this value according to your setting.")
       .fallbackConf(RPC_ASK_TIMEOUT)
+
+  val CLIENT_RPC_GET_STAGE_END_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.rpc.getStageEnd.interval")
+      .categories("client")
+      .version("0.6.0")
+      .doc("Interval for client to get shuffle stage end before getting reducer file group information.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("100ms")
 
   val CLIENT_RPC_GET_REDUCER_FILE_GROUP_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.getReducerFileGroup.askTimeout")
