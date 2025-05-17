@@ -184,6 +184,15 @@ abstract class CommitHandler(
       shuffleId: Int,
       serdeVersion: SerdeVersion): Unit
 
+  /**
+   * Only Reduce partition mode supports get stage end.
+   */
+  def handleGetStageEnd(context: RpcCallContext, shuffleId: Int): Unit = {
+    throw new UnsupportedOperationException(
+      "Failed when do handleGetStageEnd Operation, MapPartition shuffleType don't " +
+        "support stage end")
+  }
+
   def removeExpiredShuffle(shuffleId: Int): Unit = {
     reducerFileGroupsMap.remove(shuffleId)
     shufflePushFailedBatches.remove(shuffleId)

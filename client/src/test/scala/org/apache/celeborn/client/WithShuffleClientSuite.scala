@@ -40,7 +40,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
   private val mapId = 1
   private val attemptId = 0
 
-  private var lifecycleManager: LifecycleManager = _
+  protected var lifecycleManager: LifecycleManager = _
   protected var shuffleClient: ShuffleClientImpl = _
 
   var _shuffleId = 0
@@ -188,7 +188,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     Assert.assertEquals(stream.read(), -1)
   }
 
-  private def prepareService(): Unit = {
+  protected def prepareService(): Unit = {
     lifecycleManager = new LifecycleManager(APP, celebornConf)
     shuffleClient = new ShuffleClientImpl(APP, celebornConf, userIdentifier)
     shuffleClient.setupLifecycleManagerRef(lifecycleManager.self)

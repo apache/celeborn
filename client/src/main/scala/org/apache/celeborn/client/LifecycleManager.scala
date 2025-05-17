@@ -440,6 +440,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         s"Received GetShuffleFileGroup request for shuffleId $shuffleId, isSegmentGranularityVisible $isSegmentGranularityVisible")
       handleGetReducerFileGroup(context, shuffleId, isSegmentGranularityVisible, serdeVersion)
 
+    case pb: PbGetStageEnd =>
+      val shuffleId = pb.getShuffleId
+      logDebug(s"Received GetStageEnd request for shuffleId $shuffleId")
+      handleGetStageEnd(context, shuffleId)
+
     case pb: PbGetShuffleId =>
       val appShuffleId = pb.getAppShuffleId
       val appShuffleIdentifier = pb.getAppShuffleIdentifier
@@ -863,6 +868,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       return
     }
     commitManager.handleGetReducerFileGroup(context, shuffleId, serdeVersion)
+  }
+
+  private def handleGetStageEnd(context: RpcCallContext, shuffleId: Int): Unit = {
+    commitManager.handleGetStageEnd(context, shuffleId)
   }
 
   private def handleGetShuffleIdForApp(
