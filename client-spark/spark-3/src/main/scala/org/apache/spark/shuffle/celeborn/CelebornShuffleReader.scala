@@ -112,6 +112,7 @@ class CelebornShuffleReader[K, C](
     val shuffleKey = Utils.makeShuffleKey(handle.appUniqueId, shuffleId)
     var fileGroups: ReduceFileGroups = null
     var isShuffleStageEnd: Boolean = false
+    val updateFileGroupsMaxRetries = conf.clientRpcGetReducerFileGroupMaxRetries
     var updateFileGroupsRetryTimes = 0
     do {
       isShuffleStageEnd =
@@ -127,7 +128,8 @@ class CelebornShuffleReader[K, C](
         fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition)
       } catch {
         case ce: CelebornIOException
-            if ce.getCause.isInstanceOf[TimeoutException] && !isShuffleStageEnd =>
+            if ce.getCause.isInstanceOf[
+              TimeoutException] && !isShuffleStageEnd && updateFileGroupsRetryTimes < updateFileGroupsMaxRetries =>
           updateFileGroupsRetryTimes += 1
           logInfo(
             s"UpdateFileGroup for $shuffleKey timeout due to shuffle stage not ended," +
