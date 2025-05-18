@@ -27,10 +27,10 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
-import org.apache.celeborn.common.write.PushFailedBatch
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 import org.apache.celeborn.service.deploy.worker.PushDataHandler
 
-class PushFailedBatchSuite extends AnyFunSuite
+class LocationPushFailedBatchesSuite extends AnyFunSuite
   with SparkTestBase
   with BeforeAndAfterEach {
 
@@ -79,9 +79,11 @@ class PushFailedBatchSuite extends AnyFunSuite
     // and PartitionLocation uniqueId will be 0-0
     val pushFailedBatch = manager.commitManager.getCommitHandler(0).getShuffleFailedBatches()
     assert(!pushFailedBatch.isEmpty)
+    val failedBatchObj = new LocationPushFailedBatches()
+    failedBatchObj.addFailedBatch(0, 0, 1)
     Assert.assertEquals(
       pushFailedBatch.get(0).get("0-0"),
-      Sets.newHashSet(new PushFailedBatch(0, 0, 1)))
+      failedBatchObj)
 
     sc.stop()
   }

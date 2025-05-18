@@ -48,7 +48,7 @@ import org.apache.celeborn.common.protocol.*;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.ExceptionMaker;
 import org.apache.celeborn.common.util.Utils;
-import org.apache.celeborn.common.write.PushFailedBatch;
+import org.apache.celeborn.common.write.LocationPushFailedBatches;
 
 public abstract class CelebornInputStream extends InputStream {
   private static final Logger logger = LoggerFactory.getLogger(CelebornInputStream.class);
@@ -60,7 +60,7 @@ public abstract class CelebornInputStream extends InputStream {
       ArrayList<PartitionLocation> locations,
       ArrayList<PbStreamHandler> streamHandlers,
       int[] attempts,
-      Map<String, Set<PushFailedBatch>> failedBatchSetMap,
+      Map<String, LocationPushFailedBatches> failedBatchSetMap,
       Map<String, Pair<Integer, Integer>> chunksRange,
       int attemptNumber,
       long taskId,
@@ -176,7 +176,7 @@ public abstract class CelebornInputStream extends InputStream {
 
     private Map<Integer, Set<Integer>> batchesRead = new HashMap<>();
 
-    private final Map<String, Set<PushFailedBatch>> failedBatches;
+    private final Map<String, LocationPushFailedBatches> failedBatches;
 
     private byte[] compressedBuf;
     private byte[] rawDataBuf;
@@ -223,7 +223,7 @@ public abstract class CelebornInputStream extends InputStream {
         ArrayList<PartitionLocation> locations,
         ArrayList<PbStreamHandler> streamHandlers,
         int[] attempts,
-        Map<String, Set<PushFailedBatch>> failedBatchSet,
+        Map<String, LocationPushFailedBatches> failedBatchSet,
         int attemptNumber,
         long taskId,
         Map<String, Pair<Integer, Integer>> partitionLocationToChunkRange,
@@ -266,7 +266,7 @@ public abstract class CelebornInputStream extends InputStream {
         ArrayList<PartitionLocation> locations,
         ArrayList<PbStreamHandler> streamHandlers,
         int[] attempts,
-        Map<String, Set<PushFailedBatch>> failedBatchSet,
+        Map<String, LocationPushFailedBatches> failedBatchSet,
         int attemptNumber,
         long taskId,
         int startMapIndex,
@@ -758,7 +758,7 @@ public abstract class CelebornInputStream extends InputStream {
           return false;
         }
 
-        PushFailedBatch failedBatch = new PushFailedBatch(-1, -1, -1);
+        LocationPushFailedBatches failedBatch = new LocationPushFailedBatches();
         boolean hasData = false;
         while (currentChunk.isReadable() || moveToNextChunk()) {
           currentChunk.readBytes(sizeBuf);
@@ -784,14 +784,15 @@ public abstract class CelebornInputStream extends InputStream {
           // de-duplicate
           if (attemptId == attempts[mapId]) {
             if (readSkewPartitionWithoutMapRange) {
-              Set<PushFailedBatch> failedBatchSet =
+              LocationPushFailedBatches locationPushFailedBatches =
                   this.failedBatches.get(currentReader.getLocation().getUniqueId());
-              if (null != failedBatchSet) {
-                failedBatch.setMapId(mapId);
-                failedBatch.setAttemptId(attemptId);
-                failedBatch.setBatchId(batchId);
-                if (failedBatchSet.contains(failedBatch)) {
-                  logger.warn("Skip duplicated batch: {}.", failedBatch);
+              if (null != locationPushFailedBatches) {
+                if (locationPushFailedBatches.contains(mapId, attemptId, batchId)) {
+                  logger.warn(
+                      "Skip duplicated batch: mapId={}, attemptId={}, batchId={}",
+                      mapId,
+                      attemptId,
+                      batchId);
                   continue;
                 }
               }
