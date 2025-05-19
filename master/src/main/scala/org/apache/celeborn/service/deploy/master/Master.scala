@@ -724,9 +724,11 @@ private[celeborn] class Master(
     try {
       logInfo(s"Handle lost shuffles for ${appId} ${lostShuffles} ")
       statusSystem.handleReviseLostShuffles(appId, lostShuffles, requestId);
-      lostShuffles.asScala.foreach { shuffleId =>
-        ShuffleAuditLogger.audit(Utils.makeShuffleKey(appId, shuffleId), "REVIVE")
-      }
+      ShuffleAuditLogger.batchAudit(
+        lostShuffles.asScala.map { shuffleId =>
+          Utils.makeShuffleKey(appId, shuffleId)
+        }.mkString(","),
+        "REVIVE")
       if (context != null) {
         context.reply(ReviseLostShufflesResponse(true, ""))
       }
