@@ -428,7 +428,9 @@ object PbSerDeUtils {
       partitionTotalWritten: java.lang.Long,
       partitionTotalFileCount: java.lang.Long,
       shuffleTotalCount: java.lang.Long,
+      applicationTotalCount: java.lang.Long,
       shuffleFallbackCounts: java.util.Map[String, java.lang.Long],
+      applicationFallbackCounts: java.util.Map[String, java.lang.Long],
       lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long],
       shutdownWorkers: java.util.Set[WorkerInfo],
       workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo],
@@ -449,7 +451,9 @@ object PbSerDeUtils {
       .setPartitionTotalWritten(partitionTotalWritten)
       .setPartitionTotalFileCount(partitionTotalFileCount)
       .setShuffleTotalCount(shuffleTotalCount)
+      .setApplicationTotalCount(applicationTotalCount)
       .putAllShuffleFallbackCounts(shuffleFallbackCounts)
+      .putAllApplicationFallbackCounts(applicationFallbackCounts)
       .putAllLostWorkers(lostWorkers.asScala.map {
         case (worker: WorkerInfo, time: java.lang.Long) => (worker.toUniqueId, time)
       }.asJava)
