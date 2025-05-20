@@ -717,6 +717,17 @@ object Utils extends Logging {
     s"$shuffleId-$mapId-$attemptId"
   }
 
+  def makeAttemptKey(mapId: Int, attemptId: Int): String = {
+    s"$mapId-$attemptId"
+  }
+
+  def splitAttemptKey(attemptKey: String): (Int, Int) = {
+    val splits = attemptKey.split("-")
+    val mapId = splits(0).toInt
+    val attemptId = splits(1).toInt
+    (mapId, attemptId)
+  }
+
   def shuffleKeyPrefix(shuffleKey: String): String = {
     shuffleKey + "-"
   }
@@ -1261,4 +1272,10 @@ object Utils extends Logging {
     connectException || rpcTimeout || fetchChunkTimeout
   }
 
+  def makeOpenStreamRequestId(
+      shuffleKey: String,
+      clientChannelId: String,
+      rpcRequestId: Long): String = {
+    s"$shuffleKey-$clientChannelId-$rpcRequestId"
+  }
 }
