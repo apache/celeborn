@@ -20,55 +20,14 @@ package org.apache.celeborn.tests.spark.fetch.failure
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
-import org.apache.spark.{SparkEnv, TaskContext}
+import org.apache.spark.TaskContext
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkCommonUtils, SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
 
-import org.apache.celeborn.client.{LifecycleManager, ShuffleClient}
-import org.apache.celeborn.client.commit.ReducePartitionCommitHandler
+import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 
-class FailCommitShuffleReaderGetHook(
-    conf: CelebornConf)
-  extends ShuffleManagerHook {
-
-  var executed: AtomicBoolean = new AtomicBoolean(false)
-  val lock = new Object
-
-  override def exec(
-      handle: ShuffleHandle,
-      startPartition: Int,
-      endPartition: Int,
-      context: TaskContext): Unit = {
-    if (executed.get()) return
-    lock.synchronized {
-      // this has to be used in local mode since it leverages that the lifecycle manager
-      // is in the same process with reader
-      handle match {
-        case h: CelebornShuffleHandle[_, _, _] => {
-          val shuffleClient = ShuffleClient.get(
-            h.appUniqueId,
-            h.lifecycleManagerHost,
-            h.lifecycleManagerPort,
-            conf,
-            h.userIdentifier,
-            h.extension)
-          val celebornShuffleId = SparkUtils.celebornShuffleId(shuffleClient, h, context, false)
-          val lifecycleManager =
-            SparkEnv.get.shuffleManager.asInstanceOf[TestCelebornShuffleManager]
-              .getLifecycleManager
-          val commitHandler = lifecycleManager.commitManager.getCommitHandler(celebornShuffleId)
-          commitHandler.asInstanceOf[ReducePartitionCommitHandler].dataLostShuffleSet.add(
-            celebornShuffleId)
-          executed.set(true)
-        }
-        case _ => throw new RuntimeException("unexpected, only support RssShuffleHandle here")
-      }
-    }
-  }
-}
-
-class FileDeletionShuffleReaderGetHook(
+class ShuffleReaderGetHooks(
     conf: CelebornConf,
     workerDirs: Seq[String],
     shuffleIdToBeDeleted: Seq[Int] = Seq(),

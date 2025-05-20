@@ -27,7 +27,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.service.deploy.worker.Worker
-import org.apache.celeborn.tests.spark.fetch.failure.FileDeletionShuffleReaderGetHook
+import org.apache.celeborn.tests.spark.fetch.failure.ShuffleReaderGetHooks
 
 class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
   with SparkTestBase
@@ -67,13 +67,13 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
         .getOrCreate()
 
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
-      val hook = new FileDeletionShuffleReaderGetHook(
+      val hook = new ShuffleReaderGetHooks(
         celebornConf,
         workerDirs,
         shuffleIdToBeDeleted = Seq(0))
       TestCelebornShuffleManager.registerReaderGetHook(hook)
       val checkingThread =
-        triggerStorageCheckThread(Seq(0), Seq(1), sparkSession, forStableStatusChecking = false)
+        triggerStorageCheckThread(Seq(0), Seq(1), sparkSession)
       val tuples = sparkSession.sparkContext.parallelize(1 to 10000, 2)
         .map { i => (i, i) }.groupByKey(4).collect()
       checkStorageValidation(checkingThread)
@@ -131,47 +131,12 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
     }
   }
 
-  class CheckingThreadForStableStatus(
-      shuffleIdShouldNotExist: Seq[Int],
-      shuffleIdMustExist: Seq[Int],
-      sparkSession: SparkSession)
-    extends CheckingThread(shuffleIdShouldNotExist, shuffleIdMustExist, sparkSession) {
-    override def run(): Unit = {
-      val timeout = 20000
-      var elapseTime = 0L
-      var allDataInShape = checkDirStatus()
-      while (!allDataInShape) {
-        Thread.sleep(5000)
-        println("init state not meet")
-        allDataInShape = checkDirStatus()
-      }
-      while (allDataInShape) {
-        Thread.sleep(5000)
-        elapseTime += 5000
-        if (elapseTime > timeout) {
-          return
-        }
-        allDataInShape = checkDirStatus()
-        if (!allDataInShape) {
-          exception = new IllegalStateException("the directory state does not meet" +
-            " the expected state")
-          throw exception
-        }
-      }
-    }
-  }
-
   protected def triggerStorageCheckThread(
       shuffleIdShouldNotExist: Seq[Int],
       shuffleIdMustExist: Seq[Int],
-      sparkSession: SparkSession,
-      forStableStatusChecking: Boolean): CheckingThread = {
+      sparkSession: SparkSession): CheckingThread = {
     val checkingThread =
-      if (!forStableStatusChecking) {
-        new CheckingThread(shuffleIdShouldNotExist, shuffleIdMustExist, sparkSession)
-      } else {
-        new CheckingThreadForStableStatus(shuffleIdShouldNotExist, shuffleIdMustExist, sparkSession)
-      }
+      new CheckingThread(shuffleIdShouldNotExist, shuffleIdMustExist, sparkSession)
     checkingThread.setDaemon(true)
     checkingThread.start()
     checkingThread
