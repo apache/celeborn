@@ -179,7 +179,7 @@ class CelebornShuffleReader[K, C](
             case ex: Exception =>
               shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort, ex)
               logWarning(
-                s"Failed to create client for $shuffleKey-${location.getId} from host: ${location.hostAndFetchPort}. " +
+                s"Failed to create client for $shuffleKey-${location.getId} from host: ${hostPort}. " +
                   s"Shuffle reader will try its replica if exists.")
           }
         }
