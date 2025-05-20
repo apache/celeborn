@@ -20,18 +20,20 @@ package org.apache.celeborn.tests.spark
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 
-import org.apache.spark.{BarrierTaskContext, ShuffleDependency, SparkContextHelper, SparkException, TaskContext}
+import org.apache.spark.{BarrierTaskContext, ShuffleDependency, SparkConf, SparkContextHelper, SparkException, TaskContext}
 import org.apache.spark.celeborn.ExceptionMakerHelper
 import org.apache.spark.rdd.RDD
 import org.apache.spark.shuffle.celeborn.{SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
+import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.tests.spark.fetch.failure.{FetchFailureTestBase, FileDeletionShuffleReaderGetHook}
+import org.apache.celeborn.common.protocol.ShuffleMode
+import org.apache.celeborn.tests.spark.fetch.failure.FileDeletionShuffleReaderGetHook
 
 class CelebornFetchFailureSuite extends AnyFunSuite
-  with FetchFailureTestBase
+  with SparkTestBase
   with BeforeAndAfterEach {
 
   override def beforeEach(): Unit = {
@@ -44,7 +46,16 @@ class CelebornFetchFailureSuite extends AnyFunSuite
 
   test("celeborn spark integration test - Fetch Failure") {
     if (Spark3OrNewer) {
-      val sparkSession = createSparkSession()
+      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+      val sparkSession = SparkSession.builder()
+        .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+        .config("spark.sql.shuffle.partitions", 2)
+        .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+        .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
+        .config(
+          "spark.shuffle.manager",
+          "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+        .getOrCreate()
 
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new FileDeletionShuffleReaderGetHook(celebornConf, workerDirs)
@@ -76,7 +87,13 @@ class CelebornFetchFailureSuite extends AnyFunSuite
 
   test("celeborn spark integration test - unregister shuffle with throwsFetchFailure disabled") {
     if (Spark3OrNewer) {
-      val sparkSession = createSparkSession()
+      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+      val sparkSession = SparkSession.builder()
+        .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+        .config("spark.sql.shuffle.partitions", 2)
+        .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+        .config("spark.celeborn.client.spark.stageRerun.enabled", "false")
+        .getOrCreate()
 
       val value = Range(1, 10000).mkString(",")
       val tuples = sparkSession.sparkContext.parallelize(1 to 10000, 2)
@@ -102,7 +119,16 @@ class CelebornFetchFailureSuite extends AnyFunSuite
 
   test("celeborn spark integration test - Fetch Failure with multiple shuffle data") {
     if (Spark3OrNewer) {
-      val sparkSession = createSparkSession()
+      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+      val sparkSession = SparkSession.builder()
+        .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+        .config("spark.sql.shuffle.partitions", 2)
+        .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+        .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
+        .config(
+          "spark.shuffle.manager",
+          "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+        .getOrCreate()
 
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new FileDeletionShuffleReaderGetHook(celebornConf, workerDirs)
@@ -124,7 +150,16 @@ class CelebornFetchFailureSuite extends AnyFunSuite
 
   test("celeborn spark integration test - Fetch Failure with RDD reuse") {
     if (Spark3OrNewer) {
-      val sparkSession = createSparkSession()
+      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+      val sparkSession = SparkSession.builder()
+        .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+        .config("spark.sql.shuffle.partitions", 2)
+        .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+        .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
+        .config(
+          "spark.shuffle.manager",
+          "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+        .getOrCreate()
 
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new FileDeletionShuffleReaderGetHook(celebornConf, workerDirs)
@@ -155,7 +190,16 @@ class CelebornFetchFailureSuite extends AnyFunSuite
 
   test("celeborn spark integration test - Fetch Failure with read write shuffles in one stage") {
     if (Spark3OrNewer) {
-      val sparkSession = createSparkSession()
+      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+      val sparkSession = SparkSession.builder()
+        .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+        .config("spark.sql.shuffle.partitions", 2)
+        .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+        .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
+        .config(
+          "spark.shuffle.manager",
+          "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+        .getOrCreate()
 
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new FileDeletionShuffleReaderGetHook(celebornConf, workerDirs)
@@ -177,7 +221,13 @@ class CelebornFetchFailureSuite extends AnyFunSuite
 
   test("celeborn spark integration test - empty shuffle data") {
     if (Spark3OrNewer) {
-      val sparkSession = createSparkSession(overrideShuffleMgr = false)
+      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+      val sparkSession = SparkSession.builder()
+        .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+        .config("spark.sql.shuffle.partitions", 2)
+        .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+        .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
+        .getOrCreate()
 
       sparkSession.sql("create table if not exists t_1 (a bigint) using parquet")
       sparkSession.sql("create table if not exists t_2 (a bigint) using parquet")
@@ -192,7 +242,17 @@ class CelebornFetchFailureSuite extends AnyFunSuite
   }
 
   test(s"celeborn spark integration test - resubmit an unordered barrier stage with throwsFetchFailure enabled") {
-    val sparkSession = createSparkSession()
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
+    val sparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .config("spark.sql.shuffle.partitions", 2)
+      .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+      .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
+      .config("spark.celeborn.client.push.buffer.max.size", 0)
+      .config(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+      .getOrCreate()
 
     try {
       val sc = sparkSession.sparkContext
@@ -226,7 +286,17 @@ class CelebornFetchFailureSuite extends AnyFunSuite
   }
 
   test(s"celeborn spark integration test - fetch failure in child of an unordered barrier stage with throwsFetchFailure enabled") {
-    val sparkSession = createSparkSession()
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
+    val sparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .config("spark.sql.shuffle.partitions", 2)
+      .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+      .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
+      .config("spark.celeborn.client.push.buffer.max.size", 0)
+      .config(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+      .getOrCreate()
 
     try {
       val sc = sparkSession.sparkContext
@@ -262,7 +332,19 @@ class CelebornFetchFailureSuite extends AnyFunSuite
   }
 
   test(s"celeborn spark integration test - resubmit a failed barrier stage across jobs") {
-    val sparkSession = createSparkSession()
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
+    val sparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .config("spark.sql.shuffle.partitions", 2)
+      .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+      .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
+      .config("spark.celeborn.client.push.buffer.max.size", 0)
+      .config("spark.stage.maxConsecutiveAttempts", "1")
+      .config("spark.stage.maxAttempts", "1")
+      .config(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+      .getOrCreate()
 
     // trigger failure
     CelebornFetchFailureSuite.triggerFailure.set(true)
