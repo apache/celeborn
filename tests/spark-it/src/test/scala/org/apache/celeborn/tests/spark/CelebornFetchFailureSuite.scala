@@ -194,7 +194,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
   }
 
   test(s"celeborn spark integration test - resubmit an unordered barrier stage with throwsFetchFailure enabled") {
-    val sparkSession = createSparkSession(overrideShuffleMgr = false)
+    val sparkSession = createSparkSession()
 
     try {
       val sc = sparkSession.sparkContext
