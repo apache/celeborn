@@ -264,7 +264,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
   }
 
   test(s"celeborn spark integration test - resubmit a failed barrier stage across jobs") {
-    val sparkSession = createSparkSession(overrideShuffleMgr = false)
+    val sparkSession = createSparkSession()
 
     // trigger failure
     CelebornFetchFailureSuite.triggerFailure.set(true)
