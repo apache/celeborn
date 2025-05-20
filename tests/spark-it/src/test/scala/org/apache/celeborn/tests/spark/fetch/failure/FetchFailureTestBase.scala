@@ -45,7 +45,6 @@ private[tests] trait FetchFailureTestBase extends SparkTestBase {
       .config("spark.kryoserializer.buffer.max", "2047m")
       .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
 
-
     baseBuilder =
       if (overrideShuffleMgr) {
         baseBuilder.config(
@@ -58,7 +57,7 @@ private[tests] trait FetchFailureTestBase extends SparkTestBase {
       if (enableFailedShuffleCleaner) {
         baseBuilder.config("spark.celeborn.client.spark.fetch.cleanFailedShuffle", "true")
       } else {
-        baseBuilder.config("spark.celeborn.client.spark.stageRerun.enabled", "false")
+        baseBuilder
       }
     baseBuilder.getOrCreate()
   }
