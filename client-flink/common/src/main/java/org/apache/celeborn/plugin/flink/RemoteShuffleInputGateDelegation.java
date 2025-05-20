@@ -128,6 +128,7 @@ public class RemoteShuffleInputGateDelegation {
   private AvailabilityProvider.AvailabilityHelper availabilityHelper;
   private int startSubIndex;
   private int endSubIndex;
+  private boolean partitionConnectionExceptionEnabled;
 
   public RemoteShuffleInputGateDelegation(
       CelebornConf celebornConf,
@@ -178,6 +179,7 @@ public class RemoteShuffleInputGateDelegation {
     channelsInfo = createChannelInfos();
     this.numConcurrentReading = numConcurrentReading;
     this.availabilityHelper = availabilityHelper;
+    this.partitionConnectionExceptionEnabled = celebornConf.partitionConnectionExceptionEnabled();
     LOG.debug("Initial input gate with numConcurrentReading {}", this.numConcurrentReading);
   }
 
@@ -263,13 +265,12 @@ public class RemoteShuffleInputGateDelegation {
         }
         Class<?> clazz = PartitionUnRetryAbleException.class;
         String message = throwable.getMessage();
-        cause = throwable;
-        if (null != message) {
-          if (message.contains(clazz.getName())) {
-            cause = new PartitionNotFoundException(rpID);
-          } else if (message.contains("Failed to connect to")) {
-            cause = new PartitionConnectionException(rpID, throwable);
-          }
+        if (null != message && message.contains(clazz.getName())) {
+          cause = new PartitionNotFoundException(rpID);
+        } else if (null != message && message.contains("Failed to connect to") && partitionConnectionExceptionEnabled) {
+          cause = new PartitionConnectionException(rpID, throwable);
+        } else {
+          cause = throwable;
         }
         availabilityHelper.getUnavailableToResetAvailable().complete(null);
       }
