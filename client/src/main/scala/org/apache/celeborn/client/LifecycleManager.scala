@@ -1961,6 +1961,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         }
       })
   }
-    
+
   def getShuffleIdMapping = shuffleIdMapping
 }
