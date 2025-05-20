@@ -113,7 +113,8 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
           ctx.executor()
               .scheduleWithFixedDelay(
                   () -> {
-                    logger.debug("send heartbeat");
+                    logger.debug(
+                        "Send heartbeat to {}.", NettyUtils.getRemoteAddress(ctx.channel()));
                     ctx.writeAndFlush(new Heartbeat());
                   },
                   0,
@@ -152,8 +153,18 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
 
   @Override
   public void channelRead(ChannelHandlerContext ctx, Object request) throws Exception {
-    if (request instanceof RequestMessage && !(request instanceof Heartbeat)) {
-      requestHandler.handle((RequestMessage) request);
+    if (request instanceof RequestMessage) {
+      if (request instanceof Heartbeat) {
+        logger.debug("Received heartbeat from {}.", NettyUtils.getRemoteAddress(ctx.channel()));
+        if (!enableHeartbeat) {
+          // When heartbeat is disabled, we should still response to a heartbeat if peer has
+          // heartbeat enabled - to present reading idleness.
+          requestHandler.processHeartbeat();
+        }
+        ctx.fireChannelRead(request);
+      } else {
+        requestHandler.handle((RequestMessage) request);
+      }
     } else if (request instanceof ResponseMessage) {
       responseHandler.handle((ResponseMessage) request);
     } else {

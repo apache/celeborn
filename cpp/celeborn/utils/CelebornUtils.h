@@ -35,6 +35,18 @@ namespace utils {
 #define CELEBORN_SHUTDOWN_LOG(severity) \
   LOG(severity) << CELEBORN_SHUTDOWN_LOG_PREFIX
 
+template <typename T>
+std::vector<T> toVector(const std::set<T>& in) {
+  std::vector<T> out{};
+  out.reserve(in.size());
+  for (const auto& i : in) {
+    out.emplace_back(i);
+  }
+  return std::move(out);
+}
+
+std::string makeShuffleKey(const std::string& appId, int shuffleId);
+
 void writeUTF(memory::WriteOnlyByteBuffer& buffer, const std::string& msg);
 
 void writeRpcAddress(
@@ -50,7 +62,7 @@ inline Timeout toTimeout(Duration duration) {
 
 /// parse string like "Any-Host-Str:Port#1:Port#2:...:Port#num", split into
 /// {"Any-Host-Str", "Port#1", "Port#2", ..., "Port#num"}. Note that the
-/// "Any-Host_Str" might contain ':' in IPV6 address.
+/// "Any-Host-Str" might contain ':' in IPV6 address.
 std::vector<std::string_view> parseColonSeparatedHostPorts(
     const std::string_view& s,
     int num);

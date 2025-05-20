@@ -34,6 +34,7 @@ import org.apache.celeborn.client.listener.{WorkersStatus, WorkerStatusListener}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
+import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, StorageInfo}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
@@ -41,7 +42,7 @@ import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.common.util.ThreadUtils
-import org.apache.celeborn.common.write.PushFailedBatch
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 
 case class ShuffleCommittedInfo(
     // partition id -> unique partition ids
@@ -218,7 +219,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
       attemptId: Int,
       numMappers: Int,
       partitionId: Int = -1,
-      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]] = Collections.emptyMap())
+      pushFailedBatches: util.Map[String, LocationPushFailedBatches] = Collections.emptyMap())
       : (Boolean, Boolean) = {
     getCommitHandler(shuffleId).finishMapperAttempt(
       shuffleId,
@@ -275,8 +276,15 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     getCommitHandler(shuffleId).waitStageEnd(shuffleId)
   }
 
-  def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
-    getCommitHandler(shuffleId).handleGetReducerFileGroup(context, shuffleId)
+  def handleGetReducerFileGroup(
+      context: RpcCallContext,
+      shuffleId: Int,
+      serdeVersion: SerdeVersion): Unit = {
+    getCommitHandler(shuffleId).handleGetReducerFileGroup(context, shuffleId, serdeVersion)
+  }
+
+  def handleGetStageEnd(context: RpcCallContext, shuffleId: Int): Unit = {
+    getCommitHandler(shuffleId).handleGetStageEnd(context, shuffleId)
   }
 
   // exposed for test
@@ -292,7 +300,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
               lifecycleManager.shuffleAllocatedWorkers,
               committedPartitionInfo,
               lifecycleManager.workerStatusTracker,
-              lifecycleManager.rpcSharedThreadPool)
+              lifecycleManager.rpcSharedThreadPool,
+              lifecycleManager)
           case PartitionType.MAP => new MapPartitionCommitHandler(
               appUniqueId,
               conf,

@@ -61,7 +61,7 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
   }
 
   test("celeborn flink heartbeat test - client <- worker timeout") {
-    val (_, clientConf) = getTestHeartbeatFromWorker2ClientWithCloseChannelConf
+    val (_, clientConf) = getTestHeartbeatFromWorker2ClientWithWorkerTimeoutConf
     val flinkShuffleClientImpl =
       new FlinkShuffleClientImpl(
         "",
@@ -73,6 +73,6 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
         -1) {
         override def setupLifecycleManagerRef(host: String, port: Int): Unit = {}
       }
-    testHeartbeatFromWorker2ClientWithCloseChannel(flinkShuffleClientImpl.getDataClientFactory)
+    testHeartbeatFromWorker2ClientWithWorkerTimeout(flinkShuffleClientImpl.getDataClientFactory)
   }
 }

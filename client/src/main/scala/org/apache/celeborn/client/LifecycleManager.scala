@@ -24,7 +24,7 @@ import java.util
 import java.util.{function, List => JList}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
-import java.util.function.{BiConsumer, Consumer}
+import java.util.function.{BiConsumer, BiFunction, Consumer}
 
 import scala.collection.JavaConverters._
 import scala.collection.generic.CanBuildFrom
@@ -45,6 +45,7 @@ import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ApplicationMeta, ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.source.Role
+import org.apache.celeborn.common.network.protocol.{SerdeVersion, TransportMessagesHelper}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
@@ -58,7 +59,7 @@ import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Ut
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
 import org.apache.celeborn.common.util.Utils.UNKNOWN_APP_SHUFFLE_ID
-import org.apache.celeborn.common.write.PushFailedBatch
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 
 object LifecycleManager {
   // shuffle id -> partition id -> partition locations
@@ -66,7 +67,7 @@ object LifecycleManager {
     ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[PartitionLocation]]]
   // shuffle id -> partition uniqueId -> PushFailedBatch set
   type ShufflePushFailedBatches =
-    ConcurrentHashMap[Int, util.HashMap[String, util.Set[PushFailedBatch]]]
+    ConcurrentHashMap[Int, util.HashMap[String, LocationPushFailedBatches]]
   type ShuffleAllocatedWorkers =
     ConcurrentHashMap[Int, ConcurrentHashMap[String, ShufflePartitionLocationInfo]]
   type ShuffleFailedWorkers = ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]
@@ -90,7 +91,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   val shuffleCount = new LongAdder()
+  val applicationCount = new LongAdder()
   val shuffleFallbackCounts = JavaUtils.newConcurrentHashMap[String, java.lang.Long]()
+  val applicationFallbackCounts = JavaUtils.newConcurrentHashMap[String, java.lang.Long]()
   // maintain each shuffle's map relation of WorkerInfo and partition location
   val shuffleAllocatedWorkers = new ShuffleAllocatedWorkers
   // shuffle id -> (partitionId -> newest PartitionLocation)
@@ -145,6 +148,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       locations: util.List[PartitionLocation]): Unit = {
     val map = latestPartitionLocation.computeIfAbsent(shuffleId, newMapFunc)
     locations.asScala.foreach(location => map.put(location.getId, location))
+    invalidateLatestMaxLocsCache(shuffleId)
   }
 
   case class RegisterCallContext(context: RpcCallContext, partitionId: Int = -1) {
@@ -221,20 +225,24 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       masterClient,
       () => {
         commitManager.commitMetrics() ->
-          (shuffleCount.sumThenReset(), resetShuffleFallbackCounts())
+          (shuffleCount.sumThenReset(), applicationCount.sumThenReset(), resetFallbackCounts(
+            shuffleFallbackCounts), resetFallbackCounts(applicationFallbackCounts))
       },
       workerStatusTracker,
       registeredShuffle,
       reason => cancelAllActiveStages(reason))
-  private def resetShuffleFallbackCounts(): Map[String, java.lang.Long] = {
+  private def resetFallbackCounts(counts: ConcurrentHashMap[String, java.lang.Long])
+      : Map[String, java.lang.Long] = {
     val fallbackCounts = new util.HashMap[String, java.lang.Long]()
-    shuffleFallbackCounts.keys().asScala.foreach { key =>
-      Option(shuffleFallbackCounts.remove(key)).filter(_ > 0).foreach(fallbackCounts.put(key, _))
+    counts.keys().asScala.foreach { key =>
+      Option(counts.remove(key)).filter(_ > 0).foreach(fallbackCounts.put(key, _))
     }
     fallbackCounts.asScala.toMap
   }
   private val changePartitionManager = new ChangePartitionManager(conf, this)
   private val releasePartitionManager = new ReleasePartitionManager(conf, this)
+
+  private val messagesHelper: TransportMessagesHelper = new TransportMessagesHelper()
 
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
   // `masterClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
@@ -286,6 +294,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         workerRpcEnvInUse.awaitTermination()
       }
     }
+    messagesHelper.close()
   }
 
   /**
@@ -381,7 +390,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         } else {
           oldPartitions.add(null)
         }
-        causes.add(Utils.toStatusCode(info.getStatus))
+        causes.add(StatusCode.fromValue(info.getStatus))
       }
       logDebug(s"Received Revive request, number of partitions ${partitionIds.size()}")
       handleRevive(
@@ -427,10 +436,18 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           throw new UnsupportedOperationException(s"Not support $partitionType yet")
       }
 
-    case GetReducerFileGroup(shuffleId: Int, isSegmentGranularityVisible: Boolean) =>
+    case GetReducerFileGroup(
+          shuffleId: Int,
+          isSegmentGranularityVisible: Boolean,
+          serdeVersion: SerdeVersion) =>
       logDebug(
         s"Received GetShuffleFileGroup request for shuffleId $shuffleId, isSegmentGranularityVisible $isSegmentGranularityVisible")
-      handleGetReducerFileGroup(context, shuffleId, isSegmentGranularityVisible)
+      handleGetReducerFileGroup(context, shuffleId, isSegmentGranularityVisible, serdeVersion)
+
+    case pb: PbGetStageEnd =>
+      val shuffleId = pb.getShuffleId
+      logDebug(s"Received GetStageEnd request for shuffleId $shuffleId")
+      handleGetStageEnd(context, shuffleId)
 
     case pb: PbGetShuffleId =>
       val appShuffleId = pb.getAppShuffleId
@@ -547,12 +564,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 shuffleId,
                 rpcContext,
                 partitionId,
-                getInitialLocs(shuffleId, p => p.getId == partitionId))
+                getLatestLocs(shuffleId, p => p.getId == partitionId))
             case PartitionType.REDUCE =>
               if (rpcContext.isInstanceOf[LocalNettyRpcCallContext]) {
                 context.reply(RegisterShuffleResponse(
                   StatusCode.SUCCESS,
-                  getInitialLocs(shuffleId, p => p.getEpoch == 0)))
+                  getLatestLocs(shuffleId, _ => true)))
               } else {
                 val cachedMsg = registerShuffleResponseRpcCache.get(
                   shuffleId,
@@ -561,7 +578,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                       rpcContext.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(
                         RegisterShuffleResponse(
                           StatusCode.SUCCESS,
-                          getInitialLocs(shuffleId, p => p.getEpoch == 0)))
+                          getLatestLocs(shuffleId, _ => true)))
                     }
                   })
                 rpcContext.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
@@ -580,13 +597,23 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       }
     }
 
-    def getInitialLocs(
+    def getLatestLocs(
         shuffleId: Int,
         partitionLocationFilter: PartitionLocation => Boolean): Array[PartitionLocation] = {
       workerSnapshots(shuffleId)
         .values()
         .asScala
-        .flatMap(_.getAllPrimaryLocationsWithMinEpoch())
+        .flatMap(
+          _.getAllPrimaryLocationsWithMaxEpoch()
+        ) // get the partition with latest epoch of each worker
+        .foldLeft(Map.empty[Int, PartitionLocation]) { (partitionLocationMap, partitionLocation) =>
+          partitionLocationMap.get(partitionLocation.getId) match {
+            case Some(existing) if existing.getEpoch >= partitionLocation.getEpoch =>
+              partitionLocationMap
+            case _ => partitionLocationMap + (partitionLocation.getId -> partitionLocation)
+          }
+        } // get the partition with latest epoch of all the partitions
+        .values
         .filter(partitionLocationFilter)
         .toArray
     }
@@ -807,7 +834,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       mapId: Int,
       attemptId: Int,
       numMappers: Int,
-      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]]): Unit = {
+      pushFailedBatches: util.Map[String, LocationPushFailedBatches]): Unit = {
 
     val (mapperAttemptFinishedSuccess, allMapperFinished) =
       commitManager.finishMapperAttempt(
@@ -830,7 +857,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private def handleGetReducerFileGroup(
       context: RpcCallContext,
       shuffleId: Int,
-      isSegmentGranularityVisible: Boolean): Unit = {
+      isSegmentGranularityVisible: Boolean,
+      serdeVersion: SerdeVersion): Unit = {
     // If isSegmentGranularityVisible is set to true, the downstream reduce task may start early than upstream map task, e.g. flink hybrid shuffle.
     // Under these circumstances, there's a possibility that the shuffle might not yet be registered when the downstream reduce task send GetReduceFileGroup request,
     // so we shouldn't send a SHUFFLE_NOT_REGISTERED response directly, should enqueue this request to pending list, and response to the downstream reduce task the ReduceFileGroup when the upstream map task register shuffle done
@@ -839,10 +867,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       context.reply(GetReducerFileGroupResponse(
         StatusCode.SHUFFLE_NOT_REGISTERED,
         JavaUtils.newConcurrentHashMap(),
-        Array.empty))
+        Array.empty,
+        serdeVersion = serdeVersion))
       return
     }
-    commitManager.handleGetReducerFileGroup(context, shuffleId)
+    commitManager.handleGetReducerFileGroup(context, shuffleId, serdeVersion)
+  }
+
+  private def handleGetStageEnd(context: RpcCallContext, shuffleId: Int): Unit = {
+    commitManager.handleGetStageEnd(context, shuffleId)
   }
 
   private def handleGetShuffleIdForApp(
@@ -872,7 +905,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     if (shuffleIds == null) {
       logWarning(s"unknown appShuffleId $appShuffleId, maybe no shuffle data for this shuffle")
       val pbGetShuffleIdResponse =
-        PbGetShuffleIdResponse.newBuilder().setShuffleId(UNKNOWN_APP_SHUFFLE_ID).build()
+        PbGetShuffleIdResponse.newBuilder().setShuffleId(UNKNOWN_APP_SHUFFLE_ID).setSuccess(
+          true).build()
       context.reply(pbGetShuffleIdResponse)
       return
     }
@@ -886,7 +920,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         shuffleIds.get(appShuffleIdentifier) match {
           case Some((shuffleId, _)) =>
             val pbGetShuffleIdResponse =
-              PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).build()
+              PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).setSuccess(true).build()
             context.reply(pbGetShuffleIdResponse)
           case None =>
             Option(appShuffleDeterminateMap.get(appShuffleId)).map { determinate =>
@@ -894,7 +928,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 // For barrier stages, all tasks are re-executed when it is re-run : similar to indeterminate stage.
                 // So if a barrier stage is getting reexecuted, previous stage/attempt needs to
                 // be cleaned up as it is entirely unusuable
-                if (determinate && !isBarrierStage)
+                if (determinate && !isBarrierStage && !isCelebornSkewShuffleOrChildShuffle(
+                    appShuffleId))
                   shuffleIds.values.toSeq.reverse.find(e => e._2 == true)
                 else
                   None
@@ -919,7 +954,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                   newShuffleId
                 }
               val pbGetShuffleIdResponse =
-                PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).build()
+                PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).setSuccess(true).build()
               context.reply(pbGetShuffleIdResponse)
             }.orElse(
               throw new UnsupportedOperationException(
@@ -932,12 +967,17 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             val pbGetShuffleIdResponse = {
               logDebug(
                 s"get shuffleId $shuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier isWriter $isWriter")
-              PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).build()
+              PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).setSuccess(true).build()
             }
             context.reply(pbGetShuffleIdResponse)
           case None =>
-            throw new UnsupportedOperationException(
-              s"unexpected! there is no finished map stage associated with appShuffleId $appShuffleId")
+            val pbGetShuffleIdResponse = {
+              logInfo(
+                s"there is no finished map stage associated with appShuffleId $appShuffleId")
+              PbGetShuffleIdResponse.newBuilder().setShuffleId(UNKNOWN_APP_SHUFFLE_ID).setSuccess(
+                false).build()
+            }
+            context.reply(pbGetShuffleIdResponse)
         }
       }
     }
@@ -1042,6 +1082,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
+  private def isCelebornSkewShuffleOrChildShuffle(appShuffleId: Int): Boolean = {
+    celebornSkewShuffleCheckCallback match {
+      case Some(skewShuffleCallback) =>
+        skewShuffleCallback.apply(appShuffleId)
+      case None => false
+    }
+  }
+
   private def handleStageEnd(shuffleId: Int): Unit = {
     // check whether shuffle has registered
     if (!registeredShuffle.contains(shuffleId)) {
@@ -1083,12 +1131,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       }
     }
 
-    val (mapperAttemptFinishedSuccess, _) = commitManager.finishMapperAttempt(
-      shuffleId,
-      mapId,
-      attemptId,
-      numMappers,
-      partitionId)
+    val (mapperAttemptFinishedSuccess, _) =
+      commitManager.finishMapperAttempt(shuffleId, mapId, attemptId, numMappers, partitionId)
     reply(mapperAttemptFinishedSuccess)
   }
 
@@ -1168,10 +1212,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             rangeReadFilter,
             userIdentifier,
             conf.pushDataTimeoutMs,
-            if (getPartitionType(shuffleId) == PartitionType.MAP)
-              conf.clientShuffleMapPartitionSplitEnabled
-            else true,
-            isSegmentGranularityVisible))
+            partitionSplitEnabled = true,
+            isSegmentGranularityVisible = isSegmentGranularityVisible))
         futures.add((future, workerInfo))
       }(ec)
     }
@@ -1482,7 +1524,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       candidates(primaryIndex).fetchPort,
       candidates(primaryIndex).replicatePort,
       PartitionLocation.Mode.PRIMARY)
-
+    primaryLocation.getStorageInfo.availableStorageTypes = availableStorageTypes
     if (pushReplicateEnabled) {
       var replicaIndex = (primaryIndex + 1) % candidates.size
       while (pushRackAwareEnabled && isOnSameRack(primaryIndex, replicaIndex)
@@ -1503,6 +1545,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         candidates(replicaIndex).replicatePort,
         PartitionLocation.Mode.REPLICA,
         primaryLocation)
+      replicaLocation.getStorageInfo.availableStorageTypes = availableStorageTypes
       primaryLocation.setPeer(replicaLocation)
       val primaryAndReplicaPairs = slots.computeIfAbsent(candidates(replicaIndex), newLocationFunc)
       primaryAndReplicaPairs._2.add(replicaLocation)
@@ -1647,12 +1690,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           val unregisterShuffleResponse = requestMasterUnregisterShuffle(
             UnregisterShuffle(appUniqueId, shuffleId, MasterClient.genRequestId()))
           // if unregister shuffle not success, wait next turn
-          if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
+          if (StatusCode.SUCCESS == StatusCode.fromValue(unregisterShuffleResponse.getStatus)) {
             unregisterShuffleTime.remove(shuffleId)
           }
         } else {
           batchRemoveShuffleIds += shuffleId
         }
+        invalidatedBroadcastGetReducerFileGroupResponse(shuffleId)
       }
     }
     if (batchRemoveShuffleIds.nonEmpty) {
@@ -1661,7 +1705,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           appUniqueId,
           batchRemoveShuffleIds.asJava,
           MasterClient.genRequestId()))
-      if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
+      if (StatusCode.SUCCESS == StatusCode.fromValue(unregisterShuffleResponse.getStatus)) {
         batchRemoveShuffleIds.foreach { shuffleId: Integer =>
           unregisterShuffleTime.remove(shuffleId)
         }
@@ -1782,7 +1826,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
-  // Once a partition is released, it will be never needed anymore
+  // Once a partition is released, it will never be needed anymore
   def releasePartition(shuffleId: Int, partitionId: Int): Unit = {
     commitManager.releasePartitionResource(shuffleId, partitionId)
     val partitionLocation = latestPartitionLocation.get(shuffleId)
@@ -1824,6 +1868,33 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     cancelShuffleCallback = Some(callback)
   }
 
+  @volatile private var broadcastGetReducerFileGroupResponseCallback
+      : Option[java.util.function.BiFunction[Integer, GetReducerFileGroupResponse, Array[Byte]]] =
+    None
+  def registerBroadcastGetReducerFileGroupResponseCallback(call: java.util.function.BiFunction[
+    Integer,
+    GetReducerFileGroupResponse,
+    Array[Byte]]): Unit = {
+    broadcastGetReducerFileGroupResponseCallback = Some(call)
+  }
+
+  @volatile private var invalidatedBroadcastCallback: Option[Consumer[Integer]] =
+    None
+  def registerInvalidatedBroadcastCallback(call: Consumer[Integer]): Unit = {
+    invalidatedBroadcastCallback = Some(call)
+  }
+
+  def invalidateLatestMaxLocsCache(shuffleId: Int): Unit = {
+    registerShuffleResponseRpcCache.invalidate(shuffleId)
+  }
+
+  @volatile private var celebornSkewShuffleCheckCallback
+      : Option[function.Function[Integer, Boolean]] = None
+  def registerCelebornSkewShuffleCheckCallback(callback: function.Function[Integer, Boolean])
+      : Unit = {
+    celebornSkewShuffleCheckCallback = Some(callback)
+  }
+
   // Initialize at the end of LifecycleManager construction.
   initialize()
 
@@ -1854,4 +1925,31 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     case _ =>
   }
 
+  def broadcastGetReducerFileGroupResponse(
+      shuffleId: Int,
+      response: GetReducerFileGroupResponse): Option[Array[Byte]] = {
+    broadcastGetReducerFileGroupResponseCallback match {
+      case Some(c) => Option(c.apply(shuffleId, response))
+      case _ => None
+    }
+  }
+
+  private def invalidatedBroadcastGetReducerFileGroupResponse(shuffleId: Int): Unit = {
+    invalidatedBroadcastCallback match {
+      case Some(c) => c.accept(shuffleId)
+      case _ =>
+    }
+  }
+
+  def computeFallbackCounts(
+      fallbackCounts: ConcurrentHashMap[String, java.lang.Long],
+      fallbackPolicy: String): Unit = {
+    fallbackCounts.compute(
+      fallbackPolicy,
+      new BiFunction[String, java.lang.Long, java.lang.Long] {
+        override def apply(k: String, v: java.lang.Long): java.lang.Long = {
+          if (v == null) 1L else v + 1L
+        }
+      })
+  }
 }

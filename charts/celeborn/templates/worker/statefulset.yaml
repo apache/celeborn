@@ -18,23 +18,21 @@ limitations under the License.
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "celeborn.workerStatefulSetName" . }}
+  name: {{ include "celeborn.worker.statefulSet.name" . }}
   labels:
-    {{- include "celeborn.labels" . | nindent 4 }}
-    app.kubernetes.io/role: worker
+    {{- include "celeborn.worker.labels" . | nindent 4 }}
 spec:
-  serviceName: {{ include "celeborn.workerServiceName" . }}
+  replicas: {{ .Values.worker.replicas }}
+  serviceName: {{ include "celeborn.worker.service.name" . }}
   selector:
     matchLabels:
-      {{- include "celeborn.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/role: worker
+      {{- include "celeborn.worker.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "celeborn.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/role: worker
+        {{- include "celeborn.worker.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/tag: {{ .Values.image.tag | quote }}
-      {{- with .Values.podAnnotations }}
+      {{- with .Values.worker.annotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -50,7 +48,7 @@ spec:
         {{- end }}
         command:
         - chown
-        - {{ .Values.securityContext.runAsUser | default 10006 }}:{{ .Values.securityContext.runAsGroup | default 10006 }}
+        - {{ .Values.worker.podSecurityContext.runAsUser | default 10006 }}:{{ .Values.worker.podSecurityContext.runAsGroup | default 10006 }}
         {{- range $dir := $dirs }}
         - {{ $dir.mountPath }}
         {{- end}}
@@ -59,7 +57,7 @@ spec:
         - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
           mountPath: {{ $dir.mountPath }}
         {{- end}}
-        {{- with .Values.resources.worker }}
+        {{- with .Values.worker.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
@@ -79,8 +77,8 @@ spec:
         - -c
         {{- $namespace := .Release.Namespace }}
         - >
-          until {{ range until (.Values.masterReplicas | int) }}
-          nslookup {{ include "celeborn.masterStatefulSetName" $ }}-{{ . }}.{{ include "celeborn.masterServiceName" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && 
+          until {{ range until (.Values.master.replicas | int) }}
+          nslookup {{ include "celeborn.master.statefulSet.name" $ }}-{{ . }}.{{ include "celeborn.master.service.name" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && 
           {{- end }}
           true; do
             echo "waiting for master";
@@ -90,11 +88,14 @@ spec:
         - containerPort: {{ get .Values.celeborn "celeborn.worker.http.port" | default 9096 }}
           name: metrics
           protocol: TCP
+        {{- with .Values.worker.env }}
         env:
-        {{- range $key, $val := .Values.environments }}
-        - name: {{ $key }}
-          value: {{ $val | quote }}
-        {{- end}}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.worker.envFrom }}
+        envFrom:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         volumeMounts:
         - mountPath: /opt/celeborn/conf
           name: {{ include "celeborn.fullname" . }}-volume
@@ -103,8 +104,12 @@ spec:
         - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
           mountPath: {{ .mountPath }}
         {{- end }}
-        {{- with .Values.resources.worker }}
+        {{- with .Values.worker.resources }}
         resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.worker.securityContext }}
+        securityContext:
           {{- toYaml . | nindent 10 }}
         {{- end }}
       {{- with .Values.imagePullSecrets }}
@@ -128,30 +133,30 @@ spec:
       {{ fail "Currently, Celeborn chart only supports 'emptyDir' and 'hostPath' volume types" }}
       {{- end }}
       {{- end }}
-      {{- with .Values.nodeSelector }}
+      {{- with .Values.worker.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity.worker }}
+      {{- with .Values.worker.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if or .Values.priorityClass.worker.name .Values.priorityClass.worker.create }}
-      priorityClassName: {{ include "celeborn.workerPriorityClassName" . }}
+      {{- with .Values.worker.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.dnsPolicy }}
+      {{- if or .Values.worker.priorityClass.name .Values.worker.priorityClass.create }}
+      priorityClassName: {{ include "celeborn.worker.priorityClass.name" . }}
+      {{- end }}
+      {{- with .Values.worker.dnsPolicy }}
       dnsPolicy: {{ . }}
       {{- end }}
-      {{- with .Values.hostNetwork }}
+      {{- with .Values.worker.hostNetwork }}
       hostNetwork: {{ . }}
       {{- end }}
-      {{- with .Values.securityContext }}
+      {{- with .Values.worker.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       terminationGracePeriodSeconds: 30
-  replicas: {{ .Values.workerReplicas }}
+  

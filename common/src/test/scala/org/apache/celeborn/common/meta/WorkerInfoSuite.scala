@@ -235,7 +235,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
     val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004)
     val worker2 =
       new WorkerInfo("h2", 20001, 20002, 20003, 2000, 20004, null, null)
-    worker2.networkLocation_$eq("/1")
+    worker2.networkLocation = "/1"
 
     val worker3 = new WorkerInfo(
       "h3",
@@ -355,9 +355,9 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |SlotsUsed: 60
            |LastHeartbeat: 0
            |Disks: $placeholder
-           |  DiskInfo0: DiskInfo(maxSlots: 0, committed shuffles 0, running applications 0, shuffleAllocations: Map(), mountPoint: disk3, usableSpace: 2048.0 MiB, totalSpace: 2048.0 MiB, avgFlushTime: 3 ns, avgFetchTime: 3 ns, activeSlots: 30, storageType: SSD) status: HEALTHY dirs $placeholder
-           |  DiskInfo1: DiskInfo(maxSlots: 0, committed shuffles 0, running applications 0, shuffleAllocations: Map(), mountPoint: disk1, usableSpace: 2048.0 MiB, totalSpace: 2048.0 MiB, avgFlushTime: 1 ns, avgFetchTime: 1 ns, activeSlots: 10, storageType: SSD) status: HEALTHY dirs $placeholder
-           |  DiskInfo2: DiskInfo(maxSlots: 0, committed shuffles 0, running applications 0, shuffleAllocations: Map(), mountPoint: disk2, usableSpace: 2048.0 MiB, totalSpace: 2048.0 MiB, avgFlushTime: 2 ns, avgFetchTime: 2 ns, activeSlots: 20, storageType: SSD) status: HEALTHY dirs $placeholder
+           |  DiskInfo0: DiskInfo(maxSlots: 0, availableSlots: 0, committed shuffles 0, running applications 0, shuffleAllocations: Map(), mountPoint: disk3, usableSpace: 2048.0 MiB, totalSpace: 2048.0 MiB, avgFlushTime: 3 ns, avgFetchTime: 3 ns, activeSlots: 30, storageType: SSD) status: HEALTHY dirs $placeholder
+           |  DiskInfo1: DiskInfo(maxSlots: 0, availableSlots: 0, committed shuffles 0, running applications 0, shuffleAllocations: Map(), mountPoint: disk1, usableSpace: 2048.0 MiB, totalSpace: 2048.0 MiB, avgFlushTime: 1 ns, avgFetchTime: 1 ns, activeSlots: 10, storageType: SSD) status: HEALTHY dirs $placeholder
+           |  DiskInfo2: DiskInfo(maxSlots: 0, availableSlots: 0, committed shuffles 0, running applications 0, shuffleAllocations: Map(), mountPoint: disk2, usableSpace: 2048.0 MiB, totalSpace: 2048.0 MiB, avgFlushTime: 2 ns, avgFetchTime: 2 ns, activeSlots: 20, storageType: SSD) status: HEALTHY dirs $placeholder
            |UserResourceConsumption: $placeholder
            |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1, subResourceConsumptions: (application_1697697127390_2171854 -> ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1, subResourceConsumptions: empty)))
            |WorkerRef: null

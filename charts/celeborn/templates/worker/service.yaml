@@ -18,15 +18,14 @@ limitations under the License.
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "celeborn.workerServiceName" . }}
+  name: {{ include "celeborn.worker.service.name" . }}
   labels:
-    {{- include "celeborn.labels" . | nindent 4 }}
+    {{- include "celeborn.worker.labels" . | nindent 4 }}
   annotations:
-    {{- include "celeborn.workerMetricsAnnotation" . | nindent 4 }}
+    {{- include "celeborn.worker.metrics.annotations" . | nindent 4 }}
 spec:
   selector:
-    {{- include "celeborn.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/role: worker
+    {{- include "celeborn.worker.selectorLabels" . | nindent 4 }}
   type: {{ .Values.service.type }}
   clusterIP: None
-  {{- include "celeborn.workerServicePort" . | nindent 2 }}
+  {{- include "celeborn.worker.service.port" . | nindent 2 }}

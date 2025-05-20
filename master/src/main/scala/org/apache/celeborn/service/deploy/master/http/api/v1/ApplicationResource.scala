@@ -60,7 +60,8 @@ class ApplicationResource extends ApiRequestContext {
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(implementation = classOf[HandleResponse]))))
-  @DELETE
+  @POST
+  @Path("/delete_apps")
   def deleteApps(request: DeleteAppsRequest): HandleResponse = {
     val apps = request.getApps.asScala
     apps.foreach(app => statusSystem.deleteApp(app))

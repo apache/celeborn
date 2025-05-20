@@ -171,9 +171,9 @@ class UtilsSuite extends CelebornFunSuite {
     val ossPath = "oss://xxxx/xx-xx/x-x-x"
     val sortedOssPath = "oss://xxxx/xx-xx/x-x-x.sorted"
     val indexOssPath = "oss://xxxx/xx-xx/x-x-x.index"
-    assert(true == Utils.isHdfsPath(ossPath))
-    assert(true == Utils.isHdfsPath(sortedOssPath))
-    assert(true == Utils.isHdfsPath(indexOssPath))
+    assert(false == Utils.isHdfsPath(ossPath))
+    assert(false == Utils.isHdfsPath(sortedOssPath))
+    assert(false == Utils.isHdfsPath(indexOssPath))
 
     val localPath = "/xxx/xxx/xx-xx/x-x-x"
     assert(false == Utils.isHdfsPath(localPath))
@@ -189,6 +189,18 @@ class UtilsSuite extends CelebornFunSuite {
     assert(true == Utils.isS3Path(simpleS3Path))
     assert(true == Utils.isS3Path(sortedS3Path))
     assert(true == Utils.isS3Path(indexS3Path))
+  }
+
+  test("validate oss compatible fs path") {
+    val hdfsPath = "hdfs://xxx:9000/xxxx/xx-xx/x-x-x"
+    val simpleOssPath = "oss://xxxx/xx-xx/x-x-x"
+    val sortedOssPath = "oss://xxx/xxxx/xx-xx/x-x-x.sorted"
+    val indexOssPath = "oss://xxx/xxxx/xx-xx/x-x-x.index"
+    assert(false == Utils.isOssPath(hdfsPath))
+    assert(false == Utils.isHdfsPath(simpleOssPath))
+    assert(true == Utils.isOssPath(simpleOssPath))
+    assert(true == Utils.isOssPath(sortedOssPath))
+    assert(true == Utils.isOssPath(indexOssPath))
   }
 
   test("GetReducerFileGroupResponse class convert with pb") {
@@ -249,7 +261,9 @@ class UtilsSuite extends CelebornFunSuite {
 
   test("test instantiate") {
     val celebornConf = new CelebornConf()
-    assert(Utils.instantiate[DefaultIdentityProvider](celebornConf.identityProviderClass)
-      .isInstanceOf[DefaultIdentityProvider])
+    val testInstance = Utils.instantiateClassWithCelebornConf[DefaultIdentityProvider](
+      celebornConf.identityProviderClass,
+      celebornConf)
+    assert(testInstance.isInstanceOf[DefaultIdentityProvider])
   }
 }

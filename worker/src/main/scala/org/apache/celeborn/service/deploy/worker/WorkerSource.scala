@@ -34,6 +34,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
 
   val appActiveConnections: ConcurrentHashMap[String, util.Set[String]] =
     JavaUtils.newConcurrentHashMap[String, util.Set[String]]
+  private val metricsAppLevelEnabled = conf.metricsWorkerAppLevelEnabled
 
   import WorkerSource._
   // add counters
@@ -92,36 +93,44 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   }
 
   def connectionActive(client: TransportClient): Unit = {
-    appActiveConnections.putIfAbsent(
-      client.getChannel.id().asLongText(),
-      Sets.newConcurrentHashSet[String]())
+    if (metricsAppLevelEnabled) {
+      appActiveConnections.putIfAbsent(
+        client.getChannel.id().asLongText(),
+        Sets.newConcurrentHashSet[String]())
+    }
     incCounter(ACTIVE_CONNECTION_COUNT, 1)
   }
 
   def connectionInactive(client: TransportClient): Unit = {
-    val applicationIds = appActiveConnections.remove(client.getChannel.id().asLongText())
     incCounter(ACTIVE_CONNECTION_COUNT, -1)
-    if (null != applicationIds) {
-      applicationIds.asScala.foreach(applicationId =>
-        incCounter(ACTIVE_CONNECTION_COUNT, -1, Map(applicationLabel -> applicationId)))
+    if (metricsAppLevelEnabled) {
+      val applicationIds = appActiveConnections.remove(client.getChannel.id().asLongText())
+      if (null != applicationIds) {
+        applicationIds.asScala.foreach(applicationId =>
+          incCounter(ACTIVE_CONNECTION_COUNT, -1, Map(applicationLabel -> applicationId)))
+      }
     }
   }
 
   def recordAppActiveConnection(client: TransportClient, shuffleKey: String): Unit = {
-    val applicationIds = appActiveConnections.get(client.getChannel.id().asLongText())
-    val applicationId = Utils.splitShuffleKey(shuffleKey)._1
-    if (applicationIds != null && !applicationIds.contains(applicationId)) {
-      addCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId))
-      incCounter(ACTIVE_CONNECTION_COUNT, 1, Map(applicationLabel -> applicationId))
-      applicationIds.add(applicationId)
+    if (metricsAppLevelEnabled) {
+      val applicationIds = appActiveConnections.get(client.getChannel.id().asLongText())
+      val applicationId = Utils.splitShuffleKey(shuffleKey)._1
+      if (applicationIds != null && !applicationIds.contains(applicationId)) {
+        addCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId))
+        incCounter(ACTIVE_CONNECTION_COUNT, 1, Map(applicationLabel -> applicationId))
+        applicationIds.add(applicationId)
+      }
     }
   }
 
   def removeAppActiveConnection(applicationIds: util.Set[String]): Unit = {
-    applicationIds.asScala.foreach(applicationId =>
-      removeCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId)))
-    appActiveConnections.values().asScala.foreach(connectionAppIds =>
-      applicationIds.asScala.foreach(applicationId => connectionAppIds.remove(applicationId)))
+    if (metricsAppLevelEnabled) {
+      applicationIds.asScala.foreach(applicationId =>
+        removeCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId)))
+      appActiveConnections.values().asScala.foreach(connectionAppIds =>
+        applicationIds.asScala.foreach(applicationId => connectionAppIds.remove(applicationId)))
+    }
   }
 
   // start cleaner thread
@@ -230,6 +239,9 @@ object WorkerSource {
   // decommission
   val IS_DECOMMISSIONING_WORKER = "IsDecommissioningWorker"
   val UNRELEASED_SHUFFLE_COUNT = "UnreleasedShuffleCount"
+
+  // graceful
+  val UNRELEASED_PARTITION_LOCATION_COUNT = "UnreleasedPartitionLocationCount"
 
   // clean
   val CLEAN_TASK_QUEUE_SIZE = "CleanTaskQueueSize"

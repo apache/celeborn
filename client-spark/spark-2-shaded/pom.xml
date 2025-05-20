@@ -73,6 +73,7 @@
               <include>io.netty:*</include>
               <include>org.apache.commons:commons-lang3</include>
               <include>org.roaringbitmap:RoaringBitmap</include>
+              <include>commons-io:commons-io</include>
             </includes>
           </artifactSet>
           <filters>

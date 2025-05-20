@@ -38,6 +38,7 @@ import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLoc
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Role, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.{CelebornRackResolver, TransportContext}
+import org.apache.celeborn.common.network.protocol.TransportMessagesHelper
 import org.apache.celeborn.common.network.sasl.SaslServerBootstrap
 import org.apache.celeborn.common.network.server.TransportServerBootstrap
 import org.apache.celeborn.common.network.util.TransportConf
@@ -81,7 +82,9 @@ private[celeborn] class Worker(
   metricsSystem.registerSource(new JVMCPUSource(conf, Role.WORKER))
   metricsSystem.registerSource(new SystemMiscSource(conf, Role.WORKER))
 
-  private val topResourceConsumptionCount = conf.metricsWorkerAppTopResourceConsumptionCount
+  private val topAppResourceConsumptionCount = conf.metricsWorkerAppTopResourceConsumptionCount
+  private val topAppResourceConsumptionBytesWrittenThreshold =
+    conf.metricsWorkerAppTopResourceConsumptionBytesWrittenThreshold
   private val topApplicationUserIdentifiers =
     JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
 
@@ -363,6 +366,8 @@ private[celeborn] class Worker(
     jvmQuake.start()
   }
 
+  private val messagesHelper: TransportMessagesHelper = new TransportMessagesHelper()
+
   workerSource.addGauge(WorkerSource.REGISTERED_SHUFFLE_COUNT) { () =>
     workerInfo.getShuffleKeySet.size
   }
@@ -446,6 +451,15 @@ private[celeborn] class Worker(
     if (shutdown.get() && (workerStatusManager.currentWorkerStatus.getState == State.InDecommission ||
         workerStatusManager.currentWorkerStatus.getState == State.InDecommissionThenIdle)) {
       storageManager.shuffleKeySet().size
+    } else {
+      0
+    }
+  }
+  // Unreleased partition location count when worker is restarting
+  workerSource.addGauge(WorkerSource.UNRELEASED_PARTITION_LOCATION_COUNT) { () =>
+    if (shutdown.get()) {
+      partitionLocationInfo.primaryPartitionLocations.size() +
+        partitionLocationInfo.replicaPartitionLocations.size()
     } else {
       0
     }
@@ -623,6 +637,7 @@ private[celeborn] class Worker(
       if (conf.internalPortEnabled) {
         internalRpcEnvInUse.stop(internalRpcEndpointRef)
       }
+      messagesHelper.close()
       super.stop(exitKind)
 
       logInfo("Worker is stopped.")
@@ -680,11 +695,13 @@ private[celeborn] class Worker(
     resourceConsumptionSnapshot.asScala.foreach { case (userIdentifier, _) =>
       gaugeResourceConsumption(userIdentifier)
     }
-    handleTopResourceConsumption(resourceConsumptionSnapshot)
+    if (topAppResourceConsumptionCount > 0) {
+      handleTopAppResourceConsumption(resourceConsumptionSnapshot)
+    }
     resourceConsumptionSnapshot
   }
 
-  def handleTopResourceConsumption(userResourceConsumptions: util.Map[
+  def handleTopAppResourceConsumption(userResourceConsumptions: util.Map[
     UserIdentifier,
     ResourceConsumption]): Unit = {
     // Remove application top resource consumption gauges to refresh top resource consumption metrics.
@@ -701,10 +718,15 @@ private[celeborn] class Worker(
         appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten
       }
       .reverse
-      .take(topResourceConsumptionCount).foreach {
+      .take(topAppResourceConsumptionCount).foreach {
         case (appId, userIdentifier, appConsumption) =>
-          topApplicationUserIdentifiers.put(appId, userIdentifier)
-          gaugeResourceConsumption(userIdentifier, appId, appConsumption)
+          if (appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten >=
+              topAppResourceConsumptionBytesWrittenThreshold) {
+            topApplicationUserIdentifiers.put(appId, userIdentifier)
+            gaugeResourceConsumption(userIdentifier, appId, appConsumption)
+          } else {
+            return
+          }
       }
   }
 

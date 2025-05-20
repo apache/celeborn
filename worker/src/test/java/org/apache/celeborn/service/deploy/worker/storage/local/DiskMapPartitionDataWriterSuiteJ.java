@@ -42,10 +42,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
-import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.common.protocol.PartitionSplitMode;
-import org.apache.celeborn.common.protocol.PartitionType;
-import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.common.protocol.*;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
@@ -65,6 +62,7 @@ public class DiskMapPartitionDataWriterSuiteJ {
   private static WorkerSource source = null;
 
   private final UserIdentifier userIdentifier = new UserIdentifier("mock-tenantId", "mock-name");
+  private static StoragePolicy storagePolicy;
 
   @BeforeClass
   public static void beforeAll() {
@@ -73,6 +71,7 @@ public class DiskMapPartitionDataWriterSuiteJ {
             System.getProperty("java.io.tmpdir"), "celeborn" + System.currentTimeMillis());
 
     source = Mockito.mock(WorkerSource.class);
+    storagePolicy = Mockito.mock(StoragePolicy.class);
     Mockito.doAnswer(
             invocationOnMock -> {
               Function0<?> function = (Function0<?>) invocationOnMock.getArguments()[2];
@@ -122,25 +121,30 @@ public class DiskMapPartitionDataWriterSuiteJ {
   @Test
   public void testMultiThreadWrite() throws IOException {
     PartitionLocation partitionLocation = Mockito.mock(PartitionLocation.class);
-    MapPartitionDataWriter fileWriter =
-        new MapPartitionDataWriter(
+    PartitionDataWriterContext context =
+        new PartitionDataWriterContext(
+            SPLIT_THRESHOLD,
+            splitMode,
+            false,
+            partitionLocation,
+            "app1",
+            1,
+            userIdentifier,
+            PartitionType.MAP,
+            false,
+            false);
+    PartitionDataWriter fileWriter =
+        new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
-                tempDir, userIdentifier, localFlusher, false, CONF),
-            source,
+                tempDir, userIdentifier, localFlusher, false, CONF, storagePolicy, context),
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            new PartitionDataWriterContext(
-                SPLIT_THRESHOLD,
-                splitMode,
-                false,
-                partitionLocation,
-                "app1",
-                1,
-                userIdentifier,
-                PartitionType.MAP,
-                false));
-    fileWriter.pushDataHandShake(2, 32 * 1024);
-    fileWriter.regionStart(0, false);
+            context,
+            PartitionType.MAP);
+    fileWriter.handleEvents(
+        PbPushDataHandShake.newBuilder().setNumPartitions(2).setBufferSize(32).build());
+    fileWriter.handleEvents(
+        PbRegionStart.newBuilder().setCurrentRegionIndex(0).setIsBroadcast(false).build());
     byte[] partData0 = generateData(0);
     byte[] partData1 = generateData(1);
     AtomicLong length = new AtomicLong(0);
@@ -150,14 +154,14 @@ public class DiskMapPartitionDataWriterSuiteJ {
       fileWriter.write(Unpooled.wrappedBuffer(partData1));
       length.addAndGet(partData1.length);
 
-      fileWriter.regionFinish();
+      fileWriter.handleEvents(PbRegionFinish.newBuilder().build());
     } catch (IOException e) {
       LOG.error("Failed to write buffer.", e);
     }
     long bytesWritten = fileWriter.close();
 
     assertEquals(length.get(), bytesWritten);
-    assertEquals(fileWriter.getFile().length(), bytesWritten);
+    assertEquals(new File(fileWriter.getFilePath()).length(), bytesWritten);
   }
 
   private byte[] generateData(int partitionId) {

@@ -21,8 +21,8 @@ import java.io.File
 
 import scala.collection.JavaConverters._
 
-import org.apache.flink.api.common.{ExecutionMode, RuntimeExecutionMode}
-import org.apache.flink.configuration.{Configuration, ExecutionOptions, RestOptions}
+import org.apache.flink.api.common.RuntimeExecutionMode
+import org.apache.flink.configuration.{Configuration, ExecutionOptions}
 import org.apache.flink.runtime.jobgraph.JobType
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode
@@ -85,7 +85,7 @@ abstract class WordCountTestBase extends AnyFunSuite with Logging with MiniClust
     configuration.setString("execution.batch-shuffle-mode", "ALL_EXCHANGES_BLOCKING")
     configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
     configuration.setString("taskmanager.memory.network.min", "1024m")
-    configuration.setString(RestOptions.BIND_PORT, "8081-8089")
+    configuration.setString("rest.bind-port", "8081-8099")
     configuration.setString(
       "execution.batch.adaptive.auto-parallelism.min-parallelism",
       "" + parallelism)
@@ -94,7 +94,6 @@ abstract class WordCountTestBase extends AnyFunSuite with Logging with MiniClust
     configuration.setString("restart-strategy.fixed-delay.delay", "5s")
     addClientConf(configuration)
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)
-    env.getConfig.setExecutionMode(ExecutionMode.BATCH)
     env.getConfig.setParallelism(parallelism)
     env.disableOperatorChaining()
     // make parameters available in the web interface

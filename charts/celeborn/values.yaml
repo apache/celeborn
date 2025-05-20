@@ -27,10 +27,12 @@ fullnameOverride: ""
 
 # Specifies the Celeborn image to use
 image:
+  # -- Image registry
+  registry: docker.io
   # -- Image repository
-  repository: aliyunemr/remote-shuffle-service
-  # -- Image tag
-  tag: 0.1.1-6badd20
+  repository: apache/celeborn
+  # -- Image tag, default is chart `appVersion`
+  tag: ""
   # -- Image pull policy
   pullPolicy: Always
   # -- Image name for init containter. (your-private-repo/alpine:3.18)
@@ -38,11 +40,6 @@ image:
 
 # -- Image pull secrets for private image registry
 imagePullSecrets: []
-
-# -- Specifies the number of Celeborn master replicas to deploy, master replicas should not less than 3
-masterReplicas: 3
-# -- Specifies the number of Celeborn worker replicas to deploy, should less than node number
-workerReplicas: 5
 
 service:
   # -- Specifies service type
@@ -121,62 +118,188 @@ celeborn:
   celeborn.application.heartbeat.timeout: 120s
   celeborn.worker.heartbeat.timeout: 120s
 
-# -- Celeborn environment variables
-environments:
-  CELEBORN_MASTER_MEMORY: 2g
-  CELEBORN_MASTER_JAVA_OPTS: "-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-master.out -Dio.netty.leakDetectionLevel=advanced"
-  CELEBORN_WORKER_MEMORY: 2g
-  CELEBORN_WORKER_OFFHEAP_MEMORY: 12g
-  CELEBORN_WORKER_JAVA_OPTS: "-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-worker.out -Dio.netty.leakDetectionLevel=advanced"
-  CELEBORN_NO_DAEMONIZE: true
-  TZ: "Asia/Shanghai"
+master:
+  # -- Number of Celeborn master replicas to deploy, should not less than 3.
+  replicas: 3
 
-# -- Specifies the DNS policy for Celeborn pods to use
-dnsPolicy: ClusterFirst
+  # -- Annotations for Celeborn master pods.
+  annotations:
+    # key1: value1
+    # key2: value2
 
-# -- Specifies whether to use the host's network namespace
-hostNetwork: false
+  # -- Environment variables for Celeborn master containers.
+  env:
+  - name: CELEBORN_MASTER_MEMORY
+    value: 2g
+  - name: CELEBORN_MASTER_JAVA_OPTS
+    value: -XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-master.out -Dio.netty.leakDetectionLevel=advanced
+  - name: CELEBORN_NO_DAEMONIZE
+    value: "true"
+  - name: TZ
+    value: Asia/Shanghai
 
-resources:
-  # -- Pod resources for Celeborn master pods
-  master: {}
-    # limits:
-    #   cpu: 100m
-    #   memory: 128Mi
+  # -- Environment variable sources for Celeborn master containers.
+  envFrom:
+  # - configMapRef:
+  #     name: celeborn-configmap
+  #     optional: false
+  # - secretRef:
+  #     name: celeborn-secret
+  #     optional: false
+
+  # -- Resources for Celeborn master containers.
+  resources:
     # requests:
     #   cpu: 100m
     #   memory: 128Mi
-
-  # -- Pod resources for Celeborn worker pods
-  worker: {}
     # limits:
     #   cpu: 100m
     #   memory: 128Mi
-    # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
 
-# -- Container security context
-securityContext:
-  # Specifies the user ID to run the entrypoint of the container process
-  runAsUser: 10006
-  # Specifies the group ID to run the entrypoint of the container process
-  runAsGroup: 10006
-  # Specifies the group ID to use when modifying ownership and permissions of the mounted volumes
-  fsGroup: 10006
+  # -- Security configurations for Celeborn master containers.
+  securityContext:
+    # privileged: false
+    # allowPrivilegeEscalation: false
+    # runAsUser: 10006
+    # runAsGroup: 10006
+    # fsGroup: 10006
 
-priorityClass:
-  # Priority class for Celeborn master pods
-  master:
-    # -- Specifies whether a new priority class for Celeborn master pods should be created
+  # -- Node selector for Celeborn master pods.
+  nodeSelector:
+    # key1: value1
+    # key2: value2
+
+  # -- Affinity for Celeborn master pods.
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - celeborn
+          - key: app.kubernetes.io/role
+            operator: In
+            values:
+            - master
+        topologyKey: kubernetes.io/hostname
+
+  # -- Tolerations for Celeborn master pods.
+  tolerations:
+    # - key: key1
+    #   operator: Equal
+    #   value: value1
+    #   effect: NoSchedule
+    # - key: key2
+    #   operator: Exists
+    #   effect: NoSchedule
+
+  # Priority class for Celeborn master pods.
+  priorityClass:
+    # -- Specifies whether a new priority class for Celeborn master pods should be created.
     create: false
-    # -- Specifies the name of priority class for Celeborn master pods to be used (created if `create: true`), empty means `${Release.Name}-master-priority-class`
+    # -- Specifies the name of priority class for Celeborn master pods to be used (created if `create: true`), empty means `${Release.Name}-master-priority-class`.
     name: ""
-    # -- Specifies the integer value of this priority class, default is half of system-cluster-critical
+    # -- Specifies the integer value of this priority class, default is half of system-cluster-critical.
     value: 1000000000
 
-  # Priority class for Celeborn worker pods
-  worker:
+  # -- DNS policy for Celeborn master pods.
+  dnsPolicy: ClusterFirst
+
+  # -- Whether to use the host's network namespace in Celeborn master pods.
+  hostNetwork: false
+
+  # -- Pod-level security configurations for Celeborn master pods.
+  podSecurityContext:
+    # The user ID to use when running the entrypoint of the container process.
+    runAsUser: 10006
+    # The group ID to use when running the entrypoint of the container process.
+    runAsGroup: 10006
+    # The group ID to use when modifying the ownership and permissions of the mounted volumes.
+    fsGroup: 10006
+
+worker:
+  # -- Number of Celeborn worker replicas to deploy, should less than node number.
+  replicas: 5
+
+  # -- Annotations for Celeborn worker pods.
+  annotations:
+    # key1: value1
+    # key2: value2
+
+  # -- Environment variables for Celeborn worker containers.
+  env:
+  - name: CELEBORN_WORKER_MEMORY
+    value: 2g
+  - name: CELEBORN_WORKER_OFFHEAP_MEMORY
+    value: 12g
+  - name: CELEBORN_WORKER_JAVA_OPTS
+    value: -XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-worker.out -Dio.netty.leakDetectionLevel=advanced
+  - name: CELEBORN_NO_DAEMONIZE
+    value: "true"
+  - name: TZ
+    value: Asia/Shanghai
+
+  # -- Environment variable sources for Celeborn worker containers.
+  envFrom:
+  # - configMapRef:
+  #     name: celeborn-configmap
+  #     optional: false
+  # - secretRef:
+  #     name: celeborn-secret
+  #     optional: false
+
+  # -- Resources for Celeborn worker containers.
+  resources:
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+  # -- Security configurations for Celeborn worker containers.
+  securityContext:
+    # privileged: false
+    # allowPrivilegeEscalation: false
+    # runAsUser: 10006
+    # runAsGroup: 10006
+    # fsGroup: 10006
+
+  # -- Node selector for Celeborn worker pods.
+  nodeSelector:
+    # key1: value1
+    # key2: value2
+
+  # -- Affinity for Celeborn worker pods.
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - celeborn
+          - key: app.kubernetes.io/role
+            operator: In
+            values:
+            - worker
+        topologyKey: kubernetes.io/hostname
+
+  # -- Tolerations for Celeborn worker pods.
+  tolerations:
+    # - key: key1
+    #   operator: Equal
+    #   value: value1
+    #   effect: NoSchedule
+    # - key: key2
+    #   operator: Exists
+    #   effect: NoSchedule
+
+  # Priority class for Celeborn worker pods.
+  priorityClass:
     # -- Specifies whether a new priority class for Celeborn worker pods should be created
     create: false
     # -- Specifies the name of priority class for Celeborn worker pods to be used (created if `create: true`), empty means `${Release.Name}-worker-priority-class`
@@ -184,57 +307,20 @@ priorityClass:
     # -- Specifies the integer value of this priority class, default is Celeborn master value minus 1000
     value: 999999000
 
-# -- Pod annotations
-podAnnotations: {}
-# key1: value1
-# key2: value2
+  # -- DNS policy for Celeborn worker pods.
+  dnsPolicy: ClusterFirst
 
-# -- Pod node selector
-nodeSelector: {}
-# key1: value1
-# key2: value2
+  # -- Whether to use the host's network namespace in Celeborn worker pods.
+  hostNetwork: false
 
-# -- Pod tolerations
-tolerations: []
-# - key: key1
-#   operator: Equal
-#   value: value1
-#   effect: NoSchedule
-# - key: key2
-#   operator: Exists
-#   effect: NoSchedule
-
-affinity:
-  # -- Pod affinity for Celeborn master pods
-  master:
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        - labelSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
-                  - celeborn
-              - key: app.kubernetes.io/role
-                operator: In
-                values:
-                  - master
-          topologyKey: kubernetes.io/hostname
-  # -- Pod affinity for Celeborn worker pods
-  worker:
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        - labelSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
-                  - celeborn
-              - key: app.kubernetes.io/role
-                operator: In
-                values:
-                  - worker
-          topologyKey: "kubernetes.io/hostname"
+  # -- Pod-level security configurations for Celeborn worker pods.
+  podSecurityContext:
+    # The user ID to use when running the entrypoint of the container process.
+    runAsUser: 10006
+    # The group ID to use when running the entrypoint of the container process.
+    runAsGroup: 10006
+    # The group ID to use when modifying the ownership and permissions of the mounted volumes.
+    fsGroup: 10006
 
 podMonitor:
   # -- Specifies whether to enable creating pod monitors for Celeborn pods

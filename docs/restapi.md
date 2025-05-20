@@ -85,12 +85,8 @@ See the [migration guide](migration.md) for API mappings.
 
 #### Master
 
-See the master openapi spec yaml in the repo `openapi/openapi-client/src/main/openapi3/master_rest_v1.yaml`.
+See the master openapi spec yaml in the repo `openapi/openapi-client/src/main/openapi3/master_rest_v1.yaml`, or use the [Swagger Editor](https://editor-next.swagger.io/?url=https://raw.githubusercontent.com/apache/celeborn/main/openapi/openapi-client/src/main/openapi3/master_rest_v1.yaml) online for visualization.
 
 #### Worker
 
-See the worker openapi spec yaml in the repo `openapi/openapi-client/src/main/openapi3/worker_rest_v1.yaml`.
-
-**Note:**
-
-You can locally preview the OpenAPI specification YAML file in IDE, or use the [Swagger Editor](https://editor.swagger.io/) online for visualization.
+See the worker openapi spec yaml in the repo `openapi/openapi-client/src/main/openapi3/worker_rest_v1.yaml`, or use the [Swagger Editor](https://editor-next.swagger.io/?url=https://raw.githubusercontent.com/apache/celeborn/main/openapi/openapi-client/src/main/openapi3/worker_rest_v1.yaml) online for visualization.

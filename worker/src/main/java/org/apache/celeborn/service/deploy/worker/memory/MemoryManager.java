@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.memory;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -260,17 +259,13 @@ public class MemoryManager {
                 memoryWriters.sort(
                     Comparator.comparingLong(o -> o.getMemoryFileInfo().getFileLength()));
                 Collections.reverse(memoryWriters);
-                try {
-                  for (PartitionDataWriter writer : memoryWriters) {
-                    // this branch means that there is no memory pressure
-                    if (!shouldEvict(aggressiveEvictModeEnabled, evictRatio)) {
-                      break;
-                    }
-                    logger.debug("Evict writer {}", writer);
-                    writer.evict(true);
+                for (PartitionDataWriter writer : memoryWriters) {
+                  // this branch means that there is no memory pressure
+                  if (!shouldEvict(aggressiveEvictModeEnabled, evictRatio)) {
+                    break;
                   }
-                } catch (IOException e) {
-                  logger.warn("Partition data writer evict failed", e);
+                  logger.debug("Evict writer {}", writer);
+                  writer.evict(true);
                 }
               }
             } catch (Exception e) {
@@ -342,10 +337,13 @@ public class MemoryManager {
         if (!tryResumeByPinnedMemory(servingState, lastState)) {
           pausePushDataCounter.increment();
           if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
+            appendPauseSpentTime(lastState);
             resumeReplicate();
           } else {
-            logger.info("Trigger action: PAUSE PUSH");
-            pausePushDataStartTime = System.currentTimeMillis();
+            if (servingState != lastState) {
+              pausePushDataStartTime = System.currentTimeMillis();
+              logger.info("Trigger action: PAUSE PUSH");
+            }
             resumingByPinnedMemory = false;
             memoryPressureListeners.forEach(
                 memoryPressureListener ->
@@ -367,13 +365,17 @@ public class MemoryManager {
       case PUSH_AND_REPLICATE_PAUSED:
         if (!tryResumeByPinnedMemory(servingState, lastState)) {
           pausePushDataAndReplicateCounter.increment();
-          logger.info("Trigger action: PAUSE PUSH");
-          pausePushDataAndReplicateStartTime = System.currentTimeMillis();
+          if (servingState != lastState) {
+            pausePushDataAndReplicateStartTime = System.currentTimeMillis();
+            logger.info("Trigger action: PAUSE PUSH and REPLICATE");
+            if (lastState == ServingState.NONE_PAUSED) {
+              pausePushDataStartTime = pausePushDataAndReplicateStartTime;
+            }
+          }
           resumingByPinnedMemory = false;
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
-          logger.info("Trigger action: PAUSE REPLICATE");
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
@@ -522,10 +524,9 @@ public class MemoryManager {
 
   private void appendPauseSpentTime(ServingState servingState) {
     long nextPauseStartTime = System.currentTimeMillis();
-    if (servingState == ServingState.PUSH_PAUSED) {
-      pausePushDataTime += nextPauseStartTime - pausePushDataStartTime;
-      pausePushDataStartTime = nextPauseStartTime;
-    } else {
+    pausePushDataTime += nextPauseStartTime - pausePushDataStartTime;
+    pausePushDataStartTime = nextPauseStartTime;
+    if (servingState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
       pausePushDataAndReplicateTime += nextPauseStartTime - pausePushDataAndReplicateStartTime;
       pausePushDataAndReplicateStartTime = nextPauseStartTime;
     }

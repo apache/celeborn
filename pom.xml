@@ -72,6 +72,7 @@
     <!-- use hadoop-3 as default  -->
     <hadoop.version>3.3.6</hadoop.version>
     <aws.version>1.12.532</aws.version>
+    <aliyun-sdk-oss.version>3.13.0</aliyun-sdk-oss.version>
     <!--
     If you change codahale.metrics.version, you also need to change
     the link to metrics.dropwizard.io in docs/monitoring.md.
@@ -89,6 +90,7 @@
     <junit.version>4.13.2</junit.version>
     <leveldb.version>1.8</leveldb.version>
     <log4j2.version>2.24.3</log4j2.version>
+    <disruptor.version>3.4.4</disruptor.version>
     <lz4-java.version>1.8.0</lz4-java.version>
     <mockito.version>4.11.0</mockito.version>
     <mockito-scalatest.version>1.17.14</mockito-scalatest.version>
@@ -107,6 +109,7 @@
     <snappy.version>1.1.10.5</snappy.version>
     <ap.loader.version>3.0-9</ap.loader.version>
     <picocli.version>4.7.6</picocli.version>
+    <jmh.version>1.37</jmh.version>
 
     <!-- Db dependencies -->
     <mybatis.version>3.5.15</mybatis.version>
@@ -242,6 +245,12 @@
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-1.2-api</artifactId>
         <version>${log4j2.version}</version>
+      </dependency>
+      <dependency>
+        <!-- log4j2 has an optional dependency on disruptor like AsyncLoggerContextSelector. -->
+        <groupId>com.lmax</groupId>
+        <artifactId>disruptor</artifactId>
+        <version>${disruptor.version}</version>
       </dependency>
       <dependency>
         <groupId>io.dropwizard.metrics</groupId>
@@ -739,6 +748,18 @@
         <artifactId>picocli</artifactId>
         <version>${picocli.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.openjdk.jmh</groupId>
+        <artifactId>jmh-core</artifactId>
+        <version>${jmh.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.openjdk.jmh</groupId>
+        <artifactId>jmh-generator-annprocess</artifactId>
+        <version>${jmh.version}</version>
+        <scope>test</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -914,7 +935,7 @@
           <version>${maven.plugin.scalatest.version}</version>
           <configuration>
             <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
-            <argLine>-ea -Xmx4g -Xss4m -XX:MaxMetaspaceSize=2g -XX:ReservedCodeCacheSize=128m ${extraJavaTestArgs} -Dio.netty.tryReflectionSetAccessible=true</argLine>
+            <argLine>${argLine} -ea -Xmx4g -Xss4m -XX:MaxMetaspaceSize=2g -XX:ReservedCodeCacheSize=128m ${extraJavaTestArgs} -Dio.netty.tryReflectionSetAccessible=true</argLine>
             <filereports>TestSuite.txt</filereports>
             <!--
               the plugin does not support always now, we must be careful w/ singletons.
@@ -1190,6 +1211,7 @@
             <compilerArgs>
               <arg>-XDcompilePolicy=simple</arg>
               <arg>-Xplugin:ErrorProne \
+                -XepDisableWarningsInGeneratedCode \
                 -XepExcludedPaths:.*/target/generated-sources/.* \
                 -Xep:BadImport:OFF \
                 -Xep:EmptyBlockTag:OFF \
@@ -1345,10 +1367,19 @@
     <profile>
       <id>aws</id>
       <modules>
-        <module>multipart-uploader</module>
+        <module>multipart-uploader/multipart-uploader-s3</module>
       </modules>
       <properties>
         <aws-deps>true</aws-deps>
+      </properties>
+    </profile>
+    <profile>
+      <id>aliyun</id>
+      <modules>
+        <module>multipart-uploader/multipart-uploader-oss</module>
+      </modules>
+      <properties>
+        <aliyun-deps>true</aliyun-deps>
       </properties>
     </profile>
     <profile>
@@ -1566,6 +1597,7 @@
               <compilerArgs>
                 <arg>-XDcompilePolicy=simple</arg>
                 <arg>-Xplugin:ErrorProne \
+                  -XepDisableWarningsInGeneratedCode \
                   -XepExcludedPaths:.*/target/generated-sources/.* \
                   -Xep:BadImport:OFF \
                   -Xep:EmptyBlockTag:OFF \
@@ -1626,6 +1658,7 @@
               <compilerArgs>
                 <arg>-XDcompilePolicy=simple</arg>
                 <arg>-Xplugin:ErrorProne \
+                  -XepDisableWarningsInGeneratedCode \
                   -XepExcludedPaths:.*/target/generated-sources/.* \
                   -Xep:BadImport:OFF \
                   -Xep:EmptyBlockTag:OFF \
@@ -1678,7 +1711,6 @@
         <celeborn.flink.plugin.artifact>celeborn-client-flink-1.16_${scala.binary.version}</celeborn.flink.plugin.artifact>
         <flink.streaming.artifact>flink-streaming-java</flink.streaming.artifact>
         <flink.clients.artifact>flink-clients</flink.clients.artifact>
-        <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
         <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
       </properties>
     </profile>
@@ -1698,7 +1730,6 @@
         <celeborn.flink.plugin.artifact>celeborn-client-flink-1.17_${scala.binary.version}</celeborn.flink.plugin.artifact>
         <flink.streaming.artifact>flink-streaming-java</flink.streaming.artifact>
         <flink.clients.artifact>flink-clients</flink.clients.artifact>
-        <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
         <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
       </properties>
     </profile>
@@ -1718,7 +1749,6 @@
         <celeborn.flink.plugin.artifact>celeborn-client-flink-1.18_${scala.binary.version}</celeborn.flink.plugin.artifact>
         <flink.streaming.artifact>flink-streaming-java</flink.streaming.artifact>
         <flink.clients.artifact>flink-clients</flink.clients.artifact>
-        <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
         <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
       </properties>
     </profile>
@@ -1738,7 +1768,6 @@
         <celeborn.flink.plugin.artifact>celeborn-client-flink-1.19_${scala.binary.version}</celeborn.flink.plugin.artifact>
         <flink.streaming.artifact>flink-streaming-java</flink.streaming.artifact>
         <flink.clients.artifact>flink-clients</flink.clients.artifact>
-        <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
         <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
       </properties>
     </profile>
@@ -1758,7 +1787,25 @@
         <celeborn.flink.plugin.artifact>celeborn-client-flink-1.20_${scala.binary.version}</celeborn.flink.plugin.artifact>
         <flink.streaming.artifact>flink-streaming-java</flink.streaming.artifact>
         <flink.clients.artifact>flink-clients</flink.clients.artifact>
-        <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
+        <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>flink-2.0</id>
+      <modules>
+        <module>client-flink/common</module>
+        <module>client-flink/flink-2.0</module>
+        <module>client-flink/flink-2.0-shaded</module>
+        <module>tests/flink-it</module>
+      </modules>
+      <properties>
+        <flink.version>2.0.0</flink.version>
+        <flink.binary.version>2.0</flink.binary.version>
+        <scala.binary.version>2.12</scala.binary.version>
+        <celeborn.flink.plugin.artifact>celeborn-client-flink-2.0_${scala.binary.version}</celeborn.flink.plugin.artifact>
+        <flink.streaming.artifact>flink-streaming-java</flink.streaming.artifact>
+        <flink.clients.artifact>flink-clients</flink.clients.artifact>
         <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
       </properties>
     </profile>

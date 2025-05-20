@@ -17,8 +17,8 @@
 
 package org.apache.celeborn.tests.flink
 
-import org.apache.flink.api.common.{ExecutionMode, RuntimeExecutionMode}
-import org.apache.flink.configuration.{Configuration, ExecutionOptions, RestOptions}
+import org.apache.flink.api.common.RuntimeExecutionMode
+import org.apache.flink.configuration.{Configuration, ExecutionOptions}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
@@ -54,7 +54,7 @@ class SplitTest extends AnyFunSuite with Logging with MiniClusterFeature
     configuration.setString("execution.batch-shuffle-mode", "ALL_EXCHANGES_BLOCKING")
     configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
     configuration.setString("taskmanager.memory.network.min", "1024m")
-    configuration.setString(RestOptions.BIND_PORT, "8081-8089")
+    configuration.setString("rest.bind-port", "8081-8099")
     configuration.setString(
       "execution.batch.adaptive.auto-parallelism.min-parallelism",
       "" + parallelism)
@@ -65,9 +65,7 @@ class SplitTest extends AnyFunSuite with Logging with MiniClusterFeature
     configuration.setString("restart-strategy.fixed-delay.attempts", "50")
     configuration.setString("restart-strategy.fixed-delay.delay", "5s")
     configuration.setString(CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD.key, "10k")
-    configuration.setString(CelebornConf.CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED.key, "true")
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)
-    env.getConfig.setExecutionMode(ExecutionMode.BATCH)
     env.getConfig.setParallelism(parallelism)
     SplitHelper.runSplitRead(env)
     env.execute("split test")

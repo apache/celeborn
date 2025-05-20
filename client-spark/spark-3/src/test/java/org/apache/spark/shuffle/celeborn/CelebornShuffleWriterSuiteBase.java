@@ -268,6 +268,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
     ShuffleWriteMetrics metrics = taskContext.taskMetrics().shuffleWriteMetrics();
     assertEquals(metrics.recordsWritten(), total.intValue());
     assertEquals(metrics.bytesWritten(), tempFile.length());
+    assertTrue(metrics.writeTime() > 0);
 
     try (FileInputStream fis = new FileInputStream(tempFile)) {
       Iterator it = newSerializerInstance(serializer).deserializeStream(fis).asKeyValueIterator();

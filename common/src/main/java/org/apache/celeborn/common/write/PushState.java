@@ -19,11 +19,9 @@ package org.apache.celeborn.common.write;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.google.common.collect.Sets;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -36,12 +34,12 @@ public class PushState {
   public AtomicReference<IOException> exception = new AtomicReference<>();
   private final InFlightRequestTracker inFlightRequestTracker;
 
-  private final Map<String, Set<PushFailedBatch>> failedBatchMap;
+  private final Map<String, LocationPushFailedBatches> failedBatchMap;
 
   public PushState(CelebornConf conf) {
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
     inFlightRequestTracker = new InFlightRequestTracker(conf, this);
-    failedBatchMap = new ConcurrentHashMap<>();
+    failedBatchMap = JavaUtils.newConcurrentHashMap();
   }
 
   public void cleanup() {
@@ -95,13 +93,13 @@ public class PushState {
     return inFlightRequestTracker.remainingAllowPushes(hostAndPushPort);
   }
 
-  public void addFailedBatch(String partitionId, PushFailedBatch failedBatch) {
+  public void recordFailedBatch(String partitionId, int mapId, int attemptId, int batchId) {
     this.failedBatchMap
-        .computeIfAbsent(partitionId, (s) -> Sets.newConcurrentHashSet())
-        .add(failedBatch);
+        .computeIfAbsent(partitionId, (s) -> new LocationPushFailedBatches())
+        .addFailedBatch(mapId, attemptId, batchId);
   }
 
-  public Map<String, Set<PushFailedBatch>> getFailedBatches() {
+  public Map<String, LocationPushFailedBatches> getFailedBatches() {
     return this.failedBatchMap;
   }
 }

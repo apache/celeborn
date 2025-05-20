@@ -21,6 +21,7 @@ import java.io.IOException
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
 
@@ -39,11 +40,12 @@ import org.apache.celeborn.client.{ClientUtils, ShuffleClient}
 import org.apache.celeborn.client.ShuffleClientImpl.ReduceFileGroups
 import org.apache.celeborn.client.read.{CelebornInputStream, MetricsCallback}
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.exception.{CelebornIOException, PartitionUnRetryAbleException}
+import org.apache.celeborn.common.exception.{CelebornIOException, CelebornRuntimeException, PartitionUnRetryAbleException}
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol._
-import org.apache.celeborn.common.protocol.message.StatusCode
+import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
+import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
 
 class CelebornShuffleReader[K, C](
@@ -75,9 +77,27 @@ class CelebornShuffleReader[K, C](
 
   override def read(): Iterator[Product2[K, C]] = {
 
+    val startTime = System.currentTimeMillis()
     val serializerInstance = newSerializerInstance(dep)
-
-    val shuffleId = SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
+    val shuffleId =
+      try {
+        SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
+      } catch {
+        case e: CelebornRuntimeException =>
+          logError(s"Failed to get shuffleId for appShuffleId ${handle.shuffleId}", e)
+          if (throwsFetchFailure) {
+            throw new FetchFailedException(
+              null,
+              handle.shuffleId,
+              -1,
+              -1,
+              startPartition,
+              SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + handle.shuffleId,
+              e)
+          } else {
+            throw e
+          }
+      }
     shuffleIdTracker.track(handle.shuffleId, shuffleId)
     logDebug(
       s"get shuffleId $shuffleId for appShuffleId ${handle.shuffleId} attemptNum ${context.stageAttemptNumber()}")
@@ -104,23 +124,42 @@ class CelebornShuffleReader[K, C](
       }
     }
 
-    val startTime = System.currentTimeMillis()
     val fetchTimeoutMs = conf.clientFetchTimeoutMs
     val localFetchEnabled = conf.enableReadLocalShuffleFile
     val localHostAddress = Utils.localHostName(conf)
     val shuffleKey = Utils.makeShuffleKey(handle.appUniqueId, shuffleId)
     var fileGroups: ReduceFileGroups = null
-    try {
-      // startPartition is irrelevant
-      fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition)
-    } catch {
-      case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
-        // if a task is interrupted, should not report fetch failure
-        // if a task update file group timeout, should not report fetch failure
-        checkAndReportFetchFailureForUpdateFileGroupFailure(shuffleId, ce)
-      case e: Throwable => throw e
-    }
+    var isShuffleStageEnd: Boolean = false
+    var updateFileGroupsRetryTimes = 0
+    do {
+      isShuffleStageEnd =
+        try {
+          shuffleClient.isShuffleStageEnd(shuffleId)
+        } catch {
+          case e: Exception =>
+            logInfo(s"Failed to check shuffle stage end for $shuffleId, assume ended", e)
+            true
+        }
+      try {
+        // startPartition is irrelevant
+        fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition)
+      } catch {
+        case ce: CelebornIOException
+            if ce.getCause != null && ce.getCause.isInstanceOf[
+              TimeoutException] && !isShuffleStageEnd =>
+          updateFileGroupsRetryTimes += 1
+          logInfo(
+            s"UpdateFileGroup for $shuffleKey timeout due to shuffle stage not ended," +
+              s" retry again, retry times $updateFileGroupsRetryTimes",
+            ce)
+        case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
+          // if a task is interrupted, should not report fetch failure
+          // if a task update file group timeout, should not report fetch failure
+          checkAndReportFetchFailureForUpdateFileGroupFailure(shuffleId, ce)
+      }
+    } while (fileGroups == null)
 
+    val batchOpenStreamStartTime = System.currentTimeMillis()
     // host-port -> (TransportClient, PartitionLocation Array, PbOpenStreamList)
     val workerRequestMap = new JHashMap[
       String,
@@ -223,7 +262,9 @@ class CelebornShuffleReader[K, C](
     // wait for all futures to complete
     futures.foreach(f => f.get())
     val end = System.currentTimeMillis()
-    logInfo(s"BatchOpenStream for $partCnt cost ${end - startTime}ms")
+    // readTime should include batchOpenStreamTime, getShuffleId Rpc time and updateFileGroup Rpc time
+    metricsCallback.incReadTime(end - startTime)
+    logInfo(s"BatchOpenStream for $partCnt cost ${end - batchOpenStreamStartTime}ms")
 
     val streams = JavaUtils.newConcurrentHashMap[Integer, CelebornInputStream]()
 
@@ -294,6 +335,7 @@ class CelebornShuffleReader[K, C](
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
         var inputStream: CelebornInputStream = streams.get(partitionId)
+        var sleepCnt = 0L
         while (inputStream == null) {
           if (exceptionRef.get() != null) {
             exceptionRef.get() match {
@@ -302,9 +344,16 @@ class CelebornShuffleReader[K, C](
               case e => throw e
             }
           }
-          logInfo("inputStream is null, sleeping...")
-          Thread.sleep(50)
+          if (sleepCnt == 0) {
+            logInfo(s"inputStream for partition: $partitionId is null, sleeping 5ms")
+          }
+          sleepCnt += 1
+          Thread.sleep(5)
           inputStream = streams.get(partitionId)
+        }
+        if (sleepCnt > 0) {
+          logInfo(
+            s"inputStream for partition: $partitionId is not null, sleep $sleepCnt times for ${5 * sleepCnt} ms")
         }
         metricsCallback.incReadTime(
           TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
@@ -455,4 +504,13 @@ class CelebornShuffleReader[K, C](
 
 object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
+  // Register the deserializer for GetReducerFileGroupResponse broadcast
+  ShuffleClient.registerDeserializeReducerFileGroupResponseFunction(new BiFunction[
+    Integer,
+    Array[Byte],
+    GetReducerFileGroupResponse] {
+    override def apply(shuffleId: Integer, broadcast: Array[Byte]): GetReducerFileGroupResponse = {
+      SparkUtils.deserializeGetReducerFileGroupResponse(shuffleId, broadcast)
+    }
+  })
 }

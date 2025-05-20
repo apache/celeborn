@@ -92,7 +92,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final LongAdder partitionTotalWritten = new LongAdder();
   public final LongAdder partitionTotalFileCount = new LongAdder();
   public final LongAdder shuffleTotalCount = new LongAdder();
+  public final LongAdder applicationTotalCount = new LongAdder();
   public final Map<String, Long> shuffleFallbackCounts = JavaUtils.newConcurrentHashMap();
+  public final Map<String, Long> applicationFallbackCounts = JavaUtils.newConcurrentHashMap();
 
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
       JavaUtils.newConcurrentHashMap();
@@ -152,12 +154,16 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       long totalWritten,
       long fileCount,
       long shuffleCount,
-      Map<String, Long> shuffleFallbackCounts) {
+      long applicationCount,
+      Map<String, Long> shuffleFallbackCounts,
+      Map<String, Long> applicationFallbackCounts) {
     appHeartbeatTime.put(appId, time);
     partitionTotalWritten.add(totalWritten);
     partitionTotalFileCount.add(fileCount);
     shuffleTotalCount.add(shuffleCount);
-    addShuffleFallbackCounts(shuffleFallbackCounts);
+    applicationTotalCount.add(applicationCount);
+    addFallbackCounts(this.shuffleFallbackCounts, shuffleFallbackCounts);
+    addFallbackCounts(this.applicationFallbackCounts, applicationFallbackCounts);
   }
 
   public void updateAppLostMeta(String appId) {
@@ -250,13 +256,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       long time,
       WorkerStatus workerStatus,
       boolean highWorkload) {
     WorkerInfo worker =
-        new WorkerInfo(
-            host, rpcPort, pushPort, fetchPort, replicatePort, -1, disks, userResourceConsumption);
+        new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, -1, disks, null);
     AtomicLong availableSlots = new AtomicLong();
     LOG.debug("update worker {}:{} heartbeat {}", host, rpcPort, disks);
     synchronized (workersMap) {
@@ -264,7 +268,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       workerInfo.ifPresent(
           info -> {
             info.updateThenGetDiskInfos(disks, Option.apply(estimatedPartitionSize));
-            info.updateThenGetUserResourceConsumption(userResourceConsumption);
             availableSlots.set(info.totalAvailableSlots());
             info.lastHeartbeat_$eq(time);
             info.setWorkerStatus(workerStatus);
@@ -285,12 +288,18 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         disks.values().stream().filter(s -> !s.status().equals(DiskStatus.HEALTHY)).count();
     boolean exceed = unhealthyDiskNum * 1.0 / disks.size() >= unhealthyDiskRatioThreshold;
     if (!excludedWorkers.contains(worker)
-        && (((disks.isEmpty() || exceed) && !conf.hasHDFSStorage() && !conf.hasS3Storage())
+        && (((disks.isEmpty() || exceed)
+                && !conf.hasHDFSStorage()
+                && !conf.hasS3Storage()
+                && !conf.hasOssStorage())
             || highWorkload)) {
       LOG.warn(
           "Worker {} (unhealthy disks num: {}) adds to excluded workers", worker, unhealthyDiskNum);
       excludedWorkers.add(worker);
-    } else if ((availableSlots.get() > 0 || conf.hasHDFSStorage() || conf.hasS3Storage())
+    } else if ((availableSlots.get() > 0
+            || conf.hasHDFSStorage()
+            || conf.hasS3Storage()
+            || conf.hasOssStorage())
         && !highWorkload) {
       // only unblack if numSlots larger than 0
       excludedWorkers.remove(worker);
@@ -310,8 +319,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int replicatePort,
       int internalPort,
       String networkLocation,
-      Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceConsumption) {
+      Map<String, DiskInfo> disks) {
     WorkerInfo workerInfo =
         new WorkerInfo(
             host,
@@ -321,7 +329,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             replicatePort,
             internalPort,
             disks,
-            userResourceConsumption);
+            new HashMap<>());
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
     if (networkLocation != null
         && !networkLocation.isEmpty()
@@ -330,7 +338,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     } else {
       workerInfo.networkLocation_$eq(rackResolver.resolve(host).getNetworkLocation());
     }
-    workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
+    workerInfo.updateDiskSlots(estimatedPartitionSize);
     synchronized (workersMap) {
       workersMap.putIfAbsent(workerInfo.toUniqueId(), workerInfo);
       shutdownWorkers.remove(workerInfo);
@@ -362,7 +370,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 partitionTotalWritten.sum(),
                 partitionTotalFileCount.sum(),
                 shuffleTotalCount.sum(),
+                applicationTotalCount.sum(),
                 shuffleFallbackCounts,
+                applicationFallbackCounts,
                 lostWorkers,
                 shutdownWorkers,
                 workerEventInfos,
@@ -462,7 +472,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       partitionTotalWritten.add(snapshotMetaInfo.getPartitionTotalWritten());
       partitionTotalFileCount.add(snapshotMetaInfo.getPartitionTotalFileCount());
       shuffleTotalCount.add(snapshotMetaInfo.getShuffleTotalCount());
-      addShuffleFallbackCounts(snapshotMetaInfo.getShuffleFallbackCountsMap());
+      applicationTotalCount.add(snapshotMetaInfo.getApplicationTotalCount());
+      addFallbackCounts(shuffleFallbackCounts, snapshotMetaInfo.getShuffleFallbackCountsMap());
+      addFallbackCounts(
+          applicationFallbackCounts, snapshotMetaInfo.getApplicationFallbackCountsMap());
 
       snapshotMetaInfo
           .getApplicationMetasMap()
@@ -503,7 +516,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     partitionTotalWritten.reset();
     partitionTotalFileCount.reset();
     shuffleTotalCount.reset();
+    applicationTotalCount.reset();
     shuffleFallbackCounts.clear();
+    applicationFallbackCounts.clear();
     workerEventInfos.clear();
     applicationMetas.clear();
   }
@@ -573,7 +588,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     HashSet<WorkerInfo> workers = new HashSet(workersMap.values());
     excludedWorkers.forEach(workers::remove);
     manuallyExcludedWorkers.forEach(workers::remove);
-    workers.forEach(workerInfo -> workerInfo.updateDiskMaxSlots(estimatedPartitionSize));
+    workers.forEach(workerInfo -> workerInfo.updateDiskSlots(estimatedPartitionSize));
   }
 
   private boolean isWorkerAvailable(WorkerInfo workerInfo) {
@@ -607,10 +622,25 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     return registeredAppAndShuffles.values().stream().mapToInt(Set::size).sum();
   }
 
-  private void addShuffleFallbackCounts(Map<String, Long> fallbackCounts) {
-    for (String fallbackPolicy : fallbackCounts.keySet()) {
-      shuffleFallbackCounts.compute(
-          fallbackPolicy, (k, v) -> v == null ? fallbackCounts.get(k) : v + fallbackCounts.get(k));
+  private void addFallbackCounts(Map<String, Long> fallbackCounts, Map<String, Long> counts) {
+    for (String fallbackPolicy : counts.keySet()) {
+      fallbackCounts.compute(
+          fallbackPolicy, (k, v) -> v == null ? counts.get(k) : v + counts.get(k));
+    }
+  }
+
+  public void updateWorkerResourceConsumptions(
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      Map<UserIdentifier, ResourceConsumption> resourceConsumptions) {
+    WorkerInfo worker =
+        new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, -1, null, null);
+    synchronized (workersMap) {
+      Optional<WorkerInfo> workerInfo = Optional.ofNullable(workersMap.get(worker.toUniqueId()));
+      workerInfo.ifPresent(info -> info.updateThenGetUserResourceConsumption(resourceConsumptions));
     }
   }
 }

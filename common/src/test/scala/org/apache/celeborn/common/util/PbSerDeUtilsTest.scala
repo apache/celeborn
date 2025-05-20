@@ -24,7 +24,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
 
-import com.google.common.collect.{Lists, Sets}
+import com.google.common.collect.Lists
 import org.apache.hadoop.shaded.org.apache.commons.lang3.RandomStringUtils
 
 import org.apache.celeborn.CelebornFunSuite
@@ -36,7 +36,7 @@ import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, WorkerResource}
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.PbSerDeUtils.{fromPbPackedPartitionLocationsPair, toPbPackedPartitionLocationsPair}
-import org.apache.celeborn.common.write.PushFailedBatch
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 
 class PbSerDeUtilsTest extends CelebornFunSuite {
 
@@ -125,7 +125,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
       1005,
       diskInfos,
       userResourceConsumption)
-  workerInfo1.networkLocation_$eq("/1")
+  workerInfo1.networkLocation = "/1"
   val workerInfo2 =
     new WorkerInfo(
       "localhost",
@@ -664,19 +664,12 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
   }
 
   test("fromAndToPushFailedBatch") {
-    val failedBatch = new PushFailedBatch(1, 1, 2)
-    val pbPushFailedBatch = PbSerDeUtils.toPbPushFailedBatch(failedBatch)
-    val restoredFailedBatch = PbSerDeUtils.fromPbPushFailedBatch(pbPushFailedBatch)
+    val failedBatch = new LocationPushFailedBatches()
+    failedBatch.addFailedBatch(1, 1, 2)
+    val pbPushFailedBatch = PbSerDeUtils.toPbLocationPushFailedBatches(failedBatch)
+    val restoredFailedBatch = PbSerDeUtils.fromPbLocationPushFailedBatches(pbPushFailedBatch)
 
     assert(restoredFailedBatch.equals(failedBatch))
-  }
-
-  test("fromAndToPushFailedBatchSet") {
-    val failedBatchSet = Sets.newHashSet(new PushFailedBatch(1, 1, 2), new PushFailedBatch(2, 2, 3))
-    val pbPushFailedBatchSet = PbSerDeUtils.toPbPushFailedBatchSet(failedBatchSet)
-    val restoredFailedBatchSet = PbSerDeUtils.fromPbPushFailedBatchSet(pbPushFailedBatchSet)
-
-    assert(restoredFailedBatchSet.equals(failedBatchSet))
   }
 
 }

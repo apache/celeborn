@@ -113,6 +113,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
       assert(pushListener.isPause)
       assert(!replicateListener.isPause)
     }
+    Thread.sleep(20)
 
     // PAUSE PUSH -> PAUSE PUSH AND REPLICATE
     memoryCounter.set(replicateThreshold + 1)
@@ -120,6 +121,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
       assert(pushListener.isPause)
       assert(replicateListener.isPause)
     }
+    Thread.sleep(20)
 
     // PAUSE PUSH AND REPLICATE -> PAUSE PUSH
     memoryCounter.set(pushThreshold + 1)
@@ -127,6 +129,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
       assert(pushListener.isPause)
       assert(!replicateListener.isPause)
     }
+    Thread.sleep(20)
 
     // PAUSE PUSH -> NONE PAUSED
     memoryCounter.set(0)
@@ -134,10 +137,14 @@ class MemoryManagerSuite extends CelebornFunSuite {
       assert(!pushListener.isPause)
       assert(!replicateListener.isPause)
     }
+    Thread.sleep(20)
     // [CELEBORN-882] Test record pause push time
-    assert(memoryManager.getPausePushDataTime.longValue() > 0)
-    assert(memoryManager.getPausePushDataAndReplicateTime.longValue() == 0)
-    val lastPauseTime = memoryManager.getPausePushDataTime.longValue()
+    val lastPauseTime1 = memoryManager.getPausePushDataTime.longValue()
+    val lastPauseReplicaTime1 = memoryManager.getPausePushDataAndReplicateTime.longValue()
+    // PauseTime should count the actual waiting time
+    assert(lastPauseTime1 >= 60)
+    assert(lastPauseReplicaTime1 >= 20)
+    logInfo(s"lastPauseTime1: $lastPauseTime1, lastPauseReplicaTime1: $lastPauseReplicaTime1")
 
     // NONE PAUSED -> PAUSE PUSH AND REPLICATE
     memoryCounter.set(replicateThreshold + 1)
@@ -146,14 +153,46 @@ class MemoryManagerSuite extends CelebornFunSuite {
       assert(replicateListener.isPause)
     }
 
+    Thread.sleep(20)
+
     // PAUSE PUSH AND REPLICATE -> NONE PAUSED
     memoryCounter.set(0)
     eventually(timeout(30.second), interval(10.milliseconds)) {
       assert(!pushListener.isPause)
       assert(!replicateListener.isPause)
     }
-    assert(memoryManager.getPausePushDataTime.longValue() == lastPauseTime)
-    assert(memoryManager.getPausePushDataAndReplicateTime.longValue() > 0)
+
+    // Wait for the check thread to update the metrics
+    memoryManager.switchServingState()
+    val lastPauseTime2 = memoryManager.getPausePushDataTime.longValue()
+    val lastPauseReplicaTime2 = memoryManager.getPausePushDataAndReplicateTime.longValue()
+    assert(lastPauseTime2 > lastPauseTime1)
+    assert(lastPauseReplicaTime2 > lastPauseReplicaTime1)
+    logInfo(s"lastPauseTime2: $lastPauseTime2, lastPauseReplicaTime2: $lastPauseReplicaTime2")
+
+    // NONE PAUSED -> PAUSE PUSH
+    memoryCounter.set(pushThreshold + 1)
+    eventually(timeout(30.second), interval(10.milliseconds)) {
+      assert(pushListener.isPause)
+      assert(!replicateListener.isPause)
+    }
+
+    Thread.sleep(20)
+
+    // PAUSE PUSH -> NONE PAUSED
+    memoryCounter.set(0)
+    eventually(timeout(30.second), interval(10.milliseconds)) {
+      assert(!pushListener.isPause)
+      assert(!replicateListener.isPause)
+    }
+
+    // Wait for the check thread to update the metrics
+    memoryManager.switchServingState()
+    val lastPauseTime3 = memoryManager.getPausePushDataTime.longValue()
+    val lastPauseReplicaTime3 = memoryManager.getPausePushDataAndReplicateTime.longValue()
+    assert(lastPauseTime3 > lastPauseTime2)
+    assert(lastPauseReplicaTime3 == lastPauseReplicaTime2)
+    logInfo(s"lastPauseTime3: $lastPauseTime3, lastPauseReplicaTime3: $lastPauseReplicaTime3")
   }
 
   test("[CELEBORN-1792] Test MemoryManager resume by pinned memory") {

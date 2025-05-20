@@ -174,7 +174,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     this.bufferSizeBytes = bufferSizeBytes;
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
-        Utils.fromCelebornConf(conf, module, conf.getInt("celeborn." + module + ".io.threads", 8));
+        Utils.fromCelebornConf(conf, module, conf.networkIoThreads(module));
     this.context =
         new TransportContext(
             dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());
@@ -537,7 +537,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
             ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
     // per partitionKey only serve single PartitionLocation in Client Cache.
     PbChangeLocationPartitionInfo partitionInfo = response.getPartitionInfo(0);
-    StatusCode respStatus = Utils.toStatusCode(partitionInfo.getStatus());
+    StatusCode respStatus = StatusCode.fromValue(partitionInfo.getStatus());
     if (StatusCode.SUCCESS.equals(respStatus)) {
       logger.debug("revive new partition:{}", partitionInfo.getPartition());
       return Optional.of(PbSerDeUtils.fromPbPartitionLocation(partitionInfo.getPartition()));

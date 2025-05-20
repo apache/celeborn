@@ -223,6 +223,7 @@ Apache Spark
 ./common/src/test/java/org/apache/celeborn/common/network/protocol/EncryptedMessageWithHeaderSuiteJ.java
 ./common/src/test/java/org/apache/celeborn/common/network/ssl/ReloadingX509TrustManagerSuiteJ.java
 ./common/src/test/java/org/apache/celeborn/common/network/ssl/SslSampleConfigs.java
+./common/src/main/scala/org/apache/celeborn/common/util/KeyLock.scala
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/DB.java
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/DBIterator.java
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/LevelDB.java

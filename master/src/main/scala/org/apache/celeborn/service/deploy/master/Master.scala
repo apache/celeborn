@@ -42,7 +42,7 @@ import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Role, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.CelebornRackResolver
-import org.apache.celeborn.common.network.protocol.TransportMessage
+import org.apache.celeborn.common.network.protocol.{TransportMessage, TransportMessagesHelper}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -51,6 +51,7 @@ import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.{RpcSecurityContextBuilder, ServerSaslContextBuilder}
 import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, SignalUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
+import org.apache.celeborn.service.deploy.master.audit.ShuffleAuditLogger
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 import org.apache.celeborn.service.deploy.master.quota.QuotaManager
@@ -189,12 +190,15 @@ private[celeborn] class Master(
   private val dfsExpireDirsTimeoutMS = conf.dfsExpireDirsTimeoutMS
   private val hasHDFSStorage = conf.hasHDFSStorage
   private val hasS3Storage = conf.hasS3Storage
+  private val hasOssStorage = conf.hasOssStorage
 
-  private val quotaManager = new QuotaManager(conf, configService)
+  private val quotaManager = new QuotaManager(
+    statusSystem,
+    masterSource,
+    resourceConsumptionSource,
+    conf,
+    configService)
   private val tagsManager = new TagsManager(Option(configService))
-  private val masterResourceConsumptionInterval = conf.masterResourceConsumptionInterval
-  private val userResourceConsumptions =
-    JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
 
   private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
   private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
@@ -268,8 +272,16 @@ private[celeborn] class Master(
     statusSystem.shuffleTotalCount.sum()
   }
 
+  masterSource.addGauge(MasterSource.APPLICATION_TOTAL_COUNT) { () =>
+    statusSystem.applicationTotalCount.sum()
+  }
+
   masterSource.addGauge(MasterSource.SHUFFLE_FALLBACK_COUNT) { () =>
     statusSystem.shuffleFallbackCounts.values().asScala.map(_.longValue()).sum
+  }
+
+  masterSource.addGauge(MasterSource.APPLICATION_FALLBACK_COUNT) { () =>
+    statusSystem.applicationFallbackCounts.values().asScala.map(_.longValue()).sum
   }
 
   masterSource.addGauge(MasterSource.DEVICE_CELEBORN_TOTAL_CAPACITY) { () =>
@@ -309,6 +321,8 @@ private[celeborn] class Master(
       : util.concurrent.ConcurrentHashMap[String, util.Set[WorkerInfo]] =
     JavaUtils.newConcurrentHashMap[String, util.Set[WorkerInfo]]()
 
+  private val messagesHelper: TransportMessagesHelper = new TransportMessagesHelper()
+
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
     if (!threadsStarted.compareAndSet(false, true)) {
@@ -330,7 +344,7 @@ private[celeborn] class Master(
         CheckForWorkerUnavailableInfoTimeout)
     }
 
-    if (hasHDFSStorage || hasS3Storage) {
+    if (hasHDFSStorage || hasS3Storage || hasOssStorage) {
       checkForDFSRemnantDirsTimeOutTask =
         scheduleCheckTask(dfsExpireDirsTimeoutMS, CheckForDFSExpiredDirsTimeout)
     }
@@ -363,6 +377,7 @@ private[celeborn] class Master(
     if (authEnabled) {
       sendApplicationMetaExecutor.shutdownNow()
     }
+    messagesHelper.close()
     logInfo("Celeborn Master is stopped.")
   }
 
@@ -408,8 +423,10 @@ private[celeborn] class Master(
           appId,
           totalWritten,
           fileCount,
-          shuffleFallbackCount,
+          shuffleCount,
+          applicationCount,
           shuffleFallbackCounts,
+          applicationFallbackCounts,
           needCheckedWorkerList,
           requestId,
           shouldResponse) =>
@@ -422,8 +439,10 @@ private[celeborn] class Master(
           appId,
           totalWritten,
           fileCount,
-          shuffleFallbackCount,
+          shuffleCount,
+          applicationCount,
           shuffleFallbackCounts,
+          applicationFallbackCounts,
           needCheckedWorkerList,
           requestId,
           shouldResponse))
@@ -545,6 +564,7 @@ private[celeborn] class Master(
         .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
       val workersToRemove = new util.ArrayList[WorkerInfo](pb.getWorkersToRemoveList
         .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
+
       executeWithLeaderChecker(
         context,
         handleWorkerExclude(
@@ -687,13 +707,13 @@ private[celeborn] class Master(
       val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
       val shuffleIds = statusSystem.registeredAppAndShuffles.get(appId)
       if (shuffleIds == null || !shuffleIds.contains(shuffleId)) {
-        logWarning(
-          s"Shuffle $shuffleKey expired on $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
         expiredShuffleKeys.add(shuffleKey)
       }
     }
-    logDebug(
-      s"Shuffle ${expiredShuffleKeys.asScala.mkString("[", " ,", "]")} expired on ${targetWorker.toUniqueId}.")
+    ShuffleAuditLogger.batchAudit(
+      expiredShuffleKeys.asScala.mkString(","),
+      "EXPIRE",
+      Seq(s"worker=${targetWorker.toUniqueId}"))
 
     val workerEventInfo = statusSystem.workerEventInfos.get(targetWorker)
     if (workerEventInfo == null) {
@@ -716,6 +736,11 @@ private[celeborn] class Master(
     try {
       logInfo(s"Handle lost shuffles for ${appId} ${lostShuffles} ")
       statusSystem.handleReviseLostShuffles(appId, lostShuffles, requestId);
+      ShuffleAuditLogger.batchAudit(
+        lostShuffles.asScala.map { shuffleId =>
+          Utils.makeShuffleKey(appId, shuffleId)
+        }.mkString(","),
+        "REVIVE")
       if (context != null) {
         context.reply(ReviseLostShufflesResponse(true, ""))
       }
@@ -965,6 +990,14 @@ private[celeborn] class Master(
       logInfo(s"Offered extra $offerSlotsExtraSize slots for $shuffleKey")
     }
 
+    ShuffleAuditLogger.audit(
+      shuffleKey,
+      "OFFER_SLOTS",
+      Seq(
+        s"numReducers=$numReducers",
+        s"workerNum=${slots.size()}",
+        s"extraSlots=$offerSlotsExtraSize"))
+
     if (authEnabled) {
       pushApplicationMetaToWorkers(requestSlots, slots)
     }
@@ -1016,6 +1049,7 @@ private[celeborn] class Master(
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     statusSystem.handleUnRegisterShuffle(shuffleKey, requestId)
     logInfo(s"Unregister shuffle $shuffleKey")
+    ShuffleAuditLogger.audit(shuffleKey, "UNREGISTER")
     context.reply(UnregisterShuffleResponse(StatusCode.SUCCESS))
   }
 
@@ -1028,6 +1062,7 @@ private[celeborn] class Master(
       shuffleIds.map(shuffleId => Utils.makeShuffleKey(applicationId, shuffleId)).asJava
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeys, requestId)
     logInfo(s"BatchUnregister shuffle $shuffleKeys")
+    ShuffleAuditLogger.batchAudit(shuffleKeys.asScala.mkString(","), "BATCH_UNREGISTER")
     context.reply(BatchUnregisterShuffleResponse(StatusCode.SUCCESS, shuffleIds.asJava))
   }
 
@@ -1056,8 +1091,9 @@ private[celeborn] class Master(
       override def run(): Unit = {
         workersAssignedToApp.remove(appId)
         statusSystem.handleAppLost(appId, requestId)
+        quotaManager.handleAppLost(appId)
         logInfo(s"Removed application $appId")
-        if (hasHDFSStorage || hasS3Storage) {
+        if (hasHDFSStorage || hasS3Storage || hasOssStorage) {
           checkAndCleanExpiredAppDirsOnDFS(appId)
         }
         if (context != null) {
@@ -1079,6 +1115,7 @@ private[celeborn] class Master(
     }
     if (hasHDFSStorage) processDir(conf.hdfsDir, expiredDir)
     if (hasS3Storage) processDir(conf.s3Dir, expiredDir)
+    if (hasOssStorage) processDir(conf.ossDir, expiredDir)
   }
 
   private def processDir(dfsDir: String, expiredDir: String): Unit = {
@@ -1117,7 +1154,9 @@ private[celeborn] class Master(
       totalWritten: Long,
       fileCount: Long,
       shuffleCount: Long,
+      applicationCount: Long,
       shuffleFallbackCounts: util.Map[String, java.lang.Long],
+      applicationFallbackCounts: util.Map[String, java.lang.Long],
       needCheckedWorkerList: util.List[WorkerInfo],
       requestId: String,
       shouldResponse: Boolean): Unit = {
@@ -1126,7 +1165,9 @@ private[celeborn] class Master(
       totalWritten,
       fileCount,
       shuffleCount,
+      applicationCount,
       shuffleFallbackCounts,
+      applicationFallbackCounts,
       System.currentTimeMillis(),
       requestId)
     gaugeShuffleFallbackCounts()
@@ -1145,7 +1186,7 @@ private[celeborn] class Master(
         new util.ArrayList[WorkerInfo](
           (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava),
         new util.ArrayList(appRelatedShuffles),
-        CheckQuotaResponse(isAvailable = true, "")))
+        quotaManager.checkApplicationQuotaStatus(appId)))
     } else {
       context.reply(OneWayMessageResponse)
     }
@@ -1161,78 +1202,11 @@ private[celeborn] class Master(
     }
   }
 
-  private def handleResourceConsumption(userIdentifier: UserIdentifier): ResourceConsumption = {
-    val userResourceConsumption = computeUserResourceConsumption(userIdentifier)
-    gaugeResourceConsumption(userIdentifier)
-    userResourceConsumption
-  }
-
-  private def gaugeResourceConsumption(
-      userIdentifier: UserIdentifier,
-      applicationId: String = null): Unit = {
-    val resourceConsumptionLabel =
-      if (applicationId == null) userIdentifier.toMap
-      else userIdentifier.toMap + (resourceConsumptionSource.applicationLabel -> applicationId)
-    resourceConsumptionSource.addGauge(
-      ResourceConsumptionSource.DISK_FILE_COUNT,
-      resourceConsumptionLabel) { () =>
-      computeResourceConsumption(userIdentifier, applicationId).diskFileCount
-    }
-    resourceConsumptionSource.addGauge(
-      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
-      resourceConsumptionLabel) { () =>
-      computeResourceConsumption(userIdentifier, applicationId).diskBytesWritten
-    }
-    if (hasHDFSStorage) {
-      resourceConsumptionSource.addGauge(
-        ResourceConsumptionSource.HDFS_FILE_COUNT,
-        resourceConsumptionLabel) { () =>
-        computeResourceConsumption(userIdentifier, applicationId).hdfsFileCount
-      }
-      resourceConsumptionSource.addGauge(
-        ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
-        resourceConsumptionLabel) { () =>
-        computeResourceConsumption(userIdentifier, applicationId).hdfsBytesWritten
-      }
-    }
-  }
-
-  private def computeResourceConsumption(
-      userIdentifier: UserIdentifier,
-      applicationId: String = null): ResourceConsumption = {
-    val newResourceConsumption = computeUserResourceConsumption(userIdentifier)
-    if (applicationId == null) {
-      val current = System.currentTimeMillis()
-      if (userResourceConsumptions.containsKey(userIdentifier)) {
-        val resourceConsumptionAndUpdateTime = userResourceConsumptions.get(userIdentifier)
-        if (current - resourceConsumptionAndUpdateTime._2 <= masterResourceConsumptionInterval) {
-          return resourceConsumptionAndUpdateTime._1
-        }
-      }
-      userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))
-      newResourceConsumption
-    } else {
-      newResourceConsumption.subResourceConsumptions.get(applicationId)
-    }
-  }
-
-  // TODO: Support calculate topN app resource consumption.
-  private def computeUserResourceConsumption(
-      userIdentifier: UserIdentifier): ResourceConsumption = {
-    val resourceConsumption = statusSystem.workersMap.values().asScala.flatMap {
-      workerInfo => workerInfo.userResourceConsumption.asScala.get(userIdentifier)
-    }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
-    resourceConsumption
-  }
-
   private[master] def handleCheckQuota(
       userIdentifier: UserIdentifier,
       context: RpcCallContext): Unit = {
-    val userResourceConsumption = handleResourceConsumption(userIdentifier)
     if (conf.quotaEnabled) {
-      val (isAvailable, reason) =
-        quotaManager.checkQuotaSpaceAvailable(userIdentifier, userResourceConsumption)
-      context.reply(CheckQuotaResponse(isAvailable, reason))
+      context.reply(quotaManager.checkUserQuotaStatus(userIdentifier))
     } else {
       context.reply(CheckQuotaResponse(true, ""))
     }

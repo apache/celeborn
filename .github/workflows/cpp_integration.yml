@@ -1,0 +1,94 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: Celeborn Cpp Integration Test
+
+on:
+  push:
+    branches:
+      - main
+      - branch-*
+  pull_request:
+    branches:
+      - main
+      - branch-*
+
+jobs:
+  celeborn_cpp_check_lint:
+    runs-on: ubuntu-22.04
+    container: holylow/celeborn-cpp-dev:0.3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: 'false'
+          fetch-depth: 0
+      - name: Check Cpp Code Lint
+        working-directory: ./cpp
+        run: |
+          find ./ -iname '*.h' -o -iname '*.cpp' | \
+            xargs clang-format-15 -style=file:./.clang-format -n --Werror
+  celeborn_cpp_unit_test:
+    runs-on: ubuntu-22.04
+    container: holylow/celeborn-cpp-dev:0.3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: 'false'
+          fetch-depth: 0
+      - name: Compile Celeborn Cpp
+        working-directory: ./cpp
+        run: |
+          rm -rf build && mkdir -p build && cd build
+          cmake .. && make -j
+      - name: Run Unittests of Celeborn Cpp
+        working-directory: ./cpp/build
+        run: ctest
+  celeborn_cpp_integration_test:
+    runs-on: ubuntu-22.04
+    container: holylow/celeborn-cpp-dev:0.3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: 'false'
+          fetch-depth: 0
+      - name: Compile Celeborn Cpp
+        working-directory: ./cpp
+        run: |
+          rm -rf build && mkdir -p build && cd build
+          cmake .. && make -j
+      # This step is necessary because within container the setup-java step would pollute the $PATH
+      # and cause following steps fail. We manually back up the $PATH here to avoid the problem.
+      - name: Backup Path
+        run: |
+          echo $PATH
+          echo "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" >>"$GITHUB_PATH"
+      - name: Setup JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 8
+          cache: maven
+          check-latest: false
+      - name: Compile & Install Celeborn Java
+        run: build/mvn clean install -DskipTests
+      - name: Run Java-Cpp Hybrid Integration Test
+        run: |
+          build/mvn -pl worker \
+            test-compile exec:java \
+            -Dexec.classpathScope="test" \
+            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.JavaReadCppWriteTestWithNONE" \
+            -Dexec.args="-XX:MaxDirectMemorySize=2G"

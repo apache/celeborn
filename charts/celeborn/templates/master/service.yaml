@@ -16,16 +16,16 @@ limitations under the License.
 */ -}}
 
 {{ if .Values.additionalNodePortServicePerReplica.enabled }}
-{{ range  $i, $e := until (int .Values.masterReplicas) }}
+{{ range  $i, $e := until (int .Values.master.replicas) }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "celeborn.masterServiceName" $ }}-{{ $i }}
+  name: {{ include "celeborn.master.service.name" $ }}-{{ $i }}
   labels:
     {{- include "celeborn.labels" $ | nindent 4 }}
   annotations:
-    {{- include "celeborn.masterMetricsAnnotation" $ | nindent 4 }}
+    {{- include "celeborn.master.metrics.annotations" $ | nindent 4 }}
     {{- with index $.Values.additionalNodePortServicePerReplica.annotations (printf "master-replica-%d" $i) }}
     {{- range $key, $value := . }}
     {{ $key }}: {{ $value | quote }}
@@ -49,15 +49,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "celeborn.masterServiceName" . }}
+  name: {{ include "celeborn.master.service.name" . }}
   labels:
-    {{- include "celeborn.labels" . | nindent 4 }}
+    {{- include "celeborn.master.labels" . | nindent 4 }}
   annotations:
-    {{- include "celeborn.masterMetricsAnnotation" . | nindent 4 }}
+    {{- include "celeborn.master.metrics.annotations" . | nindent 4 }}
 spec:
   selector:
-    {{- include "celeborn.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/role: master
+    {{- include "celeborn.master.selectorLabels" . | nindent 4 }}
   ports:
   - port: {{ .Values.service.port }}
     targetPort: {{ .Values.service.port }}

@@ -34,6 +34,7 @@ import org.apache.celeborn.client.LifecycleManager.{ShuffleFailedWorkers, Shuffl
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -42,7 +43,7 @@ import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
-import org.apache.celeborn.common.write.PushFailedBatch
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 
 case class CommitFilesParam(
     worker: WorkerInfo,
@@ -178,7 +179,19 @@ abstract class CommitHandler(
    * partitions are complete by the time the method is called, as downstream tasks may start early before all tasks
    * are completed.So map partition may need refresh reducer file group if needed.
    */
-  def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit
+  def handleGetReducerFileGroup(
+      context: RpcCallContext,
+      shuffleId: Int,
+      serdeVersion: SerdeVersion): Unit
+
+  /**
+   * Only Reduce partition mode supports get stage end.
+   */
+  def handleGetStageEnd(context: RpcCallContext, shuffleId: Int): Unit = {
+    throw new UnsupportedOperationException(
+      "Failed when do handleGetStageEnd Operation, MapPartition shuffleType don't " +
+        "support stage end")
+  }
 
   def removeExpiredShuffle(shuffleId: Int): Unit = {
     reducerFileGroupsMap.remove(shuffleId)
@@ -202,7 +215,7 @@ abstract class CommitHandler(
       attemptId: Int,
       numMappers: Int,
       partitionId: Int,
-      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]],
+      pushFailedBatches: util.Map[String, LocationPushFailedBatches],
       recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean)
 
   def registerShuffle(
@@ -308,7 +321,7 @@ abstract class CommitHandler(
     val futureSeq = Future.sequence(outFutures)(cbf, ec)
     awaitResult(futureSeq, Duration.Inf)
 
-    val timeout = conf.rpcAskTimeout.duration.toMillis
+    val timeout = clientRpcCommitFilesAskTimeout.duration.toMillis
     var remainingTime = timeout * maxRetries
     val delta = 50
     while (remainingTime >= 0 && !futures.isEmpty) {

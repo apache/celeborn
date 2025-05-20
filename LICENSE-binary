@@ -216,6 +216,7 @@ com.fasterxml.jackson.module:jackson-module-scala
 com.google.code.findbugs:jsr305
 com.google.guava:failureaccess
 com.google.guava:guava
+com.lmax:disruptor
 com.thoughtworks.paranamer:paranamer
 commons-cli:commons-cli
 commons-io:commons-io

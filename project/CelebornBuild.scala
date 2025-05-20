@@ -47,15 +47,18 @@ object Dependencies {
   val commonsIoVersion = "2.17.0"
   val commonsLoggingVersion = "1.1.3"
   val commonsLang3Version = "3.17.0"
+  val commonsCollectionsVersion = "3.2.2"
   val findbugsVersion = "1.3.9"
   val guavaVersion = "33.1.0-jre"
   val hadoopVersion = "3.3.6"
   val awsS3Version = "1.12.532"
+  val aliyunOssVersion = "3.13.0"
   val junitInterfaceVersion = "0.13.3"
   // don't forget update `junitInterfaceVersion` when we upgrade junit
   val junitVersion = "4.13.2"
   val leveldbJniVersion = "1.8"
   val log4j2Version = "2.24.3"
+  val disruptorVersion = "3.4.4"
   val jdkToolsVersion = "0.1"
   val metricsVersion = "4.2.25"
   val mockitoVersion = "4.11.0"
@@ -83,6 +86,7 @@ object Dependencies {
   val httpCore5Version = "5.2.4"
   val jakartaAnnotationApiVersion = "1.3.5"
   val picocliVersion = "4.7.6"
+  val jmhVersion = "1.37"
 
   // For SSL support
   val bouncycastleVersion = "1.77"
@@ -123,6 +127,9 @@ object Dependencies {
   val hadoopAws = "org.apache.hadoop" % "hadoop-aws" % hadoopVersion excludeAll (
     ExclusionRule("com.amazonaws", "aws-java-sdk-bundle"))
   val awsS3 = "com.amazonaws" % "aws-java-sdk-s3" % awsS3Version
+  val commonsCollections = "commons-collections" % "commons-collections" % commonsCollectionsVersion
+  val hadoopAliyun = "org.apache.hadoop" % "hadoop-aliyun" % hadoopVersion
+  val aliyunOss = "com.aliyun.oss" % "aliyun-sdk-oss" % aliyunOssVersion
   val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion
   val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion excludeAll (
     ExclusionRule("com.rabbitmq", "amqp-client"))
@@ -142,6 +149,7 @@ object Dependencies {
   val log4jCore = "org.apache.logging.log4j" % "log4j-core" % log4j2Version
   val log4j12Api = "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version
   val log4jSlf4jImpl = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version
+  val disruptor = "com.lmax" % "disruptor" % disruptorVersion
   val lz4Java = "org.lz4" % "lz4-java" % lz4JavaVersion
   val protobufJava = "com.google.protobuf" % "protobuf-java" % protoVersion
   val ratisClient = "org.apache.ratis" % "ratis-client" % ratisVersion
@@ -259,6 +267,9 @@ object Dependencies {
   )
 
   val picocli = "info.picocli" % "picocli" % picocliVersion
+
+  val jmhCore = "org.openjdk.jmh" % "jmh-core" % jmhVersion % "test"
+  val jmhGeneratorAnnprocess = "org.openjdk.jmh" % "jmh-generator-annprocess" % jmhVersion % "test"
 }
 
 object CelebornCommonSettings {
@@ -454,8 +465,9 @@ object Utils {
       profiles
   }
 
-  val celeborMPUProject = profiles.filter(_.startsWith("aws")).headOption match {
+  val celeborMPUProject = profiles.find(p => p.startsWith("aws") || p.startsWith("aliyun")) match {
     case Some("aws") => Some(CeleborMPU.celeborMPU)
+    case Some("aliyun") => Some(CeleborMPU.celeborMPUOss)
     case _ => None
   }
 
@@ -485,6 +497,7 @@ object Utils {
     case Some("flink-1.18") => Some(Flink118)
     case Some("flink-1.19") => Some(Flink119)
     case Some("flink-1.20") => Some(Flink120)
+    case Some("flink-2.0") => Some(Flink20)
     case _ => None
   }
 
@@ -568,8 +581,9 @@ object CelebornSpi {
 object CeleborMPU {
 
   lazy val hadoopAwsDependencies = Seq(Dependencies.hadoopAws, Dependencies.awsS3)
+  lazy val hadoopAliyunDependencies = Seq(Dependencies.commonsCollections, Dependencies.hadoopAliyun, Dependencies.aliyunOss)
 
-  lazy val celeborMPU = Project("celeborn-multipart-uploader", file("multipart-uploader"))
+  lazy val celeborMPU = Project("celeborn-multipart-uploader-s3", file("multipart-uploader/multipart-uploader-s3"))
     .dependsOn(CelebornService.service % "test->test;compile->compile")
     .settings (
       commonSettings,
@@ -577,6 +591,16 @@ object CeleborMPU {
         Dependencies.log4j12Api,
         Dependencies.log4jSlf4jImpl,
       ) ++ hadoopAwsDependencies
+    )
+
+  lazy val celeborMPUOss = Project("celeborn-multipart-uploader-oss", file("multipart-uploader/multipart-uploader-oss"))
+    .dependsOn(CelebornService.service % "test->test;compile->compile")
+    .settings (
+      commonSettings,
+      libraryDependencies ++= Seq(
+        Dependencies.log4j12Api,
+        Dependencies.log4jSlf4jImpl,
+      ) ++ hadoopAliyunDependencies
     )
 }
 
@@ -701,6 +725,17 @@ object CelebornService {
 }
 
 object CelebornMaster {
+  val mpuDependencies =
+    if (profiles.exists(_.startsWith("aws"))) {
+      CeleborMPU.hadoopAwsDependencies
+    } else if (profiles.exists(_.startsWith("aliyun"))) {
+      CeleborMPU.hadoopAliyunDependencies
+    } else {
+      Seq.empty
+    }
+
+  lazy val jmhDependencies = Seq(Dependencies.jmhCore, Dependencies.jmhGeneratorAnnprocess)
+
   lazy val master = Project("celeborn-master", file("master"))
     .dependsOn(CelebornCommon.common)
     .dependsOn(CelebornCommon.common % "test->test;compile->compile")
@@ -715,6 +750,7 @@ object CelebornMaster {
         Dependencies.hadoopClientApi,
         Dependencies.log4j12Api,
         Dependencies.log4jSlf4jImpl,
+        Dependencies.disruptor,
         Dependencies.ratisClient,
         Dependencies.ratisCommon,
         Dependencies.ratisGrpc,
@@ -723,7 +759,7 @@ object CelebornMaster {
         Dependencies.ratisServer,
         Dependencies.ratisShell,
         Dependencies.scalatestMockito % "test",
-      ) ++ commonUnitTestDependencies
+      ) ++ commonUnitTestDependencies ++ mpuDependencies ++ jmhDependencies
     )
 }
 
@@ -737,6 +773,8 @@ object CelebornWorker {
 
   if (profiles.exists(_.startsWith("aws"))) {
     worker = worker.dependsOn(CeleborMPU.celeborMPU)
+  } else if (profiles.exists(_.startsWith("aliyun"))) {
+    worker = worker.dependsOn(CeleborMPU.celeborMPUOss)
   }
 
   worker = worker.settings(
@@ -748,6 +786,7 @@ object CelebornWorker {
         Dependencies.ioNetty,
         Dependencies.log4j12Api,
         Dependencies.log4jSlf4jImpl,
+        Dependencies.disruptor,
         Dependencies.leveldbJniAll,
         Dependencies.roaringBitmap,
         Dependencies.rocksdbJni,
@@ -1031,6 +1070,7 @@ trait SparkClientProjects {
               name.startsWith("failureaccess-") ||
               name.startsWith("netty-") ||
               name.startsWith("commons-lang3-") ||
+              name.startsWith("commons-io-") ||
               name.startsWith("RoaringBitmap-"))
           }
         },
@@ -1125,6 +1165,16 @@ object Flink120 extends FlinkClientProjects {
   val flinkClientShadedProjectName: String = "celeborn-client-flink-1_20-shaded"
 }
 
+object Flink20 extends FlinkClientProjects {
+  val flinkVersion = "2.0.0"
+
+  // note that SBT does not allow using the period symbol (.) in project names.
+  val flinkClientProjectPath = "client-flink/flink-2.0"
+  val flinkClientProjectName = "celeborn-client-flink-2_0"
+  val flinkClientShadedProjectPath: String = "client-flink/flink-2.0-shaded"
+  val flinkClientShadedProjectName: String = "celeborn-client-flink-2_0-shaded"
+}
+
 trait FlinkClientProjects {
 
   val flinkVersion: String
@@ -1199,11 +1249,11 @@ trait FlinkClientProjects {
         commonSettings,
         libraryDependencies ++= Seq(
           "org.apache.flink" % "flink-runtime" % flinkVersion % "test",
-          "org.apache.flink" %% "flink-scala" % flinkVersion % "test",
           flinkStreamingDependency,
           flinkClientsDependency,
           flinkRuntimeWebDependency
-        ) ++ commonUnitTestDependencies
+        ) ++ commonUnitTestDependencies,
+        (Test / envVars) += ("FLINK_VERSION", flinkVersion)
       )
   }
 
