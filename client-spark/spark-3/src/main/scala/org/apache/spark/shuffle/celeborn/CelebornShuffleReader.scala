@@ -177,7 +177,7 @@ class CelebornShuffleReader[K, C](
               (client, new JArrayList[PartitionLocation], pbOpenStreamList))
           } catch {
             case ex: Exception =>
-              shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort, ex)
+              shuffleClient.excludeFailedFetchLocation(hostPort, ex)
               logWarning(
                 s"Failed to create client for $shuffleKey-${location.getId} from host: ${hostPort}. " +
                   s"Shuffle reader will try its replica if exists.")
