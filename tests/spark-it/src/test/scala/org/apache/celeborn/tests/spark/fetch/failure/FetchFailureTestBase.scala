@@ -27,8 +27,7 @@ private[tests] trait FetchFailureTestBase extends SparkTestBase {
 
   def createSparkSession(
       overrideShuffleMgr: Boolean = true,
-      enableFailedShuffleCleaner: Boolean = false,
-      enableCustomizedRunningStageMgr: Boolean = false): SparkSession = {
+      enableFailedShuffleCleaner: Boolean = false): SparkSession = {
     val sparkConf = new SparkConf().setAppName({
       if (!enableFailedShuffleCleaner) {
         "fetch-failure"
@@ -57,16 +56,6 @@ private[tests] trait FetchFailureTestBase extends SparkTestBase {
     baseBuilder =
       if (enableFailedShuffleCleaner) {
         baseBuilder.config("spark.celeborn.client.spark.fetch.cleanFailedShuffle", "true")
-      } else {
-        baseBuilder
-      }
-
-    baseBuilder =
-      if (enableCustomizedRunningStageMgr) {
-        baseBuilder.config(
-          "spark.celeborn.client.spark.fetch.cleanFailedShuffle" +
-            ".runningStageManagerImpl",
-          "org.apache.celeborn.tests.spark.fetch_failure.TestRunningStageManager")
       } else {
         baseBuilder
       }

@@ -18,7 +18,6 @@
 package org.apache.spark
 
 object SparkContextHelper {
-
   def env: SparkEnv = {
     assert(SparkContext.getActive.isDefined)
     SparkContext.getActive.get.env

@@ -20,16 +20,14 @@ package org.apache.celeborn.tests.spark
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 
-import org.apache.spark.{BarrierTaskContext, ShuffleDependency, SparkConf, SparkContextHelper, SparkException, TaskContext}
+import org.apache.spark.{BarrierTaskContext, ShuffleDependency, SparkContextHelper, SparkException, TaskContext}
 import org.apache.spark.celeborn.ExceptionMakerHelper
 import org.apache.spark.rdd.RDD
 import org.apache.spark.shuffle.celeborn.{SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
-import org.apache.spark.sql.SparkSession
-import org.scalatest.{BeforeAndAfterEach, Ignore}
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.tests.spark.fetch.failure.{FetchFailureTestBase, FileDeletionShuffleReaderGetHook}
 
 class CelebornFetchFailureSuite extends AnyFunSuite
