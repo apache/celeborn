@@ -283,6 +283,10 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     getCommitHandler(shuffleId).handleGetReducerFileGroup(context, shuffleId, serdeVersion)
   }
 
+  def handleGetStageEnd(context: RpcCallContext, shuffleId: Int): Unit = {
+    getCommitHandler(shuffleId).handleGetStageEnd(context, shuffleId)
+  }
+
   // exposed for test
   def getCommitHandler(shuffleId: Int): CommitHandler = {
     val partitionType = lifecycleManager.getPartitionType(shuffleId)

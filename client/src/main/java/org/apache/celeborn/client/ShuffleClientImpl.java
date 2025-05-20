@@ -1870,6 +1870,22 @@ public class ShuffleClientImpl extends ShuffleClient {
     return updateFileGroup(shuffleId, partitionId, false);
   }
 
+  @Override
+  public boolean isShuffleStageEnd(int shuffleId) throws Exception {
+    if (null != lifecycleManagerRef) {
+      PbGetStageEnd request = PbGetStageEnd.newBuilder().setShuffleId(shuffleId).build();
+      PbGetStageEndResponse response =
+          lifecycleManagerRef.askSync(
+              request,
+              rpcMaxRetries,
+              rpcRetryWait,
+              ClassTag$.MODULE$.apply(PbGetStageEndResponse.class));
+      return response.getStageEnd();
+    } else {
+      throw new RuntimeException("Driver endpoint is null!");
+    }
+  }
+
   public ReduceFileGroups updateFileGroup(
       int shuffleId, int partitionId, boolean isSegmentGranularityVisible)
       throws CelebornIOException {

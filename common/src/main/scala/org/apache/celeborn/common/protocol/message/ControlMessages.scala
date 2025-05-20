@@ -617,6 +617,12 @@ object ControlMessages extends Logging {
     case pb: PbPushMergedDataSplitPartitionInfo =>
       new TransportMessage(MessageType.PUSH_MERGED_DATA_SPLIT_PARTITION_INFO, pb.toByteArray)
 
+    case pb: PbGetStageEnd =>
+      new TransportMessage(MessageType.GET_STAGE_END, pb.toByteArray)
+
+    case pb: PbGetStageEndResponse =>
+      new TransportMessage(MessageType.GET_STAGE_END_RESPONSE, pb.toByteArray)
+
     case HeartbeatFromWorker(
           host,
           rpcPort,
@@ -1465,6 +1471,12 @@ object ControlMessages extends Logging {
 
       case PUSH_MERGED_DATA_SPLIT_PARTITION_INFO_VALUE =>
         PbPushMergedDataSplitPartitionInfo.parseFrom(message.getPayload)
+
+      case GET_STAGE_END_VALUE =>
+        PbGetStageEnd.parseFrom(message.getPayload)
+
+      case GET_STAGE_END_RESPONSE_VALUE =>
+        PbGetStageEndResponse.parseFrom(message.getPayload)
     }
   }
 }
