@@ -51,6 +51,7 @@ import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.{RpcSecurityContextBuilder, ServerSaslContextBuilder}
 import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, SignalUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
+import org.apache.celeborn.service.deploy.master.audit.ShuffleAuditLogger
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 import org.apache.celeborn.service.deploy.master.quota.QuotaManager
@@ -706,13 +707,13 @@ private[celeborn] class Master(
       val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
       val shuffleIds = statusSystem.registeredAppAndShuffles.get(appId)
       if (shuffleIds == null || !shuffleIds.contains(shuffleId)) {
-        logWarning(
-          s"Shuffle $shuffleKey expired on $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
         expiredShuffleKeys.add(shuffleKey)
       }
     }
-    logDebug(
-      s"Shuffle ${expiredShuffleKeys.asScala.mkString("[", " ,", "]")} expired on ${targetWorker.toUniqueId}.")
+    ShuffleAuditLogger.batchAudit(
+      expiredShuffleKeys.asScala.mkString(","),
+      "EXPIRE",
+      Seq(s"worker=${targetWorker.toUniqueId}"))
 
     val workerEventInfo = statusSystem.workerEventInfos.get(targetWorker)
     if (workerEventInfo == null) {
@@ -735,6 +736,11 @@ private[celeborn] class Master(
     try {
       logInfo(s"Handle lost shuffles for ${appId} ${lostShuffles} ")
       statusSystem.handleReviseLostShuffles(appId, lostShuffles, requestId);
+      ShuffleAuditLogger.batchAudit(
+        lostShuffles.asScala.map { shuffleId =>
+          Utils.makeShuffleKey(appId, shuffleId)
+        }.mkString(","),
+        "REVIVE")
       if (context != null) {
         context.reply(ReviseLostShufflesResponse(true, ""))
       }
@@ -984,6 +990,14 @@ private[celeborn] class Master(
       logInfo(s"Offered extra $offerSlotsExtraSize slots for $shuffleKey")
     }
 
+    ShuffleAuditLogger.audit(
+      shuffleKey,
+      "OFFER_SLOTS",
+      Seq(
+        s"numReducers=$numReducers",
+        s"workerNum=${slots.size()}",
+        s"extraSlots=$offerSlotsExtraSize"))
+
     if (authEnabled) {
       pushApplicationMetaToWorkers(requestSlots, slots)
     }
@@ -1035,6 +1049,7 @@ private[celeborn] class Master(
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     statusSystem.handleUnRegisterShuffle(shuffleKey, requestId)
     logInfo(s"Unregister shuffle $shuffleKey")
+    ShuffleAuditLogger.audit(shuffleKey, "UNREGISTER")
     context.reply(UnregisterShuffleResponse(StatusCode.SUCCESS))
   }
 
@@ -1047,6 +1062,7 @@ private[celeborn] class Master(
       shuffleIds.map(shuffleId => Utils.makeShuffleKey(applicationId, shuffleId)).asJava
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeys, requestId)
     logInfo(s"BatchUnregister shuffle $shuffleKeys")
+    ShuffleAuditLogger.batchAudit(shuffleKeys.asScala.mkString(","), "BATCH_UNREGISTER")
     context.reply(BatchUnregisterShuffleResponse(StatusCode.SUCCESS, shuffleIds.asJava))
   }
 
