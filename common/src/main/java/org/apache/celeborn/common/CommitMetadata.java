@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 import io.netty.buffer.ByteBuf;
@@ -89,5 +90,17 @@ public class CommitMetadata {
   @Override
   public String toString() {
     return "CommitMetadata{" + "bytes=" + bytes.get() + ", crc=" + crc + '}';
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    CommitMetadata that = (CommitMetadata) o;
+    return bytes.get() == that.bytes.get() && Objects.equals(crc, that.crc);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(bytes, crc);
   }
 }
