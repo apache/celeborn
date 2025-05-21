@@ -321,6 +321,7 @@ abstract class CommitHandler(
       while (iter.hasNext) {
         val status = iter.next()
         val worker = status.workerInfo
+        val shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId)
         if (status.future.isCompleted) {
           status.future.value.get match {
             case scala.util.Success(res) =>
@@ -328,10 +329,10 @@ abstract class CommitHandler(
                 case StatusCode.SUCCESS | StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.REQUEST_FAILED | StatusCode.WORKER_EXCLUDED | StatusCode.COMMIT_FILE_EXCEPTION =>
                   if (res.status == StatusCode.SUCCESS) {
                     logDebug(s"Request commitFiles return ${res.status} for " +
-                      s"${Utils.makeShuffleKey(appUniqueId, shuffleId)} from worker ${worker.readableAddress()}")
+                      s"$shuffleKey from worker ${worker.readableAddress()}")
                   } else {
                     logWarning(s"Request commitFiles return ${res.status} for " +
-                      s"${Utils.makeShuffleKey(appUniqueId, shuffleId)} from worker ${worker.readableAddress()}")
+                      s"$shuffleKey from worker ${worker.readableAddress()}")
                     if (res.status != StatusCode.WORKER_EXCLUDED) {
                       commitFilesFailedWorkers.put(worker, (res.status, System.currentTimeMillis()))
                     }
@@ -341,12 +342,12 @@ abstract class CommitHandler(
                 case StatusCode.COMMIT_FILES_MOCK_FAILURE =>
                   if (status.retriedTimes < maxRetries) {
                     logError(s"Request commitFiles return ${res.status} for " +
-                      s"${Utils.makeShuffleKey(appUniqueId, shuffleId)} for ${status.retriedTimes}/$maxRetries, will retry")
+                      s"$shuffleKey for ${status.retriedTimes}/$maxRetries, will retry")
                     retryCommitFiles(status, currentTime)
                   } else {
                     logError(
                       s"Request commitFiles return ${StatusCode.COMMIT_FILES_MOCK_FAILURE} for " +
-                        s"${Utils.makeShuffleKey(appUniqueId, shuffleId)} for ${status.retriedTimes}/$maxRetries, will not retry")
+                        s"$shuffleKey for ${status.retriedTimes}/$maxRetries, will not retry")
                     val res = createFailResponse(status)
                     processResponse(res, worker)
                     iter.remove()
@@ -358,13 +359,13 @@ abstract class CommitHandler(
             case scala.util.Failure(e) =>
               if (status.retriedTimes < maxRetries) {
                 logError(
-                  s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleId failed" +
+                  s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleKey failed" +
                     s" (attempt ${status.retriedTimes}/$maxRetries), will retry.",
                   e)
                 retryCommitFiles(status, currentTime)
               } else {
                 logError(
-                  s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleId failed" +
+                  s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleKey failed" +
                     s" (attempt ${status.retriedTimes}/$maxRetries), will not retry.",
                   e)
                 val res = createFailResponse(status)
@@ -375,12 +376,12 @@ abstract class CommitHandler(
         } else if (currentTime - status.startTime > timeout) {
           if (status.retriedTimes < maxRetries) {
             logError(
-              s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleId failed because of Timeout" +
+              s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleKey failed because of Timeout" +
                 s" (attempt ${status.retriedTimes}/$maxRetries), will retry.")
             retryCommitFiles(status, currentTime)
           } else {
             logError(
-              s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleId failed because of Timeout" +
+              s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleKey failed because of Timeout" +
                 s" (attempt ${status.retriedTimes}/$maxRetries), will not retry.")
           }
         }
