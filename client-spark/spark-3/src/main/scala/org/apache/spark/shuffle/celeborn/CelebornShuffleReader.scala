@@ -176,7 +176,47 @@ class CelebornShuffleReader[K, C](
     val splitSkewPartitionWithoutMapRange =
       ClientUtils.readSkewPartitionWithoutMapRange(conf, startMapIndex, endMapIndex)
 
-    (startPartition until endPartition).foreach { partitionId =>
+    // filter empty partition
+    val partitionIdList = List.range(startPartition, endPartition).filter(p =>
+      fileGroups.partitionGroups.containsKey(p))
+
+    def makeOpenStreamList(locations: JSet[PartitionLocation]): Unit = {
+      locations.asScala.foreach { location =>
+        partCnt += 1
+        val hostPort = location.hostAndFetchPort
+        if (!workerRequestMap.containsKey(hostPort)) {
+          try {
+            val client = shuffleClient.getDataClientFactory().createClient(
+              location.getHost,
+              location.getFetchPort)
+            val pbOpenStreamList = PbOpenStreamList.newBuilder()
+            pbOpenStreamList.setShuffleKey(shuffleKey)
+            workerRequestMap.put(
+              hostPort,
+              (client, new JArrayList[PartitionLocation], pbOpenStreamList))
+          } catch {
+            case ex: Exception =>
+              shuffleClient.excludeFailedFetchLocation(hostPort, ex)
+              logWarning(
+                s"Failed to create client for $shuffleKey-${location.getId} from host: ${hostPort}. " +
+                  s"Shuffle reader will try its replica if exists.")
+          }
+        }
+        workerRequestMap.get(hostPort) match {
+          case (_, locArr, pbOpenStreamListBuilder) =>
+            locArr.add(location)
+            pbOpenStreamListBuilder.addFileName(location.getFileName)
+              .addStartIndex(startMapIndex)
+              .addEndIndex(endMapIndex)
+            pbOpenStreamListBuilder.addReadLocalShuffle(
+              localFetchEnabled && location.getHost.equals(localHostAddress))
+          case _ =>
+            logDebug(s"Empty client for host ${hostPort}")
+        }
+      }
+    }
+
+    partitionIdList.foreach { partitionId =>
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
         var locations = fileGroups.partitionGroups.get(partitionId)
         if (splitSkewPartitionWithoutMapRange) {
@@ -194,40 +234,7 @@ class CelebornShuffleReader[K, C](
           locations = filterLocations.asJava
           partitionId2PartitionLocations.put(partitionId, locations)
         }
-
-        locations.asScala.foreach { location =>
-          partCnt += 1
-          val hostPort = location.hostAndFetchPort
-          if (!workerRequestMap.containsKey(hostPort)) {
-            try {
-              val client = shuffleClient.getDataClientFactory().createClient(
-                location.getHost,
-                location.getFetchPort)
-              val pbOpenStreamList = PbOpenStreamList.newBuilder()
-              pbOpenStreamList.setShuffleKey(shuffleKey)
-              workerRequestMap.put(
-                hostPort,
-                (client, new JArrayList[PartitionLocation], pbOpenStreamList))
-            } catch {
-              case ex: Exception =>
-                shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort, ex)
-                logWarning(
-                  s"Failed to create client for $shuffleKey-$partitionId from host: ${location.hostAndFetchPort}. " +
-                    s"Shuffle reader will try its replica if exists.")
-            }
-          }
-          workerRequestMap.get(hostPort) match {
-            case (_, locArr, pbOpenStreamListBuilder) =>
-              locArr.add(location)
-              pbOpenStreamListBuilder.addFileName(location.getFileName)
-                .addStartIndex(startMapIndex)
-                .addEndIndex(endMapIndex)
-              pbOpenStreamListBuilder.addReadLocalShuffle(
-                localFetchEnabled && location.getHost.equals(localHostAddress))
-            case _ =>
-              logDebug(s"Empty client for host ${hostPort}")
-          }
-        }
+        makeOpenStreamList(locations)
       }
     }
 
@@ -321,17 +328,16 @@ class CelebornShuffleReader[K, C](
     }
 
     val inputStreamCreationWindow = conf.clientInputStreamCreationWindow
-    (startPartition until Math.min(
-      startPartition + inputStreamCreationWindow,
-      endPartition)).foreach(partitionId => {
+    (0 until Math.min(inputStreamCreationWindow, partitionIdList.size)).foreach(listIndex => {
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
-          createInputStream(partitionId)
+          createInputStream(partitionIdList(listIndex))
         }
       })
     })
 
-    val recordIter = (startPartition until endPartition).iterator.map(partitionId => {
+    var curIndex = 0
+    val recordIter = partitionIdList.iterator.map(partitionId => {
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
         var inputStream: CelebornInputStream = streams.get(partitionId)
@@ -361,16 +367,18 @@ class CelebornShuffleReader[K, C](
         context.addTaskCompletionListener[Unit](_ => inputStream.close())
 
         // Advance the input creation window
-        if (partitionId + inputStreamCreationWindow < endPartition) {
+        if (curIndex + inputStreamCreationWindow < partitionIdList.size) {
+          val nextPartitionId = partitionIdList(curIndex + inputStreamCreationWindow)
           streamCreatorPool.submit(new Runnable {
             override def run(): Unit = {
-              createInputStream(partitionId + inputStreamCreationWindow)
+              createInputStream(nextPartitionId)
             }
           })
         }
-
+        curIndex = curIndex + 1
         (partitionId, inputStream)
       } else {
+        curIndex = curIndex + 1
         (partitionId, CelebornInputStream.empty())
       }
     }).filter {
