@@ -224,8 +224,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
       pushFailedBatches: util.Map[String, LocationPushFailedBatches] = Collections.emptyMap(),
       numPartitions: Int = -1,
       crc32PerPartition: Array[Int] = new Array[Int](0),
-      bytesWrittenPerPartition: Array[Long] = new Array[Long](0))
-      : (Boolean, Boolean) = {
+      bytesWrittenPerPartition: Array[Long] = new Array[Long](0)): (Boolean, Boolean) = {
     getCommitHandler(shuffleId).finishMapperAttempt(
       shuffleId,
       mapId,
