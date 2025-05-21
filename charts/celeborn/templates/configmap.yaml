@@ -23,23 +23,19 @@ metadata:
     {{- include "celeborn.labels" . | nindent 4 }}
 data:
   celeborn-defaults.conf: |-
-    {{- $namespace := .Release.Namespace }}
-    celeborn.master.endpoints={{ range until (.Values.master.replicas |int) }}{{ $.Release.Name }}-master-{{ . }}.{{ $.Release.Name }}-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local,{{ end }}
-    {{- range until (.Values.master.replicas |int) }}
-    celeborn.master.ha.node.{{ . }}.host={{ $.Release.Name }}-master-{{ . }}.{{ $.Release.Name }}-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local
+
+    {{- $endpoints := list }}
+    {{- range until (.Values.master.replicas | int) }}
+    {{- $endpoint := (printf "%s-%d.%s.%s.svc.%s.local" (include "celeborn.master.statefulSet.name" $) . (include "celeborn.master.service.name" $) $.Release.Namespace $.Values.cluster.name) }}
+    {{- $endpoints = append $endpoints $endpoint }}
     {{- end }}
-    {{- $dirs := .Values.volumes.master }}
-    celeborn.master.ha.ratis.raft.server.storage.dir={{ (index $dirs 0).mountPath }}
-    {{- $path := "" }}
-    {{- range $worker := .Values.volumes.worker }}
-    {{- $info := (cat $worker.mountPath ":disktype=" (get $worker "diskType" | default "HDD") ":capacity=" (get $worker "capacity" | default "1PB") | nospace) }}
-    {{- if eq $path "" }}
-    {{- $path = $info }}
-    {{- else }}
-    {{- $path = ( list $path $info | join ",") }}
+    celeborn.master.endpoints={{ $endpoints | join "," }}
+
+    {{- range until (.Values.master.replicas | int) }}
+    {{- $host := (printf "%s-%d.%s.%s.svc.%s.local" (include "celeborn.master.statefulSet.name" $) . (include "celeborn.master.service.name" $) $.Release.Namespace $.Values.cluster.name) }}
+    celeborn.master.ha.node.{{ . }}.host={{ $host }}
     {{- end }}
-    {{- end }}
-    celeborn.worker.storage.dirs={{ $path }}
+
     {{- range $key, $val := .Values.celeborn }}
     {{ $key }}={{ $val }}
     {{- end }}
