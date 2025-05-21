@@ -248,6 +248,9 @@ class CelebornConfSuite extends CelebornFunSuite {
 
     conf.set("celeborn.storage.availableTypes", "S3")
     assert(conf.availableStorageTypes == StorageInfo.S3_MASK)
+
+    conf.set("celeborn.storage.availableTypes", "OSS")
+    assert(conf.availableStorageTypes == StorageInfo.OSS_MASK)
   }
 
   test("Test role rpcDispatcherNumThreads") {
