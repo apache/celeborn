@@ -267,7 +267,9 @@ public class RemoteShuffleInputGateDelegation {
         String message = throwable.getMessage();
         if (null != message && message.contains(clazz.getName())) {
           cause = new PartitionNotFoundException(rpID);
-        } else if (null != message && message.contains("Failed to connect to") && partitionConnectionExceptionEnabled) {
+        } else if (partitionConnectionExceptionEnabled
+            && null != message
+            && message.contains("Failed to connect to")) {
           cause = new PartitionConnectionException(rpID, throwable);
         } else {
           cause = throwable;

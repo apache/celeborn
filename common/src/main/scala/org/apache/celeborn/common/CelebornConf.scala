@@ -6035,10 +6035,12 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val PARTITION_CONNECTION_EXCEPTION_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.partitionConnectionException.enabled")
+    buildConf("celeborn.client.flink.partitionConnectionException.enabled")
       .categories("client")
       .version("0.6.0")
-      .doc("Whether to enable partition connection exception on failure.")
+      .doc("If enabled, `org.apache.flink.runtime.io.network.partition.consumer.PartitionConnectionException` " +
+        "would be thrown when RemoteBufferStreamReader finds that the current exception is about connection " +
+        "failure, then Flink can be aware of the lost Celeborn server side nodes and be able to re-compute affected data.")
       .booleanConf
       .createWithDefault(false)
 
