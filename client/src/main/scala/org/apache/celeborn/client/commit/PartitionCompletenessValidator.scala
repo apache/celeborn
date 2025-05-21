@@ -113,8 +113,8 @@ class PartitionCompletenessValidator extends Logging {
           new util.TreeMap[(Int, Int), CommitMetadata](comparator)
       })
     subRangeToCommitMetadataMap.synchronized {
-      val count = subRangeToCommitMetadataMap.get((startMapIndex, endMapIndex))
-      if (count == null) {
+      val existingMetadata = subRangeToCommitMetadataMap.get((startMapIndex, endMapIndex))
+      if (existingMetadata == null) {
         val (isOverlapping, overlappingEntry) =
           checkOverlappingRange(subRangeToCommitMetadataMap, startMapIndex, endMapIndex)
         if (isOverlapping) {
@@ -130,8 +130,15 @@ class PartitionCompletenessValidator extends Logging {
             partitionId,
             actualCommitMetadata,
             new java.util.function.BiFunction[CommitMetadata, CommitMetadata, CommitMetadata] {
-              override def apply(t: CommitMetadata, u: CommitMetadata): CommitMetadata =
+              override def apply(t: CommitMetadata, u: CommitMetadata): CommitMetadata = {
+                if (t == null) {
+                  return u
+                }
+                if (u == null) {
+                  return t
+                }
                 CommitMetadata.combineMetadata(t, u)
+              }
             })
           currentTotalMapRangeSumForReducer.merge(
             partitionId,
@@ -141,10 +148,10 @@ class PartitionCompletenessValidator extends Logging {
                 Integer.sum(t, u)
             })
         }
-      } else if (count != actualCommitMetadata) {
+      } else if (existingMetadata != actualCommitMetadata) {
         val errorMessage = s"Commit Metadata for partition: $partitionId " +
           s"not matching for sub-partition with startMapIndex: $startMapIndex endMapIndex: $endMapIndex " +
-          s"previous count: $count new count: $actualCommitMetadata"
+          s"previous count: $existingMetadata new count: $actualCommitMetadata"
         logError(errorMessage)
         return (false, errorMessage)
       }
