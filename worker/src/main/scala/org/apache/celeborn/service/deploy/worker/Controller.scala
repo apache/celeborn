@@ -620,19 +620,20 @@ private[deploy] class Controller(
         new BiFunction[Void, Throwable, Unit] {
           override def apply(v: Void, t: Throwable): Unit = {
             if (null != t) {
+              val errMsg = s"Exception while handling commitFiles for shuffleId: $shuffleKey"
               t match {
                 case _: CancellationException =>
-                  logWarning("While handling commitFiles, canceled.")
+                  logWarning(s"$errMsg, operation was cancelled.")
                 case ee: ExecutionException =>
-                  logError("While handling commitFiles, ExecutionException raised.", ee)
+                  logError(s"$errMsg, ExecutionException was raised.", ee)
                 case ie: InterruptedException =>
-                  logWarning("While handling commitFiles, interrupted.")
+                  logWarning(s"$errMsg, operation was interrupted.")
                   Thread.currentThread().interrupt()
                   throw ie
                 case _: TimeoutException =>
-                  logWarning(s"While handling commitFiles, timeout after $shuffleCommitTimeout ms.")
+                  logWarning(s"$errMsg, operation timed out after $shuffleCommitTimeout ms.")
                 case throwable: Throwable =>
-                  logError("While handling commitFiles, exception occurs.", throwable)
+                  logError(s"$errMsg, an unexpected exception occurred.", throwable)
               }
               commitInfo.synchronized {
                 commitInfo.response = CommitFilesResponse(
