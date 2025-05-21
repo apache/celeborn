@@ -1120,6 +1120,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def registerShuffleFilterExcludedWorkerEnabled: Boolean =
     get(REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED)
   def reviseLostShufflesEnabled: Boolean = get(REVISE_LOST_SHUFFLES_ENABLED)
+  def partitionConnectionExceptionEnabled: Boolean = get(PARTITION_CONNECTION_EXCEPTION_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                       Worker                        //
@@ -6041,6 +6042,16 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.6.0")
       .doc("Whether to revise lost shuffles.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val PARTITION_CONNECTION_EXCEPTION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.flink.partitionConnectionException.enabled")
+      .categories("client")
+      .version("0.6.0")
+      .doc("If enabled, `org.apache.flink.runtime.io.network.partition.consumer.PartitionConnectionException` " +
+        "would be thrown when RemoteBufferStreamReader finds that the current exception is about connection " +
+        "failure, then Flink can be aware of the lost Celeborn server side nodes and be able to re-compute affected data.")
       .booleanConf
       .createWithDefault(false)
 

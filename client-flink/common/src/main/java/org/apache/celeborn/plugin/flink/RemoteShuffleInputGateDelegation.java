@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.PartitionConnectionException;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.util.ExceptionUtils;
@@ -127,6 +128,7 @@ public class RemoteShuffleInputGateDelegation {
   private AvailabilityProvider.AvailabilityHelper availabilityHelper;
   private int startSubIndex;
   private int endSubIndex;
+  private boolean partitionConnectionExceptionEnabled;
 
   public RemoteShuffleInputGateDelegation(
       CelebornConf celebornConf,
@@ -177,6 +179,7 @@ public class RemoteShuffleInputGateDelegation {
     channelsInfo = createChannelInfos();
     this.numConcurrentReading = numConcurrentReading;
     this.availabilityHelper = availabilityHelper;
+    this.partitionConnectionExceptionEnabled = celebornConf.partitionConnectionExceptionEnabled();
     LOG.debug("Initial input gate with numConcurrentReading {}", this.numConcurrentReading);
   }
 
@@ -261,8 +264,13 @@ public class RemoteShuffleInputGateDelegation {
           return;
         }
         Class<?> clazz = PartitionUnRetryAbleException.class;
-        if (throwable.getMessage() != null && throwable.getMessage().contains(clazz.getName())) {
+        String message = throwable.getMessage();
+        if (null != message && message.contains(clazz.getName())) {
           cause = new PartitionNotFoundException(rpID);
+        } else if (partitionConnectionExceptionEnabled
+            && null != message
+            && message.contains("Failed to connect to")) {
+          cause = new PartitionConnectionException(rpID, throwable);
         } else {
           cause = throwable;
         }
