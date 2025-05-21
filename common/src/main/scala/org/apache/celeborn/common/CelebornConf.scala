@@ -6271,7 +6271,7 @@ object CelebornConf extends Logging {
   val SSL_HANDSHAKE_TIMEOUT_MS: ConfigEntry[Long] =
     buildConf("celeborn.ssl.<module>.sslHandshakeTimeoutMs")
       .categories("network", "ssl")
-      .version("0.6.0")
+      .version("0.5.4")
       .doc("The timeout for the SSL handshake (in milliseconds). The default value is set to " +
         s"the current Netty default. This is applicable for `${TransportModuleConstants.RPC_APP_MODULE}` " +
         s"and `${TransportModuleConstants.RPC_SERVICE_MODULE}` modules")
