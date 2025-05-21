@@ -70,7 +70,7 @@ class ReducePartitionCommitHandler(
 
   private val getReducerFileGroupRequest =
     JavaUtils.newConcurrentHashMap[Int, util.Set[MultiSerdeVersionRpcContext]]()
-  private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
+  private[celeborn] val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = JavaUtils.newConcurrentHashMap[Int, Array[Int]]()
