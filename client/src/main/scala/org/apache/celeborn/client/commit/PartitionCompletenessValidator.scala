@@ -20,19 +20,18 @@ package org.apache.celeborn.client.commit
 import java.util
 import java.util.{Comparator, Map}
 import java.util.function.{BiFunction, Consumer}
-
 import com.google.common.base.Preconditions.{checkArgument, checkState}
-
 import org.apache.celeborn.common.CommitMetadata
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.JavaUtils
+import org.roaringbitmap.RoaringBitmap
 
 class PartitionCompletenessValidator extends Logging {
 
   private val actualCommitMetadataForReducer = {
     JavaUtils.newConcurrentHashMap[Int, java.util.TreeMap[(Int, Int), CommitMetadata]]()
   }
-  private val totalSubPartitionsProcessed = JavaUtils.newConcurrentHashMap[Int, Int]()
+  private val totalSubPartitionsProcessed = JavaUtils.newConcurrentHashMap[Int, RoaringBitmap]()
   private val currentCommitMetadataForReducer =
     JavaUtils.newConcurrentHashMap[Int, CommitMetadata]()
   private val currentTotalMapRangeSumForReducer = JavaUtils.newConcurrentHashMap[Int, Int]()
@@ -54,9 +53,15 @@ class PartitionCompletenessValidator extends Logging {
       expectedCommitMetadata: CommitMetadata,
       expectedTotalMapperCountForParent: Int,
       skewPartitionHandlingWithoutMapRange: Boolean): (Boolean, String) = {
-    // TODO - ensure sub partitions aren't processed twice
     if (skewPartitionHandlingWithoutMapRange) {
-      totalSubPartitionsProcessed.put(partitionId, totalSubPartitionsProcessed.get(partitionId) + 1)
+      var bitmap: RoaringBitmap = null
+      if (totalSubPartitionsProcessed.containsKey(partitionId)) {
+        bitmap = totalSubPartitionsProcessed.get(partitionId)
+      } else {
+        bitmap = new RoaringBitmap();
+        totalSubPartitionsProcessed.put(partitionId, bitmap)
+      }
+      bitmap.add(endMapIndex)
       if (!currentCommitMetadataForReducer.containsKey(partitionId)) {
         currentCommitMetadataForReducer.put(
           partitionId,
@@ -65,7 +70,7 @@ class PartitionCompletenessValidator extends Logging {
         currentCommitMetadataForReducer.get(partitionId).addCommitData(actualCommitMetadata)
       }
       val currentCommitMetadata = currentCommitMetadataForReducer.get(partitionId)
-      if (totalSubPartitionsProcessed.get(partitionId) == startMapIndex) {
+      if (totalSubPartitionsProcessed.get(partitionId).getCardinality == startMapIndex) {
         val matchesMetadata =
           CommitMetadata.checkCommitMetadata(expectedCommitMetadata, currentCommitMetadata)
 
