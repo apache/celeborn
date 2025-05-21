@@ -931,7 +931,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED)
   def clientShuffleDynamicResourceFactor: Double = get(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
-  def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
   def dfsExpireDirsTimeoutMS: Long = get(DFS_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def applicationUnregisterEnabled: Boolean = get(APPLICATION_UNREGISTER_ENABLED)
@@ -2384,19 +2383,11 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("300s")
 
-  val HDFS_EXPIRE_DIRS_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.master.hdfs.expireDirs.timeout")
-      .categories("master")
-      .version("0.3.0")
-      .doc("The timeout for a expire dirs to be deleted on HDFS.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("1h")
-
   val DFS_EXPIRE_DIRS_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.dfs.expireDirs.timeout")
       .categories("master")
       .version("0.6.0")
-      .doc("The timeout for a expire dirs to be deleted on S3 or HDFS.")
+      .doc("The timeout for an expired dirs to be deleted on dfs like HDFS, S3, OSS.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1h")
 

@@ -202,12 +202,12 @@ public class StorageInfo implements Serializable {
     return availableStorageTypes == HDFS_MASK;
   }
 
-  public boolean HDFSOnly() {
-    return StorageInfo.HDFSOnly(availableStorageTypes);
-  }
-
   public static boolean S3Only(int availableStorageTypes) {
     return availableStorageTypes == S3_MASK;
+  }
+
+  public static boolean OSSOnly(int availableStorageTypes) {
+    return availableStorageTypes == OSS_MASK;
   }
 
   public static boolean OSSAvailable(int availableStorageTypes) {

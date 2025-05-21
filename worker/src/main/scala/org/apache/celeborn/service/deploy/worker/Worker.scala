@@ -490,7 +490,7 @@ private[celeborn] class Worker(
     val diskInfos =
       workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
         disk.mountPoint -> disk
-      }.toMap.asJava).values().asScala.toSeq ++ storageManager.hdfsDiskInfo ++ storageManager.s3DiskInfo
+      }.toMap.asJava).values().asScala.toSeq ++ storageManager.hdfsDiskInfo ++ storageManager.s3DiskInfo ++ storageManager.ossDiskInfo
     workerStatusManager.checkIfNeedTransitionStatus()
     val response = masterClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(

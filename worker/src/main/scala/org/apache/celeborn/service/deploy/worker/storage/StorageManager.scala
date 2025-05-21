@@ -238,9 +238,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val activeTypes = conf.availableStorageTypes
 
   lazy val localOrDfsStorageAvailable: Boolean = {
-    StorageInfo.OSSAvailable(activeTypes) || StorageInfo.HDFSAvailable(
-      activeTypes) || StorageInfo.localDiskAvailable(
-      activeTypes) || hdfsDir.nonEmpty || !diskInfos.isEmpty || s3Dir.nonEmpty || ossDir.nonEmpty
+    StorageInfo.OSSAvailable(activeTypes) || StorageInfo.S3Available(activeTypes) ||
+    StorageInfo.HDFSAvailable(activeTypes) || StorageInfo.localDiskAvailable(activeTypes) ||
+    hdfsDir.nonEmpty || !diskInfos.isEmpty || s3Dir.nonEmpty || ossDir.nonEmpty
   }
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
@@ -842,33 +842,31 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       override def accept(
           t: File,
           writers: ConcurrentHashMap[String, PartitionDataWriter]): Unit = {
-        writers.forEach(new BiConsumer[String, PartitionDataWriter] {
-          override def accept(file: String, writer: PartitionDataWriter): Unit = {
-            if (writer.getException == null) {
-              try {
-                writer.flushOnMemoryPressure()
-              } catch {
-                case t: Throwable =>
-                  logError(
-                    s"FileWrite of $writer faces unexpected exception when flush on memory pressure.",
-                    t)
-              }
-            } else {
-              logWarning(s"Skip flushOnMemoryPressure because ${writer.getFlusher} " +
-                s"has error: ${writer.getException.getMessage}")
-            }
+        flushOnMemoryPressure(writers)
+      }
+    })
+    flushOnMemoryPressure(hdfsWriters)
+    flushOnMemoryPressure(s3Writers)
+    flushOnMemoryPressure(ossWriters)
+  }
+
+  private def flushOnMemoryPressure(writers: ConcurrentHashMap[String, PartitionDataWriter])
+      : Unit = {
+    writers.forEach(new BiConsumer[String, PartitionDataWriter] {
+      override def accept(file: String, writer: PartitionDataWriter): Unit = {
+        if (writer.getException == null) {
+          try {
+            writer.flushOnMemoryPressure()
+          } catch {
+            case t: Throwable =>
+              logError(
+                s"FileWrite of $writer faces unexpected exception when flush on memory pressure.",
+                t)
           }
-        })
-      }
-    })
-    hdfsWriters.forEach(new BiConsumer[String, PartitionDataWriter] {
-      override def accept(t: String, u: PartitionDataWriter): Unit = {
-        u.flushOnMemoryPressure()
-      }
-    })
-    s3Writers.forEach(new BiConsumer[String, PartitionDataWriter] {
-      override def accept(t: String, u: PartitionDataWriter): Unit = {
-        u.flushOnMemoryPressure()
+        } else {
+          logWarning(s"Skip flushOnMemoryPressure because ${writer.getFlusher} " +
+            s"has error: ${writer.getException.getMessage}")
+        }
       }
     })
   }

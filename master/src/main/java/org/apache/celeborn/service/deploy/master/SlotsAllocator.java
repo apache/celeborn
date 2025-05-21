@@ -126,11 +126,9 @@ public class SlotsAllocator {
     if (workers.size() < 2 && shouldReplicate) {
       return new HashMap<>();
     }
-    if (StorageInfo.HDFSOnly(availableStorageTypes)) {
-      return offerSlotsRoundRobin(
-          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes);
-    }
-    if (StorageInfo.S3Only(availableStorageTypes)) {
+    if (StorageInfo.HDFSOnly(availableStorageTypes)
+        || StorageInfo.S3Only(availableStorageTypes)
+        || StorageInfo.OSSOnly(availableStorageTypes)) {
       return offerSlotsRoundRobin(
           workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes);
     }
