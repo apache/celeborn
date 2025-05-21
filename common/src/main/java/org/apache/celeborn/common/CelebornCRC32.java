@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.CRC32;
 
@@ -74,5 +75,17 @@ public class CelebornCRC32 {
   @Override
   public String toString() {
     return "CelebornCRC32{" + "current=" + current + '}';
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    CelebornCRC32 that = (CelebornCRC32) o;
+    return current.get() == that.current.get();
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(current);
   }
 }
