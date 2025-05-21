@@ -20,11 +20,13 @@ package org.apache.celeborn.client.commit
 import java.util
 import java.util.{Comparator, Map}
 import java.util.function.{BiFunction, Consumer}
+
 import com.google.common.base.Preconditions.{checkArgument, checkState}
+import org.roaringbitmap.RoaringBitmap
+
 import org.apache.celeborn.common.CommitMetadata
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.JavaUtils
-import org.roaringbitmap.RoaringBitmap
 
 class PartitionCompletenessValidator extends Logging {
 
@@ -54,45 +56,47 @@ class PartitionCompletenessValidator extends Logging {
       expectedTotalMapperCountForParent: Int,
       skewPartitionHandlingWithoutMapRange: Boolean): (Boolean, String) = {
     if (skewPartitionHandlingWithoutMapRange) {
-      var bitmap: RoaringBitmap = null
-      if (totalSubPartitionsProcessed.containsKey(partitionId)) {
-        bitmap = totalSubPartitionsProcessed.get(partitionId)
-      } else {
-        bitmap = new RoaringBitmap();
-        totalSubPartitionsProcessed.put(partitionId, bitmap)
-      }
-      bitmap.add(endMapIndex)
-      if (!currentCommitMetadataForReducer.containsKey(partitionId)) {
-        currentCommitMetadataForReducer.put(
-          partitionId,
-          new CommitMetadata(actualCommitMetadata.getChecksum, actualCommitMetadata.getBytes))
-      } else {
-        currentCommitMetadataForReducer.get(partitionId).addCommitData(actualCommitMetadata)
-      }
-      val currentCommitMetadata = currentCommitMetadataForReducer.get(partitionId)
-      if (totalSubPartitionsProcessed.get(partitionId).getCardinality == startMapIndex) {
-        val matchesMetadata =
-          CommitMetadata.checkCommitMetadata(expectedCommitMetadata, currentCommitMetadata)
-
-        if (matchesMetadata) {
-          logInfo(
-            s"AQE Partition $partitionId completed validation check in skew handling without map range, " +
-              s"expectedCommitMetadata $expectedCommitMetadata, " +
-              s"actualCommitMetadata $currentCommitMetadata, " +
-              s"totalSubPartitionCount $startMapIndex, ")
-          return (true, "Partition is complete")
+      totalSubPartitionsProcessed.synchronized {
+        var bitmap: RoaringBitmap = null
+        if (totalSubPartitionsProcessed.containsKey(partitionId)) {
+          bitmap = totalSubPartitionsProcessed.get(partitionId)
         } else {
-          val errorMsg =
-            s"AQE Partition $partitionId failed validation check in skew handling without map range" +
-              s"while processing range startMapIndex: $startMapIndex endMapIndex: $endMapIndex" +
-              s"ExpectedCommitMetadata $expectedCommitMetadata, " +
-              s"ActualCommitMetadata $currentCommitMetadata, " +
-              s"totalSubPartitionCount $startMapIndex, "
-          logError(errorMsg)
-          return (false, errorMsg)
+          bitmap = new RoaringBitmap();
+          totalSubPartitionsProcessed.put(partitionId, bitmap)
         }
+        bitmap.add(endMapIndex)
+        if (!currentCommitMetadataForReducer.containsKey(partitionId)) {
+          currentCommitMetadataForReducer.put(
+            partitionId,
+            new CommitMetadata(actualCommitMetadata.getChecksum, actualCommitMetadata.getBytes))
+        } else {
+          currentCommitMetadataForReducer.get(partitionId).addCommitData(actualCommitMetadata)
+        }
+        val currentCommitMetadata = currentCommitMetadataForReducer.get(partitionId)
+        if (totalSubPartitionsProcessed.get(partitionId).getCardinality == startMapIndex) {
+          val matchesMetadata =
+            CommitMetadata.checkCommitMetadata(expectedCommitMetadata, currentCommitMetadata)
+
+          if (matchesMetadata) {
+            logInfo(
+              s"AQE Partition $partitionId completed validation check in skew handling without map range, " +
+                s"expectedCommitMetadata $expectedCommitMetadata, " +
+                s"actualCommitMetadata $currentCommitMetadata, " +
+                s"totalSubPartitionCount $startMapIndex, ")
+            return (true, "Partition is complete")
+          } else {
+            val errorMsg =
+              s"AQE Partition $partitionId failed validation check in skew handling without map range" +
+                s"while processing range startMapIndex: $startMapIndex endMapIndex: $endMapIndex" +
+                s"ExpectedCommitMetadata $expectedCommitMetadata, " +
+                s"ActualCommitMetadata $currentCommitMetadata, " +
+                s"totalSubPartitionCount $startMapIndex, "
+            logError(errorMsg)
+            return (false, errorMsg)
+          }
+        }
+        return (true, "Partition is valid but still waiting for more data")
       }
-      return (true, "Partition is valid but still waiting for more data")
     }
 
     checkArgument(
