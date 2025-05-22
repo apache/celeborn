@@ -106,7 +106,7 @@ upload_nexus_staging() {
   ${PROJECT_DIR}/build/sbt -Pspark-3.4 "clean;celeborn-client-spark-3-shaded/publishSigned"
 
   echo "Deploying celeborn-client-spark-3-shaded_2.13"
-  ${PROJECT_DIR}/build/sbt -Pspark-3.4 ++2.13 "clean;celeborn-client-spark-3-shaded/publishSigned"
+  ${PROJECT_DIR}/build/sbt -Pspark-3.4 ++2.13.5 "clean;celeborn-client-spark-3-shaded/publishSigned"
 
   echo "Deploying celeborn-client-flink-1.16-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pflink-1.16 "clean;celeborn-client-flink-1_16-shaded/publishSigned"

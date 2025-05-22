@@ -562,6 +562,7 @@ object CelebornCli {
     .dependsOn(CelebornOpenApi.openApiClient % "test->test;compile->compile")
     .settings (
       commonSettings,
+      releaseSettings,
       libraryDependencies ++= Seq(
         Dependencies.picocli
       ) ++ commonUnitTestDependencies
@@ -1531,6 +1532,7 @@ object CelebornOpenApi {
     .settings (
       commonSettings,
       releaseSettings,
+      crossPaths := false,
       libraryDependencies ++= Seq(
         Dependencies.jacksonAnnotations,
         Dependencies.jacksonCore,
