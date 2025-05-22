@@ -357,7 +357,9 @@ abstract class CommitHandler(
                     logError(
                       s"Request commitFiles return ${StatusCode.COMMIT_FILES_MOCK_FAILURE} for " +
                         s"$shuffleKey for ${status.retriedTimes}/$maxRetries, will not retry")
-                    commitFilesFailedWorkers.put(worker, (StatusCode.COMMIT_FILES_MOCK_FAILURE, System.currentTimeMillis()))
+                    commitFilesFailedWorkers.put(
+                      worker,
+                      (StatusCode.COMMIT_FILES_MOCK_FAILURE, System.currentTimeMillis()))
                     val res = createFailResponse(status)
                     processResponse(res, worker)
                     iter.remove()
@@ -378,7 +380,9 @@ abstract class CommitHandler(
                   s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleKey failed" +
                     s" (attempt ${status.retriedTimes}/$maxRetries), will not retry.",
                   e)
-                commitFilesFailedWorkers.put(worker, (StatusCode.WORKER_UNRESPONSIVE, System.currentTimeMillis()))
+                commitFilesFailedWorkers.put(
+                  worker,
+                  (StatusCode.WORKER_UNRESPONSIVE, System.currentTimeMillis()))
                 val res = createFailResponse(status)
                 processResponse(res, status.workerInfo)
                 iter.remove()
@@ -394,7 +398,9 @@ abstract class CommitHandler(
             logError(
               s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleKey failed because of Timeout" +
                 s" (attempt ${status.retriedTimes}/$maxRetries), will not retry.")
-            commitFilesFailedWorkers.put(worker, (StatusCode.WORKER_UNRESPONSIVE, System.currentTimeMillis()))
+            commitFilesFailedWorkers.put(
+              worker,
+              (StatusCode.WORKER_UNRESPONSIVE, System.currentTimeMillis()))
           }
         }
       }
