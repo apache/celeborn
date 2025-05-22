@@ -47,6 +47,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.util.CloseableIterator;
@@ -60,7 +61,7 @@ public class RemoteShuffleInputGate extends AbstractRemoteShuffleInputGate {
 
   public RemoteShuffleInputGate(
       CelebornConf celebornConf,
-      String taskName,
+      ShuffleIOOwnerContext ownerContext,
       int gateIndex,
       InputGateDeploymentDescriptor gateDescriptor,
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
@@ -68,7 +69,7 @@ public class RemoteShuffleInputGate extends AbstractRemoteShuffleInputGate {
       int numConcurrentReading) {
     super(
         celebornConf,
-        taskName,
+        ownerContext,
         gateIndex,
         gateDescriptor,
         bufferPoolFactory,

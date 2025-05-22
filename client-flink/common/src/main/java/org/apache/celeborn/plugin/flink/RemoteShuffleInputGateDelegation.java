@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -43,6 +44,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.PartitionConnectionException;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.SupplierWithException;
@@ -56,6 +58,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.buffer.TransferBufferPool;
 import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl;
+import org.apache.celeborn.plugin.flink.metric.ShuffleIOMetricGroup;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 
 public class RemoteShuffleInputGateDelegation {
@@ -130,9 +133,11 @@ public class RemoteShuffleInputGateDelegation {
   private int endSubIndex;
   private boolean partitionConnectionExceptionEnabled;
 
+  private final MetricGroup taskIOMetricGroup;
+
   public RemoteShuffleInputGateDelegation(
       CelebornConf celebornConf,
-      String taskName,
+      ShuffleIOOwnerContext ownerContext,
       int gateIndex,
       InputGateDeploymentDescriptor gateDescriptor,
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
@@ -141,7 +146,8 @@ public class RemoteShuffleInputGateDelegation {
       AvailabilityProvider.AvailabilityHelper availabilityHelper,
       int startSubIndex,
       int endSubIndex) {
-    this.taskName = taskName;
+    this.taskName = ownerContext.getOwnerName();
+    this.taskIOMetricGroup = ownerContext.getParentGroup();
     this.gateIndex = gateIndex;
     this.gateDescriptor = gateDescriptor;
     this.bufferPoolFactory = bufferPoolFactory;
@@ -198,6 +204,8 @@ public class RemoteShuffleInputGateDelegation {
       RemoteShuffleDescriptor remoteDescriptor = (RemoteShuffleDescriptor) descriptor.getRight();
       ShuffleResourceDescriptor shuffleDescriptor =
           remoteDescriptor.getShuffleResource().getMapPartitionShuffleDescriptor();
+      ShuffleIOMetricGroup shuffleIOMetricGroup =
+          new ShuffleIOMetricGroup(taskIOMetricGroup, shuffleDescriptor.getShuffleId());
 
       LOG.debug("create shuffle reader for descriptor {}", shuffleDescriptor);
 
@@ -208,7 +216,7 @@ public class RemoteShuffleInputGateDelegation {
               startSubIndex,
               endSubIndex,
               transferBufferPool,
-              getDataListener(descriptor.getLeft()),
+              getDataListener(descriptor.getLeft(), shuffleIOMetricGroup),
               getFailureListener(remoteDescriptor.getResultPartitionID()));
 
       bufferReaders.add(reader);
@@ -235,13 +243,14 @@ public class RemoteShuffleInputGateDelegation {
         .collect(Collectors.toList());
   }
 
-  private Consumer<ByteBuf> getDataListener(int channelIdx) {
+  private Consumer<ByteBuf> getDataListener(
+      int channelIdx, ShuffleIOMetricGroup shuffleIOMetricGroup) {
     return byteBuf -> {
       Queue<Buffer> unpackedBuffers = null;
       try {
         unpackedBuffers = BufferPacker.unpack(byteBuf);
         while (!unpackedBuffers.isEmpty()) {
-          onBuffer(unpackedBuffers.poll(), channelIdx);
+          onBuffer(unpackedBuffers.poll(), channelIdx, shuffleIOMetricGroup);
         }
       } catch (Throwable throwable) {
         synchronized (lock) {
@@ -279,7 +288,7 @@ public class RemoteShuffleInputGateDelegation {
     };
   }
 
-  private void onBuffer(Buffer buffer, int channelIdx) {
+  private void onBuffer(Buffer buffer, int channelIdx, ShuffleIOMetricGroup shuffleIOMetricGroup) {
     synchronized (lock) {
       if (closed || cause != null) {
         buffer.recycleBuffer();
@@ -293,6 +302,7 @@ public class RemoteShuffleInputGateDelegation {
         checkState(channelInfo.getInputChannelIdx() == channelIdx, "Illegal channel index.");
         LOG.debug("ReceivedBuffers is adding buffer {} on {}", buffer, channelInfo);
         receivedBuffers.add(Pair.of(buffer, channelInfo));
+        shuffleIOMetricGroup.getNumBytesIn().inc(buffer.getSize());
         needRecycle = false;
         if (wasEmpty) {
           availabilityHelper.getUnavailableToResetAvailable().complete(null);

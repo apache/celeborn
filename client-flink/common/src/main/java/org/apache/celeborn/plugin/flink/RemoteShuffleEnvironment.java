@@ -191,7 +191,7 @@ public class RemoteShuffleEnvironment
     if (resultPartitionDeploymentDescriptor.getShuffleDescriptor()
         instanceof RemoteShuffleDescriptor) {
       return resultPartitionFactory.create(
-          ownerContext.getOwnerName(), index, resultPartitionDeploymentDescriptor, conf);
+          ownerContext, index, resultPartitionDeploymentDescriptor, conf);
     } else {
       nettyResultIds.add(resultPartitionDeploymentDescriptor.getResultId());
       nettyResultPartitionIds.add(resultPartitionDeploymentDescriptor.getPartitionId());
@@ -246,7 +246,7 @@ public class RemoteShuffleEnvironment
         ? shuffleEnvironmentWrapper
             .nettyInputGateFactory()
             .create(ownerContext, gateIndex, igdd, producerStateProvider, inputChannelMetrics)
-        : inputGateFactory.create(ownerContext.getOwnerName(), gateIndex, igdd);
+        : inputGateFactory.create(ownerContext, gateIndex, igdd);
   }
 
   @VisibleForTesting

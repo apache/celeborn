@@ -30,7 +30,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.util.function.SupplierWithException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,7 +89,7 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
   }
 
   public ResultPartition create(
-      String taskNameWithSubtaskAndId,
+      ShuffleIOOwnerContext ownerContext,
       int partitionIndex,
       ResultPartitionDeploymentDescriptor desc,
       CelebornConf celebornConf) {
@@ -100,32 +100,32 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
         desc.getNumberOfSubpartitions());
 
     return create(
-        taskNameWithSubtaskAndId,
+        ownerContext,
         partitionIndex,
         desc.getShuffleDescriptor().getResultPartitionID(),
         desc.getPartitionType(),
         desc.getNumberOfSubpartitions(),
         desc.getMaxParallelism(),
         createBufferPoolFactory(),
-        desc.getShuffleDescriptor(),
+        (RemoteShuffleDescriptor) desc.getShuffleDescriptor(),
         celebornConf,
         desc.getTotalNumberOfPartitions());
   }
 
   public ResultPartition create(
-      String taskNameWithSubtaskAndId,
+      ShuffleIOOwnerContext ownerContext,
       int partitionIndex,
       ResultPartitionID id,
       ResultPartitionType type,
       int numSubpartitions,
       int maxParallelism,
       List<SupplierWithException<BufferPool, IOException>> bufferPoolFactories,
-      ShuffleDescriptor shuffleDescriptor,
+      RemoteShuffleDescriptor shuffleDescriptor,
       CelebornConf celebornConf,
       int numMappers) {
     ResultPartition partition =
         createRemoteShuffleResultPartitionInternal(
-            taskNameWithSubtaskAndId,
+            ownerContext,
             partitionIndex,
             id,
             type,
@@ -135,13 +135,13 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
             celebornConf,
             numMappers,
             getBufferCompressor(),
-            (RemoteShuffleDescriptor) shuffleDescriptor);
-    LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
+            shuffleDescriptor);
+    LOG.debug("{}: Initialized {}", ownerContext.getOwnerName(), this);
     return partition;
   }
 
   abstract ResultPartition createRemoteShuffleResultPartitionInternal(
-      String taskNameWithSubtaskAndId,
+      ShuffleIOOwnerContext ownerContext,
       int partitionIndex,
       ResultPartitionID id,
       ResultPartitionType type,

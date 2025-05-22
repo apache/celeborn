@@ -108,6 +108,7 @@ public class RemoteShuffleResultPartitionDelegation {
 
     DataBuffer dataBuffer = isBroadcast ? getBroadcastDataBuffer() : getUnicastDataBuffer();
     if (dataBuffer.append(record, targetSubpartition, dataType)) {
+      outputGate.shuffleIOMetricGroup.getNumRecordsOut().inc();
       return;
     }
 
@@ -117,6 +118,7 @@ public class RemoteShuffleResultPartitionDelegation {
         dataBuffer.finish();
         dataBuffer.release();
         writeLargeRecord(record, targetSubpartition, dataType, isBroadcast);
+        outputGate.shuffleIOMetricGroup.getNumRecordsOut().inc();
         return;
       }
       flushDataBuffer(dataBuffer, isBroadcast);
