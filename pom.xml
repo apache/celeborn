@@ -55,7 +55,7 @@
   </distributionManagement>
 
   <properties>
-    <project.version>0.6.0-SNAPSHOT</project.version>
+    <project.version>0.7.0-SNAPSHOT</project.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
