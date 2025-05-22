@@ -201,6 +201,8 @@ private[celeborn] class Master(
   private val tagsManager = new TagsManager(Option(configService))
 
   private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
+  private val slotsAssignMinWorkers = conf.masterSlotAssignMinWorkers
+  private val slotsAssignExtraSlots = conf.masterSlotAssignExtraSlots
   private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
   private val slotsAssignLoadAwareDiskGroupGradient =
     conf.masterSlotAssignLoadAwareDiskGroupGradient
@@ -978,7 +980,8 @@ private[celeborn] class Master(
       s" on ${slots.size()} workers.")
 
     val workersNotSelected = availableWorkers.asScala.filter(!slots.containsKey(_))
-    val offerSlotsExtraSize = Math.min(conf.masterSlotAssignExtraSlots, workersNotSelected.size)
+    val offerSlotsExtraSize = Math.min(Math.max(
+      slotsAssignExtraSlots, slots.size() - slotsAssignMinWorkers), workersNotSelected.size)
     if (offerSlotsExtraSize > 0) {
       var index = Random.nextInt(workersNotSelected.size)
       (1 to offerSlotsExtraSize).foreach(_ => {
