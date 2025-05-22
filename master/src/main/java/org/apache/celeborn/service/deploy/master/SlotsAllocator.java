@@ -227,7 +227,7 @@ public class SlotsAllocator {
                 .collect(Collectors.toList())
                 .toArray(new DiskInfo[0]);
         int diskIndex =
-                workerDiskIndex.computeIfAbsent(selectedWorker, v -> rand.nextInt(diskInfos.length));
+          workerDiskIndex.computeIfAbsent(selectedWorker, v -> rand.nextInt(diskInfos.length));
         storageInfo =
             new StorageInfo(
                 diskInfos[diskIndex].mountPoint(),
