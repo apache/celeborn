@@ -227,6 +227,19 @@ master:
     # The group ID to use when modifying the ownership and permissions of the mounted volumes.
     fsGroup: 10006
 
+  # -- Volume claim templates for Celeborn master statefulset.
+  volumeClaimTemplates:
+  # - metadata:
+  #     name: celeborn-ratis
+  #   spec:
+  #     accessModes:
+  #     - ReadWriteOnce
+  #     resources:
+  #       requests:
+  #         storage: 100Gi
+  #       limits:
+  #         storage: 100Gi
+
 worker:
   # -- Number of Celeborn worker replicas to deploy, should less than node number.
   replicas: 5
@@ -359,6 +372,49 @@ worker:
     runAsGroup: 10006
     # The group ID to use when modifying the ownership and permissions of the mounted volumes.
     fsGroup: 10006
+
+  # -- Volume claim templates for Celeborn worker pods.
+  volumeClaimTemplates:
+  # - metadata:
+  #     name: disk1
+  #   spec:
+  #     accessModes:
+  #     - ReadWriteOnce
+  #     resources:
+  #       requests:
+  #         storage: 100Gi
+  #       limits:
+  #         storage: 100Gi
+  # - metadata:
+  #     name: disk2
+  #   spec:
+  #     accessModes:
+  #     - ReadWriteOnce
+  #     resources:
+  #       requests:
+  #         storage: 100Gi
+  #       limits:
+  #         storage: 100Gi
+  # - metadata:
+  #     name: disk3
+  #   spec:
+  #     accessModes:
+  #     - ReadWriteOnce
+  #     resources:
+  #       requests:
+  #         storage: 100Gi
+  #       limits:
+  #         storage: 100Gi
+  # - metadata:
+  #     name: disk4
+  #   spec:
+  #     accessModes:
+  #     - ReadWriteOnce
+  #     resources:
+  #       requests:
+  #         storage: 100Gi
+  #       limits:
+  #         storage: 100Gi
 
 podMonitor:
   # -- Specifies whether to enable creating pod monitors for Celeborn pods
