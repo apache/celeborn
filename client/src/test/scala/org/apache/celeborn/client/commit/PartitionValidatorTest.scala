@@ -20,6 +20,7 @@ package org.apache.celeborn.client.commit
 import org.mockito.ArgumentMatchers.any
 import org.scalatest.matchers.must.Matchers.{be, include}
 import org.scalatest.matchers.should.Matchers.{an, convertToAnyShouldWrapper}
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CommitMetadata
 
@@ -30,7 +31,8 @@ class PartitionValidatorTest extends CelebornFunSuite {
   var mockCommitMetadata: CommitMetadata = new CommitMetadata()
   test("AQEPartitionCompletenessValidator should validate a new sub-partition correctly when there are no overlapping ranges") {
     validator = new PartitionCompletenessValidator
-    val (isValid, message) = validator.validateSubPartition(1, 0, 10, mockCommitMetadata, mockCommitMetadata, 20, false)
+    val (isValid, message) =
+      validator.validateSubPartition(1, 0, 10, mockCommitMetadata, mockCommitMetadata, 20, false)
 
     isValid shouldBe (true)
     message shouldBe ("Partition is valid but still waiting for more data")
@@ -48,7 +50,15 @@ class PartitionValidatorTest extends CelebornFunSuite {
       false
     ) // First call should add the range
     val (isValid, message) =
-      validator.validateSubPartition(1, 5, 15, mockCommitMetadata, mockCommitMetadata, 20, false) // This overlaps
+      validator.validateSubPartition(
+        1,
+        5,
+        15,
+        mockCommitMetadata,
+        mockCommitMetadata,
+        20,
+        false
+      ) // This overlaps
 
     isValid shouldBe (false)
     message should include("Encountered overlapping map range for partitionId: 1")
@@ -76,7 +86,15 @@ class PartitionValidatorTest extends CelebornFunSuite {
       false
     ) // First call should add the range
     val (isValid, message) =
-      validator.validateSubPartition(1, 1, 2, mockCommitMetadata, mockCommitMetadata, 20, false) // This overlaps
+      validator.validateSubPartition(
+        1,
+        1,
+        2,
+        mockCommitMetadata,
+        mockCommitMetadata,
+        20,
+        false
+      ) // This overlaps
 
     isValid shouldBe (true)
   }
@@ -93,7 +111,15 @@ class PartitionValidatorTest extends CelebornFunSuite {
       false
     ) // First call should add the range
     val (isValid, message) =
-      validator.validateSubPartition(1, 0, 5,mockCommitMetadata, mockCommitMetadata, 20, false) // This overlaps
+      validator.validateSubPartition(
+        1,
+        0,
+        5,
+        mockCommitMetadata,
+        mockCommitMetadata,
+        20,
+        false
+      ) // This overlaps
 
     isValid shouldBe (false)
     message should include("Encountered overlapping map range for partitionId: 1")
@@ -111,7 +137,15 @@ class PartitionValidatorTest extends CelebornFunSuite {
       false
     ) // First call should add the range
     val (isValid, message) =
-      validator.validateSubPartition(1, 0, 15, mockCommitMetadata, mockCommitMetadata, 20, false) // This overlaps
+      validator.validateSubPartition(
+        1,
+        0,
+        15,
+        mockCommitMetadata,
+        mockCommitMetadata,
+        20,
+        false
+      ) // This overlaps
 
     isValid shouldBe (false)
     message should include("Encountered overlapping map range for partitionId: 1")
@@ -129,7 +163,15 @@ class PartitionValidatorTest extends CelebornFunSuite {
       false
     ) // First call should add the range
     val (isValid, message) =
-      validator.validateSubPartition(1, 5, 10, mockCommitMetadata, mockCommitMetadata, 20, false) // This overlaps
+      validator.validateSubPartition(
+        1,
+        5,
+        10,
+        mockCommitMetadata,
+        mockCommitMetadata,
+        20,
+        false
+      ) // This overlaps
 
     isValid shouldBe (false)
     message should include("Encountered overlapping map range for partitionId: 1")
