@@ -195,13 +195,13 @@ master:
 
   # -- Tolerations for Celeborn master pods.
   tolerations:
-    # - key: key1
-    #   operator: Equal
-    #   value: value1
-    #   effect: NoSchedule
-    # - key: key2
-    #   operator: Exists
-    #   effect: NoSchedule
+  # - key: key1
+  #   operator: Equal
+  #   value: value1
+  #   effect: NoSchedule
+  # - key: key2
+  #   operator: Exists
+  #   effect: NoSchedule
 
   # Priority class for Celeborn master pods.
   priorityClass:
@@ -341,13 +341,13 @@ worker:
 
   # -- Tolerations for Celeborn worker pods.
   tolerations:
-    # - key: key1
-    #   operator: Equal
-    #   value: value1
-    #   effect: NoSchedule
-    # - key: key2
-    #   operator: Exists
-    #   effect: NoSchedule
+  # - key: key1
+  #   operator: Equal
+  #   value: value1
+  #   effect: NoSchedule
+  # - key: key2
+  #   operator: Exists
+  #   effect: NoSchedule
 
   # Priority class for Celeborn worker pods.
   priorityClass:
@@ -439,6 +439,6 @@ rbac:
   roleName: default
   roleBindingName: default
   rules:
-    - apiGroups: [""]
-      resources: ["pods"]
-      verbs: ["create", "list", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "list", "delete"]
