@@ -24,6 +24,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -39,7 +40,7 @@ public class RemoteShuffleInputGateFactory extends AbstractRemoteShuffleInputGat
   // For testing.
   @Override
   protected RemoteShuffleInputGate createInputGate(
-      String owningTaskName,
+      ShuffleIOOwnerContext ownerContext,
       int gateIndex,
       InputGateDeploymentDescriptor igdd,
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
@@ -47,8 +48,8 @@ public class RemoteShuffleInputGateFactory extends AbstractRemoteShuffleInputGat
     BufferDecompressor bufferDecompressor =
         new BufferDecompressor(networkBufferSize, compressionCodec);
     return new RemoteShuffleInputGate(
-        this.celebornConf,
-        owningTaskName,
+        celebornConf,
+        ownerContext,
         gateIndex,
         igdd,
         bufferPoolFactory,

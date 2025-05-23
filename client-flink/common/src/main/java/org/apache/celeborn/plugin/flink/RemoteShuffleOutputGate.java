@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Optional;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -36,6 +37,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.plugin.flink.buffer.BufferHeader;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl;
+import org.apache.celeborn.plugin.flink.metric.ShuffleIOMetricGroup;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
@@ -83,6 +85,7 @@ public class RemoteShuffleOutputGate {
   private boolean isRegisterShuffle = false;
   private int maxReviveTimes;
   private boolean hasSentHandshake = false;
+  protected final ShuffleIOMetricGroup shuffleIOMetricGroup;
 
   /**
    * @param shuffleDesc Describes shuffle meta and shuffle worker address.
@@ -95,8 +98,28 @@ public class RemoteShuffleOutputGate {
       int bufferSize,
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
       CelebornConf celebornConf,
-      int numMappers) {
+      int numMappers,
+      MetricGroup taskIOMetricGroup) {
+    this(
+        shuffleDesc,
+        numSubs,
+        bufferSize,
+        bufferPoolFactory,
+        celebornConf,
+        numMappers,
+        taskIOMetricGroup,
+        null);
+  }
 
+  public RemoteShuffleOutputGate(
+      RemoteShuffleDescriptor shuffleDesc,
+      int numSubs,
+      int bufferSize,
+      SupplierWithException<BufferPool, IOException> bufferPoolFactory,
+      CelebornConf celebornConf,
+      int numMappers,
+      MetricGroup taskIOMetricGroup,
+      FlinkShuffleClientImpl flinkShuffleClient) {
     this.shuffleDesc = shuffleDesc;
     this.numSubs = numSubs;
     this.bufferPoolFactory = bufferPoolFactory;
@@ -116,8 +139,9 @@ public class RemoteShuffleOutputGate {
     this.lifecycleManagerPort = shuffleDesc.getShuffleResource().getLifecycleManagerPort();
     this.lifecycleManagerTimestamp =
         shuffleDesc.getShuffleResource().getLifecycleManagerTimestamp();
-    this.flinkShuffleClient = getShuffleClient();
+    this.flinkShuffleClient = flinkShuffleClient == null ? getShuffleClient() : flinkShuffleClient;
     this.maxReviveTimes = celebornConf.clientPushMaxReviveTimes();
+    this.shuffleIOMetricGroup = new ShuffleIOMetricGroup(taskIOMetricGroup, shuffleId);
   }
 
   /** Initialize transportation gate. */
@@ -210,14 +234,16 @@ public class RemoteShuffleOutputGate {
   /** Writes a piece of data to a subpartition. */
   public void write(ByteBuf byteBuf, BufferHeader bufferHeader) {
     try {
-      flinkShuffleClient.pushDataToLocation(
-          shuffleId,
-          mapId,
-          attemptId,
-          bufferHeader.getSubPartitionId(),
-          io.netty.buffer.Unpooled.wrappedBuffer(byteBuf.nioBuffer()),
-          partitionLocation,
-          () -> byteBuf.release());
+      int bytesWritten =
+          flinkShuffleClient.pushDataToLocation(
+              shuffleId,
+              mapId,
+              attemptId,
+              bufferHeader.getSubPartitionId(),
+              io.netty.buffer.Unpooled.wrappedBuffer(byteBuf.nioBuffer()),
+              partitionLocation,
+              byteBuf::release);
+      shuffleIOMetricGroup.getNumBytesOut().inc(bytesWritten);
     } catch (IOException e) {
       Utils.rethrowAsRuntimeException(e);
     }

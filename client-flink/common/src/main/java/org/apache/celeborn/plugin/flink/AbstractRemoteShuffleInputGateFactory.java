@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.util.function.SupplierWithException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,7 +81,7 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
 
   /** Create RemoteShuffleInputGate from {@link InputGateDeploymentDescriptor}. */
   public IndexedInputGate create(
-      String owningTaskName, int gateIndex, InputGateDeploymentDescriptor igdd) {
+      ShuffleIOOwnerContext ownerContext, int gateIndex, InputGateDeploymentDescriptor igdd) {
     LOG.info(
         "Create input gate -- number of buffers per input gate={}, "
             + "number of concurrent readings={}.",
@@ -91,7 +92,7 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
         createBufferPoolFactory(networkBufferPool, numBuffersPerGate, supportFloatingBuffers);
 
     return createInputGate(
-        owningTaskName,
+        ownerContext,
         gateIndex,
         igdd,
         bufferPoolFactory,
@@ -99,7 +100,7 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
   }
 
   protected abstract IndexedInputGate createInputGate(
-      String owningTaskName,
+      ShuffleIOOwnerContext ownerContext,
       int gateIndex,
       InputGateDeploymentDescriptor igdd,
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
