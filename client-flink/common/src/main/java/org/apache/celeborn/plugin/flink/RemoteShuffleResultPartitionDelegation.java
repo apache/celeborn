@@ -130,7 +130,7 @@ public class RemoteShuffleResultPartitionDelegation {
   }
 
   private void incNumRecordsOut(Buffer.DataType dataType) {
-    if (Buffer.DataType.DATA_BUFFER.equals(dataType)) {
+    if (dataType.isBuffer()) {
       outputGate.shuffleIOMetricGroup.getNumRecordsOut().inc();
     }
   }
