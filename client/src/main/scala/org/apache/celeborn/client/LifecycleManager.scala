@@ -329,8 +329,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     rpcEnv.address.port
   }
 
+  private val partitionType = conf.shufflePartitionType
+
   def getPartitionType(shuffleId: Int): PartitionType = {
-    shufflePartitionType.getOrDefault(shuffleId, conf.shufflePartitionType)
+    shufflePartitionType.getOrDefault(shuffleId, partitionType)
   }
 
   override def receive: PartialFunction[Any, Unit] = {
