@@ -45,6 +45,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -177,6 +178,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
     ByteBuffer recordWritten = ByteBuffer.wrap(dataWritten);
     partitionWriter.emitRecord(recordWritten, 0);
     assertEquals(0, sortBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(1, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(1, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.finish();
     partitionWriter.close();
@@ -210,6 +213,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
     ByteBuffer recordWritten = ByteBuffer.wrap(dataWritten);
     partitionWriter.broadcastRecord(recordWritten);
     assertEquals(0, sortBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(1, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(1, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.finish();
     partitionWriter.close();
@@ -249,9 +254,13 @@ public class RemoteShuffleResultPartitionSuiteJ {
     partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 0);
     partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 1);
     assertEquals(3, sortBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(2, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(2, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.broadcastRecord(ByteBuffer.allocate(bufferSize));
     assertEquals(2, sortBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(3, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(3, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.flush(0);
     assertEquals(0, sortBufferPool.bestEffortGetNumOfUsedBuffers());
@@ -259,6 +268,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
     partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 2);
     partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 3);
     assertEquals(3, sortBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(5, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(5, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.flushAll();
     assertEquals(0, sortBufferPool.bestEffortGetNumOfUsedBuffers());
@@ -310,6 +321,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
             record, Buffer.DataType.DATA_BUFFER, subpartition, dataWritten, numBytesWritten);
       }
     }
+    assertEquals(numRecords, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(numRecords, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.finish();
     assertTrue(outputGate.isFinished());
@@ -444,7 +457,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
           bufferSize,
           bufferPoolFactory,
           celebornConf,
-          numMappers);
+          numMappers,
+          new UnregisteredMetricsGroup());
       isSetup = false;
       isFinished = false;
       isClosed = false;
