@@ -194,9 +194,11 @@ public class SlotsAllocator {
       int availableStorageTypes) {
     WorkerInfo selectedWorker = workers.get(workerIndex);
     StorageInfo storageInfo;
-    int diskIndex = workerDiskIndex.computeIfAbsent(selectedWorker, v -> 0);
     if (restrictions != null) {
       List<UsableDiskInfo> usableDiskInfos = restrictions.get(selectedWorker);
+      int diskIndex =
+          workerDiskIndex.computeIfAbsent(
+              selectedWorker, v -> rand.nextInt(usableDiskInfos.size()));
       while (usableDiskInfos.get(diskIndex).usableSlots <= 0) {
         diskIndex = (diskIndex + 1) % usableDiskInfos.size();
       }
@@ -225,6 +227,8 @@ public class SlotsAllocator {
                 .filter(p -> p.storageType() != StorageInfo.Type.OSS)
                 .collect(Collectors.toList())
                 .toArray(new DiskInfo[0]);
+        int diskIndex =
+            workerDiskIndex.computeIfAbsent(selectedWorker, v -> rand.nextInt(diskInfos.length));
         storageInfo =
             new StorageInfo(
                 diskInfos[diskIndex].mountPoint(),
