@@ -158,6 +158,8 @@ class WorkerStatusTracker(
         case (workerInfo: WorkerInfo, (statusCode, registerTime)) =>
           statusCode match {
             case StatusCode.WORKER_UNKNOWN |
+                StatusCode.WORKER_UNRESPONSIVE |
+                StatusCode.COMMIT_FILE_EXCEPTION |
                 StatusCode.NO_AVAILABLE_WORKING_DIR |
                 StatusCode.RESERVE_SLOTS_FAILED |
                 StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY |
