@@ -78,8 +78,6 @@ public class PartitionLocation implements Serializable {
     this.peer = loc.peer;
     this.storageInfo = loc.storageInfo;
     this.mapIdBitMap = loc.mapIdBitMap;
-    this._hostPushPort = host + ":" + pushPort;
-    this._hostFetchPort = host + ":" + fetchPort;
   }
 
   public PartitionLocation(
@@ -152,8 +150,6 @@ public class PartitionLocation implements Serializable {
     this.peer = peer;
     this.storageInfo = hint;
     this.mapIdBitMap = mapIdBitMap;
-    this._hostPushPort = host + ":" + pushPort;
-    this._hostFetchPort = host + ":" + fetchPort;
   }
 
   public int getId() {
@@ -210,10 +206,16 @@ public class PartitionLocation implements Serializable {
   }
 
   public String hostAndFetchPort() {
+    if (_hostFetchPort == null) {
+      _hostFetchPort = host + ":" + fetchPort;
+    }
     return _hostFetchPort;
   }
 
   public String hostAndPushPort() {
+    if (_hostPushPort == null) {
+      _hostPushPort = host + ":" + pushPort;
+    }
     return _hostPushPort;
   }
 
