@@ -68,6 +68,7 @@ public class ShuffleClientSuiteJ {
   private static final int TEST_SHUFFLE_ID = 1;
   private static final int TEST_ATTEMPT_ID = 0;
   private static final int TEST_REDUCRE_ID = 0;
+  private static final int TEST_MAP_ID = 0;
 
   private static final int PRIMARY_RPC_PORT = 1234;
   private static final int PRIMARY_PUSH_PORT = 1235;
