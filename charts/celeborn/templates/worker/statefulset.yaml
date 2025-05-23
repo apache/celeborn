@@ -23,10 +23,14 @@ metadata:
     {{- include "celeborn.worker.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.worker.replicas }}
-  serviceName: {{ include "celeborn.worker.service.name" . }}
   selector:
     matchLabels:
       {{- include "celeborn.worker.selectorLabels" . | nindent 6 }}
+  {{- with .Values.worker.volumeClaimTemplates }}
+  volumeClaimTemplates:
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+  serviceName: {{ include "celeborn.worker.service.name" . }}
   template:
     metadata:
       labels:
@@ -37,7 +41,18 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
-      serviceAccountName:  {{ include "celeborn.serviceAccountName" . }}
+      {{- /* Add an init container to chown mount paths of Celeborn workers volume if necessary. */}}
+      {{- $paths := list }}
+      {{- range $volumeMount := .Values.worker.volumeMounts }}
+      {{- range $volume := $.Values.worker.volumes }}
+      {{- if eq $volume.name $volumeMount.name }}
+      {{- if or $volume.hostPath $volume.emptyDir }}
+      {{- $paths = append $paths $volumeMount.mountPath }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- if $paths }}
       initContainers:
       - name: chown-celeborn-worker-volume
         image: {{ include "celeborn.image" . }}
@@ -48,14 +63,8 @@ spec:
         - chown
         - -R
         - {{ .Values.worker.podSecurityContext.runAsUser | default 10006 }}:{{ .Values.worker.podSecurityContext.runAsGroup | default 10006 }}
-        {{- range $volumeMount := .Values.worker.volumeMounts }}
-        {{- range $volume := $.Values.worker.volumes }}
-        {{- if eq $volume.name $volumeMount.name }}
-        {{- if or $volume.hostPath $volume.emptyDir }}
-        - {{ $volumeMount.mountPath }}
-        {{- end }}
-        {{- end }}
-        {{- end }}
+        {{- range $path := $paths }}
+        - {{ $path }}
         {{- end }}
         {{- with .Values.worker.volumeMounts }}
         volumeMounts:
@@ -67,6 +76,7 @@ spec:
         {{- end }}
         securityContext:
           runAsUser: 0
+        {{- end }}
       containers:
       - name: {{ .Chart.Name }}
         image: {{ include "celeborn.image" . }}
@@ -160,6 +170,7 @@ spec:
       {{- with .Values.worker.hostNetwork }}
       hostNetwork: {{ . }}
       {{- end }}
+      serviceAccountName:  {{ include "celeborn.serviceAccountName" . }}
       {{- with .Values.worker.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}

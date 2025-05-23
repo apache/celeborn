@@ -376,3 +376,55 @@ tests:
       - equal:
           path: spec.template.spec.securityContext.fsGroup
           value: 3000
+
+  - it: Should add volume claim templates if `master.volumeClaimTemplates` is set
+    set:
+      master:
+        volumeClaimTemplates:
+          - metadata:
+              name: test-volume-claim-template-1
+            spec:
+              accessModes:
+                - ReadWriteMany
+              resources:
+                request:
+                  storage: 100Gi
+                limits:
+                  storage: 100Gi
+          - metadata:
+              name: test-volume-claim-template-2
+            spec:
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                request:
+                  storage: 200Gi
+                limits:
+                  storage: 200Gi
+    asserts:
+      - contains:
+          path: spec.volumeClaimTemplates
+          content:
+            metadata:
+              name: test-volume-claim-template-1
+            spec:
+              accessModes:
+                - ReadWriteMany
+              resources:
+                request:
+                  storage: 100Gi
+                limits:
+                  storage: 100Gi
+      - contains:
+          path: spec.volumeClaimTemplates
+          content:
+            metadata:
+              name: test-volume-claim-template-2
+            spec:
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                request:
+                  storage: 200Gi
+                limits:
+                  storage: 200Gi
