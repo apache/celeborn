@@ -99,6 +99,8 @@ upload_svn_staging() {
 }
 
 upload_nexus_staging() {
+  export JAVA_HOME=$JAVA8_HOME
+
   echo "Deploying celeborn-client-spark-2-shaded_2.11"
   ${PROJECT_DIR}/build/sbt -Pspark-2.4 "clean;celeborn-client-spark-2-shaded/publishSigned"
 
@@ -106,7 +108,7 @@ upload_nexus_staging() {
   ${PROJECT_DIR}/build/sbt -Pspark-3.4 "clean;celeborn-client-spark-3-shaded/publishSigned"
 
   echo "Deploying celeborn-client-spark-3-shaded_2.13"
-  ${PROJECT_DIR}/build/sbt -Pspark-3.4 ++2.13 "clean;celeborn-client-spark-3-shaded/publishSigned"
+  ${PROJECT_DIR}/build/sbt -Pspark-3.4 ++2.13.5 "clean;celeborn-client-spark-3-shaded/publishSigned"
 
   echo "Deploying celeborn-client-flink-1.16-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pflink-1.16 "clean;celeborn-client-flink-1_16-shaded/publishSigned"
@@ -123,8 +125,10 @@ upload_nexus_staging() {
   echo "Deploying celeborn-client-flink-1.20-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pflink-1.20 "clean;celeborn-client-flink-1_20-shaded/publishSigned"
 
+  export JAVA_HOME=$JAVA11_HOME
   echo "Deploying celeborn-client-flink-2.0-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pflink-2.0 "clean;celeborn-client-flink-2_0-shaded/publishSigned"
+  export JAVA_HOME=$JAVA8_HOME
 
   echo "Deploying celeborn-client-mr-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pmr "clean;celeborn-client-mr-shaded/publishSigned"
