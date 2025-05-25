@@ -295,7 +295,7 @@ Enjoy an adult beverage of your choice, and congratulations on making a Celeborn
 Remove the deprecated dist repo directories at last.
 
 ```shell
-cd work/svn-dev
+cd tmp/svn-dev
 svn delete https://dist.apache.org/repos/dist/dev/celeborn/{RELEASE_TAG} \
   --username "${ASF_USERNAME}" \
   --password "${ASF_PASSWORD}" \
