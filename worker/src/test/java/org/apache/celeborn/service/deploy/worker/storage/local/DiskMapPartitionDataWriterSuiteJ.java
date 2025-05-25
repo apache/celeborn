@@ -133,6 +133,7 @@ public class DiskMapPartitionDataWriterSuiteJ {
                 SPLIT_THRESHOLD,
                 splitMode,
                 false,
+                false,
                 partitionLocation,
                 "app1",
                 1,

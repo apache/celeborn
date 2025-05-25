@@ -470,6 +470,7 @@ message PbReserveSlots {
   bool partitionSplitEnabled = 11;
   int32 availableStorageTypes = 12;
   PbPackedPartitionLocationsPair partitionLocationsPair = 13;
+  bool invertedIndexReader = 14;
 }
 
 message PbReserveSlotsResponse {
@@ -571,6 +572,7 @@ message PbFileInfo {
   int32 numSubpartitions = 6;
   int64 bytesFlushed = 7;
   bool partitionSplitEnabled = 8;
+  bool invertedIndexEnabled = 9;
 }
 
 message PbMapFileMeta {

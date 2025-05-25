@@ -80,6 +80,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   // shuffle id -> partition type
   private val shufflePartitionType = JavaUtils.newConcurrentHashMap[Int, PartitionType]()
   private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
+  private val invertedIndexReaderEnabled = conf.shuffleInvertedIndexReaderEnabled
   private val unregisterShuffleTime = JavaUtils.newConcurrentHashMap[Int, Long]()
 
   val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
@@ -1099,6 +1100,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             partitionSplitMode,
             getPartitionType(shuffleId),
             rangeReadFilter,
+            invertedIndexReaderEnabled,
             userIdentifier,
             conf.pushDataTimeoutMs,
             if (getPartitionType(shuffleId) == PartitionType.MAP)

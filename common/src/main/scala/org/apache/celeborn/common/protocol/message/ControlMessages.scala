@@ -444,6 +444,7 @@ object ControlMessages extends Logging {
       splitMode: PartitionSplitMode,
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
+      invertedIndexReader: Boolean,
       userIdentifier: UserIdentifier,
       pushDataTimeout: Long,
       partitionSplitEnabled: Boolean = false)
@@ -807,6 +808,7 @@ object ControlMessages extends Logging {
           splitMode,
           partType,
           rangeReadFilter,
+          invertedIndexReaderEnabled,
           userIdentifier,
           pushDataTimeout,
           partitionSplitEnabled) =>
@@ -819,6 +821,7 @@ object ControlMessages extends Logging {
         .setSplitMode(splitMode.getValue)
         .setPartitionType(partType.getValue)
         .setRangeReadFilter(rangeReadFilter)
+        .setInvertedIndexReader(invertedIndexReaderEnabled)
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
         .setPushDataTimeout(pushDataTimeout)
         .setPartitionSplitEnabled(partitionSplitEnabled)
@@ -1191,6 +1194,7 @@ object ControlMessages extends Logging {
           Utils.toShuffleSplitMode(pbReserveSlots.getSplitMode),
           Utils.toPartitionType(pbReserveSlots.getPartitionType),
           pbReserveSlots.getRangeReadFilter,
+          pbReserveSlots.getInvertedIndexReader,
           userIdentifier,
           pbReserveSlots.getPushDataTimeout,
           pbReserveSlots.getPartitionSplitEnabled)

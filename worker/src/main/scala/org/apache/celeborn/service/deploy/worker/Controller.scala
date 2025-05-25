@@ -88,6 +88,7 @@ private[deploy] class Controller(
           splitMode,
           partitionType,
           rangeReadFilter,
+          invertedIndexReaderEnabled,
           userIdentifier,
           pushDataTimeout,
           partitionSplitEnabled) =>
@@ -107,6 +108,7 @@ private[deploy] class Controller(
           splitMode,
           partitionType,
           rangeReadFilter,
+          invertedIndexReaderEnabled,
           userIdentifier,
           pushDataTimeout,
           partitionSplitEnabled)
@@ -153,6 +155,7 @@ private[deploy] class Controller(
       splitMode: PartitionSplitMode,
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
+      invertedIndexReaderEnabled: Boolean,
       userIdentifier: UserIdentifier,
       pushDataTimeout: Long,
       partitionSplitEnabled: Boolean): Unit = {
@@ -186,6 +189,7 @@ private[deploy] class Controller(
             splitMode,
             partitionType,
             rangeReadFilter,
+            invertedIndexReaderEnabled,
             userIdentifier,
             partitionSplitEnabled)
           primaryLocs.add(new WorkingPartition(location, writer))
@@ -226,6 +230,7 @@ private[deploy] class Controller(
             splitMode,
             partitionType,
             rangeReadFilter,
+            invertedIndexReaderEnabled,
             userIdentifier,
             partitionSplitEnabled)
           replicaLocs.add(new WorkingPartition(location, writer))

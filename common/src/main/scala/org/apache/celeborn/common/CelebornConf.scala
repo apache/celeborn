@@ -1008,6 +1008,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_PUSH_DYNAMIC_WRITE_MODE_PARTITION_NUM_THRESHOLD)
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
+  def shuffleInvertedIndexReaderEnabled: Boolean = get(INVERTED_INDEX_READER_ENABLED)
   def shuffleForceFallbackEnabled: Boolean = get(SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED)
   def checkWorkerEnabled: Boolean = get(CHECK_WORKER_ENABLED)
   def shuffleFallbackPolicy: FallbackPolicy = {
@@ -4092,6 +4093,15 @@ object CelebornConf extends Logging {
   val SHUFFLE_RANGE_READ_FILTER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.rangeReadFilter.enabled")
       .withAlternative("celeborn.shuffle.rangeReadFilter.enabled")
+      .categories("client")
+      .version("0.2.0")
+      .doc("If a spark application have skewed partition, this value can set to true to improve performance.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val INVERTED_INDEX_READER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.invertedIndexReader.enabled")
+      .withAlternative("celeborn.shuffle.invertedIndexReader.enabled")
       .categories("client")
       .version("0.2.0")
       .doc("If a spark application have skewed partition, this value can set to true to improve performance.")

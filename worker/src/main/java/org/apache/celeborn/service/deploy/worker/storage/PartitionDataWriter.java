@@ -65,7 +65,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   // After commit file, there will be only 1 fileinfo left.
   protected DiskFileInfo diskFileInfo = null;
   protected MemoryFileInfo memoryFileInfo = null;
-  private FileChannel channel;
+  protected FileChannel channel;
   private volatile boolean closed;
   private volatile boolean destroyed;
 

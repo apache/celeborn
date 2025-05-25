@@ -27,6 +27,7 @@ public class PartitionDataWriterContext {
   private final long splitThreshold;
   private final PartitionSplitMode partitionSplitMode;
   private final boolean rangeReadFilter;
+  private final boolean invertedIndexReaderEnabled;
   private final PartitionLocation partitionLocation;
   private final String appId;
   private final int shuffleId;
@@ -39,6 +40,7 @@ public class PartitionDataWriterContext {
       long splitThreshold,
       PartitionSplitMode partitionSplitMode,
       boolean rangeReadFilter,
+      boolean invertedIndexReaderEnabled,
       PartitionLocation partitionLocation,
       String appId,
       int shuffleId,
@@ -48,6 +50,7 @@ public class PartitionDataWriterContext {
     this.splitThreshold = splitThreshold;
     this.partitionSplitMode = partitionSplitMode;
     this.rangeReadFilter = rangeReadFilter;
+    this.invertedIndexReaderEnabled = invertedIndexReaderEnabled;
     this.partitionLocation = partitionLocation;
     this.appId = appId;
     this.shuffleId = shuffleId;
@@ -67,6 +70,10 @@ public class PartitionDataWriterContext {
 
   public boolean isRangeReadFilter() {
     return rangeReadFilter;
+  }
+
+  public boolean isInvertedIndexReaderEnabled() {
+    return invertedIndexReaderEnabled;
   }
 
   public PartitionLocation getPartitionLocation() {

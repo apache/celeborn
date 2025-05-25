@@ -46,7 +46,7 @@ public abstract class ChunkBuffers {
     }
   }
 
-  public Tuple2<Long, Long> getChunkOffsetLength(int chunkIndex, int offset, int len) {
+  protected Tuple2<Long, Long> getChunkOffsetLength(int chunkIndex, int offset, int len) {
     final long chunkOffset = offsets[chunkIndex];
     final long chunkLength = offsets[chunkIndex + 1] - chunkOffset;
     Preconditions.checkArgument(offset < chunkLength);
