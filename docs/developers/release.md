@@ -162,7 +162,7 @@ mechanism and should be announced to the community once the branch is created.
 
 > Note: If you are releasing a patch version, you can ignore this step.
 
-The release branch pattern is `branch-{MAJOR_VERSION}.{MINOR_VERSION}`, e.g. `branch-1.7`.
+The release branch pattern is `branch-{MAJOR_VERSION}.{MINOR_VERSION}`, e.g. `branch-0.6`.
 
 After cutting release branch, don't forget bump version in `master` branch.
 
