@@ -138,11 +138,11 @@ The last step is to update the KEYS file with your code signing key
 https://www.apache.org/dev/openpgp.html#export-public-key
 
 ```shell
-svn checkout --depth=files "https://dist.apache.org/repos/dist/release/celeborn" work/svn-celeborn
+svn checkout --depth=files "https://dist.apache.org/repos/dist/release/celeborn" tmp/svn-celeborn
 
-(gpg --list-sigs "${ASF_USERNAME}@apache.org" && gpg --export --armor "${ASF_USERNAME}@apache.org") >> work/svn-celeborn/KEYS
+(gpg --list-sigs "${ASF_USERNAME}@apache.org" && gpg --export --armor "${ASF_USERNAME}@apache.org") >> tmp/svn-celeborn/KEYS
 
-svn commit --username "${ASF_USERNAME}" --password "${ASF_PASSWORD}" --message "Update KEYS" work/svn-celeborn
+svn commit --username "${ASF_USERNAME}" --password "${ASF_PASSWORD}" --message "Update KEYS" tmp/svn-celeborn
 ```
 
 In order to make yourself have the right permission to stage java artifacts in Apache Nexus staging repository, please submit your GPG public key to ubuntu server via
@@ -295,7 +295,7 @@ Enjoy an adult beverage of your choice, and congratulations on making a Celeborn
 Remove the deprecated dist repo directories at last.
 
 ```shell
-cd work/svn-dev
+cd tmp/svn-dev
 svn delete https://dist.apache.org/repos/dist/dev/celeborn/{RELEASE_TAG} \
   --username "${ASF_USERNAME}" \
   --password "${ASF_PASSWORD}" \
