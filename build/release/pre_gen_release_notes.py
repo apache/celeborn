@@ -32,7 +32,7 @@
 #   set environment variables: RELEASE_TAG and PREVIOUS_RELEASE_TAG, then perform
 #   ./pre_gen_release_notes.py
 # Example:
-#   RELEASE_TAG=v1.8.1 PREVIOUS_RELEASE_TAG=v1.8.0 ./pre_gen_release_notes.py
+#   RELEASE_TAG=v0.6.0 PREVIOUS_RELEASE_TAG=0.5.0 ./pre_gen_release_notes.py
 
 # It outputs
 # - commits-${RELEASE_TAG}.txt:      the canonical commit list
