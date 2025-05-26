@@ -40,9 +40,21 @@ public class JsonUtils {
     }
   }
 
-  public static <T> T fromJson(String json, Class<T> clazz) {
+  public static <T> T fromJson(String json, Class<T> clazz) throws JsonProcessingException{
     try {
-      return StringUtils.isEmpty(json) ? null : MAPPER.readValue(json, clazz);
+      if (StringUtils.isEmpty(json)) {
+        return null;
+      }
+      // Create secure ObjectMapper instance with deactivated default typing
+      return new ObjectMapper()
+              .setAnnotationIntrospector(new JacksonAnnotationIntrospector())
+              .deactivateDefaultTyping()  // CRITICAL: Prevents polymorphic deserialization attacks
+              .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+              .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
+              .readValue(json, clazz);
+    } catch (JsonParseException e) {
+      String errMsg = "The input JSON could not be parsed";
+      throw new RuntimeException(errMsg, e);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
