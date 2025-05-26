@@ -48,12 +48,24 @@ public class InvertedIndexReducePartitionDataReader {
 
         // Check if the chunk size is valid
         FileChannel channel = new RandomAccessFile(file, "r").getChannel();
-        return channel.map(FileChannel.MapMode.READ_ONLY, chunkStartOffset, chunkEndOffset - chunkStartOffset);
+
+        ByteBuffer buf = ByteBuffer.allocate((int) (chunkEndOffset - chunkStartOffset));
+        channel.position(chunkStartOffset);
+        while (buf.remaining() != 0) {
+            if (channel.read(buf) == -1) {
+                throw new IOException(
+                        String.format(
+                                "Reached EOF before filling buffer\n" + "offset=%s\nfile=%s\nbuf.remaining=%s",
+                                chunkStartOffset, file.getAbsoluteFile(), buf.remaining()));
+            }
+        }
+        buf.flip();
+        return buf;
     }
 
     public int[] getChunkIds(int startMapperId, int endMapperId) throws Exception {
         MutableRoaringBitmap bitmap = new MutableRoaringBitmap();
-        for (int i = Math.max(0, startMapperId); i <= Math.min(endMapperId, numMappers); i++) {
+        for (int i = Math.max(0, startMapperId); i <= Math.min(endMapperId, numMappers - 1); i++) {
             bitmap.or(getBitmapForMapperId(i));
         }
 
