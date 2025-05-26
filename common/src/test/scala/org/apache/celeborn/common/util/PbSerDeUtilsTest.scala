@@ -126,6 +126,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
       diskInfos,
       userResourceConsumption)
   workerInfo1.networkLocation = "/1"
+  workerInfo1.nextInterruptionNotice_$eq(10000)
   val workerInfo2 =
     new WorkerInfo(
       "localhost",

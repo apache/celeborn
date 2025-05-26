@@ -278,6 +278,12 @@ object PbSerDeUtils {
     if (masterPersistWorkerNetworkLocation) {
       workerInfo.networkLocation = pbWorkerInfo.getNetworkLocation
     }
+    // If the next interruption notice is not specified in the message, set to max.
+    if (pbWorkerInfo.getNextInterruptionNotice == 0) {
+      workerInfo.nextInterruptionNotice_$eq(Long.MaxValue)
+    } else {
+      workerInfo.nextInterruptionNotice_$eq(pbWorkerInfo.getNextInterruptionNotice)
+    }
     workerInfo
   }
 
@@ -295,6 +301,7 @@ object PbSerDeUtils {
     if (masterPersistWorkerNetworkLocation) {
       builder.setNetworkLocation(workerInfo.networkLocation)
     }
+    builder.setNextInterruptionNotice(workerInfo.nextInterruptionNotice)
 
     if (!eliminateUserResourceConsumption) {
       builder.putAllUserResourceConsumption(
