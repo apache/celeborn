@@ -280,10 +280,10 @@ object CelebornCommonSettings {
   val SCALA_2_12_15 = "2.12.15"
   val SCALA_2_12_17 = "2.12.17"
   val SCALA_2_12_18 = "2.12.18"
-  val scala213 = "2.13.5"
+  val SCALA_2_13_5 = "2.13.5"
   val SCALA_2_13_8 = "2.13.8"
-  val scala213_11 = "2.13.11"
-  val ALL_SCALA_VERSIONS = Seq(SCALA_2_11_12, SCALA_2_12_10, SCALA_2_12_15, SCALA_2_12_17, SCALA_2_12_18, scala213, SCALA_2_13_8, scala213_11)
+  val SCALA_2_13_16 = "2.13.16"
+  val ALL_SCALA_VERSIONS = Seq(SCALA_2_11_12, SCALA_2_12_10, SCALA_2_12_15, SCALA_2_12_17, SCALA_2_12_18, SCALA_2_13_5, SCALA_2_13_8, SCALA_2_13_16)
 
   val DEFAULT_SCALA_VERSION = SCALA_2_12_18
 
@@ -919,10 +919,10 @@ object Spark40 extends SparkClientProjects {
   val sparkClientShadedProjectName = "celeborn-client-spark-4-shaded"
 
   val lz4JavaVersion = "1.8.0"
-  val sparkProjectScalaVersion = "2.13.11"
+  val sparkProjectScalaVersion = "2.13.16"
 
-  val sparkVersion = "4.0.0-preview2"
-  val zstdJniVersion = "1.5.6-5"
+  val sparkVersion = "4.0.0"
+  val zstdJniVersion = "1.5.6-9"
   val scalaBinaryVersion = "2.13"
 
   override val sparkColumnarShuffleVersion: String = "4"
