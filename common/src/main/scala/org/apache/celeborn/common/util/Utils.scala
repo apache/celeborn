@@ -26,19 +26,22 @@ import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
 import java.util
 import java.util.{Locale, Properties, Random, UUID}
-import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeUnit, TimeoutException}
+import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeoutException, TimeUnit}
+
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.io.Source
 import scala.reflect.ClassTag
-import scala.util.{Try, Random => ScalaRandom}
+import scala.util.{Random => ScalaRandom, Try}
 import scala.util.control.{ControlThrowable, NonFatal}
 import scala.util.matching.Regex
+
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
 import org.apache.commons.lang3.time.FastDateFormat
 import org.roaringbitmap.RoaringBitmap
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.PORT_MAX_RETRY
 import org.apache.celeborn.common.exception.{CelebornException, CelebornIOException}
@@ -1276,7 +1279,7 @@ object Utils extends Logging {
       rpcRequestId: Long): String = {
     s"$shuffleKey-$clientChannelId-$rpcRequestId"
   }
-  
+
   def withRetryOnTimeoutOrIOException[T](numRetries: Int, retryWait: Long)(block: => T): T = {
     var retriesLeft = numRetries
     while (retriesLeft >= 0) {
@@ -1297,8 +1300,8 @@ object Utils extends Logging {
           } else {
             throw e
           }
-          case e: Exception =>
-            throw e
+        case e: Exception =>
+          throw e
       }
     }
     // should never be here
