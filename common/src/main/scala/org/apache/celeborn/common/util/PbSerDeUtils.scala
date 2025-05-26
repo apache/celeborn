@@ -104,6 +104,7 @@ object PbSerDeUtils {
     new DiskFileInfo(
       userIdentifier,
       pbFileInfo.getPartitionSplitEnabled,
+      pbFileInfo.getInvertedIndexEnabled,
       meta,
       pbFileInfo.getFilePath,
       pbFileInfo.getBytesFlushed)
@@ -115,6 +116,7 @@ object PbSerDeUtils {
       .setUserIdentifier(toPbUserIdentifier(fileInfo.getUserIdentifier))
       .setBytesFlushed(fileInfo.getFileLength)
       .setPartitionSplitEnabled(fileInfo.isPartitionSplitEnabled)
+      .setInvertedIndexEnabled(fileInfo.isPartitionSplitEnabled)
     if (fileInfo.getFileMeta.isInstanceOf[MapFileMeta]) {
       val mapFileMeta = fileInfo.getFileMeta.asInstanceOf[MapFileMeta]
       builder.setPartitionType(PartitionType.MAP.getValue)

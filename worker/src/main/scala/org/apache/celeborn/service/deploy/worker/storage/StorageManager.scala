@@ -350,6 +350,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   @VisibleForTesting
   val evictedFileCount = new AtomicLong
 
+  @VisibleForTesting
   @throws[IOException]
   def createPartitionDataWriter(
       appId: String,
@@ -368,6 +369,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       splitMode,
       partitionType,
       rangeReadFilter,
+      false,
       userIdentifier,
       true)
   }
@@ -381,6 +383,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       splitMode: PartitionSplitMode,
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
+      invertedIndexReaderEnabled: Boolean,
       userIdentifier: UserIdentifier,
       partitionSplitEnabled: Boolean): PartitionDataWriter = {
     if (healthyWorkingDirs().size <= 0 && !hasHDFSStorage) {
@@ -390,6 +393,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       splitThreshold,
       splitMode,
       rangeReadFilter,
+      invertedIndexReaderEnabled,
       location,
       appId,
       shuffleId,
@@ -406,12 +410,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               conf,
               deviceMonitor,
               partitionDataWriterContext)
-          case PartitionType.REDUCE => new ReducePartitionDataWriter(
-              this,
-              workerSource,
-              conf,
-              deviceMonitor,
-              partitionDataWriterContext)
+          case PartitionType.REDUCE => ReducePartitionDataWriterFactory.createReducePartitionDataWriter(this, workerSource, conf, deviceMonitor, partitionDataWriterContext)
           case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
         }
       } catch {
@@ -938,7 +937,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         location.getFileName,
         partitionDataWriterContext.getUserIdentifier,
         partitionDataWriterContext.getPartitionType,
-        partitionDataWriterContext.isPartitionSplitEnabled)
+        partitionDataWriterContext.isPartitionSplitEnabled,
+        partitionDataWriterContext.isInvertedIndexReaderEnabled)
       (null, createDiskFileResult._1, createDiskFileResult._2, createDiskFileResult._3)
     } else {
       (null, null, null, null)
@@ -983,7 +983,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       fileName: String,
       userIdentifier: UserIdentifier,
       partitionType: PartitionType,
-      partitionSplitEnabled: Boolean): (Flusher, DiskFileInfo, File) = {
+      partitionSplitEnabled: Boolean,
+      invertedIndexEnabled: Boolean): (Flusher, DiskFileInfo, File) = {
     val suggestedMountPoint = location.getStorageInfo.getMountPoint
     var retryCount = 0
     var exception: IOException = null
@@ -1048,6 +1049,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           val diskFileInfo = new DiskFileInfo(
             userIdentifier,
             partitionSplitEnabled,
+            invertedIndexEnabled,
             fileMeta,
             filePath,
             StorageInfo.Type.HDD)
