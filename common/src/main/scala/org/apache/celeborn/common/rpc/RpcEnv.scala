@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.rpc
 
-import java.io.File
+import java.io.{File, IOException}
 import java.util.Random
 import java.util.concurrent.TimeUnit
 
@@ -165,7 +165,7 @@ abstract class RpcEnv(config: RpcEnvConfig) {
       try {
         return setupEndpointRefByAddr(RpcEndpointAddress(address, endpointName))
       } catch {
-        case e: RpcTimeoutException =>
+        case e @ (_: RpcTimeoutException | _: IOException) =>
           if (numRetries > 0) {
             val random = new Random
             val retryWaitMs = random.nextInt(retryWait.toInt)
