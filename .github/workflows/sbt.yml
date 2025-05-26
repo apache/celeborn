@@ -161,21 +161,21 @@ jobs:
             scala: '2.12.15'
           - spark: '3.3'
             scala-binary: '2.13'
-            scala: '2.13.5'
+            scala: '2.13.8'
           # Spark 3.4
           - spark: '3.4'
             scala-binary: '2.12'
             scala: '2.12.17'
           - spark: '3.4'
             scala-binary: '2.13'
-            scala: '2.13.5'
+            scala: '2.13.8'
           # Spark 3.5
           - spark: '3.5'
             scala-binary: '2.12'
             scala: '2.12.18'
           - spark: '3.5'
             scala-binary: '2.13'
-            scala: '2.13.5'
+            scala: '2.13.8'
     steps:
     - uses: actions/checkout@v4
     - name: Setup JDK ${{ matrix.java }}
