@@ -281,8 +281,9 @@ object CelebornCommonSettings {
   val SCALA_2_12_17 = "2.12.17"
   val SCALA_2_12_18 = "2.12.18"
   val scala213 = "2.13.5"
+  val SCALA_2_13_8 = "2.13.8"
   val scala213_11 = "2.13.11"
-  val ALL_SCALA_VERSIONS = Seq(SCALA_2_11_12, SCALA_2_12_10, SCALA_2_12_15, SCALA_2_12_17, SCALA_2_12_18, scala213, scala213_11)
+  val ALL_SCALA_VERSIONS = Seq(SCALA_2_11_12, SCALA_2_12_10, SCALA_2_12_15, SCALA_2_12_17, SCALA_2_12_18, scala213, SCALA_2_13_8, scala213_11)
 
   val DEFAULT_SCALA_VERSION = SCALA_2_12_18
 
