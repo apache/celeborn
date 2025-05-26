@@ -267,6 +267,9 @@ org.apache.commons:commons-lang3
 org.apache.hadoop:hadoop-aws
 org.apache.hadoop:hadoop-client-api
 org.apache.hadoop:hadoop-client-runtime
+org.apache.httpcomponents.client5:httpclient5
+org.apache.httpcomponents.core5:httpcore5
+org.apache.httpcomponents.core5:httpcore5-h2
 org.apache.ibatis:mybatis
 org.apache.logging.log4j:log4j-1.2-api
 org.apache.logging.log4j:log4j-api
