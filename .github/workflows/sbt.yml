@@ -196,6 +196,42 @@ jobs:
               **/target/test-reports/**
               **/target/unit-tests.log
 
+  spark4:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        spark:
+          - '4.0'
+        java:
+          - 17
+        scala-binary:
+          - '2.13'
+        shuffle-plugin-class:
+          - 'org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO'
+        include:
+          - spark: '4.0'
+            scala: '2.13.16'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup JDK ${{ matrix.java }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: ${{ matrix.java }}
+          check-latest: false
+      - name: Test with SBT
+        run: |
+          build/sbt -Dspark.shuffle.plugin.class=${{ matrix.shuffle-plugin-class }} -Pspark-${{ matrix.spark }} ++${{ matrix.scala }} "clean; celeborn-spark-group/test"
+      - name: Upload test log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spark-${{ matrix.spark }}-java-${{ matrix.java }}-scala-${{ matrix.scala }}-unit-test-log
+          path: |
+            **/target/test-reports/**
+            **/target/unit-tests.log
+
   flink1:
     runs-on: ubuntu-22.04
     strategy:
