@@ -123,6 +123,7 @@
     <jetty.version>9.4.56.v20240826</jetty.version>
     <jakarta.servlet-api.version>4.0.4</jakarta.servlet-api.version>
     <jakarta.annotation-api.version>1.3.5</jakarta.annotation-api.version>
+    <jakarta.ws.rs-api.version>2.1.6</jakarta.ws.rs-api.version>
     <!-- openapi-generator dependencies -->
     <openapitools.jackson-databind-nullable.version>0.2.6</openapitools.jackson-databind-nullable.version>
     <httpclient5.version>5.3.1</httpclient5.version>
@@ -508,6 +509,12 @@
         <groupId>jakarta.annotation</groupId>
         <artifactId>jakarta.annotation-api</artifactId>
         <version>${jakarta.annotation-api.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>jakarta.ws.rs</groupId>
+        <artifactId>jakarta.ws.rs-api</artifactId>
+        <version>${jakarta.ws.rs-api.version}</version>
       </dependency>
 
       <dependency>
@@ -909,6 +916,7 @@
               <java.io.tmpdir>${project.build.directory}/tmp</java.io.tmpdir>
               <spark.driver.memory>8g</spark.driver.memory>
               <spark.shuffle.sort.io.plugin.class>${spark.shuffle.plugin.class}</spark.shuffle.sort.io.plugin.class>
+              <spark.ui.enabled>false</spark.ui.enabled>
             </systemProperties>
             <environmentVariables>
               <CELEBORN_LOCAL_HOSTNAME>localhost</CELEBORN_LOCAL_HOSTNAME>
@@ -948,6 +956,7 @@
               <java.io.tmpdir>${project.build.directory}/tmp</java.io.tmpdir>
               <spark.driver.memory>8g</spark.driver.memory>
               <spark.shuffle.sort.io.plugin.class>${spark.shuffle.plugin.class}</spark.shuffle.sort.io.plugin.class>
+              <spark.ui.enabled>false</spark.ui.enabled>
             </systemProperties>
             <environmentVariables>
               <CELEBORN_LOCAL_HOSTNAME>localhost</CELEBORN_LOCAL_HOSTNAME>

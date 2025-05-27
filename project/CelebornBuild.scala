@@ -358,6 +358,7 @@ object CelebornCommonSettings {
     Test / javaOptions ++= Seq(
       "-Dspark.shuffle.sort.io.plugin.class="
         + sys.props.getOrElse("spark.shuffle.plugin.class", "org.apache.spark.shuffle.sort.io.LocalDiskShuffleDataIO"),
+      "-Dspark.ui.enabled=false"
     ),
 
     Test / envVars += ("IS_TESTING", "1")
@@ -1026,12 +1027,28 @@ trait SparkClientProjects {
       .settings (
         commonSettings,
         libraryDependencies ++= Seq(
-          "org.apache.spark" %% "spark-core" % sparkVersion % "test",
-          "org.apache.spark" %% "spark-sql" % sparkVersion % "test",
-          "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests" excludeAll(
+          "org.apache.spark" %% "spark-core" % sparkVersion % "test" excludeAll(
+            ExclusionRule("jakarta.annotation", "jakarta.annotation-api"),
+            ExclusionRule("jakarta.validation", "jakarta.validation-api"),
+            ExclusionRule("jakarta.ws.rs", "jakarta.ws.rs-api"),
+            ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"),
+            ExclusionRule("org.eclipse.jetty", "*"),
+            ExclusionRule("org.glassfish.hk2", "*"),
+            ExclusionRule("org.glassfish.jersey.core", "*"),
+            ExclusionRule("org.glassfish.jersey.containers", "*"),
             ExclusionRule("org.glassfish.jersey.inject", "*"),
-            ExclusionRule("org.glassfish.jersey.core", "*")),
-          "org.apache.spark" %% "spark-sql" % sparkVersion % "test" classifier "tests"
+            ExclusionRule("org.glassfish.jersey.media", "*")),
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "test" excludeAll(
+            ExclusionRule("jakarta.annotation", "jakarta.annotation-api"),
+            ExclusionRule("jakarta.validation", "jakarta.validation-api"),
+            ExclusionRule("jakarta.ws.rs", "jakarta.ws.rs-api"),
+            ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"),
+            ExclusionRule("org.eclipse.jetty", "*"),
+            ExclusionRule("org.glassfish.hk2", "*"),
+            ExclusionRule("org.glassfish.jersey.core", "*"),
+            ExclusionRule("org.glassfish.jersey.containers", "*"),
+            ExclusionRule("org.glassfish.jersey.inject", "*"),
+            ExclusionRule("org.glassfish.jersey.media", "*"))
         ) ++ commonUnitTestDependencies
       )
   }
