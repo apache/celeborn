@@ -195,13 +195,13 @@ master:
 
   # -- Tolerations for Celeborn master pods.
   tolerations:
-    # - key: key1
-    #   operator: Equal
-    #   value: value1
-    #   effect: NoSchedule
-    # - key: key2
-    #   operator: Exists
-    #   effect: NoSchedule
+  # - key: key1
+  #   operator: Equal
+  #   value: value1
+  #   effect: NoSchedule
+  # - key: key2
+  #   operator: Exists
+  #   effect: NoSchedule
 
   # Priority class for Celeborn master pods.
   priorityClass:
@@ -226,6 +226,19 @@ master:
     runAsGroup: 10006
     # The group ID to use when modifying the ownership and permissions of the mounted volumes.
     fsGroup: 10006
+
+  # -- Volume claim templates for Celeborn master statefulset.
+  volumeClaimTemplates:
+  # - metadata:
+  #     name: celeborn-ratis
+  #   spec:
+  #     accessModes:
+  #     - ReadWriteOnce
+  #     resources:
+  #       requests:
+  #         storage: 100Gi
+  #       limits:
+  #         storage: 100Gi
 
 worker:
   # -- Number of Celeborn worker replicas to deploy, should less than node number.
@@ -328,13 +341,13 @@ worker:
 
   # -- Tolerations for Celeborn worker pods.
   tolerations:
-    # - key: key1
-    #   operator: Equal
-    #   value: value1
-    #   effect: NoSchedule
-    # - key: key2
-    #   operator: Exists
-    #   effect: NoSchedule
+  # - key: key1
+  #   operator: Equal
+  #   value: value1
+  #   effect: NoSchedule
+  # - key: key2
+  #   operator: Exists
+  #   effect: NoSchedule
 
   # Priority class for Celeborn worker pods.
   priorityClass:
@@ -360,6 +373,49 @@ worker:
     # The group ID to use when modifying the ownership and permissions of the mounted volumes.
     fsGroup: 10006
 
+  # -- Volume claim templates for Celeborn worker pods.
+  volumeClaimTemplates:
+  # - metadata:
+  #     name: disk1
+  #   spec:
+  #     accessModes:
+  #     - ReadWriteOnce
+  #     resources:
+  #       requests:
+  #         storage: 100Gi
+  #       limits:
+  #         storage: 100Gi
+  # - metadata:
+  #     name: disk2
+  #   spec:
+  #     accessModes:
+  #     - ReadWriteOnce
+  #     resources:
+  #       requests:
+  #         storage: 100Gi
+  #       limits:
+  #         storage: 100Gi
+  # - metadata:
+  #     name: disk3
+  #   spec:
+  #     accessModes:
+  #     - ReadWriteOnce
+  #     resources:
+  #       requests:
+  #         storage: 100Gi
+  #       limits:
+  #         storage: 100Gi
+  # - metadata:
+  #     name: disk4
+  #   spec:
+  #     accessModes:
+  #     - ReadWriteOnce
+  #     resources:
+  #       requests:
+  #         storage: 100Gi
+  #       limits:
+  #         storage: 100Gi
+
 podMonitor:
   # -- Specifies whether to enable creating pod monitors for Celeborn pods
   enable: true
@@ -383,6 +439,6 @@ rbac:
   roleName: default
   roleBindingName: default
   rules:
-    - apiGroups: [""]
-      resources: ["pods"]
-      verbs: ["create", "list", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "list", "delete"]
