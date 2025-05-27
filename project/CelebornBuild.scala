@@ -1039,6 +1039,7 @@ trait SparkClientProjects {
         libraryDependencies ++= Seq(
           "org.apache.spark" %% "spark-core" % sparkVersion % "test" excludeAll(
             ExclusionRule("jakarta.annotation", "jakarta.annotation-api"),
+            ExclusionRule("jakarta.servlet", "jakarta.servlet-api"),
             ExclusionRule("jakarta.validation", "jakarta.validation-api"),
             ExclusionRule("jakarta.ws.rs", "jakarta.ws.rs-api"),
             ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"),
@@ -1050,6 +1051,7 @@ trait SparkClientProjects {
             ExclusionRule("org.glassfish.jersey.media", "*")),
           "org.apache.spark" %% "spark-sql" % sparkVersion % "test" excludeAll(
             ExclusionRule("jakarta.annotation", "jakarta.annotation-api"),
+            ExclusionRule("jakarta.servlet", "jakarta.servlet-api"),
             ExclusionRule("jakarta.validation", "jakarta.validation-api"),
             ExclusionRule("jakarta.ws.rs", "jakarta.ws.rs-api"),
             ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"),
