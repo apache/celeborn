@@ -928,6 +928,7 @@
               <java.io.tmpdir>${project.build.directory}/tmp</java.io.tmpdir>
               <spark.driver.memory>8g</spark.driver.memory>
               <spark.shuffle.sort.io.plugin.class>${spark.shuffle.plugin.class}</spark.shuffle.sort.io.plugin.class>
+              <spark.ui.enabled>false</spark.ui.enabled>
             </systemProperties>
             <environmentVariables>
               <CELEBORN_LOCAL_HOSTNAME>localhost</CELEBORN_LOCAL_HOSTNAME>
@@ -967,6 +968,7 @@
               <java.io.tmpdir>${project.build.directory}/tmp</java.io.tmpdir>
               <spark.driver.memory>8g</spark.driver.memory>
               <spark.shuffle.sort.io.plugin.class>${spark.shuffle.plugin.class}</spark.shuffle.sort.io.plugin.class>
+              <spark.ui.enabled>false</spark.ui.enabled>
             </systemProperties>
             <environmentVariables>
               <CELEBORN_LOCAL_HOSTNAME>localhost</CELEBORN_LOCAL_HOSTNAME>
