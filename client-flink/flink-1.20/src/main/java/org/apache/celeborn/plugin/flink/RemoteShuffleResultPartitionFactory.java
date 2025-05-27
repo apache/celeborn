@@ -28,7 +28,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
+import org.apache.flink.runtime.metrics.groups.ShuffleIOMetricGroup;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -49,7 +49,7 @@ public class RemoteShuffleResultPartitionFactory
 
   @Override
   ResultPartition createRemoteShuffleResultPartitionInternal(
-      ShuffleIOOwnerContext ownerContext,
+      String taskNameWithSubtaskAndId,
       int partitionIndex,
       ResultPartitionID id,
       ResultPartitionType type,
@@ -59,9 +59,10 @@ public class RemoteShuffleResultPartitionFactory
       CelebornConf celebornConf,
       int numMappers,
       BufferCompressor bufferCompressor,
-      RemoteShuffleDescriptor rsd) {
+      RemoteShuffleDescriptor rsd,
+      ShuffleIOMetricGroup shuffleIOMetricGroup) {
     return new RemoteShuffleResultPartition(
-        ownerContext.getOwnerName(),
+        taskNameWithSubtaskAndId,
         partitionIndex,
         id,
         type,
@@ -78,7 +79,7 @@ public class RemoteShuffleResultPartitionFactory
             bufferPoolFactories.get(1),
             celebornConf,
             numMappers,
-            ownerContext.getParentGroup()));
+            shuffleIOMetricGroup));
   }
 
   @Override

@@ -19,12 +19,14 @@
 package org.apache.celeborn.plugin.flink;
 
 import java.io.IOException;
+import java.util.Map;
 
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.metrics.groups.ShuffleIOMetricGroup;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.util.function.SupplierWithException;
 import org.slf4j.Logger;
@@ -81,7 +83,10 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
 
   /** Create RemoteShuffleInputGate from {@link InputGateDeploymentDescriptor}. */
   public IndexedInputGate create(
-      ShuffleIOOwnerContext ownerContext, int gateIndex, InputGateDeploymentDescriptor igdd) {
+      ShuffleIOOwnerContext ownerContext,
+      int gateIndex,
+      InputGateDeploymentDescriptor igdd,
+      Map<Integer, ShuffleIOMetricGroup> shuffleIOMetricGroups) {
     LOG.info(
         "Create input gate -- number of buffers per input gate={}, "
             + "number of concurrent readings={}.",
@@ -96,7 +101,8 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
         gateIndex,
         igdd,
         bufferPoolFactory,
-        celebornConf.shuffleCompressionCodec().name());
+        celebornConf.shuffleCompressionCodec().name(),
+        shuffleIOMetricGroups);
   }
 
   protected abstract IndexedInputGate createInputGate(
@@ -104,7 +110,8 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
       int gateIndex,
       InputGateDeploymentDescriptor igdd,
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
-      String compressionCodec);
+      String compressionCodec,
+      Map<Integer, ShuffleIOMetricGroup> shuffleIOMetricGroupMap);
 
   private SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
       BufferPoolFactory bufferPoolFactory, int numBuffers, boolean supportFloatingBuffers) {

@@ -19,6 +19,7 @@
 package org.apache.celeborn.plugin.flink;
 
 import static org.apache.celeborn.plugin.flink.utils.Utils.checkState;
+import static org.apache.flink.runtime.metrics.groups.ShuffleIOMetricGroup.createShuffleIOMetricGroup;
 
 import java.io.IOException;
 import java.util.*;
@@ -28,7 +29,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -43,6 +43,7 @@ import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.PartitionConnectionException;
+import org.apache.flink.runtime.metrics.groups.ShuffleIOMetricGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -58,7 +59,6 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.buffer.TransferBufferPool;
 import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl;
-import org.apache.celeborn.plugin.flink.metric.ShuffleIOMetricGroup;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 
 public class RemoteShuffleInputGateDelegation {
@@ -133,7 +133,7 @@ public class RemoteShuffleInputGateDelegation {
   private int endSubIndex;
   private boolean partitionConnectionExceptionEnabled;
 
-  private final MetricGroup taskIOMetricGroup;
+  private final ShuffleIOMetricGroup shuffleIOMetricGroup;
 
   public RemoteShuffleInputGateDelegation(
       CelebornConf celebornConf,
@@ -145,9 +145,9 @@ public class RemoteShuffleInputGateDelegation {
       int numConcurrentReading,
       AvailabilityProvider.AvailabilityHelper availabilityHelper,
       int startSubIndex,
-      int endSubIndex) {
+      int endSubIndex,
+      Map<Integer, ShuffleIOMetricGroup> shuffleIOMetricGroups) {
     this.taskName = ownerContext.getOwnerName();
-    this.taskIOMetricGroup = ownerContext.getParentGroup();
     this.gateIndex = gateIndex;
     this.gateDescriptor = gateDescriptor;
     this.bufferPoolFactory = bufferPoolFactory;
@@ -161,6 +161,14 @@ public class RemoteShuffleInputGateDelegation {
     RemoteShuffleDescriptor remoteShuffleDescriptor =
         (RemoteShuffleDescriptor) gateDescriptor.getShuffleDescriptors()[0];
     RemoteShuffleResource shuffleResource = remoteShuffleDescriptor.getShuffleResource();
+    int shuffleId =
+        remoteShuffleDescriptor
+            .getShuffleResource()
+            .getMapPartitionShuffleDescriptor()
+            .getShuffleId();
+    this.shuffleIOMetricGroup =
+        shuffleIOMetricGroups.computeIfAbsent(
+            shuffleId, k -> createShuffleIOMetricGroup(ownerContext, shuffleId, celebornConf));
 
     try {
       String appUniqueId =
@@ -204,8 +212,6 @@ public class RemoteShuffleInputGateDelegation {
       RemoteShuffleDescriptor remoteDescriptor = (RemoteShuffleDescriptor) descriptor.getRight();
       ShuffleResourceDescriptor shuffleDescriptor =
           remoteDescriptor.getShuffleResource().getMapPartitionShuffleDescriptor();
-      ShuffleIOMetricGroup shuffleIOMetricGroup =
-          new ShuffleIOMetricGroup(taskIOMetricGroup, shuffleDescriptor.getShuffleId());
 
       LOG.debug("create shuffle reader for descriptor {}", shuffleDescriptor);
 

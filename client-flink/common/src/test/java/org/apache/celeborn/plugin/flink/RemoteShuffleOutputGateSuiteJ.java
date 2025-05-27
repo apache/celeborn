@@ -25,11 +25,13 @@ import java.util.Optional;
 import java.util.Random;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.metrics.groups.ShuffleIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ShuffleMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.junit.Assert;
 import org.junit.Before;
@@ -54,7 +56,11 @@ public class RemoteShuffleOutputGateSuiteJ {
             () -> bufferPool,
             new CelebornConf(),
             10,
-            new UnregisteredMetricsGroup(),
+            new ShuffleIOMetricGroup(
+                new ShuffleMetricGroup(
+                    UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
+                    1,
+                    CelebornConf.CLIENT_METRICS_SCOPE_NAMING_SHUFFLE().defaultValueString())),
             mock(FlinkShuffleClientImpl.class));
     NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, BUFFER_SIZE);
     bufferPool = networkBufferPool.createBufferPool(10, 10);
