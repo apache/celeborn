@@ -49,8 +49,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkerData.JSON_PROPERTY_WORKER_REF,
   WorkerData.JSON_PROPERTY_WORKER_STATE,
   WorkerData.JSON_PROPERTY_WORKER_STATE_START_TIME,
-  WorkerData.JSON_PROPERTY_NETWORK_LOCATION,
-  WorkerData.JSON_PROPERTY_NEXT_INTERRUPTION_NOTICE
+  WorkerData.JSON_PROPERTY_NEXT_INTERRUPTION_NOTICE,
+  WorkerData.JSON_PROPERTY_NETWORK_LOCATION
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class WorkerData {
@@ -96,11 +96,11 @@ public class WorkerData {
   public static final String JSON_PROPERTY_WORKER_STATE_START_TIME = "workerStateStartTime";
   private Long workerStateStartTime;
 
-  public static final String JSON_PROPERTY_NETWORK_LOCATION = "networkLocation";
-  private String networkLocation;
-
   public static final String JSON_PROPERTY_NEXT_INTERRUPTION_NOTICE = "nextInterruptionNotice";
   private Long nextInterruptionNotice;
+
+  public static final String JSON_PROPERTY_NETWORK_LOCATION = "networkLocation";
+  private String networkLocation;
 
   public WorkerData() {
   }
@@ -471,31 +471,6 @@ public class WorkerData {
     this.workerStateStartTime = workerStateStartTime;
   }
 
-  public WorkerData networkLocation(String networkLocation) {
-    
-    this.networkLocation = networkLocation;
-    return this;
-  }
-
-  /**
-   * The network location of the worker.
-   * @return networkLocation
-   */
-  @javax.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_NETWORK_LOCATION)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public String getNetworkLocation() {
-    return networkLocation;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_NETWORK_LOCATION)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setNetworkLocation(String networkLocation) {
-    this.networkLocation = networkLocation;
-  }
-
   public WorkerData nextInterruptionNotice(Long nextInterruptionNotice) {
     
     this.nextInterruptionNotice = nextInterruptionNotice;
@@ -521,6 +496,31 @@ public class WorkerData {
     this.nextInterruptionNotice = nextInterruptionNotice;
   }
 
+  public WorkerData networkLocation(String networkLocation) {
+    
+    this.networkLocation = networkLocation;
+    return this;
+  }
+
+  /**
+   * The network location of the worker.
+   * @return networkLocation
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_NETWORK_LOCATION)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public String getNetworkLocation() {
+    return networkLocation;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_NETWORK_LOCATION)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setNetworkLocation(String networkLocation) {
+    this.networkLocation = networkLocation;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -544,13 +544,13 @@ public class WorkerData {
         Objects.equals(this.workerRef, workerData.workerRef) &&
         Objects.equals(this.workerState, workerData.workerState) &&
         Objects.equals(this.workerStateStartTime, workerData.workerStateStartTime) &&
-        Objects.equals(this.networkLocation, workerData.networkLocation) &&
-        Objects.equals(this.nextInterruptionNotice, workerData.nextInterruptionNotice);
+        Objects.equals(this.nextInterruptionNotice, workerData.nextInterruptionNotice) &&
+        Objects.equals(this.networkLocation, workerData.networkLocation);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, slotUsed, lastHeartbeatTimestamp, heartbeatElapsedSeconds, diskInfos, resourceConsumptions, workerRef, workerState, workerStateStartTime, networkLocation, nextInterruptionNotice);
+    return Objects.hash(host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, slotUsed, lastHeartbeatTimestamp, heartbeatElapsedSeconds, diskInfos, resourceConsumptions, workerRef, workerState, workerStateStartTime, nextInterruptionNotice, networkLocation);
   }
 
   @Override
@@ -571,8 +571,8 @@ public class WorkerData {
     sb.append("    workerRef: ").append(toIndentedString(workerRef)).append("\n");
     sb.append("    workerState: ").append(toIndentedString(workerState)).append("\n");
     sb.append("    workerStateStartTime: ").append(toIndentedString(workerStateStartTime)).append("\n");
-    sb.append("    networkLocation: ").append(toIndentedString(networkLocation)).append("\n");
     sb.append("    nextInterruptionNotice: ").append(toIndentedString(nextInterruptionNotice)).append("\n");
+    sb.append("    networkLocation: ").append(toIndentedString(networkLocation)).append("\n");
     sb.append("}");
     return sb.toString();
   }
