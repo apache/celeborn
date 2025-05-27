@@ -362,7 +362,3 @@ EDL 1.0
 --------------------------------
 See licenses-binary/LICENSE-mimepull.txt for detail.
 org.jvnet.mimepull:mimepull
-
-CDDL License 1.1
-----------------
-javax.servlet-api
