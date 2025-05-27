@@ -60,8 +60,8 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <java.version>8</java.version>
-    <scala.version>2.13.16</scala.version>
-    <scala.binary.version>2.13</scala.binary.version>
+    <scala.version>2.12.18</scala.version>
+    <scala.binary.version>2.12</scala.binary.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.version>3.9.9</maven.version>
