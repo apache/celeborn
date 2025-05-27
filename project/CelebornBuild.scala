@@ -1027,7 +1027,6 @@ trait SparkClientProjects {
         commonSettings,
         libraryDependencies ++= Seq(
           "org.apache.spark" %% "spark-core" % sparkVersion % "test" excludeAll(
-            // ExclusionRule("jakarta.servlet", "jakarta.servlet-api"),
             ExclusionRule("jakarta.annotation", "jakarta.annotation-api"),
             ExclusionRule("jakarta.ws.rs", "jakarta.ws.rs-api"),
             ExclusionRule("org.glassfish.jersey.core", "*"),
@@ -1039,7 +1038,6 @@ trait SparkClientProjects {
             ExclusionRule("org.glassfish.hk2", "*"),
             ExclusionRule("jakarta.validation", "jakarta.validation-api")),
           "org.apache.spark" %% "spark-sql" % sparkVersion % "test" excludeAll(
-            // ExclusionRule("jakarta.servlet", "jakarta.servlet-api"),
             ExclusionRule("jakarta.annotation", "jakarta.annotation-api"),
             ExclusionRule("jakarta.ws.rs", "jakarta.ws.rs-api"),
             ExclusionRule("org.glassfish.jersey.core", "*"),
@@ -1051,7 +1049,6 @@ trait SparkClientProjects {
             ExclusionRule("org.glassfish.hk2", "*"),
             ExclusionRule("jakarta.validation", "jakarta.validation-api")),
           "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests" excludeAll(
-            // ExclusionRule("jakarta.servlet", "jakarta.servlet-api"),
             ExclusionRule("jakarta.annotation", "jakarta.annotation-api"),
             ExclusionRule("jakarta.ws.rs", "jakarta.ws.rs-api"),
             ExclusionRule("org.glassfish.jersey.core", "*"),
@@ -1063,7 +1060,6 @@ trait SparkClientProjects {
             ExclusionRule("org.glassfish.hk2", "*"),
             ExclusionRule("jakarta.validation", "jakarta.validation-api")),
           "org.apache.spark" %% "spark-sql" % sparkVersion % "test" classifier "tests" excludeAll(
-            // ExclusionRule("jakarta.servlet", "jakarta.servlet-api"),
             ExclusionRule("jakarta.annotation", "jakarta.annotation-api"),
             ExclusionRule("jakarta.ws.rs", "jakarta.ws.rs-api"),
             ExclusionRule("org.glassfish.jersey.core", "*"),
