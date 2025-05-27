@@ -17,21 +17,14 @@
 
 package org.apache.celeborn.tests.spark
 
-import java.io.File
-import java.util.concurrent.atomic.AtomicBoolean
-
 import scala.util.Random
 
-import org.apache.spark.{SPARK_VERSION, SparkConf, TaskContext}
-import org.apache.spark.shuffle.ShuffleHandle
-import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkUtils}
+import org.apache.spark.{SPARK_VERSION, SparkConf}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.ShuffleMode
@@ -45,9 +38,6 @@ trait SparkTestBase extends AnyFunSuite
   println(s"Spark version is $SPARK_VERSION, Spark3OrNewer: $Spark3OrNewer")
 
   System.setProperty("spark.ui.enabled", "false")
-  System.setProperty("spark.metrics.conf", "dummy-file")
-  System.setProperty("spark.metrics.conf.driver.sink.servlet.class", "org.apache.spark.DummyMetricsServlet")
-  System.setProperty("spark.metrics.staticSources.enabled", "false")
 
   private val sampleSeq = (1 to 78)
     .map(Random.alphanumeric)
